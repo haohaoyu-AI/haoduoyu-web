@@ -1,4 +1,5 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,7 @@ from article_hub.file_clipboard import copy_topic_files
 
 
 class FileClipboardTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == 'win32', '剪贴板投递使用 Windows PowerShell 和文件拖放格式')
     def test_multiple_unicode_files_are_data_not_commands(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

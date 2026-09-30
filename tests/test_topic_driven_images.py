@@ -228,7 +228,21 @@ class TopicDrivenImagesTests(unittest.TestCase):
         }
 
     def test_one_model_call_returns_both_parts_and_bad_plan_is_rejected(self):
-        raw = json.dumps(_model_answer(), ensure_ascii=False)
+        # This is the current four-line brief contract. Keep _model_answer's
+        # legacy shape in the other compatibility tests.
+        brief = {
+            "event": "高速服务区充电排队，新能源车主等待时间增加",
+            "significance": "充电供需错位影响出行安排",
+            "suggested_angle": "核实排队现场与设施供给",
+            "requirements": "核对等待时长和充电桩数量",
+            "suggested_title": "服务区充电长队从何而来",
+            "image_plan": [
+                {"position_id": "cover", "order": 0, "query": "高速服务区 充电排队", "keyword_type": "core"},
+                {"position_id": "body-1", "order": 1, "query": "新能源车主 服务区等待", "keyword_type": "core"},
+                {"position_id": "body-2", "order": 2, "query": "高速充电站 车流高峰", "keyword_type": "core"},
+            ],
+        }
+        raw = json.dumps(brief, ensure_ascii=False)
         with patch.object(topics, "_rule_digest", return_value="测试规则"), \
              patch.object(topics.ai, "chat", return_value=raw) as chat:
             source = "高速服务区充电排队 新能源车主服务区等待 高速充电站车流高峰"
@@ -236,15 +250,19 @@ class TopicDrivenImagesTests(unittest.TestCase):
         chat.assert_called_once()
         self.assertTrue(prepared["generated"])
         package = prepared["content_package"]
-        self.assertIn("不得另选", prepared["result"]["提示词"])
-        self.assertEqual(package["outline"], _model_answer()["outline"])
+        brief_lines = prepared["result"]["提示词"].splitlines()
+        self.assertEqual(len(brief_lines), 4)
+        self.assertTrue(brief_lines[0].startswith("什么事："))
+        self.assertTrue(brief_lines[-1].startswith("建议标题："))
+        self.assertEqual(package["outline"], [])
         self.assertEqual([item["query"] for item in package["image_plan"]],
-                         [item["query"] for item in _model_answer()["image_plan"]])
+                         [item["query"] for item in brief["image_plan"]])
         self.assertTrue(all(item["keyword_type"] == "core" and item["enabled"]
                             for item in package["image_plan"]))
         self.assertEqual(list(config.UNFORMATTED.iterdir()), [], "prepare 阶段不应提前落盘")
 
-        broken = _model_answer()
+        broken = dict(brief)
+        broken["image_plan"] = [dict(item) for item in brief["image_plan"]]
         del broken["image_plan"][1]["query"]
         parsed = topics.parse_prompt_package(
             json.dumps(broken, ensure_ascii=False), require_image_plan=True,
@@ -258,8 +276,92 @@ class TopicDrivenImagesTests(unittest.TestCase):
         self.assertTrue(rejected["generated"])
         self.assertEqual(rejected["content_package"]["status"], "needs_keywords")
         self.assertIn("图片关键词需要调整", rejected["result"]["提示词状态"])
-        self.assertIn("请使用已经确定的标题", rejected["result"]["文章提示词"])
+        rejected_brief = rejected["result"]["文章提示词"].splitlines()
+        self.assertEqual(len(rejected_brief), 4)
+        self.assertTrue(rejected_brief[-1].startswith("建议标题："))
 
+    def _seed_rejected_topic_image(self, suffix):
+        topic_id, folder, payload = self._commit_package(suffix)
+        topic_packages.mark_imported(topic_id)
+        rejected = folder / "rejected.jpg"
+        rejected_bytes = _jpeg_bytes("red")
+        rejected.write_bytes(rejected_bytes)
+        image_review.save_review(topic_id, {rejected.name: "rejected"})
+        (folder / sourcing.MANIFEST_FILE).write_text(json.dumps({"建议配图数": 3, "配图": [{
+            "原始文件名": rejected.name, "图片链接": "https://images.test/rejected.jpg?old=1",
+            "计划位置": payload["image_plan"][0]["position_id"],
+        }]}), encoding="utf-8")
+        hits = [
+            Hit("豆瓣", payload["image_plan"][0]["query"], "same url", "fixture",
+                "https://images.test/rejected.jpg?new=2", "", 900, 600, semantic_approved=True),
+            Hit("豆瓣", payload["image_plan"][1]["query"], "same pixels", "fixture",
+                "https://images.test/same-pixels.jpg", "", 900, 600, semantic_approved=True),
+            Hit("豆瓣", payload["image_plan"][2]["query"], "new image", "fixture",
+                "https://images.test/new-image.jpg", "", 900, 600, semantic_approved=True),
+        ]
+        # Keep the first two URLs distinct after URL normalization, but give
+        # them identical pixels; the final pattern has a different dHash.
+        stripe = Image.new("RGB", (900, 600))
+        pixels = stripe.load()
+        for x in range(900):
+            value = 20 if (x // 24) % 2 else 230
+            for y in range(600):
+                pixels[x, y] = (value, value, value)
+        stream = io.BytesIO(); stripe.save(stream, format="JPEG")
+        downloads = {
+            hits[1].image_url: rejected_bytes,
+            hits[2].image_url: stream.getvalue(),
+        }
+        return topic_id, folder, payload, rejected_bytes, hits, downloads
+
+    def _run_research_fixture(self, topic_id, hits, downloads):
+        source = SimpleNamespace(name="豆瓣", close=lambda: None)
+        analysis = sourcing.Analysis(
+            [sourcing.Query(item["query"]) for item in topic_packages.load(
+                topic_packages.folder_for(topic_id))["image_plan"]],
+            [topic_packages.load(topic_packages.folder_for(topic_id))["title"]], [])
+        def collect(_sources, queries, **_kwargs):
+            return [hit for hit in hits if hit.query == queries[0].text], []
+        with patch.object(sourcing, "build_sources", return_value=([source], [])), \
+             patch.object(sourcing, "collect_hits_with_pages", side_effect=collect), \
+             patch.object(sourcing, "model_analysis", return_value=analysis), \
+             patch.object(sourcing, "model_filter_hits", side_effect=lambda _doc, rows, *_a, **_k: rows), \
+             patch.object(sourcing, "rejection_reason", return_value=""), \
+             patch.object(sourcing, "_Downloader", side_effect=lambda *_a, **_k:
+                           lambda hit: downloads.setdefault("__calls__", []).append(hit.image_url)
+                           or downloads.get(hit.image_url)):
+            return image_actions.run(self._action(topic_id), hint=lambda _message: None)
+
+    def test_research_preserves_rejection_dedupes_and_installs_only_new_pixels(self):
+        topic_id, folder, _payload, rejected_bytes, hits, downloads = self._seed_rejected_topic_image("00000021")
+        download_calls = downloads["__calls__"] = []
+        rows = self._run_research_fixture(topic_id, hits, downloads)
+        self.assertNotIn(hits[0].image_url, download_calls,
+                         "A normalized URL already in the manifest is skipped before download")
+        self.assertIn(hits[1].image_url, download_calls,
+                      "A different URL with matching pixels is downloaded before pixel deduplication")
+        self.assertIn(hits[2].image_url, download_calls)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((folder / "rejected.jpg").read_bytes(), rejected_bytes)
+        state = image_review.load_review(folder)["states"]
+        self.assertEqual(state["rejected.jpg"], "rejected")
+        self.assertEqual(state[rows[0]["原始文件名"]], "pending")
+        self.assertEqual(set(state), {"rejected.jpg", rows[0]["原始文件名"]})
+
+    def test_install_review_ledger_failure_rolls_back_candidate_and_rejection(self):
+        topic_id, folder, _payload, rejected_bytes, hits, downloads = self._seed_rejected_topic_image("00000022")
+        # Only offer one genuinely new picture so the injected failure reaches
+        # the commit path after the URL and pixel checks.
+        hits = [hits[2]]
+        with patch.object(image_review, "save_candidate_review",
+                          side_effect=OSError("fixture install ledger failure")):
+            with self.assertRaisesRegex(OSError, "fixture install ledger failure"):
+                self._run_research_fixture(topic_id, hits, downloads)
+        self.assertEqual((folder / "rejected.jpg").read_bytes(), rejected_bytes)
+        self.assertEqual(image_review.load_review(folder)["states"], {"rejected.jpg": "rejected"})
+        manifest = json.loads((folder / sourcing.MANIFEST_FILE).read_text(encoding="utf-8"))
+        self.assertEqual([item["原始文件名"] for item in manifest["配图"]], ["rejected.jpg"])
+        self.assertFalse(any(path.name.startswith("网络候选_") for path in folder.iterdir()))
     def test_package_without_word_is_valid_and_uses_plan_target_count(self):
         topic_id, folder, payload = self._commit_package()
         self.assertIsNone(topic_packages.imported_word(folder))
@@ -638,13 +740,13 @@ class TopicDrivenImagesTests(unittest.TestCase):
         with patch.object(sourcing,'rejection_reason',return_value=''), \
              patch.object(sourcing,'_model_json',side_effect=[
                  {'keep':list(range(30))},ValueError('模拟第二批检查失败')]) as model:
-            with self.assertRaisesRegex(ValueError,'模拟第二批检查失败'):
-                sourcing.model_filter_hits(
-                    SimpleNamespace(title='标题',blocks=[]),hits,[query],
-                    image_plan=[{'query':query}],hint=lambda _:None,
-                    accepted_callback=accepted.extend)
+            result=sourcing.model_filter_hits(
+                SimpleNamespace(title='标题',blocks=[]),hits,[query],
+                image_plan=[{'query':query}],hint=lambda _:None,
+                accepted_callback=accepted.extend)
         self.assertEqual(model.call_count,2)
         self.assertEqual(len(accepted),30)
+        self.assertEqual(result,accepted,'Only explicitly checked candidates may be retained')
         self.assertTrue(all(hit.semantic_approved for hit in accepted))
 
     def test_research_can_target_a_position_that_already_has_any_decision(self):

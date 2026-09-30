@@ -581,18 +581,15 @@ class ConsoleTests(unittest.TestCase):
 
     def test_clear_images_requires_preview_and_one_time_confirmation(self):
         platform = self.root / 'platform'
-        pending = platform / '待发文章'
-        sent = platform / '已发文章'
-        pending.mkdir(parents=True)
-        sent.mkdir()
-        allowed = [self.unformatted / 'topic' / 'a.jpg', self.formatted / 'b.png',
-                   pending / 'c.webp', sent / 'd.gif']
-        for path in allowed:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(b'fixture-image')
-        protected = [self.unformatted / 'logs' / 'failure.png',
-                     self.root / '素材' / '图标' / 'logo.png',
-                     platform / 'logs' / 'diagnostic.png']
+        platform.mkdir()
+        archived_root = self.root / '已分发归档'
+        archive = archived_root / 'topic'
+        archive.mkdir(parents=True)
+        (archive / 'topic.docx').write_bytes(b'valid archived document fixture')
+        (archive / '配图清单.json').write_text('{"配图": []}', encoding='utf-8')
+        (archive / 'a.jpg').write_bytes(b'archive image')
+        protected = [self.unformatted / 'topic' / 'a.jpg', self.formatted / 'b.png',
+                     self.root / '素材' / '图标' / 'logo.png', platform / 'diagnostic.png']
         for path in protected:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b'must-stay')
@@ -602,15 +599,19 @@ class ConsoleTests(unittest.TestCase):
             preview_handler.do_POST()
             self.assertEqual(self.response[0], 200)
             preview = self.response[1]
-            self.assertEqual(preview['count'], len(allowed))
-            self.assertTrue(all(path.exists() for path in allowed + protected))
+            self.assertEqual(preview['count'], 1)
+            self.assertTrue(all(path.exists() for path in protected))
+            self.assertTrue((archive / 'topic.docx').exists())
 
             confirm_handler = self.handler('/api/clear-images/confirm',
                                            body={'nonce': preview['nonce']})
             confirm_handler.do_POST()
             self.assertEqual(self.response[0], 200)
-            self.assertEqual(self.response[1]['removed'], len(allowed))
-            self.assertTrue(all(not path.exists() for path in allowed))
+            self.assertEqual(self.response[1]['removed'], 1)
+            self.assertFalse(archive.exists())
+            backup = Path(self.response[1]['backup']) / 'topic'
+            self.assertEqual((backup / 'topic.docx').read_bytes(), b'valid archived document fixture')
+            self.assertTrue((archived_root / 'topic.docx').exists())
             self.assertTrue(all(path.exists() for path in protected))
 
             replay = self.handler('/api/clear-images/confirm', body={'nonce': preview['nonce']})
@@ -618,16 +619,18 @@ class ConsoleTests(unittest.TestCase):
             self.assertEqual(self.response[0], 400)
 
     def test_clear_preview_does_not_delete_file_changed_before_confirmation(self):
-        image = self.unformatted / 'topic' / 'a.jpg'
-        image.parent.mkdir()
-        image.write_bytes(b'old')
+        archive = self.root / '已分发归档' / 'topic'
+        archive.mkdir(parents=True)
+        document = archive / 'topic.docx'
+        document.write_bytes(b'old document')
+        (archive / '配图清单.json').write_text('{"配图": []}', encoding='utf-8')
         with patch.object(console, 'PLATFORM_DIRS', {}):
             preview = console._create_clear_image_preview()
-            image.write_bytes(b'new-content-with-different-size')
-            result = console._confirm_clear_images(preview['nonce'])
-        self.assertEqual(result['removed'], 0)
-        self.assertEqual(result['changed'], 1)
-        self.assertTrue(image.exists())
+            document.write_bytes(b'new-content-with-different-size')
+            with self.assertRaisesRegex(ValueError, '归档内容发生变化，请重新预览'):
+                console._confirm_clear_images(preview['nonce'])
+        self.assertTrue(document.exists())
+        self.assertEqual(document.read_bytes(), b'new-content-with-different-size')
 
     def test_legacy_clear_endpoint_can_no_longer_delete(self):
         handler = self.handler('/api/clear-images')
@@ -851,6 +854,27 @@ class ConsoleTests(unittest.TestCase):
             self.assertEqual(console.serve(port=8765, open_browser=True), 0)
         open_window.assert_called_once_with('http://127.0.0.1:8768/')
         server.assert_not_called()
+
+    def test_serve_startup_instructions_distinguish_logout_from_stopping_service(self):
+        from contextlib import contextmanager, redirect_stdout
+        output = io.StringIO()
+        @contextmanager
+        def startup_mutex():
+            yield True
+        server = MagicMock()
+        thread = MagicMock()
+        thread.join.side_effect = [KeyboardInterrupt(), None]
+        with patch.object(console, '_find_running_console', side_effect=[None, None]), \
+             patch.object(console, '_startup_mutex', startup_mutex), \
+             patch.object(console, 'ThreadingHTTPServer', return_value=server), \
+             patch.object(console.threading, 'Thread', return_value=thread), \
+             patch.object(console, '_already_running', return_value=True), \
+             redirect_stdout(output):
+            self.assertEqual(console.serve(port=8765, open_browser=False), 0)
+        text = output.getvalue()
+        self.assertIn('右上角「退出登录」只会退出登录，不会停止服务', text)
+        self.assertIn('停止服务请在此终端按 Ctrl+C', text)
+        self.assertNotIn('页面右上角点「退出控制台」', text)
 
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ import contextlib
 import hashlib
 import io
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -425,6 +426,7 @@ class DraftFlowTests(unittest.TestCase):
             spec = thread.call_args.kwargs["args"][1]
             self.assertEqual(spec["argv"][-2:], ["--platforms", "今日头条,知乎"])
 
+    @unittest.skipUnless(sys.platform == 'win32', 'CREATE_NO_WINDOW is a Windows process flag')
     def test_console_subprocess_is_hidden_on_windows(self):
         process = MagicMock()
         process.stdout = io.StringIO("done\n")

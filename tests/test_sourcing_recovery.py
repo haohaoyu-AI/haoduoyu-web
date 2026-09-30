@@ -129,7 +129,8 @@ class SourcingRecoveryTests(unittest.TestCase):
                  patch.object(sourcing,'resolved_target_count',return_value=20), \
                  patch.object(sourcing,'analyze',return_value=expanded) as analyze:
                 result=sourcing.source_topic(root,sources=[],queries_only=True,hint=lambda _:None)
-            self.assertEqual(analyze.call_args.kwargs['limit'],20)
+            self.assertEqual(analyze.call_args.kwargs['limit'],sourcing.candidate_target(20))
+            self.assertEqual(sourcing.candidate_target(20),25)
             self.assertEqual(len(result.queries),20)
             self.assertEqual(result.queries[-1].text,'长文搜索词19')
 
@@ -163,7 +164,7 @@ class SourcingRecoveryTests(unittest.TestCase):
         from article_hub import image_review
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp); (root/'draft.docx').touch()
-            for index in range(5):
+            for index in range(sourcing.candidate_target(5)):
                 Image.new('RGB',(1000,800),(index*30,20,20)).save(root/f'image{index}.jpg')
             (root/sourcing.MANIFEST_FILE).write_text(
                 json.dumps({'建议配图数': 5,

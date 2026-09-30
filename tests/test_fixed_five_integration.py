@@ -54,14 +54,15 @@ class ReviewedImageWorkflowIntegrationTests(unittest.TestCase):
         with patch.object(image_actions, '_network', side_effect=self.network), \
              patch.object(sourcing, 'generate_ai_image', side_effect=self.generate):
             candidates = image_actions.run(self.data, hint=lambda _: None)
-        self.assertEqual(self.generations, 3)
-        self.assertEqual(len(candidates), 5)
+        self.assertEqual(self.generations, 5)
+        self.assertEqual(len(candidates), sourcing.candidate_target(5))
         self.assertEqual(library.scan_formatted(), [])
         state = image_review.load_review(self.folder)
-        self.assertEqual(list(state['states'].values()).count('pending'), 5)
+        self.assertEqual(list(state['states'].values()).count('pending'), sourcing.candidate_target(5))
         self.assertEqual(state['states']['reject.jpg'], 'rejected')
         image_review.save_review('测试', {
-            item['原始文件名']: 'approved' for item in candidates
+            item['原始文件名']: ('approved' if index < 5 else 'rejected')
+            for index, item in enumerate(candidates)
         }, cover=candidates[0]['原始文件名'])
         image_actions._finalize_five('测试', hint=lambda _: None)
         rows = library.scan_formatted()
@@ -79,7 +80,7 @@ class ReviewedImageWorkflowIntegrationTests(unittest.TestCase):
         image_review.assert_ready_for_dispatch(rows[0]['成稿'])
 
     def test_complete_pending_batch_neither_searches_nor_auto_finalizes(self):
-        for i in range(5):
+        for i in range(sourcing.candidate_target(5)):
             Image.new('RGB', (900, 600), (20, 30 * i, 40)).save(self.folder / f'ok-{i}.jpg')
         normalized = image_actions.validate(self.data)
         self.assertEqual(normalized['count'], 0)
@@ -89,13 +90,15 @@ class ReviewedImageWorkflowIntegrationTests(unittest.TestCase):
         network.assert_not_called(); generate.assert_not_called()
         self.assertEqual(library.scan_formatted(), [])
         image_review.save_review('测试', {
-            f'ok-{i}.jpg': 'approved' for i in range(5)
+            f'ok-{i}.jpg': ('approved' if i < 5 else 'rejected')
+            for i in range(sourcing.candidate_target(5))
         }, cover='ok-0.jpg')
         image_actions._finalize_five('测试', hint=lambda _: None)
         self.assertEqual(embedded_image_count(library.scan_formatted()[0]['成稿']), 5)
 
     def test_fresh_article_generates_pending_candidates_and_waits_for_finalize(self):
-        with patch.object(sourcing, 'collect_hits', return_value=([], [])), \
+        with patch.dict(sourcing.os.environ, {'ARTICLE_HUB_ALLOW_AI_IMAGES':'1'}), \
+             patch.object(sourcing, 'collect_hits', return_value=([], [])), \
              patch.object(sourcing, 'generate_ai_image', side_effect=self.generate):
             result = sourcing.source_topic(self.folder, sources=[], captions=False, hint=lambda _: None)
         self.assertEqual(self.generations, 5)

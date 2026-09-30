@@ -2040,7 +2040,7 @@ def serve(*, port: int = 18765, open_browser: bool = True) -> int:
     url = f"http://127.0.0.1:{port}/"
     print(f"文章总库控制台已启动：{url}")
     print("点按钮就能跑：选题 → 配图 → 排版 → 发到三个平台。")
-    print("关掉这个黑窗口、或在页面右上角点「退出控制台」，都可以停止它。")
+    print("右上角「退出登录」只会退出登录，不会停止服务。停止服务请在此终端按 Ctrl+C。")
     if open_browser:
         _open_window(url)
     try:

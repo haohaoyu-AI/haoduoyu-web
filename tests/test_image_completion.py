@@ -25,14 +25,18 @@ class CompletedImageReviewTests(unittest.TestCase):
             pending = root / 'pending'; pending.mkdir()
             formatted = root / 'formatted'; formatted.mkdir()
             for name in ['done', 'new', 'failed']:
-                folder = formatted / name / '原始素材'; folder.mkdir(parents=True)
+                output = formatted / name; output.mkdir(parents=True)
+                (output / f'{name}.docx').write_bytes(b'fixture finished Word output')
+                folder = output / '原始素材'; folder.mkdir()
+                (folder / '原稿.docx').write_bytes(b'fixture archived source Word file')
                 (folder / 'image.png').write_bytes(b'fixture')
             (pending / 'done').mkdir()
             (pending / 'done' / 'image.png').write_bytes(b'fixture')
             data = {'文章': {'done': {'已发': {'知乎': {'状态': 'saved_to_draft'}}}, 'failed': {'已发': {'知乎': {'状态': 'failed'}}}}}
             with patch.object(image_review.config, 'UNFORMATTED', pending), patch.object(image_review.config, 'FORMATTED', formatted), patch.object(library, 'load_ledger', return_value=data):
                 rows = image_review.list_topics()
-                self.assertEqual({r['topic'] for r in rows}, {'成稿:new', '成稿:failed'})
+                self.assertEqual({r['topic'] for r in rows}, {'成稿:done', '成稿:new', '成稿:failed'},
+                                 'Completed outputs remain visible for review but are read-only')
                 self.assertTrue((formatted / 'done' / '原始素材' / 'image.png').exists())
                 with self.assertRaisesRegex(ValueError, '配图排版已完成'):
                     image_review.save_selection('成稿:done', ['image.png'])

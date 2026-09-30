@@ -92,7 +92,7 @@ const historicalProgress=new Element();context.appendTopicImageProgress(historic
 assert.ok(findText(historicalProgress,'这条旧进度没有保存模型分工快照；不会用当前设置伪造当时的模型状态。'));
 assert.equal(walk(topicBox).filter(node=>node.tagName==='progress').length>=1,true,'Known model totals get a real progress bar; unknown totals do not get invented percentages');
 const decisionGroups=walk(topicBox).concat(walk(legacyBox)).filter(node=>node.className==='image-decisions');
-assert.equal(decisionGroups.length,3,'Only images with an available decision show keep/remove controls');
+assert.equal(decisionGroups.length,4,'Every visible candidate shows its keep/remove controls');
 decisionGroups.forEach(group=>assert.deepEqual(group.children.map(button=>button.textContent),['保留','去掉']));
 assert.equal(walk(topicBox).concat(walk(legacyBox)).some(node=>['设为封面','换一张','换图'].includes(node.textContent)),false);
 assert.ok(html.includes('正在记录选图并同步标题文件夹…'),'An optimistic syncing state must not claim that the choice is already saved');
@@ -120,6 +120,8 @@ assert.equal(findArticle(topicBox,b.topic).open,false);
   assert.equal(aKeep.disabled,false,'Article A remains selectable while article B searches');
   assert.equal(aRemove.disabled,false);
   assert.equal(bKeep.disabled,true,'Only the article currently being written is locked');
+  const bRemove=walk(findArticle(topicBox,b.topic)).find(node=>node.dataset&&node.dataset.reviewAction==='remove');
+  assert.equal(bRemove.disabled,true,'The busy article’s remove control is disabled too');
   await context.chooseImageAction(a.topic,'a-2.jpg','keep');
   await context.chooseImageAction(a.topic,'a-1.jpg','remove');
   assert.equal(calls.filter(call=>call.url==='/api/image-review').length,2);

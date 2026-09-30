@@ -58,13 +58,17 @@ class ImageModelCapabilityTests(unittest.TestCase):
             return model_settings.discover(provider)
 
     def test_discovery_separates_search_models_from_generation(self):
-        self.discover('doubao', ['doubao-seed-2-1-turbo-260628', 'deepseek-v4-flash-ga-260731',
+        doubao_found = self.discover('doubao', ['doubao-seed-2-1-turbo-260628', 'deepseek-v4-flash-ga-260731',
             'doubao-seedream-5-0-pro-260628', 'text-embedding-3-small', 'audio-model'])
-        self.discover('gpt', ['gpt-4o', 'gpt-image-1', 'dall-e-3', 'custom-image-generation-v1',
+        gpt_found = self.discover('gpt', ['gpt-4o', 'gpt-image-1', 'dall-e-3', 'custom-image-generation-v1',
             'text-embedding-3-small', 'gpt-4o-audio-preview', 'image-caption-model'])
         rows = {row['id']:row for row in model_settings.public_config()['providers']}
+        self.assertIn('deepseek-v4-flash-ga-260731', doubao_found,
+                      'Discovery preserves service-returned custom text models internally')
+        self.assertIn('custom-image-generation-v1', gpt_found)
         self.assertEqual(rows['doubao']['image_models'], ['doubao-seedream-5-0-pro-260628'])
-        self.assertEqual(rows['doubao']['models'], ['deepseek-v4-flash-ga-260731', 'doubao-seed-2-1-turbo-260628'])
+        self.assertEqual(rows['doubao']['models'], ['doubao-seed-2-1-turbo-260628'],
+                         'The public collaboration menu stays on its compact curated list')
         self.assertEqual(rows['gpt']['models'], ['gpt-4o'])
         self.assertEqual(rows['gpt']['image_models'], ['custom-image-generation-v1', 'dall-e-3', 'gpt-image-1'])
         self.assertEqual(rows['gpt']['model'], 'gpt-4o')
@@ -91,11 +95,16 @@ class ImageModelCapabilityTests(unittest.TestCase):
         self.assertEqual(choices['image_generation'], {'provider':'gpt','model':'gpt-image-2.5-flare'})
 
     def test_image_workflow_choices_reject_disallowed_providers(self):
-        for provider in ('doubao', 'rules'):
-            with self.assertRaisesRegex(ValueError, 'GPT 或 DeepSeek'):
-                model_settings.save_choice('images', provider, 'text-model')
-        with self.assertRaisesRegex(ValueError, '只使用 GPT'):
-            model_settings.save_choice('image_generation', 'doubao', 'doubao-seedream-5')
+        model_settings.save_choice('images', 'doubao', 'doubao-seed-2-1-turbo-260628')
+        self.assertEqual(model_settings.public_config()['choices']['images'],
+                         {'provider':'doubao','model':'doubao-seed-2-1-turbo-260628'})
+        with self.assertRaisesRegex(ValueError, '只使用 GPT、DeepSeek 或豆包'):
+            model_settings.save_choice('images', 'rules', 'text-model')
+        model_settings.save_choice('image_generation', 'doubao', 'doubao-seedream-5')
+        self.assertEqual(model_settings.public_config()['choices']['image_generation'],
+                         {'provider':'doubao','model':'doubao-seedream-5'})
+        with self.assertRaisesRegex(ValueError, 'GPT 图片模型或豆包 Seedream'):
+            model_settings.save_choice('image_generation', 'deepseek', 'deepseek-flash')
 
     def test_old_image_choices_migrate_without_deleting_provider_credentials(self):
         data = model_settings._load()
@@ -103,8 +112,9 @@ class ImageModelCapabilityTests(unittest.TestCase):
                            'image_generation': {'provider': 'doubao', 'model': 'seedream-5'}}
         model_settings._save(data)
         public = model_settings.public_config()
-        self.assertIn(public['choices']['images']['provider'], {'deepseek', 'gpt'})
-        self.assertNotIn('image_generation', public['choices'])
+        self.assertIn(public['choices']['images']['provider'], {'deepseek', 'gpt', 'doubao'})
+        self.assertEqual(public['choices']['image_generation'],
+                         {'provider':'doubao','model':'seedream-5'})
         self.assertEqual(model_settings.providers()['doubao']['api_key'], 'doubao-fixture-secret')
 
     def test_text_models_cannot_be_sent_to_generation_api(self):

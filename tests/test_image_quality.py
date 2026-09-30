@@ -117,7 +117,7 @@ class ImageQualityTests(unittest.TestCase):
 
     def test_model_failure_does_not_approve_cover(self):
         with patch.object(ai, 'chat', side_effect=ai.AiError('unsupported image')):
-            with self.assertRaisesRegex(ai.AiError, '画面质量检查未完成'):
+            with self.assertRaisesRegex(ai.AiError, '画面审核接口调用失败'):
                 s.visual_quality_check(self.doc, {})(png_bytes(1200,800), self.hit, '封面')
 
     def test_selected_picture_is_sent_for_cross_version_comparison(self):

@@ -11,10 +11,29 @@ class SearchChainTests(unittest.TestCase):
         payload = {'anchors':['贵州毕节大方县第二中学'], 'queries':[
             {'text':'大方县第二中学 校门'}, {'text':'教师法 文件'},
             {'text':'无关明星 演唱会'}]}
-        with patch.object(s,'_model_json',return_value=payload):
+        with patch.object(s,'_model_json',return_value=payload), \
+             patch.object(s, 'scene_queries', return_value=[]), \
+             patch.object(s, 'analyze', return_value=s.Analysis([], ['贵州毕节大方县第二中学'], [])):
             analysis=s.model_analysis(document)
         self.assertEqual([q.text for q in analysis.queries],
                          ['大方县第二中学 校门','教师法 文件'])
+
+    def test_rule_supplement_keeps_abbreviations_and_bounds_unique_queries(self):
+        from types import SimpleNamespace
+        from article_hub.docxio import Block
+        document = SimpleNamespace(title='学校处理调查', blocks=[
+            Block('p', '贵州毕节大方县第二中学，依据教师法处理。')])
+        payload = {'anchors':['贵州毕节大方县第二中学'], 'queries':[
+            {'text':'大方县第二中学 校门'}, {'text':'教师法 文件'},
+            {'text':'无关明星 演唱会'}]}
+        with patch.object(s, '_model_json', return_value=payload):
+            analysis = s.model_analysis(document, limit=5)
+        texts = [query.text for query in analysis.queries]
+        self.assertIn('大方县第二中学 校门', texts)
+        self.assertIn('教师法 文件', texts)
+        self.assertFalse(any('明星' in text for text in texts))
+        self.assertEqual(len(texts), len(set(texts)))
+        self.assertLessEqual(len(texts), 5)
 
     def test_web_source_includes_domestic_news_without_duplicates(self):
         for names in (['全网'], ['全网','今日头条']):
@@ -40,7 +59,7 @@ class SearchChainTests(unittest.TestCase):
         self.assertEqual(result,[{}])
         self.assertEqual(run.call_count,2)
 
-    def test_batch_entry_runs_both_search_rounds_before_ai(self):
+    def test_topic_search_uses_selected_model_and_ai_requires_explicit_opt_in(self):
         import tempfile, os
         from pathlib import Path
         from types import SimpleNamespace
@@ -55,7 +74,7 @@ class SearchChainTests(unittest.TestCase):
             events.append('AI')
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);(root/'draft.docx').touch()
-            with patch.dict(os.environ,{'ARTICLE_HUB_IMAGE_AI':'1'}), \
+            with patch.dict(os.environ,{'ARTICLE_HUB_IMAGE_AI':'1','ARTICLE_HUB_ALLOW_AI_IMAGES':'1'}), \
                  patch.object(s,'read_document',return_value=document), \
                  patch.object(s,'search_profiles',return_value=[('deepseek',{'模型':'ds'}),('gpt',{'模型':'gpt'})]), \
                  patch.object(s,'analyze',return_value=analysis), \
@@ -66,7 +85,28 @@ class SearchChainTests(unittest.TestCase):
                  patch.object(s,'supplement_with_ai',side_effect=supplement):
                 with self.assertRaises(s.SourcingError):
                     s.source_topic(root,sources=[],hint=lambda _:None)
-        self.assertEqual(events,['ds','gpt','AI'])
+        self.assertEqual(events,['ds','AI'])
+
+    def test_topic_search_does_not_call_ai_image_without_explicit_opt_in(self):
+        import tempfile, os
+        from pathlib import Path
+        from types import SimpleNamespace
+        from article_hub.docxio import Block
+        document = SimpleNamespace(title='学校调查', blocks=[Block('p','学校调查。'*100)])
+        analysis=s.Analysis([s.Query('学校 校门')],['学校'],[])
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);(root/'draft.docx').touch()
+            with patch.dict(os.environ,{'ARTICLE_HUB_ALLOW_AI_IMAGES':'0'}), \
+                 patch.object(s,'read_document',return_value=document), \
+                 patch.object(s,'search_profiles',return_value=[('deepseek',{'模型':'selected'})]), \
+                 patch.object(s,'analyze',return_value=analysis), \
+                 patch.object(s,'model_analysis',return_value=analysis), \
+                 patch.object(s,'collect_hits',return_value=([],[])), \
+                 patch.object(s,'choose_images',return_value=([],[])), \
+                 patch.object(s,'supplement_with_ai') as supplement:
+                with self.assertRaises(s.SourcingError):
+                    s.source_topic(root,sources=[],hint=lambda _:None)
+        supplement.assert_not_called()
 
     def test_generation_500_retries_and_decodes_real_image(self):
         import io, base64, json, tempfile, urllib.error

@@ -42,10 +42,11 @@ class DiscoveryTests(unittest.TestCase):
             self.assertEqual(rows[0]['主题'], 'manual')
 
     def test_three_platforms_read_single_cell_boxes_in_order(self):
-        for directory, module in [('D:/好多鱼图文/平台/今日头条', 'toutiao_drafts'),
-                                  ('D:/好多鱼图文/平台/知乎', 'zhihu_drafts'),
-                                  ('D:/好多鱼图文/平台/百家号', 'baijiahao_drafts')]:
-            sys.path.insert(0, directory)
+        for directory, module in [('今日头条', 'toutiao_drafts'),
+                                  ('知乎', 'zhihu_drafts'),
+                                  ('百家号', 'baijiahao_drafts')]:
+            platform_root = Path(__file__).resolve().parents[1] / '平台' / directory
+            sys.path.insert(0, str(platform_root.resolve()))
             loader = importlib.import_module(module + '.articles').load_article
             with self.subTest(platform=module), tempfile.TemporaryDirectory() as tmp:
                 path = Path(tmp) / 'test.docx'

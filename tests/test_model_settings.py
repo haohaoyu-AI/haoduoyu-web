@@ -29,7 +29,9 @@ class ModelSettingsTests(unittest.TestCase):
                          [title + ' 剧照' for title in titles])
         self.assertTrue(supplemental)
         article = doc.title + ' ' + ' '.join(block.text for block in doc.blocks)
-        self.assertTrue(all(q.text in article for q in supplemental))
+        self.assertTrue(all(all(term in article for term in q.text.split())
+                            for q in supplemental),
+                        'Rule supplements may combine grounded terms into a distinct search phrase')
         self.assertNotIn('虚构电影 剧照', [q.text for q in analysis.queries])
 
     def test_image_json_uses_short_non_thinking_call(self):

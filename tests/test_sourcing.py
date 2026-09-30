@@ -175,6 +175,7 @@ class KeywordTests(unittest.TestCase):
         title = "待遇再好，四年后也得走？胖东来这次戳中了打工人的心事"
         body = "胖东来再招员工都会是学员。胖东来强调待遇。于东来回应了胖东来的争议。"
         found = sourcing.extended_terms("东来", title=title, body=body, count=body.count("东来"))
+        self.assertTrue(found, "专名补充应实际产出候选词")
         self.assertIn("胖东来", found)
         self.assertNotIn("的生活", sourcing.extended_terms(
             "生活", title="没有这个词", body="员工的生活，员工的生活，员工的生活。", count=3))
@@ -184,6 +185,24 @@ class KeywordTests(unittest.TestCase):
                                      "手机越卖越贵，手机价格一路上涨，普通人换手机的周期变长了。")
         self.assertNotIn("什么", terms)
         self.assertNotIn("要解", terms)
+
+    def test_character_ngram_fallback_works_without_jieba(self):
+        import builtins
+        original_cut, original_tried = sourcing._JIEBA, sourcing._JIEBA_TRIED
+        sourcing._JIEBA, sourcing._JIEBA_TRIED = None, False
+        real_import = builtins.__import__
+        def no_jieba(name, *args, **kwargs):
+            if name == 'jieba.posseg' or name.startswith('jieba.'):
+                raise ImportError('jieba unavailable in fallback fixture')
+            return real_import(name, *args, **kwargs)
+        try:
+            with patch('builtins.__import__', side_effect=no_jieba):
+                words = sourcing._cut('胖东来待遇提升员工生活')
+            self.assertTrue(words)
+            self.assertTrue(all(flag == 'n' for _, flag in words))
+            self.assertTrue(any('胖东来' in word for word, _ in words))
+        finally:
+            sourcing._JIEBA, sourcing._JIEBA_TRIED = original_cut, original_tried
 
 
 class ChooseTests(unittest.TestCase):
@@ -243,10 +262,9 @@ class ChooseTests(unittest.TestCase):
         self.assertGreaterEqual(cover.width, cover.height)
         self.assertTrue(all(item.file.exists() for item in chosen))
         self.assertTrue(all(item.caption.endswith("）") for item in chosen))
-        self.assertTrue(warnings)
-        # These candidates all came from the same page. Keep its best cover;
-        # the automatic workflow fills remaining subjects with other sources/AI.
-        self.assertEqual(len(chosen), 1)
+        self.assertFalse(warnings)
+        self.assertEqual(len(chosen), 3)
+        self.assertEqual(len({item.hit.image_key for item in chosen}), 3)
 
     def test_global_subject_only_image_cannot_fill_unrelated_section(self):
         hit = self.hit('测试标题图片', 'https://img/x.jpg', '测试标题')
@@ -511,7 +529,8 @@ class FixedFiveWorkflowTests(unittest.TestCase):
 
             def fill(doc, chosen, **kwargs):
                 self.assertEqual(kwargs["target_count"], 5)
-                self.assertTrue(kwargs["auto"])
+                self.assertFalse(kwargs["auto"],
+                                 "The legacy Word workflow may use explicit image opt-in without enabling auto mode")
                 for index in range(5):
                     path = root / f"ai-{index}.jpg"
                     Image.new("RGB", (900, 600), (index * 30, 20, 20)).save(path)
@@ -520,7 +539,8 @@ class FixedFiveWorkflowTests(unittest.TestCase):
                     chosen.append(sourcing.Chosen(hit, path, "正文配图", -1, "", "", 900, 600, 0))
                 return chosen
 
-            with patch.object(sourcing, "analyze", return_value=analysis), \
+            with patch.dict(sourcing.os.environ, {"ARTICLE_HUB_ALLOW_AI_IMAGES": "1"}), \
+                 patch.object(sourcing, "analyze", return_value=analysis), \
                  patch.object(sourcing, "collect_hits", return_value=([], [])), \
                  patch.object(sourcing, "choose_images", return_value=([], [])), \
                  patch.object(sourcing, "supplement_with_ai", side_effect=fill) as supplement, \

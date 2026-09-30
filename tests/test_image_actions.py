@@ -93,6 +93,71 @@ class ImageActionTests(unittest.TestCase):
                 actions.run(self.data, hint=lambda _: None)
         self.assertEqual({p.name: p.read_bytes() for p in self.folder.iterdir()}, before)
 
+    def _seed_previous_round(self):
+        names = ['approved.jpg', 'rejected.jpg', 'pending.jpg']
+        for name, color in zip(names, ['green', 'red', 'blue']):
+            Image.new('RGB', (800, 600), color).save(self.folder / name)
+        review.save_review('测试', {'approved.jpg':'approved', 'rejected.jpg':'rejected'})
+        review_path=self.folder/review.REVIEW_FILE
+        review_data=json.loads(review_path.read_text(encoding='utf-8'))
+        review_data['states']['pending.jpg']='pending'
+        review_path.write_text(json.dumps(review_data),encoding='utf-8')
+        review.save_selection('测试', ['approved.jpg'])
+        (self.folder / sourcing.MANIFEST_FILE).write_text(json.dumps({'配图':[
+            {'原始文件名':name,'图片链接':f'https://img.test/{name}'} for name in names
+        ]}), encoding='utf-8')
+        (self.folder / actions.TOPIC_SEARCH_HISTORY_FILE).write_text(json.dumps({
+            'schema_version':1,'topic_id':'TP-test','next_pages':{},'pages':{},
+            'permanent_urls':{},'rounds':[]}), encoding='utf-8')
+
+    def test_new_search_round_preserves_approved_rejected_and_retires_only_pending(self):
+        self._seed_previous_round()
+        current={'states':{'approved.jpg':'approved','rejected.jpg':'rejected','pending.jpg':'pending'},
+                 'cover':'approved.jpg','revision':4,'needs_layout':True}
+        with patch.object(actions.topic_packages, 'load', return_value={'topic_id':'TP-test'}), \
+             patch.object(review, 'load_review', return_value=current):
+            actions._discard_unkept_previous_candidates('测试', self.folder, lambda _:None)
+        self.assertTrue((self.folder/'approved.jpg').exists())
+        self.assertTrue((self.folder/'rejected.jpg').exists())
+        self.assertFalse((self.folder/'pending.jpg').exists())
+        states=json.loads((self.folder/review.REVIEW_FILE).read_text(encoding='utf-8'))['states']
+        self.assertEqual(states, {'approved.jpg':'approved','rejected.jpg':'rejected'})
+        history=json.loads((self.folder/actions.TOPIC_SEARCH_HISTORY_FILE).read_text(encoding='utf-8'))
+        self.assertIn('https://img.test/pending.jpg',history['permanent_urls'])
+
+    def test_new_search_round_save_failure_rolls_back_images_and_ledgers(self):
+        self._seed_previous_round()
+        before={path.relative_to(self.folder).as_posix():path.read_bytes()
+                for path in self.folder.rglob('*') if path.is_file()}
+        original=review._write_json
+        failed=False
+        def fail_review_once(path, value):
+            nonlocal failed
+            if Path(path).name==review.REVIEW_FILE and not failed:
+                failed=True
+                raise OSError('fixture ledger write failure')
+            return original(path,value)
+        current={'states':{'approved.jpg':'approved','rejected.jpg':'rejected','pending.jpg':'pending'},
+                 'cover':'approved.jpg','revision':4,'needs_layout':True}
+        with patch.object(actions.topic_packages, 'load', return_value={'topic_id':'TP-test'}), \
+             patch.object(review, 'load_review', return_value=current), \
+             patch.object(review, '_write_json', side_effect=fail_review_once):
+            with self.assertRaisesRegex(OSError,'fixture ledger write failure'):
+                actions._discard_unkept_previous_candidates('测试', self.folder, lambda _:None)
+        after={path.relative_to(self.folder).as_posix():path.read_bytes()
+               for path in self.folder.rglob('*') if path.is_file()}
+        self.assertEqual(after,before)
+
+    def test_duplicate_url_normalization_and_pixel_hash_match(self):
+        self.assertEqual(actions._normalized_image_url('HTTPS://Images.Example:443/a.jpg?signature=x#view'),
+                         actions._normalized_image_url('https://images.example/a.jpg?signature=y'))
+        first=self.folder/'pixel-one.png';second=self.folder/'pixel-two.png'
+        Image.new('RGB',(800,600),'purple').save(first)
+        Image.new('RGB',(800,600),'purple').save(second)
+        digest_one=sourcing._dhash(first.read_bytes());digest_two=sourcing._dhash(second.read_bytes())
+        self.assertTrue(sourcing._similar(digest_one,digest_two),
+                        'Different URLs with the same pixels are duplicate candidates')
+
     def test_approved_image_can_be_replaced_atomically(self):
         validated = actions.validate(dict(self.data, image='good.jpg'))
         self.assertEqual(validated['image'], 'good.jpg')
@@ -119,10 +184,10 @@ class ImageActionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '图片模型'):
             actions.validate(dict(self.data, provider='deepseek', model='deepseek-flash'))
 
-    def test_doubao_is_not_an_allowed_workflow_model(self):
-        with self.assertRaisesRegex(ValueError, 'GPT 或 DeepSeek'):
-            actions.validate(dict(self.data, mode='search', provider='doubao',
-                                   model='doubao-seed-1', image='bad.jpg'))
+    def test_doubao_is_allowed_for_search_but_not_generation(self):
+        validated = actions.validate(dict(self.data, mode='search', provider='doubao',
+                                          model='doubao-seed-1', image='bad.jpg'))
+        self.assertEqual((validated['provider'], validated['model']), ('doubao', 'doubao-seed-1'))
 
     def test_non_gpt_image_generation_is_rejected(self):
         with self.assertRaisesRegex(ValueError, '只使用 GPT'):
@@ -248,7 +313,7 @@ class ImageActionTests(unittest.TestCase):
     def test_auto_count_uses_only_missing_slots_and_preserves_rejections(self):
         data = actions.validate(dict(self.data, mode='auto', provider='deepseek',
                                      model='deepseek-flash', image='', count=5))
-        self.assertEqual(data['count'], 4)
+        self.assertEqual(data['count'], sourcing.candidate_target(data['target_count']) - 1)
 
     def test_auto_payload_accepts_non_five_article_target(self):
         (self.folder / sourcing.MANIFEST_FILE).write_text(
@@ -256,11 +321,11 @@ class ImageActionTests(unittest.TestCase):
         data = actions.validate(dict(self.data, mode='auto', provider='deepseek',
                                      model='deepseek-flash', image='', count=7))
         self.assertEqual(data['target_count'], 7)
-        self.assertEqual(data['count'], 6)
+        self.assertEqual(data['count'], sourcing.candidate_target(7) - 1)
 
     def test_explicit_finalize_uses_exactly_five_approved_and_keeps_rejected_out(self):
         self.finalize.stop()
-        for index in range(4):
+        for index in range(sourcing.candidate_target(5) - 1):
             Image.new('RGB', (900, 600), (index * 20, 100, 50)).save(self.folder / f'new{index}.jpg')
         review.save_review('测试', {f'new{index}.jpg': 'approved' for index in range(4)})
         with patch.object(review, 'reformat') as render:
@@ -272,7 +337,7 @@ class ImageActionTests(unittest.TestCase):
         self.assertNotIn('bad.jpg', selected)
 
     def test_complete_auto_payload_survives_console_and_worker_validation(self):
-        for index in range(4):
+        for index in range(sourcing.candidate_target(5) - 1):
             Image.new('RGB', (900, 600), 'white').save(self.folder / f'existing{index}.jpg')
         data = dict(self.data, mode='auto', provider='deepseek', model='deepseek-flash',
                     image='', count=5)
@@ -283,7 +348,7 @@ class ImageActionTests(unittest.TestCase):
     def test_auto_search_fills_only_gap_with_gpt_and_waits_for_review(self):
         captured = []
         def network(data, document, folder, stage, context, hint):
-            self.assertEqual(data['count'], 4)
+            self.assertEqual(data['count'], sourcing.candidate_target(5) - 1)
             result = []
             for index in range(2):
                 path = stage / f'web{index}.jpg'
@@ -301,8 +366,8 @@ class ImageActionTests(unittest.TestCase):
              patch.object(sourcing, 'generate_ai_image', side_effect=generate), \
              patch.object(actions, '_finalize_five') as finalize:
             rows = actions.run(data, hint=lambda _: None)
-        self.assertEqual(len(rows), 4)
-        self.assertEqual(len(captured), 2)
+        self.assertEqual(len(rows), sourcing.candidate_target(5) - 1)
+        self.assertEqual(len(captured), sourcing.candidate_target(5) - 3)
         finalize.assert_not_called()
         states = review.load_review(self.folder)['states']
         self.assertTrue(all(states[row['原始文件名']] == 'pending' for row in rows))

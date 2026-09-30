@@ -1211,8 +1211,11 @@ def _discard_unkept_previous_candidates(topic, folder, hint):
     """Retain explicit approvals and remove older unkept candidates before a new round."""
     with review.ledger_file_lock(review._state_lock_target(folder / review.REVIEW_FILE)):
         current = review.load_review(folder)
+        # A later search may retire undecided candidates, but an explicit
+        # rejection is a user decision and must survive retries just like
+        # an approval.
         discarded = [path for path in review._image_paths(folder)
-                     if current['states'].get(path.name) != 'approved']
+                     if current['states'].get(path.name) == 'pending']
         if not discarded:
             return
         discarded_names = {path.name for path in discarded}
@@ -1226,7 +1229,7 @@ def _discard_unkept_previous_candidates(topic, folder, hint):
         kept_manifest = {**manifest, '配图': [item for item in manifest.get('配图', [])
                        if not isinstance(item, dict) or item.get('原始文件名') not in discarded_names]}
         kept_states = {name: state for name, state in current['states'].items()
-                       if state == 'approved'}
+                       if state in {'approved', 'rejected'}}
         kept_names = review._approved_names(current, folder)
         kept_positions = {name: value for name, value in review.load_positions(folder).items()
                           if name in kept_states}

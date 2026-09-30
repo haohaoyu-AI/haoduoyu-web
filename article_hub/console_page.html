@@ -92,17 +92,25 @@ function renderBanner(job){
   box.style.display = "none";
   box.textContent = "";
   if (job && job.status === "running"){
+    var runningScope=taskJobScope(job.task,job.topic);
     observedRunningJob = job.id;
-    observedJobs[taskJobScope(job.task,job.topic)] = job.id;
+    observedJobs[runningScope] = job.id;
+    if(completedJobs[runningScope]===job.id){delete completedJobs[runningScope];}
+    try{sessionStorage.setItem('haoduoyu-observed-job:'+runningScope,String(job.id));}catch(ignore){}
     if (currentTab === taskPage(job.task) && !(currentTab===2 && isArticleImageJob(job))){
       box.className = "banner running";
       box.textContent = job.title + " · 正在处理，请保持窗口打开";
       box.style.display = "block";
     }
   } else if (job && completedJobs[taskJobScope(job.task,job.topic)] !== job.id){
+    var completedScope=taskJobScope(job.task,job.topic);
+    var wasObserved=observedJobs[completedScope]===job.id;
+    try{wasObserved=wasObserved||sessionStorage.getItem('haoduoyu-observed-job:'+completedScope)===String(job.id);}catch(ignore){}
     completedJob = job.id;
-    completedJobs[taskJobScope(job.task,job.topic)] = job.id;
-    if (currentTab === taskPage(job.task) && !(currentTab===2 && isArticleImageJob(job))){
+    completedJobs[completedScope] = job.id;
+    delete observedJobs[completedScope];
+    try{sessionStorage.removeItem('haoduoyu-observed-job:'+completedScope);}catch(ignore){}
+    if (wasObserved && currentTab === taskPage(job.task) && !(currentTab===2 && isArticleImageJob(job))){
       message(job.status === "ok" ? goodNews(job) : "！ " + job.summary, job.status !== "ok");
     }
   }
@@ -1811,7 +1819,7 @@ function manualTopicTitles(){
     if(!line){return;}
     // 新选题开头：①②③ 或 "1." "1、" "1)" 或 "- 标题"
     var circled=/^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫]/;
-    var numbered=/^\d+\s*[.、)）]\s*\S/;
+    var numbered=/^\d+\s*[.、)）]\s*(?=\S)/;
     if(circled.test(line)||numbered.test(line)){
       var title=line.replace(circled,'').replace(numbered,'').trim();
       title=title.replace(/^["“”'‘’]+|["“”'‘’]+$/g,'');
