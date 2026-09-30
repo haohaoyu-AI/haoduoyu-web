@@ -1,0 +1,84 @@
+# Python environments and generated state
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local app data, run state, and browser profiles
+**/data/
+**/state/
+**/config/
+**/logs/
+**/cache/
+**/tmp/
+**/imgtmp/
+**/review/
+**/browser-profile*/
+**/phase*-evidence/
+
+# Credentials, local secrets, and TLS material
+.env
+.env.*
+**/.env
+**/.env.*
+**/console-auth.json
+**/*token*.json
+**/*session*.json
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.crt
+**/*.cer
+**/data/
+**/logs/
+**/browser-profile*/
+
+# User manuscripts, generated drafts, previews, and archives
+/未排版文章/
+/已排版文章/
+/已发布归档/
+/预览/
+*.docx
+*.doc
+*.xlsx
+*.xls
+*.pdf
+*.sqlite
+*.sqlite3
+*.db
+*.log
+*.lock
+*.tmp
+*.temp
+
+# Secrets and certificates
+.env
+.env.*
+!.env.example
+credentials.json
+secrets.json
+console-auth.json
+**/*model*settings*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_ed25519
+
+# Material directory may later receive user photos/documents; keep only
+# the app icon asset family used by the current source.
+/素材/**
+!/素材/
+!/素材/图标/
+!/素材/图标/*.ico
+
+# OS metadata and package archives
+Thumbs.db
+Desktop.ini
+*.zip

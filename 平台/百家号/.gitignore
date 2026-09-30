@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+data/
+logs/
+预览/
+待发文章/
+已发文章/
+重复文章/
+*.docx
