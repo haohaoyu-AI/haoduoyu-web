@@ -444,6 +444,7 @@ class ConsoleTests(unittest.TestCase):
             '/api/run?task=预览', '/api/stop', '/api/quit', '/api/dispatch',
             '/api/dispatch-all', '/api/clear-images/preview', '/api/clear-images/confirm',
             '/api/model-choice', '/api/topic-rewrite', '/api/image-review', '/api/not-found',
+            '/api/topic-word?topic=TP-20260924-1234abcd&name=稿.docx',
         ]
         operation_lock = MagicMock()
         with patch.object(console, 'OPERATION_LOCK', operation_lock):
@@ -456,6 +457,44 @@ class ConsoleTests(unittest.TestCase):
         self.response = None
         self.handler('/api/clear-result', authenticated=False).do_POST()
         self.assertEqual(self.response[0], 401)
+
+    def test_anonymous_word_upload_is_rejected_before_reading_body(self):
+        handler = self.handler(
+            '/api/topic-word?topic=TP-20260924-1234abcd&name=稿.docx',
+            authorized=False, authenticated=False)
+        handler.rfile = MagicMock()
+        with patch.object(console, 'OPERATION_LOCK') as operation_lock:
+            handler.do_POST()
+        self.assertEqual(self.response[0], 401)
+        handler.rfile.read.assert_not_called()
+        operation_lock.acquire.assert_not_called()
+
+    def test_authenticated_topic_output_preview_and_docx_are_served(self):
+        topic_id = 'TP-20260924-1234abcd'
+        folder = self.formatted / '测试成稿'
+        (folder / '配图').mkdir(parents=True)
+        (folder / '成稿.docx').write_bytes(b'fixture-docx-bytes')
+        (folder / '预览.html').write_text(
+            '<img src="配图/封面.png">', encoding='utf-8')
+        (folder / '配图' / '封面.png').write_bytes(b'fixture-image-bytes')
+        (folder / console.topic_packages.OUTPUT_IDENTITY_FILE).write_text(
+            json.dumps({'schema_version': 1, 'topic_id': topic_id, 'title': '测试成稿'}),
+            encoding='utf-8')
+        (folder / '配图清单.json').write_text(json.dumps({
+            '成稿': '成稿.docx', '配图': [{'文件': '封面.png', '角色': '封面'}],
+        }), encoding='utf-8')
+
+        self.response = None
+        self.handler(f'/api/topic-output?topic_id={topic_id}&kind=preview').do_GET()
+        self.assertEqual(self.response[0], 200)
+        self.assertIn(
+            f'/api/topic-output?topic_id={topic_id}&amp;kind=image&amp;name=%E5%B0%81%E9%9D%A2.png',
+            self.response[1].decode('utf-8'))
+
+        self.response = None
+        self.handler(f'/api/topic-output?topic_id={topic_id}&kind=docx').do_GET()
+        self.assertEqual(self.response[0], 200)
+        self.assertEqual(self.response[1], b'fixture-docx-bytes')
 
     def test_anonymous_gets_only_login_page_and_nonrevealing_health(self):
         closed = console.console_auth.AuthManager(self.root / 'missing-auth.json', root=self.root)

@@ -1,6 +1,8 @@
+import io
 import json
 import tempfile
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
@@ -58,6 +60,41 @@ class ImageActionTests(unittest.TestCase):
             result = actions.run(dict(self.data, download_attempts=1), hint=lambda _: None)
         self.assertEqual(result, [])
         self.assertEqual(received['download_attempts'], 1)
+
+    def test_validated_legacy_word_search_limits_real_source_download_attempts(self):
+        query = '服务区充电排队'
+        hit = Hit('今日头条', query, '服务区充电排队现场', '测试来源',
+                  'https://images.test/legacy-retry.jpg', 'https://pages.test/legacy',
+                  900, 600, semantic_approved=True)
+        for attempts in (1, 2):
+            with self.subTest(attempts=attempts):
+                calls = []
+                source = SimpleNamespace(name='今日头条', close=lambda: None)
+
+                def download(_url):
+                    calls.append(_url)
+                    if len(calls) == 1:
+                        raise TimeoutError('fixture timeout')
+                    stream = io.BytesIO()
+                    Image.new('RGB', (900, 600), 'teal').save(stream, format='JPEG')
+                    return stream.getvalue()
+
+                source.download = download
+                data = actions.validate(dict(
+                    self.data, mode='search', provider='deepseek', model='fixture-text',
+                    image='', count=1, query=query, sources=['今日头条'],
+                    download_attempts=attempts))
+                with patch.object(sourcing, 'build_sources', return_value=([source], [])), \
+                     patch.object(sourcing, 'collect_hits', return_value=([hit], [])), \
+                     patch.object(sourcing, 'model_analysis', return_value=SimpleNamespace(
+                         queries=[sourcing.Query(query, -1, '', '自定义')], anchors=[])), \
+                     patch.object(sourcing, 'model_filter_hits', return_value=[hit]), \
+                     patch.object(sourcing, 'rejection_reason', return_value=''):
+                    stage = self.root / f'stage-{attempts}'
+                    stage.mkdir()
+                    actions._network_round(data, review.source_document(self.folder),
+                                           self.folder, stage, {}, lambda _message: None)
+                self.assertEqual(len(calls), attempts)
 
     def test_invalid_download_attempts_are_rejected_before_action_validation(self):
         with patch.object(actions.review, 'ensure_editable') as ensure_editable:

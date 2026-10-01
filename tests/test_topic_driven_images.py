@@ -863,6 +863,41 @@ class TopicDrivenImagesTests(unittest.TestCase):
         self.assertEqual(image_review.load_selection(folder), [image.name])
         self.assertIsNone(topic_packages.imported_word(folder))
 
+    def test_validated_topic_package_search_limits_real_source_download_attempts(self):
+        topic_id, folder, package = self._commit_package('00000039')
+        plan = package['image_plan'][1]
+        hit = Hit('豆瓣', plan['query'], '新能源车主服务区等待现场', '模拟来源',
+                  'https://images.test/topic-retry.jpg', 'https://pages.test/topic-retry',
+                  900, 600, semantic_approved=True)
+        for attempts in (1, 2):
+            with self.subTest(attempts=attempts):
+                calls = []
+                source = SimpleNamespace(name='豆瓣', close=Mock())
+
+                def download(_url):
+                    calls.append(_url)
+                    if len(calls) == 1:
+                        raise TimeoutError('fixture timeout')
+                    return _jpeg_bytes('teal')
+
+                source.download = download
+                action = {**self._action(topic_id), 'position_id': 'body-1',
+                          'count': 1, 'download_attempts': attempts}
+                validated = image_actions.validate(action)
+                with patch.object(sourcing, 'build_sources', return_value=([source], [])), \
+                     patch.object(sourcing, 'collect_hits_with_pages',
+                                  return_value=([hit], [])), \
+                     patch.object(sourcing, 'model_filter_hits', return_value=[hit]), \
+                     patch.object(sourcing, 'rejection_reason', return_value=''), \
+                     patch.object(sourcing, '_similar', return_value=False):
+                    stage = self.root / f'topic-stage-{attempts}'
+                    stage.mkdir()
+                    image_actions._network_round(
+                        validated, topic_packages.synthetic_document(folder), folder,
+                        stage, {}, lambda _message: None)
+                self.assertEqual(len(calls), attempts)
+
+
     def test_failed_image_job_surfaces_position_failure_reason(self):
         summary = console._summary_for("配图", [
             "[无图] 位置 2「综艺 剪辑 时间线 工作台」：所选图源没有返回候选图片。",
