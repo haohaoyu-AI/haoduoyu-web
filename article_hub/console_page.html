@@ -390,7 +390,13 @@ function render(state){
   var table = "<table><thead><tr><th>标题</th><th>字</th><th>图</th><th>头条</th><th>知乎</th><th>百家号</th><th>操作</th></tr></thead><tbody>";
   for (var r = 0; r < rows.length; r++){
     var key=encodeURIComponent(rows[r].主题).replace(/'/g,'%27');
-    table += "<tr><td title='"+escapeHtml(rows[r].主题)+"'>" + escapeHtml(rows[r].标题) + "</td><td>" + rows[r].字数 + "</td><td>" + rows[r].配图 + "</td>";
+    var outputBase=/^TP-\d{8}-[a-f0-9]{8}$/i.test(rows[r].主题)
+      ? '/api/topic-output?topic_id=' : '/api/article-output?article_id=';
+    var outputUrl=outputBase+encodeURIComponent(rows[r].主题).replace(/'/g,'%27')+'&amp;kind=';
+    table += "<tr><td title='"+escapeHtml(rows[r].主题)+"'>" + escapeHtml(rows[r].标题)
+      + "<div><a class='mini' target='_blank' rel='noopener' href='"+outputUrl+"preview'>预览</a> "
+      + "<a class='mini' href='"+outputUrl+"docx'>下载 Word</a></div></td><td>"
+      + rows[r].字数 + "</td><td>" + rows[r].配图 + "</td>";
     ['今日头条','知乎','百家号'].forEach(function(platform){
       var status=rows[r].平台[platform];
       table+='<td>'+(status==='已发布'?pill(status):"<button class='pill "+(status==='草稿箱'?'ok':'wait')+"' style='border:0;white-space:nowrap' onclick=\"editArticleRecord('"+key+"','"+(status==='草稿箱'?'pending':'draft')+"','"+platform+"',this)\">"+(status==='草稿箱'?'草稿箱':'待发')+"</button>")+'</td>';

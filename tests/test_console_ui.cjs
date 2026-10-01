@@ -4,6 +4,10 @@ const {join} = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = readFileSync(join(__dirname, '../article_hub/console_page.html'), 'utf8');
+assert.match(html, /\/api\/article-output\?article_id=/);
+assert.match(html, /var outputUrl=.*replace\(\/'\/g,'%27'\)/);
+assert.match(html, /outputUrl\+"preview/);
+assert.match(html, /outputUrl\+"docx/);
 const script = html.split('<script>')[1].split('</script>')[0];
 new vm.Script(script); // Check the complete page script, including initialization.
 const elements = new Map();

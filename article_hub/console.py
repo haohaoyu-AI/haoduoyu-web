@@ -10,6 +10,7 @@ import json
 import hashlib
 import hmac
 import html
+from html.parser import HTMLParser
 import mimetypes
 import os
 import re
@@ -806,6 +807,100 @@ def _topic_output_preview(folder: Path, topic_id: str, allowed_images: set[str])
     return re.sub(r'src="配图/([^"<>]+)"', rewrite_image, content).encode('utf-8')
 
 
+_LEGACY_IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+
+
+def _legacy_output_context(article_id: str) -> tuple[Path, str, set[str]]:
+    """Resolve a legacy article by its single formatted folder, never by a path."""
+    if (not isinstance(article_id, str) or not article_id or article_id in {'.', '..'}
+            or any(char in article_id for char in '/\\%:')
+            or any(ord(char) < 32 for char in article_id)):
+        raise ValueError('文章编号不合法')
+    root = config.FORMATTED.resolve()
+    folder = config.FORMATTED / article_id
+    if folder.is_symlink() or not folder.is_dir() or folder.resolve().parent != root:
+        raise ValueError('成稿目录不存在或不安全')
+    if (folder / topic_packages.OUTPUT_IDENTITY_FILE).is_symlink():
+        raise ValueError('成稿目录不安全')
+    if topic_packages.output_identity(folder):
+        raise ValueError('新版成稿请使用选题成稿接口')
+    manifest_path = _topic_output_child(folder, '配图清单.json')
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    if not isinstance(manifest, dict):
+        raise ValueError('成稿清单不合法')
+    document_name = manifest.get('成稿')
+    if (not isinstance(document_name, str) or not document_name.lower().endswith('.docx')
+            or any(char in document_name for char in '/\\%:')
+            or document_name in {'.', '..'}):
+        raise ValueError('成稿文件名不合法')
+    _topic_output_child(folder, document_name)
+    images = set()
+    entries = manifest.get('配图', [])
+    if not isinstance(entries, list):
+        raise ValueError('配图清单不合法')
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get('文件')
+        if (isinstance(name, str) and name and name not in {'.', '..'}
+                and not any(char in name for char in '/\\%:')
+                and Path(name).suffix.lower() in _LEGACY_IMAGE_SUFFIXES):
+            images.add(name)
+    return folder, document_name, images
+
+
+class _LegacyPreviewParser(HTMLParser):
+    """Keep the old article's text and approved pictures, escaping all markup."""
+    _TAGS = {'h1', 'h2', 'h3', 'p', 'figure', 'figcaption', 'strong', 'em', 'b', 'i', 'br'}
+
+    def __init__(self, article_id: str, images: set[str]):
+        super().__init__(convert_charrefs=True)
+        self.article_id = article_id
+        self.images = images
+        self.parts: list[str] = []
+        self.suppressed = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in {'script', 'style', 'iframe', 'object', 'svg'}:
+            self.suppressed += 1
+        elif self.suppressed:
+            return
+        elif tag == 'img':
+            values = dict(attrs)
+            source = values.get('src', '')
+            if not source.startswith('配图/') or source[3:] not in self.images:
+                raise ValueError('预览图片不属于本篇成稿')
+            name = source[3:]
+            url = ('/api/article-output?article_id=' + quote(self.article_id, safe='')
+                   + '&kind=image&name=' + quote(name, safe=''))
+            self.parts.append('<img src="' + html.escape(url, quote=True) + '" alt="'
+                              + html.escape(values.get('alt', ''), quote=True) + '">')
+        elif tag in self._TAGS:
+            self.parts.append('<' + tag + '>')
+
+    def handle_endtag(self, tag):
+        if tag in {'script', 'style', 'iframe', 'object', 'svg'} and self.suppressed:
+            self.suppressed -= 1
+        elif not self.suppressed and tag in self._TAGS - {'br'}:
+            self.parts.append('</' + tag + '>')
+
+    def handle_data(self, data):
+        if not self.suppressed:
+            self.parts.append(html.escape(data))
+
+
+def _legacy_output_preview(folder: Path, article_id: str, images: set[str]) -> bytes:
+    content = _topic_output_child(folder, '预览.html').read_text(encoding='utf-8')
+    parser = _LegacyPreviewParser(article_id, images)
+    parser.feed(content)
+    page = ('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<style>body{max-width:820px;margin:48px auto;padding:0 24px;font:18px/1.9 system-ui}'
+            'img{max-width:100%;height:auto}figure{text-align:center}</style><body>'
+            + ''.join(parser.parts) + '</body></html>')
+    return page.encode('utf-8')
+
+
 def state(*, include_images: bool = True) -> dict:
     job = _job_snapshot()
     jobs = jobs_snapshot()
@@ -1260,6 +1355,34 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 raise ValueError('成稿读取类型不合法')
             except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                self._json({'error': '成稿不存在或读取路径不安全'}, 404)
+            return
+        if parsed.path == '/api/article-output':
+            query = parse_qs(parsed.query)
+            article_id = (query.get('article_id') or [''])[0]
+            kind = (query.get('kind') or [''])[0]
+            try:
+                folder, document_name, images = _legacy_output_context(article_id)
+                if kind == 'preview':
+                    self._send(200, _legacy_output_preview(folder, article_id, images),
+                               'text/html; charset=utf-8')
+                    return
+                if kind == 'docx':
+                    body = _topic_output_child(folder, document_name).read_bytes()
+                    self._send(200, body,
+                               'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                               content_disposition=(f'attachment; filename="document.docx"; '
+                                                    f"filename*=UTF-8''{quote(document_name, safe='')}"))
+                    return
+                if kind == 'image':
+                    name = (query.get('name') or [''])[0]
+                    if name not in images:
+                        raise ValueError('图片不属于本篇成稿')
+                    target = _topic_output_child(folder, name, image=True)
+                    self._send(200, target.read_bytes(), mimetypes.guess_type(name)[0])
+                    return
+                raise ValueError('成稿读取类型不合法')
+            except (OSError, ValueError, TypeError, UnicodeError, json.JSONDecodeError):
                 self._json({'error': '成稿不存在或读取路径不安全'}, 404)
             return
         if parsed.path == "/favicon.ico":

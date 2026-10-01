@@ -496,6 +496,89 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(self.response[0], 200)
         self.assertEqual(self.response[1], b'fixture-docx-bytes')
 
+    def test_legacy_article_output_uses_one_folder_and_preserves_word_and_image(self):
+        from base64 import b64decode
+        from docx import Document
+        from urllib.parse import quote
+
+        article_id = '本机试用 测试-合成稿'
+        folder = self.formatted / article_id
+        image_dir = folder / '配图'
+        image_dir.mkdir(parents=True)
+        png = b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+                        'AAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==')
+        (image_dir / '测试 图.png').write_bytes(png)
+        document = Document()
+        document.add_paragraph('仅供本机验证的合成正文。')
+        document.add_picture(str(image_dir / '测试 图.png'))
+        document.save(folder / '合成稿.docx')
+        word = (folder / '合成稿.docx').read_bytes()
+        (folder / '配图清单.json').write_text(json.dumps({
+            '成稿': '合成稿.docx', '配图': [{'文件': '测试 图.png', '角色': '正文配图'}],
+        }, ensure_ascii=False), encoding='utf-8')
+        (folder / '预览.html').write_text(
+            '<h1>合成稿</h1><p>仅供本机验证的合成正文。</p>'
+            '<img src="配图/测试 图.png" onerror="alert(1)">'
+            '<script>window.bad=1</script>', encoding='utf-8')
+        base = '/api/article-output?article_id=' + quote(article_id, safe='') + '&kind='
+        self.handler(base + 'preview').do_GET()
+        self.assertEqual(self.response[0], 200)
+        preview = self.response[1].decode('utf-8')
+        self.assertIn('仅供本机验证的合成正文', preview)
+        self.assertIn('kind=image&amp;name=' + quote('测试 图.png', safe=''), preview)
+        self.assertNotIn('onerror', preview)
+        self.assertNotIn('window.bad', preview)
+        self.handler(base + 'docx').do_GET()
+        self.assertEqual(self.response, (200, word))
+        downloaded = Document(io.BytesIO(self.response[1]))
+        self.assertIn('仅供本机验证的合成正文', downloaded.paragraphs[0].text)
+        self.assertEqual(len(downloaded.inline_shapes), 1)
+        self.handler(base + 'image&name=' + quote('测试 图.png', safe='')).do_GET()
+        self.assertEqual(self.response, (200, png))
+        self.handler(base + 'preview', authenticated=False).do_GET()
+        self.assertEqual(self.response[0], 401)
+
+    def test_legacy_article_output_rejects_escape_and_symlinks(self):
+        from urllib.parse import quote
+        folder = self.formatted / '安全目录'
+        folder.mkdir()
+        (folder / '稿.docx').write_bytes(b'word')
+        (folder / '配图清单.json').write_text('{"成稿":"稿.docx","配图":[]}', encoding='utf-8')
+        (folder / '预览.html').write_text('<p>ok</p>', encoding='utf-8')
+        for article_id in ('..', '../outside', '..\\outside', 'bad%2Fname', 'C:outside'):
+            self.handler('/api/article-output?article_id=' + quote(article_id, safe='')
+                         + '&kind=docx').do_GET()
+            self.assertEqual(self.response[0], 404, article_id)
+            self.assertNotIn(str(self.root), self.response[1]['error'])
+        outside = self.root / 'outside'
+        outside.mkdir()
+        (outside / '稿.docx').write_bytes(b'secret')
+        (outside / '配图清单.json').write_text('{"成稿":"稿.docx","配图":[]}', encoding='utf-8')
+        link = self.formatted / 'link'
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pass
+        else:
+            self.handler('/api/article-output?article_id=link&kind=docx').do_GET()
+            self.assertEqual(self.response[0], 404)
+        document_link = folder / 'linked.docx'
+        try:
+            document_link.symlink_to(outside / '稿.docx')
+        except (OSError, NotImplementedError):
+            pass
+        else:
+            (folder / '配图清单.json').write_text(
+                '{"成稿":"linked.docx","配图":[]}', encoding='utf-8')
+            self.handler('/api/article-output?article_id=安全目录&kind=docx').do_GET()
+            self.assertEqual(self.response[0], 404)
+            (folder / '配图清单.json').write_text(
+                '{"成稿":"稿.docx","配图":[]}', encoding='utf-8')
+        self.handler('/api/article-output?article_id=安全目录&kind=docx').do_GET()
+        self.assertEqual(self.response, (200, b'word'))
+        self.handler('/api/article-output?article_id=安全目录&kind=image&name=稿.docx').do_GET()
+        self.assertEqual(self.response[0], 404)
+
     def test_anonymous_gets_only_login_page_and_nonrevealing_health(self):
         closed = console.console_auth.AuthManager(self.root / 'missing-auth.json', root=self.root)
         with patch.object(console, 'AUTH_MANAGER', closed):
