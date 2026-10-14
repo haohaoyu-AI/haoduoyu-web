@@ -1,0 +1,384 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791070726912,
+      "tag": "0000_loose_war_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791088495653,
+      "tag": "0001_broken_medusa",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791092153124,
+      "tag": "0002_thin_tiger_shark",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791118536345,
+      "tag": "0003_tiny_betty_brant",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791129488491,
+      "tag": "0004_numerous_sandman",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791130755050,
+      "tag": "0005_odd_dragon_lord",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791130885338,
+      "tag": "0006_premium_the_executioner",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791134731982,
+      "tag": "0007_light_franklin_richards",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791190999189,
+      "tag": "0008_panoramic_princess_powerful",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791193012761,
+      "tag": "0009_legal_xorn",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1791199625105,
+      "tag": "0010_worthless_black_bird",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1791245685147,
+      "tag": "0011_perfect_skin",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1791259560000,
+      "tag": "0012_outline_flow",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1791263172326,
+      "tag": "0013_outline_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1791264633117,
+      "tag": "0014_topic_research",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1791266905423,
+      "tag": "0015_cooing_dazzler",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1791267086669,
+      "tag": "0016_slimy_strong_guy",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1791268224797,
+      "tag": "0017_dapper_trish_tilby",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1791272583406,
+      "tag": "0018_article_upload_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1791284117878,
+      "tag": "0019_editorial_authority_v3",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1791295853060,
+      "tag": "0020_editorial_body_continuation",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1791299790877,
+      "tag": "0021_editorial_cloud_http_v3",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1791309942433,
+      "tag": "0022_editorial_revision_cloud_http_v3",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1791316874099,
+      "tag": "0023_editorial_revision_continuation_v3",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1791323864000,
+      "tag": "0024_editorial_failed_writer_continuation_v3",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1791345185371,
+      "tag": "0025_editorial_agent_claim_recovery_v3",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1791358500000,
+      "tag": "0026_article_upload_reimport_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1791358500001,
+      "tag": "0027_editorial_daily_cloud_http_v3",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1791369600000,
+      "tag": "0028_manual_upload_duplicate_tolerant_task",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1791375176863,
+      "tag": "0029_article_mainline_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1791390055259,
+      "tag": "0030_article_upload_diagnostics",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1791419677631,
+      "tag": "0031_hot_article_imitation",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1791426998758,
+      "tag": "0032_local_word_only_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1791431340000,
+      "tag": "0033_article_help_queue",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1791448590656,
+      "tag": "0034_parallel_doctor_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1791473173079,
+      "tag": "0035_local_word_queue",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1791475811570,
+      "tag": "0036_article_list_clear",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1791487200000,
+      "tag": "0037_article_upload_unconsumed_continuation",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1791519939688,
+      "tag": "0038_word_progress_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1791545182003,
+      "tag": "0039_tense_hairball",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1791550207574,
+      "tag": "0040_sudden_skin",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1791556364359,
+      "tag": "0041_dedao_native",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1791559303865,
+      "tag": "0042_word_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1791565708041,
+      "tag": "0043_word_phase_pools",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1791566689640,
+      "tag": "0044_dedao_dynamic_dispatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1791587668268,
+      "tag": "0045_article_word_executor_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1791591710597,
+      "tag": "0046_word_serial_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1791606603820,
+      "tag": "0047_article_content_purge",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1791609719171,
+      "tag": "0048_dedao_article_content_purge",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1791624798374,
+      "tag": "0049_article_purge_codex_observations",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1791908323662,
+      "tag": "0050_colossal_catseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1791919341473,
+      "tag": "0051_volatile_grey_gargoyle",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1791921890158,
+      "tag": "0052_silent_wolverine",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1791928732208,
+      "tag": "0053_far_sleepwalker",
+      "breakpoints": true
+    }
+  ]
+}

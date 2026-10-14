@@ -1,0 +1,16 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {stateDirectory, configSha256} from './runtime.mjs';
+const index = process.argv.indexOf('--thread');
+const threadId = index >= 0 ? process.argv[index + 1] : null;
+stateDirectory(threadId);
+const script = fileURLToPath(new URL('./hook.mjs', import.meta.url));
+const quote = value => { if (/["\r\n]/.test(value)) throw Error('Hook path contains unsupported characters'); return `"${value}"`; };
+const command = `${quote(process.execPath)} ${quote(script)} --thread ${threadId}`;
+const definition = {description: '得到大脑原生对话生命周期：当前线程限定、DPAPI凭据、真实事件回执。', hooks: Object.fromEntries(['UserPromptSubmit', 'Stop', 'Interrupt', 'SessionEnd'].map(event => [event, [{hooks: [{type: 'command', command, timeout: event === 'Interrupt' || event === 'SessionEnd' ? 3 : 10, statusMessage: '记录得到大脑原生执行状态'}]}]]))};
+const text = JSON.stringify(definition, null, 2) + '\n';
+const output = path.resolve(process.argv.includes('--output') ? process.argv[process.argv.indexOf('--output') + 1] : path.join(stateDirectory(threadId), 'hooks.review.json'));
+await fs.mkdir(path.dirname(output), {recursive: true});
+await fs.writeFile(output, text, {mode: 0o600});
+process.stdout.write(JSON.stringify({review_file: output, hooks_config_sha256: configSha256(text), installed: false, trusted: false}) + '\n');

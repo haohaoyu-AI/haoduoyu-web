@@ -1,0 +1,114 @@
+{
+  "scope": "isolated safety follow-up tests; ZERO production/platform writes",
+  "base_review_head": "5c092589dceae3169e544d7d9af29e5c477e737a",
+  "results": [
+    {
+      "command": "node tests/article-publication-evidence.mjs",
+      "exit_code": 0,
+      "stdout_summary": "PASS real isolated SQLite: 4 scheduled exact IDs not published; explicit published/time_conflict retains 6258/26/0/0 as cumulative with no due; URL/profile/legacy fail closed; matching IDs, raw time sources, verified 24h, owner/idempotency/immutable rows and actual rendered UI. ZERO platform I/O, production writes or schedule changes.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-history-capture-guards.mjs",
+      "exit_code": 0,
+      "stdout_summary": "PASS all 51 actual migrations: backfill/main/delivery/end capture reject wrong SHA/title/account/URL/Word receipt/readback/order/unsettled uploader; capture later completion of pre-cutoff upload once; immutable metadata. ZERO production/platform I/O.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-data-owner-pages.mjs",
+      "exit_code": 0,
+      "stdout_summary": "PASS actual ArticleDataPage: every page/current-owner/inventory mismatch and workspace 401 clear entire batch/pagination/old action controls; next explicit refresh starts owner B at offset0. Deterministic offline UI harness, no production/browser/account data.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/tonight-eight-d1.mjs",
+      "exit_code": 0,
+      "stdout_summary": "PASS isolated full migrations, reversible visibility/races/owner isolation/expired-holder protection, 8 genuine offline historical records/nulls/no invented IDs, exact/late/unavailable metric windows, cloud one-request/one-action/claim/draft completion guards; ZERO production or platform writes\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/topic-research.mjs",
+      "exit_code": 0,
+      "stdout_summary": "topic research: migrations, frozen inputs, owner isolation, CSRF, GET purity, concurrency, claims, expiry, evidence validation, old-generation fencing, idempotent save, durable retry, no article/provider effects passed\ntopic credential boundary: actual disabled opaque key decrypt, old article/delivery/outline/writing leases, current token, nested JSON keys, percent-encoded URL path/query, snapshot/save/error rejection and read suppression passed; zero provider calls\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/mcp-contract.mjs",
+      "exit_code": 0,
+      "stdout_summary": "MCP auth, destructive tool discovery, exact confirmation forwarding, and existing contract checks passed (storage mocked; no network)\nPASS V88 MCP discovery, exact schema/confirmation/authenticated-owner routing, no-store, origin/auth rejection and private error suppression.\nPASS three real public-collection schemas, strict nested fields and bounds, owner/no-store routing, auth/origin rejection and safe errors without a writer grant; offline doubles, zero provider/network\nPASS real hot tool/event schemas, owner/exact-argument routing, real imitationClaudeSSE export and complete SSE terminal, zero-paid scope refusal, safe failures and aborted free probe; dependency doubles only, zero real provider/network\nPASS two real help-queue schemas, normal owner/origin/no-store routing and safe error suppression; no queue, event or provider operations\nPASS real 得到 tool/event schemas and authenticated routing, owner/origin/no-store and safe private errors; offline dependencies, no real execution\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-state-transitions.mjs",
+      "exit_code": 0,
+      "stdout_summary": "Mock article and delivery states: verified recovery can resume saving, explicit in-progress failures are recordable, and terminal states stay closed\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/upload-attempt-guards.mjs",
+      "exit_code": 0,
+      "stdout_summary": " account and prior drafts without reserving\nPASS stored Word bytes are checked independently of supplied SHA and size\nPASS concurrent reservations and consumption grant exactly one instruction and bind account/file\nPASS a lost successful consume response never grants another import\nPASS unknown outcome, login interruption and claim renewal retain the consumed fence and editor URL\nPASS expired and rotated leases cannot consume an unconsumed reservation\nPASS reservation and consumption CAS reject lease rotation between read and write\nPASS historical flag-zero results remain read-only and cannot authorize a new import\nPASS explicit owner-confirmed never-submitted legacy work can get one first-import grant without resetting uncertainty\nPASS verify_existing accepts an old saved draft with a fresh reopen and never authorizes file submission\nPASS owner-confirmed first Zhihu import remains separate from historical completed Toutiao\nPASS exact title/body, image order/hash/anchors and independent saved/reopened evidence are mandatory\nPASS full Toutiao completion then Zhihu pending/consume/verify/save works with mandatory cover\nPASS authorized source cleanup retains immutable digest and supports later Zhihu verification\nPASS editor URLs reject credentials, unknown paths/queries, duplicate identities and fragments\nPASS current and other owner-known lease credentials including percent-encoded paths are not persisted\nPASS concurrent editor observations use CAS and retain both real URLs after read-only reconciliation\nPASS verified receipts are terminal and the editor URL history cannot exceed its bound\nPASS a stale reservation fails closed without clearing the durable fence\n21 upload guard groups passed; 0 failed; real SQLite migrations and mock R2; network/platform/provider calls=0.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-word-settlement.mjs",
+      "exit_code": 0,
+      "stdout_summary": "ement before record or after actual recovery makes old same-key replay and new-key end refuse without touching the replacement claim\nPASS same-key read-only replay detects concurrent claim replacement after its verified snapshot and creates no second proof\nPASS same-key read-only replay detects concurrent owner incident after its verified snapshot and creates no second proof\nPASS eight same-key concurrent calls record once; two different keys admit one atomic end winner\nPASS full-snapshot end CAS refuses concurrent article frozen text mutation\nPASS full-snapshot end CAS refuses concurrent article output prefix mutation\nPASS full-snapshot end CAS refuses concurrent control mutation\nPASS full-snapshot end CAS refuses concurrent attempt timer mutation\nPASS full-snapshot end CAS refuses concurrent service incident mutation\nPASS full-snapshot end CAS refuses concurrent new owner service incident mutation\nPASS full-snapshot end CAS refuses concurrent handoff state mutation\nPASS full-snapshot end CAS refuses concurrent help claim record mutation\nPASS full-snapshot end CAS refuses concurrent new checkpoint mutation\nPASS full-snapshot end CAS refuses concurrent new settle receipt mutation\nPASS full-snapshot end CAS refuses concurrent new immutable grant mutation\nPASS full-snapshot end CAS refuses concurrent new immutable request history mutation\nPASS full-snapshot end CAS refuses concurrent new failure candidate mutation\nPASS full-snapshot end CAS refuses concurrent new progress observation mutation\nPASS full-snapshot end CAS refuses concurrent frozen layout manifest mutation\nPASS full-snapshot end CAS refuses concurrent pending queue mutation\nPASS full-snapshot end CAS refuses concurrent another held serial slot mutation\nPASS 67 synthetic settlement contracts; external_calls=0\n",
+      "stderr_summary": ""
+    }
+  ],
+  "frontend_browser": {
+    "command": "node tests/article-data-publication-browser.mjs",
+    "exit_code": 0,
+    "scope": "actual local Chromium/app frontend with controlled API fixtures; no backend/production connectivity claim",
+    "desktop_mobile_width": 390,
+    "owner_switch_between_pages": true,
+    "platform_visits": 0,
+    "real_user_screenshots_included": false
+  },
+  "private_snapshot": {
+    "command": "PUBLICATION_SNAPSHOT_PATH=<privately materialized JSON> node tests/article-publication-snapshot.mjs",
+    "exit_code": 0,
+    "library_id": "libfile_887e510ceedc8191943aa0b811f2cec3",
+    "sha256": "d6016223feb5d99b1ee2c11ec43dcc181573dcf61cc85a55dea17eaa79ff94ed",
+    "production_imports": 0
+  },
+  "typecheck": {
+    "command": "npx tsc --noEmit --incremental false",
+    "exit_code": 0
+  },
+  "targeted_lint": {
+    "exit_code": 0,
+    "files": [
+      "lib/article-history.ts",
+      "lib/article-data-tools.ts",
+      "lib/article-workspace.ts",
+      "lib/topic-research.ts",
+      "components/article-metrics-observation.tsx",
+      "app/article-data/page.tsx",
+      "app/topics/research-helper/page.tsx",
+      "lib/dedao-cloud.ts"
+    ]
+  },
+  "not_run": [
+    "production connection/end-to-end chain",
+    "all historical ~900 tests",
+    "full repository lint"
+  ],
+  "build": {
+    "command": "npm run build",
+    "exit_code": 0
+  },
+  "final_rerun": {
+    "commands": [
+      "node tests/tonight-eight-d1.mjs",
+      "node tests/article-publication-evidence.mjs",
+      "node tests/article-history-capture-guards.mjs",
+      "node tests/article-data-owner-pages.mjs",
+      "node tests/topic-research.mjs",
+      "node tests/mcp-contract.mjs"
+    ],
+    "exit_code": 0
+  },
+  "schema_note": "Only undeployed migration0050 amended; if any environment applied old0050, a separately reviewed forward migration is required."
+}

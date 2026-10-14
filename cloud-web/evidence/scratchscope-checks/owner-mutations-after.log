@@ -1,0 +1,15 @@
+{"action":"cloud","posted_scope":"2b382aeeeceaa23e43cee46e7943a393d4d7a159ccc1c0b2a27580fe7c61077a","authenticated_owner":"OFFLINE-B","response_status":403,"business_effects_unchanged":true,"cloud_tasks_B":0,"accounts_B":0,"event_calls":0}
+PASS cloud freezes owner A at the browser POST and rejects a silent server switch to B
+{"action":"add","posted_scope":"33df9cc7cb6f0ac1dea872ccb677b3f6c2c0b81c0a7c753301001077d4ccd1d6","authenticated_owner":"OFFLINE-B","response_status":403,"business_effects_unchanged":true,"cloud_tasks_B":0,"accounts_B":0,"event_calls":0}
+PASS add freezes owner A at the browser POST and rejects a silent server switch to B
+{"action":"remove","posted_scope":"33df9cc7cb6f0ac1dea872ccb677b3f6c2c0b81c0a7c753301001077d4ccd1d6","authenticated_owner":"OFFLINE-B","response_status":403,"business_effects_unchanged":true,"cloud_tasks_B":0,"accounts_B":0,"event_calls":0}
+PASS remove freezes owner A at the browser POST and rejects a silent server switch to B
+{"action":"refresh","posted_scope":"33df9cc7cb6f0ac1dea872ccb677b3f6c2c0b81c0a7c753301001077d4ccd1d6","authenticated_owner":"OFFLINE-B","response_status":403,"business_effects_unchanged":true,"cloud_tasks_B":0,"accounts_B":0,"event_calls":0}
+PASS refresh freezes owner A at the browser POST and rejects a silent server switch to B
+PASS cloud refuses absent, malformed and foreign scopes before all business effects
+PASS hot refuses absent, malformed and foreign scopes before all business effects
+PASS cloud delayed refusal cannot clear a newer verified owner view
+PASS hot delayed refusal cannot clear a newer verified owner view
+PASS matching cloud owner works, same key is idempotent, and mismatch cannot read a prior receipt
+PASS matching hot owner adds/removes normally and direct owner-scoped libraries remain compatible
+{"passed":10,"failed":0,"source_root":"/workspace/sites/haoduoyu-owner-write-scope-gate","external_calls":0,"scope":"actual browser/route/library sources,54 isolated SQLite migrations; auth and events are doubles"}

@@ -1,0 +1,93 @@
+{
+  "base": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1",
+  "results": [
+    {
+      "command": "node tests/tonight-eight-d1.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/hot-article-account-discovery.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/hot-article-discovery-storage.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/hot-article-discovery-races.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/hot-article-discovery-clock.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/topic-research.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/article-state-transitions.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/upload-attempt-guards.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/article-word-settlement.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/word-serial-attempt-ui.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/word-progress-read-ui.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/mcp-contract.mjs",
+      "exit_code": 0,
+      "scope": "isolated/local; no production or platform writes"
+    },
+    {
+      "command": "node tests/tonight-eight-browser.mjs",
+      "exit_code": 0,
+      "scope": "actual Chromium, loopback app/API, isolated D1/R2; evidence/tonight-eight/ui/browser-summary.json"
+    },
+    {
+      "command": "npx tsc --noEmit --incremental false",
+      "exit_code": 0
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0
+    },
+    {
+      "command": "npx eslint app/dedao/page.tsx app/article-data/page.tsx components/studio-nav.tsx components/article-workspace-action.tsx lib/dedao-cloud.ts lib/dedao-cloud-tools.ts lib/article-workspace.ts lib/article-history.ts lib/article-data-tools.ts lib/hot-article-discovery.ts lib/hot-article-discovery-store.ts lib/hot-article-genre.ts lib/hot-benchmark-tools.ts lib/topic-research.ts",
+      "exit_code": 0
+    },
+    {
+      "command": "npx eslint app/page.tsx components/word-stage-progress.tsx",
+      "status": "baseline inherited failures",
+      "baseline_error_count": 15,
+      "baseline": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1"
+    },
+    {
+      "command": "whole historical test suite / production browser-to-platform full chain",
+      "status": "not_run",
+      "reason": "scope and production/connection/real executor acceptance remain with parent"
+    }
+  ]
+}

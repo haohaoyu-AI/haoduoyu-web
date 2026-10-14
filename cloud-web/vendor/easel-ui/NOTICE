@@ -1,0 +1,3 @@
+This product includes adapted UI code from Easel (https://github.com/ZJU-REAL/Easel), commit d80b26ca598dd29bdc23da236cb9743a9a8751bc, licensed under Apache License 2.0.
+Source files: web/frontend/src/components/TrendsPage.tsx and web/frontend/src/styles/index.css.
+Modified for Haoduoyu: controlled five-platform presentation, local independent loading states, fifteen-row display expansion, accessible research/evidence actions, scoped styles and responsive layout. No Easel backend, LLM workflow, publisher or skill code is included.

@@ -1,0 +1,110 @@
+{
+  "base": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1",
+  "errors": [
+    {
+      "file": "app/page.tsx",
+      "line": 109,
+      "column": 35,
+      "rule": "react-hooks/refs",
+      "message": "Error: Cannot access refs during render"
+    },
+    {
+      "file": "app/page.tsx",
+      "line": 314,
+      "column": 111,
+      "rule": "react-hooks/set-state-in-effect",
+      "message": "Error: Calling setState synchronously within an effect can trigger cascading renders"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 62,
+      "column": 17,
+      "rule": "react-hooks/set-state-in-effect",
+      "message": "Error: Calling setState synchronously within an effect can trigger cascading renders"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 69,
+      "column": 5,
+      "rule": "react-hooks/refs",
+      "message": "Error: Cannot access refs during render"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 69,
+      "column": 34,
+      "rule": "react-hooks/refs",
+      "message": "Error: Cannot access refs during render"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 69,
+      "column": 73,
+      "rule": "react-hooks/refs",
+      "message": "Error: Cannot access refs during render"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 69,
+      "column": 108,
+      "rule": "react-hooks/refs",
+      "message": "Error: Cannot access refs during render"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 72,
+      "column": 38,
+      "rule": "react-hooks/refs",
+      "message": "Error: Cannot access refs during render"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 77,
+      "column": 58,
+      "rule": "react-hooks/purity",
+      "message": "Error: Cannot call impure function during render"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 78,
+      "column": 5,
+      "rule": "react-hooks/refs",
+      "message": "Error: Cannot access refs during render"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 78,
+      "column": 45,
+      "rule": "react-hooks/refs",
+      "message": "Error: Cannot access refs during render"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 78,
+      "column": 96,
+      "rule": "react-hooks/purity",
+      "message": "Error: Cannot call impure function during render"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 79,
+      "column": 17,
+      "rule": "react-hooks/set-state-in-effect",
+      "message": "Error: Calling setState synchronously within an effect can trigger cascading renders"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 80,
+      "column": 17,
+      "rule": "react-hooks/set-state-in-effect",
+      "message": "Error: Calling setState synchronously within an effect can trigger cascading renders"
+    },
+    {
+      "file": "components/word-stage-progress.tsx",
+      "line": 86,
+      "column": 86,
+      "rule": "react-hooks/refs",
+      "message": "Error: Cannot access refs during render"
+    }
+  ]
+}

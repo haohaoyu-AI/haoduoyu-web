@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "scope": "real local Chromium + loopback APIs and isolated D1/R2; not production connectivity",
+  "account_save_posts": 1,
+  "account_remove_tested": true,
+  "uploads": 1,
+  "invalid_word_tested": true,
+  "reversible_archive_restore_tested": true,
+  "history_rows": 8,
+  "private_draft_links": 14,
+  "public_metrics_unknown": 8,
+  "mobile_width": 390,
+  "page_errors": [],
+  "production_writes": 0,
+  "platform_visits": 0
+}

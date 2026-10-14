@@ -1,0 +1,36 @@
+// Synthetic structural evidence only; never used as real research or a production topic.
+export const testOutline=[
+ '热榜线索：离线合成榜单平台的测试条目，公开链接https://example.com/trend，观察时间：2026-10-05 08:00（北京时间），可见排名第8，不是真实新闻。',
+ '标题方向：从电影排片变化看观众选择如何传到影院，不只围绕票房高低。',
+ '核心判断：票房增长需要区分场次与上座率；读者问题是排片变多能否证明观众更喜欢作品。',
+ '开头：150字，以合成资料中的同一家影院增加两场放映这一动作作钩子，交代排片窗口的变化。',
+ '分节：',
+ '1. 场次增加先说明了什么（1100字）',
+ '事实素材：来源一的合成影院公告列出前后场次各为四场和六场，时间口径相同，来源https://example.com/one。',
+ '判断推进：先把供给变化与观众选择分开，场次本身不能推出口碑，给下一节留下上座率的问题。',
+ '2. 观众留下的那张票（1050字）',
+ '事实素材：来源二的合成售票记录列出相同统计窗口的入场人数及可售座位，两项一起比较，来源https://example.com/two。',
+ '判断推进：用相同时间口径回应排片等于受欢迎的反对意见，进一步判断增长是否得到实际观众支撑。',
+ '认知转弯：从只看场次改为同时看入场人数与可售座位，依据是来源二的同窗口数据，不凭空虚构反转。',
+ '结尾：200字，回到影院公告新增加的两场放映和对应入场人数这一具体对比，回答观众选择是否真的传到了排片。',
+ '目标字数：约2500字，正文整体2000–3000字。',
+].join('\n');
+
+export const invalidOutlines=[
+ undefined, null, 123, {}, [], '', '热榜线索 标题方向 核心判断 开头 分节 结尾 目标字数'+'填充'.repeat(100),
+ '热榜线索：\n标题方向：\n核心判断：\n开头：\n分节：\n认知转弯：\n结尾：\n目标字数：\n'+'填充'.repeat(100),
+ ...['热榜线索','标题方向','核心判断','开头','认知转弯','结尾','目标字数'].map(label=>testOutline.replace(new RegExp('^'+label+'：.*$', 'm'),label+'：')),
+ testOutline.replace('观察时间：2026-10-05 08:00（北京时间）','观察时间：'),
+ testOutline.replace('https://example.com/trend',''),
+ testOutline.replace('（1100字）',''),
+ testOutline.replace('（1100字）','').replace('事实素材：','事实素材：这是1100字的报道内容，'),
+ testOutline.replace('（1050字）',''),
+ testOutline.replace(/事实素材：.*$(?![\s\S]*事实素材：)/m,'事实素材：'),
+ testOutline.replace(/判断推进：.*$(?![\s\S]*判断推进：)/m,'判断推进：'),
+ testOutline.replace(/^事实素材：.*$/m,'事实素材：'),
+ testOutline.replace(/^判断推进：.*$/m,'判断推进：'),
+ testOutline.replace(/^判断推进：.*$/m,'判断推进：\n衔接：接上前节并留下下节要回答的问题'),
+ testOutline.replace('约2500字','约3500字'),
+ testOutline.replace('约2500字','约12500字'),
+ testOutline+'补充'.repeat(4000),
+];

@@ -1,0 +1,4 @@
+import {owner} from '../../../lib/test-store';
+import {claudeStatus,configureClaude} from '../../../lib/claude';
+export async function GET(r:Request){const u=owner(r);if(!u)return new Response('Unauthorized',{status:401});return Response.json(await claudeStatus(u),{headers:{'Cache-Control':'private, no-store'}});}
+export async function POST(r:Request){const u=owner(r);if(!u)return new Response('Unauthorized',{status:401});if(r.headers.get('origin')!==new URL(r.url).origin||r.headers.get('x-xiaoyu-config')!=='1')return new Response('Forbidden',{status:403});try{const raw=await r.text();if(raw.length>3000)throw Error('配置过长');return Response.json(await configureClaude(u,JSON.parse(raw)),{headers:{'Cache-Control':'private, no-store'}});}catch(e:any){return Response.json({error:String(e.message||'配置未保存').slice(0,150)},{status:400});}}

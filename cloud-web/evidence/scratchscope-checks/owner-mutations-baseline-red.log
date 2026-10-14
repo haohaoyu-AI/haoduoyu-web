@@ -1,0 +1,23 @@
+{"action":"cloud","posted_scope":null,"authenticated_owner":"OFFLINE-B","response_status":200,"business_effects_unchanged":false,"cloud_tasks_B":1,"accounts_B":0,"event_calls":1}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: the request must carry the verified page owner, never infer identity after submission
++ actual - expected
+
++ undefined
+- '2b382aeeeceaa23e43cee46e7943a393d4d7a159ccc1c0b2a27580fe7c61077a'
+
+    at file:///workspace/sites/haoduoyu-owner-write-scope-gate/tests/owner-scope-browser-mutations.mjs:69:9
+    at async check (file:///workspace/sites/haoduoyu-owner-write-scope-gate/tests/owner-scope-browser-mutations.mjs:53:54)
+    at async file:///workspace/sites/haoduoyu-owner-write-scope-gate/tests/owner-scope-browser-mutations.mjs:55:56 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: '2b382aeeeceaa23e43cee46e7943a393d4d7a159ccc1c0b2a27580fe7c61077a',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

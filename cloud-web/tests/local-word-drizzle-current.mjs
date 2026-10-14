@@ -1,0 +1,44 @@
+// Local-only actual workerd/D1 + genuine Drizzle migration verification.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {Miniflare} from 'miniflare';
+import {drizzle} from 'drizzle-orm/d1';
+import {migrate} from 'drizzle-orm/d1/migrator';
+import {readMigrationFiles} from 'drizzle-orm/migrator';
+const journalCurrent=JSON.parse(fs.readFileSync('drizzle/meta/_journal.json','utf8'));
+const targetIndex=journalCurrent.entries.findIndex(entry=>entry.tag==='0032_local_word_only_jobs');
+assert.ok(targetIndex>=0);
+const files=readMigrationFiles({migrationsFolder:'drizzle'});
+assert.equal(files[targetIndex].sql.filter(s=>s.trim()).length,5);
+const baseline=fs.mkdtempSync(path.join(os.tmpdir(),'word-b8e-migrations-'));
+const target=fs.mkdtempSync(path.join(os.tmpdir(),'word-0032-migrations-'));
+const mf=new Miniflare({modules:true,script:'export default {fetch(){return new Response("LOCAL OFFLINE FIXTURE");}}',compatibilityDate:'2026-05-22',d1Databases:{DB:'word-only-local-migration'}});
+try{
+ const journal={...journalCurrent,entries:journalCurrent.entries.slice(0,targetIndex+1)};
+ fs.mkdirSync(path.join(target,'meta'));fs.writeFileSync(path.join(target,'meta/_journal.json'),JSON.stringify(journal));
+ for(const item of journal.entries)fs.copyFileSync('drizzle/'+item.tag+'.sql',path.join(target,item.tag+'.sql'));
+ journal.entries.pop();
+ fs.mkdirSync(path.join(baseline,'meta'));fs.writeFileSync(path.join(baseline,'meta/_journal.json'),JSON.stringify(journal));
+ for(const item of journal.entries)fs.copyFileSync('drizzle/'+item.tag+'.sql',path.join(baseline,item.tag+'.sql'));
+ const d1=await mf.getD1Database('DB'),orm=drizzle(d1);
+ await migrate(orm,{migrationsFolder:baseline});
+ const oldSchema=(await d1.prepare("SELECT name,sql FROM sqlite_master WHERE tbl_name NOT LIKE 'local_word_%' ORDER BY name").all()).results;
+ assert.equal((await d1.prepare("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name LIKE 'hot_article_%'").first()).n,6);
+ await d1.prepare("INSERT INTO hot_article_batches(id,owner,request_key,writer,state,created,updated) VALUES('OFFLINE-HOT','OFFLINE-OWNER','OFFLINE-KEY','xiaoyu_agent0YYLX','insufficient','2026-01-01','2026-01-01')").run();
+ const hotBefore=await d1.prepare("SELECT * FROM hot_article_batches WHERE id='OFFLINE-HOT'").first();
+ await migrate(orm,{migrationsFolder:target});
+ assert.deepEqual((await d1.prepare("SELECT name,sql FROM sqlite_master WHERE tbl_name NOT LIKE 'local_word_%' ORDER BY name").all()).results,oldSchema);
+ assert.deepEqual(await d1.prepare("SELECT * FROM hot_article_batches WHERE id='OFFLINE-HOT'").first(),hotBefore);
+ assert.equal((await d1.prepare("SELECT count(*) n FROM sqlite_master WHERE type='trigger' AND name LIKE 'local_word_%'").first()).n,2);
+ const insert=d1.prepare("INSERT INTO local_word_jobs(id,owner,request_key,source_kind,output_mode,destinations_json,filename,title,source_sha256,original_sha256,input_sha256,input_json,artifact_manifest,state,created,updated,dispatch_state) VALUES('localword_00000000-0000-4000-8000-000000000001','OFFLINE-OWNER','OFFLINE-LOCAL','local_desktop','word_only','[]','synthetic.docx','OFFLINE TITLE','SOURCE-HASH','ORIGINAL-HASH','INPUT-HASH','{}','{}','queued','2026-01-01','2026-01-01','pending')");
+ await insert.run();
+ await assert.rejects(()=>d1.prepare("UPDATE local_word_jobs SET title='CHANGED'").run());
+ await d1.prepare("UPDATE local_word_jobs SET state='word_completed',result_key='OFFLINE-RESULT',output_meta='{}'").run();
+ await assert.rejects(()=>d1.prepare("UPDATE local_word_jobs SET state='queued'").run());
+ await assert.rejects(()=>d1.prepare("UPDATE local_word_jobs SET result_key='REPLACED'").run());
+ await migrate(orm,{migrationsFolder:target});
+ assert.equal((await d1.prepare('SELECT count(*) n FROM local_word_jobs').first()).n,1);
+ console.log('PASS actual local workerd D1 + Drizzle v104→0032, five statements, both triggers, exact old schema/hot sentinel preservation, idempotent rerun; no external/model/production access');
+}finally{await mf.dispose();fs.rmSync(baseline,{recursive:true,force:true});fs.rmSync(target,{recursive:true,force:true});}

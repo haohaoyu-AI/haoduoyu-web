@@ -1,0 +1,72 @@
+{
+  "base": "0fe318ec3bcf74eb29d85cd33cbdaab64c835528",
+  "scope": "browser-only expected-owner gate; no MCP/library/claim/attempt/migration changes",
+  "baseline": {
+    "command": "OWNER_SCOPE_MUTATION_SOURCE_ROOT=/workspace/sites/haoduoyu-offline-eight-followup node tests/owner-scope-browser-mutations.mjs",
+    "exit_code": 1,
+    "source_files_verified_against_base": true,
+    "receipt": "owner-mutations-baseline-red.log",
+    "actual": {
+      "posted_scope": null,
+      "authenticated_owner": "OFFLINE-B",
+      "response_status": 200,
+      "cloud_tasks_B": 1,
+      "event_calls": 1
+    }
+  },
+  "results": [
+    {
+      "command": "node tests/owner-scope-browser-mutations.mjs",
+      "exit_code": 0,
+      "cases": 10,
+      "receipt": "owner-mutations-after.log"
+    },
+    {
+      "command": "node tests/offline-eight-interactions-ui.mjs",
+      "exit_code": 0,
+      "cases": 19
+    },
+    {
+      "command": "node tests/hot-article-discovery-storage.mjs",
+      "exit_code": 0
+    },
+    {
+      "command": "node tests/hot-article-discovery-races.mjs",
+      "exit_code": 1,
+      "note": "Base0fe318e has known stale UI fixture. Only scope field/hash seam was changed; approved1540e84 fixture overlay below validates the composition."
+    },
+    {
+      "command": "node --input-type=module (stdin: git show1540e84 races fixture plus owner_scope/hash seam overlay, actual current route/page)",
+      "exit_code": 0,
+      "receipt": "races-approved-fixture-scope-overlay.log"
+    },
+    {
+      "command": "./node_modules/.bin/tsc --noEmit --incremental false",
+      "exit_code": 0
+    },
+    {
+      "command": "./node_modules/.bin/eslint app/api/dedao/cloud/route.ts app/api/imitation/discovery/route.ts app/dedao/page.tsx app/imitation/page.tsx tests/owner-scope-browser-mutations.mjs tests/hot-article-discovery-storage.mjs tests/hot-article-discovery-races.mjs",
+      "exit_code": 0
+    }
+  ],
+  "source_sha256": {
+    "app/api/dedao/cloud/route.ts": "d4f082397d9b39b38ede5aa90603bdb18a940422d926155d184517e0cb7f4b98",
+    "app/api/imitation/discovery/route.ts": "d2965a3406e8157243b48a7cc03bedb8085869ff3be8fcab1bd812e0232e1653",
+    "app/dedao/page.tsx": "a3725d8a997d95844e304a2b1c78e4c4a4e7a12be8319fbd7988427f8f4dedc5",
+    "app/imitation/page.tsx": "c3fcd418e3ea2ba2ab656843d52fb5a7e6f9175af2f96d274bc28675561aabc7",
+    "tests/owner-scope-browser-mutations.mjs": "f8ea0108a16617360754fe97c548dfea3ea450369e6c6b5209d878a66b225381"
+  },
+  "fixture": "54 inherited migrations on isolated SQLite; actual browser/route/library source; authentication and event transport are doubles",
+  "external_calls": 0,
+  "production_writes": 0,
+  "platform_actions": 0,
+  "not_run": [
+    "67 Word settlement",
+    "22 Word read whole suite",
+    "whole historical suite",
+    "build/browser",
+    "production cloud/remote execution",
+    "real Site/platform/deployment/migration"
+  ],
+  "compatibility": "These two POST routes have only browser callers. They require verified owner_scope; authenticated MCP calls retain the direct owner-scoped libraries and their unchanged argument contracts."
+}

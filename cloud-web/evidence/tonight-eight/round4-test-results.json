@@ -1,0 +1,162 @@
+{
+  "baseline": "81596cb0becc44bc14757c6dedfd8cd34a4244da",
+  "scope": "isolated execution fence repair; production/platform writes ZERO",
+  "migration_count": 53,
+  "results": [
+    {
+      "command": "node tests/tonight-eight-d1.mjs",
+      "exit_code": 0,
+      "seconds": 1.43,
+      "stdout_summary": "PASS isolated full migrations, reversible visibility/races/owner isolation/expired-holder protection, 8 genuine offline historical records/nulls/no invented IDs, exact/late/unavailable metric windows, cloud one-request/one-action/claim/draft completion guards; ZERO production or platform writes\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/hot-article-account-discovery.mjs",
+      "exit_code": 0,
+      "seconds": 0.649,
+      "stdout_summary": "PASS synthetic account-card discovery: URL/title/author/date/read binding, approximate ranges, threshold/date edges, body/sidebar exclusions, evidence hashes, bounded 100 cap, independent sources, blocked versus empty; no live validation claimed\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/hot-article-discovery-storage.mjs",
+      "exit_code": 0,
+      "seconds": 1.206,
+      "stdout_summary": "PASS actual SQLite persistence/migration + HTTP authorization: account add/dedupe/remove/cap, owner isolation, module reload, snapshots, refresh idempotency/concurrency/expiry, storage failure, no production writes\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/hot-article-discovery-races.mjs",
+      "exit_code": 0,
+      "seconds": 1.285,
+      "stdout_summary": "PASS delayed SQL execution/expiry/successor guards, busy HTTP409/no fetch, idle expiry/focus/visibility cleanup, UI follows accepted scan and clears unaccepted intent\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/hot-article-discovery-clock.mjs",
+      "exit_code": 0,
+      "seconds": 0.956,
+      "stdout_summary": "PASS new publication after foreground idle\nPASS real expiry after foreground idle\nPASS effect delay uses execution clock\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/topic-research.mjs",
+      "exit_code": 0,
+      "seconds": 2.726,
+      "stdout_summary": "topic research: migrations, frozen inputs, owner isolation, CSRF, GET purity, concurrency, claims, expiry, evidence validation, old-generation fencing, idempotent save, durable retry, no article/provider effects passed\ntopic credential boundary: actual disabled opaque key decrypt, old article/delivery/outline/writing leases, current token, nested JSON keys, percent-encoded URL path/query, snapshot/save/error rejection and read suppression passed; zero provider calls\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-state-transitions.mjs",
+      "exit_code": 0,
+      "seconds": 0.395,
+      "stdout_summary": "Mock article and delivery states: verified recovery can resume saving, explicit in-progress failures are recordable, and terminal states stay closed\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/upload-attempt-guards.mjs",
+      "exit_code": 0,
+      "seconds": 3.019,
+      "stdout_summary": "ome, login interruption and claim renewal retain the consumed fence and editor URL\nPASS expired and rotated leases cannot consume an unconsumed reservation\nPASS reservation and consumption CAS reject lease rotation between read and write\nPASS historical flag-zero results remain read-only and cannot authorize a new import\nPASS explicit owner-confirmed never-submitted legacy work can get one first-import grant without resetting uncertainty\nPASS verify_existing accepts an old saved draft with a fresh reopen and never authorizes file submission\nPASS owner-confirmed first Zhihu import remains separate from historical completed Toutiao\nPASS exact title/body, image order/hash/anchors and independent saved/reopened evidence are mandatory\nPASS full Toutiao completion then Zhihu pending/consume/verify/save works with mandatory cover\nPASS authorized source cleanup retains immutable digest and supports later Zhihu verification\nPASS editor URLs reject credentials, unknown paths/queries, duplicate identities and fragments\nPASS current and other owner-known lease credentials including percent-encoded paths are not persisted\nPASS concurrent editor observations use CAS and retain both real URLs after read-only reconciliation\nPASS verified receipts are terminal and the editor URL history cannot exceed its bound\nPASS a stale reservation fails closed without clearing the durable fence\n21 upload guard groups passed; 0 failed; real SQLite migrations and mock R2; network/platform/provider calls=0.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-word-settlement.mjs",
+      "exit_code": 0,
+      "seconds": 92.129,
+      "stdout_summary": "urrent owner incident after its verified snapshot and creates no second proof\nPASS eight same-key concurrent calls record once; two different keys admit one atomic end winner\nPASS full-snapshot end CAS refuses concurrent article frozen text mutation\nPASS full-snapshot end CAS refuses concurrent article output prefix mutation\nPASS full-snapshot end CAS refuses concurrent control mutation\nPASS full-snapshot end CAS refuses concurrent attempt timer mutation\nPASS full-snapshot end CAS refuses concurrent service incident mutation\nPASS full-snapshot end CAS refuses concurrent new owner service incident mutation\nPASS full-snapshot end CAS refuses concurrent handoff state mutation\nPASS full-snapshot end CAS refuses concurrent help claim record mutation\nPASS full-snapshot end CAS refuses concurrent new checkpoint mutation\nPASS full-snapshot end CAS refuses concurrent new settle receipt mutation\nPASS full-snapshot end CAS refuses concurrent new immutable grant mutation\nPASS full-snapshot end CAS refuses concurrent new immutable request history mutation\nPASS full-snapshot end CAS refuses concurrent new failure candidate mutation\nPASS full-snapshot end CAS refuses concurrent new progress observation mutation\nPASS full-snapshot end CAS refuses concurrent frozen layout manifest mutation\nPASS full-snapshot end CAS refuses concurrent pending queue mutation\nPASS full-snapshot end CAS refuses concurrent another held serial slot mutation\nPASS 67 synthetic settlement contracts; external_calls=0\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/word-serial-attempt-ui.mjs",
+      "exit_code": 0,
+      "seconds": 0.517,
+      "stdout_summary": "PASS serial attempt UI: actual React static rendering, one-article queue labels, grant-only elapsed time, paused/stale clock, safe-stop priority, generation reset and late-read rejection, six stages, cloud/desktop separation. No browser visual acceptance.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/word-progress-read-ui.mjs",
+      "exit_code": 0,
+      "seconds": 0.876,
+      "stdout_summary": "ailures remain unavailable without forged stage, queue or grant\",\n    \"a per-card 404/503 failure frees queue capacity, preserves old evidence and cannot block other cards\",\n    \"attempt generation wins over observation version and the next actual attempt resets old counts\",\n    \"wrong article response is rejected without changing any other card\",\n    \"a delayed source-A GET cannot overwrite the same article after a source-B list read\",\n    \"a dispatch without prior progress cannot overwrite a newly known different frozen source\",\n    \"an old text-only/null success cannot erase Word progress and output mode learned while its GET was pending\",\n    \"late failure fence: source A to B before late 503\",\n    \"late failure fence: attempt generation 1 to 2 before late network failure\",\n    \"late failure fence: unknown progress to known progress before late 503\",\n    \"metadata-only deferred list reads retain an earlier per-card failure and its existing evidence\",\n    \"offline display does not infer executor loss and prevents detail-triggered reads\",\n    \"bfcache pageshow aborts and fences the old account page before fresh reads\",\n    \"owner auth failure cancels all old Word reads and cannot resurrect private cards\",\n    \"a Word GET 403 aborts the list, all concurrent reads and queued private-card work\",\n    \"actual Home clear callback removes and fences the cleared card without a deletion POST\",\n    \"unmount aborts deferred GETs and late fulfilled responses do not commit state\"\n  ]\n}\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/mcp-contract.mjs",
+      "exit_code": 0,
+      "seconds": 0.774,
+      "stdout_summary": "MCP auth, destructive tool discovery, exact confirmation forwarding, and existing contract checks passed (storage mocked; no network)\nPASS V88 MCP discovery, exact schema/confirmation/authenticated-owner routing, no-store, origin/auth rejection and private error suppression.\nPASS three real public-collection schemas, strict nested fields and bounds, owner/no-store routing, auth/origin rejection and safe errors without a writer grant; offline doubles, zero provider/network\nPASS real hot tool/event schemas, owner/exact-argument routing, real imitationClaudeSSE export and complete SSE terminal, zero-paid scope refusal, safe failures and aborted free probe; dependency doubles only, zero real provider/network\nPASS two real help-queue schemas, normal owner/origin/no-store routing and safe error suppression; no queue, event or provider operations\nPASS real 得到 tool/event schemas and authenticated routing, owner/origin/no-store and safe private errors; offline dependencies, no real execution\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-history-capture-guards.mjs",
+      "exit_code": 0,
+      "seconds": 0.193,
+      "stdout_summary": "PASS all current actual migrations: backfill/main/delivery/end capture reject wrong SHA/title/account/URL/Word receipt/readback/order/unsettled uploader; capture later completion of pre-cutoff upload once; immutable metadata. ZERO production/platform I/O.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/topic-research-recovery.mjs",
+      "exit_code": 0,
+      "seconds": 0.609,
+      "stdout_summary": "PASS full SQLite: default gateway manual block; renewed failure AND completion retain fence across task creation/claim/dispatch; queued legacy overlap/older clear/claim blocked; only verified complete settlement permits normal new task; owner isolation/immutable receipts/CAS/recovery. Positive gateway cases are offline doubles ONLY. ZERO production/platform/network/schedule actions.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-publication-evidence.mjs",
+      "exit_code": 0,
+      "seconds": 1.615,
+      "stdout_summary": "PASS real isolated SQLite: 4 scheduled exact IDs not published; explicit published/time_conflict retains 6258/26/0/0 as cumulative with no due; URL/profile/legacy fail closed; matching IDs, raw time sources, verified 24h, owner/idempotency/immutable rows and actual rendered UI. ZERO platform I/O, production writes or schedule changes.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-data-owner-pages.mjs",
+      "exit_code": 0,
+      "seconds": 0.428,
+      "stdout_summary": "PASS actual ArticleDataPage: every page/current-owner/inventory mismatch and workspace 401 clear entire batch/pagination/old action controls; next explicit refresh starts owner B at offset0. Deterministic offline UI harness, no production/browser/account data.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/topic-research-forward-fences.mjs",
+      "exit_code": 0,
+      "seconds": 0.126,
+      "stdout_summary": "PASS actual forward52→53 migration: failed/completed cleared claims and unknown legacy execution stay fenced; old creation/claim/clear/direct-insert paths blocked; unrelated owner unaffected; no inferred settlements or audit deletion. ZERO production/platform/network I/O.\n",
+      "stderr_summary": ""
+    },
+    {
+      "command": "node tests/article-publication-snapshot.mjs",
+      "exit_code": 0,
+      "seconds": 0.036,
+      "stdout_summary": "PASS exact private parent Library JSON/hash: 4 scheduled, 1 explicitly published with unresolved time and cumulative counters, 1 private, 1 unknown, 1 Word-only; all 24h/publication times null. Read-only offline evidence inspection, ZERO imports/platform actions.\n",
+      "stderr_summary": ""
+    }
+  ],
+  "terminal_gateway": "production adapter unavailable; no simulated proof used for real actions; positive closure/new-task cases are explicitly offline trusted-reader doubles",
+  "business_failure_completion": "retain claim and owner-wide execution fence; no different-ID claim, event or creation until verified complete settlement",
+  "forward_compatibility": "0052 backfills old0051 holders even with cleared claims; unknown legacy actors remain fenced; old SQL create/claim/clear blocked",
+  "not_run": [
+    "production executor terminal integration/end-to-end chain",
+    "all historical ~900 tests",
+    "full repository lint"
+  ],
+  "typecheck": {
+    "command": "npx tsc --noEmit --incremental false",
+    "exit_code": 0
+  },
+  "targeted_lint": {
+    "command": "npx eslint lib/topic-research.ts lib/topic-research-tools.ts lib/topic-research-execution-evidence.ts app/api/topics/research/route.ts app/topics/research-helper/page.tsx components/topics/ResearchPanel.tsx",
+    "exit_code": 0
+  },
+  "build": {
+    "command": "npm run build",
+    "exit_code": 0
+  },
+  "browser": {
+    "command": "PUBLICATION_PREVIEW_ORIGIN=http://127.0.0.1:5187 node tests/topic-research-renewal-browser.mjs",
+    "exit_code": 0,
+    "scope": "actual localhost Chromium/app UI with explicit controlled API fixtures; NOT production or backend connectivity",
+    "business_failure_execution_block_visible": true,
+    "renewal_unknown_reply_same_request_key": true,
+    "mobile_width": 390,
+    "production_writes": 0
+  }
+}

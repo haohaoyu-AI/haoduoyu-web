@@ -1,0 +1,1 @@
+PASS approved1540e84 actual fixture + only owner_scope/hash seam, actual strict route/page; SQL/race/time/identity assertions retained. exit0; external I/O doubles only.

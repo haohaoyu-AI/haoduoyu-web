@@ -1,0 +1,84 @@
+{
+  "contract_version": 1,
+  "target_kind": "article",
+  "target_id": "464babc7-ed13-43d0-9a4f-3d2b0687476a",
+  "input_sha256": "a523cd8253711e5b8b029b1e8a7a697d7dd1c6c52069b2aff3534252d4dd7457",
+  "version": 3,
+  "legacy": false,
+  "started_at": "2026-10-09T05:05:49.254Z",
+  "updated_at": "2026-10-09T05:05:49.358Z",
+  "completed_at": null,
+  "read_at": "2026-10-09T05:05:49.365Z",
+  "steps": [
+    {
+      "id": "read_source",
+      "label": "读取原文",
+      "state": "completed",
+      "action": "正在读取冻结原文",
+      "counts": null,
+      "evidence": "executor_report"
+    },
+    {
+      "id": "collect_images",
+      "label": "搜集图片",
+      "state": "completed",
+      "action": "正在搜集公开图片",
+      "counts": {
+        "completed": 2,
+        "total": null,
+        "unit": "candidates"
+      },
+      "evidence": "executor_report"
+    },
+    {
+      "id": "confirm_images",
+      "label": "确定配图",
+      "state": "current",
+      "action": "正在检查实际像素",
+      "counts": {
+        "completed": 18,
+        "total": 22,
+        "unit": "images"
+      },
+      "evidence": "executor_report"
+    },
+    {
+      "id": "generate_word",
+      "label": "生成 Word",
+      "state": "pending",
+      "action": null,
+      "counts": null,
+      "evidence": null
+    },
+    {
+      "id": "inspect_pages",
+      "label": "逐页检查",
+      "state": "pending",
+      "action": null,
+      "counts": null,
+      "evidence": null
+    },
+    {
+      "id": "save_final",
+      "label": "保存成品",
+      "state": "pending",
+      "action": null,
+      "counts": null,
+      "evidence": null
+    }
+  ],
+  "execution": {
+    "state": "running",
+    "reason": "none",
+    "reason_text": "",
+    "claim_active": true,
+    "update_overdue": false
+  },
+  "save": {
+    "state": "not_started",
+    "cloud_ready": false,
+    "independently_confirmed": false,
+    "desktop_saved": null
+  },
+  "output": null
+}
