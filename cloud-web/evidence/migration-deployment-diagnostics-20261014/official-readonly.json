@@ -1,0 +1,180 @@
+{
+  "scope": "official read-only V160 evidence",
+  "receipts": [
+    {
+      "stage": "deployment",
+      "at": "2026-10-14 16:02:43 UTC",
+      "isError": false,
+      "result": {
+        "id": "appgdep_6acee28b68988191ae9b152791d1a90e",
+        "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+        "title": "好多鱼图文",
+        "version_id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_0a8228c1068c8191983c9e798ff36437",
+        "type": "publish",
+        "status": "failed",
+        "url": null,
+        "has_mcp": true,
+        "screenshot_asset_pointer": null,
+        "provider_deployment_id": "site---6ac1907e61a48191a067ce3c30b21265",
+        "failure_message": "incomplete input: SQLITE_ERROR",
+        "env_set_revision": 1,
+        "updated_at": "2026-10-14T02:01:58.293810+00:00"
+      }
+    },
+    {
+      "stage": "overview",
+      "at": "2026-10-14 16:02:43 UTC",
+      "isError": false,
+      "result": {
+        "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+        "bindings": [
+          "DB"
+        ],
+        "selected_binding_name": "DB",
+        "tables": [
+          "article_claim_credential_hashes",
+          "article_content_fences",
+          "article_deletions",
+          "article_deliveries",
+          "article_handoffs",
+          "article_help_queue_claims",
+          "article_history",
+          "article_list_deletions",
+          "article_metrics_observations",
+          "article_output_restarts",
+          "article_purge_executor_ends",
+          "article_purge_executor_observations",
+          "article_purge_serial_blocks",
+          "article_upload_attempts",
+          "article_upload_diagnostics",
+          "article_upload_executor_ends",
+          "article_word_claim_recoveries",
+          "article_word_executor_ends",
+          "article_workspace_archives",
+          "article_workspace_requests",
+          "articles",
+          "claude_attempts",
+          "claude_settings",
+          "connection_tests",
+          "daily_editorial_drafts",
+          "dedao_actions",
+          "dedao_batch_runtime",
+          "dedao_batches",
+          "dedao_chunks",
+          "dedao_cloud_actions",
+          "dedao_cloud_requests",
+          "dedao_dispatches",
+          "dedao_executors",
+          "dedao_items",
+          "dedao_native_lifecycle",
+          "dedao_native_observations",
+          "dedao_native_sessions",
+          "dedao_wake_outbox",
+          "editorial_agent_claim_recoveries_v3",
+          "editorial_authority_v3",
+          "editorial_body_continuations_v3",
+          "editorial_cloud_delegations_v3",
+          "editorial_daily_cloud_delegations_v3",
+          "editorial_failed_writer_cloud_delegations_v3",
+          "editorial_failed_writer_continuations_v3",
+          "editorial_flows",
+          "editorial_request_outbox",
+          "editorial_requests",
+          "editorial_revision_cloud_delegations_v3",
+          "editorial_revision_continuations_v3"
+        ],
+        "model_projection": {
+          "truncated": false,
+          "omitted_project_id": false,
+          "omitted_selected_binding": false,
+          "omitted_bindings": 0,
+          "omitted_tables": 0
+        }
+      }
+    },
+    {
+      "stage": "logs",
+      "at": "2026-10-14 16:02:43 UTC",
+      "isError": false,
+      "parameters": {
+        "since_minutes": 1440,
+        "limit": 100,
+        "errors_only": true
+      },
+      "event_count": 5,
+      "events": [
+        {
+          "timestamp_utc": "2026-10-14T09:20:21.597Z",
+          "request_id": "f478b23b099881ecf06d06183f9409f4",
+          "event_type": "fetch",
+          "method": "GET",
+          "path": "/api/articles",
+          "status": 401,
+          "outcome": "ok"
+        },
+        {
+          "timestamp_utc": "2026-10-14T08:25:20.860Z",
+          "request_id": "19600f5ca33ff661348c8d72638d002f",
+          "event_type": "fetch",
+          "method": "GET",
+          "path": "/wp-admin/css/colors/modern/pressindex.php",
+          "status": 404,
+          "outcome": "ok"
+        },
+        {
+          "timestamp_utc": "2026-10-14T08:25:19.988Z",
+          "request_id": "b43074a079a202b5961b8045e3b0af78",
+          "event_type": "fetch",
+          "method": "GET",
+          "path": "/xor.php",
+          "status": 404,
+          "outcome": "ok"
+        },
+        {
+          "timestamp_utc": "2026-10-14T08:25:18.394Z",
+          "request_id": "bc121ede6ecf07b02eac7f438cc1b098",
+          "event_type": "fetch",
+          "method": "GET",
+          "path": "/readme.php",
+          "status": 404,
+          "outcome": "ok"
+        },
+        {
+          "timestamp_utc": "2026-10-13T17:33:53.181Z",
+          "request_id": "bcfbdee9e53bf5f61809f6a60b1efcf6",
+          "event_type": "fetch",
+          "method": "GET",
+          "path": "/robots.txt",
+          "status": 404,
+          "outcome": "ok"
+        }
+      ],
+      "limits": [
+        "Runtime request summaries only. Request headers, cookies, signatures, IPs and bodies omitted. No deployment migration event found."
+      ]
+    },
+    {
+      "stage": "version",
+      "at": "2026-10-14 16:02:43 UTC",
+      "isError": false,
+      "result": {
+        "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_0a8228c1068c8191983c9e798ff36437",
+        "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+        "version_number": 160,
+        "source": {
+          "commit_sha": "ab35236c37d015cd0ec40e5dae3545eb30307da4"
+        },
+        "archive_storage": {
+          "archive_format": "tar",
+          "sediment_file_id": "file_00000000b4f48210bf03c99c44f4db5e",
+          "content_hash": "sha256:5a030fdbeb3178e855d38523d0a2963e97ca6180886eaad581f1dc9136e4c528",
+          "size_bytes": 10956800,
+          "file_count": 334
+        },
+        "screenshot_url": null,
+        "deployment_id": "appgdep_6acee28b68988191ae9b152791d1a90e"
+      }
+    }
+  ],
+  "production_actions": 0
+}

@@ -1,0 +1,344 @@
+{
+  "started_at": "2026-10-14T16:10:31.736Z",
+  "node_version": "v24.19.0",
+  "original_path": "drizzle/0053_far_sleepwalker.sql",
+  "original_sha256": "745bb4a1ecc4d0d8dea8ae97834917f8f8f0ef15fbd6003cb26efce9074c398b",
+  "fixture_path": "tests/fixtures/0053-first-end-compatible.sql",
+  "fixture_sha256": "f3043fe7b2aecca6ee62b6e1f4979683b5b7ed4183fbad57e36bbe84d1fd6543",
+  "scope": "Synthetic in-memory Node SQLite; diagnostic splitter only; no production actions",
+  "limitations": [
+    "Sites' actual V160 failed input, splitter, transaction policy and applied ledger are unknown.",
+    "Local Node SQLite is not D1 or Sites; no platform batch or concurrent-worker guarantee is inferred.",
+    "Node prepare accepts only the first statement of 0012; full exec is used for the actual baseline.",
+    "Fixture is not a forward migration and cannot safely replace an already applied 0053."
+  ],
+  "checks": [
+    {
+      "name": "fixture changes only the two AFTER-trigger CASE guards into WHERE guards",
+      "passed": true,
+      "evidence": {
+        "rewritten_guards": 2,
+        "historical_source_sha256": "745bb4a1ecc4d0d8dea8ae97834917f8f8f0ef15fbd6003cb26efce9074c398b"
+      }
+    },
+    {
+      "name": "actual 0012 exposes Node.prepare multi-statement truncation; baseline uses exec",
+      "passed": true,
+      "evidence": {
+        "prepare_objects": [
+          "outline_flows"
+        ],
+        "exec_objects": [
+          "outline_flow_stages",
+          "outline_flows",
+          "outline_owner_authorization",
+          "outline_owner_run_stage"
+        ],
+        "platform_equivalence": false
+      }
+    },
+    {
+      "name": "whole original 0053 installs; diagnostic first-END truncates both AFTER triggers with exact incomplete input",
+      "passed": true,
+      "evidence": {
+        "diagnostic_piece_count": 10,
+        "errors": [
+          {
+            "trigger": "topic_control_receipt_claim_key",
+            "fragment_sha256": "7425e697787fbab93437aae528db461680849e65cf13c5aca004a66c676e3058",
+            "error": {
+              "name": "Error",
+              "message": "incomplete input",
+              "code": "ERR_SQLITE_ERROR",
+              "errcode": 1,
+              "errstr": "SQL logic error"
+            }
+          },
+          {
+            "trigger": "topic_settlement_claim_key",
+            "fragment_sha256": "aa32e773f86747ff85555486fb426293b3f9e06598c6eed4b57236e7c426b0de",
+            "error": {
+              "name": "Error",
+              "message": "incomplete input",
+              "code": "ERR_SQLITE_ERROR",
+              "errcode": 1,
+              "errstr": "SQL logic error"
+            }
+          }
+        ],
+        "actual_platform_failure_reproduced": false
+      }
+    },
+    {
+      "name": "candidate retains six complete statements under the same diagnostic first-END splitter",
+      "passed": true,
+      "evidence": {
+        "diagnostic_piece_count": 6,
+        "local_prepare_run": true
+      }
+    },
+    {
+      "name": "original whole SQL: legacy projection retains both conflicting records and no backfill",
+      "passed": true,
+      "evidence": {
+        "legacy_rows": [
+          {
+            "request_key": "legacy-both",
+            "receipt_table": null,
+            "legacy_conflict": 1
+          },
+          {
+            "request_key": "legacy-control",
+            "receipt_table": "control",
+            "legacy_conflict": 0
+          },
+          {
+            "request_key": "legacy-settlement",
+            "receipt_table": "settlement",
+            "legacy_conflict": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "original whole SQL: legacy cross-table conflicts reject without deleting history",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: control winner, identical retry and cross-table OR IGNORE conflict",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: settlement winner, identical retry and cross-table OR IGNORE conflict",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: owner isolation permits the same nonce in different tables",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: a reserved registry key blocks either receipt table",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: control multi-row plain conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: control multi-row OR IGNORE conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: control explicit transaction rollback preserves all earlier records",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: settlement multi-row plain conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: settlement multi-row OR IGNORE conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: settlement explicit transaction rollback preserves all earlier records",
+      "passed": true
+    },
+    {
+      "name": "original whole SQL: registry update/delete guards stay immutable",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: legacy projection retains both conflicting records and no backfill",
+      "passed": true,
+      "evidence": {
+        "legacy_rows": [
+          {
+            "request_key": "legacy-both",
+            "receipt_table": null,
+            "legacy_conflict": 1
+          },
+          {
+            "request_key": "legacy-control",
+            "receipt_table": "control",
+            "legacy_conflict": 0
+          },
+          {
+            "request_key": "legacy-settlement",
+            "receipt_table": "settlement",
+            "legacy_conflict": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "candidate whole SQL: legacy cross-table conflicts reject without deleting history",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: control winner, identical retry and cross-table OR IGNORE conflict",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: settlement winner, identical retry and cross-table OR IGNORE conflict",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: owner isolation permits the same nonce in different tables",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: a reserved registry key blocks either receipt table",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: control multi-row plain conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: control multi-row OR IGNORE conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: control explicit transaction rollback preserves all earlier records",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: settlement multi-row plain conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: settlement multi-row OR IGNORE conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: settlement explicit transaction rollback preserves all earlier records",
+      "passed": true
+    },
+    {
+      "name": "candidate whole SQL: registry update/delete guards stay immutable",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: legacy projection retains both conflicting records and no backfill",
+      "passed": true,
+      "evidence": {
+        "legacy_rows": [
+          {
+            "request_key": "legacy-both",
+            "receipt_table": null,
+            "legacy_conflict": 1
+          },
+          {
+            "request_key": "legacy-control",
+            "receipt_table": "control",
+            "legacy_conflict": 0
+          },
+          {
+            "request_key": "legacy-settlement",
+            "receipt_table": "settlement",
+            "legacy_conflict": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "candidate diagnostic split: legacy cross-table conflicts reject without deleting history",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: control winner, identical retry and cross-table OR IGNORE conflict",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: settlement winner, identical retry and cross-table OR IGNORE conflict",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: owner isolation permits the same nonce in different tables",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: a reserved registry key blocks either receipt table",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: control multi-row plain conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: control multi-row OR IGNORE conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: control explicit transaction rollback preserves all earlier records",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: settlement multi-row plain conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: settlement multi-row OR IGNORE conflict rolls back the whole statement",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: settlement explicit transaction rollback preserves all earlier records",
+      "passed": true
+    },
+    {
+      "name": "candidate diagnostic split: registry update/delete guards stay immutable",
+      "passed": true
+    },
+    {
+      "name": "all three installations produce exactly identical synthetic receipts, registry and legacy projection",
+      "passed": true
+    },
+    {
+      "name": "CASE versus WHERE has equal NULL, false and true predicate behavior",
+      "passed": true,
+      "evidence": {
+        "values": [
+          null,
+          0,
+          1,
+          -1,
+          "0",
+          "1",
+          "not-a-number"
+        ],
+        "outcomes": [
+          {
+            "label": "case",
+            "aborts": [
+              false,
+              false,
+              true,
+              true,
+              false,
+              true,
+              false
+            ]
+          },
+          {
+            "label": "where",
+            "aborts": [
+              false,
+              false,
+              true,
+              true,
+              false,
+              true,
+              false
+            ]
+          }
+        ],
+        "actual_exists_predicate_is_never_null": true
+      }
+    }
+  ],
+  "sqlite_version": "3.53.3",
+  "passed": true,
+  "finished_at": "2026-10-14T16:10:32.531Z",
+  "check_count": 45
+}

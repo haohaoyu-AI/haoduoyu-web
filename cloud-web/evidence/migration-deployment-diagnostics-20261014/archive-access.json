@@ -1,0 +1,125 @@
+{
+  "observed_at_utc": "2026-10-14 16:06:16 UTC",
+  "stages": {
+    "archive_library_read": {
+      "tool": "mcp__codex_apps__library_read",
+      "request": {
+        "ref_id": "file_00000000b4f48210bf03c99c44f4db5e",
+        "mode": "full",
+        "max_lines": 20
+      },
+      "result": {
+        "api_tool_source": "files/read",
+        "results": [
+          {
+            "ref_id": "file_00000000b4f48210bf03c99c44f4db5e",
+            "warnings": [
+              "File is not visible in the requested files surface. Use a visible files.search/files.list/files.find/files.read citation reference such as turn2file0, or pass a file_id that appeared in one of those results."
+            ],
+            "api_tool_source": "files/read",
+            "read_index": 0,
+            "mode": "full",
+            "content": [
+              "The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id."
+            ]
+          }
+        ],
+        "warnings": [
+          "read[0] could not resolve the file reference: File is not visible in the requested files surface. Use a visible files.search/files.list/files.find/files.read citation reference such as turn2file0, or pass a file_id that appeared in one of those results."
+        ],
+        "external_connectors_accessed": false
+      },
+      "interpretation": "Reference unresolved in Files surface; not explicit permission denial. No archive bytes read."
+    },
+    "archive_library_search": {
+      "tool": "mcp__codex_apps__library_search",
+      "queries": [
+        "好多鱼 V160 源码 归档",
+        "\"ab35236c37d015cd0ec40e5dae3545eb30307da4\""
+      ],
+      "exact_query_results": 0,
+      "interpretation": "No visible matching archive identity resolved by these bounded queries; not proof the archive does not exist."
+    },
+    "site_versions": {
+      "tool": "mcp__codex_apps__sites_list_site_versions",
+      "versions": [
+        {
+          "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_0a8228c1068c8191983c9e798ff36437",
+          "version_number": 160,
+          "source": {
+            "commit_sha": "ab35236c37d015cd0ec40e5dae3545eb30307da4"
+          },
+          "archive_storage": {
+            "archive_format": "tar",
+            "sediment_file_id": "file_00000000b4f48210bf03c99c44f4db5e",
+            "content_hash": "sha256:5a030fdbeb3178e855d38523d0a2963e97ca6180886eaad581f1dc9136e4c528",
+            "size_bytes": 10956800,
+            "file_count": 334
+          },
+          "deployment_id": "appgdep_6acee28b68988191ae9b152791d1a90e"
+        },
+        {
+          "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_a5d91e235f708191ae2cff2385a6ece4",
+          "version_number": 159,
+          "source": {
+            "commit_sha": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1"
+          },
+          "archive_storage": {
+            "archive_format": "tar",
+            "sediment_file_id": "file_00000000965c82069a6f18e9a5f1413b",
+            "content_hash": "sha256:6bea57a0f33db14d9489cace7730a05e1609e53cd49c647991db38439418c684",
+            "size_bytes": 9922560,
+            "file_count": 321
+          },
+          "deployment_id": "appgdep_6accc1ba16c881918c0f7a0294fa3632"
+        },
+        {
+          "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_ef21cfd52c788191aca054cd3a3193cf",
+          "version_number": 158,
+          "source": {
+            "commit_sha": "d847bc80dd8d536584012428a75cd4769fc7a9b4"
+          },
+          "archive_storage": {
+            "archive_format": "tar",
+            "sediment_file_id": "file_0000000064308209b1dc1a759ff4236a",
+            "content_hash": "sha256:7659bed531db6ebaaa3c0c2b3896a1e58afbb597b598d06380dc7753b4d50cd5",
+            "size_bytes": 9912320,
+            "file_count": 321
+          },
+          "deployment_id": "appgdep_6acc9cd298ac8191a6b84a415904cd2e"
+        }
+      ]
+    },
+    "v159_deployment": {
+      "tool": "mcp__codex_apps__sites_get_deployment_status",
+      "result": {
+        "id": "appgdep_6accc1ba16c881918c0f7a0294fa3632",
+        "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+        "title": "好多鱼图文",
+        "version_id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_a5d91e235f708191ae2cff2385a6ece4",
+        "type": "publish",
+        "status": "succeeded",
+        "url": "https://xiaoyu-event-test.haohaoyu202409.chatgpt.site",
+        "has_mcp": true,
+        "screenshot_asset_pointer": "sediment://file_00000000447481f88d6e465ba6aa12dd",
+        "provider_deployment_id": "site---6ac1907e61a48191a067ce3c30b21265",
+        "failure_message": null,
+        "env_set_revision": 1,
+        "updated_at": "2026-10-12T11:18:12.037018+00:00"
+      }
+    },
+    "local_v160_object": {
+      "command": "git cat-file -e ab35236c37d015cd0ec40e5dae3545eb30307da4^{commit}",
+      "error": "fatal: Not a valid object name ab35236c37d015cd0ec40e5dae3545eb30307da4^{commit}",
+      "interpretation": "V160 original Git object is not in the isolated GitHub snapshot repository."
+    }
+  },
+  "limits": [
+    "No direct archive URL fabricated.",
+    "No raw RPC/HTTP used.",
+    "No internal table name guessed.",
+    "No source credential generated/read.",
+    "No permission or account changes."
+  ],
+  "production_actions": 0
+}
