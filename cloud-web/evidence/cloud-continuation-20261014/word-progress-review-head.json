@@ -1,0 +1,23 @@
+{
+  "baseline": "65e26db2d70fae67e3d225311f2f851130260795",
+  "cwd": "/tmp/haoduoyu-independent-review/head-source",
+  "command": [
+    "node",
+    "tests/word-progress-review.mjs"
+  ],
+  "exit_code": 1,
+  "seconds": 1.368,
+  "source_sha256": {
+    "tests/word-progress-review.mjs": "3903a2e60d5445969cf5f5a1289376775fcefc8255bab4caf9fb2c9f75c58193",
+    "lib/word-progress.ts": "a7ad8d8b551687b947441b4a00dbcc2b40f91d767b61378ed7e8a5c677a01474",
+    "lib/word-recovery.ts": "7c2bfb8b74b55e837357606ab3d96aabb80355a1cd4c36ab2c83d08933e9fee9",
+    "lib/word-progress-contract.ts": "2a0348892ce27550b19a0ca21b64ce5c11650b500de8a38c2c340cb66c10002b"
+  },
+  "same_as_initial_source": {
+    "tests/word-progress-review.mjs": true,
+    "lib/word-progress.ts": true,
+    "lib/word-recovery.ts": true,
+    "lib/word-progress-contract.ts": true
+  },
+  "stderr": "evalmachine.<anonymous>:37\nfunction fail(message) { throw new WordRecoveryError(message); }\n                               ^\n\nWordRecoveryError: 先取得同一任务实际 Word 执行位；主 claim 或首次认领来源记录不授予配图写入\n    at fail (evalmachine.<anonymous>:37:32)\n    at wordWriteFence (evalmachine.<anonymous>:177:9)\n    at async Object.recordWordProgress (evalmachine.<anonymous>:341:28)\n    at async record (file:///tmp/haoduoyu-independent-review/head-source/tests/word-progress-review.mjs:112:20)\n    at async file:///tmp/haoduoyu-independent-review/head-source/tests/word-progress-review.mjs:137:3\n    at async check (file:///tmp/haoduoyu-independent-review/head-source/tests/word-progress-review.mjs:117:3)\n    at async file:///tmp/haoduoyu-independent-review/head-source/tests/word-progress-review.mjs:135:1\n\nNode.js v24.19.0\n"
+}

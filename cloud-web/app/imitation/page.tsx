@@ -107,7 +107,11 @@ export default function ImitationPage(){
   if(lock.current||identityBusy.current||!identityVerified.current||!scope||current?.owner_scope!==scope||scan?.state==='collecting')return;lock.current=true;setBusy(true);setMessage('正在保存账号池…');const ticket=fence.current.begin();
   try{
    const view=await post(action==='add'?{action,name,url}:{action,id});
-   if(acceptView(view,ticket)){setMessage(action==='add'?'账号已保存。':'账号已移除。');if(action==='add'){setAdding(false);setName('');setURL('');}}
+   if(acceptView(view,ticket)){
+    const change=view.account_change;
+    setMessage(change?.action!==action||typeof change.changed!=='boolean'?'账号池已确认。':change.changed?(action==='add'?'账号已保存。':'账号已移除。'):(action==='add'?'该账号已在列表中，未重复添加。':'该账号已不在列表中。'));
+    if(action==='add'){setAdding(false);setName('');setURL('');}
+   }
   }catch(error){reportFailure(error,ticket,'账号保存结果暂未确认，请稍后再试');}
   finally{
    // An identity GET may have read the pool before this write settled.

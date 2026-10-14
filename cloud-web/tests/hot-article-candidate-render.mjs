@@ -44,6 +44,14 @@ const posts=retryRequests.filter(r=>r.options?.method==='POST');assert.equal(pos
 const add=actualPage(pool([]),{adding:true,name:'TEST ONLY 输入保留',url:account.url,fetch:async(_url,options)=>!options.method?Response.json(pool([])):Response.json({error:'保存失败'},{status:503})});await add.mount();
 function form(element){if(!React.isValidElement(element))return null;if(element.type==='form')return element;for(const child of React.Children.toArray(element.props.children)){const found=form(child);if(found)return found;}return null;}
 form(add.element).props.onSubmit({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));assert.equal(add.states[4],'TEST ONLY 输入保留');assert.equal(add.states[5],account.url);assert.equal(add.states[2],'保存失败');
+for(const [action,changed,expected]of [['add',true,'账号已保存。'],['add',false,'该账号已在列表中，未重复添加。'],['remove',true,'账号已移除。'],['remove',false,'该账号已不在列表中。'],['add',undefined,'账号池已确认。'],['remove',undefined,'账号池已确认。']]){
+ const reply={...pool(action==='remove'&&changed!==false?[]:[account]),...(changed===undefined?{}:{account_change:{action,changed}})};
+ const feedback=actualPage(pool([account]),{adding:action==='add',name:'TEST ONLY 新输入名称',url:account.url,fetch:async(_url,options)=>Response.json(options.method==='POST'?reply:pool([account]))});await feedback.mount();
+ if(action==='add')form(feedback.element).props.onSubmit({preventDefault(){}});else await button(feedback.element,'移除').props.onClick();
+ await new Promise(resolve=>setImmediate(resolve));assert.equal(feedback.states[2],expected,'operation feedback distinguishes a real change, idempotent no-op and an older response without a change receipt');
+ assert.equal(feedback.states[0].accounts.length,reply.accounts.length);
+ if(action==='add')assert.equal(feedback.states[0].accounts[0].name,account.name,'no-op feedback does not imply the newly entered label was saved');
+}
 let tick,pollCalls=0,initialRead=true;const expiredView=view('collecting',[]);expiredView.scan.created='2026-10-08T07:58:00Z';
 const polling=actualPage(expiredView,{globals:{setInterval:fn=>{tick=fn;return 1;},clearInterval:()=>{}},fetch:async()=>{if(initialRead){initialRead=false;return Response.json(expiredView);}pollCalls++;throw Error('TEST ONLY offline polling failure');}});await polling.mount();
 polling.effects[1]();tick();tick();assert.equal(pollCalls,1,'polls never overlap');await new Promise(resolve=>setImmediate(resolve));assert.equal(polling.states[0].scan.state,'interrupted','expired unreachable scan unlocks refresh');

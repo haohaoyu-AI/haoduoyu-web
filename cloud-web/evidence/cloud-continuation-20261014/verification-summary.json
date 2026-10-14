@@ -1,0 +1,32 @@
+{
+  "scope": "Final selected workspace; local checks only; no deploy or production actions",
+  "typecheck": {
+    "command": "node_modules/.bin/tsc --noEmit --incremental false",
+    "exit_code": 0,
+    "log": "tsc-final.log"
+  },
+  "build": {
+    "command": "npm_config_cache=/tmp/haoduoyu-npm-cache npm run build",
+    "exit_code": 0,
+    "log": "build-final.log"
+  },
+  "browser": {
+    "command": "node tests/cloud-continuation-browser.mjs",
+    "exit_code": 0,
+    "passed": 26,
+    "failed": 0,
+    "log": "browser-final.log"
+  },
+  "independent_regressions": {
+    "unique_suites": 39,
+    "passed": 37,
+    "baseline_failures": 2,
+    "final_cross_passed": 13,
+    "final_cross_failed": 0
+  },
+  "migration_diagnostic_checks": 45,
+  "migration_contract_groups": 9,
+  "credential_scan": {
+    "matches": 0
+  }
+}

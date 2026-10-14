@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-10-14T17:58:43.644790+00:00",
+  "record_type": "post-execution summary of actual tool receipts; tests were not rerun to create this file",
+  "base_commit": "65e26db2d70fae67e3d225311f2f851130260795",
+  "candidate_product_sha256": {
+    "app/imitation/page.tsx": "b134ce80df86fd40fa621c2fec0d0844735bce973d2600029b35f75737642a29",
+    "lib/hot-article-discovery-store.ts": "2d453b44d5e1504e87ebe7cc708648f9166923552d8e52bc80d7a9570532d5af"
+  },
+  "candidate_test_sha256": {
+    "tests/hot-article-discovery-storage.mjs": "71e04546d4f5403e2486f37a7afdadf729d291d3062414aaf55ef2792a31a328",
+    "tests/hot-article-candidate-render.mjs": "8268771a7b947c751d865b1c70196966947c5a0f66228fb88fe94915994c2e09"
+  },
+  "tests": [
+    {
+      "test": "tests/hot-article-account-discovery.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 1,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/hot-article-discovery-storage.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 1,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/hot-article-discovery-races.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 1,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/hot-article-discovery-clock.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 1,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/hot-article-candidate-render.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 1,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/hot-identity-signals-ui.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 1,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/hot-ux-readback-ui.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 1,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/topic-research-ui.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 1,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/topic-research-owner-binding.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 2,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/owner-scope-browser-mutations.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 2,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/offline-eight-interactions-ui.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 2,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    },
+    {
+      "test": "tests/hot-article-response-diagnostics.mjs",
+      "exit_code": 0,
+      "status": "passed",
+      "execution_group": 2,
+      "individual_duration_seconds": null,
+      "duration_note": "Not measured independently; each shell group used sequential && and exited 0."
+    }
+  ],
+  "test_passed": 12,
+  "test_failed": 0,
+  "execution_groups": [
+    {
+      "group": 1,
+      "tool_chunk_id": "92d59b",
+      "exit_code": 0,
+      "wall_time_seconds": 5.577578187,
+      "log_path": null,
+      "log_sha256": null,
+      "logs_note": "stdout was returned by exec_command and not persisted to a filesystem log."
+    },
+    {
+      "group": 2,
+      "tool_chunk_id": "268e7e",
+      "exit_code": 0,
+      "wall_time_seconds": 4.792623347,
+      "log_path": null,
+      "log_sha256": null,
+      "logs_note": "stdout was returned by exec_command and not persisted to a filesystem log."
+    }
+  ],
+  "static_checks": [
+    {
+      "check": "targeted eslint on the 4 changed files",
+      "tool_chunk_id": "3aeb4c",
+      "exit_code": 0,
+      "wall_time_seconds": 2.398632542
+    },
+    {
+      "check": "git diff --check",
+      "tool_chunk_id": "40aa88",
+      "exit_code": 0,
+      "wall_time_seconds": 2.9074e-05,
+      "note": "same tool invocation also printed diff/stat"
+    }
+  ],
+  "baseline": {
+    "scratch_root": "/tmp/haoduoyu-account-feedback-baseline-56k8k7ic",
+    "product_files_restored_from_commit": "65e26db2d70fae67e3d225311f2f851130260795",
+    "product_sha256": {
+      "app/imitation/page.tsx": "f2baebf52d9000dad0fbc7b793d6fa7c8416ac0839d526da274009dbae78267d",
+      "lib/hot-article-discovery-store.ts": "859f0c41e37ff40db367dda9b60542e64c96393fcc8cf6b0e6726ab213112d45"
+    },
+    "tests": [
+      {
+        "test": "tests/hot-article-discovery-storage.mjs",
+        "exit_code": 1,
+        "assertion": "old store returns no account_change receipt"
+      },
+      {
+        "test": "tests/hot-article-candidate-render.mjs",
+        "exit_code": 1,
+        "actual": "账号已保存。",
+        "expected": "该账号已在列表中，未重复添加。",
+        "assertion": "old page falsely labels duplicate account submission as saved"
+      }
+    ],
+    "tool_chunk_id": "b64c94",
+    "whole_script_wall_time_seconds": 1.301666206,
+    "individual_duration_seconds": null,
+    "log_path": null,
+    "log_sha256": null,
+    "logs_note": "Baseline child stdout returned by exec_command, not saved to separate logs."
+  },
+  "earlier_failures_preserved": [
+    {
+      "tool_chunk_id": "96f280",
+      "exit_code": 1,
+      "reason": "dependencies not yet installed: ERR_MODULE_NOT_FOUND typescript",
+      "candidate_regression": false
+    },
+    {
+      "tool_chunk_id": "5210b3",
+      "exit_code": 1,
+      "reason": "new test used deepStrictEqual on a VM-realm object; object prototypes differed. Host-object spread fixed test, with no product change.",
+      "candidate_regression": false
+    }
+  ],
+  "scope": {
+    "production_writes": 0,
+    "external_platform_writes": 0,
+    "migrations_changed": false,
+    "automation_schedules_changed": false,
+    "live_source_fetches": 0
+  }
+}

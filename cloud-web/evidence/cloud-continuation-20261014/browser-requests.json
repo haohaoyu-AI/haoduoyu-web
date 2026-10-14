@@ -1,0 +1,188 @@
+[
+  {
+    "at": "2026-10-14T18:01:40.447Z",
+    "path": "/api/imitation/discovery",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:41.003Z",
+    "path": "/api/imitation/discovery",
+    "method": "POST",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:41.118Z",
+    "path": "/api/imitation/discovery",
+    "method": "POST",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:41.185Z",
+    "path": "/api/imitation/discovery",
+    "method": "POST",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:41.250Z",
+    "path": "/api/imitation/discovery",
+    "method": "POST",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:41.369Z",
+    "path": "/api/imitation/discovery",
+    "method": "POST",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:41.603Z",
+    "path": "/api/imitation/discovery",
+    "method": "POST",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:41.608Z",
+    "path": "/api/imitation/discovery",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:41.801Z",
+    "path": "/api/imitation/discovery",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:42.472Z",
+    "path": "/api/articles",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:42.549Z",
+    "path": "/api/articles/11111111-1111-4111-8111-111111111111/submit",
+    "method": "POST",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:42.554Z",
+    "path": "/api/articles",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:42.942Z",
+    "path": "/api/articles",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:43.300Z",
+    "path": "/api/articles",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:43.470Z",
+    "path": "/api/articles",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:43.620Z",
+    "path": "/api/articles",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:44.249Z",
+    "path": "/api/article-data?offset=0",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:44.747Z",
+    "path": "/api/articles/workspace?offset=0&limit=100",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:44.842Z",
+    "path": "/api/article-data?offset=0",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:44.910Z",
+    "path": "/api/article-data?offset=0",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:44.915Z",
+    "path": "/api/articles/workspace?offset=0&limit=100",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:45.136Z",
+    "path": "/api/article-data?offset=0",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:45.809Z",
+    "path": "/api/dedao/cloud",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:46.357Z",
+    "path": "/api/dedao/cloud",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:46.414Z",
+    "path": "/api/dedao/cloud",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:47.171Z",
+    "path": "/api/topics/research",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:47.172Z",
+    "path": "/api/topics?view=platform&platform=toutiao",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:47.172Z",
+    "path": "/api/topics?view=platform&platform=weibo",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:47.173Z",
+    "path": "/api/topics?view=history",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:48.065Z",
+    "path": "/api/article-data?offset=0",
+    "method": "GET",
+    "synthetic": true
+  },
+  {
+    "at": "2026-10-14T18:01:48.070Z",
+    "path": "/api/articles/workspace?offset=0&limit=100",
+    "method": "GET",
+    "synthetic": true
+  }
+]

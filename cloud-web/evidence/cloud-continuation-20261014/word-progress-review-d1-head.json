@@ -1,0 +1,14 @@
+{
+  "baseline": "65e26db2d70fae67e3d225311f2f851130260795",
+  "cwd": "/tmp/haoduoyu-independent-review/head-source",
+  "command": [
+    "node",
+    "tests/word-progress-review-d1.mjs"
+  ],
+  "exit_code": 1,
+  "seconds": 3.935,
+  "test_sha256": "e017abd7400fbcd1ce949000eb5e7844a897aefbe50fee90a842fa265ee030ea",
+  "same_test_as_candidate": true,
+  "stdout": "PASS ordinary progress UPDATE/DELETE and unconfirmed article DELETE reject; original article survives rollback.\n",
+  "stderr": "node:fs:484\n    return binding.readFileUtf8(path, stringToFlags(options.flag));\n                   ^\n\nError: ENOENT: no such file or directory, open 'lib/fflate.ts'\n    at Object.readFileSync (node:fs:484:20)\n    at load (file:///tmp/haoduoyu-independent-review/head-source/tests/word-progress-review-d1.mjs:19:160)\n    at require (file:///tmp/haoduoyu-independent-review/head-source/tests/word-progress-review-d1.mjs:20:303)\n    at evalmachine.<anonymous>:4:18\n    at Script.runInContext (node:vm:149:12)\n    at Script.runInNewContext (node:vm:154:17)\n    at Object.runInNewContext (node:vm:310:38)\n    at load (file:///tmp/haoduoyu-independent-review/head-source/tests/word-progress-review-d1.mjs:20:6)\n    at require (file:///tmp/haoduoyu-independent-review/head-source/tests/word-progress-review-d1.mjs:20:303)\n    at evalmachine.<anonymous>:11:27 {\n  errno: -2,\n  code: 'ENOENT',\n  syscall: 'open',\n  path: 'lib/fflate.ts'\n}\n\nNode.js v24.19.0\n"
+}

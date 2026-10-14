@@ -47,6 +47,7 @@ const activeStates = ['queued', 'processing', 'word_ready', 'toutiao_saving'];
 const articleDisplayStates=['uploaded','queued','processing','word_ready','toutiao_saving','completed','failed','needs_login','needs_verification','deleting','text_saved'];
 class DisplayError extends Error {}
 const uploadFenceStorageKey=(owner:string)=>`haoduoyu-unconfirmed-original-upload-v1:${owner}`;
+const submissionFenceStorageKey=(owner:string)=>`haoduoyu-unconfirmed-article-submit-v1:${owner}`;
 const clientReadOrder=()=>typeof performance==='object'&&typeof performance.now==='function'?performance.now():Date.now();
 async function originalFileSha256(chosen:File){
   const bytes=await chosen.arrayBuffer();
@@ -106,6 +107,7 @@ export default function Home() {
   const unknownUploads=useRef(new Map<string,Set<string>>());
   const restoredUploadOwners=useRef(new Set<string>());
   const unknownSubmissions=useRef(new Map<string,{owner:string;afterSequence:number;refused:boolean}>());
+  const restoredSubmissionOwners=useRef(new Set<string>());
   const selectedFileSha=useRef<string|null>(null);
   const fileSelection=useRef(0);
   const file = useRef<HTMLInputElement>(null);
@@ -263,12 +265,23 @@ export default function Home() {
         }
         unknownUploads.current.set(batchOwner!,uploadFences);
         setUploadBlocked(!!selectedFileSha.current&&uploadFences.has(selectedFileSha.current));
+        if(!restoredSubmissionOwners.current.has(batchOwner!)){
+          restoredSubmissionOwners.current.add(batchOwner!);
+          try{
+            const saved:unknown=JSON.parse(window.sessionStorage.getItem(submissionFenceStorageKey(batchOwner!))||'[]');
+            if(Array.isArray(saved))for(const value of saved){
+              if(!value||typeof value!=='object'||!('id' in value)||typeof value.id!=='string'||!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value.id))continue;
+              if(!unknownSubmissions.current.has(value.id))unknownSubmissions.current.set(value.id,{owner:batchOwner!,afterSequence:seq,refused:'refused' in value&&value.refused===true});
+            }
+          }catch{/* Storage cannot release an existing in-memory submission fence. */}
+        }
         for(const item of data.items){
           const pending=unknownSubmissions.current.get(item.id);
           // A pre-existing poll, an uploaded/null projection or an absent row
           // cannot prove what happened to the submitted request.
           if(pending?.owner===batchOwner&&seq>pending.afterSequence&&(pending.refused?data.connected===true:item.recovery?.can_notify===true&&item.recovery?.can_retry===true))unknownSubmissions.current.delete(item.id);
         }
+        persistSubmissionFences(batchOwner!);
         setUnconfirmedSubmissions(new Set([...unknownSubmissions.current].filter(([,pending])=>pending.owner===batchOwner).map(([id])=>id)));
         pagesRef.current=pages;
         nextOffsetRef.current=typeof data.next_offset==='number'?data.next_offset:null;
@@ -372,7 +385,17 @@ export default function Home() {
   function clearKnownUpload(owner:string,sha:string){unknownUploads.current.get(owner)?.delete(sha);persistUploadFences(owner);}
   function markSubmissionPending(owner:string,id:string,refused=false){
     unknownSubmissions.current.set(id,{owner,afterSequence:sequence.current,refused});
+    // Persist before POST. A reload must not turn a still-unanswered notification
+    // into permission to send another wake; only a later normal recovery GET can.
+    persistSubmissionFences(owner);
     setUnconfirmedSubmissions(new Set([...unknownSubmissions.current].filter(([,pending])=>pending.owner===owner).map(([target])=>target)));
+  }
+  function persistSubmissionFences(owner:string){
+    try{
+      const values=[...unknownSubmissions.current].filter(([,pending])=>pending.owner===owner).map(([id,pending])=>({id,refused:pending.refused}));
+      if(values.length)window.sessionStorage.setItem(submissionFenceStorageKey(owner),JSON.stringify(values));
+      else window.sessionStorage.removeItem(submissionFenceStorageKey(owner));
+    }catch{/* Optional storage failure keeps the mounted-page fence. */}
   }
   async function selectArticle(chosen:File|undefined){
     const selection=++fileSelection.current,epoch=actionEpoch.current,owner=ownerScopeRef.current;

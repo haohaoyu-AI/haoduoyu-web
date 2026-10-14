@@ -1,5 +1,10 @@
 # V160 migration deployment diagnostic — 2026-10-14
 
+> Later cloud follow-up: [source comparison, pinned execution contracts and eight-change acceptance](cloud-continuation-acceptance-20261014.md).
+> The exact V160 source is now available and matches the current migrations.
+> Pinned Wrangler/Drizzle on isolated workerd D1 pass; this does not establish the Sites job contract or live partial state.
+> The evidence below preserves the earlier observation time.
+
 ## Current outcome
 
 The eight-change source is available in this repository. The imported snapshot

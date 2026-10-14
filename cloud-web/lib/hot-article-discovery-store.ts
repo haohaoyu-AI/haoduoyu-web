@@ -4,7 +4,7 @@ import type {BenchmarkAccount,DiscoveryResult} from './hot-article-discovery';
 import {captureResponseDiagnostic,cleanupResponseDiagnostics,checkDiagnosticBudget} from './hot-response-diagnostics';
 
 type ScanRow={id:string;request_key:string;state:string;accounts_json:string;result_json:string|null;created:string;expires:string;has_successor:number};
-export type DiscoveryView={owner_scope:string;accounts:BenchmarkAccount[];scan:{id:string;request_key:string;state:string;created:string;pool_changed:boolean;result:DiscoveryResult|null}|null};
+export type DiscoveryView={owner_scope:string;accounts:BenchmarkAccount[];scan:{id:string;request_key:string;state:string;created:string;pool_changed:boolean;result:DiscoveryResult|null}|null;account_change?:{action:'add'|'remove';changed:boolean}};
 export class DiscoveryBusyError extends Error{constructor(public readonly view:DiscoveryView){super('已有扫描正在进行，本次刷新未接纳');}}
 async function accounts(owner:string):Promise<BenchmarkAccount[]>{return (await db().prepare('SELECT id,name,url,created FROM hot_benchmark_accounts WHERE owner=? ORDER BY created,id').bind(owner).all()).results as BenchmarkAccount[];}
 function present(row:ScanRow|null,pool:BenchmarkAccount[]):DiscoveryView['scan']{
@@ -22,14 +22,14 @@ export async function readDiscovery(owner:string,requestKey?:string):Promise<Dis
 }
 export async function addBenchmark(owner:string,value:unknown){
  const input=accountInput(value),stamp=new Date().toISOString();
- await db().prepare('INSERT INTO hot_benchmark_accounts(id,owner,name,url,created) SELECT ?,?,?,?,? WHERE (SELECT COUNT(*) FROM hot_benchmark_accounts WHERE owner=?)<? ON CONFLICT(owner,url) DO NOTHING').bind(crypto.randomUUID(),owner,input.name,input.url,stamp,owner,accountLimit).run();
+ const inserted=await db().prepare('INSERT INTO hot_benchmark_accounts(id,owner,name,url,created) SELECT ?,?,?,?,? WHERE (SELECT COUNT(*) FROM hot_benchmark_accounts WHERE owner=?)<? ON CONFLICT(owner,url) DO NOTHING').bind(crypto.randomUUID(),owner,input.name,input.url,stamp,owner,accountLimit).run();
  const saved=await db().prepare('SELECT id FROM hot_benchmark_accounts WHERE owner=? AND url=?').bind(owner,input.url).first();
  if(!saved)throw Error(`账号池最多保存${accountLimit}个账号，请先移除不用的账号`);
- return readDiscovery(owner);
+ return {...await readDiscovery(owner),account_change:{action:'add' as const,changed:inserted.meta.changes>0}};
 }
 export async function removeBenchmark(owner:string,id:unknown){
  if(typeof id!=='string'||!/^[-a-z0-9]{36}$/.test(id))throw Error('账号标识无效');
- await db().prepare('DELETE FROM hot_benchmark_accounts WHERE owner=? AND id=?').bind(owner,id).run();return readDiscovery(owner);
+ const removed=await db().prepare('DELETE FROM hot_benchmark_accounts WHERE owner=? AND id=?').bind(owner,id).run();return {...await readDiscovery(owner),account_change:{action:'remove' as const,changed:removed.meta.changes>0}};
 }
 export function discoveryRequestKey(value:unknown):string{
  if(typeof value!=='string'||!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(value))throw Error('刷新标识无效');return value;

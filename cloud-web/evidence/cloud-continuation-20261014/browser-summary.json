@@ -1,0 +1,130 @@
+{
+  "status": "PASS",
+  "scope": "Local Chromium UI + fully synthetic intercepted business APIs. Not production acceptance. No real API mutation, article upload, dispatch, platform access or existing evidence overwrite.",
+  "desktop": {
+    "width": 1440,
+    "height": 1000
+  },
+  "mobile": {
+    "width": 390,
+    "height": 844
+  },
+  "results": [
+    {
+      "name": "loopback app rendered with synthetic discovery",
+      "status": "PASS"
+    },
+    {
+      "name": "add new account + double click issues one synthetic POST",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate add gives explicit unchanged feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "remove success gives changed feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "remove already absent gives unchanged feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "legacy response does not falsely claim changed result",
+      "status": "PASS"
+    },
+    {
+      "name": "imitation desktop and mobile no horizontal overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "old POST after foreground identity change stays fenced",
+      "status": "PASS"
+    },
+    {
+      "name": "imitation 401 clears private account view",
+      "status": "PASS"
+    },
+    {
+      "name": "home synthetic initial notification enabled",
+      "status": "PASS"
+    },
+    {
+      "name": "unknown submit abort fences current session",
+      "status": "PASS"
+    },
+    {
+      "name": "reload retains unknown submit fence even uploaded projection",
+      "status": "PASS"
+    },
+    {
+      "name": "first restored GET cannot release explicit retry projection",
+      "status": "PASS"
+    },
+    {
+      "name": "later exact recovery GET releases retry fence",
+      "status": "PASS"
+    },
+    {
+      "name": "home only exact current card and mobile no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "home 401 clears articles and disables upload",
+      "status": "PASS"
+    },
+    {
+      "name": "article data initial loading feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "actual duration source labels and missing value",
+      "status": "PASS"
+    },
+    {
+      "name": "article data refresh loading preserves rows, failure explicit",
+      "status": "PASS"
+    },
+    {
+      "name": "article data mobile no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "article data 401 clears history and recovery inventory",
+      "status": "PASS"
+    },
+    {
+      "name": "dedao single write action, blocked real connection",
+      "status": "PASS"
+    },
+    {
+      "name": "dedao 401 clears task and identity",
+      "status": "PASS"
+    },
+    {
+      "name": "topics loopback synthetic board, five navigation tabs and overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "removed writing route redirects to article data",
+      "status": "PASS"
+    },
+    {
+      "name": "all business requests synthetic, no external requests or page exceptions",
+      "status": "PASS"
+    }
+  ],
+  "synthetic_api_requests": 31,
+  "pageErrors": [],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "blockedNonLoopback": [],
+  "unexpectedApi": []
+}

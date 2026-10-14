@@ -1,0 +1,72 @@
+{
+  "collected_at": "2026-10-14T17:57:00Z",
+  "scope": "Official read-only calls; sanitized counts and deployment metadata only",
+  "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+  "v159": {
+    "deployment_id": "appgdep_6accc1ba16c881918c0f7a0294fa3632",
+    "status": "succeeded",
+    "source_commit": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1",
+    "last_deployment_update": "2026-10-12T11:18:12.037018+00:00"
+  },
+  "v160": {
+    "deployment_id": "appgdep_6acee28b68988191ae9b152791d1a90e",
+    "status": "failed",
+    "source_commit": "ab35236c37d015cd0ec40e5dae3545eb30307da4",
+    "failure": "incomplete input: SQLITE_ERROR",
+    "last_deployment_update": "2026-10-14T02:01:58.293810+00:00",
+    "archive_sha256": "5a030fdbeb3178e855d38523d0a2963e97ca6180886eaad581f1dc9136e4c528",
+    "archive_file_count": 334,
+    "archive_read_visible": false,
+    "archive_exact_hash_and_source_sha_search_results": 0
+  },
+  "worker_logs": {
+    "since_minutes": 1440,
+    "errors_only": true,
+    "limit": 100,
+    "event_count": 0,
+    "failed_migration_sql_available": false
+  },
+  "database": {
+    "binding": "DB",
+    "returned_user_table_count": 50,
+    "overview_omitted_tables": 0,
+    "migration_ledger_exposed": false,
+    "actual_trigger_definitions_exposed": false,
+    "article_history_rows": 0
+  },
+  "article_purge": {
+    "operation_id": "a2da604b-7e3a-4d8d-897f-d41c805edf15",
+    "state": "deleted",
+    "count": 57,
+    "deleted_items": 57,
+    "remaining_object_count": 0,
+    "remaining_content_rows": 0,
+    "current_owner_article_count": 0,
+    "pending_count": 0,
+    "external_stop_confirmed": false,
+    "unconfirmed_external_executor_count": 0,
+    "article_list_count": 0
+  },
+  "source_read": {
+    "mode": "Isolated detached checkout fetched by standard Git using official short-lived source credential via hidden stdin",
+    "checkout_commit": "ab35236c37d015cd0ec40e5dae3545eb30307da4",
+    "auto_publish_accepted": false,
+    "source_push_performed": false,
+    "credential_persisted": false,
+    "helper_availability": "Sites source helper not present in environment; both indicated skill-resource reads unavailable"
+  },
+  "account_material": {
+    "library_file_id": "libfile_d38ae9b35c0081919ac3186777e7d1b2",
+    "read_visible": true,
+    "readable_zip_text": false,
+    "materialized_readonly": true
+  },
+  "production_mutations": 0,
+  "new_deployment_attempts": 0,
+  "missing": [
+    "Actual failed SQL/filename/index/input hash",
+    "Sites job executor version, splitter, execution API and transaction contract",
+    "Live applied/partial migration ledger and actual schema/trigger definitions",
+    "Actual V160 deployment archive bytes and transformed inputs"
+  ]
+}

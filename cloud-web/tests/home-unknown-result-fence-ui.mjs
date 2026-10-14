@@ -177,6 +177,28 @@ await check('exact known409 pre-write connection refusal recovers only after a n
 await check('unrecognized409 remains unknown and cannot use uploaded/null to repeat',async()=>{
  const h=home();await h.start();await h.list(rows(2470,1));await h.click('求助小鱼');writes(h)[0].respond(409,{error:'synthetic unknown server conflict'});await h.settle();await h.list(rows(2470,1));assert.equal(nodeButton(h,'求助小鱼').props.disabled,true);assert.equal(writes(h).length,1);h.unmount();
 });
+await check('same-session reload retains unknown submit until a later exact recovery read',async()=>{
+ const storage=new Map(),first=home(storage);await first.start();await first.list(rows(2471,1));await first.click('求助小鱼');
+ assert.equal(writes(first).length,1);first.unmount();
+ const restored=home(storage);await restored.start();await restored.list(rows(2471,1));
+ assert.equal(nodeButton(restored,'求助小鱼').props.disabled,true,'reload cannot turn an unanswered submit into a fresh first request');
+ assert.match(restored.markup(),/本次提交回执尚未核对/);
+ await restored.click('刷新');await restored.list(rows(2471,1));assert.equal(nodeButton(restored,'求助小鱼').props.disabled,true,'uploaded projection is not exact recovery proof');
+ await restored.click('刷新');await restored.list([newReceipt(2471)]);assert.equal(nodeButton(restored,'重试求助').props.disabled,false,'new same-owner same-ID can_notify and can_retry permit explicit continuation');
+ await restored.click('重试求助');assert.equal(writes(restored).length,1);assert.equal(writes(restored)[0].url,`/api/articles/${id(2471)}/submit`,'continuation keeps the exact article ID');restored.unmount();
+});
+await check('restored submit fence ignores its restoring read and isolates other owners',async()=>{
+ const storage=new Map(),first=home(storage);await first.start();await first.list(rows(2472,1));await first.click('求助小鱼');first.unmount();
+ const restored=home(storage);await restored.start();await restored.list([newReceipt(2472)]);
+ assert.equal(nodeButton(restored,'重试求助').props.disabled,true,'the read restoring local uncertainty is not used to release it');
+ await restored.click('刷新');await restored.list([newReceipt(2472,{state:'needs_verification',recovery:{unfinished:true,can_notify:false,can_retry:false,lease_expires:'2099-01-01T00:00:00.000Z'}})]);assert.equal(nodeButton(restored,'重试求助'),undefined,'a live executor remains protected after local fence restoration');assert.equal(writes(restored).length,0);
+ await restored.click('刷新');await restored.list([newReceipt(2472)]);assert.equal(nodeButton(restored,'重试求助').props.disabled,false);restored.unmount();
+ const other=home(storage);await other.start();await other.list(rows(2472,1),{owner_scope:scope('B')});assert.equal(nodeButton(other,'求助小鱼').props.disabled,false,'owner A local uncertainty cannot block an independent owner B');other.unmount();
+ const serialized=JSON.stringify([...storage]);assert.ok(!serialized.includes(originalBody));assert.ok(!serialized.includes('claim_token'));assert.ok(!serialized.includes('offline-original.txt'));
+});
+await check('optional storage failure retains the mounted unknown-submit fence',async()=>{
+ const storage={get:()=>null,set:()=>{throw Error('synthetic denied storage');},delete:()=>{throw Error('synthetic denied storage');}},h=home(storage);await h.start();await h.list(rows(2473,1));await h.click('求助小鱼');writes(h)[0].reject(new Error('synthetic lost submit'));await h.settle();await h.list(rows(2473,1));assert.equal(nodeButton(h,'求助小鱼').props.disabled,true);assert.equal(writes(h).length,1);h.unmount();
+});
 await check('raw per-card GET provenance uses browser monotonic dispatch order',async()=>{
  const clock={current:15.75},h=home(new Map(),clock);await h.start();await h.list([row(2480,{state:'uploaded',word_progress:progress(id(2480)),word_progress_unavailable:false})]);h.word(id(2480)).props.onReadProgress();h.render();await h.settle();await h.wordResponse(h.pendingWord()[0],progress(id(2480),2));assert.equal(h.word(id(2480)).props.readbackStartedAt,15.75);h.unmount();
 });

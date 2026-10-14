@@ -11,10 +11,14 @@ const time=(value:string|null)=>value?new Date(value).toLocaleString('zh-CN',{ti
 function duration(item:Item){
  const t=item.timing;
  if(!t)return '未记录';
- const n=t.elapsed_seconds??t.writing_to_completion_seconds??t.request_to_completion_seconds??t.scheduled_to_completion_seconds;
- if(typeof n==='number')return `${t.precision==='approximate'?'约 ':''}${Math.floor(n/60)}分${n%60}秒${t.basis==='source_upload_to_verified_drafts'?'（上传原稿至草稿验收）':t.basis==='executor_report'?'（执行者记录）':t.request_to_completion_seconds!==undefined?'（请求至完成）':t.scheduled_to_completion_seconds!==undefined&&t.writing_to_completion_seconds===undefined?'（计划至完成）':''}`;
+ const selected=['elapsed_seconds','writing_to_completion_seconds','request_to_completion_seconds','scheduled_to_completion_seconds'].find(field=>typeof t[field]==='number'&&Number.isSafeInteger(t[field])&&(t[field] as number)>=0);
+ if(selected){
+  const n=t[selected] as number;
+  const label=selected==='elapsed_seconds'?(t.basis==='source_upload_to_verified_drafts'?'（上传原稿至草稿验收）':t.basis==='executor_report'?'（执行者记录）':''):selected==='writing_to_completion_seconds'?'（写作至完成）':selected==='request_to_completion_seconds'?'（请求至完成，含等待）':'（计划至完成，含等待）';
+  return `${t.precision==='approximate'?'约 ':''}${Math.floor(n/60)}分${n%60}秒${label}`;
+ }
  const range=t.writing_to_completion_seconds_range;
- return Array.isArray(range)?`${Math.floor(Number(range[0])/60)}–${Math.ceil(Number(range[1])/60)}分钟（写作至完成）`:'未记录';
+ return Array.isArray(range)&&range.length===2&&range.every(n=>Number.isSafeInteger(n)&&n>=0)&&range[0]<=range[1]?`${Math.floor(Number(range[0])/60)}–${Math.ceil(Number(range[1])/60)}分钟（写作至完成）`:'未记录';
 }
 export default function ArticleDataPage(){
  const [view,setView]=useState<History|null>(null),[inventory,setInventory]=useState<Inventory|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
