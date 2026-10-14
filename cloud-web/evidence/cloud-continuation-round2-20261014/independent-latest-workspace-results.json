@@ -1,0 +1,8 @@
+{
+  "test": "article-workspace-pagination",
+  "exit_code": 0,
+  "seconds": 1.49,
+  "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/latest-article-workspace-pagination.stdout.log",
+  "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/latest-article-workspace-pagination.stderr.log",
+  "tail": "n refuses mixed page and clears owner/auth controls\nPASS actual inventory pagination wrong-offset refuses mixed page and clears owner/auth controls\nPASS late inventory page cannot resurrect old owner controls after an action scope reset\nPASS unmounted action ignores a late preflight response and creates no new operation\nPASS 22 dedicated workspace cases; all 54 original migrations in synthetic SQLite; actual Home/Action/DataPage/API source; ZERO production/external/browser/model/platform calls.\n"
+}

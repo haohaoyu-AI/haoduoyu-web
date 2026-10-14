@@ -569,9 +569,15 @@ input::file-selector-button { min-height: 34px; padding: 6px 10px; color: var(--
 .publish-page .publish-current-item > article { padding: 8px 0 20px; }
 .publish-page .publish-focus-title { min-width: 0; overflow-wrap: anywhere; }
 .publish-page .publish-focus-status { margin-left: auto; flex-shrink: 0; font-size: 12px; }
+.publish-page .publish-current-item[hidden] { display: none; }
+.publish-page .publish-choice-list > li { border-bottom: 1px solid var(--line); }
+.publish-page button.publish-choice { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; padding: 10px 0; border: 0; border-radius: 0; background: transparent; text-align: left; }
+.publish-page .publish-choice > span { min-width: 0; overflow-wrap: anywhere; }
+.publish-page .publish-choice > small { flex: 0 0 auto; color: var(--muted); }
 @media (max-width: 700px) {
   .publish-page .publish-current-item > summary { flex-wrap: wrap; }
   .publish-page .publish-focus-status { flex-shrink: 1; }
+  .publish-page button.publish-choice { flex-wrap: wrap; }
 }
 
 .list-clear { margin: 1rem 0; }

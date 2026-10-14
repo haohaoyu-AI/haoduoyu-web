@@ -1,0 +1,92 @@
+{
+  "source_sha256": {
+    "components/topics/ResearchPanel.tsx": "e539e0b5fd714ee6784941bdcce7ac4daabf5d9faca27d052334ef0bc562bc40",
+    "app/imitation/page.tsx": "b134ce80df86fd40fa621c2fec0d0844735bce973d2600029b35f75737642a29"
+  },
+  "passed": 1,
+  "failed": 15,
+  "checks": [
+    {
+      "name": "research uses actual coverage cutoff when settlement updated the completed row today",
+      "passed": false,
+      "error": "The input did not match the regular expression /核验截至/. Input:\n\n'🎬 文娱热榜｜2026年10月14日今日头条 · 微博 · 每6小时更新刷新选题已更新 · 10/14 20:00（北京时间）'\n"
+    },
+    {
+      "name": "fresh research retains a visible actual cutoff and no stale warning",
+      "passed": false,
+      "error": "The input did not match the regular expression /核验截至/. Input:\n\n'🎬 文娱热榜｜2026年10月14日今日头条 · 微博 · 每6小时更新刷新选题已更新 · 10/14 20:00（北京时间）'\n"
+    },
+    {
+      "name": "research missing cutoff stays unconfirmed instead of falling back to updated",
+      "passed": false,
+      "error": "The input did not match the regular expression /核验时间未确认/. Input:\n\n'🎬 文娱热榜｜2026年10月14日今日头条 · 微博 · 每6小时更新刷新选题已更新 · 10/14 20:00（北京时间）'\n"
+    },
+    {
+      "name": "research invalid cutoff stays unconfirmed instead of falling back to updated",
+      "passed": false,
+      "error": "The input did not match the regular expression /核验时间未确认/. Input:\n\n'🎬 文娱热榜｜2026年10月14日今日头条 · 微博 · 每6小时更新刷新选题已更新 · 10/14 20:00（北京时间）'\n"
+    },
+    {
+      "name": "research calendar rollover cutoff stays unconfirmed instead of falling back to updated",
+      "passed": false,
+      "error": "The input did not match the regular expression /核验时间未确认/. Input:\n\n'🎬 文娱热榜｜2026年10月14日今日头条 · 微博 · 每6小时更新刷新选题已更新 · 10/14 20:00（北京时间）'\n"
+    },
+    {
+      "name": "research future cutoff stays unconfirmed instead of falling back to updated",
+      "passed": false,
+      "error": "The input did not match the regular expression /核验时间未确认/. Input:\n\n'🎬 文娱热榜｜2026年10月14日今日头条 · 微博 · 每6小时更新刷新选题已更新 · 10/14 20:00（北京时间）'\n"
+    },
+    {
+      "name": "old-result label uses its coverage cutoff while a newer generation waits",
+      "passed": false,
+      "error": "The input did not match the regular expression /13:00/. Input:\n\n'🎬 文娱热榜｜2026年10月14日今日头条 · 微博 · 每6小时更新刷新选题已取得热点线索，请求已保存，核验尚未开始。已等待 不足 1 分钟；当前暂无本轮已核验结果。页面会继续读取进度。上次已核验结果 · 2026年10月14日 · 10/14 20:00（北京时间）· 批次 1以下保留历史结果，本轮最新进度以上方状态为准。'\n"
+    },
+    {
+      "name": "old empty discovery visibly records collection time and does not imply a current scan",
+      "passed": false,
+      "error": "The input did not match the regular expression /采集时间/. Input:\n\n'对标账号（1/10）添加账号TEST ONLY 电影账号本人添加 · 账号定位未核验移除热文最近72小时 · 阅读≥1万 · 文娱初筛 · 每6小时更新刷新热文暂无符合条件的热文'\n"
+    },
+    {
+      "name": "fresh empty discovery exposes its observation time without a stale warning",
+      "passed": false,
+      "error": "The input did not match the regular expression /采集时间/. Input:\n\n'对标账号（1/10）添加账号TEST ONLY 电影账号本人添加 · 账号定位未核验移除热文最近72小时 · 阅读≥1万 · 文娱初筛 · 每6小时更新刷新热文暂无符合条件的热文'\n"
+    },
+    {
+      "name": "blocked discovery keeps actual collection time and incomplete status",
+      "passed": false,
+      "error": "The input did not match the regular expression /采集时间/. Input:\n\n'对标账号（1/10）添加账号TEST ONLY 电影账号本人添加 · 账号定位未核验移除热文最近72小时 · 阅读≥1万 · 文娱初筛 · 每6小时更新刷新热文部分账号无法正常读取或缺少本篇阅读证据，本次扫描尚未完整核验。'\n"
+    },
+    {
+      "name": "hot missing observation stays unconfirmed instead of falling back to scan creation",
+      "passed": false,
+      "error": "The input did not match the regular expression /采集时间未确认/. Input:\n\n'对标账号（1/10）添加账号TEST ONLY 电影账号本人添加 · 账号定位未核验移除热文最近72小时 · 阅读≥1万 · 文娱初筛 · 每6小时更新刷新热文暂无符合条件的热文'\n"
+    },
+    {
+      "name": "hot invalid observation stays unconfirmed instead of falling back to scan creation",
+      "passed": false,
+      "error": "The input did not match the regular expression /采集时间未确认/. Input:\n\n'对标账号（1/10）添加账号TEST ONLY 电影账号本人添加 · 账号定位未核验移除热文最近72小时 · 阅读≥1万 · 文娱初筛 · 每6小时更新刷新热文暂无符合条件的热文'\n"
+    },
+    {
+      "name": "hot calendar rollover observation stays unconfirmed instead of falling back to scan creation",
+      "passed": false,
+      "error": "The input did not match the regular expression /采集时间未确认/. Input:\n\n'对标账号（1/10）添加账号TEST ONLY 电影账号本人添加 · 账号定位未核验移除热文最近72小时 · 阅读≥1万 · 文娱初筛 · 每6小时更新刷新热文暂无符合条件的热文'\n"
+    },
+    {
+      "name": "hot future observation stays unconfirmed instead of falling back to scan creation",
+      "passed": false,
+      "error": "The input did not match the regular expression /采集时间未确认/. Input:\n\n'对标账号（1/10）添加账号TEST ONLY 电影账号本人添加 · 账号定位未核验移除热文最近72小时 · 阅读≥1万 · 文娱初筛 · 每6小时更新刷新热文暂无符合条件的热文'\n"
+    },
+    {
+      "name": "hot six-hour age crossing only updates visible freshness and never creates collection work",
+      "passed": false,
+      "error": "The input did not match the regular expression /已超过6小时/. Input:\n\n'对标账号（1/10）添加账号TEST ONLY 电影账号本人添加 · 账号定位未核验移除热文最近72小时 · 阅读≥1万 · 文娱初筛 · 每6小时更新刷新热文TEST ONLY 电影热文TEST ONLY 电影账号 · 发表 2026-10-14采集 2026/10/14 14:00:01阅读 20000点赞 不可获取评论 不可获取查看原文'\n"
+    },
+    {
+      "name": "hot identity recheck hides old observation time and auth refusal keeps it cleared",
+      "passed": true
+    }
+  ],
+  "scope": "Actual product component source, deterministic offline hooks and HTTP transport; no live data, schedule or production writes.",
+  "post_requests": 0,
+  "live_fetches": 0
+}

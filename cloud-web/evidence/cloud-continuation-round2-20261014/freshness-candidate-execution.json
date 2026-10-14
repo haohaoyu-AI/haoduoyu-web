@@ -1,0 +1,7 @@
+{
+  "command": "node tests/topic-hot-result-freshness-ui.mjs",
+  "exit_code": 0,
+  "duration_seconds": 0.8077927809999892,
+  "log_path": "/tmp/haoduoyu-result-freshness-20261014/candidate.log",
+  "log_sha256": "be6b66b6d18c21add30a87c212a193f17bb7225920c54cb3b2ce5d333aebc3cc"
+}

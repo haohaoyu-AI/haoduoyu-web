@@ -380,7 +380,7 @@ export default function ResearchHelperPage() {
           </form>
         </details>
       </section>}
-      {run.state === 'completed' && <section className="manual-work-section" aria-labelledby="research-final-title"><h2 id="research-final-title">已保存的研究结果</h2><ResearchResultView run={run} /><label>最终结果完整 JSON<textarea readOnly rows={18} value={JSON.stringify(run.result, null, 2)} /></label></section>}
+      {run.state === 'completed' && <section className="manual-work-section" aria-labelledby="research-final-title"><h2 id="research-final-title">已保存的研究结果</h2><ResearchResultView key={run.id} run={run} /><label>最终结果完整 JSON<textarea readOnly rows={18} value={JSON.stringify(run.result, null, 2)} /></label></section>}
     </>}
   </main>;
 }

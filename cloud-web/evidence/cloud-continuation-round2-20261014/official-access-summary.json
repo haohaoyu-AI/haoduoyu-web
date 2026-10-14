@@ -1,0 +1,34 @@
+{
+  "checked_from_commit": "a8b1ec77a530f725584dbabd43e0534c493a9961",
+  "checked_at_utc": "2026-10-14T18:12:28Z",
+  "site_metadata": {
+    "latest_saved_version": 160,
+    "status": "active",
+    "audience": "public",
+    "last_site_update": "2026-10-14T01:37:00.412753+00:00",
+    "new_version_observed": false
+  },
+  "official_archive_materialize": {
+    "file_id": "file_00000000b4f48210bf03c99c44f4db5e",
+    "error_code": "NOT_FOUND",
+    "error": "HTTP error prior to action invocation. HTTPException: 404: Library file ownership could not be verified.",
+    "bytes_acquired": false,
+    "fallback_channels_used": false
+  },
+  "missing": [
+    "actual failed SQL, migration filename/index/hash and job trace",
+    "Sites job execution API, splitter/executor version and atomicity",
+    "live migration ledger, trigger/schema definitions and partial application state",
+    "actual consumed V160 archive/transformed inputs"
+  ],
+  "production_deployments": 0,
+  "production_db_writes": 0,
+  "settings_or_schedule_changes": 0,
+  "disconnect_check": {
+    "at_utc": "2026-10-14T18:15:14Z",
+    "exec_exit_code": 0,
+    "product_freshness_change_landed_at_check": false,
+    "new_freshness_test_landed_at_check": true,
+    "blocked": false
+  }
+}

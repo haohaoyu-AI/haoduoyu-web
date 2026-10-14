@@ -6,7 +6,7 @@ import type {WordProgress} from '../lib/word-progress-contract';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import StudioNav from '../components/studio-nav';
 import type {UploadProgress} from '../components/upload-progress';
-import { publishComplete, publishStatus, platformProgress, articleHandlingSummary, safeDiagnosticText, safeDraftLink, safeRecordId, reconcilePublishFocus, readPublishFocus, savePublishFocus, type PublishFocus, type DraftDelivery } from '../components/publish-focus';
+import { publishComplete, publishStatus, platformProgress, articleHandlingSummary, safeDiagnosticText, safeDraftLink, safeRecordId, selectedPublishId, reconcilePublishFocus, readPublishFocus, savePublishFocus, type PublishFocus, type DraftDelivery } from '../components/publish-focus';
 
 type Delivery = DraftDelivery;
 type Article = {
@@ -444,7 +444,7 @@ export default function Home() {
       if (file.current) file.current.value = '';
       setFileName('');
       setUploadFeedback('文章已上传');
-      activateArticle(uploaded.id);
+      activateArticle(uploaded.id,true);
       await load();
     } catch (error: unknown) {
       if(!live())return;
@@ -503,17 +503,21 @@ export default function Home() {
     setFocus(next);
     try { savePublishFocus(window.sessionStorage, next); } catch { /* Storage is optional. */ }
   }
-  function activateArticle(id: string) {
+  function activateArticle(id: string, newlyUploaded=false) {
+    if(!progressMounted.current||!ownerScope||ownerScopeRef.current!==ownerScope||!newlyUploaded&&!itemsRef.current.some(article=>article.id===id))return;
     // Only an explicit user action requests keyboard focus; polling never does.
     requestedSummaryFocus.current = id;
     const before = focusRef.current || {seen:items.map(article => article.id),current:{}};
     const row = items.find(article => article.id === id);
-    commitFocus({...before,current:{...before.current,[id]:{complete:row ? publishComplete(row) : false,open:true}}});
+    commitFocus({...before,selected:id,pinnedComplete:row?publishComplete(row):false,current:{...before.current,[id]:{complete:row ? publishComplete(row) : false,open:true}}});
   }
   function toggleArticle(id: string, open: boolean) {
+    if(!progressMounted.current||!ownerScope||ownerScopeRef.current!==ownerScope||!itemsRef.current.some(article=>article.id===id))return;
     const before = focusRef.current;
-    if (!before?.current[id] || before.current[id].open === open) return;
-    commitFocus({...before,current:{...before.current,[id]:{...before.current[id],open}}});
+    if(!before)return;
+    const prior=before.current[id]||{complete:publishComplete(itemsRef.current.find(article=>article.id===id)!),open:id===selectedPublishId(before,itemsRef.current)};
+    if(prior.open===open)return;
+    commitFocus({...before,current:{...before.current,[id]:{...prior,open}}});
   }
   function renderArticle(article: Article) {
     const displayId=safeRecordId(article.id);
@@ -574,7 +578,6 @@ export default function Home() {
           <div className="actions">
             <ArticleWorkspaceAction key={ownerScope||'unread'} ids={[article.id]} titles={{[article.id]:article.title}} ownerScope={ownerScope||undefined} onScopeInvalid={()=>{if(ownerScope&&ownerScopeRef.current===ownerScope)invalidatePrivateScope();}} disabled={!ownerScope||!!actionBusy||reading||!!loadError} onChanged={ids=>{if(ownerScope&&ownerScopeRef.current===ownerScope)cleared(ids);}}/>
             {article.state === 'text_saved' && <a className="action-link" href="/article-data">查看文章数据</a>}
-            {!focus?.current[article.id] && <button className="secondary" type="button" onClick={() => activateArticle(article.id)}>在工作区查看</button>}
             {showHelp && (
               <button type="button" onClick={() => void submit(article.id, retry)} disabled={!ownerScope||!!actionBusy||reading||!!loadError||networkOffline||unconfirmedSubmissions.has(article.id)||connected !== true}>
                 {isSubmitting ? '提交中…' : (retry ? '重试求助' : '求助小鱼')}
@@ -586,9 +589,11 @@ export default function Home() {
         </article>
     );
   }
-  const currentItems = items.filter(article => focus?.current[article.id]);
-
-  const workItems = items.filter(article => article.list_section !== 'recent' && !focus?.current[article.id]);
+  const selectedId=selectedPublishId(focus,items);
+  const retainedItems=items.filter(article=>article.list_section!=='recent');
+  const selectedText=items.find(article=>article.id===selectedId)?.state==='text_saved';
+  const selectedComplete=!!selectedId&&!!items.find(article=>article.id===selectedId&&publishComplete(article));
+  const otherItems=retainedItems.filter(article=>article.id!==selectedId);
   function cleared(ids: string[]) {
     resetProgressReads();itemsRef.current=itemsRef.current.filter(row=>!ids.includes(row.id));
     readController.current?.abort(); sequence.current++; readLock.current=false; setReading(false);
@@ -640,24 +645,26 @@ export default function Home() {
       {!loaded && <p className="section-hint" role="status">正在读取…</p>}
       <ArticleWorkspaceAction key={ownerScope||'unread'} label="一键清空当前列表" ids={items.map(article=>article.id)} titles={Object.fromEntries(items.map(article=>[article.id,article.title]))} ownerScope={ownerScope||undefined} onScopeInvalid={()=>{if(ownerScope&&ownerScopeRef.current===ownerScope)invalidatePrivateScope();}} disabled={!ownerScope||!loaded||reading||!!actionBusy||!!loadError} onChanged={ids=>{if(ownerScope&&ownerScopeRef.current===ownerScope)cleared(ids);}}/>
       <p className="helper-text">清空会保留尚未安全结束的任务。已完成文章和可恢复文章见<a href="/article-data">文章数据</a>。</p>
-      {currentItems.length > 0 && <section className="publish-current" aria-label="本次配图发布">
-        {currentItems.map(article => <details key={article.id} className="publish-fold publish-current-item" open={focus!.current[article.id].open} onToggle={event => toggleArticle(article.id, event.currentTarget.open)}>
+      {selectedId && <section className="publish-current" aria-label={selectedText?'当前文字稿':selectedComplete?'当前草稿成果':'当前处理稿'}>
+        {/* Stable instances retain unknown Word controls and same-key deletion
+            confirmations when switching. Only the selected card is visible or
+            interactive; hidden cards never become a second operation surface. */}
+        {retainedItems.map(article => <details key={`${ownerScope}:${article.id}`} className="publish-fold publish-current-item" hidden={article.id!==selectedId} inert={article.id!==selectedId} aria-hidden={article.id!==selectedId?true:undefined} open={focus?.current[article.id]?.open??article.id===selectedId} onToggle={event => toggleArticle(article.id, event.currentTarget.open)}>
           <summary ref={node => {
             if (node && requestedSummaryFocus.current === article.id) {
               requestedSummaryFocus.current = null;
               node.focus();
             }
-          }}><span className="publish-focus-title">本次 · {article.title}</span><span className="publish-focus-status" role="status">{publishStatus({...article,word_progress_unavailable:article.word_progress_unavailable||networkOffline||!!loadError||progressReading.has(article.id)})}</span></summary>
+          }}><span className="publish-focus-title">{article.state==='text_saved'?'文字稿已保存':publishComplete(article)?'草稿已验收':'本次'} · {article.title}</span><span className="publish-focus-status" role="status">{publishStatus({...article,word_progress_unavailable:article.word_progress_unavailable||networkOffline||!!loadError||progressReading.has(article.id)})}</span></summary>
           {renderArticle(article)}
         </details>)}
       </section>}
-      {workItems.length > 0 && <section aria-label="当前处理文章" className="publish-work">
-        <h3>当前处理文章</h3>
+      {(otherItems.length>0||nextOffset!==null) && <section aria-label="其他待处理文章" className="publish-work">
+        <h3>其他待处理文章</h3>
         <p className="section-hint">{pendingTotal===null?'待处理数量暂未确认':`${pendingTotal} 篇待处理`}</p>
-        <ul className="article-list">{workItems.map(article=><li key={article.id} className="article-card">{renderArticle(article)}</li>)}</ul>
+        <ul className="article-list publish-choice-list">{otherItems.map(article=><li key={article.id}><button className="secondary publish-choice" type="button" aria-label={`查看文章：${article.title}`} disabled={!ownerScope||reading||!!actionBusy||!!loadError} onClick={()=>activateArticle(article.id)}><span>{article.title}</span><small>{publishStatus({...article,word_progress_unavailable:article.word_progress_unavailable||networkOffline||!!loadError||progressReading.has(article.id)})}</small></button></li>)}</ul>
         {nextOffset!==null&&<button className="secondary" type="button" disabled={reading||!!actionBusy} onClick={()=>void load(true,true)}>加载更多待处理文章</button>}
       </section>}
-      {nextOffset!==null&&workItems.length===0&&<button className="secondary" type="button" disabled={reading||!!actionBusy} onClick={()=>void load(true,true)}>加载更多待处理文章</button>}
 
     </main>
   );

@@ -1,0 +1,127 @@
+[
+  {
+    "command": [
+      "node",
+      "tests/topic-hot-result-freshness-ui.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 1.0106523300000845,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-00.log",
+    "log_sha256": "d99f83752e16d900a6cf82eebc52e56cded83ee14676c42abf858cb53f7a8f5f"
+  },
+  {
+    "command": [
+      "node",
+      "tests/topic-research-ui.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.8328230820000044,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-01.log",
+    "log_sha256": "a589a39509fa407acd3e5dfda621984bc4a535afe487f4aca38c947bd3cd9337"
+  },
+  {
+    "command": [
+      "node",
+      "tests/topic-research-owner-binding.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.7668739539999478,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-02.log",
+    "log_sha256": "0f0c191574dfebd95f83fe6429f69b596184982d00f2d0404cfb4af4dadebfce"
+  },
+  {
+    "command": [
+      "node",
+      "tests/hot-article-candidate-render.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 1.0410514780000995,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-03.log",
+    "log_sha256": "c3250f5b705aaae6557c9996eeca1f4a46babf7a35c30b08cef930d4ddc29993"
+  },
+  {
+    "command": [
+      "node",
+      "tests/hot-article-discovery-clock.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.5212179960001322,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-04.log",
+    "log_sha256": "d9060096ac07baa5d6101d1e78a9457b4447a7b43686804b595eeb16f72c2764"
+  },
+  {
+    "command": [
+      "node",
+      "tests/hot-article-discovery-races.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.5791588499998852,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-05.log",
+    "log_sha256": "94f6c54702baa694ddf3da7ffa53576950234c60603a1e0b159a317367508509"
+  },
+  {
+    "command": [
+      "node",
+      "tests/hot-identity-signals-ui.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.7355928629999653,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-06.log",
+    "log_sha256": "ff87bcf607a55d61844a88f3e58938e6e19fd1f599f61603ef32214c25bcbebe"
+  },
+  {
+    "command": [
+      "node",
+      "tests/hot-ux-readback-ui.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 1.0391086490001271,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-07.log",
+    "log_sha256": "a2137201bb9285324cd6890ffa0792dcd6a7da52ad5175b920f9aaef822bfa10"
+  },
+  {
+    "command": [
+      "node",
+      "tests/offline-eight-interactions-ui.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 1.2980282449998413,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-08.log",
+    "log_sha256": "bba908ad53b5f96034aed75cbb590afcf0225fb93d475220f922715f4527d61d"
+  },
+  {
+    "command": [
+      "node",
+      "tests/owner-scope-browser-mutations.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 2.505930353999929,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-09.log",
+    "log_sha256": "c72945118c23497b5b451fad21facfce8699224e78add760cd5573fa196c24c5"
+  },
+  {
+    "command": [
+      "npx",
+      "eslint",
+      "components/topics/ResearchPanel.tsx",
+      "app/imitation/page.tsx",
+      "lib/result-observation-time.ts",
+      "tests/topic-hot-result-freshness-ui.mjs"
+    ],
+    "exit_code": 1,
+    "duration_seconds": 2.2523657039998852,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-10.log",
+    "log_sha256": "062888b460af239383cd17e47697b43af26b5905e758e7c8faff01190e0d0f9a"
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.008881286000132604,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/check-11.log",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

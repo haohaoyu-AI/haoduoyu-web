@@ -1,0 +1,103 @@
+{
+  "scope": "Round2 targeted actual candidate source with synthetic transport only",
+  "passed_suites": 11,
+  "failed_suites": 1,
+  "results": [
+    {
+      "test": "publish-single-current-ui",
+      "exit_code": 0,
+      "seconds": 0.716,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/publish-single-current-ui.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/publish-single-current-ui.stderr.log",
+      "tail": " article replaces the complete card without submit or Word controls\nPASS new background articles and reordering preserve the selected article\nPASS pagination preserves every loaded ID and makes older articles selectable with one visible card\nPASS selected article removal chooses another readable article without writes\nPASS same-session selection restores one article and legacy multi-focus storage still displays one card\nPASS owner change rejects detached selection and clears old cards, selectors and late progress\nPASS late progress for the previously selected article cannot replace the new card\nPASS active execution protection and exact current-delete scope survive read-only selection\nPASS unknown same-article submit remains fenced after selecting away and back\nPASS confirmed current removal falls back while the previously frozen bulk range remains exact\nPASS empty current list mounts no card or hidden article operations\n{\"passed\":13,\"failed\":0,\"failures\":[],\"production_writes\":0,\"platform_actions\":0,\"scope\":\"actual Home hooks/handlers with inert GET fixtures; one visible complete card, safely retained hidden/inert instances, stable selection, loaded-ID scope and identity fences\"}\n"
+    },
+    {
+      "test": "home-article-owner-scope-ui",
+      "exit_code": 0,
+      "seconds": 0.659,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/home-article-owner-scope-ui.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/home-article-owner-scope-ui.stderr.log",
+      "tail": "PASS actual upload route rejects stale or missing owner scope before createArticle and accepts same-owner scope\nPASS actual API returns stable SHA256 owner scope for every offset and empty lists\nPASS owner A first page and owner B continuation never produce a mixed 50-ID confirmation\nPASS both actual Home workspace entries carry known owner scope and invalidation callbacks\nPASS scope mismatch aborts two Word reads, drops their queue and rejects late old-owner results\nPASS middle page 401 clears private rows, pagination and late Word reads\nPASS middle page 403 clears private rows, pagination and late Word reads\nPASS retained owner mismatch and missing scope clear rather than retain private rows\nPASS old action invalidation or confirmed callback cannot clear a freshly read different owner\nPASS bfcache reset fences late old-owner page and reads the fresh owner only from page zero\nPASS actual Home original upload binds its known owner and late upload/submit replies cannot restore another scope\n{\"passed\":11,\"failed\":0,\"failures\":[],\"external_calls\":0,\"business_writes\":0,\"scope\":\"actual Home hooks, GET/deferred handlers and actual API handler/hashText; public synthetic owner scopes\"}\n"
+    },
+    {
+      "test": "home-unknown-result-fence-ui",
+      "exit_code": 0,
+      "seconds": 0.825,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/home-unknown-result-fence-ui.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/home-unknown-result-fence-ui.stderr.log",
+      "tail": "er exact recovery read\nPASS restored submit fence ignores its restoring read and isolates other owners\nPASS optional storage failure retains the mounted unknown-submit fence\nPASS raw per-card GET provenance uses browser monotonic dispatch order\nPASS ordinary list failure disables actual upload/submit and successful same-owner read restores known actions\nPASS Word auth callback clears current owner while detached old callback cannot clear new owner\nPASS list DTO cannot forge raw Word readback; failed GET creates none; successful GET retains raw provenance\nPASS actual per-card GET missing execution is rejected without a crash or raw proof; valid same-task retry recovers\nPASS actual per-card GET missing save is rejected without a crash or raw proof; valid same-task retry recovers\nPASS list DTO missing execution cannot crash Home summaries or manufacture Word proof\nPASS list DTO missing save cannot crash Home summaries or manufacture Word proof\n{\"passed\":31,\"failed\":0,\"failures\":[],\"real_network_calls\":0,\"real_platform_calls\":0,\"production_writes\":0,\"scope\":\"actual Home hooks/fetch handlers; exact synthetic file bytes, storage, same-owner successful reads and raw per-card provenance\"}\n"
+    },
+    {
+      "test": "article-workspace-pagination",
+      "exit_code": 0,
+      "seconds": 1.192,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/article-workspace-pagination.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/article-workspace-pagination.stderr.log",
+      "tail": "ed without takeover\nPASS expired platform and Word holders remain protected and their execution records are unchanged\nPASS owner switch during write preflight is fenced by real POST before mutation\nPASS owner change between batches preserves first result and stops before next write\nPASS strict owner inventory limit/offset API, no mutation from pagination\nPASS actual recovery page reaches older 125th archived row; inventory and history pagination stay independent\nPASS actual inventory pagination owner-switch refuses mixed page and clears owner/auth controls\nPASS actual inventory pagination unauthorized refuses mixed page and clears owner/auth controls\nPASS actual inventory pagination forbidden refuses mixed page and clears owner/auth controls\nPASS actual inventory pagination wrong-offset refuses mixed page and clears owner/auth controls\nPASS late inventory page cannot resurrect old owner controls after an action scope reset\nPASS unmounted action ignores a late preflight response and creates no new operation\nPASS 22 dedicated workspace cases; all 54 original migrations in synthetic SQLite; actual Home/Action/DataPage/API source; ZERO production/external/browser/model/platform calls.\n"
+    },
+    {
+      "test": "publish-focus",
+      "exit_code": 0,
+      "seconds": 0.302,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/publish-focus.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/publish-focus.stderr.log",
+      "tail": "PASS: actual Word/two-platform completion, partial/failed/unknown safeguards, multi-task focus, manual reopen, polling, storage restoration and owner-readable validation.\n"
+    },
+    {
+      "test": "topic-hot-result-freshness-ui",
+      "exit_code": 1,
+      "seconds": 0.817,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/topic-hot-result-freshness-ui.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/topic-hot-result-freshness-ui.stderr.log",
+      "tail": "s\\n\\n1 !== 0\\n\"\n    },\n    {\n      \"name\": \"research missing cutoff stays unconfirmed instead of falling back to updated\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"research invalid cutoff stays unconfirmed instead of falling back to updated\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"research calendar rollover cutoff stays unconfirmed instead of falling back to updated\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"research future cutoff stays unconfirmed instead of falling back to updated\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"old-result label uses its coverage cutoff while a newer generation waits\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"old empty discovery visibly records collection time and does not imply a current scan\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"fresh empty discovery exposes its observation time without a stale warning\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"blocked discovery keeps actual collection time and incomplete status\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"hot missing observation stays unconfirmed instead of falling back to scan creation\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"hot invalid observation stays unconfirmed instead of falling back to scan creation\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"hot calendar rollover observation stays unconfirmed instead of falling back to scan creation\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"hot future observation stays unconfirmed instead of falling back to scan creation\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"hot six-hour age crossing only updates visible freshness and never creates collection work\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"hot identity recheck hides old observation time and auth refusal keeps it cleared\",\n      \"passed\": true\n    }\n  ],\n  \"scope\": \"Actual product component source, deterministic offline hooks and HTTP transport; no live data, schedule or production writes.\",\n  \"post_requests\": 0,\n  \"live_fetches\": 0\n}\nFAIL research six-hour age crossing updates only its local clock while progress GET stays pending: unmount removes local UI timers\n\n1 !== 0\n\n"
+    },
+    {
+      "test": "topic-research-ui",
+      "exit_code": 0,
+      "seconds": 0.912,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/topic-research-ui.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/topic-research-ui.stderr.log",
+      "tail": "PASS SSR and static contract: one refresh, no helper actions or fabricated cards, protected POST, memory-only claim, owner and lease guards\nPASS brief: Beijing date, five numbered cards, paragraph summaries, real frozen two-source heat, collapsed angle and evidence, explicit unverified extras\nPASS panel: single action, read-only mount/focus, same-key retry, in-flight/accepted lock, labelled old result, stale-response ordering, owner/auth clearing\nPASS pending recovery: same-button dispatch retry preserves research id, accepted run locks, polling shows completion without creation\nPASS truthful status: accepted waiting duration, active/expired research distinction, unconfirmed delivery, verified availability, GET-only wait and no completion promise\nPASS helper: full input, genuine template, no token output, read-error token retention, untouched-template block, unknown-save readback, expired holder fenced, same-task/token/nonce renewal, owner/auth isolation\nPASS uncertain save recovery: retain token and exact payload across failed readback, read the same id before retry, never resend completed work\n"
+    },
+    {
+      "test": "topic-research-owner-binding",
+      "exit_code": 0,
+      "seconds": 0.721,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/topic-research-owner-binding.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/topic-research-owner-binding.stderr.log",
+      "tail": "PASS actual route: wrong/missing/invalid scopes block create and dispatch before calls; matching scopes, GET and other actions retain admission\nPASS actual panel + route: A GET, silent auth B, A-scoped create denied; old private views and late A cleared; confirmed B remains usable\nPASS status/unknown: plaintext 401/403 clears views; failed read blocks writes; confirmed same-scope recovery retains exact create key\nPASS actual helper + shared client + route: initial/failed reads block create; confirmed create and dispatch work; wrong scope clears private helper view\nLIMITS: actual component/shared client/HTTP handler/hashText, synthetic identity/storage/business adapters only; zero production, provider, platform, schema or MCP tool changes.\n"
+    },
+    {
+      "test": "hot-identity-signals-ui",
+      "exit_code": 0,
+      "seconds": 0.746,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/hot-identity-signals-ui.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/hot-identity-signals-ui.stderr.log",
+      "tail": "tale action handlers\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"bursts of focus/visibility are bounded to one active read plus one latest follow-up\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"an expired first identity request hands off once to the latest signal without surfacing its stale failure\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"hidden visibility invalidates the old ticket without issuing a hidden-tab GET\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"unmount drops a queued follow-up and ignores a late fulfilled identity response\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"latest identity network failure hides stale data but preserves the unknown same-owner intent for GET-only recovery\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"latest 401/403 clears protected state and the old recovery key before a new-owner refresh\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"identity rechecks neither release an active POST lock early nor allow its late result to restore A\",\n      \"passed\": true\n    }\n  ],\n  \"scope\": \"actual page hooks and inert discovery transport\",\n  \"external_calls\": 0,\n  \"production_writes\": 0,\n  \"platform_writes\": 0\n}\n"
+    },
+    {
+      "test": "hot-article-discovery-clock",
+      "exit_code": 0,
+      "seconds": 0.475,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/hot-article-discovery-clock.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/hot-article-discovery-clock.stderr.log",
+      "tail": "PASS new publication after foreground idle\nPASS real expiry after foreground idle\nPASS effect delay uses execution clock\n"
+    },
+    {
+      "test": "hot-article-candidate-render",
+      "exit_code": 0,
+      "seconds": 0.873,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/hot-article-candidate-render.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/hot-article-candidate-render.stderr.log",
+      "tail": "PASS actual discovery page: scoped account pool/add form, raw rounded display, bounded 100 cap, 3-day/removed/read-bound filtering, truthful loading/blocked/expired/empty states, locked free refresh, read-only receipt recovery, frozen-intent retry, input preserved on failure\n"
+    },
+    {
+      "test": "hot-ux-readback-ui",
+      "exit_code": 0,
+      "seconds": 0.902,
+      "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/logs/hot-ux-readback-ui.stdout.log",
+      "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/logs/hot-ux-readback-ui.stderr.log",
+      "tail": ",\n    {\n      \"name\": \"settlement during an active identity GET fences its pre-write response and coalesces one follow-up\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"stale unknown account-write failure also rechecks by GET and never replays the mutation\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"hidden account-write settlement only queues identity work, then visible GET reads final pool\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"late owner A account success or refusal cannot hide confirmed B or schedule reads for it\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"cleared authentication scope and unmount prevent late account settlement reads and state updates\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"failed settlement GET retains hidden view and stale handlers stay blocked until GET-only retry\",\n      \"passed\": true\n    },\n    {\n      \"name\": \"current account auth refusal clears scope without automatically reading or replaying\",\n      \"passed\": true\n    }\n  ],\n  \"scope\": \"Actual page hooks and inert discovery transport; no real network/browser/production/platform requests.\",\n  \"external_calls\": 0,\n  \"production_writes\": 0,\n  \"platform_writes\": 0\n}\n"
+    }
+  ]
+}

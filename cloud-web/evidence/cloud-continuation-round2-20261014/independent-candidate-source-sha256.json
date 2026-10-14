@@ -1,0 +1,8 @@
+{
+  "app/page.tsx": "42c92df11229e17c7094664a0580c7bd757ddacdcad93fb2fb37a404c744a750",
+  "app/globals.css": "5c5d3c87306d7755ea97f6ae6fe5381a5c5333ae926240d250c4994e52ba5cc7",
+  "components/publish-focus.ts": "c858a13bebdb9d03407dd8fe056c117bfda2cbbf09e2936f4c243c32a640ada3",
+  "components/topics/ResearchPanel.tsx": "1cc83d17a0aed7733e70821b305fd26c3a5032c0da8d60b721942a2881f48367",
+  "app/imitation/page.tsx": "0f443542defb8974739e7dfdc8a84f64d61dabd44adca36331460abddabaca3a",
+  "lib/result-observation-time.ts": "767b3a5f43e0dad11bc0d74eba34a7a6b400ee2924d877cd85a5f02cc62216ac"
+}

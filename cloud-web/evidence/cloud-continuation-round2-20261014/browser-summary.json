@@ -1,0 +1,99 @@
+{
+  "source_sha256": {
+    "app/page.tsx": "4f6a60576a8d05392a5983c4662fd039f9037b533e8be1982119b61cf1e73948",
+    "components/publish-focus.ts": "2d2f9fd1d44d4432c284033deb09e03fbd175dbc63b6221c8097c2bbc7a0b491",
+    "components/word-stage-progress.tsx": "e8ec32a61a6255e4331cfc63ddb6fed0f44ed4507c17da8f190082355192821d",
+    "components/topics/ResearchPanel.tsx": "1cc83d17a0aed7733e70821b305fd26c3a5032c0da8d60b721942a2881f48367",
+    "app/imitation/page.tsx": "0f443542defb8974739e7dfdc8a84f64d61dabd44adca36331460abddabaca3a",
+    "lib/result-observation-time.ts": "767b3a5f43e0dad11bc0d74eba34a7a6b400ee2924d877cd85a5f02cc62216ac",
+    "app/globals.css": "5c5d3c87306d7755ea97f6ae6fe5381a5c5333ae926240d250c4994e52ba5cc7"
+  },
+  "status": "PASS",
+  "scope": "Focused local Chromium UI with all business APIs synthetic; not online acceptance. No real upload, submit, dispatch, deployment, production or external platform calls.",
+  "results": [
+    {
+      "name": "multiple unfinished rows expose one complete card and read-only selectors",
+      "status": "PASS"
+    },
+    {
+      "name": "selecting another row only changes UI and mounts one operation card",
+      "status": "PASS"
+    },
+    {
+      "name": "pagination retains loaded items in complete clear preview",
+      "status": "PASS"
+    },
+    {
+      "name": "selected deletion preview is exact one ID and removal leaves one card",
+      "status": "PASS"
+    },
+    {
+      "name": "background new row preserves selection and does not add another card",
+      "status": "PASS"
+    },
+    {
+      "name": "401 clears selected article and all old-scope selectors",
+      "status": "PASS"
+    },
+    {
+      "name": "active Word control keeps original in-flight lock when switching away and back",
+      "status": "PASS"
+    },
+    {
+      "name": "unknown Word response keeps intent and control lock through article switches",
+      "status": "PASS"
+    },
+    {
+      "name": "list refresh cannot release unknown Word lock but fresh exact GET can",
+      "status": "PASS"
+    },
+    {
+      "name": "research age uses coverage checked_at rather than recent updated",
+      "status": "PASS"
+    },
+    {
+      "name": "missing invalid rollover future research cutoffs remain unknown",
+      "status": "PASS"
+    },
+    {
+      "name": "research foreground recomputes six-hour age without creating work",
+      "status": "PASS"
+    },
+    {
+      "name": "research 401 hides old completed result and freshness",
+      "status": "PASS"
+    },
+    {
+      "name": "empty hot result uses observed_at and historical six-hour warning",
+      "status": "PASS"
+    },
+    {
+      "name": "missing invalid rollover future observations remain unknown",
+      "status": "PASS"
+    },
+    {
+      "name": "hot foreground ages result without collection POST",
+      "status": "PASS"
+    },
+    {
+      "name": "hot 401 removes old account articles and observed-time warning",
+      "status": "PASS"
+    },
+    {
+      "name": "all business requests are synthetic and no external requests or JS exceptions",
+      "status": "PASS"
+    }
+  ],
+  "desktop": {
+    "width": 1440,
+    "height": 1000
+  },
+  "mobile": {
+    "width": 390,
+    "height": 844
+  },
+  "requests": 48,
+  "unexpectedApi": [],
+  "externalRequests": [],
+  "pageErrors": []
+}

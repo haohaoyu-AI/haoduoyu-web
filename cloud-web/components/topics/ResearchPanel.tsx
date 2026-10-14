@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import {confirmedObservationTime,observationTimeLabel,resultRefreshAgeMs} from '../../lib/result-observation-time';
 import styles from './easel-trends.module.css';
 import brief from './research-brief.module.css';
 
@@ -158,10 +159,12 @@ export function researchHeat(run: ResearchRun, candidateIds: string[]) {
   return [...lines].join('；') || '来源未提供可展示的榜位或热度值';
 }
 
-export function ResearchResultView({ run }: { run: ResearchRun }) {
+export function ResearchResultView({ run, clock }: { run: ResearchRun; clock?:number }) {
+  const [mountedAt]=useState(Date.now);
   if (run.state !== 'completed' || !run.result) return null;
   const result = run.result;
   const featured = result.featured.slice(0, 5);
+  const checkedAt=confirmedObservationTime(result.coverage.checked_at,clock??mountedAt);
   return <div className={brief.results} data-research-result={run.id}>
     {!!result.shortfall && <p className={styles.noticeWarn}>{result.shortfall}</p>}
     {!featured.length && <p className={styles.notice}>本次没有证据足够的精选，不使用未核验线索补位。</p>}
@@ -200,7 +203,7 @@ export function ResearchResultView({ run }: { run: ResearchRun }) {
       <p className={styles.notice}>以上为附加线索，尚未完成核验。</p>
       <details className={brief.evidence}><summary>查看附加线索说明</summary><ul>{result.additional.map((item, index) => <li key={index}><strong>{item.title}</strong>：{item.note}</li>)}</ul></details>
     </section>}
-    <details className={brief.evidence}><summary>本轮核验范围与时间</summary><p>核验截至 {researchTime(result.coverage.checked_at)}（北京时间） · {result.coverage.notice}</p></details>
+    <details className={brief.evidence}><summary>本轮核验范围与时间</summary><p>{checkedAt===null?'核验时间未确认':<>核验截至 {observationTimeLabel(checkedAt)}（北京时间）</>} · {result.coverage.notice}</p></details>
   </div>;
 }
 
@@ -229,6 +232,7 @@ export function ResearchPanel({ onRefreshed, onResultAvailabilityChange }: {
   const [error, setError] = useState('');
   const [authRequired, setAuthRequired] = useState(false);
   const [observedAt, setObservedAt] = useState<number | null>(null);
+  const [resultNow,setResultNow]=useState(Date.now);
   const current = useRef<ResearchRun | null>(null);
   const sequence = useRef(0);
   const readBusy = useRef(false);
@@ -283,6 +287,7 @@ export function ResearchPanel({ onRefreshed, onResultAvailabilityChange }: {
       setConnected(latest.connected);
       setVerifiedCurrent(true);
       setObservedAt(Date.now());
+      setResultNow(Date.now());
       setAuthRequired(false);
       if (!requestKey.current) setError('');
     } catch (failure) {
@@ -306,7 +311,7 @@ export function ResearchPanel({ onRefreshed, onResultAvailabilityChange }: {
       if (!disposed) timer = setTimeout(tick, current.current && ['queued', 'researching'].includes(current.current.state) ? 6000 : 30_000);
     };
     timer = setTimeout(tick, 0);
-    const resume = () => { if (document.visibilityState !== 'hidden') { setVerifiedCurrent(false); void readCurrent(); } };
+    const resume = () => { if (document.visibilityState !== 'hidden') { setResultNow(Date.now()); setVerifiedCurrent(false); void readCurrent(); } };
     window.addEventListener('focus', resume);
     window.addEventListener('online', resume);
     window.addEventListener('pageshow', resume);
@@ -336,6 +341,7 @@ export function ResearchPanel({ onRefreshed, onResultAvailabilityChange }: {
       acceptRun(next);
       setConnected(response.connected); setUncertainCreate(false); setVerifiedCurrent(true); setAuthRequired(false);
       setObservedAt(Date.now());
+      setResultNow(Date.now());
       requestKey.current = null;
       // The server has already refreshed and frozen both boards. Read its cache
       // into the source details without creating another research request.
@@ -360,6 +366,21 @@ export function ResearchPanel({ onRefreshed, onResultAvailabilityChange }: {
   const progressTime = observedAt ?? Date.parse(run?.updated ?? '');
   const expiredResearch = run?.state === 'researching' && (run.claimable || (!!run.claim_expires && Date.parse(run.claim_expires) <= progressTime));
   const researching = run?.state === 'researching' && !expiredResearch;
+  const checkedAt=confirmedObservationTime(run?.result?.coverage?.checked_at,resultNow);
+  const previousCheckedAt=confirmedObservationTime(previousResult?.result?.coverage?.checked_at,resultNow);
+  const staleResult=checkedAt!==null&&resultNow-checkedAt>=resultRefreshAgeMs;
+  const stalePrevious=previousCheckedAt!==null&&resultNow-previousCheckedAt>=resultRefreshAgeMs;
+  useEffect(()=>{
+    const clock=Date.now();
+    const boundaries=[run?.result?.coverage?.checked_at,lastCompleted?.result?.coverage?.checked_at]
+      .map(value=>confirmedObservationTime(value,clock))
+      .filter((at):at is number=>at!==null)
+      .map(at=>at+resultRefreshAgeMs)
+      .filter(at=>at>clock);
+    if(!boundaries.length)return;
+    const timer=setTimeout(()=>setResultNow(Date.now()),Math.max(1,Math.min(...boundaries)-clock));
+    return()=>clearTimeout(timer);
+  },[run?.result?.coverage?.checked_at,lastCompleted?.result?.coverage?.checked_at,resultNow]);
   const hasVerifiedResult = !!((showResult && run?.result) || previousResult?.result);
   useEffect(() => { onResultAvailabilityChange?.(hasVerifiedResult); }, [hasVerifiedResult, onResultAvailabilityChange]);
   return <section className={brief.panel} aria-labelledby="topic-research-title" data-research-state={creating ? 'creating' : run?.state ?? 'empty'}>
@@ -381,13 +402,13 @@ export function ResearchPanel({ onRefreshed, onResultAvailabilityChange }: {
       {connected === false && !retryDelivery && <p className={styles.noticeWarn}>自动处理连接暂不可用，请让小鱼检查连接。</p>}
       {run?.state === 'failed' && verifiedCurrent && <p className={styles.noticeWarn}>本次刷新未完成：{run.error || '暂时没有取得充分资料。'}{run.owner_execution_blocked?'原执行尚未确认安全结束，暂不启动下一轮。':'可点击“刷新选题”重试。'}</p>}
       {run?.owner_execution_blocked&&['completed','failed','queued'].includes(run.state)&&<p className={styles.noticeWarn}>已有结果或阻塞记录保留。前次执行尚未核验结清，请让小鱼核对；暂不创建、派送或认领新的研究。</p>}
-      {showResult && <p className={styles.notice}>已更新 · {researchTime(run.updated)}（北京时间）</p>}
+      {showResult && <p className={styles.notice}>{checkedAt===null?'本轮核验时间未确认。':<>核验截至 {observationTimeLabel(checkedAt)}（北京时间）{staleResult?' · 结果已超过6小时，当前保留历史核验结果。':''}</>}</p>}
     </div>
     {error && <p className={styles.error} role="alert">{error}{authRequired && <> <a href="/signin-with-chatgpt?return_to=%2Ftopics" target="_top">重新登录</a></>}</p>}
     {error && !verifiedCurrent && !authRequired && !creating && !loading && <button type="button" disabled={reading || creating} onClick={() => {
       if (!readBusy.current && !createBusy.current) { setLoading(true); void readCurrent(); }
     }}>重新读取状态</button>}
-    {showResult && run && <ResearchResultView run={run} />}
-    {previousResult && <div className={brief.previousResult} data-previous-research-result="true"><p className={brief.previousLabel}>上次已核验结果 · {researchBriefDate(new Date(previousResult.updated))} · {researchTime(previousResult.updated)}（北京时间）· 批次 {previousResult.generation}</p><p className={styles.notice}>以下保留历史结果，本轮最新进度以上方状态为准。</p><ResearchResultView run={previousResult} /></div>}
+    {showResult && run && <ResearchResultView run={run} clock={resultNow} />}
+    {previousResult && <div className={brief.previousResult} data-previous-research-result="true"><p className={brief.previousLabel}>上次已核验结果 · {previousCheckedAt===null?'核验时间未确认':<>核验截至 {observationTimeLabel(previousCheckedAt)}（北京时间）</>} · 批次 {previousResult.generation}</p><p className={styles.notice}>{stalePrevious?'结果已超过6小时。':''}以下保留历史结果，本轮最新进度以上方状态为准。</p><ResearchResultView run={previousResult} clock={resultNow} /></div>}
   </section>;
 }

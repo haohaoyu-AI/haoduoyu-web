@@ -1,0 +1,38 @@
+[
+  {
+    "command": [
+      "node",
+      "tests/topic-hot-result-freshness-ui.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.8516448639998089,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/verified-check-00.log",
+    "log_sha256": "40c11365e7176b4ff4e9055fcba954455ac334378bb80517b77f232c2d32500b"
+  },
+  {
+    "command": [
+      "npx",
+      "eslint",
+      "components/topics/ResearchPanel.tsx",
+      "app/imitation/page.tsx",
+      "app/topics/research-helper/page.tsx",
+      "lib/result-observation-time.ts",
+      "tests/topic-hot-result-freshness-ui.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 2.5444048209999437,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/verified-check-01.log",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.004678280999996787,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/verified-check-02.log",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

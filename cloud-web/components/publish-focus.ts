@@ -3,8 +3,8 @@ import {retainedWordAdvice} from './word-recovery-capability';
 import type {WordProgress} from '../lib/word-progress-contract';
 import type {UploadProgress} from './upload-progress';
 export type DraftDelivery = {platform:string;state:string;draft_url?:string|null;verified_readback?:boolean|number;updated?:string|null;message?:string|null};
-export type PublishRow = { id: string; state: string; has_result?: boolean; draft_url?: string | null; toutiao_verified_readback?:boolean|number; deliveries?: DraftDelivery[]; upload_progress?:UploadProgress[]; word_progress?:WordProgress|null; word_progress_deferred?:boolean;word_progress_unavailable?:boolean };
-export type PublishFocus = { seen: string[]; current: Record<string, { complete: boolean; open: boolean }> };
+export type PublishRow = { id: string; state: string; list_section?:'work'|'recent'; has_result?: boolean; draft_url?: string | null; toutiao_verified_readback?:boolean|number; deliveries?: DraftDelivery[]; upload_progress?:UploadProgress[]; word_progress?:WordProgress|null; word_progress_deferred?:boolean;word_progress_unavailable?:boolean };
+export type PublishFocus = { seen: string[]; current: Record<string, { complete: boolean; open: boolean }>; selected?:string|null; pinnedComplete?:boolean };
 
 export type ProgressSummary = {state:'completed'|'running'|'waiting'|'queued'|'blocked'|'paused'|'unknown'|'pending';label:string;reason:string;help:string};
 // A fresh control/attempt read can supersede a progress snapshot. Never carry
@@ -128,9 +128,22 @@ export function publishStatus(row: PublishRow) {
   return mappedText({uploaded:'尚未开始',queued:'排队中',processing:'进度待确认'},row.state)||'进度待确认';
 }
 
+// One visible article. Keep readable selection stable across polls and new rows.
+// Legacy multi-focus storage remains presentation state, never workflow authority.
+export function selectedPublishId(focus:PublishFocus|null,rows:PublishRow[]):string|null {
+  const work=rows.filter(row=>row.list_section!=='recent'),unfinished=work.filter(row=>!publishComplete(row));
+  const selected=work.find(row=>row.id===focus?.selected);
+  if(selected&&(!publishComplete(selected)||!unfinished.length||focus?.pinnedComplete))return selected.id;
+  return unfinished.find(row=>focus?.current[row.id]?.open)?.id
+    || unfinished.find(row=>['processing','word_ready','toutiao_saving'].includes(row.state))?.id
+    || unfinished[0]?.id
+    // Verified drafts do not prove execution settlement. The server may still
+    // expose a protected work row; keep its progress and selection accessible.
+    || work.find(row=>row.list_section==='work')?.id || null;
+}
 export function reconcilePublishFocus(previous: PublishFocus | null, rows: PublishRow[]): PublishFocus {
   const ids = rows.map(row => row.id);
-  if (!previous) return {seen:ids,current:{}};
+  if (!previous) return {seen:ids,current:{},selected:selectedPublishId(null,rows)};
   const current = {...previous.current};
   for (const row of rows) {
     const complete = publishComplete(row), before = current[row.id];
@@ -140,7 +153,8 @@ export function reconcilePublishFocus(previous: PublishFocus | null, rows: Publi
   const started = ids.some(id => current[id] && !previous.current[id] && !current[id].complete);
   if (started) for (const id of Object.keys(previous.current)) if (current[id]?.complete && !current[id].open) delete current[id];
   for (const id of Object.keys(current)) if (!ids.includes(id)) delete current[id];
-  return {seen:[...new Set([...previous.seen,...ids])].slice(-200),current};
+  const selected=selectedPublishId(previous,rows);
+  return {seen:[...new Set([...previous.seen,...ids])].slice(-200),current,selected,pinnedComplete:selected===previous.selected&&previous.pinnedComplete===true};
 }
 
 const storageKey = 'publish-studio-focus-v1';
@@ -149,6 +163,8 @@ export function readPublishFocus(storage: Storage, now = Date.now()): PublishFoc
     const saved = JSON.parse(storage.getItem(storageKey) || 'null'), value = saved?.value;
     if (!saved || !Number.isFinite(saved.at) || saved.at > now || now - saved.at > 6*60*60*1000 || !value || !Array.isArray(value.seen) || !value.seen.every((id:unknown) => typeof id === 'string') || !value.current || typeof value.current !== 'object' || Array.isArray(value.current)) return null;
     if (!Object.values(value.current).every(entry => !!entry && typeof entry === 'object' && 'complete' in entry && typeof entry.complete === 'boolean' && 'open' in entry && typeof entry.open === 'boolean')) return null;
+    if(value.selected!==undefined&&value.selected!==null&&typeof value.selected!=='string')return null;
+    if(value.pinnedComplete!==undefined&&typeof value.pinnedComplete!=='boolean')return null;
     return value;
   } catch { return null; }
 }

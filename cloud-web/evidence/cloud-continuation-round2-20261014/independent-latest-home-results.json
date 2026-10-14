@@ -1,0 +1,42 @@
+[
+  {
+    "test": "publish-single-current-ui",
+    "exit_code": 0,
+    "seconds": 0.727,
+    "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/latest-publish-single-current-ui.stdout.log",
+    "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/latest-publish-single-current-ui.stderr.log",
+    "tail": "tive execution protection and exact current-delete scope survive read-only selection\nPASS unknown same-article submit remains fenced after selecting away and back\nPASS confirmed current removal falls back while the previously frozen bulk range remains exact\nPASS completed current draft yields to new processing work but stays available for explicit read-only review\nPASS verified but still protected work rows remain visible and selectable without implying executor settlement\nPASS old selected recent history cannot replace current work or render private history controls\nPASS saved text-only work is labelled as text and does not claim platform draft verification\nPASS empty current list mounts no card or hidden article operations\n{\"passed\":17,\"failed\":0,\"failures\":[],\"production_writes\":0,\"platform_actions\":0,\"scope\":\"actual Home hooks/handlers with inert GET fixtures; one visible complete card, safely retained hidden/inert instances, stable selection, loaded-ID scope and identity fences\"}\n"
+  },
+  {
+    "test": "publish-independent-extra",
+    "exit_code": 0,
+    "seconds": 0.72,
+    "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/latest-publish-independent-extra.stdout.log",
+    "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/latest-publish-independent-extra.stderr.log",
+    "tail": "ack while the previously frozen bulk range remains exact\nPASS completed current draft yields to new processing work but stays available for explicit read-only review\nPASS verified but still protected work rows remain visible and selectable without implying executor settlement\nPASS old selected recent history cannot replace current work or render private history controls\nPASS saved text-only work is labelled as text and does not claim platform draft verification\nPASS empty current list mounts no card or hidden article operations\nPASS independent retained selector cannot release an active submit lock or its later unknown fence\nPASS independent switching preserves owner/article component keys while hidden instances remain inert\n{\"passed\":19,\"failed\":0,\"failures\":[],\"production_writes\":0,\"platform_actions\":0,\"scope\":\"actual Home hooks/handlers with inert GET fixtures; one visible complete card, safely retained hidden/inert instances, stable selection, loaded-ID scope and identity fences\"}\n"
+  },
+  {
+    "test": "home-article-owner-scope-ui",
+    "exit_code": 0,
+    "seconds": 0.686,
+    "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/latest-home-article-owner-scope-ui.stdout.log",
+    "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/latest-home-article-owner-scope-ui.stderr.log",
+    "tail": "SS owner A first page and owner B continuation never produce a mixed 50-ID confirmation\nPASS both actual Home workspace entries carry known owner scope and invalidation callbacks\nPASS scope mismatch aborts two Word reads, drops their queue and rejects late old-owner results\nPASS middle page 401 clears private rows, pagination and late Word reads\nPASS middle page 403 clears private rows, pagination and late Word reads\nPASS retained owner mismatch and missing scope clear rather than retain private rows\nPASS old action invalidation or confirmed callback cannot clear a freshly read different owner\nPASS bfcache reset fences late old-owner page and reads the fresh owner only from page zero\nPASS actual Home original upload binds its known owner and late upload/submit replies cannot restore another scope\n{\"passed\":11,\"failed\":0,\"failures\":[],\"external_calls\":0,\"business_writes\":0,\"scope\":\"actual Home hooks, GET/deferred handlers and actual API handler/hashText; public synthetic owner scopes\"}\n"
+  },
+  {
+    "test": "home-unknown-result-fence-ui",
+    "exit_code": 0,
+    "seconds": 0.806,
+    "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/latest-home-unknown-result-fence-ui.stdout.log",
+    "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/latest-home-unknown-result-fence-ui.stderr.log",
+    "tail": "enance uses browser monotonic dispatch order\nPASS ordinary list failure disables actual upload/submit and successful same-owner read restores known actions\nPASS Word auth callback clears current owner while detached old callback cannot clear new owner\nPASS list DTO cannot forge raw Word readback; failed GET creates none; successful GET retains raw provenance\nPASS actual per-card GET missing execution is rejected without a crash or raw proof; valid same-task retry recovers\nPASS actual per-card GET missing save is rejected without a crash or raw proof; valid same-task retry recovers\nPASS list DTO missing execution cannot crash Home summaries or manufacture Word proof\nPASS list DTO missing save cannot crash Home summaries or manufacture Word proof\n{\"passed\":31,\"failed\":0,\"failures\":[],\"real_network_calls\":0,\"real_platform_calls\":0,\"production_writes\":0,\"scope\":\"actual Home hooks/fetch handlers; exact synthetic file bytes, storage, same-owner successful reads and raw per-card provenance\"}\n"
+  },
+  {
+    "test": "word-progress-read-ui",
+    "exit_code": 0,
+    "seconds": 0.863,
+    "stdout": "/tmp/haoduoyu-independent-review-round2-20261014/latest-word-progress-read-ui.stdout.log",
+    "stderr": "/tmp/haoduoyu-independent-review-round2-20261014/latest-word-progress-read-ui.stderr.log",
+    "tail": "ewly known different frozen source\",\n    \"an old text-only/null success cannot erase Word progress and output mode learned while its GET was pending\",\n    \"late failure fence: source A to B before late 503\",\n    \"late failure fence: attempt generation 1 to 2 before late network failure\",\n    \"late failure fence: unknown progress to known progress before late 503\",\n    \"metadata-only deferred list reads retain an earlier per-card failure and its existing evidence\",\n    \"offline display does not infer executor loss and prevents detail-triggered reads\",\n    \"bfcache pageshow aborts and fences the old account page before fresh reads\",\n    \"owner auth failure cancels all old Word reads and cannot resurrect private cards\",\n    \"a Word GET 403 aborts the list, all concurrent reads and queued private-card work\",\n    \"actual Home clear callback removes and fences the cleared card without a deletion POST\",\n    \"unmount aborts deferred GETs and late fulfilled responses do not commit state\"\n  ]\n}\n"
+  }
+]

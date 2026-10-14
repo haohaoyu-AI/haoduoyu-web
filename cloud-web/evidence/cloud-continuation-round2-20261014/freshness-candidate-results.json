@@ -1,0 +1,77 @@
+{
+  "source_sha256": {
+    "components/topics/ResearchPanel.tsx": "a081dec6969f3ddb79b82de722b2f5b62e0cf47234c9ff900f3584983bbcd4e1",
+    "app/imitation/page.tsx": "b28fd87f0f88a8d7aaa079d4e20bd4baf7019c5cb0f345550790d5a2ef751486"
+  },
+  "passed": 16,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "research uses actual coverage cutoff when settlement updated the completed row today",
+      "passed": true
+    },
+    {
+      "name": "fresh research retains a visible actual cutoff and no stale warning",
+      "passed": true
+    },
+    {
+      "name": "research missing cutoff stays unconfirmed instead of falling back to updated",
+      "passed": true
+    },
+    {
+      "name": "research invalid cutoff stays unconfirmed instead of falling back to updated",
+      "passed": true
+    },
+    {
+      "name": "research calendar rollover cutoff stays unconfirmed instead of falling back to updated",
+      "passed": true
+    },
+    {
+      "name": "research future cutoff stays unconfirmed instead of falling back to updated",
+      "passed": true
+    },
+    {
+      "name": "old-result label uses its coverage cutoff while a newer generation waits",
+      "passed": true
+    },
+    {
+      "name": "old empty discovery visibly records collection time and does not imply a current scan",
+      "passed": true
+    },
+    {
+      "name": "fresh empty discovery exposes its observation time without a stale warning",
+      "passed": true
+    },
+    {
+      "name": "blocked discovery keeps actual collection time and incomplete status",
+      "passed": true
+    },
+    {
+      "name": "hot missing observation stays unconfirmed instead of falling back to scan creation",
+      "passed": true
+    },
+    {
+      "name": "hot invalid observation stays unconfirmed instead of falling back to scan creation",
+      "passed": true
+    },
+    {
+      "name": "hot calendar rollover observation stays unconfirmed instead of falling back to scan creation",
+      "passed": true
+    },
+    {
+      "name": "hot future observation stays unconfirmed instead of falling back to scan creation",
+      "passed": true
+    },
+    {
+      "name": "hot six-hour age crossing only updates visible freshness and never creates collection work",
+      "passed": true
+    },
+    {
+      "name": "hot identity recheck hides old observation time and auth refusal keeps it cleared",
+      "passed": true
+    }
+  ],
+  "scope": "Actual product component source, deterministic offline hooks and HTTP transport; no live data, schedule or production writes.",
+  "post_requests": 0,
+  "live_fetches": 0
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "tests/topic-hot-result-freshness-ui.mjs"
+  ],
+  "base_commit": "a8b1ec77a530f725584dbabd43e0534c493a9961",
+  "scratch": "/tmp/haoduoyu-freshness-a8-baseline-1_3xytdb",
+  "exit_code": 1,
+  "duration_seconds": 0.8435103650001565,
+  "log_path": "/tmp/haoduoyu-result-freshness-20261014/final-baseline.log",
+  "log_sha256": "40290d89cefe89d61c82807803391c1e8f2fc0083e2d0a05fd01291e029f0cc0"
+}

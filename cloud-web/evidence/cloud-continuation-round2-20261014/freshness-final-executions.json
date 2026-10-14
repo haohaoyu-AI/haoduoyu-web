@@ -1,0 +1,58 @@
+[
+  {
+    "command": [
+      "node",
+      "tests/topic-hot-result-freshness-ui.mjs"
+    ],
+    "exit_code": 1,
+    "duration_seconds": 0.933020660000011,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/final-check-00.log",
+    "log_sha256": "89f9fecacee329e31112f58c5a2f1ca4be811e31333b4853751f63fa7d8f3f2b"
+  },
+  {
+    "command": [
+      "node",
+      "tests/topic-research-ui.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.8387030250000862,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/final-check-01.log",
+    "log_sha256": "a589a39509fa407acd3e5dfda621984bc4a535afe487f4aca38c947bd3cd9337"
+  },
+  {
+    "command": [
+      "node",
+      "tests/topic-research-owner-binding.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.7489198289999877,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/final-check-02.log",
+    "log_sha256": "0f0c191574dfebd95f83fe6429f69b596184982d00f2d0404cfb4af4dadebfce"
+  },
+  {
+    "command": [
+      "npx",
+      "eslint",
+      "components/topics/ResearchPanel.tsx",
+      "app/imitation/page.tsx",
+      "app/topics/research-helper/page.tsx",
+      "lib/result-observation-time.ts",
+      "tests/topic-hot-result-freshness-ui.mjs"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 2.4585389950000263,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/final-check-03.log",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.0055121169998528785,
+    "log_path": "/tmp/haoduoyu-result-freshness-20261014/final-check-04.log",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

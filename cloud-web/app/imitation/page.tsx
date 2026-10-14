@@ -2,6 +2,7 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {entertainmentArticleTitle} from '../../lib/hot-article-genre';
 import {HotArticleViewFence} from '../../lib/hot-article-view';
+import {confirmedObservationTime,observationTimeLabel,resultRefreshAgeMs} from '../../lib/result-observation-time';
 import type {DiscoveryView} from '../../lib/hot-article-discovery-store';
 import type {CardMetric} from '../../lib/hot-article-discovery';
 import StudioNav from '../../components/studio-nav';
@@ -9,6 +10,7 @@ import './imitation.css';
 
 const endpoint='/api/imitation/discovery';
 const metricText=(metric:CardMetric)=>metric.display===null?'不可获取':metric.display.replace(/阅读|点赞|赞|评论/g,'').trim();
+const collectionText=(value:unknown,now:number)=>{const at=confirmedObservationTime(value,now);return at===null?'采集时间未确认':`采集 ${observationTimeLabel(at)}（北京时间）`;};
 class AuthError extends Error {}
 class ScanBusy extends Error{constructor(readonly view:DiscoveryView){super('已有扫描正在进行，本次刷新未接纳');}}
 async function json<T>(response:Response):Promise<T>{
@@ -88,10 +90,12 @@ export default function ImitationPage(){
  },[checkIdentity]);
  useEffect(()=>{
   const expiries=(scan?.result?.articles??[]).map(a=>Date.parse(a.published_at)+3*86400000+1).filter(at=>Number.isFinite(at)&&at>now);
+  const observed=confirmedObservationTime(scan?.result?.observed_at,now);
+  if(observed!==null&&observed+resultRefreshAgeMs>now)expiries.push(observed+resultRefreshAgeMs);
   if(!expiries.length)return;
   const timer=setTimeout(()=>setNow(Date.now()),Math.min(2147483647,Math.max(1,Math.min(...expiries)-Date.now())));
   return()=>clearTimeout(timer);
- },[scan?.result?.articles,now]);
+ },[scan?.result,now]);
  const post=async(body:Record<string,unknown>)=>{
   const scope=ownerScope.current;if(!identityVerified.current||!scope||current?.owner_scope!==scope)throw new AuthError('请重新读取本人账号池后操作');
   return json<DiscoveryView>(await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','x-hot-article-discovery':'1'},body:JSON.stringify({...body,owner_scope:scope}),signal:AbortSignal.timeout(55000)}));
@@ -135,7 +139,8 @@ export default function ImitationPage(){
  const displayedScan=identityUnverified?null:scan,accounts=identityUnverified?[]:current?.accounts??[],collecting=displayedScan?.state==='collecting',active=new Set(accounts.map(a=>a.id)),controlsBusy=busy||checkingIdentity||identityUnverified;
  const articles=(displayedScan?.result?.articles??[]).filter(a=>active.has(a.account_id)&&entertainmentArticleTitle(a.title)&&Date.parse(a.published_at)>=now-3*86400000&&Date.parse(a.published_at)<=now&&a.reads.lower_bound!==null&&a.reads.lower_bound>=10000).slice(0,100);
  const incomplete=displayedScan?.state==='blocked'||displayedScan?.state==='incomplete';
- const status=checkingIdentity?'正在核对登录账号…':identityUnverified?(message||'登录账号尚未完成核对，请重新读取账号池。'):message||(!current?'正在读取账号池…':busy&&!adding?'正在扫描账号近3天的文章…':!accounts.length?'请先添加文娱对标账号。':collecting?'正在扫描账号近3天的文章…':displayedScan?.pool_changed?'账号池已更新，请刷新。':displayedScan?.state==='interrupted'?'上次扫描未完成，请重新刷新。':displayedScan?.state==='superseded'?'旧扫描已由新扫描替代，请刷新。':incomplete?'部分账号无法正常读取或缺少本篇阅读证据，本次扫描尚未完整核验。':!displayedScan?'点击刷新，扫描账号近3天的文章。':!articles.length?'暂无符合条件的热文':'');
+ const observedAt=confirmedObservationTime(displayedScan?.result?.observed_at,now),staleResult=observedAt!==null&&now-observedAt>=resultRefreshAgeMs;
+ const status=checkingIdentity?'正在核对登录账号…':identityUnverified?(message||'登录账号尚未完成核对，请重新读取账号池。'):message||(!current?'正在读取账号池…':busy&&!adding?'正在扫描账号近3天的文章…':!accounts.length?'请先添加文娱对标账号。':collecting?'正在扫描账号近3天的文章…':displayedScan?.pool_changed?'账号池已更新，请刷新。':displayedScan?.state==='interrupted'?'上次扫描未完成，请重新刷新。':displayedScan?.state==='superseded'?'旧扫描已由新扫描替代，请刷新。':incomplete?'部分账号无法正常读取或缺少本篇阅读证据，本次扫描尚未完整核验。':!displayedScan?'点击刷新，扫描账号近3天的文章。':!articles.length?(staleResult?'本次历史扫描中，没有当前仍符合条件的热文。':'暂无符合条件的热文'):'');
  return <main className="studio-main imitation-main"><StudioNav current="imitation"/>
   <section className="imitation-pool" aria-labelledby="benchmark-heading">
    <header className="imitation-heading"><h2 id="benchmark-heading">对标账号（{accounts.length}/10）</h2><button type="button" onClick={()=>setAdding(!adding)} disabled={controlsBusy||!adding&&(collecting||!current)}>{adding?'取消添加':'添加账号'}</button></header>
@@ -150,11 +155,12 @@ export default function ImitationPage(){
    </form>}
   </section>
   <header className="imitation-heading"><div><h2>热文</h2><p className="helper-text">最近72小时 · 阅读≥1万 · 文娱初筛 · 每6小时更新</p></div><button type="button" onClick={refresh} disabled={controlsBusy||collecting||!accounts.length}>{checkingIdentity?'核对账号中…':collecting||busy&&!adding?'正在刷新…':'刷新热文'}</button></header>
+  {displayedScan?.result&&<p className="imitation-notice" data-hot-result-time="true">{observedAt===null?'本轮采集时间未确认。':<>本轮采集时间：{observationTimeLabel(observedAt)}（北京时间）{staleResult?' · 结果已超过6小时，当前保留历史采集记录。':''}</>}</p>}
   {status&&<p className="imitation-notice" role="status">{status}{authRequired&&<> <a href="/signin-with-chatgpt?return_to=%2Fimitation" target="_top">使用本人账号登录</a></>}</p>}
   {readFailed&&!authRequired&&<button type="button" disabled={busy||checkingIdentity} onClick={()=>void retryRead()}>{busy||checkingIdentity?'读取中…':'重试读取账号池'}</button>}
   {incomplete&&!message&&<ul className="imitation-source-status">{displayedScan?.result?.observations.filter(o=>o.outcome!=='checked'&&active.has(o.account_id)).map(o=><li key={o.account_id}>{accounts.find(a=>a.id===o.account_id)?.name}：{o.reason}</li>)}</ul>}
   {articles.length>0&&<div className="imitation-cards" aria-label="最近72小时阅读量至少1万的热文">{articles.map(article=><article className="imitation-card" key={article.id}>
-   <h3>{article.title}</h3><p className="helper-text">{accounts.find(a=>a.id===article.account_id)?.name} · 发表 {article.evidence?.date_display||'未核实'}<br/>采集 {article.evidence?.observed_at?new Date(article.evidence.observed_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}):'不可获取'}</p>
+   <h3>{article.title}</h3><p className="helper-text">{accounts.find(a=>a.id===article.account_id)?.name} · 发表 {article.evidence?.date_display||'未核实'}<br/>{collectionText(article.evidence?.observed_at,now)}</p>
    <div className="imitation-metrics"><span>阅读 <b>{metricText(article.reads)}</b></span><span>点赞 <b>{metricText(article.likes)}</b></span><span>评论 <b>{metricText(article.comments)}</b></span></div>
    <a className="imitation-original" href={article.url} target="_blank" rel="noreferrer" aria-label={`查看原文：${article.title}`}>查看原文</a>
   </article>)}</div>}
