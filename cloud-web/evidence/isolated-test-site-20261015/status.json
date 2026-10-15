@@ -1,0 +1,143 @@
+{
+  "generated_at_utc": "2026-10-15 04:48:09 UTC",
+  "purpose": "One independent owner-private empty-storage verification Site; not the existing production Site update.",
+  "project_id": "appgprj_6ad0582893088191b7bb69025f245b19",
+  "url": "https://haoduoyu-isolated-test-20261015.haohaoyu202409.chatgpt.site",
+  "source": {
+    "deployed_commit": "a3111a12e3aa28883e88579d4c9c49505a3834de",
+    "prepared_unpublished_commit": "d15f418e426311a9a092734349198610a5953e78",
+    "github_application_base": "a63e87f6e36016ecb8fe184a4fe76050ea9e431f",
+    "auto_publish_on_push": false,
+    "application_and_migration_bytes_unchanged": true
+  },
+  "deployment": {
+    "id": "appgdep_6ad05a34650c8191b8a5da1bf796be1f",
+    "project_id": "appgprj_6ad0582893088191b7bb69025f245b19",
+    "title": "好多鱼独立验证站",
+    "version_id": "appgprj_6ad0582893088191b7bb69025f245b19~appgver_ad8ac70f7f6c819180d0876fb8a85a4a",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://haoduoyu-isolated-test-20261015.haohaoyu202409.chatgpt.site",
+    "has_mcp": false,
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6ad0582893088191b7bb69025f245b19",
+    "failure_message": null,
+    "env_set_revision": 0,
+    "updated_at": "2026-10-15T04:44:43.954187+00:00"
+  },
+  "saved_version": {
+    "id": "appgprj_6ad0582893088191b7bb69025f245b19~appgver_ad8ac70f7f6c819180d0876fb8a85a4a",
+    "version_number": 1,
+    "source": {
+      "commit_sha": "a3111a12e3aa28883e88579d4c9c49505a3834de"
+    },
+    "deployment_id": "appgdep_6ad05a34650c8191b8a5da1bf796be1f",
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_00000000d38481f595a03b5451930955",
+      "content_hash": "sha256:f219d7a8cb0a3c8da90b083a738d9bac56e61eac130412d1e73b8168af0150f3",
+      "size_bytes": 10987520,
+      "file_count": 335
+    }
+  },
+  "access": {
+    "id": "appgprj_6ad0582893088191b7bb69025f245b19",
+    "status": "active",
+    "current_live_url": null,
+    "expected_url": null,
+    "current_user_role": "owner",
+    "access_mode": "custom",
+    "allowed_viewer_count": 1,
+    "external_visitor_count": 0,
+    "group_count": 0,
+    "requires_byop": false,
+    "auth_client_id_present": true,
+    "source_credential_present": false
+  },
+  "database": {
+    "project_id": "appgprj_6ad0582893088191b7bb69025f245b19",
+    "bindings": [
+      "DB"
+    ],
+    "selected_binding_name": "DB",
+    "tables": [],
+    "model_projection": {
+      "truncated": false,
+      "omitted_project_id": false,
+      "omitted_selected_binding": false,
+      "omitted_bindings": 0,
+      "omitted_tables": 0
+    }
+  },
+  "environment": {
+    "project_id": "appgprj_6ad0582893088191b7bb69025f245b19",
+    "revision": 0,
+    "entries": []
+  },
+  "custom_domains": {
+    "items": []
+  },
+  "initial_archive_validation_error": {
+    "error": "SitesConnectorError: Could not find a supported vinext entrypoint. Looked for: dist/server/index.js, dist/server/index.mjs, dist/server/index.cjs, .output/server/index.js, .output/server/index.mjs, .output/server/index.cjs, dist/index.js, dist/index.mjs, dist/index.cjs, index.js, index.mjs, index.cjs. Build the site first.",
+    "error_code": "INVALID_ARGUMENT",
+    "error_data": {
+      "type": "invalid_archive",
+      "message": "Could not find a supported vinext entrypoint. Looked for: dist/server/index.js, dist/server/index.mjs, dist/server/index.cjs, .output/server/index.js, .output/server/index.mjs, .output/server/index.cjs, dist/index.js, dist/index.mjs, dist/index.cjs, index.js, index.mjs, index.cjs. Build the site first.",
+      "code": 400
+    }
+  },
+  "validation": {
+    "independent_source_build_exit": 0,
+    "independent_source_typescript_exit": 0,
+    "empty_sqlite_application_read_checks": [
+      "article worklist empty",
+      "topic current null and disconnected",
+      "benchmark account pool empty",
+      "cloud Dedao task null and not ready",
+      "article history empty",
+      "configuration and article tables remain empty; external calls zero"
+    ],
+    "new_d1_application_read_probe": "Stopped after no completion; not counted as passed.",
+    "prior_isolated_d1_full_chain": "Previously passed; not repeated as a test-suite run or used to claim hosted migrations applied.",
+    "migration_files": 109,
+    "migration_sql_files": 54,
+    "snapshot_files": 54,
+    "journal_files": 1,
+    "hosted_migrations_all_executed": false,
+    "reason": "Official DB overview after successful deployment repeatedly returned zero user tables with no omitted tables.",
+    "hosted_browser_or_login_acceptance": false,
+    "hosted_save_acceptance": false,
+    "real_writing_images_upload_or_drafts": false,
+    "website_usable_for_business": false
+  },
+  "packaging": {
+    "deployed_input": "Root .openai/drizzle present; generated dist/.openai/drizzle path omitted in submitted V1 input. This is a candidate packaging issue, not confirmed platform root cause.",
+    "corrected_archive": "/workspace/haoduoyu-isolated-test-records-20261015/isolated-test-complete-generated-layout.tar",
+    "corrected_archive_files": 445,
+    "corrected_archive_sha256": "e133356793bf1814a3c66fae9fbdee70f069e5eba950c0e537cf4369e21c6dcb",
+    "same_commit_republish": "Formal save/deploy reused V1 and original 335-file archive; new layout was not consumed.",
+    "corrected_new_source_commit_deployed": false,
+    "stop_reason": "Latest parent instruction explicitly says do not create or deploy again; obeyed. No native deployment was called after it."
+  },
+  "billing": {
+    "official_policy_url": "https://help.openai.com/en/articles/20001339-creating-and-using-chatgpt-sites",
+    "pricing_url": "https://learn.chatgpt.com/docs/pricing",
+    "policy": "Sites public beta usage included up to plan-specific limits; limit may block new Sites/storage.",
+    "purchase_or_upgrade_actions": 0,
+    "paid_external_model_calls": 0,
+    "account_specific_remaining_quota": "Not exposed by current tools"
+  },
+  "unchanged_original": {
+    "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+    "hostname": "haoduoyu.xyz",
+    "site_configuration_writes": 0,
+    "database_writes": 0,
+    "domain_changes": 0,
+    "credential_migrations": 0,
+    "schedule_changes": 0,
+    "browser_operations": 0,
+    "article_uploads": 0
+  },
+  "next_step": "If later specifically authorized, deploy the prepared new source/complete generated layout once to this same independent Site, then require actual user tables and ordinary login/save acceptance. No new Site or SQL rewrite is needed.",
+  "source_credentials_persisted": false
+}
