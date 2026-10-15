@@ -25,11 +25,15 @@
 
 npm run check 检查语法和接口规范，npm test 运行真实 HTTP 与 SQLite 集成测试。
 
+`npm run test:docker` 单独构建镜像并验证非 root 用户、真实 Docker 健康探针、容器重启及重建、在线备份导出与新卷恢复、停服整卷归档恢复。需要可用 Docker 引擎；只操作唯一命名的临时资源，完成后清理，不发布端口，不读取生产卷或创建真实凭据。首次构建需要拉取 Node 基础镜像。若用户目录只读，可设置 `DOCKER_CONFIG` 到可写的临时目录。
+
 - [部署与备份](docs/DEPLOY.md)
 - [Grok 接入](docs/GROK.md)
 - [验收清单](docs/ACCEPTANCE.md)
 - 运行中的公开接口文档：/api-docs，机器规范：/openapi.json
 
 生产环境必须使用 HTTPS、配置准确的 SITE_ORIGIN，并在反向代理后运行。具体 Docker 操作见部署文档。普通访客只能看到登录页和公开接口规范，所有经营数据都需要服务器端授权。
+
+反代还需按实际连接 IP 设置 `TRUSTED_PROXIES`，避免所有访问者共享代理的登录限流额度。默认忽略转发头；不得为了读取客户端 IP 而无条件信任任意代理。
 
 此版本尚未接管 haoduoyu.xyz。代码、独立运行验证与生产上线分别记录，不以本地测试代替 Grok 实际接入或线上验收。

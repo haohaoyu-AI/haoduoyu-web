@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, dirname, extname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openDatabase } from './db.mjs';
+import { clientIpResolver } from './client-ip.mjs';
 import { createRecords } from './records.mjs';
 import { authenticate, verifyPassword, hashPassword, createSession, csrfFor, digest, audit, fail, checkOrigin, checkCsrf } from './auth.mjs';
 
@@ -57,12 +58,13 @@ function csv(value) {
   if (/^[\s]*[=+\-@\t\r]/.test(text)) text = "'" + text;
   return '"' + text.replaceAll('"', '""') + '"';
 }
-export function createApplication({ db, origin = 'http://localhost:3000', secureCookies = origin.startsWith('https:') } = {}) {
+export function createApplication({ db, origin = 'http://localhost:3000', secureCookies = origin.startsWith('https:'), trustedProxies = '' } = {}) {
   if (!db) throw new Error('Database required');
   const originUrl = new URL(origin);
   if (!['http:','https:'].includes(originUrl.protocol) || originUrl.origin !== origin)
     throw new Error('SITE_ORIGIN must be an exact HTTP(S) origin without a path');
   const records = createRecords(db);
+  const clientIp = clientIpResolver(trustedProxies);
   const server = createServer(async (req, res) => {
     headers(res);
     try {
@@ -82,10 +84,11 @@ export function createApplication({ db, origin = 'http://localhost:3000', secure
           if (typeof input.username !== 'string' || input.username.length > 80 ||
               typeof input.password !== 'string' || input.password.length > 256)
             throw fail(401, 'INVALID_CREDENTIALS', '账号或密码错误');
-          const bucket = digest((req.socket.remoteAddress || '') + ':' + input.username);
+          const ip = clientIp(req);
+          const bucket = digest(ip + ':' + input.username);
           const now = Date.now(), windowStart = now - 900000;
           db.prepare('DELETE FROM login_attempts WHERE window_start<?').run(windowStart);
-          const peerBucket = 'ip:' + digest(req.socket.remoteAddress || 'unknown');
+          const peerBucket = 'ip:' + digest(ip);
           const peerAttempt = db.prepare('SELECT attempts FROM login_attempts WHERE bucket=?').get(peerBucket);
           if (peerAttempt?.attempts >= 100) { res.setHeader('Retry-After','900'); throw fail(429,'RATE_LIMITED','尝试次数过多，请稍后再试'); }
           db.prepare('INSERT INTO login_attempts(bucket,attempts,window_start) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts=attempts+1').run(peerBucket, now);
@@ -258,7 +261,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (process.env.NODE_ENV === 'production' && !process.env.SITE_ORIGIN?.startsWith('https://'))
     throw new Error('Production requires an HTTPS SITE_ORIGIN');
   const db = openDatabase();
-  const server = createApplication({db,origin,secureCookies:process.env.NODE_ENV === 'production' || origin.startsWith('https:')});
+  const server = createApplication({db,origin,secureCookies:process.env.NODE_ENV === 'production' || origin.startsWith('https:'),trustedProxies:process.env.TRUSTED_PROXIES || ''});
   server.listen(port,host,()=>console.log('好多鱼图文服务已启动，监听 ' + host + ':' + port));
   const stop = () => server.close(()=>{db.close();process.exit(0);});
   process.on('SIGTERM',stop); process.on('SIGINT',stop);

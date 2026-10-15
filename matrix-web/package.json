@@ -10,6 +10,7 @@
     "admin": "node scripts/admin.mjs",
     "backup": "node scripts/backup.mjs",
     "test": "node --test tests/*.test.mjs",
+    "test:docker": "node --test tests/docker-lifecycle.mjs",
     "check": "node scripts/check.mjs"
   }
 }
