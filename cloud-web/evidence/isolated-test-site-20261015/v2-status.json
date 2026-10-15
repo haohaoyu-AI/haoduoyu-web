@@ -1,0 +1,295 @@
+{
+  "recorded_at_utc": "2026-10-15 04:54:57 UTC",
+  "purpose": "Complete the authorized packaging correction on the same isolated private Site; stop publication on reproduced migration failure.",
+  "project_id": "appgprj_6ad0582893088191b7bb69025f245b19",
+  "url": "https://haoduoyu-isolated-test-20261015.haohaoyu202409.chatgpt.site",
+  "release": {
+    "id": "appgdep_6ad05bd7a1e4819194d30a11600503b9",
+    "project_id": "appgprj_6ad0582893088191b7bb69025f245b19",
+    "title": "好多鱼独立验证站",
+    "version_id": "appgprj_6ad0582893088191b7bb69025f245b19~appgver_84a3aea641608191823225a825dd5d9f",
+    "type": "publish",
+    "status": "failed",
+    "url": null,
+    "has_mcp": false,
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6ad0582893088191b7bb69025f245b19",
+    "failure_message": "incomplete input: SQLITE_ERROR",
+    "env_set_revision": 0,
+    "updated_at": "2026-10-15T04:51:51.044503+00:00"
+  },
+  "saved_version": {
+    "id": "appgprj_6ad0582893088191b7bb69025f245b19~appgver_84a3aea641608191823225a825dd5d9f",
+    "version_number": 2,
+    "source": {
+      "commit_sha": "d15f418e426311a9a092734349198610a5953e78"
+    },
+    "deployment_id": "appgdep_6ad05bd7a1e4819194d30a11600503b9",
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_00000000ab6481f5856f0be3b5aaf31c",
+      "content_hash": "sha256:dcf2f45980afe8f2ec5b77c251b192e814b5caba4852c4c9ed321284c3cc03ef",
+      "size_bytes": 17397760,
+      "file_count": 445
+    }
+  },
+  "access": {
+    "id": "appgprj_6ad0582893088191b7bb69025f245b19",
+    "current_live_url": "https://haoduoyu-isolated-test-20261015.haohaoyu202409.chatgpt.site",
+    "latest_version_number": 2,
+    "access_mode": "custom",
+    "current_user_role": "owner",
+    "allowed_viewers": 1,
+    "external_visitors": 0,
+    "groups": 0
+  },
+  "before_v2": {
+    "visible_user_tables": [],
+    "source_commit": "a3111a12e3aa28883e88579d4c9c49505a3834de",
+    "version_number": 1,
+    "last_deployment": "appgdep_6ad05a34650c8191b8a5da1bf796be1f"
+  },
+  "source_diff": {
+    "commit": "d15f418e426311a9a092734349198610a5953e78",
+    "parent": "a3111a12e3aa28883e88579d4c9c49505a3834de",
+    "changed_files": [
+      {
+        "path": "ISOLATED-TEST-RELEASE.md",
+        "added_lines": 24,
+        "removed_lines": 0
+      }
+    ],
+    "application_changes": false,
+    "historical_sql_snapshot_journal_changes": false,
+    "pushed_source_confirmed_by_saved_version": true
+  },
+  "submitted_archive": {
+    "path": "/workspace/haoduoyu-isolated-test-records-20261015/isolated-test-complete-generated-layout.tar",
+    "sha256": "e133356793bf1814a3c66fae9fbdee70f069e5eba950c0e537cf4369e21c6dcb",
+    "file_count": 445,
+    "migration_files": 109,
+    "sql_files": 54,
+    "snapshots": 54,
+    "journals": 1,
+    "paths": [
+      ".openai/drizzle/",
+      "dist/.openai/drizzle/"
+    ],
+    "worker_entry": "dist/server/index.js",
+    "both_hosting_manifests_match_independent_project": true,
+    "migration_bytes_match_source": true
+  },
+  "database_after_failure": {
+    "project_id": "appgprj_6ad0582893088191b7bb69025f245b19",
+    "bindings": [
+      "DB"
+    ],
+    "selected_binding_name": "DB",
+    "tables": [
+      "article_claim_credential_hashes",
+      "article_content_fences",
+      "article_deletions",
+      "article_deliveries",
+      "article_handoffs",
+      "article_help_queue_claims",
+      "article_history",
+      "article_list_deletions",
+      "article_metrics_observations",
+      "article_output_restarts",
+      "article_purge_executor_ends",
+      "article_purge_executor_observations",
+      "article_purge_serial_blocks",
+      "article_upload_attempts",
+      "article_upload_diagnostics",
+      "article_upload_executor_ends",
+      "article_word_claim_recoveries",
+      "article_word_executor_ends",
+      "article_workspace_archives",
+      "article_workspace_requests",
+      "articles",
+      "claude_attempts",
+      "claude_settings",
+      "connection_tests",
+      "daily_editorial_drafts",
+      "dedao_actions",
+      "dedao_batch_runtime",
+      "dedao_batches",
+      "dedao_chunks",
+      "dedao_cloud_actions",
+      "dedao_cloud_requests",
+      "dedao_dispatches",
+      "dedao_executors",
+      "dedao_items",
+      "dedao_native_lifecycle",
+      "dedao_native_observations",
+      "dedao_native_sessions",
+      "dedao_wake_outbox",
+      "editorial_agent_claim_recoveries_v3",
+      "editorial_authority_v3",
+      "editorial_body_continuations_v3",
+      "editorial_cloud_delegations_v3",
+      "editorial_daily_cloud_delegations_v3",
+      "editorial_failed_writer_cloud_delegations_v3",
+      "editorial_failed_writer_continuations_v3",
+      "editorial_flows",
+      "editorial_request_outbox",
+      "editorial_requests",
+      "editorial_revision_cloud_delegations_v3",
+      "editorial_revision_continuations_v3"
+    ],
+    "model_projection": {
+      "truncated": false,
+      "omitted_project_id": false,
+      "omitted_selected_binding": false,
+      "omitted_bindings": 0,
+      "omitted_tables": 0
+    }
+  },
+  "bounded_official_table_reads": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "table": "articles",
+        "binding": "DB",
+        "columns": [
+          "id",
+          "owner",
+          "title",
+          "filename",
+          "source_key",
+          "paragraphs",
+          "created",
+          "state",
+          "error",
+          "claim_token",
+          "claim_expires",
+          "result_key",
+          "result_meta",
+          "draft_url",
+          "artifact_manifest",
+          "draft_readback",
+          "upload_guard_version",
+          "word_claim_origin_hash"
+        ],
+        "rows_returned": 0,
+        "has_more": false,
+        "projection": {
+          "truncated": false,
+          "truncated_values": 0,
+          "omitted_columns": 0,
+          "omitted_rows": 0,
+          "next_offset": null
+        }
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "table": "article_history",
+        "binding": "DB",
+        "columns": [
+          "owner",
+          "history_key",
+          "article_id",
+          "record_json",
+          "evidence_sha256",
+          "completed_at",
+          "created"
+        ],
+        "rows_returned": 0,
+        "has_more": false,
+        "projection": {
+          "truncated": false,
+          "truncated_values": 0,
+          "omitted_columns": 0,
+          "omitted_rows": 0,
+          "next_offset": null
+        }
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "table": "dedao_cloud_requests",
+        "binding": "DB",
+        "columns": [
+          "id",
+          "owner",
+          "request_key",
+          "state",
+          "conversation_url",
+          "article_id",
+          "execution_id",
+          "claim_hash",
+          "claim_expires",
+          "dispatch_state",
+          "created",
+          "updated",
+          "end_reference"
+        ],
+        "rows_returned": 0,
+        "has_more": false,
+        "projection": {
+          "truncated": false,
+          "truncated_values": 0,
+          "omitted_columns": 0,
+          "omitted_rows": 0,
+          "next_offset": null
+        }
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "table": "claude_settings",
+        "binding": "DB",
+        "columns": [
+          "owner",
+          "model",
+          "secret",
+          "enabled",
+          "updated"
+        ],
+        "rows_returned": 0,
+        "has_more": false,
+        "projection": {
+          "truncated": false,
+          "truncated_values": 0,
+          "omitted_columns": 0,
+          "omitted_rows": 0,
+          "next_offset": null
+        }
+      }
+    }
+  ],
+  "established": [
+    "V2 new source and 445-file saved archive were actually adopted; this is not V1 source-commit deduplication.",
+    "Formal deployment failed with the same incomplete input: SQLITE_ERROR as production V160.",
+    "The isolated database had no visible user tables before V2; at least 50 user-table names are visible after failure.",
+    "article_history and dedao_cloud_requests introduced in 0050 are visible with expected column names, showing at least some 0050 DDL landed.",
+    "The four inspected application/configuration tables returned no rows.",
+    "Whole-deployment failure did not remove all prior DDL; individual statement/batch atomicity remains unknown."
+  ],
+  "not_established": [
+    "The actual failed SQL/filename/statement index, transformed bytes or hosted executor contract.",
+    "Complete execution or exact ledger state for all 54 migrations.",
+    "All triggers/views/constraints and their live definitions.",
+    "A confirmed unique cause of V1 missing schema; missing generated metadata is supported by the controlled package comparison but internal selection rules remain undocumented.",
+    "A safe repair or rerun in the now-partially-applied isolated database.",
+    "Hosted authenticated page/login/save acceptance."
+  ],
+  "hosted_acceptance_boundary": {
+    "available_tools": "Sites status/version/user-table read-only interfaces",
+    "missing_tools": "No callable authenticated browser or new-Site authenticated business-write tool is exposed in this thread; MCP is intentionally not enabled.",
+    "local_results_not_used_as_online_acceptance": true
+  },
+  "original_project_writes": 0,
+  "original_domain_or_access_changes": 0,
+  "production_data_imports": 0,
+  "production_secret_or_auth_credential_imports": 0,
+  "new_site_creations_this_continuation": 0,
+  "external_writing_image_upload_or_publication_actions": 0,
+  "purchases_or_plan_upgrades": 0,
+  "action_taken": "Stopped further deployments on the explicit same-error condition. No historical migration rewrites, reset, raw SQL/RPC, hidden-ledger access or public-access changes.",
+  "retained_live_site": "V1 remains the last successful release; the URL is not presented as a business-usable test version."
+}
