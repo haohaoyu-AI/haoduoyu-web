@@ -1,0 +1,224 @@
+{
+  "packet_created_at_utc": "2026-10-15 04:10:28 UTC",
+  "scope": "Official Sites read-only calls in this continuation, plus local source audit. No production browser, HTTP/RPC, SQL, deployment, upload, business record, permission or schedule changes.",
+  "repository": {
+    "branch": "codex/offline-next-followup-20261014",
+    "source_commit": "4883735fd6f0e75bfe0cfbe11ce5096fe11d8a35",
+    "github_remote_branch_verified": true,
+    "github_main_observed": "4c61f3c265a3998c7971241a4b4e64df65afebd3",
+    "initial_worktree_clean": true,
+    "agents_found": false
+  },
+  "site": {
+    "id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+    "title": "好多鱼图文",
+    "status": "active",
+    "latest_version_number": 160,
+    "current_live_url": "https://haoduoyu.xyz",
+    "updated_at": "2026-10-14T01:37:00.412753+00:00",
+    "current_user_role": "owner",
+    "access_mode": "public",
+    "source_repository_credential_present": false
+  },
+  "versions": [
+    {
+      "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_0a8228c1068c8191983c9e798ff36437",
+      "version_number": 160,
+      "source": {
+        "commit_sha": "ab35236c37d015cd0ec40e5dae3545eb30307da4"
+      },
+      "deployment_id": "appgdep_6acee28b68988191ae9b152791d1a90e",
+      "archive_storage": {
+        "archive_format": "tar",
+        "sediment_file_id": "file_00000000b4f48210bf03c99c44f4db5e",
+        "content_hash": "sha256:5a030fdbeb3178e855d38523d0a2963e97ca6180886eaad581f1dc9136e4c528",
+        "size_bytes": 10956800,
+        "file_count": 334
+      }
+    },
+    {
+      "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_a5d91e235f708191ae2cff2385a6ece4",
+      "version_number": 159,
+      "source": {
+        "commit_sha": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1"
+      },
+      "deployment_id": "appgdep_6accc1ba16c881918c0f7a0294fa3632",
+      "archive_storage": {
+        "archive_format": "tar",
+        "sediment_file_id": "file_00000000965c82069a6f18e9a5f1413b",
+        "content_hash": "sha256:6bea57a0f33db14d9489cace7730a05e1609e53cd49c647991db38439418c684",
+        "size_bytes": 9922560,
+        "file_count": 321
+      }
+    },
+    {
+      "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_ef21cfd52c788191aca054cd3a3193cf",
+      "version_number": 158,
+      "source": {
+        "commit_sha": "d847bc80dd8d536584012428a75cd4769fc7a9b4"
+      },
+      "deployment_id": "appgdep_6acc9cd298ac8191a6b84a415904cd2e",
+      "archive_storage": {
+        "archive_format": "tar",
+        "sediment_file_id": "file_0000000064308209b1dc1a759ff4236a",
+        "content_hash": "sha256:7659bed531db6ebaaa3c0c2b3896a1e58afbb597b598d06380dc7753b4d50cd5",
+        "size_bytes": 9912320,
+        "file_count": 321
+      }
+    },
+    {
+      "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_c3e95a1382bc819199cf47ef7de55739",
+      "version_number": 157,
+      "source": {
+        "commit_sha": "bb46c931b80f1439cbbbbd0d58e02e04a2019776"
+      },
+      "deployment_id": "appgdep_6acb79a760e48191bdfcd6f66f11a7e2",
+      "archive_storage": {
+        "archive_format": "tar",
+        "sediment_file_id": "file_00000000273081f7ba3a9bc77ec6242b",
+        "content_hash": "sha256:b83ab4b16fc0151dafef7c836339ad65a23fd88d8374eca67822d0c1c7f595d0",
+        "size_bytes": 9902080,
+        "file_count": 320
+      }
+    },
+    {
+      "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_4091928a2b70819193acf3e56729e2ea",
+      "version_number": 156,
+      "source": {
+        "commit_sha": "3c790ff86a256c73842363a5e62e05ea11a395ea"
+      },
+      "deployment_id": "appgdep_6acb5ac647bc81918b9e190e62bc1df6",
+      "archive_storage": {
+        "archive_format": "tar",
+        "sediment_file_id": "file_0000000079e481f8b3952bcdf3bdac57",
+        "content_hash": "sha256:0bf3432e9cbde61a6beac99e32642009d596fe57e6ad72c5141b9310a2270124",
+        "size_bytes": 9902080,
+        "file_count": 320
+      }
+    }
+  ],
+  "deployments": [
+    {
+      "id": "appgdep_6acee28b68988191ae9b152791d1a90e",
+      "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+      "title": "好多鱼图文",
+      "version_id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_0a8228c1068c8191983c9e798ff36437",
+      "type": "publish",
+      "status": "failed",
+      "url": null,
+      "has_mcp": true,
+      "screenshot_asset_pointer": null,
+      "provider_deployment_id": "site---6ac1907e61a48191a067ce3c30b21265",
+      "failure_message": "incomplete input: SQLITE_ERROR",
+      "env_set_revision": 1,
+      "updated_at": "2026-10-14T02:01:58.293810+00:00"
+    },
+    {
+      "id": "appgdep_6accc1ba16c881918c0f7a0294fa3632",
+      "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+      "title": "好多鱼图文",
+      "version_id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_a5d91e235f708191ae2cff2385a6ece4",
+      "type": "publish",
+      "status": "succeeded",
+      "url": "https://xiaoyu-event-test.haohaoyu202409.chatgpt.site",
+      "has_mcp": true,
+      "screenshot_asset_pointer": "sediment://file_00000000447481f88d6e465ba6aa12dd",
+      "provider_deployment_id": "site---6ac1907e61a48191a067ce3c30b21265",
+      "failure_message": null,
+      "env_set_revision": 1,
+      "updated_at": "2026-10-12T11:18:12.037018+00:00"
+    }
+  ],
+  "database_overview": {
+    "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+    "bindings": [
+      "DB"
+    ],
+    "selected_binding_name": "DB",
+    "tables": [
+      "article_claim_credential_hashes",
+      "article_content_fences",
+      "article_deletions",
+      "article_deliveries",
+      "article_handoffs",
+      "article_help_queue_claims",
+      "article_history",
+      "article_list_deletions",
+      "article_metrics_observations",
+      "article_output_restarts",
+      "article_purge_executor_ends",
+      "article_purge_executor_observations",
+      "article_purge_serial_blocks",
+      "article_upload_attempts",
+      "article_upload_diagnostics",
+      "article_upload_executor_ends",
+      "article_word_claim_recoveries",
+      "article_word_executor_ends",
+      "article_workspace_archives",
+      "article_workspace_requests",
+      "articles",
+      "claude_attempts",
+      "claude_settings",
+      "connection_tests",
+      "daily_editorial_drafts",
+      "dedao_actions",
+      "dedao_batch_runtime",
+      "dedao_batches",
+      "dedao_chunks",
+      "dedao_cloud_actions",
+      "dedao_cloud_requests",
+      "dedao_dispatches",
+      "dedao_executors",
+      "dedao_items",
+      "dedao_native_lifecycle",
+      "dedao_native_observations",
+      "dedao_native_sessions",
+      "dedao_wake_outbox",
+      "editorial_agent_claim_recoveries_v3",
+      "editorial_authority_v3",
+      "editorial_body_continuations_v3",
+      "editorial_cloud_delegations_v3",
+      "editorial_daily_cloud_delegations_v3",
+      "editorial_failed_writer_cloud_delegations_v3",
+      "editorial_failed_writer_continuations_v3",
+      "editorial_flows",
+      "editorial_request_outbox",
+      "editorial_requests",
+      "editorial_revision_cloud_delegations_v3",
+      "editorial_revision_continuations_v3"
+    ],
+    "model_projection": {
+      "truncated": false,
+      "omitted_project_id": false,
+      "omitted_selected_binding": false,
+      "omitted_bindings": 0,
+      "omitted_tables": 0
+    }
+  },
+  "diagnostic_capability": {
+    "site_operation_count": 25,
+    "actual_failed_sql": "not_exposed",
+    "hosted_executor_and_splitter": "not_exposed",
+    "production_migration_ledger": "not_in_overview",
+    "schema_and_trigger_definitions": "not_exposed",
+    "worker_only_update_contract": "not_exposed",
+    "note": "Exact user table names are evidence of object names only, not full migration application or transaction rollback. No undisclosed table name or arbitrary SQL was queried."
+  },
+  "release_assessment": {
+    "full_candidate": "Blocked until actual V160 failed migration and applied/partial state are known.",
+    "v159_ui_backport": "A subset of the topic UI is DTO-compatible. It does not implement current Home/workspace/data/cloud-Dedao APIs, and a hosted no-migration or older-journal deployment contract has not been established.",
+    "production_rerun": false,
+    "applied_migration_history_changed": false,
+    "permission_problem_bypassed": false,
+    "rollback": "Existing V159 saved version is retained. No automated rollback is promised to undo D1 changes; official rollback/worker-only behavior for the uncertain current state is not documented by available tools."
+  },
+  "model_review": {
+    "requested_model": "gpt-6.1-sol",
+    "requested_reasoning_effort": "ultra",
+    "agent": "/root/engineering_review_61",
+    "spawn_accepted": true,
+    "scope": "same existing checkout; read-only source and two synthetic memory probes; no production calls"
+  },
+  "minimum_next_platform_action": "Provide the V160 deployment's actual failed SQL/statement identity, hosted executor contract, and authoritative applied/partial migration state; alternatively establish a supported Worker-only update preserving the current database and migration history.",
+  "provenance": "Values are copied from current official tool outputs and Git reads. No fabricated request ID. Signed URLs, bearer tokens, credentials and business row contents excluded."
+}
