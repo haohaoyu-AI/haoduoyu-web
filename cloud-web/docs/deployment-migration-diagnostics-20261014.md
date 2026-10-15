@@ -3,6 +3,7 @@
 > Later cloud follow-up: [source comparison, pinned execution contracts and eight-change acceptance](cloud-continuation-acceptance-20261014.md).
 > The exact V160 source is now available and matches the current migrations.
 > Pinned Wrangler/Drizzle on isolated workerd D1 pass; this does not establish the Sites job contract or live partial state.
+> [2026-10-15 input/package audit and forward-repair reachability](migration-forward-recovery-20261015.md) adds local archive integrity and conditional append-recovery evidence without rerunning the earlier suites.
 > The evidence below preserves the earlier observation time.
 
 ## Current outcome

@@ -1,0 +1,80 @@
+{
+  "packet_created_at_utc": "2026-10-15 04:20:34 UTC",
+  "scope": "Two official read-only sites_get_site_version calls in this continuation. No saved archive bytes were returned.",
+  "v159": {
+    "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_a5d91e235f708191ae2cff2385a6ece4",
+    "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+    "version_number": 159,
+    "source": {
+      "commit_sha": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1"
+    },
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_00000000965c82069a6f18e9a5f1413b",
+      "content_hash": "sha256:6bea57a0f33db14d9489cace7730a05e1609e53cd49c647991db38439418c684",
+      "size_bytes": 9922560,
+      "file_count": 321
+    },
+    "deployment_id": "appgdep_6accc1ba16c881918c0f7a0294fa3632",
+    "returned_fields": [
+      "id",
+      "project_id",
+      "version_number",
+      "source",
+      "archive_storage",
+      "screenshot_url",
+      "deployment_id"
+    ]
+  },
+  "v160": {
+    "id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_0a8228c1068c8191983c9e798ff36437",
+    "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+    "version_number": 160,
+    "source": {
+      "commit_sha": "ab35236c37d015cd0ec40e5dae3545eb30307da4"
+    },
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_00000000b4f48210bf03c99c44f4db5e",
+      "content_hash": "sha256:5a030fdbeb3178e855d38523d0a2963e97ca6180886eaad581f1dc9136e4c528",
+      "size_bytes": 10956800,
+      "file_count": 334
+    },
+    "deployment_id": "appgdep_6acee28b68988191ae9b152791d1a90e",
+    "returned_fields": [
+      "id",
+      "project_id",
+      "version_number",
+      "source",
+      "archive_storage",
+      "screenshot_url",
+      "deployment_id"
+    ]
+  },
+  "observed_capability_boundary": {
+    "source_payload_fields": [
+      "commit_sha"
+    ],
+    "file_bodies_returned": false,
+    "archive_bytes_returned": false,
+    "failed_sql_returned": false,
+    "hosted_executor_returned": false,
+    "migration_ledger_returned": false
+  },
+  "existing_exact_source_evidence": {
+    "comparison_v159_v160": "evidence/migration-deployment-diagnostics-20261014/v159-v160-source-comparison.json",
+    "comparison_v160_checkout": "evidence/migration-deployment-diagnostics-20261014/v160-current-source-comparison.json",
+    "pinned_execution": "evidence/migration-deployment-diagnostics-20261014/execution-contract.json",
+    "reused_without_rerun": true
+  },
+  "missing_bytes": "Original consumed V160 tar / transformed SQL remain unavailable; earlier Library ownership/visibility failure not retried or bypassed.",
+  "calls_not_made": [
+    "production deployment",
+    "production SQL",
+    "hidden-ledger read",
+    "raw HTTP/RPC",
+    "browser",
+    "business row writes",
+    "historical migration rewrite"
+  ]
+}

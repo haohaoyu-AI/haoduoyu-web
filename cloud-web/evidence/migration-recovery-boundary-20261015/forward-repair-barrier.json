@@ -1,0 +1,82 @@
+{
+  "started_at": "2026-10-15T04:19:21.758Z",
+  "scope": "Pinned local Drizzle and isolated workerd D1; injected failure only",
+  "limits": [
+    "Not the Sites hosted executor or its actual failed input.",
+    "No claim about the production ledger, partial schema or transaction policy.",
+    "Generic fixture statements are not project migrations or a proposed production repair."
+  ],
+  "fixture": {
+    "base": "CREATE TABLE support_items (id TEXT PRIMARY KEY);",
+    "complete": "CREATE TRIGGER support_guard BEFORE INSERT ON support_items BEGIN SELECT 1; END;",
+    "truncated": "CREATE TRIGGER support_guard BEFORE INSERT ON support_items BEGIN SELECT 1; ",
+    "repair": "CREATE TABLE IF NOT EXISTS support_append_repair (id TEXT PRIMARY KEY);",
+    "complete_sha256": "05df964ed32aba2dd3ad60b06bc3ddcfb3b99fd086394ce994360177e236519a",
+    "truncated_sha256": "aed1e12575deb102067547cd2469f07cdff9ec177134169912642836e5087aac"
+  },
+  "checks": [
+    {
+      "name": "complete minimal trigger is valid SQLite; deliberately truncated input is incomplete",
+      "passed": true,
+      "evidence": {
+        "sqlite_version": "3.53.3",
+        "error": "incomplete input",
+        "real_platform_input": false
+      }
+    },
+    {
+      "name": "a pending truncated predecessor prevents the appended repair under genuine Drizzle D1 batch execution",
+      "passed": true,
+      "evidence": {
+        "injected_failure": "D1_ERROR: incomplete input: SQLITE_ERROR | incomplete input: SQLITE_ERROR",
+        "failed_batch_inputs": 4,
+        "append_reached_after_failure": false,
+        "prior_row_preserved": true,
+        "untransformed_same_source_succeeds": true
+      }
+    },
+    {
+      "name": "an already recorded predecessor is skipped and an idempotent append can run and rerun without a pending batch",
+      "passed": true,
+      "evidence": {
+        "predecessor_replayed": false,
+        "append_inputs": 2,
+        "rerun_additional_batches": 0,
+        "production_ledger_proven": false
+      }
+    },
+    {
+      "name": "partial predecessor DDL without its ledger entry also blocks a later append even with complete input",
+      "passed": true,
+      "evidence": {
+        "error": "D1_ERROR: trigger support_guard already exists at offset 15: SQLITE_ERROR | trigger support_guard already exists at offset 15: SQLITE_ERROR",
+        "append_reached": false,
+        "preexisting_trigger_retained": true,
+        "hosted_partial_state_proven": false
+      }
+    },
+    {
+      "name": "IF NOT EXISTS alone does not repair an existing object with a different definition",
+      "passed": true,
+      "evidence": {
+        "name_presence_is_definition_equivalence": false,
+        "existing_definition_unchanged": true
+      }
+    },
+    {
+      "name": "a greatest ledger timestamp alone is not proof of a complete applied prefix",
+      "passed": true,
+      "evidence": {
+        "pending_batches": 0,
+        "missing_predecessor_and_append": true,
+        "hash_prefix_validated_by_this_migrator": false,
+        "fixture_is_intentionally_inconsistent": true
+      }
+    }
+  ],
+  "drizzle_version": "0.45.2",
+  "external_calls": 0,
+  "passed": true,
+  "finished_at": "2026-10-15T04:19:22.351Z",
+  "check_count": 6
+}
