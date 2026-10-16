@@ -2,6 +2,8 @@
 
 这是独立的好多鱼图文矩阵网站。运行环境为 Node.js 24，自带 `http` 和 `node:sqlite`，没有生产 npm 依赖；不需要 OpenAI、xAI 登录或模型 API。旧站代码、服务和数据库不参与部署。本说明提供标准 Docker 主机部署步骤，不表示站点已经上线。
 
+`haoduoyu.xyz` 已核实托管在 Sites，域名与 SSL active；Sites 不是本说明中的 Node/Docker 主机。复用该托管需要先完成 Worker/D1 和登录兼容性验证，参见 [现有托管核查与旧站保存/回退方案](./HOSTING-COMPATIBILITY-2026-10-16.md)。本轮没有切换域名或停止旧站。
+
 ## 部署前提与配置
 
 准备支持 Docker 的主机、指向该主机的独立域名，以及终止 HTTPS 的反向代理。第一版使用单个应用实例和一个 SQLite 数据卷；不要让多个独立容器从网络文件系统共同写同一个 SQLite 文件。
