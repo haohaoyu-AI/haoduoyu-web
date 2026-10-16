@@ -1,0 +1,2 @@
+ALTER TABLE `outline_flows` ADD `parent_run_id` text REFERENCES outline_flows(id);--> statement-breakpoint
+CREATE UNIQUE INDEX `outline_owner_parent_revision` ON `outline_flows` (`owner`,`parent_run_id`);

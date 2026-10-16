@@ -1,0 +1,58 @@
+// Read-only schema classifier against actual SQLite and offline workerd/D1.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import vm from 'node:vm';
+import ts from 'typescript';
+import {DatabaseSync} from 'node:sqlite';
+import {Miniflare} from 'miniflare';
+import {drizzle} from 'drizzle-orm/d1';
+import {migrate} from 'drizzle-orm/d1/migrator';
+import {createHash} from 'node:crypto';
+const exports={};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/article-upload-recovery-diagnostics.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,crypto,TextEncoder,Uint8Array,Array,Number,Object});
+const {readUploadRecoverySchema}=exports,plain=value=>JSON.parse(JSON.stringify(value));
+const journal=JSON.parse(fs.readFileSync('drizzle/meta/_journal.json','utf8')),entry=journal.entries.at(-1),migration='drizzle/'+entry.tag+'.sql',migrationDigest=createHash('sha256').update(fs.readFileSync(migration)).digest('hex');
+assert.equal(entry.tag,'0037_article_upload_unconsumed_continuation');
+const legacy=fs.readFileSync('drizzle/0026_article_upload_reimport_history.sql','utf8').split('--> statement-breakpoint').find(statement=>statement.includes('CREATE TRIGGER article_upload_child_lineage'));
+const sql=new DatabaseSync(':memory:');for(const file of fs.readdirSync('drizzle').filter(name=>name.endsWith('.sql')).sort())sql.exec(fs.readFileSync('drizzle/'+file,'utf8'));
+const trigger=sql.prepare("SELECT sql FROM sqlite_master WHERE name='article_upload_child_lineage'").get().sql;
+let queryCount=0;const binding={prepare(query){assert.match(query,/^SELECT\b/i);queryCount++;const handle=values=>({first:async()=>sql.prepare(query).get(...values)??null,all:async()=>({results:sql.prepare(query).all(...values)}),run:()=>assert.fail('read classifier must not write')});return {...handle([]),bind:(...values)=>handle(values)};},batch:()=>assert.fail('read classifier must not batch')};
+const snapshot=()=>JSON.stringify(sql.prepare("SELECT name,type,sql FROM sqlite_master ORDER BY name,type").all());
+const before=snapshot();let result=plain(await readUploadRecoverySchema(binding));
+assert.equal(result.child_lineage,'unconsumed_v0037');assert.equal(result.schema_checks_match_expected,true);assert.equal(Object.keys(result.guard_objects).length,12);assert.equal(result.migration_0037_drizzle_record,'not_observed_drizzle_journal');assert.equal(snapshot(),before);
+sql.exec('CREATE TABLE __drizzle_migrations(hash TEXT,created_at NUMERIC)');
+result=plain(await readUploadRecoverySchema(binding));assert.equal(result.migration_0037_drizzle_record,'not_recorded_exact_drizzle_entry');
+sql.prepare('INSERT INTO __drizzle_migrations(hash,created_at) VALUES(?,?)').run(migrationDigest,entry.when+1);
+assert.equal((await readUploadRecoverySchema(binding)).migration_0037_drizzle_record,'not_recorded_exact_drizzle_entry');
+sql.prepare('INSERT INTO __drizzle_migrations(hash,created_at) VALUES(?,?)').run(migrationDigest,entry.when);
+assert.equal((await readUploadRecoverySchema(binding)).migration_0037_drizzle_record,'recorded_exact_drizzle_entry');
+sql.exec("CREATE TRIGGER article_upload_scope_version BEFORE INSERT ON article_upload_attempts BEGIN SELECT RAISE(ABORT,'unrecognized trigger'); END");
+result=plain(await readUploadRecoverySchema(binding));assert.equal(result.guard_objects.article_upload_scope_version,'different');assert.equal(result.schema_checks_match_expected,false);sql.exec('DROP TRIGGER article_upload_scope_version');
+sql.exec('DROP TRIGGER article_upload_child_lineage');sql.exec(legacy);
+result=plain(await readUploadRecoverySchema(binding));assert.equal(result.child_lineage,'consumed_only_v0026');assert.equal(result.schema_checks_match_expected,false);assert.equal(result.migration_0037_drizzle_record,'recorded_exact_drizzle_entry');
+sql.exec('DROP TRIGGER article_upload_child_lineage');
+assert.equal((await readUploadRecoverySchema(binding)).child_lineage,'missing');
+const secret=crypto.randomUUID();sql.exec("CREATE TRIGGER article_upload_child_lineage BEFORE INSERT ON article_upload_attempts BEGIN SELECT RAISE(ABORT,'"+secret+"'); END");
+result=plain(await readUploadRecoverySchema(binding));assert.equal(result.child_lineage,'unrecognized');assert.equal(JSON.stringify(result).includes(secret),false);assert.equal(JSON.stringify(result).includes('CREATE TRIGGER'),false);
+sql.exec('DROP TRIGGER article_upload_child_lineage');sql.exec(trigger);sql.exec('DROP INDEX article_upload_consume_token');
+result=plain(await readUploadRecoverySchema(binding));assert.equal(result.child_lineage,'unconsumed_v0037');assert.equal(result.guard_objects.article_upload_consume_token,'missing');assert.equal(result.schema_checks_match_expected,false);
+const unavailable=plain(await readUploadRecoverySchema({prepare:()=>{throw Error(secret);}}));assert.equal(unavailable.child_lineage,'unavailable');assert.equal(unavailable.schema_checks_match_expected,false);assert.equal(unavailable.migration_0037_drizzle_record,'unavailable');assert.equal(JSON.stringify(unavailable).includes(secret),false);
+sql.exec('DROP TABLE __drizzle_migrations');sql.exec('CREATE TABLE __drizzle_migrations(unrecognized TEXT)');
+assert.equal((await readUploadRecoverySchema(binding)).migration_0037_drizzle_record,'unavailable');assert.ok(queryCount>20);sql.close();
+console.log('PASS actual SQLite expected/legacy/missing/custom trigger, missing guard, journal exact/wrong/absent/unsupported, DB errors and credential pollution; classifier only prepares SELECT.');
+
+const directory=fs.mkdtempSync(path.join(os.tmpdir(),'recovery-schema-d1-'));
+const mf=new Miniflare({cf:false,modules:true,script:'export default {fetch(){return new Response("OFFLINE ONLY");}}',compatibilityDate:'2026-05-22',d1Databases:{DB:'recovery-schema-only'},outboundService:()=>new Response('External requests forbidden',{status:403})});
+try{
+ fs.mkdirSync(path.join(directory,'meta'));fs.writeFileSync(path.join(directory,'meta/_journal.json'),JSON.stringify({...journal,entries:journal.entries.slice(0,-1)}));for(const e of journal.entries.slice(0,-1))fs.copyFileSync('drizzle/'+e.tag+'.sql',path.join(directory,e.tag+'.sql'));
+ const d1=await mf.getD1Database('DB');await migrate(drizzle(d1),{migrationsFolder:directory});
+ const readonly={prepare(query){assert.match(query,/^SELECT\b/i);return d1.prepare(query);}};
+ result=plain(await readUploadRecoverySchema(readonly));assert.equal(result.child_lineage,'consumed_only_v0026');assert.equal(result.migration_0037_drizzle_record,'not_recorded_exact_drizzle_entry');
+ await migrate(drizzle(d1),{migrationsFolder:'drizzle'});const schemaBefore=(await d1.prepare('SELECT name,type,sql FROM sqlite_master ORDER BY name,type').all()).results,journalBefore=(await d1.prepare('SELECT * FROM __drizzle_migrations').all()).results;
+ result=plain(await readUploadRecoverySchema(readonly));assert.equal(result.child_lineage,'unconsumed_v0037');assert.equal(result.schema_checks_match_expected,true);assert.equal(result.migration_0037_drizzle_record,'recorded_exact_drizzle_entry');
+ assert.deepEqual((await d1.prepare('SELECT name,type,sql FROM sqlite_master ORDER BY name,type').all()).results,schemaBefore);assert.deepEqual((await d1.prepare('SELECT * FROM __drizzle_migrations').all()).results,journalBefore);
+ await migrate(drizzle(d1),{migrationsFolder:'drizzle'});assert.deepEqual(plain(await readUploadRecoverySchema(readonly)),result);
+ console.log('PASS actual offline workerd/D1 Drizzle 0036→0037 and repeat: exact effective schema/journal classification, SELECT-only diagnostic leaves schema and migration history unchanged; no production calls.');
+}finally{await mf.dispose();fs.rmSync(directory,{recursive:true,force:true});}

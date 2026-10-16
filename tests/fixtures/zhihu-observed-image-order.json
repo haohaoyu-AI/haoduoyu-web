@@ -1,0 +1,29 @@
+{
+  "provenance": "Image positions derived losslessly from the previously captured current read-only AX figure/body order; no new browser call.",
+  "after_paragraph": [
+    2,
+    6,
+    8,
+    12,
+    15,
+    19,
+    21,
+    24,
+    25,
+    29,
+    32,
+    33,
+    36,
+    38,
+    40,
+    41,
+    43,
+    45,
+    46,
+    48,
+    50,
+    53
+  ],
+  "image_resource_urls": "Not captured for this fixture; test uses explicitly synthetic fixture.invalid URLs.",
+  "loaded_count_at_observation": 2
+}

@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {zhihuReadOnlyBindings as binding} from '../scripts/browser-upload/observed-platform-bindings.mjs';
+const original=JSON.parse(fs.readFileSync(new URL('../evidence/browser-bindings/zhihu-approved-controls.json',import.meta.url),'utf8')).result;
+const hover=JSON.parse(fs.readFileSync(new URL('../evidence/browser-bindings/zhihu-approved-cover-hover.json',import.meta.url),'utf8')).result;
+const owner=JSON.parse(fs.readFileSync(new URL('../evidence/browser-bindings/zhihu-approved-account.json',import.meta.url),'utf8')).result;
+assert.equal(binding.importEntrance.role,'button');
+assert.equal(binding.importEntrance.observed_visible,true);
+assert.deepEqual(binding.importEntrance.identity,{tag:'BUTTON',type:'button',aria_label:'导入',title:null});
+assert.equal(original.importButton[0].visible,true);
+for(const input of [binding.importInputObservedOnly,binding.coverInputObservedOnly]){assert.equal(input.observed_visible,false);assert.equal(input.is_chooser_trigger,false);assert.equal(input.identity.type,'file');}
+assert(hover.fileInputs.every(input=>input.visible===false));
+assert.equal(binding.coverReplaceObservedOnly.observed_visible_before_hover,false);
+assert.equal(binding.coverReplaceObservedOnly.observed_visible_after_cover_hover,true);
+assert.equal(binding.coverReplaceObservedOnly.chooser_interaction_verified,false);
+assert.equal(original.coverReplace[0].visible,false);assert.equal(hover.coverReplace[0].visible,true);
+assert.equal(binding.draftStatusObservedOnly.observed_cloud_check_count,1);
+assert.equal(binding.draftStatusObservedOnly.observed_visible,true);
+assert.equal(binding.draftStatusObservedOnly.observed_text,'刚刚 · 草稿');
+assert.equal('saved_at' in binding.draftStatusObservedOnly,false);
+assert.equal(binding.ready_for_upload,false);
+assert.equal(new URL(owner.accountLinks[0].href).pathname,'/people/ren-zhe-ai-chi-yu-52');
+console.log('PASS owner account, visible import BUTTON, hidden non-trigger inputs, hover-only cover visibility and live draft observation; no saved_at or upload grant created.');

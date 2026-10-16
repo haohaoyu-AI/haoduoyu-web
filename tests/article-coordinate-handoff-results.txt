@@ -1,0 +1,27 @@
+V155 NATIVE STEP HANDOFF — FINAL OFFLINE RESULTS (2026-10-11)
+Baseline: 28e37238ffd0fad524629b7f47fed9e8e514085a.
+
+PASS node tests/article-coordinate-handoff.mjs: 11 read-only groups, exit 0.
+Both platforms use host3 createNativeStepSession/native primary; one installation;
+external real screenshot review; read-only observe/validate and separate physical
+commit without a preceding await; parent-only business core/gate/full baseline;
+aux native parent3 source stays out of CUA. Explicit existing legacy defaults stay
+truthful and are never automatic fallback. Owner/Word/history/claim state retained;
+completed main still allows pending Zhihu candidate without granting permission.
+Actual source version/SHA/UTF-8 size and business/baseline isolation verified.
+
+Other final regressions: core129, integration35/56 synthetic submissions,
+production native900, reader17, budget26, guards21, Word handoff all exit 0.
+Root final typecheck/build exit 0. Standard scoped article-tools lint exit 1:
+5 pre-existing V155 no-explicit-any errors, 0 warnings, new helper issues removed.
+
+Full latest logs and summary: evidence/native-coordinate-offline/native-step-v3/
+and evidence/native-coordinate-offline/{TEST-RESULTS.txt,final-regressions.json}.
+Historical source-budget failure retained in native-step-v3/
+article-coordinate-handoff.pre-native-step-v3-budget-failure.txt.
+
+All test inputs/receipts are synthetic and offline. No actual Word rebuild/import,
+production DB/R2 writes, CUA/platform calls, credentials, HTTP/SQL bypass or release
+were performed in these tests. Separate parent-reported definition loading is
+recorded in the structured summary; actor/live binding/platform acceptance remain
+unproven here. Source reads and packaging thresholds grant no import/approval.

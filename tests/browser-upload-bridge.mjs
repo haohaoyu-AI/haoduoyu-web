@@ -1,0 +1,60 @@
+import assert from 'node:assert/strict';
+import {createArticleUploadBridge} from '../scripts/browser-upload/bridge.mjs';
+const article_id='synthetic',platform='toutiao',target_account='61556093362';
+const authorization={authorization_scope:'duplicate_tolerant_task',current_task_id:'task',confirmation_message_id:'owner-confirmed',current_word_sha256:'a'.repeat(64),word_size:123,confirm_reimport:true,confirm_duplicate_tolerant_task:true};
+const approval={expected_lease_fingerprint:'b'.repeat(64),confirm_article_id:article_id,confirm_prior_executor_ended:true,confirm_read_only_recovery:true,confirm_existing_results_checked:true};
+const scope={article_id,platforms:[platform],reimport:{[platform]:authorization},claim_recovery:{[platform]:approval}};
+const request=(operation,extra={})=>({status:'bridge_required',operation,args:{article_id,platform,...extra}});
+let calls=[];
+const bridge=createArticleUploadBridge({approvedScope:scope,currentClaim:async()=>null,call:async(op,args)=>{
+ calls.push({op,args});
+ if(op==='preview_article_claim_recovery')return {article_id,platform,lease_fingerprint:approval.expected_lease_fingerprint,new_upload_allowed:false};
+ if(op==='recover_article_claim')return {article_id,platform,old_claim_fenced:true,new_upload_allowed:false,claim_token:'recovered-secret'};
+ if(op==='reserve_article_upload')return {reserved:true,execution_claim:'linked-secret',consume_token:'one-use-secret',attempt:{attempt_id:'child',article_id,platform,previous_attempt_id:'previous',authorization_kind:'owner_confirmed_reimport',state:'reserved'}};
+ return {execute_import:true};
+}});
+await assert.rejects(bridge(request('record_article_upload')),{status:'owner_recovery_required',wait_for_expiry_required:false});assert.equal(calls.length,0);
+await bridge(request('preview_article_claim_recovery'));assert.equal(calls.length,1);
+await assert.rejects(bridge(request('recover_article_claim',{...approval,confirm_prior_executor_ended:false})));assert.equal(calls.length,1);
+const recovery=await bridge(request('recover_article_claim',approval));assert.equal('claim_token' in recovery,false);
+const reserved=await bridge(request('reserve_article_upload',{mode:'owner_confirmed_reimport',target_account,previous_attempt_id:'previous',...authorization}));
+assert.equal(reserved.reimport_permission_ready,true);assert.equal('execution_claim' in reserved,false);assert.equal('consume_token' in reserved,false);assert.equal(calls.at(-1).args.execution_claim,'recovered-secret');
+const consume=request('consume_article_upload',{attempt_id:'child',reimport_editor_confirmation:{editor_empty:true}});await bridge(consume);
+assert.equal(calls.at(-1).args.execution_claim,'linked-secret');assert.equal(calls.at(-1).args.consume_token,'one-use-secret');
+const count=calls.length;await assert.rejects(bridge(consume));assert.equal(calls.length,count,'permit is never replayed');
+await assert.rejects(bridge(request('record_article_upload',{execution_claim:'browser-injected-secret'})));await assert.rejects(bridge(request('preview_article_claim_recovery',{article_id:'foreign'})));
+const cached=createArticleUploadBridge({approvedScope:scope,currentClaim:async()=>'current',call:async()=>({reserved:false,cached:true,attempt:{attempt_id:'child',state:'reserved'}})});
+assert.equal((await cached(request('reserve_article_upload',{mode:'owner_confirmed_reimport',previous_attempt_id:'previous',...authorization}))).reimport_permission_ready,undefined);
+await assert.rejects(cached(consume));
+const unsafe=createArticleUploadBridge({approvedScope:scope,currentClaim:async()=>'current',call:async()=>({cookie:'secret'})});await assert.rejects(unsafe(request('record_article_upload')));
+const exactApproval={...authorization,authorization_scope:'exact_reimport',previous_attempt_id:'exact-source',prior_draft_identity:'unknown_without_editor_url',prior_executor_end_reference:'exact-ended',authorization_key:'exact-action'};
+const exact=createArticleUploadBridge({approvedScope:{...scope,reimport:{[platform]:exactApproval}},currentClaim:async()=>'current',call:async()=>{throw Error('test must refuse before call');}});
+for(const field of ['previous_attempt_id','prior_draft_identity','prior_executor_end_reference','authorization_key'])await assert.rejects(exact(request('reserve_article_upload',{mode:'owner_confirmed_reimport',...exactApproval,[field]:'changed'})),/differs from approval/);
+// A wrong-platform request must not spend the other platform's volatile permit.
+const dualCalls=[];
+const dual=createArticleUploadBridge({approvedScope:{...scope,platforms:['toutiao','zhihu'],reimport:{toutiao:authorization,zhihu:authorization}},currentClaim:async p=>'initial-'+p,call:async(op,args)=>{
+ dualCalls.push({op,args});
+ if(op==='reserve_article_upload')return {reserved:true,execution_claim:'tt-linked-secret',consume_token:'tt-one-use-secret',attempt:{attempt_id:'tt-child',article_id,platform:'toutiao',previous_attempt_id:'previous',authorization_kind:'owner_confirmed_reimport',state:'reserved'}};
+ if(args.platform!=='toutiao')throw Error('Backend attempt platform mismatch');
+ return {execute_import:true};
+}});
+await dual(request('reserve_article_upload',{mode:'owner_confirmed_reimport',previous_attempt_id:'previous',...authorization}));
+const dualConsume=request('consume_article_upload',{attempt_id:'tt-child',reimport_editor_confirmation:{editor_empty:true}});
+await assert.rejects(dual({...dualConsume,args:{...dualConsume.args,platform:'zhihu'}}));
+assert.equal(dualCalls.length,1,'wrong-platform consumption is rejected before backend or permit deletion');
+assert.equal((await dual(dualConsume)).execute_import,true,'the exact platform retains its one valid consume');
+assert.equal(dualCalls.at(-1).args.consume_token,'tt-one-use-secret');
+await assert.rejects(dual(dualConsume));assert.equal(dualCalls.length,2,'successful consumption still cannot replay');
+// An old permit cannot be submitted under a recovered execution lease.
+const renewedCalls=[];
+const renewed=createArticleUploadBridge({approvedScope:scope,currentClaim:async()=>'initial',call:async(op,args)=>{
+ renewedCalls.push({op,args});
+ if(op==='reserve_article_upload')return {reserved:true,execution_claim:'old-linked-secret',consume_token:'old-one-use-secret',attempt:{attempt_id:'old-child',article_id,platform,previous_attempt_id:'previous',authorization_kind:'owner_confirmed_reimport',state:'reserved'}};
+ if(op==='recover_article_claim')return {article_id,platform,old_claim_fenced:true,new_upload_allowed:false,claim_token:'new-recovered-secret'};
+ throw Error('stale permit must not reach the backend');
+}});
+await renewed(request('reserve_article_upload',{mode:'owner_confirmed_reimport',previous_attempt_id:'previous',...authorization}));
+await renewed(request('recover_article_claim',approval));
+await assert.rejects(renewed(request('consume_article_upload',{attempt_id:'old-child',reimport_editor_confirmation:{editor_empty:true}})),/permission unavailable/);
+assert.equal(renewedCalls.length,2,'lease mismatch is rejected before backend or permit deletion');
+console.log('PASS bridge: scoped owner recovery, volatile rotated claims/one-use permit, cached and replay refusal, no browser credentials; external calls=0.');

@@ -1,0 +1,30 @@
+import { db } from './test-store';
+import { protectPreparedArticleForOwner } from './claude';
+import { inspectCredentialValue } from './credential-boundary';
+
+// Check, never rewrite: a credential-contaminated fact or link must not become
+// a silently altered research result. Decode bounded URL/JSON layers for inspection only.
+export async function researchCredentialHit(owner:string,value:unknown,extra:string[]=[]):Promise<boolean> {
+ const variants:unknown[]=[value];
+ let serialized:string;
+ try {serialized=JSON.stringify(value);}catch{return true;}
+ if(serialized.length>600000)return true;
+ let text=serialized;
+ for(let layer=0;layer<8;layer++) {
+  const decoded=text.replace(/(?:%[0-9a-fA-F]{2})+/g,part=>{
+   try{return decodeURIComponent(part);}catch{return part.replace(/%([0-9a-fA-F]{2})/g,(_all,hex:string)=>String.fromCharCode(parseInt(hex,16)));}
+  });
+  if(decoded===text)break;
+  variants.push(decoded);text=decoded;
+  if(layer===7)return true;
+ }
+ // Research claim tokens are two adjacent UUIDs and only their hashes persist.
+ // Conservatively reject this high-entropy token shape, including another run's token.
+ const doubleUUID=/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}/i;
+ const tokenShapeText=JSON.stringify(variants).replace(/\\+u([0-9a-fA-F]{4})/g,(_match,hex:string)=>String.fromCharCode(parseInt(hex,16)));
+ if(doubleUUID.test(tokenShapeText))return true;
+ const leases=await db().prepare('SELECT lease_token AS token FROM topic_research_outbox WHERE owner=? AND lease_token IS NOT NULL').bind(owner).all<{token:string}>();
+ const credentials=[...extra,...leases.results.map(row=>row.token)].flatMap(token=>/^[a-f0-9-]{36,}$/.test(token)?[token,token.toUpperCase()]:[token]);
+ if(inspectCredentialValue(variants,credentials).hit)return true;
+ return (await protectPreparedArticleForOwner(owner,variants)).hit;
+}

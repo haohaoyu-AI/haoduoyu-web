@@ -1,0 +1,25 @@
+// Offline migration-loader regression. No provider, remote database or deployment.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {DatabaseSync} from 'node:sqlite';
+import {readMigrationFiles} from 'drizzle-orm/migrator';
+const journal=JSON.parse(fs.readFileSync('drizzle/meta/_journal.json','utf8'));
+const migrations=readMigrationFiles({migrationsFolder:'drizzle'});
+const revisionIndex=journal.entries.findIndex(entry=>entry.tag==='0013_outline_revision');
+assert.ok(revisionIndex>=0);
+assert.equal(migrations.length,journal.entries.length);
+assert.ok(migrations[revisionIndex].sql.join('\n').includes('parent_run_id'));
+const prior=JSON.parse(fs.readFileSync('drizzle/meta/0012_snapshot.json','utf8'));
+const next=JSON.parse(fs.readFileSync('drizzle/meta/0013_snapshot.json','utf8'));
+assert.equal(next.prevId,prior.id);
+assert.equal(next.tables.outline_flows.columns.parent_run_id.type,'text');
+assert.deepEqual(next.tables.outline_flows.indexes.outline_owner_parent_revision.columns,['owner','parent_run_id']);
+assert.equal(next.tables.outline_flows.indexes.outline_owner_parent_revision.isUnique,true);
+assert.ok(Object.values(next.tables.outline_flows.foreignKeys).some(fk=>fk.tableTo==='outline_flows'&&fk.columnsFrom[0]==='parent_run_id'&&fk.columnsTo[0]==='id'));
+for(const [name,table] of Object.entries(prior.tables))if(name!=='outline_flows')assert.deepEqual(next.tables[name],table);
+const sql=new DatabaseSync(':memory:');
+for(const migration of migrations)for(const statement of migration.sql)sql.exec(statement);
+assert.ok(sql.prepare("PRAGMA table_info('outline_flows')").all().some(c=>c.name==='parent_run_id'));
+assert.ok(sql.prepare("PRAGMA foreign_key_list('outline_flows')").all().some(fk=>fk.from==='parent_run_id'&&fk.table==='outline_flows'&&fk.to==='id'));
+assert.ok(sql.prepare("PRAGMA index_list('outline_flows')").all().some(index=>index.name==='outline_owner_parent_revision'&&index.unique===1));
+console.log(`PASS official readMigrationFiles loads all ${migrations.length} migrations including 0013; snapshot lineage/other tables and applied column/FK/unique index verified in memory`);

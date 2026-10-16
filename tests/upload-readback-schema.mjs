@@ -1,0 +1,27 @@
+// Schema-only regression: no database, browser, real article or platform access.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+const compile=path=>ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const manifest={};vm.runInNewContext(compile('lib/article-manifest.ts'),{exports:manifest,require:()=>({})});
+const uploads={};vm.runInNewContext(compile('lib/article-upload-attempts.ts'),{exports:uploads,require:name=>name==='./article-manifest'?manifest:name==='./article-format'?{MAX_FILE:20*1024*1024}:{}});
+const base=manifest.draftReadbackSchema,time={type:'string',maxLength:40},url={type:'string',maxLength:1024};
+const expected={type:'object',properties:{...base.properties,target_account:{type:'string',maxLength:180},draft_url:url,saved_at:time,reopened_at:time,independently_reopened:{type:'boolean',const:true},saved_indicator_observed:{type:'boolean',const:true},images_loaded:{type:'boolean',const:true},cover:{type:'object',properties:{observed_url:{type:'string',maxLength:2048},reference_sha256:{type:'string',pattern:'^[a-f0-9]{64}$'},loaded:{type:'boolean',const:true}},required:['observed_url','reference_sha256','loaded'],additionalProperties:false}},required:[...base.required,'target_account','draft_url','saved_at','reopened_at','independently_reopened','saved_indicator_observed','images_loaded'],additionalProperties:false};
+const withoutDescriptions=value=>JSON.parse(JSON.stringify(value,(key,item)=>key==='description'?undefined:item));
+assert.deepEqual(withoutDescriptions(uploads.uploadReadbackSchema),withoutDescriptions(expected));
+const fields=uploads.uploadReadbackSchema.properties;
+assert.match(fields.title.description,/separate field/);
+assert.match(fields.paragraphs.description,/body paragraphs only.*excluding the top title/i);
+assert.match(fields.images.items.properties.after_paragraph.description,/title at index 0/);
+assert.match(fields.images.items.properties.after_paragraph.description,/Do not renumber/);
+assert.match(fields.saved_at.description,/first observed in the original editor/);
+assert.match(fields.saved_at.description,/consumed_at <= saved_at <= reopened_at <= read_at/);
+assert.match(fields.saved_at.description,/Never invent/);
+assert.match(fields.reopened_at.description,/Never backdate/);
+for(const key of ['saved_at','reopened_at','read_at'])assert.match(fields[key].description,/Date\.parse/);
+const exposed=uploads.articleUploadTools.find(tool=>tool.name==='record_article_upload').inputSchema.properties.readback;
+assert.deepEqual(JSON.parse(JSON.stringify(exposed)),JSON.parse(JSON.stringify(uploads.uploadReadbackSchema)));
+assert.equal(Date.parse('2026-10-06T08:27:49Z'),Date.parse('2026-10-06T08:27:49.000Z'));
+assert.ok(Number.isFinite(Date.parse('2026-10-06T08:28:04.767Z')));
+console.log('PASS readback field guidance is exposed in MCP; all non-description schema constraints unchanged; whole/fractional seconds remain Date.parse-compatible.');
