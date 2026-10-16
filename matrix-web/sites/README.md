@@ -28,7 +28,7 @@ npm run dev
 - `src/storage.mjs`：SQL 表位置命名空间、原子 batch、提交时权限检查、revision/CAS、稳定读取与有界重试。
 - `src/security.mjs`：Cookie、Origin/CSRF、受限 Bearer、登录限流、请求大小及来源配置。
 - `src/backup.mjs`：一致的账号/文章/快照/日指标/用户/Key/审计/幂等导出，以及仅空隔离库的显式恢复工具。没有 HTTP 恢复入口。
-- `db/schema.ts`、`drizzle/`：11 张 `matrix_*` 表及其约束、索引、生成的 SQL/journal/snapshot；迁移不含业务种子、DROP、旧表 ALTER 或回填。
+- `db/schema.ts`：11 张新 `matrix_*` 表。`db/legacy/` 和 `drizzle/` 保留取得的旧站 schema 及 54 项历史链，另追加第 55 项矩阵迁移；新迁移不含业务种子、DROP、旧表 ALTER 或回填。构建逐项校验旧 SQL/快照的 SHA-256 和 journal 前缀。
 
 原 `src/auth.mjs` 的 scrypt、密码规则、摘要和常量时间 CSRF 比较被直接复用，构建时打包入 Worker。平台身份头本身不授予经营数据权限。未实现或代理平台专属 `/signin-with-chatgpt`、`/signout-with-chatgpt`、`/callback`，也不使用平台认证绕过凭据。
 
@@ -58,8 +58,10 @@ npm run dev
 
 ## 构建产物与生产门槛
 
-`dist/server/index.js` 是自包含的 Worker ESM `default.fetch`；UI 已嵌入，运行时不读取本地文件。`dist/.openai/hosting.json` 保留目标项目 ID 与 `DB` 逻辑绑定，`dist/.openai/drizzle/` 包含 schema-only 迁移。`dist/server/wrangler.json` 记录本地验证的兼容日期、Node flag 和占位数据库 ID；正式 Sites 是否采纳这些元数据尚未确认，不能当成实际资源配置。
+`dist/server/index.js` 是自包含的 Worker ESM `default.fetch`；UI 已嵌入，运行时不读取本地文件。`dist/.openai/hosting.json` 保留目标项目 ID 与旧源的 `DB`、`BUCKET` 逻辑绑定，`dist/.openai/drizzle/` 包含 schema-only 迁移。`dist/server/wrangler.json` 记录本地验证的兼容日期、旧源已有的三个兼容 flags、DB/BUCKET 绑定和占位资源 ID；正式 Sites 是否采纳这些元数据尚未确认，不能当成实际资源配置。
 
-当前 manifest 是隔离适配候选。已有 Sites 的完整源 manifest、R2/其他字段和 migration journal 尚未取得，所以**不能将此目录的初始 `0000` journal 直接覆盖生产历史**。需要先保留旧源历史/配置，再将新表 SQL 追加到其迁移链。没有改变生产绑定、访问模式、DNS 或部署。
+当前 manifest 是待正式接收的切换候选：保留旧源 DB/BUCKET，应用不读写旧附件，不继续提供旧写作 MCP 处理器。旧 v159/v160 源码快照已保存到私有 GitHub 并独立读回核验；原 54 项迁移 SQL/快照逐字节保留，Drizzle 重新生成只新增矩阵表的第 55 项。旧源码不再是缺项，但真实生产已应用账本和当前 live 指针仍未取得，失败 v160 的迁移状态不能靠本地重放推定。
 
-完整证据与准确剩余条件见 [SITES-ADAPTER-2026-10-16.md](../docs/SITES-ADAPTER-2026-10-16.md)。
+本轮在临时 D1/R2 上通过了精确 50 项 v159 -> 55 项组合历史重放、幂等重跑、旧合成行/附件保存及联合库独立登录；27 项矩阵回归也使用继承的三个 flags 通过。生产 D1/R2 完整备份、正式迁移 runner、域名透传和运行预算仍需支持性核验，没有生产部署。
+
+最新交付与切换步骤见 [SOURCE-BACKUP-PREFLIGHT-2026-10-16.md](../docs/SOURCE-BACKUP-PREFLIGHT-2026-10-16.md)。原适配阶段证据见 [SITES-ADAPTER-2026-10-16.md](../docs/SITES-ADAPTER-2026-10-16.md)，其“源码尚未取得/初始0000”结论已由本轮进展更新。

@@ -13,6 +13,6 @@ const output=resolve(root,'artifacts'),archive=resolve(output,'haoduoyu-matrix-s
 await mkdir(output,{recursive:true});
 await exec('tar',['--sort=name','--mtime=@0','--owner=0','--group=0','--numeric-owner','-cf',archive,'-C',resolve(root,'dist'),'.openai','server']);
 const bytes=await readFile(archive),sha256=createHash('sha256').update(bytes).digest('hex');
-const manifest={source_commit:sha.trim(),source_worktree_clean:true,archive,sha256,size_bytes:bytes.length,format:'tar',target_project_id:'appgprj_6ac1907e61a48191a067ce3c30b21265',native_sites_saved:false,production_deployed:false,production_migration_history_merged:false};
+const manifest={source_commit:sha.trim(),source_worktree_clean:true,archive,sha256,size_bytes:bytes.length,format:'tar',target_project_id:'appgprj_6ac1907e61a48191a067ce3c30b21265',native_sites_saved:false,production_deployed:false,legacy_source_history_preserved:true,production_applied_ledger_verified:false};
 await writeFile(resolve(output,'artifact-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 console.log(JSON.stringify(manifest,null,2));

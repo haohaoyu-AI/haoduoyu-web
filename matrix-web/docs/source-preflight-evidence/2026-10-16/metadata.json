@@ -1,0 +1,99 @@
+{
+  "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+  "authorization": {
+    "type": "user explicitly approved temporary Sites source credential for reading/backup only",
+    "credential_created": 1,
+    "token_saved_or_logged": false,
+    "publish_on_push_accepted": false,
+    "source_repo_pushes": 0,
+    "official_source_helper_available": false,
+    "fallback": "Read-only HTTPS Git fetch, hidden stdin and child-memory extra header; local push URL and pre-push hook reject source push"
+  },
+  "github": {
+    "repository": "haohaoyu-AI/haoduoyu-web",
+    "repository_id": "1398469841",
+    "verified_visibility": "private",
+    "archived_refs": [
+      "archive/sites-v159-20261016",
+      "archive/sites-v160-20261016"
+    ],
+    "archive_commits": [
+      "97379f5fac97484ae57053515b50a2cb79792cb2",
+      "5d57d863e261488f4edf260d13f08dcba6263ac0"
+    ],
+    "files_verified_by_independent_remote_readback": [
+      860,
+      903
+    ],
+    "raw_git_history_copied": false,
+    "runtime_evidence_excluded": true
+  },
+  "source": {
+    "v159": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1",
+    "v160": "ab35236c37d015cd0ec40e5dae3545eb30307da4",
+    "main_at_fetch": "ab35236c37d015cd0ec40e5dae3545eb30307da4",
+    "actual_live_version_id": null,
+    "v159_rebuilt": true,
+    "legacy_rebuild_compatibility_date": "2026-05-15",
+    "legacy_rebuild_cpu_limit_declared": false
+  },
+  "history": {
+    "v159_entries": 50,
+    "v160_entries": 54,
+    "preserved_sql_and_snapshot_files": 108,
+    "combined_entries": 55,
+    "new_tag": "0054_shocking_frog_thor",
+    "new_matrix_tables": 11,
+    "legacy_file_hashes_unchanged": true,
+    "legacy_journal_prefix_unchanged": true,
+    "production_applied_ledger_verified": false,
+    "known_production_error": "incomplete input: SQLITE_ERROR",
+    "synthetic_first_END_split_failure_reproduced": true,
+    "production_splitter_cause_confirmed": false
+  },
+  "runtime": {
+    "d1": "DB",
+    "r2": "BUCKET",
+    "compatibility_flags": [
+      "nodejs_compat",
+      "global_fetch_strictly_public",
+      "enable_request_signal"
+    ],
+    "matrix_test_date": "2026-07-30",
+    "worker_bytes_unchanged_from": "553639f2064c7c2f768fdf9748d451a4c373ab78",
+    "worker_sha256": "6e3d9e5c2f8c919568dfa5467bf51ead64a59f6ec6587aa3e64b929e65759364",
+    "regression_pass": 27,
+    "regression_fail": 0,
+    "regression_duration_ms": 18146.366508,
+    "browser_repeated_this_round": false
+  },
+  "database_name_metadata": {
+    "returned_names": 50,
+    "visible_v160_added_tables": [
+      "article_history",
+      "article_metrics_observations",
+      "article_workspace_archives",
+      "article_workspace_requests",
+      "dedao_cloud_actions",
+      "dedao_cloud_requests"
+    ],
+    "business_rows_read": 0,
+    "applied_ledger_inferred": false
+  },
+  "remaining": {
+    "current_live_pointer": "not exposed",
+    "production_D1_full_export_restore": "no callable Sites interface",
+    "production_R2_full_inventory_export_restore": "no callable Sites interface",
+    "hosted_header_passthrough_and_scrypt_budget": "not verified",
+    "native_source_packaging_and_acceptance": "not performed; source pushes not authorized in this round"
+  },
+  "boundary": {
+    "production_deployments": 0,
+    "dns_or_access_changes": 0,
+    "business_data_deletions": 0,
+    "new_persistent_credentials": 0,
+    "purchases": 0,
+    "production_data_or_attachment_backup_completed": false
+  },
+  "recorded_at_utc": "2026-10-16T10:30:32Z"
+}

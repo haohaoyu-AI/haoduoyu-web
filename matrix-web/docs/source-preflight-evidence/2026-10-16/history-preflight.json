@@ -1,0 +1,33 @@
+{
+  "synthetic_only": true,
+  "production_calls": 0,
+  "legacy_source": "ab35236c37d015cd0ec40e5dae3545eb30307da4",
+  "checks": [
+    {
+      "name": "exact_v159_history_replayed",
+      "entries": 50,
+      "pass": true
+    },
+    {
+      "name": "v159_to_v160_plus_matrix_and_idempotent_reapply",
+      "entries": 55,
+      "matrix_tables": 11,
+      "legacy_row_unchanged": true,
+      "synthetic_r2_object_unchanged": true,
+      "pass": true
+    },
+    {
+      "name": "bundled_worker_independent_login_on_combined_legacy_database",
+      "pass": true
+    },
+    {
+      "name": "first_END_trigger_split_negative",
+      "migration": "0053_far_sleepwalker",
+      "reproduces": "incomplete input",
+      "whole_statement_succeeds": true,
+      "actual_sites_splitter_confirmed": false,
+      "pass": true
+    }
+  ],
+  "pass": true
+}

@@ -1,0 +1,2 @@
+PASS exact 50-entry v159 -> 55-entry combined Drizzle/D1 history; legacy row + R2 object preserved; second migrate no-op; actual bundled Worker login/accounts passed.
+PASS synthetic truncated 0053 trigger reproduces incomplete input, complete trigger succeeds. Actual Sites parser and live applied ledger remain unverified.

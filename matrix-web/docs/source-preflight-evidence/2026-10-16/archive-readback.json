@@ -1,0 +1,26 @@
+[
+  {
+    "version": 159,
+    "original_source_commit": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1",
+    "original_tree": "cddeb9bc2002d663931313ae60ad576cc02fd384",
+    "archive_branch": "archive/sites-v159-20261016",
+    "archive_commit": "97379f5fac97484ae57053515b50a2cb79792cb2",
+    "preserved_files": 860,
+    "excluded_evidence_files": 219,
+    "path": "/workspace/haoduoyu-legacy-archive-v159",
+    "readback_verified": true,
+    "readback_files_verified": 860
+  },
+  {
+    "version": 160,
+    "original_source_commit": "ab35236c37d015cd0ec40e5dae3545eb30307da4",
+    "original_tree": "1c46d28eee7ccd2af3b3d361de24709adaef36f0",
+    "archive_branch": "archive/sites-v160-20261016",
+    "archive_commit": "5d57d863e261488f4edf260d13f08dcba6263ac0",
+    "preserved_files": 903,
+    "excluded_evidence_files": 237,
+    "path": "/workspace/haoduoyu-legacy-archive-v160",
+    "readback_verified": true,
+    "readback_files_verified": 903
+  }
+]

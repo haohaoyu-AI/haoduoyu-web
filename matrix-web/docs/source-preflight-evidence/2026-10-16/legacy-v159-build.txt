@@ -1,0 +1,104 @@
+
+> site-creator-vinext-starter@0.1.0 build
+> node scripts/run-framework.mjs build
+
+
+  vinext build  (Vite 8.0.13)
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+[1/5] analyze client references...
+[2Ktransforming...✓ 483 modules transformed.
+rendering chunks...
+✓ built in 1.74s
+[2/5] analyze server references...
+[2Ktransforming...✓ 246 modules transformed.
+rendering chunks...
+✓ built in 552ms
+[3/5] build rsc environment...
+[2Ktransforming...✓ 480 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 1.19s
+[4/5] build client environment...
+[2Ktransforming...✓ 2095 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 1.92s
+[5/5] build ssr environment...
+[2Ktransforming...✓ 248 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 674ms
+[0m
+  Route (app)
+  ┌ ? /                                  
+  ├ λ /api/articles                      
+  ├ λ /api/articles/:id/delete           
+  ├ λ /api/articles/:id/download         
+  ├ λ /api/articles/:id/submit           
+  ├ λ /api/articles/:id/word-progress    
+  ├ λ /api/articles/list-delete          
+  ├ λ /api/articles/prepared             
+  ├ λ /api/articles/purge                
+  ├ λ /api/articles/upload-runtime       
+  ├ λ /api/claude                        
+  ├ λ /api/claude/daily-run              
+  ├ λ /api/claude/editorial-run          
+  ├ λ /api/claude/editorial-v3-run       
+  ├ λ /api/claude/history                
+  ├ λ /api/claude/manual-run             
+  ├ λ /api/claude/models                 
+  ├ λ /api/claude/outline-run            
+  ├ λ /api/claude/retry-test             
+  ├ λ /api/claude/rewrite-v2             
+  ├ λ /api/claude/stepwise-text-run      
+  ├ λ /api/claude/test                   
+  ├ λ /api/claude/transport-probe        
+  ├ λ /api/dedao                         
+  ├ λ /api/dedao/native                  
+  ├ λ /api/editorial-v3-cloud            
+  ├ λ /api/imitation                     
+  ├ λ /api/imitation/discovery           
+  ├ λ /api/imitation/discovery/diagnostic
+  ├ λ /api/local-word-jobs               
+  ├ λ /api/local-word-jobs/:id           
+  ├ λ /api/local-word-jobs/:id/dispatch  
+  ├ λ /api/local-word-jobs/:id/download  
+  ├ λ /api/tests                         
+  ├ λ /api/topics                        
+  ├ λ /api/topics/research               
+  ├ λ /api/word-recovery                 
+  ├ λ /api/writing                       
+  ├ λ /api/writing/editorial-flow        
+  ├ λ /api/writing/editorial-request     
+  ├ λ /api/writing/manual                
+  ├ λ /api/writing/outline-flow          
+  ├ λ /api/writing/stepwise-text         
+  ├ ? /dedao                             
+  ├ ? /desktop-word-only                 
+  ├ ? /imitation                         
+  ├ λ /mcp                               
+  ├ ? /topics                            
+  ├ ? /topics/research-helper            
+  ├ ? /writing                           
+  ├ ? /writing/daily-run                 
+  ├ ƒ /writing/editorial-helper          
+  ├ ƒ /writing/editorial-run             
+  ├ ƒ /writing/editorial-v3-helper       
+  ├ ƒ /writing/import-prepared           
+  ├ ? /writing/manual-run                
+  ├ ƒ /writing/outline-run               
+  ├ ? /writing/retry-test                
+  ├ ? /writing/rewrite-v2                
+  └ ƒ /writing/stepwise-text-run         
+
+  λ API  ƒ Dynamic  ? Unknown
+
+  ? Some routes could not be classified. vinext currently uses static analysis
+    and cannot detect dynamic API usage (headers(), cookies(), etc.) at build time.
+    Automatic classification will be improved in a future release.
+
+  Build complete. Run `vinext start` to start the production server.
+

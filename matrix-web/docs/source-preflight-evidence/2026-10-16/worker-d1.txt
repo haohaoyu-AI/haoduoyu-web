@@ -1,0 +1,45 @@
+
+> test
+> node scripts/build.mjs && node --test --test-concurrency=1 tests/*.test.mjs
+
+Built Sites Worker ESM; preserved DB/BUCKET and all 54 legacy migrations/snapshots; appended only matrix schema.
+✔ bootstrap requires its separate secret, is atomic and cannot initialize twice (610.838564ms)
+✔ actual migration and every business mutation preserve legacy tables and rows (578.848959ms)
+✔ 20 concurrent retries return one committed response and exactly one audit/receipt (698.978115ms)
+✔ global URL duplicate checks remain atomic across different account scopes (532.163044ms)
+✔ concurrent article updates preserve version CAS and atomic audit (539.436684ms)
+✔ audit failure rolls back article, receipt and revision without exposing SQL details (555.345529ms)
+✔ password rotation final audit failure preserves old proof and sessions (725.557774ms)
+✔ revision and authorization guards reject stale plans or a revoked key at commit (619.066605ms)
+✔ consistentRead discards a torn attempt and recomputes after a committed mutation (617.115386ms)
+✔ spoofed forwarding headers cannot reset login limits; expired windows recover (1191.913799ms)
+✔ literal Chinese and wildcard search, inactive accounts and audit provenance retain contract (549.448792ms)
+✔ persistent D1 data and independent login survive a complete Worker runtime restart (805.033957ms)
+✔ admin backup is consistent; restore to a separate empty D1 preserves zero/null and revocations (1171.622336ms)
+✔ platform headers do not authenticate; HTTPS cookies, malformed CSRF and expiry fail closed (506.134844ms)
+✔ 100-account scope with filters uses bounded D1 parameters; inherited asset names are denied (1210.160391ms)
+✔ business records, exports and writes require authentication (516.556121ms)
+✔ administrator login and writes enforce same origin and the session CSRF token (526.397553ms)
+✔ manual recording and Grok API updates operate on the same article without changing production mode (518.741447ms)
+✔ scoped API keys cannot escape account permissions or manage administrators (586.281365ms)
+✔ read-only keys reject writes, metadata omits secrets, and revocation takes effect (503.753005ms)
+✔ idempotent retries return one article and reject a changed request under the same key (514.675425ms)
+✔ article versions prevent a stale writer from silently replacing a newer edit (500.113626ms)
+✔ invalid calendar dates, reversed duration and invalid metric values are rejected (573.80029ms)
+✔ three-day effects include old articles, exclude cumulative snapshots and avoid account/detail double counting (560.603174ms)
+✔ changing the password expires every existing session and permits only the new password (926.054537ms)
+✔ static requests cannot expose application source or the private database through traversal (394.471012ms)
+✔ CSV export neutralizes spreadsheet formulas supplied as article titles (529.566961ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18146.366508
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

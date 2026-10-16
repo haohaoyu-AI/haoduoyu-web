@@ -5,14 +5,17 @@ import { randomBytes } from 'node:crypto';
 export const ORIGIN='http://localhost';
 export const PASSWORD='Integration-only-password-2026!';
 export async function fixture(t,{persist=false,port=0,origin=ORIGIN,username='admin',password=PASSWORD,bootstrap=true,bootstrapSecret=randomBytes(32).toString('hex')}={}) {
+  const history=JSON.parse(await readFile(new URL('../db/legacy-history.json',import.meta.url),'utf8'));
   const mf=new Miniflare({modules:true,cf:false,scriptPath:new URL('../dist/server/index.js',import.meta.url).pathname,
-    compatibilityDate:'2026-07-30',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],d1Persist:persist,
+    compatibilityDate:'2026-07-30',compatibilityFlags:history.runtime_compatibility_flags,d1Databases:['DB'],d1Persist:persist,
     bindings:{SITE_ORIGIN:origin,MATRIX_BOOTSTRAP_SECRET:bootstrapSecret},host:'127.0.0.1',port,
     outboundService:()=>new Response('External requests disabled',{status:502})});
   const db=await mf.getD1Database('DB');
   const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
   const migrated=await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_control'").first();
-  for(const entry of migrated?[]:journal.entries) {
+  // Business tests stay isolated to the matrix schema. The full immutable
+  // historical chain is exercised separately by scripts/preflight-history.mjs.
+  for(const entry of migrated?[]:journal.entries.filter(e=>e.idx>=54)) {
     const sql=await readFile(new URL('../drizzle/'+entry.tag+'.sql',import.meta.url),'utf8');
     await db.batch(sql.split('--> statement-breakpoint').map(s=>s.trim()).filter(Boolean).map(sql=>db.prepare(sql)));
   }
