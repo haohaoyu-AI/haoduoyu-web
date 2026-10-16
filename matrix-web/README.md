@@ -27,6 +27,8 @@ npm run check 检查语法和接口规范，npm test 运行真实 HTTP 与 SQLit
 
 `npm run test:docker` 单独构建镜像并验证非 root 用户、真实 Docker 健康探针、容器重启及重建、在线备份导出与新卷恢复、停服整卷归档恢复。需要可用 Docker 引擎；只操作唯一命名的临时资源，完成后清理，不发布端口，不读取生产卷或创建真实凭据。首次构建需要拉取 Node 基础镜像。若用户目录只读，可设置 `DOCKER_CONFIG` 到可写的临时目录。
 
+`npm run test:browser -- --artifacts /tmp/matrix-browser-qa` 运行真实 Chromium 桌面和手机端流程（1440px、390px，并检查 320px 窄屏）。该可选开发检查需要 Python 3、Python Playwright 和系统 Chromium；默认使用 `/usr/bin/chromium`，可用 `CHROMIUM_PATH` 指定其他可执行文件，不自动安装依赖。测试自行启动回环 HTTP 服务，使用临时 SQLite 与随机测试密码，完成后销毁；截图只含合成数据，不保存密码、会话或网络 trace。参见 [浏览器 QA 记录](docs/BROWSER-QA-2026-10-16.md)。
+
 - [部署与备份](docs/DEPLOY.md)
 - [Grok 接入](docs/GROK.md)
 - [验收清单](docs/ACCEPTANCE.md)
