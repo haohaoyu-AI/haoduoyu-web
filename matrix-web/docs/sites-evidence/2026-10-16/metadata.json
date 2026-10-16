@@ -1,0 +1,153 @@
+{
+  "recorded_at_utc": "2026-10-16T03:14:02Z",
+  "base_commit": "b19fde98e7dabfa52549b0d82a314c4830f9bf28",
+  "original_development_commit": "5f548d91093b563bd2f539a7e647fa66e599379d",
+  "branch": "codex/sites-matrix-adapter-20261016",
+  "runtime": {
+    "node": "v24.19.0",
+    "miniflare": "4.20260730.0",
+    "workerd": "1.20260730.1",
+    "esbuild": "0.28.2",
+    "drizzle_orm": "0.44.7",
+    "drizzle_kit": "0.31.5",
+    "compatibility_date": "2026-07-30",
+    "compatibility_flags": [
+      "nodejs_compat"
+    ],
+    "request_cf_fetch": false,
+    "profile": "portable"
+  },
+  "tests": {
+    "worker_d1": {
+      "tests": 27,
+      "pass": 27,
+      "fail": 0,
+      "duration_ms": 18861.469841
+    },
+    "browser": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "duration_seconds": 37.827,
+      "chromium": "154.0.8037.57",
+      "viewports": [
+        1440,
+        390,
+        320
+      ]
+    },
+    "hosted_sites_dispatch": "not run",
+    "remote_d1_and_quota": "not verified"
+  },
+  "implementation": {
+    "new_tables": 11,
+    "prefix": "matrix_",
+    "migration": "0000_square_hitman",
+    "production_migration_history_merged": false,
+    "independent_password": true,
+    "original_node_ui_contract_unchanged": true
+  },
+  "production_inventory": {
+    "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+    "status": "active",
+    "access_mode": "public",
+    "access_revision": 2,
+    "current_live_url": "https://haoduoyu.xyz",
+    "current_live_version_id": null,
+    "source_repository_locator_available": false,
+    "version159": {
+      "sha": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1",
+      "deployment_id": "appgdep_6accc1ba16c881918c0f7a0294fa3632",
+      "status": "succeeded",
+      "archive_hash": "sha256:6bea57a0f33db14d9489cace7730a05e1609e53cd49c647991db38439418c684"
+    },
+    "version160": {
+      "sha": "ab35236c37d015cd0ec40e5dae3545eb30307da4",
+      "deployment_id": "appgdep_6acee28b68988191ae9b152791d1a90e",
+      "status": "failed",
+      "failure_message": "incomplete input: SQLITE_ERROR"
+    },
+    "database_overview": {
+      "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+      "bindings": [
+        "DB"
+      ],
+      "selected_binding_name": "DB",
+      "tables": [
+        "article_claim_credential_hashes",
+        "article_content_fences",
+        "article_deletions",
+        "article_deliveries",
+        "article_handoffs",
+        "article_help_queue_claims",
+        "article_history",
+        "article_list_deletions",
+        "article_metrics_observations",
+        "article_output_restarts",
+        "article_purge_executor_ends",
+        "article_purge_executor_observations",
+        "article_purge_serial_blocks",
+        "article_upload_attempts",
+        "article_upload_diagnostics",
+        "article_upload_executor_ends",
+        "article_word_claim_recoveries",
+        "article_word_executor_ends",
+        "article_workspace_archives",
+        "article_workspace_requests",
+        "articles",
+        "claude_attempts",
+        "claude_settings",
+        "connection_tests",
+        "daily_editorial_drafts",
+        "dedao_actions",
+        "dedao_batch_runtime",
+        "dedao_batches",
+        "dedao_chunks",
+        "dedao_cloud_actions",
+        "dedao_cloud_requests",
+        "dedao_dispatches",
+        "dedao_executors",
+        "dedao_items",
+        "dedao_native_lifecycle",
+        "dedao_native_observations",
+        "dedao_native_sessions",
+        "dedao_wake_outbox",
+        "editorial_agent_claim_recoveries_v3",
+        "editorial_authority_v3",
+        "editorial_body_continuations_v3",
+        "editorial_cloud_delegations_v3",
+        "editorial_daily_cloud_delegations_v3",
+        "editorial_failed_writer_cloud_delegations_v3",
+        "editorial_failed_writer_continuations_v3",
+        "editorial_flows",
+        "editorial_request_outbox",
+        "editorial_requests",
+        "editorial_revision_cloud_delegations_v3",
+        "editorial_revision_continuations_v3"
+      ],
+      "model_projection": {
+        "truncated": false,
+        "omitted_project_id": false,
+        "omitted_selected_binding": false,
+        "omitted_bindings": 0,
+        "omitted_tables": 0
+      }
+    }
+  },
+  "pending_source_action": {
+    "tool": "sites_create_source_repository_write_credential",
+    "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+    "publish_on_push": null,
+    "purpose": "Retrieve precise legacy source via supported helper, without source push or publication",
+    "status": "not executed; awaiting explicit confirmation because it creates a new write-capable credential"
+  },
+  "boundary": {
+    "production_business_rows_read": 0,
+    "production_mutations": 0,
+    "credential_creations": 0,
+    "access_or_dns_changes": 0,
+    "publications": 0,
+    "purchases": 0,
+    "old_sites_full_source_or_data_backup_completed": false
+  }
+}

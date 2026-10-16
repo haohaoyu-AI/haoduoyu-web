@@ -1,0 +1,36 @@
+import { sql } from 'drizzle-orm';
+import { sqliteTable,text,integer,index,uniqueIndex,primaryKey,check } from 'drizzle-orm/sqlite-core';
+
+export const accounts=sqliteTable('matrix_accounts',{
+  id:text('id').primaryKey(),platform:text('platform').notNull(),name:text('name').notNull(),active:integer('active').notNull().default(1),created_at:text('created_at').notNull(),
+},t=>[check('matrix_account_active',sql`${t.active} IN (0,1)`)]);
+export const articles=sqliteTable('matrix_articles',{
+  id:text('id').primaryKey(),account_id:text('account_id').notNull().references(()=>accounts.id),title:text('title').notNull(),url:text('url').notNull(),platform_article_id:text('platform_article_id'),published_at:text('published_at').notNull(),started_at:text('started_at'),production_mode:text('production_mode').notNull().default('unknown'),summary:text('summary').notNull().default(''),notes:text('notes').notNull().default(''),version:integer('version').notNull().default(1),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
+},t=>[uniqueIndex('matrix_article_url').on(t.account_id,t.url),uniqueIndex('matrix_article_platform_id').on(t.account_id,t.platform_article_id).where(sql`${t.platform_article_id} IS NOT NULL AND ${t.platform_article_id} != ''`),index('matrix_article_account_date').on(t.account_id,t.published_at),check('matrix_article_mode',sql`${t.production_mode} IN ('manual','automatic','mixed','unknown')`)]);
+export const observations=sqliteTable('matrix_observations',{
+  id:text('id').primaryKey(),article_id:text('article_id').notNull().references(()=>articles.id),as_of:text('as_of').notNull(),collected_at:text('collected_at').notNull(),kind:text('kind').notNull(),metrics_json:text('metrics_json').notNull(),source:text('source').notNull(),note:text('note').notNull().default(''),created_at:text('created_at').notNull(),
+},t=>[index('matrix_observation_article_time').on(t.article_id,t.as_of),check('matrix_observation_kind',sql`${t.kind} IN ('latest','d1','d3','d7')`)]);
+export const daily=sqliteTable('matrix_daily_metrics',{
+  id:text('id').primaryKey(),account_id:text('account_id').notNull().references(()=>accounts.id),article_id:text('article_id').references(()=>articles.id),date:text('date').notNull(),metrics_json:text('metrics_json').notNull(),source:text('source').notNull(),updated_at:text('updated_at').notNull(),
+},t=>[uniqueIndex('matrix_daily_account_day').on(t.account_id,t.date).where(sql`${t.article_id} IS NULL`),uniqueIndex('matrix_daily_article_day').on(t.account_id,t.article_id,t.date).where(sql`${t.article_id} IS NOT NULL`)]);
+export const users=sqliteTable('matrix_users',{
+  id:text('id').primaryKey(),username:text('username').notNull(),password_hash:text('password_hash').notNull(),created_at:text('created_at').notNull(),
+},t=>[uniqueIndex('matrix_username').on(t.username)]);
+export const sessions=sqliteTable('matrix_sessions',{
+  token_hash:text('token_hash').primaryKey(),user_id:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),expires_at:text('expires_at').notNull(),
+},t=>[index('matrix_session_user').on(t.user_id)]);
+export const keys=sqliteTable('matrix_api_keys',{
+  id:text('id').primaryKey(),name:text('name').notNull(),token_hash:text('token_hash').notNull(),account_ids_json:text('account_ids_json').notNull(),permissions_json:text('permissions_json').notNull(),created_at:text('created_at').notNull(),revoked_at:text('revoked_at'),last_used_at:text('last_used_at'),
+},t=>[uniqueIndex('matrix_key_hash').on(t.token_hash)]);
+export const audit=sqliteTable('matrix_audit',{
+  id:text('id').primaryKey(),actor:text('actor').notNull(),action:text('action').notNull(),entity_id:text('entity_id'),detail_json:text('detail_json').notNull(),created_at:text('created_at').notNull(),
+},t=>[index('matrix_audit_entity_time').on(t.entity_id,t.created_at)]);
+export const idempotency=sqliteTable('matrix_idempotency',{
+  actor:text('actor').notNull(),key:text('key').notNull(),request_hash:text('request_hash').notNull(),response_json:text('response_json').notNull(),status:integer('status').notNull(),created_at:text('created_at').notNull(),
+},t=>[primaryKey({columns:[t.actor,t.key]})]);
+export const attempts=sqliteTable('matrix_login_attempts',{
+  bucket:text('bucket').primaryKey(),attempts:integer('attempts').notNull(),window_start:integer('window_start').notNull(),
+});
+export const control=sqliteTable('matrix_control',{
+  id:integer('id').primaryKey(),revision:integer('revision').notNull().default(0),initialized:integer('initialized').notNull().default(0),revision_guard:integer('revision_guard').notNull().default(1),auth_guard:integer('auth_guard').notNull().default(1),setup_guard:integer('setup_guard').notNull().default(1),
+},t=>[check('matrix_single_control',sql`${t.id}=1`),check('matrix_revision_match',sql`${t.revision_guard}=1`),check('matrix_auth_match',sql`${t.auth_guard}=1`),check('matrix_setup_match',sql`${t.setup_guard}=1`)]);

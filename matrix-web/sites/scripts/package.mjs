@@ -1,0 +1,18 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { readFile,writeFile,mkdir } from 'node:fs/promises';
+import { dirname,resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+const exec=promisify(execFile),root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const {stdout:status}=await exec('git',['status','--porcelain','--','.','../src','../public','../CONTRACT.md'],{cwd:root});
+if(status.trim()) throw new Error('Commit the exact application inputs before creating a provenance-bound artifact.');
+const {stdout:sha}=await exec('git',['rev-parse','HEAD'],{cwd:root});
+await import('./build.mjs');
+const output=resolve(root,'artifacts'),archive=resolve(output,'haoduoyu-matrix-sites-20261016.tar');
+await mkdir(output,{recursive:true});
+await exec('tar',['--sort=name','--mtime=@0','--owner=0','--group=0','--numeric-owner','-cf',archive,'-C',resolve(root,'dist'),'.openai','server']);
+const bytes=await readFile(archive),sha256=createHash('sha256').update(bytes).digest('hex');
+const manifest={source_commit:sha.trim(),source_worktree_clean:true,archive,sha256,size_bytes:bytes.length,format:'tar',target_project_id:'appgprj_6ac1907e61a48191a067ce3c30b21265',native_sites_saved:false,production_deployed:false,production_migration_history_merged:false};
+await writeFile(resolve(output,'artifact-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+console.log(JSON.stringify(manifest,null,2));

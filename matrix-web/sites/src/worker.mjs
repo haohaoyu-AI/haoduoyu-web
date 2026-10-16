@@ -1,0 +1,206 @@
+import { randomUUID,randomBytes } from 'node:crypto';
+import { hashPassword,verifyPassword } from '../../src/auth.mjs';
+import { createRecords } from './records.mjs';
+import { ensureControl,storeFor,mutate,consistentRead,statement } from './storage.mjs';
+import { fail,digest,csrfFor,now,originFor,bodyFor,authenticate,requireAdmin,requireOrigin,requireCsrf,equalSecret,sessionCookie,throttleLogin,stable } from './security.mjs';
+import { assets } from './assets.generated.mjs';
+import { exportBackup } from './backup.mjs';
+
+const prefix='/api/v1';
+const writing=new Set(['POST','PUT','DELETE']);
+const dummyHash='scrypt$32768$8$1$00112233445566778899aabbccddeeff$'+'00'.repeat(64);
+const json=(data,status=200,headers={})=>Response.json({data},{status,headers});
+const csv=value=>{let text=value==null?'':String(value);if(/^[\s]*[=+\-@\t\r]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';};
+
+async function bootstrap(db,request,env,origin) {
+  const secret=env.MATRIX_BOOTSTRAP_SECRET;
+  if(typeof secret!=='string'||secret.length<32) throw fail(404,'NOT_FOUND','接口不存在');
+  requireOrigin(request,origin);
+  const received=request.headers.get('authorization')?.replace(/^Bearer /,'');
+  if(!equalSecret(received,secret)) throw fail(401,'UNAUTHORIZED','初始化授权无效');
+  const input=await bodyFor(request);
+  if(typeof input.username!=='string'||!/^[a-zA-Z0-9_.@-]{3,80}$/.test(input.username)) throw fail(400,'INVALID_USERNAME','账号需要 3 至 80 个字母、数字或 . _ @ -');
+  const passwordHash=await hashPassword(input.password),id=randomUUID(),stamp=now();
+  return (await mutate(db,async store=>{
+    const control=await store.get('SELECT initialized FROM matrix_control WHERE id=1');
+    if(control.initialized||(await store.get('SELECT count(*) AS n FROM users')).n) throw fail(409,'SETUP_COMPLETE','初始化已完成');
+    store.queue('UPDATE matrix_control SET setup_guard=CASE WHEN initialized=0 AND NOT EXISTS(SELECT 1 FROM users) THEN 1 ELSE 0 END WHERE id=1');
+    store.queue('INSERT INTO users(id,username,password_hash,created_at) VALUES(?,?,?,?)',id,input.username,passwordHash,stamp);
+    for(const [accountId,platform,name] of [['toutiao-haoduoyu','toutiao','好多鱼'],['zhihu-haoduoyu','zhihu','好多鱼'],['wechat-xiaoyuer','wechat','小鱼儿真保鲜']])
+      store.queue('INSERT INTO accounts(id,platform,name,active,created_at) VALUES(?,?,?,1,?)',accountId,platform,name,stamp);
+    store.queue('UPDATE matrix_control SET initialized=1 WHERE id=1');
+    store.audit('user:'+id,'auth.bootstrap',id);
+    return {response:json({initialized:true,username:input.username},201)};
+  })).response;
+}
+
+async function login(db,request,env,origin) {
+  requireOrigin(request,origin);
+  const input=await bodyFor(request);
+  if(typeof input.username!=='string'||input.username.length>80||typeof input.password!=='string'||input.password.length>256) throw fail(401,'INVALID_CREDENTIALS','账号或密码错误');
+  const bucket=await throttleLogin(db,input.username,request,env);
+  const user=await storeFor(db).get('SELECT * FROM users WHERE username=?',input.username);
+  const valid=await verifyPassword(input.password,user?.password_hash||dummyHash);
+  if(!user||!valid) throw fail(401,'INVALID_CREDENTIALS','账号或密码错误');
+  const token=randomBytes(32).toString('hex'),tokenHash=digest(token);
+  return (await mutate(db,async store=>{
+    const current=await store.get('SELECT password_hash FROM users WHERE id=?',user.id);
+    if(current?.password_hash!==user.password_hash) throw fail(401,'INVALID_CREDENTIALS','账号或密码错误');
+    store.queue('UPDATE matrix_control SET auth_guard=CASE WHEN EXISTS(SELECT 1 FROM users WHERE id=? AND password_hash=?) THEN 1 ELSE 0 END WHERE id=1',user.id,user.password_hash);
+    store.queue('DELETE FROM sessions WHERE expires_at<=?',now());
+    store.queue('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)',tokenHash,user.id,new Date(Date.now()+604800000).toISOString());
+    store.queue('DELETE FROM login_attempts WHERE bucket=?',bucket);
+    store.audit('user:'+user.id,'auth.login');
+    return {response:json({username:user.username,csrfToken:csrfFor(token)},200,{'Set-Cookie':sessionCookie(token,origin)})};
+  })).response;
+}
+
+async function protectedRead(db,request,route,query) {
+  const response=await consistentRead(db,async store=>{
+    const actor=await authenticate(store,request),records=createRecords(store);
+    const articleMatch=/^\/articles\/([^/]+)$/.exec(route);
+    if(route==='/auth/me') {requireAdmin(actor);return json({username:actor.username,csrfToken:csrfFor(actor.token)});}
+    if(route==='/accounts') return json(await records.listAccounts(actor.scope));
+    if(route==='/articles') return json(await records.listArticles(query,actor.scope));
+    if(articleMatch) return json(await records.getArticle(articleMatch[1],actor.scope));
+    if(route==='/observations') return json(await records.listObservations(query,actor.scope));
+    if(route==='/daily-metrics') return json(await records.listDaily(query,actor.scope));
+    if(route==='/dashboard') return json(await records.dashboard(query.account_id||null,actor.scope));
+    if(route==='/api-keys') {
+      requireAdmin(actor);
+      return json((await store.all('SELECT id,name,account_ids_json,permissions_json,created_at,revoked_at,last_used_at FROM api_keys ORDER BY created_at DESC')).map(({account_ids_json,permissions_json,...row})=>({...row,account_ids:JSON.parse(account_ids_json),permissions:JSON.parse(permissions_json)})));
+    }
+    if(route==='/audit') {requireAdmin(actor);return json((await store.all('SELECT * FROM audit ORDER BY created_at DESC,rowid DESC LIMIT 200')).map(({detail_json,...row})=>({...row,detail:JSON.parse(detail_json)})));}
+    if(route==='/backup') {
+      requireAdmin(actor);
+      const backup=await exportBackup(db);
+      return json(backup,200,{'Content-Disposition':'attachment; filename="haoduoyu-matrix-backup.json"'});
+    }
+    if(route==='/export') {
+      requireAdmin(actor);
+      const rows=await records.listArticles({},null),cols=['id','account_name','platform','title','url','published_at','started_at','duration_seconds','production_mode','summary','notes'];
+      return new Response('\uFEFF'+[cols.map(csv).join(','),...rows.map(row=>cols.map(col=>csv(row[col])).join(','))].join('\r\n'),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="haoduoyu-articles.csv"'}});
+    }
+    throw fail(404,'NOT_FOUND','接口不存在');
+  });
+  // Informational usage metadata only. It changes no permission or business fact.
+  const bearer=/^Bearer (hdy_[a-f0-9]{64})$/.exec(request.headers.get('authorization')||'');
+  if(bearer) await statement(db,'UPDATE api_keys SET last_used_at=? WHERE token_hash=? AND revoked_at IS NULL',now(),digest(bearer[1])).run();
+  return response;
+}
+
+async function protectedWrite(db,request,route,env,origin) {
+  // Authorize before reading a possibly large body or performing a slow KDF.
+  const first=await authenticate(storeFor(db),request,'write');
+  requireCsrf(request,first,origin);
+  if(route==='/auth/logout'&&request.method==='POST') return (await mutate(db,async store=>{
+    const actor=await authenticate(store,request,'write');requireAdmin(actor);requireCsrf(request,actor,origin);
+    store.queue('DELETE FROM sessions WHERE token_hash=?',actor.tokenHash);store.audit(actor.actor,'auth.logout');
+    return {actor,response:json({logged_out:true},200,{'Set-Cookie':sessionCookie('',origin)})};
+  })).response;
+  const input=request.method==='DELETE'&&/^\/api-keys\/[^/]+$/.test(route)?{}:await bodyFor(request);
+  let passwordProof,newHash;
+  if(route==='/auth/password'&&request.method==='PUT') {
+    requireAdmin(first);
+    passwordProof=(await storeFor(db).get('SELECT password_hash FROM users WHERE id=?',first.id))?.password_hash;
+    if(!await verifyPassword(input.currentPassword,passwordProof)) throw fail(403,'INVALID_CREDENTIALS','当前密码错误');
+    newHash=await hashPassword(input.newPassword);
+  }
+  const key=request.headers.get('idempotency-key');
+  if(key!==null&&!/^[A-Za-z0-9_.:-]{1,160}$/.test(key)) throw fail(400,'VALIDATION','Idempotency-Key 格式无效');
+  const requestHash=digest(request.method+':'+prefix+route+':'+JSON.stringify(stable(input)));
+  const result=await mutate(db,async store=>{
+    const actor=await authenticate(store,request,'write');requireCsrf(request,actor,origin);
+    const records=createRecords(store),method=request.method;
+    const articleMatch=/^\/articles\/([^/]+)$/.exec(route),accountMatch=/^\/accounts\/([^/]+)$/.exec(route),keyMatch=/^\/api-keys\/([^/]+)$/.exec(route);
+    if(route==='/auth/password'&&method==='PUT') {
+      requireAdmin(actor);
+      const current=await store.get('SELECT password_hash FROM users WHERE id=?',actor.id);
+      if(current?.password_hash!==passwordProof) throw fail(409,'CONFLICT','密码已修改，请重新登录');
+      store.queue('UPDATE users SET password_hash=? WHERE id=? AND password_hash=?',newHash,actor.id,passwordProof);store.expectChange();
+      store.queue('DELETE FROM sessions WHERE user_id=?',actor.id);store.audit(actor.actor,'auth.password_changed');
+      return {actor,response:json({changed:true,login_required:true},200,{'Set-Cookie':sessionCookie('',origin)})};
+    }
+    if(route==='/api-keys'&&method==='POST') {
+      requireAdmin(actor);
+      if(typeof input.name!=='string'||!input.name.trim()||input.name.length>80||!Array.isArray(input.account_ids)||input.account_ids.length<1||input.account_ids.length>100||!Array.isArray(input.permissions)||!input.permissions.length||input.permissions.some(p=>!['read','write'].includes(p))) throw fail(400,'VALIDATION','请填写凭证名称、运营账号与读写权限');
+      const ids=[...new Set(input.account_ids)],permissions=[...new Set(input.permissions)];
+      if(ids.some(id=>typeof id!=='string')||(await store.all('SELECT id FROM accounts WHERE id IN (SELECT value FROM json_each(?))',JSON.stringify(ids))).length!==ids.length) throw fail(400,'VALIDATION','授权账号不存在');
+      const id=randomUUID(),token='hdy_'+randomBytes(32).toString('hex'),created=now();
+      store.queue('INSERT INTO api_keys(id,name,token_hash,account_ids_json,permissions_json,created_at) VALUES(?,?,?,?,?,?)',id,input.name.trim(),digest(token),JSON.stringify(ids),JSON.stringify(permissions),created);
+      store.audit(actor.actor,'api_key.created',id,{account_ids:ids,permissions});
+      return {actor,response:json({id,name:input.name.trim(),token,account_ids:ids,permissions,created_at:created},201)};
+    }
+    if(keyMatch&&method==='DELETE') {
+      requireAdmin(actor);
+      if(!await store.get('SELECT id FROM api_keys WHERE id=? AND revoked_at IS NULL',keyMatch[1])) throw fail(404,'NOT_FOUND','凭证不存在或已撤销');
+      store.queue('UPDATE api_keys SET revoked_at=? WHERE id=? AND revoked_at IS NULL',now(),keyMatch[1]);store.expectChange();
+      store.audit(actor.actor,'api_key.revoked',keyMatch[1]);return {actor,response:json({revoked:true})};
+    }
+    let action;
+    if(method==='POST'&&route==='/accounts') {requireAdmin(actor);action=b=>records.createAccount(b);}
+    if(method==='PUT'&&accountMatch) {requireAdmin(actor);action=b=>records.updateAccount(accountMatch[1],b);}
+    if(method==='POST'&&route==='/articles') action=b=>records.createArticle(b,actor.scope);
+    if(method==='PUT'&&articleMatch) action=b=>records.updateArticle(articleMatch[1],b,actor.scope);
+    if(method==='POST'&&route==='/observations') action=b=>records.createObservation(b,actor.scope);
+    if(method==='POST'&&route==='/daily-metrics') action=b=>records.upsertDaily(b,actor.scope);
+    if(!action) throw fail(404,'NOT_FOUND','接口不存在');
+    if(key) {
+      const saved=await store.get('SELECT * FROM idempotency WHERE actor=? AND key=?',actor.actor,key);
+      if(saved) {
+        if(saved.request_hash!==requestHash) throw fail(409,'IDEMPOTENCY_CONFLICT','同一幂等键已经用于不同内容');
+        return {replayed:true,response:json(JSON.parse(saved.response_json),saved.status)};
+      }
+    }
+    const value=await action(input),status=method==='POST'?201:200;
+    store.audit(actor.actor,method+' '+route,value?.id||null,{fields:Object.keys(input)});
+    if(key) store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,?,?)',actor.actor,key,requestHash,JSON.stringify(value),status,now());
+    if(actor.kind==='key') store.queue('UPDATE api_keys SET last_used_at=? WHERE id=?',now(),actor.id);
+    return {actor,response:json(value,status)};
+  });
+  return result.response;
+}
+
+async function handle(request,env) {
+  const url=new URL(request.url),path=url.pathname,method=request.method;
+  if(path==='/health'&&method==='GET') return json({status:'ok',application:'haoduoyu-matrix'});
+  // No app handlers are registered for dispatch-owned sign-in/callback routes.
+  if(path.startsWith(prefix+'/')) {
+    if(!env.DB) throw fail(503,'CONFIGURATION','D1 绑定未配置');
+    const origin=originFor(env),db=env.DB,route=path.slice(prefix.length);
+    await ensureControl(db);
+    if(route==='/bootstrap'&&method==='POST') return bootstrap(db,request,env,origin);
+    const state=await db.prepare('SELECT initialized FROM matrix_control WHERE id=1').first();
+    if(state.initialized!==1) throw fail(503,'SETUP_REQUIRED',state.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
+    if(route==='/auth/login'&&method==='POST') return login(db,request,env,origin);
+    if(method==='GET') return protectedRead(db,request,route,Object.fromEntries(url.searchParams));
+    if(writing.has(method)) return protectedWrite(db,request,route,env,origin);
+    await authenticate(storeFor(db),request);
+    throw fail(404,'NOT_FOUND','接口不存在');
+  }
+  if(!['GET','HEAD'].includes(method)) throw fail(404,'NOT_FOUND','页面不存在');
+  let decoded;try {decoded=decodeURIComponent(path);} catch {throw fail(400,'VALIDATION','地址格式无效');}
+  if(decoded.includes('\0')||decoded.includes('\\')||decoded.split('/').some(p=>p.startsWith('.'))) throw fail(404,'NOT_FOUND','文件不存在');
+  const name=decoded==='/'?'index.html':decoded.slice(1),asset=Object.hasOwn(assets,name)?assets[name]:null;
+  if(!asset) throw fail(404,'NOT_FOUND','文件不存在');
+  return new Response(method==='HEAD'?null:asset.content,{headers:{'Content-Type':asset.type}});
+}
+export default {
+  async fetch(request,env) {
+    let response;
+    try {response=await handle(request,env);} catch(error) {
+      const duplicate=/UNIQUE constraint failed/.test(String(error));
+      const status=error.status||(duplicate?409:500),code=error.status?error.code:duplicate?'DUPLICATE':'INTERNAL_ERROR';
+      const message=error.status?error.message:duplicate?'记录已存在，请检索后更新原记录':'服务暂时不可用';
+      response=Response.json({error:{code,message}},{status});
+      if(status===429) response.headers.set('Retry-After','900');
+      if(status===503) response.headers.set('Retry-After','1');
+    }
+    for(const [key,value] of Object.entries({
+      'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',
+      'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      'Permissions-Policy':'camera=(), microphone=(), geolocation=()',
+    })) response.headers.set(key,value);
+    return response;
+  },
+};

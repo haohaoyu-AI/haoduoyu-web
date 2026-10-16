@@ -1,0 +1,8 @@
+Chromium 154.0.8037.57
+test_desktop (__main__.BrowserQa.test_desktop) ... ok
+test_mobile (__main__.BrowserQa.test_mobile) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 37.827s
+
+OK
