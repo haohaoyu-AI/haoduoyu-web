@@ -1,0 +1,74 @@
+{
+  "recorded_at_utc": "2026-10-16T02:38:00Z",
+  "base_commit": "5f548d91093b563bd2f539a7e647fa66e599379d",
+  "branch": "codex/worker-d1-compat-20261016",
+  "environment": {
+    "node": "v24.19.0",
+    "miniflare": "4.20260730.0",
+    "workerd": "1.20260730.1",
+    "esbuild": "0.28.2",
+    "compatibility_date": "2026-07-30",
+    "compatibility_flags": ["nodejs_compat"],
+    "d1_persist": false,
+    "d1_storage": "local temporary directory, disposed after tests",
+    "outbound_worker_fetch": "blocked by harness"
+  },
+  "test_results": {
+    "worker_d1": {"tests": 17, "pass": 17, "fail": 0, "duration_ms": 4414.083827},
+    "existing_node_backend": {"tests": 29, "pass": 29, "fail": 0, "duration_ms": 3102.035026},
+    "browser": "not run in this probe",
+    "hosted_sites_dispatch": "not run; publication explicitly excluded",
+    "remote_d1_replication_and_quotas": "not verified"
+  },
+  "production_read_only_inventory": {
+    "calls": ["sites_get_site", "sites_list_custom_domains", "sites_list_site_versions(limit=3)", "sites_get_deployment_status(v160)", "sites_get_deployment_status(v159)"],
+    "project_id": "appgprj_6ac1907e61a48191a067ce3c30b21265",
+    "status": "active",
+    "access_mode": "public",
+    "access_revision": 2,
+    "domain": "haoduoyu.xyz",
+    "domain_status": "active",
+    "ssl_status": "active",
+    "current_live_url": "https://haoduoyu.xyz",
+    "current_live_version_id": null,
+    "current_live_version_note": "not exposed by inspected get_site result; successful v159 history is not proof of active pointer",
+    "versions": [
+      {
+        "version_number": 160,
+        "version_id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_0a8228c1068c8191983c9e798ff36437",
+        "commit_sha": "ab35236c37d015cd0ec40e5dae3545eb30307da4",
+        "deployment_id": "appgdep_6acee28b68988191ae9b152791d1a90e",
+        "deployment_status": "failed",
+        "failure_message": "incomplete input: SQLITE_ERROR",
+        "archive_hash": "sha256:5a030fdbeb3178e855d38523d0a2963e97ca6180886eaad581f1dc9136e4c528",
+        "archive_bytes": 10956800
+      },
+      {
+        "version_number": 159,
+        "version_id": "appgprj_6ac1907e61a48191a067ce3c30b21265~appgver_a5d91e235f708191ae2cff2385a6ece4",
+        "commit_sha": "e3f7bb1b49b0d7a9dcfd7a85d43bb7dc8a0e50e1",
+        "deployment_id": "appgdep_6accc1ba16c881918c0f7a0294fa3632",
+        "deployment_status": "succeeded",
+        "archive_hash": "sha256:6bea57a0f33db14d9489cace7730a05e1609e53cd49c647991db38439418c684",
+        "archive_bytes": 9922560
+      }
+    ]
+  },
+  "legacy_source_read_only_check": {
+    "python_commit_available": "4c61f3c265a3998c7971241a4b4e64df65afebd3",
+    "sites_v159_commit_in_local_object_store": false,
+    "sites_precise_source_obtained": false,
+    "source_credential_created": false,
+    "full_database_or_attachment_backup_performed": false,
+    "pr_graphql_read": "HTTP 403 Forbidden; Git branch fetch/ls-remote succeeded"
+  },
+  "safety_boundary": {
+    "production_business_rows_read": 0,
+    "production_mutations": 0,
+    "publish_operations": 0,
+    "dns_or_access_changes": 0,
+    "purchases": 0,
+    "real_persistent_credentials_created": 0,
+    "upstream_branch_at_start_and_final_read": "5f548d91093b563bd2f539a7e647fa66e599379d"
+  }
+}

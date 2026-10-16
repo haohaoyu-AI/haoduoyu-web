@@ -1,0 +1,46 @@
+
+> haoduoyu-matrix@1.0.0 test
+> node --test tests/*.test.mjs
+
+✔ password rotation while scrypt is pending cannot issue a session using the stale password proof (442.298338ms)
+✔ non-ASCII and malformed CSRF headers return structured 403 without mutation or a timingSafeEqual length exception (196.183169ms)
+✔ business records, exports and writes require authentication (229.058356ms)
+✔ administrator login and writes enforce same origin and the session CSRF token (269.050934ms)
+✔ manual recording and Grok API updates operate on the same article without changing production mode (255.588445ms)
+✔ scoped API keys cannot escape account permissions or manage administrators (254.477919ms)
+✔ read-only keys reject writes, metadata omits secrets, and revocation takes effect (210.384178ms)
+✔ idempotent retries return one article and reject a changed request under the same key (187.620651ms)
+✔ article versions prevent a stale writer from silently replacing a newer edit (218.349279ms)
+✔ invalid calendar dates, reversed duration and invalid metric values are rejected (176.707545ms)
+✔ three-day effects include old articles, exclude cumulative snapshots and avoid account/detail double counting (217.78285ms)
+✔ changing the password expires every existing session and permits only the new password (661.70653ms)
+✔ static requests cannot expose application source or the private database through traversal (95.570433ms)
+✔ CSV export neutralizes spreadsheet formulas supplied as article titles (191.951893ms)
+✔ article data, account customization and a consistent backup survive database reopening (74.628888ms)
+✔ backup refuses existing destinations and source aliases without changing their bytes (179.308061ms)
+✔ backup creates private files even with a permissive umask and removes a failed new output (78.09027ms)
+✔ a trusted HTTP proxy keeps per-user and aggregate login limits isolated by client IP (236.265038ms)
+✔ ten actual failed logins through one proxy throttle only that client and username (1042.306852ms)
+✔ forwarded headers are ignored by default and from any untrusted socket peer (7.973739ms)
+✔ forwarding chains stop at the nearest untrusted hop and canonicalize IP spellings (4.145133ms)
+✔ malformed forwarding chains cannot supply a different rate-limit identity (4.477915ms)
+✔ expired client buckets are cleared without disabling the next window (82.309953ms)
+✔ unsafe or invalid trusted proxy configuration fails at startup (1.912546ms)
+✔ search performs literal matching for Chinese, LIKE wildcards, backslash and its own escape character (14.90783ms)
+✔ search cannot disclose articles outside the caller account scope (2.041951ms)
+✔ deactivated accounts reject new articles while historical review remains available (3.821415ms)
+✔ daily article detail must belong to the selected authorized account (1.693916ms)
+✔ article recorder identities come from authorized audit history independently of production mode (1.850091ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3102.035026
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

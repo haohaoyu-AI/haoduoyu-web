@@ -1,0 +1,96 @@
+{
+  "runtime": "Miniflare/workerd, local ephemeral D1 only",
+  "checks": [
+    {
+      "name": "original_schema_applied",
+      "objects": 15,
+      "productionRowsRead": 0,
+      "persisted": false
+    },
+    {
+      "name": "crypto",
+      "correct": true,
+      "incorrect": false,
+      "hashMs": 71,
+      "verifyMs": 80,
+      "pbkdf2": [
+        {
+          "iterations": 100000,
+          "supported": true,
+          "bytes": 32,
+          "elapsedMs": 12
+        },
+        {
+          "iterations": 600000,
+          "supported": true,
+          "bytes": 32,
+          "elapsedMs": 78
+        }
+      ],
+      "nodePbkdf2": {
+        "supported": true,
+        "bytes": 32
+      }
+    },
+    {
+      "name": "anonymous_and_platform_headers_fail_closed"
+    },
+    {
+      "name": "independent_session_cookie_csrf_logout"
+    },
+    {
+      "name": "interactive_begin_rejected_atomic_batch_rollback"
+    },
+    {
+      "name": "parallel_idempotency",
+      "requests": 20,
+      "committedBusinessRows": 1,
+      "committedReceipts": 1,
+      "committedAudits": 1
+    },
+    {
+      "name": "uniqueness_error_has_no_partial_receipt_or_audit"
+    },
+    {
+      "name": "final_audit_failure_rolls_back_business_and_receipt"
+    },
+    {
+      "name": "version_cas_guard_prevents_partial_audit"
+    },
+    {
+      "name": "foreign_keys_enforced"
+    },
+    {
+      "name": "null_scope_unique_zero_distinct_from_missing",
+      "accountDailyRows": 1,
+      "articleDailyRows": 1
+    },
+    {
+      "name": "cumulative_snapshot_order_and_missing_zero"
+    },
+    {
+      "name": "d1_session_api",
+      "bookmarkType": "string",
+      "replicaSemanticsVerified": false
+    },
+    {
+      "name": "snapshot_boundary",
+      "withSessionIsFrozenSnapshot": false,
+      "coherentReadBatches": 30,
+      "concurrentAtomicWrites": 30,
+      "observedVersions": 30
+    },
+    {
+      "name": "explicit_null_and_undefined_binding"
+    },
+    {
+      "name": "expiry_and_tampering_rejected"
+    },
+    {
+      "name": "rotation_final_audit_failure_rolls_back_hash_and_session_revocation"
+    },
+    {
+      "name": "rotation_invalidates_sessions_and_stale_proof"
+    }
+  ]
+}

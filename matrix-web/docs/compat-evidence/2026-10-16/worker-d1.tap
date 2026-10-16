@@ -1,0 +1,112 @@
+TAP version 13
+# Subtest: unchanged scrypt interoperates Node <-> Worker; inspect PBKDF2 alternatives
+ok 1 - unchanged scrypt interoperates Node <-> Worker; inspect PBKDF2 alternatives
+  ---
+  duration_ms: 1108.274765
+  type: 'test'
+  ...
+# Subtest: public anonymous health works; business routes reject anonymity and platform identity alone
+ok 2 - public anonymous health works; business routes reject anonymity and platform identity alone
+  ---
+  duration_ms: 27.493476
+  type: 'test'
+  ...
+# Subtest: independent password login, cookie flags, CSRF, same-origin and revocation
+ok 3 - independent password login, cookie flags, CSRF, same-origin and revocation
+  ---
+  duration_ms: 171.966146
+  type: 'test'
+  ...
+# Subtest: D1 rejects interactive BEGIN IMMEDIATE; batch rollback preserves receipt/business/audit
+ok 4 - D1 rejects interactive BEGIN IMMEDIATE; batch rollback preserves receipt/business/audit
+  ---
+  duration_ms: 112.739927
+  type: 'test'
+  ...
+# Subtest: 20 concurrent retries commit one business row, receipt and audit; changed payload conflicts
+ok 5 - 20 concurrent retries commit one business row, receipt and audit; changed payload conflicts
+  ---
+  duration_ms: 247.042674
+  type: 'test'
+  ...
+# Subtest: global URL uniqueness failure rolls back the new receipt; same key can retry corrected input
+ok 6 - global URL uniqueness failure rolls back the new receipt; same key can retry corrected input
+  ---
+  duration_ms: 130.659633
+  type: 'test'
+  ...
+# Subtest: failure of the final audit statement rolls back the receipt and article
+ok 7 - failure of the final audit statement rolls back the receipt and article
+  ---
+  duration_ms: 181.941476
+  type: 'test'
+  ...
+# Subtest: two competing version updates have one winner and one atomic guard failure
+ok 8 - two competing version updates have one winner and one atomic guard failure
+  ---
+  duration_ms: 109.176141
+  type: 'test'
+  ...
+# Subtest: D1 FK rejection rolls back preceding statements
+ok 9 - D1 FK rejection rolls back preceding statements
+  ---
+  duration_ms: 45.760191
+  type: 'test'
+  ...
+# Subtest: NULL account daily scope upserts once, article scope stays separate; missing and zero survive JSON/D1
+ok 10 - NULL account daily scope upserts once, article scope stays separate; missing and zero survive JSON/D1
+  ---
+  duration_ms: 85.210934
+  type: 'test'
+  ...
+# Subtest: cumulative observations select by as_of, retain collection time; no sum or false exact-day claim
+ok 11 - cumulative observations select by as_of, retain collection time; no sum or false exact-day claim
+  ---
+  duration_ms: 69.78921
+  type: 'test'
+  ...
+# Subtest: D1 sessions/bookmarks are consistency cursors; batch supplies a coherent multi-query read
+ok 12 - D1 sessions/bookmarks are consistency cursors; batch supplies a coherent multi-query read
+  ---
+  duration_ms: 28.11906
+  type: 'test'
+  ...
+# Subtest: withSession is not a frozen snapshot; read batch never tears a concurrent paired write
+ok 13 - withSession is not a frozen snapshot; read batch never tears a concurrent paired write
+  ---
+  duration_ms: 971.070454
+  type: 'test'
+  ...
+# Subtest: D1 bind(null) preserves NULL and bind(undefined) rejects an omitted field
+ok 14 - D1 bind(null) preserves NULL and bind(undefined) rejects an omitted field
+  ---
+  duration_ms: 21.483479
+  type: 'test'
+  ...
+# Subtest: expired or tampered session cannot access business data
+ok 15 - expired or tampered session cannot access business data
+  ---
+  duration_ms: 94.484114
+  type: 'test'
+  ...
+# Subtest: password rotation audit failure preserves the old hash and all sessions
+ok 16 - password rotation audit failure preserves the old hash and all sessions
+  ---
+  duration_ms: 274.571267
+  type: 'test'
+  ...
+# Subtest: password rotation invalidates all sessions; stale login proof cannot mint a new one
+ok 17 - password rotation invalidates all sessions; stale login proof cannot mint a new one
+  ---
+  duration_ms: 380.66991
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4414.083827

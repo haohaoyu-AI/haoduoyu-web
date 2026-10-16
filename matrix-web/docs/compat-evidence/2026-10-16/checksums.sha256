@@ -1,0 +1,10 @@
+c5eb5f15d032a19e6ec3831120783e46e846b2342058175e2fb12f1579987dfb  matrix-web/compat/worker.mjs
+2d961ace77c4cad81978e00ac3477f817c045f8749e0e8a64993d708aed98e20  matrix-web/compat/probe.test.mjs
+96546f28b7d4afbc10c5b0bfa1771f00e5824d059460c08f4b8e7bd9f11c3a62  matrix-web/compat/package.json
+e50548c7945f7aa0d74e9f0cd249e04da29bd8924c3cded0b16604cf3ddda01d  matrix-web/compat/package-lock.json
+11b96e40a34d936f5d8615ad95e999a624ae7178d27b2dcc94373a8d4ce259e7  matrix-web/compat/README.md
+7f9d24863e2f5aba9b829899c9be89f86b7b3479f8e132820167a8323a8a7bc2  matrix-web/docs/WORKER-D1-FEASIBILITY-2026-10-16.md
+4e54d4f93079fa2a7605ae3908d2c41920c60857f5e7db84b6abe09a66eb922b  matrix-web/docs/compat-evidence/2026-10-16/metadata.json
+f8f836e3714e2116a100894e5116e00b5abf6df67ee11ebeab3be4631361575b  matrix-web/docs/compat-evidence/2026-10-16/results.json
+cf0fe6fabef28430b4c10ad235b196b2bdc823d072d8bc31ae56459f689762c4  matrix-web/docs/compat-evidence/2026-10-16/worker-d1.tap
+4df3f5fa414369e98f0c3d4045ae8a3570a3d3ee34fcf5fb9a3e405e3cbd9f02  matrix-web/docs/compat-evidence/2026-10-16/node-backend.txt
