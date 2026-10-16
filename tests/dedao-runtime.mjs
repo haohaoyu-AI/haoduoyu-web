@@ -1,0 +1,19 @@
+import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';
+import {saveExecution,readExecution,lockExecutor,acknowledgeExited} from '../scripts/dedao/runtime.mjs';
+const folder=await fs.mkdtemp(path.join(os.tmpdir(),'dedao-runtime-synthetic-')),file=path.join(folder,'execution.json');let release;
+try{
+ release=await lockExecutor(folder);await assert.rejects(()=>lockExecutor(folder),/already present/);
+ const original={batch_id:'SYNTHETIC',execution_id:'synthetic-codex',executor_id:'synthetic-host',pid:null,process_exited:true,server_end_acknowledged:false};await saveExecution(file,original);assert.deepEqual(await readExecution(file),original);
+ let failed=true,ends=0;const call=async(name)=>{if(name==='read_dedao_batch')return {batch:{state:'running',executor_id:original.executor_id,execution_id:original.execution_id}};ends++;if(failed)throw Error('Synthetic connection loss');return {ended:true};};
+ await assert.rejects(()=>acknowledgeExited(original,file,call));assert.equal((await readExecution(file)).server_end_acknowledged,false);
+ failed=false;await acknowledgeExited(await readExecution(file),file,call);assert.equal((await readExecution(file)).server_end_acknowledged,true);assert.equal(ends,2);await acknowledgeExited(await readExecution(file),file,call);assert.equal(ends,2);
+ const alive={...original,pid:process.pid,process_exited:false};await saveExecution(file,alive);await assert.rejects(()=>acknowledgeExited(alive,file,call),/still present/);assert.equal((await readExecution(file)).process_exited,false);
+ await saveExecution(file,{...original,execution_id:'synthetic-codex-real',launcher_id:'synthetic-launcher'});
+ let launchEnded=0;await acknowledgeExited(await readExecution(file),file,async(name,a)=>{if(name==='read_dedao_batch')return {batch:{state:'launching',executor_id:original.executor_id,execution_id:'synthetic-launcher'}};assert.equal(a.launcher_id,'synthetic-launcher');launchEnded++;});assert.equal(launchEnded,1);
+ await saveExecution(file,{...original,execution_id:'synthetic-codex-real',launcher_id:'synthetic-launcher'});let pausedEnd=0;
+ await acknowledgeExited(await readExecution(file),file,async(name,a)=>{if(name==='read_dedao_batch')return {batch:{state:'paused',executor_id:original.executor_id,execution_id:'synthetic-launcher'}};assert.equal(a.launcher_id,'synthetic-launcher');pausedEnd++;});assert.equal(pausedEnd,1,'pause before claim must acknowledge the genuine launcher exit');
+ await saveExecution(file,{...original,execution_id:'synthetic-codex-real',launcher_id:'synthetic-launcher'});
+ await assert.rejects(async()=>acknowledgeExited(await readExecution(file),file,async()=>({batch:{state:'paused',executor_id:'OTHER',execution_id:'synthetic-launcher'}})),/identity/);assert.equal((await readExecution(file)).server_end_acknowledged,false,'wrong executor cannot be locally acknowledged');
+ const uncertain={...original,execution_id:'synthetic-launcher',launcher_id:'synthetic-launcher',queue_revision:'synthetic-revision'};await saveExecution(file,uncertain);let closed=0;await acknowledgeExited(uncertain,file,async(name,a)=>{if(name==='read_dedao_batch')return {batch:{state:'queued',queue_revision:uncertain.queue_revision}};assert.equal(a.queue_revision,uncertain.queue_revision);closed++;});assert.equal(closed,1,'queued read must close the uncertain launcher on server before local acknowledgement');
+ console.log('PASS synthetic runtime: exclusive live-worker lock, atomic execution record, genuine process-exit separation, lost end receipt retained/retried, acknowledgement idempotency, live-process recovery fence and prelaunch reconciliation. No Codex/browser/remote actions.');
+}finally{if(release)await release();await fs.rm(folder,{recursive:true,force:true});}

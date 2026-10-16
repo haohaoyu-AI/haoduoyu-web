@@ -1,0 +1,42 @@
+// Real Chromium and real loopback app/API/D1/R2. Isolated local identity only;
+// never visits real platform drafts, dispatches events, or changes production.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {chromium} from 'playwright-core';
+const origin='http://127.0.0.1:5173',folder='evidence/tonight-eight/ui';fs.mkdirSync(folder,{recursive:true});
+const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true});
+const context=await browser.newContext({viewport:{width:1440,height:1000}}),page=await context.newPage();
+const articleTitle='离线浏览器验收电影文章 '+Date.now();
+const failures=[];page.on('pageerror',error=>failures.push(error.message));
+let accountWrites=0,uploads=0;page.on('request',request=>{if(request.method()==='POST'&&request.url().endsWith('/api/imitation/discovery'))accountWrites++;if(request.method()==='POST'&&request.url().endsWith('/api/articles'))uploads++;});
+try{
+ await page.goto(origin+'/signin-with-chatgpt?return_to=%2Fimitation');
+ await page.evaluate(async()=>{const response=await fetch('/api/articles/workspace');if(!response.ok)return;const inventory=await response.json();const ids=inventory.items.filter(item=>item.title.startsWith('离线浏览器验收电影文章')&&item.protected===0&&item.archived===0).map(item=>item.id);if(ids.length)await fetch('/api/articles/workspace',{method:'POST',headers:{'Content-Type':'application/json','X-Article-Workspace':'1'},body:JSON.stringify({action:'archive',request_key:crypto.randomUUID(),article_ids:ids})});});
+ await page.getByRole('button',{name:'添加账号',exact:true}).click();
+ await page.getByLabel('账号名称').fill('离线浏览器验收 电影账号');await page.getByLabel('公开主页链接').fill('https://toutiao.com/user/123456789/');
+ await page.getByRole('button',{name:'保存账号',exact:true}).dblclick();
+ await page.getByRole('link',{name:'离线浏览器验收 电影账号',exact:true}).waitFor();assert.equal(accountWrites,1,'double click must not duplicate account save');
+ assert.equal(await page.getByRole('link',{name:'离线浏览器验收 电影账号'}).getAttribute('href'),'https://www.toutiao.com/c/user/123456789/');
+ await page.screenshot({path:folder+'/imitation-desktop.png',fullPage:true});
+ await page.reload();await page.getByRole('link',{name:'离线浏览器验收 电影账号'}).waitFor();
+ await page.getByRole('button',{name:'移除账号：离线浏览器验收 电影账号'}).click();await page.getByRole('link',{name:'离线浏览器验收 电影账号'}).waitFor({state:'detached'});
+ await page.goto(origin+'/');await page.getByText('尚未选择文件',{exact:true}).waitFor();
+ await page.locator('#article').setInputFiles({name:'offline-qa.txt',mimeType:'text/plain',buffer:Buffer.from(articleTitle+'\n仅用于本地真实API与UI交互测试。\n不派送、不操作真实平台。')});
+ await page.getByRole('button',{name:'上传文章',exact:true}).dblclick();await page.getByText(articleTitle,{exact:true}).first().waitFor();assert.equal(uploads,1);
+ await page.screenshot({path:folder+'/publish-desktop.png',fullPage:true});
+ await page.locator('article').filter({hasText:articleTitle}).getByRole('button',{name:'删除当前文章',exact:true}).click();await page.getByText(articleTitle,{exact:true}).waitFor({state:'detached'});
+ await page.goto(origin+'/article-data');await page.getByText('清空与恢复',{exact:false}).click();await page.getByText(articleTitle,{exact:true}).waitFor();await page.locator('.history-restore').filter({hasText:articleTitle}).getByRole('button',{name:'恢复文章',exact:true}).click();
+ await page.goto(origin+'/');await page.getByText(articleTitle,{exact:true}).first().waitFor();
+ await page.locator('#article').setInputFiles({name:'bad.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:Buffer.from('THIS IS NOT A WORD DOCUMENT')});await page.getByRole('button',{name:'上传文章',exact:true}).click();await page.locator('.inline-feedback').filter({hasText:/失败|未完成|无法|Word|文档/}).first().waitFor();
+ const evidence=JSON.parse(fs.readFileSync('evidence/tonight-eight/history-evidence.json','utf8'));
+ const imported=await page.evaluate(async data=>{const response=await fetch('/api/article-data',{method:'POST',headers:{'Content-Type':'application/json','X-Article-Data':'1'},body:JSON.stringify(data)});return {status:response.status,body:await response.json()};},{action:'import',evidence_sha256:'087584a57f045a89dfbfd65832c1355432f80872584cc2d3a8d1a06887cf60ec',records:evidence.records});assert.equal(imported.status,200);
+ await page.goto(origin+'/article-data');await page.getByRole('table').waitFor();assert.equal(await page.locator('.history-table tbody tr').count(),8);assert.equal(await page.getByRole('link',{name:'打开私人草稿'}).count(),14);assert.equal(await page.getByText('24小时数据未采集',{exact:true}).count(),8);
+ await page.screenshot({path:folder+'/article-data-desktop.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:folder+'/article-data-mobile.png',fullPage:true});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'mobile page should not overflow outside the table scroll container');
+ await page.goto(origin+'/dedao');await page.getByRole('button',{name:'一键成文',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'一键成文'}).isDisabled(),true,'missing real cloud connection stays blocked');assert.equal(await page.locator('input[type=number]').count(),0);await page.screenshot({path:folder+'/dedao-mobile.png',fullPage:true});
+ assert.equal(await page.getByRole('link',{name:'写作台',exact:true}).count(),0);await page.goto(origin+'/writing');await page.waitForURL(origin+'/article-data');
+ await page.goto(origin+'/signout-with-chatgpt?return_to=%2Fimitation');await page.getByText(/请重新使用本人ChatGPT账号登录/).waitFor();assert.equal(await page.getByRole('link',{name:'离线浏览器验收 电影账号'}).count(),0);
+ assert.deepEqual(failures,[]);fs.writeFileSync(folder+'/browser-summary.json',JSON.stringify({status:'PASS',scope:'real local Chromium + loopback APIs and isolated D1/R2; not production connectivity',account_save_posts:1,account_remove_tested:true,uploads:1,invalid_word_tested:true,reversible_archive_restore_tested:true,history_rows:8,private_draft_links:14,public_metrics_unknown:8,mobile_width:390,page_errors:failures,production_writes:0,platform_visits:0},null,2));
+ console.log('PASS actual local Chromium save/remove/duplicate click/upload/failure/archive/restore/history/disabled cloud gate/mobile/screenshots; production and platform actions ZERO');
+}finally{await context.close();await browser.close();}

@@ -1,0 +1,79 @@
+import {testOutline,invalidOutlines} from './fixtures/writing-outline.mjs';
+import ts from 'typescript';import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {DatabaseSync} from 'node:sqlite';import {zipSync,strToU8} from 'fflate';import {createHash} from 'node:crypto';const nativeRequire=createRequire(import.meta.url);
+const sql=new DatabaseSync(':memory:');for(const f of fs.readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())sql.exec(fs.readFileSync('drizzle/'+f,'utf8'));
+const db={batch:async stmts=>{sql.exec('BEGIN');try{const out=[];for(const s of stmts)out.push(await s.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}},prepare:s=>({bind:(...v)=>({first:async()=>sql.prepare(s).get(...v)||null,all:async()=>({results:sql.prepare(s).all(...v)}),run:async()=>({meta:{changes:Number(sql.prepare(s).run(...v).changes)}})})})};
+const objects=new Map();const bucket={async list({prefix}){return {truncated:false,objects:[...objects.keys()].filter(k=>k.startsWith(prefix)).map(key=>({key,size:objects.get(key).length}))};},async put(k,b){objects.set(k,new Uint8Array(b));},async delete(k){objects.delete(k)},async head(k){return objects.has(k)?{size:objects.get(k).length}:null},async get(k,opts){if(!objects.has(k))return null;const b=objects.get(k);const cut=opts?.range?b.slice(opts.range.offset,opts.range.offset+opts.range.length):b;return {arrayBuffer:async()=>cut.buffer.slice(cut.byteOffset,cut.byteOffset+cut.byteLength),body:new ReadableStream({start(c){c.enqueue(cut);c.close()}})};}};
+let dispatches=0;let connected=true;const modules={};function load(name){if(modules[name])return modules[name];const ex={};modules[name]=ex;const src=fs.readFileSync('lib/'+name+'.ts','utf8');const js=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;vm.runInNewContext(js,{exports:ex,require:n=>n==='cloudflare:workers'?{env:{DB:db,BUCKET:bucket}}:n==='./events'?({readiness:async()=>({connected}),dispatch:async()=>{dispatches++;return '事件已送达';}}):n.startsWith('./')?load(n.slice(2)):nativeRequire(n),crypto,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,Set,Error,URL,btoa,atob,Date,File,ReadableStream});return ex;}
+
+// Legacy protocol fixture: these assertions exercise immutable save -> terminal website text draft.
+// Remove only the new editorial marker before preparing input; daily-editorial.mjs tests the real new defaults.
+function useLegacyDailySnapshot(articleId){const row=sql.prepare('SELECT input_snapshot FROM writing_runs WHERE article_id=?').get(articleId);const snapshot=JSON.parse(row.input_snapshot);delete snapshot.editorial_contract_version;sql.prepare('UPDATE writing_runs SET input_snapshot=? WHERE article_id=?').run(JSON.stringify(snapshot),articleId);}
+const rawWriting=load('writing');const w={...rawWriting,writingCall:async(owner,name,args)=>{const result=await rawWriting.writingCall(owner,name,args);if(name==='claim_writing_run'&&result.claimed&&result.input_state==='awaiting_materials'){useLegacyDailySnapshot(result.article_id);await rawWriting.writingCall(owner,'prepare_writing_input',{article_id:result.article_id,token:result.token,topic:'测试话题',outline:testOutline,materials:'这是离线测试所用的完整公开研究资料，不访问任何实际网站。'.repeat(8),sources:[{title:'来源一',url:'https://example.com/1',published:args.day},{title:'来源二',url:'https://example.com/2',published:args.day}]});}return result;}};const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const c=await w.writingCall('owner-a','claim_writing_run',{day});assert.equal(c.claimed,true);
+assert.equal((await w.writingCall('owner-a','claim_writing_run',{day})).claimed,false);
+const args={day,token:c.token,title:'测试标题',topic:'测试话题',paragraphs:Array(50).fill('这是用于本地测试的文字段落，不会发送到网站或任何平台。'.repeat(2)),sources:[{title:'来源一',url:'https://example.com/1',published:day},{title:'来源二',url:'https://example.com/2',published:day}]};
+await assert.rejects(w.writingCall('owner-b','save_writing_article',args));
+await assert.rejects(w.writingCall('owner-a','save_writing_article',{...args,token:'wrong'}));
+await assert.rejects(w.writingCall('owner-a','save_writing_article',{...args,paragraphs:['too short']}));
+const saved=await w.writingCall('owner-a','save_writing_article',args);assert.equal(saved.saved,true);
+assert.equal(dispatches,0);assert.equal(sql.prepare('SELECT state FROM articles').get().state,'text_saved');
+await assert.rejects(w.writingCall('owner-a','save_writing_article',{...args,title:'different'}),/已冻结/);const repeat=await w.writingCall('owner-a','save_writing_article',args);assert.equal(repeat.already_saved,true);
+assert.equal(sql.prepare('SELECT count(*) n FROM articles').get().n,1);
+const read=await w.writingCall('owner-a','read_writing_brief',{});assert.equal(read.items[0].title,'测试标题');assert.equal(read.items[0].paragraphs.length,51);
+assert.equal((await w.writingCall('owner-b','read_writing_brief',{})).items.length,0);
+await w.writingCall('owner-a','submit_writing_article',{day});assert.equal(dispatches,0);
+assert.equal(sql.prepare('SELECT state FROM articles').get().state,'text_saved');
+await w.writingCall('owner-a','submit_writing_article',{day});assert.equal(dispatches,0);
+assert.equal((await w.writingCall('owner-a','claim_writing_run',{day})).claimed,false);
+console.log('Writing: owner isolation, daily atomic claim, content validation, immutable save, dedup, readback and queue handoff passed');
+
+const style=load('writing-style');assert.equal((await w.writingCall('owner-a','read_writing_brief',{})).style,load('writing-supplement').effectiveWritingPrompt);assert.equal(Buffer.byteLength(style.writingStyle),16275);assert.equal(createHash('sha256').update(style.writingStyle).digest('hex'),'8ade21aacd8303e75d68c906cb0310e7e5c7af665be905b378368270df451e90');
+for(const count of [1899,1900,2000,3000,3100,3101]){const owner='bounds-'+count;const cc=await w.writingCall(owner,'claim_writing_run',{day});const body=Array.from({length:Math.ceil(count/100)},(_,i)=>'文'.repeat(Math.min(100,count-i*100)));const input={...args,token:cc.token,paragraphs:body};if(count>=1900&&count<=3100)assert.equal((await w.writingCall(owner,'save_writing_article',input)).saved,true);else await assert.rejects(w.writingCall(owner,'save_writing_article',input));}
+const pc=await w.writingCall('paragraph-limit','claim_writing_run',{day});await assert.rejects(w.writingCall('paragraph-limit','save_writing_article',{...args,token:pc.token,paragraphs:['文'.repeat(1001),...Array(15).fill('文'.repeat(100))]}));
+sql.prepare("INSERT INTO writing_runs(id,owner,day,writer,run_kind,state,article_id,created,updated) VALUES(?,?,?,?,?,?,?,?,?)").run('sample-old-id','sample-owner',day,'xiaoyu','sample','submitted','sample-existing-article',new Date().toISOString(),new Date().toISOString());
+const formal=await w.writingCall('sample-owner','claim_writing_run',{day});assert.equal(formal.claimed,true);assert.notEqual(formal.article_id,'sample-existing-article');assert.equal((await w.writingCall('sample-owner','claim_writing_run',{day})).claimed,false);assert.equal((await w.writingCall('sample-owner','claim_writing_run',{day,writer:'claude'})).claimed,true);assert.equal(sql.prepare("SELECT state FROM writing_runs WHERE id='sample-old-id'").get().state,'submitted');
+console.log('Full authoritative prompt hash, body-length boundaries, paragraph limit and sample/formal daily separation passed');
+
+const brief=await w.writingCall('owner-a','read_writing_brief',{});assert.equal(brief.topic_skill.name,'self-media-trend-radar');assert.equal(createHash('sha256').update(brief.topic_workflow).digest('hex'),'019718cba50fd1160c74e9c1266edea7380d06c15bc6b649fa835a431f3988d0');console.log('Topic skill mirrored guidance integrity passed');
+
+for(const platform of ['今日头条','微博'])assert.equal(brief.topic_workflow.includes(platform),true);
+assert.equal(load('topic-workflow').topicWorkflow.version,'haoduoyu-topic-research-1.3');
+assert.doesNotMatch(brief.topic_workflow,/完整用户 v1\.0|五个平台的热门文娱/);
+
+const listed=await load('articles').articleList('owner-a');assert.equal(listed[0].generated,1);const articlePage=fs.readFileSync('app/page.tsx','utf8');assert.match(articlePage,/const showHelp\s*=\s*!article\.generated\s*&&\s*\(article\.state\s*===\s*'uploaded'\s*\|\|\s*\(article\.state\s*===\s*'queued'\s*&&\s*!!article\.error\)\);/);assert.match(articlePage,/onClick=\{\(\)\s*=>\s*void submit\(article\.id, retry\)\}/);console.log('Generated article hides manual help button; uploaded and failed queued handoff remain manual');
+
+const concurrentClaim=await w.writingCall('concurrent-save','claim_writing_run',{day});const beforeConcurrent=dispatches;
+await Promise.all([w.writingCall('concurrent-save','save_writing_article',{...args,token:concurrentClaim.token}),w.writingCall('concurrent-save','save_writing_article',{...args,token:concurrentClaim.token})]);
+assert.equal(dispatches,beforeConcurrent);
+connected=false;const offlineClaim=await w.writingCall('offline-save','claim_writing_run',{day});const offline=await w.writingCall('offline-save','save_writing_article',{...args,token:offlineClaim.token});assert.equal(offline.saved,true);assert.equal(offline.pipeline.state,'text_saved');assert.equal(sql.prepare("SELECT state FROM writing_runs WHERE owner='offline-save'").get().state,'text_saved');
+connected=true;const beforeRecovery=dispatches;const recovered=await w.writingCall('offline-save','save_writing_article',{...args,token:offlineClaim.token});assert.equal(recovered.already_saved,true);assert.equal(dispatches,beforeRecovery);
+console.log('Concurrent saves and offline saves complete terminal website text drafts without dispatch');
+await assert.rejects(w.writingCall('owner-a','claim_writing_run',{day,writer:'gpt'}));
+const gc=await w.writingCall('owner-a','claim_workflow_test',{day,writer:'gpt',confirm:true});assert.equal(gc.claimed,true);assert.notEqual(gc.article_id,c.article_id);
+const gs=await w.writingCall('owner-a','save_workflow_test_article',{...args,token:gc.token,writer:'gpt'});assert.equal(gs.saved,true);assert.equal(sql.prepare('SELECT state FROM articles WHERE id=?').get(gc.article_id).state,'text_saved');assert.equal(sql.prepare('SELECT count(*) n FROM writing_runs WHERE owner=? AND day=?').get('owner-a',day).n,2);
+console.log('GPT replacement test has its own article identity and cannot alter formal daily production or old draft');
+for(let i=0;i<8;i++){const id='limit-article-'+i,created=`2026-09-${String(10+i).padStart(2,'0')}T12:00:00.000Z`;sql.prepare('INSERT INTO articles(id,owner,title,filename,source_key,paragraphs,created,state) VALUES(?,?,?,?,?,?,?,?)').run(id,'limit-owner','标题'+i,'text.txt','articles/'+id+'/source','[]',created,'uploaded');sql.prepare('INSERT INTO writing_runs(id,owner,day,writer,run_kind,state,article_id,created,updated) VALUES(?,?,?,?,?,?,?,?,?)').run('limit-run-'+i,'limit-owner',created.slice(0,10),'xiaoyu','daily','ready',id,created,created);}
+assert.equal((await load('articles').articleList('limit-owner')).length,8);assert.deepEqual(Array.from(await load('articles').articleList('limit-owner',5),x=>x.id),[7,6,5,4,3].map(i=>'limit-article-'+i));assert.deepEqual(Array.from(await w.writingList('limit-owner',5),x=>x.article_id),[7,6,5,4,3].map(i=>'limit-article-'+i));assert.equal(sql.prepare("SELECT count(*) n FROM articles WHERE owner='limit-owner'").get().n,8);
+const supplemented=await w.writingCall('owner-a','read_writing_brief',{});assert.equal(supplemented.style,load('writing-supplement').effectiveWritingPrompt);assert.equal(supplemented.writing_prompt,load('writing-supplement').effectiveWritingPrompt);assert.equal(supplemented.writing_prompt.includes('以北京时间写作日期判断当年，近期事件默认省略年份'),true);assert.equal(supplemented.writing_prompt.includes('已核验的事实和数字自然讲述'),true);assert.equal(supplemented.writing_prompt.includes('有余'),false);assert.equal(supplemented.writing_prompt.includes('默认不署名'),true);assert.equal(supplemented.writing_prompt.includes('标题字段与正文严格分离'),true);assert.equal(supplemented.writing_prompt.includes('paragraphs第1段整段与title逐字完全相同'),true);assert.equal(supplemented.writing_prompt.includes('Heading1段落样式'),true);assert.equal(supplemented.writing_prompt.includes('w:pStyle=Heading1'),true);assert.equal(supplemented.output_format.subheading.style,'Heading1');assert.equal(supplemented.output_format.subheading.paragraph.includes('独立段落'),true);assert.equal(supplemented.output_format.subheading.ooxml,'w:pStyle=Heading1');assert.equal(supplemented.output_format.subheading.size_pt,12);assert.equal(supplemented.output_format.subheading.bold,true);assert.equal(supplemented.output_format.subheading.color,'000000');assert.equal(supplemented.output_format.page.margins_inches.top,1);assert.equal(supplemented.output_format.page.margins_inches.bottom,1);assert.equal(supplemented.output_format.page.margins_inches.left,1);assert.equal(supplemented.output_format.page.margins_inches.right,1);
+console.log('Both page lists retain exactly latest five; older data preserved; full original prompt plus dated/natural attribution supplement passed');
+
+assert.equal((await w.writingCall('owner-a','read_writing_brief',{})).writing_prompt.includes('不凑次数'),true);assert.equal((await w.writingCall('owner-a','read_writing_brief',{})).writing_prompt.includes('冻结后不在排版时悄悄改文'),true);
+
+const fixed=load('writing-fixed-references');
+assert.equal(createHash('sha256').update(fixed.proseReference).digest('hex'),'17cbbf7a9a522df31ccb9d9ca80b6b757f9a31e2788ff8ccbef3a7773dd583eb');
+assert.equal(fixed.proseReference.split('\n\n').filter(p=>p.trim()).length,44);assert.equal(fixed.conciseWritingStyle.split('\n').length,7);
+assert.equal(fixed.conciseWritingStyle.length,280);
+const fixedFormat=load('output-format').outputFormat;
+assert.equal(fixedFormat.title.size_pt,20);assert.equal(fixedFormat.title.color,'0F4761');assert.equal(fixedFormat.title.bold,true);
+assert.equal(fixedFormat.body.size_pt,12);assert.equal(fixedFormat.fonts.eastAsia,'Source Han Serif SC');assert.equal(fixedFormat.fonts.latin,'Times New Roman');
+assert.equal(fixedFormat.paragraph.line_spacing_multiple,1.15);assert.equal(fixedFormat.paragraph.space_after_pt,10);assert.equal(fixedFormat.page.size,'A4');
+for(const prompt of [fixed.conciseWritingStyle,fixed.fixedWritingReferences,load('writing-supplement').effectiveWritingPrompt])for(const privateLabel of ['个人画像','用户画像','家庭情况','家庭背景','收入水平','政治倾向','教育背景','作者年龄','居住地'])assert.equal(prompt.includes(privateLabel),false,privateLabel+' must not enter provider prompt');
+for(const outline of invalidOutlines)assert.throws(()=>fixed.normalizeWritingOutline(outline,true),/框架/);
+for(const count of [1,2,4]){
+ const sections=Array.from({length:count},(_,i)=>(i+1)+'. 本节新增的影院选择证据（'+Math.floor(2150/count)+'字）\n事实素材：来源一和来源二在相同统计窗口记录了场次、入场人数及可售座位，两项资料核对后再比较。\n判断推进：本节将新的观众证据接到上节的问题，用实际选择进一步区分供给变化和观众偏好。').join('\n');
+ const flexible=testOutline.replace(/分节：[\s\S]*?(?=认知转弯：)/,'分节：\n'+sections+'\n');assert.equal(fixed.normalizeWritingOutline(flexible,true),flexible);
+}
+assert.equal(fixed.normalizeWritingOutline(undefined,false),undefined);assert.equal(fixed.normalizeWritingOutline('历史可选框架保持原样',false),'历史可选框架保持原样');
+const markdownOutline=testOutline.replace(/^(热榜线索|标题方向|核心判断|开头|分节|认知转弯|结尾|目标字数)：/gm,'## $1\n');assert.equal(fixed.normalizeWritingOutline(markdownOutline,true),markdownOutline);
+const separateBudget=testOutline.replace('（1100字）','\n字数：1100');assert.equal(fixed.normalizeWritingOutline(separateBudget,true),separateBudget);
+console.log('Fixed complete prose SHA256/44 nonempty paragraphs, seven concise style rules, private-profile absence, every outline column/section negative, flexible 1/2/4 sections and historical optional outline compatibility passed');

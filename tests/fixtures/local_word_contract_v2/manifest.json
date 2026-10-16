@@ -1,0 +1,325 @@
+{
+  "schema_version": 2,
+  "contract": "local_word_only_native_heading_integer_geometry_v2",
+  "legacy_manifest_sha256": "81e956987fcdf53e11e0aa584912a364a2992d96be909465d86a02bb3ec5cb00",
+  "synthetic_only": true,
+  "source": {
+    "file": "source.md",
+    "sha256": "b30860e4337561a6ce9468b5c10b6aaee9592c47f566fff633ca7a4ede20acc6"
+  },
+  "png": {
+    "file": "synthetic.png",
+    "sha256": "a5c47f96aff88310f664589a7155c78ecb4451d2b6a92d7637099e3360dc409f",
+    "width": 500,
+    "height": 400
+  },
+  "additional_assets": [
+    {
+      "file": "synthetic-2x1.png",
+      "sha256": "338bcc6a6181a24cf41ce18fd0706b4a26f0a1ed149767c09b68a9a411ed7f51",
+      "width": 2,
+      "height": 1
+    }
+  ],
+  "frozen": {
+    "source_path": "source.md",
+    "filename": "source.md",
+    "title": "合成 Word 合同标题",
+    "paragraphs": [
+      "第一段合成正文。",
+      "",
+      "合成小标题",
+      "最后一段合成正文。"
+    ],
+    "subheading_indices": [
+      2
+    ],
+    "source_sha256": "b30860e4337561a6ce9468b5c10b6aaee9592c47f566fff633ca7a4ede20acc6",
+    "original_sha256": "6ec31e7ee58bd98206d48915c40ea4eca186da9d93296835d43fc38e72916b63",
+    "leading_blank_paragraphs": 2
+  },
+  "text_sequence": [
+    "",
+    "",
+    "合成 Word 合同标题",
+    "第一段合成正文。",
+    "",
+    "合成小标题",
+    "最后一段合成正文。"
+  ],
+  "cases": [
+    {
+      "name": "baseline",
+      "file": "baseline.docx",
+      "sha256": "5132f9c8af4d4909c96c338ab36adb047abac238936f1eef96fecf0c61605f09",
+      "expected": "accept",
+      "reason": "Title title; native direct Heading1 section; all original blanks; equal exact-ratio frames"
+    },
+    {
+      "name": "rounded_each_axis_1emu",
+      "file": "rounded_each_axis_1emu.docx",
+      "sha256": "910a35fbaaf0d5bce3868f44101c176f9b86adf6bf734138e83a4842906348ee",
+      "expected": "accept",
+      "reason": "One EMU rounding in each axis reaches exact w+h ratio tolerance"
+    },
+    {
+      "name": "inner_delta_1emu",
+      "file": "inner_delta_1emu.docx",
+      "sha256": "d171d3f46811bd463ba9e78c9f5bf52fa455acea33d9d0ba457908a9a546003e",
+      "expected": "accept",
+      "reason": "Inner frame differs by one EMU on each axis and still passes ratio bounds"
+    },
+    {
+      "name": "explicit_transform_defaults",
+      "file": "explicit_transform_defaults.docx",
+      "sha256": "7ab0899608019b8a682bd59fac03d352562d23a355a9416331b375a9dc9451e6",
+      "expected": "accept",
+      "reason": "Integer rotation zero and XML on-off false/off defaults are allowed"
+    },
+    {
+      "name": "title_heading1",
+      "file": "title_heading1.docx",
+      "sha256": "d8187e9d4b0d4348f1e2e4099f39801225f415afc0a0a86c2b2cfa2bc4e9be51",
+      "expected": "reject",
+      "reason": "Article title must not use Heading1"
+    },
+    {
+      "name": "extra_body_heading1",
+      "file": "extra_body_heading1.docx",
+      "sha256": "ded155fdb05ccbd60d774e3c8713a4f6ac09a6e97b013715eadd42a3b56a1995",
+      "expected": "reject",
+      "reason": "An ordinary body paragraph must not become an extra Heading1"
+    },
+    {
+      "name": "extra_body_heading2",
+      "file": "extra_body_heading2.docx",
+      "sha256": "1f72a0e50d1f308abf3dfe0ca5ccd73e9e8e95c8657538ddfe4012e9f07f16ce",
+      "expected": "reject",
+      "reason": "An ordinary body paragraph must not use any Heading style"
+    },
+    {
+      "name": "leading_heading1",
+      "file": "leading_heading1.docx",
+      "sha256": "d86f48301d7647b8e57c0ba263b56bb809cb645014911d1c10ff1ad2cbbb80f0",
+      "expected": "reject",
+      "reason": "Leading blank paragraph must not be a heading"
+    },
+    {
+      "name": "image_paragraph_heading2",
+      "file": "image_paragraph_heading2.docx",
+      "sha256": "10fb54db8a6a3ac829ca3751f815b1192f483f48900a41dd6ef76b281cf505ff",
+      "expected": "reject",
+      "reason": "Image-only paragraph must not be a heading"
+    },
+    {
+      "name": "body_direct_outline9",
+      "file": "body_direct_outline9.docx",
+      "sha256": "539d7931a1150e95b3e9fed59af584efdf5569e5667dfd4092721f0a688d0686",
+      "expected": "reject",
+      "reason": "Even explicit body-level outline9 is forbidden on ordinary body"
+    },
+    {
+      "name": "missing_native_heading1",
+      "file": "missing_native_heading1.docx",
+      "sha256": "5be91d165d44507867a82f29cafc7b0cd89187d10a129bfb3e9d0b4685bc6e01",
+      "expected": "reject",
+      "reason": "Heading1 reference cannot rely on a missing native definition"
+    },
+    {
+      "name": "native_wrong_name",
+      "file": "native_wrong_name.docx",
+      "sha256": "ea2395f427f33b9b9c2330964fe4d816bed20abc48b984b3025564ddfb2af281",
+      "expected": "reject",
+      "reason": "Style ID alone cannot impersonate native Heading1"
+    },
+    {
+      "name": "native_wrong_type",
+      "file": "native_wrong_type.docx",
+      "sha256": "052fb251205a0db41e78ff2254ec6bf6c118697adc5beffd4c4016d9b610e43b",
+      "expected": "reject",
+      "reason": "Native Heading1 must be a paragraph style"
+    },
+    {
+      "name": "native_custom_style_true",
+      "file": "native_custom_style_true.docx",
+      "sha256": "f37196420273633cbabf5300c3f326a61ecbab5fb63fd8ee694ee8c0e97e31c4",
+      "expected": "reject",
+      "reason": "A customStyle true definition cannot impersonate native Heading1"
+    },
+    {
+      "name": "native_wrong_outline",
+      "file": "native_wrong_outline.docx",
+      "sha256": "743d1fec4022350cb4460c60487d5c1e51224e76f22efb0a2f2d86d59b39db2c",
+      "expected": "reject",
+      "reason": "Native Heading1 needs its own outline level zero"
+    },
+    {
+      "name": "duplicate_native_style",
+      "file": "duplicate_native_style.docx",
+      "sha256": "ba749a9a108235017757e0b5f4f7484bd424cb78b6c36459557afa2e06901021",
+      "expected": "reject",
+      "reason": "Duplicate style IDs make heading resolution ambiguous"
+    },
+    {
+      "name": "native_missing_base",
+      "file": "native_missing_base.docx",
+      "sha256": "5c3b671ae30493868b7336ed9b086376ddcf42b14871198a5f572b518aa45457",
+      "expected": "reject",
+      "reason": "Native Heading1 basedOn chain must resolve"
+    },
+    {
+      "name": "native_basedon_cycle",
+      "file": "native_basedon_cycle.docx",
+      "sha256": "bfea12cd829c1013f93a141c36126d150a7cf37c4083cdc416bc8def2d1f0555",
+      "expected": "reject",
+      "reason": "Native style ancestry must have no cycle"
+    },
+    {
+      "name": "body_inherited_heading",
+      "file": "body_inherited_heading.docx",
+      "sha256": "51831d29ccafd1cf030f7f9f9c72626993ca5cc5d1a3e794c13f900d13ba1984",
+      "expected": "reject",
+      "reason": "An ordinary body cannot inherit a heading through basedOn"
+    },
+    {
+      "name": "docdefaults_outline9",
+      "file": "docdefaults_outline9.docx",
+      "sha256": "ec314128ac06ea45331aa29c3578d6d83255a112ac57c57ba1ffde60f14eb6c8",
+      "expected": "reject",
+      "reason": "Document paragraph defaults cannot hide outline9"
+    },
+    {
+      "name": "default_style_inherited_outline9",
+      "file": "default_style_inherited_outline9.docx",
+      "sha256": "9e41bba1dd335662a38c37dfd1dc0ba594353926c5fb677eb7ac84e3eb9bb5b0",
+      "expected": "reject",
+      "reason": "Default Normal ancestry cannot hide an outline level"
+    },
+    {
+      "name": "body_runstyle_heading",
+      "file": "body_runstyle_heading.docx",
+      "sha256": "d84621b6f6b5ec7b3ba9a670bb1e2e4aff591a9d5efd5ccdf38a3393772adb4f",
+      "expected": "reject",
+      "reason": "Body run style cannot reference a heading or hide its outline"
+    },
+    {
+      "name": "src_rect_all_zero",
+      "file": "src_rect_all_zero.docx",
+      "sha256": "b683d6fe417eb474f48c95049d4702ab3caa3f2191e8e7473ebdb41d1819b770",
+      "expected": "reject",
+      "reason": "Any srcRect element is forbidden, including all-zero crop"
+    },
+    {
+      "name": "aspect_distorted_0p1_percent",
+      "file": "aspect_distorted_0p1_percent.docx",
+      "sha256": "3f379b2cb71472ad75c0ee573d44dedd1729cfc8a6a34215ffedda9f573f20fb",
+      "expected": "reject",
+      "reason": "A 0.1 percent width distortion exceeds integer aspect tolerance"
+    },
+    {
+      "name": "inner_delta_2emu",
+      "file": "inner_delta_2emu.docx",
+      "sha256": "6e37ef576526e89a74ff05745633a63520ce209575744cb5bfeb5e47529478ef",
+      "expected": "reject",
+      "reason": "Two EMU frame mismatch is forbidden even when both aspect tests pass"
+    },
+    {
+      "name": "missing_inner_extent",
+      "file": "missing_inner_extent.docx",
+      "sha256": "7420efcff087ae38d62bed6ff31414d061775bf8fcdf734c4a085f9462340d98",
+      "expected": "reject",
+      "reason": "Image transform must provide its own positive extent"
+    },
+    {
+      "name": "anchor_image",
+      "file": "anchor_image.docx",
+      "sha256": "5915bfcc18e20b8152730448fea0af5b1f6660c94f1b28aba33d7f0da245dab3",
+      "expected": "reject",
+      "reason": "Only inline embedded images are supported"
+    },
+    {
+      "name": "rotation_nonzero",
+      "file": "rotation_nonzero.docx",
+      "sha256": "c8abbbb3422b50aa919d890af2f1062ae716ba7d2cf340a1e8785651cd8f52a5",
+      "expected": "reject",
+      "reason": "Nonzero rotation is forbidden"
+    },
+    {
+      "name": "flip_true",
+      "file": "flip_true.docx",
+      "sha256": "7cdfa20287aeec66b8e7985dc4558ed3a44db3526927997da2746fefe1d3845a",
+      "expected": "reject",
+      "reason": "A true flip is forbidden"
+    },
+    {
+      "name": "transform_unknown",
+      "file": "transform_unknown.docx",
+      "sha256": "2cca4360d6b0d23e61739a7723b33d60f9885fec5e52cb3c9e667c854fe34b42",
+      "expected": "reject",
+      "reason": "Unknown rotation and XML on-off flip syntax are forbidden"
+    },
+    {
+      "name": "fake_namespace_outline_attribute",
+      "file": "fake_namespace_outline_attribute.docx",
+      "sha256": "8ce553c1d0ca19e39af4b7f781734667aab69dbcf0122534c2763de792e7f373",
+      "expected": "reject",
+      "reason": "Native outline value must use the true Word namespace"
+    },
+    {
+      "name": "styles_with_effects_part",
+      "file": "styles_with_effects_part.docx",
+      "sha256": "96160a6d828f914c503fcab2b446a02718b0fa28e6de86b061d838cb89084da6",
+      "expected": "reject",
+      "reason": "An alternate stylesWithEffects part is outside the common contract"
+    },
+    {
+      "name": "inherited_hidden_text",
+      "file": "inherited_hidden_text.docx",
+      "sha256": "76a5c6f3736f9bfbabf022ea6490572b3dc48f63d9d8afd504ad5dde99674254",
+      "expected": "reject",
+      "reason": "Ordinary body text must not inherit vanish hidden text"
+    },
+    {
+      "name": "tiny_ratio_integer_boundary",
+      "file": "tiny_ratio_integer_boundary.docx",
+      "sha256": "2b5fd58801f623a5d820f265551a951090e41b8b42f40788f3016cfb02d2e89e",
+      "expected": "accept",
+      "reason": "2x1 pixels with 7x2 EMU has D=3=w+h; inclusive exact integer boundary"
+    },
+    {
+      "name": "tiny_ratio_integer_outside",
+      "file": "tiny_ratio_integer_outside.docx",
+      "sha256": "136a096a2e2cda3b64e0151f528ae564497131552c2583ee0d6f55cdbbe5d8a7",
+      "expected": "reject",
+      "reason": "2x1 pixels with 8x2 EMU has D=4>w+h; reject one integer beyond boundary"
+    },
+    {
+      "name": "missing_styles_relationship",
+      "file": "missing_styles_relationship.docx",
+      "sha256": "56f882066c98d9efe2c00295bebfdc856aadb5fc6c3187fa333d3a59b237fd86",
+      "expected": "reject",
+      "reason": "Word requires exactly one canonical internal styles relationship"
+    },
+    {
+      "name": "duplicate_styles_relationship",
+      "file": "duplicate_styles_relationship.docx",
+      "sha256": "f7386558bd90c086ee85cfb4697504895080699b2c857a9fc2b4473ac3adb9e6",
+      "expected": "reject",
+      "reason": "Two otherwise valid styles relationships are ambiguous"
+    },
+    {
+      "name": "external_styles_relationship",
+      "file": "external_styles_relationship.docx",
+      "sha256": "29fca6655cdb23c890881886954ce6b6cbaed8445259cfa801d2244dbadf8b35",
+      "expected": "reject",
+      "reason": "External styles relation is forbidden even with the canonical target name"
+    },
+    {
+      "name": "noncanonical_styles_relationship",
+      "file": "noncanonical_styles_relationship.docx",
+      "sha256": "08ab282c4159648c15da260a3b82b3a8f8ce6ba82ec533bdd7831dc5ef14bfb0",
+      "expected": "reject",
+      "reason": "Internal target must be exactly styles.xml rather than a normalized alias"
+    }
+  ]
+}

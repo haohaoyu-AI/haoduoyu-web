@@ -1,0 +1,16 @@
+{
+  "production_base": "28e37238ffd0fad524629b7f47fed9e8e514085a",
+  "installed_in_cua": false,
+  "files": [
+    {
+      "path": "host-program.mjs",
+      "size": 25736,
+      "sha256": "a7002e46c5c0d75a0bd358e49b8df6ee99f40626124d7eb7d7bcce783290cc85"
+    },
+    {
+      "path": "parent-program.mjs",
+      "size": 80709,
+      "sha256": "96e1b37181492cfc16d27c18c0d76980c667daf6d6a635d4a0b4f86766adfff3"
+    }
+  ]
+}

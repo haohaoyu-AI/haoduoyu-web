@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import ts from 'typescript';
+import {createRequire} from 'node:module';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+const native=createRequire(import.meta.url),cache=new Map();
+function load(file){file=path.resolve(file);if(cache.has(file))return cache.get(file);const ex={};cache.set(file,ex);const js=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+ vm.runInNewContext(js,{exports:ex,require:n=>{if(!n.startsWith('.')&&!n.startsWith('@/'))return native(n);const target=n.startsWith('@/')?path.resolve(n.slice(2)):path.resolve(path.dirname(file),n);return load(fs.existsSync(target+'.tsx')?target+'.tsx':target+'.ts');},TextEncoder,Date,AbortController,AbortSignal});return ex;}
+const Writing=load('app/writing/page.tsx').default;
+const html=renderToStaticMarkup(React.createElement(Writing));
+assert.match(html,/<h2>写作台<\/h2>/);
+assert.match(html,/<details class="writing-fold writing-history"><summary>最近文章/);
+assert.match(html,/非执行 · 最新 5 篇/);
+assert.match(html,/disabled="">一键清空最近文章/);
+assert.doesNotMatch(html,/<details[^>]*\sopen(?:[ =]|>)/);
+assert.doesNotMatch(html,/aria-label="本次写作"/);
+assert.match(html,/aria-current="page">写作台/);
+console.log('PASS actual Writing SSR with installed modal primitives: collapsed non-executing history, one disabled clear button before authenticated load, no invented current work and correct navigation. Browser visual/keyboard QA unverified.');

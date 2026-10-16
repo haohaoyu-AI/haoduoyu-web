@@ -1,0 +1,71 @@
+// Actual SQL/modules on isolated SQLite. No real Site write, browser, model or platform action.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import {createRequire} from 'node:module';
+import {DatabaseSync} from 'node:sqlite';
+import ts from 'typescript';
+import {seedSettledUploadReceipts,syntheticReadbacks} from './helpers/isolated-upload-receipts.mjs';
+const requireNative=createRequire(import.meta.url),sql=new DatabaseSync(':memory:');
+for(const file of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())sql.exec(fs.readFileSync('drizzle/'+file,'utf8'));
+let beforeBatch=null,connected=true,dispatches=0;
+const db={prepare(query){let values=[];return {bind(...args){values=args;return this;},async all(){return {results:sql.prepare(query).all(...values)};},async first(){return sql.prepare(query).get(...values)||null;},runSync(){return {meta:{changes:Number(sql.prepare(query).run(...values).changes)}};},async run(){return this.runSync();}};},async batch(statements){if(beforeBatch){const fn=beforeBatch;beforeBatch=null;fn();}sql.exec('BEGIN');try{const out=statements.map(s=>s.runSync());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}};
+const objects=new Map();
+const bucket={async get(key){const bytes=objects.get(key);return bytes?{size:bytes.length,arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)}:null;}};
+const cache=new Map();
+function load(filename){filename=path.resolve(filename);if(cache.has(filename))return cache.get(filename);const exports={};cache.set(filename,exports);const code=ts.transpileModule(fs.readFileSync(filename,'utf8'),{fileName:filename,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+ vm.runInNewContext(code,{exports,require:name=>name==='cloudflare:workers'?{env:{DB:db,BUCKET:bucket}}:name==='./test-store'?{db:()=>db}:name==='./articles'?{bucket:()=>bucket}:name==='./events'?{readiness:async()=>({connected}),dispatchCloudDedao:async()=>{dispatches++;return true;}}:name.startsWith('.')?load(path.join(path.dirname(filename),name+'.ts')):requireNative(name),crypto,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,URL,Date,Error,Set,Map,Response,Request,AbortSignal,AbortController,setTimeout,clearTimeout,atob,btoa,console,fetch:()=>{throw Error('NO REMOTE I/O');}});return exports;
+}
+const workspace=load('lib/article-workspace.ts'),history=load('lib/article-history.ts'),cloud=load('lib/dedao-cloud.ts');
+const owner='OFFLINE-OWNER',other='OFFLINE-OTHER',uuid=()=>crypto.randomUUID(),stamp=()=>new Date().toISOString();
+function seed(state='uploaded',claim=null,who=owner){const id=uuid();sql.prepare('INSERT INTO articles(id,owner,title,filename,source_key,paragraphs,created,state,claim_token,claim_expires) VALUES(?,?,?,?,?,?,?,?,?,?)').run(id,who,'OFFLINE 电影','fixture.docx',`articles/${id}/source`,'["OFFLINE 电影","BODY RETAINED"]',stamp(),state,claim,claim?'2000-01-01T00:00:00Z':null);objects.set(`articles/${id}/source`,new TextEncoder().encode('ORIGINAL BYTES'));return id;}
+const idle=seed(),expired=seed('failed',uuid()),inflight=seed('processing',uuid()),foreign=seed('uploaded',null,other);
+const intent={action:'archive',request_key:uuid(),article_ids:[idle,expired,inflight,foreign]};
+const archived=await workspace.changeWorkspace(owner,intent);assert.equal(archived.changed.length,1);assert.equal(archived.changed[0],idle);assert.equal(archived.blocked.length,3);
+assert.equal((await workspace.changeWorkspace(owner,intent)).changed[0],idle);assert.equal(sql.prepare('SELECT count(*) AS n FROM article_workspace_requests').get().n,1);
+await assert.rejects(workspace.changeWorkspace(owner,{...intent,article_ids:[expired]}),/不能更改/);
+assert.equal(sql.prepare('SELECT paragraphs FROM articles WHERE id=?').get(idle).paragraphs,'["OFFLINE 电影","BODY RETAINED"]');assert.ok(objects.has(`articles/${idle}/source`));
+const restored=await workspace.changeWorkspace(owner,{action:'restore',request_key:uuid(),article_ids:[idle]});assert.equal(restored.changed[0],idle);assert.equal(sql.prepare('SELECT count(*) AS n FROM article_workspace_archives').get().n,0);
+const raced=seed();beforeBatch=()=>sql.prepare("UPDATE articles SET state='processing' WHERE id=?").run(raced);assert.equal((await workspace.changeWorkspace(owner,{action:'archive',request_key:uuid(),article_ids:[raced]})).changed.length,0,'atomic guard checks changed execution state');
+await workspace.changeWorkspace(owner,{action:'archive',request_key:uuid(),article_ids:[idle]});sql.prepare("UPDATE articles SET state='processing' WHERE id=?").run(idle);assert.ok(sql.prepare('SELECT 1 FROM articles WHERE id=? AND '+workspace.workspaceVisibleSql()).get(idle),'a newly active hidden task reappears');
+const inventory=await workspace.workspaceInventory(owner);assert.equal(inventory.permanent_delete_available,false);assert.equal(inventory.total,4);assert.equal(inventory.items.filter(row=>row.protected).length,4);assert.equal((await workspace.workspaceInventory(other)).total,1);
+
+const evidence=JSON.parse(fs.readFileSync('evidence/tonight-eight/history-evidence.json','utf8')),packageHash='087584a57f045a89dfbfd65832c1355432f80872584cc2d3a8d1a06887cf60ec';
+assert.equal(evidence.records.length,8);await history.importHistory(owner,{evidence_sha256:packageHash,records:evidence.records});await history.importHistory(owner,{evidence_sha256:packageHash,records:evidence.records});
+const view=await history.readArticleHistory(owner);assert.equal(view.total,8);assert.equal(view.summary.private_drafts,7);assert.equal(view.summary.full_auto,5);assert.equal(view.summary.semi_auto,3);assert.equal(view.items.filter(r=>r.title===null).length,2);assert.ok(view.items.every(r=>r.website_article_id===null&&r.observations.length===0));assert.equal((await history.readArticleHistory(other)).total,0);assert.equal(view.owner_scope,inventory.owner_scope);
+await assert.rejects(history.importHistory(owner,{evidence_sha256:packageHash,records:[{...evidence.records[0],title:'DIFFERENT TITLE'}]}),/已有历史证据不同/);
+assert.throws(()=>sql.prepare('DELETE FROM article_history').run(),/immutable_article_history/);
+const record=evidence.records[0],published=new Date(Date.now()-48*3600000).toISOString(),due=new Date(Date.parse(published)+86400000).toISOString();
+const observation={platform:'toutiao',publication:{article_id:record.platforms.toutiao.draft_id,status:'published',status_source:'creator_work_management',status_text:'已发布',time_status:'verified',time_sources:[{source:'creator_work_management',raw_text:'OFFLINE verified time',timezone:'Etc/UTC',normalized_at:published}]},published_at:published,published_url:`https://www.toutiao.com/article/${record.platforms.toutiao.draft_id}/`,observed_at:new Date(Date.parse(due)+3600000).toISOString(),platform_data_through:due,window_start:null,window_end:null,exposures:100,reads:16,comments:0,likes:null,unavailable_reason:null,evidence_reference:'offline-observation-only'};
+assert.equal(history.metricsSnapshotKind(observation).state,'late_cumulative');assert.equal(history.metricsSnapshotKind({...observation,window_start:published,window_end:due}).state,'exact_24h');assert.equal(history.metricsSnapshotKind({...observation,platform_data_through:null,observed_at:new Date(Date.parse(due)-1).toISOString()}).state,'before_24h');assert.equal(history.metricsSnapshotKind({...observation,exposures:null,reads:null,comments:null,likes:null,unavailable_reason:'data-unavailable'}).state,'unavailable');
+const metricArgs={history_key:record.history_key,request_key:uuid(),observation};await history.recordMetrics(owner,metricArgs);await history.recordMetrics(owner,metricArgs);assert.equal(sql.prepare('SELECT count(*) AS n FROM article_metrics_observations').get().n,1);
+await assert.rejects(history.recordMetrics(owner,{...metricArgs,request_key:uuid(),observation:{...observation,publication:{...observation.publication,article_id:'1234567890123456789'},published_url:'https://www.toutiao.com/article/1234567890123456789/'}}),/ID与原私人草稿不符/);
+await assert.rejects(history.recordMetrics(other,metricArgs),/本人精确历史文章/);assert.throws(()=>sql.prepare("UPDATE article_metrics_observations SET payload='{}'").run(),/immutable_article_metrics/);
+
+connected=false;await assert.rejects(cloud.startCloudDedao(owner,{request_key:uuid()}),/云端自动成文尚未连接/);assert.equal(sql.prepare('SELECT count(*) AS n FROM dedao_cloud_requests').get().n,0);connected=true;
+const key=uuid(),started=await cloud.startCloudDedao(owner,{request_key:key}),taskId=started.task.id;assert.equal(started.instructions.article_count,1);assert.equal(started.instructions.conversation_url,'https://www.biji.com/writing/6acda9b50be38d7d4c8b1d41');assert.equal(dispatches,1);
+assert.equal((await cloud.startCloudDedao(owner,{request_key:key})).task.id,taskId);assert.equal((await cloud.startCloudDedao(owner,{request_key:uuid()})).task.id,taskId);assert.equal(dispatches,1);
+await assert.rejects(cloud.readCloudDedao(other,taskId),/本人云端任务/);
+const holder={task_id:taskId,execution_id:'OFFLINE-ACTUAL-EXECUTOR',claim_token:uuid()},loser={...holder,execution_id:'OFFLINE-OTHER-EXECUTOR',claim_token:uuid()};const claims=await Promise.all([cloud.claimCloudDedao(owner,holder),cloud.claimCloudDedao(owner,loser)]);assert.equal(claims.filter(r=>r.claimed).length,1);
+assert.ok(!JSON.stringify(await cloud.readCloudDedao(owner,taskId)).includes(holder.claim_token));await assert.rejects(cloud.beginCloudAction(owner,{...loser,action:'recommend'}),/认领无效/);
+const bytes=new TextEncoder().encode('ORIGINAL CLOUD WORD BYTES'),sha=Buffer.from(await crypto.subtle.digest('SHA-256',bytes)).toString('hex');
+await assert.rejects(cloud.beginCloudAction(owner,{...holder,action:'download'}),/前一步/);
+for(const action of ['recommend','adopt','framework','finalize','download']){
+ const a=await cloud.beginCloudAction(owner,{...holder,action});assert.equal(a.execute_action,true);assert.equal((await cloud.beginCloudAction(owner,{...holder,action})).execute_action,false,'original intent cannot resend');
+ const o={conversation_url:cloud.cloudConversation,observed_at:stamp(),response_reference:'OFFLINE-OBSERVED-'+action,...(['finalize','download'].includes(action)?{title:'OFFLINE CLOUD 电影',final_version_reference:'OFFLINE-FINAL-V1'}:{}),...(action==='finalize'?{team_review_completed:true,fact_check_completed:true}:{}),...(action==='download'?{filename:'cloud.docx',size:bytes.length,sha256:sha}:{})};
+ if(action==='finalize')await assert.rejects(cloud.confirmCloudAction(owner,{...holder,action,action_id:a.action_id,observation:{...o,fact_check_completed:false}}),/事实核查/);
+ await cloud.confirmCloudAction(owner,{...holder,action,action_id:a.action_id,observation:o});await cloud.confirmCloudAction(owner,{...holder,action,action_id:a.action_id,observation:o});
+}
+const articleId=seed();sql.prepare('UPDATE articles SET title=?,filename=?,created=? WHERE id=?').run('OFFLINE CLOUD 电影','cloud.docx',stamp(),articleId);
+await assert.rejects(cloud.bindCloudArticle(owner,{...holder,article_id:articleId}),/大小不符/);objects.set(`articles/${articleId}/source`,bytes);
+await cloud.bindCloudArticle(owner,{...holder,article_id:articleId});await assert.rejects(cloud.finishCloudDedao(owner,{...holder,all_writer_actions_settled:true,end_reference:'OFFLINE-END'}),/仍未完成/);
+const readbacks=syntheticReadbacks({sha,title:'OFFLINE CLOUD 电影'});sql.prepare('UPDATE articles SET paragraphs=? WHERE id=?').run('["","OFFLINE CLOUD 电影"]',articleId);const uploadEnds=seedSettledUploadReceipts(sql,{owner,articleId,sha,size:bytes.length,title:'OFFLINE CLOUD 电影',readbacks,omitEnd:['zhihu']});
+const readback=JSON.stringify(readbacks.toutiao);sql.prepare("UPDATE articles SET state='completed',result_key='offline-result',result_meta=?,claim_token=?,claim_expires=?,draft_url='https://mp.toutiao.com/profile_v4/graphic/publish?pgc_id=1234567890123456789',draft_readback=? WHERE id=?").run(JSON.stringify({sha256:sha,size:bytes.length,verification:{word_sha256:sha}}),uuid(),'2000-01-01T00:00:00Z',readback,articleId);
+sql.prepare('INSERT INTO article_deliveries(id,owner,article_id,platform,state,draft_url,updated,readback) VALUES(?,?,?,?,?,?,?,?)').run(uuid(),owner,articleId,'zhihu','saved','https://zhuanlan.zhihu.com/p/123456789/edit',stamp(),JSON.stringify(readbacks.zhihu));
+sql.prepare("UPDATE article_deliveries SET state='saved' WHERE article_id=?").run(articleId);assert.equal((await history.readArticleHistory(owner)).total,8,'cloud writer has not ended yet');
+await assert.rejects(cloud.finishCloudDedao(owner,{...holder,all_writer_actions_settled:true,end_reference:'OFFLINE-END'}),/仍未完成/,'matching verified readbacks do not replace an actual upload executor end');uploadEnds.find(e=>e.platform==='zhihu').end();
+assert.equal((await workspace.workspaceInventory(owner)).items.find(r=>r.id===articleId).protected,1);assert.equal((await workspace.changeWorkspace(owner,{action:'archive',request_key:uuid(),article_ids:[articleId]})).changed.length,0,'unsettled cloud writer cannot hide its completed article');
+await cloud.finishCloudDedao(owner,{...holder,all_writer_actions_settled:true,end_reference:'OFFLINE-END'});const captured=await history.readArticleHistory(owner);assert.equal(captured.total,9);const live=captured.items.find(r=>r.website_article_id===articleId);assert.equal(live.history_key,'website:'+articleId);assert.equal(live.platforms.zhihu.draft_id,'123456789');assert.equal(live.public_publication.published_at,null);assert.equal((await cloud.readCloudDedao(owner,taskId)).task.state,'completed');assert.equal((await cloud.readCloudDedao(owner,taskId)).task.private_drafts_complete,true);
+assert.equal(sql.prepare('SELECT count(*) AS n FROM dedao_batches').get().n,0,'legacy desktop batches untouched');assert.equal(sql.prepare('SELECT count(*) AS n FROM event_subscriptions').get().n,0,'no subscription changes');assert.equal(dispatches,1);
+sql.close();console.log('PASS isolated full migrations, reversible visibility/races/owner isolation/expired-holder protection, 8 genuine offline historical records/nulls/no invented IDs, exact/late/unavailable metric windows, cloud one-request/one-action/claim/draft completion guards; ZERO production or platform writes');

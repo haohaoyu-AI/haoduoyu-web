@@ -1,0 +1,27 @@
+// Render the real component with public synthetic fixtures, without a server or network.
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import ts from 'typescript';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {loadUiSource} from './ui-source-module.mjs';
+const nativeRequire=createRequire(import.meta.url),publishFocus=loadUiSource('components/publish-focus.ts'),require=name=>name==='./publish-focus'?publishFocus:name==='./word-recovery-capability'?loadUiSource('components/word-recovery-capability.ts'):nativeRequire(name),exports={};
+const compiled=ts.transpileModule(fs.readFileSync('components/word-stage-progress.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+vm.runInNewContext(compiled,{exports,require,Date,Intl});
+const fixture=JSON.parse(fs.readFileSync('evidence/word-progress/v1-partial-fixture.json','utf8'));
+const render=props=>renderToStaticMarkup(React.createElement(exports.default,props));
+assert.equal(render({progress:null}),'', 'Older responses with no progress remain compatible');
+const unavailable=render({progress:null,unavailable:true});
+assert.match(unavailable,/Word 进度暂不可用/);assert.match(unavailable,/可继续查看任务状态和已有成品/);assert.doesNotMatch(unavailable,/处理中|已完成|云端 Word 已就绪/);
+const remembered=render({progress:fixture,unavailable:true});
+assert.match(remembered,/进度暂不可用/);assert.match(remembered,/上次记录：确定配图/);assert.match(remembered,/已确定 18\/22 张/);assert.match(remembered,/以下为上次读取的记录/);assert.equal((remembered.match(/<li /g)||[]).length,6);
+const offline=render({progress:fixture,networkOffline:true});assert.match(offline,/网页网络已断开/);assert.match(offline,/后台执行情况未确认/);assert.match(offline,/上次记录：确定配图/);
+const readError=render({progress:fixture,readError:true});assert.match(readError,/网页连接中断/);assert.match(readError,/上次记录：确定配图/);
+const normal=render({progress:fixture});assert.match(normal,/正在选图片/);assert.doesNotMatch(normal,/上次记录|进度暂不可用/);
+const saved=structuredClone(fixture);saved.target_kind='local_word';saved.execution.state='saved';saved.execution.reason_text='本站成品已读回';saved.save.independently_confirmed=true;saved.save.cloud_ready=true;saved.steps.forEach(s=>s.state='completed');
+const localSaved=render({progress:saved});assert.match(localSaved,/云端 Word 已就绪/);assert.match(localSaved,/桌面落盘请查看本地回执/);assert.doesNotMatch(localSaved,/桌面已保存|本地已保存/);
+const pending=structuredClone(saved);pending.execution.state='running';pending.execution.update_overdue=true;pending.save.independently_confirmed=false;pending.save.state='readback_pending';pending.steps[5].state='current';const awaiting=render({progress:pending});assert.match(awaiting,/云端成品等待读回确认/);assert.doesNotMatch(awaiting,/处理中|执行者暂无新更新/);
+const page=fs.readFileSync('app/page.tsx','utf8');assert.match(page,/article\.state!=='deleting'&&article\.output_mode!=='text_only'/);assert.match(page,/unavailable=\{article\.word_progress_unavailable\}/);
+console.log('PASS Word progress UI: unavailable/null fallback, clearly marked same-task stale observations, six preserved stages and counts, online/offline recovery labels, cloud-vs-desktop completion, original text/deleting exclusions. Static component rendering only; full-browser visual verification remains separate.');
