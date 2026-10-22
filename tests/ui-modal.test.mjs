@@ -75,3 +75,13 @@ test('review modal: daily account selection and its change handler filter actual
   assert.doesNotMatch(app.nodes.get('#review-article').innerHTML, /<img\b/i);
   assert.ok(app.requests.every(request => request.method === 'GET'));
 });
+
+test('a direct review target absent from a cached index is refreshed once and never defaults to another article',async()=>{
+  const app=await client([articles[0]]);await app.run("reviewModal('article-a')");app.run('closeModal()');
+  app.run("let reads=0;api=async()=>{reads++;return [{id:'article-a',account_id:'account-a',title:'Synthetic old'},{id:'external-new',account_id:'account-a',title:'Synthetic external new'}]}");
+  await app.run("reviewModal('external-new')");assert.equal(app.run('reads'),1);
+  assert.match(app.nodes.get('#overlay').innerHTML,/value="external-new" selected/);
+  app.run('closeModal();api=async()=>[]');
+  await assert.rejects(app.run("reviewModal('missing-target')"),/文章不存在或无权访问/);
+  assert.equal(app.nodes.get('#overlay').innerHTML,'');
+});
