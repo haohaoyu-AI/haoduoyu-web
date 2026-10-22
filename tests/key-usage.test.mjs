@@ -1,3 +1,4 @@
+import {traceJSON} from './request-trace-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdir, writeFile} from 'node:fs/promises';
@@ -26,7 +27,7 @@ async function read(app, {path = '/accounts', token = app.key.token, hooks = {}}
   const db = countingDb(app.db, hooks), before = await state(app);
   const response = await worker.fetch(new Request(app.origin + '/api/v1' + path,
     {headers: {Authorization: 'Bearer ' + token}}), {DB: db, SITE_ORIGIN: app.origin});
-  const json = await response.json(), after = await state(app);
+  const json = traceJSON(await response.json(),response.status,response.headers,true), after = await state(app);
   return {status: response.status, json, db, before, after, metrics: {...db.totals(),
     value_changed_rows: Number(before.used !== after.used)}};
 }

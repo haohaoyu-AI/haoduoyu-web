@@ -1,3 +1,5 @@
+import {traceJSON} from './request-trace-projection.mjs';
+import {traceText} from './request-trace-projection.mjs';
 import {stylePolicyHeaders} from './style-policy-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -106,7 +108,7 @@ test('baseline and candidate return identical complete overview bodies, headers 
     for (const [implementation, db] of [[legacy, originalDb], [candidate.default, newDb]]) {
       const response = await implementation.fetch(new Request(app.origin + '/api/v1' + path,
         {headers: authenticated ? {Cookie: app.session.cookie} : {}}), {DB: db, SITE_ORIGIN: app.origin});
-      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: await response.text()});
+      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: traceText(await response.text(), response.status, response.headers)});
     }
     assert.deepEqual(values[1], values[0], path);return values[1];
   }
@@ -138,7 +140,7 @@ test('old/new full responses agree at day, due and insurance boundaries, rollbac
       for (const [i, implementation] of [legacy, candidate.default].entries()) {
         const response = await implementation.fetch(new Request(app.origin + '/api/v1/overview?period=7d',
           {headers: {Cookie: app.session.cookie}}), {DB: dbs[i], SITE_ORIGIN: app.origin});
-        values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: await response.text()});
+        values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: traceText(await response.text(), response.status, response.headers)});
       }
     });
     assert.deepEqual(values[1], values[0], 'exact old/new body at ' + at);return values[1];
@@ -180,7 +182,7 @@ test('a request spanning a day edge keeps its original snapshot but cannot exten
       const db = countingDb(app.db, {before: sql => {if (/FROM matrix_accounts\b/.test(sql)) clock = edge + 1;}});
       const response = await implementation.fetch(new Request(app.origin + '/api/v1/overview',
         {headers: {Cookie: app.session.cookie}}), {DB: db, SITE_ORIGIN: app.origin});
-      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: await response.text()});
+      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: traceText(await response.text(), response.status, response.headers)});
     }
     assert.deepEqual(values[1], values[0]);
     const stats = candidate.overviewCache.stats();
@@ -226,7 +228,7 @@ test('a retry samples a fresh clock after crossing midnight and releases the fir
       }});
       const response = await implementation.fetch(new Request(app.origin + '/api/v1/overview',
         {headers: {Cookie: app.session.cookie}}), {DB: db, SITE_ORIGIN: app.origin});
-      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: await response.text()});
+      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: traceText(await response.text(), response.status, response.headers)});
     }
     assert.deepEqual(values[1], values[0]);assert.equal(values[1].status, 200);
     const stats = candidate.overviewCache.stats();
@@ -244,7 +246,7 @@ test('real scoped keys cannot reuse another identity, empty scope or removed rea
   async function get(token) {
     const response = await candidate.default.fetch(new Request(app.origin + '/api/v1/overview',
       {headers: {Authorization: 'Bearer ' + token}}), {DB: app.counted, SITE_ORIGIN: app.origin});
-    return {status: response.status, body: await response.json()};
+    return {status: response.status, body: traceJSON(await response.json(),response.status,response.headers)};
   }
   await fixed(Date.parse(BENCHMARK.now), async () => {
     const first = await get(keys[0].token), second = await get(keys[1].token);

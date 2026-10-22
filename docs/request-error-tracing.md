@@ -9,7 +9,7 @@
 和复制 headers 新建 Response，不读取、解析、tee 或重新缓冲成功正文/静态文件/缓存 Blob。
 
 错误 JSON 仅在构造时增加顶层 request_id，原 error/code/message/data/status 保留。
-catch 是实际错误出口；另有恢复后幂等回执可携带非 2xx status 的 returned 响应，需在重放
+catch 是实际错误出口；另有恢复后幂等回执可携带 status>=400 的 returned 响应，需在重放
 构造点加顶层 request_id，不改变 data 或持久化的 response_json。每次 replay 都使用新 ID。
 成功 JSON 不加业务字段，缓存与幂等回执均不存 ID。
 
@@ -37,8 +37,44 @@ OpenAPI1.1.0仅增加共有响应头说明和错误顶层可兼容字段。历�
 
 request-trace 模块只拥有服务端 UUID、受控路由/方法、不可变头复制及固定错误分类。
 Worker 只把上下文传至路由和幂等重放；catch 构造时增加顶层 request_id，响应出口加头。
-成功正文、静态字节、缓存流不读取或重新编码。幂等非2xx重放只给响应增加顶层字段，
+成功正文、静态字节、缓存流不读取或重新编码。幂等 status>=400 重放只给响应增加顶层字段，
 不写回 receipt。所有最终500在统一出口尝试一条日志，日志失败不重试、不改变响应。
 
 核心定向7项通过（最初两红转绿，另5项工具/流/安全分类检查）。这只是核心检查点，
 完整权限/幂等/缓存/HTTP wire 与 OpenAPI/历史合同的严格投影尚待完成；不称全阶段通过。
+
+
+## 合同与 HTTP 验证检查点
+
+OpenAPI 保持 1.1.0。所有实际响应文档增加共用 X-Request-Id 引用；Error 顶层增加可选
+request_id，不改变既有 required/error/code/message。恢复的幂等回执只在 status>=400
+增加顶层字段；3xx 不增加正文字段，所有状态仍有新的响应头 ID。ID 不进入 receipt 或缓存。
+
+历史对照 helper 对精确 X-Request-Id 验证 UUIDv4，再仅移除此头；错误 JSON 只在确认顶层
+request_id 与头一致后移除此字段。嵌套业务同名字段、原有完整正文/状态/其他头继续比较。
+真实 fixture 保留 rawJson、raw text 和原始 headers；成功正文不能获得顶层 request_id。
+OpenAPI 对照逐个校验新增描述/schema/引用后，仅投影这些明确新增项，不忽略整个响应定义。
+
+定向17项已通过，包括5类真实500、16并发请求、成功与恢复错误幂等重放、热总览缓存、
+日志 sink 抛错、流零读取/不可变 headers，以及真实 loopback HTTP 登录 Cookie/CSRF、
+GET/HEAD/304 和匿名错误关联。测试只用合成库，日志不输出生成的 canary 或认证值。
+最初红灯仍只有2项；其余测试不是声称已在旧版执行的红灯。
+
+已确认的既有边界：显式带 status=500 的异常，旧 catch 会将其 message 返回到 HTTP。
+在固定基线与候选的同一合成注入中逐字段相同；本次安全日志不含该 message/name/cause。
+这不是日志泄露，也不代表已修复 HTTP 既有反射，未来应独立决定是否改变错误合同。
+HEAD 的 Fetch 内部错误 Response 保持旧 JSON body；真实 HTTP 适配层不发送 HEAD 正文。
+
+
+## 独立审查发现的运行时出口缺口（尚未修复）
+
+真实 Miniflare/workerd loopback HTTP 注入 throw null、throw undefined 和 Error.name getter
+再次抛错三类异常，均返回运行时 text/plain 500，X-Request-Id 缺失，未经过新日志出口。
+这是旧 catch 本身构造响应失败的旧边界，普通异常响应的全部合同测试不能证明覆盖这些值。
+第一次诊断使用超过当前 workerd 支持的日期，启动失败，不作为 HTTP 证据；改用已支持日期
+后3项实际成功发起请求并观测上述结果。没有生产访问或真实秘密。
+
+建议最小差异：仅当原错误分类/响应构造再次抛错时，外层兜底创建已有通用 INTERNAL_ERROR /
+服务暂时不可用 的 JSON 500，再走相同安全头/请求ID/单条日志出口。不改已有受控错误的
+status/code/message 或成功流；但旧运行时 text/plain 500 会改为受控 JSON 500，这是明确
+行为差异，先交主线程审查，不默默实施。当前实现尚不能宣称所有运行时500完整关联。

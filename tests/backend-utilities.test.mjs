@@ -1,3 +1,4 @@
+import {traceHeaders, traceText, traceDocument} from './request-trace-projection.mjs';
 import {dashboardHeaders, dashboardSpec} from './dashboard-deprecation-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -132,7 +133,7 @@ async function previousWorker(t) {
   for (const file of files) {const path = join(dir, file);await mkdir(join(path, '..'), {recursive: true});await writeFile(path, old(file));}
   const changed = execFileSync('git', ['diff', BASE, '--name-only', '--', 'public', 'web', 'runtime.json', '.openai', 'db', 'drizzle'], {cwd: root, encoding: 'utf8'}).trim().split('\n').filter(Boolean);
   assert.deepEqual(changed.filter(file => file !== 'public/openapi.json'), []);
-  assert.deepEqual(dashboardSpec(JSON.parse(await source('public/openapi.json'))), JSON.parse(old('public/openapi.json')));
+  assert.deepEqual(dashboardSpec(traceDocument(JSON.parse(await source('public/openapi.json')))), JSON.parse(old('public/openapi.json')));
   await writeFile(join(dir, 'src/assets.generated.mjs'), await source('src/assets.generated.mjs'));
   await build({entryPoints: [join(dir, 'src/worker.mjs')], outfile: join(dir, 'worker.mjs'), bundle: true, format: 'esm', platform: 'node', target: 'es2022'});
   return (await import(pathToFileURL(join(dir, 'worker.mjs')).href)).default;
@@ -156,7 +157,7 @@ test('pre-5a and candidate HTTP reads retain complete bodies, statuses and heade
     const responses = [];
     for (const worker of [baseline, candidate]) {
       const response = await worker.fetch(new Request(app.origin + path, {headers: cookie ? {Cookie: cookie} : {}}), {DB: app.db, SITE_ORIGIN: app.origin});
-      responses.push({status: response.status, headers: dashboardHeaders(path, response.status, response.headers), body: await response.text()});
+      responses.push({status: response.status, headers: dashboardHeaders(path, response.status, traceHeaders(response.headers)), body: traceText(await response.text(), response.status, response.headers)});
     }
     // Backup contains ephemeral synthetic authentication hashes: never print bodies on failure.
     assert.ok(isDeepStrictEqual(responses[1], responses[0]), path + (cookie ? ' session' : ' anonymous'));compared++;

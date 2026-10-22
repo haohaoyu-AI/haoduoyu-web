@@ -1,3 +1,4 @@
+import {traceHeaders, traceText, traceDocument} from './request-trace-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -48,17 +49,21 @@ async function read(worker, app, path, headers = {}, {db = app.db, method = 'GET
   return {status: response.status, headers: response.headers, body: await response.text()};
 }
 function contract(path, result) {
-  return {status: result.status, body: result.body, headers: dashboardHeaders(path, result.status, result.headers)};
+  return {status: result.status, body: traceText(result.body, result.status, result.headers), headers: dashboardHeaders(path, result.status, traceHeaders(result.headers))};
 }
 test('dashboard deprecation changes only the two OpenAPI additions and one success expression', async () => {
   const spec = JSON.parse(await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8'));
-  const operation = spec.paths['/api/v1/dashboard'].get;
+  const projected = traceDocument(spec), operation = projected.paths['/api/v1/dashboard'].get;
   assert.equal(spec.info.version, '1.1.0');assert.equal(operation.deprecated, true);
   assert.deepEqual(operation.responses['200'].headers, {Deprecation: DEPRECATION_HEADER});
-  assert.deepEqual(dashboardSpec(spec), JSON.parse(old('public/openapi.json')));
+  assert.deepEqual(dashboardSpec(projected), JSON.parse(old('public/openapi.json')));
   const source = await readFile(new URL('../src/worker.mjs', import.meta.url), 'utf8');
   assert.ok(old('src/worker.mjs').includes(originalLine));
-  assert.equal(source, old('src/worker.mjs').replace(originalLine, deprecatedLine));
+  // Preserve D4's original whole-file proof at its approved checkpoint; E2 now
+  // adds only its separately tested wrapper. The current dashboard expression stays exact.
+  const approved = execFileSync('git', ['show', '060b2af771348779aff41a99da0a8deb1fcbb4f4:src/worker.mjs'], {cwd: root, encoding: 'utf8'});
+  assert.equal(approved, old('src/worker.mjs').replace(originalLine, deprecatedLine));
+  assert.equal(source.split(deprecatedLine).length, 2);
 });
 test('dashboard success adds exactly Deprecation true while preserving complete bodies and other headers', async t => {
   const baseline = await previousWorker(t), app = await setup(t);
@@ -101,8 +106,8 @@ test('dashboard failures and every sampled other route keep their original bodie
   for (const [path, headers, options, expected] of cases) {
     const before = await read(baseline, app, path, headers, options), after = await read(current, app, path, headers, options);
     assert.equal(before.status, expected, path);assert.equal(after.headers.has('Deprecation'), false, path);
-    assert.ok(isDeepStrictEqual({status: after.status, headers: [...after.headers], body: after.body},
-      {status: before.status, headers: [...before.headers], body: before.body}), path + ' exact unchanged response');
+    assert.ok(isDeepStrictEqual({status: after.status, headers: [...traceHeaders(after.headers)], body: traceText(after.body, after.status, after.headers)},
+      {status: before.status, headers: [...traceHeaders(before.headers)], body: traceText(before.body, before.status, before.headers)}), path + ' exact unchanged response');
   }
   // The projection itself must reject an expanded scope or incorrect marker.
   for (const [path, status, value] of [['/api/v1/accounts', 200, 'true'], ['/api/v1/dashboard', 401, 'true'], ['/api/v1/dashboard', 200, 'false']]) {

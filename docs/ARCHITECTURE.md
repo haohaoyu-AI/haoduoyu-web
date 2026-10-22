@@ -1,10 +1,10 @@
 # 当前架构
 
-本分支前端源码位于 web/，以无环 ES 模块机械拆分；public/index.html 加载已提交的单一未压缩 ESM 产物 public/app.js，沿用单一 CSS 和原生 JS。登录后保留 URL 深链接。4a 仅机械拆分；4b 已合并 action/表单分发及 GET 生命周期；4c 已合并受控图表 CSSOM 与严格 style CSP。5a 后端等价时间工具与旧认证清理已合并；当前 5b 草稿只标记保留的 dashboard 接口弃用。
+本分支前端源码位于 web/，以无环 ES 模块机械拆分；public/index.html 加载已提交的单一未压缩 ESM 产物 public/app.js，沿用单一 CSS 和原生 JS。登录后保留 URL 深链接。4a 仅机械拆分；4b 已合并 action/表单分发及 GET 生命周期；4c 已合并受控图表 CSSOM 与严格 style CSP。5a 后端等价时间工具与旧认证清理已合并；5b 已合并保留的 dashboard 弃用标记；当前 5c 只增加请求关联和安全错误日志。
 
 Worker 使用 /api/v1 Cookie 会话或受限 AI 凭据；CSRF/Origin、scrypt、安全比较、请求体上限、CSV 防注入和 e/safeURL 保持原样。D1 使用全局 revision 一致读/乐观锁和写入幂等。阶段1不改数据库结构、迁移或绑定。
 
-累计快照与每日新增分别计算；未采集、未取得、真实零及 likes/approvals 保持区分。保险识别、题材推断和关注规则不变。优化前的历史基线没有结果缓存，每次读请求还有控制表维护及凭据元数据写入；这不是当前分支状态。当前 main 基线已包含 C1 的零普通控制写、C2 的五分钟元数据节流、C5 精确失效结果缓存和 C4 轻量读取；C6 SQL 分页也已验收合并；4a 前端模块已合并；4b 已合并；4c 已合并；5a 已合并；本分支推进 5b。已发布的生产 Sites v7 固定版本仅包含 C1～C3，尚未包含 C4/C5/C6；不能把开发分支架构当作线上状态。
+累计快照与每日新增分别计算；未采集、未取得、真实零及 likes/approvals 保持区分。保险识别、题材推断和关注规则不变。优化前的历史基线没有结果缓存，每次读请求还有控制表维护及凭据元数据写入；这不是当前分支状态。当前 main 基线已包含 C1 的零普通控制写、C2 的五分钟元数据节流、C5 精确失效结果缓存和 C4 轻量读取；C6 SQL 分页也已验收合并；4a 前端模块已合并；4b 已合并；4c 已合并；5a 已合并；本分支推进 5c。已发布的生产 Sites v7 固定版本仅包含 C1～C3，尚未包含 C4/C5/C6；不能把开发分支架构当作线上状态。
 
 build.mjs 先使用已有 esbuild 将 web/main.mjs 生成 public/app.js（ESM、不压缩、UTF-8），再将 public 资源嵌入 Worker。CI 在首次 build 之前检查产物与源码逐字节一致，避免覆盖手改产物掩盖错误；check:artifacts 同时保留八资源 pin、生成资源和 Worker 字节检查。模块所有权、原事件顺序和运行状态归属见 frontend-modules.md 与 frontend-module-map.json。
 
@@ -47,7 +47,16 @@ CSP 仅删除 style-src 的 unsafe-inline，浮层位置、body overflow 和动�
 shared/auth 仅删除仓库内无消费者的五个旧同步函数；在线 security/storage/worker 的
 同名实现及所有安全机制保留。引用清单和等价验证见 backend-utilities.md。
 
-阶段 5b（草稿、未部署）：/api/v1/dashboard 的原成功 200 只增加 Deprecation: true，
+阶段 5b（已合并、未部署）：/api/v1/dashboard 的原成功 200 只增加 Deprecation: true，
 其他响应不加；计算、范围和数据合同保留。OpenAPI 1.1.0 仅增加该 operation 的
 弃用标记与成功头描述，没有删除日期、Sunset 或自动清理。是否最终删除由站长另决。
-完整旧新对照及公开文档摘要扫描告警见 dashboard-deprecation.md；E2 不在本 PR。
+完整旧新对照及公开文档摘要扫描告警见 dashboard-deprecation.md。
+
+
+阶段 5c（草稿、未部署）：每次 fetch 入口创建服务端 UUID，上下文显式传递，不使用全局
+可变请求状态或客户端 ID。出口给所有响应追加 X-Request-Id；catch 和 status>=400 的
+幂等回执只在创建错误 JSON 时追加顶层 request_id，业务缓存和持久 receipt 不存此值。
+不解析、重编码或缓冲成功 JSON、静态正文或总览流。最终500在出口尝试一条固定字段日志，
+路由仅为受控模板，方法/类别/消息均受控，不读取原异常 message/name/stack/cause 或请求
+秘密；非500不新增错误日志，sink 异常不影响响应。既有显式500 HTTP message反射与
+Fetch内部HEAD错误正文保留；安全分类、严格合同投影及真实HTTP证据见 request-error-tracing.md。

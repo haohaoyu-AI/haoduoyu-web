@@ -1,3 +1,4 @@
+import {assertRequestId, traceJSON} from './request-trace-projection.mjs';
 import { Miniflare } from 'miniflare';
 import { readFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
@@ -30,7 +31,9 @@ export async function fixture(t,{persist=false,port=0,origin=ORIGIN,username=USE
     if(!['GET','HEAD'].includes(method)&&!Object.hasOwn(requestHeaders,'Origin')) requestHeaders.Origin=origin;
     const response=await mf.dispatchFetch(origin+path,{method,headers:requestHeaders,body:body===undefined?undefined:JSON.stringify(body),redirect:'manual'});
     const text=await response.text();let json;try{json=JSON.parse(text);}catch{}
-    return {status:response.status,headers:response.headers,text,json,data:json?.data};
+    const rawJson=json;assertRequestId(response.headers,true);
+    if(json!==undefined)json=traceJSON(json,response.status,response.headers,true);
+    return {status:response.status,headers:response.headers,text,json,rawJson,data:json?.data};
   }
   if(bootstrap) {
     const result=await request('/api/v1/bootstrap',{method:'POST',token:bootstrapSecret,body:{username,password}});
