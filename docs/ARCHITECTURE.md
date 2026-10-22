@@ -4,7 +4,7 @@
 
 Worker 使用 /api/v1 Cookie 会话或受限 AI 凭据；CSRF/Origin、scrypt、安全比较、请求体上限、CSV 防注入和 e/safeURL 保持原样。D1 使用全局 revision 一致读/乐观锁和写入幂等。阶段1不改数据库结构、迁移或绑定。
 
-累计快照与每日新增分别计算；未采集、未取得、真实零及 likes/approvals 保持区分。保险识别、题材推断和关注规则不变。当前仍无结果缓存，读请求仍有控制表维护和凭据元数据写入；这些未来优化目标尚未完成。
+累计快照与每日新增分别计算；未采集、未取得、真实零及 likes/approvals 保持区分。保险识别、题材推断和关注规则不变。优化前的历史基线没有结果缓存，每次读请求还有控制表维护及凭据元数据写入；这不是当前分支状态。当前分支已包含 C1 的零普通控制写、C2 的五分钟元数据节流，以及待验收的 C5 精确失效结果缓存。已发布的生产 Sites v7 固定版本包含 C1～C3，但尚未包含本 PR 的 C5；不能把开发分支架构当作线上状态。
 
 build.mjs 将 public 资源嵌入后打包 Worker。check:artifacts 校验 public 哈希、生成模块和实际 Worker 返回字节。任何有意前端变更须更新审阅后的 pin；阶段4新增模块源码时必须切换到可复现 esbuild 产物对比，不能沿用 pin 检查冒充源码构建一致性。
 
@@ -20,7 +20,7 @@ build.mjs 将 public 资源嵌入后打包 Worker。check:artifacts 校验 publi
 
 第二期 B5：登录后保留 URL 深链接是既有的有意行为。init 实际认证并加载账号后，readRoute() 读取和校验有效的页面、账号、筛选、排序、分页、字段及周期参数，updateRoute 规范化 URL，不按 freshLogin 清空有效筛选。刷新及浏览器前进/后退沿用同一解析规则。freshLogin 在 init 中仍重置趋势/关注展开状态，必须保留；本次只删除给无参 readRoute 传入的对象，不改此重置或认证流程。
 
-阶段 3 C1：普通 API 仅用一条 SELECT 同时检查 initialized/revision，不再运行 ensureControl 写入。bootstrap 与恢复保留初始化。protectedRead 将已读 revision 仅供 consistentRead 第一次 before 使用；重试重新读取并重新执行包含鉴权的 operation，出口检查保留，mutate 不接收它。会话 GET 零写，AI last_used_at 元数据写仍保留给 C2，见 perf-baseline.md。
+阶段 3 C1：普通 API 仅用一条 SELECT 同时检查 initialized/revision，不再运行 ensureControl 写入。bootstrap 与恢复保留初始化。protectedRead 将已读 revision 仅供 consistentRead 第一次 before 使用；重试重新读取并重新执行包含鉴权的 operation，出口检查保留，mutate 不接收它。会话 GET 零写；C1 当时保留的 AI last_used_at 写入已由后续 C2 节流，当前行为见下段及 perf-baseline.md。
 
 凭据 GET 的 last_used_at 是独立展示元数据：认证内部携带既有值，以最终一致读成功轮决定首次/严格超过五分钟的同步更新；应用层与 SQL 用相同截止时间，恰边界/未来跳过，不额外 SELECT、不推进业务 revision。并发可发多个 UPDATE，仅SQL条件匹配的请求更新；更新失败沿用500。
 

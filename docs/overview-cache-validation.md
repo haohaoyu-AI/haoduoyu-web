@@ -30,11 +30,15 @@
 
 Inspector 工具只监听隔离回环端口；生产 runtime.json 和安全配置未修改。最初外部临时模块路径导致 workerd 启动失败，显式 modulesRoot 后恢复；记录不代表权限绕过。最终本地 workerd 冷/热返回 200、正文一致，且与 Node 同场总览的完整正文 hash 相符。
 
+原始 workerd 报告明确含 `sampling_error=true`：18 个采样点只有 4 组不同数值，大量重复，且没有逐点时间戳。该错误的具体原因未定位；不能证明持续采样成功、25 ms 覆盖或完整峰值。原始 JSON 保持不变，不删错误标记。
+
+workerd 诊断的 `requests[].ms` 在读取完整正文后还等待了 `await sample()`，因此包含 Inspector 诊断等待；它不是主 78 样本的端到端计时口径，不用于替代主基准的冷/热数字或计算性能收益。
+
 **仍未取得 Cloudflare 完整 isolate 峰值证明。** Inspector 仅返回 V8 usedSize/totalSize/embedderHeapUsedSize/backingStorageSize；同步计算可使诊断排队，25 ms 意图采样不等于实际峰值覆盖。不同字段最大值不一定同一时刻，也不能拿 heap 容量、Node RSS 或逻辑缓存账相互替代。冷查询对象、stringify 临时值、运行时开销和消费者保留的数据不在 16 MiB 缓存账内。因此没有把“生产内存上限已验收”勾通过。
 
 ## 保存与范围
 
-核心实现先后保存在远端 9e9a153、eaafb284。最后两项审计文件通过已有官方 GitHub 连接保存为 dc341245，完整树 4153ce98d24b5b086b9d9dd82bca402212c74a24 与本地 2737af1 完全相同；Git CLI 当时缺少凭据，未新建或扩权凭据。后续结果提交只增文档、诊断工具/合成报告，不改变已审产品源文件。
+核心实现先后保存在远端 9e9a153、eaafb284。最后两项审计文件通过已有官方 GitHub 连接保存为 dc341245，完整树 4153ce98d24b5b086b9d9dd82bca402212c74a24 与本地 2737af1 完全相同；Git CLI 当时缺少凭据，未新建或扩权凭据。相对 dc341245，结果提交新增了两个浏览器诊断脚本 `tests/browser-overview-cache.py` 与 `tests/overview-cache-browser-server.mjs`，并更新文档与合成报告；不是只有文档变化。已审产品源文件保持不变。
 
 public 全部资源、hosting/runtime、db/schema、drizzle 与基线无差异。全历史扫描继续使用原 147 条精确已审历史指纹，未新增宽范围排除；本轮本地 75 个内容提交扫描无未豁免命中，不等于历史原始扫描零命中。最终远端完整历史扫描结果以对应 CI 为准。所有基准和截图只使用临时合成数据，不上传私有旧历史包、生产数据或原始敏感扫描明细。
 
