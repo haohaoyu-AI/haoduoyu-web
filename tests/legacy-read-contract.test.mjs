@@ -1,3 +1,4 @@
+import {dashboardHeaders, dashboardSpec} from './dashboard-deprecation-projection.mjs';
 import {stylePolicyHeaders} from './style-policy-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -32,7 +33,7 @@ async function legacyWorker(t) {
   return (await import(pathToFileURL(join(directory, 'dist/server/index.js')).href)).default;
 }
 function project(path, json) {
-  const value = structuredClone(json);
+  const value = path === '/openapi.json' ? dashboardSpec(json) : structuredClone(json);
   if (path === '/api/v1/auth/me' && value.data) delete value.data.id;
   if (path === '/api/v1/audit' && value.data) {
     value.data = value.data.map(({entity_label, ...row}) => row);
@@ -189,7 +190,7 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
           headersForComparison.set('Cache-Control', 'no-store');
           headersForComparison.delete('ETag');headersForComparison.delete('Content-Length');
         }
-        responses.push({status: response.status, headers: [...stylePolicyHeaders(headersForComparison)],
+        responses.push({status: response.status, headers: dashboardHeaders(path, response.status, stylePolicyHeaders(headersForComparison)),
           body: json ? project(path, JSON.parse(text)) : text});
       }
       // Backup holds only synthetic hashes, but never dump even those on a failed assertion.

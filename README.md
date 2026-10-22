@@ -1,6 +1,6 @@
 # 好多鱼图文
 
-原生 JavaScript 工作台与 Cloudflare Worker/D1 API。阶段 1、阶段 2 B1～B5、阶段 3 C1～C6 和阶段 4a/4b/4c 已验收合并。当前阶段 5a 草稿仅抽取等价时间工具并删除确认无调用的旧认证代码；dashboard 弃用、日志/request_id、安全方案及最终验收尚未完成。
+原生 JavaScript 工作台与 Cloudflare Worker/D1 API。阶段 1、阶段 2 B1～B5、阶段 3 C1～C6 和阶段 4a/4b/4c 已验收合并。阶段 5a 也已验收合并。当前 5b 草稿只给保留的 dashboard 成功响应和 OpenAPI 加弃用标记；日志/request_id、安全方案及最终验收尚未完成。
 
 生产仍为经单独确认发布的 Sites v7（源码 f21c9ed3），仅包含本轮 C1～C3；开发分支不会自动上线。后续部署必须再次明确确认。数据库结构、界面样式和数据语义保持不变。
 
@@ -48,4 +48,4 @@ python3 tests/browser-frontend-lifecycle-regression.py --part all
 
 [阶段 2 契约](docs/phase2-summary.md)、[C4 轻量读取](docs/reviews-light-reads.md)、[C5 缓存](docs/overview-cache-validation.md)、[C6 分页](docs/article-sql-page.md)、[4a 机械拆分](docs/frontend-modules.md)分别保留当时测试数量及限制。当前总数以精确提交的 npm test / CI 输出为准，不能把多个阶段计数相加。
 
-全历史扫描保留 151 条已审阅的精确历史指纹；原始扫描并非零命中，不排除整个目录或自动追加例外，见[扫描说明](docs/security/secret-scan-exceptions.md)。阶段 PR 经 CI 和独立验收后才能 squash 合并；CI 尚未设置为 GitHub 必要合并检查。v5-ui-refactor 只是 Git 基线标签，不是生产版本。
+全历史扫描保留 152 条已审阅的精确历史指纹；原始扫描并非零命中，不排除整个目录或自动追加例外，见[扫描说明](docs/security/secret-scan-exceptions.md)。阶段 PR 经 CI 和独立验收后才能 squash 合并；CI 尚未设置为 GitHub 必要合并检查。v5-ui-refactor 只是 Git 基线标签，不是生产版本。
