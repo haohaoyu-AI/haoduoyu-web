@@ -1,0 +1,2 @@
+# Preserve migration and snapshot bytes used by the immutable history hash check.
+drizzle/** -text

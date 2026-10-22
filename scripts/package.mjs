@@ -1,0 +1,14 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { readFile,writeFile,mkdir } from 'node:fs/promises';
+import { dirname,resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+const exec=promisify(execFile),root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const artifacts=resolve(root,'artifacts');await mkdir(artifacts,{recursive:true});
+const archive=resolve(artifacts,'haoduoyu-matrix-new.tar');
+await exec('tar',['-cf',archive,'-C',resolve(root,'dist'),'.openai','server']);
+const bytes=await readFile(archive),sha256=createHash('sha256').update(bytes).digest('hex');
+const hosting=JSON.parse(await readFile(resolve(root,'dist/.openai/hosting.json'),'utf8'));
+await writeFile(resolve(artifacts,'package-manifest.json'),JSON.stringify({archive:'haoduoyu-matrix-new.tar',sha256,hosting,scope:'Fresh matrix database only; no legacy source, production data, secrets, or R2 objects'},null,2)+'\n');
+console.log('Packaged standalone Worker and generated matrix migration; SHA-256 '+sha256);
