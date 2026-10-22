@@ -13,7 +13,8 @@
     "dev": "node scripts/build.mjs && node scripts/preview.mjs",
     "check:artifacts": "node scripts/check-artifacts.mjs",
     "check:previews": "node scripts/check-previews.mjs",
-    "preview:analytics": "node scripts/build.mjs && node scripts/preview-analytics.mjs"
+    "preview:analytics": "node scripts/build.mjs && node scripts/preview-analytics.mjs",
+    "bench:overview": "node --expose-gc tests/bench.overview.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

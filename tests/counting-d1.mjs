@@ -11,7 +11,7 @@ export function countingDb(db, {before, after} = {}) {
     entries.push(row);
     const result = await action();
     assert.equal(typeof result.meta?.rows_written, 'number', 'real D1 rows_written receipt required');
-    Object.assign(row, {changes: write ? result.meta.changes : 0, rows_written: result.meta.rows_written});
+    Object.assign(row, {changes: write ? result.meta.changes : 0, rows_written: result.meta.rows_written, rows_read: result.meta.rows_read});
     await after?.(sql, result);
     return result;
   }
@@ -41,7 +41,7 @@ export function countingDb(db, {before, after} = {}) {
       const results = await db.batch(statements.map(statement => statement[native]));
       results.forEach((result, i) => {
         assert.equal(typeof result.meta?.rows_written, 'number');
-        Object.assign(rows[i], {changes: rows[i].write ? result.meta.changes : 0, rows_written: result.meta.rows_written});
+        Object.assign(rows[i], {changes: rows[i].write ? result.meta.changes : 0, rows_written: result.meta.rows_written, rows_read: result.meta.rows_read});
       });
       return results;
     },
@@ -51,6 +51,8 @@ export function countingDb(db, {before, after} = {}) {
       metadata_writes: entries.filter(row => row.metadata).length,
       matched_changes: entries.filter(row => row.write).every(row => typeof row.changes === 'number')
         ? entries.filter(row => row.write).reduce((sum, row) => sum + row.changes, 0) : null,
+      d1_rows_read: entries.every(row => typeof row.rows_read === 'number')
+        ? entries.reduce((sum, row) => sum + row.rows_read, 0) : null,
       d1_rows_written: entries.every(row => typeof row.rows_written === 'number')
         ? entries.reduce((sum, row) => sum + row.rows_written, 0) : null};},
   };
