@@ -1453,6 +1453,17 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "Deprecation": {
+                "description": "该接口已弃用但继续保留兼容；尚无删除日期。",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                }
+              }
             }
           },
           "400": {
@@ -1478,7 +1489,8 @@
           {
             "$ref": "#/components/parameters/AccountFilter"
           }
-        ]
+        ],
+        "deprecated": true
       }
     },
     "/api/v1/api-keys": {

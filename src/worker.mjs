@@ -78,7 +78,7 @@ async function protectedRead(db,request,route,query,initialRevision) {
     if(route==='/due-reviews') return json(await records.dueReviews(query,actor.scope));
     if(route==='/observations') return json(await records.listObservations(query,actor.scope));
     if(route==='/daily-metrics') return json(await records.listDaily(query,actor.scope));
-    if(route==='/dashboard') return json(await records.dashboard(query.account_id||null,actor.scope));
+    if(route==='/dashboard') return json(await records.dashboard(query.account_id||null,actor.scope),200,{Deprecation:'true'});
     if(route==='/overview') {
       // Match the original records.overview default-time evaluation point.
       const at=Date.now(),key=overviewCache.key(db,before,query,actor);

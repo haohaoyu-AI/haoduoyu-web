@@ -1,3 +1,4 @@
+import {dashboardHeaders, dashboardSpec} from './dashboard-deprecation-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -129,7 +130,9 @@ async function previousWorker(t) {
   const dir = await mkdtemp(join(tmpdir(), 'synthetic-5a-reference-'));t.after(() => rm(dir, {recursive: true, force: true}));
   const files = execFileSync('git', ['ls-tree', '-r', '--name-only', BASE, 'src', 'shared'], {cwd: root, encoding: 'utf8'}).trim().split('\n');
   for (const file of files) {const path = join(dir, file);await mkdir(join(path, '..'), {recursive: true});await writeFile(path, old(file));}
-  assert.equal(execFileSync('git', ['diff', BASE, '--name-only', '--', 'public', 'web', 'runtime.json', '.openai', 'db', 'drizzle'], {cwd: root, encoding: 'utf8'}), '');
+  const changed = execFileSync('git', ['diff', BASE, '--name-only', '--', 'public', 'web', 'runtime.json', '.openai', 'db', 'drizzle'], {cwd: root, encoding: 'utf8'}).trim().split('\n').filter(Boolean);
+  assert.deepEqual(changed.filter(file => file !== 'public/openapi.json'), []);
+  assert.deepEqual(dashboardSpec(JSON.parse(await source('public/openapi.json'))), JSON.parse(old('public/openapi.json')));
   await writeFile(join(dir, 'src/assets.generated.mjs'), await source('src/assets.generated.mjs'));
   await build({entryPoints: [join(dir, 'src/worker.mjs')], outfile: join(dir, 'worker.mjs'), bundle: true, format: 'esm', platform: 'node', target: 'es2022'});
   return (await import(pathToFileURL(join(dir, 'worker.mjs')).href)).default;
@@ -153,10 +156,10 @@ test('pre-5a and candidate HTTP reads retain complete bodies, statuses and heade
     const responses = [];
     for (const worker of [baseline, candidate]) {
       const response = await worker.fetch(new Request(app.origin + path, {headers: cookie ? {Cookie: cookie} : {}}), {DB: app.db, SITE_ORIGIN: app.origin});
-      responses.push({status: response.status, headers: [...response.headers], body: await response.text()});
+      responses.push({status: response.status, headers: dashboardHeaders(path, response.status, response.headers), body: await response.text()});
     }
     // Backup contains ephemeral synthetic authentication hashes: never print bodies on failure.
     assert.ok(isDeepStrictEqual(responses[1], responses[0]), path + (cookie ? ' session' : ' anonymous'));compared++;
   }
-  t.diagnostic(compared + ' full-body/header/status comparisons; no volatile-field projection or CSP normalization');
+  t.diagnostic(compared + ' full-body/status comparisons; only the exact authorized dashboard header addition projected, no other header/body normalization');
 });

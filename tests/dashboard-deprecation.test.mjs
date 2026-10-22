@@ -85,11 +85,14 @@ test('dashboard failures and every sampled other route keep their original bodie
   const baseline = await previousWorker(t), app = await setup(t), admin = {Cookie: app.session.cookie};
   const bearer = {Authorization: 'Bearer ' + app.key.token};
   const failing = {prepare(sql) {if (/FROM matrix_accounts\b/.test(sql)) throw new Error('Synthetic dashboard calculation failure');return app.db.prepare(sql);}};
+  const metadataFailure = {prepare(sql) {if (/^UPDATE matrix_api_keys SET last_used_at/.test(sql)) throw new Error('Synthetic usage metadata failure');return app.db.prepare(sql);}};
+  await app.db.prepare('UPDATE matrix_api_keys SET last_used_at=NULL WHERE id=?').bind(app.key.id).run();
   const cases = [
     ['/api/v1/dashboard', {}, {}, 401],
     ['/api/v1/dashboard?account_id=' + app.accounts[1].id, bearer, {}, 403],
     ['/api/v1/dashboard?account_id=synthetic-missing', admin, {}, 404],
     ['/api/v1/dashboard', admin, {db: failing}, 500],
+    ['/api/v1/dashboard', bearer, {db: metadataFailure}, 500],
     ['/api/v1/dashboard', admin, {method: 'HEAD'}, 404],
     ...['/health', '/api/v1/auth/me', '/api/v1/accounts', '/api/v1/articles', '/api/v1/observations',
       '/api/v1/daily-metrics', '/api/v1/overview', '/api/v1/due-reviews', '/app.js'].map(path => [path, admin, {}, 200]),
