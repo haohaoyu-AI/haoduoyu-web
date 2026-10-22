@@ -238,12 +238,17 @@ export default {
     let response,caughtError,didThrow=false;
     try {response=await handle(request,env,trace);} catch(error) {
       caughtError=error;didThrow=true;
-      const duplicate=/UNIQUE constraint failed/.test(String(error));
-      const status=error.status||(duplicate?409:500),code=error.status?error.code:duplicate?'DUPLICATE':'INTERNAL_ERROR';
-      const message=error.status?error.message:duplicate?'记录已存在，请检索后更新原记录':'服务暂时不可用';
-      response=Response.json({error:{code,message},request_id:trace.rid},{status});
-      if(status===429) response.headers.set('Retry-After','900');
-      if(status===503) response.headers.set('Retry-After','1');
+      try {
+        const duplicate=/UNIQUE constraint failed/.test(String(error));
+        const status=error.status||(duplicate?409:500),code=error.status?error.code:duplicate?'DUPLICATE':'INTERNAL_ERROR';
+        const message=error.status?error.message:duplicate?'记录已存在，请检索后更新原记录':'服务暂时不可用';
+        response=Response.json({error:{code,message},request_id:trace.rid},{status});
+        if(status===429) response.headers.set('Retry-After','900');
+        if(status===503) response.headers.set('Retry-After','1');
+      } catch {
+        // Only the old error renderer failed; never inspect the secondary error.
+        response=Response.json({error:{code:'INTERNAL_ERROR',message:'服务暂时不可用'},request_id:trace.rid},{status:500});
+      }
     }
     response=withRequestId(response,trace);
     if(!response.headers.has('Cache-Control')) response.headers.set('Cache-Control','no-store');

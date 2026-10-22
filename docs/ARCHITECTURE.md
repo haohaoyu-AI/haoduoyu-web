@@ -59,4 +59,4 @@ shared/auth 仅删除仓库内无消费者的五个旧同步函数；在线 secu
 不解析、重编码或缓冲成功 JSON、静态正文或总览流。最终500在出口尝试一条固定字段日志，
 路由仅为受控模板，方法/类别/消息均受控，不读取原异常 message/name/stack/cause 或请求
 秘密；非500不新增错误日志，sink 异常不影响响应。既有显式500 HTTP message反射与
-Fetch内部HEAD错误正文保留；安全分类、严格合同投影及真实HTTP证据见 request-error-tracing.md。
+Fetch内部HEAD错误正文保留；原catch自身失败的运行时500已获准窄化为固定JSON500并关联，不改变原受控错误。安全分类、严格合同投影及真实HTTP证据见 request-error-tracing.md。

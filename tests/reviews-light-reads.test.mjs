@@ -18,7 +18,7 @@ async function read(app,path,headers={Cookie:app.session.cookie},implementation=
   app.counted.entries.length=0;
   const response=await implementation.fetch(new Request(app.origin+'/api/v1'+path,{headers}),{DB:app.counted,SITE_ORIGIN:app.origin});
   const text=await response.text();
-  return {status:response.status,bytes:Buffer.byteLength(text),body:traceJSON(JSON.parse(text),response.status,response.headers,true),sql:app.counted.entries.map(x=>x.sql),counts:app.counted.totals()};
+  return {status:response.status,bytes:Buffer.byteLength(text),body:traceJSON(JSON.parse(text),response.status,response.headers,implementation===worker),sql:app.counted.entries.map(x=>x.sql),counts:app.counted.totals()};
 }
 test('due-only API matches the complete overview due list without computing daily or cumulative fields',async t=>{
   const app=await setup(t);

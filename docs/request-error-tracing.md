@@ -66,7 +66,7 @@ GET/HEAD/304 和匿名错误关联。测试只用合成库，日志不输出生�
 HEAD 的 Fetch 内部错误 Response 保持旧 JSON body；真实 HTTP 适配层不发送 HEAD 正文。
 
 
-## 独立审查发现的运行时出口缺口（尚未修复）
+## 修复前的运行时出口缺口（保留当时说明，修补见下节）
 
 真实 Miniflare/workerd loopback HTTP 注入 throw null、throw undefined 和 Error.name getter
 再次抛错三类异常，均返回运行时 text/plain 500，X-Request-Id 缺失，未经过新日志出口。
@@ -84,3 +84,24 @@ status/code/message 或成功流；但旧运行时 text/plain 500 会改为受�
 原始本地诊断日志与脚本保留在 /workspace/scratch/phase5c-runtime-*，不将启动失败当观测成功。
 完整回归还发现旧缓存测试比较两次请求的全部头，因新增请求ID必然不同而失败；修订为验证
 两个UUID且彼此不同，再仅投影此新增头，其他头/正文仍全等。单项复测通过，原失败日志保留。
+
+
+## 获批的最小运行时兜底
+
+主线程在真实 wire 证据后批准：仅包围原错误分类与响应构造；其再次抛错时创建固定通用
+INTERNAL_ERROR / 服务暂时不可用 的 JSON500，进入同一出口加头并记录一次日志。内层
+不另行记录、不检查二次异常。已能正常构造的旧错误状态/码/消息和业务响应保持原合同。
+唯一明确差异是上述原运行时 text/plain500 现在成为受控 JSON500 + 顶层ID和安全响应头；
+这项差异不投影为旧新完全相同。系统级崩溃、运行时资源耗尽或处理器之外的故障不在保证范围。
+
+新增真实 Miniflare/workerd HTTP 用例先在未补版本失败（runtime-red.log），三类原始 wire
+结果保留在 runtime-boundary.json。补后并发3请求均有不同服务端UUID，头/正文/日志一致，
+日志准确3条、无客户端标识或canary；固定基线仍实际返回原运行时500。相关16项定向检查
+全过，另两项历史测试适配各单项通过。没有以 Node mock 冒充 workerd wire。
+
+初次完整239项为237通过/2失败：分别是冷/热新增ID差异、referenceWorker错误地要求新头。
+前者各验合法且不同的UUID、只剔该头再全比；后者显式 candidate 必须有头，旧reference允许
+缺省但出现时仍校验。两项原失败日志保留，未放松其它字段或生产代码。新增兜底用例后完整
+集合为240项，最终结果以本PR精确head CI输出为准；不把中间或定向通过当全量通过。
+
+不重跑无关UI/大基准；public/app.js仍115637B、CSS28000B，生产v7和既有strictPNG缺口不变。

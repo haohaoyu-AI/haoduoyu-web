@@ -1,0 +1,28 @@
+✖ real workerd HTTP narrowly recovers catch-construction failures with one safe correlated record per request (4315.413899ms)
+ℹ Real wire: null/undefined/throwing Error.name baseline all runtime500 without ID; candidate expected bounded JSON500
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6842.268319
+
+✖ failing tests:
+
+test at tests/request-trace-runtime-fallback.test.mjs:52:1
+✖ real workerd HTTP narrowly recovers catch-construction failures with one safe correlated record per request (4315.413899ms)
+  AssertionError [ERR_ASSERTION]: valid server request ID
+      at assertRequestId (file:///workspace/haoduoyu-opt-phase5c-request-error-tracing/tests/request-trace-projection.mjs:13:39)
+      at TestContext.<anonymous> (file:///workspace/haoduoyu-opt-phase5c-request-error-tracing/tests/request-trace-runtime-fallback.test.mjs:64:48)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    operator: 'match',
+    diff: 'simple'
+  }
