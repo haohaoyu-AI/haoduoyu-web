@@ -8,7 +8,7 @@ function client(search=''){
  const events={},windowEvents={},nodes=new Map(),entries=['http://localhost/'+search];let index=0;
  const location={href:entries[0],search};
  const locate=url=>{location.href=String(url);location.search=new URL(url).search};
- const node=()=>({innerHTML:'',firstChild:null,contains(){return false},style:{},setAttribute(){}});
+ const node=()=>({innerHTML:'',firstChild:null,querySelectorAll(){return []},contains(){return false},style:{},setAttribute(){}});
  for(const id of ['#app','#overlay','#page-content'])nodes.set(id,node());
  const document={querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>[],addEventListener:(k,f)=>events[k]=f,body:{style:{}},activeElement:null};
  const history={replaceState:(_,__,url)=>{entries[index]=String(url);locate(url)},pushState:(_,__,url)=>{entries.splice(++index);entries[index]=String(url);locate(url)}};

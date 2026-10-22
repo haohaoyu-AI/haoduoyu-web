@@ -137,7 +137,7 @@ data-status="date_unverified">日期待核实 ${e(num(c.unverified_date_count))}
 function renderPublicationTrend(data) {
   const rows = data.publication_trend || [], max = Math.max(1, ...rows.map((r) => r.accounts.reduce((n, a) => n + a.count, 0)));
   return `<div class="publication-bars" aria-label="本站每日发布量">${rows.map((row) => `<div><span>${e(row.date.slice(5))}</span><div \
-class="publication-stack">${row.accounts.map((a) => `<i style="height:${e(a.count / max * 80)}px;background:${e(platformColor((data.accounts ||
+class="publication-stack">${row.accounts.map((a) => `<i data-chart-height="${e(a.count / max * 80)}" data-chart-color="${e(platformColor((data.accounts ||
   []).find((v) => v.id === a.account_id)?.platform))}" title="${e(accountName(a.account_id))} ${e(num(a.count))}篇"></i>`).join(
     "")}</div><strong>${e(num(row.accounts.reduce((n, a) => n + a.count, 0)))}</strong></div>`).join("")}</div>`;
 }
@@ -176,7 +176,7 @@ function renderTrend(data) {
   indexOf(d))}" y="190" text-anchor="middle">${e(d.date.slice(5))}</text>`).join("")}</svg>` : "";
   const selected = dates.find((d) => d.date === state.trendDate) || dates.at(-1);
   return `${dataDays < 2 ? `<div class="empty inline-empty" role="status">数据不足：${e(num(dataDays))}天有该项真实日数据。</div>` :
-  ""}${drawing}<div class="chart-legend">${accounts.map((a, i) => `<span><i class="legend-dot" style="background:${e(colors[i % colors.
+  ""}${drawing}<div class="chart-legend">${accounts.map((a, i) => `<span><i class="legend-dot" data-chart-color="${e(colors[i % colors.
     length])}"></i>${e(accountLabel(a))}</span>`).join("")}</div><label class="trend-date-label">点按查看每日读数<select id="trend-date" class="input">${dates.
   map((d) => `<option value="${e(d.date)}" ${selected?.date === d.date ? "selected" : ""}>${e(d.date)}</option>`).join("")}</select></label>\
 <div class="trend-readout" aria-live="polite">${selected ? `<strong>${e(selected.date)}</strong>${accounts.map((a) => {

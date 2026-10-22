@@ -40,14 +40,26 @@ function animatePageEntry(container) {
     stopPageEntry();
   }
 }
+function applyChartStyles(container) {
+  for (const node of container.querySelectorAll(".publication-bars i[data-chart-color],.legend-dot[data-chart-color]")) {
+    const color = node.dataset.chartColor;
+    node.style.setProperty("--plot-color", /^var\(--p-(?:toutiao|zhihu|wechat|other)\)$/.test(color) ? color : "var(--p-other)");
+    if (node.hasAttribute("data-chart-height")) {
+      const height = Number(node.dataset.chartHeight);
+      node.style.setProperty("--h", Number.isFinite(height) && height >= 0 && height <= 80 ? `${height}px` : "0px");
+    }
+  }
+}
 function replacePageContent(html, animate = false) {
   stopPageEntry();
   const content = $("#page-content");
   if (!content) return;
   content.innerHTML = html;
+  applyChartStyles(content);
   if (animate) animatePageEntry(content);
 }
 export {
+  applyChartStyles,
   animatePageEntry,
   replacePageContent,
   stopPageEntry

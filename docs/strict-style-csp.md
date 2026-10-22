@@ -25,3 +25,21 @@ style-src unsafe-inline。之后将检查 HTML/静态资源/API/304/错误路径
 参考 CSSOM 与 CSP 的区别：
 https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/style-src
 及 https://www.w3.org/TR/CSP3/ 。最终结果以真实浏览器证据为准。
+
+## 恢复后的实现检查点
+
+原环境断开后已恢复同一工作区。未提交实现先归档，无 reset/清理。
+图表两处模板改为转义数据属性，replacePageContent 在写入 HTML 后、
+动画前用 CSSOM 设置白名单颜色和 0～80 有限高度；CSS 读取变量。
+worker 仅删除 style-src 的 unsafe-inline，未改路由或业务。
+
+中断前定向 65 项为 64 过/1 失败；唯一失败进一步定位为故障请求漏传 SITE_ORIGIN，进入配置检查
+返回 503，误期待 500。修正请求上下文并在真实鉴权后注入账号读取
+故障，保留原失败日志，不改产品错误码。旧契约比较只显式投影这一条
+已授权 CSP 令牌变化，并仍断言整条策略只能是准确旧版或准确严格版，
+不删除或忽略安全头。模板结构比较只允许两处已知属性替换及一个明确
+的 CSSOM hook，其余模板/回调/声明仍锁定。
+
+现有 GitHub App 是保存通道；CLI 凭据无效，不再重试、不新建 token。
+当前可读 bundle 115649 B，超 100000 B 仍未通过。真实浏览器、computed
+styles、正常零 CSP 违规及反向控制尚待完成，不能据定向测试宣称验收。

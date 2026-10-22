@@ -187,13 +187,13 @@ textarea.input { min-height:96px; resize:vertical; padding:var(--s2); }
 .chart { display:block; width:100%; height:auto; max-height:240px; overflow:visible; }
 .chart text { fill:var(--ink-2); font-family:inherit; font-size:var(--fs-xs); }
 .chart-legend { gap:var(--s3); margin-top:var(--s4); }
-.legend-dot { display:inline-block; width:var(--s2); height:var(--s2); margin-right:var(--s2); border-radius:50%; }
+.legend-dot { display:inline-block; width:var(--s2); height:var(--s2); margin-right:var(--s2); border-radius:50%; background:var(--plot-color); }
 .trend-date-label { gap:var(--s3); margin-top:var(--s4); font-size:var(--fs-sm); }
 .trend-readout { display:flex; flex-wrap:wrap; gap:var(--s2) var(--s4); margin:var(--s3) 0; background:var(--surface-2); font-size:var(--fs-sm); }
 .trend-readout strong { flex-basis:100%; }
 .publication-bars { display:flex; align-items:flex-end; gap:var(--s2); min-height:120px; overflow-x:auto; margin:var(--s4) 0; padding-bottom:var(--s2); }
 .publication-bars>div { display:flex; flex:1; flex-direction:column; align-items:center; gap:var(--s1); min-width:40px; color:var(--ink-2); font-size:var(--fs-xs); }
-.publication-bars i { display:block; width:var(--s3); border-radius:var(--r-sm); background:var(--p-other); }
+.publication-bars i { display:block; width:var(--s3); height:var(--h); border-radius:var(--r-sm); background:var(--plot-color); }
 .publication-bars span { order:3; }
 .article-list { padding:0; }
 .popover:has(#filter-panel) { width:560px; }

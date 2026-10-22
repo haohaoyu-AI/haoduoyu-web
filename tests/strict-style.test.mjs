@@ -53,6 +53,28 @@ test('strict style policy and every other security header apply to HTML, assets,
     const response=await worker.fetch(new Request(app.origin+path,{headers}),{DB:app.db,SITE_ORIGIN:app.origin});
     assert.equal(response.status,status);check(response);assert.equal(response.headers.get('Cache-Control'),'no-store');await response.text();
   }
-  const failure=await worker.fetch(new Request(app.origin+'/api/v1/auth/me'),{DB:{prepare(){throw Error('Synthetic storage failure');}}});
+  const failingDb={prepare(sql){
+    if(/\bFROM matrix_accounts\b/.test(sql))throw Error('Synthetic authenticated read failure');
+    return app.db.prepare(sql);
+  }};
+  const failure=await worker.fetch(new Request(app.origin+'/api/v1/accounts',{headers:{Cookie:session.cookie}}),{DB:failingDb,SITE_ORIGIN:app.origin});
   assert.equal(failure.status,500);check(failure);await failure.text();
+});
+test('CSSOM hydration accepts only finite bounded heights and existing platform variables',()=>{
+  const run=client();
+  const cases=[['0','var(--p-zhihu)','0px','var(--p-zhihu)'],['80','var(--p-toutiao)','80px','var(--p-toutiao)'],
+    ['12.5','var(--p-wechat)','12.5px','var(--p-wechat)'],['NaN','var(--p-other)','0px','var(--p-other)'],
+    ['Infinity','url(https://example.invalid/blocked)','0px','var(--p-other)'],['-1','red;display:none','0px','var(--p-other)'],
+    ['81','var(--accent)','0px','var(--p-other)'],['1px;background:red','var(--p-zhihu)','0px','var(--p-zhihu)']];
+  for(const [height,color,wantHeight,wantColor]of cases) {
+    run('syntheticElement={dataset:'+JSON.stringify({chartHeight:height,chartColor:color})+
+      ',hasAttribute:key=>key==="data-chart-height",style:{values:{},setProperty(k,v){this.values[k]=v}}}');
+    run('applyChartStyles({querySelectorAll:()=>[syntheticElement]})');
+    assert.equal(run('syntheticElement.style.values["--h"]'),wantHeight);
+    assert.equal(run('syntheticElement.style.values["--plot-color"]'),wantColor);
+    assert.equal(run('Object.keys(syntheticElement.style.values).length'),2);
+  }
+  run('syntheticElement={dataset:{chartColor:"var(--p-other)"},hasAttribute:()=>false,style:{values:{},setProperty(k,v){this.values[k]=v}}}');
+  run('applyChartStyles({querySelectorAll:()=>[syntheticElement]})');
+  assert.equal(run('Object.keys(syntheticElement.style.values).join()'),'--plot-color');
 });

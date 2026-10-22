@@ -22,6 +22,36 @@ function normalized(value) {
   if(result.type==='BreakStatement'&&!result.label)return {type:'ReturnStatement',argument:null};
   return result;
 }
+// D5 permits exactly the two parser-style to data-attribute substitutions.
+// All other cooked text, expressions, declarations and event bodies stay locked.
+function normalizeChartMarkup(ast) {
+  let substitutions=0;
+  visitWeb(ast,node=>{
+    if(node.type!=='TemplateLiteral')return;
+    const quasis=node.quasis;
+    if(quasis[0].value.cooked==='<i data-chart-height="') {
+      assert.equal(quasis[1].value.cooked,'" data-chart-color="');
+      quasis[0].value.cooked='<i style="height:';
+      quasis[1].value.cooked='px;background:';substitutions++;
+    }else if(quasis[0].value.cooked==='<span><i class="legend-dot" data-chart-color="') {
+      quasis[0].value.cooked='<span><i class="legend-dot" style="background:';substitutions++;
+    }
+  });
+  return substitutions;
+}
+function normalizedEntry(ast) {
+  const helper=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='applyChartStyles');
+  assert.ok(helper,'D5 CSSOM helper must be present');
+  ast.body=ast.body.filter(node=>node!==helper);
+  const replace=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='replacePageContent');
+  const hooks=replace.body.body.filter(node=>node.expression?.callee?.name==='applyChartStyles');
+  assert.equal(hooks.length,1);
+  assert.deepEqual(normalized(hooks[0].expression.arguments),[{type:'Identifier',name:'content'}]);
+  const index=replace.body.body.indexOf(hooks[0]);
+  assert.equal(replace.body.body[index-1].expression.left.property.name,'innerHTML');
+  replace.body.body.splice(index,1);
+  return ast;
+}
 function declarations(ast) {
   return ast.body.filter(node=>['FunctionDeclaration','VariableDeclaration'].includes(node.type));
 }
@@ -60,10 +90,16 @@ test('formatting preserves declarations in otherwise unchanged modules and every
     'core/modal-request.mjs','core/session-index-state.mjs','pages/articles.mjs','pages/detail.mjs','pages/reviews.mjs','ui/modal.mjs']);
   for(const file of files.filter(file=>!changed.has(file.slice(4)))) {
     const canonical=async source=>(await transform(source,{format:'esm',charset:'utf8',target:'esnext',minify:false,treeShaking:false})).code;
-    assert.deepEqual(normalized(declarations(parseWeb(await canonical(await current(file))))),
+    let candidate=parseWeb(await canonical(await current(file)));
+    if(file==='web/ui/entry.mjs')candidate=normalizedEntry(candidate);
+    const changed=normalizeChartMarkup(candidate);
+    assert.equal(changed,file==='web/pages/dashboard.mjs'?2:0);
+    assert.deepEqual(normalized(declarations(candidate)),
       normalized(declarations(parseWeb(await canonical(old(file))))),file);
   }
-  const collect=source=>{const rows=[];visitWeb(parseWeb(source),node=>{if(node.type==='TemplateLiteral')rows.push(node.quasis.map(q=>q.value.cooked));});return rows;};
+  const collect=source=>{const rows=[],ast=parseWeb(source);normalizeChartMarkup(ast);
+    ast.body=ast.body.filter(node=>!(node.type==='FunctionDeclaration'&&node.id.name==='applyChartStyles'));
+    visitWeb(ast,node=>{if(node.type==='TemplateLiteral')rows.push(node.quasis.map(q=>q.value.cooked));});return rows;};
   const previous=files.flatMap(file=>collect(old(file)));
   const nextFiles=files.concat(['web/actions.mjs','web/forms.mjs','web/core/requests.mjs']);
   const next=(await Promise.all(nextFiles.map(async file=>collect(await current(file))))).flat();
