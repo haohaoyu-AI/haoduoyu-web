@@ -1,6 +1,6 @@
 # 好多鱼图文
 
-原生 JavaScript 单页工作台与 Cloudflare Worker/D1 API。当前产品基线是 Sites v6；本分支恢复工程工具，不改变 UI、运行代码、API 或数据库结构。GitHub 备份基线为 f8050c88b413990bcfa4ae2db2b4ed1d25198ef7。
+原生 JavaScript 单页工作台与 Cloudflare Worker/D1 API。本期从已核验的 Sites v6 源码及 GitHub 备份基线 f8050c88b413990bcfa4ae2db2b4ed1d25198ef7 续接。工程地基和阶段 2 的 B1～B4 已通过 PR 合并；B5 与阶段 2 最终汇总待验收，尚未部署。数据库结构与 UI 外观保持，接口新增及唯一错误码例外见 [阶段 2 汇总](docs/phase2-summary.md)。
 
 ## 安装、测试、构建
 
@@ -36,6 +36,8 @@ npm run check:previews
 
 当前资产检查比对已审阅 public 哈希、生成资源和构建 Worker 返回字节，不冒充尚不存在的 web 构建一致性检查；出现模块入口时会要求阶段4升级，见 [架构](docs/ARCHITECTURE.md)。
 
-全历史扫描保留阶段0的139个历史误报及本阶段2个资源哈希误报的精确指纹，不排除整个目录。原始扫描不是零命中，见[例外说明](docs/security/secret-scan-exceptions.md)。
+全历史扫描当前保留 147 条已审阅的精确历史指纹，不排除整个目录，不自动追加例外。原始扫描不是零命中，见[例外说明](docs/security/secret-scan-exceptions.md)。
 
-发布必须另行确认并走正式 Sites 流程。本阶段不合并 main、不打标签、不部署，不修改访问范围、安全配置或分支保护。
+工程与修复通过独立分支、CI 和验收后合并 main；Git 标签 v5-ui-refactor 是基线标识，不代表生产部署版本。本期尚未发布。部署必须另行明确确认并走正式 Sites 流程，不修改访问范围、安全配置或分支保护。CI 已自动运行，但尚未设置为 GitHub 必要合并检查。
+
+阶段 2 的接口投影、错误例外、真实会话、截图及未测范围见 [兼容性证据](docs/phase2-summary.md)。测试总数以同一提交的 npm test 输出为准，不能把多个阶段计数相加。
