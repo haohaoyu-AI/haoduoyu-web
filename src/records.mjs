@@ -11,6 +11,11 @@ const MODES = new Set(['manual', 'automatic', 'mixed', 'unknown']);
 const KINDS = new Set(['latest', 'd1', 'd3', 'd7']);
 const DAY = 86_400_000;
 const BEIJING_OFFSET = 8 * 3_600_000;
+// English collation orders lowercase ASCII letters, digits and '-' exactly as
+// BINARY. Other identifiers/locales retain the original localeCompare path.
+const articleCollation = new Intl.Collator().resolvedOptions();
+const sqlArticleOrder = ['en', 'en-US'].includes(articleCollation.locale)
+  && articleCollation.collation === 'default' && !articleCollation.numeric && !articleCollation.ignorePunctuation;
 
 function object(value, label = '请求') {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(400, 'VALIDATION_ERROR', `${label}必须是对象`);
@@ -210,7 +215,28 @@ export function createRecords(store) {
     return {...old,name,active};
   }
 
-  async function listArticles(query = {}, scope = null, index = false) {
+  async function sqlArticlePage(query, clauses, params, order) {
+    if (!sqlArticleOrder) return null;
+    const source = `FROM articles a JOIN accounts c ON c.id=a.account_id${clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''}`;
+    // Check every matching row, including rows outside this page. GLOB stops
+    // at NUL, hence the separate NUL checks. Dates keep raw string ordering;
+    // notes marking a date unverified never exclude it from this path.
+    const count = await get(`SELECT count(*) AS total,coalesce(sum(CASE WHEN
+      typeof(a.id)!='text' OR a.id='' OR a.id GLOB '*[^a-z0-9-]*' OR instr(a.id,char(0))>0
+      OR typeof(a.published_at)!='text' OR a.published_at GLOB '*[^ -~]*' OR instr(a.published_at,char(0))>0
+      THEN 1 ELSE 0 END),0) AS incompatible ${source}`, ...params);
+    if (count.incompatible) return null;
+    const page = paginate([], query);
+    const raw = await all(`SELECT a.*,c.name AS account_name,c.platform ${source}
+      ORDER BY a.published_at COLLATE BINARY ${order},a.id COLLATE BINARY ASC LIMIT ? OFFSET ?`,
+      ...params, page.meta.page_size, page.meta.offset);
+    page.data = await enrichMany(raw);
+    page.meta.total = count.total;
+    page.meta.has_more = page.meta.offset + page.meta.page_size < count.total;
+    return page;
+  }
+
+  async function listArticles(query = {}, scope = null, index = false, paged = false) {
     const clauses = [], params = [];
     scopedWhere(scope, 'a.account_id', clauses, params);
     const accountId = queryValue(query, 'account_id');
@@ -235,10 +261,16 @@ export function createRecords(store) {
     const sort = queryValue(query, 'sort') || 'published_at', order = queryValue(query, 'order') || 'desc';
     if (!['published_at', 'reads', 'likes', 'comments', 'approvals', 'latest_as_of', 'duration'].includes(sort) || !['asc', 'desc'].includes(order)) fail(400, 'VALIDATION_ERROR', '排序方式无效');
     if(index && ['reads','likes','comments','approvals','latest_as_of'].includes(sort)) fail(400,'VALIDATION_ERROR','文章索引不支持依赖快照的排序');
+    const topic=queryValue(query,'topic'), status=queryValue(query,'data_status');
+    const pagination = ['page', 'page_size', 'limit', 'offset']
+      .some(key => (query instanceof URLSearchParams ? query.get(key) : query[key]) != null);
+    if (paged && !index && pagination && sort === 'published_at' && !topic && !status) {
+      const page = await sqlArticlePage(query, clauses, params, order);
+      if (page) return page;
+    }
     const projection=index?'a.id,a.title,a.account_id,a.published_at,a.started_at,a.notes':'a.*';
     const raw = await all(`SELECT ${projection},c.name AS account_name,c.platform FROM articles a JOIN accounts c ON c.id=a.account_id${clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''}`, ...params);
     let rows = index?raw.map(row=>articleFacts({...row,duration_seconds:row.started_at?Math.round((Date.parse(row.published_at)-Date.parse(row.started_at))/1000):null})):await enrichMany(raw);
-    const topic=queryValue(query,'topic'), status=queryValue(query,'data_status');
     if(topic) {if(!['entertainment','insurance','unknown'].includes(topic))fail(400,'VALIDATION_ERROR','题材无效');rows=rows.filter(row=>row.topic===topic);}
     if(status) {
       if(!['no_snapshot','missing_reads','missing_likes','missing_comments','incomplete','zero_reads','date_unverified'].includes(status))fail(400,'VALIDATION_ERROR','数据状态无效');
@@ -259,10 +291,11 @@ export function createRecords(store) {
     checkScope(scope);
     const fields=queryValue(query,'fields');
     if(fields!=null&&fields!=='index') fail(400,'VALIDATION_ERROR','显示字段模式无效');
-    const index=fields==='index',rows=await listArticles(query,scope,index);
+    const index=fields==='index',rows=await listArticles(query,scope,index,true);
     const clauses=[],params=[];scopedWhere(scope,'a.account_id',clauses,params);
     const total=(await get(`SELECT count(*) AS total FROM articles a${clauses.length?' WHERE '+clauses.join(' AND '):''}`,...params)).total;
-    const page=paginate(rows,query,total);
+    const page=Array.isArray(rows)?paginate(rows,query,total):rows;
+    page.meta.unfiltered_total=total;
     if(index) page.data=page.data.map(({id,title,account_id,platform,published_at})=>({id,title,account_id,platform,published_at}));
     return page;
   }
