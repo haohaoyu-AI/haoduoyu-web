@@ -11,3 +11,5 @@ CI 用完整 checkout、--all --full-history -m --root、强制脱敏及忽略 i
 扫描二进制来自[官方固定发行版](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1)，SHA256固定校验。Fingerprint定义见[官方说明](https://github.com/gitleaks/gitleaks#-gitleaksignore)。原始扫描留在受限工作区，不随公开分支上传。
 
 本阶段资源 pin 清单另有2条 generic-api-key 误报：api-docs.html 与 openapi.json 的内容SHA256，均逐项重新计算匹配。仅追加首个恢复提交中这两处的精确指纹，原始告警留在受限工作区。因此当前精确例外总计141条，不是把原始扫描改写为零。
+
+The approved phase 1 squash commit reintroduced the same two public-asset SHA256 pins under a new commit identity. Both were independently recomputed from public files; two exact squash-commit fingerprints are added. No rule or directory is excluded.
