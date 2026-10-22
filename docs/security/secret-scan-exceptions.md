@@ -18,4 +18,6 @@ B1 将 OpenAPI 更新为 1.1.0，相应 public 资源 pin 的新内容 SHA256 �
 
 B1 获批 squash 提交以新身份引入同一 OpenAPI 1.1.0 内容摘要。独立复算确认与验收内容一致，仅新增该 squash 提交的 1 条精确指纹。B1 合并修复完成时总计 145 条（前述 144 条 + B1 squash 的 1 条），没有新增规则或目录豁免。
 
-B2 为 AuditRecord 新增可选 entity_label，并更新相应 public OpenAPI 内容摘要。新增 1 条 generic-api-key 命中已独立重算确认，仅记录首次 B2 源提交的精确指纹。当前共 146 条（前述 145 条 + B2 的 1 条）；原始脱敏扫描保留，没有规则或目录豁免。
+B2 为 AuditRecord 新增可选 entity_label，并更新相应 public OpenAPI 内容摘要。新增 1 条 generic-api-key 命中已独立重算确认，仅记录首次 B2 源提交的精确指纹。B2 原验收分支共 146 条（前述 145 条 + B2 的 1 条）；原始脱敏扫描保留，没有规则或目录豁免。
+
+B2 获批 squash 提交以新身份引入同一已验收 OpenAPI 内容摘要。独立重算并与原验收文件逐字节比较一致，仅新增该 squash 提交的 1 条精确指纹。当前总计 147 条（前述 146 条 + B2 squash 的 1 条），没有新增规则或目录豁免；原始脱敏结果保留。
