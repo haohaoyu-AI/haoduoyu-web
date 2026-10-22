@@ -1,12 +1,12 @@
 # 当前架构
 
-前端为 public/index.html、public/app.js 与单一 CSS，无框架。登录后保留 URL 深链接是当前行为，ES 模块拆分尚未实施。
+本分支前端源码位于 web/，以无环 ES 模块机械拆分；public/index.html 加载已提交的单一未压缩 ESM 产物 public/app.js，沿用单一 CSS 和原生 JS。登录后保留 URL 深链接。4a 未引入 action 注册表、GET 去重/Abort 或 CSP 变更。
 
 Worker 使用 /api/v1 Cookie 会话或受限 AI 凭据；CSRF/Origin、scrypt、安全比较、请求体上限、CSV 防注入和 e/safeURL 保持原样。D1 使用全局 revision 一致读/乐观锁和写入幂等。阶段1不改数据库结构、迁移或绑定。
 
-累计快照与每日新增分别计算；未采集、未取得、真实零及 likes/approvals 保持区分。保险识别、题材推断和关注规则不变。优化前的历史基线没有结果缓存，每次读请求还有控制表维护及凭据元数据写入；这不是当前分支状态。当前 main 基线已包含 C1 的零普通控制写、C2 的五分钟元数据节流、C5 精确失效结果缓存和 C4 轻量读取；本分支新增的 C6 SQL 分页仍待验收。已发布的生产 Sites v7 固定版本仅包含 C1～C3，尚未包含 C4/C5/C6；不能把开发分支架构当作线上状态。
+累计快照与每日新增分别计算；未采集、未取得、真实零及 likes/approvals 保持区分。保险识别、题材推断和关注规则不变。优化前的历史基线没有结果缓存，每次读请求还有控制表维护及凭据元数据写入；这不是当前分支状态。当前 main 基线已包含 C1 的零普通控制写、C2 的五分钟元数据节流、C5 精确失效结果缓存和 C4 轻量读取；C6 SQL 分页也已验收合并；本分支仅新增 4a 前端模块。已发布的生产 Sites v7 固定版本仅包含 C1～C3，尚未包含 C4/C5/C6；不能把开发分支架构当作线上状态。
 
-build.mjs 将 public 资源嵌入后打包 Worker。check:artifacts 校验 public 哈希、生成模块和实际 Worker 返回字节。任何有意前端变更须更新审阅后的 pin；阶段4新增模块源码时必须切换到可复现 esbuild 产物对比，不能沿用 pin 检查冒充源码构建一致性。
+build.mjs 先使用已有 esbuild 将 web/main.mjs 生成 public/app.js（ESM、不压缩、UTF-8），再将 public 资源嵌入 Worker。CI 在首次 build 之前检查产物与源码逐字节一致，避免覆盖手改产物掩盖错误；check:artifacts 同时保留八资源 pin、生成资源和 Worker 字节检查。模块所有权、原事件顺序和运行状态归属见 frontend-modules.md 与 frontend-module-map.json。
 
 测试只连接本地 Miniflare，预览绑定本地 D1 并禁止 Worker 外联。CI 使用 Node24、锁文件与最小只读权限，没有生产秘密或发布步骤。
 
@@ -27,6 +27,6 @@ build.mjs 将 public 资源嵌入后打包 Worker。check:artifacts 校验 publi
 静态缓存仅原始路径app.js/style.css/favicon.svg/openapi.json，采用构建SHA256与no-cache条件验证；GET/HEAD命中304，HTML与所有API/错误继续no-store。编码别名不进入白名单。生成资源含内部hash不表示每种资源对外可缓存；生产CDN行为需部署后单独核验。
 
 
-阶段 3 C5（独立 PR，未部署）：总览正文以不可变 Blob 缓存，按 DB 绑定身份、revision、规范化查询及完整授权身份隔离。缓存有效期精确到北京日界、未完成 d1/d3/d7 到期与未来保险成员发布时间；缓存不能代替每次鉴权、首尾 revision 检查或 C2 元数据处理。总预算 16 MiB，单项正文最多 15 MiB，最多 50 项；pending、resident、活跃响应与每个租约的两个 64 KiB 缓冲预留共同计费。失败、重试和取消显式释放；超限完整绕过缓存，不截断响应。资源状态和目标运行时证据边界见 overview-cache-design.md 与 overview-cache-validation.md。
+阶段 3 C5（已合并、未部署）：总览正文以不可变 Blob 缓存，按 DB 绑定身份、revision、规范化查询及完整授权身份隔离。缓存有效期精确到北京日界、未完成 d1/d3/d7 到期与未来保险成员发布时间；缓存不能代替每次鉴权、首尾 revision 检查或 C2 元数据处理。总预算 16 MiB，单项正文最多 15 MiB，最多 50 项；pending、resident、活跃响应与每个租约的两个 64 KiB 缓冲预留共同计费。失败、重试和取消显式释放；超限完整绕过缓存，不截断响应。资源状态和目标运行时证据边界见 overview-cache-design.md 与 overview-cache-validation.md。
 
-阶段 3 C6（待验收、未部署）：完整文章分页仅在 published_at 排序、无 topic/data_status 筛选且完整匹配集字符串排序兼容时使用 SQL 排序分页；只为页内文章补快照，其他情况保留原实现。ID/日期原始字符串、locale、权限及分页错误规则的兼容边界见 article-sql-page.md。未修改字段投影、数据库结构或 UI。
+阶段 3 C6（已验收合并、未部署）：完整文章分页仅在 published_at 排序、无 topic/data_status 筛选且完整匹配集字符串排序兼容时使用 SQL 排序分页；只为页内文章补快照，其他情况保留原实现。ID/日期原始字符串、locale、权限及分页错误规则的兼容边界见 article-sql-page.md。未修改字段投影、数据库结构或 UI。

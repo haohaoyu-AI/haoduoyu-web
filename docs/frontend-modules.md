@@ -94,3 +94,10 @@ modal races and route restoration. The new isolated artifact-tamper test
 passes and proves the check rejects both manual artifact edits and stale
 artifacts after a source edit without silently overwriting either.
 Full tests, browser comparisons and CI are still pending at this checkpoint.
+
+Readability measurements are retained in `frontend-module-size.json`: 121
+source lines exceed 160 characters (mainly unchanged HTML templates), and the
+existing click/submit callbacks plus their registration wrapper exceed 80
+lines. These are explicit pending style targets, not passed acceptance items.
+The longest line has 2,310 Unicode code points. This phase does not rewrite
+those templates or split the action logic to conceal the gap.

@@ -1,0 +1,25 @@
+{
+  "total_lines": 1609,
+  "max_line_characters": 2310,
+  "lines_over_160": 121,
+  "functions_over_80": [
+    {
+      "file": "web/events.mjs",
+      "line": 22,
+      "name": "registerEvents",
+      "lines": 467
+    },
+    {
+      "file": "web/events.mjs",
+      "line": 23,
+      "name": "(callback)",
+      "lines": 239
+    },
+    {
+      "file": "web/events.mjs",
+      "line": 376,
+      "name": "(callback)",
+      "lines": 99
+    }
+  ]
+}
