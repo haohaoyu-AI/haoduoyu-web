@@ -1,8 +1,9 @@
+import {frontendSource} from './frontend-client.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
-const source=(await readFile(new URL('../public/app.js',import.meta.url),'utf8')).replace(/init\(\);\s*$/,'');
+const source = await frontendSource();
 function client(search=''){
  const events={},windowEvents={},nodes=new Map(),entries=['http://localhost/'+search];let index=0;
  const location={href:entries[0],search};

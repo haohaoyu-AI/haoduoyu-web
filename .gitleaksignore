@@ -163,3 +163,6 @@ aff3754cddd1a76408084794de2bc1c8be0d5814:.ci/public-assets.json:generic-api-key:
 
 # Accepted C4 public OpenAPI content hash, reintroduced by approved squash.
 dfb9751a43f785af606f12ec6900660ede7dd820:.ci/public-assets.json:generic-api-key:10
+
+# Approved phase 4a public source digest; exact historical finding only.
+abe3540cabddd9c479e2efa7a654aac648320a90:docs/frontend-product-hashes.json:generic-api-key:5

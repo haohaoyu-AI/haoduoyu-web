@@ -4,9 +4,11 @@ import { fileURLToPath,pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
+import { frontendBundle } from './frontend-build.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const publicRoot=resolve(root,'public'),dist=resolve(root,'dist');
+await writeFile(resolve(publicRoot,'app.js'),await frontendBundle(root));
 const types={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',json:'application/json; charset=utf-8',svg:'image/svg+xml',txt:'text/plain; charset=utf-8'};
 const assets={};
 for(const name of ['index.html','app.js','style.css','openapi.json','favicon.svg','robots.txt','llms.txt']) {

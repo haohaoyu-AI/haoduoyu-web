@@ -73,7 +73,7 @@ test('build hashes are reproducible and change only with their own content in an
   const root = fileURLToPath(new URL('../', import.meta.url));
   const copy = await mkdtemp(join(tmpdir(), 'haoduoyu-static-build-'));
   t.after(() => rm(copy, {recursive: true, force: true}));
-  for (const path of ['scripts', 'src', 'shared', 'public', 'drizzle', '.openai', 'runtime.json', 'package.json'])
+  for (const path of ['scripts', 'src', 'shared', 'public', 'web', 'drizzle', '.openai', 'runtime.json', 'package.json'])
     await cp(join(root, path), join(copy, path), {recursive: true});
   await symlink(join(root, 'node_modules'), join(copy, 'node_modules'), 'dir');
   async function build() {

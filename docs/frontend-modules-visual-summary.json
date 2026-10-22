@@ -1,0 +1,748 @@
+{
+  "all_original_pairs_accounted_for": true,
+  "unhandled_original_difference_cases": [],
+  "non_form_page_mismatches": [],
+  "strict_png_equality_passed": false,
+  "style_css_sha256": "835afdf3db9bd24773f9451a7ede62c54eab19258a4e51cddbcedeaf065ef865",
+  "cases": [
+    {
+      "view": "accounts",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "accounts",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "accounts",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "accounts",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "articles",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "articles",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "articles",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "articles",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "audit",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "audit",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "audit",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "audit",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "dashboard",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "dashboard",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "dashboard",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "dashboard",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "data",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "data",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "data",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "data",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "detail",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "detail",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "detail",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "detail",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-account-new",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-account-new",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-account-new",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-account-new",
+      "width": 1440,
+      "pixels_changed": 31,
+      "max_channel_delta": 1,
+      "bbox": [
+        422,
+        483,
+        1018,
+        486
+      ],
+      "repeat_comparisons": [
+        {
+          "view": "form-account-new-repeat0",
+          "width": 1440,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        },
+        {
+          "view": "form-account-new-repeat1",
+          "width": 1440,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        }
+      ],
+      "conclusion": "both stabilized repeats are pixel-identical"
+    },
+    {
+      "view": "form-article-new",
+      "width": 375,
+      "pixels_changed": 44,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        269,
+        35,
+        481
+      ],
+      "repeat_comparisons": [
+        {
+          "view": "form-article-new-repeat0",
+          "width": 375,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        },
+        {
+          "view": "form-article-new-repeat1",
+          "width": 375,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        }
+      ],
+      "conclusion": "both stabilized repeats are pixel-identical"
+    },
+    {
+      "view": "form-article-new",
+      "width": 390,
+      "pixels_changed": 44,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        269,
+        35,
+        481
+      ],
+      "repeat_comparisons": [
+        {
+          "view": "form-article-new-repeat0",
+          "width": 390,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        },
+        {
+          "view": "form-article-new-repeat1",
+          "width": 390,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        }
+      ],
+      "conclusion": "both stabilized repeats are pixel-identical"
+    },
+    {
+      "view": "form-article-new",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-article-new",
+      "width": 1440,
+      "pixels_changed": 45,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        287,
+        423,
+        527
+      ],
+      "repeat_comparisons": [
+        {
+          "view": "form-article-new-repeat0",
+          "width": 1440,
+          "pixels_changed": 45,
+          "max_channel_delta": 1,
+          "bbox": [
+            420,
+            287,
+            423,
+            527
+          ]
+        },
+        {
+          "view": "form-article-new-repeat1",
+          "width": 1440,
+          "pixels_changed": 27,
+          "max_channel_delta": 1,
+          "bbox": [
+            420,
+            287,
+            1020,
+            668
+          ]
+        }
+      ],
+      "conclusion": "strict PNG equality remains unmet; one-unit border differences with identical measured DOM/styles; see baseline-self control"
+    },
+    {
+      "view": "form-daily",
+      "width": 375,
+      "pixels_changed": 7,
+      "max_channel_delta": 1,
+      "bbox": [
+        340,
+        191,
+        344,
+        194
+      ],
+      "repeat_comparisons": [
+        {
+          "view": "form-daily-repeat0",
+          "width": 375,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        },
+        {
+          "view": "form-daily-repeat1",
+          "width": 375,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        }
+      ],
+      "conclusion": "both stabilized repeats are pixel-identical"
+    },
+    {
+      "view": "form-daily",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-daily",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-daily",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-key",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-key",
+      "width": 390,
+      "pixels_changed": 13,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        337,
+        32,
+        367
+      ],
+      "repeat_comparisons": [
+        {
+          "view": "form-key-repeat0",
+          "width": 390,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        },
+        {
+          "view": "form-key-repeat1",
+          "width": 390,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        }
+      ],
+      "conclusion": "both stabilized repeats are pixel-identical"
+    },
+    {
+      "view": "form-key",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-key",
+      "width": 1440,
+      "pixels_changed": 16,
+      "max_channel_delta": 1,
+      "bbox": [
+        422,
+        407,
+        1018,
+        410
+      ],
+      "repeat_comparisons": [
+        {
+          "view": "form-key-repeat0",
+          "width": 1440,
+          "pixels_changed": 16,
+          "max_channel_delta": 1,
+          "bbox": [
+            422,
+            407,
+            1018,
+            410
+          ]
+        },
+        {
+          "view": "form-key-repeat1",
+          "width": 1440,
+          "pixels_changed": 16,
+          "max_channel_delta": 1,
+          "bbox": [
+            422,
+            407,
+            1018,
+            410
+          ]
+        }
+      ],
+      "conclusion": "strict PNG equality remains unmet; one-unit border differences with identical measured DOM/styles; see baseline-self control"
+    },
+    {
+      "view": "form-snapshot",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-snapshot",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-snapshot",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "form-snapshot",
+      "width": 1440,
+      "pixels_changed": 32,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        287,
+        423,
+        512
+      ],
+      "repeat_comparisons": [
+        {
+          "view": "form-snapshot-repeat0",
+          "width": 1440,
+          "pixels_changed": 111,
+          "max_channel_delta": 1,
+          "bbox": [
+            420,
+            211,
+            1018,
+            749
+          ]
+        },
+        {
+          "view": "form-snapshot-repeat1",
+          "width": 1440,
+          "pixels_changed": 40,
+          "max_channel_delta": 1,
+          "bbox": [
+            728,
+            211,
+            1018,
+            723
+          ]
+        }
+      ],
+      "conclusion": "strict PNG equality remains unmet; one-unit border differences with identical measured DOM/styles; see baseline-self control"
+    },
+    {
+      "view": "keys",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "keys",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "keys",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "keys",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "login",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "login",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "login",
+      "width": 768,
+      "pixels_changed": 4,
+      "max_channel_delta": 1,
+      "bbox": [
+        195,
+        613,
+        198,
+        615
+      ],
+      "repeat_comparisons": [
+        {
+          "view": "login-repeat0",
+          "width": 768,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        },
+        {
+          "view": "login-repeat1",
+          "width": 768,
+          "pixels_changed": 0,
+          "max_channel_delta": 0,
+          "bbox": null
+        }
+      ],
+      "conclusion": "both stabilized repeats are pixel-identical"
+    },
+    {
+      "view": "login",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "security",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "security",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "security",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    },
+    {
+      "view": "security",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "conclusion": "original pair is pixel-identical"
+    }
+  ],
+  "baseline_self_control": [
+    {
+      "view": "article-new",
+      "full_page": false,
+      "against": "baseline-b",
+      "pixels_changed": 20,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        182,
+        426,
+        214
+      ],
+      "geometry_equal": true
+    },
+    {
+      "view": "article-new",
+      "full_page": true,
+      "against": "baseline-b",
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "geometry_equal": true
+    },
+    {
+      "view": "key",
+      "full_page": false,
+      "against": "baseline-b",
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "geometry_equal": true
+    },
+    {
+      "view": "key",
+      "full_page": true,
+      "against": "baseline-b",
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "geometry_equal": true
+    },
+    {
+      "view": "snapshot",
+      "full_page": false,
+      "against": "baseline-b",
+      "pixels_changed": 27,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        182,
+        1018,
+        214
+      ],
+      "geometry_equal": true
+    },
+    {
+      "view": "snapshot",
+      "full_page": true,
+      "against": "baseline-b",
+      "pixels_changed": 40,
+      "max_channel_delta": 1,
+      "bbox": [
+        728,
+        211,
+        1018,
+        723
+      ],
+      "geometry_equal": true
+    }
+  ],
+  "notes": "No screenshots, pixels or assertions were masked or relaxed. All original 56 cases are listed, including the three persistent 1440px form differences. Visual classification requires independent review."
+}

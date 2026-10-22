@@ -1,0 +1,185 @@
+{
+  "baseline": "168f236b05abd12ad1a937a5f506d9d8f9234ece",
+  "mechanical_audit": {
+    "compared": 111,
+    "errors": [],
+    "events": 9,
+    "eventsEqual": true
+  },
+  "imports": {
+    "core/dom.mjs": [],
+    "core/constants.mjs": [],
+    "core/state.mjs": [
+      "core/constants.mjs"
+    ],
+    "core/storage.mjs": [],
+    "core/format.mjs": [
+      "core/constants.mjs",
+      "core/state.mjs"
+    ],
+    "core/session-index-state.mjs": [
+      "core/state.mjs"
+    ],
+    "core/api.mjs": [
+      "core/session-index-state.mjs",
+      "ui/modal.mjs",
+      "pages/login.mjs",
+      "core/state.mjs"
+    ],
+    "core/article-index.mjs": [
+      "core/api.mjs",
+      "core/state.mjs",
+      "core/session-index-state.mjs"
+    ],
+    "core/modal-request.mjs": [
+      "core/api.mjs",
+      "core/state.mjs"
+    ],
+    "core/router.mjs": [
+      "core/constants.mjs",
+      "core/state.mjs",
+      "core/storage.mjs"
+    ],
+    "ui/entry.mjs": [
+      "core/state.mjs",
+      "core/dom.mjs"
+    ],
+    "ui/popover.mjs": [
+      "core/state.mjs"
+    ],
+    "ui/menu.mjs": [
+      "core/dom.mjs",
+      "ui/popover.mjs",
+      "core/state.mjs"
+    ],
+    "ui/modal.mjs": [
+      "core/dom.mjs",
+      "ui/popover.mjs",
+      "core/state.mjs"
+    ],
+    "ui/toast.mjs": [
+      "core/dom.mjs"
+    ],
+    "ui/segmented.mjs": [
+      "core/dom.mjs",
+      "core/constants.mjs"
+    ],
+    "ui/table.mjs": [
+      "core/dom.mjs",
+      "core/state.mjs"
+    ],
+    "ui/components.mjs": [
+      "core/dom.mjs",
+      "core/constants.mjs",
+      "core/state.mjs",
+      "core/format.mjs"
+    ],
+    "pages/dashboard.mjs": [
+      "ui/segmented.mjs",
+      "core/state.mjs",
+      "ui/components.mjs",
+      "core/dom.mjs",
+      "core/constants.mjs",
+      "core/format.mjs"
+    ],
+    "pages/articles.mjs": [
+      "core/format.mjs",
+      "core/api.mjs",
+      "core/constants.mjs",
+      "ui/components.mjs",
+      "core/dom.mjs",
+      "ui/segmented.mjs",
+      "core/state.mjs",
+      "ui/table.mjs",
+      "core/modal-request.mjs",
+      "ui/modal.mjs",
+      "ui/toast.mjs"
+    ],
+    "pages/reviews.mjs": [
+      "ui/components.mjs",
+      "core/format.mjs",
+      "core/api.mjs",
+      "core/article-index.mjs",
+      "core/state.mjs",
+      "core/dom.mjs",
+      "core/constants.mjs",
+      "ui/segmented.mjs",
+      "core/session-index-state.mjs",
+      "ui/modal.mjs"
+    ],
+    "pages/settings.mjs": [
+      "core/dom.mjs",
+      "ui/components.mjs",
+      "core/constants.mjs",
+      "core/format.mjs",
+      "core/state.mjs",
+      "ui/modal.mjs",
+      "ui/toast.mjs"
+    ],
+    "pages/detail.mjs": [
+      "ui/components.mjs",
+      "core/format.mjs",
+      "core/dom.mjs",
+      "core/constants.mjs",
+      "core/modal-request.mjs",
+      "core/state.mjs",
+      "ui/modal.mjs"
+    ],
+    "pages/login.mjs": [
+      "core/dom.mjs",
+      "ui/popover.mjs",
+      "core/state.mjs",
+      "core/session-index-state.mjs",
+      "ui/entry.mjs"
+    ],
+    "controller.mjs": [
+      "core/dom.mjs",
+      "ui/popover.mjs",
+      "core/constants.mjs",
+      "ui/components.mjs",
+      "ui/segmented.mjs",
+      "core/state.mjs",
+      "ui/entry.mjs",
+      "ui/menu.mjs",
+      "ui/modal.mjs",
+      "core/router.mjs",
+      "core/api.mjs",
+      "core/format.mjs",
+      "pages/settings.mjs",
+      "pages/articles.mjs",
+      "pages/dashboard.mjs",
+      "pages/reviews.mjs",
+      "pages/login.mjs",
+      "core/session-index-state.mjs",
+      "core/storage.mjs",
+      "ui/toast.mjs"
+    ],
+    "events.mjs": [
+      "core/dom.mjs",
+      "pages/settings.mjs",
+      "core/state.mjs",
+      "core/api.mjs",
+      "pages/detail.mjs",
+      "pages/articles.mjs",
+      "core/session-index-state.mjs",
+      "ui/modal.mjs",
+      "ui/popover.mjs",
+      "pages/dashboard.mjs",
+      "core/constants.mjs",
+      "ui/components.mjs",
+      "controller.mjs",
+      "pages/login.mjs",
+      "ui/entry.mjs",
+      "pages/reviews.mjs",
+      "ui/menu.mjs",
+      "core/format.mjs",
+      "ui/toast.mjs",
+      "core/router.mjs",
+      "core/storage.mjs"
+    ],
+    "main.mjs": [
+      "events.mjs",
+      "controller.mjs"
+    ]
+  }
+}
