@@ -1,0 +1,14 @@
+{
+  "mode": "legacy-source-pins-and-worker-embedding",
+  "baseline": "f8050c88b413990bcfa4ae2db2b4ed1d25198ef7",
+  "files": {
+    "api-docs.html": "82de89145eecf4fbabeadea3b647fff94a749bcc4d54b744e972e07682d92f63",
+    "app.js": "25cf55bc2e7d3399b5d85cc65096307f3a47fc47bd60110b363f5577c42c0bcd",
+    "favicon.svg": "7c9efae613cbef58279b0e8f96eb2e1badc728e6ec289eaa63c7239a05ddd727",
+    "index.html": "0672159ba31ebecba0eb4a9b1328ca9222cb6aa3753f0ec729ff8fe5e8bf4336",
+    "llms.txt": "c83ffbf1b1d224ec0e504181383f8c54add06331321458cac45562d9b8134429",
+    "openapi.json": "6377f7fdbc72003aaaca0dab9574905bfab078ac9b3aeb3a3fb3b0e611313536",
+    "robots.txt": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+    "style.css": "835afdf3db9bd24773f9451a7ede62c54eab19258a4e51cddbcedeaf065ef865"
+  }
+}

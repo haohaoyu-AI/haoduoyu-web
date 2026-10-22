@@ -1,0 +1,24 @@
+{
+  "name": "haoduoyu-matrix-sites",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "package": "node scripts/package.mjs",
+    "test": "node scripts/build.mjs && node --test --test-concurrency=1 tests/*.test.mjs",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "dev": "node scripts/build.mjs && node scripts/preview.mjs",
+    "check:artifacts": "node scripts/check-artifacts.mjs",
+    "check:previews": "node scripts/check-previews.mjs",
+    "preview:analytics": "node scripts/build.mjs && node scripts/preview-analytics.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "miniflare": "4.20260730.0",
+    "drizzle-orm": "0.44.7",
+    "drizzle-kit": "0.31.5"
+  }
+}
