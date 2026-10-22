@@ -32,7 +32,7 @@ TRACE = """document.addEventListener('click',event=>{
     rows.push(target.dataset.action);localStorage.setItem('synthetic-actions',JSON.stringify(rows));
   }},true);"""
 parser = argparse.ArgumentParser()
-parser.add_argument('--part', choices=['all', 'visual', 'visual-repeat', 'functional'], default='all')
+parser.add_argument('--part', choices=['all', 'visual', 'visual-repeat', 'functional', 'style'], default='all')
 parser.add_argument('--variant', choices=['both', 'baseline', 'candidate'], default='both')
 args = parser.parse_args()
 OUT = ROOT / 'artifacts/strict-style' / args.part
@@ -71,9 +71,9 @@ class Run:
             else report['candidate_app_sha256'])
         self.browser = browser
 
-    def new_context(self, browser, touch=False, storage=None):
+    def new_context(self, browser, touch=False, storage=None, motion="reduce"):
         context = browser.new_context(viewport={'width': 390 if touch else 1440, 'height': 900},
-            timezone_id='Asia/Shanghai', reduced_motion='reduce', is_mobile=touch, has_touch=touch,
+            timezone_id='Asia/Shanghai', reduced_motion=motion, is_mobile=touch, has_touch=touch,
             permissions=['clipboard-read', 'clipboard-write'], storage_state=storage, bypass_csp=False)
         context.expose_binding('__recordCsp',lambda source,event: report['csp_events'].append({'variant':self.variant,**event}))
         context.add_init_script("""window.cspPhase='normal';document.addEventListener('securitypolicyviolation',e=>{
@@ -574,7 +574,7 @@ class Run:
         rows=page.locator('[style]').evaluate_all("""nodes=>nodes.map(e=>({tag:e.tagName,classes:e.className,
           properties:[...e.style],allowed:[...e.style].every(p=>
             ((e.matches('.publication-bars i')&&['--h','--plot-color'].includes(p))||
-             (e.matches('.legend-dot')&&p==='--plot-color')||(e===document.body&&p==='overflow')||
+             (e.matches('.legend-dot')&&p==='--plot-color')||(e===document.body&&['overflow','overflow-x','overflow-y'].includes(p)&&e.style.getPropertyValue(p)==='hidden')||
              (e.matches('.popover')&&['left','top'].includes(p))||(e.classList.contains('entry-ready')&&p==='--entry-delay')))}))""")
         if self.variant=='candidate':
             assert all(row['allowed'] for row in rows),rows
@@ -599,6 +599,11 @@ class Run:
         for period in ['7d','30d','yesterday','7d']:
             self.go('page=dashboard&period='+period)
             graph=self.page.locator('.trend-disclosure')
+            if period=='yesterday':
+                assert graph.count()==0
+                report['chart_samples'].append({'variant':self.variant,'name':'period-yesterday','width':1440,'bars':[],'legend':[],'svg':[],'hidden':True})
+            else:
+                assert graph.count()==1
             if graph.count():
                 graph.locator('summary').click()
                 self.chart_sample('period-'+period,1440)
@@ -620,6 +625,17 @@ class Run:
         self.chart_sample('return-after-navigation',1440)
         self.checkpoint('CSP-chart-rerender-computed-style-roundtrips')
 
+    def motion_check(self):
+        self.stage='normal-motion-CSSOM'
+        context=self.new_context(self.browser,storage=self.context.storage_state(),motion='no-preference')
+        page=context.new_page();self.diagnostics(page)
+        page.goto(self.origin+'/?page=dashboard&period=7d');self.ready(page)
+        page.wait_for_function("document.querySelectorAll('.entry-ready.entry-visible').length>0")
+        self.audit_styles(page,'normal-motion',1440)
+        assert page.locator('.entry-ready[style]').count()>0
+        context.close()
+        self.checkpoint('CSP-normal-motion-entry-CSSOM')
+
     def csp_control(self):
         self.stage='intentional-csp-negative-control'
         self.page.evaluate("window.cspPhase='negative-control'")
@@ -633,8 +649,8 @@ class Run:
         else:
             assert display=='none' and not events,events
         before_cssom=len(report['csp_events'])
-        applied=self.page.evaluate("""()=>{const e=document.querySelector('#synthetic-csp-control');
-          e.style.setProperty('display','none');const result=getComputedStyle(e).display;e.remove();return result;}""")
+        applied=self.page.evaluate("""()=>{document.querySelector('#synthetic-csp-control').remove();
+          const e=document.createElement('div');document.body.append(e);e.style.setProperty('display','none');const result=getComputedStyle(e).display;e.remove();return result;}""")
         self.page.wait_for_timeout(50)
         assert applied=='none' and len(report['csp_events'])==before_cssom
         report['controls'].append({'variant':self.variant,'inline_display':display,'inline_violation_events':events,
@@ -674,9 +690,14 @@ try:
                 run.visual()
             if args.part == 'visual-repeat':
                 run.visual_repeat()
+            if args.part in ['all', 'style']:
+                if args.part == 'style':
+                    run.login()
+                run.style_roundtrips()
+                run.motion_check()
             if args.part in ['all', 'functional']:
                 run.functional()
-                run.style_roundtrips()
+            if args.part in ['all', 'functional', 'style']:
                 run.csp_control()
             run.context.close()
         browser.close()
