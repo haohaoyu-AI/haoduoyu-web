@@ -25,3 +25,6 @@ build.mjs 将 public 资源嵌入后打包 Worker。check:artifacts 校验 publi
 凭据 GET 的 last_used_at 是独立展示元数据：认证内部携带既有值，以最终一致读成功轮决定首次/严格超过五分钟的同步更新；应用层与 SQL 用相同截止时间，恰边界/未来跳过，不额外 SELECT、不推进业务 revision。并发可发多个 UPDATE，仅SQL条件匹配的请求更新；更新失败沿用500。
 
 静态缓存仅原始路径app.js/style.css/favicon.svg/openapi.json，采用构建SHA256与no-cache条件验证；GET/HEAD命中304，HTML与所有API/错误继续no-store。编码别名不进入白名单。生成资源含内部hash不表示每种资源对外可缓存；生产CDN行为需部署后单独核验。
+
+
+阶段 3 C5（独立 PR，未部署）：总览正文以不可变 Blob 缓存，按 DB 绑定身份、revision、规范化查询及完整授权身份隔离。缓存有效期精确到北京日界、未完成 d1/d3/d7 到期与未来保险成员发布时间；缓存不能代替每次鉴权、首尾 revision 检查或 C2 元数据处理。总预算 16 MiB，单项正文最多 15 MiB，最多 50 项；pending、resident、活跃响应与每个租约的两个 64 KiB 缓冲预留共同计费。失败、重试和取消显式释放；超限完整绕过缓存，不截断响应。资源状态和目标运行时证据边界见 overview-cache-design.md 与 overview-cache-validation.md。
