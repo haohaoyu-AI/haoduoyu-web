@@ -144,9 +144,9 @@ workerd 诊断的 `requests[].ms` 在读取完整正文后还等待了 `await sa
 
 这些诊断只能保留成功响应/正文一致性和有限采样记录，完整 Cloudflare isolate 峰值仍未验证；不得把前三个诊断耗时或采样最大值当作主基准或生产上限验收。相对 dc341245，交付还新增两个 tests 浏览器诊断脚本，不能称为仅文档变化；产品源码未变。
 
-## C6：文章 SQL 分页同场对照（待验收、未部署）
+## C6：初版文章 SQL 分页同场对照（修订前证据、未部署）
 
-基线 `0c5238d79551a807b35c0889ff69763bd04ae63e`；候选产品及基准工具 `afdfb2cb3209ca3be19a72be0cfac12745b861df`。原始 [52 样本和 26 对比较](perf-article-page.json) 的七个源码/工具 SHA256 与该提交、最终工作树均独立核对一致；后续只补强测试断言和报告，没有更改产品或重复采样。
+基线 `0c5238d79551a807b35c0889ff69763bd04ae63e`；初版候选产品及基准工具 `afdfb2cb3209ca3be19a72be0cfac12745b861df`。原始 [52 样本和 26 对比较](perf-article-page.json) 的七个源码/工具 SHA256 与该提交均独立核对一致。后续审查要求修复页外损坏快照的错误契约，产品另加 JSON 守卫；以下完整结果保留为初版证据，不能替代修订后的性能测量。
 
 复现：`npm run build` 后 `node --expose-gc tests/bench.article-page.mjs`。与已审生成器相同的 seed 104729、时钟 2026-10-22T08:00:00.000Z，SQL 核验 5000 篇文章、20000 条快照、50000 条每日记录，装载 833.75 ms。Node v24.19.0、Miniflare 4.20260730.0、Linux x64；同一临时 D1、真实本地管理员 Cookie、完整授权范围。前后实现都运行于 Node Worker harness，通过真实 Miniflare D1；没有访问生产。
 

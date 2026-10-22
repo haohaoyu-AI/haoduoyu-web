@@ -220,10 +220,16 @@ export function createRecords(store) {
     const source = `FROM articles a JOIN accounts c ON c.id=a.account_id${clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''}`;
     // Check every matching row, including rows outside this page. GLOB stops
     // at NUL, hence the separate NUL checks. Dates keep raw string ordering;
-    // notes marking a date unverified never exclude it from this path.
+    // notes marking a date unverified never exclude it from this path. Inspect
+    // only the same latest snapshot that enrichMany would parse, so malformed
+    // off-page JSON still reaches the old error path before pagination checks.
     const count = await get(`SELECT count(*) AS total,coalesce(sum(CASE WHEN
       typeof(a.id)!='text' OR a.id='' OR a.id GLOB '*[^a-z0-9-]*' OR instr(a.id,char(0))>0
       OR typeof(a.published_at)!='text' OR a.published_at GLOB '*[^ -~]*' OR instr(a.published_at,char(0))>0
+      OR coalesce((SELECT CASE WHEN typeof(newest.metrics_json)='text'
+        AND instr(newest.metrics_json,char(0))=0 AND json_valid(newest.metrics_json)
+        THEN 0 ELSE 1 END FROM observations newest WHERE newest.article_id=a.id
+        ORDER BY newest.as_of DESC,newest.collected_at DESC,newest.id DESC LIMIT 1),0)=1
       THEN 1 ELSE 0 END),0) AS incompatible ${source}`, ...params);
     if (count.incompatible) return null;
     const page = paginate([], query);

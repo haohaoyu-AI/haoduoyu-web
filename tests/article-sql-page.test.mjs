@@ -177,3 +177,56 @@ test('C6 count/page race retries the entire authenticated read after a real busi
   assert.equal(db.entries.filter(row => /FROM matrix_sessions\b/.test(row.sql)).length, 2);
   assert.equal(db.totals().write_statements, 0, 'concurrent write uses a separate authenticated request');
 });
+
+test('C6 malformed off-page latest metrics retain legacy errors before pagination validation', async t => {
+  const app = await setup(t, 36), baseline = await referenceWorker(t, BASELINE);
+  await app.db.prepare("UPDATE matrix_articles SET published_at='2001-01-01' WHERE id='bench-article-1'").run();
+  const initial = await read(app, '?page=1&page_size=3');
+  assert.ok(initial.body.data.every(row => row.id !== 'bench-article-1'));
+  const valid = (await app.db.prepare("SELECT metrics_json FROM matrix_observations WHERE id='bench-snapshot-1-3'").first()).metrics_json;
+  for (const metrics of ['{', 'null\0trailing', new Uint8Array([123, 125])]) {
+    await app.db.prepare("UPDATE matrix_observations SET metrics_json=? WHERE id='bench-snapshot-1-3'").bind(metrics).run();
+    for (const query of ['?page=1&page_size=3', '?page=0', '?page=oops', '?page=9999']) {
+      const before = await read(app, query, baseline), after = await read(app, query);
+      assert.equal(before.status, 500, 'the baseline must actually reject this stored value');
+      assert.deepEqual(contract(after), contract(before), 'malformed latest metrics: ' + query);
+      assert.equal(after.receipts.some(row => /ORDER BY a\.published_at COLLATE BINARY/.test(row.sql)), false);
+      assert.equal(after.counts.write_statements, 0);
+    }
+    const excluded = '?page=1&platform=toutiao';
+    const after = await read(app, excluded);
+    assert.deepEqual(contract(after), contract(await read(app, excluded, baseline)));
+    assert.equal(after.status, 200);
+    assert.ok(after.receipts.some(row => /ORDER BY a\.published_at COLLATE BINARY/.test(row.sql)));
+  }
+  await app.db.prepare("UPDATE matrix_observations SET metrics_json=? WHERE id='bench-snapshot-1-3'").bind(valid).run();
+  await app.db.prepare("UPDATE matrix_observations SET metrics_json='{' WHERE id='bench-snapshot-1-2'").run();
+  const historical = await read(app, '?page=1');
+  assert.deepEqual(contract(historical), contract(await read(app, '?page=1', baseline)));
+  assert.equal(historical.status, 200, 'an older malformed snapshot was never parsed by the old list');
+  assert.ok(historical.receipts.some(row => /ORDER BY a\.published_at COLLATE BINARY/.test(row.sql)));
+  for (const [id, status] of [['aaa-tied-snapshot', 200], ['zzz-tied-snapshot', 500]]) {
+    await app.db.prepare(`INSERT INTO matrix_observations
+      (id,article_id,as_of,collected_at,kind,metrics_json,source,note,created_at)
+      SELECT ?,article_id,as_of,collected_at,kind,'{',source,note,created_at
+      FROM matrix_observations WHERE id='bench-snapshot-1-3'`).bind(id).run();
+    const after = await read(app, '?page=1');
+    assert.deepEqual(contract(after), contract(await read(app, '?page=1', baseline)));
+    assert.equal(after.status, status, 'tied timestamps must retain descending snapshot ID selection');
+    assert.equal(after.receipts.some(row => /ORDER BY a\.published_at COLLATE BINARY/.test(row.sql)), status === 200);
+    await app.db.prepare('DELETE FROM matrix_observations WHERE id=?').bind(id).run();
+  }
+});
+
+test('C6 valid non-object JSON metrics preserve their existing values without disabling SQL paging', async t => {
+  const app = await setup(t, 36), baseline = await referenceWorker(t, BASELINE);
+  await app.db.prepare("UPDATE matrix_articles SET published_at='2026-10-11' WHERE id='bench-article-1'").run();
+  for (const metrics of ['null', '0', 'true', '"synthetic"', '[]', '[1]', '{"reads":null}', '{"reads":1e999}']) {
+    await app.db.prepare("UPDATE matrix_observations SET metrics_json=? WHERE id='bench-snapshot-1-3'").bind(metrics).run();
+    const after = await read(app, '?page=1&page_size=3');
+    assert.deepEqual(contract(after), contract(await read(app, '?page=1&page_size=3', baseline)));
+    assert.equal(after.status, 200);
+    assert.equal(after.body.data[0].id, 'bench-article-1');
+    assert.ok(after.receipts.some(row => /ORDER BY a\.published_at COLLATE BINARY/.test(row.sql)));
+  }
+});
