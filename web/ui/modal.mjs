@@ -7,10 +7,9 @@ function openModal(title, body, { drawer = false, context = "" } = {}) {
   closePopover();
   runtime.modalRequestVersion++;
   if (!$("#overlay").contains(document.activeElement)) runtime.lastFocus = document.activeElement;
-  $("#overlay").innerHTML = `<div class="modal-backdrop ${drawer ? "drawer-backdrop" : ""}"><section class="modal ${drawer ? "drawer" : ""}"\
- role="dialog" aria-modal="true" aria-labelledby="modal-title"><header class="modal-head"><div>${context}<h2 id="modal-title">${e(title)}</h\
-2></div><button class="icon-button" data-action="close-modal" aria-label="关闭">${icon("close", 20)}</button></header><div class="modal-bo\
-dy">${body}</div></section></div>`;
+  $("#overlay").innerHTML = `<div class="modal-backdrop ${drawer ? "drawer-backdrop" : ""}"><section class="modal ${drawer ? "drawer" : ""}" role="dialog" \
+aria-modal="true" aria-labelledby="modal-title"><header class="modal-head"><div>${context}<h2 id="modal-title">${e(title)}</h2></div><button \
+class="icon-button" data-action="close-modal" aria-label="关闭">${icon("close", 20)}</button></header><div class="modal-body">${body}</div></section></div>`;
   document.body.style.overflow = "hidden";
   requestAnimationFrame(() => {
     const field = $("input:not([type=checkbox]),select,textarea,button", $("#overlay"));

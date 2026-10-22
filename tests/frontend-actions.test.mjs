@@ -88,5 +88,17 @@ test('web style checks every function type and rejects long fixture lines/functi
     const invalid=await webStyle(directory);
     assert.ok(invalid.violations.some(row=>row.rule==='line'));
     assert.ok(invalid.violations.some(row=>row.rule==='function'));
+    await writeFile(join(directory,'word.mjs'),"const action='all-to\\\np';\n");
+    assert.ok((await webStyle(directory)).violations.some(row=>row.rule==='word-continuation'));
   }finally {await rm(directory,{recursive:true,force:true});}
+});
+test('the click prelude and remaining event callback bodies keep their original order and semantics',async()=>{
+  const ast=parseWeb(await current('web/events.mjs'));
+  const functions=new Map(ast.body.filter(node=>node.type==='FunctionDeclaration').map(node=>[node.id.name,node]));
+  const beforeTry=body=>body.slice(0,body.findIndex(node=>node.type==='TryStatement'));
+  assert.deepEqual(normalized(beforeTry(functions.get('handleClick').body.body)),normalized(beforeTry(callbacks[0].body.body)));
+  for(const [index,name] of [[1,'handleChange'],[2,'handleToggle'],[3,'handleInput'],[4,'handleFilterSubmit'],
+    [5,'handleKeydown'],[7,'handleResize'],[8,'handlePopstate']]) {
+    assert.deepEqual(normalized(functions.get(name).body),normalized(callbacks[index].body),name);
+  }
 });

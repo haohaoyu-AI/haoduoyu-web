@@ -12,10 +12,20 @@ var nav = [
 var settingsTabs = { accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
 var legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
 var defaultFilters = () => ({ q: "", mode: "", from: "", to: "", sort: "published_at", order: "desc", group: "", platform: "", topic: "", data_status: "" });
-var articleColumns = { reads: ["阅读", "reads"], likes: ["点赞", "likes"], comments: ["评论", "comments"], as_of: ["数据截至", "latest_as_of"], approvals: ["赞同", "approvals"], mode: ["生产方式", ""], duration: ["耗时", "duration"], published: [
-  "发布日期",
-  "published_at"
-], account: ["账号", ""] };
+var articleColumns = {
+  reads: ["阅读", "reads"],
+  likes: ["点赞", "likes"],
+  comments: ["评论", "comments"],
+  as_of: ["数据截至", "latest_as_of"],
+  approvals: ["赞同", "approvals"],
+  mode: ["生产方式", ""],
+  duration: ["耗时", "duration"],
+  published: [
+    "发布日期",
+    "published_at"
+  ],
+  account: ["账号", ""]
+};
 var articleStatuses = { no_snapshot: "未采集", missing_reads: "缺阅读数据", missing_likes: "缺点赞数据", missing_comments: "缺评论数据", incomplete: "指标不完整", zero_reads: "真实0阅读", date_unverified: "日期待核实" };
 var articleChoices = {
   topic: { entertainment: "文娱（推断）", insurance: "保险（推断）", unknown: "未推断" },
@@ -291,7 +301,10 @@ function renderLogin() {
   closePopover({ restoreFocus: false });
   runtime.modalRequestVersion++;
   runtime.renderVersion++;
-  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">好多鱼图文</h1></div><form id="login-form" aria-label="账号登录"><div class="form-field"><label for="username">账号</label><input class="input" id="username" name="username" autocomplete="username" required autofocus></div><div class="form-field"><label for="password">密码</label><input class="input" id="password" name="password" type="password" autocomplete="current-password" required></div><p class="form-message" role="alert"></p><button class="btn primary" type="submit">登录 ${icon("arrow", 15)}</button></form></section></main>`;
+  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">好多鱼图文</h1></div><form id="login-form" aria-label="账号登录"><div class="form-field"><label for="username">账号</label><input class="input" id="username" name="username" autocomplete="username" required autofocus></div><div class="form-field"><label for="password">密码</label><input class="input" id="password" name="password" type="password" autocomplete="current-password" required></div><p class="form-message" role="alert"></p><button class="btn primary" type="submit">登录 ${icon(
+    "arrow",
+    15
+  )}</button></form></section></main>`;
 }
 
 // web/ui/modal.mjs
@@ -391,12 +404,20 @@ async function api(path, options = {}) {
 // web/core/format.mjs
 var num = (value) => value === null || value === void 0 || value === "" ? "—" : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(Number(value));
 var compact = (value) => value == null ? "—" : Number(value) >= 1e4 ? `${num(Number(value) / 1e4)}万` : num(value);
-var bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value));
+var bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+}).format(new Date(value));
 var time = (value, short = false) => {
   if (!value) return "未记录";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "未记录";
-  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : { year: "numeric", second: "2-digit" }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : {
+    year: "numeric",
+    second: "2-digit"
+  }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
 };
 var duration = (seconds) => {
   if (seconds == null) return "未记录";
@@ -471,7 +492,11 @@ function updateRoute(push = false) {
     if (value && value !== defaultFilters()[key]) u.searchParams.set(key, value);
     else u.searchParams.delete(key);
   }
-  for (const [key, value, def] of [["list_page", state.listPage, 1], ["page_size", state.pageSize, 20], ["top_n", state.topN, 5], ["top_platform", state.topPlatform, ""]]) {
+  for (const [key, value, def] of [["list_page", state.listPage, 1], ["page_size", state.pageSize, 20], ["top_n", state.topN, 5], [
+    "top_platform",
+    state.topPlatform,
+    ""
+  ]]) {
     if (value !== def) u.searchParams.set(key, value);
     else u.searchParams.delete(key);
   }
@@ -497,7 +522,16 @@ function readRoute() {
     "zhihu",
     "wechat",
     "other"
-  ], topic: ["", "insurance", "entertainment", "unknown"], data_status: ["", "no_snapshot", "missing_reads", "missing_likes", "missing_comments", "incomplete", "zero_reads", "date_unverified"], mode: ["", ...Object.keys(modeLabels)], group: [
+  ], topic: ["", "insurance", "entertainment", "unknown"], data_status: [
+    "",
+    "no_snapshot",
+    "missing_reads",
+    "missing_likes",
+    "missing_comments",
+    "incomplete",
+    "zero_reads",
+    "date_unverified"
+  ], mode: ["", ...Object.keys(modeLabels)], group: [
     "",
     "account",
     "mode"
@@ -524,12 +558,18 @@ async function modalRequest(path, ticket, version, context) {
 }
 
 // web/ui/components.mjs
-var platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "zhihu", "wechat"].includes(p) ? p : "other")}">${e({ toutiao: "头", zhihu: "知", wechat: "微" }[p] || "文")}</span>`;
+var platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "zhihu", "wechat"].includes(p) ? p : "other")}">${e({
+  toutiao: "头",
+  zhihu: "知",
+  wechat: "微"
+}[p] || "文")}</span>`;
 function detailInfo(reason, label, id) {
   return `<button class="icon-button" data-action="detail-info" data-reason="${e(reason)}" aria-label="${e(label)}" aria-expanded="false" aria-controls="detail-info-${e(id)}">${icon("info", 14)}</button>`;
 }
 function empty(title, description = "", action = "") {
-  return `<div class="empty"><span class="empty-icon">${icon("articles", 22)}</span><h3>${e(title)}</h3>${description ? `<p>${e(description)}</p>` : ""}${action}</div>`;
+  return `<div class="empty"><span class="empty-icon">${icon("articles", 22)}</span><h3>${e(title)}</h3>${description ? `<p>${e(
+    description
+  )}</p>` : ""}${action}</div>`;
 }
 function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
@@ -579,7 +619,10 @@ function freshness(c, now = Date.now()) {
   const stamp = [c.as_of, c.collected_at].find((v) => v && Number.isFinite(Date.parse(v)));
   if (!stamp) return { kind: "unknown", label: "数据新鲜度未知" };
   const days = Math.floor((Date.parse(bjtDate(now)) - Date.parse(bjtDate(stamp))) / 864e5);
-  return days < 0 ? { kind: "unknown", label: "数据日期待核实" } : { kind: days <= 1 ? "up" : days <= 3 ? "warn" : "danger", label: `数据截至 ${time(stamp, true)} · ${days === 0 ? "今天更新" : `已 ${days} 天未更新`}` };
+  return days < 0 ? { kind: "unknown", label: "数据日期待核实" } : { kind: days <= 1 ? "up" : days <= 3 ? "warn" : "danger", label: `数据截至 ${time(
+    stamp,
+    true
+  )} · ${days === 0 ? "今天更新" : `已 ${days} 天未更新`}` };
 }
 function dashboardMetric(article, key) {
   return article.latest_metrics == null ? '<span class="missing-value" title="未采集">—<span class="sr-only">未采集</span></span>' : article.latest_metrics[key] == null ? '<span class="missing-value">未取得</span>' : `<strong class="number">${e(num(article.latest_metrics[key]))}</strong>`;
@@ -605,12 +648,16 @@ function formEnd(label = "保存") {
 }
 function renderSnapshot(row) {
   const m = metricData(row);
-  return `<article class="snapshot"><div class="snapshot-head"><span class="badge ${row.kind === "latest" ? "up" : "neutral"}">${e(kindLabels[row.kind] || row.kind || "每日数据")}</span><span class="snapshot-time">${e(row.date || displayTime(row.as_of))}</span></div><div class="snapshot-metrics">${Object.entries(metrics).filter(([key]) => m[key] != null).map(([key, label]) => `<span>${e(label)} <strong>${e(num(m[key]))}</strong></span>`).join("") || "未记录指标"}</div><p class="cell-sub">来源 ${e(row.source || "未记录")}${row.collected_at ? " · 采集 " + e(displayTime(row.collected_at)) : ""}</p>${row.note ? `<p class="cell-sub">${e(row.note)}</p>` : ""}</article>`;
+  return `<article class="snapshot"><div class="snapshot-head"><span class="badge ${row.kind === "latest" ? "up" : "neutral"}">${e(kindLabels[row.kind] || row.kind || "每日数据")}</span><span class="snapshot-time">${e(row.date || displayTime(row.as_of))}</span></div><div class="snapshot-metrics">${Object.entries(metrics).filter(([key]) => m[key] != null).map(([key, label]) => `<span>${e(label)} <strong>${e(
+    num(m[key])
+  )}</strong></span>`).join("") || "未记录指标"}</div><p class="cell-sub">来源 ${e(row.source || "未记录")}${row.collected_at ? " · 采集 " + e(displayTime(row.collected_at)) : ""}</p>${row.note ? `<p class="cell-sub">${e(row.note)}</p>` : ""}</article>`;
 }
 
 // web/ui/segmented.mjs
 function segmented(action, items, selected, label, attribute = "tab", classes = "") {
-  return `<div class="segmented${classes ? " " + e(classes) : ""}" role="group" aria-label="${e(label)}">${items.map(([value, text]) => `<button type="button" class="btn" data-action="${e(action)}" data-${e(attribute)}="${e(value)}" aria-pressed="${selected === value}">${e(text)}</button>`).join("")}</div>`;
+  return `<div class="segmented${classes ? " " + e(classes) : ""}" role="group" aria-label="${e(label)}">${items.map(([value, text]) => `<button type="button" class="btn" data-action="${e(action)}" data-${e(attribute)}="${e(value)}" aria-pressed="${selected === value}">${e(
+    text
+  )}</button>`).join("")}</div>`;
 }
 function platformFilter(action, selected, label = "平台") {
   return segmented(action, [["", "全部"], ...Object.entries(platforms)], selected, label, "platform");
@@ -660,7 +707,11 @@ async function renderArticles(version = runtime.renderVersion, context) {
   ])].filter(
     ([, , value]) => value
   );
-  return `<section class="card article-list"><form id="article-filters" class="filters"><label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}" placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${platformFilter("article-platform", f.platform, "文章平台")}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}<button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button></form>${chips.length ? `<div class="selected-filters" aria-label="已选条件">${chips.map(([key, label, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key)}" aria-label="移除${e(label)}：${e(value)}">${e(label)}：${e(value)} ×</button>`).join("")}<button class="btn text" data-action="reset-filters">清空</button></div>` : ""}${articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "尚未记录文章", "", '<button class="btn" data-action="reset-filters">清空筛选</button>')}<div class="pagination"><span>共 ${e(num(meta.total))} 篇</span><label>每页<select id="page-size" class="input">${[.../* @__PURE__ */ new Set([
+  return `<section class="card article-list"><form id="article-filters" class="filters"><label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}" placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${platformFilter(
+    "article-platform",
+    f.platform,
+    "文章平台"
+  )}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}<button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button></form>${chips.length ? `<div class="selected-filters" aria-label="已选条件">${chips.map(([key, label, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key)}" aria-label="移除${e(label)}：${e(value)}">${e(label)}：${e(value)} ×</button>`).join("")}<button class="btn text" data-action="reset-filters">清空</button></div>` : ""}${articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "尚未记录文章", "", '<button class="btn" data-action="reset-filters">清空筛选</button>')}<div class="pagination"><span>共 ${e(num(meta.total))} 篇</span><label>每页<select id="page-size" class="input">${[.../* @__PURE__ */ new Set([
     10,
     20,
     50,
@@ -705,7 +756,9 @@ function articleTable(rows) {
     a.published_at,
     true
   ));
-  return `<div class="table-scroll article-desktop"><table class="data-table article-table"><thead><tr><th aria-sort="${!state.columns.has("published") && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key, [label, sort]]) => `<th ${sort ? `aria-sort="${state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>${sort ? sortHeading(
+  return `<div class="table-scroll article-desktop"><table class="data-table article-table"><thead><tr><th aria-sort="${!state.columns.has(
+    "published"
+  ) && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key, [label, sort]]) => `<th ${sort ? `aria-sort="${state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>${sort ? sortHeading(
     sort,
     label
   ) : e(label)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}<th>操作</th></tr></thead><tbody class="article-cards">${rows.map((a) => {
@@ -737,12 +790,23 @@ async function articleModal(id = "") {
     a.title,
     'maxlength="500" required',
     true
-  )}<div class="form-field full"><label for="field-account_id">所属运营账号 <span class="required">*</span></label><select class="input" id="field-account_id" name="account_id" required>${accountOptions(a.account_id, false, true)}</select></div>${field("url", '已发布文章链接 <span class="required">*</span>', "url", a.url, 'placeholder="https://…" required', true)}${field("published_at", '实际发布时间 <span class="required">*</span>', "datetime-local", localDateTime(a.published_at), "required")}${field(
+  )}<div class="form-field full"><label for="field-account_id">所属运营账号 <span class="required">*</span></label><select class="input" id="field-account_id" name="account_id" required>${accountOptions(a.account_id, false, true)}</select></div>${field("url", '已发布文章链接 <span class="required">*</span>', "url", a.url, 'placeholder="https://…" required', true)}${field(
+    "published_at",
+    '实际发布时间 <span class="required">*</span>',
+    "datetime-local",
+    localDateTime(a.published_at),
+    "required"
+  )}${field(
     "started_at",
     "选题开始时间（可选）",
     "datetime-local",
     localDateTime(a.started_at)
-  )}<div class="form-field"><label for="field-production_mode">文章生产方式</label><select class="input" id="field-production_mode" name="production_mode">${Object.entries(modeLabels).map(([key, label]) => `<option value="${key}" ${a.production_mode === key ? "selected" : ""}>${label}</option>`).join("")}</select></div>${field("platform_article_id", "平台文章标识（可选）", "text", a.platform_article_id)}<div class="form-field full"><label for="field-summary">文章概况</label><textarea class="input" name="summary" id="field-summary" maxlength="5000">${e(a.summary)}</textarea></div><div class="form-field full"><label for="field-notes">备注</label><textarea class="input" name="notes" id="field-notes" maxlength="10000">${e(a.notes)}</textarea></div></div>${formEnd(id ? "保存修改" : "保存发布记录")}</form>`);
+  )}<div class="form-field"><label for="field-production_mode">文章生产方式</label><select class="input" id="field-production_mode" name="production_mode">${Object.entries(modeLabels).map(([key, label]) => `<option value="${key}" ${a.production_mode === key ? "selected" : ""}>${label}</option>`).join("")}</select></div>${field(
+    "platform_article_id",
+    "平台文章标识（可选）",
+    "text",
+    a.platform_article_id
+  )}<div class="form-field full"><label for="field-summary">文章概况</label><textarea class="input" name="summary" id="field-summary" maxlength="5000">${e(a.summary)}</textarea></div><div class="form-field full"><label for="field-notes">备注</label><textarea class="input" name="notes" id="field-notes" maxlength="10000">${e(a.notes)}</textarea></div></div>${formEnd(id ? "保存修改" : "保存发布记录")}</form>`);
 }
 
 // web/pages/dashboard.mjs
@@ -763,13 +827,18 @@ function renderDashboard(data) {
   return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible)}${articles.length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ? "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">还没有每日新增数据，录入后这里会显示周期变化和趋势。<button class="btn" data-action="new-daily">录入每日数据</button></div>'}</section>
  ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label]) => `<option value="${e(
     key
-  )}" ${state.trendMetric === key ? "selected" : ""}>${e(label)}</option>`).join("")}</select></label></div>${renderTrend(data)}<h3>本站发布量 ${dashboardInfo("publication", "发布量口径")}</h3>${renderPublicationTrend(data)}${segmented("trend-tab", [
+  )}" ${state.trendMetric === key ? "selected" : ""}>${e(label)}</option>`).join("")}</select></label></div>${renderTrend(
+    data
+  )}<h3>本站发布量 ${dashboardInfo("publication", "发布量口径")}</h3>${renderPublicationTrend(data)}${segmented("trend-tab", [
     ["metrics", "每日明细"],
     ["publication", "各账号每日发布量"]
   ], state.trendTab || "metrics", "趋势明细")}${renderDailyTable(data)}</div></details>`}`;
 }
 function renderPeriodAccounts(accounts) {
-  const approvals = accounts.some((a) => a.period_metrics?.approvals != null), columns = [["reads", "阅读"], ["likes", "点赞"], ["comments", "评论"], ...approvals ? [["approvals", "赞同"]] : []];
+  const approvals = accounts.some((a) => a.period_metrics?.approvals != null), columns = [["reads", "阅读"], ["likes", "点赞"], [
+    "comments",
+    "评论"
+  ], ...approvals ? [["approvals", "赞同"]] : []];
   return `<div class="table-scroll"><table class="data-table"><thead><tr><th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key]) => `<td>${dashboardMetric(
     { latest_metrics: a.period_metrics },
     key
@@ -783,11 +852,17 @@ function renderAttentionArticles(articles) {
   )}</th><th>关注原因</th></tr></thead><tbody>${articles.map((a) => {
     const platform = a.platform || state.accounts.find((x) => x.id === a.account_id)?.platform, like = "likes", m = a.period_metrics || {}, attention = a.attention || {};
     const label = { up: "表现较高", down: "表现较低", normal: "近期文章", insufficient: "待积累数据" }[attention.kind] || "待积累数据";
-    return `<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div class="cell-sub">${e(platform && a.account_name ? `${platforms[platform] || platform} · ${a.account_name}` : accountName(a.account_id))} · ${e(time(a.published_at, true))}</div></td><td><strong class="number">${e(num(m.reads))}</strong>${metricCoverageHTML(a, "reads")}${comparisonHTML(
+    return `<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div class="cell-sub">${e(platform && a.account_name ? `${platforms[platform] || platform} · ${a.account_name}` : accountName(a.account_id))} · ${e(time(a.published_at, true))}</div></td><td><strong class="number">${e(num(m.reads))}</strong>${metricCoverageHTML(
+      a,
+      "reads"
+    )}${comparisonHTML(
       a.comparisons?.reads
     )}</td><td><div class="attention-interaction"><span>点赞 ${e(num(m[like]))}${metricCoverageHTML(a, like)}</span>${comparisonHTML(
       a.comparisons?.[like]
-    )}</div><div class="attention-interaction"><span>评论 ${e(num(m.comments))}${metricCoverageHTML(a, "comments")}</span>${comparisonHTML(a.comparisons?.comments)}</div>${m.approvals != null ? `<div>赞同 ${e(num(m.approvals))}${comparisonHTML(a.comparisons?.approvals)}</div>` : ""}</td><td class="reason-cell"><span class="badge ${attention.kind === "up" ? "up" : attention.kind === "down" ? "warn" : ""}">${e(label)}</span>${dashboardInfo("attention", "比较依据", a.id)}</td></tr>`;
+    )}</div><div class="attention-interaction"><span>评论 ${e(num(m.comments))}${metricCoverageHTML(
+      a,
+      "comments"
+    )}</span>${comparisonHTML(a.comparisons?.comments)}</div>${m.approvals != null ? `<div>赞同 ${e(num(m.approvals))}${comparisonHTML(a.comparisons?.approvals)}</div>` : ""}</td><td class="reason-cell"><span class="badge ${attention.kind === "up" ? "up" : attention.kind === "down" ? "warn" : ""}">${e(label)}</span>${dashboardInfo("attention", "比较依据", a.id)}</td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 function renderCumulative(data) {
@@ -795,11 +870,21 @@ function renderCumulative(data) {
     c
   );
   const interactions = c.totals?.likes == null || c.totals?.comments == null ? null : c.totals.likes + c.totals.comments;
-  const stats = [["已记录文章", num(c.article_count)], ["累计阅读", num(c.totals?.reads)], ["篇均阅读", num(c.mean_reads)], ["互动（赞+评）", num(interactions)], ["数据覆盖", c.coverage == null ? "—" : num(c.coverage * 100) + "%"]];
+  const stats = [["已记录文章", num(c.article_count)], ["累计阅读", num(c.totals?.reads)], ["篇均阅读", num(c.mean_reads)], ["互动（赞+评）", num(
+    interactions
+  )], ["数据覆盖", c.coverage == null ? "—" : num(c.coverage * 100) + "%"]];
   return `<div class="overview-status" role="status"><span><i class="fresh-dot ${e(fresh.kind)}"></i>${e(fresh.label)}</span><div>${c.no_snapshot_count ? `<button class="btn text" data-action="missing-list" data-status="no_snapshot">未采集 ${e(num(c.no_snapshot_count))} 篇 →</button>` : ""}${due.length ? `<button class="btn text" data-action="show-due">待复盘 ${e(num(due.length))} 条 →</button>` : ""}</div></div>
- <dl class="dashboard-stats">${stats.map(([label, value], i) => `<div class="stat"><dt>${e(label)}${i === 4 ? dashboardInfo("coverage", "数据覆盖与统计口径") : ""}</dt><dd class="${value === "—" ? "missing-value" : ""}">${e(value)}</dd></div>`).join("")}</dl>
- <div class="dashboard-grid"><section class="card"><div class="section-heading"><h2>账号表现</h2></div>${renderPlatformTable(data.platform_comparison || [])}</section><aside class="card todo-panel"><div class="section-heading"><h2>待处理</h2></div><div class="form-field todo-list">${c.no_snapshot_count ? `<button class="btn text" data-action="missing-list" data-status="no_snapshot">${e(num(c.no_snapshot_count))} 篇文章未采集数据 →</button>` : ""}${due.length ? `<button class="btn text" data-action="show-due">${e(num(due.length))} 条到期复盘 →</button>` : ""}<span>${e(fresh.label)}</span>${due.length ? `<span>1天 ${e(num(due.filter((d) => d.due_kind === "d1").length))} · 3天 ${e(num(due.filter((d) => d.due_kind === "d3").length))} · 7天 ${e(num(due.filter((d) => d.due_kind === "d7").length))}</span>` : ""}</div><div class="form-field detail-section series-progress"><h3>保险200篇 ${dashboardInfo("series", "保险系列进度口径")}</h3><span>${series.highest_recorded == null ? "尚未记录系列文章" : `第 ${e(num(series.highest_recorded))} / ${e(num(series.planned))} 篇`}</span><progress max="${e(series.planned || 200)}" value="${e(series.highest_recorded || 0)}" aria-label="保险系列编号进度"></progress><span>本站收录 ${e(num(series.recorded_count))} 篇</span></div></aside></div>
- <section class="card cumulative-top"><div class="section-heading"><h2 id="top-heading">阅读 Top 5</h2>${segmented("top-platform", [["", "全部"], ...Object.entries(platforms).filter(([key]) => key !== "other" || state.topPlatform === "other" || state.accounts.some((a) => a.platform === "other"))], state.topPlatform, "Top榜平台", "platform")}</div>${rows.length ? `${renderTopTable(rows.slice(0, 5))}${rows.length > 5 ? `<details class="top-rest"><summary class="table-footer">展开其余 ${e(num(rows.length - 5))} 篇</summary>${renderTopTable(
+ <dl class="dashboard-stats">${stats.map(([label, value], i) => `<div class="stat"><dt>${e(label)}${i === 4 ? dashboardInfo(
+    "coverage",
+    "数据覆盖与统计口径"
+  ) : ""}</dt><dd class="${value === "—" ? "missing-value" : ""}">${e(value)}</dd></div>`).join("")}</dl>
+ <div class="dashboard-grid"><section class="card"><div class="section-heading"><h2>账号表现</h2></div>${renderPlatformTable(data.platform_comparison || [])}</section><aside class="card todo-panel"><div class="section-heading"><h2>待处理</h2></div><div class="form-field todo-list">${c.no_snapshot_count ? `<button class="btn text" data-action="missing-list" data-status="no_snapshot">${e(num(c.no_snapshot_count))} 篇文章未采集数据 →</button>` : ""}${due.length ? `<button class="btn text" data-action="show-due">${e(num(due.length))} 条到期复盘 →</button>` : ""}<span>${e(fresh.label)}</span>${due.length ? `<span>1天 ${e(num(due.filter((d) => d.due_kind === "d1").length))} · 3天 ${e(num(due.filter((d) => d.due_kind === "d3").length))} · 7天 ${e(num(due.filter((d) => d.due_kind === "d7").length))}</span>` : ""}</div><div class="form-field detail-section series-progress"><h3>保险200篇 ${dashboardInfo("series", "保险系列进度口径")}</h3><span>${series.highest_recorded == null ? "尚未记录系列文章" : `第 ${e(num(
+    series.highest_recorded
+  ))} / ${e(num(series.planned))} 篇`}</span><progress max="${e(series.planned || 200)}" value="${e(series.highest_recorded || 0)}" aria-label="保险系列编号进度"></progress><span>本站收录 ${e(num(series.recorded_count))} 篇</span></div></aside></div>
+ <section class="card cumulative-top"><div class="section-heading"><h2 id="top-heading">阅读 Top 5</h2>${segmented("top-platform", [[
+    "",
+    "全部"
+  ], ...Object.entries(platforms).filter(([key]) => key !== "other" || state.topPlatform === "other" || state.accounts.some((a) => a.platform === "other"))], state.topPlatform, "Top榜平台", "platform")}</div>${rows.length ? `${renderTopTable(rows.slice(0, 5))}${rows.length > 5 ? `<details class="top-rest"><summary class="table-footer">展开其余 ${e(num(rows.length - 5))} 篇</summary>${renderTopTable(
     rows.slice(5),
     5
   )}</details>` : ""}` : '<div class="empty inline-empty">暂无已取得阅读数据的文章。</div>'}<div class="table-footer"><a class="btn text" href="?page=articles&amp;sort=reads&amp;order=desc" data-action="all-top">查看全部 →</a></div></section>`;
@@ -823,7 +908,15 @@ function renderTopTable(rows, offset = 0) {
     "点赞与赞同口径",
     "top" + offset
   )}</th><th>评论</th>${approvals ? "<th>赞同</th>" : ""}</tr></thead><tbody>${rows.map(
-    (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset + i + 1))}</span><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button></td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${["reads", "likes", "comments", ...approvals ? ["approvals"] : []].map((key) => `<td data-label="${e(metrics[key])}">${dashboardMetric(a, key)}</td>`).join("")}</tr>`
+    (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset + i + 1))}</span><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button></td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
+      "reads",
+      "likes",
+      "comments",
+      ...approvals ? ["approvals"] : []
+    ].map((key) => `<td data-label="${e(metrics[key])}">${dashboardMetric(
+      a,
+      key
+    )}</td>`).join("")}</tr>`
   ).join("")}</tbody></table></div>`;
 }
 function dashboardInfoBody(kind, id) {
@@ -848,7 +941,9 @@ function dashboardInfoBody(kind, id) {
 }
 function renderPublicationTrend(data) {
   const rows = data.publication_trend || [], max = Math.max(1, ...rows.map((r) => r.accounts.reduce((n, a) => n + a.count, 0)));
-  return `<div class="publication-bars" aria-label="本站每日发布量">${rows.map((row) => `<div><span>${e(row.date.slice(5))}</span><div class="publication-stack">${row.accounts.map((a) => `<i style="height:${e(a.count / max * 80)}px;background:${e(platformColor((data.accounts || []).find((v) => v.id === a.account_id)?.platform))}" title="${e(accountName(a.account_id))} ${e(num(a.count))}篇"></i>`).join("")}</div><strong>${e(num(row.accounts.reduce((n, a) => n + a.count, 0)))}</strong></div>`).join("")}</div>`;
+  return `<div class="publication-bars" aria-label="本站每日发布量">${rows.map((row) => `<div><span>${e(row.date.slice(5))}</span><div class="publication-stack">${row.accounts.map((a) => `<i style="height:${e(a.count / max * 80)}px;background:${e(platformColor((data.accounts || []).find((v) => v.id === a.account_id)?.platform))}" title="${e(accountName(a.account_id))} ${e(num(a.count))}篇"></i>`).join(
+    ""
+  )}</div><strong>${e(num(row.accounts.reduce((n, a) => n + a.count, 0)))}</strong></div>`).join("")}</div>`;
 }
 function renderDailyTable(data) {
   const publication = state.trendTab === "publication", rows = publication ? data.publication_trend || [] : data.trend || [], accounts = data.accounts || [];
@@ -948,7 +1043,10 @@ async function renderReviews(version = runtime.renderVersion, context) {
   const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label]) => [
     key,
     ["likes", "approvals"].includes(key) ? `${label}（${key}）` : label
-  ]), [tab === "observations" ? "as_of" : "source", tab === "observations" ? "数据截至" : "来源"]];
+  ]), [
+    tab === "observations" ? "as_of" : "source",
+    tab === "observations" ? "数据截至" : "来源"
+  ]];
   const cell = (r, key) => key === "account" ? e(accountName(account(r))) : key === "due_kind" ? e(kindLabels[r.due_kind] || r.due_kind) : [
     "as_of",
     "due_at"
@@ -957,7 +1055,9 @@ async function renderReviews(version = runtime.renderVersion, context) {
     const id = pending ? r.id : r.article_id, a = articles.find((a2) => a2.id === id);
     return `<tr><td class="title-cell">${id ? `<button class="article-link" data-action="article-detail" data-id="${e(id)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label]) => `<td data-label="${e(
       label
-    )}">${cell(r, key)}</td>`).join("")}<td>${pending ? `<button class="btn small" data-action="review-article" data-id="${e(id)}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
+    )}">${cell(r, key)}</td>`).join("")}<td>${pending ? `<button class="btn small" data-action="review-article" data-id="${e(
+      id
+    )}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
   }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" : "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
 }
 async function reviewModal(articleId = "", kind = "latest", indexRetry = false) {
@@ -1049,16 +1149,38 @@ function renderKeys(keys) {
   }).join("")}</tbody></table></div>` : empty("暂无凭证", "供自动化工具按账号范围读取或录入数据。")}</section>`;
 }
 function auditLabel(action) {
-  const labels = [["新增文章", "article.create", "POST /articles"], ["修改文章", "article.update", "PUT /articles/:id"], [
-    "追加复盘快照",
-    "observation.create",
-    "POST /observations"
-  ], ["填写每日数据", "daily_metrics.upsert", "POST /daily-metrics"], ["添加账号", "account.create", "POST /accounts"], ["修改账号", "account.update", "PUT /accounts/:id"], ["创建 AI 凭证", "api_key.create", "api_key.created", "POST /api-keys"], ["撤销 AI 凭证", "api_key.revoke", "api_key.revoked", "DELETE /api-keys/:id"], [
-    "修改密码",
-    "auth.password",
-    "auth.password_changed",
-    "PUT /auth/password"
-  ], ["登录网站", "auth.login", "POST /auth/login"], ["退出登录", "auth.logout", "POST /auth/logout"], ["初始化网站", "auth.bootstrap"]];
+  const labels = [
+    ["新增文章", "article.create", "POST /articles"],
+    ["修改文章", "article.update", "PUT /articles/:id"],
+    [
+      "追加复盘快照",
+      "observation.create",
+      "POST /observations"
+    ],
+    ["填写每日数据", "daily_metrics.upsert", "POST /daily-metrics"],
+    [
+      "添加账号",
+      "account.create",
+      "POST /accounts"
+    ],
+    ["修改账号", "account.update", "PUT /accounts/:id"],
+    [
+      "创建 AI 凭证",
+      "api_key.create",
+      "api_key.created",
+      "POST /api-keys"
+    ],
+    ["撤销 AI 凭证", "api_key.revoke", "api_key.revoked", "DELETE /api-keys/:id"],
+    [
+      "修改密码",
+      "auth.password",
+      "auth.password_changed",
+      "PUT /auth/password"
+    ],
+    ["登录网站", "auth.login", "POST /auth/login"],
+    ["退出登录", "auth.logout", "POST /auth/logout"],
+    ["初始化网站", "auth.bootstrap"]
+  ];
   const route = String(action || "").replace(/^(PUT|DELETE) \/(articles|accounts|api-keys)\/[^/]+$/, "$1 /$2/:id");
   return labels.find((row) => row.includes(route))?.[0] || route || "未知操作";
 }
@@ -1087,7 +1209,9 @@ function renderAudit(audit, keys = []) {
 }
 function accountModal(id = "") {
   const a = state.accounts.find((a2) => a2.id === id) || { platform: "toutiao", name: "", active: true };
-  openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid"><div class="form-field"><label for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" ${id ? "disabled" : ""}>${Object.entries(platforms).map(([key, label]) => `<option value="${key}" ${a.platform === key ? "selected" : ""}>${label}</option>`).join(
+  openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid"><div class="form-field"><label for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" ${id ? "disabled" : ""}>${Object.entries(
+    platforms
+  ).map(([key, label]) => `<option value="${key}" ${a.platform === key ? "selected" : ""}>${label}</option>`).join(
     ""
   )}</select></div>${field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"')}${id ? `<div class="form-field full"><label class="check-option"><input type="checkbox" name="active" ${a.active ? "checked" : ""}>启用此账号</label><span class="hint">停用保留历史数据。</span></div>` : ""}</div>${formEnd(id ? "保存账号" : "添加账号")}</form>`);
 }
@@ -1132,7 +1256,9 @@ function renderShell() {
   stopPageEntry();
   closePopover({ restoreFocus: false });
   const navLink = (n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}" data-nav="${e(n.id)}" class="nav-item ${n.id === state.page ? "active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>${icon(n.icon, 18)}${e(n.label)}</a>`;
-  $("#app").innerHTML = `<div class="shell"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=dashboard" class="brand" data-nav="dashboard"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon("close")}</button></div><nav class="nav-list">${nav.slice(0, 3).map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav[3])}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span><button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button></div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" tabindex="-1"><div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? `${segmented("settings-tab", Object.entries(
+  $("#app").innerHTML = `<div class="shell"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=dashboard" class="brand" data-nav="dashboard"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
+    "close"
+  )}</button></div><nav class="nav-list">${nav.slice(0, 3).map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav[3])}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span><button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button></div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" tabindex="-1"><div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? `${segmented("settings-tab", Object.entries(
     settingsTabs
   ), state.settingsTab, "设置分类", "tab", "page-tabs")}` : ""}<div id="page-content">${skeleton()}</div></main></div></div>`;
   syncMenu();
@@ -1236,7 +1362,12 @@ async function init({ freshLogin = false } = {}) {
     state.me = me;
     const accounts = await api("/accounts");
     if (initEpoch !== runtime.sessionEpoch) return;
-    state.accounts = accounts.sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - ["toutiao", "zhihu", "wechat", "other"].indexOf(b.platform));
+    state.accounts = accounts.sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - [
+      "toutiao",
+      "zhihu",
+      "wechat",
+      "other"
+    ].indexOf(b.platform));
     readRoute();
     if (freshLogin) {
       state.trendOpen = false;
@@ -1289,7 +1420,9 @@ async function articleDetail(id) {
     "修改者",
     `${a.last_modified_by?.label || "未记录"} · ${displayTime(a.last_modified_by?.at)}`
   ], ["录入时间", displayTime(a.created_at)], ["修改时间", displayTime(a.updated_at)]];
-  openModal(a.title, `<div class="head-actions">${safeURL(a.url) ? `<a class="btn small" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}<button class="btn small" data-action="edit-article" data-id="${e(a.id)}">编辑</button><button class="btn small primary" data-action="review-article" data-id="${e(a.id)}">+ 补充数据</button></div>${renderArticleAnalytics(a)}<details class="detail-section"><summary>记录信息</summary><dl class="detail-grid">${fields.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl></details>${[["summary", "概况"], ["notes", "备注"]].filter(([key]) => a[key]?.trim()).map(([key, label]) => `<section class="detail-section"><h3>${e(label)}</h3><p>${e(a[key])}</p></section>`).join("")}`, { drawer: true, context: `<div class="account-title">${platformLogo(a.platform)}${e(a.account_name || accountName(a.account_id))} · ${a.date_status === "unverified" ? "日期待核实" : e(displayTime(a.published_at))}</div>` });
+  openModal(a.title, `<div class="head-actions">${safeURL(a.url) ? `<a class="btn small" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}<button class="btn small" data-action="edit-article" data-id="${e(a.id)}">编辑</button><button class="btn small primary" data-action="review-article" data-id="${e(a.id)}">+ 补充数据</button></div>${renderArticleAnalytics(a)}<details class="detail-section"><summary>记录信息</summary><dl class="detail-grid">${fields.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(
+    value
+  )}</dd></div>`).join("")}</dl></details>${[["summary", "概况"], ["notes", "备注"]].filter(([key]) => a[key]?.trim()).map(([key, label]) => `<section class="detail-section"><h3>${e(label)}</h3><p>${e(a[key])}</p></section>`).join("")}`, { drawer: true, context: `<div class="account-title">${platformLogo(a.platform)}${e(a.account_name || accountName(a.account_id))} · ${a.date_status === "unverified" ? "日期待核实" : e(displayTime(a.published_at))}</div>` });
 }
 
 // web/actions.mjs
@@ -1400,7 +1533,11 @@ async function actionTopPlatform({ target, action }) {
 }
 function actionAllTop({ target, event, action }) {
   event.preventDefault();
-  state.filters = { ...defaultFilters(), platform: action === "all-top" ? state.topPlatform : target.dataset.platform, ...action === "all-top" ? { sort: "reads", order: "desc" } : {} };
+  state.filters = {
+    ...defaultFilters(),
+    platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
+    ...action === "all-top" ? { sort: "reads", order: "desc" } : {}
+  };
   state.account = "";
   state.listPage = 1;
   navigate("articles");
@@ -1485,7 +1622,9 @@ async function actionReviewTab({ target, action }) {
     updateRoute(true);
     const version = runtime.renderVersion + 1;
     await renderPage();
-    if (version === runtime.renderVersion && !$("#overlay").firstChild && document.activeElement === document.body) $("[data-action=review-tab][data-tab=" + state.reviewTab + "]")?.focus();
+    if (version === runtime.renderVersion && !$("#overlay").firstChild && document.activeElement === document.body) $(
+      "[data-action=review-tab][data-tab=" + state.reviewTab + "]"
+    )?.focus();
   }
   return;
 }
@@ -1513,7 +1652,9 @@ function actionRecordDetail({ id }) {
   return;
 }
 function actionRevokeKey({ target, id }) {
-  openModal("撤销 AI 凭证", `<p class="revoke-context">撤销「${e(target.dataset.name)}」后凭证立即失效，已有数据保留。</p><form id="revoke-form" data-id="${e(id)}">${formEnd("确认撤销")}</form>`);
+  openModal("撤销 AI 凭证", `<p class="revoke-context">撤销「${e(target.dataset.name)}」后凭证立即失效，已有数据保留。</p><form id="revoke-form" data-id="${e(
+    id
+  )}">${formEnd("确认撤销")}</form>`);
   return;
 }
 async function actionCopyToken({}) {
@@ -1841,7 +1982,9 @@ function handleKeydown(event) {
     closeModal();
   }
   if (event.key === "Tab") {
-    const nodes = $$('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]', $("#overlay")).filter((el) => el.getClientRects().length);
+    const nodes = $$('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]', $(
+      "#overlay"
+    )).filter((el) => el.getClientRects().length);
     if (!nodes.length) return;
     const first = nodes[0], last = nodes.at(-1);
     if (event.shiftKey && document.activeElement === first) {

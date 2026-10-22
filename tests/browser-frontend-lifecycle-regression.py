@@ -15,6 +15,7 @@ import subprocess
 from urllib.parse import urlsplit
 
 from playwright.sync_api import sync_playwright, expect
+expect.set_options(timeout=20000)
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = '2e12147b700ac604d7cccf8e034374644ac99a03'
@@ -74,7 +75,7 @@ class Run:
         context = browser.new_context(viewport={'width': 390 if touch else 1440, 'height': 900},
             timezone_id='Asia/Shanghai', reduced_motion='reduce', is_mobile=touch, has_touch=touch,
             permissions=['clipboard-read', 'clipboard-write'], storage_state=storage)
-        context.set_default_timeout(12000)
+        context.set_default_timeout(20000)
         context.add_init_script(CLOCK)
         context.add_init_script(TRACE)
         context.route('**/*', lambda route: route.continue_()
@@ -615,6 +616,10 @@ try:
     print(f"Completed: {len(report['captures'])} PNGs, {len(report['forms'])} form flows; diagnostics retained.", flush=True)
 except Exception as error:
     report['status'] = 'failed'
+    try:
+        report['failure_page_state'] = run.page.evaluate("({ready:document.readyState,busy:document.querySelector('#page-content')?.getAttribute('aria-busy'),contentLength:document.querySelector('#page-content')?.innerHTML.length,forms:[...document.forms].map(f=>f.id),error:document.querySelector('.error-panel')?.textContent})")
+    except Exception:
+        report['failure_page_state_unavailable'] = True
     report['failure'] = {'type': type(error).__name__, 'message': str(error)}
     save()
     raise

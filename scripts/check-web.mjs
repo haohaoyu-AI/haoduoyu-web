@@ -35,6 +35,12 @@ export async function webStyle(root = fileURLToPath(new URL('../web', import.met
         if (Array.from(line).length > 160) violations.push({path, line: index + 1, rule: 'line', size: Array.from(line).length});
       });
       visitWeb(parseWeb(source), node => {
+        if (node.type === 'TemplateElement' || (node.type === 'Literal' && typeof node.value === 'string')) {
+          const raw = source.slice(node.start, node.end);
+          if (/[\p{L}\p{N}_#-]\\\n[\p{L}\p{N}_#-]/u.test(raw)) {
+            violations.push({path, line: node.loc.start.line, rule: 'word-continuation'});
+          }
+        }
         if (!['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'].includes(node.type)) return;
         functions++;
         const lines = node.loc.end.line - node.loc.start.line + 1;

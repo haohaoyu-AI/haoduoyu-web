@@ -14,8 +14,8 @@ function updateRoute(push = false) {
     if (value && value !== defaultFilters()[key]) u.searchParams.set(key, value);
     else u.searchParams.delete(key);
   }
-  for (const [key, value, def] of [["list_page", state.listPage, 1], ["page_size", state.pageSize, 20], ["top_n", state.topN, 5], ["top_plat\
-form", state.topPlatform, ""]]) {
+  for (const [key, value, def] of [["list_page", state.listPage, 1], ["page_size", state.pageSize, 20], ["top_n", state.topN, 5], [
+    "top_platform", state.topPlatform, ""]]) {
     if (value !== def) u.searchParams.set(key, value);
     else u.searchParams.delete(key);
   }
@@ -37,8 +37,8 @@ function readRoute() {
   state.filters = defaultFilters();
   for (const key of Object.keys(state.filters)) if (params.has(key)) state.filters[key] = params.get(key);
   const allowed = { sort: ["published_at", "reads", "likes", "comments", "approvals", "latest_as_of", "duration"], order: ["asc", "desc"], platform: [
-  "", "toutiao", "zhihu", "wechat", "other"], topic: ["", "insurance", "entertainment", "unknown"], data_status: ["", "no_snapshot", "missin\
-g_reads", "missing_likes", "missing_comments", "incomplete", "zero_reads", "date_unverified"], mode: ["", ...Object.keys(modeLabels)], group: [
+  "", "toutiao", "zhihu", "wechat", "other"], topic: ["", "insurance", "entertainment", "unknown"], data_status: ["", "no_snapshot",
+     "missing_reads", "missing_likes", "missing_comments", "incomplete", "zero_reads", "date_unverified"], mode: ["", ...Object.keys(modeLabels)], group: [
   "", "account", "mode"] };
   for (const [key, values] of Object.entries(allowed)) if (!values.includes(state.filters[key])) state.filters[key] = defaultFilters()[key];
   const int = (key, def, max) => /^\d+$/.test(params.get(key) || "") && Number(params.get(key)) > 0 && Number(params.get(key)) <= max ? Number(

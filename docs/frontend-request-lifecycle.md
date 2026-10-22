@@ -78,3 +78,19 @@ It observed actual duplicate GET counts, HTTP cancellation, a surviving shared
 consumer, a write completing across navigation, same-user stale 401 isolation
 and current real 401 logout. This intermediate evidence predates the registry
 layout and does not replace final full action/form/four-width evidence.
+
+## Readability correction
+
+Review rejected the first printer's word-internal backslash continuations.
+The correction moves cuts to tag/attribute whitespace, selector commas, prose
+punctuation or expression boundaries. A source check now rejects word-internal
+continuations. All 30 modules / 349 function limits remain satisfied. The full
+previous/current bundle AST (including cooked template values) compares equal.
+Output formatting changes bytes: 114,413 -> 115,029 B. The 100,000 B target
+remains failed, with no minification or removed features.
+
+The original browser attempt retained 95 captures before a 12-second candidate
+page-read timeout at daily data / 768px. Baseline action/form flows passed; the
+candidate did not finish. This failed attempt is preserved, not counted as a
+pass. A bounded candidate-only final-bundle run uses the same synthetic fixture
+and a 20-second read bound; it does not re-run the passed baseline flows.

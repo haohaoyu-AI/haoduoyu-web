@@ -76,8 +76,8 @@ async function submitKeyForm({ form, data, values }) {
   if (!ids.length) throw new Error("请至少选择一个允许访问的账号。");
   if (!permissions.length) throw new Error("请至少选择一种操作权限。");
   const result = await api("/api-keys", { method: "POST", body: { name: data.name.trim(), account_ids: ids, permissions } });
-  openModal("凭证已创建 · 请立即保存", `<div class="info-line warn">${icon("key", 15)}<span>凭证仅显示一次，请安全保存。</span></div><pre class\
-="token-box" id="created-token">${e(result.token)}</pre><div class="form-actions"><button class="btn" data-action="copy-token">${icon("copy",
+  openModal("凭证已创建 · 请立即保存", `<div class="info-line warn">${icon("key", 15)}<span>凭证仅显示一次，请安全保存。</span></div><pre class="token-box" \
+id="created-token">${e(result.token)}</pre><div class="form-actions"><button class="btn" data-action="copy-token">${icon("copy",
   14)}复制凭证</button><button class="btn primary" data-action="close-modal">我已保存</button></div>`);
   await renderPage();
   return;
@@ -110,8 +110,8 @@ const forms = {
 };
 async function handleFormSubmit(event) {
   const form = event.target;
-  if (!form.matches("#login-form,#article-form,#review-form,#account-form,#key-form,#password-form,#revoke-form,#article-filters,#save-view-\
-form")) return;
+  if (!form.matches("#login-form,#article-form,#review-form,#account-form,#key-form,#password-form,#revoke-form,#article-filters,\
+#save-view-form")) return;
   event.preventDefault();
   if (form.id === "article-filters") return;
   const button = $("button[type=submit]", form), message = $(".form-message", form), values = new FormData(form), data = Object.fromEntries(

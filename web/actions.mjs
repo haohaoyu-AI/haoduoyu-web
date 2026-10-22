@@ -48,8 +48,8 @@ function actionSortColumn({ target }) {
   return;
 }
 function actionSaveView({ id }) {
-  openModal("保存常用视图", `<form id="save-view-form">${field("name", '视图名称 <span class="required">*</span>', "text", "", 'ma\
-xlength="80" required')}${formEnd("保存视图")}</form>`);
+  openModal("保存常用视图", `<form id="save-view-form">${field("name", '视图名称 <span class="required">*</span>', "text", "", 'maxlength="80" \
+required')}${formEnd("保存视图")}</form>`);
   return;
 }
 function actionCloseModal({}) {
@@ -127,8 +127,8 @@ async function actionTopPlatform({ target, action }) {
 }
 function actionAllTop({ target, event, action }) {
   event.preventDefault();
-  state.filters = { ...defaultFilters(), platform: action === "all-top" ? state.topPlatform : target.dataset.platform, ...action === "all-to\
-p" ? { sort: "reads", order: "desc" } : {} };
+  state.filters = { ...defaultFilters(), platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
+     ...action === "all-top" ? { sort: "reads", order: "desc" } : {} };
   state.account = "";
   state.listPage = 1;
   navigate("articles");
@@ -149,8 +149,8 @@ function actionTrendTab({ target, action }) {
   return;
 }
 function actionPageMenu({ target, action }) {
-  popover(target, '<button data-action="refresh" role="menuitem">刷新数据</button><a href="/api/v1/export" download role="menuitem">导出发布记录 CSV</\
-a><a href="/api-docs" target="_blank" rel="noopener noreferrer" role="menuitem">接入文档 ↗</a>', { menu: true, label: "页面操作" });
+  popover(target, '<button data-action="refresh" role="menuitem">刷新数据</button><a href="/api/v1/export" download role="menuitem">导出发布记录 CSV\
+</a><a href="/api-docs" target="_blank" rel="noopener noreferrer" role="menuitem">接入文档 ↗</a>', { menu: true, label: "页面操作" });
   return;
 }
 function actionKeyHelp({ target }) {
@@ -214,8 +214,8 @@ async function actionReviewTab({ target, action }) {
     updateRoute(true);
     const version = runtime.renderVersion + 1;
     await renderPage();
-    if (version === runtime.renderVersion && !$("#overlay").firstChild && document.activeElement === document.body) $("[data-action=review-t\
-ab][data-tab=" + state.reviewTab + "]")?.focus();
+    if (version === runtime.renderVersion && !$("#overlay").firstChild && document.activeElement === document.body) $(
+      "[data-action=review-tab][data-tab=" + state.reviewTab + "]")?.focus();
   }
   return;
 }
@@ -244,8 +244,8 @@ function actionRecordDetail({ id }) {
   return;
 }
 function actionRevokeKey({ target, id }) {
-  openModal("撤销 AI 凭证", `<p class="revoke-context">撤销「${e(target.dataset.name)}」后凭证立即失效，已有数据保留。</p><form id="revoke-form" data\
--id="${e(id)}">${formEnd("确认撤销")}</form>`);
+  openModal("撤销 AI 凭证", `<p class="revoke-context">撤销「${e(target.dataset.name)}」后凭证立即失效，已有数据保留。</p><form id="revoke-form" data-id="${e(
+    id)}">${formEnd("确认撤销")}</form>`);
   return;
 }
 async function actionCopyToken({}) {

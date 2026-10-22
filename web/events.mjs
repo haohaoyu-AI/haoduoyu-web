@@ -73,8 +73,8 @@ function handleChange(event) {
     reloadFilteredPage("[name=" + el.name + "]");
   } else if (el.id === "review-account") {
     const select = $("#review-article");
-    select.innerHTML = '<option value="">账号总体</option>' + state.reviewArticles.filter((a) => a.account_id === el.value).map((a) => `\
-<option value="${e(a.id)}">${e(a.title)}</option>`).join("");
+    select.innerHTML = '<option value="">账号总体</option>' + state.reviewArticles.filter((a) => a.account_id === el.value).map((a) =>
+       `<option value="${e(a.id)}">${e(a.title)}</option>`).join("");
   }
 }
 function handleToggle(event) {
@@ -143,8 +143,8 @@ function handleKeydown(event) {
     closeModal();
   }
   if (event.key === "Tab") {
-    const nodes = $$('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]', $("#\
-overlay")).filter((el) => el.getClientRects().length);
+    const nodes = $$('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]', $(
+      "#overlay")).filter((el) => el.getClientRects().length);
     if (!nodes.length) return;
     const first = nodes[0], last = nodes.at(-1);
     if (event.shiftKey && document.activeElement === first) {

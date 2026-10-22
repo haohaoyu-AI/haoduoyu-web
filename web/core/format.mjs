@@ -3,14 +3,14 @@ import { state } from "./state.mjs";
 const num = (value) => value === null || value === void 0 || value === "" ? "—" : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).
 format(Number(value));
 const compact = (value) => value == null ? "—" : Number(value) >= 1e4 ? `${num(Number(value) / 1e4)}万` : num(value);
-const bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "\
-2-digit", day: "2-digit" }).format(new Date(value));
+const bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric",
+   month: "2-digit", day: "2-digit" }).format(new Date(value));
 const time = (value, short = false) => {
   if (!value) return "未记录";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "未记录";
-  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : { year: "numeric", second: "\
-2-digit" }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : { year: "numeric",
+     second: "2-digit" }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
 };
 const duration = (seconds) => {
   if (seconds == null) return "未记录";
