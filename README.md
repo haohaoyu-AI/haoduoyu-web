@@ -1,6 +1,6 @@
 # 好多鱼图文
 
-原生 JavaScript 单页工作台与 Cloudflare Worker/D1 API。本期从已核验的 Sites v6 源码及 GitHub 备份基线 f8050c88b413990bcfa4ae2db2b4ed1d25198ef7 续接。阶段 1、阶段 2 B1～B5、阶段 3 C1～C3 和前置大数据基准已合并；经单独确认发布的版本为 Sites v7（源码 f21c9ed3）。当前 C5 总览缓存仍在独立草稿 PR 中，未合并、未部署，后续优化尚未完成。数据库结构与 UI 外观保持，接口新增及唯一错误码例外见 [阶段 2 汇总](docs/phase2-summary.md)。
+原生 JavaScript 单页工作台与 Cloudflare Worker/D1 API。本期从已核验的 Sites v6 源码及 GitHub 备份基线 f8050c88b413990bcfa4ae2db2b4ed1d25198ef7 续接。阶段 1、阶段 2 B1～B5、阶段 3 C1～C3 和前置大数据基准已合并；经单独确认发布的版本为 Sites v7（源码 f21c9ed3）。C5 总览缓存已验收合并但未部署；当前 C4 数据页轻量读取在独立草稿分支，后续优化尚未完成。数据库结构与 UI 外观保持，接口新增及唯一错误码例外见 [阶段 2 汇总](docs/phase2-summary.md)。
 
 ## 安装、测试、构建
 
@@ -36,8 +36,8 @@ npm run check:previews
 
 当前资产检查比对已审阅 public 哈希、生成资源和构建 Worker 返回字节，不冒充尚不存在的 web 构建一致性检查；出现模块入口时会要求阶段4升级，见 [架构](docs/ARCHITECTURE.md)。
 
-全历史扫描当前保留 147 条已审阅的精确历史指纹，不排除整个目录，不自动追加例外。原始扫描不是零命中，见[例外说明](docs/security/secret-scan-exceptions.md)。
+全历史扫描当前保留 148 条已审阅的精确历史指纹，不排除整个目录，不自动追加例外。原始扫描不是零命中，见[例外说明](docs/security/secret-scan-exceptions.md)。
 
 工程与修复通过独立分支、CI 和验收后合并 main；Git 标签 v5-ui-refactor 是基线标识，不代表生产部署版本。后续变更不会随 PR 自动发布。部署必须另行明确确认并走正式 Sites 流程，不修改访问范围、安全配置或分支保护。CI 已自动运行，但尚未设置为 GitHub 必要合并检查。
 
-阶段 2 的接口投影、错误例外、真实会话、截图及未测范围见 [兼容性证据](docs/phase2-summary.md)。阶段 2 当时完整回归为 115 项；当前分支准确总数和 C5 证据见 [缓存验证](docs/overview-cache-validation.md)，以同一提交的 npm test / CI 输出为准，不能把多个阶段计数相加。
+阶段 2 的接口投影、错误例外、真实会话、截图及未测范围见 [兼容性证据](docs/phase2-summary.md)。阶段 2 当时完整回归为 115 项；当前 C4 计数与证据见 [轻量读取验证](docs/reviews-light-reads.md)，C5 边界见 [缓存验证](docs/overview-cache-validation.md)，以同一提交的 npm test / CI 输出为准，不能把多个阶段计数相加。

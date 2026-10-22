@@ -75,6 +75,7 @@ async function protectedRead(db,request,route,query,initialRevision) {
     if(route==='/accounts') return json(await records.listAccounts(actor.scope));
     if(route==='/articles') return Response.json(await records.articlePage(query,actor.scope));
     if(articleMatch) return json(await records.getArticle(articleMatch[1],actor.scope));
+    if(route==='/due-reviews') return json(await records.dueReviews(query,actor.scope));
     if(route==='/observations') return json(await records.listObservations(query,actor.scope));
     if(route==='/daily-metrics') return json(await records.listDaily(query,actor.scope));
     if(route==='/dashboard') return json(await records.dashboard(query.account_id||null,actor.scope));

@@ -649,7 +649,14 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/Article"
+                        "oneOf": [
+                          {
+                            "$ref": "#/components/schemas/Article"
+                          },
+                          {
+                            "$ref": "#/components/schemas/ArticleIndex"
+                          }
+                        ]
                       }
                     },
                     "meta": {
@@ -867,6 +874,18 @@
               "default": 0
             },
             "description": "排序后的起始行。"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "index"
+              ]
+            },
+            "description": "最小文章索引，只返回 id/title/account_id/platform/published_at，不读取快照。支持文章自身字段筛选及 published_at/duration 排序、date_unverified 状态、原分页；指标/最新快照排序及其他快照状态返回400，不静默忽略。省略 fields 的旧接口不变。"
           }
         ]
       },
@@ -1860,6 +1879,70 @@
             "description": "仅筛选累计榜，不缩小总览统计。"
           }
         ]
+      }
+    },
+    "/api/v1/due-reviews": {
+      "get": {
+        "operationId": "listDueReviews",
+        "summary": "读取待复盘观察节点",
+        "description": "只读取授权范围内的文章及观察节点时间，不计算每日、累计、趋势或关注。日期已核实，且同 kind 的 as_of>=目标时间才算完成；保留 overview.due_reviews 原语义和排序。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountFilter"
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DueReview"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -4435,6 +4518,72 @@
             ]
           }
         ]
+      },
+      "ArticleIndex": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "account_id",
+          "platform",
+          "published_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "account_id": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DueReview": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "account_id",
+          "account_name",
+          "due_kind",
+          "due_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "account_id": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "due_kind": {
+            "type": "string",
+            "enum": [
+              "d1",
+              "d3",
+              "d7"
+            ]
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       }
     },
     "responses": {

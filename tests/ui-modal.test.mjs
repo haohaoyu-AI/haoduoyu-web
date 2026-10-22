@@ -27,11 +27,11 @@ async function client(rows = articles) {
   const context = vm.createContext({
     document, window: { addEventListener() {} }, localStorage: { getItem: () => null },
     requestAnimationFrame() {}, URL, URLSearchParams, Intl,
-    fixture: { accounts: structuredClone(accounts), account: 'account-a', reviewTab: 'observations' },
+    fixture: { me: {id:'synthetic-ui-user'}, accounts: structuredClone(accounts), account: 'account-a', reviewTab: 'observations' },
     fetch: async (path, options) => {
       requests.push({ path, method: options.method ?? 'GET' });
       if (path === '/api/v1/auth/me') return { ok: false, status: 401, json: async () => ({ error: { message: 'Synthetic signed-out session' } }) };
-      if (path === '/api/v1/articles') return { ok: true, status: 200, json: async () => ({ data: structuredClone(rows) }) };
+      if (path === '/api/v1/articles?fields=index') return { ok: true, status: 200, json: async () => ({ data: structuredClone(rows) }) };
       throw new Error('Unexpected request in isolated UI test');
     },
   });
@@ -74,4 +74,14 @@ test('review modal: daily account selection and its change handler filter actual
   assert.ok(app.nodes.get('#review-article').innerHTML.includes('&lt;img src=x onerror=&quot;alert(1)&quot;&gt;'));
   assert.doesNotMatch(app.nodes.get('#review-article').innerHTML, /<img\b/i);
   assert.ok(app.requests.every(request => request.method === 'GET'));
+});
+
+test('a direct review target absent from a cached index is refreshed once and never defaults to another article',async()=>{
+  const app=await client([articles[0]]);await app.run("reviewModal('article-a')");app.run('closeModal()');
+  app.run("let reads=0;api=async()=>{reads++;return [{id:'article-a',account_id:'account-a',title:'Synthetic old'},{id:'external-new',account_id:'account-a',title:'Synthetic external new'}]}");
+  await app.run("reviewModal('external-new')");assert.equal(app.run('reads'),1);
+  assert.match(app.nodes.get('#overlay').innerHTML,/value="external-new" selected/);
+  app.run('closeModal();api=async()=>[]');
+  await assert.rejects(app.run("reviewModal('missing-target')"),/文章不存在或无权访问/);
+  assert.equal(app.nodes.get('#overlay').innerHTML,'');
 });

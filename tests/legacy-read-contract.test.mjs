@@ -38,6 +38,11 @@ function project(path, json) {
   }
   if (path === '/openapi.json') {
     value.info.version = '1.0.0';
+    delete value.paths['/api/v1/due-reviews'];
+    delete value.components.schemas.ArticleIndex;
+    delete value.components.schemas.DueReview;
+    value.paths['/api/v1/articles'].get.parameters=value.paths['/api/v1/articles'].get.parameters.filter(row=>row.name!=='fields');
+    value.paths['/api/v1/articles'].get.responses['200'].content['application/json'].schema.properties.data.items={$ref:'#/components/schemas/Article'};
     delete value.components.schemas.CurrentAdminIdentity;
     delete value.components.schemas.AuditRecord.properties.entity_label;
     value.paths['/api/v1/auth/me'].get.responses['200'].content['application/json']
@@ -126,7 +131,9 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
     '/api/v1/export', '/api/v1/overview', '/api/v1/backup'];
   const spec = JSON.parse(await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8'));
   assert.deepEqual(paths.filter(path => path !== '/api/v1/backup').map(path => path.replace(article.data.id, '{id}')).sort(),
-    Object.entries(spec.paths).filter(([, route]) => route.get).map(([path]) => path).sort());
+    Object.entries(spec.paths).filter(([path, route]) => route.get && path !== '/api/v1/due-reviews').map(([path]) => path).sort());
+  assert.equal(spec.paths['/api/v1/due-reviews'].get.operationId,'listDueReviews');
+  // This new endpoint has separate scope/due regressions; the legacy set is unchanged.
   const rows = await syntheticRows(app.db);
   const newPassword = 'Synthetic-new-' + PASSWORD;
   const mutations = [
