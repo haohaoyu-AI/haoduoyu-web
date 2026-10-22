@@ -3,7 +3,7 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "info": {
     "title": "好多鱼图文矩阵 API",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "私有账号矩阵统计站。公开文档不授予数据权限。人类使用管理员会话；AI使用管理员签发的账号范围Bearer key。默认三日窗口为Asia/Shanghai今天及前两天；累计快照与实际日报分开保存；缺失不补零。无公开注册、模型登录、文章删除或自动平台采数。所有业务JSON成功响应为data、失败为error；公开文档和CSV为原始内容。JSON请求体上限256KB。"
   },
   "servers": [
@@ -286,7 +286,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/AdminIdentity"
+                      "$ref": "#/components/schemas/CurrentAdminIdentity"
                     }
                   },
                   "required": [
@@ -4405,6 +4405,25 @@
           }
         },
         "description": "每篇最大as_of单快照的原字段之和，全部缺失时为null而非0；篇均与中位数只取reads实际取得的文章（包括真实0）。覆盖率是阅读覆盖率，snapshot_count另外统计是否有快照。"
+      },
+      "CurrentAdminIdentity": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AdminIdentity"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "当前已认证管理员的稳定用户标识，用于精确匹配审计操作者；不是凭据。"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        ]
       }
     },
     "responses": {

@@ -62,6 +62,11 @@ with sync_playwright() as p:
     ready()
     expect(page.locator('.nav-list [data-nav]')).to_have_count(3)
     expect(page.locator('[data-nav=settings]')).to_have_count(1)
+    identity = page.request.get(ORIGIN + '/api/v1/auth/me').json()['data']
+    assert isinstance(identity.get('id'), str) and identity['id']
+    audit = page.request.get(ORIGIN + '/api/v1/audit').json()['data']
+    assert any(row['actor'] == 'user:' + identity['id'] for row in audit)
+    report['authenticated_audit_actor_matches'] = True
     for width in [375, 390, 768, 1440]:
         page.set_viewport_size({'width': width, 'height': 900})
         for name, query in [('dashboard', 'page=dashboard'), ('articles', 'page=articles'),
@@ -70,6 +75,11 @@ with sync_playwright() as p:
             ready()
             assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
             screenshot(f'{name}-{width}')
+        page.goto(ORIGIN + '/?page=settings&tab=log')
+        ready()
+        expect(page.locator('.audit-meta').filter(has_text=re.compile(r'^我 ·')).first).to_be_visible()
+        assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+        screenshot(f'audit-{width}')
         page.goto(ORIGIN + '/?page=articles')
         ready()
         page.locator('[data-action=article-detail]:visible').first.click()

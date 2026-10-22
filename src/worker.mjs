@@ -59,7 +59,7 @@ async function protectedRead(db,request,route,query) {
   const response=await consistentRead(db,async store=>{
     const actor=await authenticate(store,request),records=createRecords(store);
     const articleMatch=/^\/articles\/([^/]+)$/.exec(route);
-    if(route==='/auth/me') {requireAdmin(actor);return json({username:actor.username,csrfToken:csrfFor(actor.token)});}
+    if(route==='/auth/me') {requireAdmin(actor);return json({id:actor.id,username:actor.username,csrfToken:csrfFor(actor.token)});}
     if(route==='/accounts') return json(await records.listAccounts(actor.scope));
     if(route==='/articles') return Response.json(await records.articlePage(query,actor.scope));
     if(articleMatch) return json(await records.getArticle(articleMatch[1],actor.scope));
