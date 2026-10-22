@@ -56,9 +56,10 @@ export async function commit(db,expected,store,actor=null) {
 // D1 sessions are sequentially consistent, not repeatable-read transactions.
 // Every application mutation advances this global revision in the same batch.
 // Accept only a computation whose entire read set belongs to an unchanged revision.
-export async function consistentRead(db,operation) {
+// Reuse a caller's already-read revision only for attempt zero; retries always read again.
+export async function consistentRead(db,operation,initialRevision) {
   for(let attempt=0;attempt<5;attempt++) {
-    const before=await revision(db);
+    const before=attempt===0&&initialRevision!==undefined?initialRevision:await revision(db);
     try {
       const result=await operation(storeFor(db));
       if(await revision(db)===before) return result;

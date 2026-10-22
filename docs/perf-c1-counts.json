@@ -1,0 +1,162 @@
+{
+  "baseline_commit": "653dd5ba1c9bdd1bcf0bac05c02a86ce72c46c73",
+  "environment": "synthetic local Miniflare D1; issued request SQL only",
+  "before": [
+    {
+      "case": "session /auth/me",
+      "sql": 5,
+      "control": 4,
+      "write_statements": 1,
+      "business_control_writes": 1,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "session /accounts",
+      "sql": 6,
+      "control": 4,
+      "write_statements": 1,
+      "business_control_writes": 1,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "session /articles",
+      "sql": 7,
+      "control": 4,
+      "write_statements": 1,
+      "business_control_writes": 1,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "session /overview",
+      "sql": 9,
+      "control": 4,
+      "write_statements": 1,
+      "business_control_writes": 1,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "session /backup",
+      "sql": 15,
+      "control": 6,
+      "write_statements": 1,
+      "business_control_writes": 1,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "bearer articles 1",
+      "sql": 8,
+      "control": 4,
+      "write_statements": 2,
+      "business_control_writes": 1,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 1
+    },
+    {
+      "case": "bearer articles 2",
+      "sql": 8,
+      "control": 4,
+      "write_statements": 2,
+      "business_control_writes": 1,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 0
+    }
+  ],
+  "after": [
+    {
+      "case": "session /auth/me",
+      "sql": 3,
+      "control": 2,
+      "write_statements": 0,
+      "business_control_writes": 0,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "session /accounts",
+      "sql": 4,
+      "control": 2,
+      "write_statements": 0,
+      "business_control_writes": 0,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "session /articles",
+      "sql": 5,
+      "control": 2,
+      "write_statements": 0,
+      "business_control_writes": 0,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "session /overview",
+      "sql": 7,
+      "control": 2,
+      "write_statements": 0,
+      "business_control_writes": 0,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "session /backup",
+      "sql": 13,
+      "control": 4,
+      "write_statements": 0,
+      "business_control_writes": 0,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0
+    },
+    {
+      "case": "bearer articles 1",
+      "sql": 6,
+      "control": 2,
+      "write_statements": 1,
+      "business_control_writes": 0,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 1
+    },
+    {
+      "case": "bearer articles 2",
+      "sql": 6,
+      "control": 2,
+      "write_statements": 1,
+      "business_control_writes": 0,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 0
+    }
+  ]
+}

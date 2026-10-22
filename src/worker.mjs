@@ -55,7 +55,7 @@ async function login(db,request,env,origin) {
   })).response;
 }
 
-async function protectedRead(db,request,route,query) {
+async function protectedRead(db,request,route,query,initialRevision) {
   const response=await consistentRead(db,async store=>{
     const actor=await authenticate(store,request),records=createRecords(store);
     const articleMatch=/^\/articles\/([^/]+)$/.exec(route);
@@ -83,7 +83,7 @@ async function protectedRead(db,request,route,query) {
       return new Response('\uFEFF'+[cols.map(csv).join(','),...rows.map(row=>cols.map(col=>csv(row[col])).join(','))].join('\r\n'),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="haoduoyu-articles.csv"'}});
     }
     throw fail(404,'NOT_FOUND','接口不存在');
-  });
+  },initialRevision);
   // Informational usage metadata only. It changes no permission or business fact.
   const bearer=/^Bearer (hdy_[a-f0-9]{64})$/.exec(request.headers.get('authorization')||'');
   if(bearer) await statement(db,'UPDATE api_keys SET last_used_at=? WHERE token_hash=? AND revoked_at IS NULL',now(),digest(bearer[1])).run();
@@ -169,14 +169,13 @@ async function handle(request,env) {
   if(path.startsWith(prefix+'/')) {
     if(!env.DB) throw fail(503,'CONFIGURATION','D1 绑定未配置');
     const origin=originFor(env),db=env.DB,route=path.slice(prefix.length);
-    await ensureControl(db);
-    if(route==='/bootstrap'&&method==='POST') return bootstrap(db,request,env,origin);
-    const state=await db.prepare('SELECT initialized FROM matrix_control WHERE id=1').first();
-    if(state.initialized!==1) throw fail(503,'SETUP_REQUIRED',state.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
+    if(route==='/bootstrap'&&method==='POST') {await ensureControl(db);return bootstrap(db,request,env,origin);}
+    const state=await db.prepare('SELECT initialized,revision FROM matrix_control WHERE id=1').first();
+    if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
     if(route==='/auth/login'&&method==='POST') return login(db,request,env,origin);
     if(method==='GET') {
       if(route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');
-      return protectedRead(db,request,route,Object.fromEntries(url.searchParams));
+      return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision);
     }
     if(writing.has(method)) return protectedWrite(db,request,route,env,origin);
     await authenticate(storeFor(db),request);
