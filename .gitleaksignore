@@ -153,3 +153,6 @@ cf3e5006b0ab5f02437e257cb3b0c7f8f874966c:.ci/public-assets.json:generic-api-key:
 
 # Accepted B1 OpenAPI public content hash, reintroduced by its approved squash.
 9dc64c6304b27a2a6fe84d43ada1e020cc8980fc:.ci/public-assets.json:generic-api-key:10
+
+# B2 optional audit label: independently recomputed public OpenAPI content hash.
+aff3754cddd1a76408084794de2bc1c8be0d5814:.ci/public-assets.json:generic-api-key:10
