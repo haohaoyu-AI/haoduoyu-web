@@ -1,13 +1,16 @@
 import { platforms } from "./constants.mjs";
 import { state } from "./state.mjs";
-const num = (value) => value === null || value === void 0 || value === "" ? "—" : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(Number(value));
+const num = (value) => value === null || value === void 0 || value === "" ? "—" : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).
+format(Number(value));
 const compact = (value) => value == null ? "—" : Number(value) >= 1e4 ? `${num(Number(value) / 1e4)}万` : num(value);
-const bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value));
+const bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "\
+2-digit", day: "2-digit" }).format(new Date(value));
 const time = (value, short = false) => {
   if (!value) return "未记录";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "未记录";
-  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : { year: "numeric", second: "2-digit" }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : { year: "numeric", second: "\
+2-digit" }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
 };
 const duration = (seconds) => {
   if (seconds == null) return "未记录";
@@ -37,14 +40,15 @@ const metricData = (item) => {
 };
 const accountLabel = (account) => `${platforms[account.platform] || account.platform} · ${account.name}`;
 const accountName = (id) => {
-  const a = state.accounts.find((a) => a.id === id);
+  const a = state.accounts.find((a2) => a2.id === id);
   return a ? accountLabel(a) : "未找到账号";
 };
 const selectedQuery = () => state.account ? `account_id=${encodeURIComponent(state.account)}` : "";
 const rowsForAccount = (rows) => state.account ? rows.filter((a) => a.account_id === state.account) : rows;
 function displayTime(value) {
   const stamp = Date.parse(value), diff = Date.now() - stamp;
-  return !Number.isFinite(stamp) ? "未记录" : diff >= 0 && diff < 864e5 ? `${Math.floor(diff / 36e5)} 小时前` : time(value, bjtDate(value).slice(0, 4) === bjtDate().slice(0, 4));
+  return !Number.isFinite(stamp) ? "未记录" : diff >= 0 && diff < 864e5 ? `${Math.floor(diff / 36e5)} 小时前` : time(value, bjtDate(value).
+  slice(0, 4) === bjtDate().slice(0, 4));
 }
 function safeURL(value) {
   try {

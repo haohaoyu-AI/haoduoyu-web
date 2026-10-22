@@ -1,0 +1,136 @@
+import { isRequestAbort } from "./core/requests.mjs";
+import { init, renderPage, renderShell } from "./controller.mjs";
+import { api } from "./core/api.mjs";
+import { metrics } from "./core/constants.mjs";
+import { $, e, icon } from "./core/dom.mjs";
+import { iso, safeURL } from "./core/format.mjs";
+import { state } from "./core/state.mjs";
+import { storage } from "./core/storage.mjs";
+import { renderLogin } from "./pages/login.mjs";
+import { closeModal, openModal } from "./ui/modal.mjs";
+import { toast } from "./ui/toast.mjs";
+async function submitSaveViewForm({ data }) {
+  const saved = { id: crypto.randomUUID(), name: data.name.trim(), version: 2, filters: { ...state.filters }, columns: [...state.columns] };
+  if (!saved.name) throw new Error("请填写视图名称。");
+  state.savedViews = state.savedViews.filter((v) => v.name !== saved.name).concat(saved).slice(-20);
+  storage.set("haoduoyu.views", JSON.stringify(state.savedViews));
+  closeModal();
+  toast("常用视图已保存在此浏览器。");
+  await renderPage();
+  return;
+}
+async function submitLoginForm({ data }) {
+  await api("/auth/login", { method: "POST", body: { username: data.username, password: data.password } });
+  await init({ freshLogin: true });
+  return;
+}
+async function submitArticleForm({ form, data }) {
+  const body = { account_id: data.account_id, title: data.title.trim(), url: data.url.trim(), published_at: iso(data.published_at), started_at: iso(
+  data.started_at), production_mode: data.production_mode, summary: data.summary, notes: data.notes, platform_article_id: data.platform_article_id?.
+  trim() || "" };
+  if (!safeURL(body.url)) throw new Error("文章链接请使用 http 或 https 地址。");
+  if (body.started_at && new Date(body.started_at) > new Date(body.published_at)) throw new Error("选题开始时间不能晚于发布时间。");
+  const id = form.dataset.id;
+  if (id) body.version = Number(form.dataset.version);
+  await api(id ? `/articles/${encodeURIComponent(id)}` : "/articles", { method: id ? "PUT" : "POST", body });
+  closeModal();
+  toast(id ? "发布记录已更新。" : "发布记录已保存。");
+  await renderPage();
+  return;
+}
+async function submitReviewForm({ form, data }) {
+  const m = {};
+  for (const key of Object.keys(metrics)) {
+    const value = data[`metric_${key}`];
+    if (value !== "" && value != null) m[key] = Number(value);
+  }
+  if (!Object.keys(m).length) throw new Error("请至少填写一个已取得的指标。");
+  let body, path;
+  if (form.dataset.type === "daily") {
+    path = "/daily-metrics";
+    body = { account_id: data.account_id, article_id: data.article_id || null, date: data.date, metrics: m, source: data.source.trim() };
+  } else {
+    path = "/observations";
+    body = { article_id: data.article_id, kind: data.kind, as_of: iso(data.as_of), collected_at: iso(data.collected_at), metrics: m, source: data.
+    source.trim(), note: data.note };
+  }
+  await api(path, { method: "POST", body });
+  closeModal();
+  toast("数据已保存，总览会同步更新。");
+  await renderPage();
+  return;
+}
+async function submitAccountForm({ form, data, values }) {
+  const id = form.dataset.id;
+  await api(id ? `/accounts/${encodeURIComponent(id)}` : "/accounts", { method: id ? "PUT" : "POST", body: id ? { name: data.name.trim(), active: values.
+  has("active") } : { platform: data.platform, name: data.name.trim() } });
+  state.accounts = (await api("/accounts")).sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - ["toutiao", "zhihu",
+  "wechat", "other"].indexOf(b.platform));
+  closeModal();
+  toast("运营账号已保存。");
+  renderShell();
+  return;
+}
+async function submitKeyForm({ form, data, values }) {
+  const ids = values.getAll("account_ids"), permissions = values.getAll("permissions");
+  if (!ids.length) throw new Error("请至少选择一个允许访问的账号。");
+  if (!permissions.length) throw new Error("请至少选择一种操作权限。");
+  const result = await api("/api-keys", { method: "POST", body: { name: data.name.trim(), account_ids: ids, permissions } });
+  openModal("凭证已创建 · 请立即保存", `<div class="info-line warn">${icon("key", 15)}<span>凭证仅显示一次，请安全保存。</span></div><pre class\
+="token-box" id="created-token">${e(result.token)}</pre><div class="form-actions"><button class="btn" data-action="copy-token">${icon("copy",
+  14)}复制凭证</button><button class="btn primary" data-action="close-modal">我已保存</button></div>`);
+  await renderPage();
+  return;
+}
+async function submitRevokeForm({ form }) {
+  await api(`/api-keys/${encodeURIComponent(form.dataset.id)}`, { method: "DELETE" });
+  closeModal();
+  toast("凭证已撤销。");
+  await renderPage();
+  return;
+}
+async function submitPasswordForm({ form, data }) {
+  if (data.newPassword !== data.confirmPassword) throw new Error("两次输入的新密码不一致。");
+  await api("/auth/password", { method: "PUT", body: { currentPassword: data.currentPassword, newPassword: data.newPassword } });
+  form.reset();
+  toast("密码已更新，请使用新密码登录。");
+  state.me = null;
+  renderLogin();
+  return;
+}
+const forms = {
+  "save-view-form": submitSaveViewForm,
+  "login-form": submitLoginForm,
+  "article-form": submitArticleForm,
+  "review-form": submitReviewForm,
+  "account-form": submitAccountForm,
+  "key-form": submitKeyForm,
+  "revoke-form": submitRevokeForm,
+  "password-form": submitPasswordForm
+};
+async function handleFormSubmit(event) {
+  const form = event.target;
+  if (!form.matches("#login-form,#article-form,#review-form,#account-form,#key-form,#password-form,#revoke-form,#article-filters,#save-view-\
+form")) return;
+  event.preventDefault();
+  if (form.id === "article-filters") return;
+  const button = $("button[type=submit]", form), message = $(".form-message", form), values = new FormData(form), data = Object.fromEntries(
+  values);
+  if (button?.disabled) return;
+  if (message) message.textContent = "";
+  if (button) button.disabled = true;
+  try {
+    const handler = forms[form.id];
+    if (handler) await handler({ form, data, values });
+  } catch (err) {
+    if (err.staleSession || isRequestAbort(err)) return;
+    if (message && message.isConnected) message.textContent = err.code === "VERSION_CONFLICT" ? "这条记录已被其他人或 AI 更新。请关闭后重新打开，核对最新内容再保存。" :
+    err.message;
+    else toast(err.message, true);
+  } finally {
+    if (button?.isConnected) button.disabled = false;
+  }
+}
+export {
+  handleFormSubmit
+};

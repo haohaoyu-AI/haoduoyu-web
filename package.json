@@ -14,7 +14,8 @@
     "check:artifacts": "node scripts/check-artifacts.mjs",
     "check:previews": "node scripts/check-previews.mjs",
     "preview:analytics": "node scripts/build.mjs && node scripts/preview-analytics.mjs",
-    "bench:overview": "node --expose-gc tests/bench.overview.mjs"
+    "bench:overview": "node --expose-gc tests/bench.overview.mjs",
+    "check:web": "node scripts/check-web.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

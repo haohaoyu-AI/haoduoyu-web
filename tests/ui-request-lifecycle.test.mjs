@@ -11,7 +11,7 @@ function client(fetch) {
   });
   const document = {querySelector: s => nodes.get(s) || null, querySelectorAll: () => [],
     addEventListener() {}, body: {style: {}}, activeElement: null};
-  const context = vm.createContext({AbortController, AbortSignal, DOMException, Headers,fetch, Response, Headers, AbortController, AbortSignal, DOMException,
+  const context = vm.createContext({fetch, Response, Headers, AbortController, AbortSignal, DOMException,
     URL, URLSearchParams, Intl, setTimeout, clearTimeout, document,
     window: {addEventListener() {}}, location: {href: 'http://localhost/', search: ''},
     localStorage: {getItem() {}, setItem() {}}, requestAnimationFrame() {}});
@@ -126,4 +126,44 @@ test('an aborted page index cannot delete or refill the next page index entry', 
   assert.equal((await next)[0].id,'fresh');assert.equal((await old).name,'AbortError');
   assert.equal(c.run('articleIndexes.size'),1);
   assert.equal((await c.run("articleIndex('',nextScope)"))[0].id,'fresh');assert.equal(d.calls.length,2);
+});
+test('last consumer cancellation aborts a response body read and removes the pending transport', async () => {
+  let bodyStarted, transportSignal, calls = 0;
+  const started = new Promise(resolve => {bodyStarted = resolve;});
+  const c = client((_path, options) => {
+    calls++;transportSignal = options.signal;
+    if (calls > 1) return Promise.resolve(ok(['fresh']));
+    return Promise.resolve({ok:true,status:200,text() {
+      bodyStarted();return new Promise((_resolve,reject) => {
+        options.signal.addEventListener('abort', () => reject(new DOMException('Synthetic body abort','AbortError')));
+      });
+    }});
+  });
+  c.run('let bodyController=new AbortController()');
+  const pending = c.run("api('/accounts',{signal:bodyController.signal})").then(()=>null,error=>error);
+  await started;c.run('bodyController.abort()');
+  assert.equal((await pending).name,'AbortError');assert.equal(transportSignal.aborted,true);
+  assert.equal((await c.run("api('/accounts')"))[0],'fresh');assert.equal(calls,2);
+});
+test('a cancelled body consumer leaves its surviving consumer active until the real body completes', async () => {
+  let finish, signal;
+  const c=client((_path,options)=>{signal=options.signal;return Promise.resolve({ok:true,status:200,
+    text:()=>new Promise(resolve=>{finish=()=>resolve(JSON.stringify({data:['body survivor']}));})});});
+  c.run('let bodyLeft=new AbortController()');
+  const left=c.run("api('/accounts',{signal:bodyLeft.signal})").then(()=>null,error=>error);
+  const right=c.run("api('/accounts')");
+  await Promise.resolve();await Promise.resolve();c.run('bodyLeft.abort()');
+  assert.equal((await left).name,'AbortError');assert.equal(signal.aborted,false);
+  finish();assert.equal((await right)[0],'body survivor');
+});
+test('actual transport, body-read and malformed JSON errors stay errors and failed entries can retry', async t => {
+  for(const [name,fail,message] of [
+    ['fetch',()=>Promise.reject(new TypeError('Synthetic connection failure')),'暂时无法连接网站，请检查网络后重试。'],
+    ['body',()=>Promise.resolve({ok:true,status:200,text:()=>Promise.reject(new TypeError('Synthetic body failure'))}),'服务暂时不可用，请稍后重试。'],
+    ['json',()=>Promise.resolve(new Response('Synthetic invalid JSON')),'服务暂时不可用，请稍后重试。'],
+  ])await t.test(name,async()=>{
+    let count=0;const c=client(()=>++count===1?fail():Promise.resolve(ok(['retry'])));
+    await assert.rejects(c.run("api('/accounts')"),error=>error.name==='Error'&&error.message===message);
+    assert.equal((await c.run("api('/accounts')"))[0],'retry');assert.equal(count,2);
+  });
 });

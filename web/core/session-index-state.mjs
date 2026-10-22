@@ -1,4 +1,4 @@
-import {cancelPageRequests} from './requests.mjs';
+import { cancelPageRequests } from "./requests.mjs";
 import { runtime, state } from "./state.mjs";
 const articleIndexes = /* @__PURE__ */ new Map();
 function clearArticleIndexes() {

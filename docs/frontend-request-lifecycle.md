@@ -52,3 +52,29 @@ this checkpoint, not yet a completed result. Build and eight asset checks passed
 real browser lifecycle, action registry, formatting and visual evidence are still
 pending. Current unminified UTF-8 bundle is 112,496 B, exceeding the 100,000 B
 project target; no size pass is claimed.
+
+## Registry and source-layout checkpoint
+
+The core checkpoint subsequently completed the full local suite: 199/199.
+Additional body-read/last-subscriber cancellation and actual transport/body/JSON
+failure cases pass (15 lifecycle test counts, including three subtests).
+The new action registry preserves all original case bodies and action names;
+form handlers retain their original validation and payload bodies. Nine event
+bindings retain order and capture settings. A structural test compares handlers
+with main and all cooked template strings, including HTML whitespace. Formatting
+uses the existing unminified esbuild printer (UTF-8); template continuations do
+not add output whitespace. No CSS, inline style or CSP change is included.
+
+`npm run check:web` now checks all 30 source modules and 349 functions, without
+exclusions: lines <=160 characters and function spans <=80 lines. CI runs this
+before regeneration. The targeted UI/route suite passes 59/59 and the registry,
+template and checker suite 4/4. Final full CI and browser comparison remain
+pending at this checkpoint. The readable bundle is 114,413 B (14,413 B over the
+100,000 B target; baseline 106,865 B). This size target is not marked passed.
+
+A test-only loopback probe already completed 12 candidate checks with real
+Cookie/CSRF authentication; baseline failed four intended new-behavior checks.
+It observed actual duplicate GET counts, HTTP cancellation, a surviving shared
+consumer, a write completing across navigation, same-user stale 401 isolation
+and current real 401 logout. This intermediate evidence predates the registry
+layout and does not replace final full action/form/four-width evidence.
