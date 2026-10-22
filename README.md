@@ -36,7 +36,7 @@ npm run check:previews
 
 当前资产检查比对已审阅 public 哈希、生成资源和构建 Worker 返回字节，不冒充尚不存在的 web 构建一致性检查；出现模块入口时会要求阶段4升级，见 [架构](docs/ARCHITECTURE.md)。
 
-全历史扫描当前保留 148 条已审阅的精确历史指纹，不排除整个目录，不自动追加例外。原始扫描不是零命中，见[例外说明](docs/security/secret-scan-exceptions.md)。
+全历史扫描当前保留 149 条已审阅的精确历史指纹，不排除整个目录，不自动追加例外。原始扫描不是零命中，见[例外说明](docs/security/secret-scan-exceptions.md)。
 
 工程与修复通过独立分支、CI 和验收后合并 main；Git 标签 v5-ui-refactor 是基线标识，不代表生产部署版本。后续变更不会随 PR 自动发布。部署必须另行明确确认并走正式 Sites 流程，不修改访问范围、安全配置或分支保护。CI 已自动运行，但尚未设置为 GitHub 必要合并检查。
 

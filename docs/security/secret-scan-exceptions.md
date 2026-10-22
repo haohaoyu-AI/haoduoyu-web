@@ -23,4 +23,6 @@ B2 为 AuditRecord 新增可选 entity_label，并更新相应 public OpenAPI �
 B2 获批 squash 提交以新身份引入同一已验收 OpenAPI 内容摘要。独立重算并与原验收文件逐字节比较一致，仅新增该 squash 提交的 1 条精确指纹。B2 合并修复完成时总计 147 条（前述 146 条 + B2 squash 的 1 条），没有新增规则或目录豁免；原始脱敏结果保留。
 
 
-C4 首个实现提交 92cb38ad06392a33330e8b567d96ce2a406ded83 的 `.ci/public-assets.json:10` 命中 generic-api-key，实为新增轻量读取契约后的公共 OpenAPI 内容 SHA256。分别从当前 public/openapi.json 与该提交的 Git blob 独立重算，均与该行 pin 一致（129952 字节），不是凭据。仅新增此提交/路径/规则/行的精确指纹，当前共 148 条；原始 1 条脱敏告警保留，不排除规则、目录或未来提交。
+C4 首个实现提交 92cb38ad06392a33330e8b567d96ce2a406ded83 的 `.ci/public-assets.json:10` 命中 generic-api-key，实为新增轻量读取契约后的公共 OpenAPI 内容 SHA256。分别从当前 public/openapi.json 与该提交的 Git blob 独立重算，均与该行 pin 一致（129952 字节），不是凭据。仅新增此提交/路径/规则/行的精确指纹，C4 原验收分支共 148 条；原始 1 条脱敏告警保留，不排除规则、目录或未来提交。
+
+C4 获批 squash 提交 dfb9751a43f785af606f12ec6900660ede7dd820 再次引入同一公共 OpenAPI 摘要，主分支 CI 39762328017 扫描报告 1 条告警。本地同参数全历史扫描确认唯一命中仍为 `.ci/public-assets.json:10` 的 generic-api-key。分别从 squash 和已验收提交 1f54abdd57313884b92a63b1c99dc1483367577c 读取 public/openapi.json，独立计算 SHA256，均匹配该行 pin；129952 字节正文及整棵文件树一致。仅新增该 squash 提交/路径/规则/行的 1 条精确指纹，当前共 149 条。原始脱敏扫描结果保留；没有扩大规则、目录或未来提交的豁免，也没有改变产品源码。
