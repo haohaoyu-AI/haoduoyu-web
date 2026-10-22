@@ -29,3 +29,6 @@ C4 获批 squash 提交 dfb9751a43f785af606f12ec6900660ede7dd820 再次引入同
 
 
 阶段 4a 提交 abe3540cabddd9c479e2efa7a654aac648320a90 的 docs/frontend-product-hashes.json:5 命中 generic-api-key。该值是已公开 web/core/api.mjs 的源码内容 SHA256；执行器与独立评审分别从其 2047 个原始 UTF-8 字节复算，均与清单值完全相同，不是凭据。经 dot 明确批准，仅新增该提交/文件/规则/行的单条精确指纹，当前总数 150 条。原始失败 CI 39831884330 和脱敏扫描仍保留；没有文件、目录、规则或未来提交豁免。
+
+
+阶段 4a 获批 squash 合并产生 main 2b3df6e730cc35166886774d032de9c35c2d06f0。该提交整树与已验收 head 71ea2e96e8715a4bbd422ad296ae331dc2527d54 相同，主分支 CI 39834576035 的 98 提交扫描仅重新报告 docs/frontend-product-hashes.json:5 的同一 generic-api-key 告警。执行器与独立评审从 main 的 web/core/api.mjs 原始 2047 UTF-8 字节复算，均与已审公开摘要一致。经 dot 明确批准，仅追加该 squash 提交/文件/规则/行的单条精确历史指纹，当前共 151 条。原始失败和脱敏结果保留；没有产品修改、文件/目录/规则豁免或未来提交豁免。

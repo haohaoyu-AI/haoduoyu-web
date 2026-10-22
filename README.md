@@ -37,7 +37,7 @@ npm run check:previews
 
 修改前端时编辑 web/，运行 npm run build，并提交生成的 public/app.js。CI 在任何构建覆盖前执行 node scripts/frontend-build.mjs --check；资产检查另比对已审 public 哈希、生成资源与 Worker 返回字节。4a 的体积及大函数目标缺口见 [拆分记录](docs/frontend-modules.md)。
 
-全历史扫描当前保留 150 条已审阅的精确历史指纹，不排除整个目录，不自动追加例外。原始扫描不是零命中，见[例外说明](docs/security/secret-scan-exceptions.md)。
+全历史扫描当前保留 151 条已审阅的精确历史指纹，不排除整个目录，不自动追加例外。原始扫描不是零命中，见[例外说明](docs/security/secret-scan-exceptions.md)。
 
 工程与修复通过独立分支、CI 和验收后合并 main；Git 标签 v5-ui-refactor 是基线标识，不代表生产部署版本。后续变更不会随 PR 自动发布。部署必须另行明确确认并走正式 Sites 流程，不修改访问范围、安全配置或分支保护。CI 已自动运行，但尚未设置为 GitHub 必要合并检查。
 

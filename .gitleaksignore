@@ -166,3 +166,6 @@ dfb9751a43f785af606f12ec6900660ede7dd820:.ci/public-assets.json:generic-api-key:
 
 # Approved phase 4a public source digest; exact historical finding only.
 abe3540cabddd9c479e2efa7a654aac648320a90:docs/frontend-product-hashes.json:generic-api-key:5
+
+# Approved phase 4a squash reintroduction of the identical public source digest.
+2b3df6e730cc35166886774d032de9c35c2d06f0:docs/frontend-product-hashes.json:generic-api-key:5
