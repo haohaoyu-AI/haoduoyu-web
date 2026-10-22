@@ -1,8 +1,7 @@
-# Website runtime source backup
+# 源码保全范围
 
-Destination: haohaoyu-AI/haoduoyu-web, branch codex/ui-refactor-20261021.
-This branch exports the production website runtime sources and the sequential UI source changes, excluding screenshot evidence, runtime credentials, database contents, test/replay fixtures and local generated files. Original UI commit IDs are recorded in each commit message. Exported Git commit IDs differ because excluded evidence is not uploaded; existing repository history and main are unchanged. Exact original history remains in the local verified UI-HISTORY.bundle.
+codex/ui-refactor-20261021 的 f8050c8 是 Sites v6 运行源码备份。opt/phase1-foundation 在其上恢复经审查的合成测试、预览和 CI。远端保存与 CI 成功必须以实际 GitHub 提交和 PR 状态为准，不能用本地 commit 代替。
 
-Build with Node24: npm ci --ignore-scripts --no-audit --no-fund; node scripts/build.mjs; node scripts/package.mjs. Local preview/test fixtures are deliberately excluded from this runtime-only backup. The existing npm dev/test entries therefore require the separate private evidence checkout.
+公开材料不包含生产数据库、原生产派生复刻、运行凭据、完整旧证据包或私有历史 bundle。已有源码业务识别常量不是生产数据库导出。不要加入 .preview、.env、备份或整体截图证据。
 
-This is a private code backup, not proof that all branches, past repository content, Actions logs or rulesets are safe to make public. Deployment project IDs and internal operational documentation remain configuration metadata; no runtime secrets or production rows are included.
+原始扫描与详细取证留在受限工作区，本分支仅提交净化摘要及精确历史误报指纹；这不证明所有历史和其他存储绝无隐私数据。GitHub 保存、正式 Sites 源仓保存、版本保存和部署分别核验，见 docs/RUNBOOK.md。

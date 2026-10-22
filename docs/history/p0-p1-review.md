@@ -1,3 +1,5 @@
+> Historical record only. Current setup and validation are documented in the root README and docs/RUNBOOK.md.
+
 # 好多鱼矩阵 P0/P1 增量改动验收
 
 状态：独立分支已实施、隔离验收通过，未推送或上线。
