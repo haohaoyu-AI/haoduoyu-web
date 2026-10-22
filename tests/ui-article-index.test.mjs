@@ -59,3 +59,31 @@ test('failed indexes are retried and a successful write with malformed JSON stil
   await assert.rejects(c.run("api('/accounts/synthetic',{method:'PUT',body:{name:'Synthetic'}})"));
   assert.equal(c.run('articleIndexes.size'),0);
 });
+test('a delayed old-session 401 cannot sign out a newly logged-in session, even for the same user id',async()=>{
+  for(const identity of ['synthetic-user','synthetic-other']) {
+    let finish,reads=0;
+    const c=client(async(path,options)=>{
+      if(path==='/api/v1/auth/login')return ok({username:'Synthetic new session'});
+      if(++reads===1)return new Promise(resolve=>{finish=()=>resolve(Response.json({error:{code:'UNAUTHORIZED',message:'Synthetic old session expired'}},{status:401}));});
+      return ok([row('new-session-index')]);
+    });
+    c.run('let old=articleIndex()');
+    await c.run("api('/auth/login',{method:'POST',body:{username:'synthetic-user',password:'synthetic-not-a-live-password'}})");
+    c.run('state.me={id:'+JSON.stringify(identity)+',csrfToken:"synthetic-new-csrf"}');
+    assert.equal((await c.run('articleIndex()'))[0].id,'new-session-index');
+    finish();await assert.rejects(c.run('old'),error=>error.status===401);
+    assert.equal(c.run('state.me?.id'),identity,'old 401 must not clear the new authenticated identity');
+    assert.equal(c.run('articleIndexes.size'),1,'old 401 must not clear the new cache');
+  }
+});
+test('an ordinary write does not advance session epoch or suppress a genuine current-session 401',async()=>{
+  let finish;const c=client(async(path,options)=>{
+    if(path==='/api/v1/accounts')return new Promise(resolve=>{finish=()=>resolve(Response.json({error:{message:'Synthetic current session expired'}},{status:401}));});
+    return options.method==='POST'?ok({saved:true}):ok([row('current')]);
+  });
+  await c.run('articleIndex()');c.run("let current=api('/accounts');let epochBefore=sessionEpoch");
+  await c.run("api('/articles',{method:'POST',body:{title:'Synthetic ordinary write'}})");
+  assert.equal(c.run('sessionEpoch===epochBefore'),true);
+  finish();await assert.rejects(c.run('current'),error=>error.status===401&&!error.staleSession);
+  assert.equal(c.run('state.me'),null);assert.equal(c.run('articleIndexes.size'),0);
+});
