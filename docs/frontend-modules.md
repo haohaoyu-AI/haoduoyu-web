@@ -164,3 +164,24 @@ The baseline-self control is reported per case: key controls happened to match
 in that control; article/snapshot baseline controls themselves varied. The
 raster explanation is an evidence-based interpretation, not a claim that all
 strict comparisons passed.
+
+## Requested final bounded image inspection
+
+The two remaining requested original image pairs (credential and new article at
+1440px) have now been extracted directly from the preserved evidence archive,
+verified against the original capture SHA values, and inspected at original
+size together with raw differences and 8× nearest-neighbor crops. They are
+available in `frontend-modules-images/` for independent viewing, with a manifest
+and case-specific observations. Only eight small PNGs for those two groups are
+added, not the full archive. Inputs are blank and displayed labels are synthetic;
+no password, Cookie or token is visible or embedded as metadata.
+
+No substantive text/layout/control/style change is visible in either pair;
+rounded-edge channel differences remain 16 and 45 pixels at maximum one color
+unit. This is a direct bounded visual observation, not a claim that key's or
+article's full-page old-versus-old controls reproduced these differences.
+Strict PNG equality remains false; byte/line targets remain pending.
+
+The single historical public-source-digest scan fingerprint from `abe3540` was
+independently recomputed and explicitly approved by dot. Only that exact
+fingerprint is added; the new count is 150. The original failed scan is retained.

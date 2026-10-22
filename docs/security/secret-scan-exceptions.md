@@ -26,3 +26,6 @@ B2 获批 squash 提交以新身份引入同一已验收 OpenAPI 内容摘要。
 C4 首个实现提交 92cb38ad06392a33330e8b567d96ce2a406ded83 的 `.ci/public-assets.json:10` 命中 generic-api-key，实为新增轻量读取契约后的公共 OpenAPI 内容 SHA256。分别从当前 public/openapi.json 与该提交的 Git blob 独立重算，均与该行 pin 一致（129952 字节），不是凭据。仅新增此提交/路径/规则/行的精确指纹，C4 原验收分支共 148 条；原始 1 条脱敏告警保留，不排除规则、目录或未来提交。
 
 C4 获批 squash 提交 dfb9751a43f785af606f12ec6900660ede7dd820 再次引入同一公共 OpenAPI 摘要，主分支 CI 39762328017 扫描报告 1 条告警。本地同参数全历史扫描确认唯一命中仍为 `.ci/public-assets.json:10` 的 generic-api-key。分别从 squash 和已验收提交 1f54abdd57313884b92a63b1c99dc1483367577c 读取 public/openapi.json，独立计算 SHA256，均匹配该行 pin；129952 字节正文及整棵文件树一致。仅新增该 squash 提交/路径/规则/行的 1 条精确指纹，当前共 149 条。原始脱敏扫描结果保留；没有扩大规则、目录或未来提交的豁免，也没有改变产品源码。
+
+
+阶段 4a 提交 abe3540cabddd9c479e2efa7a654aac648320a90 的 docs/frontend-product-hashes.json:5 命中 generic-api-key。该值是已公开 web/core/api.mjs 的源码内容 SHA256；执行器与独立评审分别从其 2047 个原始 UTF-8 字节复算，均与清单值完全相同，不是凭据。经 dot 明确批准，仅新增该提交/文件/规则/行的单条精确指纹，当前总数 150 条。原始失败 CI 39831884330 和脱敏扫描仍保留；没有文件、目录、规则或未来提交豁免。
