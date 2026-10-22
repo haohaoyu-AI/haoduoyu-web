@@ -299,12 +299,7 @@ export function createRecords(store) {
 
   async function createArticle(body, scope = null) {
     const value = await articleValues(body, scope), id = randomUUID(), stamp = new Date().toISOString();
-    try {
-      run('INSERT INTO articles(id,account_id,title,url,platform_article_id,published_at,started_at,production_mode,summary,notes,version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', id, value.account_id, value.title, value.url, value.platform_article_id, value.published_at, value.started_at, value.production_mode, value.summary, value.notes, 1, stamp, stamp);
-    } catch (error) {
-      if (/UNIQUE constraint failed/.test(error.message)) fail(409, 'ARTICLE_EXISTS', '该平台文章或链接已经登记');
-      throw error;
-    }
+    run('INSERT INTO articles(id,account_id,title,url,platform_article_id,published_at,started_at,production_mode,summary,notes,version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', id, value.account_id, value.title, value.url, value.platform_article_id, value.published_at, value.started_at, value.production_mode, value.summary, value.notes, 1, stamp, stamp);
     const owner = await account(value.account_id,scope);
     return await enrich({id,...value,version:1,created_at:stamp,updated_at:stamp,account_name:owner.name,platform:owner.platform});
   }
@@ -321,13 +316,7 @@ export function createRecords(store) {
     if (firstDaily?.earliest && beijingDay(Date.parse(value.published_at)) > firstDaily.earliest) fail(400, 'VALIDATION_ERROR', '发布时间不能晚于已有按日数据');
     if (value.account_id !== old.account_id && await get('SELECT id FROM daily_metrics WHERE article_id=? LIMIT 1', id)) fail(409, 'ARTICLE_HAS_DAILY_METRICS', '已有按日数据的文章不能直接变更所属账号');
     const updated_at = new Date().toISOString();
-    let result;
-    try {
-      result = run('UPDATE articles SET account_id=?,title=?,url=?,platform_article_id=?,published_at=?,started_at=?,production_mode=?,summary=?,notes=?,version=version+1,updated_at=? WHERE id=? AND version=?', value.account_id, value.title, value.url, value.platform_article_id, value.published_at, value.started_at, value.production_mode, value.summary, value.notes, updated_at, id, body.version);
-    } catch (error) {
-      if (/UNIQUE constraint failed/.test(error.message)) fail(409, 'ARTICLE_EXISTS', '该平台文章或链接已经登记');
-      throw error;
-    }
+    run('UPDATE articles SET account_id=?,title=?,url=?,platform_article_id=?,published_at=?,started_at=?,production_mode=?,summary=?,notes=?,version=version+1,updated_at=? WHERE id=? AND version=?', value.account_id, value.title, value.url, value.platform_article_id, value.published_at, value.started_at, value.production_mode, value.summary, value.notes, updated_at, id, body.version);
     // Global revision CAS protects these reads; this version CAS is also checked in-batch.
     store.expectChange();
     const owner = await account(value.account_id,scope);

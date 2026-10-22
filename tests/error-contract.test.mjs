@@ -43,8 +43,28 @@ test('all reviewed error call sites and HTTP error projections retain their base
     http.push({path, method: options.method || 'GET', status: result.status, json: result.json});
   }
   const expected = JSON.parse(await readFile(snapshot, 'utf8'));
-  const semantic = rows => rows.map(({baselineLine, ...row}) => row);
-  assert.deepEqual(semantic(calls), semantic(expected.calls));
+  // B4's sole approved contract delta: remove two unreachable queue-time
+  // mappings and add that same ARTICLE_EXISTS tuple at the real commit boundary.
+  // Keep the original B3 snapshot intact; every other tuple and HTTP case stays locked.
+  const removed = row => row.file === 'src/records.mjs' && [308, 331].includes(row.baselineLine);
+  assert.equal(expected.calls.filter(removed).length, 2);
+  for (const row of expected.calls.filter(removed)) {
+    assert.deepEqual({status: row.status, code: row.code, message: row.message},
+      {status: 409, code: 'ARTICLE_EXISTS', message: '该平台文章或链接已经登记'});
+  }
+  const approvedCalls = expected.calls.filter(row => !removed(row));
+  const position = approvedCalls.findIndex(row => row.file === 'src/storage.mjs' && row.ordinal === 2);
+  assert.ok(position >= 0);
+  approvedCalls.splice(position + 1, 0, {file: 'src/storage.mjs', status: 409,
+    code: 'ARTICLE_EXISTS', message: '该平台文章或链接已经登记', alternateMessage: '该平台文章或链接已经登记'});
+  const semantic = rows => {
+    const ordinals = new Map();
+    return rows.map(({baselineLine, ordinal, ...row}) => {
+      const next = (ordinals.get(row.file) || 0) + 1;ordinals.set(row.file, next);
+      return {...row, ordinal: next};
+    });
+  };
+  assert.deepEqual(semantic(calls), semantic(approvedCalls));
   assert.deepEqual(http, expected.http);
   t.diagnostic(`${calls.length} source call sites; ${http.length} real Worker HTTP error contracts`);
 });
