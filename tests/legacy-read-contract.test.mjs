@@ -1,3 +1,4 @@
+import {traceJSON, traceDocument} from './request-trace-projection.mjs';
 import {dashboardHeaders, dashboardSpec} from './dashboard-deprecation-projection.mjs';
 import {stylePolicyHeaders} from './style-policy-projection.mjs';
 import test from 'node:test';
@@ -33,7 +34,7 @@ async function legacyWorker(t) {
   return (await import(pathToFileURL(join(directory, 'dist/server/index.js')).href)).default;
 }
 function project(path, json) {
-  const value = path === '/openapi.json' ? dashboardSpec(json) : structuredClone(json);
+  const value = path === '/openapi.json' ? dashboardSpec(traceDocument(json)) : structuredClone(json);
   if (path === '/api/v1/auth/me' && value.data) delete value.data.id;
   if (path === '/api/v1/audit' && value.data) {
     value.data = value.data.map(({entity_label, ...row}) => row);
@@ -191,7 +192,7 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
           headersForComparison.delete('ETag');headersForComparison.delete('Content-Length');
         }
         responses.push({status: response.status, headers: dashboardHeaders(path, response.status, stylePolicyHeaders(headersForComparison)),
-          body: json ? project(path, JSON.parse(text)) : text});
+          body: json ? project(path, traceJSON(JSON.parse(text), response.status, response.headers)) : text});
       }
       // Backup holds only synthetic hashes, but never dump even those on a failed assertion.
       if (path === '/api/v1/backup') assert.ok(isDeepStrictEqual(responses[1], responses[0]), kind + ' exact backup equality');

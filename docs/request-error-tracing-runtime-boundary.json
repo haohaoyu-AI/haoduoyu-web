@@ -1,0 +1,76 @@
+{
+  "purpose": "Synthetic read-only real workerd loopback HTTP boundary diagnosis; not production",
+  "runtime": {
+    "node": "24.19.0",
+    "miniflare": "4.20260730.0",
+    "compatibility_date": "2026-07-30",
+    "compatibility_flags": [
+      "nodejs_compat"
+    ]
+  },
+  "scope": "DB.prepare throws null, undefined, or Error whose name getter throws; no credentials or production data",
+  "initial_attempt": "2026-10-18 date rejected by installed runtime; no HTTP result from that attempt",
+  "results": [
+    {
+      "version": "baseline",
+      "sha": "24b5c5082a115cd9ee78e440c0848245079e6048",
+      "name": "null",
+      "status": 500,
+      "request_id": null,
+      "content_type": "text/plain;charset=UTF-8",
+      "bytes": 212,
+      "runtime_error_page": true
+    },
+    {
+      "version": "baseline",
+      "sha": "24b5c5082a115cd9ee78e440c0848245079e6048",
+      "name": "undefined",
+      "status": 500,
+      "request_id": null,
+      "content_type": "text/plain;charset=UTF-8",
+      "bytes": 217,
+      "runtime_error_page": true
+    },
+    {
+      "version": "baseline",
+      "sha": "24b5c5082a115cd9ee78e440c0848245079e6048",
+      "name": "throwing-name",
+      "status": 500,
+      "request_id": null,
+      "content_type": "text/plain;charset=UTF-8",
+      "bytes": 183,
+      "runtime_error_page": true
+    },
+    {
+      "name": "null",
+      "status": 500,
+      "request_id": null,
+      "content_type": "text/plain;charset=UTF-8",
+      "bytes": 212,
+      "runtime_error_page": true,
+      "version": "candidate",
+      "sha": "6b02e4a56baac4a8c217cdc52ef77e66a1d3c754"
+    },
+    {
+      "name": "undefined",
+      "status": 500,
+      "request_id": null,
+      "content_type": "text/plain;charset=UTF-8",
+      "bytes": 217,
+      "runtime_error_page": true,
+      "version": "candidate",
+      "sha": "6b02e4a56baac4a8c217cdc52ef77e66a1d3c754"
+    },
+    {
+      "name": "throwing-name",
+      "status": 500,
+      "request_id": null,
+      "content_type": "text/plain;charset=UTF-8",
+      "bytes": 183,
+      "runtime_error_page": true,
+      "version": "candidate",
+      "sha": "6b02e4a56baac4a8c217cdc52ef77e66a1d3c754"
+    }
+  ],
+  "conclusion": "Both versions fall through the Worker catch into runtime-generated text/plain500 without correlation; proposed narrow fallback is not implemented"
+}

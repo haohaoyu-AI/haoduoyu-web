@@ -1,3 +1,4 @@
+import {traceJSON} from './request-trace-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './harness.mjs';
@@ -64,7 +65,7 @@ test('audit uses one bounded query regardless of row count; unauthorized clients
     queries.length = 0;
     const response = await worker.fetch(new Request(app.origin + '/api/v1/audit', {headers}),
       {DB: db, SITE_ORIGIN: app.origin});
-    return {status: response.status, json: await response.json(), queries: [...queries]};
+    return {status: response.status, json: traceJSON(await response.json(),response.status,response.headers,true), queries: [...queries]};
   };
   const small = await request({Cookie: app.session.cookie});
   await app.db.batch(Array.from({length: 50}, (_, i) => app.db.prepare(

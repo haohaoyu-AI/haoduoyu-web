@@ -1,0 +1,45 @@
+✖ every response has a server-generated request ID and JSON errors correlate at the top level (1683.331453ms)
+✖ 500 logs correlate with response IDs without copying dynamic routes or error canaries (7.298432ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2842.793393
+
+✖ failing tests:
+
+test at tests/request-error-tracing.test.mjs:9:1
+✖ every response has a server-generated request ID and JSON errors correlate at the top level (1683.331453ms)
+  AssertionError [ERR_ASSERTION]: /health server request ID
+      at TestContext.<anonymous> (file:///workspace/haoduoyu-opt-phase5c-request-error-tracing/tests/request-error-tracing.test.mjs:15:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/request-error-tracing.test.mjs:21:1
+✖ 500 logs correlate with response IDs without copying dynamic routes or error canaries (7.298432ms)
+  AssertionError [ERR_ASSERTION]: one structured server-error log
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/haoduoyu-opt-phase5c-request-error-tracing/tests/request-error-tracing.test.mjs:27:45)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

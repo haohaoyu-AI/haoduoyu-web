@@ -50,6 +50,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "500": {
@@ -81,6 +86,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "500": {
@@ -106,6 +116,11 @@
                 "schema": {
                   "type": "string"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -148,6 +163,9 @@
                 "schema": {
                   "type": "string"
                 }
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -236,6 +254,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -293,6 +316,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -357,6 +385,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -441,6 +474,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -488,6 +526,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -568,6 +611,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -667,6 +715,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -921,6 +974,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1004,6 +1062,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1059,6 +1122,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1149,6 +1217,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1207,6 +1280,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1294,6 +1372,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1369,6 +1452,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1463,6 +1551,9 @@
                     "true"
                   ]
                 }
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1526,6 +1617,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1573,6 +1669,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1657,6 +1758,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1721,6 +1827,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1763,6 +1874,9 @@
                   "type": "string"
                 },
                 "description": "attachment; filename=\"haoduoyu-articles.csv\""
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             },
             "content": {
@@ -1823,6 +1937,11 @@
                     "data"
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1952,6 +2071,11 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           }
         }
@@ -2057,6 +2181,12 @@
               "code",
               "message"
             ]
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true,
+            "description": "服务端生成的本次请求关联 ID，位于错误 JSON 顶层，与 X-Request-Id 响应头一致；原有 error 或 data 字段保持不变。"
           }
         },
         "required": [
@@ -4607,6 +4737,11 @@
               "$ref": "#/components/schemas/Error"
             }
           }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
         }
       },
       "Error401": {
@@ -4616,6 +4751,11 @@
             "schema": {
               "$ref": "#/components/schemas/Error"
             }
+          }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
           }
         }
       },
@@ -4627,6 +4767,11 @@
               "$ref": "#/components/schemas/Error"
             }
           }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
         }
       },
       "Error404": {
@@ -4636,6 +4781,11 @@
             "schema": {
               "$ref": "#/components/schemas/Error"
             }
+          }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
           }
         }
       },
@@ -4647,6 +4797,11 @@
               "$ref": "#/components/schemas/Error"
             }
           }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
         }
       },
       "Error413": {
@@ -4656,6 +4811,11 @@
             "schema": {
               "$ref": "#/components/schemas/Error"
             }
+          }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
           }
         }
       },
@@ -4667,6 +4827,11 @@
               "$ref": "#/components/schemas/Error"
             }
           }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
         }
       },
       "Error422": {
@@ -4676,6 +4841,11 @@
             "schema": {
               "$ref": "#/components/schemas/Error"
             }
+          }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
           }
         }
       },
@@ -4694,6 +4864,9 @@
             "schema": {
               "type": "integer"
             }
+          },
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
           }
         }
       },
@@ -4705,6 +4878,20 @@
               "$ref": "#/components/schemas/Error"
             }
           }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        }
+      }
+    },
+    "headers": {
+      "RequestId": {
+        "description": "服务端为每次请求独立生成的 UUID，不采用客户端值。所有响应均包含此头，包括静态资源、HEAD 和 304；错误 JSON 顶层 request_id 与其一致。",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     }

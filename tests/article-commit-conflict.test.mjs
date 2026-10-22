@@ -1,3 +1,4 @@
+import {traceJSON} from './request-trace-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../dist/server/index.js';
@@ -36,7 +37,7 @@ async function injectedRequest(app, path, method, body, injected, key = 'synthet
     headers: {Cookie: app.session.cookie, 'X-CSRF-Token': app.session.csrfToken,
       Origin: app.origin, 'Content-Type': 'application/json', 'Idempotency-Key': key},
     body: JSON.stringify(body)}), {DB: db, SITE_ORIGIN: app.origin});
-  return {status: response.status, json: await response.json(), diagnostics, batches};
+  return {status: response.status, json: traceJSON(await response.json(),response.status,response.headers,true), diagnostics, batches};
 }
 
 test('real D1 article uniqueness failures occur after prechecks in create/update commit batches', async t => {
