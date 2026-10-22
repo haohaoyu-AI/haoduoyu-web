@@ -1,7 +1,7 @@
 import { fail } from './lib/errors.mjs';
 // Async D1 port of the preserved Node business contract. Writes are planned, then atomically committed by storage.mjs.
 import { createHash, randomUUID } from 'node:crypto';
-import { buildOverview, overviewWindow } from './overview.mjs';
+import { buildOverview, buildDueReviews, overviewWindow } from './overview.mjs';
 import { nextOverviewChange } from './overview-cache-time.mjs';
 import { articleFacts, cumulativeOverview, paginate, snapshotTimeline } from './analytics.mjs';
 
@@ -210,7 +210,7 @@ export function createRecords(store) {
     return {...old,name,active};
   }
 
-  async function listArticles(query = {}, scope = null) {
+  async function listArticles(query = {}, scope = null, index = false) {
     const clauses = [], params = [];
     scopedWhere(scope, 'a.account_id', clauses, params);
     const accountId = queryValue(query, 'account_id');
@@ -234,12 +234,15 @@ export function createRecords(store) {
     dateFilters(query, 'a.published_at', clauses, params);
     const sort = queryValue(query, 'sort') || 'published_at', order = queryValue(query, 'order') || 'desc';
     if (!['published_at', 'reads', 'likes', 'comments', 'approvals', 'latest_as_of', 'duration'].includes(sort) || !['asc', 'desc'].includes(order)) fail(400, 'VALIDATION_ERROR', '排序方式无效');
-    const raw = await all(`SELECT a.*,c.name AS account_name,c.platform FROM articles a JOIN accounts c ON c.id=a.account_id${clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''}`, ...params);
-    let rows = await enrichMany(raw);
+    if(index && ['reads','likes','comments','approvals','latest_as_of'].includes(sort)) fail(400,'VALIDATION_ERROR','文章索引不支持依赖快照的排序');
+    const projection=index?'a.id,a.title,a.account_id,a.published_at,a.started_at,a.notes':'a.*';
+    const raw = await all(`SELECT ${projection},c.name AS account_name,c.platform FROM articles a JOIN accounts c ON c.id=a.account_id${clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''}`, ...params);
+    let rows = index?raw.map(row=>articleFacts({...row,duration_seconds:row.started_at?Math.round((Date.parse(row.published_at)-Date.parse(row.started_at))/1000):null})):await enrichMany(raw);
     const topic=queryValue(query,'topic'), status=queryValue(query,'data_status');
     if(topic) {if(!['entertainment','insurance','unknown'].includes(topic))fail(400,'VALIDATION_ERROR','题材无效');rows=rows.filter(row=>row.topic===topic);}
     if(status) {
       if(!['no_snapshot','missing_reads','missing_likes','missing_comments','incomplete','zero_reads','date_unverified'].includes(status))fail(400,'VALIDATION_ERROR','数据状态无效');
+      if(index&&status!=='date_unverified') fail(400,'VALIDATION_ERROR','文章索引不支持依赖快照的数据状态');
       rows=rows.filter(row=>status==='no_snapshot'?row.snapshot_status==='not_collected':status==='date_unverified'?row.date_status==='unverified':status==='zero_reads'?row.latest_metrics?.reads===0:status==='incomplete'?['reads','likes','comments'].some(k=>row.missing_metrics.includes(k)):row.missing_metrics.includes(status.slice(8)));
     }
     const value = row => ['reads','likes','comments','approvals'].includes(sort) ? row.latest_metrics?.[sort] ?? null : sort === 'duration' ? row.duration_seconds : sort==='latest_as_of'?row.latest_as_of:row.published_at;
@@ -253,10 +256,15 @@ export function createRecords(store) {
   }
 
   async function articlePage(query = {}, scope = null) {
-    const rows=await listArticles(query,scope);
+    checkScope(scope);
+    const fields=queryValue(query,'fields');
+    if(fields!=null&&fields!=='index') fail(400,'VALIDATION_ERROR','显示字段模式无效');
+    const index=fields==='index',rows=await listArticles(query,scope,index);
     const clauses=[],params=[];scopedWhere(scope,'a.account_id',clauses,params);
     const total=(await get(`SELECT count(*) AS total FROM articles a${clauses.length?' WHERE '+clauses.join(' AND '):''}`,...params)).total;
-    return paginate(rows,query,total);
+    const page=paginate(rows,query,total);
+    if(index) page.data=page.data.map(({id,title,account_id,platform,published_at})=>({id,title,account_id,platform,published_at}));
+    return page;
   }
 
   async function getArticle(id, scope = null) {
@@ -431,6 +439,15 @@ export function createRecords(store) {
     return { window: { from, to: today, timezone: 'Asia/Shanghai', todayIncomplete: true }, accounts: accountRows, totals: { article_count: articles.length, automatic_count: articles.filter(row => row.production_mode === 'automatic').length, unknown_mode_count: articles.filter(row => row.production_mode === 'unknown').length, median_duration_seconds: median }, top_articles: top, due_reviews: due, trend };
   }
 
+  async function dueReviews(query = {}, scope = null, now = Date.now()) {
+    const accountId=queryValue(query,'account_id');
+    const articles=await listArticles(accountId?{account_id:accountId}:{},scope,true);
+    const clauses=[],params=[];scopedWhere(scope,'a.account_id',clauses,params);
+    if(accountId) {clauses.push('a.account_id=?');params.push(accountId);}
+    const observations=await all(`SELECT o.article_id,o.kind,o.as_of FROM observations o JOIN articles a ON a.id=o.article_id${clauses.length?' WHERE '+clauses.join(' AND '):''}`,...params);
+    return buildDueReviews({articles,observations,now});
+  }
+
   async function overview(query = {}, scope = null, now = Date.now(), onValidity = null) {
     const period = queryValue(query, 'period') ?? 'yesterday';
     const window = overviewWindow(period, now), accountId = queryValue(query, 'account_id');
@@ -449,5 +466,5 @@ export function createRecords(store) {
     return result;
   }
 
-  return { listAccounts, createAccount, updateAccount, listArticles, articlePage, getArticle, createArticle, updateArticle, listObservations, createObservation, listDaily, upsertDaily, dashboard, overview };
+  return { listAccounts, createAccount, updateAccount, listArticles, articlePage, getArticle, createArticle, updateArticle, listObservations, createObservation, listDaily, upsertDaily, dashboard, overview, dueReviews };
 }

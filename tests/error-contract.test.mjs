@@ -64,7 +64,14 @@ test('all reviewed error call sites and HTTP error projections retain their base
       return {...row, ordinal: next};
     });
   };
-  assert.deepEqual(semantic(calls), semantic(approvedCalls));
+  // C4 adds three validations only for the newly introduced fields mode.
+  // The original snapshot and every legacy tuple remain unchanged.
+  const indexMessages=['文章索引不支持依赖快照的排序','文章索引不支持依赖快照的数据状态','显示字段模式无效'];
+  for(const message of indexMessages) assert.deepEqual(calls.filter(row=>row.file==='src/records.mjs'&&row.message===message)
+    .map(({status,code,message,alternateMessage})=>({status,code,message,alternateMessage})),
+    [{status:400,code:'VALIDATION_ERROR',message,alternateMessage:message}]);
+  const legacyCalls=calls.filter(row=>!(row.file==='src/records.mjs'&&indexMessages.includes(row.message)));
+  assert.deepEqual(semantic(legacyCalls), semantic(approvedCalls));
   assert.deepEqual(http, expected.http);
   t.diagnostic(`${calls.length} source call sites; ${http.length} real Worker HTTP error contracts`);
 });

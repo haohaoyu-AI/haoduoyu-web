@@ -7,20 +7,20 @@ function client(){
  const body={style:{}},nodes=new Map([['#overlay',{innerHTML:'',firstChild:null,contains(){return false}}]]);
  const document={querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>[],addEventListener(){},body,activeElement:body};
  const context=vm.createContext({document,window:{addEventListener(){}},location:{href:'http://localhost/',search:''},history:{replaceState(){}},URL,URLSearchParams,Intl,localStorage:{getItem(){}},requestAnimationFrame(){},setTimeout,clearTimeout});
- new vm.Script(source).runInContext(context);return {run:s=>vm.runInContext(s,context),nodes,document,context};
+ new vm.Script(source).runInContext(context);vm.runInContext("state.me={id:'synthetic-ui-user'}",context);return {run:s=>vm.runInContext(s,context),nodes,document,context};
 }
 test('data table hides only wholly missing metrics; zeros and likes/approvals remain separate',async()=>{
  const c=client();c.run(`state.accounts=[{id:'a',name:'<甲>',platform:'zhihu'},{id:'b',name:'乙',platform:'toutiao'}];
  state.filters.platform='zhihu';state.reviewTab='observations';
- api=async path=>path.startsWith('/articles')?[{id:'one',account_id:'a',title:'<img>'},{id:'two',account_id:'b',title:'乙'}]:path.startsWith('/overview')?{due_reviews:[]}:[{id:'x',article_id:'one',kind:'latest',metrics:{reads:0,likes:0,approvals:4},source:'本地'},{id:'y',article_id:'one',kind:'d1',metrics:{reads:5,approvals:0}},{id:'z',article_id:'two',kind:'latest',metrics:{impressions:8}}]`);
+ api=async path=>path.startsWith('/articles')?[{id:'one',account_id:'a',title:'<img>'},{id:'two',account_id:'b',title:'乙'}]:path.startsWith('/due-reviews')?[]:[{id:'x',article_id:'one',kind:'latest',metrics:{reads:0,likes:0,approvals:4},source:'本地'},{id:'y',article_id:'one',kind:'d1',metrics:{reads:5,approvals:0}},{id:'z',article_id:'two',kind:'latest',metrics:{impressions:8}}]`);
  const html=await c.run('renderReviews()');assert.doesNotMatch(html,/<th>展现/);assert.match(html,/<th>阅读/);assert.match(html,/<th>点赞（likes）/);assert.match(html,/<th>赞同（approvals）/);assert.match(html,/data-label="点赞（likes）">0<\/td>/);assert.match(html,/未取得/);assert.match(html,/&lt;img&gt;/);assert.match(html,/&lt;甲&gt;/);assert.equal(c.run('state.reviewRecords.length'),2);
- c.run("state.reviewTab='daily';api=async path=>path.startsWith('/articles')?[]:path.startsWith('/overview')?{due_reviews:[]}:[{id:'d',account_id:'a',date:'2026-10-20',metrics:{impressions:0}}]");
+ c.run("clearArticleIndexes();state.reviewTab='daily';api=async path=>path.startsWith('/articles')?[]:path.startsWith('/due-reviews')?[]:[{id:'d',account_id:'a',date:'2026-10-20',metrics:{impressions:0}}]");
  const daily=await c.run('renderReviews()');assert.match(daily,/<th>展现/);assert.doesNotMatch(daily,/<th>阅读/);assert.match(daily,/data-label="展现">0<\/td>/);
 });
 test('data due scope and a stale response do not leak another platform or overwrite newer state',async()=>{
- const c=client();c.run(`state.accounts=[{id:'a',name:'甲',platform:'zhihu'},{id:'b',name:'乙',platform:'toutiao'}];state.filters.platform='zhihu';state.reviewTab='pending';api=async path=>path.startsWith('/articles')?[]:{due_reviews:[{id:'one',account_id:'a',title:'甲待办',due_kind:'d1'},{id:'two',account_id:'b',title:'乙待办',due_kind:'d3'}]}`);
+ const c=client();c.run(`state.accounts=[{id:'a',name:'甲',platform:'zhihu'},{id:'b',name:'乙',platform:'toutiao'}];state.filters.platform='zhihu';state.reviewTab='pending';api=async path=>path.startsWith('/articles')?[]:[{id:'one',account_id:'a',title:'甲待办',due_kind:'d1'},{id:'two',account_id:'b',title:'乙待办',due_kind:'d3'}]`);
  const html=await c.run('renderReviews()');assert.match(html,/待办 1/);assert.match(html,/甲待办/);assert.doesNotMatch(html,/乙待办/);
- c.run("let finish;state.articles=[{id:'newer'}];api=path=>path.startsWith('/articles')?new Promise(resolve=>finish=resolve):Promise.resolve({due_reviews:[]});let old=renderReviews();renderVersion++;finish([{id:'obsolete'}])");assert.equal(await c.run('old'),'');assert.equal(c.run('state.articles[0].id'),'newer');
+ c.run("clearArticleIndexes();let finish;state.articles=[{id:'newer'}];state.reviewArticles=[{id:'newer-review'}];api=path=>path.startsWith('/articles')?new Promise(resolve=>finish=resolve):Promise.resolve([]);let old=renderReviews();renderVersion++;finish([{id:'obsolete'}])");assert.equal(await c.run('old'),'');assert.equal(c.run('state.articles[0].id'),'newer');
 });
 test('detail keeps unknown date nodes neutral, zero/missing/approvals distinct and reasons in popovers',()=>{
  const c=client();c.run(`sample={date_status:'unverified',latest_metrics:{reads:0,likes:0,approvals:4},nodes:['d1','d3','d7','latest'].map(kind=>({kind,status:'not_collected',snapshot:null,due_at:null})),timeline:[{id:'s',kind:'latest',as_of:'2026-10-17T00:00:00Z',metrics:{reads:12,likes:0,approvals:4},changes:{reads:{delta:12,percent:null,comparable:true,reason:'前期为真实零，增幅无定义'},likes:{delta:0,percent:null,comparable:true,reason:'前期为真实零'},approvals:{delta:-2,percent:-33,comparable:true,reason:'相邻快照'}}}]}`);

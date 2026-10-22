@@ -38,6 +38,11 @@ function project(path, json) {
   }
   if (path === '/openapi.json') {
     value.info.version = '1.0.0';
+    delete value.paths['/api/v1/due-reviews'];
+    delete value.components.schemas.ArticleIndex;
+    delete value.components.schemas.DueReview;
+    value.paths['/api/v1/articles'].get.parameters=value.paths['/api/v1/articles'].get.parameters.filter(row=>row.name!=='fields');
+    value.paths['/api/v1/articles'].get.responses['200'].content['application/json'].schema.properties.data.items={$ref:'#/components/schemas/Article'};
     delete value.components.schemas.CurrentAdminIdentity;
     delete value.components.schemas.AuditRecord.properties.entity_label;
     value.paths['/api/v1/auth/me'].get.responses['200'].content['application/json']

@@ -27,11 +27,11 @@ async function client(rows = articles) {
   const context = vm.createContext({
     document, window: { addEventListener() {} }, localStorage: { getItem: () => null },
     requestAnimationFrame() {}, URL, URLSearchParams, Intl,
-    fixture: { accounts: structuredClone(accounts), account: 'account-a', reviewTab: 'observations' },
+    fixture: { me: {id:'synthetic-ui-user'}, accounts: structuredClone(accounts), account: 'account-a', reviewTab: 'observations' },
     fetch: async (path, options) => {
       requests.push({ path, method: options.method ?? 'GET' });
       if (path === '/api/v1/auth/me') return { ok: false, status: 401, json: async () => ({ error: { message: 'Synthetic signed-out session' } }) };
-      if (path === '/api/v1/articles') return { ok: true, status: 200, json: async () => ({ data: structuredClone(rows) }) };
+      if (path === '/api/v1/articles?fields=index') return { ok: true, status: 200, json: async () => ({ data: structuredClone(rows) }) };
       throw new Error('Unexpected request in isolated UI test');
     },
   });

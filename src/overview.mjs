@@ -154,6 +154,29 @@ function attentionFor(article, current, articles, dailyByArticle, window, cache)
   return normal ?? zeroBaseline ?? insufficient(bestSize ? '完整同龄历史样本不足 5 篇，待积累' : '该指标缺日或没有完整同龄历史样本，待积累', bestSize, bestMetric);
 }
 
+// Shared pending schedule: numeric future instants avoid formatting invalid far-future dates.
+export function pendingReviewEvents(articles, observations) {
+  const reviewMap = new Map();
+  for (const row of observations) {
+    if (!reviewMap.has(row.article_id)) reviewMap.set(row.article_id, []);
+    reviewMap.get(row.article_id).push(row);
+  }
+  const events = [];
+  for (const article of articles.map(articleFacts).filter(row => row.date_status === 'recorded'))
+    for (const [kind, days] of [['d1', 1], ['d3', 3], ['d7', 7]]) {
+      const dueAt = Date.parse(article.published_at) + days * DAY;
+      if (!(reviewMap.get(article.id) ?? []).some(row => row.kind === kind && Date.parse(row.as_of) >= dueAt))
+        events.push({article, kind, dueAt});
+    }
+  return events;
+}
+export function buildDueReviews({articles, observations, now = Date.now()}) {
+  return pendingReviewEvents(articles, observations).filter(event => event.dueAt <= Number(now))
+    .map(({article, kind, dueAt}) => ({id: article.id, title: article.title, account_id: article.account_id,
+      account_name: article.account_name, due_kind: kind, due_at: new Date(dueAt).toISOString()}))
+    .sort((a, b) => a.due_at.localeCompare(b.due_at) || a.id.localeCompare(b.id));
+}
+
 export function buildOverview({ accounts, articles, daily, observations, period = 'yesterday', now = Date.now() }) {
   const window = overviewWindow(period, now);
   const selectedDays = dates(window.from, window.to), previousDays = dates(window.previous_from, window.previous_to);
@@ -198,15 +221,7 @@ export function buildOverview({ accounts, articles, daily, observations, period 
   });
   const rank = { up: 0, down: 1, normal: 2, insufficient: 3 };
   attention.sort((a, b) => rank[a.attention.kind] - rank[b.attention.kind] || b.published_at.localeCompare(a.published_at) || a.id.localeCompare(b.id));
-  const reviewMap = new Map();
-  for (const row of observations) { if (!reviewMap.has(row.article_id)) reviewMap.set(row.article_id, []); reviewMap.get(row.article_id).push(row); }
-  const due = [];
-  for (const article of publicationRows) for (const [kind, days] of [['d1', 1], ['d3', 3], ['d7', 7]]) {
-    const dueAt = Date.parse(article.published_at) + days * DAY;
-    if (dueAt <= Number(now) && !(reviewMap.get(article.id) ?? []).some(row => row.kind === kind && Date.parse(row.as_of) >= dueAt))
-      due.push({ id: article.id, title: article.title, account_id: article.account_id, account_name: article.account_name, due_kind: kind, due_at: new Date(dueAt).toISOString() });
-  }
-  due.sort((a, b) => a.due_at.localeCompare(b.due_at) || a.id.localeCompare(b.id));
+  const due = buildDueReviews({articles: publicationRows, observations, now});
   const complete = accountRows.filter(row => row.coverage.source === 'account' && row.coverage.days === window.days &&
     row.coverage.missing_metrics.length === 0).map(row => row.id);
   return { window, accounts: accountRows, trend, publication_trend, publication_note:'本站已记录的发布量；日期待核实的记录不计入日期趋势。', attention_articles: attention, due_reviews: due,
