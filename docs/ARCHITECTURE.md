@@ -11,3 +11,5 @@ build.mjs 将 public 资源嵌入后打包 Worker。check:artifacts 校验 publi
 测试只连接本地 Miniflare，预览绑定本地 D1 并禁止 Worker 外联。CI 使用 Node24、锁文件与最小只读权限，没有生产秘密或发布步骤。
 
 第二期 B1：管理员会话 GET /api/v1/auth/me 在原 username、csrfToken 之外新增稳定用户 id。前端沿用既有精确 ID 匹配显示审计“我”，不依赖用户名；匿名和 AI 凭据访问仍拒绝。登录响应及其 AdminIdentity 模型保持原样，OpenAPI 1.1.0 仅为当前身份增加独立扩展模型。
+
+第二期 B2：GET /api/v1/audit 在既有管理员校验后，以一次带动作类型约束的 LEFT JOIN 增加可选 entity_label。管理员拥有全账号读取范围；AI 凭据仍无权访问此接口，不执行标题关联。只有文章创建/更新动作且实体一致时取当前标题，缺失及非文章实体为 null；旧字段、排序与 200 条上限不变。前端仅用响应标题并经 e() 转义，旧记录无该字段时保留动作与时间，不借文章分页缓存猜标题。

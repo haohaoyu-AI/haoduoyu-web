@@ -30,8 +30,8 @@ test('me requires exact authenticated id; key names escape, unmatched actors sta
  const html=c.run(`renderAudit(rows,[{id:'k',name:'<凭据 & 名称>',token:'must-not-render'}])`);assert.equal((html.match(/我 ·/g)||[]).length,1);assert.match(html,/用户 2/);assert.match(html,/&lt;凭据 &amp; 名称&gt;/);assert.match(html,/未识别凭据 4/);assert.match(html,/未知来源 5/);assert.doesNotMatch(html,/user:|key:|unknown:source|must-not-render|<凭据/);
  c.run(`state.me={username:'same'}`);assert.doesNotMatch(c.run('renderAudit(rows)'),/我 ·/);
 });
-test('loaded article links escape titles and IDs; unknown entities omit UUID while retaining action',()=>{
- const c=client();c.run(`state.articles=[{id:'a"<',title:'<img onerror=1>'}];rows=[{action:'POST /articles',actor:'x',entity_id:'a"<',created_at:'bad'},{action:'<unknown>',actor:'y',entity_id:'00000000-1111-2222-3333-444444444444',created_at:null}]`);
+test('response article labels escape titles and IDs; unknown entities omit UUID while retaining action',()=>{
+ const c=client();c.run(`state.articles=[{id:'a"<',title:'<img onerror=1>'}];rows=[{action:'POST /articles',actor:'x',entity_id:'a"<',entity_label:'<img onerror=1>',created_at:'bad'},{action:'<unknown>',actor:'y',entity_id:'00000000-1111-2222-3333-444444444444',created_at:null}]`);
  const html=c.run('renderAudit(rows)');assert.match(html,/data-action="article-detail"/);assert.match(html,/data-id="a&quot;&lt;"/);assert.match(html,/&lt;img onerror=1&gt;/);assert.match(html,/&lt;unknown&gt;/);assert.doesNotMatch(html,/<img|00000000-1111|<unknown>/);assert.match(html,/日期未知/);assert.equal((html.match(/<li>/g)||[]).length,2);
  assert.match(c.run('renderAudit([])'),/暂无操作记录/);
 });
@@ -47,4 +47,11 @@ test('shared segmented and full field helper preserve controls and escape new dy
 
 test('invalid timestamps do not establish a common Beijing day for merging',()=>{
  const c=client();const html=c.run(`renderAudit([{action:'auth.login',actor:'user:a',created_at:'bad-a'},{action:'auth.login',actor:'user:a',created_at:'bad-b'}])`);assert.equal((html.match(/<details /g)||[]).length,2);assert.equal((html.match(/<li>/g)||[]).length,2);assert.doesNotMatch(html,/×2/);
+});
+
+test('audit uses escaped response labels without article-page cache and keeps old unknown rows readable',()=>{
+ const c=client();c.run(`state.articles=[];rows=[{action:'POST /articles',actor:'synthetic',entity_id:'a"<',entity_label:'<img src=x onerror=1> & title',created_at:'2001-01-01T00:00:00Z'}]`);
+ const html=c.run('renderAudit(rows)');assert.match(html,/data-action="article-detail"/);assert.match(html,/data-id="a&quot;&lt;"/);assert.match(html,/&lt;img src=x onerror=1&gt; &amp; title/);assert.doesNotMatch(html,/<img/);
+ c.run(`state.articles=[{id:'collision',title:'wrong cached title'}];rows=[{action:'PUT /accounts/collision',actor:'synthetic',entity_id:'collision',entity_label:null,created_at:'bad'},{action:'article.create',actor:'synthetic',entity_id:'old-uuid',created_at:'bad'}]`);
+ const fallback=c.run('renderAudit(rows)');assert.match(fallback,/修改账号/);assert.match(fallback,/新增文章/);assert.doesNotMatch(fallback,/wrong cached title|old-uuid|data-action="article-detail"/);
 });
