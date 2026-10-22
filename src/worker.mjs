@@ -6,6 +6,7 @@ import { fail,digest,csrfFor,now,originFor,bodyFor,authenticate,requireAdmin,req
 import { assets } from './assets.generated.mjs';
 import { exportBackup } from './backup.mjs';
 import { matchesIfNoneMatch } from './lib/http.mjs';
+import { overviewCache } from './overview-cache.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
@@ -58,8 +59,15 @@ async function login(db,request,env,origin) {
 }
 
 async function protectedRead(db,request,route,query,initialRevision) {
-  let readActor;
-  const response=await consistentRead(db,async store=>{
+  let readActor,attemptTicket=null,attemptResponse=null;
+  const abandon=async()=>{
+    if(attemptTicket) await attemptTicket.abort();
+    if(attemptResponse?.body) await attemptResponse.body.cancel().catch(()=>{});
+    attemptTicket=null;attemptResponse=null;
+  };
+  try {
+  const response=await consistentRead(db,async (store,before)=>{
+    if(attemptTicket||attemptResponse) await abandon();
     const actor=await authenticate(store,request),records=createRecords(store);
     readActor=actor;
     const articleMatch=/^\/articles\/([^/]+)$/.exec(route);
@@ -70,7 +78,19 @@ async function protectedRead(db,request,route,query,initialRevision) {
     if(route==='/observations') return json(await records.listObservations(query,actor.scope));
     if(route==='/daily-metrics') return json(await records.listDaily(query,actor.scope));
     if(route==='/dashboard') return json(await records.dashboard(query.account_id||null,actor.scope));
-    if(route==='/overview') return json(await records.overview(query,actor.scope));
+    if(route==='/overview') {
+      // Match the original records.overview default-time evaluation point.
+      const at=Date.now(),key=overviewCache.key(db,before,query,actor);
+      if(key) attemptTicket=overviewCache.get(key,at);
+      if(attemptTicket) return null;
+      let until;
+      const value=await records.overview(query,actor.scope,at,deadline=>{until=deadline;});
+      const text=JSON.stringify({data:value});
+      if(key) attemptTicket=overviewCache.reserve(key,at,until,text);
+      if(attemptTicket) return null;
+      attemptResponse=new Response(text,{headers:{'Content-Type':'application/json'}});
+      return attemptResponse;
+    }
     if(route==='/api-keys') {
       requireAdmin(actor);
       return json((await store.all('SELECT id,name,account_ids_json,permissions_json,created_at,revoked_at,last_used_at FROM api_keys ORDER BY created_at DESC')).map(({account_ids_json,permissions_json,...row})=>({...row,account_ids:JSON.parse(account_ids_json),permissions:JSON.parse(permissions_json)})));
@@ -92,7 +112,14 @@ async function protectedRead(db,request,route,query,initialRevision) {
   const usedAt=now(),cutoff=new Date(Date.parse(usedAt)-300000).toISOString();
   if(readActor.kind==='key'&&(readActor.lastUsedAt===null||Date.parse(readActor.lastUsedAt)<Date.parse(cutoff)))
     await statement(db,'UPDATE api_keys SET last_used_at=? WHERE id=? AND token_hash=? AND revoked_at IS NULL AND (last_used_at IS NULL OR last_used_at<?)',usedAt,readActor.id,readActor.tokenHash,cutoff).run();
+  if(attemptTicket) {
+    const result=attemptTicket.response();
+    attemptTicket.publish(Date.now());attemptTicket=null;attemptResponse=null;
+    return result;
+  }
+  attemptResponse=null;
   return response;
+  } catch(error) {await abandon();throw error;}
 }
 
 async function protectedWrite(db,request,route,env,origin) {

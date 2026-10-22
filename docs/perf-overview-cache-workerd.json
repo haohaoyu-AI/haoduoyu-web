@@ -1,0 +1,160 @@
+{
+  "synthetic": true,
+  "complete": true,
+  "source_commit": "eaafb284366e8dfe9bfbbd67d272a245987c906f",
+  "test_bundle_sha256": "6805200d37d130f8f9c07409f4c7086ced921491de58c04f221cafd138ba9ca8",
+  "source_files": {
+    "src/worker.mjs": "dd3a3706b499cc0deb5b9c2aa529ab98b9b2a4869bea2a56775a3e6e28316e05",
+    "src/storage.mjs": "346728bfc117f16e2242a5478388b2076bf61bc8432813de249b32a8a4c7a533",
+    "src/records.mjs": "674870e187b4012b59ce250253e716ee4497c65755617796017ae7d3c628df28",
+    "src/overview-cache.mjs": "e45c6d816ee5f60f4ce8ae73a43469bc3218cd2a900c994b88d289c25c509131",
+    "src/overview-cache-time.mjs": "623495b3455c6d259e55c7e5a5603b6c3bb2f8d07e932a23e521e2ccdacb8329"
+  },
+  "scope": "local workerd V8 Inspector only; sampled heap/backing storage, not full isolate RSS or a proven Cloudflare production maximum",
+  "fixed_time": "2026-10-22T08:00:00.000Z",
+  "samples": [
+    {
+      "usedSize": 2655856,
+      "totalSize": 5111808,
+      "embedderHeapUsedSize": 257936,
+      "backingStorageSize": 809419
+    },
+    {
+      "usedSize": 62771180,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 119192,
+      "backingStorageSize": 29995108
+    },
+    {
+      "usedSize": 62771180,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 119192,
+      "backingStorageSize": 29995108
+    },
+    {
+      "usedSize": 62771180,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 119192,
+      "backingStorageSize": 29995108
+    },
+    {
+      "usedSize": 62771180,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 119192,
+      "backingStorageSize": 29995108
+    },
+    {
+      "usedSize": 62771180,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 119192,
+      "backingStorageSize": 29995108
+    },
+    {
+      "usedSize": 62771180,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 119192,
+      "backingStorageSize": 29995108
+    },
+    {
+      "usedSize": 62771180,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 119192,
+      "backingStorageSize": 29995108
+    },
+    {
+      "usedSize": 62771180,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 119192,
+      "backingStorageSize": 29995108
+    },
+    {
+      "usedSize": 62771180,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 119192,
+      "backingStorageSize": 29995108
+    },
+    {
+      "usedSize": 63330352,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 257952,
+      "backingStorageSize": 44597058
+    },
+    {
+      "usedSize": 63330352,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 257952,
+      "backingStorageSize": 44597058
+    },
+    {
+      "usedSize": 63330352,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 257952,
+      "backingStorageSize": 44597058
+    },
+    {
+      "usedSize": 63330352,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 257952,
+      "backingStorageSize": 44597058
+    },
+    {
+      "usedSize": 63330352,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 257952,
+      "backingStorageSize": 44597058
+    },
+    {
+      "usedSize": 63330352,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 257952,
+      "backingStorageSize": 44597058
+    },
+    {
+      "usedSize": 63929996,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 257952,
+      "backingStorageSize": 59199008
+    },
+    {
+      "usedSize": 63929996,
+      "totalSize": 137080832,
+      "embedderHeapUsedSize": 257952,
+      "backingStorageSize": 59199008
+    }
+  ],
+  "requests": [
+    {
+      "phase": "cold",
+      "status": 200,
+      "ms": 9436.982603,
+      "bytes": 14601664,
+      "sha256": "3c00c40e30cdb68871ff20e3796dd6f59dfa338b9c7dd0ddc54c63d478c1b60c"
+    },
+    {
+      "phase": "hot-1",
+      "status": 200,
+      "ms": 337.5430370000013,
+      "bytes": 14601664,
+      "sha256": "3c00c40e30cdb68871ff20e3796dd6f59dfa338b9c7dd0ddc54c63d478c1b60c"
+    },
+    {
+      "phase": "hot-2",
+      "status": 200,
+      "ms": 200.12491200000113,
+      "bytes": 14601664,
+      "sha256": "3c00c40e30cdb68871ff20e3796dd6f59dfa338b9c7dd0ddc54c63d478c1b60c"
+    }
+  ],
+  "counts": {
+    "articles": 5000,
+    "observations": 20000,
+    "daily_metrics": 50000
+  },
+  "sampling_error": true,
+  "maxima": {
+    "usedSize": 63929996,
+    "totalSize": 137080832,
+    "embedderHeapUsedSize": 257952,
+    "backingStorageSize": 59199008
+  }
+}

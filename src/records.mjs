@@ -2,6 +2,7 @@ import { fail } from './lib/errors.mjs';
 // Async D1 port of the preserved Node business contract. Writes are planned, then atomically committed by storage.mjs.
 import { createHash, randomUUID } from 'node:crypto';
 import { buildOverview, overviewWindow } from './overview.mjs';
+import { nextOverviewChange } from './overview-cache-time.mjs';
 import { articleFacts, cumulativeOverview, paginate, snapshotTimeline } from './analytics.mjs';
 
 const METRICS = new Set(['reads', 'impressions', 'likes', 'comments', 'favorites', 'shares', 'approvals', 'reading_users']);
@@ -430,7 +431,7 @@ export function createRecords(store) {
     return { window: { from, to: today, timezone: 'Asia/Shanghai', todayIncomplete: true }, accounts: accountRows, totals: { article_count: articles.length, automatic_count: articles.filter(row => row.production_mode === 'automatic').length, unknown_mode_count: articles.filter(row => row.production_mode === 'unknown').length, median_duration_seconds: median }, top_articles: top, due_reviews: due, trend };
   }
 
-  async function overview(query = {}, scope = null, now = Date.now()) {
+  async function overview(query = {}, scope = null, now = Date.now(), onValidity = null) {
     const period = queryValue(query, 'period') ?? 'yesterday';
     const window = overviewWindow(period, now), accountId = queryValue(query, 'account_id');
     if (accountId) await account(accountId, scope);
@@ -443,7 +444,9 @@ export function createRecords(store) {
     const observations = await listObservations(filter, scope);
     const topN=Number(queryValue(query,'top_n')??5), topPlatform=queryValue(query,'top_platform')??'';
     if(!Number.isInteger(topN)||topN<1||topN>100||topPlatform&&!PLATFORMS.has(topPlatform))fail(400,'VALIDATION_ERROR','Top N 或平台无效');
-    return {...buildOverview({ accounts, articles, daily, observations, period, now }),...cumulativeOverview(articles,{topN,topPlatform,now,accounts})};
+    const result={...buildOverview({ accounts, articles, daily, observations, period, now }),...cumulativeOverview(articles,{topN,topPlatform,now,accounts})};
+    if(onValidity) onValidity(nextOverviewChange({accounts,articles,observations,now}));
+    return result;
   }
 
   return { listAccounts, createAccount, updateAccount, listArticles, articlePage, getArticle, createArticle, updateArticle, listObservations, createObservation, listDaily, upsertDaily, dashboard, overview };

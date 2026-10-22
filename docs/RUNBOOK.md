@@ -10,7 +10,7 @@ npm run dev 打开本地 .preview/d1，只监听回环地址，不自动初始�
 
 ## 正式发布：另行批准后执行
 
-1. 读取当前 Sites project、域名、源提交及 saved version，在非公开运维记录保存 version_id、deployment_id、环境 revision。当前基线是 Sites v6，计划标签名不等于 Sites 版本号。
+1. 读取当前 Sites project、域名、源提交及 saved version，在非公开运维记录保存 version_id、deployment_id、环境 revision。上次已核实发布版本为 Sites v7（源码 f21c9ed3），不能把本文记录代替每次部署前的实际读取。计划标签名不等于 Sites 版本号。
 2. 确认 PR、最终提交、CI 和所需契约/浏览器检查对应同一源码，不能把本地通过说成远端 CI 通过。
 3. 走当前正式 Sites 技能，保持项目身份、访问权限、数据库和环境配置；不拿 deploy 当预览，不新增凭据或扩权。
 4. 持久保存批准源码并独立读回；按受支持 helper 构建、归档和保存版本。站长确认后才 deploy，等待终态。
