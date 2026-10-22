@@ -147,3 +147,6 @@ d75c82343a0b6a0bd6ee450a130761e913b49771:.ci/public-assets.json:generic-api-key:
 # Reviewed public-resource hashes reintroduced by the approved squash commit.
 cf3e5006b0ab5f02437e257cb3b0c7f8f874966c:.ci/public-assets.json:generic-api-key:5
 cf3e5006b0ab5f02437e257cb3b0c7f8f874966c:.ci/public-assets.json:generic-api-key:10
+
+# B1 OpenAPI 1.1.0 public content hash, independently recomputed.
+610501a7b246f806df69acedd9d762c0b77e09da:.ci/public-assets.json:generic-api-key:10
