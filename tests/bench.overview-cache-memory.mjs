@@ -57,7 +57,10 @@ try {
   const login=await setup('/auth/login',{username:'synthetic-memory-admin',password:PASSWORD});
   const cookie=login.headers.get('set-cookie').split(';')[0];
   const accounts=(await db.prepare('SELECT id,platform FROM matrix_accounts').all()).results;
-  report.counts=await seedBenchmark(db,['toutiao','zhihu','wechat'].map(p=>accounts.find(x=>x.platform===p).id));
+  const ordered=['toutiao','zhihu','wechat'].map(p=>accounts.find(x=>x.platform===p));
+  for(const [i,account] of ordered.entries())
+    await db.prepare('UPDATE matrix_accounts SET name=? WHERE id=?').bind('Synthetic benchmark account '+(i+1),account.id).run();
+  report.counts=await seedBenchmark(db,ordered.map(row=>row.id));
   let polling=false;
   const sample=async()=>{if(polling)return;polling=true;try {const value=await command('Runtime.getHeapUsage');
     if(value.error) throw new Error('Heap diagnostic unsupported');report.samples.push(value.result);

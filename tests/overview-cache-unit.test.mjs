@@ -139,3 +139,15 @@ test('concurrent hot responses reserve their own chunk buffers and bypass cache 
   const resumed=cache.get('a',12);assert.ok(resumed);await resumed.abort();cache.clear();
   assert.equal(cache.stats().bytes,0);
 });
+test('one failed reader retires the entry without releasing another active response storage early', async () => {
+  let calls=0;
+  const cache=createOverviewCache({bytes:8192,itemBytes:1024,chunkBytes:8},async(blob,start,end)=>{
+    if(++calls===1)throw new Error('Synthetic first-reader failure');
+    return blob.slice(start,end).arrayBuffer();
+  });
+  const first=cache.reserve('shared',10,100,body),r1=first.response();first.publish(10);
+  const second=cache.get('shared',11),r2=second.response();second.publish(11);
+  await assert.rejects(r1.text(),/Synthetic first-reader failure/);
+  assert.equal(cache.stats().resident,0);assert.equal(cache.stats().leases,1);assert.ok(cache.stats().bytes>0);
+  assert.equal(await r2.text(),body);assert.equal(cache.stats().bytes,0);assert.equal(cache.stats().leases,0);
+});
