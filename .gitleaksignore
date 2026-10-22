@@ -143,3 +143,7 @@ d7a55f83d9c0deb4296abe3feefd4d0983469df8:cloud-web/tests/stepwise-text.mjs:gener
 # Phase 1 public asset content hashes, independently recomputed (not credentials).
 d75c82343a0b6a0bd6ee450a130761e913b49771:.ci/public-assets.json:generic-api-key:5
 d75c82343a0b6a0bd6ee450a130761e913b49771:.ci/public-assets.json:generic-api-key:10
+
+# Reviewed public-resource hashes reintroduced by the approved squash commit.
+cf3e5006b0ab5f02437e257cb3b0c7f8f874966c:.ci/public-assets.json:generic-api-key:5
+cf3e5006b0ab5f02437e257cb3b0c7f8f874966c:.ci/public-assets.json:generic-api-key:10
