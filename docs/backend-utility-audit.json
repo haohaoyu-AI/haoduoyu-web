@@ -3,7 +3,7 @@
   "coverage": {
     "tracked_files": 233,
     "parsed_JS_modules": 102,
-    "text_extensions": "js,mjs,py,md,json,yml,yaml,toml,ts,html,txt",
+    "text_extensions": "all UTF-8 tracked files, including extensionless configuration",
     "literal_auth_path_mentions": [
       "docs/history/pre-foundation-readme.md",
       "docs/phase2-error-contracts.md",
@@ -18,7 +18,8 @@
       "tests/fixtures/error-contracts.json",
       "tests/legacy-read-contract.test.mjs",
       "tests/read-control.test.mjs"
-    ]
+    ],
+    "UTF8_text_files": 194
   },
   "consumers": [
     {

@@ -1,4 +1,4 @@
-# 阶段 5a：后端时间工具与旧认证代码（实施检查点）
+# 阶段 5a：后端时间工具与旧认证代码（草稿交审，未部署）
 
 基线 dc598ac1c1b53303500e2313965c3f980d94d0ad，分支 opt/phase5a-backend-utilities。
 只做 D2/D3；不包含 dashboard 弃用、日志/request_id、UI 或生产变更。
@@ -18,7 +18,7 @@ shared/auth.mjs 中 createUser、sessionCookie、authenticate、createSession、
 唯一相互调用为旧 authenticate → 旧 sessionCookie。src/security.mjs 的 authenticate/sessionCookie
 和 src/storage.mjs 的 store.audit 是实际在线实现，不删除。
 实际 shared/auth 消费者导入 hashPassword/verifyPassword、fail/digest/csrfFor/checkCsrf/checkOrigin；
-测试另导入 validatePassword；基线唯一 shared/auth 动态 namespace 消费者只访问 fail。尚需完成最终符号/结构断言与引用清单。
+测试另导入 validatePassword；基线唯一 shared/auth 动态 namespace 消费者只访问 fail。最终符号/结构断言和引用清单已完成。
 
 先保存方案，再以原实现可执行行为刻画、提取前后合成输入/接口完整对照证明等价。
 不编造修前业务失败；结构性去重和死导出断言可以先红后绿。
@@ -44,4 +44,29 @@ baseline 固定 233 个跟踪文件，102 个 JS 模块完成 AST 检查；全�
 
 两次测试驱动修正单独留日志：先误传生成器参数、再只冻结 Date.now 导致备份 exported_at
 不同。修正为同一构造器/时钟，不删除备份字段；断言失败只打印路由，避免输出合成备份中
-临时认证散列。原失败日志仅本地保留，不上传。最终全量测试与 CI 尚待终态。
+临时认证散列。原失败日志仅本地保留，不上传。该驱动失败已修正，最终产品 CI 如下。
+
+## 最终验证与覆盖边界
+
+产品提交 deb0c6009ab53a22385be247d43ff5a2e189f618 的 CI 39854032459 全绿：
+新增 4 项，总计 219/219；构建、30 模块/350 函数源码检查、生成前产物一致性、
+8 公开资源以及双本地预览全部通过。该次扫描 114 个内容提交，无新增未决，
+151 条已有精确历史豁免不变。后续只更新文档/审计覆盖描述，产品源码不变。
+
+同一候选执行 1124 个 stamp 输入、两条 shift 各 88 组、107 组范围、314 个数组
+对照三条原始中位数表达式，以及额外容器类型。它们包含北京午夜前后、闰日/世纪、
+年界、反向/非法日期、NaN/Infinity/null/undefined/Symbol/BigInt、自定义转换提示、
+空数组、零与溢出；不通过补值或调整原算法使结果一致。
+
+52 个新增完整 HTTP 对照覆盖 26 个路由/参数组合的匿名与管理员会话，含新 due/index、
+旧 dashboard、CSV/备份、成功与错误；对比正文原字节、全部响应头和状态，不修改返回体。
+它不是所有方法/权限/输入的穷举；完整既有套件另保留旧客户端读写契约、授权/CSRF、
+cache 时间/预算/失效、SQL 分页 200 组合和事务/幂等回归。本阶段未改相关测试断言。
+
+D3 的结构测试逐原文锁定所有存活认证函数、scrypt 参数及内部配置，旧 5 个导出消失。
+移除的是无调用内部代码，产品 HTTP/业务行为没有有意变化；不保证仓库外直接导入旧
+源码导出的调用方。D4 的弃用头与 E2 的日志/request_id 均未提前实现。
+
+前端 public/web、安全头、OpenAPI、schema/migration、hosting/runtime 均与基线相同。
+不重新跑 UI 截图或大规模性能基准；继承的 JS 115637 B 超标和 strict PNG 47/56
+明确未解决。此 PR 等待独立审查，不合并或部署，生产仍为 v7。
