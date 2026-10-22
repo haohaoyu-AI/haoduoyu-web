@@ -1,3 +1,4 @@
+import { fail } from './lib/errors.mjs';
 // Async D1 port of the preserved Node business contract. Writes are planned, then atomically committed by storage.mjs.
 import { createHash, randomUUID } from 'node:crypto';
 import { buildOverview, overviewWindow } from './overview.mjs';
@@ -9,10 +10,6 @@ const MODES = new Set(['manual', 'automatic', 'mixed', 'unknown']);
 const KINDS = new Set(['latest', 'd1', 'd3', 'd7']);
 const DAY = 86_400_000;
 const BEIJING_OFFSET = 8 * 3_600_000;
-
-function fail(status, code, message) {
-  throw Object.assign(new Error(message), { status, code });
-}
 
 function object(value, label = '请求') {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(400, 'VALIDATION_ERROR', `${label}必须是对象`);

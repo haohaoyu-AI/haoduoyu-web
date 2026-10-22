@@ -1,3 +1,4 @@
+import { fail } from './lib/errors.mjs';
 // Read-only calculations over recorded daily increments. Cumulative snapshots are
 // used only to determine review due dates, never to synthesize daily performance.
 import { articleFacts, beijingDate } from './analytics.mjs';
@@ -5,7 +6,6 @@ export const OVERVIEW_METRICS = ['reads', 'impressions', 'likes', 'comments', 'f
 const DAY = 86_400_000;
 const OFFSET = 8 * 3_600_000;
 const MIN_SAMPLES = 5;
-const fail = (code, message, status = 400) => { throw Object.assign(new Error(message), { code, message, status }); };
 const beijingDay = stamp => new Date(Number(stamp) + OFFSET).toISOString().slice(0, 10);
 const shift = (day, count) => new Date(Date.parse(day + 'T00:00:00Z') + count * DAY).toISOString().slice(0, 10);
 const distance = (from, to) => Math.round((Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')) / DAY);
@@ -18,8 +18,8 @@ const median = values => {
 };
 
 export function overviewWindow(period = 'yesterday', now = Date.now()) {
-  if (!['yesterday', '7d', '30d'].includes(period)) fail('VALIDATION_ERROR', 'period 仅支持 yesterday、7d 或 30d');
-  if (!Number.isFinite(Number(now))) fail('VALIDATION_ERROR', '总览当前时间无效');
+  if (!['yesterday', '7d', '30d'].includes(period)) fail(400, 'VALIDATION_ERROR', 'period 仅支持 yesterday、7d 或 30d');
+  if (!Number.isFinite(Number(now))) fail(400, 'VALIDATION_ERROR', '总览当前时间无效');
   const today = beijingDay(now), days = period === '30d' ? 30 : period === '7d' ? 7 : 1;
   return { from: shift(today, -days), to: shift(today, -1), days, period,
     previous_from: shift(today, -days * 2), previous_to: shift(today, -days - 1),
@@ -29,7 +29,7 @@ export function overviewWindow(period = 'yesterday', now = Date.now()) {
 function add(target, incoming) {
   for (const [key, value] of Object.entries(incoming)) {
     const sum = (target[key] ?? 0) + value;
-    if (!Number.isSafeInteger(sum)) fail('METRIC_OVERFLOW', '指标汇总超出安全整数范围', 422);
+    if (!Number.isSafeInteger(sum)) fail(422, 'METRIC_OVERFLOW', '指标汇总超出安全整数范围');
     target[key] = sum;
   }
 }
