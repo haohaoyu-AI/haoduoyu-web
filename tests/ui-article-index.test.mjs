@@ -1,8 +1,9 @@
+import {frontendSource} from './frontend-client.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
-const source=(await readFile(new URL('../public/app.js',import.meta.url),'utf8')).replace(/init\(\);\s*$/,'');
+const source = await frontendSource();
 function client(fetch) {
   const context=vm.createContext({fetch,Response,URL,URLSearchParams,Intl,setTimeout,clearTimeout,
     document:{querySelector(){return null},querySelectorAll(){return []},addEventListener(){},body:{}},

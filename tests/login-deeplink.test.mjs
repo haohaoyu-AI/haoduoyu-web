@@ -1,14 +1,15 @@
+import {frontendSource} from './frontend-client.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 
-const source = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+const source = await frontendSource();
 test('route reader takes no parameters while fresh-login expansion reset remains live', () => {
   assert.match(source, /function readRoute\(\)/);
   assert.doesNotMatch(source, /readRoute\(\{freshLogin\}\)/, 'the ignored route-reader argument must be absent');
-  assert.match(source, /async function init\(\{freshLogin=false\}=\{\}\)/);
-  assert.match(source, /if\(freshLogin\)\{state\.trendOpen=false;state\.attentionExpanded=false;\}/);
+  assert.match(source, /async function init\(\{\s*freshLogin\s*=\s*false\s*\}\s*=\s*\{\}\)/);
+  assert.match(source, /if\s*\(freshLogin\)\s*\{\s*state\.trendOpen\s*=\s*false;\s*state\.attentionExpanded\s*=\s*false;\s*\}/);
 });
 
 test('executable route restoration characterizes existing deep-link behavior, not authentication', async () => {

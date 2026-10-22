@@ -1,9 +1,10 @@
+import {frontendSource} from './frontend-client.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
-const appSource = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+const appSource = await frontendSource({initialize: true});
 const accounts = [
   { id: 'account-a', name: '<script>alert(1)</script>', platform: 'zhihu', active: 1 },
   { id: 'account-b', name: '第二账号', platform: 'toutiao', active: 1 },

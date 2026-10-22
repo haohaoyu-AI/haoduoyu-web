@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
-import { readFile, access } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { checkFrontend } from './frontend-build.mjs';
 
 const root = new URL('../', import.meta.url);
 const pins = JSON.parse(await readFile(new URL('.ci/public-assets.json', root), 'utf8'));
-let moduleSource = false;
-try { await access(new URL('web/main.mjs', root)); moduleSource = true; } catch {}
-assert.equal(moduleSource, false,
-  'ES module source detected: phase 4 must replace legacy pins with reproducible frontend bundle comparison');
+await checkFrontend(fileURLToPath(root));
 const { assets } = await import(new URL('src/assets.generated.mjs', root));
 const { default: worker } = await import(new URL('dist/server/index.js', root));
 for (const [name, expected] of Object.entries(pins.files)) {
@@ -23,4 +22,4 @@ for (const [name, expected] of Object.entries(pins.files)) {
   assert.deepEqual(Buffer.from(await response.arrayBuffer()), content, name + ': Worker bytes differ');
 }
 console.log(`Verified ${Object.keys(pins.files).length} public source pins and generated/built Worker assets.`);
-console.log('Phase 1 scope: public/app.js remains source; web/ build equality is not yet applicable.');
+console.log('Verified readable web/ source and committed public/app.js build equality.');

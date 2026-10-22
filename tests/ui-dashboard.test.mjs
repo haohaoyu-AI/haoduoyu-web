@@ -1,8 +1,9 @@
+import {frontendSource} from './frontend-client.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
-const source=(await readFile(new URL('../public/app.js',import.meta.url),'utf8')).replace(/init\(\);\s*$/,'');
+const source = await frontendSource();
 function client(){
  const handlers={},nodes=new Map([['#overlay',{firstChild:null,style:{}}]]),body={};
  const ctx=vm.createContext({document:{querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>[],addEventListener:(k,f)=>handlers[k]=f,body,activeElement:body},window:{addEventListener(){}},location:{href:'http://localhost/',search:''},history:{replaceState(){},pushState(){}},localStorage:{getItem(){},setItem(){}},URL,URLSearchParams,Intl,console,setTimeout,clearTimeout,requestAnimationFrame(){}});

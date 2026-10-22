@@ -75,3 +75,22 @@ limits separately from behavior preservation.
   Do not repeat unrelated C5/C6 large benchmarks.
 
 No implementation, test, browser or CI result is asserted by this checkpoint.
+
+## First implementation checkpoint
+
+The initial split contains 27 modules. The 11 former mutable lexical bindings
+are fields of the single `runtime` object. Original constant/function ownership
+and imports are listed in `frontend-module-map.json`.
+A local AST comparison of all 111 original top-level constants/functions
+matches after reversing only those runtime field references and normalizing
+formatter spelling of `undefined`; all nine original event-registration
+statements match in their original order. Local names changed by formatting
+were restored in source. This structural check supplements the runtime tests;
+it does not replace browser validation.
+
+The generated bundle is **106,865 bytes**. The existing targeted UI/identity
+suite passes **47/47**, including same-user relogin/old-401, pending index writes,
+modal races and route restoration. The new isolated artifact-tamper test
+passes and proves the check rejects both manual artifact edits and stale
+artifacts after a source edit without silently overwriting either.
+Full tests, browser comparisons and CI are still pending at this checkpoint.
