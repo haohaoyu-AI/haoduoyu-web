@@ -117,7 +117,7 @@ test('C6 ties, raw dates, missing metrics, pagination extremes and validation re
 
 test('C6 incompatible identifiers or timestamp strings fall back before limiting any page', async t => {
   const app = await setup(t, 36), baseline = await referenceWorker(t, BASELINE);
-  const stamp = '2026-10-10T08:00:00.000Z';
+  const stamp = '2001-01-01T08:00:00.000Z';
   for (const [id, date] of [['A', stamp], ['a_b', stamp], ['é', stamp], ['e\u0301', stamp],
     ['😀', stamp], ['abc\0hidden', stamp], ['safe-id', '日付'], ['safe-date', stamp + '\0hidden']]) {
     await app.db.prepare(`INSERT INTO matrix_articles
@@ -126,6 +126,7 @@ test('C6 incompatible identifiers or timestamp strings fall back before limiting
     const after = await read(app, '?page=1&page_size=3');
     const before = await read(app, '?page=1&page_size=3', baseline);
     assert.deepEqual(contract(after), contract(before));
+    if (date === stamp) assert.ok(after.body.data.every(row => row.id !== id), 'incompatible ID must be outside this page');
     assert.equal(after.receipts.some(row => /ORDER BY a\.published_at COLLATE BINARY/.test(row.sql)), false);
     assert.equal(after.receipts.flatMap(row => row.article_ids).length, 37, 'incompatible row outside the page also disables SQL ordering');
     await app.db.prepare('DELETE FROM matrix_articles WHERE id=?').bind(id).run();

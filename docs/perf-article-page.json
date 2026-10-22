@@ -1,0 +1,3479 @@
+{
+  "schema": 1,
+  "benchmark": "article-page-paired",
+  "baseline_commit": "0c5238d79551a807b35c0889ff69763bd04ae63e",
+  "source_commit": "afdfb2cb3209ca3be19a72be0cfac12745b861df",
+  "candidate_bundle_sha256": "86e6a9e2253db7f3aa9c1a0f405b619e908cffa4b2880165c00b8c0dd8d5ecb6",
+  "source_files": {
+    "src/worker.mjs": "63e328d905566718f013b3d2a72398324d75ff6601ad85d3cb028ab21a774a27",
+    "src/storage.mjs": "346728bfc117f16e2242a5478388b2076bf61bc8432813de249b32a8a4c7a533",
+    "src/records.mjs": "1637db0e634d7bc08878a30e23b2410a8b0ebb372710fe1e92016530939a9275",
+    "src/analytics.mjs": "b69fa7ef3ef84c03e60adc10b1311a07990de2d58727bee7d33009a3bbae7526",
+    "tests/bench.article-page.mjs": "b361826d730cda2e252cb4fcc734f6502d09ff2363627cde90f6d42fbaea23fc",
+    "tests/bench-fixture.mjs": "a66b3a828bc2b8d5186b54831920c1b1fa1d4ad47bb421400f0bebea993eff9c",
+    "tests/counting-d1.mjs": "1116834e5f279b2fd36c839310123aec05c929d4d035f28beefb6b7bc7672ac1"
+  },
+  "complete": true,
+  "valid": true,
+  "synthetic": true,
+  "config": {
+    "seed": 104729,
+    "now": "2026-10-22T08:00:00.000Z",
+    "articles": 5000,
+    "snapshotsPerArticle": 4,
+    "dailyPerArticle": 10,
+    "warmupRounds": 2,
+    "measuredRounds": 10
+  },
+  "routes": [
+    "/api/v1/articles?page=1",
+    "/api/v1/articles?sort=reads"
+  ],
+  "optimized_route": "/api/v1/articles?page=1",
+  "unchanged_control_route": "/api/v1/articles?sort=reads",
+  "expected_samples": 52,
+  "expected_pairs": 26,
+  "auth": "real local administrator Cookie session; full scope; credentials and Cookie never recorded",
+  "isolation": "one ephemeral local Miniflare D1 database, seeded once and shared by both workers; localhost only; fixture disables workerd outbound requests; no production bindings or endpoints",
+  "runtime": {
+    "node": "v24.19.0",
+    "miniflare": "4.20260730.0",
+    "os": "linux",
+    "release": "6.18.55",
+    "arch": "x64",
+    "cpu_model": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "logical_cpus": 5,
+    "compatibility": {
+      "compatibility_date": "2026-07-30",
+      "compatibility_flags": [
+        "nodejs_compat",
+        "global_fetch_strictly_public",
+        "enable_request_signal"
+      ]
+    },
+    "gc_before_each_sample": true
+  },
+  "timing": "performance.now immediately before Worker.fetch through complete response.arrayBuffer consumption; includes authentication, counting wrapper and local D1 bridge; excludes setup, GC, request construction, hash and JSON validation",
+  "first_scope": "first request to each route for each worker in the shared Node process after fixture setup; not a cold process or cold database measurement",
+  "ordering": "variant order alternates per route across all 13 rounds; route order also alternates; each pair shares DB, Cookie, route and fixed clock",
+  "memory_scope": "shared Node process only, not workerd or a Cloudflare isolate; includes fetch/body/hash/JSON validation; the first response buffer remains live during the second paired request; 25ms samples and bookends can miss synchronous spikes; maxRSS is process lifetime, not per-request allocation",
+  "cpu_scope": "shared Node user/system during request and post-timing validation; excludes workerd CPU",
+  "retention": "all first, warmup, measured, failed and slow samples retained; no timeout, retry, trimming or outlier removal; measured summaries include successful samples only and explicitly count failures",
+  "samples": [
+    {
+      "sequence": 1,
+      "pair_id": "first:0:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "first",
+      "round": 0,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 3079.9062940000003,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1499706,
+        "system": 253014
+      },
+      "memory": {
+        "before": {
+          "rss": 189222912,
+          "heapTotal": 64356352,
+          "heapUsed": 27561776,
+          "external": 26678599,
+          "arrayBuffers": 201356
+        },
+        "after": {
+          "rss": 211410944,
+          "heapTotal": 65900544,
+          "heapUsed": 42843144,
+          "external": 25914516,
+          "arrayBuffers": 665859
+        },
+        "sampled_peak": {
+          "rss": 211410944,
+          "heapTotal": 65900544,
+          "heapUsed": 42840456,
+          "external": 30935109,
+          "arrayBuffers": 5685102
+        },
+        "lifetime_max_rss_bytes": 218169344
+      }
+    },
+    {
+      "sequence": 2,
+      "pair_id": "first:0:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "first",
+      "round": 0,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 230.55980600000112,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 147984,
+        "system": 1213
+      },
+      "memory": {
+        "before": {
+          "rss": 211230720,
+          "heapTotal": 65404928,
+          "heapUsed": 27724528,
+          "external": 22745496,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 213721088,
+          "heapTotal": 65404928,
+          "heapUsed": 29511016,
+          "external": 22517750,
+          "arrayBuffers": 439241
+        },
+        "sampled_peak": {
+          "rss": 213721088,
+          "heapTotal": 65404928,
+          "heapUsed": 29489480,
+          "external": 22745496,
+          "arrayBuffers": 439241
+        },
+        "lifetime_max_rss_bytes": 218169344
+      }
+    },
+    {
+      "sequence": 3,
+      "pair_id": "first:0:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "first",
+      "round": 0,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3449.875134,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1698085,
+        "system": 426180
+      },
+      "memory": {
+        "before": {
+          "rss": 213721088,
+          "heapTotal": 65404928,
+          "heapUsed": 27688112,
+          "external": 22518998,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 258699264,
+          "heapTotal": 104726528,
+          "heapUsed": 39347040,
+          "external": 51737319,
+          "arrayBuffers": 16922150
+        },
+        "sampled_peak": {
+          "rss": 258699264,
+          "heapTotal": 104726528,
+          "heapUsed": 50930736,
+          "external": 51737319,
+          "arrayBuffers": 21451940
+        },
+        "lifetime_max_rss_bytes": 266465280
+      }
+    },
+    {
+      "sequence": 4,
+      "pair_id": "first:0:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "first",
+      "round": 0,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3401.5149729999976,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1649561,
+        "system": 330663
+      },
+      "memory": {
+        "before": {
+          "rss": 258830336,
+          "heapTotal": 98435072,
+          "heapUsed": 27858512,
+          "external": 39065877,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 297455616,
+          "heapTotal": 106643456,
+          "heapUsed": 50628400,
+          "external": 58775324,
+          "arrayBuffers": 25321801
+        },
+        "sampled_peak": {
+          "rss": 297455616,
+          "heapTotal": 106643456,
+          "heapUsed": 53943656,
+          "external": 58775324,
+          "arrayBuffers": 25321801
+        },
+        "lifetime_max_rss_bytes": 297455616
+      }
+    },
+    {
+      "sequence": 5,
+      "pair_id": "warmup:1:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "warmup",
+      "round": 1,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3229.021367999998,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1464673,
+        "system": 500438
+      },
+      "memory": {
+        "before": {
+          "rss": 256372736,
+          "heapTotal": 98435072,
+          "heapUsed": 28106752,
+          "external": 47400712,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 312414208,
+          "heapTotal": 105250816,
+          "heapUsed": 38469480,
+          "external": 53582674,
+          "arrayBuffers": 16922144
+        },
+        "sampled_peak": {
+          "rss": 312414208,
+          "heapTotal": 107925504,
+          "heapUsed": 63926776,
+          "external": 53582674,
+          "arrayBuffers": 23289645
+        },
+        "lifetime_max_rss_bytes": 320720896
+      }
+    },
+    {
+      "sequence": 6,
+      "pair_id": "warmup:1:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "warmup",
+      "round": 1,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 2664.063542,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1274874,
+        "system": 179917
+      },
+      "memory": {
+        "before": {
+          "rss": 312414208,
+          "heapTotal": 98959360,
+          "heapUsed": 28198664,
+          "external": 39000335,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 339533824,
+          "heapTotal": 107692032,
+          "heapUsed": 50280384,
+          "external": 58769411,
+          "arrayBuffers": 25315886
+        },
+        "sampled_peak": {
+          "rss": 339533824,
+          "heapTotal": 107692032,
+          "heapUsed": 61679200,
+          "external": 58769411,
+          "arrayBuffers": 25315886
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 7,
+      "pair_id": "warmup:1:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "warmup",
+      "round": 1,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 241.89774899999975,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 132394,
+        "system": 11516
+      },
+      "memory": {
+        "before": {
+          "rss": 298274816,
+          "heapTotal": 98172928,
+          "heapUsed": 28363848,
+          "external": 47394799,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 299847680,
+          "heapTotal": 98172928,
+          "heapUsed": 29919656,
+          "external": 22500947,
+          "arrayBuffers": 422419
+        },
+        "sampled_peak": {
+          "rss": 299847680,
+          "heapTotal": 98172928,
+          "heapUsed": 29917632,
+          "external": 47394799,
+          "arrayBuffers": 422419
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 8,
+      "pair_id": "warmup:1:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "warmup",
+      "round": 1,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 4334.6377690000045,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 2309170,
+        "system": 370189
+      },
+      "memory": {
+        "before": {
+          "rss": 299847680,
+          "heapTotal": 98172928,
+          "heapUsed": 28304944,
+          "external": 22501571,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 302432256,
+          "heapTotal": 99192832,
+          "heapUsed": 51798552,
+          "external": 24571889,
+          "arrayBuffers": 2485350
+        },
+        "sampled_peak": {
+          "rss": 302600192,
+          "heapTotal": 99192832,
+          "heapUsed": 51796528,
+          "external": 30651687,
+          "arrayBuffers": 5403154
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 9,
+      "pair_id": "warmup:2:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "warmup",
+      "round": 2,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 3254.283961000001,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1377446,
+        "system": 164821
+      },
+      "memory": {
+        "before": {
+          "rss": 302104576,
+          "heapTotal": 98762752,
+          "heapUsed": 25974152,
+          "external": 24567729,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 302247936,
+          "heapTotal": 99782656,
+          "heapUsed": 50982176,
+          "external": 24573048,
+          "arrayBuffers": 2491764
+        },
+        "sampled_peak": {
+          "rss": 302366720,
+          "heapTotal": 99782656,
+          "heapUsed": 50977752,
+          "external": 30629451,
+          "arrayBuffers": 5386326
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 10,
+      "pair_id": "warmup:2:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "warmup",
+      "round": 2,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 240.96402699999453,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 114339,
+        "system": 24655
+      },
+      "memory": {
+        "before": {
+          "rss": 302247936,
+          "heapTotal": 99549184,
+          "heapUsed": 25640880,
+          "external": 24571028,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 302247936,
+          "heapTotal": 99549184,
+          "heapUsed": 27164888,
+          "external": 22509717,
+          "arrayBuffers": 439241
+        },
+        "sampled_peak": {
+          "rss": 302247936,
+          "heapTotal": 99549184,
+          "heapUsed": 27162960,
+          "external": 24571028,
+          "arrayBuffers": 439241
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 11,
+      "pair_id": "warmup:2:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "warmup",
+      "round": 2,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 31877.301161999996,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 20553854,
+        "system": 4736687
+      },
+      "memory": {
+        "before": {
+          "rss": 302247936,
+          "heapTotal": 98500608,
+          "heapUsed": 25558328,
+          "external": 22510965,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 220106752,
+          "heapTotal": 49479680,
+          "heapUsed": 34705512,
+          "external": 51511230,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 302641152,
+          "heapTotal": 98828288,
+          "heapUsed": 41749440,
+          "external": 51511230,
+          "arrayBuffers": 21235248
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 12,
+      "pair_id": "warmup:2:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "warmup",
+      "round": 2,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 7223.046160000013,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 3228104,
+        "system": 682084
+      },
+      "memory": {
+        "before": {
+          "rss": 220237824,
+          "heapTotal": 46071808,
+          "heapUsed": 25550704,
+          "external": 38992269,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 242782208,
+          "heapTotal": 69926912,
+          "heapUsed": 34618704,
+          "external": 55627131,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 242782208,
+          "heapTotal": 72601600,
+          "heapUsed": 45752640,
+          "external": 55627131,
+          "arrayBuffers": 25350996
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 13,
+      "pair_id": "measured:1:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 1,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 7966.614457999996,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 3758701,
+        "system": 685897
+      },
+      "memory": {
+        "before": {
+          "rss": 209813504,
+          "heapTotal": 62586880,
+          "heapUsed": 25557512,
+          "external": 43222152,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 254926848,
+          "heapTotal": 68878336,
+          "heapUsed": 34699424,
+          "external": 51623029,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 254926848,
+          "heapTotal": 71553024,
+          "heapUsed": 48645504,
+          "external": 51623029,
+          "arrayBuffers": 21346282
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 14,
+      "pair_id": "measured:1:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 1,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 6372.221847000008,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 2940487,
+        "system": 868824
+      },
+      "memory": {
+        "before": {
+          "rss": 254926848,
+          "heapTotal": 62849024,
+          "heapUsed": 25566024,
+          "external": 39057805,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 279400448,
+          "heapTotal": 102957056,
+          "heapUsed": 34638720,
+          "external": 57625160,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 279400448,
+          "heapTotal": 105631744,
+          "heapUsed": 59863112,
+          "external": 57625160,
+          "arrayBuffers": 27340304
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 15,
+      "pair_id": "measured:1:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 1,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 446.55294900000445,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 171690,
+        "system": 48768
+      },
+      "memory": {
+        "before": {
+          "rss": 246390784,
+          "heapTotal": 96403456,
+          "heapUsed": 25610832,
+          "external": 43222152,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 246390784,
+          "heapTotal": 96403456,
+          "heapUsed": 27075456,
+          "external": 22492824,
+          "arrayBuffers": 422348
+        },
+        "sampled_peak": {
+          "rss": 246390784,
+          "heapTotal": 96403456,
+          "heapUsed": 27073512,
+          "external": 43222152,
+          "arrayBuffers": 422348
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 16,
+      "pair_id": "measured:1:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 1,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 4876.623286000002,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 2335477,
+        "system": 268223
+      },
+      "memory": {
+        "before": {
+          "rss": 246390784,
+          "heapTotal": 95879168,
+          "heapUsed": 25621472,
+          "external": 22493448,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 247341056,
+          "heapTotal": 96899072,
+          "heapUsed": 51544192,
+          "external": 24562887,
+          "arrayBuffers": 2484400
+        },
+        "sampled_peak": {
+          "rss": 247341056,
+          "heapTotal": 96899072,
+          "heapUsed": 51542248,
+          "external": 30666094,
+          "arrayBuffers": 5425812
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 17,
+      "pair_id": "measured:2:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 2,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 5212.423507999993,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 2763620,
+        "system": 501913
+      },
+      "memory": {
+        "before": {
+          "rss": 247148544,
+          "heapTotal": 96665600,
+          "heapUsed": 25716184,
+          "external": 24629671,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 256524288,
+          "heapTotal": 97685504,
+          "heapUsed": 51991736,
+          "external": 24569440,
+          "arrayBuffers": 2490800
+        },
+        "sampled_peak": {
+          "rss": 256524288,
+          "heapTotal": 97685504,
+          "heapUsed": 51989792,
+          "external": 30602446,
+          "arrayBuffers": 5362470
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 18,
+      "pair_id": "measured:2:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 2,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 298.3374909999984,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 134105,
+        "system": 38394
+      },
+      "memory": {
+        "before": {
+          "rss": 256655360,
+          "heapTotal": 97452032,
+          "heapUsed": 25738128,
+          "external": 24603337,
+          "arrayBuffers": 2160518
+        },
+        "after": {
+          "rss": 258228224,
+          "heapTotal": 97452032,
+          "heapUsed": 27232016,
+          "external": 22509631,
+          "arrayBuffers": 439155
+        },
+        "sampled_peak": {
+          "rss": 258228224,
+          "heapTotal": 97452032,
+          "heapUsed": 27230072,
+          "external": 24603337,
+          "arrayBuffers": 2160518
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 19,
+      "pair_id": "measured:2:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 2,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3660.8601780000026,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1685467,
+        "system": 882325
+      },
+      "memory": {
+        "before": {
+          "rss": 258228224,
+          "heapTotal": 96403456,
+          "heapUsed": 25641512,
+          "external": 22580782,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 313200640,
+          "heapTotal": 103219200,
+          "heapUsed": 34775064,
+          "external": 53438046,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 313200640,
+          "heapTotal": 105893888,
+          "heapUsed": 59870088,
+          "external": 53438046,
+          "arrayBuffers": 23153343
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 20,
+      "pair_id": "measured:2:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 2,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 4654.2141529999935,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 2963264,
+        "system": 517593
+      },
+      "memory": {
+        "before": {
+          "rss": 313200640,
+          "heapTotal": 96927744,
+          "heapUsed": 25642376,
+          "external": 39028927,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 327229440,
+          "heapTotal": 102694912,
+          "heapUsed": 34776880,
+          "external": 57601779,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 327229440,
+          "heapTotal": 105369600,
+          "heapUsed": 59731704,
+          "external": 57601779,
+          "arrayBuffers": 27317076
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 21,
+      "pair_id": "measured:3:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 3,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 4165.844814000011,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 2193879,
+        "system": 597929
+      },
+      "memory": {
+        "before": {
+          "rss": 294170624,
+          "heapTotal": 97452032,
+          "heapUsed": 25647264,
+          "external": 43298893,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 328425472,
+          "heapTotal": 169803776,
+          "heapUsed": 34782176,
+          "external": 53526959,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 328425472,
+          "heapTotal": 169803776,
+          "heapUsed": 60512088,
+          "external": 53526959,
+          "arrayBuffers": 23242103
+        },
+        "lifetime_max_rss_bytes": 339533824
+      }
+    },
+    {
+      "sequence": 22,
+      "pair_id": "measured:3:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 3,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3834.371635999996,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 2222735,
+        "system": 303834
+      },
+      "memory": {
+        "before": {
+          "rss": 328425472,
+          "heapTotal": 164560896,
+          "heapUsed": 25652160,
+          "external": 39032332,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 338100224,
+          "heapTotal": 169541632,
+          "heapUsed": 34700984,
+          "external": 57625140,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 338100224,
+          "heapTotal": 172216320,
+          "heapUsed": 59457656,
+          "external": 57625140,
+          "arrayBuffers": 27340284
+        },
+        "lifetime_max_rss_bytes": 346513408
+      }
+    },
+    {
+      "sequence": 23,
+      "pair_id": "measured:3:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 3,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 379.6745860000083,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 224206,
+        "system": 30757
+      },
+      "memory": {
+        "before": {
+          "rss": 305041408,
+          "heapTotal": 164298752,
+          "heapUsed": 25669096,
+          "external": 43240131,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 305041408,
+          "heapTotal": 164298752,
+          "heapUsed": 27124912,
+          "external": 22492828,
+          "arrayBuffers": 422352
+        },
+        "sampled_peak": {
+          "rss": 305041408,
+          "heapTotal": 164298752,
+          "heapUsed": 27122968,
+          "external": 43240131,
+          "arrayBuffers": 422352
+        },
+        "lifetime_max_rss_bytes": 346513408
+      }
+    },
+    {
+      "sequence": 24,
+      "pair_id": "measured:3:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 3,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 3088.2103949999873,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1486206,
+        "system": 40952
+      },
+      "memory": {
+        "before": {
+          "rss": 305041408,
+          "heapTotal": 162988032,
+          "heapUsed": 25686512,
+          "external": 22536884,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 305303552,
+          "heapTotal": 164532224,
+          "heapUsed": 52466792,
+          "external": 24497361,
+          "arrayBuffers": 2418874
+        },
+        "sampled_peak": {
+          "rss": 305303552,
+          "heapTotal": 164532224,
+          "heapUsed": 52464848,
+          "external": 30666094,
+          "arrayBuffers": 5425812
+        },
+        "lifetime_max_rss_bytes": 346513408
+      }
+    },
+    {
+      "sequence": 25,
+      "pair_id": "measured:4:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 4,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 3236.6760129999893,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1432524,
+        "system": 251742
+      },
+      "memory": {
+        "before": {
+          "rss": 305303552,
+          "heapTotal": 164298752,
+          "heapUsed": 25765472,
+          "external": 24588818,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 320802816,
+          "heapTotal": 164532224,
+          "heapUsed": 52239016,
+          "external": 24569436,
+          "arrayBuffers": 2490796
+        },
+        "sampled_peak": {
+          "rss": 320802816,
+          "heapTotal": 164626432,
+          "heapUsed": 52237072,
+          "external": 30625825,
+          "arrayBuffers": 5385696
+        },
+        "lifetime_max_rss_bytes": 346513408
+      }
+    },
+    {
+      "sequence": 26,
+      "pair_id": "measured:4:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 4,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 225.10584099999687,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 127281,
+        "system": 4116
+      },
+      "memory": {
+        "before": {
+          "rss": 320573440,
+          "heapTotal": 164298752,
+          "heapUsed": 25796016,
+          "external": 24616839,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 322146304,
+          "heapTotal": 164298752,
+          "heapUsed": 27247344,
+          "external": 22509623,
+          "arrayBuffers": 439147
+        },
+        "sampled_peak": {
+          "rss": 322146304,
+          "heapTotal": 164298752,
+          "heapUsed": 27245400,
+          "external": 24616839,
+          "arrayBuffers": 439147
+        },
+        "lifetime_max_rss_bytes": 346513408
+      }
+    },
+    {
+      "sequence": 27,
+      "pair_id": "measured:4:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 4,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 2863.072390000001,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1335168,
+        "system": 506164
+      },
+      "memory": {
+        "before": {
+          "rss": 322146304,
+          "heapTotal": 163512320,
+          "heapUsed": 25689360,
+          "external": 22607756,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 362934272,
+          "heapTotal": 170590208,
+          "heapUsed": 34811408,
+          "external": 53438042,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 362934272,
+          "heapTotal": 173264896,
+          "heapUsed": 59769200,
+          "external": 53438042,
+          "arrayBuffers": 23153339
+        },
+        "lifetime_max_rss_bytes": 371298304
+      }
+    },
+    {
+      "sequence": 28,
+      "pair_id": "measured:4:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 4,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 4692.661242999995,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 2988024,
+        "system": 461405
+      },
+      "memory": {
+        "before": {
+          "rss": 362934272,
+          "heapTotal": 164036608,
+          "heapUsed": 25679984,
+          "external": 39042400,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 381673472,
+          "heapTotal": 169803776,
+          "heapUsed": 34845488,
+          "external": 57648587,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 384036864,
+          "heapTotal": 172740608,
+          "heapUsed": 60226264,
+          "external": 57648587,
+          "arrayBuffers": 27363578
+        },
+        "lifetime_max_rss_bytes": 390066176
+      }
+    },
+    {
+      "sequence": 29,
+      "pair_id": "measured:5:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 5,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 8556.474840999988,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 4536833,
+        "system": 1068071
+      },
+      "memory": {
+        "before": {
+          "rss": 348700672,
+          "heapTotal": 163774464,
+          "heapUsed": 25711760,
+          "external": 43325801,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 395440128,
+          "heapTotal": 170328064,
+          "heapUsed": 34816496,
+          "external": 53503590,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 395440128,
+          "heapTotal": 172740608,
+          "heapUsed": 60784352,
+          "external": 53503590,
+          "arrayBuffers": 23218887
+        },
+        "lifetime_max_rss_bytes": 403759104
+      }
+    },
+    {
+      "sequence": 30,
+      "pair_id": "measured:5:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 5,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3482.8041340000054,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1596620,
+        "system": 264303
+      },
+      "memory": {
+        "before": {
+          "rss": 395440128,
+          "heapTotal": 163774464,
+          "heapUsed": 25679512,
+          "external": 39045789,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 406564864,
+          "heapTotal": 170065920,
+          "heapUsed": 34833288,
+          "external": 57625146,
+          "arrayBuffers": 27135123
+        },
+        "sampled_peak": {
+          "rss": 406564864,
+          "heapTotal": 172740608,
+          "heapUsed": 60992744,
+          "external": 57625146,
+          "arrayBuffers": 27340290
+        },
+        "lifetime_max_rss_bytes": 414949376
+      }
+    },
+    {
+      "sequence": 31,
+      "pair_id": "measured:5:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 5,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 236.05940500000725,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 94258,
+        "system": 19778
+      },
+      "memory": {
+        "before": {
+          "rss": 373506048,
+          "heapTotal": 164036608,
+          "heapUsed": 25701056,
+          "external": 43267047,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 373506048,
+          "heapTotal": 164036608,
+          "heapUsed": 27068552,
+          "external": 22492795,
+          "arrayBuffers": 422319
+        },
+        "sampled_peak": {
+          "rss": 373506048,
+          "heapTotal": 164036608,
+          "heapUsed": 27066608,
+          "external": 43267047,
+          "arrayBuffers": 422319
+        },
+        "lifetime_max_rss_bytes": 414949376
+      }
+    },
+    {
+      "sequence": 32,
+      "pair_id": "measured:5:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 5,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 2896.5578800000076,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1293193,
+        "system": 124954
+      },
+      "memory": {
+        "before": {
+          "rss": 373506048,
+          "heapTotal": 163512320,
+          "heapUsed": 25725832,
+          "external": 22550309,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 373596160,
+          "heapTotal": 164532224,
+          "heapUsed": 52398736,
+          "external": 24497341,
+          "arrayBuffers": 2418854
+        },
+        "sampled_peak": {
+          "rss": 373768192,
+          "heapTotal": 164532224,
+          "heapUsed": 52396792,
+          "external": 30666080,
+          "arrayBuffers": 5425798
+        },
+        "lifetime_max_rss_bytes": 414949376
+      }
+    },
+    {
+      "sequence": 33,
+      "pair_id": "measured:6:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 6,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 2926.471298999997,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1391428,
+        "system": 140322
+      },
+      "memory": {
+        "before": {
+          "rss": 373596160,
+          "heapTotal": 164298752,
+          "heapUsed": 25807440,
+          "external": 24615718,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 380170240,
+          "heapTotal": 165056512,
+          "heapUsed": 51611248,
+          "external": 24569440,
+          "arrayBuffers": 2490800
+        },
+        "sampled_peak": {
+          "rss": 380170240,
+          "heapTotal": 165056512,
+          "heapUsed": 51609304,
+          "external": 30625825,
+          "arrayBuffers": 5385696
+        },
+        "lifetime_max_rss_bytes": 414949376
+      }
+    },
+    {
+      "sequence": 34,
+      "pair_id": "measured:6:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 6,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 226.34200999999302,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 102139,
+        "system": 8396
+      },
+      "memory": {
+        "before": {
+          "rss": 380022784,
+          "heapTotal": 164823040,
+          "heapUsed": 25822600,
+          "external": 24630301,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 380153856,
+          "heapTotal": 164823040,
+          "heapUsed": 27236776,
+          "external": 22509619,
+          "arrayBuffers": 439143
+        },
+        "sampled_peak": {
+          "rss": 380153856,
+          "heapTotal": 164823040,
+          "heapUsed": 27234832,
+          "external": 24630301,
+          "arrayBuffers": 439143
+        },
+        "lifetime_max_rss_bytes": 414949376
+      }
+    },
+    {
+      "sequence": 35,
+      "pair_id": "measured:6:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 6,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3059.077179999993,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1349533,
+        "system": 494374
+      },
+      "memory": {
+        "before": {
+          "rss": 380153856,
+          "heapTotal": 163512320,
+          "heapUsed": 25717216,
+          "external": 22634674,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 414109696,
+          "heapTotal": 169803776,
+          "heapUsed": 34922552,
+          "external": 53414611,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 414109696,
+          "heapTotal": 172740608,
+          "heapUsed": 59694632,
+          "external": 53414611,
+          "arrayBuffers": 23130061
+        },
+        "lifetime_max_rss_bytes": 422359040
+      }
+    },
+    {
+      "sequence": 36,
+      "pair_id": "measured:6:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 6,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 2959.054225,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1572803,
+        "system": 295307
+      },
+      "memory": {
+        "before": {
+          "rss": 414109696,
+          "heapTotal": 164036608,
+          "heapUsed": 25750656,
+          "external": 39055859,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 429240320,
+          "heapTotal": 170065920,
+          "heapUsed": 34899872,
+          "external": 57648585,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 429240320,
+          "heapTotal": 172740608,
+          "heapUsed": 59951144,
+          "external": 57648585,
+          "arrayBuffers": 27363576
+        },
+        "lifetime_max_rss_bytes": 437612544
+      }
+    },
+    {
+      "sequence": 37,
+      "pair_id": "measured:7:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 7,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3579.416032999987,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1881789,
+        "system": 484357
+      },
+      "memory": {
+        "before": {
+          "rss": 396288000,
+          "heapTotal": 164036608,
+          "heapUsed": 25757920,
+          "external": 43352695,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 431448064,
+          "heapTotal": 169803776,
+          "heapUsed": 34874256,
+          "external": 53414589,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 431448064,
+          "heapTotal": 172740608,
+          "heapUsed": 60292760,
+          "external": 53414589,
+          "arrayBuffers": 23130039
+        },
+        "lifetime_max_rss_bytes": 439775232
+      }
+    },
+    {
+      "sequence": 38,
+      "pair_id": "measured:7:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 7,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 2704.0946239999903,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1535950,
+        "system": 263109
+      },
+      "memory": {
+        "before": {
+          "rss": 431448064,
+          "heapTotal": 164298752,
+          "heapUsed": 25747648,
+          "external": 39059235,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 442150912,
+          "heapTotal": 170065920,
+          "heapUsed": 34708272,
+          "external": 57625134,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 442150912,
+          "heapTotal": 172740608,
+          "heapUsed": 60384768,
+          "external": 57625134,
+          "arrayBuffers": 27340278
+        },
+        "lifetime_max_rss_bytes": 450584576
+      }
+    },
+    {
+      "sequence": 39,
+      "pair_id": "measured:7:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 7,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 199.48201300000073,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 169589,
+        "system": 0
+      },
+      "memory": {
+        "before": {
+          "rss": 409202688,
+          "heapTotal": 164036608,
+          "heapUsed": 25769672,
+          "external": 43293941,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 409202688,
+          "heapTotal": 164036608,
+          "heapUsed": 27142248,
+          "external": 22492799,
+          "arrayBuffers": 422323
+        },
+        "sampled_peak": {
+          "rss": 409202688,
+          "heapTotal": 164036608,
+          "heapUsed": 27140304,
+          "external": 43293941,
+          "arrayBuffers": 422323
+        },
+        "lifetime_max_rss_bytes": 450584576
+      }
+    },
+    {
+      "sequence": 40,
+      "pair_id": "measured:7:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 7,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 3144.426191000006,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1551399,
+        "system": 118609
+      },
+      "memory": {
+        "before": {
+          "rss": 409202688,
+          "heapTotal": 163250176,
+          "heapUsed": 25770672,
+          "external": 22563756,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 409268224,
+          "heapTotal": 164794368,
+          "heapUsed": 52363184,
+          "external": 24497359,
+          "arrayBuffers": 2418872
+        },
+        "sampled_peak": {
+          "rss": 409464832,
+          "heapTotal": 164794368,
+          "heapUsed": 52361240,
+          "external": 30666088,
+          "arrayBuffers": 5425806
+        },
+        "lifetime_max_rss_bytes": 450584576
+      }
+    },
+    {
+      "sequence": 41,
+      "pair_id": "measured:8:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 8,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 3184.5846280000114,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1487320,
+        "system": 170722
+      },
+      "memory": {
+        "before": {
+          "rss": 409427968,
+          "heapTotal": 164560896,
+          "heapUsed": 25856224,
+          "external": 24642614,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 410738688,
+          "heapTotal": 164532224,
+          "heapUsed": 53309360,
+          "external": 24569442,
+          "arrayBuffers": 2490802
+        },
+        "sampled_peak": {
+          "rss": 410738688,
+          "heapTotal": 164888576,
+          "heapUsed": 53307416,
+          "external": 30625825,
+          "arrayBuffers": 5385696
+        },
+        "lifetime_max_rss_bytes": 450584576
+      }
+    },
+    {
+      "sequence": 42,
+      "pair_id": "measured:8:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 8,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 217.70344199999818,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 140259,
+        "system": 34851
+      },
+      "memory": {
+        "before": {
+          "rss": 410660864,
+          "heapTotal": 164298752,
+          "heapUsed": 25876192,
+          "external": 24643745,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 410660864,
+          "heapTotal": 164298752,
+          "heapUsed": 27306104,
+          "external": 22509627,
+          "arrayBuffers": 439151
+        },
+        "sampled_peak": {
+          "rss": 410660864,
+          "heapTotal": 164298752,
+          "heapUsed": 27304160,
+          "external": 24643745,
+          "arrayBuffers": 439151
+        },
+        "lifetime_max_rss_bytes": 450584576
+      }
+    },
+    {
+      "sequence": 43,
+      "pair_id": "measured:8:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 8,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3502.7513679999975,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1935370,
+        "system": 508534
+      },
+      "memory": {
+        "before": {
+          "rss": 410660864,
+          "heapTotal": 163774464,
+          "heapUsed": 25774256,
+          "external": 22661566,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 444280832,
+          "heapTotal": 170590208,
+          "heapUsed": 34800168,
+          "external": 53438044,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 444280832,
+          "heapTotal": 173264896,
+          "heapUsed": 59263080,
+          "external": 53438044,
+          "arrayBuffers": 23153341
+        },
+        "lifetime_max_rss_bytes": 452657152
+      }
+    },
+    {
+      "sequence": 44,
+      "pair_id": "measured:8:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 8,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3637.4023429999943,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1532835,
+        "system": 230490
+      },
+      "memory": {
+        "before": {
+          "rss": 444280832,
+          "heapTotal": 164036608,
+          "heapUsed": 25777368,
+          "external": 39069304,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 452530176,
+          "heapTotal": 170065920,
+          "heapUsed": 34876776,
+          "external": 57625134,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 452763648,
+          "heapTotal": 172740608,
+          "heapUsed": 59998696,
+          "external": 57625134,
+          "arrayBuffers": 27340278
+        },
+        "lifetime_max_rss_bytes": 460890112
+      }
+    },
+    {
+      "sequence": 45,
+      "pair_id": "measured:9:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 9,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3639.23128800001,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1942612,
+        "system": 392530
+      },
+      "memory": {
+        "before": {
+          "rss": 419594240,
+          "heapTotal": 164036608,
+          "heapUsed": 25800240,
+          "external": 43379611,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 454250496,
+          "heapTotal": 170328064,
+          "heapUsed": 34925288,
+          "external": 53414589,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 454250496,
+          "heapTotal": 173002752,
+          "heapUsed": 59389912,
+          "external": 53414589,
+          "arrayBuffers": 23130039
+        },
+        "lifetime_max_rss_bytes": 462589952
+      }
+    },
+    {
+      "sequence": 46,
+      "pair_id": "measured:9:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 9,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 2717.94245100001,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1775622,
+        "system": 133739
+      },
+      "memory": {
+        "before": {
+          "rss": 454250496,
+          "heapTotal": 164560896,
+          "heapUsed": 25795752,
+          "external": 39072692,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 464363520,
+          "heapTotal": 170590208,
+          "heapUsed": 34755744,
+          "external": 57625122,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 464363520,
+          "heapTotal": 173002752,
+          "heapUsed": 60247432,
+          "external": 57625122,
+          "arrayBuffers": 27340266
+        },
+        "lifetime_max_rss_bytes": 472752128
+      }
+    },
+    {
+      "sequence": 47,
+      "pair_id": "measured:9:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 9,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 318.35592499998165,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 136956,
+        "system": 21531
+      },
+      "memory": {
+        "before": {
+          "rss": 431304704,
+          "heapTotal": 163774464,
+          "heapUsed": 25810312,
+          "external": 43320849,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 431304704,
+          "heapTotal": 163774464,
+          "heapUsed": 27177392,
+          "external": 22492795,
+          "arrayBuffers": 422319
+        },
+        "sampled_peak": {
+          "rss": 431304704,
+          "heapTotal": 163774464,
+          "heapUsed": 27175448,
+          "external": 43320849,
+          "arrayBuffers": 422319
+        },
+        "lifetime_max_rss_bytes": 472752128
+      }
+    },
+    {
+      "sequence": 48,
+      "pair_id": "measured:9:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 9,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 5800.984047999984,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 2369110,
+        "system": 389444
+      },
+      "memory": {
+        "before": {
+          "rss": 431304704,
+          "heapTotal": 163774464,
+          "heapUsed": 25809128,
+          "external": 22577211,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 432943104,
+          "heapTotal": 165056512,
+          "heapUsed": 53297792,
+          "external": 24633140,
+          "arrayBuffers": 2554194
+        },
+        "sampled_peak": {
+          "rss": 432812032,
+          "heapTotal": 165056512,
+          "heapUsed": 53295848,
+          "external": 30530295,
+          "arrayBuffers": 5290472
+        },
+        "lifetime_max_rss_bytes": 472752128
+      }
+    },
+    {
+      "sequence": 49,
+      "pair_id": "measured:10:/api/v1/articles?page=1",
+      "variant": "baseline",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 10,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 3794.273279999994,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1534238,
+        "system": 159181
+      },
+      "memory": {
+        "before": {
+          "rss": 433127424,
+          "heapTotal": 164823040,
+          "heapUsed": 25888168,
+          "external": 24805319,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 433221632,
+          "heapTotal": 164794368,
+          "heapUsed": 52309248,
+          "external": 24569442,
+          "arrayBuffers": 2490802
+        },
+        "sampled_peak": {
+          "rss": 433389568,
+          "heapTotal": 165150720,
+          "heapUsed": 52307304,
+          "external": 30625825,
+          "arrayBuffers": 5385696
+        },
+        "lifetime_max_rss_bytes": 472752128
+      }
+    },
+    {
+      "sequence": 50,
+      "pair_id": "measured:10:/api/v1/articles?page=1",
+      "variant": "candidate",
+      "route": "/api/v1/articles?page=1",
+      "params": {
+        "page": "1"
+      },
+      "phase": "measured",
+      "round": 10,
+      "success": true,
+      "status": 200,
+      "body_bytes": 16828,
+      "body_sha256": "e433e3268b72cbf8cca8227f2a3ef5d20913faccdcd5ea974c198b8ea170deb6",
+      "duration_ms": 280.900690999988,
+      "failure_codes": [],
+      "d1": {
+        "sql": 7,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 30364,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 151151,
+        "system": 28528
+      },
+      "memory": {
+        "before": {
+          "rss": 433090560,
+          "heapTotal": 164560896,
+          "heapUsed": 25902464,
+          "external": 24657200,
+          "arrayBuffers": 283736
+        },
+        "after": {
+          "rss": 433090560,
+          "heapTotal": 164560896,
+          "heapUsed": 27329712,
+          "external": 22509625,
+          "arrayBuffers": 439149
+        },
+        "sampled_peak": {
+          "rss": 433090560,
+          "heapTotal": 164560896,
+          "heapUsed": 27327768,
+          "external": 24657200,
+          "arrayBuffers": 439149
+        },
+        "lifetime_max_rss_bytes": 472752128
+      }
+    },
+    {
+      "sequence": 51,
+      "pair_id": "measured:10:/api/v1/articles?sort=reads",
+      "variant": "baseline",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 10,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 6120.779785999999,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 3323510,
+        "system": 899019
+      },
+      "memory": {
+        "before": {
+          "rss": 433090560,
+          "heapTotal": 164036608,
+          "heapUsed": 25799120,
+          "external": 22688478,
+          "arrayBuffers": 266908
+        },
+        "after": {
+          "rss": 468762624,
+          "heapTotal": 170590208,
+          "heapUsed": 34916952,
+          "external": 53438058,
+          "arrayBuffers": 16922130
+        },
+        "sampled_peak": {
+          "rss": 468762624,
+          "heapTotal": 173264896,
+          "heapUsed": 60411736,
+          "external": 53438058,
+          "arrayBuffers": 23153355
+        },
+        "lifetime_max_rss_bytes": 477196288
+      }
+    },
+    {
+      "sequence": 52,
+      "pair_id": "measured:10:/api/v1/articles?sort=reads",
+      "variant": "candidate",
+      "route": "/api/v1/articles?sort=reads",
+      "params": {
+        "sort": "reads"
+      },
+      "phase": "measured",
+      "round": 10,
+      "success": true,
+      "status": 200,
+      "body_bytes": 4163723,
+      "body_sha256": "e0a6eea06ae4c3b47a13d15c1fcc78ab8de4e455c5e6bb52d9f54ecf73e13008",
+      "duration_ms": 3904.1446559999895,
+      "failure_codes": [],
+      "d1": {
+        "sql": 68,
+        "control": 2,
+        "write_statements": 0,
+        "business_control_writes": 0,
+        "metadata_writes": 0,
+        "matched_changes": 0,
+        "d1_rows_read": 105003,
+        "d1_rows_written": 0
+      },
+      "cpu_us": {
+        "user": 1786238,
+        "system": 280611
+      },
+      "memory": {
+        "before": {
+          "rss": 468762624,
+          "heapTotal": 164298752,
+          "heapUsed": 25803600,
+          "external": 39082763,
+          "arrayBuffers": 4430631
+        },
+        "after": {
+          "rss": 474566656,
+          "heapTotal": 170590208,
+          "heapUsed": 34895640,
+          "external": 57648589,
+          "arrayBuffers": 21085853
+        },
+        "sampled_peak": {
+          "rss": 478400512,
+          "heapTotal": 173264896,
+          "heapUsed": 63060104,
+          "external": 57648589,
+          "arrayBuffers": 27363580
+        },
+        "lifetime_max_rss_bytes": 482988032
+      }
+    }
+  ],
+  "pairs": [
+    {
+      "pair_id": "first:0:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "first",
+      "round": 0,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        1,
+        2
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "first:0:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "first",
+      "round": 0,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        3,
+        4
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "warmup:1:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "warmup",
+      "round": 1,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        5,
+        6
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "warmup:1:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "warmup",
+      "round": 1,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        7,
+        8
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "warmup:2:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "warmup",
+      "round": 2,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        9,
+        10
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "warmup:2:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "warmup",
+      "round": 2,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        11,
+        12
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:1:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 1,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        13,
+        14
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:1:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 1,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        15,
+        16
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:2:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 2,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        17,
+        18
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:2:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 2,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        19,
+        20
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:3:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 3,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        21,
+        22
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:3:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 3,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        23,
+        24
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:4:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 4,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        25,
+        26
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:4:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 4,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        27,
+        28
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:5:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 5,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        29,
+        30
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:5:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 5,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        31,
+        32
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:6:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 6,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        33,
+        34
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:6:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 6,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        35,
+        36
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:7:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 7,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        37,
+        38
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:7:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 7,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        39,
+        40
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:8:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 8,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        41,
+        42
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:8:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 8,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        43,
+        44
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:9:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 9,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        45,
+        46
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:9:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 9,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "sample_sequences": [
+        47,
+        48
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:10:/api/v1/articles?page=1",
+      "route": "/api/v1/articles?page=1",
+      "phase": "measured",
+      "round": 10,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        49,
+        50
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    },
+    {
+      "pair_id": "measured:10:/api/v1/articles?sort=reads",
+      "route": "/api/v1/articles?sort=reads",
+      "phase": "measured",
+      "round": 10,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sample_sequences": [
+        51,
+        52
+      ],
+      "status_equal": true,
+      "body_bytes_equal": true,
+      "body_sha256_equal": true,
+      "body_buffer_equal": true,
+      "success": true
+    }
+  ],
+  "counts": {
+    "articles": 5000,
+    "observations": 20000,
+    "daily_metrics": 50000
+  },
+  "seed_ms": 833.7521520000009,
+  "revision_before": 2,
+  "revision_after": 2,
+  "writable_values_changed": 0,
+  "summary": {
+    "baseline": {
+      "/api/v1/articles?page=1": {
+        "successful": 10,
+        "failed": 0,
+        "median_ms": 3210.6303205000004,
+        "min_ms": 2896.5578800000076,
+        "max_ms": 5800.984047999984,
+        "mean_ms": 3816.123052799997,
+        "q1_ms": 3102.264343999992,
+        "q3_ms": 4606.0357845,
+        "stddev_ms": 1018.1934886936782
+      },
+      "/api/v1/articles?sort=reads": {
+        "successful": 10,
+        "failed": 0,
+        "median_ms": 3492.7777510000014,
+        "min_ms": 2704.0946239999903,
+        "max_ms": 6372.221847000008,
+        "mean_ms": 3831.7975594000004,
+        "q1_ms": 2912.073587499999,
+        "q3_ms": 3790.993771499998,
+        "stddev_ms": 1264.9269373202508
+      }
+    },
+    "candidate": {
+      "/api/v1/articles?page=1": {
+        "successful": 10,
+        "failed": 0,
+        "median_ms": 258.4800479999976,
+        "min_ms": 199.48201300000073,
+        "max_ms": 446.55294900000445,
+        "mean_ms": 282.85143529999766,
+        "q1_ms": 225.4148832499959,
+        "q3_ms": 313.35131649998584,
+        "stddev_ms": 75.88753832251946
+      },
+      "/api/v1/articles?sort=reads": {
+        "successful": 10,
+        "failed": 0,
+        "median_ms": 4034.994735,
+        "min_ms": 2959.054225,
+        "max_ms": 8556.474840999988,
+        "mean_ms": 4775.5058053999965,
+        "q1_ms": 3637.859579249998,
+        "q3_ms": 4683.049470499995,
+        "stddev_ms": 1815.1572742338667
+      }
+    }
+  }
+}
