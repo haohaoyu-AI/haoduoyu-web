@@ -1,6 +1,6 @@
 # 好多鱼图文
 
-原生 JavaScript 工作台与 Cloudflare Worker/D1 API。阶段 1、阶段 2 B1～B5、阶段 3 C1～C6 和阶段 4a/4b/4c 已验收合并。当前阶段 5a 草稿仅抽取等价时间工具并删除确认无调用的旧认证代码；dashboard 弃用、日志/request_id、安全方案及最终验收尚未完成。
+原生 JavaScript 工作台与 Cloudflare Worker/D1 API。阶段 1、阶段 2 B1～B5、阶段 3 C1～C6 和阶段 4a/4b/4c 已验收合并。阶段 5a 也已验收合并。当前 5b 草稿只给保留的 dashboard 成功响应和 OpenAPI 加弃用标记；日志/request_id、安全方案及最终验收尚未完成。
 
 生产仍为经单独确认发布的 Sites v7（源码 f21c9ed3），仅包含本轮 C1～C3；开发分支不会自动上线。后续部署必须再次明确确认。数据库结构、界面样式和数据语义保持不变。
 
