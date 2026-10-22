@@ -175,3 +175,6 @@ abe3540cabddd9c479e2efa7a654aac648320a90:docs/frontend-product-hashes.json:gener
 
 # Independently approved phase 5b squash reintroduction of the same public digest.
 8bf4543ca713305315906c6074e6caf76f911ea9:.ci/public-assets.json:generic-api-key:10
+
+# Independently approved phase 5c public OpenAPI digest; exact historical finding only.
+6b02e4a56baac4a8c217cdc52ef77e66a1d3c754:.ci/public-assets.json:generic-api-key:10
