@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 const source = await frontendSource();
 function client(fetch) {
-  const context=vm.createContext({fetch,Response,URL,URLSearchParams,Intl,setTimeout,clearTimeout,
+  const context=vm.createContext({AbortController, AbortSignal, DOMException, Headers,fetch,Response,URL,URLSearchParams,Intl,setTimeout,clearTimeout,
     document:{querySelector(){return null},querySelectorAll(){return []},addEventListener(){},body:{}},
     window:{addEventListener(){}},location:{href:'http://localhost/',search:''},localStorage:{getItem(){}},requestAnimationFrame(){}});
   new vm.Script(source).runInContext(context);

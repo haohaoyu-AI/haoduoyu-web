@@ -17,7 +17,8 @@ function animatePageEntry(container) {
   if (typeof IntersectionObserver !== "function" || typeof window === "undefined" || typeof window.matchMedia !== "function") return;
   try {
     if (!window.matchMedia("(prefers-reduced-motion: no-preference)").matches) return;
-    const blocks = Array.from(container?.children || []).filter((block) => block.matches?.("section, details, .overview-status, .review-summary, .segmented"));
+    const blocks = Array.from(container?.children || []).filter((block) => block.matches?.("section, details, .overview-status, \
+.review-summary, .segmented"));
     if (!blocks.length) return;
     const observer = new IntersectionObserver((entries) => {
       if (runtime.entryObserver !== observer) return;

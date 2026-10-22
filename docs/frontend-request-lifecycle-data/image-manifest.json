@@ -1,0 +1,84 @@
+{
+  "synthetic": true,
+  "password_inputs_empty": true,
+  "one_time_tokens_absent": true,
+  "images": [
+    {
+      "file": "docs/frontend-request-lifecycle-images/form-article-new-375-context.png",
+      "sha256": "ab3eb61ed11f2c36282ced225704f75fc61e792f0aff245f6c76cce3aac75186",
+      "kind": "baseline-candidate-enhanced-diff-context",
+      "source_pair": "form-article-new-375",
+      "difference_amplification": 255
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/baseline-form-article-new-375.png",
+      "sha256": "17cef72d46056d525587baf2b68bf5c5d45861afb206694cbafd415fc104abe8",
+      "kind": "original-png",
+      "source_pair": "form-article-new-375",
+      "variant": "baseline"
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/candidate-form-article-new-375.png",
+      "sha256": "d3ad6860987629a1383803bf6211e5e81f8f768c7e0304f3e5c37732bf9f0400",
+      "kind": "original-png",
+      "source_pair": "form-article-new-375",
+      "variant": "candidate"
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/form-article-new-390-context.png",
+      "sha256": "8d33c13ea371d4b870b9559e05ec7f990660475e2d4cc2df93ffa5070b81850b",
+      "kind": "baseline-candidate-enhanced-diff-context",
+      "source_pair": "form-article-new-390",
+      "difference_amplification": 255
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/form-article-new-768-context.png",
+      "sha256": "7b0d299183257a169b0b8531e7d84602956e2138a7d13d61f3d99c55a42762b8",
+      "kind": "baseline-candidate-enhanced-diff-context",
+      "source_pair": "form-article-new-768",
+      "difference_amplification": 255
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/form-daily-390-context.png",
+      "sha256": "f2a39bb6a518d6a8875f1dcef3e7d8001f380fb0f6d5b96b6cdf2861de0c948f",
+      "kind": "baseline-candidate-enhanced-diff-context",
+      "source_pair": "form-daily-390",
+      "difference_amplification": 255
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/baseline-form-daily-390.png",
+      "sha256": "69dc41a6fb3509bf6e3a7b78df52e966fa57b3c590feefcf6997e949bce45af4",
+      "kind": "original-png",
+      "source_pair": "form-daily-390",
+      "variant": "baseline"
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/candidate-form-daily-390.png",
+      "sha256": "9b3ab3fd51ff624f0240180ccfc5836e91522e5210219ea6e006f09aeee8f147",
+      "kind": "original-png",
+      "source_pair": "form-daily-390",
+      "variant": "candidate"
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/form-key-1440-context.png",
+      "sha256": "515738075fbb925fa47bd83ca8c7831815ff7f3634a7400524d2c3b7e065ac2c",
+      "kind": "baseline-candidate-enhanced-diff-context",
+      "source_pair": "form-key-1440",
+      "difference_amplification": 255
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/baseline-form-key-1440.png",
+      "sha256": "eed1543cd13ace6241024bec734cc244dd166b919bd1685ea9b112e2a647a104",
+      "kind": "original-png",
+      "source_pair": "form-key-1440",
+      "variant": "baseline"
+    },
+    {
+      "file": "docs/frontend-request-lifecycle-images/candidate-form-key-1440.png",
+      "sha256": "117a29917e7c90ca3384676cfdda714a007dcca96b4405cde648e1f0d8731e8e",
+      "kind": "original-png",
+      "source_pair": "form-key-1440",
+      "variant": "candidate"
+    }
+  ]
+}

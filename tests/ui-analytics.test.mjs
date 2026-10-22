@@ -8,8 +8,8 @@ function client(search=''){
  const handlers={},windowHandlers={},nodes=new Map([['#app',{innerHTML:''}],['#overlay',{innerHTML:'',firstChild:null}]]),memory=new Map(),requests=[];
  const location={href:'http://localhost/'+search,search};
  const document={querySelector:q=>nodes.get(q)||null,querySelectorAll:()=>[],addEventListener:(key,fn)=>handlers[key]=fn,body:{style:{}},activeElement:null};
- const ctx=vm.createContext({document,window:{addEventListener:(key,fn)=>windowHandlers[key]=fn},location,history:{replaceState:(_,__,url)=>{location.href=String(url);location.search=new URL(url).search}},localStorage:{getItem:key=>memory.get(key)||null,setItem:(key,value)=>memory.set(key,value)},URL,URLSearchParams,Intl,console,requestAnimationFrame(){},setTimeout,clearTimeout,
- fetch:async(path,options)=>{requests.push({path,options});return {ok:true,status:200,json:async()=>({data:[{id:'a'}],meta:{total:9}})}}});
+ const ctx=vm.createContext({AbortController, AbortSignal, DOMException, Headers,document,window:{addEventListener:(key,fn)=>windowHandlers[key]=fn},location,history:{replaceState:(_,__,url)=>{location.href=String(url);location.search=new URL(url).search}},localStorage:{getItem:key=>memory.get(key)||null,setItem:(key,value)=>memory.set(key,value)},URL,URLSearchParams,Intl,console,requestAnimationFrame(){},setTimeout,clearTimeout,
+ fetch:async(path,options)=>{requests.push({path,options});return Response.json({data:[{id:'a'}],meta:{total:9}});}});
  new vm.Script(source).runInContext(ctx);
  const run=script=>vm.runInContext(script,ctx);
  run("state.accounts=[{id:'account',name:'好多鱼',platform:'zhihu'}]");

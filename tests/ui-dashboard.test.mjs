@@ -6,7 +6,7 @@ import {readFile} from 'node:fs/promises';
 const source = await frontendSource();
 function client(){
  const handlers={},nodes=new Map([['#overlay',{firstChild:null,style:{}}]]),body={};
- const ctx=vm.createContext({document:{querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>[],addEventListener:(k,f)=>handlers[k]=f,body,activeElement:body},window:{addEventListener(){}},location:{href:'http://localhost/',search:''},history:{replaceState(){},pushState(){}},localStorage:{getItem(){},setItem(){}},URL,URLSearchParams,Intl,console,setTimeout,clearTimeout,requestAnimationFrame(){}});
+ const ctx=vm.createContext({AbortController, AbortSignal, DOMException, Headers,document:{querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>[],addEventListener:(k,f)=>handlers[k]=f,body,activeElement:body},window:{addEventListener(){}},location:{href:'http://localhost/',search:''},history:{replaceState(){},pushState(){}},localStorage:{getItem(){},setItem(){}},URL,URLSearchParams,Intl,console,setTimeout,clearTimeout,requestAnimationFrame(){}});
  new vm.Script(source).runInContext(ctx);return {run:s=>vm.runInContext(s,ctx),handlers};
 }
 const data=()=>({cumulative:{article_count:80,data_article_count:60,mean_reads:1800/60,coverage:60/80,no_snapshot_count:20,missing_reads_count:20,unverified_date_count:4,totals:{reads:1800,likes:17,comments:2},as_of:'2024-02-10T08:00:00Z'},series:{planned:200,highest_recorded:43,recorded_count:4},accounts:[],platform_comparison:[],top_articles:[],trend:[],due_reviews:[]});

@@ -1,0 +1,1358 @@
+{
+  "baseline": "2e12147b700ac604d7cccf8e034374644ac99a03",
+  "candidate": "b06ab44fe9b56efa1bf3acc76b51d3d6638bbecf",
+  "candidate_app_sha256": "af755e895c9df0f0df9a594c3d011d9e81a45ed287826cd06a0d8f295726e646",
+  "pairs": 56,
+  "exact_pairs": 51,
+  "mismatches": [
+    {
+      "view": "form-article-new",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-article-new-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-article-new-375.png",
+      "baseline_sha256": "17cef72d46056d525587baf2b68bf5c5d45861afb206694cbafd415fc104abe8",
+      "candidate_sha256": "d3ad6860987629a1383803bf6211e5e81f8f768c7e0304f3e5c37732bf9f0400",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        3839
+      ],
+      "candidate_size": [
+        375,
+        3839
+      ],
+      "changed_pixels": 64,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        162,
+        35,
+        481
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-article-new",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-article-new-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-article-new-390.png",
+      "baseline_sha256": "341051eba6516929cb8fb466857ada1e211c0ac6e50dd6f3e3f103a2ee3d1ffe",
+      "candidate_sha256": "48d5de4dbba0dc86df3324342cc4ce243082fda56497686185b7a0ad97cd2d96",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        3839
+      ],
+      "candidate_size": [
+        390,
+        3839
+      ],
+      "changed_pixels": 44,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        269,
+        35,
+        481
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-article-new",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-article-new-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-article-new-768.png",
+      "baseline_sha256": "cbe3403064708448a84dba5f5ff695c058baa6f8897e50a4b48b9481705bc74a",
+      "candidate_sha256": "bdeb80e3710dfdc5fb04e258f2d4029170f76dea96972ae5c88b51cd3c609518",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        1794
+      ],
+      "candidate_size": [
+        768,
+        1794
+      ],
+      "changed_pixels": 45,
+      "max_channel_delta": 1,
+      "bbox": [
+        84,
+        287,
+        87,
+        527
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-daily",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-daily-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-daily-390.png",
+      "baseline_sha256": "69dc41a6fb3509bf6e3a7b78df52e966fa57b3c590feefcf6997e949bce45af4",
+      "candidate_sha256": "9b3ab3fd51ff624f0240180ccfc5836e91522e5210219ea6e006f09aeee8f147",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        3830
+      ],
+      "candidate_size": [
+        390,
+        3830
+      ],
+      "changed_pixels": 72,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        191,
+        359,
+        729
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-key",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-key-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-key-1440.png",
+      "baseline_sha256": "eed1543cd13ace6241024bec734cc244dd166b919bd1685ea9b112e2a647a104",
+      "candidate_sha256": "117a29917e7c90ca3384676cfdda714a007dcca96b4405cde648e1f0d8731e8e",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        900
+      ],
+      "candidate_size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 44,
+      "max_channel_delta": 1,
+      "bbox": [
+        422,
+        24,
+        1408,
+        410
+      ],
+      "exact": false
+    }
+  ],
+  "rows": [
+    {
+      "view": "accounts",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-accounts-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-accounts-375.png",
+      "baseline_sha256": "95c9e1dea67ab31767c4b4af051da65f37ffa0ee5bb4e721bb8c63226947ebbd",
+      "candidate_sha256": "95c9e1dea67ab31767c4b4af051da65f37ffa0ee5bb4e721bb8c63226947ebbd",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        900
+      ],
+      "candidate_size": [
+        375,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "accounts",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-accounts-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-accounts-390.png",
+      "baseline_sha256": "667d3536d4b930cb1e854832fd196358da74736f2c685adf9a0697bebc648fab",
+      "candidate_sha256": "667d3536d4b930cb1e854832fd196358da74736f2c685adf9a0697bebc648fab",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        900
+      ],
+      "candidate_size": [
+        390,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "accounts",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-accounts-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-accounts-768.png",
+      "baseline_sha256": "e4aa57ddf9a1683a2c60dbb4ea03352c533237e10a1bb81f9dddc0d504bcfdb0",
+      "candidate_sha256": "e4aa57ddf9a1683a2c60dbb4ea03352c533237e10a1bb81f9dddc0d504bcfdb0",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        900
+      ],
+      "candidate_size": [
+        768,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "accounts",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-accounts-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-accounts-1440.png",
+      "baseline_sha256": "5aedc28a8461ae9985b478dc2f0515f66123873c84f20aeb7f85fcdc7ae60735",
+      "candidate_sha256": "5aedc28a8461ae9985b478dc2f0515f66123873c84f20aeb7f85fcdc7ae60735",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        900
+      ],
+      "candidate_size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "articles",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-articles-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-articles-375.png",
+      "baseline_sha256": "2091b106331773162b4abe4ce9d805db5d11c0a9e89a1c9dc7f2547a2a9ad1f1",
+      "candidate_sha256": "2091b106331773162b4abe4ce9d805db5d11c0a9e89a1c9dc7f2547a2a9ad1f1",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        3839
+      ],
+      "candidate_size": [
+        375,
+        3839
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "articles",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-articles-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-articles-390.png",
+      "baseline_sha256": "32625422410ad289e667c77097613180a58e0aa79d7f9d44ae4b0e9d3ac80a78",
+      "candidate_sha256": "32625422410ad289e667c77097613180a58e0aa79d7f9d44ae4b0e9d3ac80a78",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        3839
+      ],
+      "candidate_size": [
+        390,
+        3839
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "articles",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-articles-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-articles-768.png",
+      "baseline_sha256": "f79b84425ef981a0947e71f89d0d9b7520fcfdb75c1ff43718268969adbece7f",
+      "candidate_sha256": "f79b84425ef981a0947e71f89d0d9b7520fcfdb75c1ff43718268969adbece7f",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        1794
+      ],
+      "candidate_size": [
+        768,
+        1794
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "articles",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-articles-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-articles-1440.png",
+      "baseline_sha256": "dffc72c817b3ea653d76924060156af1d2d4726bd1d5bc029dc3b8b61dd3b405",
+      "candidate_sha256": "dffc72c817b3ea653d76924060156af1d2d4726bd1d5bc029dc3b8b61dd3b405",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        1380
+      ],
+      "candidate_size": [
+        1440,
+        1380
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "audit",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-audit-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-audit-375.png",
+      "baseline_sha256": "508fcfabed59d5cc8c8729c651817fa2861174a4d4ee3838969f9ccd21de71ea",
+      "candidate_sha256": "508fcfabed59d5cc8c8729c651817fa2861174a4d4ee3838969f9ccd21de71ea",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        900
+      ],
+      "candidate_size": [
+        375,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "audit",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-audit-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-audit-390.png",
+      "baseline_sha256": "53c251c8b96ecad1112256b5250e50746fb54389c7856808c5a7d0b165df0df0",
+      "candidate_sha256": "53c251c8b96ecad1112256b5250e50746fb54389c7856808c5a7d0b165df0df0",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        900
+      ],
+      "candidate_size": [
+        390,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "audit",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-audit-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-audit-768.png",
+      "baseline_sha256": "1585fb62e138d33c4723ed7d0ff7e32874f670ff00df0ae1a56ad1bc9476fb43",
+      "candidate_sha256": "1585fb62e138d33c4723ed7d0ff7e32874f670ff00df0ae1a56ad1bc9476fb43",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        900
+      ],
+      "candidate_size": [
+        768,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "audit",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-audit-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-audit-1440.png",
+      "baseline_sha256": "30043799e90325628e9e972846c9572085b8cf33be2c5f0b829e469cb137b0c3",
+      "candidate_sha256": "30043799e90325628e9e972846c9572085b8cf33be2c5f0b829e469cb137b0c3",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        900
+      ],
+      "candidate_size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "dashboard",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-dashboard-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-dashboard-375.png",
+      "baseline_sha256": "b0e53faec88b21b75da059dce57677b4c68c28388029de00ee5a5cbc2ceb39d5",
+      "candidate_sha256": "b0e53faec88b21b75da059dce57677b4c68c28388029de00ee5a5cbc2ceb39d5",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        4170
+      ],
+      "candidate_size": [
+        375,
+        4170
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "dashboard",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-dashboard-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-dashboard-390.png",
+      "baseline_sha256": "c306666a0404934e136a406b620dee71351c74a37073a9e510c8aa0966ff63e6",
+      "candidate_sha256": "c306666a0404934e136a406b620dee71351c74a37073a9e510c8aa0966ff63e6",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        4132
+      ],
+      "candidate_size": [
+        390,
+        4132
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "dashboard",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-dashboard-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-dashboard-768.png",
+      "baseline_sha256": "e9ed141937d1046b9816422642966f8ef4d32eba19f5fb5ef36d08006036b550",
+      "candidate_sha256": "e9ed141937d1046b9816422642966f8ef4d32eba19f5fb5ef36d08006036b550",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        2755
+      ],
+      "candidate_size": [
+        768,
+        2755
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "dashboard",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-dashboard-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-dashboard-1440.png",
+      "baseline_sha256": "ce5a821e5e3ab44cb8e7117dc352a531d55f88595bf671c7e33795bf57d5efa3",
+      "candidate_sha256": "ce5a821e5e3ab44cb8e7117dc352a531d55f88595bf671c7e33795bf57d5efa3",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        2444
+      ],
+      "candidate_size": [
+        1440,
+        2444
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "data",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-data-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-data-375.png",
+      "baseline_sha256": "dcfab07c94ffca075cbd7953483f1f8ca1dc5c928d75caff9243746d77aee644",
+      "candidate_sha256": "dcfab07c94ffca075cbd7953483f1f8ca1dc5c928d75caff9243746d77aee644",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        5312
+      ],
+      "candidate_size": [
+        375,
+        5312
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "data",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-data-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-data-390.png",
+      "baseline_sha256": "f3269b57f50944e0a8a2ce2958f27c13a6d89c0ccf3464f7cca171e64b1bab17",
+      "candidate_sha256": "f3269b57f50944e0a8a2ce2958f27c13a6d89c0ccf3464f7cca171e64b1bab17",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        5187
+      ],
+      "candidate_size": [
+        390,
+        5187
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "data",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-data-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-data-768.png",
+      "baseline_sha256": "488f3c6083b69c8b7a9773f238f300c1bb075606c7e75ac4af026ae9bc023d50",
+      "candidate_sha256": "488f3c6083b69c8b7a9773f238f300c1bb075606c7e75ac4af026ae9bc023d50",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        1724
+      ],
+      "candidate_size": [
+        768,
+        1724
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "data",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-data-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-data-1440.png",
+      "baseline_sha256": "ee2e56b18f3fe85e56205f4dd1a7c9aa751e79bd75bcdf9ba04723973128b6ef",
+      "candidate_sha256": "ee2e56b18f3fe85e56205f4dd1a7c9aa751e79bd75bcdf9ba04723973128b6ef",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        1608
+      ],
+      "candidate_size": [
+        1440,
+        1608
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "detail",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-detail-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-detail-375.png",
+      "baseline_sha256": "ab881e94b68179d719b42b051b40078986119fb9326c3e53c18b86e75eb39c70",
+      "candidate_sha256": "ab881e94b68179d719b42b051b40078986119fb9326c3e53c18b86e75eb39c70",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        3839
+      ],
+      "candidate_size": [
+        375,
+        3839
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "detail",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-detail-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-detail-390.png",
+      "baseline_sha256": "304ee4c588ee2b699a1484d5ea61430230de69687243d2b65bbe6f235aac15b0",
+      "candidate_sha256": "304ee4c588ee2b699a1484d5ea61430230de69687243d2b65bbe6f235aac15b0",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        3839
+      ],
+      "candidate_size": [
+        390,
+        3839
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "detail",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-detail-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-detail-768.png",
+      "baseline_sha256": "cdc9a9de85f9b869f749a984556b0adc5ce76a4d23ae1143eb0d88e349081113",
+      "candidate_sha256": "cdc9a9de85f9b869f749a984556b0adc5ce76a4d23ae1143eb0d88e349081113",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        1794
+      ],
+      "candidate_size": [
+        768,
+        1794
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "detail",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-detail-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-detail-1440.png",
+      "baseline_sha256": "1537cde44140fa125c7d00f46b08d5a475ea77c7341ff161ff9fa1472ab910d9",
+      "candidate_sha256": "1537cde44140fa125c7d00f46b08d5a475ea77c7341ff161ff9fa1472ab910d9",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        1380
+      ],
+      "candidate_size": [
+        1440,
+        1380
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-account-new",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-account-new-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-account-new-375.png",
+      "baseline_sha256": "41b4dc5329ac4f6f43b58e84927eef96b44694e510b4ec548e4d3b36897bf343",
+      "candidate_sha256": "41b4dc5329ac4f6f43b58e84927eef96b44694e510b4ec548e4d3b36897bf343",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        900
+      ],
+      "candidate_size": [
+        375,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-account-new",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-account-new-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-account-new-390.png",
+      "baseline_sha256": "88b1ebd9144a03236db8277b898826424bf1eb12331a293c792cb54aa4124b80",
+      "candidate_sha256": "88b1ebd9144a03236db8277b898826424bf1eb12331a293c792cb54aa4124b80",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        900
+      ],
+      "candidate_size": [
+        390,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-account-new",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-account-new-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-account-new-768.png",
+      "baseline_sha256": "36edb1f0bddf38bd5a12f412e8edbb682c28fff64f72e34b5662b84534296391",
+      "candidate_sha256": "36edb1f0bddf38bd5a12f412e8edbb682c28fff64f72e34b5662b84534296391",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        900
+      ],
+      "candidate_size": [
+        768,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-account-new",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-account-new-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-account-new-1440.png",
+      "baseline_sha256": "e2c5b5812c81526086d4e7ab598216bd9f2dea99edc92623164afec14714327d",
+      "candidate_sha256": "e2c5b5812c81526086d4e7ab598216bd9f2dea99edc92623164afec14714327d",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        900
+      ],
+      "candidate_size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-article-new",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-article-new-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-article-new-375.png",
+      "baseline_sha256": "17cef72d46056d525587baf2b68bf5c5d45861afb206694cbafd415fc104abe8",
+      "candidate_sha256": "d3ad6860987629a1383803bf6211e5e81f8f768c7e0304f3e5c37732bf9f0400",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        3839
+      ],
+      "candidate_size": [
+        375,
+        3839
+      ],
+      "changed_pixels": 64,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        162,
+        35,
+        481
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-article-new",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-article-new-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-article-new-390.png",
+      "baseline_sha256": "341051eba6516929cb8fb466857ada1e211c0ac6e50dd6f3e3f103a2ee3d1ffe",
+      "candidate_sha256": "48d5de4dbba0dc86df3324342cc4ce243082fda56497686185b7a0ad97cd2d96",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        3839
+      ],
+      "candidate_size": [
+        390,
+        3839
+      ],
+      "changed_pixels": 44,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        269,
+        35,
+        481
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-article-new",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-article-new-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-article-new-768.png",
+      "baseline_sha256": "cbe3403064708448a84dba5f5ff695c058baa6f8897e50a4b48b9481705bc74a",
+      "candidate_sha256": "bdeb80e3710dfdc5fb04e258f2d4029170f76dea96972ae5c88b51cd3c609518",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        1794
+      ],
+      "candidate_size": [
+        768,
+        1794
+      ],
+      "changed_pixels": 45,
+      "max_channel_delta": 1,
+      "bbox": [
+        84,
+        287,
+        87,
+        527
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-article-new",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-article-new-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-article-new-1440.png",
+      "baseline_sha256": "29317c9bac81593d9079e0b408cf11fe94e2d249c8606797946892efabb553ff",
+      "candidate_sha256": "29317c9bac81593d9079e0b408cf11fe94e2d249c8606797946892efabb553ff",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        1380
+      ],
+      "candidate_size": [
+        1440,
+        1380
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-daily",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-daily-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-daily-375.png",
+      "baseline_sha256": "f274248f0dc0e1cca6070840dba58dcf4f7edca04fa7f9669643de93280f6ac1",
+      "candidate_sha256": "f274248f0dc0e1cca6070840dba58dcf4f7edca04fa7f9669643de93280f6ac1",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        3830
+      ],
+      "candidate_size": [
+        375,
+        3830
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-daily",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-daily-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-daily-390.png",
+      "baseline_sha256": "69dc41a6fb3509bf6e3a7b78df52e966fa57b3c590feefcf6997e949bce45af4",
+      "candidate_sha256": "9b3ab3fd51ff624f0240180ccfc5836e91522e5210219ea6e006f09aeee8f147",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        3830
+      ],
+      "candidate_size": [
+        390,
+        3830
+      ],
+      "changed_pixels": 72,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        191,
+        359,
+        729
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-daily",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-daily-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-daily-768.png",
+      "baseline_sha256": "a08b2392623adf8ede1c3f928807e89ff393e9749c883d4e921567bb01bc1886",
+      "candidate_sha256": "a08b2392623adf8ede1c3f928807e89ff393e9749c883d4e921567bb01bc1886",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        1254
+      ],
+      "candidate_size": [
+        768,
+        1254
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-daily",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-daily-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-daily-1440.png",
+      "baseline_sha256": "a27243415889238b6b05725fee65b5bb999a77659ac8d16725a766f1211417fb",
+      "candidate_sha256": "a27243415889238b6b05725fee65b5bb999a77659ac8d16725a766f1211417fb",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        1206
+      ],
+      "candidate_size": [
+        1440,
+        1206
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-key",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-key-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-key-375.png",
+      "baseline_sha256": "97e6587e33371aa9f103870343187d36b0b2008058324960e3e34d509344b27d",
+      "candidate_sha256": "97e6587e33371aa9f103870343187d36b0b2008058324960e3e34d509344b27d",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        900
+      ],
+      "candidate_size": [
+        375,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-key",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-key-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-key-390.png",
+      "baseline_sha256": "47ce110ee5164863d3d4b807d2d080323f89bbb9b1cf72fb688f10d1fcee55e7",
+      "candidate_sha256": "47ce110ee5164863d3d4b807d2d080323f89bbb9b1cf72fb688f10d1fcee55e7",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        900
+      ],
+      "candidate_size": [
+        390,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-key",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-key-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-key-768.png",
+      "baseline_sha256": "332b0a8b30d6904c6f0f9ea03ad0202f9866061646a7cb272eb61542a91aa6a2",
+      "candidate_sha256": "332b0a8b30d6904c6f0f9ea03ad0202f9866061646a7cb272eb61542a91aa6a2",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        900
+      ],
+      "candidate_size": [
+        768,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-key",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-key-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-key-1440.png",
+      "baseline_sha256": "eed1543cd13ace6241024bec734cc244dd166b919bd1685ea9b112e2a647a104",
+      "candidate_sha256": "117a29917e7c90ca3384676cfdda714a007dcca96b4405cde648e1f0d8731e8e",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        900
+      ],
+      "candidate_size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 44,
+      "max_channel_delta": 1,
+      "bbox": [
+        422,
+        24,
+        1408,
+        410
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-snapshot",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-snapshot-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-snapshot-375.png",
+      "baseline_sha256": "066216bc7bafc4263438abee022184b2538dfd571e6a3bf753674c23dd13ec70",
+      "candidate_sha256": "066216bc7bafc4263438abee022184b2538dfd571e6a3bf753674c23dd13ec70",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        5312
+      ],
+      "candidate_size": [
+        375,
+        5312
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-snapshot",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-snapshot-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-snapshot-390.png",
+      "baseline_sha256": "259058cc59b1953f0e928b86186afadc241f8d37a8bb086f5e2b31c60da37921",
+      "candidate_sha256": "259058cc59b1953f0e928b86186afadc241f8d37a8bb086f5e2b31c60da37921",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        5187
+      ],
+      "candidate_size": [
+        390,
+        5187
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-snapshot",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-snapshot-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-snapshot-768.png",
+      "baseline_sha256": "053c6de969bad20b7ca32ef984fa1d533f7273a6957ec40d5ff9707d68908dc8",
+      "candidate_sha256": "053c6de969bad20b7ca32ef984fa1d533f7273a6957ec40d5ff9707d68908dc8",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        1724
+      ],
+      "candidate_size": [
+        768,
+        1724
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "form-snapshot",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-form-snapshot-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-form-snapshot-1440.png",
+      "baseline_sha256": "e07f081726c4295c73d3ecdf19c355d8e0a3d23e9bbfe15cf515aa3bd298e687",
+      "candidate_sha256": "e07f081726c4295c73d3ecdf19c355d8e0a3d23e9bbfe15cf515aa3bd298e687",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        1608
+      ],
+      "candidate_size": [
+        1440,
+        1608
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "keys",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-keys-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-keys-375.png",
+      "baseline_sha256": "9ca5ea2ea11d19f3f97d9d221fea11a6ac10aa09b21ca9ed5d99c6627fdc8f45",
+      "candidate_sha256": "9ca5ea2ea11d19f3f97d9d221fea11a6ac10aa09b21ca9ed5d99c6627fdc8f45",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        900
+      ],
+      "candidate_size": [
+        375,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "keys",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-keys-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-keys-390.png",
+      "baseline_sha256": "0ea08c3671a0623b2ef04785c4035ef76608f673c27b83f4010bd09795886808",
+      "candidate_sha256": "0ea08c3671a0623b2ef04785c4035ef76608f673c27b83f4010bd09795886808",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        900
+      ],
+      "candidate_size": [
+        390,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "keys",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-keys-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-keys-768.png",
+      "baseline_sha256": "51348b356691b863921e68f33a904c4deeced43ade99eff3c088636f87418767",
+      "candidate_sha256": "51348b356691b863921e68f33a904c4deeced43ade99eff3c088636f87418767",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        900
+      ],
+      "candidate_size": [
+        768,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "keys",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-keys-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-keys-1440.png",
+      "baseline_sha256": "ce655517901643f362910852ded34340b7254b0c473e01435a2cf6104617f235",
+      "candidate_sha256": "ce655517901643f362910852ded34340b7254b0c473e01435a2cf6104617f235",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        900
+      ],
+      "candidate_size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "login",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-login-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-login-375.png",
+      "baseline_sha256": "e3ae8056719b5070aaebf27dd0f57ac54e9b129b5df8f4c076291ccfd62825ff",
+      "candidate_sha256": "e3ae8056719b5070aaebf27dd0f57ac54e9b129b5df8f4c076291ccfd62825ff",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        900
+      ],
+      "candidate_size": [
+        375,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "login",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-login-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-login-390.png",
+      "baseline_sha256": "2f837e8265368c7cee700522c5fbdb08403cfdf0d1219c89056651134ee2a988",
+      "candidate_sha256": "2f837e8265368c7cee700522c5fbdb08403cfdf0d1219c89056651134ee2a988",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        900
+      ],
+      "candidate_size": [
+        390,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "login",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-login-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-login-768.png",
+      "baseline_sha256": "94534cd9a6593906052646bd4268be739fa2b44de9a11bdc8245491ce530154b",
+      "candidate_sha256": "94534cd9a6593906052646bd4268be739fa2b44de9a11bdc8245491ce530154b",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        900
+      ],
+      "candidate_size": [
+        768,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "login",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-login-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-login-1440.png",
+      "baseline_sha256": "e546e05a6f125f4c8b9a194618ccd7d89da022d7d6046640daf00319324f68c8",
+      "candidate_sha256": "e546e05a6f125f4c8b9a194618ccd7d89da022d7d6046640daf00319324f68c8",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        900
+      ],
+      "candidate_size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "security",
+      "width": 375,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-security-375.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-security-375.png",
+      "baseline_sha256": "97cbf477e32a0f1de13576bd61cd5d02f15d34d687101610fe92f2790fa865ee",
+      "candidate_sha256": "97cbf477e32a0f1de13576bd61cd5d02f15d34d687101610fe92f2790fa865ee",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        900
+      ],
+      "candidate_size": [
+        375,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "security",
+      "width": 390,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-security-390.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-security-390.png",
+      "baseline_sha256": "f6bca0507cee8e953f1d52ae60972380e1602913d1553f21e25848e962eeb7f5",
+      "candidate_sha256": "f6bca0507cee8e953f1d52ae60972380e1602913d1553f21e25848e962eeb7f5",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        900
+      ],
+      "candidate_size": [
+        390,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "security",
+      "width": 768,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-security-768.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-security-768.png",
+      "baseline_sha256": "56f36de8de5b8e95815dccab8be063f30c6912365644d05dba8e7defb078af35",
+      "candidate_sha256": "56f36de8de5b8e95815dccab8be063f30c6912365644d05dba8e7defb078af35",
+      "same_size": true,
+      "baseline_size": [
+        768,
+        900
+      ],
+      "candidate_size": [
+        768,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "view": "security",
+      "width": 1440,
+      "baseline_file": "artifacts/frontend-lifecycle/first-all-a529122/baseline-security-1440.png",
+      "candidate_file": "artifacts/frontend-lifecycle/all/candidate-security-1440.png",
+      "baseline_sha256": "555a49f79d414849caf784dfe44d8db81a60e0a3ed67176b29e8a8c6260bea6e",
+      "candidate_sha256": "555a49f79d414849caf784dfe44d8db81a60e0a3ed67176b29e8a8c6260bea6e",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        900
+      ],
+      "candidate_size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    }
+  ],
+  "baseline_component_complete": {
+    "actions": 29,
+    "forms": 11,
+    "checks": 20
+  },
+  "candidate_status": "complete",
+  "candidate_component_complete": {
+    "actions": 29,
+    "forms": 11,
+    "checks": 20
+  },
+  "original_attempt_status": "failed",
+  "original_attempt_failure": {
+    "type": "TimeoutError",
+    "message": "Locator.wait_for: Timeout 12000ms exceeded.\nCall log:\n  - waiting for locator(\"#page-content[aria-busy=false]\") to be visible\n"
+  }
+}

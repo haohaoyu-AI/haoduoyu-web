@@ -11,9 +11,13 @@ const nav = [
 const settingsTabs = { accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
 const legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
 const defaultFilters = () => ({ q: "", mode: "", from: "", to: "", sort: "published_at", order: "desc", group: "", platform: "", topic: "", data_status: "" });
-const articleColumns = { reads: ["阅读", "reads"], likes: ["点赞", "likes"], comments: ["评论", "comments"], as_of: ["数据截至", "latest_as_of"], approvals: ["赞同", "approvals"], mode: ["生产方式", ""], duration: ["耗时", "duration"], published: ["发布日期", "published_at"], account: ["账号", ""] };
-const articleStatuses = { no_snapshot: "未采集", missing_reads: "缺阅读数据", missing_likes: "缺点赞数据", missing_comments: "缺评论数据", incomplete: "指标不完整", zero_reads: "真实0阅读", date_unverified: "日期待核实" };
-const articleChoices = { topic: { entertainment: "文娱（推断）", insurance: "保险（推断）", unknown: "未推断" }, mode: modeLabels, group: { account: "按账号", mode: "按生产方式" } };
+const articleColumns = { reads: ["阅读", "reads"], likes: ["点赞", "likes"], comments: ["评论", "comments"], as_of: ["数据截至", "latest_as_of"],
+   approvals: ["赞同", "approvals"], mode: ["生产方式", ""], duration: ["耗时", "duration"], published: ["发布日期",
+"published_at"], account: ["账号", ""] };
+const articleStatuses = { no_snapshot: "未采集", missing_reads: "缺阅读数据", missing_likes: "缺点赞数据", missing_comments: "缺评论数据", incomplete:
+   "指标不完整", zero_reads: "真实0阅读", date_unverified: "日期待核实" };
+const articleChoices = { topic: { entertainment: "文娱（推断）", insurance: "保险（推断）", unknown: "未推断" }, mode: modeLabels,
+group: { account: "按账号", mode: "按生产方式" } };
 const defaultColumns = ["reads", "likes", "comments", "as_of"];
 export {
   articleChoices,

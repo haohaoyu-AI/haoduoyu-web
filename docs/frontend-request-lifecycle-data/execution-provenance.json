@@ -1,0 +1,32 @@
+{
+  "product_commit": "b06ab44fe9b56efa1bf3acc76b51d3d6638bbecf",
+  "synthetic": true,
+  "no_product_change_after_browser_run": true,
+  "files": [
+    {
+      "path": "tests/browser-request-lifecycle.py",
+      "bytes": 9745,
+      "sha256": "3806d2596e8bc736e27da55df56ae722d2591fecb2c1641af8ec9c38096579c1"
+    },
+    {
+      "path": "tests/browser-frontend-lifecycle-regression.py",
+      "bytes": 33164,
+      "sha256": "ba94477638cfdba435a2727df2f74e3ecaaa94a127f711bfbb35badcaaba1a21"
+    },
+    {
+      "path": "tests/frontend-lifecycle-browser-server.mjs",
+      "bytes": 9116,
+      "sha256": "8c708c0e3661e91a9a4db6a6b508f21ca06a077d0260a66c7e13c2f5f5d6b34c"
+    },
+    {
+      "path": "public/app.js",
+      "bytes": 115029,
+      "sha256": "af755e895c9df0f0df9a594c3d011d9e81a45ed287826cd06a0d8f295726e646"
+    },
+    {
+      "path": "dist/server/index.js",
+      "bytes": 417734,
+      "sha256": "ec403afdb0f27559d5071532e28e19aa110bb26e83ac584e289183d298713a47"
+    }
+  ]
+}

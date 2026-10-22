@@ -15,7 +15,7 @@ test('route reader takes no parameters while fresh-login expansion reset remains
 test('executable route restoration characterizes existing deep-link behavior, not authentication', async () => {
   const events = {};
   const url = new URL('http://localhost/?page=articles&q=synthetic&platform=zhihu&sort=reads&order=asc&page_size=10&account=a&period=7d&top_n=3');
-  const context = vm.createContext({
+  const context = vm.createContext({AbortController, AbortSignal, DOMException, Headers,
     document: {addEventListener(name, callback) {events[name] = callback;}, body: {style: {}},
       querySelector() {}, querySelectorAll: () => []},
     window: {addEventListener() {}, scrollTo() {}},
