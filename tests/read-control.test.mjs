@@ -60,8 +60,9 @@ test('C1 request counters separate control writes, metadata writes, matched rows
   }
   for (const row of rows.filter(row => row.case.startsWith('bearer'))) {
     assert.equal(row.business_control_writes, 0);
-    assert.equal(row.metadata_writes, 1, 'C2 metadata update is deliberately unchanged');
-    assert.equal(row.write_statements, 1);assert.equal(row.control, 2);
+    const expected = row.case.endsWith(' 1') ? 1 : 0;
+    assert.equal(row.metadata_writes, expected, 'C2 records first use and skips same-clock repetition');
+    assert.equal(row.write_statements, expected);assert.equal(row.control, 2);
   }
 });
 

@@ -56,8 +56,10 @@ async function login(db,request,env,origin) {
 }
 
 async function protectedRead(db,request,route,query,initialRevision) {
+  let readActor;
   const response=await consistentRead(db,async store=>{
     const actor=await authenticate(store,request),records=createRecords(store);
+    readActor=actor;
     const articleMatch=/^\/articles\/([^/]+)$/.exec(route);
     if(route==='/auth/me') {requireAdmin(actor);return json({id:actor.id,username:actor.username,csrfToken:csrfFor(actor.token)});}
     if(route==='/accounts') return json(await records.listAccounts(actor.scope));
@@ -85,8 +87,9 @@ async function protectedRead(db,request,route,query,initialRevision) {
     throw fail(404,'NOT_FOUND','接口不存在');
   },initialRevision);
   // Informational usage metadata only. It changes no permission or business fact.
-  const bearer=/^Bearer (hdy_[a-f0-9]{64})$/.exec(request.headers.get('authorization')||'');
-  if(bearer) await statement(db,'UPDATE api_keys SET last_used_at=? WHERE token_hash=? AND revoked_at IS NULL',now(),digest(bearer[1])).run();
+  const usedAt=now(),cutoff=new Date(Date.parse(usedAt)-300000).toISOString();
+  if(readActor.kind==='key'&&(readActor.lastUsedAt===null||Date.parse(readActor.lastUsedAt)<Date.parse(cutoff)))
+    await statement(db,'UPDATE api_keys SET last_used_at=? WHERE id=? AND token_hash=? AND revoked_at IS NULL AND (last_used_at IS NULL OR last_used_at<?)',usedAt,readActor.id,readActor.tokenHash,cutoff).run();
   return response;
 }
 

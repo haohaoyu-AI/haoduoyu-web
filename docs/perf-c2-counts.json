@@ -1,0 +1,142 @@
+{
+  "baseline": "ed9458154675ada68cd54a56ed362062f92d0ca1",
+  "environment": "Local Node 24 / Miniflare 4.20260730; synthetic account and key; no production data",
+  "before": [
+    {
+      "case": "first",
+      "sql": 5,
+      "control": 2,
+      "write_statements": 1,
+      "business_control_writes": 0,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 1,
+      "timestamp_matches_expected": true
+    },
+    {
+      "case": "recent",
+      "sql": 5,
+      "control": 2,
+      "write_statements": 1,
+      "business_control_writes": 0,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 1,
+      "timestamp_matches_expected": false
+    },
+    {
+      "case": "exact-five-minutes",
+      "sql": 5,
+      "control": 2,
+      "write_statements": 1,
+      "business_control_writes": 0,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 1,
+      "timestamp_matches_expected": false
+    },
+    {
+      "case": "over-five-minutes",
+      "sql": 5,
+      "control": 2,
+      "write_statements": 1,
+      "business_control_writes": 0,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 1,
+      "timestamp_matches_expected": true
+    },
+    {
+      "case": "future",
+      "sql": 5,
+      "control": 2,
+      "write_statements": 1,
+      "business_control_writes": 0,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 1,
+      "timestamp_matches_expected": false
+    }
+  ],
+  "after": [
+    {
+      "case": "first",
+      "sql": 5,
+      "control": 2,
+      "write_statements": 1,
+      "business_control_writes": 0,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 1,
+      "timestamp_matches_expected": true
+    },
+    {
+      "case": "recent",
+      "sql": 4,
+      "control": 2,
+      "write_statements": 0,
+      "business_control_writes": 0,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0,
+      "timestamp_matches_expected": true
+    },
+    {
+      "case": "exact-five-minutes",
+      "sql": 4,
+      "control": 2,
+      "write_statements": 0,
+      "business_control_writes": 0,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0,
+      "timestamp_matches_expected": true
+    },
+    {
+      "case": "over-five-minutes",
+      "sql": 5,
+      "control": 2,
+      "write_statements": 1,
+      "business_control_writes": 0,
+      "metadata_writes": 1,
+      "matched_changes": 1,
+      "d1_rows_written": 1,
+      "value_changed_rows": 1,
+      "timestamp_matches_expected": true
+    },
+    {
+      "case": "future",
+      "sql": 4,
+      "control": 2,
+      "write_statements": 0,
+      "business_control_writes": 0,
+      "metadata_writes": 0,
+      "matched_changes": 0,
+      "d1_rows_written": 0,
+      "value_changed_rows": 0,
+      "timestamp_matches_expected": true
+    }
+  ],
+  "concurrent_overdue": {
+    "requests": 2,
+    "before": {
+      "metadata_statements": 2,
+      "matched_changes": 2,
+      "d1_rows_written": 2
+    },
+    "after": {
+      "metadata_statements": 2,
+      "matched_changes": 1,
+      "d1_rows_written": 1
+    },
+    "note": "Overlapping per-request value snapshots cannot be summed; final stored time equals the shared request time."
+  }
+}
