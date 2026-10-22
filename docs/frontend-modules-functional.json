@@ -1,0 +1,858 @@
+{
+  "status": "complete",
+  "synthetic": true,
+  "baseline_commit": "168f236b05abd12ad1a937a5f506d9d8f9234ece",
+  "source_commit": "09a18b9636b18af1c461a963ac3e8ef38b6fcb01",
+  "candidate_app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1",
+  "browser_tool_sha256": "68afeb9b7b673d9f125f646cb895bff765b2082cd288fce092dbdb2d774bb528",
+  "server_tool_sha256": "e7fef2e2791e4252ad71fa26870a3ca7a28f0ceebd7549105569084b3caff9ae",
+  "candidate_worker_sha256": "38035f43f7aeb072e90586ff92705625a8ece84009324d6be80a73a45e8d796e",
+  "clock": "2026-10-22T08:00:00.000Z",
+  "widths": [
+    375,
+    390,
+    768,
+    1440
+  ],
+  "captures": [],
+  "checks": [
+    {
+      "variant": "baseline",
+      "name": "data-index-request-reuse",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "actions-and-route-roundtrips",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "keyboard-real-login-filter-detail-review-close",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "CSV-download",
+      "passed": true,
+      "bytes": 6310,
+      "rows": 26,
+      "sha256": "34d7c43d12b131367b663fb1b3f10e18078302fbafdd0d76540f038d34650013"
+    },
+    {
+      "variant": "baseline",
+      "name": "saved-view-docs-original-safeURL",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "coarse-touch-menu-filter-detail-review",
+      "passed": true,
+      "actions": [
+        "article-detail",
+        "article-filter",
+        "close-modal",
+        "list-next",
+        "list-prev",
+        "logout",
+        "menu",
+        "missing-list",
+        "new-article",
+        "new-review",
+        "overview-period",
+        "page-menu",
+        "record-detail",
+        "refresh",
+        "reset-filters",
+        "review-article",
+        "review-tab",
+        "save-view",
+        "select-account",
+        "show-due",
+        "sort-column",
+        "toggle-attention"
+      ]
+    },
+    {
+      "variant": "baseline",
+      "name": "form-article-new",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "form-snapshot",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "form-daily",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "form-account-new",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "form-key",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "form-revoke",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "form-article-edit-real409",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "form-account-edit",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "password-mismatch-change-real-relogin",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "all-26-actions-and-11-form-flows",
+      "passed": true,
+      "actions": 26
+    },
+    {
+      "variant": "candidate",
+      "name": "data-index-request-reuse",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "actions-and-route-roundtrips",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "keyboard-real-login-filter-detail-review-close",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "CSV-download",
+      "passed": true,
+      "bytes": 6310,
+      "rows": 26,
+      "sha256": "34d7c43d12b131367b663fb1b3f10e18078302fbafdd0d76540f038d34650013"
+    },
+    {
+      "variant": "candidate",
+      "name": "saved-view-docs-original-safeURL",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "coarse-touch-menu-filter-detail-review",
+      "passed": true,
+      "actions": [
+        "article-detail",
+        "article-filter",
+        "close-modal",
+        "list-next",
+        "list-prev",
+        "logout",
+        "menu",
+        "missing-list",
+        "new-article",
+        "new-review",
+        "overview-period",
+        "page-menu",
+        "record-detail",
+        "refresh",
+        "reset-filters",
+        "review-article",
+        "review-tab",
+        "save-view",
+        "select-account",
+        "show-due",
+        "sort-column",
+        "toggle-attention"
+      ]
+    },
+    {
+      "variant": "candidate",
+      "name": "form-article-new",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "form-snapshot",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "form-daily",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "form-account-new",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "form-key",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "form-revoke",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "form-article-edit-real409",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "form-account-edit",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "password-mismatch-change-real-relogin",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "all-26-actions-and-11-form-flows",
+      "passed": true,
+      "actions": 26
+    }
+  ],
+  "forms": [
+    {
+      "variant": "baseline",
+      "form": "login",
+      "failure_status": 401,
+      "success_status": 200
+    },
+    {
+      "variant": "baseline",
+      "form": "saved-view",
+      "failure": "blank name",
+      "success": true
+    },
+    {
+      "variant": "baseline",
+      "form": "article-new",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "baseline",
+      "form": "snapshot",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "baseline",
+      "form": "daily",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "baseline",
+      "form": "account-new",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "baseline",
+      "form": "key",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "baseline",
+      "form": "revoke",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 200
+    },
+    {
+      "variant": "baseline",
+      "form": "article-edit",
+      "failure": "real local409",
+      "input_retained": true,
+      "success": true
+    },
+    {
+      "variant": "baseline",
+      "form": "account-edit",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 200
+    },
+    {
+      "variant": "baseline",
+      "form": "password",
+      "failure": "confirmation mismatch",
+      "success_status": 200,
+      "real_relogin": true
+    },
+    {
+      "variant": "candidate",
+      "form": "login",
+      "failure_status": 401,
+      "success_status": 200
+    },
+    {
+      "variant": "candidate",
+      "form": "saved-view",
+      "failure": "blank name",
+      "success": true
+    },
+    {
+      "variant": "candidate",
+      "form": "article-new",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "candidate",
+      "form": "snapshot",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "candidate",
+      "form": "daily",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "candidate",
+      "form": "account-new",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "candidate",
+      "form": "key",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 201
+    },
+    {
+      "variant": "candidate",
+      "form": "revoke",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 200
+    },
+    {
+      "variant": "candidate",
+      "form": "article-edit",
+      "failure": "real local409",
+      "input_retained": true,
+      "success": true
+    },
+    {
+      "variant": "candidate",
+      "form": "account-edit",
+      "failure": "injected offline",
+      "input_retained": true,
+      "success_status": 200
+    },
+    {
+      "variant": "candidate",
+      "form": "password",
+      "failure": "confirmation mismatch",
+      "success_status": 200,
+      "real_relogin": true
+    }
+  ],
+  "network": [
+    {
+      "variant": "baseline",
+      "phase": "data-first",
+      "requests": [
+        {
+          "seq": 815,
+          "variant": "baseline",
+          "path": "/api/v1/auth/me",
+          "method": "GET",
+          "status": 200,
+          "bytes": 162,
+          "d1": {
+            "sql": 3,
+            "write_statements": 0,
+            "rows_read": 4,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 817,
+          "variant": "baseline",
+          "path": "/api/v1/accounts",
+          "method": "GET",
+          "status": 200,
+          "bytes": 400,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 10,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 818,
+          "variant": "baseline",
+          "path": "/api/v1/articles?fields=index",
+          "method": "GET",
+          "status": 200,
+          "bytes": 4147,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 79,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 819,
+          "variant": "baseline",
+          "path": "/api/v1/observations?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 4734,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 52,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 820,
+          "variant": "baseline",
+          "path": "/api/v1/due-reviews",
+          "method": "GET",
+          "status": 200,
+          "bytes": 7678,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 86,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 5,
+      "bytes": 17121
+    },
+    {
+      "variant": "baseline",
+      "phase": "modal-first",
+      "requests": [],
+      "count": 0,
+      "bytes": 0
+    },
+    {
+      "variant": "baseline",
+      "phase": "modal-repeat",
+      "requests": [],
+      "count": 0,
+      "bytes": 0
+    },
+    {
+      "variant": "candidate",
+      "phase": "data-first",
+      "requests": [
+        {
+          "seq": 468,
+          "variant": "candidate",
+          "path": "/api/v1/auth/me",
+          "method": "GET",
+          "status": 200,
+          "bytes": 162,
+          "d1": {
+            "sql": 3,
+            "write_statements": 0,
+            "rows_read": 4,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 470,
+          "variant": "candidate",
+          "path": "/api/v1/accounts",
+          "method": "GET",
+          "status": 200,
+          "bytes": 400,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 10,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 471,
+          "variant": "candidate",
+          "path": "/api/v1/articles?fields=index",
+          "method": "GET",
+          "status": 200,
+          "bytes": 4147,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 79,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 472,
+          "variant": "candidate",
+          "path": "/api/v1/observations?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 4734,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 52,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 473,
+          "variant": "candidate",
+          "path": "/api/v1/due-reviews",
+          "method": "GET",
+          "status": 200,
+          "bytes": 7678,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 86,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 5,
+      "bytes": 17121
+    },
+    {
+      "variant": "candidate",
+      "phase": "modal-first",
+      "requests": [],
+      "count": 0,
+      "bytes": 0
+    },
+    {
+      "variant": "candidate",
+      "phase": "modal-repeat",
+      "requests": [],
+      "count": 0,
+      "bytes": 0
+    }
+  ],
+  "diagnostics": [
+    {
+      "variant": "baseline",
+      "stage": "startup",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "baseline",
+      "stage": "intentional-wrong-password",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:article-new",
+      "kind": "requestfailed",
+      "text": "/api/v1/articles: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:article-new",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:snapshot",
+      "kind": "requestfailed",
+      "text": "/api/v1/observations: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:snapshot",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:daily",
+      "kind": "requestfailed",
+      "text": "/api/v1/daily-metrics: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:daily",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:account-new",
+      "kind": "requestfailed",
+      "text": "/api/v1/accounts: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:account-new",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:key",
+      "kind": "requestfailed",
+      "text": "/api/v1/api-keys: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:key",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:revoke",
+      "kind": "requestfailed",
+      "text": "/api/v1/api-keys/059f992c-d39d-4445-9f8d-fa07497e5ceb: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:revoke",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-conflict:article-edit",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:account-edit",
+      "kind": "requestfailed",
+      "text": "/api/v1/accounts/zhihu-haoduoyu: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "injected-offline:account-edit",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "baseline",
+      "stage": "normal-password-validation",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "candidate",
+      "stage": "startup",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "candidate",
+      "stage": "intentional-wrong-password",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:article-new",
+      "kind": "requestfailed",
+      "text": "/api/v1/articles: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:article-new",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:snapshot",
+      "kind": "requestfailed",
+      "text": "/api/v1/observations: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:snapshot",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:daily",
+      "kind": "requestfailed",
+      "text": "/api/v1/daily-metrics: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:daily",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:account-new",
+      "kind": "requestfailed",
+      "text": "/api/v1/accounts: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:account-new",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:key",
+      "kind": "requestfailed",
+      "text": "/api/v1/api-keys: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:key",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:revoke",
+      "kind": "requestfailed",
+      "text": "/api/v1/api-keys/f957802a-8239-4281-8aed-067f9eba2a97: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:revoke",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-conflict:article-edit",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:account-edit",
+      "kind": "requestfailed",
+      "text": "/api/v1/accounts/zhihu-haoduoyu: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "injected-offline:account-edit",
+      "kind": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "variant": "candidate",
+      "stage": "normal-password-validation",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+  ],
+  "actions": {
+    "baseline": [
+      "article-detail",
+      "article-filter",
+      "article-menu",
+      "close-modal",
+      "copy-token",
+      "edit-account",
+      "edit-article",
+      "list-next",
+      "list-prev",
+      "logout",
+      "menu",
+      "missing-list",
+      "new-account",
+      "new-article",
+      "new-key",
+      "new-review",
+      "overview-period",
+      "page-menu",
+      "record-detail",
+      "refresh",
+      "reset-filters",
+      "review-article",
+      "review-tab",
+      "revoke-key",
+      "save-view",
+      "select-account",
+      "show-due",
+      "sort-column",
+      "toggle-attention"
+    ],
+    "candidate": [
+      "article-detail",
+      "article-filter",
+      "article-menu",
+      "close-modal",
+      "copy-token",
+      "edit-account",
+      "edit-article",
+      "list-next",
+      "list-prev",
+      "logout",
+      "menu",
+      "missing-list",
+      "new-account",
+      "new-article",
+      "new-key",
+      "new-review",
+      "overview-period",
+      "page-menu",
+      "record-detail",
+      "refresh",
+      "reset-filters",
+      "review-article",
+      "review-tab",
+      "revoke-key",
+      "save-view",
+      "select-account",
+      "show-due",
+      "sort-column",
+      "toggle-attention"
+    ]
+  },
+  "mismatches": [],
+  "browser_version": "154.0.8037.57"
+}

@@ -31,7 +31,7 @@ TRACE = """document.addEventListener('click',event=>{
     rows.push(target.dataset.action);localStorage.setItem('synthetic-actions',JSON.stringify(rows));
   }},true);"""
 parser = argparse.ArgumentParser()
-parser.add_argument('--part', choices=['all', 'visual', 'functional'], default='all')
+parser.add_argument('--part', choices=['all', 'visual', 'visual-repeat', 'functional'], default='all')
 parser.add_argument('--variant', choices=['both', 'baseline', 'candidate'], default='both')
 args = parser.parse_args()
 OUT = ROOT / 'artifacts/frontend-modules' / args.part
@@ -43,6 +43,8 @@ assert USERNAME.startswith('synthetic-')
 report = {'status': 'running', 'synthetic': True, 'baseline_commit': BASELINE,
     'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
     'candidate_app_sha256': hashlib.sha256((ROOT / 'public/app.js').read_bytes()).hexdigest(),
+    'browser_tool_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    'server_tool_sha256': hashlib.sha256((ROOT / 'tests/frontend-modules-browser-server.mjs').read_bytes()).hexdigest(),
     'candidate_worker_sha256': hashlib.sha256((ROOT / 'dist/server/index.js').read_bytes()).hexdigest(),
     'clock': '2026-10-22T08:00:00.000Z', 'widths': WIDTHS, 'captures': [], 'checks': [],
     'forms': [], 'network': [], 'diagnostics': [], 'actions': {}, 'mismatches': []}
@@ -124,6 +126,8 @@ class Run:
 
     def capture(self, name, width):
         page = self.page
+        page.evaluate('document.fonts.ready')
+        page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
         assert page.locator('input[type=password]').evaluate_all('rows=>rows.every(row=>!row.value)')
         assert page.locator('#created-token').count() == 0
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
@@ -200,6 +204,36 @@ class Run:
             self.close()
             self.checkpoint('four-width-shots-' + str(width))
         self.page.set_viewport_size({'width': 1440, 'height': 900})
+
+    def visual_repeat(self):
+        original_path = ROOT / 'artifacts/frontend-modules/visual/report-both.json'
+        original = json.loads(original_path.read_text())
+        assert original['candidate_app_sha256'] == report['candidate_app_sha256']
+        report['original_visual_manifest_sha256'] = hashlib.sha256(original_path.read_bytes()).hexdigest()
+        cases = original['mismatches']
+        self.stage = 'visual-login'
+        self.page.goto(self.origin + '/?page=articles')
+        self.page.locator('#login-form').wait_for()
+        for row in cases:
+            if row['view'] != 'login':
+                continue
+            self.page.set_viewport_size({'width': row['width'], 'height': 900})
+            for repeat in range(2):
+                self.capture(row['view'] + '-repeat' + str(repeat), row['width'])
+        self.page.set_viewport_size({'width': 1440, 'height': 900})
+        self.login()
+        for row in cases:
+            if not row['view'].startswith('form-'):
+                continue
+            width = row['width']
+            self.stage = 'visual-repeat-' + str(width)
+            self.page.set_viewport_size({'width': width, 'height': 900})
+            self.open_form(row['view'].removeprefix('form-'))
+            self.focus_cycle()
+            for repeat in range(2):
+                self.capture(row['view'] + '-repeat' + str(repeat), width)
+            self.close()
+            self.checkpoint('border-repeat-' + row['view'] + '-' + str(width))
 
     def receipts(self):
         return self.page.request.get(self.origin + '/__synthetic-metrics').json()
@@ -485,7 +519,7 @@ class Run:
         self.go('page=articles', page)
         assert page.evaluate('matchMedia("(pointer:coarse)").matches')
         page.locator('.mobile-bar [data-action=menu]').click()
-        expect(page.locator('#sidebar')).to_be_visible()
+        expect(page.locator('#site-nav')).to_be_visible()
         page.locator('[data-nav=reviews]').click()
         self.ready(page)
         page.locator('.mobile-bar [data-action=menu]').click()
@@ -552,14 +586,17 @@ try:
         for variant, port in variants:
             if args.variant != 'both' and args.variant != variant:
                 continue
+            report['browser_version'] = browser.version
             run = Run(browser, variant, port)
             if args.part in ['all', 'visual']:
                 run.visual()
+            if args.part == 'visual-repeat':
+                run.visual_repeat()
             if args.part in ['all', 'functional']:
                 run.functional()
             run.context.close()
         browser.close()
-    if args.variant == 'both' and args.part in ['all', 'visual']:
+    if args.variant == 'both' and args.part in ['all', 'visual', 'visual-repeat']:
         pairs = {(row['view'], row['width']) for row in report['captures']}
         for view, width in sorted(pairs):
             rows = [row for row in report['captures'] if row['view'] == view and row['width'] == width]
