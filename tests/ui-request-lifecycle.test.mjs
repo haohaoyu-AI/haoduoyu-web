@@ -11,7 +11,7 @@ function client(fetch) {
   });
   const document = {querySelector: s => nodes.get(s) || null, querySelectorAll: () => [],
     addEventListener() {}, body: {style: {}}, activeElement: null};
-  const context = vm.createContext({fetch, Response, Headers, AbortController, AbortSignal, DOMException,
+  const context = vm.createContext({AbortController, AbortSignal, DOMException, Headers,fetch, Response, Headers, AbortController, AbortSignal, DOMException,
     URL, URLSearchParams, Intl, setTimeout, clearTimeout, document,
     window: {addEventListener() {}}, location: {href: 'http://localhost/', search: ''},
     localStorage: {getItem() {}, setItem() {}}, requestAnimationFrame() {}});
@@ -95,4 +95,35 @@ test('non-abort failures still reject and POST mutations are neither merged nor 
   const write = c.run("api('/articles',{method:'POST',body:{title:'Synthetic'}})");
   c.run("state.page='settings';state.settingsTab='security'");await c.run('renderPage()');
   finish();assert.equal((await write).saved, true);assert.equal(writes, 1);
+});
+test('page, dialog and background consumers have independent cancellation ownership', async () => {
+  const d = delayed(), c = client(d.fetch);
+  c.run('let pageScope=beginPageRequests(),dialogScope=beginModalRequests()');
+  const page = c.run("api('/accounts',{context:pageScope})").then(() => null, error => error);
+  const dialog = c.run("api('/accounts',{context:dialogScope})");
+  const background = c.run("api('/accounts')");
+  c.run('beginPageRequests()');
+  assert.equal((await page).name, 'AbortError');assert.equal(d.calls.length, 3);
+  assert.equal(d.calls[0].options.signal.aborted, true);
+  assert.equal(d.calls[1].options.signal.aborted, false);assert.equal(d.calls[2].options.signal.aborted, false);
+  d.finish([{name:'Synthetic independent reads'}]);
+  assert.equal((await dialog)[0].name, 'Synthetic independent reads');await background;
+});
+test('identical concurrent writes remain two transports and survive page cancellation', async () => {
+  const d = delayed(), c = client(d.fetch);
+  const a = c.run("api('/articles',{method:'POST',body:{title:'Synthetic same'}})");
+  const b = c.run("api('/articles',{method:'POST',body:{title:'Synthetic same'}})");
+  c.run('beginPageRequests();beginPageRequests()');
+  assert.equal(d.calls.length, 2);assert.equal(d.calls.every(row=>!row.options.signal), true);
+  d.finish({saved:true});assert.equal((await a).saved,true);assert.equal((await b).saved,true);
+});
+test('an aborted page index cannot delete or refill the next page index entry', async () => {
+  const d = delayed(), c = client(d.fetch);
+  c.run('let firstScope=beginPageRequests()');
+  const old = c.run("articleIndex('',firstScope)").then(() => null,error => error);
+  c.run('let nextScope=beginPageRequests()');const next=c.run("articleIndex('',nextScope)");
+  d.pending[1].resolve(ok([{id:'fresh',title:'Synthetic fresh'}]));
+  assert.equal((await next)[0].id,'fresh');assert.equal((await old).name,'AbortError');
+  assert.equal(c.run('articleIndexes.size'),1);
+  assert.equal((await c.run("articleIndex('',nextScope)"))[0].id,'fresh');assert.equal(d.calls.length,2);
 });

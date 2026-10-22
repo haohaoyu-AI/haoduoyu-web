@@ -1,3 +1,4 @@
+import {isRequestAbort, cancelModalRequests} from './core/requests.mjs';
 import { applyArticleFilters, init, navigate, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
 import { api } from "./core/api.mjs";
 import { defaultColumns, defaultFilters, metrics, settingsTabs } from "./core/constants.mjs";
@@ -83,6 +84,7 @@ function registerEvents() {
           }
           break;
         case "article-filter": {
+          cancelModalRequests();
           runtime.modalRequestVersion++;
           if (runtime.searchTimer) {
             clearTimeout(runtime.searchTimer);
@@ -256,7 +258,7 @@ function registerEvents() {
           break;
       }
     } catch (err) {
-      if (!err.staleSession) toast(err.message, true);
+      if (!err.staleSession && !isRequestAbort(err)) toast(err.message, true);
     }
   });
   document.addEventListener("change", (event) => {
@@ -465,7 +467,7 @@ function registerEvents() {
           break;
       }
     } catch (err) {
-      if (err.staleSession) return;
+      if (err.staleSession || isRequestAbort(err)) return;
       if (message && message.isConnected) message.textContent = err.code === "VERSION_CONFLICT" ? "这条记录已被其他人或 AI 更新。请关闭后重新打开，核对最新内容再保存。" : err.message;
       else toast(err.message, true);
     } finally {

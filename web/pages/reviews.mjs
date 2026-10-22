@@ -1,3 +1,4 @@
+import {beginModalRequests} from '../core/requests.mjs';
 import { api } from "../core/api.mjs";
 import { articleIndex } from "../core/article-index.mjs";
 import { kindLabels, metrics } from "../core/constants.mjs";
@@ -8,11 +9,11 @@ import { runtime, state } from "../core/state.mjs";
 import { accountFilter, accountOptions, empty, field, formEnd } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
 import { platformFilter, segmented } from "../ui/segmented.mjs";
-async function renderReviews(version = runtime.renderVersion) {
+async function renderReviews(version = runtime.renderVersion, context) {
   const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
-  const [articles, rows, dueRows] = await Promise.all([articleIndex(query), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`), api(`/due-reviews${query ? "?" + query : ""}`)]);
+  const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, {context}), api(`/due-reviews${query ? "?" + query : ""}`, {context})]);
   if (version !== runtime.renderVersion) return "";
-  if (generation !== runtime.articleIndexGeneration) return renderReviews(version);
+  if (generation !== runtime.articleIndexGeneration) return renderReviews(version, context);
   state.reviewArticles = articles;
   const account = (r) => r.account_id || articles.find((a) => a.id === r.article_id)?.account_id, records = rows.filter((r) => matches(account(r))), due = dueRows.filter((r) => matches(r.account_id));
   state.reviewRecords = records;
@@ -25,11 +26,12 @@ async function renderReviews(version = runtime.renderVersion) {
   }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" : "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
 }
 async function reviewModal(articleId = "", kind = "latest", indexRetry = false) {
+  const context = beginModalRequests();
   const ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion, generation = runtime.articleIndexGeneration;
   const directArticle = Boolean(articleId);
   let articles;
   try {
-    articles = await articleIndex();
+    articles = await articleIndex("", context);
   } catch (err) {
     if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
     throw err;

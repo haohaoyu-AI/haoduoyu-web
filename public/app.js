@@ -21,6 +21,111 @@ var defaultColumns = ["reads", "likes", "comments", "as_of"];
 var state = { me: null, savedViews: [], accounts: [], page: "dashboard", settingsTab: "accounts", account: "", overviewPeriod: "yesterday", trendOpen: false, attentionExpanded: false, reviewTab: "observations", reviewArticles: [], articles: [], columns: new Set(defaultColumns), filters: defaultFilters(), listPage: 1, pageSize: 20, topN: 5, topPlatform: "", trendMetric: "reads" };
 var runtime = { renderVersion: 0, lastFocus: null, searchTimer: null, activePopover: null, popoverId: 0, modalRequestVersion: 0, menuFocus: null, entryObserver: null, entryBlocks: [], articleIndexGeneration: 0, sessionEpoch: 0 };
 
+// web/core/requests.mjs
+var pageContext = null, modalContext = null, backgroundContext = null, backgroundKey = "";
+var contextId = 0;
+function requestAbort() {
+  return new DOMException("请求已取消", "AbortError");
+}
+function isRequestAbort(error) {
+  return error?.name === "AbortError";
+}
+function requestContext(kind) {
+  return { id: ++contextId, kind, controller: new AbortController(), pending: /* @__PURE__ */ new Map() };
+}
+function cancelPageRequests() {
+  pageContext?.controller.abort();
+  pageContext = null;
+}
+function beginPageRequests() {
+  cancelPageRequests();
+  pageContext = requestContext("page");
+  return pageContext;
+}
+function cancelModalRequests() {
+  modalContext?.controller.abort();
+  modalContext = null;
+}
+function beginModalRequests() {
+  cancelModalRequests();
+  modalContext = requestContext("modal");
+  return modalContext;
+}
+function backgroundRequests() {
+  const key = [runtime.renderVersion, runtime.sessionEpoch, runtime.articleIndexGeneration].join(":");
+  if (!backgroundContext || key !== backgroundKey) {
+    backgroundKey = key;
+    backgroundContext = requestContext("background");
+  }
+  return backgroundContext;
+}
+function assertRequestActive(context, signal) {
+  if (context.controller.signal.aborted || signal?.aborted) throw requestAbort();
+}
+function requestKey(path, options, envelope) {
+  const settings = {};
+  for (const key of Object.keys(options).sort()) {
+    if (key === "signal") continue;
+    const value = options[key];
+    if (key === "headers") settings.headers = [...new Headers(value)].sort(([a], [b]) => a.localeCompare(b));
+    else if (value == null || ["string", "number", "boolean", "undefined"].includes(typeof value)) settings[key] = value;
+    else return null;
+  }
+  return JSON.stringify([runtime.sessionEpoch, runtime.articleIndexGeneration, state.me, path, envelope, settings]);
+}
+function forgetRequest(entry) {
+  if (entry.context.pending.get(entry.key) === entry) entry.context.pending.delete(entry.key);
+}
+function settleRequest(entry, error, value) {
+  entry.done = true;
+  forgetRequest(entry);
+  for (const consumer of entry.consumers) {
+    consumer.cleanup();
+    if (error) consumer.reject(error);
+    else consumer.resolve(value);
+  }
+  entry.consumers.clear();
+}
+function subscribeRequest(entry, signal) {
+  return new Promise((resolve, reject) => {
+    const contextSignal = entry.context.controller.signal;
+    const consumer = { resolve, reject, cleanup() {
+      contextSignal.removeEventListener("abort", abort);
+      signal?.removeEventListener("abort", abort);
+    } };
+    function abort() {
+      if (!entry.consumers.delete(consumer)) return;
+      consumer.cleanup();
+      reject(requestAbort());
+      if (!entry.done && !entry.consumers.size) {
+        forgetRequest(entry);
+        entry.controller.abort();
+      }
+    }
+    entry.consumers.add(consumer);
+    contextSignal.addEventListener("abort", abort, { once: true });
+    signal?.addEventListener("abort", abort, { once: true });
+    if (contextSignal.aborted || signal?.aborted) abort();
+  });
+}
+function pendingGet(path, options, envelope, context, factory) {
+  assertRequestActive(context, options.signal);
+  const key = requestKey(path, options, envelope) ?? /* @__PURE__ */ Symbol("unshared request");
+  let entry = context.pending.get(key);
+  if (!entry) {
+    entry = { key, context, controller: new AbortController(), consumers: /* @__PURE__ */ new Set(), done: false };
+    context.pending.set(key, entry);
+    let pending;
+    try {
+      pending = factory(entry.controller.signal);
+    } catch (error) {
+      pending = Promise.reject(error);
+    }
+    Promise.resolve(pending).then((value) => settleRequest(entry, null, value), (error) => settleRequest(entry, error));
+  }
+  return subscribeRequest(entry, options.signal);
+}
+
 // web/core/session-index-state.mjs
 var articleIndexes = /* @__PURE__ */ new Map();
 function clearArticleIndexes() {
@@ -29,6 +134,7 @@ function clearArticleIndexes() {
   state.reviewArticles = [];
 }
 function resetSessionIndexes() {
+  cancelPageRequests();
   runtime.sessionEpoch++;
   clearArticleIndexes();
 }
@@ -151,6 +257,7 @@ function renderLogin() {
 
 // web/ui/modal.mjs
 function openModal(title, body, { drawer = false, context = "" } = {}) {
+  cancelModalRequests();
   closePopover();
   runtime.modalRequestVersion++;
   if (!$("#overlay").contains(document.activeElement)) runtime.lastFocus = document.activeElement;
@@ -162,6 +269,7 @@ function openModal(title, body, { drawer = false, context = "" } = {}) {
   });
 }
 function closeModal() {
+  cancelModalRequests();
   closePopover({ restoreFocus: false });
   runtime.modalRequestVersion++;
   if (!$("#overlay")) return;
@@ -172,45 +280,72 @@ function closeModal() {
 }
 
 // web/core/api.mjs
-async function api(path, options = {}) {
-  const requestSessionEpoch = runtime.sessionEpoch, requestIdentity = state.me?.id ?? null;
-  const { envelope = false, ...requestOptions } = options;
-  const opts = { credentials: "same-origin", ...requestOptions, headers: { Accept: "application/json", ...options.headers || {} } };
+function apiOptions(options) {
+  const opts = { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...options.headers || {} } };
   if (opts.body !== void 0) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(opts.body);
   }
-  if (opts.method && !["GET", "HEAD"].includes(opts.method) && state.me?.csrfToken) opts.headers["X-CSRF-Token"] = state.me.csrfToken;
+  if (opts.method && !["GET", "HEAD"].includes(opts.method) && state.me?.csrfToken) {
+    opts.headers["X-CSRF-Token"] = state.me.csrfToken;
+  }
+  return opts;
+}
+async function apiTransport(path, opts) {
   let response;
   try {
     response = await fetch(`/api/v1${path}`, opts);
-  } catch {
+  } catch (error) {
+    if (isRequestAbort(error)) throw error;
     throw new Error("暂时无法连接网站，请检查网络后重试。");
   }
   if (response.ok && !["GET", "HEAD"].includes((opts.method || "GET").toUpperCase())) {
     if (["/auth/login", "/auth/logout", "/auth/password"].includes(path)) resetSessionIndexes();
     else clearArticleIndexes();
   }
+  let text;
+  try {
+    text = await response.text();
+  } catch (error) {
+    if (isRequestAbort(error)) throw error;
+    throw new Error("服务暂时不可用，请稍后重试。");
+  }
+  return { ok: response.ok, status: response.status, text };
+}
+function apiFailure(path, response, payload, epoch, identity) {
+  const current = epoch === runtime.sessionEpoch && identity === (state.me?.id ?? null);
+  if (response.status === 401 && path !== "/auth/login" && current) {
+    state.me = null;
+    closeModal();
+    renderLogin();
+  }
+  const message = payload.error?.message || (response.status === 409 ? "记录已更新，请刷新后重新编辑。" : "操作失败，请稍后重试。");
+  const error = new Error(message);
+  error.status = response.status;
+  error.code = payload.error?.code;
+  if (response.status === 401 && !current) error.staleSession = true;
+  return error;
+}
+async function api(path, options = {}) {
+  const epoch = runtime.sessionEpoch, identity = state.me?.id ?? null;
+  const { envelope = false, context, ...requestOptions } = options;
+  const opts = apiOptions(requestOptions), method = (opts.method || "GET").toUpperCase();
+  const scope = method === "GET" ? context || backgroundRequests() : null;
+  const response = scope ? await pendingGet(
+    path,
+    opts,
+    envelope,
+    scope,
+    (signal) => apiTransport(path, { ...opts, signal })
+  ) : await apiTransport(path, opts);
+  if (scope) assertRequestActive(scope, opts.signal);
   let payload;
   try {
-    payload = await response.json();
+    payload = JSON.parse(response.text);
   } catch {
     throw new Error("服务暂时不可用，请稍后重试。");
   }
-  const currentSession = requestSessionEpoch === runtime.sessionEpoch && requestIdentity === (state.me?.id ?? null);
-  if (!response.ok) {
-    if (response.status === 401 && path !== "/auth/login" && currentSession) {
-      state.me = null;
-      closeModal();
-      renderLogin();
-    }
-    ;
-    const err = new Error(payload.error?.message || (response.status === 409 ? "记录已更新，请刷新后重新编辑。" : "操作失败，请稍后重试。"));
-    err.status = response.status;
-    err.code = payload.error?.code;
-    if (response.status === 401 && !currentSession) err.staleSession = true;
-    throw err;
-  }
+  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity);
   return envelope ? payload : payload.data;
 }
 
@@ -328,9 +463,9 @@ function readRoute() {
 }
 
 // web/core/modal-request.mjs
-async function modalRequest(path, ticket, version) {
+async function modalRequest(path, ticket, version, context) {
   try {
-    return await api(path);
+    return await api(path, { context });
   } catch (err) {
     if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return null;
     throw err;
@@ -438,13 +573,13 @@ function toast(message, error = false) {
 }
 
 // web/pages/articles.mjs
-async function renderArticles(version = runtime.renderVersion) {
+async function renderArticles(version = runtime.renderVersion, context) {
   const f = { ...state.filters }, params = new URLSearchParams();
   if (state.account) params.set("account_id", state.account);
   for (const key of ["q", "mode", "from", "to", "sort", "order", "platform", "topic", "data_status"]) if (f[key]) params.set(key, f[key]);
   params.set("page", state.listPage);
   params.set("page_size", state.pageSize);
-  const payload = await api(`/articles?${params}`, { envelope: true });
+  const payload = await api(`/articles?${params}`, { envelope: true, context });
   if (version !== runtime.renderVersion) return "";
   const articles = payload.data, meta = payload.meta || { total: articles.length, unfiltered_total: articles.length, has_more: false };
   state.articles = articles;
@@ -479,9 +614,10 @@ function articleMenu(a) {
   return `<button role="menuitem" data-action="article-detail" data-id="${e(a.id)}">详情</button>${safeURL(a.url) ? `<a role="menuitem" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}${[["edit-article", "编辑"], ["review-article", "补充数据"]].map(([action, label]) => `<button role="menuitem" data-action="${e(action)}" data-id="${e(a.id)}">${e(label)}</button>`).join("")}`;
 }
 async function articleModal(id = "") {
+  const context = beginModalRequests();
   const ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion;
   let a = { account_id: state.account, production_mode: "unknown" };
-  if (id) a = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version);
+  if (id) a = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version, context);
   if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
   const activeAccounts = state.accounts.filter((x) => x.active || x.id === a.account_id);
   if (!activeAccounts.length) {
@@ -587,15 +723,24 @@ function renderTrend(data) {
 }
 
 // web/core/article-index.mjs
-async function articleIndex(query = "") {
+var indexRequests = /* @__PURE__ */ new WeakMap();
+async function articleIndex(query = "", context) {
   const identity = state.me?.id, generation = runtime.articleIndexGeneration;
   if (!identity) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
+  const scope = context || backgroundRequests();
   const params = new URLSearchParams(Object.entries(Object.fromEntries(new URLSearchParams(query))).sort(([a], [b]) => a.localeCompare(b)));
   params.set("fields", "index");
   const key = identity + ":" + params.toString();
   let pending = articleIndexes.get(key);
+  const owner = pending && indexRequests.get(pending);
+  if (owner && !owner.done && owner.scope !== scope) pending = null;
   if (!pending) {
-    pending = api("/articles?" + params).then((rows2) => Object.freeze(rows2.map((row) => Object.freeze(row))));
+    const entry = { scope, done: false };
+    pending = api("/articles?" + params, { context: scope }).then((rows2) => {
+      entry.done = true;
+      return Object.freeze(rows2.map((row) => Object.freeze(row)));
+    });
+    indexRequests.set(pending, entry);
     articleIndexes.set(key, pending);
     if (articleIndexes.size > 10) articleIndexes.delete(articleIndexes.keys().next().value);
     pending.catch(() => {
@@ -605,17 +750,17 @@ async function articleIndex(query = "") {
   const rows = await pending;
   if (generation !== runtime.articleIndexGeneration || identity !== state.me?.id) {
     if (!state.me || identity !== state.me.id) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
-    return articleIndex(query);
+    return articleIndex(query, context);
   }
   return rows;
 }
 
 // web/pages/reviews.mjs
-async function renderReviews(version = runtime.renderVersion) {
+async function renderReviews(version = runtime.renderVersion, context) {
   const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
-  const [articles, rows, dueRows] = await Promise.all([articleIndex(query), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`), api(`/due-reviews${query ? "?" + query : ""}`)]);
+  const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
   if (version !== runtime.renderVersion) return "";
-  if (generation !== runtime.articleIndexGeneration) return renderReviews(version);
+  if (generation !== runtime.articleIndexGeneration) return renderReviews(version, context);
   state.reviewArticles = articles;
   const account = (r) => r.account_id || articles.find((a) => a.id === r.article_id)?.account_id, records = rows.filter((r) => matches(account(r))), due = dueRows.filter((r) => matches(r.account_id));
   state.reviewRecords = records;
@@ -628,11 +773,12 @@ async function renderReviews(version = runtime.renderVersion) {
   }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" : "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
 }
 async function reviewModal(articleId = "", kind = "latest", indexRetry = false) {
+  const context = beginModalRequests();
   const ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion, generation = runtime.articleIndexGeneration;
   const directArticle = Boolean(articleId);
   let articles;
   try {
-    articles = await articleIndex();
+    articles = await articleIndex("", context);
   } catch (err) {
     if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
     throw err;
@@ -764,6 +910,7 @@ async function renderPage() {
   stopPageEntry();
   closePopover({ restoreFocus: false });
   const version = ++runtime.renderVersion, page = state.page;
+  const context = beginPageRequests();
   const counter = $("#page-count");
   if (counter) counter.hidden = true;
   replacePageContent(skeleton());
@@ -772,25 +919,25 @@ async function renderPage() {
     let html = "", data;
     switch (page) {
       case "dashboard":
-        data = await api(`/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`);
+        data = await api(`/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`, { context });
         if (version !== runtime.renderVersion) return;
         state.dashboard = data;
         html = renderDashboard(data);
         break;
       case "articles":
-        html = await renderArticles(version);
+        html = await renderArticles(version, context);
         break;
       case "reviews":
-        html = await renderReviews(version);
+        html = await renderReviews(version, context);
         break;
       case "settings":
         if (state.settingsTab === "accounts") html = renderAccounts();
         else if (state.settingsTab === "keys") {
-          data = await api("/api-keys");
+          data = await api("/api-keys", { context });
           html = renderKeys(data);
         } else if (state.settingsTab === "security") html = renderSecurity();
         else {
-          const [audit, keys] = await Promise.all([api("/audit"), api("/api-keys")]);
+          const [audit, keys] = await Promise.all([api("/audit", { context }), api("/api-keys", { context })]);
           html = renderAudit(audit, keys);
         }
         break;
@@ -804,7 +951,7 @@ async function renderPage() {
       }
     }
   } catch (err) {
-    if (!err.staleSession && version === runtime.renderVersion && state.me) replacePageContent(`<div class="card error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" data-action="refresh">${icon("refresh")}重新加载</button></div>`);
+    if (!isRequestAbort(err) && !err.staleSession && version === runtime.renderVersion && state.me) replacePageContent(`<div class="card error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" data-action="refresh">${icon("refresh")}重新加载</button></div>`);
   } finally {
     if (version === runtime.renderVersion) $("#page-content")?.setAttribute("aria-busy", "false");
   }
@@ -849,7 +996,7 @@ async function init({ freshLogin = false } = {}) {
     updateRoute();
     renderShell();
   } catch (err) {
-    if (initEpoch !== runtime.sessionEpoch || err.staleSession) return;
+    if (initEpoch !== runtime.sessionEpoch || err.staleSession || isRequestAbort(err)) return;
     if (err.status !== 401) {
       renderLogin();
       toast(err.message, true);
@@ -866,7 +1013,8 @@ function renderArticleAnalytics(a) {
   }).join("")}</ol><h3>快照时间线 ${detailInfo("按截至时间排序；相邻累计快照差值不等同每日新增。节点类型不代表先后。", "时间线口径", "timeline")}</h3>${timeline.length < 2 ? `<p class="insufficient">${timeline.length ? "只有一期数据，暂不显示增长。" : "尚未采集快照。"}</p>` : ""}<ol class="snapshot-timeline">${timeline.map((r) => `<li>${renderSnapshot(r)}${r.changes ? `<div class="snapshot-changes">${["reads", "likes", "comments", "approvals"].filter((key) => metricData(r)[key] != null).map((key) => `<span>${e(metrics[key])}${comparisonHTML(r.changes[key])}${detailInfo(r.changes[key]?.reason || "指标未取得", metrics[key] + "变化说明", r.id + "-" + key)}</span>`).join("")}</div>` : ""}</li>`).join("")}</ol></section>`;
 }
 async function articleDetail(id) {
-  const ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion, a = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version);
+  const context = beginModalRequests();
+  const ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion, a = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version, context);
   if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
   const fields = [["生产方式", modeLabels[a.production_mode] || "未记录"], ["原始发布时间", displayTime(a.published_at)], ["选题时间", displayTime(a.started_at)], ["耗时", duration(a.duration_seconds)], ["录入者", a.recorded_by?.label || "未记录"], ["修改者", `${a.last_modified_by?.label || "未记录"} · ${displayTime(a.last_modified_by?.at)}`], ["录入时间", displayTime(a.created_at)], ["修改时间", displayTime(a.updated_at)]];
   openModal(a.title, `<div class="head-actions">${safeURL(a.url) ? `<a class="btn small" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}<button class="btn small" data-action="edit-article" data-id="${e(a.id)}">编辑</button><button class="btn small primary" data-action="review-article" data-id="${e(a.id)}">+ 补充数据</button></div>${renderArticleAnalytics(a)}<details class="detail-section"><summary>记录信息</summary><dl class="detail-grid">${fields.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl></details>${[["summary", "概况"], ["notes", "备注"]].filter(([key]) => a[key]?.trim()).map(([key, label]) => `<section class="detail-section"><h3>${e(label)}</h3><p>${e(a[key])}</p></section>`).join("")}`, { drawer: true, context: `<div class="account-title">${platformLogo(a.platform)}${e(a.account_name || accountName(a.account_id))} · ${a.date_status === "unverified" ? "日期待核实" : e(displayTime(a.published_at))}</div>` });
@@ -937,6 +1085,7 @@ function registerEvents() {
           }
           break;
         case "article-filter": {
+          cancelModalRequests();
           runtime.modalRequestVersion++;
           if (runtime.searchTimer) {
             clearTimeout(runtime.searchTimer);
@@ -1110,7 +1259,7 @@ function registerEvents() {
           break;
       }
     } catch (err) {
-      if (!err.staleSession) toast(err.message, true);
+      if (!err.staleSession && !isRequestAbort(err)) toast(err.message, true);
     }
   });
   document.addEventListener("change", (event) => {
@@ -1319,7 +1468,7 @@ function registerEvents() {
           break;
       }
     } catch (err) {
-      if (err.staleSession) return;
+      if (err.staleSession || isRequestAbort(err)) return;
       if (message && message.isConnected) message.textContent = err.code === "VERSION_CONFLICT" ? "这条记录已被其他人或 AI 更新。请关闭后重新打开，核对最新内容再保存。" : err.message;
       else toast(err.message, true);
     } finally {

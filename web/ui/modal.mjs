@@ -1,7 +1,9 @@
+import {cancelModalRequests} from '../core/requests.mjs';
 import { $, e, icon } from "../core/dom.mjs";
 import { runtime } from "../core/state.mjs";
 import { closePopover } from "./popover.mjs";
 function openModal(title, body, { drawer = false, context = "" } = {}) {
+  cancelModalRequests();
   closePopover();
   runtime.modalRequestVersion++;
   if (!$("#overlay").contains(document.activeElement)) runtime.lastFocus = document.activeElement;
@@ -13,6 +15,7 @@ function openModal(title, body, { drawer = false, context = "" } = {}) {
   });
 }
 function closeModal() {
+  cancelModalRequests();
   closePopover({ restoreFocus: false });
   runtime.modalRequestVersion++;
   if (!$("#overlay")) return;

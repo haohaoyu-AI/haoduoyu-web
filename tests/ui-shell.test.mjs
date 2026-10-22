@@ -12,7 +12,7 @@ function client(search=''){
  for(const id of ['#app','#overlay','#page-content'])nodes.set(id,node());
  const document={querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>[],addEventListener:(k,f)=>events[k]=f,body:{style:{}},activeElement:null};
  const history={replaceState:(_,__,url)=>{entries[index]=String(url);locate(url)},pushState:(_,__,url)=>{entries.splice(++index);entries[index]=String(url);locate(url)}};
- const ctx=vm.createContext({document,window:{addEventListener:(k,f)=>windowEvents[k]=f,scrollTo(){}},location,history,localStorage:{getItem(){return null},setItem(){}},URL,URLSearchParams,Intl,console,requestAnimationFrame(){},setTimeout,clearTimeout});
+ const ctx=vm.createContext({AbortController, AbortSignal, DOMException, Headers,document,window:{addEventListener:(k,f)=>windowEvents[k]=f,scrollTo(){}},location,history,localStorage:{getItem(){return null},setItem(){}},URL,URLSearchParams,Intl,console,requestAnimationFrame(){},setTimeout,clearTimeout});
  new vm.Script(source).runInContext(ctx);const run=s=>vm.runInContext(s,ctx);
  run("state.accounts=[{id:'a',platform:'zhihu',name:'<账号>',active:true}];state.me={id:'synthetic-ui-user',username:'<用户>'}");
  return {run,nodes,location,events,windowEvents,back(){locate(entries[--index]);windowEvents.popstate()},forward(){locate(entries[++index]);windowEvents.popstate()}};

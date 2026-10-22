@@ -1,3 +1,4 @@
+import {beginPageRequests, isRequestAbort} from './core/requests.mjs';
 import { api } from "./core/api.mjs";
 import { legacyPages, nav, settingsTabs } from "./core/constants.mjs";
 import { $, e, icon } from "./core/dom.mjs";
@@ -42,6 +43,7 @@ async function renderPage() {
   stopPageEntry();
   closePopover({ restoreFocus: false });
   const version = ++runtime.renderVersion, page = state.page;
+  const context = beginPageRequests();
   const counter = $("#page-count");
   if (counter) counter.hidden = true;
   replacePageContent(skeleton());
@@ -50,25 +52,25 @@ async function renderPage() {
     let html = "", data;
     switch (page) {
       case "dashboard":
-        data = await api(`/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`);
+        data = await api(`/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`, {context});
         if (version !== runtime.renderVersion) return;
         state.dashboard = data;
         html = renderDashboard(data);
         break;
       case "articles":
-        html = await renderArticles(version);
+        html = await renderArticles(version, context);
         break;
       case "reviews":
-        html = await renderReviews(version);
+        html = await renderReviews(version, context);
         break;
       case "settings":
         if (state.settingsTab === "accounts") html = renderAccounts();
         else if (state.settingsTab === "keys") {
-          data = await api("/api-keys");
+          data = await api("/api-keys", {context});
           html = renderKeys(data);
         } else if (state.settingsTab === "security") html = renderSecurity();
         else {
-          const [audit, keys] = await Promise.all([api("/audit"), api("/api-keys")]);
+          const [audit, keys] = await Promise.all([api("/audit", {context}), api("/api-keys", {context})]);
           html = renderAudit(audit, keys);
         }
         break;
@@ -82,7 +84,7 @@ async function renderPage() {
       }
     }
   } catch (err) {
-    if (!err.staleSession && version === runtime.renderVersion && state.me) replacePageContent(`<div class="card error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" data-action="refresh">${icon("refresh")}重新加载</button></div>`);
+    if (!isRequestAbort(err) && !err.staleSession && version === runtime.renderVersion && state.me) replacePageContent(`<div class="card error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" data-action="refresh">${icon("refresh")}重新加载</button></div>`);
   } finally {
     if (version === runtime.renderVersion) $("#page-content")?.setAttribute("aria-busy", "false");
   }
@@ -127,7 +129,7 @@ async function init({ freshLogin = false } = {}) {
     updateRoute();
     renderShell();
   } catch (err) {
-    if (initEpoch !== runtime.sessionEpoch || err.staleSession) return;
+    if (initEpoch !== runtime.sessionEpoch || err.staleSession || isRequestAbort(err)) return;
     if (err.status !== 401) {
       renderLogin();
       toast(err.message, true);

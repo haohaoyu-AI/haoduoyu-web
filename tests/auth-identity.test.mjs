@@ -9,7 +9,7 @@ const source = await frontendSource();
 
 function auditHtml(identity, rows) {
   const body = {style: {}};
-  const context = vm.createContext({
+  const context = vm.createContext({AbortController, AbortSignal, DOMException, Headers,
     document: {body, activeElement: body, querySelector() {}, querySelectorAll: () => [], addEventListener() {}},
     window: {addEventListener() {}}, location: {href: 'http://localhost/', search: ''},
     history: {replaceState() {}}, URL, URLSearchParams, Intl,

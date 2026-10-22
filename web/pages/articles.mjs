@@ -1,3 +1,4 @@
+import {beginModalRequests} from '../core/requests.mjs';
 import { api } from "../core/api.mjs";
 import { articleChoices, articleColumns, articleStatuses, defaultFilters, modeLabels, platforms } from "../core/constants.mjs";
 import { e, icon } from "../core/dom.mjs";
@@ -9,13 +10,13 @@ import { openModal } from "../ui/modal.mjs";
 import { platformFilter } from "../ui/segmented.mjs";
 import { sortHeading } from "../ui/table.mjs";
 import { toast } from "../ui/toast.mjs";
-async function renderArticles(version = runtime.renderVersion) {
+async function renderArticles(version = runtime.renderVersion, context) {
   const f = { ...state.filters }, params = new URLSearchParams();
   if (state.account) params.set("account_id", state.account);
   for (const key of ["q", "mode", "from", "to", "sort", "order", "platform", "topic", "data_status"]) if (f[key]) params.set(key, f[key]);
   params.set("page", state.listPage);
   params.set("page_size", state.pageSize);
-  const payload = await api(`/articles?${params}`, { envelope: true });
+  const payload = await api(`/articles?${params}`, { envelope: true, context });
   if (version !== runtime.renderVersion) return "";
   const articles = payload.data, meta = payload.meta || { total: articles.length, unfiltered_total: articles.length, has_more: false };
   state.articles = articles;
@@ -50,9 +51,10 @@ function articleMenu(a) {
   return `<button role="menuitem" data-action="article-detail" data-id="${e(a.id)}">详情</button>${safeURL(a.url) ? `<a role="menuitem" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}${[["edit-article", "编辑"], ["review-article", "补充数据"]].map(([action, label]) => `<button role="menuitem" data-action="${e(action)}" data-id="${e(a.id)}">${e(label)}</button>`).join("")}`;
 }
 async function articleModal(id = "") {
+  const context = beginModalRequests();
   const ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion;
   let a = { account_id: state.account, production_mode: "unknown" };
-  if (id) a = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version);
+  if (id) a = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version, context);
   if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
   const activeAccounts = state.accounts.filter((x) => x.active || x.id === a.account_id);
   if (!activeAccounts.length) {

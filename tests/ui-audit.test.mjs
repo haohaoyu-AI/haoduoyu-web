@@ -7,7 +7,7 @@ const source = await frontendSource();
 function client(){
  const body={style:{}},nodes=new Map([['#overlay',{innerHTML:'',firstChild:null,contains(){return false}}]]);
  const document={querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>[],addEventListener(){},body,activeElement:body};
- const context=vm.createContext({document,window:{addEventListener(){}},location:{href:'http://localhost/',search:''},history:{replaceState(){}},URL,URLSearchParams,Intl,localStorage:{getItem(){}},requestAnimationFrame(){},setTimeout,clearTimeout});
+ const context=vm.createContext({AbortController, AbortSignal, DOMException, Headers,document,window:{addEventListener(){}},location:{href:'http://localhost/',search:''},history:{replaceState(){}},URL,URLSearchParams,Intl,localStorage:{getItem(){}},requestAnimationFrame(){},setTimeout,clearTimeout});
  new vm.Script(source).runInContext(context);return {run:s=>vm.runInContext(s,context),nodes,document,context};
 }
 test('only adjacent equal type, raw actor and Beijing date merge; no row disappears',()=>{

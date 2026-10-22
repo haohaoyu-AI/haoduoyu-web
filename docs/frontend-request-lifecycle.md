@@ -37,3 +37,18 @@ transport count, isolated consumer aborts, old-page abort and refresh abort.
 Existing identity/index/route/form tests remain in addition to these cases.
 The final scope includes real local Cookie/CSRF request/abort evidence and the
 existing action/form/four-width comparison protocol. No C5/C6 large benchmark.
+
+## Request-context checkpoint
+
+The first implementation keeps page, modal and background pending maps separate.
+Only GET is shared; each subscriber decodes its own response and owns its abort
+listener. The final departing subscriber aborts the transport. Ordinary writes
+advance the existing index generation; authentication writes retain the session
+reset. Pending indexes cannot cross ownership contexts, while completed frozen
+indexes remain session cached. Existing epoch/identity and render guards remain.
+
+Local targeted frontend/route suite: 53/53 passed. Full regression is running at
+this checkpoint, not yet a completed result. Build and eight asset checks passed;
+real browser lifecycle, action registry, formatting and visual evidence are still
+pending. Current unminified UTF-8 bundle is 112,496 B, exceeding the 100,000 B
+project target; no size pass is claimed.
