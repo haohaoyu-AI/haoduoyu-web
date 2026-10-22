@@ -1,0 +1,56 @@
+{
+  "baseline": "a1babd8558d7869ab61fe6bc463615a04eec6eb9",
+  "product": "c66948bef03a5438792db6f7e2979a8d588f6eda",
+  "candidate_execution": "d4e96f18fed098471aa27bee491a55ef1c4a348e",
+  "sources": [
+    {
+      "file": "baseline-original.json",
+      "source_path": "artifacts/strict-style/first-fixture-order-attempt/report-both.json",
+      "source_sha256": "37becbf9850c0abc5bc3acdcb3c021c1a7db7071d70d046984705214936f4f46",
+      "published_sha256": "d1b418b4f27283c07b4d1f73f7d58335d5890204916f4a8e7018b2d325bb4192",
+      "same_parsed_JSON": true
+    },
+    {
+      "file": "baseline-style.json",
+      "source_path": "artifacts/strict-style/style/report-baseline.json",
+      "source_sha256": "5db9eebb9de9685b0e730a0fc7233e8326803c2504f68dd20491b78dc1e5f8bb",
+      "published_sha256": "e9596fea4fc7e80db78f171765e790189e8ffe3e995fa648c82b971f64a67b2a",
+      "same_parsed_JSON": true
+    },
+    {
+      "file": "candidate-partial.json",
+      "source_path": "artifacts/strict-style/candidate-overflow-audit-attempt/report-candidate.json",
+      "source_sha256": "c336a48114f8ca1307bf4ac7817310516b50bf3450ff13e18449004b0a634580",
+      "published_sha256": "5029fc63bb60c3667dcd184049218b026e6b43a65d4bf756b9d252f969308b67",
+      "same_parsed_JSON": true
+    },
+    {
+      "file": "candidate-final.json",
+      "source_path": "artifacts/strict-style/all/report-candidate.json",
+      "source_sha256": "46a5ee3ead930af30043a39be87c0cdb3ca4ff316e4185e960a1c7b652d93efe",
+      "published_sha256": "2606af9db608a1c34e85744db6f1051b080796b606451320e525cdd075f7e351",
+      "same_parsed_JSON": true
+    },
+    {
+      "file": "computed.json",
+      "source_path": "artifacts/strict-style/comparison/computed.json",
+      "source_sha256": "c88a3133f71474a5c9c2647e85448a8147db8bc4416da1fc1948bcb1737995b3",
+      "published_sha256": "a299f8bfd747087b6ec53ef23896e452575913565a1f48ae65e1d9adb5e68e9a",
+      "same_parsed_JSON": true
+    },
+    {
+      "file": "computed-incomplete-red.json",
+      "source_path": "artifacts/strict-style/comparison/incomplete-red.json",
+      "source_sha256": "005c0aeb5e75280eb647c23da5520e42ec6c1624288cc9e7b021e36fed79042c",
+      "published_sha256": "0d9a078b43764ad4bc81c6e5980b3c8710c37c0c2c8fd30937590d45e14bf697",
+      "same_parsed_JSON": true
+    },
+    {
+      "file": "pixels.json",
+      "source_path": "artifacts/strict-style/comparison/pixels.json",
+      "source_sha256": "8af6d99cac0c63c020dbc8675f276417de5fe405e7423515befb57bb44ce05fc",
+      "published_sha256": "4d2022ac7df5ae60cb68a41afbde0e5943c32fc3fd88245b028fdf23a74f3f2b",
+      "same_parsed_JSON": true
+    }
+  ]
+}

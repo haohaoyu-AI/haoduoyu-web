@@ -1,4 +1,4 @@
-# 阶段 4c：严格 style CSP（初始红灯检查点）
+# 阶段 4c：严格 style CSP（待独立验收、未部署）
 
 基线：a1babd8558d7869ab61fe6bc463615a04eec6eb9。
 分支：opt/phase4c-strict-style-csp。本阶段不部署、不合并。
@@ -69,3 +69,60 @@ computed 尺寸、背景色、SVG stroke/fill、四宽原图及 DOM 样式属性
 把 shorthand 枚举成 overflow-x/y。仅允许 body 的对应长属性且必须
 为 hidden，其他白名单及所有 CSP 事件监听不变。该时正常违规为零，
 不把未完成的候选流程或这项驱动错误标为产品通过。
+
+## 最终本地浏览器与计算样式证据
+
+产品源码固定 c66948bef03a5438792db6f7e2979a8d588f6eda；后续提交只改测试工具、证据及文档。
+真实 Chromium 154.0.8037.57，两个独立本地 Miniflare D1，真实 Cookie/CSRF；
+无生产连接、账号或数据。最终候选执行提交 d4e96f18fed098471aa27bee491a55ef1c4a348e。
+
+- 候选完整流程：56 张 PNG、26 个必需 data-action 全覆盖（实际 31 个名字）、11 类表单、
+  键盘及触屏；正常 securitypolicyviolation 为 0，pageerror / warning 为 0。
+- 反向控制：候选 setAttribute(style) 被真实浏览器阻止，恰有 1 条 style-src-attr 事件；
+  新节点 CSSOM setProperty 生效且无新增事件。旧宽松策略允许属性，没有该事件。
+- 13 个 computed 状态按 (name,width,同名出现次序) 精确配对：四宽 7d、周期切换/隐藏、
+  指标切换、发布标签、日期切换与换页返回。逐项比较所有已采集柱高/宽/背景/矩形/title、
+  图例及 SVG stroke/fill/geometry，13/13 完全相同，无舍入或容差。
+- tests/style-evidence.mjs 是可执行比较器，不以“采集完成”替代等价断言；两个正式单测
+  证明缺样/重复/错误状态及细小尺寸/颜色/SVG/hidden 改变会失败。旧未完成候选输入的
+  真实红灯保留为 computed-incomplete-red.json，不把失败尝试拼接为完整成功流程。
+
+公共纯合成 JSON 位于 strict-style-data/，是原始 JSON 仅去除排版空白后的同值副本，
+provenance.json 保留原文件 SHA256 和发布副本 SHA256；没有响应正文、Cookie、CSRF、
+口令或一次性 token。完整 PNG 留在本地 artifacts/strict-style，少量可审原图及 diff
+在 strict-style-images/，其 manifest 保留原始 SHA256。截图前均检查密码输入为空、
+一次性凭据未出现。合成账号名称可见，不代表真实用户。
+
+重现 computed 比较：
+
+```sh
+node tests/style-evidence.mjs --baseline-visual docs/strict-style-data/baseline-original.json \
+  --baseline-style docs/strict-style-data/baseline-style.json \
+  --candidate docs/strict-style-data/candidate-final.json --output /tmp/strict-style-computed.json
+```
+
+四宽 56 对 PNG 中 47 对逐像素相同，dashboard 四宽全部相同。其余 9 对全部保留：
+4 对 audit 因候选首次驱动失败后再次登录，合成库中登录记录由 ×1 变为 ×2（同一固定时间
+显示成范围），对应 372 像素/最大色差 219；这是测试库被重试登录改变的可见内容差异，
+不能将该页称严格截图相同。两次登录可由保留的 candidate-partial 与 candidate-final
+执行顺序核实，不为追求相同而删除日志或重拍。
+另 5 对 account-new/key/snapshot 控件边缘差异为 13～32 像素、最大色差 1；已逐组
+查看原图和放大 diff，位于原生控件圆角，没有文字、布局或间距变化。没有声称旧旧复现。
+严格 PNG 全相等未通过；有限看图与计算样式证据支持图表及可见布局保持。
+
+原始基线流程 status=failed：56 图与 11 表单已完成后额外固定四图例检查受到新增账号
+影响，补充 style-only 在干净对应库中完成；不把它改写为整轮 complete。候选早期 body
+overflow 审计失败亦保留。最终候选 complete 是修正驱动后一次完整执行。
+正常已登录流程无页面脚本错误；未登录/错误密码 401、主动断网/真实 409 与刻意 CSP
+拦截的控制台诊断单独保留，因此不宣称字面全流程控制台零错误。
+
+## 最终边界
+
+最终未压缩 app.js 为 115637 B，仍超过 100000 B，整体体积目标未通过；
+CSS 为 28000 B。源码检查 30 模块 / 350 函数通过 160 字符 / 80 行门槛。
+原先 115649 B 是中间实现，不能作为最终值。新增动态属性继续经 e() 转义；
+水合 CSS 变量只接受四个平台令牌和 0～80 有限数值。
+
+本阶段只删除 CSP 的一个既定 style-src 令牌，其他安全头通过完整比较，
+覆盖 HTML、资源、API、304、401、400 与注入 500。未修改数据库、鉴权、接口、
+生产配置或权限。生产仍为 Sites v7；此 PR 尚待独立验收，不自动上线。

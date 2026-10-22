@@ -1,6 +1,6 @@
 # 好多鱼图文
 
-原生 JavaScript 工作台与 Cloudflare Worker/D1 API。阶段 1、阶段 2 B1～B5、阶段 3 C1～C6 和阶段 4a 已验收合并。当前阶段 4b 在草稿 PR 中整理 action/表单分发，并为 GET 增加同周期合并和页面取消。阶段 4c、后端整理、安全方案及最终验收尚未完成。
+原生 JavaScript 工作台与 Cloudflare Worker/D1 API。阶段 1、阶段 2 B1～B5、阶段 3 C1～C6 和阶段 4a/4b 已验收合并。当前阶段 4c 草稿仅将图表内联样式改为受控 CSSOM 变量并收紧 style CSP，尚待独立验收；后端整理、安全方案及最终验收尚未完成。
 
 生产仍为经单独确认发布的 Sites v7（源码 f21c9ed3），仅包含本轮 C1～C3；开发分支不会自动上线。后续部署必须再次明确确认。数据库结构、界面样式和数据语义保持不变。
 
@@ -17,7 +17,7 @@ npm run check:artifacts
 npm run check:previews
 ```
 
-修改前端时编辑 web/，运行 npm run build，并提交生成的 public/app.js。产物保持单一、UTF-8、ESM、不压缩；CI 在任何构建覆盖前检查源码与已提交产物一致，并核对八个公开资源与 Worker 的字节。源码检查覆盖所有模块、物理行和函数，不忽略目录或长模板。当前可读 bundle 超出 100,000 B 目标，准确数字和验证边界见 [阶段 4b 记录](docs/frontend-request-lifecycle.md)。
+修改前端时编辑 web/，运行 npm run build，并提交生成的 public/app.js。产物保持单一、UTF-8、ESM、不压缩；CI 在任何构建覆盖前检查源码与已提交产物一致，并核对八个公开资源与 Worker 的字节。源码检查覆盖所有模块、物理行和函数，不忽略目录或长模板。当前可读 bundle 超出 100,000 B 目标，当前 115637 B，准确验证边界见 [阶段 4c 记录](docs/strict-style-csp.md)。
 
 测试在临时 Miniflare D1 创建合成记录，禁止 Worker 外联，不读取生产数据库或备份。测试账号及口令均为 tests/harness.mjs 中明确的本地假值，不可用于部署；截图不保存口令或一次性凭据。
 
