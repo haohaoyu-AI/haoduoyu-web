@@ -1,0 +1,1580 @@
+{
+  "status": "failed",
+  "synthetic": true,
+  "baseline_commit": "168f236b05abd12ad1a937a5f506d9d8f9234ece",
+  "source_commit": "09ba7dfdf8dc2ff69d591b9c0369fc3a16b4d7a2",
+  "candidate_app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1",
+  "candidate_worker_sha256": "38035f43f7aeb072e90586ff92705625a8ece84009324d6be80a73a45e8d796e",
+  "clock": "2026-10-22T08:00:00.000Z",
+  "widths": [
+    375,
+    390,
+    768,
+    1440
+  ],
+  "captures": [
+    {
+      "variant": "baseline",
+      "view": "login",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-login-375.png",
+      "bytes": 12428,
+      "sha256": "e3ae8056719b5070aaebf27dd0f57ac54e9b129b5df8f4c076291ccfd62825ff",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "login",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-login-390.png",
+      "bytes": 12550,
+      "sha256": "2f837e8265368c7cee700522c5fbdb08403cfdf0d1219c89056651134ee2a988",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "login",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-login-768.png",
+      "bytes": 13933,
+      "sha256": "e2cce071508c1e51a314a3073d919b754b2fc2a99f13abca8eddf36139bd2fb1",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "login",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-login-1440.png",
+      "bytes": 15982,
+      "sha256": "e546e05a6f125f4c8b9a194618ccd7d89da022d7d6046640daf00319324f68c8",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "dashboard",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-dashboard-375.png",
+      "bytes": 196052,
+      "sha256": "b0e53faec88b21b75da059dce57677b4c68c28388029de00ee5a5cbc2ceb39d5",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "articles",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-articles-375.png",
+      "bytes": 227989,
+      "sha256": "2091b106331773162b4abe4ce9d805db5d11c0a9e89a1c9dc7f2547a2a9ad1f1",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "data",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-data-375.png",
+      "bytes": 308369,
+      "sha256": "dcfab07c94ffca075cbd7953483f1f8ca1dc5c928d75caff9243746d77aee644",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "accounts",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-accounts-375.png",
+      "bytes": 28629,
+      "sha256": "95c9e1dea67ab31767c4b4af051da65f37ffa0ee5bb4e721bb8c63226947ebbd",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "keys",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-keys-375.png",
+      "bytes": 19988,
+      "sha256": "9ca5ea2ea11d19f3f97d9d221fea11a6ac10aa09b21ca9ed5d99c6627fdc8f45",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "security",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-security-375.png",
+      "bytes": 27866,
+      "sha256": "97cbf477e32a0f1de13576bd61cd5d02f15d34d687101610fe92f2790fa865ee",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "audit",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-audit-375.png",
+      "bytes": 17566,
+      "sha256": "508fcfabed59d5cc8c8729c651817fa2861174a4d4ee3838969f9ccd21de71ea",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "detail",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-detail-375.png",
+      "bytes": 221759,
+      "sha256": "ab881e94b68179d719b42b051b40078986119fb9326c3e53c18b86e75eb39c70",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-form-article-new-375.png",
+      "bytes": 215413,
+      "sha256": "da9ce45aab1c38a267e1eb20297fdb60f1847db35ddd3878a112f518d724e749",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-daily",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-form-daily-375.png",
+      "bytes": 191424,
+      "sha256": "f274248f0dc0e1cca6070840dba58dcf4f7edca04fa7f9669643de93280f6ac1",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-account-new",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-form-account-new-375.png",
+      "bytes": 27946,
+      "sha256": "41b4dc5329ac4f6f43b58e84927eef96b44694e510b4ec548e4d3b36897bf343",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-key",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-form-key-375.png",
+      "bytes": 40972,
+      "sha256": "97e6587e33371aa9f103870343187d36b0b2008058324960e3e34d509344b27d",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-snapshot",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/baseline-form-snapshot-375.png",
+      "bytes": 302002,
+      "sha256": "066216bc7bafc4263438abee022184b2538dfd571e6a3bf753674c23dd13ec70",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "dashboard",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-dashboard-390.png",
+      "bytes": 193421,
+      "sha256": "c306666a0404934e136a406b620dee71351c74a37073a9e510c8aa0966ff63e6",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "articles",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-articles-390.png",
+      "bytes": 227600,
+      "sha256": "32625422410ad289e667c77097613180a58e0aa79d7f9d44ae4b0e9d3ac80a78",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "data",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-data-390.png",
+      "bytes": 304642,
+      "sha256": "f3269b57f50944e0a8a2ce2958f27c13a6d89c0ccf3464f7cca171e64b1bab17",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "accounts",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-accounts-390.png",
+      "bytes": 28745,
+      "sha256": "667d3536d4b930cb1e854832fd196358da74736f2c685adf9a0697bebc648fab",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "keys",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-keys-390.png",
+      "bytes": 20111,
+      "sha256": "0ea08c3671a0623b2ef04785c4035ef76608f673c27b83f4010bd09795886808",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "security",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-security-390.png",
+      "bytes": 27944,
+      "sha256": "f6bca0507cee8e953f1d52ae60972380e1602913d1553f21e25848e962eeb7f5",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "audit",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-audit-390.png",
+      "bytes": 17664,
+      "sha256": "53c251c8b96ecad1112256b5250e50746fb54389c7856808c5a7d0b165df0df0",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "detail",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-detail-390.png",
+      "bytes": 217015,
+      "sha256": "304ee4c588ee2b699a1484d5ea61430230de69687243d2b65bbe6f235aac15b0",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-form-article-new-390.png",
+      "bytes": 214959,
+      "sha256": "341051eba6516929cb8fb466857ada1e211c0ac6e50dd6f3e3f103a2ee3d1ffe",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-daily",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-form-daily-390.png",
+      "bytes": 190366,
+      "sha256": "9b3ab3fd51ff624f0240180ccfc5836e91522e5210219ea6e006f09aeee8f147",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-account-new",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-form-account-new-390.png",
+      "bytes": 32467,
+      "sha256": "88b1ebd9144a03236db8277b898826424bf1eb12331a293c792cb54aa4124b80",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-key",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-form-key-390.png",
+      "bytes": 41352,
+      "sha256": "43ddd7cbe6883a93860087b4b16d981e235e83ccfb4bfb031c334baa925836d6",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-snapshot",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/baseline-form-snapshot-390.png",
+      "bytes": 298335,
+      "sha256": "259058cc59b1953f0e928b86186afadc241f8d37a8bb086f5e2b31c60da37921",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "dashboard",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-dashboard-768.png",
+      "bytes": 226884,
+      "sha256": "e9ed141937d1046b9816422642966f8ef4d32eba19f5fb5ef36d08006036b550",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "articles",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-articles-768.png",
+      "bytes": 174349,
+      "sha256": "f79b84425ef981a0947e71f89d0d9b7520fcfdb75c1ff43718268969adbece7f",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "data",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-data-768.png",
+      "bytes": 169440,
+      "sha256": "488f3c6083b69c8b7a9773f238f300c1bb075606c7e75ac4af026ae9bc023d50",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "accounts",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-accounts-768.png",
+      "bytes": 43889,
+      "sha256": "e4aa57ddf9a1683a2c60dbb4ea03352c533237e10a1bb81f9dddc0d504bcfdb0",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "keys",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-keys-768.png",
+      "bytes": 23364,
+      "sha256": "51348b356691b863921e68f33a904c4deeced43ade99eff3c088636f87418767",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "security",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-security-768.png",
+      "bytes": 31679,
+      "sha256": "56f36de8de5b8e95815dccab8be063f30c6912365644d05dba8e7defb078af35",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "audit",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-audit-768.png",
+      "bytes": 21015,
+      "sha256": "1585fb62e138d33c4723ed7d0ff7e32874f670ff00df0ae1a56ad1bc9476fb43",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "detail",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-detail-768.png",
+      "bytes": 185983,
+      "sha256": "cdc9a9de85f9b869f749a984556b0adc5ce76a4d23ae1143eb0d88e349081113",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-form-article-new-768.png",
+      "bytes": 136254,
+      "sha256": "bdeb80e3710dfdc5fb04e258f2d4029170f76dea96972ae5c88b51cd3c609518",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-daily",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-form-daily-768.png",
+      "bytes": 86752,
+      "sha256": "a08b2392623adf8ede1c3f928807e89ff393e9749c883d4e921567bb01bc1886",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-account-new",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-form-account-new-768.png",
+      "bytes": 48903,
+      "sha256": "36edb1f0bddf38bd5a12f412e8edbb682c28fff64f72e34b5662b84534296391",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-key",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-form-key-768.png",
+      "bytes": 50253,
+      "sha256": "332b0a8b30d6904c6f0f9ea03ad0202f9866061646a7cb272eb61542a91aa6a2",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-snapshot",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/baseline-form-snapshot-768.png",
+      "bytes": 135688,
+      "sha256": "053c6de969bad20b7ca32ef984fa1d533f7273a6957ec40d5ff9707d68908dc8",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "dashboard",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-dashboard-1440.png",
+      "bytes": 245379,
+      "sha256": "ce5a821e5e3ab44cb8e7117dc352a531d55f88595bf671c7e33795bf57d5efa3",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "articles",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-articles-1440.png",
+      "bytes": 185485,
+      "sha256": "dffc72c817b3ea653d76924060156af1d2d4726bd1d5bc029dc3b8b61dd3b405",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "data",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-data-1440.png",
+      "bytes": 233788,
+      "sha256": "ee2e56b18f3fe85e56205f4dd1a7c9aa751e79bd75bcdf9ba04723973128b6ef",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "accounts",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-accounts-1440.png",
+      "bytes": 53173,
+      "sha256": "5aedc28a8461ae9985b478dc2f0515f66123873c84f20aeb7f85fcdc7ae60735",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "keys",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-keys-1440.png",
+      "bytes": 33058,
+      "sha256": "ce655517901643f362910852ded34340b7254b0c473e01435a2cf6104617f235",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "security",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-security-1440.png",
+      "bytes": 41401,
+      "sha256": "555a49f79d414849caf784dfe44d8db81a60e0a3ed67176b29e8a8c6260bea6e",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "audit",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-audit-1440.png",
+      "bytes": 30440,
+      "sha256": "30043799e90325628e9e972846c9572085b8cf33be2c5f0b829e469cb137b0c3",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "detail",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-detail-1440.png",
+      "bytes": 200996,
+      "sha256": "1537cde44140fa125c7d00f46b08d5a475ea77c7341ff161ff9fa1472ab910d9",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-form-article-new-1440.png",
+      "bytes": 203947,
+      "sha256": "29317c9bac81593d9079e0b408cf11fe94e2d249c8606797946892efabb553ff",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-daily",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-form-daily-1440.png",
+      "bytes": 156859,
+      "sha256": "a27243415889238b6b05725fee65b5bb999a77659ac8d16725a766f1211417fb",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-account-new",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-form-account-new-1440.png",
+      "bytes": 64078,
+      "sha256": "3bd8dd58024c194097dc5fe5dc9691508eac49acc06d4904df684088813bb692",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-key",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-form-key-1440.png",
+      "bytes": 61251,
+      "sha256": "d43e0985aa4a3241b617a4be70432ea473f01a5c20c44d1627c4d8732ebd1e30",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-snapshot",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/baseline-form-snapshot-1440.png",
+      "bytes": 233948,
+      "sha256": "e40c6f34282c41c0d5ecd5b0c1afce2e588af5f5e811c7762eadbf23533b4b8b",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "candidate",
+      "view": "login",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-login-375.png",
+      "bytes": 12428,
+      "sha256": "e3ae8056719b5070aaebf27dd0f57ac54e9b129b5df8f4c076291ccfd62825ff",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "login",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-login-390.png",
+      "bytes": 12550,
+      "sha256": "2f837e8265368c7cee700522c5fbdb08403cfdf0d1219c89056651134ee2a988",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "login",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-login-768.png",
+      "bytes": 13933,
+      "sha256": "94534cd9a6593906052646bd4268be739fa2b44de9a11bdc8245491ce530154b",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "login",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-login-1440.png",
+      "bytes": 15982,
+      "sha256": "e546e05a6f125f4c8b9a194618ccd7d89da022d7d6046640daf00319324f68c8",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "dashboard",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-dashboard-375.png",
+      "bytes": 196052,
+      "sha256": "b0e53faec88b21b75da059dce57677b4c68c28388029de00ee5a5cbc2ceb39d5",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "articles",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-articles-375.png",
+      "bytes": 227989,
+      "sha256": "2091b106331773162b4abe4ce9d805db5d11c0a9e89a1c9dc7f2547a2a9ad1f1",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "data",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-data-375.png",
+      "bytes": 308369,
+      "sha256": "dcfab07c94ffca075cbd7953483f1f8ca1dc5c928d75caff9243746d77aee644",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "accounts",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-accounts-375.png",
+      "bytes": 28629,
+      "sha256": "95c9e1dea67ab31767c4b4af051da65f37ffa0ee5bb4e721bb8c63226947ebbd",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "keys",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-keys-375.png",
+      "bytes": 19988,
+      "sha256": "9ca5ea2ea11d19f3f97d9d221fea11a6ac10aa09b21ca9ed5d99c6627fdc8f45",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "security",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-security-375.png",
+      "bytes": 27866,
+      "sha256": "97cbf477e32a0f1de13576bd61cd5d02f15d34d687101610fe92f2790fa865ee",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "audit",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-audit-375.png",
+      "bytes": 17566,
+      "sha256": "508fcfabed59d5cc8c8729c651817fa2861174a4d4ee3838969f9ccd21de71ea",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "detail",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-detail-375.png",
+      "bytes": 221759,
+      "sha256": "ab881e94b68179d719b42b051b40078986119fb9326c3e53c18b86e75eb39c70",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-form-article-new-375.png",
+      "bytes": 215422,
+      "sha256": "d3ad6860987629a1383803bf6211e5e81f8f768c7e0304f3e5c37732bf9f0400",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-daily",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-form-daily-375.png",
+      "bytes": 191427,
+      "sha256": "f36a6c126564c97786de234439271775b69186be473bdea1bd40b1825b3feafb",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-account-new",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-form-account-new-375.png",
+      "bytes": 27946,
+      "sha256": "41b4dc5329ac4f6f43b58e84927eef96b44694e510b4ec548e4d3b36897bf343",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-key",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-form-key-375.png",
+      "bytes": 40972,
+      "sha256": "97e6587e33371aa9f103870343187d36b0b2008058324960e3e34d509344b27d",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-snapshot",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual/candidate-form-snapshot-375.png",
+      "bytes": 302002,
+      "sha256": "066216bc7bafc4263438abee022184b2538dfd571e6a3bf753674c23dd13ec70",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "dashboard",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-dashboard-390.png",
+      "bytes": 193421,
+      "sha256": "c306666a0404934e136a406b620dee71351c74a37073a9e510c8aa0966ff63e6",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "articles",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-articles-390.png",
+      "bytes": 227600,
+      "sha256": "32625422410ad289e667c77097613180a58e0aa79d7f9d44ae4b0e9d3ac80a78",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "data",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-data-390.png",
+      "bytes": 304642,
+      "sha256": "f3269b57f50944e0a8a2ce2958f27c13a6d89c0ccf3464f7cca171e64b1bab17",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "accounts",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-accounts-390.png",
+      "bytes": 28745,
+      "sha256": "667d3536d4b930cb1e854832fd196358da74736f2c685adf9a0697bebc648fab",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "keys",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-keys-390.png",
+      "bytes": 20111,
+      "sha256": "0ea08c3671a0623b2ef04785c4035ef76608f673c27b83f4010bd09795886808",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "security",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-security-390.png",
+      "bytes": 27944,
+      "sha256": "f6bca0507cee8e953f1d52ae60972380e1602913d1553f21e25848e962eeb7f5",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "audit",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-audit-390.png",
+      "bytes": 17664,
+      "sha256": "53c251c8b96ecad1112256b5250e50746fb54389c7856808c5a7d0b165df0df0",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "detail",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-detail-390.png",
+      "bytes": 217015,
+      "sha256": "304ee4c588ee2b699a1484d5ea61430230de69687243d2b65bbe6f235aac15b0",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-form-article-new-390.png",
+      "bytes": 214971,
+      "sha256": "48d5de4dbba0dc86df3324342cc4ce243082fda56497686185b7a0ad97cd2d96",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-daily",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-form-daily-390.png",
+      "bytes": 190366,
+      "sha256": "9b3ab3fd51ff624f0240180ccfc5836e91522e5210219ea6e006f09aeee8f147",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-account-new",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-form-account-new-390.png",
+      "bytes": 32467,
+      "sha256": "88b1ebd9144a03236db8277b898826424bf1eb12331a293c792cb54aa4124b80",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-key",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-form-key-390.png",
+      "bytes": 41360,
+      "sha256": "47ce110ee5164863d3d4b807d2d080323f89bbb9b1cf72fb688f10d1fcee55e7",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-snapshot",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual/candidate-form-snapshot-390.png",
+      "bytes": 298335,
+      "sha256": "259058cc59b1953f0e928b86186afadc241f8d37a8bb086f5e2b31c60da37921",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "dashboard",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-dashboard-768.png",
+      "bytes": 226884,
+      "sha256": "e9ed141937d1046b9816422642966f8ef4d32eba19f5fb5ef36d08006036b550",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "articles",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-articles-768.png",
+      "bytes": 174349,
+      "sha256": "f79b84425ef981a0947e71f89d0d9b7520fcfdb75c1ff43718268969adbece7f",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "data",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-data-768.png",
+      "bytes": 169440,
+      "sha256": "488f3c6083b69c8b7a9773f238f300c1bb075606c7e75ac4af026ae9bc023d50",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "accounts",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-accounts-768.png",
+      "bytes": 43889,
+      "sha256": "e4aa57ddf9a1683a2c60dbb4ea03352c533237e10a1bb81f9dddc0d504bcfdb0",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "keys",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-keys-768.png",
+      "bytes": 23364,
+      "sha256": "51348b356691b863921e68f33a904c4deeced43ade99eff3c088636f87418767",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "security",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-security-768.png",
+      "bytes": 31679,
+      "sha256": "56f36de8de5b8e95815dccab8be063f30c6912365644d05dba8e7defb078af35",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "audit",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-audit-768.png",
+      "bytes": 21015,
+      "sha256": "1585fb62e138d33c4723ed7d0ff7e32874f670ff00df0ae1a56ad1bc9476fb43",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "detail",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-detail-768.png",
+      "bytes": 185983,
+      "sha256": "cdc9a9de85f9b869f749a984556b0adc5ce76a4d23ae1143eb0d88e349081113",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-form-article-new-768.png",
+      "bytes": 136254,
+      "sha256": "bdeb80e3710dfdc5fb04e258f2d4029170f76dea96972ae5c88b51cd3c609518",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-daily",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-form-daily-768.png",
+      "bytes": 86752,
+      "sha256": "a08b2392623adf8ede1c3f928807e89ff393e9749c883d4e921567bb01bc1886",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-account-new",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-form-account-new-768.png",
+      "bytes": 48903,
+      "sha256": "36edb1f0bddf38bd5a12f412e8edbb682c28fff64f72e34b5662b84534296391",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-key",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-form-key-768.png",
+      "bytes": 50253,
+      "sha256": "332b0a8b30d6904c6f0f9ea03ad0202f9866061646a7cb272eb61542a91aa6a2",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-snapshot",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual/candidate-form-snapshot-768.png",
+      "bytes": 135688,
+      "sha256": "053c6de969bad20b7ca32ef984fa1d533f7273a6957ec40d5ff9707d68908dc8",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "dashboard",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-dashboard-1440.png",
+      "bytes": 245379,
+      "sha256": "ce5a821e5e3ab44cb8e7117dc352a531d55f88595bf671c7e33795bf57d5efa3",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "articles",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-articles-1440.png",
+      "bytes": 185485,
+      "sha256": "dffc72c817b3ea653d76924060156af1d2d4726bd1d5bc029dc3b8b61dd3b405",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "data",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-data-1440.png",
+      "bytes": 233788,
+      "sha256": "ee2e56b18f3fe85e56205f4dd1a7c9aa751e79bd75bcdf9ba04723973128b6ef",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "accounts",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-accounts-1440.png",
+      "bytes": 53173,
+      "sha256": "5aedc28a8461ae9985b478dc2f0515f66123873c84f20aeb7f85fcdc7ae60735",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "keys",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-keys-1440.png",
+      "bytes": 33058,
+      "sha256": "ce655517901643f362910852ded34340b7254b0c473e01435a2cf6104617f235",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "security",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-security-1440.png",
+      "bytes": 41401,
+      "sha256": "555a49f79d414849caf784dfe44d8db81a60e0a3ed67176b29e8a8c6260bea6e",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "audit",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-audit-1440.png",
+      "bytes": 30440,
+      "sha256": "30043799e90325628e9e972846c9572085b8cf33be2c5f0b829e469cb137b0c3",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "detail",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-detail-1440.png",
+      "bytes": 200996,
+      "sha256": "1537cde44140fa125c7d00f46b08d5a475ea77c7341ff161ff9fa1472ab910d9",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-form-article-new-1440.png",
+      "bytes": 203855,
+      "sha256": "d012a39714271ebe2b82d705fee825d00cdaa20c0d0f1e4dc1129cffafa79f54",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-daily",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-form-daily-1440.png",
+      "bytes": 156859,
+      "sha256": "a27243415889238b6b05725fee65b5bb999a77659ac8d16725a766f1211417fb",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-account-new",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-form-account-new-1440.png",
+      "bytes": 64072,
+      "sha256": "e2c5b5812c81526086d4e7ab598216bd9f2dea99edc92623164afec14714327d",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-key",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-form-key-1440.png",
+      "bytes": 61254,
+      "sha256": "117a29917e7c90ca3384676cfdda714a007dcca96b4405cde648e1f0d8731e8e",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-snapshot",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual/candidate-form-snapshot-1440.png",
+      "bytes": 234063,
+      "sha256": "e07f081726c4295c73d3ecdf19c355d8e0a3d23e9bbfe15cf515aa3bd298e687",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    }
+  ],
+  "checks": [
+    {
+      "variant": "baseline",
+      "name": "four-width-shots-375",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "four-width-shots-390",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "four-width-shots-768",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "four-width-shots-1440",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "four-width-shots-375",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "four-width-shots-390",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "four-width-shots-768",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "four-width-shots-1440",
+      "passed": true
+    }
+  ],
+  "forms": [],
+  "network": [],
+  "diagnostics": [
+    {
+      "variant": "baseline",
+      "stage": "visual-login",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "baseline",
+      "stage": "visual-login",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "candidate",
+      "stage": "visual-login",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "candidate",
+      "stage": "visual-login",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+  ],
+  "actions": {},
+  "mismatches": [
+    {
+      "view": "form-account-new",
+      "width": 1440
+    },
+    {
+      "view": "form-article-new",
+      "width": 375
+    },
+    {
+      "view": "form-article-new",
+      "width": 390
+    },
+    {
+      "view": "form-article-new",
+      "width": 1440
+    },
+    {
+      "view": "form-daily",
+      "width": 375
+    },
+    {
+      "view": "form-key",
+      "width": 390
+    },
+    {
+      "view": "form-key",
+      "width": 1440
+    },
+    {
+      "view": "form-snapshot",
+      "width": 1440
+    },
+    {
+      "view": "login",
+      "width": 768
+    }
+  ],
+  "failure": {
+    "type": "AssertionError",
+    "message": "Screenshot differences: [{'view': 'form-account-new', 'width': 1440}, {'view': 'form-article-new', 'width': 375}, {'view': 'form-article-new', 'width': 390}, {'view': 'form-article-new', 'width': 1440}, {'view': 'form-daily', 'width': 375}, {'view': 'form-key', 'width': 390}, {'view': 'form-key', 'width': 1440}, {'view': 'form-snapshot', 'width': 1440}, {'view': 'login', 'width': 768}]"
+  },
+  "pixel_comparisons": [
+    {
+      "view": "accounts",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "accounts",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "accounts",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "accounts",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "articles",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "articles",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "articles",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "articles",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "audit",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "audit",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "audit",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "audit",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "dashboard",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "dashboard",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "dashboard",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "dashboard",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "data",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "data",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "data",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "data",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "detail",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "detail",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "detail",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "detail",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-account-new",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-account-new",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-account-new",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-account-new",
+      "width": 1440,
+      "pixels_changed": 31,
+      "max_channel_delta": 1,
+      "bbox": [
+        422,
+        483,
+        1018,
+        486
+      ]
+    },
+    {
+      "view": "form-article-new",
+      "width": 375,
+      "pixels_changed": 44,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        269,
+        35,
+        481
+      ]
+    },
+    {
+      "view": "form-article-new",
+      "width": 390,
+      "pixels_changed": 44,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        269,
+        35,
+        481
+      ]
+    },
+    {
+      "view": "form-article-new",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-article-new",
+      "width": 1440,
+      "pixels_changed": 45,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        287,
+        423,
+        527
+      ]
+    },
+    {
+      "view": "form-daily",
+      "width": 375,
+      "pixels_changed": 7,
+      "max_channel_delta": 1,
+      "bbox": [
+        340,
+        191,
+        344,
+        194
+      ]
+    },
+    {
+      "view": "form-daily",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-daily",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-daily",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-key",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-key",
+      "width": 390,
+      "pixels_changed": 13,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        337,
+        32,
+        367
+      ]
+    },
+    {
+      "view": "form-key",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-key",
+      "width": 1440,
+      "pixels_changed": 16,
+      "max_channel_delta": 1,
+      "bbox": [
+        422,
+        407,
+        1018,
+        410
+      ]
+    },
+    {
+      "view": "form-snapshot",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-snapshot",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-snapshot",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-snapshot",
+      "width": 1440,
+      "pixels_changed": 32,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        287,
+        423,
+        512
+      ]
+    },
+    {
+      "view": "keys",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "keys",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "keys",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "keys",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "login",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "login",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "login",
+      "width": 768,
+      "pixels_changed": 4,
+      "max_channel_delta": 1,
+      "bbox": [
+        195,
+        613,
+        198,
+        615
+      ]
+    },
+    {
+      "view": "login",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "security",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "security",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "security",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "security",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    }
+  ],
+  "strict_equal_pairs": 47,
+  "max_channel_delta": 1,
+  "notes": "First run retained unchanged. Strict image equality failed; investigate the listed native-border pixel differences separately."
+}

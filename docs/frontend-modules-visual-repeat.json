@@ -1,0 +1,646 @@
+{
+  "status": "failed",
+  "synthetic": true,
+  "baseline_commit": "168f236b05abd12ad1a937a5f506d9d8f9234ece",
+  "source_commit": "3bca51e6c3eeb59e827194e1b676f01dbb678531",
+  "candidate_app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1",
+  "browser_tool_sha256": "68afeb9b7b673d9f125f646cb895bff765b2082cd288fce092dbdb2d774bb528",
+  "server_tool_sha256": "e7fef2e2791e4252ad71fa26870a3ca7a28f0ceebd7549105569084b3caff9ae",
+  "candidate_worker_sha256": "38035f43f7aeb072e90586ff92705625a8ece84009324d6be80a73a45e8d796e",
+  "clock": "2026-10-22T08:00:00.000Z",
+  "widths": [
+    375,
+    390,
+    768,
+    1440
+  ],
+  "captures": [
+    {
+      "variant": "baseline",
+      "view": "login-repeat0",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-login-repeat0-768.png",
+      "bytes": 13934,
+      "sha256": "e288a4bb41396f9bb4ed16c45906c635dcc921b009b502f34c64edeb005b5581",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "login-repeat1",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-login-repeat1-768.png",
+      "bytes": 13934,
+      "sha256": "e288a4bb41396f9bb4ed16c45906c635dcc921b009b502f34c64edeb005b5581",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-account-new-repeat0",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-account-new-repeat0-1440.png",
+      "bytes": 64072,
+      "sha256": "e2c5b5812c81526086d4e7ab598216bd9f2dea99edc92623164afec14714327d",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-account-new-repeat1",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-account-new-repeat1-1440.png",
+      "bytes": 64072,
+      "sha256": "e2c5b5812c81526086d4e7ab598216bd9f2dea99edc92623164afec14714327d",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new-repeat0",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-article-new-repeat0-375.png",
+      "bytes": 215422,
+      "sha256": "d3ad6860987629a1383803bf6211e5e81f8f768c7e0304f3e5c37732bf9f0400",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new-repeat1",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-article-new-repeat1-375.png",
+      "bytes": 215435,
+      "sha256": "731a334acdb4e6b2239b261fd344bcda8a9cc35c8b539a1bfcbd29e86e4041f9",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new-repeat0",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-article-new-repeat0-390.png",
+      "bytes": 214971,
+      "sha256": "48d5de4dbba0dc86df3324342cc4ce243082fda56497686185b7a0ad97cd2d96",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new-repeat1",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-article-new-repeat1-390.png",
+      "bytes": 214988,
+      "sha256": "bbbf08a8aa7da4737ef9197c5c64f5a1bfad0e2b6ef2419cd08ea341afcebf96",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new-repeat0",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-article-new-repeat0-1440.png",
+      "bytes": 203855,
+      "sha256": "d012a39714271ebe2b82d705fee825d00cdaa20c0d0f1e4dc1129cffafa79f54",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-article-new-repeat1",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-article-new-repeat1-1440.png",
+      "bytes": 203855,
+      "sha256": "d012a39714271ebe2b82d705fee825d00cdaa20c0d0f1e4dc1129cffafa79f54",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-daily-repeat0",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-daily-repeat0-375.png",
+      "bytes": 191424,
+      "sha256": "f274248f0dc0e1cca6070840dba58dcf4f7edca04fa7f9669643de93280f6ac1",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-daily-repeat1",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-daily-repeat1-375.png",
+      "bytes": 191436,
+      "sha256": "f7a820714b249b5c8f5bc9e2044893dac884075c6c192eddbec7dd06b436669e",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-key-repeat0",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-key-repeat0-390.png",
+      "bytes": 41360,
+      "sha256": "47ce110ee5164863d3d4b807d2d080323f89bbb9b1cf72fb688f10d1fcee55e7",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-key-repeat1",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-key-repeat1-390.png",
+      "bytes": 41360,
+      "sha256": "47ce110ee5164863d3d4b807d2d080323f89bbb9b1cf72fb688f10d1fcee55e7",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-key-repeat0",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-key-repeat0-1440.png",
+      "bytes": 61254,
+      "sha256": "117a29917e7c90ca3384676cfdda714a007dcca96b4405cde648e1f0d8731e8e",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-key-repeat1",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-key-repeat1-1440.png",
+      "bytes": 61254,
+      "sha256": "117a29917e7c90ca3384676cfdda714a007dcca96b4405cde648e1f0d8731e8e",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-snapshot-repeat0",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-snapshot-repeat0-1440.png",
+      "bytes": 216052,
+      "sha256": "f38ff3f66f973694bc360f64a3bf42e2797a5cbf7e3fcbea456229850f189905",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "baseline",
+      "view": "form-snapshot-repeat1",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/baseline-form-snapshot-repeat1-1440.png",
+      "bytes": 216307,
+      "sha256": "3ec44362b572df491244c41195a03c0af06aeca704ef0bd0262ccf6ac5efabfa",
+      "app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac"
+    },
+    {
+      "variant": "candidate",
+      "view": "login-repeat0",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-login-repeat0-768.png",
+      "bytes": 13934,
+      "sha256": "e288a4bb41396f9bb4ed16c45906c635dcc921b009b502f34c64edeb005b5581",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "login-repeat1",
+      "width": 768,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-login-repeat1-768.png",
+      "bytes": 13934,
+      "sha256": "e288a4bb41396f9bb4ed16c45906c635dcc921b009b502f34c64edeb005b5581",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-account-new-repeat0",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-account-new-repeat0-1440.png",
+      "bytes": 64072,
+      "sha256": "e2c5b5812c81526086d4e7ab598216bd9f2dea99edc92623164afec14714327d",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-account-new-repeat1",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-account-new-repeat1-1440.png",
+      "bytes": 64072,
+      "sha256": "e2c5b5812c81526086d4e7ab598216bd9f2dea99edc92623164afec14714327d",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new-repeat0",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-article-new-repeat0-375.png",
+      "bytes": 215422,
+      "sha256": "d3ad6860987629a1383803bf6211e5e81f8f768c7e0304f3e5c37732bf9f0400",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new-repeat1",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-article-new-repeat1-375.png",
+      "bytes": 215435,
+      "sha256": "731a334acdb4e6b2239b261fd344bcda8a9cc35c8b539a1bfcbd29e86e4041f9",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new-repeat0",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-article-new-repeat0-390.png",
+      "bytes": 214971,
+      "sha256": "48d5de4dbba0dc86df3324342cc4ce243082fda56497686185b7a0ad97cd2d96",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new-repeat1",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-article-new-repeat1-390.png",
+      "bytes": 214988,
+      "sha256": "bbbf08a8aa7da4737ef9197c5c64f5a1bfad0e2b6ef2419cd08ea341afcebf96",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new-repeat0",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-article-new-repeat0-1440.png",
+      "bytes": 203947,
+      "sha256": "29317c9bac81593d9079e0b408cf11fe94e2d249c8606797946892efabb553ff",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-article-new-repeat1",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-article-new-repeat1-1440.png",
+      "bytes": 203852,
+      "sha256": "e027f1a0b1fb54e4b5ac65f4984a4c554ce8319b5dfafc553c1dee0e9f952de7",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-daily-repeat0",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-daily-repeat0-375.png",
+      "bytes": 191424,
+      "sha256": "f274248f0dc0e1cca6070840dba58dcf4f7edca04fa7f9669643de93280f6ac1",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-daily-repeat1",
+      "width": 375,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-daily-repeat1-375.png",
+      "bytes": 191436,
+      "sha256": "f7a820714b249b5c8f5bc9e2044893dac884075c6c192eddbec7dd06b436669e",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-key-repeat0",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-key-repeat0-390.png",
+      "bytes": 41360,
+      "sha256": "47ce110ee5164863d3d4b807d2d080323f89bbb9b1cf72fb688f10d1fcee55e7",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-key-repeat1",
+      "width": 390,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-key-repeat1-390.png",
+      "bytes": 41360,
+      "sha256": "47ce110ee5164863d3d4b807d2d080323f89bbb9b1cf72fb688f10d1fcee55e7",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-key-repeat0",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-key-repeat0-1440.png",
+      "bytes": 61251,
+      "sha256": "d43e0985aa4a3241b617a4be70432ea473f01a5c20c44d1627c4d8732ebd1e30",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-key-repeat1",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-key-repeat1-1440.png",
+      "bytes": 61251,
+      "sha256": "d43e0985aa4a3241b617a4be70432ea473f01a5c20c44d1627c4d8732ebd1e30",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-snapshot-repeat0",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-snapshot-repeat0-1440.png",
+      "bytes": 216199,
+      "sha256": "ed0b58be1daad4b65a87286cbf321fe2f0f1625226994fa2705a2cd9a49b5bda",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    },
+    {
+      "variant": "candidate",
+      "view": "form-snapshot-repeat1",
+      "width": 1440,
+      "file": "artifacts/frontend-modules/visual-repeat/candidate-form-snapshot-repeat1-1440.png",
+      "bytes": 216199,
+      "sha256": "ed0b58be1daad4b65a87286cbf321fe2f0f1625226994fa2705a2cd9a49b5bda",
+      "app_sha256": "488e91dd35192c2d1bbdcf2bf980577798b3648d72e9ea1d2c7888ca4e5c6fb1"
+    }
+  ],
+  "checks": [
+    {
+      "variant": "baseline",
+      "name": "border-repeat-form-account-new-1440",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "border-repeat-form-article-new-375",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "border-repeat-form-article-new-390",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "border-repeat-form-article-new-1440",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "border-repeat-form-daily-375",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "border-repeat-form-key-390",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "border-repeat-form-key-1440",
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "name": "border-repeat-form-snapshot-1440",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "border-repeat-form-account-new-1440",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "border-repeat-form-article-new-375",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "border-repeat-form-article-new-390",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "border-repeat-form-article-new-1440",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "border-repeat-form-daily-375",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "border-repeat-form-key-390",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "border-repeat-form-key-1440",
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "name": "border-repeat-form-snapshot-1440",
+      "passed": true
+    }
+  ],
+  "forms": [],
+  "network": [],
+  "diagnostics": [
+    {
+      "variant": "baseline",
+      "stage": "visual-login",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "baseline",
+      "stage": "visual-login",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "candidate",
+      "stage": "visual-login",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "variant": "candidate",
+      "stage": "visual-login",
+      "kind": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+  ],
+  "actions": {},
+  "mismatches": [
+    {
+      "view": "form-article-new-repeat0",
+      "width": 1440
+    },
+    {
+      "view": "form-article-new-repeat1",
+      "width": 1440
+    },
+    {
+      "view": "form-key-repeat0",
+      "width": 1440
+    },
+    {
+      "view": "form-key-repeat1",
+      "width": 1440
+    },
+    {
+      "view": "form-snapshot-repeat0",
+      "width": 1440
+    },
+    {
+      "view": "form-snapshot-repeat1",
+      "width": 1440
+    }
+  ],
+  "browser_version": "154.0.8037.57",
+  "original_visual_manifest_sha256": "d91e49a7d024285db2ea04c369cfb3bbe304dd14cbe3c583dbae2939217fbf6a",
+  "failure": {
+    "type": "AssertionError",
+    "message": "Screenshot differences: [{'view': 'form-article-new-repeat0', 'width': 1440}, {'view': 'form-article-new-repeat1', 'width': 1440}, {'view': 'form-key-repeat0', 'width': 1440}, {'view': 'form-key-repeat1', 'width': 1440}, {'view': 'form-snapshot-repeat0', 'width': 1440}, {'view': 'form-snapshot-repeat1', 'width': 1440}]"
+  },
+  "pixel_comparisons": [
+    {
+      "view": "form-account-new-repeat0",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-account-new-repeat1",
+      "width": 1440,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-article-new-repeat0",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-article-new-repeat0",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-article-new-repeat0",
+      "width": 1440,
+      "pixels_changed": 45,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        287,
+        423,
+        527
+      ]
+    },
+    {
+      "view": "form-article-new-repeat1",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-article-new-repeat1",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-article-new-repeat1",
+      "width": 1440,
+      "pixels_changed": 27,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        287,
+        1020,
+        668
+      ]
+    },
+    {
+      "view": "form-daily-repeat0",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-daily-repeat1",
+      "width": 375,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-key-repeat0",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-key-repeat0",
+      "width": 1440,
+      "pixels_changed": 16,
+      "max_channel_delta": 1,
+      "bbox": [
+        422,
+        407,
+        1018,
+        410
+      ]
+    },
+    {
+      "view": "form-key-repeat1",
+      "width": 390,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "form-key-repeat1",
+      "width": 1440,
+      "pixels_changed": 16,
+      "max_channel_delta": 1,
+      "bbox": [
+        422,
+        407,
+        1018,
+        410
+      ]
+    },
+    {
+      "view": "form-snapshot-repeat0",
+      "width": 1440,
+      "pixels_changed": 111,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        211,
+        1018,
+        749
+      ]
+    },
+    {
+      "view": "form-snapshot-repeat1",
+      "width": 1440,
+      "pixels_changed": 40,
+      "max_channel_delta": 1,
+      "bbox": [
+        728,
+        211,
+        1018,
+        723
+      ]
+    },
+    {
+      "view": "login-repeat0",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    },
+    {
+      "view": "login-repeat1",
+      "width": 768,
+      "pixels_changed": 0,
+      "max_channel_delta": 0,
+      "bbox": null
+    }
+  ],
+  "strict_equal_pairs": 12,
+  "notes": "Bounded repeat after fonts and two animation frames. Strict assertion remains unchanged and failed; no pixel tolerance was introduced."
+}
