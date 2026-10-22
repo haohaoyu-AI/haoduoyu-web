@@ -3380,6 +3380,17 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "entity_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "授权范围内文章实体的当前标题；非文章实体、缺失或不可见文章为 null。不依赖客户端文章分页。"
           }
         },
         "required": [

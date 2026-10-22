@@ -39,6 +39,8 @@ with sync_playwright() as p:
     context.route('**/*', lambda route: route.continue_()
                   if route.request.url.startswith(ORIGIN + '/') else route.abort())
     page = context.new_page()
+    request_paths = []
+    page.on('request', lambda request: request_paths.append(urlsplit(request.url).path))
     page.on('pageerror', lambda error: report['pageerrors'].append(str(error)))
     page.on('console', lambda message: report['console_errors'].append(message.text)
             if message.type == 'error' else None)
@@ -67,6 +69,18 @@ with sync_playwright() as p:
     audit = page.request.get(ORIGIN + '/api/v1/audit').json()['data']
     assert any(row['actor'] == 'user:' + identity['id'] for row in audit)
     report['authenticated_audit_actor_matches'] = True
+    accounts = page.request.get(ORIGIN + '/api/v1/accounts').json()['data']
+    audit_title = '虚构审计 <img src=x onerror=alert(1)> & "样本"'
+    created = page.request.post(ORIGIN + '/api/v1/articles',
+        headers={'X-CSRF-Token': identity['csrfToken'], 'Origin': ORIGIN},
+        data={'account_id': accounts[0]['id'], 'title': audit_title,
+              'url': 'https://example.invalid/browser-audit-label/' + str(__import__('uuid').uuid4()),
+              'published_at': '2000-01-01T00:00:00Z', 'production_mode': 'manual'})
+    assert created.status == 201
+    audit_article_id = created.json()['data']['id']
+    first_page = page.request.get(ORIGIN + '/api/v1/articles?page=1&page_size=20').json()['data']
+    assert all(row['id'] != audit_article_id for row in first_page)
+    report['audit_label_outside_first_page'] = True
     for width in [375, 390, 768, 1440]:
         page.set_viewport_size({'width': width, 'height': 900})
         for name, query in [('dashboard', 'page=dashboard'), ('articles', 'page=articles'),
@@ -75,11 +89,22 @@ with sync_playwright() as p:
             ready()
             assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
             screenshot(f'{name}-{width}')
+        request_paths.clear()
         page.goto(ORIGIN + '/?page=settings&tab=log')
         ready()
         expect(page.locator('.audit-meta').filter(has_text=re.compile(r'^我 ·')).first).to_be_visible()
         assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+        assert '/api/v1/articles' not in request_paths
+        article_link = page.get_by_role('button', name=audit_title, exact=True, include_hidden=True)
+        expect(article_link).to_have_count(1)
+        article_link.locator('xpath=ancestor::details').locator('summary').click()
+        expect(article_link).to_be_visible()
+        expect(page.locator('.audit-list img')).to_have_count(0)
         screenshot(f'audit-{width}')
+        article_link.click()
+        page.locator('#overlay [role=dialog]').wait_for()
+        expect(page.locator('#overlay')).to_contain_text(audit_title)
+        page.keyboard.press('Escape')
         page.goto(ORIGIN + '/?page=articles')
         ready()
         page.locator('[data-action=article-detail]:visible').first.click()

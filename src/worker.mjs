@@ -71,7 +71,7 @@ async function protectedRead(db,request,route,query) {
       requireAdmin(actor);
       return json((await store.all('SELECT id,name,account_ids_json,permissions_json,created_at,revoked_at,last_used_at FROM api_keys ORDER BY created_at DESC')).map(({account_ids_json,permissions_json,...row})=>({...row,account_ids:JSON.parse(account_ids_json),permissions:JSON.parse(permissions_json)})));
     }
-    if(route==='/audit') {requireAdmin(actor);return json((await store.all('SELECT * FROM audit ORDER BY created_at DESC,rowid DESC LIMIT 200')).map(({detail_json,...row})=>({...row,detail:JSON.parse(detail_json)})));}
+    if(route==='/audit') {requireAdmin(actor);return json((await store.all("SELECT log.*,article.title AS entity_label FROM audit AS log LEFT JOIN articles AS article ON article.id=log.entity_id AND (log.action IN ('POST /articles','article.create','article.update') OR log.action='PUT /articles/'||article.id) ORDER BY log.created_at DESC,log.rowid DESC LIMIT 200")).map(({detail_json,...row})=>({...row,detail:JSON.parse(detail_json)})));}
     if(route==='/backup') {
       requireAdmin(actor);
       const backup=await exportBackup(db);

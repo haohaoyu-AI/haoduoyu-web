@@ -16,4 +16,6 @@ CI 用完整 checkout、--all --full-history -m --root、强制脱敏及忽略 i
 
 B1 将 OpenAPI 更新为 1.1.0，相应 public 资源 pin 的新内容 SHA256 触发 1 条 generic-api-key 误报。已独立重算 public/openapi.json 并匹配，仅增加首次 B1 源提交中该项的精确指纹。B1 原验收分支总计 144 条（前述 143 条 + B1 的 1 条），原始脱敏结果仍保留，不将其表述为原始零命中。
 
-B1 获批 squash 提交以新身份引入同一 OpenAPI 1.1.0 内容摘要。独立复算确认与验收内容一致，仅新增该 squash 提交的 1 条精确指纹。当前总计 145 条（前述 144 条 + B1 squash 的 1 条），没有新增规则或目录豁免。
+B1 获批 squash 提交以新身份引入同一 OpenAPI 1.1.0 内容摘要。独立复算确认与验收内容一致，仅新增该 squash 提交的 1 条精确指纹。B1 合并修复完成时总计 145 条（前述 144 条 + B1 squash 的 1 条），没有新增规则或目录豁免。
+
+B2 为 AuditRecord 新增可选 entity_label，并更新相应 public OpenAPI 内容摘要。新增 1 条 generic-api-key 命中已独立重算确认，仅记录首次 B2 源提交的精确指纹。当前共 146 条（前述 145 条 + B2 的 1 条）；原始脱敏扫描保留，没有规则或目录豁免。
