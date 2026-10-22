@@ -95,7 +95,7 @@ with sync_playwright() as p:
         expect(page.locator('.audit-meta').filter(has_text=re.compile(r'^我 ·')).first).to_be_visible()
         assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
         assert '/api/v1/articles' not in request_paths
-        article_link = page.get_by_role('button', name=audit_title, exact=True)
+        article_link = page.get_by_role('button', name=audit_title, exact=True, include_hidden=True)
         expect(article_link).to_have_count(1)
         article_link.locator('xpath=ancestor::details').locator('summary').click()
         expect(article_link).to_be_visible()
