@@ -46,6 +46,9 @@ export async function commit(db,expected,store,actor=null) {
   try { await db.batch([...statements,...store.pending]); }
   catch(error) {
     if(/CHECK constraint failed: matrix_auth_match/.test(String(error))) throw fail(401,'UNAUTHORIZED','授权已失效，请重新登录');
+    // Only the three reviewed article constraints, never a table-name substring.
+    const articleConstraint=typeof error?.message==='string' && /^(?:D1_ERROR: )?UNIQUE constraint failed: (matrix_articles\.id|matrix_articles\.account_id, matrix_articles\.(?:url|platform_article_id))(?:: SQLITE_CONSTRAINT(?: \(extended: (SQLITE_CONSTRAINT_PRIMARYKEY|SQLITE_CONSTRAINT_UNIQUE)\))?)?$/.exec(error.message);
+    if(articleConstraint && error.status===undefined && (!articleConstraint[2] || articleConstraint[2]===(articleConstraint[1]==='matrix_articles.id'?'SQLITE_CONSTRAINT_PRIMARYKEY':'SQLITE_CONSTRAINT_UNIQUE'))) fail(409,'ARTICLE_EXISTS','该平台文章或链接已经登记');
     throw error;
   }
 }
