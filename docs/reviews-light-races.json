@@ -1,0 +1,25 @@
+{
+  "synthetic": true,
+  "instrumentation": "test-only private module accessors; authentication and application API functions are real",
+  "source_commit": "c3f08b28252725d36da1f72570103d8e4c4795c1",
+  "checks": {
+    "real_session_identity": true,
+    "inflight_write_refetched_and_rendered_new_rows": true,
+    "navigation_prevents_late_modal_and_retains_original_link": true,
+    "injected_503_is_not_permanently_cached": true,
+    "external_target_missing_from_cache_is_refreshed_not_defaulted": true,
+    "daily_form_zero_and_account_options_preserved_write_refetches_once": true,
+    "snapshot_form_keeps_zero_missing_distinct_write_refetches_once": true,
+    "logout_rejects_late_success_and_clears_index": true,
+    "new_real_session_does_not_reuse_previous_session_cache": true,
+    "real_old_cookie_401_does_not_sign_out_same_user_new_session": true,
+    "real_current_session_401_still_signs_out": true
+  },
+  "pageerrors": [],
+  "console": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ]
+}

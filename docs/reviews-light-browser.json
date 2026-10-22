@@ -1,0 +1,664 @@
+{
+  "synthetic": true,
+  "focused_data_and_review_modal": true,
+  "baseline_commit": "937503d3e8e1b5ba2aeaf154714900b62e46152e",
+  "source_commit": "c3f08b28252725d36da1f72570103d8e4c4795c1",
+  "candidate_app_sha256": "8cb488c17ec5766db212db80d6982445014305f685b9768c7f890bdac52c8fac",
+  "candidate_worker_sha256": "aef8cfd3202850b5760023d31f5104a11a31e252a16ee35c8e67300ad83a7684",
+  "widths": [
+    375,
+    390,
+    768,
+    1440
+  ],
+  "captures": [
+    {
+      "variant": "baseline",
+      "view": "data",
+      "width": 375,
+      "sha256": "ce5ff9bb32a6cf21fed875db47a80d93b3991bb9fbbe12c42fba0116da21eb6b"
+    },
+    {
+      "variant": "baseline",
+      "view": "review-modal",
+      "width": 375,
+      "sha256": "fb1b67a3374db6f8808d2ec1208a57b43613aafa2bfe6b3423feed470bff14e2"
+    },
+    {
+      "variant": "baseline",
+      "view": "data",
+      "width": 390,
+      "sha256": "4b942860493460fb45a8fc726375d8627dad3f7f79265c4db716b9c65a02366a"
+    },
+    {
+      "variant": "baseline",
+      "view": "review-modal",
+      "width": 390,
+      "sha256": "863ebd4d251a67ab4634f6b1b86521cd2883512d5a65fbcc9b968a73cdc88dd9"
+    },
+    {
+      "variant": "baseline",
+      "view": "data",
+      "width": 768,
+      "sha256": "f24b50ed839d46373460ebc21ee606068157dd6d128887d9c614d338ba4aaf0c"
+    },
+    {
+      "variant": "baseline",
+      "view": "review-modal",
+      "width": 768,
+      "sha256": "d29fcdeef87c56c58cda42ffdd7c8a33ef1457c1ebd1bd481ea97226bf6a83ab"
+    },
+    {
+      "variant": "baseline",
+      "view": "data",
+      "width": 1440,
+      "sha256": "e4f847d23a79997af25f0482d641dfa962dcdcfe8a4f79b473ae20d26567b8b0"
+    },
+    {
+      "variant": "baseline",
+      "view": "review-modal",
+      "width": 1440,
+      "sha256": "70b4296c95aff5da33e913ce3b5e801f37a6dbd54153978a10cdb99c5650123b"
+    },
+    {
+      "variant": "candidate",
+      "view": "data",
+      "width": 375,
+      "sha256": "ce5ff9bb32a6cf21fed875db47a80d93b3991bb9fbbe12c42fba0116da21eb6b"
+    },
+    {
+      "variant": "candidate",
+      "view": "review-modal",
+      "width": 375,
+      "sha256": "fb1b67a3374db6f8808d2ec1208a57b43613aafa2bfe6b3423feed470bff14e2"
+    },
+    {
+      "variant": "candidate",
+      "view": "data",
+      "width": 390,
+      "sha256": "4b942860493460fb45a8fc726375d8627dad3f7f79265c4db716b9c65a02366a"
+    },
+    {
+      "variant": "candidate",
+      "view": "review-modal",
+      "width": 390,
+      "sha256": "863ebd4d251a67ab4634f6b1b86521cd2883512d5a65fbcc9b968a73cdc88dd9"
+    },
+    {
+      "variant": "candidate",
+      "view": "data",
+      "width": 768,
+      "sha256": "f24b50ed839d46373460ebc21ee606068157dd6d128887d9c614d338ba4aaf0c"
+    },
+    {
+      "variant": "candidate",
+      "view": "review-modal",
+      "width": 768,
+      "sha256": "d29fcdeef87c56c58cda42ffdd7c8a33ef1457c1ebd1bd481ea97226bf6a83ab"
+    },
+    {
+      "variant": "candidate",
+      "view": "data",
+      "width": 1440,
+      "sha256": "e4f847d23a79997af25f0482d641dfa962dcdcfe8a4f79b473ae20d26567b8b0"
+    },
+    {
+      "variant": "candidate",
+      "view": "review-modal",
+      "width": 1440,
+      "sha256": "70b4296c95aff5da33e913ce3b5e801f37a6dbd54153978a10cdb99c5650123b"
+    }
+  ],
+  "pageerrors": [],
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "mismatches": [],
+  "network": [
+    {
+      "variant": "baseline",
+      "phase": "data-first",
+      "requests": [
+        {
+          "seq": 8,
+          "variant": "baseline",
+          "path": "/api/v1/articles?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 9993,
+          "d1": {
+            "sql": 6,
+            "write_statements": 0,
+            "rows_read": 255,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 9,
+          "variant": "baseline",
+          "path": "/api/v1/observations?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 14176,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 148,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 10,
+          "variant": "baseline",
+          "path": "/api/v1/overview?period=yesterday",
+          "method": "GET",
+          "status": 200,
+          "bytes": 51281,
+          "d1": {
+            "sql": 8,
+            "write_statements": 0,
+            "rows_read": 633,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 3,
+      "bytes": 75450,
+      "sql": 18,
+      "write_statements": 0
+    },
+    {
+      "variant": "baseline",
+      "phase": "modal-first",
+      "requests": [
+        {
+          "seq": 12,
+          "variant": "baseline",
+          "path": "/api/v1/articles",
+          "method": "GET",
+          "status": 200,
+          "bytes": 9993,
+          "d1": {
+            "sql": 6,
+            "write_statements": 0,
+            "rows_read": 255,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 1,
+      "bytes": 9993,
+      "sql": 6,
+      "write_statements": 0
+    },
+    {
+      "variant": "baseline",
+      "phase": "modal-repeat",
+      "requests": [
+        {
+          "seq": 13,
+          "variant": "baseline",
+          "path": "/api/v1/articles",
+          "method": "GET",
+          "status": 200,
+          "bytes": 9993,
+          "d1": {
+            "sql": 6,
+            "write_statements": 0,
+            "rows_read": 255,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 1,
+      "bytes": 9993,
+      "sql": 6,
+      "write_statements": 0
+    },
+    {
+      "variant": "baseline",
+      "phase": "tab-daily",
+      "requests": [
+        {
+          "seq": 14,
+          "variant": "baseline",
+          "path": "/api/v1/articles?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 9993,
+          "d1": {
+            "sql": 6,
+            "write_statements": 0,
+            "rows_read": 255,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 15,
+          "variant": "baseline",
+          "path": "/api/v1/daily-metrics?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 27421,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 244,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 16,
+          "variant": "baseline",
+          "path": "/api/v1/overview?period=yesterday",
+          "method": "GET",
+          "status": 200,
+          "bytes": 51281,
+          "d1": {
+            "sql": 3,
+            "write_statements": 0,
+            "rows_read": 4,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 3,
+      "bytes": 88695,
+      "sql": 13,
+      "write_statements": 0
+    },
+    {
+      "variant": "baseline",
+      "phase": "tab-observations",
+      "requests": [
+        {
+          "seq": 18,
+          "variant": "baseline",
+          "path": "/api/v1/articles?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 9993,
+          "d1": {
+            "sql": 6,
+            "write_statements": 0,
+            "rows_read": 255,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 19,
+          "variant": "baseline",
+          "path": "/api/v1/observations?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 14176,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 148,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 20,
+          "variant": "baseline",
+          "path": "/api/v1/overview?period=yesterday",
+          "method": "GET",
+          "status": 200,
+          "bytes": 51281,
+          "d1": {
+            "sql": 3,
+            "write_statements": 0,
+            "rows_read": 4,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 3,
+      "bytes": 75450,
+      "sql": 13,
+      "write_statements": 0
+    },
+    {
+      "variant": "baseline",
+      "phase": "account-first",
+      "requests": [
+        {
+          "seq": 22,
+          "variant": "baseline",
+          "path": "/api/v1/articles?account_id=zhihu-haoduoyu",
+          "method": "GET",
+          "status": 200,
+          "bytes": 3413,
+          "d1": {
+            "sql": 7,
+            "write_statements": 0,
+            "rows_read": 94,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 23,
+          "variant": "baseline",
+          "path": "/api/v1/observations?account_id=zhihu-haoduoyu",
+          "method": "GET",
+          "status": 200,
+          "bytes": 4897,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 45,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 24,
+          "variant": "baseline",
+          "path": "/api/v1/overview?period=yesterday&account_id=zhihu-haoduoyu",
+          "method": "GET",
+          "status": 200,
+          "bytes": 21599,
+          "d1": {
+            "sql": 12,
+            "write_statements": 0,
+            "rows_read": 291,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 3,
+      "bytes": 29909,
+      "sql": 24,
+      "write_statements": 0
+    },
+    {
+      "variant": "baseline",
+      "phase": "account-return",
+      "requests": [
+        {
+          "seq": 26,
+          "variant": "baseline",
+          "path": "/api/v1/articles?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 9993,
+          "d1": {
+            "sql": 6,
+            "write_statements": 0,
+            "rows_read": 255,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 27,
+          "variant": "baseline",
+          "path": "/api/v1/observations?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 14176,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 148,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 28,
+          "variant": "baseline",
+          "path": "/api/v1/overview?period=yesterday",
+          "method": "GET",
+          "status": 200,
+          "bytes": 51281,
+          "d1": {
+            "sql": 3,
+            "write_statements": 0,
+            "rows_read": 4,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 3,
+      "bytes": 75450,
+      "sql": 13,
+      "write_statements": 0
+    },
+    {
+      "variant": "candidate",
+      "phase": "data-first",
+      "requests": [
+        {
+          "seq": 8,
+          "variant": "candidate",
+          "path": "/api/v1/articles?fields=index",
+          "method": "GET",
+          "status": 200,
+          "bytes": 1920,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 40,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 9,
+          "variant": "candidate",
+          "path": "/api/v1/observations?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 14176,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 148,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 10,
+          "variant": "candidate",
+          "path": "/api/v1/due-reviews",
+          "method": "GET",
+          "status": 200,
+          "bytes": 11,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 124,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 3,
+      "bytes": 16107,
+      "sql": 14,
+      "write_statements": 0
+    },
+    {
+      "variant": "candidate",
+      "phase": "modal-first",
+      "requests": [],
+      "count": 0,
+      "bytes": 0,
+      "sql": 0,
+      "write_statements": 0
+    },
+    {
+      "variant": "candidate",
+      "phase": "modal-repeat",
+      "requests": [],
+      "count": 0,
+      "bytes": 0,
+      "sql": 0,
+      "write_statements": 0
+    },
+    {
+      "variant": "candidate",
+      "phase": "tab-daily",
+      "requests": [
+        {
+          "seq": 12,
+          "variant": "candidate",
+          "path": "/api/v1/daily-metrics?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 27421,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 244,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 13,
+          "variant": "candidate",
+          "path": "/api/v1/due-reviews",
+          "method": "GET",
+          "status": 200,
+          "bytes": 11,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 124,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 2,
+      "bytes": 27432,
+      "sql": 9,
+      "write_statements": 0
+    },
+    {
+      "variant": "candidate",
+      "phase": "tab-observations",
+      "requests": [
+        {
+          "seq": 15,
+          "variant": "candidate",
+          "path": "/api/v1/observations?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 14176,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 148,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 16,
+          "variant": "candidate",
+          "path": "/api/v1/due-reviews",
+          "method": "GET",
+          "status": 200,
+          "bytes": 11,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 124,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 2,
+      "bytes": 14187,
+      "sql": 9,
+      "write_statements": 0
+    },
+    {
+      "variant": "candidate",
+      "phase": "account-first",
+      "requests": [
+        {
+          "seq": 18,
+          "variant": "candidate",
+          "path": "/api/v1/articles?account_id=zhihu-haoduoyu&fields=index",
+          "method": "GET",
+          "status": 200,
+          "bytes": 717,
+          "d1": {
+            "sql": 6,
+            "write_statements": 0,
+            "rows_read": 22,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 19,
+          "variant": "candidate",
+          "path": "/api/v1/observations?account_id=zhihu-haoduoyu",
+          "method": "GET",
+          "status": 200,
+          "bytes": 4897,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 45,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 20,
+          "variant": "candidate",
+          "path": "/api/v1/due-reviews?account_id=zhihu-haoduoyu",
+          "method": "GET",
+          "status": 200,
+          "bytes": 11,
+          "d1": {
+            "sql": 6,
+            "write_statements": 0,
+            "rows_read": 34,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 3,
+      "bytes": 5625,
+      "sql": 17,
+      "write_statements": 0
+    },
+    {
+      "variant": "candidate",
+      "phase": "account-return",
+      "requests": [
+        {
+          "seq": 22,
+          "variant": "candidate",
+          "path": "/api/v1/observations?",
+          "method": "GET",
+          "status": 200,
+          "bytes": 14176,
+          "d1": {
+            "sql": 4,
+            "write_statements": 0,
+            "rows_read": 148,
+            "rows_written": 0
+          }
+        },
+        {
+          "seq": 23,
+          "variant": "candidate",
+          "path": "/api/v1/due-reviews",
+          "method": "GET",
+          "status": 200,
+          "bytes": 11,
+          "d1": {
+            "sql": 5,
+            "write_statements": 0,
+            "rows_read": 124,
+            "rows_written": 0
+          }
+        }
+      ],
+      "count": 2,
+      "bytes": 14187,
+      "sql": 9,
+      "write_statements": 0
+    }
+  ]
+}
