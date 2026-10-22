@@ -78,3 +78,9 @@ HEAD 的 Fetch 内部错误 Response 保持旧 JSON body；真实 HTTP 适配层
 服务暂时不可用 的 JSON 500，再走相同安全头/请求ID/单条日志出口。不改已有受控错误的
 status/code/message 或成功流；但旧运行时 text/plain 500 会改为受控 JSON 500，这是明确
 行为差异，先交主线程审查，不默默实施。当前实现尚不能宣称所有运行时500完整关联。
+
+
+上述运行时边界的旧新6条实际 HTTP 元数据见 request-error-tracing-runtime-boundary.json。
+原始本地诊断日志与脚本保留在 /workspace/scratch/phase5c-runtime-*，不将启动失败当观测成功。
+完整回归还发现旧缓存测试比较两次请求的全部头，因新增请求ID必然不同而失败；修订为验证
+两个UUID且彼此不同，再仅投影此新增头，其他头/正文仍全等。单项复测通过，原失败日志保留。

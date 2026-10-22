@@ -1,5 +1,4 @@
-import {traceJSON} from './request-trace-projection.mjs';
-import {traceText} from './request-trace-projection.mjs';
+import {traceJSON, traceText, traceHeaders} from './request-trace-projection.mjs';
 import {stylePolicyHeaders} from './style-policy-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,7 +32,9 @@ test('same-revision overview hot read retains full body and headers with authent
   await fixed(Date.parse(BENCHMARK.now), async () => {
     const cold = await request(app), hot = await request(app);
     assert.equal(cold.response.status, 200);assert.equal(hot.response.status, 200);
-    assert.equal(hot.body, cold.body);assert.deepEqual([...hot.response.headers], [...cold.response.headers]);
+    assert.equal(hot.body, cold.body);
+    assert.deepEqual([...traceHeaders(hot.response.headers, true)], [...traceHeaders(cold.response.headers, true)]);
+    assert.notEqual(hot.response.headers.get('X-Request-Id'), cold.response.headers.get('X-Request-Id'));
     assert.equal(hot.metrics.sql, 3, 'hot request still performs real authentication and both revision checks');
     assert.equal(hot.metrics.control, 2);assert.equal(hot.metrics.write_statements, 0);
   });
