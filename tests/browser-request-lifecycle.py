@@ -69,6 +69,11 @@ def run(browser, variant, port):
     count=sum(r['path']=='/api/v1/accounts' for r in metrics()[n:])
     control({'release':gate});result()
     check('equivalent pending GET transport count',count,1)
+    # Different effective headers are not equivalent requests.
+    n=len(metrics());gate=hold('/api/v1/accounts')
+    start("Promise.all([probe.api('/accounts',{headers:{'X-Synthetic':'left'}}),probe.api('/accounts',{headers:{'X-Synthetic':'right'}})]).then(()=>window.result=true);")
+    held(gate);control({'release':gate});result()
+    check('different request options stay separate',sum(r['path']=='/api/v1/accounts' for r in metrics()[n:]),2)
     # A consumer abort cannot kill a second consumer of the same response.
     n=len(metrics());gate=hold('/api/v1/accounts')
     start("window.left=new AbortController();window.right=new AbortController();Promise.allSettled([probe.api('/accounts',{signal:left.signal}),probe.api('/accounts',{signal:right.signal})]).then(v=>window.result=v.map(x=>({status:x.status,name:x.reason?.name}))); ")
@@ -80,23 +85,45 @@ def run(browser, variant, port):
     n=len(metrics());gate=hold('/api/v1/overview?period=yesterday&top_n=5&top_platform=')
     start("probe.state.page='dashboard';probe.state.overviewPeriod='yesterday';probe.state.account='';probe.renderPage().then(()=>window.result=true);")
     held(gate)
-    page.evaluate("probe.navigate('articles')")
+    page.locator('[data-nav=articles]').click()
     expect(page.locator('#article-filters')).to_be_visible()
     page.wait_for_timeout(80)
     rows=[r for r in metrics()[n:] if r['path']=='/api/v1/overview?period=yesterday&top_n=5&top_platform=']
     check('page change aborts old HTTP request',bool(rows and rows[0].get('client_aborted')),True)
     control({'release':gate});result()
     check('new article page survives old response',page.locator('#article-filters').count(),1)
+    # A real refresh starts a new cycle and aborts the old cycle's read.
+    page.locator('[data-nav=dashboard]').first.click()
+    page.locator('#page-content[aria-busy=false]').wait_for()
+    n=len(metrics());gate=hold('/api/v1/overview?period=yesterday&top_n=5&top_platform=')
+    start("probe.state.page='dashboard';probe.renderPage().then(()=>window.result=true);")
+    held(gate);page.locator('[data-action=refresh]:visible').first.click()
+    page.locator('#page-content[aria-busy=false]').wait_for()
+    rows=[r for r in metrics()[n:] if r['path']=='/api/v1/overview?period=yesterday&top_n=5&top_platform=']
+    check('refresh sends a separate real GET',len(rows),2)
+    check('refresh aborts the previous HTTP request',bool(rows[0].get('client_aborted')),True)
+    control({'release':gate});result()
     # A pending mutation is not owned or aborted by page navigation.
     account=page.request.get(origin+'/__synthetic-fixture').json()['accounts'][0]['id']
+    old_read_start=len(metrics());old_read_gate=hold('/api/v1/accounts')
+    page.evaluate("() => {window.beforeWrite=probe.api('/accounts');}")
+    held(old_read_gate)
     n=len(metrics());gate=hold('/api/v1/articles','POST')
     page.evaluate("""account=>{window.result=null;probe.api('/articles',{method:'POST',body:{account_id:account,
       title:'Synthetic lifecycle write',url:'https://example.invalid/lifecycle-write',published_at:'2026-10-20T00:00:00.000Z',
       production_mode:'manual'}}).then(()=>window.result='saved',e=>window.result=e.name)}""",account)
-    held(gate);page.evaluate("probe.navigate('settings')");control({'release':gate})
+    held(gate);page.locator('[data-nav=settings]').click();control({'release':gate})
     check('mutation completes across navigation',result(),'saved')
     row=next(r for r in metrics()[n:] if r['method']=='POST' and r['path']=='/api/v1/articles')
     check('mutation HTTP request remains active',bool(row.get('client_aborted')),False)
+    page.evaluate("probe.api('/accounts')")
+    check('successful write prevents joining the older pending GET',
+        sum(r['path']=='/api/v1/accounts' for r in metrics()[old_read_start:]),2)
+    control({'release':old_read_gate});page.evaluate('window.beforeWrite')
+    # Genuine HTTP errors remain rejected errors instead of cancellation/success.
+    actual=page.evaluate("probe.api('/synthetic-unknown-route').then(()=>({status:200}),e=>({status:e.status,name:e.name}))")
+    check('real non-abort HTTP failure stays rejected',actual,{'status':404,'name':'Error'})
+    check('real non-auth failure keeps the current session',page.evaluate('!!probe.state.me'),True)
     # Produce a real 401 with an expired cookie, then re-login the SAME user.
     page.evaluate("probe.api('/auth/logout',{method:'POST'})")
     gate=hold('/api/v1/accounts')

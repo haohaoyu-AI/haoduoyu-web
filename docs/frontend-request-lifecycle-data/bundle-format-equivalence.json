@@ -1,0 +1,9 @@
+{
+  "baseline_commit": "a5291227db19dd4c032f5d5723b94165bf08867b",
+  "old_bytes": 114413,
+  "new_bytes": 115029,
+  "old_sha256": "5edf04083787c2fe0c02daccf505045258a7ad6a6404b6c8b71062422a8043dc",
+  "new_sha256": "af755e895c9df0f0df9a594c3d011d9e81a45ed287826cd06a0d8f295726e646",
+  "full_bundle_ast_equal": true,
+  "cooked_templates_equal": true
+}

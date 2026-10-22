@@ -1,10 +1,10 @@
 # 当前架构
 
-本分支前端源码位于 web/，以无环 ES 模块机械拆分；public/index.html 加载已提交的单一未压缩 ESM 产物 public/app.js，沿用单一 CSS 和原生 JS。登录后保留 URL 深链接。4a 未引入 action 注册表、GET 去重/Abort 或 CSP 变更。
+本分支前端源码位于 web/，以无环 ES 模块机械拆分；public/index.html 加载已提交的单一未压缩 ESM 产物 public/app.js，沿用单一 CSS 和原生 JS。登录后保留 URL 深链接。4a 仅机械拆分；当前 4b 草稿引入 action/表单分发及 GET 生命周期，CSP 与内联样式仍留待 4c。
 
 Worker 使用 /api/v1 Cookie 会话或受限 AI 凭据；CSRF/Origin、scrypt、安全比较、请求体上限、CSV 防注入和 e/safeURL 保持原样。D1 使用全局 revision 一致读/乐观锁和写入幂等。阶段1不改数据库结构、迁移或绑定。
 
-累计快照与每日新增分别计算；未采集、未取得、真实零及 likes/approvals 保持区分。保险识别、题材推断和关注规则不变。优化前的历史基线没有结果缓存，每次读请求还有控制表维护及凭据元数据写入；这不是当前分支状态。当前 main 基线已包含 C1 的零普通控制写、C2 的五分钟元数据节流、C5 精确失效结果缓存和 C4 轻量读取；C6 SQL 分页也已验收合并；本分支仅新增 4a 前端模块。已发布的生产 Sites v7 固定版本仅包含 C1～C3，尚未包含 C4/C5/C6；不能把开发分支架构当作线上状态。
+累计快照与每日新增分别计算；未采集、未取得、真实零及 likes/approvals 保持区分。保险识别、题材推断和关注规则不变。优化前的历史基线没有结果缓存，每次读请求还有控制表维护及凭据元数据写入；这不是当前分支状态。当前 main 基线已包含 C1 的零普通控制写、C2 的五分钟元数据节流、C5 精确失效结果缓存和 C4 轻量读取；C6 SQL 分页也已验收合并；4a 前端模块已合并；本分支推进 4b。已发布的生产 Sites v7 固定版本仅包含 C1～C3，尚未包含 C4/C5/C6；不能把开发分支架构当作线上状态。
 
 build.mjs 先使用已有 esbuild 将 web/main.mjs 生成 public/app.js（ESM、不压缩、UTF-8），再将 public 资源嵌入 Worker。CI 在首次 build 之前检查产物与源码逐字节一致，避免覆盖手改产物掩盖错误；check:artifacts 同时保留八资源 pin、生成资源和 Worker 字节检查。模块所有权、原事件顺序和运行状态归属见 frontend-modules.md 与 frontend-module-map.json。
 
@@ -30,3 +30,7 @@ build.mjs 先使用已有 esbuild 将 web/main.mjs 生成 public/app.js（ESM、
 阶段 3 C5（已合并、未部署）：总览正文以不可变 Blob 缓存，按 DB 绑定身份、revision、规范化查询及完整授权身份隔离。缓存有效期精确到北京日界、未完成 d1/d3/d7 到期与未来保险成员发布时间；缓存不能代替每次鉴权、首尾 revision 检查或 C2 元数据处理。总预算 16 MiB，单项正文最多 15 MiB，最多 50 项；pending、resident、活跃响应与每个租约的两个 64 KiB 缓冲预留共同计费。失败、重试和取消显式释放；超限完整绕过缓存，不截断响应。资源状态和目标运行时证据边界见 overview-cache-design.md 与 overview-cache-validation.md。
 
 阶段 3 C6（已验收合并、未部署）：完整文章分页仅在 published_at 排序、无 topic/data_status 筛选且完整匹配集字符串排序兼容时使用 SQL 排序分页；只为页内文章补快照，其他情况保留原实现。ID/日期原始字符串、locale、权限及分页错误规则的兼容边界见 article-sql-page.md。未修改字段投影、数据库结构或 UI。
+
+阶段 4b（草稿、未部署）：actions.mjs 保留所有原 data-action 名和处理体，events.mjs 只保留前置交互、薄分发及原顺序的九个事件绑定；forms.mjs 独立保留表单校验和写入合同。requests.mjs 分开拥有页面、弹窗、后台的 pending GET。共享键包含渲染/会话 epoch、身份、写入 generation 和有效请求选项；每个消费者独立解析 JSON 和释放取消订阅，最后一个消费者才中止底层传输。新页面取消旧页 GET，写请求不合并、不自动重试、不因换页取消。已完成冻结索引仍可在会话内复用，在途索引不得跨 owner 复用。既有 renderVersion、sessionEpoch、generation 及旧 401 保护保留，真实当前 401 仍退出。
+
+web 源码的 160 字符/80 行检查使用 Node24 自带解析器，仅为开发检查，不打入运行时；同时拒绝词中续行。模板 cooked 文本逐项比较，正文空白不改变。新增行为的失败/取消及真实浏览器范围见 frontend-request-lifecycle.md。

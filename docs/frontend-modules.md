@@ -1,5 +1,7 @@
 # Phase 4a: mechanical frontend modules
 
+Historical phase-4a record; current phase-4b scope and source layout are in frontend-request-lifecycle.md.
+
 ## Scope and baseline
 
 Baseline: `168f236b05abd12ad1a937a5f506d9d8f9234ece`.
