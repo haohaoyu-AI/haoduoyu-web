@@ -14,17 +14,23 @@ export function createOverviewCache(limits=OVERVIEW_CACHE_LIMITS,readChunk=(blob
     if(lru.get(entry.key)===entry) lru.delete(entry.key);
     entry.pending=false;entry.retired=true;collect(entry);
   }
-  function room(charge) {
+  const leaseCharge=policy.chunkBytes*2+512;
+  function room(charge,adding=true,keep=null) {
     for(const entry of lru.values()) {
-      if(bytes+charge<=policy.bytes&&allocated.size<policy.entries) break;
-      if(entry.refs===0&&entry.reads===0) {events.evicted++;retire(entry);}
+      if(bytes+charge<=policy.bytes&&(!adding||allocated.size<policy.entries)) break;
+      if(entry!==keep&&entry.refs===0&&entry.reads===0) {events.evicted++;retire(entry);}
     }
-    return bytes+charge<=policy.bytes&&allocated.size<policy.entries;
+    return bytes+charge<=policy.bytes&&(!adding||allocated.size<policy.entries);
   }
-  function ticket(entry,hit) {
+  function ticket(entry,hit,reserved=false) {
+    if(!reserved) {
+      if(!room(leaseCharge,false,entry)) {events.budgetRejected++;return null;}
+      bytes+=leaseCharge;
+    }
     entry.refs++;
-    let response=null,released=false;
-    const release=()=>{if(!released) {released=true;entry.refs--;collect(entry);}};
+    let response=null,released=false,leaseFreed=false,activeReads=0;
+    const freeLease=()=>{if(released&&activeReads===0&&!leaseFreed) {leaseFreed=true;bytes-=leaseCharge;collect(entry);}};
+    const release=()=>{if(!released) {released=true;entry.refs--;freeLease();collect(entry);}};
     return {
       response() {
         if(response||released) throw new Error('Overview cache lease already consumed');
@@ -33,7 +39,7 @@ export function createOverviewCache(limits=OVERVIEW_CACHE_LIMITS,readChunk=(blob
         const stream=new ReadableStream({
           async pull(controller) {
             if(ended) return;
-            entry.reads++;
+            entry.reads++;activeReads++;
             try {
               const end=Math.min(offset+policy.chunkBytes,entry.blob.size);
               const chunk=await readChunk(entry.blob,offset,end);
@@ -41,8 +47,8 @@ export function createOverviewCache(limits=OVERVIEW_CACHE_LIMITS,readChunk=(blob
               offset=end;controller.enqueue(new Uint8Array(chunk));
               if(offset===entry.blob.size) {controller.close();finish();}
             } catch(error) {
-              if(!ended) {controller.error(error);finish();}
-            } finally {entry.reads--;collect(entry);}
+              if(!ended) {retire(entry);try {controller.error(error);} finally {finish();}}
+            } finally {entry.reads--;activeReads--;freeLease();collect(entry);}
           },
           cancel() {finish();},
         },{highWaterMark:0});
@@ -92,11 +98,11 @@ export function createOverviewCache(limits=OVERVIEW_CACHE_LIMITS,readChunk=(blob
       const size=Buffer.byteLength(text,'utf8'),charge=size+key.length*2+1024;
       if(size>policy.itemBytes||charge>policy.bytes) {events.oversized++;return null;}
       if(!Number.isFinite(at)||!Number.isFinite(until)||until<=at) return null;
-      if(!room(charge)) {events.budgetRejected++;return null;}
+      if(!room(charge+leaseCharge)) {events.budgetRejected++;return null;}
       const entry={key,charge,createdAt:at,until,pending:true,retired:false,refs:0,reads:0,blob:null};
-      allocated.add(entry);bytes+=charge;
-      try {entry.blob=new Blob([text]);return ticket(entry,false);}
-      catch(error) {retire(entry);throw error;}
+      allocated.add(entry);bytes+=charge+leaseCharge;
+      try {entry.blob=new Blob([text]);return ticket(entry,false,true);}
+      catch(error) {bytes-=leaseCharge;retire(entry);throw error;}
     },
     stats() {
       return {...events,bytes,entries:allocated.size,resident:lru.size,
