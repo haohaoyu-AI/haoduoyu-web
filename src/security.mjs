@@ -46,7 +46,7 @@ export async function authenticate(store,request,permission='read') {
     const tokenHash=digest(match[1]);
     const row=await store.get('SELECT * FROM api_keys WHERE token_hash=? AND revoked_at IS NULL',tokenHash);
     if(!row) throw fail(401,'UNAUTHORIZED','授权凭证无效或已撤销');
-    actor={id:row.id,actor:'key:'+row.id,kind:'key',tokenHash,scope:JSON.parse(row.account_ids_json),permissions:JSON.parse(row.permissions_json),scopeJson:row.account_ids_json,permissionsJson:row.permissions_json};
+    actor={id:row.id,actor:'key:'+row.id,kind:'key',tokenHash,lastUsedAt:row.last_used_at,scope:JSON.parse(row.account_ids_json),permissions:JSON.parse(row.permissions_json),scopeJson:row.account_ids_json,permissionsJson:row.permissions_json};
   } else {
     const token=/(?:^|;\s*)matrix_session=([a-f0-9]{64})(?:;|$)/.exec(request.headers.get('cookie')||'')?.[1];
     if(token) {

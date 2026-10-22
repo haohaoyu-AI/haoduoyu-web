@@ -21,3 +21,5 @@ build.mjs 将 public 资源嵌入后打包 Worker。check:artifacts 校验 publi
 第二期 B5：登录后保留 URL 深链接是既有的有意行为。init 实际认证并加载账号后，readRoute() 读取和校验有效的页面、账号、筛选、排序、分页、字段及周期参数，updateRoute 规范化 URL，不按 freshLogin 清空有效筛选。刷新及浏览器前进/后退沿用同一解析规则。freshLogin 在 init 中仍重置趋势/关注展开状态，必须保留；本次只删除给无参 readRoute 传入的对象，不改此重置或认证流程。
 
 阶段 3 C1：普通 API 仅用一条 SELECT 同时检查 initialized/revision，不再运行 ensureControl 写入。bootstrap 与恢复保留初始化。protectedRead 将已读 revision 仅供 consistentRead 第一次 before 使用；重试重新读取并重新执行包含鉴权的 operation，出口检查保留，mutate 不接收它。会话 GET 零写，AI last_used_at 元数据写仍保留给 C2，见 perf-baseline.md。
+
+凭据 GET 的 last_used_at 是独立展示元数据：认证内部携带既有值，以最终一致读成功轮决定首次/严格超过五分钟的同步更新；应用层与 SQL 用相同截止时间，恰边界/未来跳过，不额外 SELECT、不推进业务 revision。并发可发多个 UPDATE，仅SQL条件匹配的请求更新；更新失败沿用500。
