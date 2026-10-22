@@ -1,9 +1,10 @@
+import { fail } from '../src/lib/errors.mjs';
+export { fail } from '../src/lib/errors.mjs';
 import { randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 const scrypt = promisify(scryptCallback);
 export const digest = value => createHash('sha256').update(value).digest('hex');
 export const csrfFor = token => digest('matrix-csrf:' + token);
-export const fail = (status, code, message) => Object.assign(new Error(message), { status, code });
 const options = { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 export function validatePassword(password) {
   if (typeof password !== 'string' || password.length < 12 || password.length > 256)

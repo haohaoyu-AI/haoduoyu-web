@@ -1,3 +1,4 @@
+import { fail } from './lib/errors.mjs';
 // Derived views only: never write inferred topics, dates or metrics to records.
 export const METRIC_KEYS = ['reads','impressions','likes','comments','favorites','shares','approvals','reading_users'];
 export const METRIC_NOTE = '各平台阅读为平台原字段相加，口径可能不同；likes 保留为点赞（知乎口径待核实），approvals 单独为赞同，互不替代。累计值为各篇最近快照之和，截至时间可能不同。';
@@ -72,13 +73,12 @@ export function snapshotTimeline(observations,publishedAt,now=Date.now()) {
 export function paginate(rows,query={},unfilteredTotal=rows.length) {
   const get=key=>query instanceof URLSearchParams?query.get(key):query[key];
   const pageMode=get('page')!=null||get('page_size')!=null, offsetMode=get('limit')!=null||get('offset')!=null;
-  const bad=message=>{throw Object.assign(new Error(message),{status:400,code:'VALIDATION_ERROR'});};
-  const integer=(v,fallback,max)=>{if(v==null)return fallback;if(!/^\d+$/.test(String(v))||!Number.isSafeInteger(Number(v))||Number(v)>max)bad('分页参数须为范围内的非负整数');return Number(v);};
-  if(pageMode&&offsetMode)bad('page/page_size 与 limit/offset 不能混用');
+  const integer=(v,fallback,max)=>{if(v==null)return fallback;if(!/^\d+$/.test(String(v))||!Number.isSafeInteger(Number(v))||Number(v)>max)fail(400,'VALIDATION_ERROR','分页参数须为范围内的非负整数');return Number(v);};
+  if(pageMode&&offsetMode)fail(400,'VALIDATION_ERROR','page/page_size 与 limit/offset 不能混用');
   const size=integer(pageMode?get('page_size'):get('limit'),pageMode||offsetMode?20:rows.length||20,200);
   const page=integer(get('page'),1,Number.MAX_SAFE_INTEGER);
   const offset=pageMode?(page-1)*size:integer(get('offset'),0,Number.MAX_SAFE_INTEGER);
-  if(!size||!page||!Number.isSafeInteger(offset))bad('页码与每页数量须大于零，偏移须为安全整数');
+  if(!size||!page||!Number.isSafeInteger(offset))fail(400,'VALIDATION_ERROR','页码与每页数量须大于零，偏移须为安全整数');
   const paged=pageMode||offsetMode;
   return {data:paged?rows.slice(offset,offset+size):rows,
     meta:{total:rows.length,unfiltered_total:unfilteredTotal,page:paged?Math.floor(offset/size)+1:1,page_size:paged?size:null,offset:paged?offset:0,

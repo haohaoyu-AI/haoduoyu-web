@@ -1,0 +1,1217 @@
+{
+  "baseline": "1f5afffaac5bccd14c3dd25600df3a9b85d1ee40",
+  "calls": [
+    {
+      "file": "shared/auth.mjs",
+      "ordinal": 1,
+      "baselineLine": 10,
+      "status": 400,
+      "code": "INVALID_PASSWORD",
+      "message": "密码需要 12 至 256 个字符",
+      "alternateMessage": "密码需要 12 至 256 个字符"
+    },
+    {
+      "file": "shared/auth.mjs",
+      "ordinal": 2,
+      "baselineLine": 28,
+      "status": 400,
+      "code": "INVALID_USERNAME",
+      "message": "账号需要 3 至 80 个字母、数字或 . _ @ -",
+      "alternateMessage": "账号需要 3 至 80 个字母、数字或 . _ @ -"
+    },
+    {
+      "file": "shared/auth.mjs",
+      "ordinal": 3,
+      "baselineLine": 44,
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "message": "授权凭证无效",
+      "alternateMessage": "授权凭证无效"
+    },
+    {
+      "file": "shared/auth.mjs",
+      "ordinal": 4,
+      "baselineLine": 46,
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "message": "授权凭证无效或已撤销",
+      "alternateMessage": "授权凭证无效或已撤销"
+    },
+    {
+      "file": "shared/auth.mjs",
+      "ordinal": 5,
+      "baselineLine": 56,
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "message": "请先登录",
+      "alternateMessage": "请先登录"
+    },
+    {
+      "file": "shared/auth.mjs",
+      "ordinal": 6,
+      "baselineLine": 70,
+      "status": 403,
+      "code": "CSRF",
+      "message": "请求来源校验失败，请刷新后重试",
+      "alternateMessage": "请求来源校验失败，请刷新后重试"
+    },
+    {
+      "file": "shared/auth.mjs",
+      "ordinal": 7,
+      "baselineLine": 79,
+      "status": 403,
+      "code": "CSRF",
+      "message": "安全校验已失效，请刷新后重试",
+      "alternateMessage": "安全校验已失效，请刷新后重试"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 1,
+      "baselineLine": 10,
+      "status": 403,
+      "code": "FORBIDDEN",
+      "message": "此操作仅限网站管理员",
+      "alternateMessage": "此操作仅限网站管理员"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 2,
+      "baselineLine": 18,
+      "status": 503,
+      "code": "CONFIGURATION",
+      "message": "需要设置 SITE_ORIGIN",
+      "alternateMessage": "需要设置 SITE_ORIGIN"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 3,
+      "baselineLine": 20,
+      "status": 503,
+      "code": "CONFIGURATION",
+      "message": "SITE_ORIGIN 需要精确的 HTTPS 来源地址",
+      "alternateMessage": "SITE_ORIGIN 需要精确的 HTTPS 来源地址"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 4,
+      "baselineLine": 24,
+      "status": 415,
+      "code": "CONTENT_TYPE",
+      "message": "请使用 application/json",
+      "alternateMessage": "请使用 application/json"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 5,
+      "baselineLine": 31,
+      "status": 413,
+      "code": "BODY_TOO_LARGE",
+      "message": "提交内容超过 256KB",
+      "alternateMessage": "提交内容超过 256KB"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 6,
+      "baselineLine": 36,
+      "status": 400,
+      "code": "INVALID_JSON",
+      "message": "JSON 格式无效",
+      "alternateMessage": "JSON 格式无效"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 7,
+      "baselineLine": 37,
+      "status": 400,
+      "code": "INVALID_JSON",
+      "message": "请求内容应为 JSON 对象",
+      "alternateMessage": "请求内容应为 JSON 对象"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 8,
+      "baselineLine": 45,
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "message": "授权凭证无效",
+      "alternateMessage": "授权凭证无效"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 9,
+      "baselineLine": 48,
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "message": "授权凭证无效或已撤销",
+      "alternateMessage": "授权凭证无效或已撤销"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 10,
+      "baselineLine": 58,
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "message": "请先登录",
+      "alternateMessage": "请先登录"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 11,
+      "baselineLine": 59,
+      "status": 403,
+      "code": "FORBIDDEN",
+      "message": "此凭证没有所需的读写权限",
+      "alternateMessage": "此凭证没有所需的读写权限"
+    },
+    {
+      "file": "src/security.mjs",
+      "ordinal": 12,
+      "baselineLine": 78,
+      "status": 429,
+      "code": "RATE_LIMITED",
+      "message": "尝试次数过多，请稍后再试",
+      "alternateMessage": "尝试次数过多，请稍后再试"
+    },
+    {
+      "file": "src/storage.mjs",
+      "ordinal": 1,
+      "baselineLine": 28,
+      "status": 503,
+      "code": "SETUP_REQUIRED",
+      "message": "数据库尚未初始化",
+      "alternateMessage": "数据库尚未初始化"
+    },
+    {
+      "file": "src/storage.mjs",
+      "ordinal": 2,
+      "baselineLine": 48,
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "message": "授权已失效，请重新登录",
+      "alternateMessage": "授权已失效，请重新登录"
+    },
+    {
+      "file": "src/storage.mjs",
+      "ordinal": 3,
+      "baselineLine": 66,
+      "status": 503,
+      "code": "BUSY",
+      "message": "数据正在更新，请稍后重试",
+      "alternateMessage": "数据正在更新，请稍后重试"
+    },
+    {
+      "file": "src/storage.mjs",
+      "ordinal": 4,
+      "baselineLine": 88,
+      "status": 503,
+      "code": "BUSY",
+      "message": "并发更新较多，请使用原幂等键稍后重试",
+      "alternateMessage": "并发更新较多，请使用原幂等键稍后重试"
+    },
+    {
+      "file": "src/backup.mjs",
+      "ordinal": 1,
+      "baselineLine": 28,
+      "status": 403,
+      "code": "RESTORE_DISABLED",
+      "message": "恢复只允许在显式指定的空隔离数据库执行",
+      "alternateMessage": "恢复只允许在显式指定的空隔离数据库执行"
+    },
+    {
+      "file": "src/backup.mjs",
+      "ordinal": 2,
+      "baselineLine": 29,
+      "status": 400,
+      "code": "INVALID_BACKUP",
+      "message": "备份格式或校验和无效",
+      "alternateMessage": "备份格式或校验和无效"
+    },
+    {
+      "file": "src/backup.mjs",
+      "ordinal": 3,
+      "baselineLine": 31,
+      "status": 400,
+      "code": "INVALID_BACKUP",
+      "message": "备份表不完整",
+      "alternateMessage": "备份表不完整"
+    },
+    {
+      "file": "src/backup.mjs",
+      "ordinal": 4,
+      "baselineLine": 33,
+      "status": 400,
+      "code": "INVALID_BACKUP",
+      "message": "备份表格式无效",
+      "alternateMessage": "备份表格式无效"
+    },
+    {
+      "file": "src/backup.mjs",
+      "ordinal": 5,
+      "baselineLine": 35,
+      "status": 400,
+      "code": "INVALID_BACKUP",
+      "message": "备份列格式无效",
+      "alternateMessage": "备份列格式无效"
+    },
+    {
+      "file": "src/backup.mjs",
+      "ordinal": 6,
+      "baselineLine": 38,
+      "status": 409,
+      "code": "RESTORE_NOT_EMPTY",
+      "message": "恢复目标必须为空，禁止覆盖现有数据",
+      "alternateMessage": "恢复目标必须为空，禁止覆盖现有数据"
+    },
+    {
+      "file": "src/backup.mjs",
+      "ordinal": 7,
+      "baselineLine": 42,
+      "status": 409,
+      "code": "RESTORE_NOT_EMPTY",
+      "message": "恢复目标已经初始化或有未完成的恢复",
+      "alternateMessage": "恢复目标已经初始化或有未完成的恢复"
+    },
+    {
+      "file": "src/backup.mjs",
+      "ordinal": 8,
+      "baselineLine": 46,
+      "status": 409,
+      "code": "RESTORE_NOT_EMPTY",
+      "message": "恢复目标已被其他操作占用",
+      "alternateMessage": "恢复目标已被其他操作占用"
+    },
+    {
+      "file": "src/backup.mjs",
+      "ordinal": 9,
+      "baselineLine": 54,
+      "status": 400,
+      "code": "INVALID_BACKUP",
+      "message": "恢复外键校验失败，目标保持隔离",
+      "alternateMessage": "恢复外键校验失败，目标保持隔离"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 1,
+      "baselineLine": 17,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "接口不存在",
+      "alternateMessage": "接口不存在"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 2,
+      "baselineLine": 20,
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "message": "初始化授权无效",
+      "alternateMessage": "初始化授权无效"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 3,
+      "baselineLine": 22,
+      "status": 400,
+      "code": "INVALID_USERNAME",
+      "message": "账号需要 3 至 80 个字母、数字或 . _ @ -",
+      "alternateMessage": "账号需要 3 至 80 个字母、数字或 . _ @ -"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 4,
+      "baselineLine": 26,
+      "status": 409,
+      "code": "SETUP_COMPLETE",
+      "message": "初始化已完成",
+      "alternateMessage": "初始化已完成"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 5,
+      "baselineLine": 40,
+      "status": 401,
+      "code": "INVALID_CREDENTIALS",
+      "message": "账号或密码错误",
+      "alternateMessage": "账号或密码错误"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 6,
+      "baselineLine": 44,
+      "status": 401,
+      "code": "INVALID_CREDENTIALS",
+      "message": "账号或密码错误",
+      "alternateMessage": "账号或密码错误"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 7,
+      "baselineLine": 48,
+      "status": 401,
+      "code": "INVALID_CREDENTIALS",
+      "message": "账号或密码错误",
+      "alternateMessage": "账号或密码错误"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 8,
+      "baselineLine": 85,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "接口不存在",
+      "alternateMessage": "接口不存在"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 9,
+      "baselineLine": 107,
+      "status": 403,
+      "code": "INVALID_CREDENTIALS",
+      "message": "当前密码错误",
+      "alternateMessage": "当前密码错误"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 10,
+      "baselineLine": 111,
+      "status": 400,
+      "code": "VALIDATION",
+      "message": "Idempotency-Key 格式无效",
+      "alternateMessage": "Idempotency-Key 格式无效"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 11,
+      "baselineLine": 120,
+      "status": 409,
+      "code": "CONFLICT",
+      "message": "密码已修改，请重新登录",
+      "alternateMessage": "密码已修改，请重新登录"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 12,
+      "baselineLine": 127,
+      "status": 400,
+      "code": "VALIDATION",
+      "message": "请填写凭证名称、运营账号与读写权限",
+      "alternateMessage": "请填写凭证名称、运营账号与读写权限"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 13,
+      "baselineLine": 129,
+      "status": 400,
+      "code": "VALIDATION",
+      "message": "授权账号不存在",
+      "alternateMessage": "授权账号不存在"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 14,
+      "baselineLine": 137,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "凭证不存在或已撤销",
+      "alternateMessage": "凭证不存在或已撤销"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 15,
+      "baselineLine": 148,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "接口不存在",
+      "alternateMessage": "接口不存在"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 16,
+      "baselineLine": 152,
+      "status": 409,
+      "code": "IDEMPOTENCY_CONFLICT",
+      "message": "同一幂等键已经用于不同内容",
+      "alternateMessage": "同一幂等键已经用于不同内容"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 17,
+      "baselineLine": 170,
+      "status": 503,
+      "code": "CONFIGURATION",
+      "message": "D1 绑定未配置",
+      "alternateMessage": "D1 绑定未配置"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 18,
+      "baselineLine": 175,
+      "status": 503,
+      "code": "SETUP_REQUIRED",
+      "message": "请先完成管理员初始化",
+      "alternateMessage": "数据库恢复未完成，服务保持隔离"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 19,
+      "baselineLine": 178,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "period 只能提供一次",
+      "alternateMessage": "period 只能提供一次"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 20,
+      "baselineLine": 183,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "接口不存在",
+      "alternateMessage": "接口不存在"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 21,
+      "baselineLine": 185,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "页面不存在",
+      "alternateMessage": "页面不存在"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 22,
+      "baselineLine": 186,
+      "status": 400,
+      "code": "VALIDATION",
+      "message": "地址格式无效",
+      "alternateMessage": "地址格式无效"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 23,
+      "baselineLine": 187,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "文件不存在",
+      "alternateMessage": "文件不存在"
+    },
+    {
+      "file": "src/worker.mjs",
+      "ordinal": 24,
+      "baselineLine": 189,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "文件不存在",
+      "alternateMessage": "文件不存在"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 1,
+      "baselineLine": 18,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "合成字段必须是对象",
+      "alternateMessage": "另一合成字段必须是对象"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 2,
+      "baselineLine": 25,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "合成字段格式或长度无效",
+      "alternateMessage": "另一合成字段格式或长度无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 3,
+      "baselineLine": 31,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "合成字段须为 YYYY-MM-DD",
+      "alternateMessage": "另一合成字段须为 YYYY-MM-DD"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 4,
+      "baselineLine": 33,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "合成字段不存在",
+      "alternateMessage": "另一合成字段不存在"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 5,
+      "baselineLine": 39,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "合成字段须包含日期、时间和时区",
+      "alternateMessage": "另一合成字段须包含日期、时间和时区"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 6,
+      "baselineLine": 45,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "合成字段时间无效",
+      "alternateMessage": "另一合成字段时间无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 7,
+      "baselineLine": 48,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "合成字段不能在未来或无效",
+      "alternateMessage": "另一合成字段不能在未来或无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 8,
+      "baselineLine": 56,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "不支持的指标：synthetic-metric",
+      "alternateMessage": "不支持的指标：another-synthetic-metric"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 9,
+      "baselineLine": 57,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "synthetic-metric须为非负安全整数，缺项请省略",
+      "alternateMessage": "another-synthetic-metric须为非负安全整数，缺项请省略"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 10,
+      "baselineLine": 60,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "请至少填写一项指标；缺失不能用零代替",
+      "alternateMessage": "请至少填写一项指标；缺失不能用零代替"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 11,
+      "baselineLine": 67,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "文章链接须为完整 HTTP(S) URL",
+      "alternateMessage": "文章链接须为完整 HTTP(S) URL"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 12,
+      "baselineLine": 69,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "文章链接须为不含登录凭据的 HTTP(S) URL",
+      "alternateMessage": "文章链接须为不含登录凭据的 HTTP(S) URL"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 13,
+      "baselineLine": 88,
+      "status": 403,
+      "code": "FORBIDDEN",
+      "message": "账号授权无效",
+      "alternateMessage": "账号授权无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 14,
+      "baselineLine": 93,
+      "status": 403,
+      "code": "FORBIDDEN",
+      "message": "无权访问该运营账号",
+      "alternateMessage": "无权访问该运营账号"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 15,
+      "baselineLine": 108,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "开始日期不能晚于结束日期",
+      "alternateMessage": "开始日期不能晚于结束日期"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 16,
+      "baselineLine": 120,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "开始日期不能晚于结束日期",
+      "alternateMessage": "开始日期不能晚于结束日期"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 17,
+      "baselineLine": 132,
+      "status": 422,
+      "code": "METRIC_OVERFLOW",
+      "message": "指标汇总超出安全整数范围",
+      "alternateMessage": "指标汇总超出安全整数范围"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 18,
+      "baselineLine": 156,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "请选择运营账号",
+      "alternateMessage": "请选择运营账号"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 19,
+      "baselineLine": 159,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "运营账号不存在",
+      "alternateMessage": "运营账号不存在"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 20,
+      "baselineLine": 164,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "请选择有效文章",
+      "alternateMessage": "请选择有效文章"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 21,
+      "baselineLine": 166,
+      "status": 404,
+      "code": "NOT_FOUND",
+      "message": "文章不存在",
+      "alternateMessage": "文章不存在"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 22,
+      "baselineLine": 195,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "平台须为 toutiao、zhihu、wechat 或 other",
+      "alternateMessage": "平台须为 toutiao、zhihu、wechat 或 other"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 23,
+      "baselineLine": 208,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "账号启用状态无效",
+      "alternateMessage": "账号启用状态无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 24,
+      "baselineLine": 221,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "平台无效",
+      "alternateMessage": "平台无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 25,
+      "baselineLine": 224,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "生产方式无效",
+      "alternateMessage": "生产方式无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 26,
+      "baselineLine": 238,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "排序方式无效",
+      "alternateMessage": "排序方式无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 27,
+      "baselineLine": 242,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "题材无效",
+      "alternateMessage": "题材无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 28,
+      "baselineLine": 244,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "数据状态无效",
+      "alternateMessage": "数据状态无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 29,
+      "baselineLine": 287,
+      "status": 409,
+      "code": "ACCOUNT_INACTIVE",
+      "message": "该运营账号已停用，不能登记新文章",
+      "alternateMessage": "该运营账号已停用，不能登记新文章"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 30,
+      "baselineLine": 293,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "选题开始时间不能晚于发布时间",
+      "alternateMessage": "选题开始时间不能晚于发布时间"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 31,
+      "baselineLine": 295,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "生产方式须为 manual、automatic、mixed 或 unknown",
+      "alternateMessage": "生产方式须为 manual、automatic、mixed 或 unknown"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 32,
+      "baselineLine": 299,
+      "status": 409,
+      "code": "ARTICLE_EXISTS",
+      "message": "该平台文章或链接已经登记",
+      "alternateMessage": "该平台文章或链接已经登记"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 33,
+      "baselineLine": 308,
+      "status": 409,
+      "code": "ARTICLE_EXISTS",
+      "message": "该平台文章或链接已经登记",
+      "alternateMessage": "该平台文章或链接已经登记"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 34,
+      "baselineLine": 318,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "更新文章需要当前版本号",
+      "alternateMessage": "更新文章需要当前版本号"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 35,
+      "baselineLine": 319,
+      "status": 409,
+      "code": "VERSION_CONFLICT",
+      "message": "文章已被其他操作更新，请刷新后重试",
+      "alternateMessage": "文章已被其他操作更新，请刷新后重试"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 36,
+      "baselineLine": 322,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "发布时间不能晚于已有指标的数据截止时间",
+      "alternateMessage": "发布时间不能晚于已有指标的数据截止时间"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 37,
+      "baselineLine": 324,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "发布时间不能晚于已有按日数据",
+      "alternateMessage": "发布时间不能晚于已有按日数据"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 38,
+      "baselineLine": 325,
+      "status": 409,
+      "code": "ARTICLE_HAS_DAILY_METRICS",
+      "message": "已有按日数据的文章不能直接变更所属账号",
+      "alternateMessage": "已有按日数据的文章不能直接变更所属账号"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 39,
+      "baselineLine": 331,
+      "status": 409,
+      "code": "ARTICLE_EXISTS",
+      "message": "该平台文章或链接已经登记",
+      "alternateMessage": "该平台文章或链接已经登记"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 40,
+      "baselineLine": 354,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "文章指标不能早于发布时间",
+      "alternateMessage": "文章指标不能早于发布时间"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 41,
+      "baselineLine": 355,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "数据截止时间不能晚于采集时间",
+      "alternateMessage": "数据截止时间不能晚于采集时间"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 42,
+      "baselineLine": 356,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "快照类型须为 latest、d1、d3 或 d7",
+      "alternateMessage": "快照类型须为 latest、d1、d3 或 d7"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 43,
+      "baselineLine": 371,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "开始日期不能晚于结束日期",
+      "alternateMessage": "开始日期不能晚于结束日期"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 44,
+      "baselineLine": 380,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "不能填写未来日期的新增数据",
+      "alternateMessage": "不能填写未来日期的新增数据"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 45,
+      "baselineLine": 383,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "文章不属于所选运营账号",
+      "alternateMessage": "文章不属于所选运营账号"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 46,
+      "baselineLine": 384,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "文章按日数据不能早于发布日期",
+      "alternateMessage": "文章按日数据不能早于发布日期"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 47,
+      "baselineLine": 396,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "驾驶舱当前时间无效",
+      "alternateMessage": "驾驶舱当前时间无效"
+    },
+    {
+      "file": "src/records.mjs",
+      "ordinal": 48,
+      "baselineLine": 459,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "Top N 或平台无效",
+      "alternateMessage": "Top N 或平台无效"
+    },
+    {
+      "file": "src/overview.mjs",
+      "ordinal": 1,
+      "baselineLine": 21,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "period 仅支持 yesterday、7d 或 30d",
+      "alternateMessage": "period 仅支持 yesterday、7d 或 30d"
+    },
+    {
+      "file": "src/overview.mjs",
+      "ordinal": 2,
+      "baselineLine": 22,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "总览当前时间无效",
+      "alternateMessage": "总览当前时间无效"
+    },
+    {
+      "file": "src/overview.mjs",
+      "ordinal": 3,
+      "baselineLine": 32,
+      "status": 422,
+      "code": "METRIC_OVERFLOW",
+      "message": "指标汇总超出安全整数范围",
+      "alternateMessage": "指标汇总超出安全整数范围"
+    },
+    {
+      "file": "src/analytics.mjs",
+      "ordinal": 1,
+      "baselineLine": 76,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "分页参数须为范围内的非负整数",
+      "alternateMessage": "分页参数须为范围内的非负整数"
+    },
+    {
+      "file": "src/analytics.mjs",
+      "ordinal": 2,
+      "baselineLine": 77,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "page/page_size 与 limit/offset 不能混用",
+      "alternateMessage": "page/page_size 与 limit/offset 不能混用"
+    },
+    {
+      "file": "src/analytics.mjs",
+      "ordinal": 3,
+      "baselineLine": 81,
+      "status": 400,
+      "code": "VALIDATION_ERROR",
+      "message": "页码与每页数量须大于零，偏移须为安全整数",
+      "alternateMessage": "页码与每页数量须大于零，偏移须为安全整数"
+    }
+  ],
+  "http": [
+    {
+      "path": "/api/v1/auth/me",
+      "method": "GET",
+      "status": 401,
+      "json": {
+        "error": {
+          "code": "UNAUTHORIZED",
+          "message": "请先登录"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/unknown-synthetic-route",
+      "method": "GET",
+      "status": 404,
+      "json": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "接口不存在"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles?platform=invalid",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "平台无效"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles?sort=invalid",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "排序方式无效"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles?topic=invalid",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "题材无效"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles?data_status=invalid",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "数据状态无效"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles?page=bad",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "分页参数须为范围内的非负整数"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles?page=0",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "页码与每页数量须大于零，偏移须为安全整数"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles?page=1&offset=0",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "page/page_size 与 limit/offset 不能混用"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/overview?period=today",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "period 仅支持 yesterday、7d 或 30d"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/overview?period=7d&period=30d",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "period 只能提供一次"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/overview?top_n=0",
+      "method": "GET",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "Top N 或平台无效"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles",
+      "method": "POST",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "请选择运营账号"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles",
+      "method": "POST",
+      "status": 415,
+      "json": {
+        "error": {
+          "code": "CONTENT_TYPE",
+          "message": "请使用 application/json"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/articles/missing-synthetic",
+      "method": "GET",
+      "status": 404,
+      "json": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "文章不存在"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/accounts",
+      "method": "POST",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "平台须为 toutiao、zhihu、wechat 或 other"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/api-keys",
+      "method": "POST",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION",
+          "message": "请填写凭证名称、运营账号与读写权限"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/api-keys/missing-synthetic",
+      "method": "DELETE",
+      "status": 404,
+      "json": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "凭证不存在或已撤销"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/daily-metrics",
+      "method": "POST",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "请选择运营账号"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/observations",
+      "method": "POST",
+      "status": 400,
+      "json": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "请选择有效文章"
+        }
+      }
+    }
+  ]
+}
