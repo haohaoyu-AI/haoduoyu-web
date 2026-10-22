@@ -41,5 +41,19 @@ worker 仅删除 style-src 的 unsafe-inline，未改路由或业务。
 的 CSSOM hook，其余模板/回调/声明仍锁定。
 
 现有 GitHub App 是保存通道；CLI 凭据无效，不再重试、不新建 token。
-当前可读 bundle 115649 B，超 100000 B 仍未通过。真实浏览器、computed
+当前可读 bundle 115637 B，超 100000 B 仍未通过。真实浏览器、computed
 styles、正常零 CSP 违规及反向控制尚待完成，不能据定向测试宣称验收。
+
+## 测试工具检查点
+
+恢复后的定向测试 65/65、八资产与双预览通过；产品提交
+c66948bef03a5438792db6f7e2979a8d588f6eda 的 CI 已通过。CSS 使用本阶段
+私有的 --h / --plot-color，水合总是先同步设置受控值再进入动画；不对
+整份 CSS 压缩，最终仍为 28000 B。
+
+浏览器比较独立合成库中的原版 JS/CSS/原 CSP 与候选版；后端守卫只
+允许 CSP 单令牌差异和两个准确 CSS 声明差异。记录所有实际
+securitypolicyviolation，并用故意被拒绝的 style 属性验证通道有效，
+与正常流程零违规分开，不以过滤器屏蔽正常违规。每次图表渲染读取
+computed 尺寸、背景色、SVG stroke/fill、四宽原图及 DOM 样式属性审计。
+此工具保存时仍在运行，尚未把未完成的浏览器结果标为通过。
