@@ -3,6 +3,7 @@ import { resolve,dirname,relative } from 'node:path';
 import { fileURLToPath,pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
+import { createHash } from 'node:crypto';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const publicRoot=resolve(root,'public'),dist=resolve(root,'dist');
@@ -12,6 +13,11 @@ for(const name of ['index.html','app.js','style.css','openapi.json','favicon.svg
   assets[name]={type:types[name.split('.').at(-1)],content:await readFile(resolve(publicRoot,name),'utf8')};
 }
 assets['api-docs']={type:types.html,content:await readFile(resolve(publicRoot,'api-docs.html'),'utf8')};
+for(const asset of Object.values(assets)) {
+  const bytes=Buffer.from(asset.content,'utf8');
+  asset.etag='\"'+createHash('sha256').update(bytes).digest('hex')+'\"';
+  asset.length=bytes.length;
+}
 await writeFile(resolve(root,'src/assets.generated.mjs'),'export const assets='+JSON.stringify(assets)+';\n');
 const manifest=JSON.parse(await readFile(resolve(root,'.openai/hosting.json'),'utf8'));
 if(manifest.project_id) {

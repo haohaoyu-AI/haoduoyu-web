@@ -1,0 +1,76 @@
+{
+  "baseline": "d4f0dad1f92af8a86d184cf544d4593f2942afa9",
+  "environment": "Local real curl HTTP against loopback Miniflare; no production deployment",
+  "before": [
+    {
+      "file": "app.js",
+      "first": {
+        "status": 200,
+        "body_bytes": 91049
+      },
+      "second": {
+        "status": 200,
+        "body_bytes": 91049
+      },
+      "head": {
+        "status": 200,
+        "body_bytes": 0
+      },
+      "no_cache": false,
+      "etag_matches": false
+    },
+    {
+      "file": "style.css",
+      "first": {
+        "status": 200,
+        "body_bytes": 27950
+      },
+      "second": {
+        "status": 200,
+        "body_bytes": 27950
+      },
+      "head": {
+        "status": 200,
+        "body_bytes": 0
+      },
+      "no_cache": false,
+      "etag_matches": false
+    }
+  ],
+  "after": [
+    {
+      "file": "app.js",
+      "first": {
+        "status": 200,
+        "body_bytes": 91049
+      },
+      "second": {
+        "status": 304,
+        "body_bytes": 0
+      },
+      "head": {
+        "status": 304,
+        "body_bytes": 0
+      },
+      "no_cache": true,
+      "etag_matches": true
+    },
+    {
+      "file": "style.css",
+      "first": {
+        "status": 200,
+        "body_bytes": 27950
+      },
+      "second": {
+        "status": 304,
+        "body_bytes": 0
+      },
+      "head": {
+        "status": 304,
+        "body_bytes": 0
+      },
+      "no_cache": true,
+      "etag_matches": true
+    }
+  ]
+}

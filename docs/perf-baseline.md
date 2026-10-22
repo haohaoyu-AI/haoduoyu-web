@@ -71,3 +71,23 @@ C1 修后真实并发重试、撤销及过期均为控制查询 4、鉴权 2；�
 最终 actor 测试双向改变 last_used_at 并通过真实业务写推进 revision：先新后旧应更新、先旧后新应跳过；均两次认证，控制查询4。无权限403、未知接口404、非法或撤销401、读取异常500均无元数据UPDATE。更新失败仍同步返回既有500，last_used_at/revision不变。
 
 旧客户端差分测试没有新增 last_used_at 规范化或忽略字段。它仍验证既有30读/12写配对；其固定时钟和读路径不单独证明新粒度，粒度变化由本节真实D1前后计数锁定。C1历史表是当时版本，C1回归中第二次同时间AI读取预期已随C2改为0写。未改public、OpenAPI、数据库结构、配置、授权与写提交机制；未做C3及部署。
+
+
+# 阶段 3 C3：静态条件请求
+
+基线 `d4f0dad1f92af8a86d184cf544d4593f2942afa9`。构建对8个内嵌资源的实际UTF-8响应字节生成SHA256强ETag和字节长度；仅原始URL路径 `/app.js`、`/style.css`、`/favicon.svg`、`/openapi.json` 对GET/HEAD使用no-cache并暴露ETag。资源正文、名称、UI与API未改变。HTML（/、/index.html、/api-docs）、robots/llms、编码别名、未知路径和错误继续no-store；既有 /api-docs.html 仍404。API（含认证响应）与health不参与条件缓存。
+
+If-None-Match完整校验列表语法，按弱比较处理W/，支持独立*、逗号内嵌于opaque tag、合理空列表成员；非法混合*、未闭合引号、非法后缀/小写w/不命中，不用简单split逗号。依据 [RFC9110 13.1.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.2) 与8.8.3.2。POST与API不返回304；命中304正文为0、无Content-Length/Set-Cookie，保留ETag/no-cache和既有安全头；200/HEAD的Content-Length为真实完整资源字节数。
+
+| 本地真实HTTP | 修前首次GET | 修前二次条件GET | 修后二次条件GET | 条件HEAD 前→后 |
+| --- | --- | --- | --- | --- |
+| app.js | 200 / 91049字节 | 200 / 91049字节 | 304 / 0字节 | 200/0 → 304/0 |
+| style.css | 200 / 27950字节 | 200 / 27950字节 | 304 / 0字节 | 200/0 → 304/0 |
+
+每次均真实调用curl（HEAD用-I，含If-None-Match），记录http_code与size_download。这里是响应正文传输字节，不含请求/响应头、连接成本或生产CDN压缩收益。原始合成计数见perf-c3-counts.json。未部署，因此不宣称线上ETag或CDN缓存已生效。
+
+红灯：基线构建执行 `C3_CAPTURE_PHASE=before node --test tests/static-etags.test.mjs`，9项（含父项）1通过/8失败；四资源缺ETag、列表请求200而非304、构建缺hash，以及真实curl二次仍传完整正文。HTML/API no-store保障原本通过。环境曾响应迟缓，未将无输出等待当红灯；最终红灯来自明确断言与HTTP200。修后同组9/9通过。
+
+隔离源码副本连续两次构建验证8个资源元数据与内容一致；仅在临时副本追加合成CSS注释后，只有该文件ETag改变。原public未改，8项资产pin独立复算并核对生成metadata/Worker正文。旧客户端差分的历史build固定读取已审查pre-C3提交脚本，锁文件仍与当前一致；仅/openapi.json对本次明确新增ETag、准确Content-Length与no-cache做精确验证后投影到旧头，API头与所有旧字段继续原样对比。不笼统删除响应头或掩盖接口差异。
+
+C1/C2与全部既有回归继续运行。无数据库/安全配置/依赖/鉴权变更，无生产写入、部署或C5缓存。

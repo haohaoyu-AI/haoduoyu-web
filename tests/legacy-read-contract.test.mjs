@@ -9,6 +9,7 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 import current from '../dist/server/index.js';
 import {fixture, USERNAME, PASSWORD} from './harness.mjs';
 import {csrfFor} from '../shared/auth.mjs';
+import {createHash} from 'node:crypto';
 
 const BASELINE = 'bbc9c5bda6f8d0e860274daadb1d08a68553a03a';
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -18,10 +19,13 @@ async function legacyWorker(t) {
   t.after(() => rm(directory, {recursive: true, force: true}));
   const archive = execFileSync('git', ['archive', '--format=tar', BASELINE], {cwd: root, maxBuffer: 10 * 1024 * 1024});
   execFileSync('tar', ['-x', '-C', directory], {input: archive});
-  // Historical build code and dependencies must be exactly the reviewed current versions.
-  for (const path of ['scripts/build.mjs', 'package-lock.json']) {
-    assert.deepEqual(await readFile(join(directory, path)), await readFile(join(root, path)), path);
-  }
+  // C3 intentionally changes today's build. Pin historical execution to the
+  // already reviewed pre-C3 build, rather than silently running new build code.
+  const approvedBuild = execFileSync('git', ['show',
+    'd4f0dad1f92af8a86d184cf544d4593f2942afa9:scripts/build.mjs'], {cwd: root});
+  assert.deepEqual(await readFile(join(directory, 'scripts/build.mjs')), approvedBuild);
+  assert.deepEqual(await readFile(join(directory, 'package-lock.json')),
+    await readFile(join(root, 'package-lock.json')));
   await symlink(join(root, 'node_modules'), join(directory, 'node_modules'), 'dir');
   execFileSync(process.execPath, [join(directory, 'scripts/build.mjs')], {cwd: directory, maxBuffer: 1024 * 1024});
   return (await import(pathToFileURL(join(directory, 'dist/server/index.js')).href)).default;
@@ -167,7 +171,17 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
           kind + ' expected status ' + path.replace(article.data.id, '{id}'));
         const text = await response.text();
         const json = response.headers.get('content-type')?.includes('application/json');
-        responses.push({status: response.status, headers: [...response.headers],
+        const headersForComparison = new Headers(response.headers);
+        if (worker === current && path === '/openapi.json') {
+          // C3's explicit static-header exception; no API header projection.
+          assert.equal(headersForComparison.get('Cache-Control'), 'no-cache');
+          assert.equal(headersForComparison.get('ETag'),
+            '"' + createHash('sha256').update(text).digest('hex') + '"');
+          assert.equal(headersForComparison.get('Content-Length'), String(Buffer.byteLength(text)));
+          headersForComparison.set('Cache-Control', 'no-store');
+          headersForComparison.delete('ETag');headersForComparison.delete('Content-Length');
+        }
+        responses.push({status: response.status, headers: [...headersForComparison],
           body: json ? project(path, JSON.parse(text)) : text});
       }
       // Backup holds only synthetic hashes, but never dump even those on a failed assertion.

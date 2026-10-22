@@ -5,8 +5,10 @@ import { ensureControl,storeFor,mutate,consistentRead,statement } from './storag
 import { fail,digest,csrfFor,now,originFor,bodyFor,authenticate,requireAdmin,requireOrigin,requireCsrf,equalSecret,sessionCookie,throttleLogin,stable } from './security.mjs';
 import { assets } from './assets.generated.mjs';
 import { exportBackup } from './backup.mjs';
+import { matchesIfNoneMatch } from './lib/http.mjs';
 
 const prefix='/api/v1';
+const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
 const writing=new Set(['POST','PUT','DELETE']);
 const dummyHash='scrypt$32768$8$1$00112233445566778899aabbccddeeff$'+'00'.repeat(64);
 const json=(data,status=200,headers={})=>Response.json({data},{status,headers});
@@ -189,7 +191,14 @@ async function handle(request,env) {
   if(decoded.includes('\0')||decoded.includes('\\')||decoded.split('/').some(p=>p.startsWith('.'))) throw fail(404,'NOT_FOUND','文件不存在');
   const name=decoded==='/'?'index.html':decoded.slice(1),asset=Object.hasOwn(assets,name)?assets[name]:null;
   if(!asset) throw fail(404,'NOT_FOUND','文件不存在');
-  return new Response(method==='HEAD'?null:asset.content,{headers:{'Content-Type':asset.type}});
+  const headers={'Content-Type':asset.type};
+  if(revalidatedStatic.has(path)) {
+    headers['Cache-Control']='no-cache';headers.ETag=asset.etag;
+    if(matchesIfNoneMatch(request.headers.get('If-None-Match'),asset.etag))
+      return new Response(null,{status:304,headers:{'Cache-Control':'no-cache',ETag:asset.etag}});
+    headers['Content-Length']=String(asset.length);
+  }
+  return new Response(method==='HEAD'?null:asset.content,{headers});
 }
 export default {
   async fetch(request,env) {
@@ -202,8 +211,9 @@ export default {
       if(status===429) response.headers.set('Retry-After','900');
       if(status===503) response.headers.set('Retry-After','1');
     }
+    if(!response.headers.has('Cache-Control')) response.headers.set('Cache-Control','no-store');
     for(const [key,value] of Object.entries({
-      'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',
+      'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',
       'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
       'Permissions-Policy':'camera=(), microphone=(), geolocation=()',
     })) response.headers.set(key,value);

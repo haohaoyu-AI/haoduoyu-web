@@ -15,6 +15,8 @@ for (const [name, expected] of Object.entries(pins.files)) {
   assert.equal(createHash('sha256').update(content).digest('hex'), expected, name + ': reviewed source pin differs');
   const key = name === 'api-docs.html' ? 'api-docs' : name;
   assert.equal(assets[key].content, content.toString('utf8'), name + ': generated asset differs');
+  assert.equal(assets[key].etag, '\"' + expected + '\"', name + ': generated validator differs');
+  assert.equal(assets[key].length, content.length, name + ': generated length differs');
   const route = name === 'index.html' ? '/' : '/' + key;
   const response = await worker.fetch(new Request('http://artifact.invalid' + route), {});
   assert.equal(response.status, 200, name + ': built Worker asset response failed');
