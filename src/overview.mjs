@@ -1,21 +1,11 @@
 import { fail } from './lib/errors.mjs';
+import { DAY, beijingDay, shift, distance, dates, median } from './lib/time.mjs';
 // Read-only calculations over recorded daily increments. Cumulative snapshots are
 // used only to determine review due dates, never to synthesize daily performance.
 import { articleFacts, beijingDate } from './analytics.mjs';
 export const OVERVIEW_METRICS = ['reads', 'impressions', 'likes', 'comments', 'favorites', 'shares', 'approvals', 'reading_users'];
-const DAY = 86_400_000;
-const OFFSET = 8 * 3_600_000;
 const MIN_SAMPLES = 5;
-const beijingDay = stamp => new Date(Number(stamp) + OFFSET).toISOString().slice(0, 10);
-const shift = (day, count) => new Date(Date.parse(day + 'T00:00:00Z') + count * DAY).toISOString().slice(0, 10);
-const distance = (from, to) => Math.round((Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')) / DAY);
-const dates = (from, to) => Array.from({ length: Math.max(0, distance(from, to) + 1) }, (_, i) => shift(from, i));
 const latest = values => values.filter(Boolean).sort().at(-1) ?? null;
-const median = values => {
-  if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b), middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[middle] : sorted[middle - 1] / 2 + sorted[middle] / 2;
-};
 
 export function overviewWindow(period = 'yesterday', now = Date.now()) {
   if (!['yesterday', '7d', '30d'].includes(period)) fail(400, 'VALIDATION_ERROR', 'period 仅支持 yesterday、7d 或 30d');

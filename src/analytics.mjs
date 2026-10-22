@@ -1,9 +1,9 @@
 import { fail } from './lib/errors.mjs';
+import { DAY, validStamp, beijingDate, sortedMedian } from './lib/time.mjs';
+export { validStamp, beijingDate } from './lib/time.mjs';
 // Derived views only: never write inferred topics, dates or metrics to records.
 export const METRIC_KEYS = ['reads','impressions','likes','comments','favorites','shares','approvals','reading_users'];
 export const METRIC_NOTE = '各平台阅读为平台原字段相加，口径可能不同；likes 保留为点赞（知乎口径待核实），approvals 单独为赞同，互不替代。累计值为各篇最近快照之和，截至时间可能不同。';
-export const validStamp = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
-export const beijingDate = value => validStamp(value) ? new Date(Date.parse(value)+8*3600000).toISOString().slice(0,10) : null;
 export const known = value => typeof value === 'number' && Number.isFinite(value);
 export const newestFirst = (a,b) => (Date.parse(b.as_of)||0)-(Date.parse(a.as_of)||0) || (Date.parse(b.collected_at)||0)-(Date.parse(a.collected_at)||0) || String(b.id).localeCompare(String(a.id));
 const latestStamp = values => values.filter(validStamp).sort((a,b)=>Date.parse(a)-Date.parse(b)).at(-1) ?? null;
@@ -19,7 +19,7 @@ export function articleFacts(article) {
 }
 export function summarizeArticles(rows) {
   const observed = rows.filter(a=>a.latest_metrics != null), readRows = rows.filter(a=>known(a.latest_metrics?.reads));
-  const values = readRows.map(a=>a.latest_metrics.reads).sort((a,b)=>a-b), middle = Math.floor(values.length/2);
+  const values = readRows.map(a=>a.latest_metrics.reads).sort((a,b)=>a-b);
   const totals = {}, metricCoverage = {};
   for (const key of METRIC_KEYS) {
     const vals = rows.map(a=>a.latest_metrics?.[key]).filter(known);
@@ -32,7 +32,7 @@ export function summarizeArticles(rows) {
     no_snapshot_count:rows.length-observed.length, missing_reads_count:rows.length-readRows.length,
     coverage:rows.length ? readRows.length/rows.length : null, totals, metric_coverage:metricCoverage,
     mean_reads:values.length ? totals.reads/values.length : null,
-    median_reads:values.length ? values.length%2 ? values[middle] : (values[middle-1]+values[middle])/2 : null,
+    median_reads:sortedMedian(values),
     as_of:latestStamp(observed.map(a=>a.latest_as_of)), earliest_as_of:firstStamp(observed.map(a=>a.latest_as_of)),
     collected_at:latestStamp(observed.map(a=>a.latest_collected_at)),
     unverified_date_count:rows.filter(a=>a.date_status==='unverified').length,
@@ -63,7 +63,7 @@ export function snapshotTimeline(observations,publishedAt,now=Date.now()) {
   });
   const nodes=['d1','d3','d7','latest'].map(kind=>{
     const snapshot=[...observations].filter(o=>o.kind===kind).sort(newestFirst)[0]??null;
-    const due=kind==='latest'||!validStamp(publishedAt)?null:new Date(Date.parse(publishedAt)+Number(kind.slice(1))*86400000).toISOString();
+    const due=kind==='latest'||!validStamp(publishedAt)?null:new Date(Date.parse(publishedAt)+Number(kind.slice(1))*DAY).toISOString();
     return {kind,snapshot,due_at:due,status:snapshot?due&&Date.parse(snapshot.as_of)<Date.parse(due)?'before_due':'recorded':due&&Date.parse(due)>now?'not_due':'not_collected'};
   });
   return {nodes,timeline};
