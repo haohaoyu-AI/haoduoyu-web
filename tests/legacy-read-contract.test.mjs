@@ -1,3 +1,4 @@
+import {stylePolicyHeaders} from './style-policy-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -78,7 +79,7 @@ async function emptyClone(rows) {
   } catch (error) {await app.mf.dispose();throw error;}
 }
 function normalizedMutation(response, body, name, baseCookie) {
-  const result = structuredClone(body), headers = [...response.headers];
+  const result = structuredClone(body), headers = [...stylePolicyHeaders(response.headers)];
   const generated = ['new-account', 'new-article', 'new-observation', 'new-key'];
   if (generated.includes(name)) {
     assert.ok(typeof result.data.id === 'string' && result.data.id.length > 0, 'generated opaque id');
@@ -188,7 +189,7 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
           headersForComparison.set('Cache-Control', 'no-store');
           headersForComparison.delete('ETag');headersForComparison.delete('Content-Length');
         }
-        responses.push({status: response.status, headers: [...headersForComparison],
+        responses.push({status: response.status, headers: [...stylePolicyHeaders(headersForComparison)],
           body: json ? project(path, JSON.parse(text)) : text});
       }
       // Backup holds only synthetic hashes, but never dump even those on a failed assertion.

@@ -1,0 +1,102 @@
+[
+  {
+    "file": "baseline-audit-1440.png",
+    "source": "artifacts/strict-style/first-fixture-order-attempt/baseline-audit-1440.png",
+    "sha256": "30043799e90325628e9e972846c9572085b8cf33be2c5f0b829e469cb137b0c3"
+  },
+  {
+    "file": "candidate-audit-1440.png",
+    "source": "artifacts/strict-style/all/candidate-audit-1440.png",
+    "sha256": "702c06e393af296da50759646c4d6bae61f19237fc8472abf984158196184077"
+  },
+  {
+    "file": "diff-audit-1440.png",
+    "source": "artifacts/strict-style/comparison/diff-audit-1440.png",
+    "sha256": "00cfe882f0039c1107047453bb89314882ebbecf493b8fd66a074f6eee58aa49"
+  },
+  {
+    "file": "baseline-dashboard-375.png",
+    "source": "artifacts/strict-style/first-fixture-order-attempt/baseline-dashboard-375.png",
+    "sha256": "04989326f54f7280ceacd14637b3cc18ef6bc42157d3774a88e30f4cd4533963"
+  },
+  {
+    "file": "candidate-dashboard-375.png",
+    "source": "artifacts/strict-style/all/candidate-dashboard-375.png",
+    "sha256": "04989326f54f7280ceacd14637b3cc18ef6bc42157d3774a88e30f4cd4533963"
+  },
+  {
+    "file": "baseline-dashboard-390.png",
+    "source": "artifacts/strict-style/first-fixture-order-attempt/baseline-dashboard-390.png",
+    "sha256": "1f4467e19f0d400dd0e6863ae6c1dae08eb3f20a2aacb242031e8f3b04315a6c"
+  },
+  {
+    "file": "candidate-dashboard-390.png",
+    "source": "artifacts/strict-style/all/candidate-dashboard-390.png",
+    "sha256": "1f4467e19f0d400dd0e6863ae6c1dae08eb3f20a2aacb242031e8f3b04315a6c"
+  },
+  {
+    "file": "baseline-dashboard-768.png",
+    "source": "artifacts/strict-style/first-fixture-order-attempt/baseline-dashboard-768.png",
+    "sha256": "141c489903aa47103c89861c16782ec117012a739c05fe86aeb7f89b91ba82c0"
+  },
+  {
+    "file": "candidate-dashboard-768.png",
+    "source": "artifacts/strict-style/all/candidate-dashboard-768.png",
+    "sha256": "141c489903aa47103c89861c16782ec117012a739c05fe86aeb7f89b91ba82c0"
+  },
+  {
+    "file": "baseline-dashboard-1440.png",
+    "source": "artifacts/strict-style/first-fixture-order-attempt/baseline-dashboard-1440.png",
+    "sha256": "a43a5cdaa13177d5430662920f3446dd8ecabba3a3b9728b59f2c6d3a1d96565"
+  },
+  {
+    "file": "candidate-dashboard-1440.png",
+    "source": "artifacts/strict-style/all/candidate-dashboard-1440.png",
+    "sha256": "a43a5cdaa13177d5430662920f3446dd8ecabba3a3b9728b59f2c6d3a1d96565"
+  },
+  {
+    "file": "baseline-form-account-new-1440.png",
+    "source": "artifacts/strict-style/first-fixture-order-attempt/baseline-form-account-new-1440.png",
+    "sha256": "2b5488ea098ef371ac2136293711050dd4a7b91b0a910ec412f75394e5260ec3"
+  },
+  {
+    "file": "candidate-form-account-new-1440.png",
+    "source": "artifacts/strict-style/all/candidate-form-account-new-1440.png",
+    "sha256": "665317d75f43be81166ea4b6ff950af7b9464cae7fdd79b939c8400d4af5d7a8"
+  },
+  {
+    "file": "diff-form-account-new-1440.png",
+    "source": "artifacts/strict-style/comparison/diff-form-account-new-1440.png",
+    "sha256": "d23cbc916d089945bb580fbadb2906aa9bc99e35832204c4fb8ff6a8bde55063"
+  },
+  {
+    "file": "baseline-form-key-375.png",
+    "source": "artifacts/strict-style/first-fixture-order-attempt/baseline-form-key-375.png",
+    "sha256": "cbff79118fd03231842aa4e84af3e4612a30e6a214bea005513f622378353d77"
+  },
+  {
+    "file": "candidate-form-key-375.png",
+    "source": "artifacts/strict-style/all/candidate-form-key-375.png",
+    "sha256": "04c92719e5d18e8d000588d19aa679cc7766d396ab5116b8339f81f5ea174123"
+  },
+  {
+    "file": "diff-form-key-375.png",
+    "source": "artifacts/strict-style/comparison/diff-form-key-375.png",
+    "sha256": "25a03f57abad6b34b1cbea2a98ccf0ea3facad08c6331d5a8e5ef0dd5834a4d0"
+  },
+  {
+    "file": "baseline-form-snapshot-375.png",
+    "source": "artifacts/strict-style/first-fixture-order-attempt/baseline-form-snapshot-375.png",
+    "sha256": "9fd62289e68d6b6f638c4613a4fbb629713dec96145989488aa3616af21aba76"
+  },
+  {
+    "file": "candidate-form-snapshot-375.png",
+    "source": "artifacts/strict-style/all/candidate-form-snapshot-375.png",
+    "sha256": "066216bc7bafc4263438abee022184b2538dfd571e6a3bf753674c23dd13ec70"
+  },
+  {
+    "file": "diff-form-snapshot-375.png",
+    "source": "artifacts/strict-style/comparison/diff-form-snapshot-375.png",
+    "sha256": "a192e6223704afeb51787634a3df194849f18b4d502fe8a561a92aba6717dea1"
+  }
+]

@@ -7,7 +7,7 @@ const ok = data => Response.json({data});
 function client(fetch) {
   const nodes = new Map();
   for (const id of ['#app', '#overlay', '#page-content']) nodes.set(id, {
-    innerHTML: '', firstChild: null, contains() {return false;}, style: {}, setAttribute() {},
+    innerHTML: '', firstChild: null, querySelectorAll(){return []}, contains() {return false;}, style: {}, setAttribute() {},
   });
   const document = {querySelector: s => nodes.get(s) || null, querySelectorAll: () => [],
     addEventListener() {}, body: {style: {}}, activeElement: null};

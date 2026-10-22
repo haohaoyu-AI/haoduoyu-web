@@ -242,7 +242,7 @@ export default {
     if(!response.headers.has('Cache-Control')) response.headers.set('Cache-Control','no-store');
     for(const [key,value] of Object.entries({
       'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',
-      'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
       'Permissions-Policy':'camera=(), microphone=(), geolocation=()',
     })) response.headers.set(key,value);
     return response;
