@@ -1,4 +1,5 @@
 import { fail } from './lib/errors.mjs';
+import { DAY, beijingDay as numericBeijingDay, shiftDay, sortedMedian } from './lib/time.mjs';
 // Async D1 port of the preserved Node business contract. Writes are planned, then atomically committed by storage.mjs.
 import { createHash, randomUUID } from 'node:crypto';
 import { buildOverview, buildDueReviews, overviewWindow } from './overview.mjs';
@@ -9,8 +10,6 @@ const METRICS = new Set(['reads', 'impressions', 'likes', 'comments', 'favorites
 const PLATFORMS = new Set(['toutiao', 'zhihu', 'wechat', 'other']);
 const MODES = new Set(['manual', 'automatic', 'mixed', 'unknown']);
 const KINDS = new Set(['latest', 'd1', 'd3', 'd7']);
-const DAY = 86_400_000;
-const BEIJING_OFFSET = 8 * 3_600_000;
 // English collation orders lowercase ASCII letters, digits and '-' exactly as
 // BINARY. Other identifiers/locales retain the original localeCompare path.
 const articleCollation = new Intl.Collator().resolvedOptions();
@@ -76,11 +75,7 @@ function articleURL(raw) {
 }
 
 function beijingDay(stamp = Date.now()) {
-  return new Date(Number(stamp) + BEIJING_OFFSET).toISOString().slice(0, 10);
-}
-
-function shiftDay(day, amount) {
-  return new Date(Date.parse(`${day}T00:00:00Z`) + amount * DAY).toISOString().slice(0, 10);
+  return numericBeijingDay(stamp);
 }
 
 function queryValue(query, key) {
@@ -461,8 +456,7 @@ export function createRecords(store) {
       return { ...row, article_count: articles.filter(a => a.account_id === row.id).length, period_metrics: period, coverage: { source, days: 3 - missing.length, missing_dates: missing, label: `${labels[source]}${missing.length ? ` · 缺 ${missing.length} 天` : ''}${partialMetrics ? ' · 部分指标未覆盖三日' : ''}`, metric_days: metricDays }, last_updated: updated.length ? updated.sort().at(-1) : null };
     });
     const durations = articles.map(row => row.duration_seconds).filter(value => value !== null).sort((a, b) => a - b);
-    const middle = Math.floor(durations.length / 2);
-    const median = durations.length ? durations.length % 2 ? durations[middle] : (durations[middle - 1] + durations[middle]) / 2 : null;
+    const median = sortedMedian(durations);
     const due = [];
     for (const row of articles) {
       const snapshots = reviewMap.get(row.id) || [];

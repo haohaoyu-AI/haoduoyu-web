@@ -52,7 +52,16 @@ test('all reviewed error call sites and HTTP error projections retain their base
     assert.deepEqual({status: row.status, code: row.code, message: row.message},
       {status: 409, code: 'ARTICLE_EXISTS', message: '该平台文章或链接已经登记'});
   }
-  const approvedCalls = expected.calls.filter(row => !removed(row));
+  // 5a removes only four unreachable fail calls inside the five deleted legacy
+  // auth functions. Keep the historical snapshot and all live tuples intact.
+  const deadAuth = row => row.file === 'shared/auth.mjs' && [2, 3, 4, 5].includes(row.ordinal);
+  assert.deepEqual(expected.calls.filter(deadAuth).map(({status, code, message}) => ({status, code, message})), [
+    {status:400, code:'INVALID_USERNAME', message:'账号需要 3 至 80 个字母、数字或 . _ @ -'},
+    {status:401, code:'UNAUTHORIZED', message:'授权凭证无效'},
+    {status:401, code:'UNAUTHORIZED', message:'授权凭证无效或已撤销'},
+    {status:401, code:'UNAUTHORIZED', message:'请先登录'},
+  ]);
+  const approvedCalls = expected.calls.filter(row => !removed(row) && !deadAuth(row));
   const position = approvedCalls.findIndex(row => row.file === 'src/storage.mjs' && row.ordinal === 2);
   assert.ok(position >= 0);
   approvedCalls.splice(position + 1, 0, {file: 'src/storage.mjs', status: 409,

@@ -1,0 +1,152 @@
+{
+  "baseline": "dc598ac1c1b53303500e2313965c3f980d94d0ad",
+  "coverage": {
+    "tracked_files": 233,
+    "parsed_JS_modules": 102,
+    "text_extensions": "all UTF-8 tracked files, including extensionless configuration",
+    "literal_auth_path_mentions": [
+      "docs/history/pre-foundation-readme.md",
+      "docs/phase2-error-contracts.md",
+      "scripts/audit-error-contracts.mjs",
+      "src/backup.mjs",
+      "src/security.mjs",
+      "src/storage.mjs",
+      "src/worker.mjs",
+      "tests/contract.test.mjs",
+      "tests/error-contract.test.mjs",
+      "tests/error-structure.test.mjs",
+      "tests/fixtures/error-contracts.json",
+      "tests/legacy-read-contract.test.mjs",
+      "tests/read-control.test.mjs"
+    ],
+    "UTF8_text_files": 194
+  },
+  "consumers": [
+    {
+      "file": "src/backup.mjs",
+      "line": 1,
+      "kind": "ImportDeclaration",
+      "names": [
+        {
+          "imported": "digest",
+          "local": "digest"
+        },
+        {
+          "imported": "fail",
+          "local": "fail"
+        }
+      ]
+    },
+    {
+      "file": "src/security.mjs",
+      "line": 3,
+      "kind": "ImportDeclaration",
+      "names": [
+        {
+          "imported": "fail",
+          "local": "fail"
+        },
+        {
+          "imported": "digest",
+          "local": "digest"
+        },
+        {
+          "imported": "csrfFor",
+          "local": "csrfFor"
+        },
+        {
+          "imported": "checkCsrf",
+          "local": "checkCsrf"
+        },
+        {
+          "imported": "checkOrigin",
+          "local": "checkOrigin"
+        }
+      ]
+    },
+    {
+      "file": "src/storage.mjs",
+      "line": 2,
+      "kind": "ImportDeclaration",
+      "names": [
+        {
+          "imported": "fail",
+          "local": "fail"
+        }
+      ]
+    },
+    {
+      "file": "src/worker.mjs",
+      "line": 2,
+      "kind": "ImportDeclaration",
+      "names": [
+        {
+          "imported": "hashPassword",
+          "local": "hashPassword"
+        },
+        {
+          "imported": "verifyPassword",
+          "local": "verifyPassword"
+        }
+      ]
+    },
+    {
+      "file": "tests/error-contract.test.mjs",
+      "line": 8,
+      "kind": "ImportDeclaration",
+      "names": [
+        {
+          "imported": "validatePassword",
+          "local": "validatePassword"
+        },
+        {
+          "imported": "checkOrigin",
+          "local": "checkOrigin"
+        },
+        {
+          "imported": "checkCsrf",
+          "local": "checkCsrf"
+        }
+      ]
+    },
+    {
+      "file": "tests/error-structure.test.mjs",
+      "line": 11,
+      "kind": "ImportExpression",
+      "namespace": "shared",
+      "properties": [
+        "fail"
+      ]
+    },
+    {
+      "file": "tests/legacy-read-contract.test.mjs",
+      "line": 12,
+      "kind": "ImportDeclaration",
+      "names": [
+        {
+          "imported": "csrfFor",
+          "local": "csrfFor"
+        }
+      ]
+    },
+    {
+      "file": "tests/read-control.test.mjs",
+      "line": 6,
+      "kind": "ImportDeclaration",
+      "names": [
+        {
+          "imported": "digest",
+          "local": "digest"
+        }
+      ]
+    }
+  ],
+  "legacy_module_identifier_counts": {
+    "createUser": 1,
+    "sessionCookie": 2,
+    "authenticate": 1,
+    "createSession": 1,
+    "audit": 1
+  },
+  "interpretation": "No imports/reexports of five legacy functions; one namespace consumer accesses fail only. sessionCookie has exactly one internal call from the removed authenticate. Same-name security/storage/local test symbols are distinct. Static audit does not claim knowledge of external consumers of repository source."
+}
