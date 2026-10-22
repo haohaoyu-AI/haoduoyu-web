@@ -10,7 +10,9 @@
     "package": "node scripts/package.mjs",
     "test": "node scripts/build.mjs && node --test --test-concurrency=1 tests/*.test.mjs",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
-    "dev": "node scripts/preview.mjs",
+    "dev": "node scripts/build.mjs && node scripts/preview.mjs",
+    "check:artifacts": "node scripts/check-artifacts.mjs",
+    "check:previews": "node scripts/check-previews.mjs",
     "preview:analytics": "node scripts/build.mjs && node scripts/preview-analytics.mjs"
   },
   "devDependencies": {
