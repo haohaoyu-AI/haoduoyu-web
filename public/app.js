@@ -409,7 +409,7 @@ async function init({freshLogin=false}={}){
  try{
   try{const views=JSON.parse(storage.get('haoduoyu.views')||'[]');state.savedViews=Array.isArray(views)?views.filter(v=>typeof v?.id==='string'&&typeof v.name==='string'&&v.filters&&typeof v.filters==='object'&&Array.isArray(v.columns)).slice(-20):[]}catch{state.savedViews=[]}
   state.me=await api('/auth/me');state.accounts=(await api('/accounts')).sort((a,b)=>['toutiao','zhihu','wechat','other'].indexOf(a.platform)-['toutiao','zhihu','wechat','other'].indexOf(b.platform));
-  readRoute({freshLogin});
+  readRoute();
   if(freshLogin){state.trendOpen=false;state.attentionExpanded=false;}
   updateRoute();renderShell();
  }catch(err){if(err.status!==401){renderLogin();toast(err.message,true)}else renderLogin()}

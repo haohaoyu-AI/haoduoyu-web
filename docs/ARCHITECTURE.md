@@ -17,3 +17,5 @@ build.mjs 将 public 资源嵌入后打包 Worker。check:artifacts 校验 publi
 第二期 B3：错误构造集中于 src/lib/errors.mjs 的直接抛出 fail(status,code,message)，shared/auth 与 security 的同名导出保留。旧 throw fail(...) 调用继续立即进入原异常传播路径；20 个 Worker 错误响应及 110 个源码调用点的状态/码/消息被锁定，详见 phase2-error-contracts.md。
 
 第二期 B4：storage.commit 仅将文章表三个已知唯一约束的精确驱动诊断映射到 409 ARTICLE_EXISTS，其他错误与原事务/授权/revision/幂等机制不变。删除 records 中包不住提交的两段 catch。此提交期 DUPLICATE→ARTICLE_EXISTS 是明确例外，验证边界见 phase2-article-conflict.md。
+
+第二期 B5：登录后保留 URL 深链接是既有的有意行为。init 实际认证并加载账号后，readRoute() 读取和校验有效的页面、账号、筛选、排序、分页、字段及周期参数，updateRoute 规范化 URL，不按 freshLogin 清空有效筛选。刷新及浏览器前进/后退沿用同一解析规则。freshLogin 在 init 中仍重置趋势/关注展开状态，必须保留；本次只删除给无参 readRoute 传入的对象，不改此重置或认证流程。
