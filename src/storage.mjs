@@ -61,7 +61,7 @@ export async function consistentRead(db,operation,initialRevision) {
   for(let attempt=0;attempt<5;attempt++) {
     const before=attempt===0&&initialRevision!==undefined?initialRevision:await revision(db);
     try {
-      const result=await operation(storeFor(db));
+      const result=await operation(storeFor(db),before);
       if(await revision(db)===before) return result;
     } catch(error) {
       if(await revision(db)===before) throw error;
