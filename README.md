@@ -48,4 +48,4 @@ python3 tests/browser-frontend-lifecycle-regression.py --part all
 
 [阶段 2 契约](docs/phase2-summary.md)、[C4 轻量读取](docs/reviews-light-reads.md)、[C5 缓存](docs/overview-cache-validation.md)、[C6 分页](docs/article-sql-page.md)、[4a 机械拆分](docs/frontend-modules.md)分别保留当时测试数量及限制。当前总数以精确提交的 npm test / CI 输出为准，不能把多个阶段计数相加。
 
-全历史扫描保留 151 条已审阅的精确历史指纹；原始扫描并非零命中，不排除整个目录或自动追加例外，见[扫描说明](docs/security/secret-scan-exceptions.md)。阶段 PR 经 CI 和独立验收后才能 squash 合并；CI 尚未设置为 GitHub 必要合并检查。v5-ui-refactor 只是 Git 基线标签，不是生产版本。
+全历史扫描保留 152 条已审阅的精确历史指纹；原始扫描并非零命中，不排除整个目录或自动追加例外，见[扫描说明](docs/security/secret-scan-exceptions.md)。阶段 PR 经 CI 和独立验收后才能 squash 合并；CI 尚未设置为 GitHub 必要合并检查。v5-ui-refactor 只是 Git 基线标签，不是生产版本。

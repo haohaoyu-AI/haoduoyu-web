@@ -1,0 +1,39 @@
+{
+  "baseline_head": "307d54f84a7e817955aa5b5f2fb173f4c545cd23",
+  "subsequent_test_checkpoint": "99ccd58b62a9fc1e0e7630944985e2d45a17e91f",
+  "checkpoint_product_equals_baseline": true,
+  "execution": "Local baseline checkout with new uncommitted tests; exact tests then saved in the named checkpoint. Not a remote CI red result.",
+  "command": "node --test --test-name-pattern='dashboard deprecation|dashboard success' tests/dashboard-deprecation.test.mjs",
+  "exit_code": 1,
+  "tests": 2,
+  "passed": 0,
+  "failed": 2,
+  "duration_ms": 2920.219626,
+  "assertions": [
+    {
+      "name": "dashboard deprecation changes only the two OpenAPI additions and one success expression",
+      "actual_type": "undefined",
+      "expected": true,
+      "operator": "strictEqual",
+      "line": 56
+    },
+    {
+      "name": "dashboard success adds exactly Deprecation true while preserving complete bodies and other headers",
+      "actual": null,
+      "expected": "true",
+      "operator": "strictEqual",
+      "line": 78
+    }
+  ],
+  "log_path": "docs/dashboard-deprecation-red.log",
+  "original_local_path": "/workspace/scratch/phase5b-baseline-red.log",
+  "log_digest_sha256": "5c7e866b4936517e5412e2a484d1d9d7e250a272bd44d76fa311221f450b11ee",
+  "test_path": "tests/dashboard-deprecation.test.mjs",
+  "test_digest_sha256": "5e2207fcb2a8f6a185c252b8dc9619f4ad46ce9c35d1b290926c143288d4df81",
+  "checkpoint_ci": {
+    "id": 39856729269,
+    "status": "completed",
+    "conclusion": "cancelled",
+    "is_red_evidence": false
+  }
+}
