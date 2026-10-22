@@ -7,6 +7,7 @@ import { assets } from './assets.generated.mjs';
 import { exportBackup } from './backup.mjs';
 import { matchesIfNoneMatch } from './lib/http.mjs';
 import { overviewCache } from './overview-cache.mjs';
+import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
@@ -123,7 +124,7 @@ async function protectedRead(db,request,route,query,initialRevision) {
   } catch(error) {await abandon();throw error;}
 }
 
-async function protectedWrite(db,request,route,env,origin) {
+async function protectedWrite(db,request,route,env,origin,trace) {
   // Authorize before reading a possibly large body or performing a slow KDF.
   const first=await authenticate(storeFor(db),request,'write');
   requireCsrf(request,first,origin);
@@ -183,7 +184,9 @@ async function protectedWrite(db,request,route,env,origin) {
       const saved=await store.get('SELECT * FROM idempotency WHERE actor=? AND key=?',actor.actor,key);
       if(saved) {
         if(saved.request_hash!==requestHash) throw fail(409,'IDEMPOTENCY_CONFLICT','同一幂等键已经用于不同内容');
-        return {replayed:true,response:json(JSON.parse(saved.response_json),saved.status)};
+        const payload={data:JSON.parse(saved.response_json)};
+        if(saved.status>=400) payload.request_id=trace.rid;
+        return {replayed:true,response:Response.json(payload,{status:saved.status})};
       }
     }
     const value=await action(input),status=method==='POST'?201:200;
@@ -195,8 +198,9 @@ async function protectedWrite(db,request,route,env,origin) {
   return result.response;
 }
 
-async function handle(request,env) {
+async function handle(request,env,trace) {
   const url=new URL(request.url),path=url.pathname,method=request.method;
+  trace.route=traceRoute(path);
   if(path==='/health'&&method==='GET') return json({status:'ok',application:'haoduoyu-matrix'});
   // No app handlers are registered for dispatch-owned sign-in/callback routes.
   if(path.startsWith(prefix+'/')) {
@@ -210,7 +214,7 @@ async function handle(request,env) {
       if(route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');
       return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision);
     }
-    if(writing.has(method)) return protectedWrite(db,request,route,env,origin);
+    if(writing.has(method)) return protectedWrite(db,request,route,env,origin,trace);
     await authenticate(storeFor(db),request);
     throw fail(404,'NOT_FOUND','接口不存在');
   }
@@ -230,21 +234,25 @@ async function handle(request,env) {
 }
 export default {
   async fetch(request,env) {
-    let response;
-    try {response=await handle(request,env);} catch(error) {
+    const trace=requestTrace(request.method);
+    let response,caughtError,didThrow=false;
+    try {response=await handle(request,env,trace);} catch(error) {
+      caughtError=error;didThrow=true;
       const duplicate=/UNIQUE constraint failed/.test(String(error));
       const status=error.status||(duplicate?409:500),code=error.status?error.code:duplicate?'DUPLICATE':'INTERNAL_ERROR';
       const message=error.status?error.message:duplicate?'记录已存在，请检索后更新原记录':'服务暂时不可用';
-      response=Response.json({error:{code,message}},{status});
+      response=Response.json({error:{code,message},request_id:trace.rid},{status});
       if(status===429) response.headers.set('Retry-After','900');
       if(status===503) response.headers.set('Retry-After','1');
     }
+    response=withRequestId(response,trace);
     if(!response.headers.has('Cache-Control')) response.headers.set('Cache-Control','no-store');
     for(const [key,value] of Object.entries({
       'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',
       'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
       'Permissions-Policy':'camera=(), microphone=(), geolocation=()',
     })) response.headers.set(key,value);
+    if(response.status===500) logServerFailure(trace,caughtError,!didThrow);
     return response;
   },
 };
