@@ -5,7 +5,8 @@ import { e, icon } from "../core/dom.mjs";
 import { accountName, duration, localDateTime, num, safeURL, time } from "../core/format.mjs";
 import { modalRequest } from "../core/modal-request.mjs";
 import { runtime, state } from "../core/state.mjs";
-import { accountOptions, articleSelect, badgeMode, dashboardInfo, dashboardMetric, empty, field, formEnd, platformLogo } from "../ui/components.mjs";
+import { articleLink, accountOptions, articleSelect, badgeMode, dashboardInfo, dashboardMetric, empty, field, formEnd,
+  platformLogo } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
 import { platformFilter } from "../ui/segmented.mjs";
 import { sortHeading } from "../ui/table.mjs";
@@ -85,7 +86,7 @@ function articleTable(rows) {
     const group = state.filters.group ? state.filters.group === "account" ? a.account_name : modeLabels[a.production_mode] : null, heading = group &&
     group !== previous ? `<tr class="group-row"><td colspan="${e(columns.length + 2)}">${e(group)}</td></tr>` : "";
     previous = group;
-    return `${heading}<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div \
+    return `${heading}<tr><td class="title-cell">${articleLink(a)}<div \
 class="cell-sub">${platformLogo(a.platform)} ${e(a.account_name)} · ${a.date_status === "unverified" ? "日期待核实" : e(
     time(a.published_at, true))}</div></td>${columns.map(([key, [label]]) => `<td data-label="${e(label)}">${cell(a, key)}</td>`).join("")}<td><button \
 class="icon-button" data-action="article-menu" data-id="${e(a.id)}" aria-label="操作：${e(a.title)}" aria-haspopup="menu" \

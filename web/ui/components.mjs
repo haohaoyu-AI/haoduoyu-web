@@ -105,7 +105,11 @@ class="snapshot-metrics">${Object.entries(metrics).filter(([key]) => m[key] != n
   num(m[key]))}</strong></span>`).join("") || "未记录指标"}</div><p class="cell-sub">来源 ${e(row.source || "未记录")}${row.collected_at ?
      " · 采集 " + e(displayTime(row.collected_at)) : ""}</p>${row.note ? `<p class="cell-sub">${e(row.note)}</p>` : ""}</article>`;
 }
+function articleLink(article, idKey = "id", titleKey = "title") {
+  return `<button class="article-link" data-action="article-detail" data-id="${e(article[idKey])}">${e(article[titleKey])}</button>`;
+}
 export {
+  articleLink,
   accountFilter,
   accountOptions,
   articleSelect,

@@ -2,7 +2,7 @@ import { platforms } from "../core/constants.mjs";
 import { e, icon } from "../core/dom.mjs";
 import { accountLabel, accountName, bjtDate, displayTime, num, rowsForAccount, time } from "../core/format.mjs";
 import { state } from "../core/state.mjs";
-import { empty, field, formEnd, platformLogo } from "../ui/components.mjs";
+import { articleLink, empty, field, formEnd, platformLogo } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
 import { toast } from "../ui/toast.mjs";
 function renderAccounts() {
@@ -78,8 +78,7 @@ class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, tr
     ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
       const article = r.entity_id && typeof r.entity_label === "string" && r.entity_label ? r : null;
       return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.
-        created_at))}</time>${article ? `<br><button class="article-link" data-action="article-detail" data-id="${e(article.entity_id)}">${
-          e(article.entity_label)}</button>` : ""}</li>`;
+        created_at))}</time>${article ? `<br>${articleLink(article, "entity_id", "entity_label")}` : ""}</li>`;
     }).join("")}</ol></details>`;
   }).join("") || empty("暂无操作记录")}</div></section>`;
 }
