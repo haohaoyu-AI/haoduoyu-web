@@ -35,3 +35,5 @@
 ## 375-history-expanded
 
 ![375-history-expanded](375-history-expanded.png)
+
+[310项全量测试、16项浏览器检查及发布边界](validation.md) · [机器可读证据](product-validation.json)

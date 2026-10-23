@@ -1,0 +1,265 @@
+{
+  "product_commit": "922053e7a0a380c485df0e87e5a1feac3bc2c74f",
+  "base_main": "89ca9dd0ddca8b4e8866fbeb812b11a3d46ab222",
+  "scope": "Standalone default daily planner; round optimistic completion; compact calendar and future plans; private reusable templates and rolling 30-day habit status.",
+  "tested_source_binding": {
+    "fixture_head_before_commit": "9eead1d352632abbf738f50381650e6473641410",
+    "product_files": 66,
+    "manifest_sha256": "b24acce86c39b90db05471a48208834360beb15256972f76b542d0507dd6e991",
+    "post_commit_recomputed_equal": true,
+    "note": "Browser started with the frozen changes on 9eead1d; all 66 product file bytes were recomputed after commit and match 922053e.",
+    "product_hashes": {
+      "public/app.js": "201b31e019627f1be4a144b1237ba6fa2cd2fde5665de1cb14f69ecad1bb469f",
+      "public/style.css": "f46a27d76b10eb30908757df8ce6c8d994ec30bea625d7a651f68278b722b665",
+      "dist/server/index.js": "382d4e2344d16eaae12729b3529db183dd8248b417f0081225086733e0bc94f4",
+      "web/pages/todos.mjs": "1b1f0393586549110dcabcb8f29cd7541a4bb91610fc9ea11e5b4129f6823d5e"
+    }
+  },
+  "validation": {
+    "full_local": {
+      "command": "npm test",
+      "total": 310,
+      "pass": 310,
+      "fail": 0,
+      "log_sha256": "7f49a1d053693eb5922c934f73fe35b8b9dbeaeb4303c93ec005154067df837d"
+    },
+    "focused_ui": {
+      "total": 43,
+      "pass": 43,
+      "fail": 0
+    },
+    "web_style": {
+      "modules": 34,
+      "functions": 442,
+      "pass": true
+    },
+    "frontend_bundle_equal": true,
+    "public_asset_pins": 8,
+    "worker_assets_equal": true,
+    "isolated_previews": [
+      "dev: HTTP200; expected auth503",
+      "analytics: HTTP200; expected auth401"
+    ]
+  },
+  "browser": {
+    "engine": {
+      "engine": "Chromium",
+      "version": "154.0.8037.57"
+    },
+    "first_integrated_run_pass": true,
+    "checks_total": 16,
+    "checks": {
+      "mobile_default_login_opens_todos_with_one_title_input_and_compact_history": {
+        "/style.css": "f46a27d76b10eb30908757df8ce6c8d994ec30bea625d7a651f68278b722b665",
+        "/app.js": "201b31e019627f1be4a144b1237ba6fa2cd2fde5665de1cb14f69ecad1bb469f"
+      },
+      "add_shows_pending_before_response_then_short_success_feedback": true,
+      "desktop_default_login_and_independent_device_session_show_same_saved_rows": {
+        "/style.css": "f46a27d76b10eb30908757df8ce6c8d994ec30bea625d7a651f68278b722b665",
+        "/app.js": "201b31e019627f1be4a144b1237ba6fa2cd2fde5665de1cb14f69ecad1bb469f"
+      },
+      "custom_template_failure_keeps_input_and_retry_persists_across_reload_and_device_session": true,
+      "template_use_is_linked_and_deduplicated_and_open_completion_count_updates_zero_to_one": true,
+      "future_template_use_and_stable_id_rename_soft_delete_leave_generated_todos_unchanged": true,
+      "held_patch_immediately_checks_strikes_and_undoes_with_one_request_per_direction": true,
+      "failed_optimistic_patch_rolls_back_and_keeps_draft_with_first_screen_error": {
+        "form": {
+          "top": 180.390625,
+          "bottom": 224.390625,
+          "left": 16,
+          "right": 359
+        },
+        "feedback": {
+          "top": 236.390625,
+          "bottom": 276.390625,
+          "left": 16,
+          "right": 359
+        },
+        "list": {
+          "top": 288.390625,
+          "bottom": 532.390625,
+          "left": 16,
+          "right": 359
+        },
+        "nav": {
+          "top": 783,
+          "bottom": 844,
+          "left": 0,
+          "right": 375
+        },
+        "height": 844,
+        "scroll_y": 0
+      },
+      "real_cross_device_stale_version_409_converges_to_persisted_state": true,
+      "long_list_create_failure_stays_first_screen_preserves_rows_and_only_explicit_retry_saves_once": {
+        "form": {
+          "top": 180.390625,
+          "bottom": 224.390625,
+          "left": 16,
+          "right": 359
+        },
+        "feedback": {
+          "top": 236.390625,
+          "bottom": 276.390625,
+          "left": 16,
+          "right": 359
+        },
+        "list": {
+          "top": 288.390625,
+          "bottom": 1463.390625,
+          "left": 16,
+          "right": 359
+        },
+        "nav": {
+          "top": 783,
+          "bottom": 844,
+          "left": 0,
+          "right": 375
+        },
+        "height": 844,
+        "scroll_y": 0
+      },
+      "calendar_month_navigation_future_selection_and_preplanning_do_not_move_today_rows": true,
+      "compact_history_deeplink_reload_articles_data_and_back_keep_correct_date": true,
+      "late_or_cancelled_article_read_cannot_replace_returned_todo_input_or_draft": {
+        "upstream_statuses": [
+          200
+        ],
+        "browser_received_after_return": [],
+        "browser_cancellations": [
+          {
+            "width": 375,
+            "method": "GET",
+            "path": "/api/v1/articles?sort=published_at&order=desc&page=1&page_size=20",
+            "failure": "net::ERR_ABORTED"
+          }
+        ]
+      },
+      "explicit_dashboard_loads_statistics_without_todo_ui_or_todo_requests": [
+        "/api/v1/auth/me",
+        "/api/v1/accounts",
+        "/api/v1/overview?period=yesterday&top_n=5&top_platform="
+      ],
+      "preplanned_future_item_naturally_becomes_beijing_today_without_moving_yesterday": true,
+      "explicit_future_selection_and_month_remain_while_midnight_today_marker_updates": true
+    },
+    "script_sha256": "e3cf43e13f6d3fb9ef3e65e9440081fa6740141bd038d848f225277a5801aba0",
+    "report_sha256": "22d54b8bef986eba4195dd30d544e3b847d6ad8d5839cdf307c886a54b4ea67b",
+    "entry_gets": {
+      "375": [
+        "/api/v1/auth/me",
+        "/api/v1/auth/me",
+        "/api/v1/accounts",
+        "/api/v1/todos?date=2026-10-23"
+      ],
+      "1440": [
+        "/api/v1/auth/me",
+        "/api/v1/auth/me",
+        "/api/v1/accounts",
+        "/api/v1/todos?date=2026-10-23"
+      ]
+    },
+    "page_errors": 0,
+    "external_requests": 0,
+    "physical_device": false,
+    "production": false
+  },
+  "screenshots": {
+    "index": "https://github.com/haohaoyu-AI/haoduoyu-web/blob/140c6a72736954162ad6751d6cf35975f143493a/docs/evidence/daily-todos/minimal/README.md",
+    "count": 7,
+    "synthetic_only": true,
+    "actually_viewed": true,
+    "anonymous_http200_and_hashes_verified": true,
+    "captures": [
+      {
+        "name": "375-default",
+        "sha256": "5e036a46c0191d6f8bc5e0afe39361397856c62697d8f54302ac50c79cbf1375",
+        "bytes": 19965
+      },
+      {
+        "name": "375-list-saving",
+        "sha256": "237fc9c54eb097d9956a11f9ee830e19c131eeea26687d3521b50999e1fb3ed5",
+        "bytes": 32632
+      },
+      {
+        "name": "375-list-saved",
+        "sha256": "09b9a0096f5e599704457da940bd6eed69744aed1a5c46b441a16760363ca0c3",
+        "bytes": 35053
+      },
+      {
+        "name": "1440-default",
+        "sha256": "cc56b20a5cbfef5c421037cd17dfd07babf9b95c353688c754ce743d5b4dad3f",
+        "bytes": 45082
+      },
+      {
+        "name": "375-common-templates",
+        "sha256": "a6b675c475eb4189282826f490f8b4cdae8ada512eb452ffb9b66752e799e8bd",
+        "bytes": 50006
+      },
+      {
+        "name": "375-long-list-failure",
+        "sha256": "4c4359f29f800e7373bd968c90f06baab308f4caeae93c82aaa2b4bfe932549f",
+        "bytes": 71327
+      },
+      {
+        "name": "375-history-expanded",
+        "sha256": "486d7702d4b20ebd0cddeacb8ceba6ccac89c219b8e0644d88f1adfac33dfa00",
+        "bytes": 35861
+      }
+    ]
+  },
+  "independent_source_review": {
+    "commit": "922053e7a0a380c485df0e87e5a1feac3bc2c74f",
+    "result": "No new P1/P2; two template conflict/session continuations and calendar midnight marker findings fixed and re-reviewed.",
+    "tests_run_by_reviewer": false
+  },
+  "migration": {
+    "tables": 14,
+    "migrations": 3,
+    "0000_and_0001_sql_and_snapshots_unchanged": true,
+    "0002": "CREATE TABLE/INDEX only; templates and stable links",
+    "backup": "v3 includes private template/link rows and soft deletions; v1/v2 restore compatibility",
+    "production_execution": false
+  },
+  "ci": {
+    "product_run": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/39950270856",
+    "secret_scan": "failure: 161 commits; exactly three known public-file checksum findings; no scan exception or rule change made",
+    "final_head_checks": "https://github.com/haohaoyu-AI/haoduoyu-web/pull/35/checks"
+  },
+  "release": {
+    "production_version": 8,
+    "deployed": false,
+    "pending": [
+      "precise three-checksum scan exception permission",
+      "parent final review and release gate"
+    ],
+    "candidate_archive": {
+      "source_commit": "922053e7a0a380c485df0e87e5a1feac3bc2c74f",
+      "archive": "haoduoyu-daily-todos-922053e-sites.tar",
+      "format": "tar",
+      "bytes": 583680,
+      "sha256": "7bf84228346840b2bc79bf21046d4c21a5bf412e6ee13df6df0e6487af2b1cde",
+      "files": [
+        ".openai/hosting.json",
+        "dist/.openai/drizzle/0000_lively_stellaris.sql",
+        "dist/.openai/drizzle/0001_daily_todos.sql",
+        "dist/.openai/drizzle/0002_todo_templates.sql",
+        "dist/.openai/drizzle/meta/0000_snapshot.json",
+        "dist/.openai/drizzle/meta/0001_snapshot.json",
+        "dist/.openai/drizzle/meta/0002_snapshot.json",
+        "dist/.openai/drizzle/meta/_journal.json",
+        "dist/.openai/hosting.json",
+        "dist/server/index.js",
+        "dist/server/wrangler.json"
+      ],
+      "entrypoint": "dist/server/index.js",
+      "deployment_performed": false,
+      "scope": "Local release candidate only; requires parent final review and pending precise scan approval."
+    }
+  },
+  "reference_image": {
+    "library_id": "libfile_07ce6ac5a2e48191881e225d1aba9bfd",
+    "actually_viewed": false,
+    "result": "Supported native materialization download failed; one native image read returned metadata/pointer without local pixels. No guessed URL or bypass; implemented explicit text requirements."
+  }
+}
