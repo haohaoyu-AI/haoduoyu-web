@@ -7,6 +7,7 @@ var nav = [
   { id: "dashboard", label: "总览", icon: "grid" },
   { id: "articles", label: "文章", icon: "articles" },
   { id: "reviews", label: "数据", icon: "chart" },
+  { id: "todos", label: "每日待办", icon: "check" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
 var settingsTabs = { accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
@@ -54,7 +55,8 @@ var state = {
   pageSize: 20,
   topN: 5,
   topPlatform: "",
-  trendMetric: "reads"
+  trendMetric: "reads",
+  todoDate: ""
 };
 var runtime = {
   renderVersion: 0,
@@ -175,6 +177,121 @@ function pendingGet(path, options, envelope, context, factory) {
   return subscribeRequest(entry, options.signal);
 }
 
+// web/core/format.mjs
+var num = (value) => value === null || value === void 0 || value === "" ? "—" : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(Number(value));
+var compact = (value) => value == null ? "—" : Number(value) >= 1e4 ? `${num(Number(value) / 1e4)}万` : num(value);
+var bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+}).format(new Date(value));
+var time = (value, short = false) => {
+  if (!value) return "未记录";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "未记录";
+  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : {
+    year: "numeric",
+    second: "2-digit"
+  }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+};
+var duration = (seconds) => {
+  if (seconds == null) return "未记录";
+  const n = Number(seconds);
+  if (n < 60) return `${Math.round(n)} 秒`;
+  if (n < 3600) return `${Math.round(n / 60)} 分钟`;
+  const h = Math.floor(n / 3600), m = Math.round(n % 3600 / 60);
+  return m === 60 ? `${h + 1} 小时` : `${h} 小时${m ? ` ${m} 分钟` : ""}`;
+};
+var localDateTime = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Date(d.getTime() + 8 * 36e5).toISOString().slice(0, 16);
+};
+var iso = (value) => value ? (/* @__PURE__ */ new Date(`${value}:00+08:00`)).toISOString() : null;
+var metricData = (item) => {
+  const raw = item?.metrics ?? item?.metrics_json ?? {};
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  }
+  return raw || {};
+};
+var accountLabel = (account) => `${platforms[account.platform] || account.platform} · ${account.name}`;
+var accountName = (id) => {
+  const a = state.accounts.find((a2) => a2.id === id);
+  return a ? accountLabel(a) : "未找到账号";
+};
+var selectedQuery = () => state.account ? `account_id=${encodeURIComponent(state.account)}` : "";
+var rowsForAccount = (rows) => state.account ? rows.filter((a) => a.account_id === state.account) : rows;
+function displayTime(value) {
+  const stamp = Date.parse(value), diff = Date.now() - stamp;
+  return !Number.isFinite(stamp) ? "未记录" : diff >= 0 && diff < 864e5 ? `${Math.floor(diff / 36e5)} 小时前` : time(value, bjtDate(value).slice(0, 4) === bjtDate().slice(0, 4));
+}
+function safeURL(value) {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+// web/core/todos-state.mjs
+var todosState = { owner: "", days: /* @__PURE__ */ new Map(), today: "" };
+function todoOwner() {
+  return JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null]);
+}
+function resetTodos() {
+  todosState.owner = todoOwner();
+  todosState.days.clear();
+  todosState.today = bjtDate();
+}
+function validTodoDate(date) {
+  if (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(date || "")) return false;
+  const parsed = /* @__PURE__ */ new Date(`${date}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+}
+function todoDate() {
+  return state.page === "todos" && validTodoDate(state.todoDate) ? state.todoDate : bjtDate();
+}
+function todoDay(date = todoDate()) {
+  if (todosState.owner !== todoOwner()) resetTodos();
+  if (!todosState.days.has(date)) {
+    todosState.days.set(date, {
+      date,
+      items: [],
+      draft: "",
+      create: null,
+      adding: false,
+      loading: false,
+      loaded: false,
+      error: "",
+      revision: 0,
+      sequence: 0,
+      updates: /* @__PURE__ */ new Map()
+    });
+  }
+  return todosState.days.get(date);
+}
+function syncTodoDay(now = Date.now()) {
+  if (todosState.owner !== todoOwner()) resetTodos();
+  const today = bjtDate(now), changed = todosState.today !== today;
+  todosState.today = today;
+  return changed;
+}
+function todoSessionActive(owner) {
+  return Boolean(state.me) && owner === todoOwner() && owner === todosState.owner;
+}
+function mergeTodo(day, item) {
+  const index = day.items.findIndex((row) => row.id === item.id);
+  if (index < 0) day.items.push(item);
+  else if (day.items[index].version <= item.version) day.items[index] = item;
+}
+
 // web/core/session-index-state.mjs
 var articleIndexes = /* @__PURE__ */ new Map();
 function clearArticleIndexes() {
@@ -185,6 +302,7 @@ function clearArticleIndexes() {
 function resetSessionIndexes() {
   cancelPageRequests();
   runtime.sessionEpoch++;
+  resetTodos();
   clearArticleIndexes();
 }
 
@@ -199,6 +317,7 @@ var icons = {
   chart: '<path d="M4 3v17h17M8 15l4-5 4 2 5-7"/>',
   settings: '<path d="m9 3-1 3-3 1-2 3 2 2v3l-1 2 3 3 3-1 2 2 3-1 1-3 3-1 2-3-2-2V9l1-2-3-3-3 1-2-2z"/><circle cx="12" cy="12" r="3"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  check: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/>',
   arrow: '<path d="M5 12h14m-5-5 5 5-5 5"/>',
   search: '<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
@@ -412,69 +531,6 @@ async function api(path, options = {}) {
   return envelope ? payload : payload.data;
 }
 
-// web/core/format.mjs
-var num = (value) => value === null || value === void 0 || value === "" ? "—" : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(Number(value));
-var compact = (value) => value == null ? "—" : Number(value) >= 1e4 ? `${num(Number(value) / 1e4)}万` : num(value);
-var bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Shanghai",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-}).format(new Date(value));
-var time = (value, short = false) => {
-  if (!value) return "未记录";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "未记录";
-  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : {
-    year: "numeric",
-    second: "2-digit"
-  }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
-};
-var duration = (seconds) => {
-  if (seconds == null) return "未记录";
-  const n = Number(seconds);
-  if (n < 60) return `${Math.round(n)} 秒`;
-  if (n < 3600) return `${Math.round(n / 60)} 分钟`;
-  const h = Math.floor(n / 3600), m = Math.round(n % 3600 / 60);
-  return m === 60 ? `${h + 1} 小时` : `${h} 小时${m ? ` ${m} 分钟` : ""}`;
-};
-var localDateTime = (value) => {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Date(d.getTime() + 8 * 36e5).toISOString().slice(0, 16);
-};
-var iso = (value) => value ? (/* @__PURE__ */ new Date(`${value}:00+08:00`)).toISOString() : null;
-var metricData = (item) => {
-  const raw = item?.metrics ?? item?.metrics_json ?? {};
-  if (typeof raw === "string") {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return {};
-    }
-  }
-  return raw || {};
-};
-var accountLabel = (account) => `${platforms[account.platform] || account.platform} · ${account.name}`;
-var accountName = (id) => {
-  const a = state.accounts.find((a2) => a2.id === id);
-  return a ? accountLabel(a) : "未找到账号";
-};
-var selectedQuery = () => state.account ? `account_id=${encodeURIComponent(state.account)}` : "";
-var rowsForAccount = (rows) => state.account ? rows.filter((a) => a.account_id === state.account) : rows;
-function displayTime(value) {
-  const stamp = Date.parse(value), diff = Date.now() - stamp;
-  return !Number.isFinite(stamp) ? "未记录" : diff >= 0 && diff < 864e5 ? `${Math.floor(diff / 36e5)} 小时前` : time(value, bjtDate(value).slice(0, 4) === bjtDate().slice(0, 4));
-}
-function safeURL(value) {
-  try {
-    return ["http:", "https:"].includes(new URL(value).protocol);
-  } catch {
-    return false;
-  }
-}
-
 // web/core/storage.mjs
 var storage = { get(key) {
   try {
@@ -494,6 +550,8 @@ function updateRoute(push = false) {
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
   u.searchParams.set("period", state.overviewPeriod);
+  if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
+  else u.searchParams.delete("date");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
   else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
   else u.searchParams.delete("tab");
@@ -519,7 +577,9 @@ function updateRoute(push = false) {
 function readRoute() {
   const params = new URLSearchParams(location.search);
   const raw = params.get("page");
-  state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : "dashboard";
+  const fallback = !params.has("page") && window.matchMedia?.("(max-width:760px)").matches ? "todos" : "dashboard";
+  state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
+  state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : raw === "settings" && !params.has("tab") ? "security" : "accounts");
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
@@ -591,6 +651,7 @@ function headerActions() {
   )}记录发布</button>`;
   if (state.page === "articles") return `<a class="btn" href="/api/v1/export" download>${icon("download")}导出 CSV</a><button class="btn primary" data-action="new-article">${icon("plus")}记录发布</button>`;
   if (state.page === "reviews") return `<button class="btn primary" data-action="new-review">${icon("plus")}录入数据</button>`;
+  if (state.page === "todos") return "";
   if (state.settingsTab === "accounts") return `<button class="btn primary" data-action="new-account">${icon("plus")}添加账号</button>`;
   if (state.settingsTab === "keys") return `<button class="icon-button" data-action="key-help" aria-label="AI 凭据用途" aria-expanded="false" aria-controls="key-help">${icon("info")}</button><a href="/api-docs" class="btn" target="_blank" rel="noopener noreferrer">${icon("link", 14)}接入文档</a><button class="btn primary" data-action="new-key">${icon("plus")}创建凭证</button>`;
   return `<button class="btn" data-action="refresh">${icon("refresh")}刷新</button>`;
@@ -820,6 +881,215 @@ async function articleModal(id = "") {
   )}<div class="form-field full"><label for="field-summary">文章概况</label><textarea class="input" name="summary" id="field-summary" maxlength="5000">${e(a.summary)}</textarea></div><div class="form-field full"><label for="field-notes">备注</label><textarea class="input" name="notes" id="field-notes" maxlength="10000">${e(a.notes)}</textarea></div></div>${formEnd(id ? "保存修改" : "保存发布记录")}</form>`);
 }
 
+// web/pages/todos.mjs
+var todoClock = null;
+function todoDateControls(date) {
+  return `<div class="daily-todo-dates"><button class="btn small" data-action="todo-prev" aria-label="前一天">‹</button>
+<label for="todo-date" class="sr-only">查看日期</label><input class="input" id="todo-date" type="date" value="${e(date)}">
+<button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
+<button class="btn small" data-action="todo-today">今天</button></div>`;
+}
+function todoRow(item, day) {
+  const pending = day.updates.has(item.id);
+  return `<li class="daily-todo-row${item.completed ? " is-complete" : ""}" data-id="${e(item.id)}">
+<label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}" ${item.completed ? "checked" : ""}
+aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
+${pending ? '<span class="cell-sub" role="status">保存中…</span>' : ""}</li>`;
+}
+function todoForm(day) {
+  const label = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
+  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加每日计划">
+<label for="todo-text" class="sr-only">${label}</label><input id="todo-text" class="input" name="text" maxlength="500" required
+autocomplete="off" placeholder="${label}" value="${e(day.draft)}" ${day.adding ? "readonly" : ""}>
+<button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>${day.adding ? "保存中…" : "添加"}</button></form>`;
+}
+function todoHeading(day) {
+  const today = day.date === bjtDate(), history2 = state.page === "todos";
+  const completed = day.items.filter((item) => item.completed).length;
+  return `<div><h2 id="daily-todos-title">${today ? "今日计划" : "每日计划"}</h2>
+<p class="cell-sub">${e(day.date)} · 北京时间${day.items.length ? ` · 已完成 ${completed}/${day.items.length}` : ""}</p></div>
+${history2 ? todoDateControls(day.date) : '<a class="btn text" href="?page=todos" data-nav="todos">历史记录 ' + icon("arrow", 14) + "</a>"}`;
+}
+function todoStatus(day) {
+  return day.loading ? "正在读取计划…" : day.loaded && !day.items.length ? "还没有计划，写下第一件想做的事吧。" : "";
+}
+function todoFeedback(day) {
+  return day.error ? `${e(day.error)} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
+}
+function renderTodos() {
+  const day = todoDay(), today = day.date === bjtDate(), history2 = state.page === "todos";
+  return `<section id="daily-todos" class="card daily-todos" data-date="${e(day.date)}" aria-labelledby="daily-todos-title">
+<div id="todo-heading" class="section-heading">${todoHeading(day)}</div>
+${todoForm(day)}<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
+<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}</ul>
+<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
+${history2 ? '<p class="daily-todo-note">每天独立记录，未完成的计划也保留在原日期。</p>' : ""}</section>`;
+}
+function todosVisible() {
+  return Boolean(state.me) && ["dashboard", "todos"].includes(state.page);
+}
+function paintTodos() {
+  const root = $("#daily-todos");
+  if (!root || !todosVisible()) return;
+  const day = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  if (root.dataset.date !== day.date) {
+    root.outerHTML = renderTodos();
+    return;
+  }
+  const parts = {
+    "todo-heading": todoHeading(day),
+    "todo-status": todoStatus(day),
+    "todo-items": day.items.map((item) => todoRow(item, day)).join(""),
+    "todo-feedback": todoFeedback(day)
+  };
+  for (const [id, html] of Object.entries(parts)) {
+    const node = $("#" + id, root);
+    if (node && node.innerHTML !== html) node.innerHTML = html;
+  }
+  const input = $("#todo-text", root), button = $("button[type=submit]", root);
+  if (input && input.value !== day.draft) input.value = day.draft;
+  if (input) input.readOnly = day.adding;
+  if (button) {
+    button.disabled = day.adding;
+    button.textContent = day.adding ? "保存中…" : "添加";
+  }
+  if (checkbox) $(`[data-todo-id="${CSS.escape(checkbox)}"]`, root)?.focus();
+}
+function todoReadActive(owner, version, date, day, sequence) {
+  return todoSessionActive(owner) && version === runtime.renderVersion && todoDate() === date && day.sequence === sequence && todosVisible();
+}
+async function loadTodos(context) {
+  if (!todosVisible()) return;
+  const day = todoDay(), date = day.date, owner = todoOwner(), version = runtime.renderVersion;
+  const sequence = ++day.sequence, revision = day.revision;
+  day.loading = true;
+  paintTodos();
+  try {
+    const data = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
+    if (!todoReadActive(owner, version, date, day, sequence)) return;
+    if (day.revision !== revision) return loadTodos(context);
+    day.items = data.items;
+    day.loaded = true;
+  } catch (error) {
+    if (todoReadActive(owner, version, date, day, sequence) && !isRequestAbort(error) && !error.staleSession) day.error = error.message;
+  } finally {
+    if (todoReadActive(owner, version, date, day, sequence)) {
+      day.loading = false;
+      paintTodos();
+    }
+  }
+}
+function inputTodo(target) {
+  const date = target.form?.dataset.date;
+  if (target.id === "todo-text" && validTodoDate(date)) todoDay(date).draft = target.value;
+}
+function showTodoFailure(day, error) {
+  if (!isRequestAbort(error) && !error.staleSession) day.error = error.message;
+}
+async function submitTodo({ form, data }) {
+  if (!todosVisible() || !validTodoDate(form.dataset.date)) return;
+  const day = todoDay(form.dataset.date), owner = todoOwner(), text = String(data.text || "").trim();
+  if (day.adding) return;
+  day.draft = String(data.text || "");
+  if (day.date !== todoDate()) {
+    paintTodos();
+    return;
+  }
+  if (!text || text.length > 500) {
+    day.error = "请填写 1–500 字的计划。";
+    paintTodos();
+    return;
+  }
+  if (!day.create || day.create.text !== text) day.create = { id: crypto.randomUUID(), date: day.date, text };
+  day.adding = true;
+  day.error = "";
+  day.revision++;
+  paintTodos();
+  try {
+    const item = await api("/todos", { method: "POST", body: day.create });
+    if (!todoSessionActive(owner)) return;
+    mergeTodo(day, item);
+    day.draft = "";
+    day.create = null;
+  } catch (error) {
+    if (todoSessionActive(owner)) showTodoFailure(day, error);
+  } finally {
+    if (todoSessionActive(owner)) {
+      day.adding = false;
+      day.revision++;
+      paintTodos();
+    }
+  }
+}
+async function toggleTodo(target) {
+  if (!todosVisible()) return;
+  const day = todoDay(target.dataset.date), owner = todoOwner();
+  const item = day.items.find((row) => row.id === target.dataset.todoId);
+  if (!item || day.date !== todoDate()) return;
+  if (day.updates.has(item.id)) {
+    target.checked = item.completed;
+    return;
+  }
+  const completed = target.checked;
+  day.updates.set(item.id, true);
+  day.error = "";
+  day.revision++;
+  paintTodos();
+  try {
+    const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
+    if (todoSessionActive(owner)) mergeTodo(day, updated);
+  } catch (error) {
+    if (!todoSessionActive(owner)) return;
+    showTodoFailure(day, error);
+    if (error.status === 409 && day.date === todoDate()) {
+      day.error = "这项计划已更新，已重新读取，请核对后再操作。";
+      await loadTodos();
+    }
+  } finally {
+    if (todoSessionActive(owner)) {
+      day.updates.delete(item.id);
+      day.revision++;
+      paintTodos();
+    }
+  }
+}
+function selectTodoDate(date) {
+  if (!validTodoDate(date) || state.page !== "todos") return;
+  state.todoDate = date === bjtDate() ? "" : date;
+  updateRoute(true);
+  paintTodos();
+  loadTodos();
+}
+function moveTodoDate(offset) {
+  const date = /* @__PURE__ */ new Date(`${todoDate()}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  selectTodoDate(date.toISOString().slice(0, 10));
+}
+function refreshTodos() {
+  if (!todosVisible()) return;
+  todoDay().error = "";
+  loadTodos();
+}
+function checkTodoDay() {
+  if (!state.me || !syncTodoDay() || !todosVisible()) return;
+  paintTodos();
+  loadTodos();
+}
+function scheduleTodoClock() {
+  clearTimeout(todoClock);
+  const midnight = Date.parse(`${bjtDate()}T00:00:00+08:00`) + 864e5;
+  todoClock = setTimeout(() => {
+    checkTodoDay();
+    scheduleTodoClock();
+  }, Math.max(20, Math.min(6e4, midnight - Date.now() + 20)));
+  todoClock?.unref?.();
+}
+function registerTodosClock() {
+  window.addEventListener("focus", checkTodoDay);
+  document.addEventListener("visibilitychange", checkTodoDay);
+  scheduleTodoClock();
+}
+
 // web/pages/dashboard.mjs
 function dailyDates(data) {
   return (data.trend || []).filter((d) => (d.accounts || []).some((a) => Object.values(a.metrics || {}).some((v) => v != null)));
@@ -834,6 +1104,9 @@ function periodControls() {
   );
 }
 function renderDashboard(data) {
+  return `${renderTodos()}<div id="dashboard-summary">${renderDashboardSummary(data)}</div>`;
+}
+function renderDashboardSummary(data) {
   const daily = dailyDates(data), articles = (data.attention_articles || []).filter((a) => ["up", "down"].includes(a.attention?.kind)), visible = state.attentionExpanded ? articles : articles.slice(0, 6);
   return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible)}${articles.length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ? "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">还没有每日新增数据，录入后这里会显示周期变化和趋势。<button class="btn" data-action="new-daily">录入每日数据</button></div>'}</section>
  ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label]) => `<option value="${e(
@@ -1269,7 +1542,7 @@ function renderShell() {
   const navLink = (n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}" data-nav="${e(n.id)}" class="nav-item ${n.id === state.page ? "active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>${icon(n.icon, 18)}${e(n.label)}</a>`;
   $("#app").innerHTML = `<div class="shell"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=dashboard" class="brand" data-nav="dashboard"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
     "close"
-  )}</button></div><nav class="nav-list">${nav.slice(0, 3).map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav[3])}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span><button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button></div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" tabindex="-1"><div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? `${segmented("settings-tab", Object.entries(
+  )}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span><button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button></div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" tabindex="-1"><div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? `${segmented("settings-tab", Object.entries(
     settingsTabs
   ), state.settingsTab, "设置分类", "tab", "page-tabs")}` : ""}<div id="page-content">${skeleton()}</div></main></div></div>`;
   syncMenu();
@@ -1280,12 +1553,26 @@ function navigate(page, tab) {
   if (legacy) page = "settings";
   if (!nav.some((n) => n.id === page)) return;
   state.page = page;
+  if (page === "todos") state.todoDate = "";
   if (page === "settings") state.settingsTab = legacy || tab || "accounts";
   if (page === "dashboard") state.account = "";
   updateRoute(true);
   closeModal();
   renderShell();
   window.scrollTo({ top: 0, behavior: "instant" });
+}
+function pageLoading(page) {
+  if (page === "todos") return renderTodos();
+  if (page === "dashboard") return `${renderTodos()}<div id="dashboard-summary">${skeleton()}</div>`;
+  return skeleton();
+}
+function setPageBody(html, page) {
+  const summary = page === "dashboard" ? $("#dashboard-summary") : null;
+  if (summary) {
+    summary.innerHTML = html;
+    applyChartStyles(summary);
+  } else if (page === "todos") paintTodos();
+  else replacePageContent(page === "dashboard" ? `${renderTodos()}<div id="dashboard-summary">${html}</div>` : html, true);
 }
 async function renderPage() {
   stopPageEntry();
@@ -1294,11 +1581,16 @@ async function renderPage() {
   const context = beginPageRequests();
   const counter = $("#page-count");
   if (counter) counter.hidden = true;
-  replacePageContent(skeleton());
+  const hasTodos = ["dashboard", "todos"].includes(page);
+  replacePageContent(pageLoading(page));
+  if (hasTodos) loadTodos(context);
   $("#page-content")?.setAttribute("aria-busy", "true");
   try {
     let html = "", data;
     switch (page) {
+      case "todos":
+        html = renderTodos();
+        break;
       case "dashboard":
         data = await api(
           `/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`,
@@ -1306,7 +1598,7 @@ async function renderPage() {
         );
         if (version !== runtime.renderVersion) return;
         state.dashboard = data;
-        html = renderDashboard(data);
+        html = renderDashboardSummary(data);
         break;
       case "articles":
         html = await renderArticles(version, context);
@@ -1327,7 +1619,7 @@ async function renderPage() {
         break;
     }
     if (version === runtime.renderVersion && state.me) {
-      replacePageContent(html, true);
+      setPageBody(html, page);
       if (counter?.isConnected) {
         const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
           state.accounts
@@ -1337,7 +1629,7 @@ async function renderPage() {
       }
     }
   } catch (err) {
-    if (!isRequestAbort(err) && !err.staleSession && version === runtime.renderVersion && state.me) replacePageContent(`<div class="card error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" data-action="refresh">${icon("refresh")}重新加载</button></div>`);
+    if (!isRequestAbort(err) && !err.staleSession && version === runtime.renderVersion && state.me) setPageBody(`<div class="card error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" data-action="refresh">${icon("refresh")}重新加载</button></div>`, page);
   } finally {
     if (version === runtime.renderVersion) $("#page-content")?.setAttribute("aria-busy", "false");
   }
@@ -1692,6 +1984,10 @@ function actionResetFilters({}) {
   return;
 }
 var actions = {
+  "todo-prev": () => moveTodoDate(-1),
+  "todo-next": () => moveTodoDate(1),
+  "todo-today": () => selectTodoDate(bjtDate()),
+  "todo-reload": refreshTodos,
   "missing-list": actionMissingList,
   "list-prev": actionListPrev,
   "list-next": actionListNext,
@@ -1842,6 +2138,11 @@ var forms = {
 };
 async function handleFormSubmit(event) {
   const form = event.target;
+  if (form.id === "todo-form") {
+    event.preventDefault();
+    await submitTodo({ form, data: Object.fromEntries(new FormData(form)) });
+    return;
+  }
   if (!form.matches("#login-form,#article-form,#review-form,#account-form,#key-form,#password-form,#revoke-form,#article-filters,#save-view-form")) return;
   event.preventDefault();
   if (form.id === "article-filters") return;
@@ -1893,6 +2194,14 @@ async function handleClick(event) {
 }
 function handleChange(event) {
   const el = event.target;
+  if (el.dataset?.todoId) {
+    toggleTodo(el);
+    return;
+  }
+  if (el.id === "todo-date") {
+    selectTodoDate(el.value);
+    return;
+  }
   if (el.id === "filter-view") {
     const view = state.savedViews.find((v) => v.id === el.value);
     if (view) {
@@ -1934,6 +2243,7 @@ function handleToggle(event) {
 }
 function handleInput(event) {
   const el = event.target;
+  inputTodo(el);
   if (el.name === "q" && el.closest("#article-filters")) {
     state.filters.q = el.value;
     state.listPage = 1;
@@ -2021,6 +2331,7 @@ function handlePopstate() {
   }
 }
 function registerEvents() {
+  registerTodosClock();
   document.addEventListener("click", handleClick);
   document.addEventListener("change", handleChange);
   document.addEventListener("toggle", handleToggle, true);

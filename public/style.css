@@ -169,6 +169,20 @@ textarea.input { min-height:96px; resize:vertical; padding:var(--s2); }
 .skeleton>span:nth-child(3) { width:60%; }
 
 /* 5. Pages(dashboard/articles/reviews/settings/drawer/login) */
+.daily-todos { margin-bottom:var(--s5); }
+.daily-todo-form { display:flex; gap:var(--s2); }
+.daily-todo-form .input { flex:1; }
+.daily-todo-items { list-style:none; padding:0; margin:0; }
+.daily-todo-row { display:flex; align-items:center; gap:var(--s2); border-bottom:1px solid var(--line); }
+.daily-todo-row:last-child { border-bottom:0; }
+.daily-todo-row label { display:flex; flex:1; align-items:flex-start; gap:var(--s3); padding:var(--s3) 0; cursor:pointer; min-width:0; }
+.daily-todo-row input { margin-top:var(--s1); }
+.daily-todo-text { white-space:pre-wrap; overflow-wrap:anywhere; }
+.daily-todo-row.is-complete .daily-todo-text { color:var(--ink-2); text-decoration:line-through; }
+.daily-todo-status,.daily-todo-note { margin-top:var(--s3); color:var(--ink-2); font-size:var(--fs-xs); }
+.daily-todo-status:empty { margin:0; }
+.daily-todo-dates { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); }
+.daily-todo-dates .input { width:auto; max-width:160px; }
 .page-tabs { margin-bottom:var(--s5); }
 .security-panel { max-width:400px; }
 .accounts-table th,.accounts-table td { text-align:left; }
@@ -288,6 +302,7 @@ progress::-moz-progress-bar { background:var(--ink-2); }
   .nav-item[data-nav=dashboard]::after { content:"总览"; }
   .nav-item[data-nav=articles]::after { content:"文章"; }
   .nav-item[data-nav=reviews]::after { content:"数据"; }
+  .nav-item[data-nav=todos]::after { content:"每日待办"; }
   .nav-item[data-nav=settings]::after { content:"设置"; }
   .nav-item:is(:hover,:focus-visible)::after { display:block; }
   .user-row { justify-content:center; }

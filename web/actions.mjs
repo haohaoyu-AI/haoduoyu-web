@@ -4,6 +4,7 @@ import { api } from "./core/api.mjs";
 import { defaultColumns, defaultFilters, settingsTabs } from "./core/constants.mjs";
 import { $, e } from "./core/dom.mjs";
 import { time } from "./core/format.mjs";
+import { bjtDate } from "./core/format.mjs";
 import { updateRoute } from "./core/router.mjs";
 import { clearArticleIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
@@ -13,6 +14,7 @@ import { articleDetail } from "./pages/detail.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { reviewModal } from "./pages/reviews.mjs";
 import { accountModal, keyModal } from "./pages/settings.mjs";
+import { moveTodoDate, refreshTodos, selectTodoDate } from "./pages/todos.mjs";
 import { field, formEnd, renderSnapshot } from "./ui/components.mjs";
 import { replacePageContent } from "./ui/entry.mjs";
 import { setMenu } from "./ui/menu.mjs";
@@ -272,6 +274,10 @@ function actionResetFilters({}) {
   return;
 }
 const actions = {
+  "todo-prev": () => moveTodoDate(-1),
+  "todo-next": () => moveTodoDate(1),
+  "todo-today": () => selectTodoDate(bjtDate()),
+  "todo-reload": refreshTodos,
   "missing-list": actionMissingList,
   "list-prev": actionListPrev,
   "list-next": actionListNext,

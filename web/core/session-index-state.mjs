@@ -1,5 +1,6 @@
 import { cancelPageRequests } from "./requests.mjs";
 import { runtime, state } from "./state.mjs";
+import { resetTodos } from "./todos-state.mjs";
 const articleIndexes = /* @__PURE__ */ new Map();
 function clearArticleIndexes() {
   runtime.articleIndexGeneration++;
@@ -9,6 +10,7 @@ function clearArticleIndexes() {
 function resetSessionIndexes() {
   cancelPageRequests();
   runtime.sessionEpoch++;
+  resetTodos();
   clearArticleIndexes();
 }
 export {

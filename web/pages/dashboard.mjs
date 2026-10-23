@@ -4,6 +4,7 @@ import { accountLabel, accountName, compact, duration, num, time } from "../core
 import { state } from "../core/state.mjs";
 import { comparisonHTML, dashboardInfo, dashboardMetric, freshness, metricCoverageHTML, platformColor, platformLogo } from "../ui/components.mjs";
 import { segmented } from "../ui/segmented.mjs";
+import { renderTodos } from "./todos.mjs";
 function dailyDates(data) {
   return (data.trend || []).filter((d) => (d.accounts || []).some((a) => Object.values(a.metrics || {}).some((v) => v != null)));
 }
@@ -12,6 +13,9 @@ function periodControls() {
   "period");
 }
 function renderDashboard(data) {
+  return `${renderTodos()}<div id="dashboard-summary">${renderDashboardSummary(data)}</div>`;
+}
+function renderDashboardSummary(data) {
   const daily = dailyDates(data), articles = (data.attention_articles || []).filter((a) => ["up", "down"].includes(a.attention?.kind)), visible = state.
   attentionExpanded ? articles : articles.slice(0, 6);
   return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${
@@ -193,6 +197,7 @@ export {
   renderCumulative,
   renderDailyTable,
   renderDashboard,
+  renderDashboardSummary,
   renderPeriodAccounts,
   renderPlatformTable,
   renderPublicationTrend,

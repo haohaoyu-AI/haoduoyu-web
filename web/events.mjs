@@ -5,6 +5,7 @@ import { readRoute, updateRoute } from "./core/router.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { articleDraft, articleFilterPanel, viewDraft } from "./pages/articles.mjs";
 import { renderDashboard } from "./pages/dashboard.mjs";
+import { inputTodo, registerTodosClock, selectTodoDate, toggleTodo } from "./pages/todos.mjs";
 import { replacePageContent } from "./ui/entry.mjs";
 import { setMenu, syncMenu } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
@@ -41,6 +42,14 @@ async function handleClick(event) {
 }
 function handleChange(event) {
   const el = event.target;
+  if (el.dataset?.todoId) {
+    toggleTodo(el);
+    return;
+  }
+  if (el.id === "todo-date") {
+    selectTodoDate(el.value);
+    return;
+  }
   if (el.id === "filter-view") {
     const view = state.savedViews.find((v) => v.id === el.value);
     if (view) {
@@ -83,6 +92,7 @@ function handleToggle(event) {
 }
 function handleInput(event) {
   const el = event.target;
+  inputTodo(el);
   if (el.name === "q" && el.closest("#article-filters")) {
     state.filters.q = el.value;
     state.listPage = 1;
@@ -170,6 +180,7 @@ function handlePopstate() {
   }
 }
 function registerEvents() {
+  registerTodosClock();
   document.addEventListener("click", handleClick);
   document.addEventListener("change", handleChange);
   document.addEventListener("toggle", handleToggle, true);

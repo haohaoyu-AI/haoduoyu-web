@@ -11,6 +11,10 @@ const root=new URL('../',import.meta.url);
 const CHECKPOINT='2e12147b700ac604d7cccf8e034374644ac99a03';
 const old=path=>execFileSync('git',['show',CHECKPOINT+':'+path],{cwd:root,encoding:'utf8',maxBuffer:1024*1024});
 const current=path=>readFile(new URL(path,root),'utf8');
+// This historical test locks mechanical refactors. The bounded todo integration
+// intentionally extends these modules; its behavior has separate daily-todo tests.
+const todoIntegration=new Set(['controller.mjs','events.mjs','core/constants.mjs','core/dom.mjs',
+  'core/router.mjs','core/state.mjs','pages/dashboard.mjs','ui/components.mjs']);
 function normalized(value) {
   if(Array.isArray(value))return value.map(normalized);
   if(!value||typeof value!=='object')return value;
@@ -72,7 +76,7 @@ async function registry(path,name) {
   const ast=parseWeb(await current(path));
   const functions=new Map(ast.body.filter(node=>node.type==='FunctionDeclaration').map(node=>[node.id.name,node]));
   const declaration=ast.body.flatMap(node=>node.declarations||[]).find(node=>node.id.name===name);
-  return new Map(declaration.init.properties.map(item=>[item.key.value,normalized(functions.get(item.value.name).body.body)]));
+  return new Map(declaration.init.properties.filter(item=>!item.key.value?.startsWith('todo-')).map(item=>[item.key.value,normalized(functions.get(item.value.name).body.body)]));
 }
 test('all original action/form case bodies are preserved in their named registry handlers',async()=>{
   const actions=await registry('web/actions.mjs','actions'),forms=await registry('web/forms.mjs','forms');
@@ -88,7 +92,7 @@ test('formatting preserves declarations in otherwise unchanged modules and every
   const files=execFileSync('git',['ls-tree','-r','--name-only',CHECKPOINT,'web'],{cwd:root,encoding:'utf8'}).trim().split('\n');
   const changed=new Set(['controller.mjs','events.mjs','core/api.mjs','core/article-index.mjs',
     'core/modal-request.mjs','core/session-index-state.mjs','pages/articles.mjs','pages/detail.mjs','pages/reviews.mjs','ui/modal.mjs']);
-  for(const file of files.filter(file=>!changed.has(file.slice(4)))) {
+  for(const file of files.filter(file=>!changed.has(file.slice(4))&&!todoIntegration.has(file.slice(4)))) {
     const canonical=async source=>(await transform(source,{format:'esm',charset:'utf8',target:'esnext',minify:false,treeShaking:false})).code;
     let candidate=parseWeb(await canonical(await current(file)));
     if(file==='web/ui/entry.mjs')candidate=normalizedEntry(candidate);
@@ -100,23 +104,25 @@ test('formatting preserves declarations in otherwise unchanged modules and every
   const collect=source=>{const rows=[],ast=parseWeb(source);normalizeChartMarkup(ast);
     ast.body=ast.body.filter(node=>!(node.type==='FunctionDeclaration'&&node.id.name==='applyChartStyles'));
     visitWeb(ast,node=>{if(node.type==='TemplateLiteral')rows.push(node.quasis.map(q=>q.value.cooked));});return rows;};
-  const previous=files.flatMap(file=>collect(old(file)));
-  const nextFiles=files.concat(['web/actions.mjs','web/forms.mjs','web/core/requests.mjs']);
-  const next=(await Promise.all(nextFiles.map(async file=>collect(await current(file))))).flat();
+  const integrationBase='89ca9dd0ddca8b4e8866fbeb812b11a3d46ab222';
+  const templateFiles=execFileSync('git',['ls-tree','-r','--name-only',integrationBase,'web'],{cwd:root,encoding:'utf8'})
+    .trim().split('\n').filter(file=>!todoIntegration.has(file.slice(4)));
+  const previous=templateFiles.flatMap(file=>collect(execFileSync('git',['show',integrationBase+':'+file],{cwd:root,encoding:'utf8'})));
+  const next=(await Promise.all(templateFiles.map(async file=>collect(await current(file))))).flat();
   const sorted=rows=>rows.map(row=>JSON.stringify(row)).sort();
-  assert.deepEqual(sorted(next),sorted(previous),'all template cooked text and whitespace remain exact');
+  assert.deepEqual(sorted(next),sorted(previous),'unchanged module template cooked text and whitespace remain exact');
 });
 test('event bindings retain all nine original positions and capture options',async()=>{
   const ast=parseWeb(await current('web/events.mjs'));
   const next=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='registerEvents');
-  const signature=node=>node.body.body.map(statement=>{
+  const signature=node=>node.body.body.filter(statement=>statement.expression?.callee?.name!=='registerTodosClock').map(statement=>{
     const call=statement.expression;
     return {target:call.callee.object.name,event:call.arguments[0].value,capture:call.arguments[2]?.value??false};
   });
   assert.deepEqual(signature(next),signature(register));
 });
 test('web style checks every function type and rejects long fixture lines/functions',async()=>{
-  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,30);
+  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,32);
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));
@@ -135,6 +141,16 @@ test('the click prelude and remaining event callback bodies keep their original 
   assert.deepEqual(normalized(beforeTry(functions.get('handleClick').body.body)),normalized(beforeTry(callbacks[0].body.body)));
   for(const [index,name] of [[1,'handleChange'],[2,'handleToggle'],[3,'handleInput'],[4,'handleFilterSubmit'],
     [5,'handleKeydown'],[7,'handleResize'],[8,'handlePopstate']]) {
-    assert.deepEqual(normalized(functions.get(name).body),normalized(callbacks[index].body),name);
+    const body=structuredClone(functions.get(name).body);
+    if(name==='handleChange') {
+      assert.equal(body.body[1].consequent.body[0].expression.callee.name,'toggleTodo');
+      assert.equal(body.body[2].test.right.value,'todo-date');
+      body.body.splice(1,2);
+    }
+    if(name==='handleInput') {
+      assert.equal(body.body[1].expression.callee.name,'inputTodo');
+      body.body.splice(1,1);
+    }
+    assert.deepEqual(normalized(body),normalized(callbacks[index].body),name);
   }
 });

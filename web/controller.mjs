@@ -8,12 +8,13 @@ import { resetSessionIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
 import { articleDraft, renderArticles } from "./pages/articles.mjs";
-import { renderDashboard } from "./pages/dashboard.mjs";
+import { renderDashboardSummary } from "./pages/dashboard.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { renderReviews } from "./pages/reviews.mjs";
 import { renderAccounts, renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
+import { loadTodos, paintTodos, renderTodos } from "./pages/todos.mjs";
 import { pageHeader, skeleton } from "./ui/components.mjs";
-import { replacePageContent, stopPageEntry } from "./ui/entry.mjs";
+import { applyChartStyles, replacePageContent, stopPageEntry } from "./ui/entry.mjs";
 import { syncMenu } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
@@ -27,7 +28,8 @@ function renderShell() {
   $("#app").innerHTML = `<div class="shell"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a \
 href="?page=dashboard" class="brand" data-nav="dashboard"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a>\
 <button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
-  "close")}</button></div><nav class="nav-list">${nav.slice(0, 3).map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav[3])}<div \
+  "close")}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div \
+class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div \
 class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.
   me.username)}</span><button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button></div></div>\
 </aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" \
@@ -42,12 +44,26 @@ function navigate(page, tab) {
   if (legacy) page = "settings";
   if (!nav.some((n) => n.id === page)) return;
   state.page = page;
+  if (page === "todos") state.todoDate = "";
   if (page === "settings") state.settingsTab = legacy || tab || "accounts";
   if (page === "dashboard") state.account = "";
   updateRoute(true);
   closeModal();
   renderShell();
   window.scrollTo({ top: 0, behavior: "instant" });
+}
+function pageLoading(page) {
+  if (page === "todos") return renderTodos();
+  if (page === "dashboard") return `${renderTodos()}<div id="dashboard-summary">${skeleton()}</div>`;
+  return skeleton();
+}
+function setPageBody(html, page) {
+  const summary = page === "dashboard" ? $("#dashboard-summary") : null;
+  if (summary) {
+    summary.innerHTML = html;
+    applyChartStyles(summary);
+  } else if (page === "todos") paintTodos();
+  else replacePageContent(page === "dashboard" ? `${renderTodos()}<div id="dashboard-summary">${html}</div>` : html, true);
 }
 async function renderPage() {
   stopPageEntry();
@@ -56,17 +72,22 @@ async function renderPage() {
   const context = beginPageRequests();
   const counter = $("#page-count");
   if (counter) counter.hidden = true;
-  replacePageContent(skeleton());
+  const hasTodos = ["dashboard", "todos"].includes(page);
+  replacePageContent(pageLoading(page));
+  if (hasTodos) loadTodos(context);
   $("#page-content")?.setAttribute("aria-busy", "true");
   try {
     let html = "", data;
     switch (page) {
+      case "todos":
+        html = renderTodos();
+        break;
       case "dashboard":
         data = await api(`/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`,
         { context });
         if (version !== runtime.renderVersion) return;
         state.dashboard = data;
-        html = renderDashboard(data);
+        html = renderDashboardSummary(data);
         break;
       case "articles":
         html = await renderArticles(version, context);
@@ -87,7 +108,7 @@ async function renderPage() {
         break;
     }
     if (version === runtime.renderVersion && state.me) {
-      replacePageContent(html, true);
+      setPageBody(html, page);
       if (counter?.isConnected) {
         const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
         state.accounts).length : null;
@@ -96,9 +117,9 @@ async function renderPage() {
       }
     }
   } catch (err) {
-    if (!isRequestAbort(err) && !err.staleSession && version === runtime.renderVersion && state.me) replacePageContent(`<div class="card \
+    if (!isRequestAbort(err) && !err.staleSession && version === runtime.renderVersion && state.me) setPageBody(`<div class="card \
 error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" \
-data-action="refresh">${icon("refresh")}重新加载</button></div>`);
+data-action="refresh">${icon("refresh")}重新加载</button></div>`, page);
   } finally {
     if (version === runtime.renderVersion) $("#page-content")?.setAttribute("aria-busy", "false");
   }

@@ -1,10 +1,13 @@
 import { articleColumns, defaultColumns, defaultFilters, legacyPages, modeLabels, nav, settingsTabs } from "./constants.mjs";
 import { state } from "./state.mjs";
 import { storage } from "./storage.mjs";
+import { validTodoDate } from "./todos-state.mjs";
 function updateRoute(push = false) {
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
   u.searchParams.set("period", state.overviewPeriod);
+  if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
+  else u.searchParams.delete("date");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
   else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
   else u.searchParams.delete("tab");
@@ -27,7 +30,9 @@ function updateRoute(push = false) {
 function readRoute() {
   const params = new URLSearchParams(location.search);
   const raw = params.get("page");
-  state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : "dashboard";
+  const fallback = !params.has("page") && window.matchMedia?.("(max-width:760px)").matches ? "todos" : "dashboard";
+  state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
+  state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.
   get("tab") : raw === "settings" && !params.has("tab") ? "security" : "accounts");
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
