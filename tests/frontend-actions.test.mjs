@@ -136,10 +136,10 @@ async function registry(path,name) {
   const ast=parseWeb(await current(path));
   const functions=new Map(ast.body.filter(node=>node.type==='FunctionDeclaration').map(node=>[node.id.name,node]));
   const declaration=ast.body.flatMap(node=>node.declarations||[]).find(node=>node.id.name===name);
-  const additions=new Set(['todo-template-use','todo-template-edit','todo-template-delete','todo-template-cancel',
+  const additions=new Set(['todo-menu','todo-delete','todo-restore','todo-make-template','todo-remove-template','todo-template-use','todo-template-edit','todo-template-delete','todo-template-cancel',
     'todo-calendar-prev','todo-calendar-next','todo-calendar-date','todo-prev','todo-next','todo-today','todo-reload']);
   if(name==='actions') {
-    const expected=snippet('const actions={"todo-template-use":({id})=>useTodoTemplate(id),"todo-template-edit":({id})=>editTodoTemplate(id),"todo-template-delete":({id})=>writeTodoTemplate(id,undefined,true),"todo-template-cancel":cancelTodoTemplateEdit,"todo-calendar-prev":()=>moveTodoMonth(-1),"todo-calendar-next":()=>moveTodoMonth(1),"todo-calendar-date":({target})=>selectTodoDate(target.dataset.date),"todo-prev":()=>moveTodoDate(-1),"todo-next":()=>moveTodoDate(1),"todo-today":()=>selectTodoDate(bjtDate()),"todo-reload":refreshTodos}');
+    const expected=snippet('const actions={"todo-menu":openTodoMenu,"todo-delete":({target})=>deleteTodo(target.dataset),"todo-restore":({target})=>restoreTodo(target.dataset),"todo-make-template":({target})=>changeTodoTemplate(target.dataset),"todo-remove-template":({target})=>changeTodoTemplate(target.dataset,true),"todo-template-use":({id})=>useTodoTemplate(id),"todo-template-edit":({id})=>editTodoTemplate(id),"todo-template-delete":({id})=>writeTodoTemplate(id,undefined,true),"todo-template-cancel":cancelTodoTemplateEdit,"todo-calendar-prev":()=>moveTodoMonth(-1),"todo-calendar-next":()=>moveTodoMonth(1),"todo-calendar-date":({target})=>selectTodoDate(target.dataset.date),"todo-prev":()=>moveTodoDate(-1),"todo-next":()=>moveTodoDate(1),"todo-today":()=>selectTodoDate(bjtDate()),"todo-reload":refreshTodos}');
     const extra=declaration.init.properties.filter(item=>additions.has(item.key.value));
     assert.deepEqual(normalized(extra),normalized(expected.declarations[0].init.properties));
   }
@@ -185,14 +185,16 @@ test('event bindings retain all nine original positions and capture options',asy
   const next=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='registerEvents');
   const hook=next.body.body.filter(statement=>statement.expression?.callee?.name==='registerTodosClock');
   assert.deepEqual(normalized(hook),normalized(snippet('function register(){registerTodosClock();}').body.body));
-  const signature=node=>node.body.body.filter(statement=>statement.expression?.callee?.name!=='registerTodosClock').map(statement=>{
+  const gestures=next.body.body.filter(statement=>statement.expression?.callee?.name==='registerTodoGestures');
+  assert.deepEqual(normalized(gestures),normalized(snippet('function register(){registerTodoGestures(openTodoMenu,canOpenTodoMenu);}').body.body));
+  const signature=node=>node.body.body.filter(statement=>!['registerTodosClock','registerTodoGestures'].includes(statement.expression?.callee?.name)).map(statement=>{
     const call=statement.expression;
     return {target:call.callee.object.name,event:call.arguments[0].value,capture:call.arguments[2]?.value??false};
   });
   assert.deepEqual(signature(next),signature(register));
 });
 test('web style checks every function type and rejects long fixture lines/functions',async()=>{
-  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,34);
+  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,37);
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));
@@ -217,9 +219,9 @@ test('the click prelude and remaining event callback bodies keep their original 
     [5,'handleKeydown'],[7,'handleResize'],[8,'handlePopstate']]) {
     const body=structuredClone(functions.get(name).body);
     if(name==='handleChange') {
-      const expected=snippet('function change(){if(el.dataset?.todoId){toggleTodo(el);return;}if(el.id==="todo-date"){selectTodoDate(el.value);return;}}').body.body;
-      assert.deepEqual(normalized(body.body.slice(1,3)),normalized(expected));
-      body.body.splice(1,2);
+      const expected=snippet('function change(){if(el.id==="todo-completed-mode"){changeTodoCompletedMode(el.value);return;}if(el.dataset?.todoId){toggleTodo(el);return;}if(el.id==="todo-date"){selectTodoDate(el.value);return;}}').body.body;
+      assert.deepEqual(normalized(body.body.slice(1,4)),normalized(expected));
+      body.body.splice(1,3);
     }
     if(name==='handleInput') {
       assert.deepEqual(normalized(body.body.slice(1,3)),normalized(parseWeb('inputTodo(el);inputTodoTemplate(el);').body));

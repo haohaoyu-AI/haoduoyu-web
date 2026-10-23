@@ -7,6 +7,10 @@ import { runtime, state } from "../core/state.mjs";
 import { mergeTodo, syncTodoDay, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDate } from "../core/todos-state.mjs";
 import { todosState } from "../core/todos-state.mjs";
 import { paintTodoTemplates, refreshOpenTodoTemplates, renderTodoTemplates } from "./todo-templates.mjs";
+import { renderTodoUndo, todoBusy } from "./todo-actions.mjs";
+import {
+  paintTodoPreferences, receiveTodoPreferences, renderTodoPreferences, todoCompletedMode, todoPreferences
+} from "./todo-preferences.mjs";
 let todoClock = null;
 function todoCalendarMonth(date) {
   if (todosState.calendarDate !== date || !validTodoDate(`${todosState.calendarMonth}-01`)) {
@@ -64,12 +68,16 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
 function todoRow(item, day) {
-  const pending = day.updates.has(item.id);
-  const completed = pending ? day.updates.get(item.id) : item.completed;
-  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}">
+  const pending = todoBusy(day, item.id);
+  const completed = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
+  const removal = day.removals.get(item.id), deleted = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
+  if (deleted || (completed && todoCompletedMode() === "hide")) return "";
+  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
-${pending ? '<span class="cell-sub" role="status">保存中…</span>' : ""}</li>`;
+${pending ? '<span class="cell-sub" role="status">保存中…</span>' : ""}
+<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day.date)}"
+aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
 function todoForm(day) {
   const label = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
@@ -89,12 +97,14 @@ function todoHeading(day) {
 ${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</details>${renderTodoTemplates()}`;
 }
 function todoStatus(day) {
-  if (day.adding || day.updates.size) return "保存中…";
-  if (day.error) return "";
+  const removing = [...day.removals.values()].some((ticket) => ticket.phase !== "ready");
+  if (day.adding || day.updates.size || day.templateWrites.size || removing || todoPreferences().pending) return "保存中…";
+  if (day.error || todoPreferences().error) return "";
   return day.loading && !day.loaded ? "正在读取…" : day.notice;
 }
 function todoFeedback(day) {
-  return day.error ? `${e(day.error)} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
+  const error = [day.error, todoPreferences().error].filter(Boolean).join(" ");
+  return error ? `${e(error)} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
 function renderTodos() {
   const day = todoDay();
@@ -103,6 +113,7 @@ function renderTodos() {
 ${todoForm(day)}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}
 <ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}</ul></section>`;
 }
 function todosVisible() {
@@ -112,12 +123,13 @@ function paintTodos() {
   const root = $("#daily-todos");
   if (!root || !todosVisible()) return;
   const day = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
   if (root.dataset.date !== day.date) {
     root.outerHTML = renderTodos();
     paintTodoTemplates();
     return;
   }
-  const parts = { "todo-caption": todoCaption(day), "todo-status": todoStatus(day),
+  const parts = { "todo-caption": todoCaption(day), "todo-status": todoStatus(day), "todo-undo": renderTodoUndo(day),
     "todo-items": day.items.map((item) => todoRow(item, day)).join(""), "todo-feedback": todoFeedback(day) };
   for (const [id, html] of Object.entries(parts)) {
     const node = $("#" + id, root);
@@ -131,7 +143,9 @@ function paintTodos() {
     button.disabled = day.adding;
     button.textContent = day.adding ? "保存中…" : "添加";
   }
-  if (checkbox) $(`[data-todo-id="${CSS.escape(checkbox)}"]`, root)?.focus();
+  paintTodoPreferences();
+  const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
+  if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-completed-mode", root))?.focus();
   paintTodoTemplates();
 }
 function todoReadActive(owner, version, date, day, sequence) {
@@ -147,6 +161,7 @@ async function loadTodos(context) {
     const data = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
     if (!todoReadActive(owner, version, date, day, sequence)) return;
     if (day.revision !== revision) return loadTodos(context);
+    receiveTodoPreferences(data.completed_mode, data.preferences_version);
     day.items = data.items;
     day.loaded = true;
   } catch (error) {
@@ -193,7 +208,14 @@ async function saveTodo(day, request, templateId = "") {
     }
     setTodoNotice(day, "已添加");
   } catch (error) {
-    if (todoSessionActive(owner)) showTodoFailure(day, error);
+    if (todoSessionActive(owner)) {
+      showTodoFailure(day, error);
+      if (error.status === 410) {
+        if (templateId) day.templateCreates.delete(templateId);
+        else day.create = null;
+        day.error = "原事项已被删除，输入已保留，可再次添加。";
+      }
+    }
   } finally {
     if (todoSessionActive(owner)) {
       day.adding = false;
@@ -234,9 +256,9 @@ async function toggleTodo(target) {
   if (!todosVisible()) return;
   const day = todoDay(target.dataset.date), owner = todoOwner();
   const item = day.items.find((row) => row.id === target.dataset.todoId);
-  if (!item || day.date !== todoDate()) return;
-  if (day.updates.has(item.id)) {
-    target.checked = day.updates.get(item.id);
+  if (!item || item.deleted_at || day.date !== todoDate()) return;
+  if (todoBusy(day, item.id)) {
+    target.checked = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
     return;
   }
   const completed = target.checked;
@@ -286,6 +308,7 @@ function moveTodoDate(offset) {
 function refreshTodos() {
   if (!todosVisible()) return;
   todoDay().error = "";
+  todoPreferences().error = "";
   loadTodos();
 }
 function checkTodoDay() {
@@ -313,5 +336,5 @@ function registerTodosClock() {
 }
 export {
   inputTodo, loadTodos, moveTodoDate, moveTodoMonth, paintTodos, refreshTodos, registerTodosClock, renderTodos,
-  selectTodoDate, submitTodo, submitTodoTemplate, toggleTodo
+  selectTodoDate, setTodoNotice, submitTodo, submitTodoTemplate, toggleTodo
 };

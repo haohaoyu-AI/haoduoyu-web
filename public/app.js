@@ -251,6 +251,7 @@ function resetTodos() {
   todosState.today = bjtDate();
   todosState.calendarMonth = "";
   todosState.calendarDate = "";
+  todosState.preferences = { mode: "strike", version: 0, loaded: false, pending: null, error: "" };
 }
 function validTodoDate(date) {
   if (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(date || "")) return false;
@@ -277,7 +278,10 @@ function todoDay(date = todoDate()) {
       revision: 0,
       sequence: 0,
       updates: /* @__PURE__ */ new Map(),
-      templateCreates: /* @__PURE__ */ new Map()
+      templateCreates: /* @__PURE__ */ new Map(),
+      removals: /* @__PURE__ */ new Map(),
+      templateLinks: /* @__PURE__ */ new Map(),
+      templateWrites: /* @__PURE__ */ new Set()
     });
   }
   return todosState.days.get(date);
@@ -1508,6 +1512,7 @@ async function writeTodoTemplate(id, text, remove = false) {
     if (remove) store.items = store.items.filter((row) => row.id !== id);
     else mergeTodoTemplate(saved);
     if (store.editing?.id === id) store.editing = null;
+    if (remove && state.page === "todos") await loadTodos();
   } catch (error) {
     if (templateSessionActive(owner)) await templateWriteError(error, store, owner, editing);
   } finally {
@@ -1537,6 +1542,241 @@ function refreshOpenTodoTemplates() {
   const store = templateState();
   store.revision++;
   if ($("#todo-templates")?.open) loadTodoTemplates();
+}
+
+// web/pages/todo-actions.mjs
+function todoBusy(day, id) {
+  return day.updates.has(id) || day.removals.has(id) || day.templateWrites.has(id);
+}
+function todoActionContext({ id, date, owner = todoOwner() }) {
+  if (!state.me || state.page !== "todos" || !validTodoDate(date) || date !== todoDate() || !todoSessionActive(owner)) return null;
+  const day = todoDay(date), item = day.items.find((row) => row.id === id);
+  return item ? { day, item, owner } : null;
+}
+function canOpenTodoMenu({ id, date, anchor }) {
+  const context = todoActionContext({ id, date });
+  return Boolean(context && anchor?.isConnected && !context.item.deleted_at && !todoBusy(context.day, id));
+}
+function openTodoMenu({ target, id, date, anchor }) {
+  date ||= target?.dataset.date;
+  anchor ||= target?.closest(".daily-todo-row");
+  if (!canOpenTodoMenu({ id, date, anchor })) return;
+  const { item, owner } = todoActionContext({ id, date });
+  const trigger = target || $('[data-action="todo-menu"]', anchor);
+  if (!trigger) return;
+  const attributes = `data-id="${e(id)}" data-date="${e(date)}" data-owner="${e(owner)}" role="menuitem"`;
+  const commonAction = item.template_active ? "todo-remove-template" : "todo-make-template";
+  const commonLabel = item.template_active ? "取消常用待办" : "添加为常用待办";
+  popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
+<button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
+}
+function renderTodoUndo(day) {
+  return [...day.removals.entries()].map(([id, ticket]) => {
+    const label = ticket.phase === "deleting" ? "删除中…" : ticket.phase === "restoring" ? "恢复中…" : "已删除";
+    return `<div class="todo-undo-entry"><span>${label}：${e(ticket.item.text)}</span>
+<button class="btn text small" data-action="todo-restore" data-id="${e(id)}" data-date="${e(day.date)}"
+data-owner="${e(todoOwner())}" ${ticket.phase === "ready" ? "" : "disabled"}>撤销</button></div>`;
+  }).join("");
+}
+function expireTodoUndo(day, id, ticket, owner) {
+  clearTimeout(ticket.timer);
+  ticket.timer = setTimeout(() => {
+    if (!todoSessionActive(owner) || day.removals.get(id) !== ticket || ticket.phase !== "ready") return;
+    day.removals.delete(id);
+    paintTodos();
+  }, 8e3);
+  ticket.timer?.unref?.();
+}
+async function todoActionFailure(day, error, owner) {
+  if (!todoSessionActive(owner) || isRequestAbort(error) || error.staleSession) return;
+  day.error = error.message;
+  if ([404, 409].includes(error.status) && day.date === todoDate()) {
+    day.error = "这项计划已更新，请核对最新内容后再操作。";
+    await loadTodos();
+  }
+}
+async function deleteTodo(options) {
+  const context = todoActionContext(options);
+  if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
+  const { day, item, owner } = context, ticket = { item, phase: "deleting", timer: null };
+  day.removals.set(item.id, ticket);
+  day.error = "";
+  day.notice = "";
+  day.revision++;
+  paintTodos();
+  try {
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day.date, version: item.version } });
+    if (!todoSessionActive(owner)) return;
+    mergeTodo(day, saved);
+    ticket.item = saved;
+    ticket.phase = "ready";
+    expireTodoUndo(day, item.id, ticket, owner);
+    if (saved.template_id) refreshOpenTodoTemplates();
+  } catch (error) {
+    if (!todoSessionActive(owner)) return;
+    day.removals.delete(item.id);
+    await todoActionFailure(day, error, owner);
+    if (todoSessionActive(owner) && item.template_id && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
+  } finally {
+    if (todoSessionActive(owner)) {
+      day.revision++;
+      paintTodos();
+    }
+  }
+}
+async function restoreTodo({ id, date, owner = todoOwner() }) {
+  if (!state.me || state.page !== "todos" || date !== todoDate() || !todoSessionActive(owner)) return;
+  const day = todoDay(date), ticket = day.removals.get(id);
+  if (!ticket || ticket.phase !== "ready") return;
+  clearTimeout(ticket.timer);
+  ticket.phase = "restoring";
+  mergeTodo(day, ticket.item);
+  day.error = "";
+  day.revision++;
+  paintTodos();
+  try {
+    const saved = await api(`/todos/${encodeURIComponent(id)}/restore`, {
+      method: "POST",
+      body: { date, version: ticket.item.version }
+    });
+    if (!todoSessionActive(owner)) return;
+    mergeTodo(day, saved);
+    day.removals.delete(id);
+    setTodoNotice(day, "已恢复");
+    if (saved.template_id) refreshOpenTodoTemplates();
+  } catch (error) {
+    if (!todoSessionActive(owner)) return;
+    if (error.status === 409) day.removals.delete(id);
+    else {
+      ticket.phase = "ready";
+      expireTodoUndo(day, id, ticket, owner);
+    }
+    await todoActionFailure(day, error, owner);
+    if (todoSessionActive(owner) && ticket.item.template_id && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
+  } finally {
+    if (todoSessionActive(owner)) {
+      day.revision++;
+      paintTodos();
+    }
+  }
+}
+function todoTemplateRequest(day, item) {
+  let request = day.templateLinks.get(item.id);
+  if (!request || request.version !== item.version || request.template_version !== (item.template_version || 0)) {
+    request = {
+      date: day.date,
+      version: item.version,
+      template_id: item.template_id || crypto.randomUUID(),
+      template_version: item.template_version || 0
+    };
+    day.templateLinks.set(item.id, request);
+  }
+  return request;
+}
+async function changeTodoTemplate(options, remove = false) {
+  const context = todoActionContext(options);
+  if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
+  const { day, item, owner } = context;
+  if (remove !== Boolean(item.template_active) || templateState().pending.has(item.template_id)) return;
+  day.templateWrites.add(item.id);
+  day.error = "";
+  day.notice = "";
+  day.revision++;
+  paintTodos();
+  try {
+    const saved = await api(remove ? `/todo-templates/${encodeURIComponent(item.template_id)}` : `/todos/${encodeURIComponent(item.id)}/template`, {
+      method: remove ? "DELETE" : "POST",
+      body: remove ? { version: item.template_version } : todoTemplateRequest(day, item)
+    });
+    if (!todoSessionActive(owner)) return;
+    if (remove) templateState().items = templateState().items.filter((row) => row.id !== item.template_id);
+    else {
+      mergeTodo(day, saved.todo);
+      mergeTodoTemplate(saved.template);
+    }
+    day.templateLinks.delete(item.id);
+    setTodoNotice(day, remove ? "已取消常用，事项已保留" : "已添加为常用");
+    refreshOpenTodoTemplates();
+    if (remove && day.date === todoDate()) await loadTodos();
+  } catch (error) {
+    if (todoSessionActive(owner)) {
+      await todoActionFailure(day, error, owner);
+      if (todoSessionActive(owner) && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
+    }
+  } finally {
+    if (todoSessionActive(owner)) {
+      day.templateWrites.delete(item.id);
+      day.revision++;
+      paintTodos();
+    }
+  }
+}
+
+// web/pages/todo-preferences.mjs
+function todoPreferences() {
+  todoDay();
+  return todosState.preferences;
+}
+function receiveTodoPreferences(mode, version) {
+  const prefs = todoPreferences();
+  if (!["strike", "hide"].includes(mode) || !Number.isInteger(version) || prefs.pending || version < prefs.version) return;
+  prefs.mode = mode;
+  prefs.version = version;
+  prefs.loaded = true;
+}
+function todoCompletedMode() {
+  const prefs = todoPreferences();
+  return prefs.pending || prefs.mode;
+}
+function renderTodoPreferences() {
+  const prefs = todoPreferences(), mode = todoCompletedMode();
+  return `<div class="todo-list-options"><label for="todo-completed-mode">完成后</label>
+<select id="todo-completed-mode" class="input" ${prefs.pending || !prefs.loaded ? "disabled" : ""}>
+<option value="strike" ${mode === "strike" ? "selected" : ""}>划线显示</option>
+<option value="hide" ${mode === "hide" ? "selected" : ""}>隐藏已完成</option></select></div>`;
+}
+function paintTodoPreferences() {
+  const input = $("#todo-completed-mode"), prefs = todoPreferences();
+  if (!input) return;
+  input.value = todoCompletedMode();
+  input.disabled = Boolean(prefs.pending) || !prefs.loaded;
+}
+async function changeTodoCompletedMode(mode) {
+  if (!state.me || state.page !== "todos" || !["strike", "hide"].includes(mode)) return;
+  const prefs = todoPreferences(), owner = todoOwner();
+  if (prefs.pending || !prefs.loaded || mode === prefs.mode) {
+    paintTodoPreferences();
+    return;
+  }
+  prefs.pending = mode;
+  prefs.error = "";
+  paintTodos();
+  try {
+    const saved = await api("/todo-preferences", { method: "PATCH", body: { completed_mode: mode, version: prefs.version } });
+    if (!todoSessionActive(owner)) return;
+    prefs.mode = saved.completed_mode;
+    prefs.version = saved.version;
+    setTodoNotice(todoDay(), "已保存");
+  } catch (error) {
+    if (!todoSessionActive(owner) || isRequestAbort(error) || error.staleSession) return;
+    prefs.error = error.message;
+    if (error.status === 409) {
+      try {
+        const latest = await api("/todo-preferences");
+        if (!todoSessionActive(owner)) return;
+        prefs.mode = latest.completed_mode;
+        prefs.version = latest.version;
+        prefs.error = "显示方式已更新，请核对后再选择。";
+      } catch (readError) {
+        if (todoSessionActive(owner) && !isRequestAbort(readError) && !readError.staleSession) prefs.error = readError.message;
+      }
+    }
+  } finally {
+    if (todoSessionActive(owner)) {
+      prefs.pending = null;
+      paintTodos();
+    }
+  }
 }
 
 // web/pages/todos.mjs
@@ -1597,12 +1837,16 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
 function todoRow(item, day) {
-  const pending = day.updates.has(item.id);
-  const completed = pending ? day.updates.get(item.id) : item.completed;
-  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}">
+  const pending = todoBusy(day, item.id);
+  const completed = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
+  const removal = day.removals.get(item.id), deleted = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
+  if (deleted || completed && todoCompletedMode() === "hide") return "";
+  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
-${pending ? '<span class="cell-sub" role="status">保存中…</span>' : ""}</li>`;
+${pending ? '<span class="cell-sub" role="status">保存中…</span>' : ""}
+<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day.date)}"
+aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
 function todoForm(day) {
   const label = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
@@ -1622,12 +1866,14 @@ function todoHeading(day) {
 ${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</details>${renderTodoTemplates()}`;
 }
 function todoStatus(day) {
-  if (day.adding || day.updates.size) return "保存中…";
-  if (day.error) return "";
+  const removing = [...day.removals.values()].some((ticket) => ticket.phase !== "ready");
+  if (day.adding || day.updates.size || day.templateWrites.size || removing || todoPreferences().pending) return "保存中…";
+  if (day.error || todoPreferences().error) return "";
   return day.loading && !day.loaded ? "正在读取…" : day.notice;
 }
 function todoFeedback(day) {
-  return day.error ? `${e(day.error)} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
+  const error = [day.error, todoPreferences().error].filter(Boolean).join(" ");
+  return error ? `${e(error)} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
 function renderTodos() {
   const day = todoDay();
@@ -1636,6 +1882,7 @@ function renderTodos() {
 ${todoForm(day)}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}
 <ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}</ul></section>`;
 }
 function todosVisible() {
@@ -1645,6 +1892,7 @@ function paintTodos() {
   const root = $("#daily-todos");
   if (!root || !todosVisible()) return;
   const day = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
   if (root.dataset.date !== day.date) {
     root.outerHTML = renderTodos();
     paintTodoTemplates();
@@ -1653,6 +1901,7 @@ function paintTodos() {
   const parts = {
     "todo-caption": todoCaption(day),
     "todo-status": todoStatus(day),
+    "todo-undo": renderTodoUndo(day),
     "todo-items": day.items.map((item) => todoRow(item, day)).join(""),
     "todo-feedback": todoFeedback(day)
   };
@@ -1668,7 +1917,9 @@ function paintTodos() {
     button.disabled = day.adding;
     button.textContent = day.adding ? "保存中…" : "添加";
   }
-  if (checkbox) $(`[data-todo-id="${CSS.escape(checkbox)}"]`, root)?.focus();
+  paintTodoPreferences();
+  const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
+  if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-completed-mode", root))?.focus();
   paintTodoTemplates();
 }
 function todoReadActive(owner, version, date, day, sequence) {
@@ -1684,6 +1935,7 @@ async function loadTodos(context) {
     const data = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
     if (!todoReadActive(owner, version, date, day, sequence)) return;
     if (day.revision !== revision) return loadTodos(context);
+    receiveTodoPreferences(data.completed_mode, data.preferences_version);
     day.items = data.items;
     day.loaded = true;
   } catch (error) {
@@ -1730,7 +1982,14 @@ async function saveTodo(day, request, templateId = "") {
     }
     setTodoNotice(day, "已添加");
   } catch (error) {
-    if (todoSessionActive(owner)) showTodoFailure(day, error);
+    if (todoSessionActive(owner)) {
+      showTodoFailure(day, error);
+      if (error.status === 410) {
+        if (templateId) day.templateCreates.delete(templateId);
+        else day.create = null;
+        day.error = "原事项已被删除，输入已保留，可再次添加。";
+      }
+    }
   } finally {
     if (todoSessionActive(owner)) {
       day.adding = false;
@@ -1771,9 +2030,9 @@ async function toggleTodo(target) {
   if (!todosVisible()) return;
   const day = todoDay(target.dataset.date), owner = todoOwner();
   const item = day.items.find((row) => row.id === target.dataset.todoId);
-  if (!item || day.date !== todoDate()) return;
-  if (day.updates.has(item.id)) {
-    target.checked = day.updates.get(item.id);
+  if (!item || item.deleted_at || day.date !== todoDate()) return;
+  if (todoBusy(day, item.id)) {
+    target.checked = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
     return;
   }
   const completed = target.checked;
@@ -1823,6 +2082,7 @@ function moveTodoDate(offset) {
 function refreshTodos() {
   if (!todosVisible()) return;
   todoDay().error = "";
+  todoPreferences().error = "";
   loadTodos();
 }
 function checkTodoDay() {
@@ -2048,6 +2308,107 @@ async function init({ freshLogin = false } = {}) {
       toast(err.message, true);
     } else renderLogin();
   }
+}
+
+// web/ui/todo-gestures.mjs
+function cancelTodoPress(gesture) {
+  if (gesture.press) clearTimeout(gesture.press.timer);
+  gesture.press = null;
+}
+function todoPressRow(target) {
+  const row = target?.closest?.(".daily-todo-row");
+  if (!row || target.closest("button,a,select,textarea,input:not([type=checkbox])")) return null;
+  if (row.querySelector('input[aria-disabled="true"]')) return null;
+  return row;
+}
+function todoPressEligible(gesture, press, x = press.x, y = press.y) {
+  if (!press.row.isConnected || document.visibilityState === "hidden" || !press.row.getClientRects().length) return false;
+  const rect = press.row.getBoundingClientRect();
+  if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return false;
+  if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return false;
+  return gesture.isEligible({ id: press.id, date: press.date, anchor: press.row });
+}
+function openTodoPress(gesture, press) {
+  if (gesture.press !== press) return;
+  if (gesture.pointers.size !== 1 || !todoPressEligible(gesture, press)) {
+    cancelTodoPress(gesture);
+    return;
+  }
+  gesture.press = null;
+  gesture.blocked = { pointerId: press.pointerId, row: press.row, x: press.x, y: press.y, until: Infinity };
+  gesture.onOpen({ id: press.id, date: press.date, anchor: press.row });
+}
+function startTodoPress(gesture, event) {
+  gesture.blocked = null;
+  cancelTodoPress(gesture);
+  if (!["touch", "pen"].includes(event.pointerType)) return;
+  gesture.pointers.add(event.pointerId);
+  if (gesture.pointers.size !== 1 || event.isPrimary === false || event.button !== 0) return;
+  const row = todoPressRow(event.target);
+  if (!row) return;
+  const press = {
+    row,
+    id: row.dataset.id,
+    date: row.dataset.date || row.querySelector("[data-date]")?.dataset.date,
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    timer: null
+  };
+  if (!press.id || !press.date || !todoPressEligible(gesture, press)) return;
+  gesture.press = press;
+  press.timer = setTimeout(() => openTodoPress(gesture, press), 650);
+}
+function moveTodoPress(gesture, event) {
+  const press = gesture.press;
+  if (!press || press.pointerId !== event.pointerId) return;
+  const moved = Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10;
+  if (moved || !todoPressEligible(gesture, press, event.clientX, event.clientY)) cancelTodoPress(gesture);
+}
+function endTodoPress(gesture, event) {
+  gesture.pointers.delete(event.pointerId);
+  if (gesture.press?.pointerId === event.pointerId) cancelTodoPress(gesture);
+  if (gesture.blocked?.pointerId === event.pointerId) gesture.blocked.until = Date.now() + 800;
+}
+function blockTodoPressClick(gesture, event) {
+  const blocked = gesture.blocked;
+  if (!blocked || Date.now() > blocked.until || !event.pointerType && event.detail === 0) return;
+  const samePointer = event.pointerId === blocked.pointerId;
+  const samePosition = Math.hypot(event.clientX - blocked.x, event.clientY - blocked.y) <= 25;
+  if (!samePointer && !samePosition) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}
+function blockTodoPressMenu(gesture, event) {
+  if (event.pointerType === "mouse") return;
+  const row = gesture.press?.row || (gesture.blocked && Date.now() <= gesture.blocked.until ? gesture.blocked.row : null);
+  if (row?.contains(event.target)) event.preventDefault();
+}
+function resetTodoPress(gesture) {
+  cancelTodoPress(gesture);
+  gesture.pointers.clear();
+  if (gesture.blocked) gesture.blocked.until = Date.now() + 800;
+}
+function registerTodoGestures(onOpen, isEligible = () => true) {
+  const gesture = { onOpen, isEligible, press: null, blocked: null, pointers: /* @__PURE__ */ new Set() }, listeners = [];
+  const listen = (target, name, handler, options = true) => {
+    target.addEventListener(name, handler, options);
+    listeners.push(() => target.removeEventListener(name, handler, options));
+  };
+  listen(document, "pointerdown", (event) => startTodoPress(gesture, event), { capture: true, passive: true });
+  listen(document, "pointermove", (event) => moveTodoPress(gesture, event), { capture: true, passive: true });
+  listen(document, "pointerup", (event) => endTodoPress(gesture, event), { capture: true, passive: true });
+  listen(document, "pointercancel", (event) => endTodoPress(gesture, event), { capture: true, passive: true });
+  listen(document, "click", (event) => blockTodoPressClick(gesture, event));
+  listen(document, "contextmenu", (event) => blockTodoPressMenu(gesture, event));
+  listen(document, "scroll", () => cancelTodoPress(gesture), { capture: true, passive: true });
+  listen(document, "visibilitychange", () => resetTodoPress(gesture));
+  listen(window, "blur", () => resetTodoPress(gesture));
+  listen(window, "popstate", () => cancelTodoPress(gesture));
+  return () => {
+    resetTodoPress(gesture);
+    for (const remove of listeners) remove();
+  };
 }
 
 // web/pages/detail.mjs
@@ -2347,6 +2708,11 @@ function actionResetFilters({}) {
   return;
 }
 var actions = {
+  "todo-menu": openTodoMenu,
+  "todo-delete": ({ target }) => deleteTodo(target.dataset),
+  "todo-restore": ({ target }) => restoreTodo(target.dataset),
+  "todo-make-template": ({ target }) => changeTodoTemplate(target.dataset),
+  "todo-remove-template": ({ target }) => changeTodoTemplate(target.dataset, true),
   "todo-template-use": ({ id }) => useTodoTemplate(id),
   "todo-template-edit": ({ id }) => editTodoTemplate(id),
   "todo-template-delete": ({ id }) => writeTodoTemplate(id, void 0, true),
@@ -2570,6 +2936,10 @@ async function handleClick(event) {
 }
 function handleChange(event) {
   const el = event.target;
+  if (el.id === "todo-completed-mode") {
+    changeTodoCompletedMode(el.value);
+    return;
+  }
   if (el.dataset?.todoId) {
     toggleTodo(el);
     return;
@@ -2710,6 +3080,7 @@ function handlePopstate() {
 }
 function registerEvents() {
   registerTodosClock();
+  registerTodoGestures(openTodoMenu, canOpenTodoMenu);
   document.addEventListener("click", handleClick);
   document.addEventListener("change", handleChange);
   document.addEventListener("toggle", handleToggle, true);

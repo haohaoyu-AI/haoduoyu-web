@@ -42,7 +42,7 @@ python3 tests/browser-frontend-lifecycle-regression.py --part all
 
 - web：原生 ES 模块、单一 state/runtime、action 注册表、页面和 UI；不含框架或运行时依赖。
 - public：已提交的 app.js 构建产物、单一 CSS、HTML 和接入文档。
-- src、shared：Worker、聚合及安全逻辑；db、drizzle 保留初始迁移，追加每日待办和常用模板迁移，共 3 份迁移、14 张表。
+- src、shared：Worker、聚合及安全逻辑；db、drizzle 保留初始迁移，追加每日待办、常用模板及恢复/偏好迁移，共 4 份迁移、15 张表。
 - scripts、tests：本地工具和审查后的合成用例；.github 为最小只读 CI，没有部署步骤或生产秘密。
 - docs：当前架构、变更、性能及逐阶段证据；历史记录不代表当前已全部验收。
 
@@ -52,4 +52,4 @@ python3 tests/browser-frontend-lifecycle-regression.py --part all
 
 ## 每日待办
 
-首页可直接填写今日计划，完成后勾选划线；按北京时间跨日自然归档，并可按日期查看历史。实现、权限、增量迁移及旧备份兼容见[每日待办说明](docs/daily-todos.md)。生产状态仍以明确的发布记录为准。
+首页可直接填写今日计划，完成后划线或隐藏，长按菜单可删除并撤销；按北京时间跨日自然归档，并可按日期查看历史。实现、权限、增量迁移及旧备份兼容见[每日待办说明](docs/daily-todos.md)。生产状态仍以明确的发布记录为准。

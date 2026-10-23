@@ -6,7 +6,11 @@
 
 “常用”入口按需展开，支持新增、改名、软删除和手动加入当前选中日期。模板通过稳定 ID 关联每日事项；改名不改历史正文，删除不删除历史及完成记录。手动调用模板保留尚未提交的输入，不自动每日生成。
 
-习惯状态仅显示在“常用”中：按北京时间截至今天（含今天）的近 30 个自然日 `[今天−29, 今天]`，完成的不同日期达到 21 天即为“习惯”，不足为“待办”。同日多个完成事项只计一天，未来日期不计；补记、取消完成和跨日后读取会重新计算，没有额外的连续七天降级条件。这是产品规则，不是习惯形成的科学结论。
+长按事项或点击行末“⋯”打开同一操作菜单，可删除、添加为常用或取消常用。删除只软删除当前日期这一条，保留原日期和关联，提供 8 秒撤销；滚动、拖动和取消触摸不会触发菜单，长按松手不会顺带勾选。电脑可用键盘操作菜单，Escape 或点击空白关闭。取消常用仅停用模板；重新添加会恢复同一模板关联，不按同名事项猜测绑定。
+
+“完成后”可切换划线或隐藏，默认划线，服务端按当前用户保存并跨设备读取。隐藏只是视图过滤，不改变历史或习惯计数；切回划线可再次看到完成项并取消。保存失败立即恢复原显示并提示。
+
+习惯状态仅显示在“常用”中：按北京时间截至今天（含今天）的近 30 个自然日 `[今天−29, 今天]`，完成的不同日期达到 21 天即为“习惯”，不足为“待办”。同日多个完成事项只计一天，未来日期及软删除事项不计；补记、取消完成、删除/恢复事项和跨日后读取会重新计算，没有额外的连续七天降级条件。这是产品规则，不是习惯形成的科学结论。
 
 ## 手机显示与切换
 
@@ -17,19 +21,21 @@
 ## 数据与权限
 
 - `matrix_todos` 是独立新增表，按现有登录用户 ID 和日期查询。通过原有 Cookie/CSRF 验证；API key 不可读写待办。
-- `GET /api/v1/todos?date=YYYY-MM-DD` 返回 `{date,today,items}`；省略日期使用服务端北京时间今天。
-- `POST /api/v1/todos` 接收 `{id,date,text}`，从常用事项添加时附带 `template_id`。客户端固定 UUID 在请求结果不确定时重复提交只产生一条记录；同 ID 不同内容或关联返回 409。
+- `GET /api/v1/todos?date=YYYY-MM-DD` 返回 `{date,today,items,completed_mode,preferences_version}`；省略日期使用服务端北京时间今天。
+- `POST /api/v1/todos` 接收 `{id,date,text}`，从常用事项添加时附带 `template_id`。客户端固定 UUID 在请求结果不确定时重复提交只产生一条记录；同 ID 不同原始创建内容或关联返回 409。后补常用关联单独标记，不改变原创建请求身份；已删除事项的旧 POST 返回 410，不复活。
 - `PATCH /api/v1/todos/:id` 接收 `{completed,version}`。显式状态和版本条件防止迟到/重复请求覆盖新状态；版本冲突返回 409，界面重新读取后提示。
 - 内容最长 500 个 UTF-16 单元，必须非空。日期必须是有效的四位年份 `YYYY-MM-DD`，允许历史和未来日期。
-- 未新增删除、移动、编辑正文接口；未修改原有用户、账号、登录防护、环境变量或业务表语义。
-- `GET/POST /api/v1/todo-templates` 和 `PATCH/DELETE /api/v1/todo-templates/:id` 复用相同用户隔离、Cookie/CSRF 验证；API key 无权访问。模板新增使用 UUID 幂等，修改/软删除使用版本条件；已删除 ID 不可复活。
+- `DELETE /api/v1/todos/:id` 与 `POST /api/v1/todos/:id/restore` 接收 `{date,version}`，使用同一行版本进行软删除/恢复。跨用户或日期不匹配返回 404，过期版本返回 409；相邻版本同目标重试不重复写入。未新增移动、编辑正文接口，未修改原有用户、账号、登录防护或环境变量。
+- `POST /api/v1/todos/:id/template` 接收 `{date,version,template_id,template_version}`，原子创建/恢复模板并建立稳定关联；重试不重复创建，迟到的添加不能覆盖后来取消常用。
+- `GET/PATCH /api/v1/todo-preferences` 读取/保存 `{completed_mode,version}`。首次读取默认 `strike/0`，不写数据库；保存使用独立版本条件，不改事项。
+- `GET/POST /api/v1/todo-templates` 和 `PATCH/DELETE /api/v1/todo-templates/:id` 复用相同用户隔离、Cookie/CSRF 验证；API key 无权访问。模板新增使用 UUID 幂等，修改/软删除使用版本条件；普通创建不能复活已删除 ID，只有已关联事项的显式恢复常用操作可按版本恢复。
 - 勾选/取消立即显示目标状态和“保存中”，失败回滚至已保存状态并显示错误；添加失败保留输入与重试 ID。写入不自动重放，发生冲突先读取已保存状态。
 
 ## 迁移、备份和回滚
 
-原始 `0000_lively_stellaris.sql` 和其快照保持不变。`0001_daily_todos.sql` 新增每日事项；后续 `0002_todo_templates.sql` 仅新增模板和关联表，不改写 0000/0001，只包含 `CREATE TABLE` 与 `CREATE INDEX`。Sites 发布会在上传 Worker 前应用待执行迁移。不能通过清空数据库来初始化本模块。
+原始 `0000_lively_stellaris.sql` 和其快照保持不变。`0001_daily_todos.sql` 新增每日事项；后续 `0002_todo_templates.sql` 仅新增模板和关联表，不改写 0000/0001，只包含 `CREATE TABLE` 与 `CREATE INDEX`。`0003_todo_recovery_preferences.sql` 新增偏好表，仅向已有待办/关联表追加 `deleted_at` 和 `created_with_todo` 两列；0000/0001/0002 文件及快照保持原样，总计 15 表、4 份迁移。Sites 发布会在上传 Worker 前应用待执行迁移。不能通过清空数据库来初始化本模块。
 
-备份升级为 `haoduoyu-matrix-d1-v3`，包含待办、模板（包括软删除）和关联。HTTP 管理员备份仅附带当前用户的这三张私有表记录，其余旧表仍按原有范围导出；仅供运维调用的 `exportBackup(db)` 保留完整导出能力。恢复仍限空隔离目标，兼容 v1（待办及模板为空）、v2（保留待办，模板为空）；缺表、校验和错误或非空目标会拒绝。
+备份升级为 `haoduoyu-matrix-d1-v4`，包含待办/模板（包括软删除）、关联及显示偏好。HTTP 管理员备份仅附带当前用户的这四张私有表记录，其余旧表仍按原有范围导出；仅供运维调用的 `exportBackup(db)` 保留完整导出能力。恢复仍限空隔离目标，兼容 v1（待办及模板为空）、v2（保留待办，模板为空）和 v3（待办/模板/关联保留）。旧版本先严格校验原列，再补默认删除时间/原创建来源；缺表、校验和错误或非空目标会拒绝。
 
 上线前保留当前 **Sites v8**：
 
@@ -37,11 +43,11 @@
 - Sites 源提交：`e7765af3c6d4b87ed39de7831db2962db9c826d9`
 - 完整原发布记录：[2026-10-23-v8.json](releases/2026-10-23-v8.json)
 
-回滚仅重新发布 v8 Worker，不回退/清空数据库；新增表保留，v8 不会操作它。迁移可能先于失败的部署生效，结果未知时先查状态，不能改写已应用迁移或重复部署。
+回滚仅重新发布 v8 Worker，不回退/清空数据库；新增表和列保留，v8 不会操作它们。迁移可能先于失败的部署生效，结果未知时先查状态，不能改写已应用迁移或重复部署。
 
 ## 验证入口
 
-合成后端用例：`tests/daily-todos.test.mjs`、`tests/todo-templates.test.mjs`；备份：对应的 `*-backup.test.mjs`；前端行为：`tests/daily-todos-ui.test.mjs`。当前整合版真实 Chromium 验收使用 `tests/daily-todos-browser-server.mjs` 和 `tests/browser-daily-todos-minimal.py`，只读写独立回环合成 D1。结果以最终精确提交记录为准；以下早期记录只描述各自绑定版本。
+合成后端用例：`tests/daily-todos.test.mjs`、`tests/todo-templates.test.mjs`、`tests/todo-recovery.test.mjs`；备份：对应的 `*-backup.test.mjs`（含 `todo-delete-backup.test.mjs`）；前端行为：`tests/daily-todos-ui.test.mjs`。当前整合版真实 Chromium 验收使用 `tests/daily-todos-browser-server.mjs` 、`tests/browser-daily-todos-minimal.py` 及 `tests/browser-daily-todos-actions.py`，只读写独立回环合成 D1。结果以最终精确提交记录为准；以下早期记录只描述各自绑定版本。
 
 ## 本地浏览器验收
 

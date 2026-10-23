@@ -517,3 +517,149 @@ test('navigation reuses the shell within one session and rebuilds it after the u
     assert.match(appHTML, change === 'session' ? /data-session="1"/ : /data-user="other-user"/);
   }
 });
+
+test('hidden completion reacts immediately and a failed save restores the row without replay', async () => {
+  const c = client();
+  c.put('original', item('hide-failure', '2026-10-23'));
+  c.run(`paintTodos=()=>{};todoDay().items=[original];todoDay().loaded=true;receiveTodoPreferences('hide',2);
+    let calls=0,rejectSave;api=()=>{calls++;return new Promise((_,reject)=>rejectSave=reject)};
+    let save=toggleTodo({dataset:{todoId:original.id,date:original.date},checked:true})`);
+  assert.doesNotMatch(c.run('renderTodos()'), /data-todo-id="hide-failure"/);
+  assert.match(c.run('renderTodos()'), /保存中/);
+  c.run("rejectSave(new Error('Synthetic completion failed'))");
+  await c.run('save');
+  assert.match(c.run('renderTodos()'), /data-todo-id="hide-failure"/);
+  assert.match(c.run('renderTodos()'), /Synthetic completion failed/);
+  assert.equal(c.run('todoDay().items[0].completed'), false);
+  assert.equal(c.run('calls'), 1);
+});
+
+test('display preference writes are single-submit, optimistic, reversible and independent of todo writes', async () => {
+  const c = client();
+  c.put('done', item('completed-mode', '2026-10-23', {completed:true}));
+  c.run(`paintTodos=()=>{};todoDay().items=[done];receiveTodoPreferences('strike',0);
+    let calls=[],rejectSave;api=(path,options)=>{calls.push({path,options});return new Promise((_,reject)=>rejectSave=reject)};
+    let save=changeTodoCompletedMode('hide')`);
+  await c.run("changeTodoCompletedMode('hide')");
+  assert.doesNotMatch(c.run('renderTodos()'), /data-todo-id="completed-mode"/);
+  assert.equal(c.run('calls.length'), 1);
+  assert.equal(c.run('calls[0].path'), '/todo-preferences');
+  assert.equal(c.run('calls[0].options.body.version'), 0);
+  c.run("rejectSave(new Error('Synthetic mode save failed'))");
+  await c.run('save');
+  assert.equal(c.run('todoCompletedMode()'), 'strike');
+  assert.match(c.run('renderTodos()'), /data-todo-id="completed-mode"/);
+  assert.match(c.run('renderTodos()'), /Synthetic mode save failed/);
+  assert.equal(c.run('todoDay().items[0].version'), 1);
+  c.run("api=async(path,options)=>{calls.push({path,options});return {completed_mode:'hide',version:1}}");
+  await c.run("changeTodoCompletedMode('hide')");
+  c.run("receiveTodoPreferences('strike',0)");
+  assert.equal(c.run('todoCompletedMode()'), 'hide', 'old list reads cannot undo a saved preference');
+  assert.equal(c.run('calls.every(call=>call.path===\"/todo-preferences\")'), true);
+});
+
+test('late preference success or conflict reload cannot change the next signed-in user', async () => {
+  for (const conflict of [false,true]) {
+    const c = client();
+    c.run(`paintTodos=()=>{};receiveTodoPreferences('strike',1);let finish,reject;
+      api=(_path,options)=>options?new Promise((resolve,fail)=>{finish=resolve;reject=fail}):new Promise(resolve=>finish=resolve);
+      let save=changeTodoCompletedMode('hide')`);
+    if (conflict) {
+      c.run("reject(Object.assign(new Error('conflict'),{status:409}))");
+      await Promise.resolve();
+    }
+    c.run("resetSessionIndexes();state.me={id:'new-mode-owner'};receiveTodoPreferences('strike',7);finish({completed_mode:'hide',version:2})");
+    await c.run('save');
+    assert.equal(c.run('todoCompletedMode()'), 'strike');
+    assert.equal(c.run('todoPreferences().version'), 7);
+    assert.equal(c.run('todoPreferences().error'), '');
+  }
+});
+
+test('soft deletion is optimistic and single-submit, failure restores the row, and undo respects the completion filter', async () => {
+  const c = client();
+  c.put('original', item('recover-me', '2026-10-23', {completed:true}));
+  c.run(`paintTodos=()=>{};todoDay().items=[original];todoDay().loaded=true;receiveTodoPreferences('strike',0);
+    let calls=[],rejectDelete;api=(path,options)=>{calls.push({path,options});return new Promise((_,reject)=>rejectDelete=reject)};
+    let deletion=deleteTodo({id:original.id,date:original.date})`);
+  await c.run('deleteTodo({id:original.id,date:original.date})');
+  assert.doesNotMatch(c.run('renderTodos()'), /data-todo-id="recover-me"/);
+  assert.match(c.run('renderTodos()'), /删除中/);
+  assert.equal(c.run('calls.length'), 1);
+  c.run("rejectDelete(new Error('Synthetic delete failed'))");
+  await c.run('deletion');
+  assert.match(c.run('renderTodos()'), /data-todo-id="recover-me"/);
+  assert.match(c.run('renderTodos()'), /Synthetic delete failed/);
+  c.run(`api=async(path,options)=>{calls.push({path,options});return {...original,deleted_at:'2026-10-23T09:00:00Z',version:2}}`);
+  await c.run('deleteTodo({id:original.id,date:original.date})');
+  assert.match(c.run('renderTodoUndo(todoDay())'), /撤销/);
+  c.run(`receiveTodoPreferences('hide',1);let finishRestore;
+    api=(path,options)=>{calls.push({path,options});return new Promise(resolve=>finishRestore=resolve)};
+    let restoration=restoreTodo({id:original.id,date:original.date})`);
+  await c.run('restoreTodo({id:original.id,date:original.date})');
+  assert.equal(c.run('calls.length'), 3);
+  assert.equal(c.run('calls[2].options.body.version'), 2);
+  assert.doesNotMatch(c.run('renderTodos()'), /data-todo-id="recover-me"/);
+  c.run('finishRestore({...original,deleted_at:null,version:3})');
+  await c.run('restoration');
+  assert.equal(c.run('todoDay().removals.size'), 0);
+  assert.equal(c.run('todoDay().items[0].completed'), true);
+  c.run("receiveTodoPreferences('strike',2)");
+  assert.match(c.run('renderTodos()'), /data-todo-id="recover-me"/);
+  assert.match(c.run('renderTodos()'), /is-complete/);
+});
+
+test('late delete results and failures cannot leak into another owner or a different date', async () => {
+  for (const fail of [false,true]) {
+    const c = client();
+    c.put('original', item('private-removal', '2026-10-23'));
+    c.run(`paintTodos=()=>{};todoDay().items=[original];let finish,reject;
+      api=()=>new Promise((resolve,failed)=>{finish=resolve;reject=failed});
+      let deletion=deleteTodo({id:original.id,date:original.date});
+      resetSessionIndexes();state.me={id:'new-delete-owner'};state.todoDate='2026-10-24';todoDay().draft='Keep new draft'`);
+    c.run(fail?"reject(new Error('old private deletion error'))":"finish({...original,deleted_at:'2026-10-23T09:00:00Z',version:2})");
+    await c.run('deletion');
+    assert.equal(c.run('todoDay().items.length'),0);
+    assert.equal(c.run('todoDay().removals.size'),0);
+    assert.equal(c.run('todoDay().error'),'');
+    assert.equal(c.run('todoDay().draft'),'Keep new draft');
+  }
+});
+
+test('adding a common template from a row retains its request identity after failure and blocks repeated clicks', async () => {
+  const c = client();
+  c.put('original', item('promote-me', '2026-10-23'));
+  c.run(`paintTodos=()=>{};todoDay().items=[original];let calls=[],rejectLink;
+    api=(path,options)=>{calls.push({path,options});return new Promise((_,reject)=>rejectLink=reject)};
+    let promotion=changeTodoTemplate({id:original.id,date:original.date})`);
+  await c.run('changeTodoTemplate({id:original.id,date:original.date})');
+  assert.equal(c.run('calls.length'),1);
+  const request=c.run('JSON.stringify(calls[0].options.body)');
+  c.run("rejectLink(new Error('Synthetic template link failed'))");
+  await c.run('promotion');
+  c.run(`api=async(path,options)=>{calls.push({path,options});return {
+    todo:{...original,version:2,template_id:options.body.template_id,template_active:true,template_version:1},
+    template:{id:options.body.template_id,text:original.text,version:1}}}`);
+  await c.run('changeTodoTemplate({id:original.id,date:original.date})');
+  assert.equal(c.run('JSON.stringify(calls[1].options.body)'),request);
+  assert.equal(c.run('todoDay().items[0].template_id===templateState().items[0].id'),true);
+  assert.equal(c.run('todoDay().templateWrites.size'),0);
+  assert.match(c.run('renderTodos()'),/已添加为常用/);
+});
+
+test('delete and restore conflicts refresh open common counters after reading the saved row', async () => {
+  for (const operation of ['delete','restore']) {
+    const c=client();
+    c.put('original',item('counter-conflict','2026-10-23',{completed:true,template_id:'stable-common'}));
+    c.run(`paintTodos=()=>{};todoDay().items=[original];let calls=[];
+      api=async(path,options={})=>{calls.push(path);if(options.method)throw Object.assign(new Error('conflict'),{status:409});
+        return {date:original.date,today:original.date,items:[{...original,completed:false,version:3}]}};
+      refreshOpenTodoTemplates=()=>{calls.push('refresh-common')}`);
+    if(operation==='restore')c.run(`todoDay().items=[];todoDay().removals.set(original.id,
+      {item:{...original,deleted_at:'2026-10-23T09:00:00Z',version:2},phase:'ready',timer:null})`);
+    await c.run(`${operation==='delete'?'deleteTodo':'restoreTodo'}({id:original.id,date:original.date})`);
+    assert.equal(c.run('calls.at(-1)'),'refresh-common',operation);
+    assert.equal(c.run('todoDay().items[0].completed'),false,operation);
+    assert.equal(c.run('calls.filter(path=>path===\"refresh-common\").length'),1,operation);
+  }
+});

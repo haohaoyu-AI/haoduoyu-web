@@ -10,6 +10,7 @@ function resetTodos() {
   todosState.today = bjtDate();
   todosState.calendarMonth = "";
   todosState.calendarDate = "";
+  todosState.preferences = { mode: "strike", version: 0, loaded: false, pending: null, error: "" };
 }
 function validTodoDate(date) {
   if (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(date || "")) return false;
@@ -23,7 +24,8 @@ function todoDay(date = todoDate()) {
   if (todosState.owner !== todoOwner()) resetTodos();
   if (!todosState.days.has(date)) {
     todosState.days.set(date, { date, items: [], draft: "", create: null, adding: false, loading: false, loaded: false,
-      error: "", notice: "", noticeVersion: 0, revision: 0, sequence: 0, updates: new Map(), templateCreates: new Map() });
+      error: "", notice: "", noticeVersion: 0, revision: 0, sequence: 0, updates: new Map(), templateCreates: new Map(),
+      removals: new Map(), templateLinks: new Map(), templateWrites: new Set() });
   }
   return todosState.days.get(date);
 }

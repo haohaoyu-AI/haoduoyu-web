@@ -7,6 +7,9 @@ import { articleDraft, articleFilterPanel, viewDraft } from "./pages/articles.mj
 import { renderDashboard } from "./pages/dashboard.mjs";
 import { inputTodo, registerTodosClock, selectTodoDate, toggleTodo } from "./pages/todos.mjs";
 import { inputTodoTemplate, loadTodoTemplates } from "./pages/todo-templates.mjs";
+import { canOpenTodoMenu, openTodoMenu } from "./pages/todo-actions.mjs";
+import { changeTodoCompletedMode } from "./pages/todo-preferences.mjs";
+import { registerTodoGestures } from "./ui/todo-gestures.mjs";
 import { replacePageContent } from "./ui/entry.mjs";
 import { setMenu, syncMenu } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
@@ -43,6 +46,10 @@ async function handleClick(event) {
 }
 function handleChange(event) {
   const el = event.target;
+  if (el.id === "todo-completed-mode") {
+    changeTodoCompletedMode(el.value);
+    return;
+  }
   if (el.dataset?.todoId) {
     toggleTodo(el);
     return;
@@ -184,6 +191,7 @@ function handlePopstate() {
 }
 function registerEvents() {
   registerTodosClock();
+  registerTodoGestures(openTodoMenu, canOpenTodoMenu);
   document.addEventListener("click", handleClick);
   document.addEventListener("change", handleChange);
   document.addEventListener("toggle", handleToggle, true);

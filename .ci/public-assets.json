@@ -3,12 +3,12 @@
   "baseline": "f8050c88b413990bcfa4ae2db2b4ed1d25198ef7",
   "files": {
     "api-docs.html": "82de89145eecf4fbabeadea3b647fff94a749bcc4d54b744e972e07682d92f63",
-    "app.js": "201b31e019627f1be4a144b1237ba6fa2cd2fde5665de1cb14f69ecad1bb469f",
+    "app.js": "f19e9f73cbdd8da47d2ecc4ae17581cd1dde977dc2418d704653309df672daa6",
     "favicon.svg": "7c9efae613cbef58279b0e8f96eb2e1badc728e6ec289eaa63c7239a05ddd727",
     "index.html": "0672159ba31ebecba0eb4a9b1328ca9222cb6aa3753f0ec729ff8fe5e8bf4336",
     "llms.txt": "c83ffbf1b1d224ec0e504181383f8c54add06331321458cac45562d9b8134429",
     "openapi.json": "c49c3f835a2b91ddf6927b09289c73eb87f0fb8031c4b0ce4d5b8ce1c65747bd",
     "robots.txt": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
-    "style.css": "f46a27d76b10eb30908757df8ce6c8d994ec30bea625d7a651f68278b722b665"
+    "style.css": "506cfb8a0ae86cc22807b3a718c057d0e38cf4001b6322efaf0bbb77a2a00400"
   }
 }

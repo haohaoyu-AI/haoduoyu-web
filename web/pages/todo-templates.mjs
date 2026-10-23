@@ -4,7 +4,7 @@ import { isRequestAbort } from "../core/requests.mjs";
 import { runtime, state } from "../core/state.mjs";
 import { mergeTodoTemplate, templateSessionActive, templateState } from "../core/todo-templates-state.mjs";
 import { todoDay } from "../core/todos-state.mjs";
-import { submitTodoTemplate } from "./todos.mjs";
+import { loadTodos, submitTodoTemplate } from "./todos.mjs";
 function todoTemplateRows(store) {
   const adding = todoDay().adding;
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
@@ -166,6 +166,7 @@ async function writeTodoTemplate(id, text, remove = false) {
     if (remove) store.items = store.items.filter((row) => row.id !== id);
     else mergeTodoTemplate(saved);
     if (store.editing?.id === id) store.editing = null;
+    if (remove && state.page === "todos") await loadTodos();
   } catch (error) {
     if (templateSessionActive(owner)) await templateWriteError(error, store, owner, editing);
   } finally {
