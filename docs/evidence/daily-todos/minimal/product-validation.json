@@ -224,7 +224,21 @@
   "ci": {
     "product_run": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/39950270856",
     "secret_scan": "failure: 161 commits; exactly three known public-file checksum findings; no scan exception or rule change made",
-    "final_head_checks": "https://github.com/haohaoyu-AI/haoduoyu-web/pull/35/checks"
+    "final_head_checks": "https://github.com/haohaoyu-AI/haoduoyu-web/pull/35/checks",
+    "status": "completed",
+    "conclusion": "failure",
+    "build_test": {
+      "job_id": 120402737863,
+      "conclusion": "success",
+      "all_steps_passed": true
+    },
+    "secret_scan_job": 120402737700,
+    "local_full_history_scan": {
+      "commits": 163,
+      "findings": 3,
+      "identical_known_fingerprints": true,
+      "scan_rules_changed": false
+    }
   },
   "release": {
     "production_version": 8,
