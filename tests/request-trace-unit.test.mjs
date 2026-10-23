@@ -10,7 +10,7 @@ test('contexts use independent server UUIDs and only controlled method/route val
   const canary = 'synthetic-' + randomUUID();
   assert.equal(requestTrace(canary).method, 'OTHER');
   for (const method of ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']) assert.equal(requestTrace(method).method, method);
-  for (const name of ['articles', 'accounts', 'api-keys']) assert.equal(traceRoute('/api/v1/' + name + '/' + canary), '/api/v1/' + name + '/{id}');
+  for (const name of ['articles', 'accounts', 'api-keys', 'todos']) assert.equal(traceRoute('/api/v1/' + name + '/' + canary), '/api/v1/' + name + '/{id}');
   assert.equal(traceRoute('/api/v1/' + canary), 'unmatched-api');
   assert.equal(traceRoute('/' + canary), 'unmatched-static');
   for (const path of ['/health', '/', '/app.js', '/api/v1/auth/password', '/api/v1/dashboard', '/api/v1/due-reviews']) assert.equal(traceRoute(path), path);

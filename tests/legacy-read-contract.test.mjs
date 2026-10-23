@@ -11,6 +11,7 @@ import {join} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import current from '../dist/server/index.js';
 import {fixture, USERNAME, PASSWORD} from './harness.mjs';
+import {legacyBackupEnvelope} from './todo-backup-projection.mjs';
 import {csrfFor} from '../shared/auth.mjs';
 import {createHash} from 'node:crypto';
 
@@ -35,6 +36,7 @@ async function legacyWorker(t) {
 }
 function project(path, json) {
   const value = path === '/openapi.json' ? dashboardSpec(traceDocument(json)) : structuredClone(json);
+  if (path === '/api/v1/backup') return legacyBackupEnvelope(value);
   if (path === '/api/v1/auth/me' && value.data) delete value.data.id;
   if (path === '/api/v1/audit' && value.data) {
     value.data = value.data.map(({entity_label, ...row}) => row);
@@ -195,7 +197,7 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
           body: json ? project(path, traceJSON(JSON.parse(text), response.status, response.headers)) : text});
       }
       // Backup holds only synthetic hashes, but never dump even those on a failed assertion.
-      if (path === '/api/v1/backup') assert.ok(isDeepStrictEqual(responses[1], responses[0]), kind + ' exact backup equality');
+      if (path === '/api/v1/backup') assert.ok(isDeepStrictEqual(responses[1], responses[0]), kind + ' exact legacy backup equality after verified todo extension');
       else assert.deepEqual(responses[1], responses[0], kind + ' ' + path.replace(article.data.id, '{id}'));
     }
     for (const item of mutations) {

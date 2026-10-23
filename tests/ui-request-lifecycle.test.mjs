@@ -70,18 +70,24 @@ test('a fast page change aborts the previous page GET without replacing the new 
   assert.doesNotMatch(c.nodes.get('#page-content').innerHTML, /error-panel/);
 });
 test('refresh starts a new GET; late old results cannot fill the new render', async () => {
-  let finish, signal, reads = 0;
-  const c = client((_path, options) => {
+  let finish, signal, reads = 0, todoReads = 0;
+  const c = client((path, options) => {
+    if (path.startsWith('/api/v1/todos?')) {
+      todoReads++;
+      const date = new URL(path, 'http://localhost').searchParams.get('date');
+      return Promise.resolve(ok({date, today: date, items: []}));
+    }
+    assert.match(path, /^\/api\/v1\/overview\?/);
     if (++reads > 1) return Promise.resolve(ok({marker: 'fresh'}));
     signal = options.signal;return new Promise((resolve, reject) => {
       finish = () => resolve(ok({marker: 'obsolete'}));
       signal?.addEventListener('abort', () => reject(new DOMException('Synthetic refresh abort', 'AbortError')));
     });
   });
-  c.run("state.page='dashboard';renderDashboard=data=>data.marker");
+  c.run("state.page='dashboard';renderDashboardSummary=data=>data.marker");
   const old = c.run('renderPage()');await c.run('renderPage()');finish();await old;
-  assert.equal(reads, 2);assert.equal(signal?.aborted, true);
-  assert.equal(c.nodes.get('#page-content').innerHTML, 'fresh');
+  assert.equal(reads, 2);assert.equal(todoReads, 0);assert.equal(signal?.aborted, true);
+  assert.equal(c.nodes.get('#page-content').innerHTML, 'fresh');assert.equal(c.run('state.dashboard.marker'), 'fresh');
 });
 test('non-abort failures still reject and POST mutations are neither merged nor page-cancelled', async () => {
   let writes = 0, finish;

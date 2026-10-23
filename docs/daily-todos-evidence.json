@@ -1,0 +1,602 @@
+{
+  "product_commit": "0ea80af132d361897074f2b41c428d27a3d53630",
+  "base_main": "89ca9dd0ddca8b4e8866fbeb812b11a3d46ab222",
+  "scope": "Daily todos, mobile default entry, responsive module cards and bounded navigation improvements; production not deployed by this evidence.",
+  "runtime": {
+    "node": "v24.19.0",
+    "browser": {
+      "engine": "Chromium",
+      "version": "154.0.8037.57",
+      "executable": "/usr/bin/chromium"
+    }
+  },
+  "isolation": "Ephemeral Miniflare D1; loopback HTTP adapter; browser blocks non-loopback requests; no production configuration.",
+  "product_manifest_sha256": "f887004dd965d3df0998d325fffd132f39c67c3bd8ecd8787d29d70290acc8e2",
+  "product_file_hashes": {
+    "db/schema.ts": "7d198386692d739f275422ce7ffff5999c4518aac161e79e4c872366e98fb313",
+    "dist/server/index.js": "6f2a624bfce8f3b56b8a53d0c1a7a55c0dd652cda525d073abcec6293ec95a0f",
+    "drizzle/0000_lively_stellaris.sql": "20ff1a36048fe4a04df6eecf1492d9449a3787517cacd093bc061ffad140d9c7",
+    "drizzle/0001_daily_todos.sql": "ae451594db16bd765c56215d11fa2db8b3b243c990049eeb9e4f8a75a926ccac",
+    "drizzle/meta/0000_snapshot.json": "eb3918d3fabc46788a79f12be2b6918d58b6c52cc0597e9f2d4ad57333f9190f",
+    "drizzle/meta/0001_snapshot.json": "9f9ac3db57c74922564523a2a3840c67349fbb76f4b27b4c5228af812f0d8992",
+    "drizzle/meta/_journal.json": "17153de59c738cc3ab8b6c08b6bce7979b20f0e6b235747d1d527f11d9b93291",
+    "public/app.js": "393a6fd72816ebe8782094cfd4fc177096525591a242d43d7139f8755c454759",
+    "public/index.html": "0672159ba31ebecba0eb4a9b1328ca9222cb6aa3753f0ec729ff8fe5e8bf4336",
+    "public/openapi.json": "c49c3f835a2b91ddf6927b09289c73eb87f0fb8031c4b0ce4d5b8ce1c65747bd",
+    "public/style.css": "cb512655b43d6c53313fb0f6d540b871ed0a9e958fb6c30fec3091ffefeea266",
+    "runtime.json": "aefc0313cc1a8f2a230d3730977448a895b9a0195f71aba321d0b13afcf98fe1",
+    "shared/auth.mjs": "4d94d10cf50ded0a7f26230daa3253415b495d0dd3ccc36cf9fa22cdda5baa25",
+    "src/analytics.mjs": "462a61037a4ec57df57cc8cdb1e5b92e4b4b31e333643d8510091282acb83ce4",
+    "src/assets.generated.mjs": "ef4682f00719e69af1fbe6acbfc7122bcc94e828e304828b2845aa11aea99254",
+    "src/backup.mjs": "8b55635052766746ec57784aab82c4e2b17a7ef5172167f4b2e26b45de48b191",
+    "src/lib/errors.mjs": "817bbbb9e56db7d0a80478fe0112891a6c742c594a98611b932d903060fffd02",
+    "src/lib/http.mjs": "74b5260eb67f8ef2f591c653ec3329fdfa6ea9cf4a12193575b9f73d3b11f372",
+    "src/lib/login-backoff.mjs": "b52a64036545c040708793ff7e67ff5aa1e69f4050b52de095a0d6e23113865e",
+    "src/lib/request-trace.mjs": "439832cc27987dbc4db7faf5ed483c4a9095a7625115db67a3c1850a37c97cbd",
+    "src/lib/time.mjs": "97d0e2405878c4f632a226abb8a708347988cedc449e5a2226210aef40ebc10b",
+    "src/overview-cache-time.mjs": "a233662ece341ff1db7656cbb7bfc37edd8f011e555e40fff907ce7c1106d6b4",
+    "src/overview-cache.mjs": "e45c6d816ee5f60f4ce8ae73a43469bc3218cd2a900c994b88d289c25c509131",
+    "src/overview.mjs": "7759f0eded09dcdf652cd7e2c4900346b9208d12d3efbd38e5347a5908f19a81",
+    "src/records.mjs": "5fd32c1955e5ffc6068cd586981e95767c5155c710d7f4f2e56c8fd9bc15f76c",
+    "src/security.mjs": "cf6a7bda2a12118123661dee169d1872f78725554700d331629115dc5bed5e9d",
+    "src/storage.mjs": "346728bfc117f16e2242a5478388b2076bf61bc8432813de249b32a8a4c7a533",
+    "src/todos.mjs": "4c1dac551be499d41205eae841f8aa24504c165b55db38822a7c02735267f997",
+    "src/worker.mjs": "7c2198044cc49c28a2f592b6cff3e6b2ba302262a2cdbaebe8fb24910228315f",
+    "web/actions.mjs": "0870cae3d371bf288f52d1bdc62212dcc70570785658fcbd802277cda5d9b50a",
+    "web/controller.mjs": "72a92a9d28aaa142729b239fdb84eaa534def268063f97d3b83e1abccb944f43",
+    "web/core/api.mjs": "02d875ec592080e3040e94b5032141916a6fecca4da562076855ac7b115c112d",
+    "web/core/article-index.mjs": "1b1b0725db541add1747dcf508da5465faf08b5625821ca606e553201db31d7c",
+    "web/core/constants.mjs": "55bc36b0a089d186672abee0c9525fbac6c284ac02012a9e848add652090af70",
+    "web/core/dom.mjs": "8281ba7003da9f9582a229439340b1f41c5b1672e621c7add5cc5ffcc37455f7",
+    "web/core/format.mjs": "bcfe019b9a0c4837e08039eb0b87195eb768b95a4e1905fc2614055efa005221",
+    "web/core/modal-request.mjs": "5c5bd3716b30664a115cc6d1263a8bce5568197f5f2f115a31d1d91d24f5b5c4",
+    "web/core/requests.mjs": "6ee90d04c177c123143d811bc3dc143f37760c6ab3026d5e3e86cb31feea9e8e",
+    "web/core/router.mjs": "3a7c97f0b577f13380fe3dfa051e88ba214e4824a232314c01bf9bd2b1e6b447",
+    "web/core/session-index-state.mjs": "6952108581ffca1ecd07e9ef2d89b9ccbfb885bb2fc5b61b9c2f9b2994d6b25a",
+    "web/core/state.mjs": "d17650e4febdd980220c2d39b85714622417faaa5b48cc40a45449d345b5a0c5",
+    "web/core/storage.mjs": "0dbf1e1bc85b81941e351b78accb6268aed9c5fb612aedecf0594a101b9ed31a",
+    "web/core/todos-state.mjs": "c38c5ced8402eb85c4db3fd43b2c8235b7c59728991d8b5a6e495e80fc0296c4",
+    "web/events.mjs": "b064e9b549a524b979087061c90411aafdcc7c704698947902b25e10049d58de",
+    "web/forms.mjs": "21326e5e9b2e879f8731792f6e5022340184e0774c390c90e2025b49a98add14",
+    "web/main.mjs": "9306aa76837be521a8a70a7c0027fbea12742b8262516d90b5602fb420518644",
+    "web/pages/articles.mjs": "a269d3f066da6390427376fd87ab07262cc60deb83c5806d0d1bd913a5109958",
+    "web/pages/dashboard.mjs": "f0a0dc1901ddf613caa80237a1ca363cfea90ceff2f1541dce6777d3368a3410",
+    "web/pages/detail.mjs": "6d0513c744277c5551d289e808b2c990589978162d4ba810b7a954f72ee659b9",
+    "web/pages/login.mjs": "8e4e4d7f1ea46f31515be336a7a0b5f3bbd9767d295822db60265a0462422ae1",
+    "web/pages/reviews.mjs": "2af492264eb9be102f7d0b56e142cd7ec982fbc3aaa067fc3b1de0400b785361",
+    "web/pages/settings.mjs": "4fa69e113af09a2c4c6406369d0c49866773bb61faf85376310fa95979cbe88f",
+    "web/pages/todos.mjs": "103807ea3b2b75b6fcd1bed056b1565cd5a23bf9fe9d81e3610d6d2043067fca",
+    "web/ui/components.mjs": "cf96bd1680157d2b2bfb65bd8630f2587ea25a96fd64f07497eaac8b9239e941",
+    "web/ui/entry.mjs": "0459e369b212e798e68afe98307b8ddf7ffc23d6c4e7907600cc3630dbe3b4cd",
+    "web/ui/menu.mjs": "89ba946f5dfcecdaed301ef3db215d2d44b08a75f492e9fb0103ccfbaa2e2184",
+    "web/ui/modal.mjs": "45ebb5ab0aa93c8e0e14521d9c8782247e02730d581958913925e98b90b134eb",
+    "web/ui/popover.mjs": "075ed4a559ac64f63845871170dadfefe4da8331a4d16d708ad8d98dfbb0cc5a",
+    "web/ui/segmented.mjs": "3833ff810174054d016113cdf0af810ecdfa865ce075bc007516de5f6772944a",
+    "web/ui/table.mjs": "73406dc149ad2c6884c84aa687950af70bcfd80b55622bed8f9fd55a5a4222a1",
+    "web/ui/toast.mjs": "8406b1cc51e20d3b2e5fc6a347c96ac87f9a4503ef22ce13476de0ac4eb3e3f7"
+  },
+  "browser": {
+    "core_checks": 28,
+    "navigation_checks": 4,
+    "core": {
+      "served_app_and_css_match_product_hashes": true,
+      "homepage_top_direct_input_without_modal": true,
+      "add_complete_strikethrough_and_cancel": true,
+      "double_click_has_one_write_and_one_row": true,
+      "failed_add_keeps_input_and_retries_same_id": true,
+      "lost_create_response_retry_is_idempotent": true,
+      "failed_patch_restores_persisted_state": true,
+      "refresh_retains_completed_and_pending_states": true,
+      "same_session_second_tab_write_persists_after_reload": true,
+      "independent_authenticated_device_session_reads_same_saved_rows": true,
+      "real_stale_version_409_refetches_other_session_state": true,
+      "literal_html_is_escaped_and_input_has_500_limit": true,
+      "keyboard_space_complete_undo_retains_checkbox_focus": true,
+      "late_overview_preserves_todo_draft_focus_and_selection": true,
+      "dashboard_todos_survive_unrelated_overview_failure": true,
+      "navigation_articles_settings_and_layout_375": true,
+      "navigation_articles_settings_and_layout_390": true,
+      "navigation_articles_settings_and_layout_1440": true,
+      "mobile_default_todos_and_explicit_deeplink_375": true,
+      "mobile_same_route_keeps_existing_input_375": true,
+      "mobile_fast_switch_loading_back_and_late_response_isolation_375": true,
+      "mobile_default_todos_and_explicit_deeplink_390": true,
+      "mobile_same_route_keeps_existing_input_390": true,
+      "mobile_fast_switch_loading_back_and_late_response_isolation_390": true,
+      "beijing_midnight_automatically_opens_empty_today_without_moving_pending": {
+        "browser_timezone": "America/Los_Angeles",
+        "browser_local_day": 23,
+        "beijing_day": "2026-10-24",
+        "yesterday_rows_unchanged": 8,
+        "explicit_history_stays_selected": true
+      },
+      "yesterday_history_keeps_both_states_and_unsent_draft_is_date_scoped": true,
+      "new_day_add_refresh_and_yesterday_isolation": true,
+      "no_uncaught_page_errors_no_external_requests_and_exact_product_hashes": true
+    },
+    "navigation": {
+      "mobile_explicit_refresh_requests_fresh_todos_375": true,
+      "mobile_a_b_a_late_todo_read_cannot_replace_fresh_rows_375": true,
+      "mobile_explicit_refresh_requests_fresh_todos_390": true,
+      "mobile_a_b_a_late_todo_read_cannot_replace_fresh_rows_390": true
+    },
+    "captures": [
+      {
+        "view": "dashboard",
+        "width": 375,
+        "path": "artifacts/daily-todos/dashboard-375.png",
+        "bytes": 199457,
+        "sha256": "8a73e4bacbe7333bd78b48ff5e12208b3521be0b8c33c0ec1456e61528d75959",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "todos",
+        "width": 375,
+        "path": "artifacts/daily-todos/todos-375.png",
+        "bytes": 81685,
+        "sha256": "83a5e09b5ee1134bf37185d83de4ac470dbae18a4457f66d09c3731be915825a",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "history-empty",
+        "width": 375,
+        "path": "artifacts/daily-todos/history-empty-375.png",
+        "bytes": 30797,
+        "sha256": "da13c813c5e500d6e4ec60a6e66acd5f80d5e479411634acec8678e6a3c4e85e",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "articles",
+        "width": 375,
+        "path": "artifacts/daily-todos/articles-375.png",
+        "bytes": 60691,
+        "sha256": "bb0f5a01bd92105cc1ffb32a667c6ddfd8f7b9e72ea689b8b1d6b5e21dba26e1",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "reviews-observations",
+        "width": 375,
+        "path": "artifacts/daily-todos/reviews-observations-375.png",
+        "bytes": 63025,
+        "sha256": "3e0fbf1ddec8c8eaa32a036b42a887b1451ddb5cb23ab6fe554dfabdf5ce5852",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "settings-accounts",
+        "width": 375,
+        "path": "artifacts/daily-todos/settings-accounts-375.png",
+        "bytes": 45508,
+        "sha256": "de68c173769c77ef360ee139fb84d72dc52030f980b788e36616b77d414e8901",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "dashboard",
+        "width": 390,
+        "path": "artifacts/daily-todos/dashboard-390.png",
+        "bytes": 189054,
+        "sha256": "ce229574d4981bdfe52fe2291839f09e209c15983aa4d4593841ee0ef3e252d0",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "todos",
+        "width": 390,
+        "path": "artifacts/daily-todos/todos-390.png",
+        "bytes": 78434,
+        "sha256": "3f5c8032db689ca15c3eab77107a36a73285878c1feb42ac2831efe7b42aec26",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "history-empty",
+        "width": 390,
+        "path": "artifacts/daily-todos/history-empty-390.png",
+        "bytes": 30960,
+        "sha256": "54db19ec72a122bef44a2305d08e7e317f8188c7d9b35dff27abc6f6440a8500",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "articles",
+        "width": 390,
+        "path": "artifacts/daily-todos/articles-390.png",
+        "bytes": 61328,
+        "sha256": "c27c1a8500b69b1837d14fd6c55c9f1e3cd49fbb2ec0dda0d6bce9bbfb9d824d",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "reviews-observations",
+        "width": 390,
+        "path": "artifacts/daily-todos/reviews-observations-390.png",
+        "bytes": 63619,
+        "sha256": "e1501a8375227b62325de3e97df8649093348314c599f38c5603c2980616da7f",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "settings-accounts",
+        "width": 390,
+        "path": "artifacts/daily-todos/settings-accounts-390.png",
+        "bytes": 45613,
+        "sha256": "79b4f6bbeb4678e5d8dab8dc113c43878cea4ce93c87ee432248732c1ce956c4",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "dashboard",
+        "width": 1440,
+        "path": "artifacts/daily-todos/dashboard-1440.png",
+        "bytes": 193012,
+        "sha256": "6602e2b0ecbd0d420c8d6c5b3814f5a5496f792bdea2d51671abbdea33dab85b",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "body": 1440
+        }
+      },
+      {
+        "view": "todos",
+        "width": 1440,
+        "path": "artifacts/daily-todos/todos-1440.png",
+        "bytes": 91833,
+        "sha256": "e945e32f2b820aee27048766ac43766356735c67912b6708b084a6f84b5fc1a6",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "body": 1440
+        }
+      },
+      {
+        "view": "history-empty",
+        "width": 1440,
+        "path": "artifacts/daily-todos/history-empty-1440.png",
+        "bytes": 40215,
+        "sha256": "a2e8025c96ee8c0c8f524a804c96361962c21244f81afc0d424528f8421fb045",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "body": 1440
+        }
+      },
+      {
+        "view": "articles",
+        "width": 1440,
+        "path": "artifacts/daily-todos/articles-1440.png",
+        "bytes": 67901,
+        "sha256": "e1928454f6e92569db5ff5fe642c83f0876854e8e655a0211192452677bb9a7e",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "body": 1440
+        }
+      },
+      {
+        "view": "reviews-observations",
+        "width": 1440,
+        "path": "artifacts/daily-todos/reviews-observations-1440.png",
+        "bytes": 67638,
+        "sha256": "f1b514af43c2f7c8db6010453f5eafe829eb9b1a9028a8e8e945275b93553b4a",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "body": 1440
+        }
+      },
+      {
+        "view": "settings-accounts",
+        "width": 1440,
+        "path": "artifacts/daily-todos/settings-accounts-1440.png",
+        "bytes": 54798,
+        "sha256": "77e9dfa253f13248651400140bf54faab3fd821f04e3253a8f196d3fae6aa9cd",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "body": 1440
+        }
+      },
+      {
+        "view": "mobile-default-todos",
+        "width": 375,
+        "path": "artifacts/daily-todos/mobile-default-todos-375.png",
+        "bytes": 80696,
+        "sha256": "6d38d754cb4a7694c6161329a8ad3f74e0299693aedbe4fe588b2fdd0db34b36",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "touch-articles",
+        "width": 375,
+        "path": "artifacts/daily-todos/touch-articles-375.png",
+        "bytes": 58089,
+        "sha256": "35bc182f5226e6edf51a8cd90c2b05923a010504ae8f5994ba33b162b06d1b09",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "touch-reviews-observations",
+        "width": 375,
+        "path": "artifacts/daily-todos/touch-reviews-observations-375.png",
+        "bytes": 64041,
+        "sha256": "adafc9f8b575b078b32780d449e5332428ff9c00e7fa5e15abf670ca68b6b4fb",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "touch-settings-accounts",
+        "width": 375,
+        "path": "artifacts/daily-todos/touch-settings-accounts-375.png",
+        "bytes": 44791,
+        "sha256": "7e4dacd0a18781376c803bbd5d8771374ae9c8da35bac6d81f7a5ea5dcc34e03",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "touch-dashboard",
+        "width": 375,
+        "path": "artifacts/daily-todos/touch-dashboard-375.png",
+        "bytes": 200222,
+        "sha256": "48e10948be3d445d7b69187baaa730a3bd0fc2441b7fa077e5ab9eecf1c8fd7f",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "mobile-navigation",
+        "width": 375,
+        "path": "artifacts/daily-todos/mobile-navigation-375.png",
+        "bytes": 37335,
+        "sha256": "e60bf476f82c5d48e8eee61667e12bc353ba51e1e2bfdb0fd0fa6a56f3522fd9",
+        "layout": {
+          "viewport": 375,
+          "document": 375,
+          "body": 375
+        }
+      },
+      {
+        "view": "mobile-default-todos",
+        "width": 390,
+        "path": "artifacts/daily-todos/mobile-default-todos-390.png",
+        "bytes": 78962,
+        "sha256": "f797cd83111825466983b0c46326cee7d9b513a2dc8a8483b82a02bf1f16d5af",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "touch-articles",
+        "width": 390,
+        "path": "artifacts/daily-todos/touch-articles-390.png",
+        "bytes": 58710,
+        "sha256": "dbd8f30d3d4aa40c97d438caa8094bbd9fde1a42969aa8361baf304f1dd4c9bf",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "touch-reviews-observations",
+        "width": 390,
+        "path": "artifacts/daily-todos/touch-reviews-observations-390.png",
+        "bytes": 64587,
+        "sha256": "bca66f038668c9700cd4ba380cae02119b7ed0513c4e2998cf48d50922175119",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "touch-settings-accounts",
+        "width": 390,
+        "path": "artifacts/daily-todos/touch-settings-accounts-390.png",
+        "bytes": 44910,
+        "sha256": "91d3f8a163ecb674487b16818df48e985cd47d6048fbce34793d211ceeb2b9af",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "touch-dashboard",
+        "width": 390,
+        "path": "artifacts/daily-todos/touch-dashboard-390.png",
+        "bytes": 191466,
+        "sha256": "ba34baa6fafbdc563950c2afb9c2b9e0d0f30969a8d70b14bd99c3cfc1cd0a82",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "mobile-navigation",
+        "width": 390,
+        "path": "artifacts/daily-todos/mobile-navigation-390.png",
+        "bytes": 38003,
+        "sha256": "de6491d3c737b487b329781bfa7899811d096769a74e6a3a036b8e8746712586",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "body": 390
+        }
+      },
+      {
+        "view": "automatic-beijing-midnight",
+        "width": 1440,
+        "path": "artifacts/daily-todos/automatic-beijing-midnight-1440.png",
+        "bytes": 40960,
+        "sha256": "db665feab712d17b0d6039fe739239d8982284148942c7bd5d7d76a2794ce6a9",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "body": 1440
+        }
+      },
+      {
+        "view": "yesterday-preserved",
+        "width": 1440,
+        "path": "artifacts/daily-todos/yesterday-preserved-1440.png",
+        "bytes": 91266,
+        "sha256": "ea7b24b6a31cb9dd97d1c2ad52e7af06a743d80c30c83702db4fb17e1a6d5457",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "body": 1440
+        }
+      }
+    ],
+    "uncaught_page_errors": 0,
+    "external_request_attempts": 0,
+    "expected_errors": "Login-before-session 401, deliberately injected 503 and real stale-version 409 retained in raw reports.",
+    "core_report_sha256": "878bb4d98de9f5de05647f613ba54c87ba7a48d5e4cf56606f4a16b0a2a4e67f",
+    "navigation_report_sha256": "c96e15d6e457b2237abbcb360bd1cea1d95c5ee7ec7d40a6562641bc222cb169",
+    "core_recorded_head": "e53fce334932ef5063e0c26d49ea450cba16a0fd",
+    "navigation_recorded_head": "0ea80af132d361897074f2b41c428d27a3d53630",
+    "source_binding": "All 61 product hashes in both reports independently matched the product_commit source/build; later evidence commits change only tests/docs.",
+    "viewport_widths": [
+      375,
+      390,
+      1440
+    ],
+    "mobile": "Real Chromium with mobile/touch emulation; no physical phone claimed."
+  },
+  "focused_tests": {
+    "command": "node --test tests/frontend-actions.test.mjs tests/daily-todos-ui.test.mjs tests/ui-modal.test.mjs tests/ui-request-lifecycle.test.mjs",
+    "pass": 41
+  },
+  "preview_checks": {
+    "dev": "HTTP 200, expected uninitialized 503",
+    "analytics": "HTTP 200, expected logged-out 401"
+  },
+  "independent_review": {
+    "product_commit": "0ea80af132d361897074f2b41c428d27a3d53630",
+    "mode": "Read-only source review",
+    "result": "No concrete blocking issue found; does not replace test/CI/production acceptance."
+  },
+  "ci": {
+    "product_commit": "0ea80af132d361897074f2b41c428d27a3d53630",
+    "run_id": 39943285799,
+    "url": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/39943285799",
+    "conclusion": "success",
+    "final_head_checks": "https://github.com/haohaoyu-AI/haoduoyu-web/pull/35/checks"
+  },
+  "production": {
+    "current_version": 8,
+    "writes_issued": false,
+    "release_gate": "Parent final acceptance and review before authorized merge/deployment."
+  },
+  "full_local_tests": {
+    "command": "npm test",
+    "tests": 288,
+    "pass": 288,
+    "fail": 0,
+    "log_sha256": "9ed63c4ed9fbc1e3a23795274da1663a2bc8ed112aff00565f5810e71269e280",
+    "product_commit": "0ea80af132d361897074f2b41c428d27a3d53630"
+  },
+  "navigation_before_after": {
+    "completed": true,
+    "viewport_width": 390,
+    "operation": "Fully loaded todos page; type draft; open sidebar; tap current todos item once.",
+    "boundary": "One local Chromium sample per real bundle; identical current CSS/Worker. Timing is observational, not a performance guarantee.",
+    "measurement_notes": "Labels clarified after the single run; measurements unchanged. GET counts are browser request-start events through readiness plus 250 ms, not backend executions. rAF samples DOM busy/loading before paint, not physically displayed pixels. Tap duration includes Playwright waiting and driver roundtrip.",
+    "report_sha256": "568b6e5288a6f58bfff2151eee6cfbe32b7585432471c5532de78b519b702356",
+    "run_test_source_sha256": "b6f6459abfe55b5f2b60bbf7ba27844cffb55de647511bf32b07dc2661f9db80",
+    "committed_test_source_sha256": "b6f6459abfe55b5f2b60bbf7ba27844cffb55de647511bf32b07dc2661f9db80",
+    "script_difference": "Observation labels clarified after the single run; measurements unchanged.",
+    "variants": [
+      {
+        "variant": "before",
+        "source_commit": "e53fce334932ef5063e0c26d49ea450cba16a0fd",
+        "app_js_sha256": "aa1be2b44a61a92012991ac329d9680b577820fa394b9de684d0ebdaf3f61ea6",
+        "new_get_count": 1,
+        "history_delta": 1,
+        "input_dom_preserved": false,
+        "draft_preserved": true,
+        "playwright_tap_roundtrip_ms": 65.32,
+        "prepaint_busy_or_loading_observed": true,
+        "sampled_loading_span_ms": 67.0
+      },
+      {
+        "variant": "after",
+        "source_commit": "0ea80af132d361897074f2b41c428d27a3d53630",
+        "app_js_sha256": "393a6fd72816ebe8782094cfd4fc177096525591a242d43d7139f8755c454759",
+        "new_get_count": 0,
+        "history_delta": 0,
+        "input_dom_preserved": true,
+        "draft_preserved": true,
+        "playwright_tap_roundtrip_ms": 44.95,
+        "prepaint_busy_or_loading_observed": false,
+        "sampled_loading_span_ms": null
+      }
+    ],
+    "uncaught_page_errors": 0,
+    "external_request_attempts": 0,
+    "product_manifest_sha256": "f887004dd965d3df0998d325fffd132f39c67c3bd8ecd8787d29d70290acc8e2"
+  },
+  "browser_scripts": {
+    "tests/daily-todos-browser-server.mjs": "3bae50418d9a3ff34abdb51ec45b857c34b9ac612b8edb3c3583166d6ecc7128",
+    "tests/browser-daily-todos.py": "c48b5ab6fb4d166e8f1790bc5a077bcd068555f5ff7daec448f4efb01b33df00",
+    "tests/browser-daily-todos-navigation-before-after.py": "b6f6459abfe55b5f2b60bbf7ba27844cffb55de647511bf32b07dc2661f9db80"
+  }
+}

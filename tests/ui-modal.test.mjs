@@ -27,7 +27,7 @@ async function client(rows = articles) {
   };
   const context = vm.createContext({AbortController, AbortSignal, DOMException, Headers,
     document, window: { addEventListener() {} }, localStorage: { getItem: () => null },
-    requestAnimationFrame() {}, URL, URLSearchParams, Intl,
+    requestAnimationFrame() {}, setTimeout, clearTimeout, URL, URLSearchParams, Intl,
     fixture: { me: {id:'synthetic-ui-user'}, accounts: structuredClone(accounts), account: 'account-a', reviewTab: 'observations' },
     fetch: async (path, options) => {
       requests.push({ path, method: options.method ?? 'GET' });

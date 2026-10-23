@@ -6,6 +6,7 @@ const nav = [
   { id: "dashboard", label: "总览", icon: "grid" },
   { id: "articles", label: "文章", icon: "articles" },
   { id: "reviews", label: "数据", icon: "chart" },
+  { id: "todos", label: "每日待办", icon: "check" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
 const settingsTabs = { accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };

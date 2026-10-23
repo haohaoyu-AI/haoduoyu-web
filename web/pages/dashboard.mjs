@@ -12,6 +12,9 @@ function periodControls() {
   "period");
 }
 function renderDashboard(data) {
+  return renderDashboardSummary(data);
+}
+function renderDashboardSummary(data) {
   const daily = dailyDates(data), articles = (data.attention_articles || []).filter((a) => ["up", "down"].includes(a.attention?.kind)), visible = state.
   attentionExpanded ? articles : articles.slice(0, 6);
   return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${
@@ -29,10 +32,11 @@ class="btn" data-action="new-daily">录入每日数据</button></div>'}</section
 function renderPeriodAccounts(accounts) {
   const approvals = accounts.some((a) => a.period_metrics?.approvals != null), columns = [["reads", "阅读"], ["likes", "点赞"], ["comments",
      "评论"], ...approvals ? [["approvals", "赞同"]] : []];
-  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).
+  return `<div class="table-scroll"><table class="data-table period-table"><thead><tr><th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).
   join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.
-    id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key]) => `<td>${dashboardMetric({ latest_metrics: a.period_metrics },
-  key)}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key, label]) => `<td data-label="${e(label)}">${dashboardMetric({
+  latest_metrics: a.period_metrics }, key)}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).
+  join("")}</tbody></table></div>`;
 }
 function renderAttentionArticles(articles) {
   return `<div class="table-scroll"><table class="data-table attention-table"><thead><tr><th>文章</th><th>周期阅读 / 变化</th><th>周期互动 / 变化 ${dashboardInfo(
@@ -193,6 +197,7 @@ export {
   renderCumulative,
   renderDailyTable,
   renderDashboard,
+  renderDashboardSummary,
   renderPeriodAccounts,
   renderPlatformTable,
   renderPublicationTrend,

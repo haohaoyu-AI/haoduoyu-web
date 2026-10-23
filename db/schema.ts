@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { sqliteTable,text,integer,index,uniqueIndex,primaryKey,check } from 'drizzle-orm/sqlite-core';
+import { sqliteTable,text,integer,index,uniqueIndex,primaryKey,foreignKey,check } from 'drizzle-orm/sqlite-core';
 
 export const matrixAccounts=sqliteTable('matrix_accounts',{
   id:text('id').primaryKey(),platform:text('platform').notNull(),name:text('name').notNull(),active:integer('active').notNull().default(1),created_at:text('created_at').notNull(),
@@ -16,6 +16,18 @@ export const matrixDaily=sqliteTable('matrix_daily_metrics',{
 export const matrixUsers=sqliteTable('matrix_users',{
   id:text('id').primaryKey(),username:text('username').notNull(),password_hash:text('password_hash').notNull(),created_at:text('created_at').notNull(),
 },t=>[uniqueIndex('matrix_username').on(t.username)]);
+export const matrixTodos=sqliteTable('matrix_todos',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),date:text('date').notNull(),text:text('text').notNull(),completed:integer('completed').notNull().default(0),version:integer('version').notNull().default(1),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),index('matrix_todo_user_date').on(t.user_id,t.date,t.created_at),check('matrix_todo_completed',sql`${t.completed} IN (0,1)`),check('matrix_todo_text',sql`length(${t.text}) BETWEEN 1 AND 500`),check('matrix_todo_version',sql`${t.version} >= 1`)]);
+export const matrixTodoTemplates=sqliteTable('matrix_todo_templates',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),text:text('text').notNull(),version:integer('version').notNull().default(1),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),index('matrix_todo_template_user').on(t.user_id,t.deleted_at,t.created_at),check('matrix_todo_template_text',sql`length(${t.text}) BETWEEN 1 AND 500`),check('matrix_todo_template_version',sql`${t.version} >= 1`)]);
+export const matrixTodoPreferences=sqliteTable('matrix_todo_preferences',{
+  user_id:text('user_id').primaryKey().references(()=>matrixUsers.id,{onDelete:'cascade'}),completed_mode:text('completed_mode').notNull().default('strike'),version:integer('version').notNull().default(1),updated_at:text('updated_at').notNull(),
+},t=>[check('matrix_todo_completed_mode',sql`${t.completed_mode} IN ('strike','hide')`),check('matrix_todo_preferences_version',sql`${t.version} >= 1`)]);
+export const matrixTodoTemplateLinks=sqliteTable('matrix_todo_template_links',{
+  user_id:text('user_id').notNull(),todo_id:text('todo_id').notNull(),template_id:text('template_id').notNull(),created_with_todo:integer('created_with_todo').notNull().default(1),
+},t=>[primaryKey({columns:[t.user_id,t.todo_id]}),index('matrix_todo_template_link').on(t.user_id,t.template_id),foreignKey({columns:[t.user_id,t.todo_id],foreignColumns:[matrixTodos.user_id,matrixTodos.id]}).onDelete('cascade'),foreignKey({columns:[t.user_id,t.template_id],foreignColumns:[matrixTodoTemplates.user_id,matrixTodoTemplates.id]})]);
 export const matrixSessions=sqliteTable('matrix_sessions',{
   token_hash:text('token_hash').primaryKey(),user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),expires_at:text('expires_at').notNull(),
 },t=>[index('matrix_session_user').on(t.user_id)]);

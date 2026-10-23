@@ -1,10 +1,15 @@
 import { isRequestAbort } from "./core/requests.mjs";
-import { applyArticleFilters, navigate, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
+import { applyArticleFilters, navigateLink, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
 import { $, $$, e } from "./core/dom.mjs";
 import { readRoute, updateRoute } from "./core/router.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { articleDraft, articleFilterPanel, viewDraft } from "./pages/articles.mjs";
 import { renderDashboard } from "./pages/dashboard.mjs";
+import { inputTodo, registerTodosClock, selectTodoDate, toggleTodo } from "./pages/todos.mjs";
+import { inputTodoTemplate, loadTodoTemplates } from "./pages/todo-templates.mjs";
+import { canOpenTodoMenu, openTodoMenu } from "./pages/todo-actions.mjs";
+import { changeTodoCompletedMode } from "./pages/todo-preferences.mjs";
+import { registerTodoGestures } from "./ui/todo-gestures.mjs";
 import { replacePageContent } from "./ui/entry.mjs";
 import { setMenu, syncMenu } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
@@ -28,7 +33,7 @@ async function handleClick(event) {
   if (runtime.activePopover?.node.contains(target) && !["reset-draft", "draft-sort"].includes(target.dataset.action)) closePopover();
   if (target.dataset.nav) {
     event.preventDefault();
-    navigate(target.dataset.nav);
+    navigateLink(target.dataset.nav);
     return;
   }
   const action = target.dataset.action, id = target.dataset.id;
@@ -41,6 +46,18 @@ async function handleClick(event) {
 }
 function handleChange(event) {
   const el = event.target;
+  if (el.id === "todo-completed-mode") {
+    changeTodoCompletedMode(el.value);
+    return;
+  }
+  if (el.dataset?.todoId) {
+    toggleTodo(el);
+    return;
+  }
+  if (el.id === "todo-date") {
+    selectTodoDate(el.value);
+    return;
+  }
   if (el.id === "filter-view") {
     const view = state.savedViews.find((v) => v.id === el.value);
     if (view) {
@@ -78,11 +95,14 @@ function handleChange(event) {
   }
 }
 function handleToggle(event) {
+  if (event.target.id === "todo-templates" && event.target.isConnected && event.target.open) loadTodoTemplates();
   const key = event.target.dataset?.state;
   if (event.target.isConnected && key === "trendOpen") state[key] = event.target.open;
 }
 function handleInput(event) {
   const el = event.target;
+  inputTodo(el);
+  inputTodoTemplate(el);
   if (el.name === "q" && el.closest("#article-filters")) {
     state.filters.q = el.value;
     state.listPage = 1;
@@ -170,6 +190,8 @@ function handlePopstate() {
   }
 }
 function registerEvents() {
+  registerTodosClock();
+  registerTodoGestures(openTodoMenu, canOpenTodoMenu);
   document.addEventListener("click", handleClick);
   document.addEventListener("change", handleChange);
   document.addEventListener("toggle", handleToggle, true);

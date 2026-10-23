@@ -9,6 +9,9 @@ import { matchesIfNoneMatch } from './lib/http.mjs';
 import { overviewCache } from './overview-cache.mjs';
 import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
 import {loginRetryAfter} from './lib/login-backoff.mjs';
+import {handleTodos} from './todos.mjs';
+import {handleTodoTemplates} from './todo-templates.mjs';
+import {handleTodoPreferences} from './todo-preferences.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
@@ -104,7 +107,7 @@ async function protectedRead(db,request,route,query,initialRevision) {
     if(route==='/audit') {requireAdmin(actor);return json((await store.all("SELECT log.*,article.title AS entity_label FROM audit AS log LEFT JOIN articles AS article ON article.id=log.entity_id AND (log.action IN ('POST /articles','article.create','article.update') OR log.action='PUT /articles/'||article.id) ORDER BY log.created_at DESC,log.rowid DESC LIMIT 200")).map(({detail_json,...row})=>({...row,detail:JSON.parse(detail_json)})));}
     if(route==='/backup') {
       requireAdmin(actor);
-      const backup=await exportBackup(db);
+      const backup=await exportBackup(db,{todoUserId:actor.id});
       return json(backup,200,{'Content-Disposition':'attachment; filename="haoduoyu-matrix-backup.json"'});
     }
     if(route==='/export') {
@@ -214,6 +217,9 @@ async function handle(request,env,trace) {
     const state=await db.prepare('SELECT initialized,revision FROM matrix_control WHERE id=1').first();
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
     if(route==='/auth/login'&&method==='POST') return login(db,request,env,origin);
+    if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
+    if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
+    if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
     if(method==='GET') {
       if(route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');
       return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision);
