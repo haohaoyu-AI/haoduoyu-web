@@ -1,0 +1,116 @@
+{
+  "project_id": "appgprj_6ad231e97f4c8191b3a376ed2d0fa4e4",
+  "version": 8,
+  "version_id": "appgprj_6ad231e97f4c8191b3a376ed2d0fa4e4~appgver_8c4bc95e68548191895293917590d1c9",
+  "deployment_id": "appgdep_6adad83e03c48191bf174ce6dcee9cd3",
+  "status": "succeeded",
+  "published_at": "2026-10-23T03:45:10.294015+00:00",
+  "public_url": "https://haoduoyu.xyz",
+  "native_url": "https://haoduoyu-matrix.haohaoyu202409.chatgpt.site",
+  "github_source": "ce18a7b7a09f8acbfb9fe7c397b97e5d87a20ac6",
+  "sites_source": "e7765af3c6d4b87ed39de7831db2962db9c826d9",
+  "source_tree": "a0b4078d87f428bd61de49b9d0e0fed19e3aaa58",
+  "source_tree_independently_equal": true,
+  "source_files": 262,
+  "source_ci": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/39893971392",
+  "source_tests": {
+    "total": 256,
+    "pass": 256
+  },
+  "archive": {
+    "archive_format": "tar",
+    "sediment_file_id": "file_00000000bacc8230bd1e68ee8586c845",
+    "content_hash": "sha256:766aa55e6fca55704ae6a862acd1965042c7b95eb7be318d6ee70a90728b4071",
+    "size_bytes": 471040,
+    "file_count": 7
+  },
+  "local_archive": {
+    "sha256": "4020a1a4a896fd2e9bff846c316186978f7c8a1d7747bd0dcaf7815acf210185",
+    "bytes": 471040,
+    "files": 7,
+    "entrypoint": "dist/server/index.js"
+  },
+  "environment_revision": 4,
+  "environment_unchanged": true,
+  "ip_trust": "absent; remains disabled",
+  "access": "public; unchanged",
+  "domain": {
+    "hostname": "haoduoyu.xyz",
+    "status": "active",
+    "ssl": "active"
+  },
+  "rollback": {
+    "version": 7,
+    "version_id": "appgprj_6ad231e97f4c8191b3a376ed2d0fa4e4~appgver_3ce38793f2dc8191906cd4f5a9cee881",
+    "sites_source": "58a78644dd015609df6949ec24e886757d5b74ed",
+    "archive_available": true,
+    "prior_deployment_id": "appgdep_6ad9bc015f88819184234cc3c161627f"
+  },
+  "source_preparation": {
+    "official_workflow_helper": "not present in selected execution environment",
+    "transport": "same constrained stdin-only Git transport used for v7",
+    "build": "existing project build and package scripts",
+    "archive_layout_repair": "first root/server archive rejected before version creation; supported dist/server archive accepted. Source and Worker bytes unchanged.",
+    "scanner": "two staged findings independently verified as current OpenAPI and historical frontend source SHA-256 values; no ignore or rule changes"
+  },
+  "post_deploy_checks": {
+    "native_deployment": "succeeded",
+    "native_site_latest": 8,
+    "db_binding": "DB",
+    "db_tables": 11,
+    "db_rows_read": false,
+    "domain_http": "unverified: execution environment HTTPS CONNECT tunnel rejected with 403; no proxy bypass attempted",
+    "browser": "unverified: existing Chromium binary absent; no installation attempted",
+    "authenticated_pages": "parent independently observed existing-session core pages at the stated time; executor has no application session",
+    "production_writes": "none issued; exact row preservation was not compared by deployment executor; parent read-only check observed existing content",
+    "independent_browser": {
+      "source": "parent assistant cloud browser; separate from deployment executor",
+      "observed_at_utc": "2026-10-23 03:51–03:53",
+      "session": "existing administrator session; no new login",
+      "checked": [
+        "overview renders existing summaries",
+        "article list and sampled detail/observation nodes/timeline",
+        "data page and snapshot timeline",
+        "app.js/style.css references and visible styles/interactions"
+      ],
+      "site_warning_error_count": 0,
+      "extension_metadata_messages": 14,
+      "business_writes": false,
+      "exports": false,
+      "cookies_read": false,
+      "login_test": false,
+      "not_verified": [
+        "ETag",
+        "CSP response header",
+        "X-Request-Id",
+        "independent GitSHA-to-page binding"
+      ],
+      "response_headers_available": false,
+      "page_build_identifier_available": false,
+      "evidence_location": "parent workspace; screenshots, AX, console and verification.json retained privately; not read by deployment executor",
+      "privacy": "production metrics and business timestamps omitted from public summary"
+    }
+  },
+  "limitations": {
+    "frontend_bytes": 115637,
+    "frontend_goal_bytes": 100000,
+    "strict_png": "47/56",
+    "full_isolate_peak": "not established",
+    "branch_protection": "not configured by executor; management permission unavailable",
+    "failed_experiments": "PR29/PR31 excluded"
+  },
+  "archive_verification": {
+    "report": "2026-10-23-v8-archive-verification.json",
+    "raw_tar_hash_differs": true,
+    "native_hash_exactly_reproduced": true,
+    "method": "sorted regular-file payloads; USTAR; mode0644; uid/gid/mtime0; empty owner names; original payloads unchanged",
+    "server_archive_downloaded": false,
+    "backend_implementation_inspected": false,
+    "native_version_reread": "same saved v8 id, e7765af source, archive hash and deployment id confirmed",
+    "download_boundary": "Parent reviewer server-archive download was authorization-denied; no alternate-channel retry attempted.",
+    "hash_checks": [
+      "Python hashlib",
+      "Node crypto"
+    ]
+  }
+}

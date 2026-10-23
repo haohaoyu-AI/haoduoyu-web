@@ -1,0 +1,76 @@
+{
+  "github_source": "ce18a7b7a09f8acbfb9fe7c397b97e5d87a20ac6",
+  "sites_source": "e7765af3c6d4b87ed39de7831db2962db9c826d9",
+  "source_tree": "a0b4078d87f428bd61de49b9d0e0fed19e3aaa58",
+  "raw_input_sha256": "4020a1a4a896fd2e9bff846c316186978f7c8a1d7747bd0dcaf7815acf210185",
+  "canonical_reconstruction_sha256": "766aa55e6fca55704ae6a862acd1965042c7b95eb7be318d6ee70a90728b4071",
+  "native_content_hash": "sha256:766aa55e6fca55704ae6a862acd1965042c7b95eb7be318d6ee70a90728b4071",
+  "native_hash_exactly_reproduced": true,
+  "raw_bytes": 471040,
+  "canonical_bytes": 471040,
+  "files": 7,
+  "reconstruction": {
+    "format": "USTAR",
+    "order": "filename ascending",
+    "directory_entries": "omitted",
+    "file_mode": "0644",
+    "uid": 0,
+    "gid": 0,
+    "mtime": 0,
+    "uname": "",
+    "gname": "",
+    "pax_headers": {}
+  },
+  "payloads": [
+    {
+      "path": ".openai/hosting.json",
+      "bytes": 91,
+      "sha256": "9b242c64db80608a42f15593115bf5f39d383d01d7b39f699c196d17e0aff554",
+      "same_as_input_payload": true,
+      "same_as_approved_build": true
+    },
+    {
+      "path": "dist/.openai/drizzle/0000_lively_stellaris.sql",
+      "bytes": 5256,
+      "sha256": "20ff1a36048fe4a04df6eecf1492d9449a3787517cacd093bc061ffad140d9c7",
+      "same_as_input_payload": true,
+      "same_as_approved_build": true
+    },
+    {
+      "path": "dist/.openai/drizzle/meta/0000_snapshot.json",
+      "bytes": 21544,
+      "sha256": "eb3918d3fabc46788a79f12be2b6918d58b6c52cc0597e9f2d4ad57333f9190f",
+      "same_as_input_payload": true,
+      "same_as_approved_build": true
+    },
+    {
+      "path": "dist/.openai/drizzle/meta/_journal.json",
+      "bytes": 206,
+      "sha256": "09a9e8f06353d5540ccd8079248f17b069ec41ab6c9338b8fa3531b1a39e93fa",
+      "same_as_input_payload": true,
+      "same_as_approved_build": true
+    },
+    {
+      "path": "dist/.openai/hosting.json",
+      "bytes": 91,
+      "sha256": "9b242c64db80608a42f15593115bf5f39d383d01d7b39f699c196d17e0aff554",
+      "same_as_input_payload": true,
+      "same_as_approved_build": true
+    },
+    {
+      "path": "dist/server/index.js",
+      "bytes": 431857,
+      "sha256": "b88c046fdfc38922cb4be3813b32824faa13964514686c2f49b5c808d270d564",
+      "same_as_input_payload": true,
+      "same_as_approved_build": true
+    },
+    {
+      "path": "dist/server/wrangler.json",
+      "bytes": 375,
+      "sha256": "096a3bd9add938803e76d5ef14ec7d06924d9cca1f0f22e67bea2a5f7f36ada4",
+      "same_as_input_payload": true,
+      "same_as_approved_build": true
+    }
+  ],
+  "evidence_boundary": "Reconstructed a standard canonical tar from the seven original file payloads and exactly matched the native SHA-256. Every payload also equals the approved build. The stored archive was not downloaded and backend implementation was not inspected; no claim is made about the internal code path."
+}
