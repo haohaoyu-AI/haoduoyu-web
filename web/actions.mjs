@@ -14,7 +14,8 @@ import { articleDetail } from "./pages/detail.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { reviewModal } from "./pages/reviews.mjs";
 import { accountModal, keyModal } from "./pages/settings.mjs";
-import { moveTodoDate, refreshTodos, selectTodoDate } from "./pages/todos.mjs";
+import { moveTodoDate, moveTodoMonth, refreshTodos, selectTodoDate } from "./pages/todos.mjs";
+import { cancelTodoTemplateEdit, editTodoTemplate, useTodoTemplate, writeTodoTemplate } from "./pages/todo-templates.mjs";
 import { field, formEnd, renderSnapshot } from "./ui/components.mjs";
 import { replacePageContent } from "./ui/entry.mjs";
 import { setMenu } from "./ui/menu.mjs";
@@ -274,6 +275,13 @@ function actionResetFilters({}) {
   return;
 }
 const actions = {
+  "todo-template-use": ({ id }) => useTodoTemplate(id),
+  "todo-template-edit": ({ id }) => editTodoTemplate(id),
+  "todo-template-delete": ({ id }) => writeTodoTemplate(id, undefined, true),
+  "todo-template-cancel": cancelTodoTemplateEdit,
+  "todo-calendar-prev": () => moveTodoMonth(-1),
+  "todo-calendar-next": () => moveTodoMonth(1),
+  "todo-calendar-date": ({ target }) => selectTodoDate(target.dataset.date),
   "todo-prev": () => moveTodoDate(-1),
   "todo-next": () => moveTodoDate(1),
   "todo-today": () => selectTodoDate(bjtDate()),

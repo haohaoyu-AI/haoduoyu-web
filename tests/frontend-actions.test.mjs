@@ -69,10 +69,14 @@ function projectTodoIntegration(ast,file) {
     const expected=snippet('function headerActions(){if(state.page==="todos")return "";}').body.body;
     assert.deepEqual(normalized(extra),normalized(expected));
     header.body.body=header.body.body.filter(node=>node!==extra[0]);
+    const page=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='pageHeader');
+    const title=page.body.body.filter(node=>node.type==='IfStatement'&&node.test.right?.value==='todos');
+    assert.deepEqual(normalized(title),normalized(snippet(`function pageHeader(){if(state.page==="todos")return '<div class="heading-left"><h1>每日待办</h1></div>';}`).body.body));
+    page.body.body=page.body.body.filter(node=>node!==title[0]);
   }
   if(file==='web/pages/dashboard.mjs') {
     const wrapper=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='renderDashboard');
-    const expected=snippet('function renderDashboard(data){return `${renderTodos()}<div id="dashboard-summary">${renderDashboardSummary(data)}</div>`;}');
+    const expected=snippet('function renderDashboard(data){return renderDashboardSummary(data);}');
     assert.deepEqual(normalized(wrapper),normalized(expected));
     ast.body=ast.body.filter(node=>node!==wrapper);
     const summary=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='renderDashboardSummary');
@@ -132,9 +136,10 @@ async function registry(path,name) {
   const ast=parseWeb(await current(path));
   const functions=new Map(ast.body.filter(node=>node.type==='FunctionDeclaration').map(node=>[node.id.name,node]));
   const declaration=ast.body.flatMap(node=>node.declarations||[]).find(node=>node.id.name===name);
-  const additions=new Set(['todo-prev','todo-next','todo-today','todo-reload']);
+  const additions=new Set(['todo-template-use','todo-template-edit','todo-template-delete','todo-template-cancel',
+    'todo-calendar-prev','todo-calendar-next','todo-calendar-date','todo-prev','todo-next','todo-today','todo-reload']);
   if(name==='actions') {
-    const expected=snippet('const actions={"todo-prev":()=>moveTodoDate(-1),"todo-next":()=>moveTodoDate(1),"todo-today":()=>selectTodoDate(bjtDate()),"todo-reload":refreshTodos}');
+    const expected=snippet('const actions={"todo-template-use":({id})=>useTodoTemplate(id),"todo-template-edit":({id})=>editTodoTemplate(id),"todo-template-delete":({id})=>writeTodoTemplate(id,undefined,true),"todo-template-cancel":cancelTodoTemplateEdit,"todo-calendar-prev":()=>moveTodoMonth(-1),"todo-calendar-next":()=>moveTodoMonth(1),"todo-calendar-date":({target})=>selectTodoDate(target.dataset.date),"todo-prev":()=>moveTodoDate(-1),"todo-next":()=>moveTodoDate(1),"todo-today":()=>selectTodoDate(bjtDate()),"todo-reload":refreshTodos}');
     const extra=declaration.init.properties.filter(item=>additions.has(item.key.value));
     assert.deepEqual(normalized(extra),normalized(expected.declarations[0].init.properties));
   }
@@ -187,7 +192,7 @@ test('event bindings retain all nine original positions and capture options',asy
   assert.deepEqual(signature(next),signature(register));
 });
 test('web style checks every function type and rejects long fixture lines/functions',async()=>{
-  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,32);
+  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,34);
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));
@@ -217,8 +222,12 @@ test('the click prelude and remaining event callback bodies keep their original 
       body.body.splice(1,2);
     }
     if(name==='handleInput') {
-      assert.deepEqual(normalized(body.body[1]),normalized(snippet('inputTodo(el);')));
-      body.body.splice(1,1);
+      assert.deepEqual(normalized(body.body.slice(1,3)),normalized(parseWeb('inputTodo(el);inputTodoTemplate(el);').body));
+      body.body.splice(1,2);
+    }
+    if(name==='handleToggle') {
+      assert.deepEqual(normalized(body.body[0]),normalized(snippet('if(event.target.id==="todo-templates"&&event.target.isConnected&&event.target.open)loadTodoTemplates();')));
+      body.body.splice(0,1);
     }
     assert.deepEqual(normalized(body),normalized(callbacks[index].body),name);
   }

@@ -6,6 +6,7 @@ import { runtime, state } from "./core/state.mjs";
 import { articleDraft, articleFilterPanel, viewDraft } from "./pages/articles.mjs";
 import { renderDashboard } from "./pages/dashboard.mjs";
 import { inputTodo, registerTodosClock, selectTodoDate, toggleTodo } from "./pages/todos.mjs";
+import { inputTodoTemplate, loadTodoTemplates } from "./pages/todo-templates.mjs";
 import { replacePageContent } from "./ui/entry.mjs";
 import { setMenu, syncMenu } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
@@ -87,12 +88,14 @@ function handleChange(event) {
   }
 }
 function handleToggle(event) {
+  if (event.target.id === "todo-templates" && event.target.isConnected && event.target.open) loadTodoTemplates();
   const key = event.target.dataset?.state;
   if (event.target.isConnected && key === "trendOpen") state[key] = event.target.open;
 }
 function handleInput(event) {
   const el = event.target;
   inputTodo(el);
+  inputTodoTemplate(el);
   if (el.name === "q" && el.closest("#article-filters")) {
     state.filters.q = el.value;
     state.listPage = 1;

@@ -30,7 +30,7 @@ function updateRoute(push = false) {
 function readRoute() {
   const params = new URLSearchParams(location.search);
   const raw = params.get("page");
-  const fallback = !params.has("page") && window.matchMedia?.("(max-width:760px)").matches ? "todos" : "dashboard";
+  const fallback = "todos";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.

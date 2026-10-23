@@ -55,7 +55,7 @@ function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false} = {}
   });
   new vm.Script(source).runInContext(context);
   const run = script => vm.runInContext(script, context);
-  run("state.me={id:'synthetic-todo-user',username:'Synthetic user',csrfToken:'synthetic-csrf'}");
+  run("state.me={id:'synthetic-todo-user',username:'Synthetic user',csrfToken:'synthetic-csrf'};state.page='todos'");
   return {
     run, nodes, events, windowEvents, location, timers,
     setNow(value) {currentTime = Date.parse(value);},
@@ -106,10 +106,11 @@ test('date route validation retains real history dates and rejects impossible ca
   }
 });
 
-test('phones open daily plans by default while desktop and explicit page links keep their destinations', () => {
+test('phones and desktop open daily plans by default while explicit page links keep their destinations', () => {
   for (const [mobile, search, expected] of [
-    [true, '', 'todos'], [false, '', 'dashboard'],
+    [true, '', 'todos'], [false, '', 'todos'],
     [true, '?page=dashboard', 'dashboard'], [true, '?page=articles', 'articles'],
+    [false, '?page=dashboard', 'dashboard'], [false, '?page=articles', 'articles'],
     [true, '?page=settings&tab=keys', 'settings'], [true, '?page=todos&date=2026-10-20', 'todos'],
   ]) {
     const c = client({mobile, search});
@@ -118,6 +119,29 @@ test('phones open daily plans by default while desktop and explicit page links k
     assert.equal(new URL(c.location.href).searchParams.get('page'), expected);
     if (search.includes('date=')) assert.equal(c.run('todoDate()'), '2026-10-20');
   }
+});
+
+test('calendar browsing handles leap months and year boundaries without changing the selected date or draft', () => {
+  const c = client({search: '?page=todos&date=2024-02-29'});
+  c.run("readRoute();todoDay().draft='保留所选日的草稿';let calendarReads=0;api=()=>{calendarReads++}");
+  const february = c.run('todoCalendar(todoDate())');
+  assert.equal((february.match(/data-action="todo-calendar-date"/g) || []).length, 29);
+  assert.match(february, /data-date="2024-02-29"[^>]*aria-pressed="true"/);
+  c.run('moveTodoMonth(-1)');
+  assert.match(c.run('todoCalendar(todoDate())'), /2024年1月/);
+  assert.equal(c.run('todoDate()'), '2024-02-29');
+  assert.equal(c.run('todoDay().draft'), '保留所选日的草稿');
+  c.run("state.todoDate='2026-12-31';todoCalendar(todoDate());moveTodoMonth(1)");
+  assert.match(c.run('todoCalendar(todoDate())'), /2027年1月/);
+  assert.equal(c.run('todoDate()'), '2026-12-31');
+  for (const [date, offset] of [['0001-01-01', -1], ['9999-12-31', 1]]) {
+    c.run(`state.todoDate='${date}';todoCalendar(todoDate());moveTodoMonth(${offset})`);
+    assert.equal(c.run('todosState.calendarMonth'), date.slice(0, 7));
+  }
+  assert.equal(c.run('calendarReads'), 0, 'browsing another month does not read or write daily data');
+  c.run("resetSessionIndexes();state.me={id:'another-user'};todoDay()");
+  assert.equal(c.run('todosState.calendarMonth'), '');
+  assert.equal(c.run('todosState.calendarDate'), '');
 });
 
 test('daily list escapes text and renders checked items without inline styles', () => {
@@ -155,6 +179,7 @@ test('an in-flight create is single-submit; a failed create preserves the draft 
   assert.equal(c.run('todoDay().items.length'), 1);
   assert.equal(c.run('todoDay().draft'), '');
   assert.equal(c.run('todoDay().adding'), false);
+  assert.match(c.run('renderTodos()'), /已添加/, 'successful create has visible confirmation');
 });
 
 test('invalid input remains editable and does not send a create request', async () => {
@@ -259,29 +284,119 @@ test('pending completion requests cannot be duplicated and can be undone after s
   assert.equal(c.run('calls[1].options.body.version'), 2);
   assert.equal(c.run('calls[1].options.body.completed'), false);
   assert.equal(c.run('todoDay().items[0].completed'), false);
+  assert.match(c.run('renderTodos()'), /已保存/, 'successful completion change has visible confirmation');
 });
 
-test('homepage accepts a plan before the overview finishes and retains it when overview loading fails', async () => {
+test('completion and undo respond before the network and roll back to saved state after a failure', async () => {
+  for (const saved of [false, true]) {
+    const c = client();
+    c.put('original', item('instant-feedback', '2026-10-23', {completed: saved, version: 4}));
+    c.put('checkbox', {dataset: {todoId: 'instant-feedback', date: '2026-10-23'}, checked: !saved});
+    c.run(`paintTodos=()=>{};todoDay().items=[original];todoDay().loaded=true;let calls=[],rejectPatch;
+      api=(path,options)=>{calls.push({path,options});return new Promise((_,reject)=>rejectPatch=reject)};
+      let pendingPatch=toggleTodo(checkbox)`);
+    const pending = c.run('renderTodos()');
+    assert.equal(/class="daily-todo-row[^\"]*\bis-complete\b/.test(pending), !saved, 'strike state changes before response');
+    assert.equal(/\bchecked(?:\s|>)/.test(pending), !saved, 'checkbox changes before response');
+    assert.match(pending, /保存中/);
+    assert.equal(c.run('todoDay().items[0].completed'), saved, 'persisted state remains the rollback source');
+    c.run(`checkbox.checked=${saved}`);
+    await c.run('toggleTodo(checkbox)');
+    assert.equal(c.run('calls.length'), 1, 'repeated pending click does not send a second write');
+    assert.equal(c.run('checkbox.checked'), !saved, 'repeated pending click keeps the requested visual state');
+    assert.equal(c.run('calls[0].options.body.version'), 4);
+    assert.equal(c.run('calls[0].options.body.completed'), !saved);
+    c.run("rejectPatch(new Error('Synthetic save failure'))");
+    await c.run('pendingPatch');
+    const failed = c.run('renderTodos()');
+    assert.equal(/class="daily-todo-row[^\"]*\bis-complete\b/.test(failed), saved);
+    assert.equal(/\bchecked(?:\s|>)/.test(failed), saved);
+    assert.match(failed, /Synthetic save failure/);
+    assert.equal(c.run('todoDay().items[0].version'), 4);
+    assert.equal(c.run('todoDay().updates.size'), 0);
+    assert.equal(c.run('calls.length'), 1, 'failure does not replay the write');
+  }
+});
+
+test('one failed row remains visibly failed when another concurrent completion succeeds', async () => {
   const c = client();
-  prepareForm(c);
-  c.run(`let failOverview,serverItems=[];
-    api=(path,options={})=>{
-      if(options.method==='POST'){
-        const created={...options.body,completed:false,version:1};serverItems.push(created);return Promise.resolve(created)}
-      if(path.startsWith('/todos'))return Promise.resolve({date:'2026-10-23',today:'2026-10-23',items:serverItems.slice()});
-      return new Promise((_,reject)=>failOverview=reject)};
-    let pendingPage=renderPage()`);
-  const first = c.nodes.get('#page-content').innerHTML;
-  assert.match(first, /^<section id="daily-todos"/);
-  assert.match(first, /id="todo-form"/);
-  await c.run('submitTodo({form:syntheticTodoForm,data:todoData})');
-  c.run("failOverview(new Error('Synthetic overview failure'))");
-  await c.run('pendingPage');
-  const failed = c.nodes.get('#page-content').innerHTML;
-  assert.match(failed, /^<section id="daily-todos"/);
-  assert.match(failed, /写下今天的计划/);
-  assert.match(failed, /Synthetic overview failure/);
-  assert.equal(c.run('todoDay().items.length'), 1);
+  c.put('first', item('failed-row', '2026-10-23'));
+  c.put('second', item('saved-row', '2026-10-23'));
+  c.run(`paintTodos=()=>{};todoDay().items=[first,second];todoDay().loaded=true;
+    let rejectFirst,finishSecond;
+    api=(path)=>path.endsWith('failed-row')?new Promise((_,reject)=>rejectFirst=reject):new Promise(resolve=>finishSecond=resolve);
+    let firstWrite=toggleTodo({dataset:{todoId:first.id,date:first.date},checked:true});
+    let secondWrite=toggleTodo({dataset:{todoId:second.id,date:second.date},checked:true});
+    rejectFirst(new Error('First row failed'))`);
+  await c.run('firstWrite');
+  assert.equal(c.run('todoDay().updates.size'), 1);
+  c.run('finishSecond({...second,completed:true,version:2})');
+  await c.run('secondWrite');
+  assert.equal(c.run('todoDay().items[0].completed'), false);
+  assert.equal(c.run('todoDay().items[1].completed'), true);
+  assert.match(c.run('renderTodos()'), /First row failed/);
+  assert.doesNotMatch(c.run('todoStatus(todoDay())'), /已保存/);
+});
+
+test('late template reads and writes cannot replace the next session private list or draft', async () => {
+  for (const kind of ['read', 'create', 'failure']) {
+    const c = client();
+    c.run(`paintTodoTemplates=()=>{};templateState().draft='old private draft';let finish,reject;
+      api=()=>new Promise((resolve,fail)=>{finish=resolve;reject=fail})`);
+    c.run(kind === 'read' ? 'let oldOperation=loadTodoTemplates()' :
+      "let oldOperation=submitTodoTemplateForm({data:{text:'old private draft'}})");
+    c.run("resetSessionIndexes();state.me={id:'new-template-owner'};templateState().draft='new private draft'");
+    c.run(kind === 'failure' ? "reject(new Error('old private error'))" :
+      kind === 'read' ? "finish({items:[{id:'old-private-template',text:'private'}]})" :
+      "finish({id:'old-private-template',text:'private',version:1})");
+    await c.run('oldOperation');
+    assert.equal(c.run('templateState().draft'), 'new private draft', kind);
+    assert.equal(c.run('templateState().items.length'), 0, kind);
+    assert.equal(c.run('templateState().error'), '', kind);
+    assert.equal(c.run('templateState().adding'), false, kind);
+  }
+});
+
+test('a template conflict cannot update another edit target or a new session after its follow-up read', async () => {
+  for (const switchSession of [false, true]) {
+    const c = client();
+    c.run(`paintTodoTemplates=()=>{};
+      templateState().items=[{id:'template-a',text:'A',version:1},{id:'template-b',text:'B',version:1}];
+      editTodoTemplate('template-a');let rejectWrite,finishRead;
+      api=(_path,options={})=>options.method==='PATCH'?new Promise((_,reject)=>rejectWrite=reject):new Promise(resolve=>finishRead=resolve);
+      let failedWrite=writeTodoTemplate('template-a','Updated A');
+      editTodoTemplate('template-b');templateState().editDraft='My unchanged B draft';
+      rejectWrite(Object.assign(new Error('Synthetic version conflict'),{status:409,code:'VERSION_CONFLICT'}))`);
+    await Promise.resolve();
+    assert.equal(c.run('typeof finishRead'), 'function');
+    if (switchSession) c.run(`resetSessionIndexes();state.me={id:'new-owner-after-conflict'};
+      templateState().items=[{id:'template-b',text:'Private B',version:1}];
+      editTodoTemplate('template-b');templateState().editDraft='New owner draft'`);
+    c.run("finishRead({items:[{id:'template-a',text:'Remote A',version:2},{id:'template-b',text:'Remote B',version:2}]})");
+    await c.run('failedWrite');
+    assert.equal(c.run('templateState().editing.id'), 'template-b');
+    assert.equal(c.run('templateState().editing.version'), 1, 'a different editor keeps its original CAS version');
+    assert.equal(c.run('templateState().editDraft'), switchSession ? 'New owner draft' : 'My unchanged B draft');
+    if (switchSession) {
+      assert.equal(c.run('templateState().items[0].text'), 'Private B');
+      assert.equal(c.run('templateState().error'), '');
+    }
+  }
+});
+
+test('daily plans and explicit statistics overview render and request independently', async () => {
+  const c = client();
+  c.run(`state.page='todos';paintTodos=()=>{};let reads=[];
+    api=async path=>{reads.push(path);return {date:'2026-10-23',today:'2026-10-23',items:[]}}`);
+  await c.run('renderPage()');
+  assert.match(c.nodes.get('#page-content').innerHTML, /id="todo-form"/);
+  assert.deepEqual(JSON.parse(c.run('JSON.stringify(reads)')), ['/todos?date=2026-10-23']);
+  c.run(`state.page='dashboard';reads=[];renderDashboardSummary=()=>'<section>Independent statistics</section>'`);
+  await c.run('renderPage()');
+  assert.equal(c.run('reads.length'), 1);
+  assert.match(c.run('reads[0]'), /^\/overview\?/);
+  assert.match(c.nodes.get('#page-content').innerHTML, /Independent statistics/);
+  assert.doesNotMatch(c.nodes.get('#page-content').innerHTML, /todo-form|daily-todos/);
 });
 
 test('midnight timer and returning-tab events switch today automatically without moving yesterday items', async () => {
@@ -303,7 +418,7 @@ test('midnight timer and returning-tab events switch today automatically without
   }
 });
 
-test('same-day list updates and overview results preserve the live plan input and its caret', () => {
+test('same-day list updates preserve the live plan input and its caret', () => {
   const c = client(), slots = new Map();
   const input = {value: '正在输入计划', selectionStart: 3, selectionEnd: 3, readOnly: false};
   const button = {disabled: false, textContent: '添加'};
@@ -312,17 +427,13 @@ test('same-day list updates and overview results preserve the live plan input an
   slots.set('button[type=submit]', button);
   const root = {dataset: {date: '2026-10-23'}, querySelector: selector => slots.get(selector) || null};
   Object.defineProperty(root, 'outerHTML', {set() {assert.fail('same-day refresh must retain the existing form');}});
-  const summary = {innerHTML: '', querySelectorAll() {return [];}};
   c.nodes.set('#daily-todos', root);
-  c.nodes.set('#dashboard-summary', summary);
   c.put('syntheticInput', input);
   c.run("document.activeElement=syntheticInput;todoDay().draft='正在输入计划';todoDay().loaded=true;paintTodos()");
-  c.run("setPageBody('<p>Overview loaded</p>','dashboard')");
   assert.equal(c.run('document.activeElement===syntheticInput'), true);
   assert.equal(input.value, '正在输入计划');
   assert.equal(input.selectionStart, 3);
   assert.equal(input.selectionEnd, 3);
-  assert.equal(summary.innerHTML, '<p>Overview loaded</p>');
 });
 
 test('saving a task does not recreate an active history date control', () => {
@@ -340,7 +451,7 @@ test('saving a task does not recreate an active history date control', () => {
   c.run("state.page='todos';state.todoDate='2026-10-22';document.activeElement=syntheticDateInput;todoDay().items=[completedTask];paintTodos()");
   assert.equal(c.run('document.activeElement===syntheticDateInput'), true);
   assert.equal(dateInput.value, '2026-10-22');
-  assert.match(slots.get('#todo-caption').innerHTML, /已完成 1\/1/);
+  assert.match(slots.get('#todo-items').innerHTML, /is-complete/, 'row still updates without replacing the date control');
 });
 
 test('repeated navigation keeps the current page and history while explicit actions still refresh it', () => {

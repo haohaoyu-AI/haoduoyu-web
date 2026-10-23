@@ -38,6 +38,7 @@ function accountFilter() {
   state.account)}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
   state.accounts).length : null;
   const account = state.page === "settings" && state.settingsTab === "accounts";

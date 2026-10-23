@@ -14,7 +14,7 @@ import { renderReviews } from "./pages/reviews.mjs";
 import { renderAccounts, renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
 import { loadTodos, paintTodos, renderTodos } from "./pages/todos.mjs";
 import { pageHeader, skeleton } from "./ui/components.mjs";
-import { applyChartStyles, replacePageContent, stopPageEntry } from "./ui/entry.mjs";
+import { replacePageContent, stopPageEntry } from "./ui/entry.mjs";
 import { setMenu, syncMenu } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
@@ -53,7 +53,7 @@ function renderShell() {
   id === state.page ? "active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>${icon(n.icon, 18)}${e(n.label)}</a>`;
   $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" \
 class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a \
-href="?page=dashboard" class="brand" data-nav="dashboard"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a>\
+href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a>\
 <button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
   "close")}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div \
 class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div \
@@ -88,16 +88,11 @@ function navigate(page, tab) {
 }
 function pageLoading(page) {
   if (page === "todos") return renderTodos();
-  if (page === "dashboard") return `${renderTodos()}<div id="dashboard-summary">${skeleton()}</div>`;
   return skeleton();
 }
 function setPageBody(html, page) {
-  const summary = page === "dashboard" ? $("#dashboard-summary") : null;
-  if (summary) {
-    summary.innerHTML = html;
-    applyChartStyles(summary);
-  } else if (page === "todos") paintTodos();
-  else replacePageContent(page === "dashboard" ? `${renderTodos()}<div id="dashboard-summary">${html}</div>` : html, true);
+  if (page === "todos") paintTodos();
+  else replacePageContent(html, true);
 }
 async function renderPage() {
   stopPageEntry();
@@ -106,7 +101,7 @@ async function renderPage() {
   const context = beginPageRequests();
   const counter = $("#page-count");
   if (counter) counter.hidden = true;
-  const hasTodos = ["dashboard", "todos"].includes(page);
+  const hasTodos = page === "todos";
   replacePageContent(pageLoading(page));
   if (hasTodos) loadTodos(context);
   $("#page-content")?.setAttribute("aria-busy", "true");

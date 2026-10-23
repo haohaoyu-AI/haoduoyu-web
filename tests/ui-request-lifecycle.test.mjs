@@ -84,12 +84,10 @@ test('refresh starts a new GET; late old results cannot fill the new render', as
       signal?.addEventListener('abort', () => reject(new DOMException('Synthetic refresh abort', 'AbortError')));
     });
   });
-  const summary = {innerHTML: '', querySelectorAll() {return [];}};
-  c.nodes.set('#dashboard-summary', summary);
   c.run("state.page='dashboard';renderDashboardSummary=data=>data.marker");
   const old = c.run('renderPage()');await c.run('renderPage()');finish();await old;
-  assert.equal(reads, 2);assert.equal(todoReads, 2);assert.equal(signal?.aborted, true);
-  assert.equal(summary.innerHTML, 'fresh');assert.equal(c.run('state.dashboard.marker'), 'fresh');
+  assert.equal(reads, 2);assert.equal(todoReads, 0);assert.equal(signal?.aborted, true);
+  assert.equal(c.nodes.get('#page-content').innerHTML, 'fresh');assert.equal(c.run('state.dashboard.marker'), 'fresh');
 });
 test('non-abort failures still reject and POST mutations are neither merged nor page-cancelled', async () => {
   let writes = 0, finish;

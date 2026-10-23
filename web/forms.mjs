@@ -8,6 +8,7 @@ import { state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { submitTodo } from "./pages/todos.mjs";
+import { submitTodoTemplateEdit, submitTodoTemplateForm } from "./pages/todo-templates.mjs";
 import { closeModal, openModal } from "./ui/modal.mjs";
 import { toast } from "./ui/toast.mjs";
 async function submitSaveViewForm({ data }) {
@@ -111,6 +112,12 @@ const forms = {
 };
 async function handleFormSubmit(event) {
   const form = event.target;
+  if (["todo-template-form", "todo-template-edit-form"].includes(form.id)) {
+    event.preventDefault();
+    const handler = form.id === "todo-template-form" ? submitTodoTemplateForm : submitTodoTemplateEdit;
+    await handler({ form, data: Object.fromEntries(new FormData(form)) });
+    return;
+  }
   if (form.id === "todo-form") {
     event.preventDefault();
     await submitTodo({ form, data: Object.fromEntries(new FormData(form)) });

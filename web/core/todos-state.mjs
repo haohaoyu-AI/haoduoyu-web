@@ -1,6 +1,6 @@
 import { bjtDate } from "./format.mjs";
 import { runtime, state } from "./state.mjs";
-const todosState = { owner: "", days: new Map(), today: "" };
+const todosState = { owner: "", days: new Map(), today: "", calendarMonth: "", calendarDate: "" };
 function todoOwner() {
   return JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null]);
 }
@@ -8,6 +8,8 @@ function resetTodos() {
   todosState.owner = todoOwner();
   todosState.days.clear();
   todosState.today = bjtDate();
+  todosState.calendarMonth = "";
+  todosState.calendarDate = "";
 }
 function validTodoDate(date) {
   if (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(date || "")) return false;
@@ -21,7 +23,7 @@ function todoDay(date = todoDate()) {
   if (todosState.owner !== todoOwner()) resetTodos();
   if (!todosState.days.has(date)) {
     todosState.days.set(date, { date, items: [], draft: "", create: null, adding: false, loading: false, loaded: false,
-      error: "", revision: 0, sequence: 0, updates: new Map() });
+      error: "", notice: "", noticeVersion: 0, revision: 0, sequence: 0, updates: new Map(), templateCreates: new Map() });
   }
   return todosState.days.get(date);
 }

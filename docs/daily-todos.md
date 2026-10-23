@@ -1,6 +1,12 @@
 # 每日待办
 
-桌面首页顶部直接填写今日计划；手机无明确页面目标时默认进入待办，登录后保留该目标，明确深链接仍直达原页面。导航中的“每日待办”可按日期查看和补充记录。日期统一使用北京时间（UTC+8），完成后文字划线，可取消完成。跨日显示新一天的清单，旧日事项及勾选状态留在原日期，不删除、不自动搬移未完成项。没有提醒、定时服务、外部服务或付费依赖。
+手机和桌面无明确页面目标时均直接打开独立待办页，登录后保留该目标，明确深链接仍直达原页面。待办不嵌入自媒体总览，也不同时请求统计数据。首屏可直接填写、圆形勾选或取消完成；不自动聚焦唤起手机键盘。
+
+日期统一使用北京时间（UTC+8）。紧凑“历史记录”入口展开月历，可切换月份并查看、补记过去或提前填写未来日期。跨日自然显示新一天的清单，旧日事项及勾选状态留在原日期，不删除、不搬移未完成项。没有提醒、重复计划、定时服务、外部服务或付费依赖。
+
+“常用”入口按需展开，支持新增、改名、软删除和手动加入当前选中日期。模板通过稳定 ID 关联每日事项；改名不改历史正文，删除不删除历史及完成记录。手动调用模板保留尚未提交的输入，不自动每日生成。
+
+习惯状态仅显示在“常用”中：按北京时间截至今天（含今天）的近 30 个自然日 `[今天−29, 今天]`，完成的不同日期达到 21 天即为“习惯”，不足为“待办”。同日多个完成事项只计一天，未来日期不计；补记、取消完成和跨日后读取会重新计算，没有额外的连续七天降级条件。这是产品规则，不是习惯形成的科学结论。
 
 ## 手机显示与切换
 
@@ -12,16 +18,18 @@
 
 - `matrix_todos` 是独立新增表，按现有登录用户 ID 和日期查询。通过原有 Cookie/CSRF 验证；API key 不可读写待办。
 - `GET /api/v1/todos?date=YYYY-MM-DD` 返回 `{date,today,items}`；省略日期使用服务端北京时间今天。
-- `POST /api/v1/todos` 接收 `{id,date,text}`。客户端固定 UUID 在请求结果不确定时重复提交只产生一条记录；同 ID 不同内容返回 409。
+- `POST /api/v1/todos` 接收 `{id,date,text}`，从常用事项添加时附带 `template_id`。客户端固定 UUID 在请求结果不确定时重复提交只产生一条记录；同 ID 不同内容或关联返回 409。
 - `PATCH /api/v1/todos/:id` 接收 `{completed,version}`。显式状态和版本条件防止迟到/重复请求覆盖新状态；版本冲突返回 409，界面重新读取后提示。
 - 内容最长 500 个 UTF-16 单元，必须非空。日期必须是有效的四位年份 `YYYY-MM-DD`，允许历史和未来日期。
 - 未新增删除、移动、编辑正文接口；未修改原有用户、账号、登录防护、环境变量或业务表语义。
+- `GET/POST /api/v1/todo-templates` 和 `PATCH/DELETE /api/v1/todo-templates/:id` 复用相同用户隔离、Cookie/CSRF 验证；API key 无权访问。模板新增使用 UUID 幂等，修改/软删除使用版本条件；已删除 ID 不可复活。
+- 勾选/取消立即显示目标状态和“保存中”，失败回滚至已保存状态并显示错误；添加失败保留输入与重试 ID。写入不自动重放，发生冲突先读取已保存状态。
 
 ## 迁移、备份和回滚
 
-原始 `0000_lively_stellaris.sql` 和其快照保持不变；追加由 Drizzle 生成的 `0001_daily_todos.sql`，只包含 `CREATE TABLE` 与 `CREATE INDEX`。Sites 发布会在上传 Worker 前应用待执行迁移。不能通过清空数据库来初始化本模块。
+原始 `0000_lively_stellaris.sql` 和其快照保持不变。`0001_daily_todos.sql` 新增每日事项；后续 `0002_todo_templates.sql` 仅新增模板和关联表，不改写 0000/0001，只包含 `CREATE TABLE` 与 `CREATE INDEX`。Sites 发布会在上传 Worker 前应用待执行迁移。不能通过清空数据库来初始化本模块。
 
-备份升级为 `haoduoyu-matrix-d1-v2` 并包含待办。HTTP 管理员备份只附带当前登录用户的待办，其余旧表仍按原有范围导出；仅供运维调用的 `exportBackup(db)` 保留完整导出能力。恢复仍限空的隔离目标，兼容 v1 旧备份（恢复后待办为空），v2 缺表或校验和错误会拒绝。
+备份升级为 `haoduoyu-matrix-d1-v3`，包含待办、模板（包括软删除）和关联。HTTP 管理员备份仅附带当前用户的这三张私有表记录，其余旧表仍按原有范围导出；仅供运维调用的 `exportBackup(db)` 保留完整导出能力。恢复仍限空隔离目标，兼容 v1（待办及模板为空）、v2（保留待办，模板为空）；缺表、校验和错误或非空目标会拒绝。
 
 上线前保留当前 **Sites v8**：
 
@@ -33,7 +41,7 @@
 
 ## 验证入口
 
-合成后端用例：`tests/daily-todos.test.mjs`；备份：`tests/daily-todos-backup.test.mjs`；前端行为：`tests/daily-todos-ui.test.mjs`。真实 Chromium 验收使用 `tests/daily-todos-browser-server.mjs` 和 `tests/browser-daily-todos.py`，只读写独立回环合成 D1，截图与原始报告留在忽略的 `artifacts/daily-todos/`。结果以最终精确提交的记录为准。
+合成后端用例：`tests/daily-todos.test.mjs`、`tests/todo-templates.test.mjs`；备份：对应的 `*-backup.test.mjs`；前端行为：`tests/daily-todos-ui.test.mjs`。当前整合版真实 Chromium 验收使用 `tests/daily-todos-browser-server.mjs` 和 `tests/browser-daily-todos-minimal.py`，只读写独立回环合成 D1。结果以最终精确提交记录为准；以下早期记录只描述各自绑定版本。
 
 ## 本地浏览器验收
 
