@@ -39,9 +39,9 @@ function validate(input,method) {
   return result;
 }
 
-async function describe(store,userId,value) {
+export async function describeTemplate(store,userId,value) {
   const {today,window_start}=templateWindow();
-  const count=await store.get('SELECT count(DISTINCT d.date) AS completed_days FROM matrix_todo_template_links AS l JOIN matrix_todos AS d ON d.user_id=l.user_id AND d.id=l.todo_id WHERE l.user_id=? AND l.template_id=? AND d.completed=1 AND d.date>=? AND d.date<=?',userId,value.id,window_start,today);
+  const count=await store.get('SELECT count(DISTINCT d.date) AS completed_days FROM matrix_todo_template_links AS l JOIN matrix_todos AS d ON d.user_id=l.user_id AND d.id=l.todo_id WHERE l.user_id=? AND l.template_id=? AND d.completed=1 AND d.deleted_at IS NULL AND d.date>=? AND d.date<=?',userId,value.id,window_start,today);
   return item({...value,completed_days:count.completed_days});
 }
 
@@ -50,7 +50,7 @@ async function readTemplates(db,request,initialRevision) {
     const actor=await authenticate(store,request);requireAdmin(actor);
     if(new URL(request.url).search) throw fail(400,'VALIDATION_ERROR','模板查询不接受查询参数');
     const window=templateWindow();
-    const rows=await store.all('SELECT t.id,t.text,t.version,t.created_at,t.updated_at,count(DISTINCT CASE WHEN d.completed=1 AND d.date>=? AND d.date<=? THEN d.date END) AS completed_days FROM matrix_todo_templates AS t LEFT JOIN matrix_todo_template_links AS l ON l.user_id=t.user_id AND l.template_id=t.id LEFT JOIN matrix_todos AS d ON d.user_id=l.user_id AND d.id=l.todo_id WHERE t.user_id=? AND t.deleted_at IS NULL GROUP BY t.user_id,t.id ORDER BY t.created_at,t.rowid',window.window_start,window.today,actor.id);
+    const rows=await store.all('SELECT t.id,t.text,t.version,t.created_at,t.updated_at,count(DISTINCT CASE WHEN d.completed=1 AND d.deleted_at IS NULL AND d.date>=? AND d.date<=? THEN d.date END) AS completed_days FROM matrix_todo_templates AS t LEFT JOIN matrix_todo_template_links AS l ON l.user_id=t.user_id AND l.template_id=t.id LEFT JOIN matrix_todos AS d ON d.user_id=l.user_id AND d.id=l.todo_id WHERE t.user_id=? AND t.deleted_at IS NULL GROUP BY t.user_id,t.id ORDER BY t.created_at,t.rowid',window.window_start,window.today,actor.id);
     return json({...window,items:rows.map(item)});
   },initialRevision);
 }
@@ -61,7 +61,7 @@ async function createTemplate(store,actor,input) {
     if(current.deleted_at!==null) throw fail(410,'TEMPLATE_DELETED','模板已删除，请使用新的标识创建');
     if(current.text!==input.text) throw fail(409,'IDEMPOTENCY_CONFLICT','同一模板标识已经用于不同内容');
     const {deleted_at,...value}=current;
-    return {replayed:true,response:json(await describe(store,actor.id,value))};
+    return {replayed:true,response:json(await describeTemplate(store,actor.id,value))};
   }
   const stamp=now(),value={...input,version:1,created_at:stamp,updated_at:stamp};
   store.queue('INSERT INTO matrix_todo_templates(user_id,id,text,version,created_at,updated_at) VALUES(?,?,?,1,?,?)',actor.id,input.id,input.text,stamp,stamp);
@@ -81,7 +81,7 @@ async function changeTemplate(store,actor,id,input,method) {
   store.queue('UPDATE matrix_todo_templates SET text=?,updated_at=?,version=version+1 WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',input.text,stamp,actor.id,id,input.version);
   store.expectChange();
   const value={...current,text:input.text,version:current.version+1,updated_at:stamp};
-  return {actor,response:json(await describe(store,actor.id,value))};
+  return {actor,response:json(await describeTemplate(store,actor.id,value))};
 }
 
 export async function handleTodoTemplates(db,request,route,origin,initialRevision) {

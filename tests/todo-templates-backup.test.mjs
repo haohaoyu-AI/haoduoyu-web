@@ -10,6 +10,17 @@ import {legacyBackupEnvelope} from './todo-backup-projection.mjs';
 
 const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
+function versionData(input,version) {
+  const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<4) {
+    delete data.tables.todo_preferences;
+    for(const row of data.tables.todos) delete row.deleted_at;
+    for(const row of data.tables.todo_template_links) delete row.created_with_todo;
+  }
+  if(version<3) {delete data.tables.todo_templates;delete data.tables.todo_template_links;}
+  if(version<2) delete data.tables.todos;
+  return data;
+}
 async function sourceWithTemplates(t) {
   const app=await fixture(t),session=await app.login();
   const owner=(await app.request('/api/v1/auth/me',{session})).data.id;
@@ -28,13 +39,13 @@ async function sourceWithTemplates(t) {
   return {...app,session,owner,other};
 }
 
-test('v3 HTTP backup scopes all private tables while operator restore preserves deleted templates and links',async t=>{
+test('v4 HTTP backup scopes template tables while operator restore preserves deleted templates and links',async t=>{
   const source=await sourceWithTemplates(t);
   const response=await worker.fetch(new Request(source.origin+'/api/v1/backup',{headers:{Cookie:source.session.cookie}}),
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v3');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v4');
   for(const name of ['todos','todo_templates','todo_template_links']) {
     assert.equal(http.data.tables[name].length,1);
     assert.equal(http.data.tables[name][0].user_id,source.owner);
@@ -58,8 +69,7 @@ test('v3 HTTP backup scopes all private tables while operator restore preserves 
 });
 
 test('v2 restores retain todo history but create no template records in the upgraded schema',async t=>{
-  const source=await sourceWithTemplates(t),data=structuredClone((await exportBackup(source.db)).data);
-  data.format='haoduoyu-matrix-d1-v2';delete data.tables.todo_templates;delete data.tables.todo_template_links;
+  const source=await sourceWithTemplates(t),data=versionData((await exportBackup(source.db)).data,2);
   const target=await fixture(t,{bootstrap:false});
   const result=await restoreIntoEmptyDatabase(target.db,sign(data),{allowEmptyRestore:true});
   assert.equal(result.counts.todo_templates,0);assert.equal(result.counts.todo_template_links,0);assert.equal(result.counts.todos,2);assert.equal(result.counts.accounts,3);
@@ -87,10 +97,8 @@ test('template backup validation rejects missing tables, extra columns and tampe
 
 test('all backup versions check that both new template tables are empty before any write',async t=>{
   const source=await fixture(t),backup=await exportBackup(source.db);
-  for(const version of [1,2,3]) for(const nonempty of ['matrix_todo_templates','matrix_todo_template_links']) {
-    const data=structuredClone(backup.data);data.format='haoduoyu-matrix-d1-v'+version;
-    if(version<3) {delete data.tables.todo_templates;delete data.tables.todo_template_links;}
-    if(version<2) delete data.tables.todos;
+  for(const version of [1,2,3,4]) for(const nonempty of ['matrix_todo_templates','matrix_todo_template_links']) {
+    const data=versionData(backup.data,version);
     let writes=0,templateChecks=0;
     const target={prepare(sql) {
       if(sql==='SELECT count(*) AS n FROM '+nonempty) return {bind() {return this;},async first() {templateChecks++;return {n:1};}};
@@ -117,10 +125,12 @@ test('legacy backup projection verifies checksums and refuses populated or missi
   assert.equal(projected.data.data.format,'haoduoyu-matrix-d1-v1');
   assert.equal(Object.hasOwn(projected.data.data.tables,'todo_templates'),false);
   assert.equal(Object.hasOwn(projected.data.data.tables,'todo_template_links'),false);
+  assert.equal(Object.hasOwn(projected.data.data.tables,'todo_preferences'),false);
   assert.equal(Object.hasOwn(projected.data.data.tables,'todos'),false);
-  const v2=structuredClone(backup.data);v2.format='haoduoyu-matrix-d1-v2';delete v2.tables.todo_templates;delete v2.tables.todo_template_links;
+  const v2=versionData(backup.data,2);
   assert.deepEqual(legacyBackupEnvelope({data:sign(v2)}),projected);
-  for(const name of ['todos','todo_templates','todo_template_links']) {
+  assert.deepEqual(legacyBackupEnvelope({data:sign(versionData(backup.data,3))}),projected);
+  for(const name of ['todos','todo_templates','todo_template_links','todo_preferences']) {
     const populated=structuredClone(backup.data);populated.tables[name]=[{id:'synthetic'}];
     assert.throws(()=>legacyBackupEnvelope({data:sign(populated)}));
     const missing=structuredClone(backup.data);delete missing.tables[name];

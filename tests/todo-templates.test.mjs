@@ -234,10 +234,11 @@ test('0002 appends template tables while preserving every preexisting schema and
   const sql="SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE tbl_name LIKE 'matrix_%' ORDER BY name";
   const before=(await app.db.prepare(sql).all()).results,tables=before.filter(row=>row.type==='table').map(row=>row.name),rows=new Map();
   for(const table of tables) rows.set(table,(await app.db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results);
-  await applyFixtureMigrations(app.db);await applyFixtureMigrations(app.db);
+  await applyFixtureMigrations(app.db,{through:3});await applyFixtureMigrations(app.db,{through:3});
   const after=(await app.db.prepare(sql).all()).results;
   assert.deepEqual(after.filter(row=>!['matrix_todo_templates','matrix_todo_template_links'].includes(row.tbl_name)),before);
   for(const table of tables) assert.deepEqual((await app.db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results,rows.get(table),table);
   assert.equal((await app.db.prepare('PRAGMA foreign_key_check').all()).results.length,0);
+  await applyFixtureMigrations(app.db);
   assert.deepEqual((await list(app)).data.items,[]);
 });

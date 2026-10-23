@@ -35,7 +35,7 @@ test('todos create once per user UUID, replay the current item, and keep complet
   const app=await setup(t),body=input({text:'  完成今天的计划  '}),before=await revision(app.db);
   const created=await create(app,app.session,body);
   assert.equal(created.status,201,created.text);
-  assert.deepEqual(Object.keys(created.data).sort(),['id','date','text','completed','version','created_at','updated_at'].sort());
+  assert.deepEqual(Object.keys(created.data).sort(),['id','date','text','completed','version','created_at','updated_at','deleted_at'].sort());
   assert.equal(created.data.completed,false);assert.equal(created.data.version,1);
   assert.equal(created.data.text,body.text.trim());assert.equal(await revision(app.db),before+1);
   const replay=await create(app,app.session,{...body,id:body.id.toUpperCase()});

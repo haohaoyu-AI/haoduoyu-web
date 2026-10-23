@@ -8,9 +8,10 @@ import { stable } from './security.mjs';
 const columns={
   accounts:['id','platform','name','active','created_at'],
   users:['id','username','password_hash','created_at'],
-  todos:['user_id','id','date','text','completed','version','created_at','updated_at'],
+  todos:['user_id','id','date','text','completed','version','created_at','updated_at','deleted_at'],
   todo_templates:['user_id','id','text','version','created_at','updated_at','deleted_at'],
-  todo_template_links:['user_id','todo_id','template_id'],
+  todo_template_links:['user_id','todo_id','template_id','created_with_todo'],
+  todo_preferences:['user_id','completed_mode','version','updated_at'],
   articles:['id','account_id','title','url','platform_article_id','published_at','started_at','production_mode','summary','notes','version','created_at','updated_at'],
   observations:['id','article_id','as_of','collected_at','kind','metrics_json','source','note','created_at'],
   daily_metrics:['id','account_id','article_id','date','metrics_json','source','updated_at'],
@@ -18,10 +19,17 @@ const columns={
   audit:['id','actor','action','entity_id','detail_json','created_at'],
   idempotency:['actor','key','request_hash','response_json','status','created_at'],
 };
-const privateTables=new Set(['todos','todo_templates','todo_template_links']);
+const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences']);
 const backupTable=name=>privateTables.has(name)?'matrix_'+name:name;
 const legacyColumns=Object.fromEntries(Object.entries(columns).filter(([name])=>!privateTables.has(name)));
-const v2Columns=Object.fromEntries(Object.entries(columns).filter(([name])=>!['todo_templates','todo_template_links'].includes(name)));
+const v3Columns=Object.fromEntries(Object.entries(columns).filter(([name])=>name!=='todo_preferences')
+  .map(([name,fields])=>[name,name==='todos'?fields.filter(field=>field!=='deleted_at'):
+    name==='todo_template_links'?fields.filter(field=>field!=='created_with_todo'):fields]));
+const v2Columns=Object.fromEntries(Object.entries(v3Columns).filter(([name])=>!['todo_templates','todo_template_links'].includes(name)));
+const versionColumns=new Map([
+  ['haoduoyu-matrix-d1-v1',legacyColumns],['haoduoyu-matrix-d1-v2',v2Columns],
+  ['haoduoyu-matrix-d1-v3',v3Columns],['haoduoyu-matrix-d1-v4',columns],
+]);
 export async function exportBackup(db,{todoUserId}={}) {
   const data=await consistentRead(db,async store=>{
     const tables={};
@@ -30,23 +38,31 @@ export async function exportBackup(db,{todoUserId}={}) {
       tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
         ...(scoped?[todoUserId]:[]));
     }
-    return {format:'haoduoyu-matrix-d1-v3',exported_at:new Date().toISOString(),tables};
+    return {format:'haoduoyu-matrix-d1-v4',exported_at:new Date().toISOString(),tables};
   });
   return {data,sha256:digest(JSON.stringify(stable(data)))};
 }
 export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=false}={}) {
   // Operator-only utility, deliberately not exposed as a Worker HTTP route.
   if(!allowEmptyRestore) throw fail(403,'RESTORE_DISABLED','恢复只允许在显式指定的空隔离数据库执行');
-  if(!['haoduoyu-matrix-d1-v1','haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3'].includes(backup?.data?.format)||backup.sha256!==digest(JSON.stringify(stable(backup.data)))) throw fail(400,'INVALID_BACKUP','备份格式或校验和无效');
-  const expected=backup.data.format==='haoduoyu-matrix-d1-v1'?legacyColumns:backup.data.format==='haoduoyu-matrix-d1-v2'?v2Columns:columns;
+  if(!versionColumns.has(backup?.data?.format)||backup.sha256!==digest(JSON.stringify(stable(backup.data)))) throw fail(400,'INVALID_BACKUP','备份格式或校验和无效');
+  const expected=versionColumns.get(backup.data.format);
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
-  const tables={todos:[],todo_templates:[],todo_template_links:[],...supplied};
-  for(const [name,fields] of Object.entries(columns)) {
+  const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],...supplied};
+  for(const [name,fields] of Object.entries(expected)) {
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {
-      if(!row||Object.keys(row).sort().join(',')!==[...fields].sort().join(',')||fields.some(field=>row[field]!==null&&!['string','number'].includes(typeof row[field]))) throw fail(400,'INVALID_BACKUP','备份列格式无效');
+      if(!row||Object.keys(row).sort().join(',')!==[...fields].sort().join(',')||fields.some(field=>row[field]!==null&&!['string','number'].includes(typeof row[field]))||
+        name==='todo_template_links'&&expected===columns&&![0,1].includes(row.created_with_todo)) throw fail(400,'INVALID_BACKUP','备份列格式无效');
     }
+  }
+  // Validate the exact historic columns before introducing compatibility defaults.
+  if(expected!==columns) {
+    tables.todos=tables.todos.map(row=>({...row,deleted_at:null}));
+    tables.todo_template_links=tables.todo_template_links.map(row=>({...row,created_with_todo:1}));
+  }
+  for(const name of Object.keys(columns)) {
     const count=await statement(db,`SELECT count(*) AS n FROM ${backupTable(name)}`).first();
     if(count.n) throw fail(409,'RESTORE_NOT_EMPTY','恢复目标必须为空，禁止覆盖现有数据');
   }
