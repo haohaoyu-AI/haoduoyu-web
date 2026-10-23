@@ -1,5 +1,7 @@
 # 变更记录：v8与固定历史快照
 
+- 阶段7局部补证：审计页使用两套新合成库、各一次真实登录，四宽4/4逐像素相同；保留原47/56、未解释超时和另5处控件差异。更正Playwright缓存缺失与系统Chromium可用的区别。产品未改、未重新部署。详见[补证](audit-visual-closure.md)。
+
 ## 2026-10-23：v8已部署，整轮指标仍有未通过项
 
 - 经具体批准发布产品输入GitHub `ce18a7b7a09f8acbfb9fe7c397b97e5d87a20ac6`；Sites正式源 `e7765af3c6d4b87ed39de7831db2962db9c826d9`，内容树一致。[固定来源CI](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/39893971392)256/256、资源/双预览通过。

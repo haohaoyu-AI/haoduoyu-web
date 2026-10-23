@@ -89,6 +89,13 @@
       "page_build_identifier_available": false,
       "evidence_location": "parent workspace; screenshots, AX, console and verification.json retained privately; not read by deployment executor",
       "privacy": "production metrics and business timestamps omitted from public summary"
+    },
+    "browser_capability_correction": {
+      "observed_at_utc": "2026-10-23T08:50:02.540082+00:00",
+      "original_probe_scope": "Playwright default executable_path cache only; the original absent-existing-Chromium wording was too broad",
+      "system_chromium": "/usr/bin/chromium exists, version 154.0.8037.57",
+      "actual_followup": "used only for fresh loopback synthetic audit screenshots; no production-browser retry or proxy bypass",
+      "release_browser_header_checks": "remain unverified by executor"
     }
   },
   "limitations": {
