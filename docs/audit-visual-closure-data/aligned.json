@@ -1,0 +1,1565 @@
+{
+  "status": "complete",
+  "synthetic": true,
+  "clock": "2026-10-22T08:00:00.000Z",
+  "widths": [
+    375,
+    390,
+    768,
+    1440
+  ],
+  "started_at_utc": "2026-10-23T08:50:02.540082+00:00",
+  "current_main": "6544c716cff413b35defc5c633ee8e541805924c",
+  "snapshot": "dc598ac1c1b53303500e2313965c3f980d94d0ad",
+  "baseline": "a1babd8558d7869ab61fe6bc463615a04eec6eb9",
+  "fresh_server": true,
+  "frontend_unchanged_since_snapshot": true,
+  "tool_sha256": "42e3918f3c6e0f32cd84e291001044fa4c4dbaec33774f20e5bbcf1287555c1e",
+  "server_sha256": "741eb1b48a16465baefa28fbedcefef53b1897d20124aab01f9758e96b5e498d",
+  "worker_sha256": "8f10891b0aa651699ab8117f62b13b096804e8bae031046040d3bfbbea9324e6",
+  "frontend_sha256": {
+    "public/app.js": "d0aa922b0004b525ba7566aebe7c1075b23653a01b26adcc6285333dff6ddbdc",
+    "public/style.css": "a6ac10f72e57fab540ef86c6eecc219c0bb98504df6e079bcd85b6f63c35915c",
+    "public/index.html": "0672159ba31ebecba0eb4a9b1328ca9222cb6aa3753f0ec729ff8fe5e8bf4336"
+  },
+  "variants": [
+    {
+      "variant": "baseline",
+      "successful_logins": 1,
+      "audit_projection": [
+        {
+          "action": "auth.login",
+          "created_at": "2026-10-22T08:00:00.000Z",
+          "entity_id": null,
+          "entity_label": null,
+          "detail": {},
+          "actor_is_current_user": true
+        }
+      ],
+      "captures": [
+        {
+          "width": 375,
+          "file": "baseline-audit-375.png",
+          "bytes": 17566,
+          "sha256": "508fcfabed59d5cc8c8729c651817fa2861174a4d4ee3838969f9ccd21de71ea"
+        },
+        {
+          "width": 390,
+          "file": "baseline-audit-390.png",
+          "bytes": 17664,
+          "sha256": "53c251c8b96ecad1112256b5250e50746fb54389c7856808c5a7d0b165df0df0"
+        },
+        {
+          "width": 768,
+          "file": "baseline-audit-768.png",
+          "bytes": 21015,
+          "sha256": "1585fb62e138d33c4723ed7d0ff7e32874f670ff00df0ae1a56ad1bc9476fb43"
+        },
+        {
+          "width": 1440,
+          "file": "baseline-audit-1440.png",
+          "bytes": 30440,
+          "sha256": "30043799e90325628e9e972846c9572085b8cf33be2c5f0b829e469cb137b0c3"
+        }
+      ],
+      "app_sha256": "af755e895c9df0f0df9a594c3d011d9e81a45ed287826cd06a0d8f295726e646"
+    },
+    {
+      "variant": "candidate",
+      "successful_logins": 1,
+      "audit_projection": [
+        {
+          "action": "auth.login",
+          "created_at": "2026-10-22T08:00:00.000Z",
+          "entity_id": null,
+          "entity_label": null,
+          "detail": {},
+          "actor_is_current_user": true
+        }
+      ],
+      "captures": [
+        {
+          "width": 375,
+          "file": "candidate-audit-375.png",
+          "bytes": 17566,
+          "sha256": "508fcfabed59d5cc8c8729c651817fa2861174a4d4ee3838969f9ccd21de71ea"
+        },
+        {
+          "width": 390,
+          "file": "candidate-audit-390.png",
+          "bytes": 17664,
+          "sha256": "53c251c8b96ecad1112256b5250e50746fb54389c7856808c5a7d0b165df0df0"
+        },
+        {
+          "width": 768,
+          "file": "candidate-audit-768.png",
+          "bytes": 21015,
+          "sha256": "1585fb62e138d33c4723ed7d0ff7e32874f670ff00df0ae1a56ad1bc9476fb43"
+        },
+        {
+          "width": 1440,
+          "file": "candidate-audit-1440.png",
+          "bytes": 30440,
+          "sha256": "30043799e90325628e9e972846c9572085b8cf33be2c5f0b829e469cb137b0c3"
+        }
+      ],
+      "app_sha256": "d0aa922b0004b525ba7566aebe7c1075b23653a01b26adcc6285333dff6ddbdc"
+    }
+  ],
+  "pairs": [
+    {
+      "width": 375,
+      "size": [
+        375,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "width": 390,
+      "size": [
+        390,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "width": 768,
+      "size": [
+        768,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    },
+    {
+      "width": 1440,
+      "size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 0,
+      "max_channel_delta": 0,
+      "bbox": null,
+      "exact": true
+    }
+  ],
+  "diagnostics": [],
+  "csp_events": [],
+  "stage": "candidate-audit-1440",
+  "browser_version": "154.0.8037.57",
+  "receipts": {
+    "baseline": [
+      {
+        "seq": 0,
+        "variant": "baseline",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 1,
+        "variant": "baseline",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 27950,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 2,
+        "variant": "baseline",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115029,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 3,
+        "variant": "baseline",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 401,
+        "bytes": 58,
+        "d1": {
+          "sql": 2,
+          "write_statements": 0,
+          "rows_read": 2,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 4,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 5,
+        "variant": "baseline",
+        "path": "/api/v1/auth/login",
+        "method": "POST",
+        "status": 200,
+        "bytes": 118,
+        "d1": {
+          "sql": 15,
+          "write_statements": 10,
+          "rows_read": 16,
+          "rows_written": 14
+        }
+      },
+      {
+        "seq": 6,
+        "variant": "baseline",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 7,
+        "variant": "baseline",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 8,
+        "variant": "baseline",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 9,
+        "variant": "baseline",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 10,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 11,
+        "variant": "baseline",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 12,
+        "variant": "baseline",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 13,
+        "variant": "baseline",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 14,
+        "variant": "baseline",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 27950,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 15,
+        "variant": "baseline",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115029,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 16,
+        "variant": "baseline",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 17,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 18,
+        "variant": "baseline",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 19,
+        "variant": "baseline",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 20,
+        "variant": "baseline",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 21,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 22,
+        "variant": "baseline",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 23,
+        "variant": "baseline",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 27950,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 24,
+        "variant": "baseline",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115029,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 25,
+        "variant": "baseline",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 26,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 27,
+        "variant": "baseline",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 28,
+        "variant": "baseline",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 29,
+        "variant": "baseline",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 30,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 31,
+        "variant": "baseline",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 32,
+        "variant": "baseline",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 27950,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 33,
+        "variant": "baseline",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115029,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 34,
+        "variant": "baseline",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 35,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 36,
+        "variant": "baseline",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 37,
+        "variant": "baseline",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 38,
+        "variant": "baseline",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 39,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 40,
+        "variant": "baseline",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 41,
+        "variant": "baseline",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 27950,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 42,
+        "variant": "baseline",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115029,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 43,
+        "variant": "baseline",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 44,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 45,
+        "variant": "baseline",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 46,
+        "variant": "baseline",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 47,
+        "variant": "baseline",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 48,
+        "variant": "baseline",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 49,
+        "variant": "baseline",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115029,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      }
+    ],
+    "candidate": [
+      {
+        "seq": 0,
+        "variant": "candidate",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 1,
+        "variant": "candidate",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 28000,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 2,
+        "variant": "candidate",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115637,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 3,
+        "variant": "candidate",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 401,
+        "bytes": 58,
+        "d1": {
+          "sql": 2,
+          "write_statements": 0,
+          "rows_read": 2,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 4,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 5,
+        "variant": "candidate",
+        "path": "/api/v1/auth/login",
+        "method": "POST",
+        "status": 200,
+        "bytes": 118,
+        "d1": {
+          "sql": 15,
+          "write_statements": 10,
+          "rows_read": 16,
+          "rows_written": 14
+        }
+      },
+      {
+        "seq": 6,
+        "variant": "candidate",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 7,
+        "variant": "candidate",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 8,
+        "variant": "candidate",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 9,
+        "variant": "candidate",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 10,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 11,
+        "variant": "candidate",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 12,
+        "variant": "candidate",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 13,
+        "variant": "candidate",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 14,
+        "variant": "candidate",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 28000,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 15,
+        "variant": "candidate",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115637,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 16,
+        "variant": "candidate",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 17,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 18,
+        "variant": "candidate",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 19,
+        "variant": "candidate",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 20,
+        "variant": "candidate",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 21,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 22,
+        "variant": "candidate",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 23,
+        "variant": "candidate",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 28000,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 24,
+        "variant": "candidate",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115637,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 25,
+        "variant": "candidate",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 26,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 27,
+        "variant": "candidate",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 28,
+        "variant": "candidate",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 29,
+        "variant": "candidate",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 30,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 31,
+        "variant": "candidate",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 32,
+        "variant": "candidate",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 28000,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 33,
+        "variant": "candidate",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115637,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 34,
+        "variant": "candidate",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 35,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 36,
+        "variant": "candidate",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 37,
+        "variant": "candidate",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 38,
+        "variant": "candidate",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 39,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 40,
+        "variant": "candidate",
+        "path": "/?page=settings&tab=log",
+        "method": "GET",
+        "status": 200,
+        "bytes": 837,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 41,
+        "variant": "candidate",
+        "path": "/style.css",
+        "method": "GET",
+        "status": 200,
+        "bytes": 28000,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 42,
+        "variant": "candidate",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115637,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 43,
+        "variant": "candidate",
+        "path": "/api/v1/auth/me",
+        "method": "GET",
+        "status": 200,
+        "bytes": 162,
+        "d1": {
+          "sql": 3,
+          "write_statements": 0,
+          "rows_read": 4,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 44,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 45,
+        "variant": "candidate",
+        "path": "/api/v1/accounts",
+        "method": "GET",
+        "status": 200,
+        "bytes": 528,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 12,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 46,
+        "variant": "candidate",
+        "path": "/api/v1/audit",
+        "method": "GET",
+        "status": 200,
+        "bytes": 219,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 47,
+        "variant": "candidate",
+        "path": "/api/v1/api-keys",
+        "method": "GET",
+        "status": 200,
+        "bytes": 11,
+        "d1": {
+          "sql": 4,
+          "write_statements": 0,
+          "rows_read": 6,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 48,
+        "variant": "candidate",
+        "path": "/favicon.svg",
+        "method": "GET",
+        "status": 200,
+        "bytes": 245,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      },
+      {
+        "seq": 49,
+        "variant": "candidate",
+        "path": "/app.js",
+        "method": "GET",
+        "status": 200,
+        "bytes": 115637,
+        "d1": {
+          "sql": 0,
+          "write_statements": 0,
+          "rows_read": 0,
+          "rows_written": 0
+        }
+      }
+    ]
+  }
+}

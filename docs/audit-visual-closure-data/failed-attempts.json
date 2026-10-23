@@ -1,0 +1,153 @@
+{
+  "scope": "test driver and local execution; not product regression conclusions",
+  "original_47_of_56_unchanged": true,
+  "attempts": [
+    {
+      "directory": "attempt-1",
+      "original_report_sha256": "5593bc8a31969f784a88e06a78681e5fa5486eb571b06e7d6270214b1d70db17",
+      "report": {
+        "status": "failed",
+        "synthetic": true,
+        "clock": "2026-10-22T08:00:00.000Z",
+        "widths": [
+          375,
+          390,
+          768,
+          1440
+        ],
+        "started_at_utc": "2026-10-23T08:46:26.838226+00:00",
+        "current_main": "6544c716cff413b35defc5c633ee8e541805924c",
+        "snapshot": "dc598ac1c1b53303500e2313965c3f980d94d0ad",
+        "baseline": "a1babd8558d7869ab61fe6bc463615a04eec6eb9",
+        "fresh_server": true,
+        "frontend_unchanged_since_snapshot": true,
+        "tool_sha256": "ca6445197927e2442bd0ee40dad6fc3ffbf7231cf648553718bc8d2b19c74328",
+        "server_sha256": "741eb1b48a16465baefa28fbedcefef53b1897d20124aab01f9758e96b5e498d",
+        "worker_sha256": "8f10891b0aa651699ab8117f62b13b096804e8bae031046040d3bfbbea9324e6",
+        "frontend_sha256": {
+          "public/app.js": "d0aa922b0004b525ba7566aebe7c1075b23653a01b26adcc6285333dff6ddbdc",
+          "public/style.css": "a6ac10f72e57fab540ef86c6eecc219c0bb98504df6e079bcd85b6f63c35915c",
+          "public/index.html": "0672159ba31ebecba0eb4a9b1328ca9222cb6aa3753f0ec729ff8fe5e8bf4336"
+        },
+        "variants": [],
+        "pairs": [],
+        "diagnostics": [],
+        "csp_events": [],
+        "browser_version": "154.0.8037.57",
+        "failure": {
+          "type": "AssertionError",
+          "message": "Locator expected to have text '登录 ×1'\nActual value: 登录网站 ×1 \nCall log:\n  - Expect \"to_have_text\" with timeout 5000ms\n  - waiting for locator(\".audit-item strong\")\n    14 × locator resolved to <strong>登录网站 ×1</strong>\n       - unexpected value \"登录网站 ×1\"\n\nAria snapshot:\n- strong: 登录网站 ×1"
+        }
+      },
+      "preserved_images": []
+    },
+    {
+      "directory": "aligned",
+      "original_report_sha256": "db41cb6659374a5933eeb39605d2298a2fb77b1dde8cfa4fa94cdf70041f628c",
+      "report": {
+        "status": "failed",
+        "synthetic": true,
+        "clock": "2026-10-22T08:00:00.000Z",
+        "widths": [
+          375,
+          390,
+          768,
+          1440
+        ],
+        "started_at_utc": "2026-10-23T08:47:40.376016+00:00",
+        "current_main": "6544c716cff413b35defc5c633ee8e541805924c",
+        "snapshot": "dc598ac1c1b53303500e2313965c3f980d94d0ad",
+        "baseline": "a1babd8558d7869ab61fe6bc463615a04eec6eb9",
+        "fresh_server": true,
+        "frontend_unchanged_since_snapshot": true,
+        "tool_sha256": "68ea457039549a7eec3f2aee11da058a4447755e19d6b477a82c0646c033bfa2",
+        "server_sha256": "741eb1b48a16465baefa28fbedcefef53b1897d20124aab01f9758e96b5e498d",
+        "worker_sha256": "8f10891b0aa651699ab8117f62b13b096804e8bae031046040d3bfbbea9324e6",
+        "frontend_sha256": {
+          "public/app.js": "d0aa922b0004b525ba7566aebe7c1075b23653a01b26adcc6285333dff6ddbdc",
+          "public/style.css": "a6ac10f72e57fab540ef86c6eecc219c0bb98504df6e079bcd85b6f63c35915c",
+          "public/index.html": "0672159ba31ebecba0eb4a9b1328ca9222cb6aa3753f0ec729ff8fe5e8bf4336"
+        },
+        "variants": [
+          {
+            "variant": "baseline",
+            "successful_logins": 1,
+            "audit_projection": [
+              {
+                "action": "auth.login",
+                "created_at": "2026-10-22T08:00:00.000Z",
+                "entity_id": null,
+                "entity_label": null,
+                "detail": {},
+                "actor_is_current_user": true
+              }
+            ],
+            "app_sha256": "af755e895c9df0f0df9a594c3d011d9e81a45ed287826cd06a0d8f295726e646",
+            "captures": [
+              {
+                "width": 375,
+                "file": "baseline-audit-375.png",
+                "bytes": 17566,
+                "sha256": "508fcfabed59d5cc8c8729c651817fa2861174a4d4ee3838969f9ccd21de71ea"
+              },
+              {
+                "width": 390,
+                "file": "baseline-audit-390.png",
+                "bytes": 17664,
+                "sha256": "53c251c8b96ecad1112256b5250e50746fb54389c7856808c5a7d0b165df0df0"
+              },
+              {
+                "width": 768,
+                "file": "baseline-audit-768.png",
+                "bytes": 21015,
+                "sha256": "1585fb62e138d33c4723ed7d0ff7e32874f670ff00df0ae1a56ad1bc9476fb43"
+              },
+              {
+                "width": 1440,
+                "file": "baseline-audit-1440.png",
+                "bytes": 30440,
+                "sha256": "30043799e90325628e9e972846c9572085b8cf33be2c5f0b829e469cb137b0c3"
+              }
+            ]
+          }
+        ],
+        "pairs": [],
+        "diagnostics": [],
+        "csp_events": [],
+        "browser_version": "154.0.8037.57",
+        "failure": {
+          "type": "TimeoutError",
+          "message": "Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator(\"#page-content[aria-busy=false]\") to be visible\n"
+        }
+      },
+      "preserved_images": [
+        {
+          "file": "baseline-audit-1440.png",
+          "sha256": "30043799e90325628e9e972846c9572085b8cf33be2c5f0b829e469cb137b0c3"
+        },
+        {
+          "file": "baseline-audit-375.png",
+          "sha256": "508fcfabed59d5cc8c8729c651817fa2861174a4d4ee3838969f9ccd21de71ea"
+        },
+        {
+          "file": "baseline-audit-390.png",
+          "sha256": "53c251c8b96ecad1112256b5250e50746fb54389c7856808c5a7d0b165df0df0"
+        },
+        {
+          "file": "baseline-audit-768.png",
+          "sha256": "1585fb62e138d33c4723ed7d0ff7e32874f670ff00df0ae1a56ad1bc9476fb43"
+        },
+        {
+          "file": "candidate-audit-375.png",
+          "sha256": "508fcfabed59d5cc8c8729c651817fa2861174a4d4ee3838969f9ccd21de71ea"
+        }
+      ]
+    }
+  ],
+  "preflight_failure": {
+    "before_attempt": "aligned",
+    "type": "OSError EADDRINUSE",
+    "listener_check": "no listeners; only TIME_WAIT from closed prior fixture",
+    "repair": "match Node SO_REUSEADDR; no killing or attaching to another process"
+  }
+}
