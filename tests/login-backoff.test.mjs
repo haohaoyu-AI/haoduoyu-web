@@ -222,8 +222,14 @@ test('50 concurrent real workerd HTTP logins account for in-flight failures and 
   const failures = (await app.db.prepare('SELECT * FROM matrix_login_attempts WHERE bucket LIKE ?').bind(LOGIN_FAILURE_PREFIX + '%').all()).results;
   assert.equal(failures.length, 1);const before = failures[0];
   assert.ok(before.attempts >= 5 && before.attempts <= 50);
+  // Keep the actual concurrent result above. Establish a separate, explicit
+  // fresh maximum-delay fixture before the next-request gate assertion, so a
+  // legitimate two-second expiry on a slow runner cannot turn this test red.
+  const fresh = {...before, attempts: Math.max(14, before.attempts), window_start: Date.now()};
+  await seed(app, fresh.bucket, fresh.attempts, fresh.window_start);
+  assert.ok(loginRemainingWait(fresh, Date.now()) > 60, 'known fresh cooldown exceeds the bounded HTTP request timeout');
   const blocked = await attempt();assert.equal(blocked.status, 429);assert.ok(Number(blocked.wait) >= 1 && Number(blocked.wait) <= 900);
-  assert.deepEqual(await rowFor(app, before.bucket), before, 'after a published cooldown, another HTTP request does not run failed verification');
+  assert.deepEqual(await rowFor(app, fresh.bucket), fresh, 'after a published cooldown, another HTTP request does not run failed verification');
   t.diagnostic(JSON.stringify({concurrent_http_requests: 50, invalid_credentials_401: 4, rate_limited_429: 46,
     completed_failed_verifications: before.attempts, rejected_before_verification: 50 - before.attempts}));
   t.diagnostic('In-flight verification is not serialized. This measures local workerd/D1 with synthetic trust, not production provenance.');
