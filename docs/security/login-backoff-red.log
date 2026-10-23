@@ -1,0 +1,28 @@
+✖ synthetic trusted-source fifth password failure starts a two-second backoff (3149.127976ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3951.409724
+
+✖ failing tests:
+
+test at tests/login-backoff.test.mjs:13:1
+✖ synthetic trusted-source fifth password failure starts a two-second backoff (3149.127976ms)
+  AssertionError [ERR_ASSERTION]: failure 5
+  
+  401 !== 429
+  
+      at TestContext.<anonymous> (file:///workspace/haoduoyu-opt-phase6-login-backoff/tests/login-backoff.test.mjs:17:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 401,
+    expected: 429,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
