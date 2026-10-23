@@ -212,5 +212,10 @@
       }
     }
   ],
-  "interpretation": "Same old source can produce both historical edge patterns under the two recorded navigation/modal paths. No claim that all five differences share this cause or that original strict suite passed."
+  "interpretation": "Same old source produced both historical edge patterns in the two recorded executions. Navigation/modal path changed, but the browser process was also restarted and timing differed; this does not isolate a unique path cause or prove randomness. No claim about the other four differences or original strict-suite acceptance.",
+  "confounders": [
+    "Separate browser process for the history-only execution",
+    "Different execution time",
+    "No same-process path crossover"
+  ]
 }
