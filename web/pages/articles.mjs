@@ -8,7 +8,7 @@ import { runtime, state } from "../core/state.mjs";
 import { accountOptions, articleSelect, badgeMode, dashboardInfo, dashboardMetric, empty, field, formEnd, platformLogo } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
 import { platformFilter } from "../ui/segmented.mjs";
-import { sortHeading } from "../ui/table.mjs";
+import { articleIdentityCell, dataTable, metricTableCell, sortHeading } from "../ui/table.mjs";
 import { toast } from "../ui/toast.mjs";
 async function renderArticles(version = runtime.renderVersion, context) {
   const f = { ...state.filters }, params = new URLSearchParams();
@@ -76,21 +76,20 @@ function articleTable(rows) {
   e(time(a.latest_as_of, true)) : dashboardMetric(a, "as_of") : key === "mode" ? badgeMode(a.production_mode) : key === "duration" ? e(duration(
   a.duration_seconds)) : key === "account" ? e(a.account_name) : a.date_status === "unverified" ? "日期待核实" : e(time(a.published_at,
   true));
-  return `<div class="table-scroll article-desktop"><table class="data-table article-table"><thead><tr><th aria-sort="${!state.columns.has(
+  return dataTable("data-table article-table", () => `<th aria-sort="${!state.columns.has(
     "published") && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.
   has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key, [label, sort]]) => `<th ${sort ? `aria-sort="${
     state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>${sort ? sortHeading(
-  sort, label) : e(label)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}<th>操作</th></tr></thead>\
-<tbody class="article-cards">${rows.map((a) => {
+  sort, label) : e(label)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}<th>操作</th>`, () => `${rows.map((a) => {
     const group = state.filters.group ? state.filters.group === "account" ? a.account_name : modeLabels[a.production_mode] : null, heading = group &&
     group !== previous ? `<tr class="group-row"><td colspan="${e(columns.length + 2)}">${e(group)}</td></tr>` : "";
     previous = group;
-    return `${heading}<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div \
+    return `${heading}<tr>${articleIdentityCell(a, null, () => `<div \
 class="cell-sub">${platformLogo(a.platform)} ${e(a.account_name)} · ${a.date_status === "unverified" ? "日期待核实" : e(
-    time(a.published_at, true))}</div></td>${columns.map(([key, [label]]) => `<td data-label="${e(label)}">${cell(a, key)}</td>`).join("")}<td><button \
+    time(a.published_at, true))}</div>`)}${columns.map(([key, [label]]) => `${metricTableCell(e(label), () => `${cell(a, key)}`)}`).join("")}<td><button \
 class="icon-button" data-action="article-menu" data-id="${e(a.id)}" aria-label="操作：${e(a.title)}" aria-haspopup="menu" \
 aria-expanded="false" aria-controls="article-menu-${e(a.id)}">⋯</button></td></tr>`;
-  }).join("")}</tbody></table></div>`;
+  }).join("")}`, "table-scroll article-desktop", "article-cards");
 }
 function articleMenu(a) {
   return `<button role="menuitem" data-action="article-detail" data-id="${e(a.id)}">详情</button>${safeURL(a.url) ?

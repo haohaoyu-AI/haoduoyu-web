@@ -678,6 +678,15 @@ function platformFilter(action, selected, label = "平台") {
 function sortHeading(key, label) {
   return `<button class="sort-heading" data-action="sort-column" data-sort="${e(key)}" aria-label="按${e(label)}排序">${e(label)} ${state.filters.sort === key ? state.filters.order === "asc" ? "↑" : "↓" : "↕"}</button>`;
 }
+function dataTable(className, header, body, scrollClass = "table-scroll", bodyClass = null) {
+  return `<div class="${scrollClass}"><table class="${className}"><thead><tr>${header()}</tr></thead><tbody${bodyClass === null ? "" : ` class="${bodyClass}"`}>${body()}</tbody></table></div>`;
+}
+function metricTableCell(escapedLabel, content) {
+  return `<td data-label="${escapedLabel}">${content()}</td>`;
+}
+function articleIdentityCell(article, lead = null, meta = null) {
+  return `<td class="title-cell">${lead ? lead() : ""}<button class="article-link" data-action="article-detail" data-id="${e(article.id)}">${e(article.title)}</button>${meta ? meta() : ""}</td>`;
+}
 
 // web/ui/toast.mjs
 function toast(message, error = false) {
@@ -767,18 +776,18 @@ function articleTable(rows) {
     a.published_at,
     true
   ));
-  return `<div class="table-scroll article-desktop"><table class="data-table article-table"><thead><tr><th aria-sort="${!state.columns.has(
+  return dataTable("data-table article-table", () => `<th aria-sort="${!state.columns.has(
     "published"
   ) && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key, [label, sort]]) => `<th ${sort ? `aria-sort="${state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>${sort ? sortHeading(
     sort,
     label
-  ) : e(label)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}<th>操作</th></tr></thead><tbody class="article-cards">${rows.map((a) => {
+  ) : e(label)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}<th>操作</th>`, () => `${rows.map((a) => {
     const group = state.filters.group ? state.filters.group === "account" ? a.account_name : modeLabels[a.production_mode] : null, heading = group && group !== previous ? `<tr class="group-row"><td colspan="${e(columns.length + 2)}">${e(group)}</td></tr>` : "";
     previous = group;
-    return `${heading}<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div class="cell-sub">${platformLogo(a.platform)} ${e(a.account_name)} · ${a.date_status === "unverified" ? "日期待核实" : e(
+    return `${heading}<tr>${articleIdentityCell(a, null, () => `<div class="cell-sub">${platformLogo(a.platform)} ${e(a.account_name)} · ${a.date_status === "unverified" ? "日期待核实" : e(
       time(a.published_at, true)
-    )}</div></td>${columns.map(([key, [label]]) => `<td data-label="${e(label)}">${cell(a, key)}</td>`).join("")}<td><button class="icon-button" data-action="article-menu" data-id="${e(a.id)}" aria-label="操作：${e(a.title)}" aria-haspopup="menu" aria-expanded="false" aria-controls="article-menu-${e(a.id)}">⋯</button></td></tr>`;
-  }).join("")}</tbody></table></div>`;
+    )}</div>`)}${columns.map(([key, [label]]) => `${metricTableCell(e(label), () => `${cell(a, key)}`)}`).join("")}<td><button class="icon-button" data-action="article-menu" data-id="${e(a.id)}" aria-label="操作：${e(a.title)}" aria-haspopup="menu" aria-expanded="false" aria-controls="article-menu-${e(a.id)}">⋯</button></td></tr>`;
+  }).join("")}`, "table-scroll article-desktop", "article-cards");
 }
 function articleMenu(a) {
   return `<button role="menuitem" data-action="article-detail" data-id="${e(a.id)}">详情</button>${safeURL(a.url) ? `<a role="menuitem" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}${[["edit-article", "编辑"], ["review-article", "补充数据"]].map(([action, label]) => `<button role="menuitem" data-action="${e(action)}" data-id="${e(a.id)}">${e(label)}</button>`).join("")}`;
@@ -850,20 +859,20 @@ function renderPeriodAccounts(accounts) {
     "comments",
     "评论"
   ], ...approvals ? [["approvals", "赞同"]] : []];
-  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key]) => `<td>${dashboardMetric(
+  return dataTable("data-table", () => `<th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).join("")}`, () => `${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key]) => `<td>${dashboardMetric(
     { latest_metrics: a.period_metrics },
     key
-  )}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  )}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).join("")}`);
 }
 function renderAttentionArticles(articles) {
-  return `<div class="table-scroll"><table class="data-table attention-table"><thead><tr><th>文章</th><th>周期阅读 / 变化</th><th>周期互动 / 变化 ${dashboardInfo(
+  return dataTable("data-table attention-table", () => `<th>文章</th><th>周期阅读 / 变化</th><th>周期互动 / 变化 ${dashboardInfo(
     "metrics",
     "互动指标口径",
     "attention"
-  )}</th><th>关注原因</th></tr></thead><tbody>${articles.map((a) => {
+  )}</th><th>关注原因</th>`, () => `${articles.map((a) => {
     const platform = a.platform || state.accounts.find((x) => x.id === a.account_id)?.platform, like = "likes", m = a.period_metrics || {}, attention = a.attention || {};
     const label = { up: "表现较高", down: "表现较低", normal: "近期文章", insufficient: "待积累数据" }[attention.kind] || "待积累数据";
-    return `<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div class="cell-sub">${e(platform && a.account_name ? `${platforms[platform] || platform} · ${a.account_name}` : accountName(a.account_id))} · ${e(time(a.published_at, true))}</div></td><td><strong class="number">${e(num(m.reads))}</strong>${metricCoverageHTML(
+    return `<tr>${articleIdentityCell(a, null, () => `<div class="cell-sub">${e(platform && a.account_name ? `${platforms[platform] || platform} · ${a.account_name}` : accountName(a.account_id))} · ${e(time(a.published_at, true))}</div>`)}<td><strong class="number">${e(num(m.reads))}</strong>${metricCoverageHTML(
       a,
       "reads"
     )}${comparisonHTML(
@@ -874,7 +883,7 @@ function renderAttentionArticles(articles) {
       a,
       "comments"
     )}</span>${comparisonHTML(a.comparisons?.comments)}</div>${m.approvals != null ? `<div>赞同 ${e(num(m.approvals))}${comparisonHTML(a.comparisons?.approvals)}</div>` : ""}</td><td class="reason-cell"><span class="badge ${attention.kind === "up" ? "up" : attention.kind === "down" ? "warn" : ""}">${e(label)}</span>${dashboardInfo("attention", "比较依据", a.id)}</td></tr>`;
-  }).join("")}</tbody></table></div>`;
+  }).join("")}`);
 }
 function renderCumulative(data) {
   const c = data.cumulative || {}, series = data.series || {}, rows = data.top_articles || [], due = data.due_reviews || [], fresh = freshness(
@@ -901,34 +910,36 @@ function renderCumulative(data) {
   )}</details>` : ""}` : '<div class="empty inline-empty">暂无已取得阅读数据的文章。</div>'}<div class="table-footer"><a class="btn text" href="?page=articles&amp;sort=reads&amp;order=desc" data-action="all-top">查看全部 →</a></div></section>`;
 }
 function renderPlatformTable(rows) {
-  return rows.length ? `<div class="table-scroll"><table class="data-table dashboard-table platform-table"><thead><tr><th>账号</th><th>篇数</th><th>累计阅读</th><th>篇均</th><th>中位数</th></tr></thead><tbody>${[...rows].sort((a, b) => (b.totals?.reads ?? -1) - (a.totals?.reads ?? -1)).map((p) => {
+  return rows.length ? dataTable("data-table dashboard-table platform-table", () => `<th>账号</th><th>篇数</th><th>累计阅读</th><th>篇均</th><th>中位数</th>`, () => `${[...rows].sort((a, b) => (b.totals?.reads ?? -1) - (a.totals?.reads ?? -1)).map((p) => {
     const accounts = state.accounts.filter((a) => a.platform === p.platform), label = accounts.map((a) => a.name).join("，") || platforms[p.platform] || p.platform;
     return `<tr data-action="${accounts.length === 1 ? "select-account" : "select-platform"}" data-id="${e(accounts[0]?.id || "")}" data-platform="${e(p.platform)}"><td><span class="account-title">${platformLogo(p.platform)}<button class="article-link" data-action="${accounts.length === 1 ? "select-account" : "select-platform"}" data-id="${e(accounts[0]?.id || "")}" data-platform="${e(p.platform)}">${e(label)}</button>${dashboardInfo(
       "platform",
       "账号表现、最佳文章与计划",
       p.platform
-    )}</span></td><td data-label="篇数">${e(num(p.article_count))}</td><td data-label="累计阅读">${e(num(p.totals?.reads))}</td><td data-label="篇均">${e(num(p.mean_reads))}</td><td data-label="中位数">${e(num(
+    )}</span></td>${metricTableCell("篇数", () => `${e(num(p.article_count))}`)}${metricTableCell("累计阅读", () => `${e(num(p.totals?.reads))}`)}${metricTableCell("篇均", () => `${e(num(p.mean_reads))}`)}${metricTableCell("中位数", () => `${e(num(
       p.median_reads
-    ))}</td></tr>`;
-  }).join("")}</tbody></table></div>` : '<div class="empty inline-empty">暂无账号。<button class="btn" data-action="new-account">添加账号</button></div>';
+    ))}`)}</tr>`;
+  }).join("")}`) : '<div class="empty inline-empty">暂无账号。<button class="btn" data-action="new-account">添加账号</button></div>';
 }
 function renderTopTable(rows, offset = 0) {
   const approvals = rows.some((a) => a.platform === "zhihu" || a.latest_metrics?.approvals != null);
-  return `<div class="table-scroll"><table class="data-table dashboard-table top-table"><thead><tr><th>文章</th><th>账号</th><th>阅读</th><th>点赞 ${dashboardInfo(
+  return dataTable("data-table dashboard-table top-table", () => `<th>文章</th><th>账号</th><th>阅读</th><th>点赞 ${dashboardInfo(
     "metrics",
     "点赞与赞同口径",
     "top" + offset
-  )}</th><th>评论</th>${approvals ? "<th>赞同</th>" : ""}</tr></thead><tbody>${rows.map(
-    (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset + i + 1))}</span><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button></td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
+  )}</th><th>评论</th>${approvals ? "<th>赞同</th>" : ""}`, () => `${rows.map(
+    (a, i) => `<tr>${articleIdentityCell(a, () => `<span class="rank">${e(num(offset + i + 1))}</span>`)}<td>${platformLogo(a.platform)} ${e(
+      a.account_name
+    )}</td>${[
       "reads",
       "likes",
       "comments",
       ...approvals ? ["approvals"] : []
-    ].map((key) => `<td data-label="${e(metrics[key])}">${dashboardMetric(
+    ].map((key) => `${metricTableCell(e(metrics[key]), () => `${dashboardMetric(
       a,
       key
-    )}</td>`).join("")}</tr>`
-  ).join("")}</tbody></table></div>`;
+    )}`)}`).join("")}</tr>`
+  ).join("")}`);
 }
 function dashboardInfoBody(kind, id) {
   const d = state.dashboard || {}, c = d.cumulative || {}, totals = d.totals || {};
@@ -958,12 +969,12 @@ function renderPublicationTrend(data) {
 }
 function renderDailyTable(data) {
   const publication = state.trendTab === "publication", rows = publication ? data.publication_trend || [] : data.trend || [], accounts = data.accounts || [];
-  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>日期</th>${accounts.map((a) => `<th>${e(a.name)}</th>`).join(
+  return dataTable("data-table", () => `<th>日期</th>${accounts.map((a) => `<th>${e(a.name)}</th>`).join(
     ""
-  )}</tr></thead><tbody>${rows.map((d) => `<tr><td>${e(d.date)}</td>${accounts.map((a) => {
+  )}`, () => `${rows.map((d) => `<tr><td>${e(d.date)}</td>${accounts.map((a) => {
     const r = d.accounts.find((r2) => r2.account_id === a.id), value = publication ? r?.count : r?.metrics?.[state.trendMetric];
     return `<td>${value == null ? "未取得" : e(num(value))}</td>`;
-  }).join("")}</tr>`).join("")}</tbody></table></div>`;
+  }).join("")}</tr>`).join("")}`);
 }
 function renderTrend(data) {
   const dates = data.trend || [], accounts = data.accounts || [], key = state.trendMetric, colors = accounts.map((a) => platformColor(a.platform));
