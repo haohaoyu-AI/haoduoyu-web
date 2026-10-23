@@ -1,0 +1,295 @@
+{
+  "synthetic": true,
+  "viewport": {
+    "width": 375,
+    "height": 844
+  },
+  "browser": {
+    "engine": "Chromium",
+    "version": "154.0.8037.57",
+    "touch_emulation": true
+  },
+  "checks": {
+    "long_list_seeded_with_real_api": {
+      "items": 24,
+      "completed": 6,
+      "create_statuses": [
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201
+      ],
+      "content_height": 2164
+    },
+    "complete_failure_feedback_is_in_first_viewport_below_form_above_list_and_nav": {
+      "form": {
+        "top": 277.78125,
+        "bottom": 321.78125,
+        "left": 41,
+        "right": 334,
+        "height": 44
+      },
+      "feedback": {
+        "top": 333.78125,
+        "bottom": 392.96875,
+        "left": 41,
+        "right": 334,
+        "height": 59.1875
+      },
+      "list": {
+        "top": 392.96875,
+        "bottom": 2066.71875,
+        "left": 41,
+        "right": 334,
+        "height": 1673.75
+      },
+      "nav": {
+        "top": 783,
+        "bottom": 844,
+        "left": 0,
+        "right": 375,
+        "height": 61
+      },
+      "viewport": {
+        "width": 375,
+        "height": 844
+      },
+      "scroll_y": 0,
+      "feedback_follows_form": true,
+      "feedback_before_list": true
+    },
+    "draft_rows_and_completion_unchanged_without_automatic_replay": {
+      "observation_ms": 1250,
+      "browser_create_attempts": 1,
+      "server_create_attempts_after_injected_failure": 0,
+      "draft_preserved": true,
+      "rows_unchanged": 24,
+      "completed_unchanged": 6
+    },
+    "explicit_retry_saves_once_with_same_id_and_preserves_existing_rows": true
+  },
+  "date_controls": {
+    "pointer_coarse": true,
+    "controls": [
+      {
+        "selector": "[data-action=todo-prev]",
+        "rect": {
+          "x": 41,
+          "y": 219.78125,
+          "width": 21.625,
+          "height": 40
+        },
+        "computed_height": "40px",
+        "computed_min_height": "40px",
+        "control_h_sm": "40px",
+        "interior_hit_tests": [
+          {
+            "x": 51.8125,
+            "y": 239.78125,
+            "hit": true
+          },
+          {
+            "x": 43,
+            "y": 221.78125,
+            "hit": true
+          },
+          {
+            "x": 60.625,
+            "y": 221.78125,
+            "hit": true
+          },
+          {
+            "x": 43,
+            "y": 257.78125,
+            "hit": true
+          },
+          {
+            "x": 60.625,
+            "y": 257.78125,
+            "hit": true
+          }
+        ]
+      },
+      {
+        "selector": "#todo-date",
+        "rect": {
+          "x": 66.625,
+          "y": 217.78125,
+          "width": 135,
+          "height": 44
+        },
+        "computed_height": "44px",
+        "computed_min_height": "44px",
+        "control_h_sm": "40px",
+        "interior_hit_tests": [
+          {
+            "x": 134.125,
+            "y": 239.78125,
+            "hit": true
+          },
+          {
+            "x": 68.625,
+            "y": 219.78125,
+            "hit": true
+          },
+          {
+            "x": 199.625,
+            "y": 219.78125,
+            "hit": true
+          },
+          {
+            "x": 68.625,
+            "y": 259.78125,
+            "hit": true
+          },
+          {
+            "x": 199.625,
+            "y": 259.78125,
+            "hit": true
+          }
+        ]
+      },
+      {
+        "selector": "[data-action=todo-next]",
+        "rect": {
+          "x": 205.625,
+          "y": 219.78125,
+          "width": 21.625,
+          "height": 40
+        },
+        "computed_height": "40px",
+        "computed_min_height": "40px",
+        "control_h_sm": "40px",
+        "interior_hit_tests": [
+          {
+            "x": 216.4375,
+            "y": 239.78125,
+            "hit": true
+          },
+          {
+            "x": 207.625,
+            "y": 221.78125,
+            "hit": true
+          },
+          {
+            "x": 225.25,
+            "y": 221.78125,
+            "hit": true
+          },
+          {
+            "x": 207.625,
+            "y": 257.78125,
+            "hit": true
+          },
+          {
+            "x": 225.25,
+            "y": 257.78125,
+            "hit": true
+          }
+        ]
+      },
+      {
+        "selector": "[data-action=todo-today]",
+        "rect": {
+          "x": 231.25,
+          "y": 219.78125,
+          "width": 42.015625,
+          "height": 40
+        },
+        "computed_height": "40px",
+        "computed_min_height": "40px",
+        "control_h_sm": "40px",
+        "interior_hit_tests": [
+          {
+            "x": 252.2578125,
+            "y": 239.78125,
+            "hit": true
+          },
+          {
+            "x": 233.25,
+            "y": 221.78125,
+            "hit": true
+          },
+          {
+            "x": 271.265625,
+            "y": 221.78125,
+            "hit": true
+          },
+          {
+            "x": 233.25,
+            "y": 257.78125,
+            "hit": true
+          },
+          {
+            "x": 271.265625,
+            "y": 257.78125,
+            "hit": true
+          }
+        ]
+      }
+    ]
+  },
+  "screenshot": {
+    "path": "artifacts/daily-todos/feedback/failure-first-viewport-375.png",
+    "sha256": "33ac62263ff7387d55550f839aa2e55918a993afc36fc394d4bf3ef1658c1e66",
+    "bytes": 62945,
+    "full_page": false
+  },
+  "execution": {
+    "product_sequence": "All four product assertions passed; original process exited 1 during final asset-body collection after reload.",
+    "asset_verification": "Independent fresh Chromium read-only document load verified actual JS/CSS response bytes and current Worker file hash; no 24-item seed or failure/retry write repeated.",
+    "original_failure_preserved": true
+  },
+  "failure": {
+    "type": "Error",
+    "message": "Response.body: Protocol error (Network.getResponseBody): No resource with given identifier found\nResponse body is not available for a response that was navigated away from. Read response.body() before triggering any navigation."
+  },
+  "asset_verification_followup": {
+    "completed": true,
+    "actual_response_hashes": {
+      "/app.js": "54cc5835924fc07f33a4f63b32a84b5e27ef655322b0172f7f2e30ed7b2760a8",
+      "/style.css": "cb512655b43d6c53313fb0f6d540b871ed0a9e958fb6c30fec3091ffefeea266"
+    },
+    "pageerrors": [],
+    "blocked_external_requests": []
+  },
+  "original_test_source_sha256": "39149044a53e84b8bdce1387d40e270b6b15886dc2f0a367bdf81c074553cb8d",
+  "final_test_source_sha256": "fe02470f7f18c2f306c5e9047738b790a9638930471ddbe9f33321528c091ff4",
+  "feedback_source_sha256": "df7f1d69df6f3948ceed858de80e1bc277dde8f457f72968e80e6c9b63bf1ecc",
+  "product_hashes": {
+    "public/app.js": "54cc5835924fc07f33a4f63b32a84b5e27ef655322b0172f7f2e30ed7b2760a8",
+    "public/style.css": "cb512655b43d6c53313fb0f6d540b871ed0a9e958fb6c30fec3091ffefeea266",
+    "dist/server/index.js": "cce93763376ddb17d67907865ceb2563ea14235989f4fefc40a212eaf5b4e411"
+  },
+  "base_commit": "814126dfd25b174aecba2d7ad49f5a74a52b95b5",
+  "source_binding": "Browser used the base plus this feedback-position change; supplied product byte hashes were checked before committing. The earlier broad acceptance report describes its original product commit.",
+  "raw_report_sha256": "852a029b09dd0f20e364dc8ec45986a477c12ef21349d924b0255b0f005f0275",
+  "focused_tests": {
+    "command": "node --test tests/frontend-actions.test.mjs tests/daily-todos-ui.test.mjs tests/ui-modal.test.mjs tests/ui-request-lifecycle.test.mjs",
+    "pass": 41,
+    "fail": 0
+  },
+  "product_changes": "Only move #todo-feedback below the input form; no state, retry, security or migration changes.",
+  "secret_scan_exceptions_changed": false,
+  "production_writes": false
+}

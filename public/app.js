@@ -924,9 +924,10 @@ function renderTodos() {
   const day = todoDay(), history2 = state.page === "todos";
   return `<section id="daily-todos" class="card daily-todos" data-date="${e(day.date)}" aria-labelledby="daily-todos-title">
 <div id="todo-heading" class="section-heading">${todoHeading(day)}</div>
-${todoForm(day)}<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
-<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}</ul>
+${todoForm(day)}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
+<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
+<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}</ul>
 ${history2 ? '<p class="daily-todo-note">每天独立记录，未完成的计划也保留在原日期。</p>' : ""}</section>`;
 }
 function todosVisible() {
