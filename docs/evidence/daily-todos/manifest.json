@@ -1,0 +1,232 @@
+{
+  "product_commit": "0ea80af132d361897074f2b41c428d27a3d53630",
+  "frozen_pr_head": "814126dfd25b174aecba2d7ad49f5a74a52b95b5",
+  "synthetic": true,
+  "isolation": "Ephemeral Miniflare D1; loopback HTTP adapter; browser blocks non-loopback requests; no production configuration.",
+  "screenshots": [
+    {
+      "file": "dashboard-375.png",
+      "bytes": 199457,
+      "sha256": "8a73e4bacbe7333bd78b48ff5e12208b3521be0b8c33c0ec1456e61528d75959",
+      "width": 375,
+      "view": "dashboard"
+    },
+    {
+      "file": "todos-375.png",
+      "bytes": 81685,
+      "sha256": "83a5e09b5ee1134bf37185d83de4ac470dbae18a4457f66d09c3731be915825a",
+      "width": 375,
+      "view": "todos"
+    },
+    {
+      "file": "history-empty-375.png",
+      "bytes": 30797,
+      "sha256": "da13c813c5e500d6e4ec60a6e66acd5f80d5e479411634acec8678e6a3c4e85e",
+      "width": 375,
+      "view": "history-empty"
+    },
+    {
+      "file": "articles-375.png",
+      "bytes": 60691,
+      "sha256": "bb0f5a01bd92105cc1ffb32a667c6ddfd8f7b9e72ea689b8b1d6b5e21dba26e1",
+      "width": 375,
+      "view": "articles"
+    },
+    {
+      "file": "reviews-observations-375.png",
+      "bytes": 63025,
+      "sha256": "3e0fbf1ddec8c8eaa32a036b42a887b1451ddb5cb23ab6fe554dfabdf5ce5852",
+      "width": 375,
+      "view": "reviews-observations"
+    },
+    {
+      "file": "settings-accounts-375.png",
+      "bytes": 45508,
+      "sha256": "de68c173769c77ef360ee139fb84d72dc52030f980b788e36616b77d414e8901",
+      "width": 375,
+      "view": "settings-accounts"
+    },
+    {
+      "file": "dashboard-390.png",
+      "bytes": 189054,
+      "sha256": "ce229574d4981bdfe52fe2291839f09e209c15983aa4d4593841ee0ef3e252d0",
+      "width": 390,
+      "view": "dashboard"
+    },
+    {
+      "file": "todos-390.png",
+      "bytes": 78434,
+      "sha256": "3f5c8032db689ca15c3eab77107a36a73285878c1feb42ac2831efe7b42aec26",
+      "width": 390,
+      "view": "todos"
+    },
+    {
+      "file": "history-empty-390.png",
+      "bytes": 30960,
+      "sha256": "54db19ec72a122bef44a2305d08e7e317f8188c7d9b35dff27abc6f6440a8500",
+      "width": 390,
+      "view": "history-empty"
+    },
+    {
+      "file": "articles-390.png",
+      "bytes": 61328,
+      "sha256": "c27c1a8500b69b1837d14fd6c55c9f1e3cd49fbb2ec0dda0d6bce9bbfb9d824d",
+      "width": 390,
+      "view": "articles"
+    },
+    {
+      "file": "reviews-observations-390.png",
+      "bytes": 63619,
+      "sha256": "e1501a8375227b62325de3e97df8649093348314c599f38c5603c2980616da7f",
+      "width": 390,
+      "view": "reviews-observations"
+    },
+    {
+      "file": "settings-accounts-390.png",
+      "bytes": 45613,
+      "sha256": "79b4f6bbeb4678e5d8dab8dc113c43878cea4ce93c87ee432248732c1ce956c4",
+      "width": 390,
+      "view": "settings-accounts"
+    },
+    {
+      "file": "dashboard-1440.png",
+      "bytes": 193012,
+      "sha256": "6602e2b0ecbd0d420c8d6c5b3814f5a5496f792bdea2d51671abbdea33dab85b",
+      "width": 1440,
+      "view": "dashboard"
+    },
+    {
+      "file": "todos-1440.png",
+      "bytes": 91833,
+      "sha256": "e945e32f2b820aee27048766ac43766356735c67912b6708b084a6f84b5fc1a6",
+      "width": 1440,
+      "view": "todos"
+    },
+    {
+      "file": "history-empty-1440.png",
+      "bytes": 40215,
+      "sha256": "a2e8025c96ee8c0c8f524a804c96361962c21244f81afc0d424528f8421fb045",
+      "width": 1440,
+      "view": "history-empty"
+    },
+    {
+      "file": "articles-1440.png",
+      "bytes": 67901,
+      "sha256": "e1928454f6e92569db5ff5fe642c83f0876854e8e655a0211192452677bb9a7e",
+      "width": 1440,
+      "view": "articles"
+    },
+    {
+      "file": "reviews-observations-1440.png",
+      "bytes": 67638,
+      "sha256": "f1b514af43c2f7c8db6010453f5eafe829eb9b1a9028a8e8e945275b93553b4a",
+      "width": 1440,
+      "view": "reviews-observations"
+    },
+    {
+      "file": "settings-accounts-1440.png",
+      "bytes": 54798,
+      "sha256": "77e9dfa253f13248651400140bf54faab3fd821f04e3253a8f196d3fae6aa9cd",
+      "width": 1440,
+      "view": "settings-accounts"
+    },
+    {
+      "file": "mobile-default-todos-375.png",
+      "bytes": 80696,
+      "sha256": "6d38d754cb4a7694c6161329a8ad3f74e0299693aedbe4fe588b2fdd0db34b36",
+      "width": 375,
+      "view": "mobile-default-todos"
+    },
+    {
+      "file": "touch-articles-375.png",
+      "bytes": 58089,
+      "sha256": "35bc182f5226e6edf51a8cd90c2b05923a010504ae8f5994ba33b162b06d1b09",
+      "width": 375,
+      "view": "touch-articles"
+    },
+    {
+      "file": "touch-reviews-observations-375.png",
+      "bytes": 64041,
+      "sha256": "adafc9f8b575b078b32780d449e5332428ff9c00e7fa5e15abf670ca68b6b4fb",
+      "width": 375,
+      "view": "touch-reviews-observations"
+    },
+    {
+      "file": "touch-settings-accounts-375.png",
+      "bytes": 44791,
+      "sha256": "7e4dacd0a18781376c803bbd5d8771374ae9c8da35bac6d81f7a5ea5dcc34e03",
+      "width": 375,
+      "view": "touch-settings-accounts"
+    },
+    {
+      "file": "touch-dashboard-375.png",
+      "bytes": 200222,
+      "sha256": "48e10948be3d445d7b69187baaa730a3bd0fc2441b7fa077e5ab9eecf1c8fd7f",
+      "width": 375,
+      "view": "touch-dashboard"
+    },
+    {
+      "file": "mobile-navigation-375.png",
+      "bytes": 37335,
+      "sha256": "e60bf476f82c5d48e8eee61667e12bc353ba51e1e2bfdb0fd0fa6a56f3522fd9",
+      "width": 375,
+      "view": "mobile-navigation"
+    },
+    {
+      "file": "mobile-default-todos-390.png",
+      "bytes": 78962,
+      "sha256": "f797cd83111825466983b0c46326cee7d9b513a2dc8a8483b82a02bf1f16d5af",
+      "width": 390,
+      "view": "mobile-default-todos"
+    },
+    {
+      "file": "touch-articles-390.png",
+      "bytes": 58710,
+      "sha256": "dbd8f30d3d4aa40c97d438caa8094bbd9fde1a42969aa8361baf304f1dd4c9bf",
+      "width": 390,
+      "view": "touch-articles"
+    },
+    {
+      "file": "touch-reviews-observations-390.png",
+      "bytes": 64587,
+      "sha256": "bca66f038668c9700cd4ba380cae02119b7ed0513c4e2998cf48d50922175119",
+      "width": 390,
+      "view": "touch-reviews-observations"
+    },
+    {
+      "file": "touch-settings-accounts-390.png",
+      "bytes": 44910,
+      "sha256": "91d3f8a163ecb674487b16818df48e985cd47d6048fbce34793d211ceeb2b9af",
+      "width": 390,
+      "view": "touch-settings-accounts"
+    },
+    {
+      "file": "touch-dashboard-390.png",
+      "bytes": 191466,
+      "sha256": "ba34baa6fafbdc563950c2afb9c2b9e0d0f30969a8d70b14bd99c3cfc1cd0a82",
+      "width": 390,
+      "view": "touch-dashboard"
+    },
+    {
+      "file": "mobile-navigation-390.png",
+      "bytes": 38003,
+      "sha256": "de6491d3c737b487b329781bfa7899811d096769a74e6a3a036b8e8746712586",
+      "width": 390,
+      "view": "mobile-navigation"
+    },
+    {
+      "file": "automatic-beijing-midnight-1440.png",
+      "bytes": 40960,
+      "sha256": "db665feab712d17b0d6039fe739239d8982284148942c7bd5d7d76a2794ce6a9",
+      "width": 1440,
+      "view": "automatic-beijing-midnight"
+    },
+    {
+      "file": "yesterday-preserved-1440.png",
+      "bytes": 91266,
+      "sha256": "ea7b24b6a31cb9dd97d1c2ad52e7af06a743d80c30c83702db4fb17e1a6d5457",
+      "width": 1440,
+      "view": "yesterday-preserved"
+    }
+  ]
+}
