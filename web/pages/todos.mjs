@@ -26,11 +26,15 @@ function todoForm(day) {
 autocomplete="off" placeholder="${label}" value="${e(day.draft)}" ${day.adding ? "readonly" : ""}>
 <button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>${day.adding ? "保存中…" : "添加"}</button></form>`;
 }
-function todoHeading(day) {
-  const today = day.date === bjtDate(), history = state.page === "todos";
+function todoCaption(day) {
+  const today = day.date === bjtDate();
   const completed = day.items.filter((item) => item.completed).length;
-  return `<div><h2 id="daily-todos-title">${today ? "今日计划" : "每日计划"}</h2>
-<p class="cell-sub">${e(day.date)} · 北京时间${day.items.length ? ` · 已完成 ${completed}/${day.items.length}` : ""}</p></div>
+  return `<h2 id="daily-todos-title">${today ? "今日计划" : "每日计划"}</h2>
+<p class="cell-sub">${e(day.date)} · 北京时间${day.items.length ? ` · 已完成 ${completed}/${day.items.length}` : ""}</p>`;
+}
+function todoHeading(day) {
+  const history = state.page === "todos";
+  return `<div id="todo-caption">${todoCaption(day)}</div>
 ${history ? todoDateControls(day.date) : '<a class="btn text" href="?page=todos" data-nav="todos">历史记录 ' + icon("arrow", 14) + "</a>"}`;
 }
 function todoStatus(day) {
@@ -40,7 +44,7 @@ function todoFeedback(day) {
   return day.error ? `${e(day.error)} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
 function renderTodos() {
-  const day = todoDay(), today = day.date === bjtDate(), history = state.page === "todos";
+  const day = todoDay(), history = state.page === "todos";
   return `<section id="daily-todos" class="card daily-todos" data-date="${e(day.date)}" aria-labelledby="daily-todos-title">
 <div id="todo-heading" class="section-heading">${todoHeading(day)}</div>
 ${todoForm(day)}<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
@@ -59,7 +63,7 @@ function paintTodos() {
     root.outerHTML = renderTodos();
     return;
   }
-  const parts = { "todo-heading": todoHeading(day), "todo-status": todoStatus(day),
+  const parts = { "todo-caption": todoCaption(day), "todo-status": todoStatus(day),
     "todo-items": day.items.map((item) => todoRow(item, day)).join(""), "todo-feedback": todoFeedback(day) };
   for (const [id, html] of Object.entries(parts)) {
     const node = $("#" + id, root);

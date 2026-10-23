@@ -903,11 +903,15 @@ function todoForm(day) {
 autocomplete="off" placeholder="${label}" value="${e(day.draft)}" ${day.adding ? "readonly" : ""}>
 <button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>${day.adding ? "保存中…" : "添加"}</button></form>`;
 }
-function todoHeading(day) {
-  const today = day.date === bjtDate(), history2 = state.page === "todos";
+function todoCaption(day) {
+  const today = day.date === bjtDate();
   const completed = day.items.filter((item) => item.completed).length;
-  return `<div><h2 id="daily-todos-title">${today ? "今日计划" : "每日计划"}</h2>
-<p class="cell-sub">${e(day.date)} · 北京时间${day.items.length ? ` · 已完成 ${completed}/${day.items.length}` : ""}</p></div>
+  return `<h2 id="daily-todos-title">${today ? "今日计划" : "每日计划"}</h2>
+<p class="cell-sub">${e(day.date)} · 北京时间${day.items.length ? ` · 已完成 ${completed}/${day.items.length}` : ""}</p>`;
+}
+function todoHeading(day) {
+  const history2 = state.page === "todos";
+  return `<div id="todo-caption">${todoCaption(day)}</div>
 ${history2 ? todoDateControls(day.date) : '<a class="btn text" href="?page=todos" data-nav="todos">历史记录 ' + icon("arrow", 14) + "</a>"}`;
 }
 function todoStatus(day) {
@@ -917,7 +921,7 @@ function todoFeedback(day) {
   return day.error ? `${e(day.error)} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
 function renderTodos() {
-  const day = todoDay(), today = day.date === bjtDate(), history2 = state.page === "todos";
+  const day = todoDay(), history2 = state.page === "todos";
   return `<section id="daily-todos" class="card daily-todos" data-date="${e(day.date)}" aria-labelledby="daily-todos-title">
 <div id="todo-heading" class="section-heading">${todoHeading(day)}</div>
 ${todoForm(day)}<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
@@ -937,7 +941,7 @@ function paintTodos() {
     return;
   }
   const parts = {
-    "todo-heading": todoHeading(day),
+    "todo-caption": todoCaption(day),
     "todo-status": todoStatus(day),
     "todo-items": day.items.map((item) => todoRow(item, day)).join(""),
     "todo-feedback": todoFeedback(day)
@@ -1123,10 +1127,9 @@ function renderPeriodAccounts(accounts) {
     "comments",
     "评论"
   ], ...approvals ? [["approvals", "赞同"]] : []];
-  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key]) => `<td>${dashboardMetric(
-    { latest_metrics: a.period_metrics },
-    key
-  )}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-scroll"><table class="data-table period-table"><thead><tr><th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key, label]) => `<td data-label="${e(label)}">${dashboardMetric({
+    latest_metrics: a.period_metrics
+  }, key)}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 function renderAttentionArticles(articles) {
   return `<div class="table-scroll"><table class="data-table attention-table"><thead><tr><th>文章</th><th>周期阅读 / 变化</th><th>周期互动 / 变化 ${dashboardInfo(
@@ -1536,17 +1539,50 @@ function setMenu(open) {
 }
 
 // web/controller.mjs
+function mainContent() {
+  return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
+    settingsTabs
+  ), state.settingsTab, "设置分类", "tab", "page-tabs") : ""}<div id="page-content"></div>`;
+}
+function mobileNavigation() {
+  return `<nav class="mobile-nav" aria-label="切换模块">${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
+data-nav="${e(n.id)}" class="mobile-nav-item${n.id === state.page ? " active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>
+${icon(n.icon, 18)}<span>${e(n.label)}</span></a>`).join("")}</nav>`;
+}
+function reuseShell() {
+  const shell = $(".shell"), main = $("#main");
+  if (!main || shell?.dataset.session !== String(runtime.sessionEpoch) || shell.dataset.user !== state.me?.id) return false;
+  setMenu(false);
+  for (const link of $$(".nav-item,.mobile-nav-item", shell)) {
+    const current = link.dataset.nav === state.page;
+    link.classList.toggle("active", current);
+    if (current) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+  main.innerHTML = mainContent();
+  return true;
+}
 function renderShell() {
   stopPageEntry();
   closePopover({ restoreFocus: false });
+  if (reuseShell()) {
+    renderPage();
+    return;
+  }
   const navLink = (n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}" data-nav="${e(n.id)}" class="nav-item ${n.id === state.page ? "active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>${icon(n.icon, 18)}${e(n.label)}</a>`;
-  $("#app").innerHTML = `<div class="shell"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=dashboard" class="brand" data-nav="dashboard"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
+  $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=dashboard" class="brand" data-nav="dashboard"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
     "close"
-  )}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span><button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button></div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" tabindex="-1"><div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? `${segmented("settings-tab", Object.entries(
-    settingsTabs
-  ), state.settingsTab, "设置分类", "tab", "page-tabs")}` : ""}<div id="page-content">${skeleton()}</div></main></div></div>`;
+  )}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span><button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button></div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
   renderPage();
+}
+function navigateLink(page) {
+  const same = page === state.page && (page !== "settings" || state.settingsTab === "accounts") && (page !== "todos" || !state.todoDate);
+  if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
+    setMenu(false);
+    return;
+  }
+  navigate(page);
 }
 function navigate(page, tab) {
   const legacy = Object.hasOwn(legacyPages, page) ? legacyPages[page] : null;
@@ -2181,7 +2217,7 @@ async function handleClick(event) {
   if (runtime.activePopover?.node.contains(target) && !["reset-draft", "draft-sort"].includes(target.dataset.action)) closePopover();
   if (target.dataset.nav) {
     event.preventDefault();
-    navigate(target.dataset.nav);
+    navigateLink(target.dataset.nav);
     return;
   }
   const action = target.dataset.action, id = target.dataset.id;

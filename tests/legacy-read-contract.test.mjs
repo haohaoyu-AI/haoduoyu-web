@@ -11,7 +11,7 @@ import {join} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import current from '../dist/server/index.js';
 import {fixture, USERNAME, PASSWORD} from './harness.mjs';
-import {stable} from '../src/security.mjs';
+import {legacyBackupEnvelope} from './todo-backup-projection.mjs';
 import {csrfFor} from '../shared/auth.mjs';
 import {createHash} from 'node:crypto';
 
@@ -36,15 +36,7 @@ async function legacyWorker(t) {
 }
 function project(path, json) {
   const value = path === '/openapi.json' ? dashboardSpec(traceDocument(json)) : structuredClone(json);
-  // The only backup extension is the new todo table and format marker. Verify its
-  // digest first, then compare every unchanged legacy table exactly.
-  if (path === '/api/v1/backup' && value.data?.data?.format === 'haoduoyu-matrix-d1-v2') {
-    const backup=value.data;
-    assert.equal(backup.sha256,createHash('sha256').update(JSON.stringify(stable(backup.data))).digest('hex'));
-    assert.deepEqual(backup.data.tables.todos,[]);
-    delete backup.data.tables.todos;backup.data.format='haoduoyu-matrix-d1-v1';
-    backup.sha256=createHash('sha256').update(JSON.stringify(stable(backup.data))).digest('hex');
-  }
+  if (path === '/api/v1/backup') return legacyBackupEnvelope(value);
   if (path === '/api/v1/auth/me' && value.data) delete value.data.id;
   if (path === '/api/v1/audit' && value.data) {
     value.data = value.data.map(({entity_label, ...row}) => row);

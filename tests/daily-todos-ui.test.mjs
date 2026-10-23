@@ -11,7 +11,7 @@ const item = (id, date, extra = {}) => ({
   created_at: '2026-10-23T08:00:00Z', updated_at: '2026-10-23T08:00:00Z', ...extra,
 });
 
-function client({search = '', now = '2026-10-23T08:00:00Z'} = {}) {
+function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false} = {}) {
   let currentTime = Date.parse(now), uuid = 0, timerId = 0, index = 0;
   const timers = new Map(), events = new Map(), windowEvents = new Map(), nodes = new Map();
   const entries = [`http://localhost/${search}`], location = {href: entries[0], search};
@@ -46,7 +46,10 @@ function client({search = '', now = '2026-10-23T08:00:00Z'} = {}) {
     AbortController, AbortSignal, DOMException, Headers, Response, URL, URLSearchParams, Intl, console,
     Date: Clock, crypto: {randomUUID: () => `00000000-0000-4000-8000-${String(++uuid).padStart(12, '0')}`},
     document, location, history, localStorage: {getItem() {return null;}, setItem() {}},
-    window: {addEventListener: (name, handler) => windowEvents.set(name, handler), scrollTo() {}},
+    window: {
+      addEventListener: (name, handler) => windowEvents.set(name, handler), scrollTo() {},
+      matchMedia: query => ({matches: mobile && query === '(max-width:760px)'}),
+    },
     setTimeout: setTimer, clearTimeout: id => timers.delete(id),
     setInterval: setTimer, clearInterval: id => timers.delete(id), requestAnimationFrame() {},
   });
@@ -59,6 +62,7 @@ function client({search = '', now = '2026-10-23T08:00:00Z'} = {}) {
     put(name, value) {context[name] = value;},
     async dispatch(name, event) {for (const handler of events.get(name) || []) await handler(event);},
     back() {locate(entries[--index]);windowEvents.get('popstate')?.();},
+    get historyLength() {return entries.length;},
   };
 }
 
@@ -99,6 +103,20 @@ test('date route validation retains real history dates and rejects impossible ca
   }
   for (const date of ['0000-01-01', '2026-02-29', '2026-04-31', '2026-13-01', '2026-1-01', '<script>']) {
     assert.equal(c.run(`validTodoDate(${JSON.stringify(date)})`), false, date);
+  }
+});
+
+test('phones open daily plans by default while desktop and explicit page links keep their destinations', () => {
+  for (const [mobile, search, expected] of [
+    [true, '', 'todos'], [false, '', 'dashboard'],
+    [true, '?page=dashboard', 'dashboard'], [true, '?page=articles', 'articles'],
+    [true, '?page=settings&tab=keys', 'settings'], [true, '?page=todos&date=2026-10-20', 'todos'],
+  ]) {
+    const c = client({mobile, search});
+    c.run('readRoute();updateRoute()');
+    assert.equal(c.run('state.page'), expected, `${mobile}: ${search}`);
+    assert.equal(new URL(c.location.href).searchParams.get('page'), expected);
+    if (search.includes('date=')) assert.equal(c.run('todoDate()'), '2026-10-20');
   }
 });
 
@@ -282,5 +300,109 @@ test('midnight timer and returning-tab events switch today automatically without
     assert.equal(c.run('reads[0]'), '/todos?date=2026-10-24', trigger);
     assert.equal(c.run('todoDay().items.length'), 0, trigger);
     assert.equal(c.run("todoDay('2026-10-23').items[0].id"), 'yesterday', trigger);
+  }
+});
+
+test('same-day list updates and overview results preserve the live plan input and its caret', () => {
+  const c = client(), slots = new Map();
+  const input = {value: '正在输入计划', selectionStart: 3, selectionEnd: 3, readOnly: false};
+  const button = {disabled: false, textContent: '添加'};
+  for (const id of ['todo-caption', 'todo-status', 'todo-items', 'todo-feedback']) slots.set('#' + id, {innerHTML: ''});
+  slots.set('#todo-text', input);
+  slots.set('button[type=submit]', button);
+  const root = {dataset: {date: '2026-10-23'}, querySelector: selector => slots.get(selector) || null};
+  Object.defineProperty(root, 'outerHTML', {set() {assert.fail('same-day refresh must retain the existing form');}});
+  const summary = {innerHTML: '', querySelectorAll() {return [];}};
+  c.nodes.set('#daily-todos', root);
+  c.nodes.set('#dashboard-summary', summary);
+  c.put('syntheticInput', input);
+  c.run("document.activeElement=syntheticInput;todoDay().draft='正在输入计划';todoDay().loaded=true;paintTodos()");
+  c.run("setPageBody('<p>Overview loaded</p>','dashboard')");
+  assert.equal(c.run('document.activeElement===syntheticInput'), true);
+  assert.equal(input.value, '正在输入计划');
+  assert.equal(input.selectionStart, 3);
+  assert.equal(input.selectionEnd, 3);
+  assert.equal(summary.innerHTML, '<p>Overview loaded</p>');
+});
+
+test('saving a task does not recreate an active history date control', () => {
+  const c = client(), slots = new Map(), dateInput = {value: '2026-10-22', dataset: {}};
+  const heading = {};
+  Object.defineProperty(heading, 'innerHTML', {set() {assert.fail('caption updates must retain the date input');}});
+  slots.set('#todo-heading', heading);
+  slots.set('#todo-date', dateInput);
+  for (const id of ['todo-caption', 'todo-status', 'todo-items', 'todo-feedback']) slots.set('#' + id, {innerHTML: ''});
+  const root = {dataset: {date: '2026-10-22'}, querySelector: selector => slots.get(selector) || null};
+  Object.defineProperty(root, 'outerHTML', {set() {assert.fail('same-date save must retain the date controls');}});
+  c.nodes.set('#daily-todos', root);
+  c.put('syntheticDateInput', dateInput);
+  c.put('completedTask', item('completed-history', '2026-10-22', {completed: true}));
+  c.run("state.page='todos';state.todoDate='2026-10-22';document.activeElement=syntheticDateInput;todoDay().items=[completedTask];paintTodos()");
+  assert.equal(c.run('document.activeElement===syntheticDateInput'), true);
+  assert.equal(dateInput.value, '2026-10-22');
+  assert.match(slots.get('#todo-caption').innerHTML, /已完成 1\/1/);
+});
+
+test('repeated navigation keeps the current page and history while explicit actions still refresh it', () => {
+  for (const page of ['dashboard', 'todos', 'articles', 'reviews', 'settings']) {
+    const c = client({search: `?page=${page}&tab=accounts`, mobile: true});
+    c.run('readRoute();updateRoute();let rendered=0;renderShell=()=>{rendered++}');
+    const length = c.historyLength;
+    c.run(`navigateLink(${JSON.stringify(page)})`);
+    assert.equal(c.historyLength, length, page);
+    assert.equal(c.run('rendered'), 0, page);
+    assert.equal(c.run('state.page'), page);
+    if (page === 'articles') {
+      c.run("actionMissingList({target:{dataset:{status:'missing_reads'}}})");
+      assert.equal(c.run('state.filters.data_status'), 'missing_reads');
+      assert.equal(c.run('rendered'), 1, 'same-page article filter action still renders');
+      assert.equal(c.historyLength, length + 1);
+    }
+  }
+});
+
+test('daily-plan navigation returns historical dates to today and settings navigation returns to accounts', () => {
+  for (const [search, page, check] of [
+    ['?page=todos&date=2026-10-22', 'todos', "state.todoDate===''&&todoDate()==='2026-10-23'"],
+    ['?page=settings&tab=keys', 'settings', "state.settingsTab==='accounts'"],
+  ]) {
+    const c = client({search, mobile: true});
+    c.run('readRoute();updateRoute();let rendered=0;renderShell=()=>{rendered++}');
+    c.run(`navigateLink(${JSON.stringify(page)})`);
+    assert.equal(c.run(check), true, search);
+    assert.equal(c.run('rendered'), 1, search);
+    assert.equal(c.historyLength, 2, search);
+  }
+});
+
+test('navigation reuses the shell within one session and rebuilds it after the user or session changes', () => {
+  for (const change of ['session', 'user']) {
+    const c = client(), links = ['dashboard', 'todos'].map(page => ({
+      dataset: {nav: page}, active: false,
+      classList: {toggle(_name, current) {this.current = current;}},
+      setAttribute(name, value) {this[name] = value;}, removeAttribute(name) {delete this[name];},
+    }));
+    const shell = {
+      dataset: {session: '0', user: 'synthetic-todo-user'},
+      classList: {toggle() {}}, querySelectorAll: () => links,
+    };
+    const main = {innerHTML: ''};
+    c.nodes.set('.shell', shell);
+    c.nodes.set('#main', main);
+    let appWrites = 0, appHTML = '';
+    Object.defineProperty(c.nodes.get('#app'), 'innerHTML', {
+      get() {return appHTML;}, set(value) {appWrites++;appHTML = value;},
+    });
+    c.run("state.page='todos';let renders=0;renderPage=()=>{renders++};renderShell()");
+    assert.equal(appWrites, 0, change);
+    assert.match(main.innerHTML, /每日待办/);
+    assert.equal(links[0].classList.current, false);
+    assert.equal(links[1].classList.current, true);
+    assert.equal(links[1]['aria-current'], 'page');
+    c.run(change === 'session' ? 'runtime.sessionEpoch++' : "state.me={id:'other-user',username:'Other user'}");
+    c.run('renderShell()');
+    assert.equal(appWrites, 1, change);
+    assert.equal(c.run('renders'), 2);
+    assert.match(appHTML, change === 'session' ? /data-session="1"/ : /data-user="other-user"/);
   }
 });

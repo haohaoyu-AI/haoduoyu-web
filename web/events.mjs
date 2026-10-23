@@ -1,5 +1,5 @@
 import { isRequestAbort } from "./core/requests.mjs";
-import { applyArticleFilters, navigate, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
+import { applyArticleFilters, navigateLink, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
 import { $, $$, e } from "./core/dom.mjs";
 import { readRoute, updateRoute } from "./core/router.mjs";
 import { runtime, state } from "./core/state.mjs";
@@ -29,7 +29,7 @@ async function handleClick(event) {
   if (runtime.activePopover?.node.contains(target) && !["reset-draft", "draft-sort"].includes(target.dataset.action)) closePopover();
   if (target.dataset.nav) {
     event.preventDefault();
-    navigate(target.dataset.nav);
+    navigateLink(target.dataset.nav);
     return;
   }
   const action = target.dataset.action, id = target.dataset.id;

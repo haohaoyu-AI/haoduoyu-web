@@ -33,10 +33,11 @@ class="btn" data-action="new-daily">录入每日数据</button></div>'}</section
 function renderPeriodAccounts(accounts) {
   const approvals = accounts.some((a) => a.period_metrics?.approvals != null), columns = [["reads", "阅读"], ["likes", "点赞"], ["comments",
      "评论"], ...approvals ? [["approvals", "赞同"]] : []];
-  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).
+  return `<div class="table-scroll"><table class="data-table period-table"><thead><tr><th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).
   join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.
-    id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key]) => `<td>${dashboardMetric({ latest_metrics: a.period_metrics },
-  key)}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key, label]) => `<td data-label="${e(label)}">${dashboardMetric({
+  latest_metrics: a.period_metrics }, key)}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).
+  join("")}</tbody></table></div>`;
 }
 function renderAttentionArticles(articles) {
   return `<div class="table-scroll"><table class="data-table attention-table"><thead><tr><th>文章</th><th>周期阅读 / 变化</th><th>周期互动 / 变化 ${dashboardInfo(

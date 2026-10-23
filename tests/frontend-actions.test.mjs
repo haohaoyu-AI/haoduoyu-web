@@ -11,10 +11,10 @@ const root=new URL('../',import.meta.url);
 const CHECKPOINT='2e12147b700ac604d7cccf8e034374644ac99a03';
 const old=path=>execFileSync('git',['show',CHECKPOINT+':'+path],{cwd:root,encoding:'utf8',maxBuffer:1024*1024});
 const current=path=>readFile(new URL(path,root),'utf8');
-// This historical test locks mechanical refactors. The bounded todo integration
-// intentionally extends these modules; its behavior has separate daily-todo tests.
-const todoIntegration=new Set(['controller.mjs','events.mjs','core/constants.mjs','core/dom.mjs',
-  'core/router.mjs','core/state.mjs','pages/dashboard.mjs','ui/components.mjs']);
+// Routing and page lifecycle intentionally changed; their behavior is covered by
+// the daily-todo UI/browser tests. Other modules retain their historical checks
+// after projecting only the exact added field, branch or dashboard wrapper.
+const todoIntegration=new Set(['controller.mjs','core/router.mjs']);
 function normalized(value) {
   if(Array.isArray(value))return value.map(normalized);
   if(!value||typeof value!=='object')return value;
@@ -25,6 +25,62 @@ function normalized(value) {
   }
   if(result.type==='BreakStatement'&&!result.label)return {type:'ReturnStatement',argument:null};
   return result;
+}
+const snippet=source=>parseWeb(source).body[0];
+const variable=(ast,name)=>ast.body.flatMap(node=>node.declarations||[]).find(node=>node.id.name===name);
+function stripTodoProperty(ast,declaration,key,expected) {
+  const object=variable(ast,declaration).init;
+  const found=object.properties.filter(property=>(property.key.name??property.key.value)===key);
+  assert.equal(found.length,1,`${declaration}.${key} has exactly one bounded addition`);
+  assert.deepEqual(normalized(found[0]),normalized(snippet(`const expected={${expected}}`).declarations[0].init.properties[0]));
+  object.properties=object.properties.filter(property=>property!==found[0]);
+}
+function projectPeriodTable(ast) {
+  const table=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='renderPeriodAccounts');
+  let classes=0,cells=0;
+  visitWeb(table,node=>{
+    if(node.type==='TemplateLiteral'&&node.quasis[0].value.cooked.startsWith('<div class="table-scroll"><table class="data-table period-table">')) {
+      node.quasis[0].value.cooked=node.quasis[0].value.cooked.replace('class="data-table period-table"','class="data-table"');
+      classes++;
+    }
+    if(node.type!=='ArrowFunctionExpression'||node.body.type!=='TemplateLiteral'||node.body.quasis[0].value.cooked!=='<td data-label="')return;
+    assert.deepEqual(normalized(node.params),normalized(snippet('const f=([key,label])=>0').declarations[0].init.params));
+    assert.deepEqual(normalized(node.body.expressions[0]),normalized(snippet('e(label);').expression));
+    assert.equal(node.body.quasis[1].value.cooked,'">');
+    node.params[0].elements.pop();node.body.expressions.shift();node.body.quasis.shift();
+    node.body.quasis[0].value.cooked='<td>';cells++;
+  });
+  assert.deepEqual({classes,cells},{classes:1,cells:1},'only the period-table class and escaped responsive metric label are projected');
+}
+function projectTodoIntegration(ast,file) {
+  if(file==='web/core/constants.mjs') {
+    const list=variable(ast,'nav').init;
+    const extra=list.elements.filter(element=>element.properties.some(property=>property.key.name==='id'&&property.value.value==='todos'));
+    const expected=snippet('const nav=[{id:"todos",label:"每日待办",icon:"check"}]').declarations[0].init.elements;
+    assert.deepEqual(normalized(extra),normalized(expected));
+    list.elements=list.elements.filter(element=>element!==extra[0]);
+  }
+  if(file==='web/core/dom.mjs') stripTodoProperty(ast,'icons','check',
+    'check:\'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/>\'');
+  if(file==='web/core/state.mjs') stripTodoProperty(ast,'state','todoDate','todoDate:""');
+  if(file==='web/ui/components.mjs') {
+    const header=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='headerActions');
+    const extra=header.body.body.filter(node=>node.type==='IfStatement'&&node.test.right?.value==='todos');
+    const expected=snippet('function headerActions(){if(state.page==="todos")return "";}').body.body;
+    assert.deepEqual(normalized(extra),normalized(expected));
+    header.body.body=header.body.body.filter(node=>node!==extra[0]);
+  }
+  if(file==='web/pages/dashboard.mjs') {
+    const wrapper=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='renderDashboard');
+    const expected=snippet('function renderDashboard(data){return `${renderTodos()}<div id="dashboard-summary">${renderDashboardSummary(data)}</div>`;}');
+    assert.deepEqual(normalized(wrapper),normalized(expected));
+    ast.body=ast.body.filter(node=>node!==wrapper);
+    const summary=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='renderDashboardSummary');
+    assert.ok(summary,'the original dashboard body remains present');
+    summary.id.name='renderDashboard';
+    projectPeriodTable(ast);
+  }
+  return ast;
 }
 // D5 permits exactly the two parser-style to data-attribute substitutions.
 // All other cooked text, expressions, declarations and event bodies stay locked.
@@ -76,7 +132,14 @@ async function registry(path,name) {
   const ast=parseWeb(await current(path));
   const functions=new Map(ast.body.filter(node=>node.type==='FunctionDeclaration').map(node=>[node.id.name,node]));
   const declaration=ast.body.flatMap(node=>node.declarations||[]).find(node=>node.id.name===name);
-  return new Map(declaration.init.properties.filter(item=>!item.key.value?.startsWith('todo-')).map(item=>[item.key.value,normalized(functions.get(item.value.name).body.body)]));
+  const additions=new Set(['todo-prev','todo-next','todo-today','todo-reload']);
+  if(name==='actions') {
+    const expected=snippet('const actions={"todo-prev":()=>moveTodoDate(-1),"todo-next":()=>moveTodoDate(1),"todo-today":()=>selectTodoDate(bjtDate()),"todo-reload":refreshTodos}');
+    const extra=declaration.init.properties.filter(item=>additions.has(item.key.value));
+    assert.deepEqual(normalized(extra),normalized(expected.declarations[0].init.properties));
+  }
+  return new Map(declaration.init.properties.filter(item=>!additions.has(item.key.value))
+    .map(item=>[item.key.value,normalized(functions.get(item.value.name).body.body)]));
 }
 test('all original action/form case bodies are preserved in their named registry handlers',async()=>{
   const actions=await registry('web/actions.mjs','actions'),forms=await registry('web/forms.mjs','forms');
@@ -94,27 +157,29 @@ test('formatting preserves declarations in otherwise unchanged modules and every
     'core/modal-request.mjs','core/session-index-state.mjs','pages/articles.mjs','pages/detail.mjs','pages/reviews.mjs','ui/modal.mjs']);
   for(const file of files.filter(file=>!changed.has(file.slice(4))&&!todoIntegration.has(file.slice(4)))) {
     const canonical=async source=>(await transform(source,{format:'esm',charset:'utf8',target:'esnext',minify:false,treeShaking:false})).code;
-    let candidate=parseWeb(await canonical(await current(file)));
+    let candidate=projectTodoIntegration(parseWeb(await canonical(await current(file))),file);
     if(file==='web/ui/entry.mjs')candidate=normalizedEntry(candidate);
     const changed=normalizeChartMarkup(candidate);
     assert.equal(changed,file==='web/pages/dashboard.mjs'?2:0);
     assert.deepEqual(normalized(declarations(candidate)),
       normalized(declarations(parseWeb(await canonical(old(file))))),file);
   }
-  const collect=source=>{const rows=[],ast=parseWeb(source);normalizeChartMarkup(ast);
+  const collect=(source,file,project=false)=>{const rows=[],ast=project?projectTodoIntegration(parseWeb(source),file):parseWeb(source);normalizeChartMarkup(ast);
     ast.body=ast.body.filter(node=>!(node.type==='FunctionDeclaration'&&node.id.name==='applyChartStyles'));
     visitWeb(ast,node=>{if(node.type==='TemplateLiteral')rows.push(node.quasis.map(q=>q.value.cooked));});return rows;};
   const integrationBase='89ca9dd0ddca8b4e8866fbeb812b11a3d46ab222';
   const templateFiles=execFileSync('git',['ls-tree','-r','--name-only',integrationBase,'web'],{cwd:root,encoding:'utf8'})
     .trim().split('\n').filter(file=>!todoIntegration.has(file.slice(4)));
-  const previous=templateFiles.flatMap(file=>collect(execFileSync('git',['show',integrationBase+':'+file],{cwd:root,encoding:'utf8'})));
-  const next=(await Promise.all(templateFiles.map(async file=>collect(await current(file))))).flat();
+  const previous=templateFiles.flatMap(file=>collect(execFileSync('git',['show',integrationBase+':'+file],{cwd:root,encoding:'utf8'}),file));
+  const next=(await Promise.all(templateFiles.map(async file=>collect(await current(file),file,true)))).flat();
   const sorted=rows=>rows.map(row=>JSON.stringify(row)).sort();
   assert.deepEqual(sorted(next),sorted(previous),'unchanged module template cooked text and whitespace remain exact');
 });
 test('event bindings retain all nine original positions and capture options',async()=>{
   const ast=parseWeb(await current('web/events.mjs'));
   const next=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='registerEvents');
+  const hook=next.body.body.filter(statement=>statement.expression?.callee?.name==='registerTodosClock');
+  assert.deepEqual(normalized(hook),normalized(snippet('function register(){registerTodosClock();}').body.body));
   const signature=node=>node.body.body.filter(statement=>statement.expression?.callee?.name!=='registerTodosClock').map(statement=>{
     const call=statement.expression;
     return {target:call.callee.object.name,event:call.arguments[0].value,capture:call.arguments[2]?.value??false};
@@ -138,17 +203,21 @@ test('the click prelude and remaining event callback bodies keep their original 
   const ast=parseWeb(await current('web/events.mjs'));
   const functions=new Map(ast.body.filter(node=>node.type==='FunctionDeclaration').map(node=>[node.id.name,node]));
   const beforeTry=body=>body.slice(0,body.findIndex(node=>node.type==='TryStatement'));
-  assert.deepEqual(normalized(beforeTry(functions.get('handleClick').body.body)),normalized(beforeTry(callbacks[0].body.body)));
+  const click=structuredClone(functions.get('handleClick').body),navCalls=[];
+  visitWeb(click,node=>{if(node.type==='CallExpression'&&node.callee.name==='navigateLink')navCalls.push(node);});
+  assert.deepEqual(normalized(navCalls),normalized([snippet('navigateLink(target.dataset.nav);').expression]));
+  navCalls[0].callee.name='navigate';
+  assert.deepEqual(normalized(beforeTry(click.body)),normalized(beforeTry(callbacks[0].body.body)));
   for(const [index,name] of [[1,'handleChange'],[2,'handleToggle'],[3,'handleInput'],[4,'handleFilterSubmit'],
     [5,'handleKeydown'],[7,'handleResize'],[8,'handlePopstate']]) {
     const body=structuredClone(functions.get(name).body);
     if(name==='handleChange') {
-      assert.equal(body.body[1].consequent.body[0].expression.callee.name,'toggleTodo');
-      assert.equal(body.body[2].test.right.value,'todo-date');
+      const expected=snippet('function change(){if(el.dataset?.todoId){toggleTodo(el);return;}if(el.id==="todo-date"){selectTodoDate(el.value);return;}}').body.body;
+      assert.deepEqual(normalized(body.body.slice(1,3)),normalized(expected));
       body.body.splice(1,2);
     }
     if(name==='handleInput') {
-      assert.equal(body.body[1].expression.callee.name,'inputTodo');
+      assert.deepEqual(normalized(body.body[1]),normalized(snippet('inputTodo(el);')));
       body.body.splice(1,1);
     }
     assert.deepEqual(normalized(body),normalized(callbacks[index].body),name);

@@ -1,3 +1,4 @@
+import {legacyBackupEnvelope} from './todo-backup-projection.mjs';
 import {traceHeaders, traceText, traceDocument} from './request-trace-projection.mjs';
 import {dashboardHeaders, dashboardSpec} from './dashboard-deprecation-projection.mjs';
 import test from 'node:test';
@@ -131,8 +132,10 @@ async function previousWorker(t) {
   const dir = await mkdtemp(join(tmpdir(), 'synthetic-5a-reference-'));t.after(() => rm(dir, {recursive: true, force: true}));
   const files = execFileSync('git', ['ls-tree', '-r', '--name-only', BASE, 'src', 'shared'], {cwd: root, encoding: 'utf8'}).trim().split('\n');
   for (const file of files) {const path = join(dir, file);await mkdir(join(path, '..'), {recursive: true});await writeFile(path, old(file));}
-  const changed = execFileSync('git', ['diff', BASE, '--name-only', '--', 'public', 'web', 'runtime.json', '.openai', 'db', 'drizzle'], {cwd: root, encoding: 'utf8'}).trim().split('\n').filter(Boolean);
-  assert.deepEqual(changed.filter(file => file !== 'public/openapi.json'), []);
+  // New todo frontend/schema additions are intentional. Keep deployment settings
+  // and the applied original migration immutable; new behavior is tested separately.
+  for(const file of ['runtime.json','.openai/hosting.json','drizzle/0000_lively_stellaris.sql','drizzle/meta/0000_snapshot.json'])
+    assert.equal(await source(file),old(file),file+' remains unchanged');
   assert.deepEqual(dashboardSpec(traceDocument(JSON.parse(await source('public/openapi.json')))), JSON.parse(old('public/openapi.json')));
   await writeFile(join(dir, 'src/assets.generated.mjs'), await source('src/assets.generated.mjs'));
   await build({entryPoints: [join(dir, 'src/worker.mjs')], outfile: join(dir, 'worker.mjs'), bundle: true, format: 'esm', platform: 'node', target: 'es2022'});
@@ -157,10 +160,12 @@ test('pre-5a and candidate HTTP reads retain complete bodies, statuses and heade
     const responses = [];
     for (const worker of [baseline, candidate]) {
       const response = await worker.fetch(new Request(app.origin + path, {headers: cookie ? {Cookie: cookie} : {}}), {DB: app.db, SITE_ORIGIN: app.origin});
-      responses.push({status: response.status, headers: dashboardHeaders(path, response.status, traceHeaders(response.headers)), body: traceText(await response.text(), response.status, response.headers)});
+      let body=traceText(await response.text(),response.status,response.headers);
+      if(path==='/api/v1/backup'&&response.status===200) body=JSON.stringify(legacyBackupEnvelope(JSON.parse(body)));
+      responses.push({status: response.status, headers: dashboardHeaders(path, response.status, traceHeaders(response.headers)),body});
     }
     // Backup contains ephemeral synthetic authentication hashes: never print bodies on failure.
     assert.ok(isDeepStrictEqual(responses[1], responses[0]), path + (cookie ? ' session' : ' anonymous'));compared++;
   }
-  t.diagnostic(compared + ' full-body/status comparisons; only the exact authorized dashboard header addition projected, no other header/body normalization');
+  t.diagnostic(compared + ' full-body/status comparisons; only exact dashboard/trace metadata and verified empty todo backup extension projected; unchanged legacy bodies retained');
 });
