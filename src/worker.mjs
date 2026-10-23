@@ -10,6 +10,7 @@ import { overviewCache } from './overview-cache.mjs';
 import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
 import {loginRetryAfter} from './lib/login-backoff.mjs';
 import {handleTodos} from './todos.mjs';
+import {handleTodoTemplates} from './todo-templates.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
@@ -216,6 +217,7 @@ async function handle(request,env,trace) {
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
     if(route==='/auth/login'&&method==='POST') return login(db,request,env,origin);
     if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
+    if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
     if(method==='GET') {
       if(route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');
       return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision);

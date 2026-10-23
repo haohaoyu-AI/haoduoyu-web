@@ -1,6 +1,7 @@
 import {authenticate,bodyFor,fail,now,requireAdmin,requireCsrf} from './security.mjs';
 import {consistentRead,mutate,storeFor} from './storage.mjs';
 import {beijingDay} from './lib/time.mjs';
+import {templateId,requireActiveTemplate} from './todo-templates.mjs';
 
 const fields='id,date,text,completed,version,created_at,updated_at';
 const json=(data,status=200)=>Response.json({data},{status});
@@ -30,11 +31,11 @@ function exactFields(input,names) {
 }
 
 function createInput(input) {
-  exactFields(input,['id','date','text']);
+  exactFields(input,Object.hasOwn(input,'template_id')?['id','date','text','template_id']:['id','date','text']);
   const id=validId(input.id),date=validDate(input.date);
   if(typeof input.text!=='string'||input.text.length>500||!input.text.trim()||input.text.includes('\0'))
     throw fail(400,'VALIDATION_ERROR','待办内容需要 1 至 500 个字符');
-  return {id,date,text:input.text.trim()};
+  return {id,date,text:input.text.trim(),...(Object.hasOwn(input,'template_id')?{template_id:templateId(input.template_id)}:{})};
 }
 
 function updateInput(input) {
@@ -52,19 +53,24 @@ async function readTodos(db,request,initialRevision) {
       throw fail(400,'VALIDATION_ERROR','待办查询只接受一个 date 参数');
     const today=todoToday(),date=query.has('date')?validDate(query.get('date')):today;
     const rows=await store.all('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND date=? ORDER BY created_at,rowid',actor.id,date);
-    return json({date,today,items:rows.map(item)});
+    const links=await store.all('SELECT l.todo_id,l.template_id FROM matrix_todo_template_links AS l JOIN matrix_todos AS t ON t.user_id=l.user_id AND t.id=l.todo_id WHERE l.user_id=? AND t.date=?',actor.id,date);
+    const templates=new Map(links.map(link=>[link.todo_id,link.template_id]));
+    return json({date,today,items:rows.map(row=>({...item(row),...(templates.has(row.id)?{template_id:templates.get(row.id)}:{})}))});
   },initialRevision);
 }
 
 async function createTodo(store,actor,input) {
   const existing=await store.get('SELECT '+fields+' FROM matrix_todos WHERE user_id=? AND id=?',actor.id,input.id);
   if(existing) {
-    if(existing.date!==input.date||existing.text!==input.text)
+    const link=await store.get('SELECT template_id FROM matrix_todo_template_links WHERE user_id=? AND todo_id=?',actor.id,input.id);
+    if(existing.date!==input.date||existing.text!==input.text||link?.template_id!==input.template_id)
       throw fail(409,'IDEMPOTENCY_CONFLICT','同一待办标识已经用于不同内容');
-    return {replayed:true,response:json(item(existing))};
+    return {replayed:true,response:json({...item(existing),...(link?{template_id:link.template_id}:{})})};
   }
+  if(input.template_id) await requireActiveTemplate(store,actor.id,input.template_id);
   const stamp=now(),value={...input,completed:false,version:1,created_at:stamp,updated_at:stamp};
   store.queue('INSERT INTO matrix_todos(user_id,id,date,text,completed,version,created_at,updated_at) VALUES(?,?,?,?,0,1,?,?)',actor.id,input.id,input.date,input.text,stamp,stamp);
+  if(input.template_id) store.queue('INSERT INTO matrix_todo_template_links(user_id,todo_id,template_id) VALUES(?,?,?)',actor.id,input.id,input.template_id);
   return {actor,response:json(value,201)};
 }
 
@@ -73,6 +79,8 @@ async function updateTodo(store,actor,id,input) {
   if(!current) throw fail(404,'NOT_FOUND','待办不存在');
   if(current.version!==input.version) throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
   const value={...item(current),completed:input.completed,version:current.version+1,updated_at:now()};
+  const link=await store.get('SELECT template_id FROM matrix_todo_template_links WHERE user_id=? AND todo_id=?',actor.id,id);
+  if(link) value.template_id=link.template_id;
   store.queue('UPDATE matrix_todos SET completed=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=?',Number(input.completed),value.updated_at,actor.id,id,input.version);
   store.expectChange();
   return {actor,response:json(value)};

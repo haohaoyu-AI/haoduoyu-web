@@ -228,11 +228,12 @@ test('generated todo migration only appends its table and preserves existing row
   const migration=await readFile(new URL('../drizzle/0001_daily_todos.sql',import.meta.url),'utf8');
   assert.match(migration,/^CREATE TABLE `matrix_todos`/);
   assert.ok(!/\b(?:INSERT|DROP|ALTER)\b/i.test(migration));
-  await applyFixtureMigrations(app.db);await applyFixtureMigrations(app.db);
+  await applyFixtureMigrations(app.db,{through:2});await applyFixtureMigrations(app.db,{through:2});
   const after=(await app.db.prepare(schemaQuery).all()).results;
   assert.deepEqual(after.filter(row=>row.tbl_name!=='matrix_todos'),schemas);
   for(const table of tables) assert.deepEqual((await app.db.prepare('SELECT * FROM "'+table+'" ORDER BY rowid').all()).results,snapshots.get(table),table);
   assert.equal((await app.db.prepare('PRAGMA foreign_key_check').all()).results.length,0);
+  await applyFixtureMigrations(app.db);
   const created=await create(app,app.session,input());assert.equal(created.status,201);
   assert.deepEqual((await app.db.prepare('SELECT * FROM legacy_todo_sentinel').all()).results,snapshots.get('legacy_todo_sentinel'));
 });

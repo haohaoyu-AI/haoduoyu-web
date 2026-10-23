@@ -29,7 +29,7 @@ if(manifest.project_id) {
 assert.equal(manifest.d1,'DB');assert.equal(manifest.r2,null);assert.ok(!manifest.static);
 const runtime=JSON.parse(await readFile(resolve(root,'runtime.json'),'utf8'));
 const journal=JSON.parse(await readFile(resolve(root,'drizzle/meta/_journal.json'),'utf8'));
-assert.equal(journal.entries.length,2,'Initial schema plus the additive daily-todos migration');
+assert.equal(journal.entries.length,3,'Initial schema plus additive daily-todos and template migrations');
 let tables=0;
 for(const [idx,entry] of journal.entries.entries()) {
   assert.equal(entry.idx,idx);
@@ -41,7 +41,7 @@ for(const [idx,entry] of journal.entries.entries()) {
     if(statement.startsWith('CREATE TABLE')) tables++;
   }
 }
-assert.equal(tables,12);
+assert.equal(tables,14);
 assert.equal(relative(root,dist),'dist','Build output must remain inside this project');
 await rm(dist,{recursive:true,force:true});await mkdir(resolve(dist,'server'),{recursive:true});
 await build({entryPoints:[resolve(root,'src/worker.mjs')],bundle:true,format:'esm',platform:'neutral',external:['node:*'],target:'es2022',outfile:resolve(dist,'server/index.js')});
@@ -51,4 +51,4 @@ await cp(resolve(root,'drizzle'),resolve(dist,'.openai/drizzle'),{recursive:true
 await writeFile(resolve(dist,'server/wrangler.json'),JSON.stringify({name:'haoduoyu-matrix-new',main:'index.js',...runtime,d1_databases:[{binding:'DB',database_name:'site-creator-d1',database_id:'00000000-0000-4000-8000-000000000000'}]},null,2)+'\n');
 const worker=await import(pathToFileURL(resolve(dist,'server/index.js')).href+'?build='+Date.now());
 assert.equal(typeof worker.default?.fetch,'function');
-console.log('Built independent Sites Worker: DB only, one initial and one additive migration, 12 matrix tables, no legacy tables or R2 binding.');
+console.log('Built independent Sites Worker: DB only, one initial and two additive migrations, 14 matrix tables, no legacy tables or R2 binding.');

@@ -3,6 +3,7 @@ import { Miniflare } from 'miniflare';
 import { readFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 
 export const ORIGIN='http://localhost';
 export const USERNAME='synthetic-admin';
@@ -22,7 +23,8 @@ export async function applyFixtureMigrations(db,{through=Infinity}={}) {
 }
 export async function fixture(t,{persist=false,port=0,origin=ORIGIN,username=USERNAME,password=PASSWORD,bootstrap=true,trustConnectingIp=false,migrationCount=Infinity,bootstrapSecret=randomBytes(32).toString('hex')}={}) {
   const runtime=JSON.parse(await readFile(new URL('../runtime.json',import.meta.url),'utf8'));
-  const mf=new Miniflare({modules:true,cf:false,scriptPath:fileURLToPath(new URL('../dist/server/index.js',import.meta.url)),
+  const workerPath=process.env.TEST_WORKER_PATH||fileURLToPath(new URL('../dist/server/index.js',import.meta.url));
+  const mf=new Miniflare({modules:true,cf:false,scriptPath:workerPath,modulesRoot:dirname(workerPath),
     compatibilityDate:runtime.compatibility_date,compatibilityFlags:runtime.compatibility_flags,d1Databases:['DB'],d1Persist:persist,
     bindings:{SITE_ORIGIN:origin,MATRIX_BOOTSTRAP_SECRET:bootstrapSecret,...(trustConnectingIp?{TRUST_CF_CONNECTING_IP:'1'}:{})},host:'127.0.0.1',port,
     outboundService:()=>new Response('External requests disabled',{status:502})});
