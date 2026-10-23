@@ -16,6 +16,9 @@ export const matrixDaily=sqliteTable('matrix_daily_metrics',{
 export const matrixUsers=sqliteTable('matrix_users',{
   id:text('id').primaryKey(),username:text('username').notNull(),password_hash:text('password_hash').notNull(),created_at:text('created_at').notNull(),
 },t=>[uniqueIndex('matrix_username').on(t.username)]);
+export const matrixTodos=sqliteTable('matrix_todos',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),date:text('date').notNull(),text:text('text').notNull(),completed:integer('completed').notNull().default(0),version:integer('version').notNull().default(1),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),index('matrix_todo_user_date').on(t.user_id,t.date,t.created_at),check('matrix_todo_completed',sql`${t.completed} IN (0,1)`),check('matrix_todo_text',sql`length(${t.text}) BETWEEN 1 AND 500`),check('matrix_todo_version',sql`${t.version} >= 1`)]);
 export const matrixSessions=sqliteTable('matrix_sessions',{
   token_hash:text('token_hash').primaryKey(),user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),expires_at:text('expires_at').notNull(),
 },t=>[index('matrix_session_user').on(t.user_id)]);
