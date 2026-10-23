@@ -34,3 +34,13 @@
 ## 验证入口
 
 合成后端用例：`tests/daily-todos.test.mjs`；备份：`tests/daily-todos-backup.test.mjs`；前端行为：`tests/daily-todos-ui.test.mjs`。真实 Chromium 验收使用 `tests/daily-todos-browser-server.mjs` 和 `tests/browser-daily-todos.py`，只读写独立回环合成 D1，截图与原始报告留在忽略的 `artifacts/daily-todos/`。结果以最终精确提交的记录为准。
+
+## 本地浏览器验收
+
+产品提交 `0ea80af132d361897074f2b41c428d27a3d53630`：真实 Chromium 154 完成 28 项核心检查和 4 项导航补测，32 张合成截图；375/390 使用手机触控仿真，1440 检查桌面。不是实体手机或生产验收。全部 61 个产品文件哈希与当前源码/构建核对一致，详见[机器可读证据](daily-todos-evidence.json)。
+
+预期的未登录 401、注入失败 503 和真实版本冲突 409 保留在本地原始报告；没有未捕获页面脚本异常或外联请求。截图与原始报告不提交；仓库只保存测试脚本、净化结论和哈希索引。此产品版本本地 `npm test` 288/288 通过，`check:web`、构建产物核对、8 个资源字节校验和两个隔离预览检查均通过。远端 CI 的最终结果以 [PR #35 的精确提交检查](https://github.com/haohaoyu-AI/haoduoyu-web/pull/35/checks)为准，不能用此处的定点/浏览器检查代替。
+
+同一 390px 触控操作（打开侧栏并点当前待办）对比实际旧/新 bundle：新增 GET 发起数 **1 → 0**、history 增量 **1 → 0**、输入 DOM 从替换变为保留；两版草稿均保留。每版仅一个本地样本，使用相同当前 CSS/Worker；rAF 只采样绘制前 DOM 状态，不等同肉眼等待或网络速度保证。可用 `tests/browser-daily-todos-navigation-before-after.py` 复查；精确来源与观察边界见机器可读证据。
+
+产品提交的 [Foundation CI 39943285799](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/39943285799) 已完成且成功；后续证据提交只新增测试脚本与文档，仍需查看其精确 head 检查。生产发布与上线核验尚待父任务最终验收。
