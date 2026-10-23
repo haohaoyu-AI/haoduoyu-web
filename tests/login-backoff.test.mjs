@@ -27,7 +27,7 @@ test('synthetic trusted-source fifth password failure starts a two-second backof
   t.diagnostic('Synthetic flag/header only: this is not proof of the production forwarding contract.');
 });
 
-const failureBucket = (ip = '192.0.2.10', username = USERNAME) => LOGIN_FAILURE_PREFIX + digest(ip + ':' + username);
+const failureBucket = (ip = '192.0.2.10', username = USERNAME) => LOGIN_FAILURE_PREFIX + digest(JSON.stringify([ip, username]));
 const rowFor = (app, bucket = failureBucket()) => app.db.prepare('SELECT * FROM matrix_login_attempts WHERE bucket=?').bind(bucket).first();
 async function seed(app, bucket, attempts, stamp) {
   await app.db.prepare('INSERT OR REPLACE INTO matrix_login_attempts(bucket,attempts,window_start) VALUES(?,?,?)')
@@ -182,4 +182,49 @@ test('real loopback workerd HTTP preserves trace IDs, no-store, failure codes an
     if (n === 5) assert.equal(response.headers.get('Retry-After'), '2');
   }
   t.diagnostic('Real local HTTP and workerd; synthetic trust setting, not a production ingress attestation.');
+});
+
+test('adversarial IPv6 and colon-username tuples cannot lock an administrator on another peer', async t => {
+  const app = await fixture(t), attackerIp = '2001:db8::1', adminIp = '2001:db8::1:a', attackerUser = 'a:' + USERNAME;
+  assert.equal(digest(attackerIp + ':' + attackerUser), digest(adminIp + ':' + USERNAME), 'old delimiter encoding demonstrably collides');
+  for (let n = 1; n <= 5; n++) assert.equal((await login(app, {ip: attackerIp, username: attackerUser})).response.status, n < 5 ? 401 : 429);
+  const admin = await login(app, {ip: adminIp, password: PASSWORD});
+  assert.equal(admin.response.status, 200, 'another valid IPv6 peer must not inherit the attacker failure bucket');
+  assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_sessions').first()).n, 1);
+});
+
+test('aggregate IP window keeps the exact legacy 900000/900001 millisecond boundary', async t => {
+  const app = await fixture(t), time = clock(t), ip = '192.0.2.10', bucket = 'ip:' + digest(ip);
+  await seed(app, bucket, 100, time.now());
+  const request = new Request(app.origin, {headers: {'CF-Connecting-IP': ip}});
+  time.advance(900000);
+  await assert.rejects(throttleLogin(app.db, USERNAME, request, {TRUST_CF_CONNECTING_IP: '1'}), error =>
+    error.status === 429 && loginRetryAfter(error) === 1);
+  assert.equal((await rowFor(app, bucket)).attempts, 101);
+  time.advance(1);
+  assert.equal(await throttleLogin(app.db, USERNAME, request, {TRUST_CF_CONNECTING_IP: '1'}), failureBucket());
+  assert.equal((await rowFor(app, bucket)).attempts, 1);
+});
+
+test('50 concurrent real workerd HTTP logins account for in-flight failures and enforce the published cooldown', {timeout: 90000}, async t => {
+  const app = await fixture(t, {trustConnectingIp: true}), url = await app.mf.ready;
+  async function attempt() {
+    const response = await fetch(new URL('/api/v1/auth/login', url), {method: 'POST', signal: AbortSignal.timeout(60000), headers: {
+      Origin: app.origin, 'Content-Type': 'application/json', 'CF-Connecting-IP': '192.0.2.77'},
+      body: JSON.stringify({username: USERNAME, password: 'synthetic-wrong-password'})});
+    const body = await response.json();assert.equal(body.request_id, response.headers.get('X-Request-Id'));
+    return {status: response.status, wait: response.headers.get('Retry-After'), id: body.request_id};
+  }
+  const results = await Promise.all(Array.from({length: 50}, attempt));
+  assert.equal(results.filter(row => row.status === 401).length, 4);
+  assert.equal(results.filter(row => row.status === 429).length, 46);
+  assert.equal(new Set(results.map(row => row.id)).size, 50);
+  const failures = (await app.db.prepare('SELECT * FROM matrix_login_attempts WHERE bucket LIKE ?').bind(LOGIN_FAILURE_PREFIX + '%').all()).results;
+  assert.equal(failures.length, 1);const before = failures[0];
+  assert.ok(before.attempts >= 5 && before.attempts <= 50);
+  const blocked = await attempt();assert.equal(blocked.status, 429);assert.ok(Number(blocked.wait) >= 1 && Number(blocked.wait) <= 900);
+  assert.deepEqual(await rowFor(app, before.bucket), before, 'after a published cooldown, another HTTP request does not run failed verification');
+  t.diagnostic(JSON.stringify({concurrent_http_requests: 50, invalid_credentials_401: 4, rate_limited_429: 46,
+    completed_failed_verifications: before.attempts, rejected_before_verification: 50 - before.attempts}));
+  t.diagnostic('In-flight verification is not serialized. This measures local workerd/D1 with synthetic trust, not production provenance.');
 });

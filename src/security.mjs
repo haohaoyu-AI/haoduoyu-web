@@ -81,7 +81,7 @@ export async function throttleLogin(db,username,request,env) {
 }
 async function throttleTrustedLogin(db,username,peer) {
   const time=Date.now(),start=time-LOGIN_WINDOW_MS,ipBucket='ip:'+digest(peer);
-  const failureBucket=LOGIN_FAILURE_PREFIX+digest(peer+':'+username);
+  const failureBucket=LOGIN_FAILURE_PREFIX+digest(JSON.stringify([peer,username]));
   const results=await db.batch([
     statement(db,'INSERT INTO login_attempts(bucket,attempts,window_start) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts=CASE WHEN window_start<? THEN 1 ELSE attempts+1 END,window_start=CASE WHEN window_start<? THEN excluded.window_start ELSE window_start END',ipBucket,time,start,start),
     statement(db,'SELECT bucket,attempts,window_start FROM login_attempts WHERE bucket IN (?,?)',ipBucket,failureBucket),
