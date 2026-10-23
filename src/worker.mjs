@@ -2,12 +2,13 @@ import { randomUUID,randomBytes } from 'node:crypto';
 import { hashPassword,verifyPassword } from '../shared/auth.mjs';
 import { createRecords } from './records.mjs';
 import { ensureControl,storeFor,mutate,consistentRead,statement } from './storage.mjs';
-import { fail,digest,csrfFor,now,originFor,bodyFor,authenticate,requireAdmin,requireOrigin,requireCsrf,equalSecret,sessionCookie,throttleLogin,stable } from './security.mjs';
+import { fail,digest,csrfFor,now,originFor,bodyFor,authenticate,requireAdmin,requireOrigin,requireCsrf,equalSecret,sessionCookie,throttleLogin,recordLoginFailure,stable } from './security.mjs';
 import { assets } from './assets.generated.mjs';
 import { exportBackup } from './backup.mjs';
 import { matchesIfNoneMatch } from './lib/http.mjs';
 import { overviewCache } from './overview-cache.mjs';
 import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
+import {loginRetryAfter} from './lib/login-backoff.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
@@ -45,7 +46,10 @@ async function login(db,request,env,origin) {
   const bucket=await throttleLogin(db,input.username,request,env);
   const user=await storeFor(db).get('SELECT * FROM users WHERE username=?',input.username);
   const valid=await verifyPassword(input.password,user?.password_hash||dummyHash);
-  if(!user||!valid) throw fail(401,'INVALID_CREDENTIALS','账号或密码错误');
+  if(!user||!valid) {
+    await recordLoginFailure(db,bucket);
+    throw fail(401,'INVALID_CREDENTIALS','账号或密码错误');
+  }
   const token=randomBytes(32).toString('hex'),tokenHash=digest(token);
   return (await mutate(db,async store=>{
     const current=await store.get('SELECT password_hash FROM users WHERE id=?',user.id);
@@ -243,7 +247,7 @@ export default {
         const status=error.status||(duplicate?409:500),code=error.status?error.code:duplicate?'DUPLICATE':'INTERNAL_ERROR';
         const message=error.status?error.message:duplicate?'记录已存在，请检索后更新原记录':'服务暂时不可用';
         response=Response.json({error:{code,message},request_id:trace.rid},{status});
-        if(status===429) response.headers.set('Retry-After','900');
+        if(status===429) response.headers.set('Retry-After',String(loginRetryAfter(error)));
         if(status===503) response.headers.set('Retry-After','1');
       } catch {
         // Only the old error renderer failed; never inspect the secondary error.

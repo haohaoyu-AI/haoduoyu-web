@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
-import { isIP } from 'node:net';
 import { fail,digest,csrfFor,checkCsrf,checkOrigin } from '../shared/auth.mjs';
 import { statement } from './storage.mjs';
+import {LOGIN_WINDOW_MS,LOGIN_FAILURE_PREFIX,trustedLoginPeer,loginRemainingWait,loginWindowWait,rejectLogin} from './lib/login-backoff.mjs';
 export {fail,digest,csrfFor};
 export const now=()=>new Date().toISOString();
 export const reqHeaders=request=>({headers:Object.fromEntries(request.headers)});
@@ -66,8 +66,9 @@ export async function throttleLogin(db,username,request,env) {
   // Sites dispatch's forwarding contract is not yet confirmed. Default to a
   // shared aggregate bucket and username bucket; spoofed headers never grant
   // extra attempts. Opt-in requires a separately verified edge contract.
-  const candidate=request.headers.get('cf-connecting-ip');
-  const peer=env.TRUST_CF_CONNECTING_IP==='1'&&isIP(candidate||'')?candidate:'shared-unverified-edge';
+  const trustedPeer=trustedLoginPeer(request,env);
+  if(trustedPeer) return throttleTrustedLogin(db,username,trustedPeer);
+  const peer='shared-unverified-edge';
   const buckets=['ip:'+digest(peer),digest(peer+':'+username)],time=Date.now(),start=time-900000;
   const statements=[];
   for(const bucket of buckets) statements.push(statement(db,
@@ -77,5 +78,28 @@ export async function throttleLogin(db,username,request,env) {
   const results=await db.batch(statements),rows=results[2].results;
   if(rows.some(row=>row.attempts>(row.bucket===buckets[0]?100:10))) throw fail(429,'RATE_LIMITED','尝试次数过多，请稍后再试');
   return buckets[1];
+}
+async function throttleTrustedLogin(db,username,peer) {
+  const time=Date.now(),start=time-LOGIN_WINDOW_MS,ipBucket='ip:'+digest(peer);
+  const failureBucket=LOGIN_FAILURE_PREFIX+digest(peer+':'+username);
+  const results=await db.batch([
+    statement(db,'INSERT INTO login_attempts(bucket,attempts,window_start) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts=CASE WHEN window_start<? THEN 1 ELSE attempts+1 END,window_start=CASE WHEN window_start<? THEN excluded.window_start ELSE window_start END',ipBucket,time,start,start),
+    statement(db,'SELECT bucket,attempts,window_start FROM login_attempts WHERE bucket IN (?,?)',ipBucket,failureBucket),
+    statement(db,'DELETE FROM login_attempts WHERE window_start<?',start),
+  ]);
+  const rows=results[1].results,ip=rows.find(row=>row.bucket===ipBucket);
+  if(!ip||ip.attempts>100) rejectLogin(loginWindowWait(ip?.window_start,time));
+  const wait=loginRemainingWait(rows.find(row=>row.bucket===failureBucket),time);
+  if(wait) rejectLogin(wait);
+  return failureBucket;
+}
+export async function recordLoginFailure(db,bucket) {
+  // The legacy unverified path already counted this attempt before hashing.
+  if(!bucket.startsWith(LOGIN_FAILURE_PREFIX)) return;
+  const time=Date.now(),start=time-LOGIN_WINDOW_MS;
+  const row=await statement(db,
+    'INSERT INTO login_attempts(bucket,attempts,window_start) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts=CASE WHEN window_start<=? THEN 1 ELSE attempts+1 END,window_start=excluded.window_start RETURNING attempts,window_start',bucket,time,start).first();
+  const wait=loginRemainingWait(row,time);
+  if(wait) rejectLogin(wait);
 }
 export function stable(v) {return Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;}
