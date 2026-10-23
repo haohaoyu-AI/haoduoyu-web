@@ -7,11 +7,11 @@ import { fileURLToPath } from 'node:url';
 export const ORIGIN='http://localhost';
 export const USERNAME='synthetic-admin';
 export const PASSWORD='Integration-only-password-2026!';
-export async function fixture(t,{persist=false,port=0,origin=ORIGIN,username=USERNAME,password=PASSWORD,bootstrap=true,bootstrapSecret=randomBytes(32).toString('hex')}={}) {
+export async function fixture(t,{persist=false,port=0,origin=ORIGIN,username=USERNAME,password=PASSWORD,bootstrap=true,trustConnectingIp=false,bootstrapSecret=randomBytes(32).toString('hex')}={}) {
   const runtime=JSON.parse(await readFile(new URL('../runtime.json',import.meta.url),'utf8'));
   const mf=new Miniflare({modules:true,cf:false,scriptPath:fileURLToPath(new URL('../dist/server/index.js',import.meta.url)),
     compatibilityDate:runtime.compatibility_date,compatibilityFlags:runtime.compatibility_flags,d1Databases:['DB'],d1Persist:persist,
-    bindings:{SITE_ORIGIN:origin,MATRIX_BOOTSTRAP_SECRET:bootstrapSecret},host:'127.0.0.1',port,
+    bindings:{SITE_ORIGIN:origin,MATRIX_BOOTSTRAP_SECRET:bootstrapSecret,...(trustConnectingIp?{TRUST_CF_CONNECTING_IP:'1'}:{})},host:'127.0.0.1',port,
     outboundService:()=>new Response('External requests disabled',{status:502})});
   if(t) t.after(()=>mf.dispose());
   try {
