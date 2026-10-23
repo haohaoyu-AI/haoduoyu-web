@@ -1,0 +1,116 @@
+{
+  "baseline_main": "ce18a7b7a09f8acbfb9fe7c397b97e5d87a20ac6",
+  "baseline_bytes": 115637,
+  "candidate_bytes": 115719,
+  "net_saved_bytes": -82,
+  "minimum_net_saved_bytes": 3000,
+  "overall_limit_bytes": 100000,
+  "passes_first_gate": false,
+  "component_definitions": [
+    {
+      "name": "dataTable",
+      "bytes": 289
+    },
+    {
+      "name": "metricTableCell",
+      "bytes": 114
+    },
+    {
+      "name": "articleIdentityCell",
+      "bytes": 263
+    }
+  ],
+  "calls": [
+    {
+      "file": "web/pages/articles.mjs",
+      "fn": "articleTable",
+      "component": "articleIdentityCell"
+    },
+    {
+      "file": "web/pages/articles.mjs",
+      "fn": "articleTable",
+      "component": "metricTableCell"
+    },
+    {
+      "file": "web/pages/articles.mjs",
+      "fn": "articleTable",
+      "component": "dataTable"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderAttentionArticles",
+      "component": "articleIdentityCell"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderTopTable",
+      "component": "articleIdentityCell"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderPlatformTable",
+      "component": "metricTableCell"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderPlatformTable",
+      "component": "metricTableCell"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderPlatformTable",
+      "component": "metricTableCell"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderPlatformTable",
+      "component": "metricTableCell"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderTopTable",
+      "component": "metricTableCell"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderPeriodAccounts",
+      "component": "dataTable"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderAttentionArticles",
+      "component": "dataTable"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderPlatformTable",
+      "component": "dataTable"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderTopTable",
+      "component": "dataTable"
+    },
+    {
+      "file": "web/pages/dashboard.mjs",
+      "fn": "renderDailyTable",
+      "component": "dataTable"
+    }
+  ],
+  "local_checks": {
+    "source_style": "30 modules / 374 functions pass",
+    "render_strings": 54,
+    "coercion_trace_renderers": 3,
+    "render_mutations": 3,
+    "targeted_tests": {
+      "total": 4,
+      "pass": 3,
+      "fail": 1,
+      "failed": "net benefit gate"
+    },
+    "browser": "not run; gate failed",
+    "ast_inverse_proof": "not implemented; original guards unchanged"
+  },
+  "production": "unchanged v7",
+  "public_asset_pins": "unchanged; rejected candidate is not approved as a new pinned asset"
+}
