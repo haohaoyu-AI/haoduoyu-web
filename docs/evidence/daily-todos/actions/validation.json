@@ -1,0 +1,264 @@
+{
+  "synthetic": true,
+  "completed": true,
+  "checks": {
+    "default_entry_and_two_independent_sessions_use_same_user_with_strike_default": true,
+    "trusted_touch_before_and_after_threshold_opens_menu_without_release_toggle": {
+      "requested_waits_ms": [
+        500,
+        250
+      ],
+      "observed_menu_absent_after_ms": 512.8000000007451,
+      "observed_menu_open_after_ms": 653.6999999992549,
+      "todo_write_requests": 0,
+      "menu_bounds": {
+        "x": 225.984375,
+        "y": 391.390625,
+        "width": 133.015625,
+        "height": 106
+      },
+      "events": [
+        {
+          "type": "pointerdown",
+          "pointerType": "touch",
+          "trusted": true,
+          "prevented": false,
+          "x": 136,
+          "y": 361.390625,
+          "performance_ms": 2739.800000000745
+        },
+        {
+          "type": "pointerup",
+          "pointerType": "touch",
+          "trusted": true,
+          "prevented": false,
+          "x": 136,
+          "y": 361.390625,
+          "performance_ms": 3522.60000000149
+        }
+      ],
+      "native_contextmenu_events_observed": 0
+    },
+    "trusted_pointer_cancel_drag_and_real_scroll_cancel_long_press_without_writes": [
+      {
+        "case": "cancel",
+        "scroll_y": 0,
+        "events": [
+          {
+            "type": "pointerdown",
+            "pointerType": "touch",
+            "trusted": true,
+            "prevented": false,
+            "x": 136,
+            "y": 410.390625,
+            "performance_ms": 3890.2000000011176
+          },
+          {
+            "type": "pointercancel",
+            "pointerType": "touch",
+            "trusted": true,
+            "prevented": false,
+            "x": 136,
+            "y": 410.390625,
+            "performance_ms": 4015.10000000149
+          }
+        ]
+      },
+      {
+        "case": "move",
+        "scroll_y": 0,
+        "events": [
+          {
+            "type": "pointerdown",
+            "pointerType": "touch",
+            "trusted": true,
+            "prevented": false,
+            "x": 136,
+            "y": 410.390625,
+            "performance_ms": 4955.300000000745
+          },
+          {
+            "type": "pointermove",
+            "pointerType": "touch",
+            "trusted": true,
+            "prevented": false,
+            "x": 171,
+            "y": 410.390625,
+            "performance_ms": 5087.4000000003725
+          },
+          {
+            "type": "pointercancel",
+            "pointerType": "touch",
+            "trusted": true,
+            "prevented": false,
+            "x": 0,
+            "y": 0,
+            "performance_ms": 5088.5
+          }
+        ]
+      },
+      {
+        "case": "scroll",
+        "scroll_y": 135,
+        "events": [
+          {
+            "type": "pointerdown",
+            "pointerType": "touch",
+            "trusted": true,
+            "prevented": false,
+            "x": 136,
+            "y": 410.390625,
+            "performance_ms": 6041.700000001118
+          },
+          {
+            "type": "pointermove",
+            "pointerType": "touch",
+            "trusted": true,
+            "prevented": false,
+            "x": 136,
+            "y": 375.390625,
+            "performance_ms": 6174.5
+          },
+          {
+            "type": "pointercancel",
+            "pointerType": "touch",
+            "trusted": true,
+            "prevented": false,
+            "x": 0,
+            "y": 0,
+            "performance_ms": 6176.10000000149
+          }
+        ]
+      }
+    ],
+    "keyboard_menu_navigation_escape_focus_and_outside_tap_close_same_menu": true,
+    "same_name_is_not_misbound_menu_actions_are_exclusive_cancel_preserves_todo_and_readd_reuses_id": true,
+    "hide_preference_survives_reload_and_independent_session_without_any_todo_write": {
+      "preference_version": 1,
+      "todo_writes_on_mode_change": 0,
+      "api_items_still_include_completed": 2
+    },
+    "failed_completion_in_hide_mode_restores_row_and_keeps_first_screen_error_and_draft": {
+      "feedback": {
+        "x": 16,
+        "y": 236.390625,
+        "width": 343,
+        "height": 40
+      },
+      "nav_top": 783,
+      "intercepted_patch_requests": 1
+    },
+    "successful_hide_completion_remains_in_storage_and_strike_mode_restores_visible_completed_row": true,
+    "failed_delete_rolls_back_exact_row_and_keeps_draft": true,
+    "real_cross_session_delete_409_reconciles_row_and_open_template_count": {
+      "delete_status": 409,
+      "todo_reload_status": 200,
+      "template_reload_status": 200,
+      "template_count_before_conflict_after_conflict_after_recompletion": [
+        1,
+        0,
+        1
+      ]
+    },
+    "soft_delete_and_retryable_undo_preserve_completed_template_and_recompute_days_with_duplicate_restore_idempotent": {
+      "delete_status": 200,
+      "restore_status": 200,
+      "restore_pending_taps": 2,
+      "restore_pending_requests": 1,
+      "restore_held_without_expiring_undo_ms": 8200,
+      "completed_days_before_after_delete_after_restore": [
+        1,
+        0,
+        1
+      ]
+    },
+    "late_delete_failure_cannot_overwrite_articles_and_original_todo_survives_return": true,
+    "history_future_and_other_template_records_are_unchanged_by_menu_actions": true
+  },
+  "captures": [
+    {
+      "name": "375-long-press-menu",
+      "path": "artifacts/daily-todos/actions/375-long-press-menu.png",
+      "sha256": "8c16e3637ee513b6a7394d4964beb71db34e8f61308b5e31b2605c9ad1bafdfc",
+      "bytes": 58364
+    },
+    {
+      "name": "1440-keyboard-menu",
+      "path": "artifacts/daily-todos/actions/1440-keyboard-menu.png",
+      "sha256": "41547c05e3d728d9e22563bb201a31f27999dce723bc526e39abc6fe1a896893",
+      "bytes": 91145
+    },
+    {
+      "name": "375-hidden-completed",
+      "path": "artifacts/daily-todos/actions/375-hidden-completed.png",
+      "sha256": "54ab7e1dc8076cd857204d8fb7741b156835411cdf1459663422aeb4e0183afc",
+      "bytes": 55112
+    },
+    {
+      "name": "375-hide-failure-rollback",
+      "path": "artifacts/daily-todos/actions/375-hide-failure-rollback.png",
+      "sha256": "9245cdcc61081582c032aa039f8268510cf1ab1387ad413a61c37835f0bc20e7",
+      "bytes": 59819
+    },
+    {
+      "name": "375-delete-undo",
+      "path": "artifacts/daily-todos/actions/375-delete-undo.png",
+      "sha256": "c9641ff108b468ee952d01015e437e73202a6ed16c1c8280befdbbae2ae0fce1",
+      "bytes": 58262
+    },
+    {
+      "name": "375-restored-template-count",
+      "path": "artifacts/daily-todos/actions/375-restored-template-count.png",
+      "sha256": "dc390ae382bc2d8c57b50a999d60851241ddc7206ab737c0954ae02625b2933c",
+      "bytes": 50249
+    }
+  ],
+  "pageerrors": [],
+  "blocked_external_requests": [],
+  "test_source_sha256": "b3e2c1191a9d759e96077c3588dd0f0a587749fecafff96735b5cd3f65265d19",
+  "browser": {
+    "engine": "Chromium",
+    "version": "154.0.8037.57"
+  },
+  "fixture": {
+    "source_commit": "5de548605244aa46852f63deaf737e6fe183a1d3",
+    "product_manifest_sha256": "da6770006c7b25138eaa39e56227380449b17f0f3e65ad2660582bb4acfcf3b5",
+    "isolation": "Ephemeral Miniflare D1; loopback HTTP adapter; browser blocks non-loopback requests; no production configuration."
+  },
+  "product_hashes": {
+    "public/app.js": "f19e9f73cbdd8da47d2ecc4ae17581cd1dde977dc2418d704653309df672daa6",
+    "public/style.css": "506cfb8a0ae86cc22807b3a718c057d0e38cf4001b6322efaf0bbb77a2a00400",
+    "dist/server/index.js": "f0b2c2dfc05e34259918fe36f07e2e8ebf98231c6c1a7b60deedb5b65b12c868",
+    "web/pages/todos.mjs": "a7014fbc557c217ec9e9862c0ac184d6599d3f3781946200de570827b3993400",
+    "web/ui/todo-gestures.mjs": "1cc874a5b166fe1456828c8d0fb6181a9c7447b2fbb0f12983602de69a6b64d6"
+  },
+  "served_asset_hashes": {
+    "375": {
+      "/style.css": "506cfb8a0ae86cc22807b3a718c057d0e38cf4001b6322efaf0bbb77a2a00400",
+      "/app.js": "f19e9f73cbdd8da47d2ecc4ae17581cd1dde977dc2418d704653309df672daa6"
+    },
+    "1440": {
+      "/style.css": "506cfb8a0ae86cc22807b3a718c057d0e38cf4001b6322efaf0bbb77a2a00400",
+      "/app.js": "f19e9f73cbdd8da47d2ecc4ae17581cd1dde977dc2418d704653309df672daa6"
+    }
+  },
+  "validation": {
+    "full_suite": {
+      "passed": 332,
+      "failed": 0,
+      "duration_ms": 281232.326806
+    },
+    "focused_ui_after_review_fix": {
+      "passed": 35,
+      "failed": 0
+    },
+    "independent_review": "No unresolved P1/P2 at product 7d42cc3; three representative screenshots independently viewed.",
+    "required_ci": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/39963953531",
+    "required_ci_status_at_recording": "in_progress_or_pending",
+    "limits": [
+      "Chromium mobile emulation, not a physical phone.",
+      "No native contextmenu event was emitted in this run.",
+      "Production still v8 when this evidence was captured."
+    ]
+  }
+}
