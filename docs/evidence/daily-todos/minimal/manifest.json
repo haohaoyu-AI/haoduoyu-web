@@ -1,0 +1,64 @@
+{
+  "product_commit": "922053e7a0a380c485df0e87e5a1feac3bc2c74f",
+  "synthetic": true,
+  "browser": {
+    "engine": "Chromium",
+    "version": "154.0.8037.57"
+  },
+  "checks": [
+    "mobile_default_login_opens_todos_with_one_title_input_and_compact_history",
+    "add_shows_pending_before_response_then_short_success_feedback",
+    "desktop_default_login_and_independent_device_session_show_same_saved_rows",
+    "custom_template_failure_keeps_input_and_retry_persists_across_reload_and_device_session",
+    "template_use_is_linked_and_deduplicated_and_open_completion_count_updates_zero_to_one",
+    "future_template_use_and_stable_id_rename_soft_delete_leave_generated_todos_unchanged",
+    "held_patch_immediately_checks_strikes_and_undoes_with_one_request_per_direction",
+    "failed_optimistic_patch_rolls_back_and_keeps_draft_with_first_screen_error",
+    "real_cross_device_stale_version_409_converges_to_persisted_state",
+    "long_list_create_failure_stays_first_screen_preserves_rows_and_only_explicit_retry_saves_once",
+    "calendar_month_navigation_future_selection_and_preplanning_do_not_move_today_rows",
+    "compact_history_deeplink_reload_articles_data_and_back_keep_correct_date",
+    "late_or_cancelled_article_read_cannot_replace_returned_todo_input_or_draft",
+    "explicit_dashboard_loads_statistics_without_todo_ui_or_todo_requests",
+    "preplanned_future_item_naturally_becomes_beijing_today_without_moving_yesterday",
+    "explicit_future_selection_and_month_remain_while_midnight_today_marker_updates"
+  ],
+  "completed": true,
+  "captures": [
+    {
+      "name": "375-default",
+      "sha256": "5e036a46c0191d6f8bc5e0afe39361397856c62697d8f54302ac50c79cbf1375",
+      "bytes": 19965
+    },
+    {
+      "name": "375-list-saving",
+      "sha256": "237fc9c54eb097d9956a11f9ee830e19c131eeea26687d3521b50999e1fb3ed5",
+      "bytes": 32632
+    },
+    {
+      "name": "375-list-saved",
+      "sha256": "09b9a0096f5e599704457da940bd6eed69744aed1a5c46b441a16760363ca0c3",
+      "bytes": 35053
+    },
+    {
+      "name": "1440-default",
+      "sha256": "cc56b20a5cbfef5c421037cd17dfd07babf9b95c353688c754ce743d5b4dad3f",
+      "bytes": 45082
+    },
+    {
+      "name": "375-common-templates",
+      "sha256": "a6b675c475eb4189282826f490f8b4cdae8ada512eb452ffb9b66752e799e8bd",
+      "bytes": 50006
+    },
+    {
+      "name": "375-long-list-failure",
+      "sha256": "4c4359f29f800e7373bd968c90f06baab308f4caeae93c82aaa2b4bfe932549f",
+      "bytes": 71327
+    },
+    {
+      "name": "375-history-expanded",
+      "sha256": "486d7702d4b20ebd0cddeacb8ceba6ccac89c219b8e0644d88f1adfac33dfa00",
+      "bytes": 35861
+    }
+  ]
+}
