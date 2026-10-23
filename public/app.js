@@ -663,6 +663,9 @@ function renderSnapshot(row) {
     num(m[key])
   )}</strong></span>`).join("") || "未记录指标"}</div><p class="cell-sub">来源 ${e(row.source || "未记录")}${row.collected_at ? " · 采集 " + e(displayTime(row.collected_at)) : ""}</p>${row.note ? `<p class="cell-sub">${e(row.note)}</p>` : ""}</article>`;
 }
+function articleLink(article, idKey = "id", titleKey = "title") {
+  return `<button class="article-link" data-action="article-detail" data-id="${e(article[idKey])}">${e(article[titleKey])}</button>`;
+}
 
 // web/ui/segmented.mjs
 function segmented(action, items, selected, label, attribute = "tab", classes = "") {
@@ -775,7 +778,7 @@ function articleTable(rows) {
   ) : e(label)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}<th>操作</th></tr></thead><tbody class="article-cards">${rows.map((a) => {
     const group = state.filters.group ? state.filters.group === "account" ? a.account_name : modeLabels[a.production_mode] : null, heading = group && group !== previous ? `<tr class="group-row"><td colspan="${e(columns.length + 2)}">${e(group)}</td></tr>` : "";
     previous = group;
-    return `${heading}<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div class="cell-sub">${platformLogo(a.platform)} ${e(a.account_name)} · ${a.date_status === "unverified" ? "日期待核实" : e(
+    return `${heading}<tr><td class="title-cell">${articleLink(a)}<div class="cell-sub">${platformLogo(a.platform)} ${e(a.account_name)} · ${a.date_status === "unverified" ? "日期待核实" : e(
       time(a.published_at, true)
     )}</div></td>${columns.map(([key, [label]]) => `<td data-label="${e(label)}">${cell(a, key)}</td>`).join("")}<td><button class="icon-button" data-action="article-menu" data-id="${e(a.id)}" aria-label="操作：${e(a.title)}" aria-haspopup="menu" aria-expanded="false" aria-controls="article-menu-${e(a.id)}">⋯</button></td></tr>`;
   }).join("")}</tbody></table></div>`;
@@ -863,7 +866,7 @@ function renderAttentionArticles(articles) {
   )}</th><th>关注原因</th></tr></thead><tbody>${articles.map((a) => {
     const platform = a.platform || state.accounts.find((x) => x.id === a.account_id)?.platform, like = "likes", m = a.period_metrics || {}, attention = a.attention || {};
     const label = { up: "表现较高", down: "表现较低", normal: "近期文章", insufficient: "待积累数据" }[attention.kind] || "待积累数据";
-    return `<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div class="cell-sub">${e(platform && a.account_name ? `${platforms[platform] || platform} · ${a.account_name}` : accountName(a.account_id))} · ${e(time(a.published_at, true))}</div></td><td><strong class="number">${e(num(m.reads))}</strong>${metricCoverageHTML(
+    return `<tr><td class="title-cell">${articleLink(a)}<div class="cell-sub">${e(platform && a.account_name ? `${platforms[platform] || platform} · ${a.account_name}` : accountName(a.account_id))} · ${e(time(a.published_at, true))}</div></td><td><strong class="number">${e(num(m.reads))}</strong>${metricCoverageHTML(
       a,
       "reads"
     )}${comparisonHTML(
@@ -919,7 +922,9 @@ function renderTopTable(rows, offset = 0) {
     "点赞与赞同口径",
     "top" + offset
   )}</th><th>评论</th>${approvals ? "<th>赞同</th>" : ""}</tr></thead><tbody>${rows.map(
-    (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset + i + 1))}</span><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button></td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
+    (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset + i + 1))}</span>${articleLink(
+      a
+    )}</td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
       "reads",
       "likes",
       "comments",
@@ -1214,7 +1219,7 @@ function renderAudit(audit, keys = []) {
     day = g.day;
     return `${heading}<details class="audit-item"><summary><div><strong>${e(g.label)} ×${e(num(g.rows.length))}</strong><div class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, true))}${g.rows.length > 1 ? " — " + e(time(g.rows[0].created_at, true)) : ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
       const article = r.entity_id && typeof r.entity_label === "string" && r.entity_label ? r : null;
-      return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.created_at))}</time>${article ? `<br><button class="article-link" data-action="article-detail" data-id="${e(article.entity_id)}">${e(article.entity_label)}</button>` : ""}</li>`;
+      return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.created_at))}</time>${article ? `<br>${articleLink(article, "entity_id", "entity_label")}` : ""}</li>`;
     }).join("")}</ol></details>`;
   }).join("") || empty("暂无操作记录")}</div></section>`;
 }

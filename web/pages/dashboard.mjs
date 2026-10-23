@@ -2,7 +2,7 @@ import { metrics, platforms } from "../core/constants.mjs";
 import { e } from "../core/dom.mjs";
 import { accountLabel, accountName, compact, duration, num, time } from "../core/format.mjs";
 import { state } from "../core/state.mjs";
-import { comparisonHTML, dashboardInfo, dashboardMetric, freshness, metricCoverageHTML, platformColor, platformLogo } from "../ui/components.mjs";
+import { articleLink, comparisonHTML, dashboardInfo, dashboardMetric, freshness, metricCoverageHTML, platformColor, platformLogo } from "../ui/components.mjs";
 import { segmented } from "../ui/segmented.mjs";
 function dailyDates(data) {
   return (data.trend || []).filter((d) => (d.accounts || []).some((a) => Object.values(a.metrics || {}).some((v) => v != null)));
@@ -40,7 +40,7 @@ function renderAttentionArticles(articles) {
     const platform = a.platform || state.accounts.find((x) => x.id === a.account_id)?.platform, like = "likes", m = a.period_metrics || {}, attention = a.
     attention || {};
     const label = { up: "表现较高", down: "表现较低", normal: "近期文章", insufficient: "待积累数据" }[attention.kind] || "待积累数据";
-    return `<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div \
+    return `<tr><td class="title-cell">${articleLink(a)}<div \
 class="cell-sub">${e(platform && a.account_name ? `${platforms[platform] || platform} · ${a.account_name}` : accountName(a.
   account_id))} · ${e(time(a.published_at, true))}</div></td><td><strong class="number">${e(num(m.reads))}</strong>${metricCoverageHTML(a,
      "reads")}${comparisonHTML(
@@ -100,8 +100,8 @@ function renderTopTable(rows, offset = 0) {
   const approvals = rows.some((a) => a.platform === "zhihu" || a.latest_metrics?.approvals != null);
   return `<div class="table-scroll"><table class="data-table dashboard-table top-table"><thead><tr><th>文章</th><th>账号</th><th>阅读</th><th>点赞 ${dashboardInfo(
   "metrics", "点赞与赞同口径", "top" + offset)}</th><th>评论</th>${approvals ? "<th>赞同</th>" : ""}</tr></thead><tbody>${rows.map(
-  (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset + i + 1))}</span><button class="article-link" \
-data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button></td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
+  (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset + i + 1))}</span>${articleLink(
+    a)}</td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
   "reads", "likes", "comments", ...approvals ? ["approvals"] : []].map((key) => `<td data-label="${e(metrics[key])}">${dashboardMetric(a,
      key)}</td>`).join("")}</tr>`).
   join("")}</tbody></table></div>`;
