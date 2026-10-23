@@ -1,0 +1,282 @@
+{
+  "baseline_commit": "a67d1dce1b9c104f3ae23cf6b67be899b98e0d41",
+  "bundle_git_blob": "95e2e1a11dcdd804900287a75a327cd7aa30efb7",
+  "method": "Node24 existing Acorn; module marker byte ranges; top-level function spans; exact cooked Literal/TemplateElement text >=32B",
+  "kind": "static attribution only; not measured savings or a product build",
+  "bytes": 115637,
+  "target": 100000,
+  "gap": 15637,
+  "previous_reported_trial": {
+    "reduction": 2804,
+    "reproduced_this_turn": false,
+    "remaining_bytes_if_realized": 112833,
+    "remaining_gap": 12833
+  },
+  "modules": [
+    {
+      "file": "web/pages/dashboard.mjs",
+      "bytes": 18471
+    },
+    {
+      "file": "web/pages/articles.mjs",
+      "bytes": 11715
+    },
+    {
+      "file": "web/actions.mjs",
+      "bytes": 10027
+    },
+    {
+      "file": "web/pages/settings.mjs",
+      "bytes": 8881
+    },
+    {
+      "file": "web/ui/components.mjs",
+      "bytes": 8176
+    },
+    {
+      "file": "web/pages/reviews.mjs",
+      "bytes": 7811
+    },
+    {
+      "file": "web/controller.mjs",
+      "bytes": 6529
+    },
+    {
+      "file": "web/events.mjs",
+      "bytes": 6504
+    },
+    {
+      "file": "web/forms.mjs",
+      "bytes": 6063
+    },
+    {
+      "file": "web/core/requests.mjs",
+      "bytes": 3807
+    },
+    {
+      "file": "web/pages/detail.mjs",
+      "bytes": 3692
+    },
+    {
+      "file": "web/core/router.mjs",
+      "bytes": 3532
+    },
+    {
+      "file": "web/core/api.mjs",
+      "bytes": 2704
+    },
+    {
+      "file": "web/core/format.mjs",
+      "bytes": 2641
+    },
+    {
+      "file": "web/ui/entry.mjs",
+      "bytes": 2291
+    },
+    {
+      "file": "web/core/constants.mjs",
+      "bytes": 2010
+    },
+    {
+      "file": "web/core/dom.mjs",
+      "bytes": 1999
+    },
+    {
+      "file": "web/core/article-index.mjs",
+      "bytes": 1570
+    },
+    {
+      "file": "web/ui/popover.mjs",
+      "bytes": 1467
+    },
+    {
+      "file": "web/ui/modal.mjs",
+      "bytes": 1265
+    },
+    {
+      "file": "web/pages/login.mjs",
+      "bytes": 959
+    },
+    {
+      "file": "web/core/state.mjs",
+      "bytes": 696
+    },
+    {
+      "file": "web/ui/menu.mjs",
+      "bytes": 661
+    },
+    {
+      "file": "web/ui/segmented.mjs",
+      "bytes": 600
+    },
+    {
+      "file": "web/ui/toast.mjs",
+      "bytes": 417
+    },
+    {
+      "file": "web/core/session-index-state.mjs",
+      "bytes": 321
+    },
+    {
+      "file": "web/ui/table.mjs",
+      "bytes": 288
+    },
+    {
+      "file": "web/core/modal-request.mjs",
+      "bytes": 279
+    },
+    {
+      "file": "web/core/storage.mjs",
+      "bytes": 219
+    },
+    {
+      "file": "web/main.mjs",
+      "bytes": 42
+    }
+  ],
+  "largest_functions": [
+    {
+      "name": "reviewModal",
+      "bytes": 4120,
+      "line": 1074
+    },
+    {
+      "name": "renderReviews",
+      "bytes": 3663,
+      "line": 1036
+    },
+    {
+      "name": "renderCumulative",
+      "bytes": 3507,
+      "line": 879
+    },
+    {
+      "name": "dashboardInfoBody",
+      "bytes": 3101,
+      "line": 933
+    },
+    {
+      "name": "renderArticles",
+      "bytes": 3091,
+      "line": 694
+    },
+    {
+      "name": "renderTrend",
+      "bytes": 3050,
+      "line": 968
+    },
+    {
+      "name": "articleModal",
+      "bytes": 2491,
+      "line": 786
+    },
+    {
+      "name": "renderPage",
+      "bytes": 2394,
+      "line": 1290
+    },
+    {
+      "name": "articleTable",
+      "bytes": 2353,
+      "line": 761
+    },
+    {
+      "name": "articleFilterPanel",
+      "bytes": 2278,
+      "line": 735
+    },
+    {
+      "name": "readRoute",
+      "bytes": 2254,
+      "line": 519
+    },
+    {
+      "name": "renderAudit",
+      "bytes": 1975,
+      "line": 1201
+    },
+    {
+      "name": "renderAttentionArticles",
+      "bytes": 1877,
+      "line": 858
+    },
+    {
+      "name": "articleDetail",
+      "bytes": 1877,
+      "line": 1421
+    },
+    {
+      "name": "renderDashboard",
+      "bytes": 1853,
+      "line": 836
+    }
+  ],
+  "exact_long_string_groups": [
+    {
+      "occurrences": 2,
+      "contentBytes": 94,
+      "rawBytes": 188,
+      "lines": [
+        778,
+        866
+      ],
+      "sample": "<tr><td class=\"title-cell\"><button class=\"article-link\" data-action=\"article-detail\" data-id=\""
+    },
+    {
+      "occurrences": 2,
+      "contentBytes": 65,
+      "rawBytes": 130,
+      "lines": [
+        797,
+        1100
+      ],
+      "sample": "\"><p class=\"form-context\">北京时间</p><div class=\"form-grid\">"
+    },
+    {
+      "occurrences": 2,
+      "contentBytes": 58,
+      "rawBytes": 116,
+      "lines": [
+        784,
+        1434
+      ],
+      "sample": "\" target=\"_blank\" rel=\"noopener noreferrer\">原文 ↗</a>"
+    },
+    {
+      "occurrences": 2,
+      "contentBytes": 44,
+      "rawBytes": 92,
+      "lines": [
+        639,
+        1064
+      ],
+      "sample": "<span class=\"missing-value\">未取得</span>"
+    },
+    {
+      "occurrences": 2,
+      "contentBytes": 42,
+      "rawBytes": 88,
+      "lines": [
+        374,
+        409
+      ],
+      "sample": "服务暂时不可用，请稍后重试。"
+    },
+    {
+      "occurrences": 2,
+      "contentBytes": 42,
+      "rawBytes": 88,
+      "lines": [
+        794,
+        1231
+      ],
+      "sample": "请先添加一个启用的运营账号。"
+    }
+  ],
+  "naive_long_string_gross_redundancy": 345,
+  "constraints": [
+    "Do not sum static gross redundancy with trial or candidate net gains",
+    "Different template expressions and strings shorter than32B are outside this duplicate count",
+    "No proof of achievable100000B result"
+  ]
+}
