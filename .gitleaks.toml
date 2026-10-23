@@ -1,0 +1,18 @@
+title = "Default rules with three reviewed daily-todo checksum exceptions"
+
+[extend]
+useDefault = true
+
+# User-approved on 2026-10-23; independently recomputed from public Git blobs.
+# Both the exact path and one exact checksum must match; all other rules remain.
+[[allowlists]]
+description = "Three public-file checksums in the frozen daily-todo evidence"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^docs/daily-todos-evidence\.json$''']
+regexes = [
+  '''^c49c3f835a2b91ddf6927b09289c73eb87f0fb8031c4b0ce4d5b8ce1c65747bd$''',
+  '''^4d94d10cf50ded0a7f26230daa3253415b495d0dd3ccc36cf9fa22cdda5baa25$''',
+  '''^02d875ec592080e3040e94b5032141916a6fecca4da562076855ac7b115c112d$''',
+]

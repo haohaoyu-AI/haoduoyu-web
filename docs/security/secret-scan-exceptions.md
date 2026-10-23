@@ -1,12 +1,12 @@
 # 全历史密钥扫描的精确例外
 
-当前精确历史指纹总数为 155；下列各阶段数量是当时记录，不代表当前总数。
+当前精确历史指纹总数为 155，原文件字节保留；另有本页末尾记载的三个“精确路径且精确值”校验值例外。下列各阶段数量是当时记录。
 
 阶段0使用官方 Gitleaks 8.30.1 默认规则扫描全部可达分支/历史，原始为139个 generic-api-key 命中、退出码1。独立逐条证明：81个合成凭据/敏感字段夹具、3个合成幂等标识、55个内容SHA256。哈希重算匹配，测试值核对构造与消费，不按 tests 路径豁免。
 
 .gitleaksignore 只保存不可变历史提交的精确 Fingerprint（提交、路径、规则、行），不含 Secret、Match、作者、原始报告或生产数据。新提交即使相同路径也不会匹配旧指纹。新增例外须另行证明来源并审查，不能自动追加或排除目录。
 
-CI 用完整 checkout、--all --full-history -m --root、强制脱敏及忽略 inline allow 注释，只应用这些指纹。应报告“精确例外后的新增告警”，不能将原始命中说成零。密钥扫描不能替代生产派生夹具的隐私审查。
+CI 用完整 checkout、--all --full-history -m --root、强制脱敏及忽略 inline allow 注释，应用这些历史指纹及已批准的精确路径/值例外。应报告“精确例外后的新增告警”，不能将原始命中说成零。密钥扫描不能替代生产派生夹具的隐私审查。
 
 两个 CI job 均检出实际 PR head（push 时为该 push 提交），fetch-depth 为0。这样检查对象是可读回的源提交，不是 GitHub 临时生成的合并对象；否则同一资源哈希会因每次临时 merge SHA 改变而重复产生不同指纹。真实分支合并历史仍按 -m 扫描。main 合并后还须单独完成干净克隆验收，不能用 PR head 检查替代。
 
@@ -68,3 +68,28 @@ Python/Node复算SHA256均与pin精确相同；Git blob为d9eb6f5591f4d3c82c903d
 用户于2026-10-23明确批准这条新历史记录后，仅追加该squash SHA/路径/规则/行的
 1条精确指纹，154→155；原154条原字节保留。原失败及脱敏报告保留，没有文件、
 目录、规则、未来提交豁免，也没有产品、测试、部署、权限或凭据修改。
+
+
+## 每日待办：三个精确校验值（2026-10-23 获用户批准）
+
+产品验收提交 `922053e7a0a380c485df0e87e5a1feac3bc2c74f` 的 CI 39950270856
+仅命中 `814126dfd25b174aecba2d7ad49f5a74a52b95b5` 中
+`docs/daily-todos-evidence.json` 第25、28、47行的三个公开文件内容 SHA256。
+执行器与独立审查均从该提交原始 Git blob 重新计算，相同；并非密钥。用户明确批准
+仅对此三个记录增加例外，覆盖分支和合并后同路径、同值，其他扫描保留。
+
+`.gitleaks.toml` 用 `extend.useDefault=true` 保留默认规则；新增例外仅限定
+`generic-api-key`，要求锚定的完整文件路径与三个锚定的完整 Secret 值同时匹配
+（AND）。不会忽略整份文件、目录或规则；不使用提交范围通配。原 `.gitleaksignore`
+的155条指纹及17610个字节不变。CI显式加载该配置，其余固定版本、校验与全历史参数不变。
+
+已在独立临时 Git 仓、Gitleaks 8.30.1 全规则和原全历史参数下验证6组边界，
+每组均先以默认配置作阳性对照：获批三值3→0；同文件增加合成新密钥4→1；
+换路径3→3；改一个值3→1；路径加前缀3→3；另一默认 github-pat 规则1→1。
+[净化验证记录](daily-todo-checksum-exception-test.json)不含任何合成密钥值。
+复现：`GITLEAKS_BIN=/absolute/path/to/gitleaks python3 scripts/check-todo-scan-exceptions.py`。
+
+`targetRules` 必须保留，防止将该例外升级为全局路径排除。配置语义已核对
+[官方8.30.1解析](https://github.com/gitleaks/gitleaks/blob/v8.30.1/config/config.go#L215-L341)与
+[匹配实现](https://github.com/gitleaks/gitleaks/blob/v8.30.1/detect/detect.go#L708-L826)。
+原失败及脱敏报告仍保留，不将历史原始命中描述为零。
