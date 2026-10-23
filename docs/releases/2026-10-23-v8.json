@@ -61,8 +61,35 @@
     "db_rows_read": false,
     "domain_http": "unverified: execution environment HTTPS CONNECT tunnel rejected with 403; no proxy bypass attempted",
     "browser": "unverified: existing Chromium binary absent; no installation attempted",
-    "authenticated_pages": "unverified by this executor; no application session available",
-    "production_writes": "none issued; row contents/counts not sampled"
+    "authenticated_pages": "parent independently observed existing-session core pages at the stated time; executor has no application session",
+    "production_writes": "none issued; exact row preservation was not compared by deployment executor; parent read-only check observed existing content",
+    "independent_browser": {
+      "source": "parent assistant cloud browser; separate from deployment executor",
+      "observed_at_utc": "2026-10-23 03:51–03:53",
+      "session": "existing administrator session; no new login",
+      "checked": [
+        "overview renders existing summaries",
+        "article list and sampled detail/observation nodes/timeline",
+        "data page and snapshot timeline",
+        "app.js/style.css references and visible styles/interactions"
+      ],
+      "site_warning_error_count": 0,
+      "extension_metadata_messages": 14,
+      "business_writes": false,
+      "exports": false,
+      "cookies_read": false,
+      "login_test": false,
+      "not_verified": [
+        "ETag",
+        "CSP response header",
+        "X-Request-Id",
+        "independent GitSHA-to-page binding"
+      ],
+      "response_headers_available": false,
+      "page_build_identifier_available": false,
+      "evidence_location": "parent workspace; screenshots, AX, console and verification.json retained privately; not read by deployment executor",
+      "privacy": "production metrics and business timestamps omitted from public summary"
+    }
   },
   "limitations": {
     "frontend_bytes": 115637,
@@ -71,5 +98,19 @@
     "full_isolate_peak": "not established",
     "branch_protection": "not configured by executor; management permission unavailable",
     "failed_experiments": "PR29/PR31 excluded"
+  },
+  "archive_verification": {
+    "report": "2026-10-23-v8-archive-verification.json",
+    "raw_tar_hash_differs": true,
+    "native_hash_exactly_reproduced": true,
+    "method": "sorted regular-file payloads; USTAR; mode0644; uid/gid/mtime0; empty owner names; original payloads unchanged",
+    "server_archive_downloaded": false,
+    "backend_implementation_inspected": false,
+    "native_version_reread": "same saved v8 id, e7765af source, archive hash and deployment id confirmed",
+    "download_boundary": "Parent reviewer server-archive download was authorization-denied; no alternate-channel retry attempted.",
+    "hash_checks": [
+      "Python hashlib",
+      "Node crypto"
+    ]
   }
 }

@@ -1,8 +1,8 @@
 # 好多鱼图文
 
-原生 JavaScript 工作台与 Cloudflare Worker/D1 API。阶段1～5已分别验收合并；阶段6未实施，整轮尚未完成。当前状态与全部未通过/未验证项只见[单一验收清单](docs/ACCEPTANCE.md)，各阶段报告保留其历史检查点。
+原生 JavaScript 工作台与 Cloudflare Worker/D1 API。阶段1～5及阶段6的条件式登录防护代码已验收合并；生产 IP 信任未启用，真实来源隔离仍未证实，整轮尚未全部通过。当前状态与全部未通过/未验证项见[验收入口](docs/ACCEPTANCE.md)，各阶段报告按固定提交保留历史语境。
 
-生产保持经单独确认发布的Sites v7，批准GitHub输入固定为f21c9ed3；后续C4/C5/C6及阶段4/5成果尚未部署。Sites正式源码仓库提交标识需与GitHub输入分列记录。后续部署必须对具体版本再次明确确认，不改变数据库结构、界面样式或数据语义。
+生产已于 2026-10-23 03:45 UTC 经明确批准发布为 **Sites v8**：[haoduoyu.xyz](https://haoduoyu.xyz)。批准的 GitHub 产品输入为 `ce18a7b7a09f8acbfb9fe7c397b97e5d87a20ac6`，Sites 正式源为 `e7765af3c6d4b87ed39de7831db2962db9c826d9`；两者内容树相同，精确来源 CI 为 256/256。发布、回滚与分来源验收边界见[上线记录](docs/RELEASE_REQUEST.md)和[机器可读证据](docs/releases/2026-10-23-v8.json)。这次具体发布不表示体积、严格 PNG、完整 isolate 峰值或主分支保护全部达标，也不授权后续版本自动上线。
 
 ## 安装、检查与构建
 
