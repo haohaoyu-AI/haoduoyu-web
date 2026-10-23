@@ -1,0 +1,221 @@
+{
+  "synthetic": true,
+  "original_47_of_56_unchanged": true,
+  "original_five_recomputed": [
+    {
+      "view": "form-account-new",
+      "width": 1440,
+      "baseline_file": "artifacts/strict-style/first-fixture-order-attempt/baseline-form-account-new-1440.png",
+      "candidate_file": "artifacts/strict-style/all/candidate-form-account-new-1440.png",
+      "baseline_sha256": "2b5488ea098ef371ac2136293711050dd4a7b91b0a910ec412f75394e5260ec3",
+      "candidate_sha256": "665317d75f43be81166ea4b6ff950af7b9464cae7fdd79b939c8400d4af5d7a8",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        900
+      ],
+      "candidate_size": [
+        1440,
+        900
+      ],
+      "changed_pixels": 31,
+      "max_channel_delta": 1,
+      "bbox": [
+        422,
+        483,
+        1018,
+        486
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-key",
+      "width": 375,
+      "baseline_file": "artifacts/strict-style/first-fixture-order-attempt/baseline-form-key-375.png",
+      "candidate_file": "artifacts/strict-style/all/candidate-form-key-375.png",
+      "baseline_sha256": "cbff79118fd03231842aa4e84af3e4612a30e6a214bea005513f622378353d77",
+      "candidate_sha256": "04c92719e5d18e8d000588d19aa679cc7766d396ab5116b8339f81f5ea174123",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        900
+      ],
+      "candidate_size": [
+        375,
+        900
+      ],
+      "changed_pixels": 13,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        319,
+        32,
+        349
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-key",
+      "width": 390,
+      "baseline_file": "artifacts/strict-style/first-fixture-order-attempt/baseline-form-key-390.png",
+      "candidate_file": "artifacts/strict-style/all/candidate-form-key-390.png",
+      "baseline_sha256": "1927f11b3f8b553a2f99f97be8ebc020c9d3f96cd1436415b5b2e8d646e20a8a",
+      "candidate_sha256": "c5ed18a6b041b29cebac5b8d0e1ed8c2673315f8d005ceab32fb81a7d281fb1c",
+      "same_size": true,
+      "baseline_size": [
+        390,
+        900
+      ],
+      "candidate_size": [
+        390,
+        900
+      ],
+      "changed_pixels": 13,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        319,
+        32,
+        349
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-snapshot",
+      "width": 375,
+      "baseline_file": "artifacts/strict-style/first-fixture-order-attempt/baseline-form-snapshot-375.png",
+      "candidate_file": "artifacts/strict-style/all/candidate-form-snapshot-375.png",
+      "baseline_sha256": "9fd62289e68d6b6f638c4613a4fbb629713dec96145989488aa3616af21aba76",
+      "candidate_sha256": "066216bc7bafc4263438abee022184b2538dfd571e6a3bf753674c23dd13ec70",
+      "same_size": true,
+      "baseline_size": [
+        375,
+        5312
+      ],
+      "candidate_size": [
+        375,
+        5312
+      ],
+      "changed_pixels": 26,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        320,
+        32,
+        428
+      ],
+      "exact": false
+    },
+    {
+      "view": "form-snapshot",
+      "width": 1440,
+      "baseline_file": "artifacts/strict-style/first-fixture-order-attempt/baseline-form-snapshot-1440.png",
+      "candidate_file": "artifacts/strict-style/all/candidate-form-snapshot-1440.png",
+      "baseline_sha256": "e07f081726c4295c73d3ecdf19c355d8e0a3d23e9bbfe15cf515aa3bd298e687",
+      "candidate_sha256": "e40c6f34282c41c0d5ecd5b0c1afce2e588af5f5e811c7762eadbf23533b4b8b",
+      "same_size": true,
+      "baseline_size": [
+        1440,
+        1608
+      ],
+      "candidate_size": [
+        1440,
+        1608
+      ],
+      "changed_pixels": 32,
+      "max_channel_delta": 1,
+      "bbox": [
+        420,
+        287,
+        423,
+        512
+      ],
+      "exact": false
+    }
+  ],
+  "direct_vs_history_full_target_inputs_equal": true,
+  "direct_vs_history": [
+    {
+      "a": "old-a-1.png",
+      "b": "old-history-1.png",
+      "changed_pixels": 13,
+      "max_channel_delta": 1,
+      "bbox": [
+        29,
+        319,
+        32,
+        349
+      ]
+    }
+  ],
+  "history_matches_original_old_png_bytes": true,
+  "direct_old_matches_original_candidate_png_bytes": true,
+  "comparator_controls": [
+    {
+      "tool": "browser-audit-visual.py",
+      "tool_sha256": "42e3918f3c6e0f32cd84e291001044fa4c4dbaec33774f20e5bbcf1287555c1e",
+      "function": "compare",
+      "positive": {
+        "size": [
+          2,
+          2
+        ],
+        "changed_pixels": 0,
+        "max_channel_delta": 0,
+        "bbox": null,
+        "exact": true
+      },
+      "one_pixel_one_channel_negative": {
+        "size": [
+          2,
+          2
+        ],
+        "changed_pixels": 1,
+        "max_channel_delta": 1,
+        "bbox": [
+          1,
+          1,
+          2,
+          2
+        ],
+        "exact": false
+      }
+    },
+    {
+      "tool": "browser-control-pixels.py",
+      "tool_sha256": "aad854e20388fc342138331d08a4ea0da29332c9b55f2026854b5eccd8cf8365",
+      "function": "pixels",
+      "positive": {
+        "size": [
+          2,
+          2
+        ],
+        "changed_pixels": 0,
+        "max_channel_delta": 0,
+        "bbox": null,
+        "exact": true
+      },
+      "one_pixel_one_channel_negative": {
+        "size": [
+          2,
+          2
+        ],
+        "changed_pixels": 1,
+        "max_channel_delta": 1,
+        "bbox": [
+          1,
+          1,
+          2,
+          2
+        ],
+        "exact": false
+      }
+    }
+  ],
+  "interpretation": "Same old source produced both historical edge patterns in the two recorded executions. Navigation/modal path changed, but the browser process was also restarted and timing differed; this does not isolate a unique path cause or prove randomness. No claim about the other four differences or original strict-suite acceptance.",
+  "confounders": [
+    "Separate browser process for the history-only execution",
+    "Different execution time",
+    "No same-process path crossover"
+  ]
+}
