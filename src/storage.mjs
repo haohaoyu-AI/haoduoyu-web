@@ -43,6 +43,8 @@ export async function commit(db,expected,store,actor=null) {
   if(actor?.kind==='key') statements.push(statement(db,
     'UPDATE matrix_control SET auth_guard=CASE WHEN EXISTS(SELECT 1 FROM api_keys WHERE id=? AND token_hash=? AND revoked_at IS NULL AND account_ids_json=? AND permissions_json=?) THEN 1 ELSE 0 END WHERE id=1',
     actor.id,actor.tokenHash,actor.scopeJson,actor.permissionsJson));
+  if(actor?.kind==='public') statements.push(statement(db,
+    'UPDATE matrix_control SET auth_guard=CASE WHEN EXISTS(SELECT 1 FROM users WHERE id=?) THEN 1 ELSE 0 END WHERE id=1',actor.id));
   try { await db.batch([...statements,...store.pending]); }
   catch(error) {
     if(/CHECK constraint failed: matrix_auth_match/.test(String(error))) throw fail(401,'UNAUTHORIZED','授权已失效，请重新登录');

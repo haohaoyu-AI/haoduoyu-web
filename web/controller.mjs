@@ -22,7 +22,8 @@ import { segmented } from "./ui/segmented.mjs";
 import { toast } from "./ui/toast.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
-    settingsTabs), state.settingsTab, "设置分类", "tab", "page-tabs") : ""}<div id="page-content"></div>`;
+    state.me?.publicBusiness ? { accounts: settingsTabs.accounts } : settingsTabs), state.settingsTab,
+    "设置分类", "tab", "page-tabs") : ""}<div id="page-content"></div>`;
 }
 function mobileNavigation() {
   return `<nav class="mobile-nav" aria-label="切换模块">${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
@@ -43,6 +44,7 @@ function reuseShell() {
   return true;
 }
 function renderShell() {
+  if (state.me?.publicBusiness && state.page === "settings") state.settingsTab = "accounts";
   stopPageEntry();
   closePopover({ restoreFocus: false });
   if (reuseShell()) {
@@ -58,7 +60,8 @@ href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${ico
   "close")}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div \
 class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div \
 class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.
-  me.username)}</span><button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button></div></div>\
+  me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" \
+aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div>\
 </aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" \
 aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" \
 tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;

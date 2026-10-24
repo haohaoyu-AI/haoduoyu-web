@@ -12,6 +12,10 @@ import {loginRetryAfter} from './lib/login-backoff.mjs';
 import {handleTodos} from './todos.mjs';
 import {handleTodoTemplates} from './todo-templates.mjs';
 import {handleTodoPreferences} from './todo-preferences.mjs';
+import {publicBusinessAccess,publicArticle,requirePublicAccount,publicBusinessResult} from './public-business.mjs';
+import {requireBusinessCsrf} from './business-access.mjs';
+import {deletePublicBusiness} from './public-business-delete.mjs';
+import {publicBusinessDocs} from './public-business-docs.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
@@ -66,7 +70,7 @@ async function login(db,request,env,origin) {
   })).response;
 }
 
-async function protectedRead(db,request,route,query,initialRevision) {
+async function protectedRead(db,request,route,query,initialRevision,publicActor=null) {
   let readActor,attemptTicket=null,attemptResponse=null;
   const abandon=async()=>{
     if(attemptTicket) await attemptTicket.abort();
@@ -76,13 +80,16 @@ async function protectedRead(db,request,route,query,initialRevision) {
   try {
   const response=await consistentRead(db,async (store,before)=>{
     if(attemptTicket||attemptResponse) await abandon();
-    const actor=await authenticate(store,request),records=createRecords(store);
+    const actor=publicActor||await authenticate(store,request),records=createRecords(store);
     readActor=actor;
     const articleMatch=/^\/articles\/([^/]+)$/.exec(route);
     if(route==='/auth/me') {requireAdmin(actor);return json({id:actor.id,username:actor.username,csrfToken:csrfFor(actor.token)});}
     if(route==='/accounts') return json(await records.listAccounts(actor.scope));
     if(route==='/articles') return Response.json(await records.articlePage(query,actor.scope));
-    if(articleMatch) return json(await records.getArticle(articleMatch[1],actor.scope));
+    if(articleMatch) {
+      const value=await records.getArticle(articleMatch[1],actor.scope);
+      return json(publicActor?publicArticle(value):value);
+    }
     if(route==='/due-reviews') return json(await records.dueReviews(query,actor.scope));
     if(route==='/observations') return json(await records.listObservations(query,actor.scope));
     if(route==='/daily-metrics') return json(await records.listDaily(query,actor.scope));
@@ -111,8 +118,8 @@ async function protectedRead(db,request,route,query,initialRevision) {
       return json(backup,200,{'Content-Disposition':'attachment; filename="haoduoyu-matrix-backup.json"'});
     }
     if(route==='/export') {
-      requireAdmin(actor);
-      const rows=await records.listArticles({},null),cols=['id','account_name','platform','title','url','published_at','started_at','duration_seconds','production_mode','summary','notes'];
+      if(!publicActor) requireAdmin(actor);
+      const rows=await records.listArticles({},publicActor?actor.scope:null),cols=['id','account_name','platform','title','url','published_at','started_at','duration_seconds','production_mode','summary','notes'];
       return new Response('\uFEFF'+[cols.map(csv).join(','),...rows.map(row=>cols.map(col=>csv(row[col])).join(','))].join('\r\n'),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="haoduoyu-articles.csv"'}});
     }
     throw fail(404,'NOT_FOUND','接口不存在');
@@ -131,10 +138,10 @@ async function protectedRead(db,request,route,query,initialRevision) {
   } catch(error) {await abandon();throw error;}
 }
 
-async function protectedWrite(db,request,route,env,origin,trace) {
+async function protectedWrite(db,request,route,env,origin,trace,publicActor=null) {
   // Authorize before reading a possibly large body or performing a slow KDF.
-  const first=await authenticate(storeFor(db),request,'write');
-  requireCsrf(request,first,origin);
+  const first=publicActor||await authenticate(storeFor(db),request,'write');
+  requireBusinessCsrf(request,first,origin);
   if(route==='/auth/logout'&&request.method==='POST') return (await mutate(db,async store=>{
     const actor=await authenticate(store,request,'write');requireAdmin(actor);requireCsrf(request,actor,origin);
     store.queue('DELETE FROM sessions WHERE token_hash=?',actor.tokenHash);store.audit(actor.actor,'auth.logout');
@@ -152,7 +159,7 @@ async function protectedWrite(db,request,route,env,origin,trace) {
   if(key!==null&&!/^[A-Za-z0-9_.:-]{1,160}$/.test(key)) throw fail(400,'VALIDATION','Idempotency-Key 格式无效');
   const requestHash=digest(request.method+':'+prefix+route+':'+JSON.stringify(stable(input)));
   const result=await mutate(db,async store=>{
-    const actor=await authenticate(store,request,'write');requireCsrf(request,actor,origin);
+    const actor=publicActor||await authenticate(store,request,'write');requireBusinessCsrf(request,actor,origin);
     const records=createRecords(store),method=request.method;
     const articleMatch=/^\/articles\/([^/]+)$/.exec(route),accountMatch=/^\/accounts\/([^/]+)$/.exec(route),keyMatch=/^\/api-keys\/([^/]+)$/.exec(route);
     if(route==='/auth/password'&&method==='PUT') {
@@ -180,8 +187,16 @@ async function protectedWrite(db,request,route,env,origin,trace) {
       store.audit(actor.actor,'api_key.revoked',keyMatch[1]);return {actor,response:json({revoked:true})};
     }
     let action;
-    if(method==='POST'&&route==='/accounts') {requireAdmin(actor);action=b=>records.createAccount(b);}
-    if(method==='PUT'&&accountMatch) {requireAdmin(actor);action=b=>records.updateAccount(accountMatch[1],b);}
+    if(method==='POST'&&route==='/accounts') {
+      if(!publicActor) requireAdmin(actor);
+      else requirePublicAccount(actor);
+      action=b=>records.createAccount(b);
+    }
+    if(method==='PUT'&&accountMatch) {
+      if(!publicActor) requireAdmin(actor);
+      else requirePublicAccount(actor,accountMatch[1]);
+      action=b=>records.updateAccount(accountMatch[1],b);
+    }
     if(method==='POST'&&route==='/articles') action=b=>records.createArticle(b,actor.scope);
     if(method==='PUT'&&articleMatch) action=b=>records.updateArticle(articleMatch[1],b,actor.scope);
     if(method==='POST'&&route==='/observations') action=b=>records.createObservation(b,actor.scope);
@@ -214,14 +229,25 @@ async function handle(request,env,trace) {
     if(!env.DB) throw fail(503,'CONFIGURATION','D1 绑定未配置');
     const origin=originFor(env),db=env.DB,route=path.slice(prefix.length);
     if(route==='/bootstrap'&&method==='POST') {await ensureControl(db);return bootstrap(db,request,env,origin);}
+    const access=await publicBusinessAccess(db,request,route,env,origin);
     const state=await db.prepare('SELECT initialized,revision FROM matrix_control WHERE id=1').first();
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
+    if(method==='GET'&&route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');
+    if(access) {
+      request=access.request;
+      if(route==='/auth/me') return json({id:'public-business',username:'公开编辑',publicBusiness:true});
+      if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
+      if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
+      if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
+      if(method==='DELETE') return deletePublicBusiness(db,request,route,access.actor);
+      if(method==='GET') return publicBusinessResult(protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision,access.actor));
+      return publicBusinessResult(protectedWrite(db,request,route,env,origin,trace,access.actor));
+    }
     if(route==='/auth/login'&&method==='POST') return login(db,request,env,origin);
     if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
     if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
     if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
     if(method==='GET') {
-      if(route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');
       return protectedRead(db,request,route,Object.fromEntries(url.searchParams),state.revision);
     }
     if(writing.has(method)) return protectedWrite(db,request,route,env,origin,trace);
@@ -240,7 +266,8 @@ async function handle(request,env,trace) {
       return new Response(null,{status:304,headers:{'Cache-Control':'no-cache',ETag:asset.etag}});
     headers['Content-Length']=String(asset.length);
   }
-  return new Response(method==='HEAD'?null:asset.content,{headers});
+  const content=name==='api-docs'&&env.PUBLIC_BUSINESS_MODE==='1'?publicBusinessDocs(asset.content):asset.content;
+  return new Response(method==='HEAD'?null:content,{headers});
 }
 export default {
   async fetch(request,env) {
