@@ -17,6 +17,16 @@ export function cloudflareConfig(runtime, env = {}) {
     assert.equal(origin.origin, env.CLOUDFLARE_SITE_ORIGIN);
   }
   const publicVars = {};
+  const notionKeys=['NOTION_SNAPSHOT_OWNER_ID','NOTION_SNAPSHOT_PARENT_ID','NOTION_SNAPSHOT_ACCOUNT_IDS'];
+  if(notionKeys.some(key=>env[key]!==undefined)) {
+    assert.ok(notionKeys.every(key=>typeof env[key]==='string'), 'All non-secret Notion snapshot configuration is required');
+    for(const key of notionKeys.slice(0,2))assert.match(env[key],/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i);
+    const ids=JSON.parse(env.NOTION_SNAPSHOT_ACCOUNT_IDS);
+    assert.ok(Array.isArray(ids)&&ids.length<=50&&new Set(ids).size===ids.length);
+    assert.ok(ids.every(id=>typeof id==='string'&&id.length>0&&id.length<=100));
+    for(const key of notionKeys)publicVars[key]=env[key];
+    // NOTION_SNAPSHOT_TOKEN is a Cloudflare Secret, never a plaintext build var.
+  }
   if (env.PUBLIC_BUSINESS_MODE === '1') {
     assert.match(env.PUBLIC_BUSINESS_USER_ID || '', /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
     const accounts = JSON.parse(env.PUBLIC_BUSINESS_ACCOUNT_IDS || 'null');
