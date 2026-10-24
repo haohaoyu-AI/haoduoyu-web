@@ -8,6 +8,7 @@ var nav = [
   { id: "articles", label: "文章", icon: "articles" },
   { id: "reviews", label: "数据", icon: "chart" },
   { id: "todos", label: "每日待办", icon: "check" },
+  { id: "notes", label: "碎碎念", icon: "edit" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
 var settingsTabs = { accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
@@ -557,12 +558,310 @@ var storage = { get(key) {
   }
 } };
 
+// web/core/daily-notes-state.mjs
+var DAILY_NOTES_MAX_BYTES = 65536;
+function validDailyNotesDate(value) {
+  if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = /* @__PURE__ */ new Date(value + "T00:00:00Z");
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+function dailyNotesToday() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(/* @__PURE__ */ new Date()).map((part) => [part.type, part.value]));
+  return parts.year + "-" + parts.month + "-" + parts.day;
+}
+var routeDate = "";
+function dailyNotesRouteDate() {
+  return routeDate || dailyNotesToday();
+}
+function setDailyNotesRouteDate(value) {
+  routeDate = validDailyNotesDate(value) ? value : "";
+}
+function dailyNotesBytes(text) {
+  return new TextEncoder().encode(text).length;
+}
+function checkedPage(value, date) {
+  if (!value || value.date !== date || typeof value.text !== "string" || !Number.isSafeInteger(value.version) || value.version < 0 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES) throw new Error("碎碎念读取结果不完整，请重新核对。");
+  return value;
+}
+function createDailyNotesContext({
+  load,
+  put,
+  remove,
+  onChange = () => {
+  },
+  onSaved = () => {
+  },
+  uuid = () => crypto.randomUUID(),
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+  delay = 700
+}) {
+  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, onSaved, uuid } };
+  const pages = context.pages;
+  const emit = () => {
+    if (!context.disposed) onChange();
+  };
+  const page = (date) => {
+    if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
+    if (!pages.has(date)) pages.set(date, {
+      date,
+      loaded: false,
+      loading: false,
+      canEdit: false,
+      serverText: "",
+      draft: "",
+      version: 0,
+      updatedAt: null,
+      deleted: false,
+      dirty: false,
+      phase: "loading",
+      error: "",
+      remote: null,
+      pending: null,
+      timer: null,
+      sequence: 0,
+      writeEpoch: 0
+    });
+    return pages.get(date);
+  };
+  const stopTimer = (item) => {
+    if (item.timer !== null) clearTimer(item.timer);
+    item.timer = null;
+  };
+  const adopt = (item, value, preserve = false) => {
+    item.canEdit = value.can_edit;
+    item.serverText = value.deleted ? "" : value.text;
+    item.version = value.version;
+    item.updatedAt = value.updated_at;
+    item.deleted = value.deleted;
+    if (!preserve) item.draft = item.serverText;
+    item.dirty = item.draft !== item.serverText;
+    item.loaded = true;
+  };
+  function schedule(item) {
+    stopTimer(item);
+    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !["conflict", "unknown", "error", "oversize"].includes(item.phase)) {
+      item.timer = setTimer(() => {
+        item.timer = null;
+        void context.save(item.date);
+      }, delay);
+    }
+  }
+  const matches = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted === true : value.deleted === false && value.text === operation.text);
+  function accepted(item, value, operation) {
+    const keep = operation.kind !== "delete" && item.draft !== operation.text;
+    item.writeEpoch++;
+    adopt(item, value, keep);
+    item.remote = null;
+    item.pending = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    onSaved(item.date);
+    schedule(item);
+  }
+  function dispose() {
+    context.disposed = true;
+    for (const item of pages.values()) stopTimer(item);
+  }
+  Object.assign(context, { page, emit, stopTimer, adopt, schedule, matches, accepted, dispose });
+  return context;
+}
+function createReadingActions(context) {
+  const { page, emit, stopTimer, adopt, schedule } = context;
+  const { load } = context.options;
+  async function read(date) {
+    const item = page(date), sequence = ++item.sequence, writeEpoch = item.writeEpoch;
+    item.loading = true;
+    emit();
+    try {
+      const value = checkedPage(await load(date), date);
+      if (context.disposed || sequence !== item.sequence) return;
+      if (item.pending || writeEpoch !== item.writeEpoch) return;
+      if (["conflict", "unknown"].includes(item.phase)) {
+        item.remote = value;
+        item.canEdit = value.can_edit;
+      } else if (item.dirty && value.version !== item.version) {
+        item.remote = value;
+        item.canEdit = value.can_edit;
+        item.phase = "conflict";
+        item.error = "服务器已有新版本，草稿已保留，请核对后选择。";
+      } else {
+        adopt(item, value, item.dirty);
+        item.phase = item.dirty ? "dirty" : "saved";
+        item.error = "";
+      }
+    } catch (error) {
+      if (!context.disposed && sequence === item.sequence) {
+        item.error = error.message;
+        if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
+      }
+    } finally {
+      if (!context.disposed && sequence === item.sequence) {
+        item.loading = false;
+        emit();
+        schedule(item);
+      }
+    }
+  }
+  function edit(date, text, { composing = false } = {}) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || item.pending?.kind === "delete") return;
+    item.draft = text;
+    item.dirty = text !== item.serverText;
+    stopTimer(item);
+    if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
+      if (!["conflict", "unknown"].includes(item.phase)) item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留，请缩短后再保存。";
+    } else if (!["conflict", "unknown"].includes(item.phase)) {
+      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
+      item.error = "";
+    }
+    emit();
+    if (!composing) schedule(item);
+  }
+  return { read, edit };
+}
+function createWritingActions(context) {
+  const { page, emit, stopTimer, matches, accepted } = context;
+  const { put, remove, uuid } = context.options;
+  async function send(item, operation) {
+    stopTimer(item);
+    item.pending = operation;
+    item.phase = "saving";
+    item.error = "";
+    item.writeEpoch++;
+    emit();
+    try {
+      const raw = await (operation.kind === "delete" ? remove(item.date, {
+        version: operation.version,
+        save_id: operation.saveId
+      }) : put(item.date, { text: operation.text, version: operation.version, save_id: operation.saveId }));
+      if (context.disposed || item.pending !== operation) return;
+      const value = checkedPage(raw, item.date);
+      if (!matches(value, operation)) throw new Error("保存响应需要重新核对。");
+      accepted(item, value, operation);
+    } catch (error) {
+      if (context.disposed || item.pending !== operation) return;
+      if (error.status === 409) {
+        item.pending = null;
+        item.phase = "conflict";
+        item.dirty = true;
+        item.error = "服务器已有新版本，草稿已保留，不会自动覆盖。";
+        emit();
+        await context.read(item.date);
+      } else if (error.status >= 400 && error.status < 500) {
+        item.pending = null;
+        item.phase = "error";
+        item.error = error.message;
+        if ([401, 403].includes(error.status)) item.canEdit = false;
+        emit();
+      } else {
+        item.phase = "unknown";
+        item.error = "正在核对保存结果，草稿已保留。";
+        emit();
+        await context.reconcile(item.date);
+      }
+    }
+  }
+  async function save(date) {
+    const item = page(date);
+    stopTimer(item);
+    if (context.disposed || !item.canEdit || !item.loaded || item.loading || item.pending || ["conflict", "unknown"].includes(item.phase) || !item.dirty) return;
+    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
+      item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留。";
+      emit();
+      return;
+    }
+    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid() });
+  }
+  async function deletePage(date) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
+    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid() });
+  }
+  async function retryPending(date) {
+    const item = page(date), operation = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation?.retryReady || operation.checking || !item.canEdit) return;
+    operation.retryReady = false;
+    return send(item, operation);
+  }
+  return { save, deletePage, retryPending };
+}
+function createResolutionActions(context) {
+  const { page, emit, stopTimer, adopt, matches, accepted } = context;
+  const { load } = context.options;
+  async function reconcile(date) {
+    const item = page(date), operation = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation || operation.checking) return;
+    operation.checking = true;
+    operation.retryReady = false;
+    emit();
+    try {
+      const value = checkedPage(await load(date), date);
+      if (context.disposed || item.pending !== operation) return;
+      item.canEdit = value.can_edit;
+      if (matches(value, operation)) accepted(item, value, operation);
+      else if (value.version > operation.version) {
+        item.remote = value;
+        item.pending = null;
+        item.phase = "conflict";
+        item.dirty = true;
+        item.error = "服务器已有不同的新版本，草稿已保留，不会自动覆盖。";
+      } else {
+        item.remote = value;
+        operation.retryReady = value.can_edit && value.version === operation.version;
+        item.error = operation.retryReady ? "已核对服务器尚无新版本。可手动重试原保存，后续草稿仍会保留。" : "保存结果尚未确认，草稿已保留。请再次核对，暂不重复发送。";
+      }
+    } catch (error) {
+      if (!context.disposed && item.pending === operation) item.error = "核对失败，草稿已保留：" + error.message;
+    } finally {
+      operation.checking = false;
+      emit();
+    }
+  }
+  function useServer(date) {
+    const item = page(date);
+    if (!item.remote || item.pending || item.phase !== "conflict") return;
+    stopTimer(item);
+    adopt(item, item.remote);
+    item.remote = null;
+    item.phase = "saved";
+    item.error = "";
+    emit();
+  }
+  async function useDraft(date) {
+    const item = page(date);
+    if (!item.remote || item.pending || item.phase !== "conflict" || !item.remote.can_edit) return;
+    adopt(item, item.remote, true);
+    item.remote = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    return context.save(date);
+  }
+  return { reconcile, useServer, useDraft };
+}
+function createDailyNotesStore(options) {
+  const context = createDailyNotesContext(options);
+  Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
+  const { page, pages, read, edit, save, deletePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
+  return { page, pages, read, edit, save, deletePage, reconcile, retryPending, useServer, useDraft, dispose };
+}
+
 // web/core/router.mjs
 function updateRoute(push = false) {
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
   u.searchParams.set("period", state.overviewPeriod);
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
+  else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else u.searchParams.delete("date");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
   else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
@@ -591,6 +890,7 @@ function readRoute() {
   const raw = params.get("page");
   const fallback = "todos";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
+  if (state.page === "notes") setDailyNotesRouteDate(params.get("date"));
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : raw === "settings" && !params.has("tab") ? "security" : "accounts");
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
@@ -658,6 +958,7 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
+  if (state.page === "notes") return "";
   if (state.page === "dashboard") return `${dashboardInfo("metrics", "总览数据口径", "header")}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button><button class="btn primary" data-action="new-article">${icon(
     "plus"
   )}记录发布</button>`;
@@ -677,6 +978,7 @@ function accountFilter() {
   )}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
     state.accounts
@@ -2112,6 +2414,212 @@ function registerTodosClock() {
   scheduleTodoClock();
 }
 
+// web/pages/daily-notes.mjs
+function renderDailyNotes() {
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">这一天的碎碎念</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader" tabindex="0"></div><p id="notes-empty" class="notes-empty" hidden>这一天还没有留下文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn" type="button" data-notes-action="login" hidden>所有者登录</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn text" type="button" data-notes-action="delete">删除这一天</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除这一天的文字？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div><aside class="notes-history" aria-label="已有碎碎念的日期"><h2>最近的文字</h2><div id="notes-dates"></div><p id="notes-dates-error" role="status"></p><button class="btn text" type="button" data-notes-action="more" hidden>更早的日期</button></aside></section>';
+}
+var statuses = {
+  loading: "正在读取…",
+  dirty: "等待保存",
+  saving: "正在保存…",
+  conflict: "草稿有冲突",
+  unknown: "保存结果待核对",
+  error: "暂未保存",
+  oversize: "文字过长"
+};
+function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false, datesLoading = false, datesError = "" } = {}) {
+  if (!root) return;
+  root.dataset.date = item.date;
+  const find = (selector) => root.querySelector(selector);
+  const date = find("#notes-date"), editor = find("#notes-editor"), reader = find("#notes-reader");
+  if (date.value !== item.date) date.value = item.date;
+  editor.dataset.date = item.date;
+  editor.hidden = !item.loaded || !item.canEdit;
+  editor.disabled = item.pending?.kind === "delete";
+  if (editor.value !== item.draft) editor.value = item.draft;
+  reader.hidden = !item.loaded || item.canEdit || !item.serverText;
+  reader.textContent = item.serverText;
+  find("#notes-empty").hidden = !item.loaded || item.canEdit || Boolean(item.serverText);
+  find("#notes-status").textContent = !item.loaded && item.loading ? "正在读取…" : statuses[item.phase] || (item.canEdit ? "已保存" : "公开只读");
+  find("#notes-message").hidden = !item.error;
+  find("#notes-message").textContent = item.error;
+  find("#notes-detail").textContent = item.canEdit ? dailyNotesBytes(item.draft) + " / 65536 字节 · 自动保存" : "所有访客都能阅读";
+  find("#notes-write-actions").hidden = !item.loaded || !item.canEdit;
+  find('[data-notes-action="login"]').hidden = !item.loaded || item.canEdit;
+  const blocked = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
+  find('[data-notes-action="save"]').disabled = blocked || !item.dirty;
+  find('[data-notes-action="delete"]').disabled = blocked || item.deleted || item.version === 0;
+  find('[data-notes-action="next"]').disabled = item.date >= dailyNotesToday();
+  const draftBox = find("#notes-drafts");
+  draftBox.hidden = !drafts.length;
+  draftBox.innerHTML = "<span>本页签保留的未保存草稿：</span>" + drafts.map((value) => '<button class="btn text" type="button" data-notes-date="' + e(value.date) + '">' + e(value.date) + "</button>").join("");
+  find("#notes-resolution").hidden = !["conflict", "unknown"].includes(item.phase) && !(item.phase === "error" && !item.loaded);
+  find('[data-notes-action="check"]').disabled = item.loading || Boolean(item.pending?.checking);
+  find('[data-notes-action="retry"]').hidden = item.phase !== "unknown" || !item.pending?.retryReady || !item.canEdit;
+  find("#notes-conflict-actions").hidden = item.phase !== "conflict" || !item.remote;
+  find("#notes-remote").textContent = item.remote?.deleted ? "（这一天已删除）" : item.remote?.text || "（空白）";
+  find('[data-notes-action="use-draft"]').disabled = item.remote?.can_edit !== true;
+  find("#notes-dates").innerHTML = dates.map((value) => '<button class="btn text notes-day' + (value === item.date ? " notes-day-current" : "") + '" type="button" data-notes-date="' + e(value) + '">' + e(value) + "</button>").join("");
+  const more = find('[data-notes-action="more"]');
+  more.hidden = !hasMore;
+  more.disabled = datesLoading;
+  more.textContent = datesLoading ? "正在读取…" : "更早的日期";
+  find("#notes-dates-error").textContent = datesError || (!datesLoading && !dates.length ? "还没有已保存的文字。可用上方日期选择任意过去的一天。" : "");
+}
+
+// web/daily-notes-controller.mjs
+var notesStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "";
+var notesDateIndex = { dates: [], hasMore: false, cursor: null, loading: false, error: "", sequence: 0 };
+var notesIdentityNow = () => String(runtime.sessionEpoch) + ":" + String(state.me?.id || "") + ":" + String(state.me?.csrfToken || "");
+var notesVisible = () => state.page === "notes" && notesIdentity === notesIdentityNow();
+function ensureDailyNotesStore() {
+  const next = notesIdentityNow();
+  if (!notesStore || notesIdentity !== next) {
+    notesStore?.dispose();
+    notesIdentity = next;
+    notesConfirmDate = "";
+    notesDateIndex = { dates: [], hasMore: false, cursor: null, loading: false, error: "", sequence: 0 };
+    const expected = next;
+    const active = () => {
+      if (notesIdentityNow() !== expected) {
+        store.dispose();
+        throw new DOMException("请求已取消", "AbortError");
+      }
+    };
+    const request = async (path, options) => {
+      active();
+      const value = await api(path, options);
+      active();
+      return value;
+    };
+    const store = createDailyNotesStore({
+      load: (date) => request("/daily-notes?date=" + encodeURIComponent(date)),
+      put: (date, body) => request("/daily-notes/" + encodeURIComponent(date), { method: "PUT", body }),
+      remove: (date, body) => request("/daily-notes/" + encodeURIComponent(date), { method: "DELETE", body }),
+      onChange: () => {
+        if (expected === notesIdentityNow()) paintDailyNotesPage();
+      },
+      onSaved: () => {
+        if (expected === notesIdentityNow()) void loadNoteDates();
+      }
+    });
+    notesStore = store;
+  }
+  return notesStore;
+}
+function paintDailyNotesPage() {
+  if (!notesVisible()) return;
+  const root = document.querySelector("#daily-notes");
+  if (!root) return;
+  const item = notesStore.page(dailyNotesRouteDate());
+  const drafts = [...notesStore.pages.values()].filter((value) => value.dirty || value.pending || ["unknown", "conflict", "oversize"].includes(value.phase));
+  paintDailyNotes(root, item, {
+    drafts,
+    dates: notesDateIndex.dates,
+    hasMore: notesDateIndex.hasMore,
+    datesLoading: notesDateIndex.loading,
+    datesError: notesDateIndex.error
+  });
+  root.querySelector("#notes-delete-confirm").hidden = notesConfirmDate !== item.date;
+}
+async function loadNoteDates(more = false) {
+  ensureDailyNotesStore();
+  if (more && (!notesDateIndex.hasMore || notesDateIndex.loading)) return;
+  const expected = notesIdentity, current = notesDateIndex, sequence = ++current.sequence;
+  const before = more ? current.cursor : null;
+  current.loading = true;
+  current.error = "";
+  paintDailyNotesPage();
+  try {
+    const result = await api("/daily-notes/dates?page_size=30" + (before ? "&before=" + encodeURIComponent(before) : ""));
+    if (expected !== notesIdentityNow() || current !== notesDateIndex || sequence !== current.sequence) return;
+    if (!Array.isArray(result?.dates) || result.dates.some((value) => !validDailyNotesDate(value)) || typeof result.has_more !== "boolean" || result.has_more && (!validDailyNotesDate(result.next_before) || before && result.next_before >= before))
+      throw new Error("日期列表不完整，请稍后重新读取。");
+    current.dates = [.../* @__PURE__ */ new Set([...more ? current.dates : [], ...result.dates])].sort().reverse();
+    current.hasMore = result.has_more;
+    current.cursor = result.next_before;
+  } catch (error) {
+    if (expected === notesIdentityNow() && sequence === current.sequence) current.error = error.message;
+  } finally {
+    if (expected === notesIdentityNow() && current === notesDateIndex && sequence === current.sequence) {
+      current.loading = false;
+      paintDailyNotesPage();
+    }
+  }
+}
+async function selectDailyNotesDate(value) {
+  if (!validDailyNotesDate(value) || value > dailyNotesToday()) return;
+  ensureDailyNotesStore();
+  notesConfirmDate = "";
+  setDailyNotesRouteDate(value);
+  updateRoute(true);
+  paintDailyNotesPage();
+  await notesStore.read(value);
+}
+function shiftedNotesDate(date, delta) {
+  return new Date(Date.parse(date + "T12:00:00Z") + delta * 864e5).toISOString().slice(0, 10);
+}
+function registerDailyNotesEvents() {
+  if (notesEventsRegistered) return;
+  notesEventsRegistered = true;
+  document.addEventListener("input", (event) => {
+    if (!notesVisible() || event.target.id !== "notes-editor") return;
+    ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value, { composing: event.isComposing });
+  });
+  document.addEventListener("compositionend", (event) => {
+    if (notesVisible() && event.target.id === "notes-editor")
+      ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value);
+  });
+  document.addEventListener("change", (event) => {
+    if (notesVisible() && event.target.id === "notes-date") void selectDailyNotesDate(event.target.value);
+  });
+  document.addEventListener("click", async (event) => {
+    if (!notesVisible()) return;
+    const root = document.querySelector("#daily-notes"), target = event.target.closest("[data-notes-action],[data-notes-date]");
+    if (!target || !root?.contains(target)) return;
+    event.preventDefault();
+    if (target.dataset.notesDate) {
+      await selectDailyNotesDate(target.dataset.notesDate);
+      return;
+    }
+    const store = ensureDailyNotesStore(), date = dailyNotesRouteDate(), action = target.dataset.notesAction;
+    if (action === "previous" || action === "next") await selectDailyNotesDate(shiftedNotesDate(date, action === "previous" ? -1 : 1));
+    else if (action === "login") renderLogin();
+    else if (action === "today") await selectDailyNotesDate(dailyNotesToday());
+    else if (action === "save") await store.save(date);
+    else if (action === "delete") {
+      notesConfirmDate = date;
+      paintDailyNotesPage();
+    } else if (action === "cancel-delete") {
+      notesConfirmDate = "";
+      paintDailyNotesPage();
+    } else if (action === "confirm-delete") {
+      notesConfirmDate = "";
+      await store.deletePage(date);
+      paintDailyNotesPage();
+    } else if (action === "check") {
+      if (store.page(date).phase === "unknown") await store.reconcile(date);
+      else await store.read(date);
+    } else if (action === "use-server") store.useServer(date);
+    else if (action === "retry") await store.retryPending(date);
+    else if (action === "use-draft") await store.useDraft(date);
+    else if (action === "more") await loadNoteDates(true);
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (notesIdentity !== notesIdentityNow() || !notesStore) return;
+    if ([...notesStore.pages.values()].some((item) => item.dirty || item.pending || item.phase === "unknown")) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
+}
+async function loadDailyNotes() {
+  registerDailyNotesEvents();
+  const store = ensureDailyNotesStore();
+  await Promise.all([store.read(dailyNotesRouteDate()), loadNoteDates()]);
+  paintDailyNotesPage();
+}
+
 // web/ui/menu.mjs
 function syncMenu() {
   const side = $(".sidebar");
@@ -2147,7 +2655,7 @@ function mainContent() {
   ) : ""}<div id="page-content"></div>`;
 }
 function mobileNavigation() {
-  return `<nav class="mobile-nav" aria-label="切换模块">${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
+  return `<nav class="mobile-nav notes-navigation" aria-label="切换模块">${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
 data-nav="${e(n.id)}" class="mobile-nav-item${n.id === state.page ? " active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>
 ${icon(n.icon, 18)}<span>${e(n.label)}</span></a>`).join("")}</nav>`;
 }
@@ -2202,10 +2710,12 @@ function navigate(page, tab) {
 }
 function pageLoading(page) {
   if (page === "todos") return renderTodos();
+  if (page === "notes") return renderDailyNotes();
   return skeleton();
 }
 function setPageBody(html, page) {
   if (page === "todos") paintTodos();
+  else if (page === "notes") paintDailyNotesPage();
   else replacePageContent(html, true);
 }
 async function renderPage() {
@@ -2224,6 +2734,9 @@ async function renderPage() {
     switch (page) {
       case "todos":
         html = renderTodos();
+        break;
+      case "notes":
+        await loadDailyNotes();
         break;
       case "dashboard":
         data = await api(

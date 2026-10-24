@@ -28,6 +28,9 @@ export const matrixTodoPreferences=sqliteTable('matrix_todo_preferences',{
 export const matrixTodoTemplateLinks=sqliteTable('matrix_todo_template_links',{
   user_id:text('user_id').notNull(),todo_id:text('todo_id').notNull(),template_id:text('template_id').notNull(),created_with_todo:integer('created_with_todo').notNull().default(1),
 },t=>[primaryKey({columns:[t.user_id,t.todo_id]}),index('matrix_todo_template_link').on(t.user_id,t.template_id),foreignKey({columns:[t.user_id,t.todo_id],foreignColumns:[matrixTodos.user_id,matrixTodos.id]}).onDelete('cascade'),foreignKey({columns:[t.user_id,t.template_id],foreignColumns:[matrixTodoTemplates.user_id,matrixTodoTemplates.id]})]);
+export const matrixDailyNotes=sqliteTable('matrix_daily_notes',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),date:text('date').notNull(),text:text('text').notNull().default(''),version:integer('version').notNull(),change_seq:integer('change_seq').notNull(),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.date]}),index('matrix_daily_notes_user_changes').on(t.user_id,t.change_seq,t.date),check('matrix_daily_notes_version',sql`${t.version} >= 1`),check('matrix_daily_notes_change_seq',sql`${t.change_seq} >= 1`)]);
 export const matrixSessions=sqliteTable('matrix_sessions',{
   token_hash:text('token_hash').primaryKey(),user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),expires_at:text('expires_at').notNull(),
 },t=>[index('matrix_session_user').on(t.user_id)]);

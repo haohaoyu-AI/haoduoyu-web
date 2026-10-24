@@ -37,7 +37,7 @@ if(target==='platform') {
   assert.equal(manifest.d1,'DB');assert.equal(manifest.r2,null);assert.ok(!manifest.static);
 }
 const journal=JSON.parse(await readFile(resolve(root,'drizzle/meta/_journal.json'),'utf8'));
-assert.equal(journal.entries.length,4,'Initial schema plus additive todo migrations');
+assert.equal(journal.entries.length,5,'Initial schema plus additive todo and daily-note migrations');
 let tables=0;
 for(const [idx,entry] of journal.entries.entries()) {
   assert.equal(entry.idx,idx);
@@ -51,7 +51,7 @@ for(const [idx,entry] of journal.entries.entries()) {
     if(statement.startsWith('CREATE TABLE')) tables++;
   }
 }
-assert.equal(tables,15);
+assert.equal(tables,16);
 assert.equal(relative(root,dist),'dist','Build output must remain inside this project');
 const output=target==='platform'?dist:resolve(dist,'cloudflare');
 const entry=target==='platform'?resolve(output,'server/index.js'):resolve(output,'index.js');
@@ -70,5 +70,5 @@ if(target==='platform') {
 }
 const worker=await import(pathToFileURL(entry).href+'?build='+Date.now());
 assert.equal(typeof worker.default?.fetch,'function');
-console.log(target==='platform'?'Built independent Sites Worker: DB only, one initial and three additive migrations, 15 matrix tables, no legacy tables or R2 binding.':
-  'Built standalone Cloudflare Worker and four migrations locally; '+(standalone.configured?'configuration supplied.':'unconfigured template only.')+' No resources created or deployed.');
+console.log(target==='platform'?'Built independent Sites Worker: DB only, one initial and four additive migrations, 16 matrix tables, no legacy tables or R2 binding.':
+  'Built standalone Cloudflare Worker and five migrations locally; '+(standalone.configured?'configuration supplied.':'unconfigured template only.')+' No resources created or deployed.');

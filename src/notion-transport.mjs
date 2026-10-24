@@ -3,6 +3,8 @@ import {createHash} from 'node:crypto';
 const api='https://api.notion.com/v1',version='2026-03-11';
 const sections=['todos','templates','accounts','articles','observations','daily_metrics'];
 const format='haoduoyu-business-snapshot-v1',titlePrefix='好多鱼业务快照 ';
+const business={sections,format,titlePrefix,seal:'haoduoyu-snapshot-complete',legacy:'业务快照'};
+const dailyNotes={sections:['notes'],format:'haoduoyu-daily-notes-v1',titlePrefix:'碎碎念 ',seal:'haoduoyu-daily-notes-complete',legacy:'碎碎念'};
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const id=value=>{
   if(typeof value!=='string'||!/^([a-f\d]{32}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.test(value))throw Error();
@@ -25,7 +27,7 @@ function chunks(text) {
   for(const char of text) {if(part.length+char.length>1800){result.push(part);part='';}part+=char;}
   if(part)result.push(part);return result;
 }
-function content(snapshot) {
+function content(snapshot,{sections,format}) {
   if(!snapshot||snapshot.snapshot_format!==format||snapshot.timezone!=='Asia/Shanghai'||
     !/^\d{4}-\d{2}-\d{2}$/.test(snapshot.date)||!Number.isFinite(Date.parse(snapshot.date+'T00:00:00Z'))||
     new Date(snapshot.date+'T00:00:00Z').toISOString().slice(0,10)!==snapshot.date||
@@ -45,6 +47,9 @@ function content(snapshot) {
     }
   };
   inspect(data);
+  if(format===dailyNotes.format&&(data.notes.length!==1||data.notes.some(row=>!row||row.date!==snapshot.date||
+    typeof row.text!=='string'||Buffer.byteLength(row.text)>65536||!['active','cleared','deleted'].includes(row.state)||
+    Object.keys(row).sort().join(',')!=='date,state,text'||(row.state!=='active'&&row.text!==''))))throw Error();
   const counts=Object.fromEntries(sections.map(k=>[k,data[k].length]));
   const texts=[`date: ${snapshot.date}\ntimezone: ${snapshot.timezone}\ncontent_hash: ${snapshot.content_hash}`,
     'counts: '+JSON.stringify(counts)];
@@ -57,7 +62,8 @@ function content(snapshot) {
 }
 
 /** Read+Insert only. No automatic write retries, page updates or deletes. */
-export async function pushNotionSnapshot({token,parentId,snapshot,previousDelivery,fetchImpl=fetch}) {
+async function pushSnapshot({token,parentId,snapshot,previousDelivery,fetchImpl=fetch,requestBudget},protocol) {
+  const {format,titlePrefix,seal,legacy}=protocol;
   let requests=0,uncertainWrite=false;
   const error=(code,retryAfter)=>{
     const e=new Error('Notion snapshot operation did not complete.');
@@ -70,7 +76,7 @@ export async function pushNotionSnapshot({token,parentId,snapshot,previousDelive
     try {
       parent=id(parentId);
       if(typeof token!=='string'||!token||token.length>4096||/[\r\n]/.test(token))throw Error();
-      body=content(snapshot);
+      body=content(snapshot,protocol);
       if(previousDelivery) {
         previous={...previousDelivery,page_id:id(previousDelivery.page_id)};
         if(!Number.isSafeInteger(previous.version)||previous.version<1||previous.version>999999||
@@ -78,10 +84,11 @@ export async function pushNotionSnapshot({token,parentId,snapshot,previousDelive
       }
     }catch {throw error('NOTION_INVALID_SNAPSHOT');}
     const request=async(path,{method='GET',payload}={})=>{
-      if(requests>=40)throw error('NOTION_BUDGET');
+      if(requests>=40||requestBudget&&(!Number.isSafeInteger(requestBudget.remaining)||requestBudget.remaining<1))throw error('NOTION_BUDGET');
       const serialized=payload===undefined?undefined:JSON.stringify(payload);
       if(serialized&&Buffer.byteLength(serialized)>400*1024)throw error('NOTION_TOO_LARGE');
       requests++;
+      if(requestBudget)requestBudget.remaining--;
       if(method!=='GET')uncertainWrite=true;
       let response;
       try {response=await fetchImpl(api+path,{method,redirect:'manual',signal:AbortSignal.timeout(15000),
@@ -123,13 +130,13 @@ export async function pushNotionSnapshot({token,parentId,snapshot,previousDelive
       }while(true);
     };
     const marker=v=>`${format}|date=${snapshot.date}|hash=${snapshot.content_hash}|version=${v}`;
-    const texts=v=>[marker(v),...body.texts,`haoduoyu-snapshot-complete|sha256=${sha(JSON.stringify(body.texts))}|blocks=${body.texts.length+2}`];
+    const texts=v=>[marker(v),...body.texts,`${seal}|sha256=${sha(JSON.stringify(body.texts))}|blocks=${body.texts.length+2}`];
     const inspect=blocks=>{
       const actual=blocks.map(plain);
       if(actual.some(x=>x===null))throw error('NOTION_INCOMPLETE');
       const first=new RegExp('^'+format+'\\|date=(\\d{4}-\\d{2}-\\d{2})\\|hash=([a-f\\d]{64})\\|version=([1-9]\\d*)$').exec(actual[0]||'');
-      const seal=/^haoduoyu-snapshot-complete\|sha256=([a-f\d]{64})\|blocks=(\d+)$/.exec(actual.at(-1)||'');
-      if(!first||!seal||Number(seal[2])!==actual.length||seal[1]!==sha(JSON.stringify(actual.slice(1,-1))))throw error('NOTION_INCOMPLETE');
+      const last=new RegExp('^'+seal+'\\|sha256=([a-f\\d]{64})\\|blocks=(\\d+)$').exec(actual.at(-1)||'');
+      if(!first||!last||Number(last[2])!==actual.length||last[1]!==sha(JSON.stringify(actual.slice(1,-1))))throw error('NOTION_INCOMPLETE');
       return {date:first[1],hash:first[2],version:Number(first[3]),actual};
     };
     const candidates=async()=>{
@@ -138,7 +145,7 @@ export async function pushNotionSnapshot({token,parentId,snapshot,previousDelive
         if(entry.type!=='child_page')continue;
         const title=entry.child_page?.title||'';
         if(!title.startsWith(titlePrefix+snapshot.date+' v')) {
-          if(title.includes(snapshot.date)&&title.includes('业务快照')&&id(entry.id)!==previous?.page_id)
+          if(title.includes(snapshot.date)&&title.includes(legacy)&&id(entry.id)!==previous?.page_id)
             throw error('NOTION_LEGACY_CONFLICT');
           continue;
         }
@@ -176,7 +183,8 @@ export async function pushNotionSnapshot({token,parentId,snapshot,previousDelive
     const next=latest+1,expected=texts(next),blocks=expected.map(block),groups=[];
     if(next>999999)throw error('NOTION_TOO_LARGE');
     for(let i=0;i<blocks.length;i+=50)groups.push(blocks.slice(i,i+50));
-    if(requests+groups.length+Math.ceil(blocks.length/100)+2>40)throw error('NOTION_BUDGET');
+    const needed=groups.length+Math.ceil(blocks.length/100)+2;
+    if(requests+needed>40||requestBudget&&requestBudget.remaining<needed)throw error('NOTION_BUDGET');
     const reconcile=async()=>{
       const matches=[];
       for(const candidate of await candidates())if(candidate.version===next) {
@@ -206,3 +214,6 @@ export async function pushNotionSnapshot({token,parentId,snapshot,previousDelive
     throw error('NOTION_UNAVAILABLE');
   }
 }
+
+export const pushNotionSnapshot=options=>pushSnapshot(options,business);
+export const pushNotionNote=options=>pushSnapshot(options,dailyNotes);

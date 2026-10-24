@@ -1,0 +1,33 @@
+{
+  "browser": {
+    "synthetic": true,
+    "real_backend": false,
+    "checks": [
+      "readonly, paginated dates, arbitrary past date, owner login returns through existing URL, no overflow 375",
+      "readonly, paginated dates, arbitrary past date, owner login returns through existing URL, no overflow 1440",
+      "409 retains drafts; unknown commit readback; manual original save_id retry then queued new draft",
+      "owner autosave, plaintext XSS safety, no overflow and explicit soft delete 375",
+      "owner autosave, plaintext XSS safety, no overflow and explicit soft delete 1440"
+    ],
+    "screenshots": [
+      "readonly-375.png",
+      "owner-1440.png"
+    ],
+    "pageerrors": [],
+    "blocked_external": [],
+    "browser": "154.0.8037.57",
+    "completed": true
+  },
+  "integration": {
+    "synthetic": true,
+    "real_backend": true,
+    "checks": [
+      "existing real login -> owner capability -> autosave version 1",
+      "independent anonymous browser reads owner text and cannot edit",
+      "explicit owner delete -> real soft tombstone v2 -> public empty projection"
+    ],
+    "pageerrors": [],
+    "blocked_external": [],
+    "completed": true
+  }
+}
