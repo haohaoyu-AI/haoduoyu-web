@@ -12,6 +12,9 @@ function apiOptions(options) {
   if (opts.method && !["GET", "HEAD"].includes(opts.method) && state.me?.csrfToken) {
     opts.headers["X-CSRF-Token"] = state.me.csrfToken;
   }
+  if (opts.method && !["GET", "HEAD"].includes(opts.method) && state.me?.publicBusiness) {
+    opts.headers["X-Public-Business"] = "1";
+  }
   return opts;
 }
 async function apiTransport(path, opts) {

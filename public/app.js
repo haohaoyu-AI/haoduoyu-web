@@ -480,6 +480,9 @@ function apiOptions(options) {
   if (opts.method && !["GET", "HEAD"].includes(opts.method) && state.me?.csrfToken) {
     opts.headers["X-CSRF-Token"] = state.me.csrfToken;
   }
+  if (opts.method && !["GET", "HEAD"].includes(opts.method) && state.me?.publicBusiness) {
+    opts.headers["X-Public-Business"] = "1";
+  }
   return opts;
 }
 async function apiTransport(path, opts) {
@@ -2132,9 +2135,16 @@ function setMenu(open) {
 
 // web/controller.mjs
 function mainContent() {
-  return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
-    settingsTabs
-  ), state.settingsTab, "设置分类", "tab", "page-tabs") : ""}<div id="page-content"></div>`;
+  return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented(
+    "settings-tab",
+    Object.entries(
+      state.me?.publicBusiness ? { accounts: settingsTabs.accounts } : settingsTabs
+    ),
+    state.settingsTab,
+    "设置分类",
+    "tab",
+    "page-tabs"
+  ) : ""}<div id="page-content"></div>`;
 }
 function mobileNavigation() {
   return `<nav class="mobile-nav" aria-label="切换模块">${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
@@ -2155,6 +2165,7 @@ function reuseShell() {
   return true;
 }
 function renderShell() {
+  if (state.me?.publicBusiness && state.page === "settings") state.settingsTab = "accounts";
   stopPageEntry();
   closePopover({ restoreFocus: false });
   if (reuseShell()) {
@@ -2164,7 +2175,7 @@ function renderShell() {
   const navLink = (n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}" data-nav="${e(n.id)}" class="nav-item ${n.id === state.page ? "active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>${icon(n.icon, 18)}${e(n.label)}</a>`;
   $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
     "close"
-  )}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span><button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button></div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
+  )}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
   renderPage();
 }

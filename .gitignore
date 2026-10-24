@@ -7,3 +7,4 @@ dist/
 !.env.example
 src/assets.generated.mjs
 artifacts/
+.migration-private/

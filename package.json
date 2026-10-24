@@ -7,6 +7,8 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:cloudflare": "node scripts/build.mjs --target=cloudflare",
+    "verify:migration-backup": "node scripts/verify-migration-backup.mjs",
     "package": "node scripts/package.mjs",
     "test": "node scripts/build.mjs && node --test --test-concurrency=1 tests/*.test.mjs",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",

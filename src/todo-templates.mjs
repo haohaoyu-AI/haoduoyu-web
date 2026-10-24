@@ -1,4 +1,5 @@
-import {authenticate,bodyFor,fail,now,requireAdmin,requireCsrf} from './security.mjs';
+import {bodyFor,fail,now} from './security.mjs';
+import {authenticateBusiness as authenticate,requireBusinessUser as requireAdmin,requireBusinessCsrf as requireCsrf} from './business-access.mjs';
 import {consistentRead,mutate,storeFor} from './storage.mjs';
 import {beijingDay,shiftDay} from './lib/time.mjs';
 
