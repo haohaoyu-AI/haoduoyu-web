@@ -1,5 +1,6 @@
-import {fail,requireOrigin} from './security.mjs';
+import {authenticate,fail,requireOrigin} from './security.mjs';
 import {registerPublicBusiness} from './business-access.mjs';
+import {storeFor} from './storage.mjs';
 
 const buckets=new Map();
 const reads=new Set(['/auth/me','/accounts','/articles','/observations','/daily-metrics','/dashboard','/overview','/due-reviews',
@@ -42,6 +43,19 @@ async function boundedRequest(request) {
 
 export async function publicBusinessAccess(db,request,route,env,origin) {
   if(env.PUBLIC_BUSINESS_MODE!=='1'||!publicBusinessRoute(route,request.method)) return null;
+  // Preserve valid pre-existing identities and token scopes. Never silently
+  // rebind another logged-in user's write to the anonymous workspace owner.
+  const authorization=request.headers.get('authorization');
+  if(authorization||/(?:^|;\s*)matrix_session=/.test(request.headers.get('cookie')||'')) {
+    try {await authenticate(storeFor(db),request);return null;}
+    catch(error) {
+      if(error.status===403) return null;
+      if(error.status!==401) throw error;
+      if(authorization) return null;
+      // An expired/malformed cookie grants no identity; a fresh public request
+      // may continue, but still needs the explicit public-write header.
+    }
+  }
   const id=env.PUBLIC_BUSINESS_USER_ID;
   let scope;
   try {scope=JSON.parse(env.PUBLIC_BUSINESS_ACCOUNT_IDS);} catch {}

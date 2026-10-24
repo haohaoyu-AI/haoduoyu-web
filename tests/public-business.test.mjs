@@ -194,3 +194,28 @@ test('public detail redacts credential and user attribution for previously authe
   assert.match(await docs.text(),/X-Public-Business/);
   assert.doesNotMatch((await app.request('/api-docs')).text,/X-Public-Business/);
 });
+
+test('valid original sessions and scoped tokens keep their identity instead of being rebound to the public owner',async t=>{
+  const app=await publicApp(t),other=randomUUID(),token='b'.repeat(64);
+  const {digest}=await import('../shared/auth.mjs');
+  await app.db.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) SELECT ?,?,password_hash,created_at FROM matrix_users LIMIT 1')
+    .bind(other,'synthetic-other-'+other).run();
+  await app.db.prepare('INSERT INTO matrix_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)')
+    .bind(digest(token),other,new Date(Date.now()+600000).toISOString()).run();
+  const otherCookie='matrix_session='+token,csrf=digest('matrix-csrf:'+token),id=randomUUID();
+  const me=await app.publicRequest('/auth/me',{headers:{Cookie:otherCookie}});
+  assert.equal(me.data.id,other);assert.equal(me.data.publicBusiness,undefined);
+  const written=await app.publicRequest('/todos',{method:'POST',body:{id,date:'2026-10-24',text:'OTHER-PRIVATE-WRITE-CANARY'},
+    headers:{Cookie:otherCookie,'X-CSRF-Token':csrf}});
+  assert.equal(written.status,201,written.text);
+  assert.equal((await app.db.prepare('SELECT user_id FROM matrix_todos WHERE id=?').bind(id).first()).user_id,other);
+  assert.ok(!(await app.publicRequest('/todos?date=2026-10-24')).text.includes('OTHER-PRIVATE-WRITE-CANARY'));
+  const issued=await app.request('/api/v1/api-keys',{method:'POST',session:app.session,
+    body:{name:'synthetic-private-reader',account_ids:['zhihu-haoduoyu'],permissions:['read']}});
+  const accounts=await app.publicRequest('/accounts',{headers:{Authorization:'Bearer '+issued.data.token}});
+  assert.deepEqual(accounts.data.map(row=>row.id),['zhihu-haoduoyu']);
+  const denied=await app.publicRequest('/articles',{method:'POST',body:article(),headers:{Authorization:'Bearer '+issued.data.token}});
+  assert.equal(denied.status,403);
+  const stale=await app.publicRequest('/auth/me',{headers:{Cookie:'matrix_session=expired'}});
+  assert.equal(stale.data.publicBusiness,true);
+});
