@@ -16,6 +16,7 @@ import {publicBusinessAccess,publicArticle,requirePublicAccount,publicBusinessRe
 import {requireBusinessCsrf} from './business-access.mjs';
 import {deletePublicBusiness} from './public-business-delete.mjs';
 import {publicBusinessDocs} from './public-business-docs.mjs';
+import {handleNotionSnapshot} from './notion-snapshot.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
@@ -232,6 +233,8 @@ async function handle(request,env,trace) {
     const access=await publicBusinessAccess(db,request,route,env,origin);
     const state=await db.prepare('SELECT initialized,revision FROM matrix_control WHERE id=1').first();
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
+    if(route==='/integrations/notion/snapshot'&&method==='POST')
+      return json(await handleNotionSnapshot(db,request,env,origin));
     if(method==='GET'&&route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');
     if(access) {
       request=access.request;
@@ -280,7 +283,7 @@ export default {
         const status=error.status||(duplicate?409:500),code=error.status?error.code:duplicate?'DUPLICATE':'INTERNAL_ERROR';
         const message=error.status?error.message:duplicate?'记录已存在，请检索后更新原记录':'服务暂时不可用';
         response=Response.json({error:{code,message},request_id:trace.rid},{status});
-        if(status===429) response.headers.set('Retry-After',String(loginRetryAfter(error)));
+        if(status===429) response.headers.set('Retry-After',String(error.code==='NOTION_RATE_LIMIT'?error.notionRetryAfter:loginRetryAfter(error)));
         if(status===503) response.headers.set('Retry-After','1');
       } catch {
         // Only the old error renderer failed; never inspect the secondary error.
