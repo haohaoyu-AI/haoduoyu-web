@@ -9,7 +9,7 @@ import {cloudflareConfig} from '../scripts/cloudflare-config.mjs';
 async function setup(t,{todo=true}={}) {
   const app=await fixture(t),session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const env={DB:app.db,SITE_ORIGIN:app.origin,NOTION_SNAPSHOT_OWNER_ID:owner,
-    NOTION_SNAPSHOT_PARENT_ID:'3fcb3732-6ef7-810c-9264-c8aa8e1676fc',NOTION_SNAPSHOT_ACCOUNT_IDS:'[]',
+    NOTION_SNAPSHOT_PARENT_ID:'00000000-0000-4000-8000-000000000002',NOTION_SNAPSHOT_ACCOUNT_IDS:'[]',
     NOTION_SNAPSHOT_TOKEN:'synthetic-NOTION-SECRET-NEVER-PERSIST'};
   const date='2026-10-24';
   if(todo)await app.request('/api/v1/todos',{session,method:'POST',body:{id:randomUUID(),date,text:'合成日期待办'}});
