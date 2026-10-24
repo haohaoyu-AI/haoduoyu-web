@@ -17,6 +17,10 @@ export function cloudflareConfig(runtime, env = {}) {
     assert.equal(origin.origin, env.CLOUDFLARE_SITE_ORIGIN);
   }
   const publicVars = {};
+  if (env.MIGRATION_MAINTENANCE !== undefined) {
+    assert.ok(['0', '1'].includes(env.MIGRATION_MAINTENANCE), 'MIGRATION_MAINTENANCE must be 0 or 1');
+    publicVars.MIGRATION_MAINTENANCE = env.MIGRATION_MAINTENANCE;
+  }
   if (env.PUBLIC_BUSINESS_MODE === '1') {
     assert.match(env.PUBLIC_BUSINESS_USER_ID || '', /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
     const accounts = JSON.parse(env.PUBLIC_BUSINESS_ACCOUNT_IDS || 'null');

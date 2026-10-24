@@ -221,6 +221,14 @@ async function protectedWrite(db,request,route,env,origin,trace,publicActor=null
 }
 
 async function handle(request,env,trace) {
+  // This gate precedes authentication, initialization and every DB access,
+  // including informational Bearer GET writes. It is not an export endpoint.
+  if(env.MIGRATION_MAINTENANCE==='1') {
+    const body={error:{code:'MAINTENANCE',message:'迁移维护中，请稍后重试'},request_id:trace.rid};
+    return new Response(request.method==='HEAD'?null:JSON.stringify(body),{status:503,headers:{
+      'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Retry-After':'60',
+    }});
+  }
   const url=new URL(request.url),path=url.pathname,method=request.method;
   trace.route=traceRoute(path);
   if(path==='/health'&&method==='GET') return json({status:'ok',application:'haoduoyu-matrix'});

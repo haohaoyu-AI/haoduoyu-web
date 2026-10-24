@@ -9,7 +9,7 @@ import {promisify} from 'node:util';
 import {fixture} from './harness.mjs';
 import {exportBackup, restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {digest, stable} from '../src/security.mjs';
-import {createSourceInventory, verifyBackupInventory, verifyRestoredInventory} from '../scripts/migration-inventory.mjs';
+import {createSourceInventory, exportMigrationSnapshot, verifyBackupInventory, verifyRestoredInventory} from '../scripts/migration-inventory.mjs';
 
 const exec = promisify(execFile);
 async function sourceWithOtherUser(t) {
@@ -39,6 +39,42 @@ test('independent 15-table inventory detects a valid-checksum HTTP backup missin
   await restoreIntoEmptyDatabase(target.db, full, {allowEmptyRestore: true});
   await verifyRestoredInventory(target.db, full, inventory);
   assert.equal((await target.db.prepare('SELECT count(*) AS n FROM matrix_todos').first()).n, 1);
+});
+
+test('operator snapshot requires an independently frozen full source and preserves all users offline',async t=>{
+  const source=await sourceWithOtherUser(t);
+  await assert.rejects(exportMigrationSnapshot(source.db),/SOURCE_NOT_FROZEN/);
+  const {backup,inventory}=await exportMigrationSnapshot(source.db,{sourceFrozen:true});
+  assert.equal(inventory.tables.users.count,2);
+  assert.equal(inventory.tables.sessions.count,1);
+  assert.equal(backup.data.tables.todos.length,1);
+  const target=await fixture(t,{bootstrap:false});
+  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
+  await verifyRestoredInventory(target.db,backup,inventory);
+  const owner=(await source.request('/api/v1/auth/me',{session:source.session})).data.id;
+  const restored=await target.db.prepare('SELECT user_id FROM matrix_todos').first();
+  assert.notEqual(restored.user_id,owner);
+});
+
+test('operator snapshot detects metadata drift even when global revision does not change',async t=>{
+  const source=await sourceWithOtherUser(t),key=randomUUID();
+  await source.db.prepare('INSERT INTO matrix_api_keys(id,name,token_hash,account_ids_json,permissions_json,created_at) VALUES(?,?,?,?,?,?)')
+    .bind(key,'synthetic-metadata',digest('synthetic-token'),'[]','["read"]','2026-10-24').run();
+  const before=await source.db.prepare('SELECT revision FROM matrix_control').first();
+  let injected=false;
+  const db={prepare(sql){
+    const statement=source.db.prepare(sql);
+    if(sql==='SELECT * FROM matrix_accounts') return {all:async()=>{
+      // Second inventory, after the complete v4 export, simulates a late GET.
+      if(injected) await source.db.prepare('UPDATE matrix_api_keys SET last_used_at=? WHERE id=?')
+        .bind('2026-10-24T12:00:00.000Z',key).run();
+      injected=true;
+      return statement.all();
+    }};
+    return statement;
+  }};
+  await assert.rejects(exportMigrationSnapshot(db,{sourceFrozen:true}),/MIGRATION_INVENTORY_MISMATCH/);
+  assert.deepEqual(await source.db.prepare('SELECT revision FROM matrix_control').first(),before);
 });
 
 test('inventory rejects re-signed changed private data, missing table policy and old format', async t => {

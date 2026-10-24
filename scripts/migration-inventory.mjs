@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import {digest, stable} from '../src/security.mjs';
 import {consistentRead} from '../src/storage.mjs';
+import {exportBackup} from '../src/backup.mjs';
 
 export const restoredTables = Object.freeze([
   'accounts', 'users', 'todos', 'todo_templates', 'todo_template_links', 'todo_preferences',
@@ -28,6 +29,19 @@ export async function createSourceInventory(db) {
   });
 }
 
+// Caller must supply an authorized full DB handle and independently stop all
+// writers. This is not a Sites connection, a freeze operation, or an HTTP route.
+// Compare all 15 tables twice: Bearer last_used_at changes do not bump revision.
+export async function exportMigrationSnapshot(db, {sourceFrozen = false} = {}) {
+  if (sourceFrozen !== true) throw new Error('SOURCE_NOT_FROZEN');
+  const inventory = await createSourceInventory(db);
+  const backup = await exportBackup(db);
+  verifyBackupInventory(backup, inventory);
+  const after = await createSourceInventory(db);
+  if (JSON.stringify(stable(inventory)) !== JSON.stringify(stable(after))) fail();
+  return {backup, inventory};
+}
+
 export function verifyBackupInventory(backup, inventory) {
   if (backup?.data?.format !== 'haoduoyu-matrix-d1-v4' ||
       backup.sha256 !== digest(JSON.stringify(stable(backup.data))) ||
@@ -46,7 +60,8 @@ export function verifyBackupInventory(backup, inventory) {
   return {verified: true, restored_tables: restoredTables.length, reset_tables: resetTables.length};
 }
 
-export async function verifyRestoredInventory(db, backup, sourceInventory) {
+export async function verifyRestoredInventory(db, backup, sourceInventory, {expectedInitialized = 1} = {}) {
+  if (![1, 2].includes(expectedInitialized)) fail();
   const result = verifyBackupInventory(backup, sourceInventory);
   const target = await createSourceInventory(db);
   for (const name of restoredTables) {
@@ -55,7 +70,7 @@ export async function verifyRestoredInventory(db, backup, sourceInventory) {
   }
   if (target.tables.sessions.count !== 0 || target.tables.login_attempts.count !== 0 || target.tables.control.count !== 1) fail();
   const control = await db.prepare('SELECT initialized FROM matrix_control WHERE id=1').first();
-  if (control?.initialized !== 1) fail();
+  if (control?.initialized !== expectedInitialized) fail();
   const fk = await db.prepare('PRAGMA foreign_key_check').all();
   // D1 exposes quick_check, not SQLite's full integrity_check pragma.
   const integrity = await db.prepare('PRAGMA quick_check').all();
