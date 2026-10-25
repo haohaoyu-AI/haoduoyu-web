@@ -1,0 +1,12 @@
+{
+  "synthetic": true,
+  "origin": "loopback only",
+  "checks": [
+    "1440 default todo home",
+    "1440 public memo navigation and login",
+    "375 default todo home",
+    "375 public memo navigation and login"
+  ],
+  "pageerrors": [],
+  "worker_sha256": "38e4e282c1bff5736002281495748655d8e89dea9d91eea7158f87a9c3dcc5a0"
+}
