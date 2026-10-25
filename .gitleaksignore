@@ -186,3 +186,7 @@ abe3540cabddd9c479e2efa7a654aac648320a90:docs/frontend-product-hashes.json:gener
 
 # User-approved phase 5c squash reintroduction of the same public digest.
 2b19f7fab20d250aeb9d0e71d65a3fdaeafb7c6e:.ci/public-assets.json:generic-api-key:10
+
+# Atomic snapshot: independently recomputed public documentation SHA256 pins only.
+daec2c2d6b186601cad236c93626a6330cdccc61:.ci/public-assets.json:generic-api-key:5
+daec2c2d6b186601cad236c93626a6330cdccc61:.ci/public-assets.json:generic-api-key:10
