@@ -1,23 +1,22 @@
 {
   "baseline": "e284dd5031a195fd8cff549a5b34fbdcce195cef",
   "scope_complete": [
+    1,
     2,
     3,
     4,
-    5
-  ],
-  "scope_blocked": [
-    1,
+    5,
     6
   ],
+  "scope_blocked": [],
   "worker": {
-    "bytes": 975954,
-    "sha256": "2833a2a7fdc99d4f17e384e214f203c7cc5cf9428d200cf8e4d75e81595de3db"
+    "bytes": 983959,
+    "sha256": "6b3f62fc3f93465bc271591ad7703ca814724d688cdac9ea0d2d6e6f31016faa"
   },
   "archive": {
-    "file": "haoduoyu-workbench-round2-partial.tar",
-    "bytes": 1259520,
-    "sha256": "80149653555cbaddbd7882b850bfcebfd5ad6ac5729da3e1f78fa5d591a245b2"
+    "file": "haoduoyu-workbench-round2.tar",
+    "bytes": 1269760,
+    "sha256": "04d22559b8484a0a255647de89498d39037d00ee5136159429ce0b0803ae660d"
   },
   "tracked_protected_paths_unchanged": [
     "src",
@@ -35,24 +34,33 @@
   ],
   "schema": "18 tables / v7 / 7 migrations unchanged",
   "targeted_node_tests": {
-    "pass": 59,
+    "pass": 73,
     "fail": 0
   },
   "browser": {
-    "checks": 10,
+    "checks": 16,
     "pageerrors": 0,
     "widths": [
       1440,
+      900,
+      761,
       375,
       390
-    ]
+    ],
+    "screenshots": 15,
+    "selected_committed_screenshots": 11
   },
   "image_transfer": {
     "refs": 6,
     "supported_attempts_per_reference": 2,
     "helper_result": "library file transfer failed: download failed",
     "local_pixels_obtained": false,
-    "raw_user_images_committed": false
+    "raw_user_images_committed": false,
+    "resolution": "Parent successfully materialized and actually inspected screenshots 1 and 6, then explicitly authorized these exact targets without further local downloads.",
+    "parent_verified_targets": {
+      "1": "internal global navigation scrollbar and media title v",
+      "6": "global navigation / main-content boundary, not memo editor divider"
+    }
   },
-  "ci": "will be triggered by isolated branch push; no success preclaimed"
+  "ci": "Final isolated-branch push required; exact run and terminal result supplied in handoff."
 }

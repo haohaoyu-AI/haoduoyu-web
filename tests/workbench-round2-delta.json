@@ -1,6 +1,6 @@
 {
   "baseline": "e284dd5031a195fd8cff549a5b34fbdcce195cef",
-  "scope": "Round-two acceptance: history full-day visibility, actual today template indicator, flat memo list, direct recoverable deletion and native fullscreen; API/backend/permissions unchanged. Screenshot-dependent scrollbar and splitter changes pending readable pixels.",
+  "scope": "All six round-two acceptance items: screenshot-confirmed global navigation scrollbar/indicator and accessible persistent sidebar divider; full history, today template state, flat recoverable memos and fullscreen. API/backend/permissions unchanged.",
   "files": {
     "web/core/todos-state.mjs": {
       "before": "56fd42042e760aa33b410d67fa4eaba6323599a37fd3e554f71cbb2dab0adbd2",
@@ -24,11 +24,19 @@
     },
     "public/app.js": {
       "before": "0e414bfe8259b6818f16a312fa0d661b849e6ee859a53233a22ccc6c57f8e9de",
-      "after": "974dcd35cc81976095944c49d377bb96b739c696ef0ca7803e517044203d20dc"
+      "after": "95cf5a2ee6f86e93e70aa87a8714ce1876eecbbb81b2c14fc655db6d5467f003"
     },
     "public/workbench.css": {
       "before": "91c26754f85c47c212d3aadcbc92e661c0d46a25db5f504e414346400343520f",
-      "after": "f3b43311cbcd764b3cde51af210c3fdde7a8068736eb89516816def6a244bad4"
+      "after": "62df589701255e228b2320fd56405cf9e21286d4fc5b7963d460c82a149a058e"
+    },
+    "web/controller.mjs": {
+      "before": "b5525155a4e38e4adb8f3b78ee454637bbeba0860d09958f1975be20c83145c7",
+      "after": "1ff10bae8a684e1065c1e09d5a12bbc2371eadea688b852dd563668b98218b3e"
+    },
+    "web/ui/workbench.mjs": {
+      "before": "0c7bb7260657dcec95ca88bb388755989a76de83c72dc6cc8a0bfbac66f4dbd3",
+      "after": "61a18047286ba6d51bfdc14f6001dbdf2f634a470fb97e135de1a47bf4c0569a"
     }
   }
 }

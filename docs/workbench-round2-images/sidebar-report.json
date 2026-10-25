@@ -1,0 +1,18 @@
+{
+  "synthetic": true,
+  "completed": true,
+  "checks": [
+    "hidden navigation scrollbar still scrolls by wheel and keyboard; media toggle retains expanded state without v",
+    "global boundary pointer drag updates width and aria; survives module navigation and reload",
+    "keyboard arrows, larger step, Home/End and upper/lower limits",
+    "Escape and pointer cancellation restore original width and do not leave dragging state",
+    "narrow viewport clamps content width; mobile drawer stays independent; desktop preference restores without duplicate listeners",
+    "invalid stored preference falls back to normal width"
+  ],
+  "pageerrors": [],
+  "captures": [
+    "sidebar-settings-1440.png",
+    "sidebar-expanded-900.png",
+    "sidebar-drawer-375.png"
+  ]
+}

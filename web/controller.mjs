@@ -26,7 +26,7 @@ import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { segmented } from "./ui/segmented.mjs";
 import { toast } from "./ui/toast.mjs";
-import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation} from "./ui/workbench.mjs";
+import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize} from "./ui/workbench.mjs";
 import {renderWorkbenchSettings} from "./pages/workbench-settings.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
@@ -63,15 +63,16 @@ function renderShell() {
 class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a \
 href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a>\
 <button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
-  "close")}</button></div><nav class="nav-list">${sidebarNavigation()}</nav><div \
+  "close")}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div \
 class="sidebar-bottom">${settingsNavigation()}<div \
 class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.
   me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" \
 aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div>\
-</aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" \
+</aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" \
 aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" \
 tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
+  setupSidebarResize();
   renderPage();
 }
 function navigateLink(page) {

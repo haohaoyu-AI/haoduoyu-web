@@ -4294,7 +4294,7 @@ ${selected ? 'aria-current="page"' : ""}>${icon(item.icon, 18)}<span class="nav-
 function mediaNavigation(mobile = false) {
   const active2 = mediaPages.has(state.page), name = mobile ? "mobile-media-nav" : "media-nav";
   return `<details class="${name}${active2 ? " active" : ""}" ${!mobile && active2 ? "open" : ""}>
-<summary title="好多鱼图文" aria-label="好多鱼图文">${icon("articles", 18)}<span class="nav-label">好多鱼图文</span></summary>
+<summary title="好多鱼图文" aria-label="好多鱼图文" aria-expanded="${!mobile && active2}">${icon("articles", 18)}<span class="nav-label">好多鱼图文</span></summary>
 <div class="media-subnav">${nav.filter((item) => mediaPages.has(item.id)).map((item) => navigationLink(item)).join("")}</div></details>`;
 }
 function sidebarNavigation() {
@@ -4311,16 +4311,137 @@ function syncWorkbenchNavigation() {
   if (side) {
     side.open = active2;
     side.classList.toggle("active", active2);
+    syncMediaExpanded(side);
   }
   const mobile = document.querySelector(".mobile-media-nav");
   if (mobile) {
     mobile.open = false;
     mobile.classList.toggle("active", active2);
+    syncMediaExpanded(mobile);
   }
 }
 function closeMediaNavigation(target = null) {
   const menu = document.querySelector(".mobile-media-nav[open]");
-  if (menu && (!target || !menu.contains(target))) menu.open = false;
+  if (menu && (!target || !menu.contains(target))) {
+    menu.open = false;
+    syncMediaExpanded(menu);
+  }
+}
+function syncMediaExpanded(menu) {
+  menu?.querySelector?.("summary")?.setAttribute("aria-expanded", String(menu.open));
+}
+var sidebarWidthKey = "haoduoyu.workbench.sidebar-width.v1";
+var sidebarPreference, sidebarDrag = null, sidebarResizeEvents = false;
+function readSidebarWidth() {
+  if (sidebarPreference === void 0) {
+    const saved = Number(storage.get(sidebarWidthKey));
+    sidebarPreference = Number.isFinite(saved) && saved >= 88 && saved <= 420 ? saved : null;
+  }
+  return sidebarPreference;
+}
+function sidebarWidthLimits(viewport, shellWidth) {
+  if (viewport <= 760) return null;
+  const min = viewport <= 1100 ? 88 : 200;
+  return { min, max: Math.max(min, Math.min(420, Math.floor(shellWidth - (viewport <= 1100 ? 420 : 540)))) };
+}
+function renderSidebarResizer() {
+  return '<div id="sidebar-resizer" class="sidebar-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整导航宽度" aria-controls="site-nav main" aria-valuemin="200" aria-valuemax="420" aria-valuenow="232" title="拖动调整导航宽度；方向键微调，Home / End 调到最小 / 最大"></div>';
+}
+function applySidebarWidth(value = readSidebarWidth(), persist = false) {
+  const shell = document.querySelector(".shell"), handle = document.querySelector("#sidebar-resizer");
+  if (!shell?.style?.setProperty || !handle || typeof window.innerWidth !== "number") return null;
+  const limits = sidebarWidthLimits(window.innerWidth, shell.clientWidth);
+  handle.hidden = !limits;
+  if (!limits) {
+    shell.style.removeProperty("--sidebar-w");
+    delete shell.dataset.sidebarExpanded;
+    return null;
+  }
+  const fallback = window.innerWidth <= 1100 ? 88 : 232;
+  const width = Math.round(Math.max(limits.min, Math.min(limits.max, value ?? fallback)));
+  shell.style.setProperty("--sidebar-w", width + "px");
+  shell.dataset.sidebarExpanded = String(width >= 200);
+  for (const [name, number] of Object.entries({ min: limits.min, max: limits.max, now: width }))
+    handle.setAttribute("aria-value" + name, String(number));
+  handle.setAttribute("aria-valuetext", "导航宽度 " + width + " 像素");
+  if (persist) {
+    sidebarPreference = width;
+    storage.set(sidebarWidthKey, String(width));
+  }
+  return width;
+}
+function finishSidebarDrag(cancel = false) {
+  const drag = sidebarDrag;
+  if (!drag) return;
+  sidebarDrag = null;
+  if (cancel) {
+    sidebarPreference = drag.preference;
+    applySidebarWidth(drag.width);
+  } else applySidebarWidth(Number(drag.handle.getAttribute("aria-valuenow")), true);
+  drag.shell.classList.remove("sidebar-resizing");
+  if (drag.handle.hasPointerCapture?.(drag.pointer)) drag.handle.releasePointerCapture(drag.pointer);
+}
+function startSidebarDrag(event) {
+  const handle = event.target.closest?.("#sidebar-resizer");
+  if (!handle || event.button !== 0 || event.isPrimary === false || window.innerWidth <= 760) return;
+  event.preventDefault();
+  finishSidebarDrag();
+  const shell = handle.closest(".shell");
+  sidebarDrag = {
+    handle,
+    shell,
+    pointer: event.pointerId,
+    x: event.clientX,
+    width: Number(handle.getAttribute("aria-valuenow")),
+    preference: readSidebarWidth()
+  };
+  shell.classList.add("sidebar-resizing");
+  handle.focus({ preventScroll: true });
+  handle.setPointerCapture(event.pointerId);
+}
+function moveSidebarDrag(event) {
+  if (!sidebarDrag || event.pointerId !== sidebarDrag.pointer) return;
+  event.preventDefault();
+  applySidebarWidth(sidebarDrag.width + event.clientX - sidebarDrag.x);
+}
+function keySidebarResize(event) {
+  if (sidebarDrag && event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    finishSidebarDrag(true);
+    return;
+  }
+  const handle = event.target.closest?.("#sidebar-resizer");
+  if (!handle || handle.hidden || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const current = Number(handle.getAttribute("aria-valuenow")), step = event.shiftKey ? 32 : 16;
+  const next = event.key === "Home" ? Number(handle.getAttribute("aria-valuemin")) : event.key === "End" ? Number(handle.getAttribute("aria-valuemax")) : current + (event.key === "ArrowRight" ? step : -step);
+  applySidebarWidth(next, true);
+}
+function setupSidebarResize() {
+  if (applySidebarWidth() === null && typeof window.innerWidth !== "number") return;
+  if (sidebarResizeEvents) return;
+  sidebarResizeEvents = true;
+  document.addEventListener("toggle", (event) => {
+    if (event.target.matches?.(".media-nav,.mobile-media-nav")) syncMediaExpanded(event.target);
+  }, true);
+  document.addEventListener("pointerdown", startSidebarDrag);
+  document.addEventListener("pointermove", moveSidebarDrag);
+  document.addEventListener("pointerup", (event) => {
+    if (event.pointerId === sidebarDrag?.pointer) finishSidebarDrag();
+  });
+  document.addEventListener("pointercancel", (event) => {
+    if (event.pointerId === sidebarDrag?.pointer) finishSidebarDrag(true);
+  });
+  document.addEventListener("lostpointercapture", (event) => {
+    if (event.pointerId === sidebarDrag?.pointer) finishSidebarDrag();
+  });
+  document.addEventListener("keydown", keySidebarResize, true);
+  window.addEventListener("resize", () => {
+    finishSidebarDrag(true);
+    applySidebarWidth();
+  });
 }
 
 // web/pages/workbench-settings.mjs
@@ -4376,8 +4497,9 @@ function renderShell() {
   }
   $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
     "close"
-  )}</button></div><nav class="nav-list">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
+  )}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div></aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
+  setupSidebarResize();
   renderPage();
 }
 function navigateLink(page) {
