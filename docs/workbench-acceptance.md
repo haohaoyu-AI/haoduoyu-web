@@ -2,7 +2,7 @@
 
 生产基线：`9c9fb40c10ab9f9cb2fbb0ed87beeccc5bae6108`。分支：`opt/workbench-ui-acceptance`。
 
-本次仅修改前端必要交互、文案和样式；保留匿名 notes / memos 新增、编辑、可恢复删除，保留 snapshot、18 表、v7 与全部原数据模型。`src/`、`db/`、`drizzle/`、`shared/`、运行配置、依赖和安全配置相对生产均无改动。没有清除浏览器数据或服务端数据。
+本次仅修改前端必要交互、文案和样式；保留匿名 notes / memos 新增、编辑、可恢复删除，保留 snapshot、18 表、v7 与全部原数据模型。`src/`、`db/`、`drizzle/`、`shared/`、运行配置、依赖和扫描规则相对生产均无改动；仅为另一并行分支的公开 OpenAPI 校验值补充一个精确历史扫描指纹豁免（见 workbench-secret-scan-evidence.json）。没有清除浏览器数据或服务端数据。
 
 Library 的 8 张反馈图读取只返回引用，未在本环境取得像素；使用父级逐张看图后的精确定位，并在真实本地页面复现。用户原图及正文未加入仓库，以下截图全部来自临时 D1 合成夹具。
 

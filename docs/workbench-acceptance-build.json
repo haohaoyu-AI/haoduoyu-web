@@ -28,10 +28,6 @@
       "bytes": 82018,
       "sha256": "f6c5d8fc66382f328a990a70de714a7061664877ea06612cf2effc9aa51953bc"
     },
-    ".gitleaksignore": {
-      "bytes": 18870,
-      "sha256": "0ec46693b927269599aa7015ea03730d624a4f40383bdfd8ff22de3c0119732a"
-    },
     ".gitleaks.toml": {
       "bytes": 724,
       "sha256": "73860605260c130eeeb742177d7eaf3388e0e51696f8cdacbbbffdac80be1156"
@@ -69,5 +65,10 @@
       "sha256": "29a0fb9852e4e87a4da500065dab9adbe2e21ab6e6d0b5005dfeaf45cb06220e"
     }
   },
-  "schema": "18 tables / v7 / 7 migrations unchanged"
+  "schema": "18 tables / v7 / 7 migrations unchanged",
+  "scan_exception": {
+    "path": ".gitleaksignore",
+    "scope": "one exact historical public OpenAPI SHA-256 fingerprint",
+    "proof": "workbench-secret-scan-evidence.json"
+  }
 }
