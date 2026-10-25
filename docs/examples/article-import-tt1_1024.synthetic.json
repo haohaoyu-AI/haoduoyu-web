@@ -1,0 +1,420 @@
+{
+  "synthetic_fixture": true,
+  "description": "Architecture example only; no user file was read and no import occurred.",
+  "record": {
+    "account_id": "toutiao-haoduoyu",
+    "title": "黄婷婷九年没提的名字，被一句“更容易做朋友”说死了",
+    "url": null,
+    "platform_article_id": null,
+    "published_at": null,
+    "started_at": "2026-10-24T00:00:00.000Z",
+    "production_mode": null,
+    "summary": null,
+    "notes": null,
+    "status": "draft_saved",
+    "slot": "tt1",
+    "run_dir": "tt1_1024",
+    "run_date": "2026-10-24",
+    "series_no": null,
+    "writer": "dedao",
+    "illustrator": "codex",
+    "sample": null,
+    "char_count": 2236,
+    "subheading_count": 5,
+    "image_count": 25,
+    "cover_desc": null,
+    "draft_ref": {
+      "pgc_id": "7699934907375567402",
+      "appmsgid": null,
+      "editor_url": null
+    },
+    "timings": {
+      "pipeline": {
+        "started_at": "2026-10-24T00:00:00.000Z",
+        "finished_at": "2026-10-24T00:31:00.000Z",
+        "seconds": 1860
+      },
+      "writing": {
+        "started_at": "2026-10-24T00:01:00.000Z",
+        "finished_at": "2026-10-24T00:10:00.000Z",
+        "seconds": 540
+      },
+      "illustration": {
+        "started_at": "2026-10-24T00:10:00.000Z",
+        "finished_at": "2026-10-24T00:20:00.000Z",
+        "seconds": 600
+      },
+      "import": {
+        "started_at": "2026-10-24T00:20:00.000Z",
+        "finished_at": "2026-10-24T00:30:00.000Z",
+        "seconds": 600
+      },
+      "finished_at": "2026-10-24T00:31:00.000Z"
+    },
+    "reruns": {
+      "watchdog": 1
+    },
+    "blockers": null,
+    "verify_items": null,
+    "platform": "toutiao"
+  },
+  "proposal": {
+    "account_id": "toutiao-haoduoyu",
+    "title": "黄婷婷九年没提的名字，被一句“更容易做朋友”说死了",
+    "started_at": "2026-10-24T00:00:00.000Z",
+    "status": "draft_saved",
+    "slot": "tt1",
+    "run_dir": "tt1_1024",
+    "run_date": "2026-10-24",
+    "writer": "dedao",
+    "illustrator": "codex",
+    "char_count": 2236,
+    "subheading_count": 5,
+    "image_count": 25,
+    "draft_ref": {
+      "pgc_id": "7699934907375567402"
+    },
+    "reruns": {
+      "watchdog": 1
+    },
+    "timings": {
+      "pipeline": {
+        "started_at": "2026-10-24T00:00:00.000Z",
+        "finished_at": "2026-10-24T00:31:00.000Z",
+        "seconds": 1860
+      },
+      "writing": {
+        "started_at": "2026-10-24T00:01:00.000Z",
+        "finished_at": "2026-10-24T00:10:00.000Z",
+        "seconds": 540
+      },
+      "illustration": {
+        "started_at": "2026-10-24T00:10:00.000Z",
+        "finished_at": "2026-10-24T00:20:00.000Z",
+        "seconds": 600
+      },
+      "import": {
+        "started_at": "2026-10-24T00:20:00.000Z",
+        "finished_at": "2026-10-24T00:30:00.000Z",
+        "seconds": 600
+      },
+      "finished_at": "2026-10-24T00:31:00.000Z"
+    }
+  },
+  "provenance": {
+    "account_id": [
+      {
+        "source": "config",
+        "line": null
+      }
+    ],
+    "run_dir": [
+      {
+        "source": "config",
+        "line": null
+      }
+    ],
+    "slot": [
+      {
+        "source": "config",
+        "line": null
+      }
+    ],
+    "run_date": [
+      {
+        "source": "config",
+        "line": null
+      }
+    ],
+    "writer": [
+      {
+        "source": "config",
+        "line": null
+      }
+    ],
+    "illustrator": [
+      {
+        "source": "config",
+        "line": null
+      }
+    ],
+    "platform": [
+      {
+        "source": "config",
+        "line": null
+      }
+    ],
+    "title": [
+      {
+        "source": "title",
+        "line": 1
+      }
+    ],
+    "char_count": [
+      {
+        "source": "check",
+        "line": 1
+      }
+    ],
+    "subheading_count": [
+      {
+        "source": "check",
+        "line": 2
+      }
+    ],
+    "image_count": [
+      {
+        "source": "check",
+        "line": 3
+      },
+      {
+        "source": "timelog",
+        "line": 5
+      }
+    ],
+    "reruns.watchdog": [
+      {
+        "source": "check",
+        "line": 4
+      }
+    ],
+    "timings.pipeline.started_at": [
+      {
+        "source": "timelog",
+        "line": 1
+      }
+    ],
+    "started_at": [
+      {
+        "source": "timelog",
+        "line": 1
+      }
+    ],
+    "timings.writing.started_at": [
+      {
+        "source": "timelog",
+        "line": 2
+      }
+    ],
+    "timings.writing.finished_at": [
+      {
+        "source": "timelog",
+        "line": 3
+      }
+    ],
+    "timings.illustration.started_at": [
+      {
+        "source": "timelog",
+        "line": 4
+      }
+    ],
+    "timings.illustration.finished_at": [
+      {
+        "source": "timelog",
+        "line": 5
+      }
+    ],
+    "timings.import.started_at": [
+      {
+        "source": "timelog",
+        "line": 6
+      }
+    ],
+    "timings.import.finished_at": [
+      {
+        "source": "timelog",
+        "line": 7
+      }
+    ],
+    "draft_ref.pgc_id": [
+      {
+        "source": "timelog",
+        "line": 7
+      }
+    ],
+    "timings.pipeline.finished_at": [
+      {
+        "source": "timelog",
+        "line": 8
+      }
+    ],
+    "timings.finished_at": [
+      {
+        "source": "timelog",
+        "line": 8
+      }
+    ],
+    "status": [
+      {
+        "source": "timelog",
+        "line": 7
+      }
+    ],
+    "draft_ref": [
+      {
+        "source": "timelog",
+        "line": 7
+      }
+    ],
+    "reruns": [
+      {
+        "source": "check",
+        "line": 4
+      }
+    ],
+    "timings.pipeline.seconds": [
+      {
+        "source": "timelog",
+        "line": 1
+      },
+      {
+        "source": "timelog",
+        "line": 8
+      }
+    ],
+    "timings.writing.seconds": [
+      {
+        "source": "timelog",
+        "line": 2
+      },
+      {
+        "source": "timelog",
+        "line": 3
+      }
+    ],
+    "timings.illustration.seconds": [
+      {
+        "source": "timelog",
+        "line": 4
+      },
+      {
+        "source": "timelog",
+        "line": 5
+      }
+    ],
+    "timings.import.seconds": [
+      {
+        "source": "timelog",
+        "line": 6
+      },
+      {
+        "source": "timelog",
+        "line": 7
+      }
+    ],
+    "timings": [
+      {
+        "source": "timelog",
+        "line": 1
+      },
+      {
+        "source": "timelog",
+        "line": 2
+      },
+      {
+        "source": "timelog",
+        "line": 3
+      },
+      {
+        "source": "timelog",
+        "line": 4
+      },
+      {
+        "source": "timelog",
+        "line": 5
+      },
+      {
+        "source": "timelog",
+        "line": 6
+      },
+      {
+        "source": "timelog",
+        "line": 7
+      },
+      {
+        "source": "timelog",
+        "line": 8
+      },
+      {
+        "source": "timelog",
+        "line": 8
+      },
+      {
+        "source": "timelog",
+        "line": 1
+      },
+      {
+        "source": "timelog",
+        "line": 8
+      },
+      {
+        "source": "timelog",
+        "line": 2
+      },
+      {
+        "source": "timelog",
+        "line": 3
+      },
+      {
+        "source": "timelog",
+        "line": 4
+      },
+      {
+        "source": "timelog",
+        "line": 5
+      },
+      {
+        "source": "timelog",
+        "line": 6
+      },
+      {
+        "source": "timelog",
+        "line": 7
+      }
+    ]
+  },
+  "issues": [
+    {
+      "code": "DUPLICATE_VALUE",
+      "source": "timelog",
+      "line": 5,
+      "field": "image_count",
+      "severity": "warning"
+    }
+  ],
+  "source_summary": {
+    "timelog": {
+      "present": true,
+      "bytes": 421,
+      "sha256": "b685631c9252d2dee277719b5f1d82f659fef5299fd1991b6c8387dd23eda734"
+    },
+    "check": {
+      "present": true,
+      "bytes": 69,
+      "sha256": "e2da9434600b59d05a16217a9b42c803e93dbd570b8bc5e259daacef21955140"
+    },
+    "title": {
+      "present": true,
+      "bytes": 75,
+      "sha256": "f2eeb2146c5a109b75974b1dfb79097176f400b6c555de5286be3729e7d80064"
+    },
+    "article": {
+      "present": true,
+      "bytes": 29,
+      "sha256": "0803ff97125a2b4a7b73353b26d6241b981165112b28ab6106c34fc889c9b67b"
+    },
+    "used_topics": {
+      "present": false,
+      "bytes": 0,
+      "sha256": null
+    },
+    "used_samples": {
+      "present": false,
+      "bytes": 0,
+      "sha256": null
+    }
+  },
+  "warnings": [],
+  "has_pending_verify": null,
+  "verify_state": "unknown"
+}
