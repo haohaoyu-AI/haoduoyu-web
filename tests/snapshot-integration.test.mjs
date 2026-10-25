@@ -6,6 +6,7 @@ import {execFileSync} from 'node:child_process';
 import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
 import {countingDb} from './counting-d1.mjs';
+import {projectPublicNoteFrontend,projectPublicNoteBackend} from './public-note-ui-projection.mjs';
 import {traceRoute} from '../src/lib/request-trace.mjs';
 
 const BASE='6043d18cd75634542baecc6ffa665712cdf32eb1';
@@ -30,7 +31,9 @@ test('snapshot integration retains released implementation bytes except reviewed
       }
       expected=Buffer.from(text);
     }
-    assert.deepEqual(await readFile(new URL('../'+file,import.meta.url)),expected,file);
+    const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
+    const projected=await projectPublicNoteBackend(file,await projectPublicNoteFrontend(file,source));
+    assert.equal(projected,expected.toString('utf8'),file);
   }
   for(const route of ['/api/v1/memos','/api/v1/snapshot','/api/v1/snapshot/index'])assert.equal(traceRoute(route),route);
 });
@@ -52,7 +55,7 @@ test('combined Worker serves memo and snapshot independently and never reads mem
   assert.equal((await request('/memos/notes/'+nid,{method:'PUT',auth:true,
     body:{group_id:gid,title:'Integration note',body:canary,position:0,version:0,save_id:randomUUID()}})).status,200);
   assert.equal((await request('/memos/notes/'+nid)).json.data.body,canary);
-  const memo=await request('/memos');assert.equal(memo.status,200);assert.equal(memo.json.data.can_edit,false);
+  const memo=await request('/memos');assert.equal(memo.status,200);assert.equal(memo.json.data.can_edit,true);
   for(const path of ['/snapshot?date=2026-10-24','/snapshot/index'])for(const auth of [false,true]) {
     const database=countingDb(app.db),result=await request(path,{auth,database});assert.equal(result.status,200);
     assert.ok(!JSON.stringify(result).includes(canary));assert.equal(database.totals().write_statements,0);

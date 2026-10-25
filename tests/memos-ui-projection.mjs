@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {projectPublicNoteFrontend} from './public-note-ui-projection.mjs';
 import {execFileSync} from 'node:child_process';
 import {readFile, readdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -73,6 +74,8 @@ function projectMemoController(ast) {
 }
 
 export async function projectMemoFrontend(file,source) {
+  const original=source;
+  source=await projectPublicNoteFrontend(file,source);
   if(memoAddedModules.includes(file)) {
     assert.equal(source,memoBaseline(file,MEMO_SOURCE_BASE),'exact accepted memo module bytes: '+file);
     return '';
@@ -85,7 +88,7 @@ export async function projectMemoFrontend(file,source) {
   }
   if(file==='public/app.js') {
     await verifyMemoFrontendBoundary();
-    assert.equal(source,Buffer.from(await frontendBundle(fileURLToPath(root))).toString('utf8'),
+    assert.equal(original,Buffer.from(await frontendBundle(fileURLToPath(root))).toString('utf8'),
       'combined memo/article bundle is the exact readable source build');
     return memoBaseline(file);
   }
@@ -100,6 +103,6 @@ export async function verifyMemoFrontendBoundary() {
   for(const file of files) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
     if(memoAddedModules.includes(file)||memoSharedFiles.includes(file))await projectMemoFrontend(file,source);
-    else assert.equal(source,memoBaseline(file),'every other released frontend source byte remains unchanged: '+file);
+    else assert.equal(await projectPublicNoteFrontend(file,source),memoBaseline(file),'every other released frontend source byte remains unchanged: '+file);
   }
 }

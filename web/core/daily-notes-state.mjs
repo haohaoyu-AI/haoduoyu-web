@@ -24,9 +24,9 @@ function checkedPage(value, date) {
 }
 
 // Drafts belong to one live identity and remain in this tab, never localStorage.
-function createDailyNotesContext({load, put, remove, onChange = () => {}, onSaved = () => {},
+function createDailyNotesContext({load, put, remove, restore, onChange = () => {}, onSaved = () => {},
   uuid = () => crypto.randomUUID(), setTimer = setTimeout, clearTimer = clearTimeout, delay = 700}) {
-  const context = {pages: new Map(), disposed: false, options: {load, put, remove, onSaved, uuid}};
+  const context = {pages: new Map(), disposed: false, options: {load, put, remove, restore, onSaved, uuid}};
   const pages = context.pages;
   const emit = () => { if (!context.disposed) onChange(); };
   const page = date => {
@@ -53,9 +53,10 @@ function createDailyNotesContext({load, put, remove, onChange = () => {}, onSave
     }
   }
   const matches = (value, operation) => value.version === operation.version + 1 &&
-    (operation.kind === 'delete' ? value.deleted === true : value.deleted === false && value.text === operation.text);
+    (operation.kind === 'delete' ? value.deleted === true : operation.kind === 'restore' ? value.deleted === false :
+      value.deleted === false && value.text === operation.text);
   function accepted(item, value, operation) {
-    const keep = operation.kind !== 'delete' && item.draft !== operation.text;
+    const keep = operation.kind === 'put' && item.draft !== operation.text;
     item.writeEpoch++;
     adopt(item, value, keep);
     item.remote = null; item.pending = null; item.phase = item.dirty ? 'dirty' : 'saved'; item.error = '';
@@ -96,7 +97,7 @@ function createReadingActions(context) {
   }
   function edit(date, text, {composing = false} = {}) {
     const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || item.pending?.kind === 'delete') return;
+    if (context.disposed || !item.canEdit || !item.loaded || ['delete', 'restore'].includes(item.pending?.kind)) return;
     item.draft = text; item.dirty = text !== item.serverText; stopTimer(item);
     if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
       if (!['conflict', 'unknown'].includes(item.phase)) item.phase = 'oversize';
@@ -111,11 +112,13 @@ function createReadingActions(context) {
 
 function createWritingActions(context) {
   const {page, emit, stopTimer, matches, accepted} = context;
-  const {put, remove, uuid} = context.options;
+  const {put, remove, restore, uuid} = context.options;
   async function send(item, operation) {
     stopTimer(item); item.pending = operation; item.phase = 'saving'; item.error = ''; item.writeEpoch++; emit();
     try {
-      const raw = await (operation.kind === 'delete' ? remove(item.date, {
+      const raw = await (operation.kind === 'restore' ? restore(item.date, {
+        version: operation.version, save_id: operation.saveId
+      }) : operation.kind === 'delete' ? remove(item.date, {
         version: operation.version, save_id: operation.saveId
       }) : put(item.date, {text: operation.text, version: operation.version, save_id: operation.saveId}));
       if (context.disposed || item.pending !== operation) return;
@@ -160,7 +163,13 @@ function createWritingActions(context) {
     operation.retryReady = false;
     return send(item, operation);
   }
-  return {save, deletePage, retryPending};
+  async function restorePage(date) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty ||
+        ['conflict', 'unknown'].includes(item.phase)) return;
+    return send(item, {kind: 'restore', text: '', version: item.version, saveId: uuid()});
+  }
+  return {save, deletePage, restorePage, retryPending};
 }
 
 function createResolutionActions(context) {
@@ -210,6 +219,6 @@ function createResolutionActions(context) {
 export function createDailyNotesStore(options) {
   const context = createDailyNotesContext(options);
   Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
-  const {page, pages, read, edit, save, deletePage, reconcile, retryPending, useServer, useDraft, dispose} = context;
-  return {page, pages, read, edit, save, deletePage, reconcile, retryPending, useServer, useDraft, dispose};
+  const {page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose} = context;
+  return {page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose};
 }

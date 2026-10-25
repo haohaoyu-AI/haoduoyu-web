@@ -1,0 +1,29 @@
+{
+  "synthetic": true,
+  "checks": [
+    {
+      "width": 1440,
+      "anonymous_memo_create_save_delete_restore": true,
+      "anonymous_notes_save_delete_restore": true,
+      "backup_401": true,
+      "no_horizontal_overflow": true
+    },
+    {
+      "width": 375,
+      "anonymous_memo_create_save_delete_restore": true,
+      "anonymous_notes_save_delete_restore": true,
+      "backup_401": true,
+      "no_horizontal_overflow": true
+    }
+  ],
+  "pageerrors": [],
+  "outbound": [],
+  "completed": true,
+  "validated_sha256": {
+    "public/app.js": "abdbe88615311cad64d1977a199765d732e7fe9c09b256b8d913d44bad9c3db9",
+    "public/style.css": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f",
+    "public/memos.css": "a45de7c1a4b6e2edfd00a2e29ab9d4dd40a101389e0c42a6ef5a23bb97817eba",
+    "dist/server/index.js": "c831da0a7f41b81c4cad9ff652a1e8f167fd88192220f643b8ce6be46115a92b"
+  },
+  "scope": "Temporary local synthetic Worker/D1, anonymous desktop1440/mobile375 Chromium only; production unchanged."
+}

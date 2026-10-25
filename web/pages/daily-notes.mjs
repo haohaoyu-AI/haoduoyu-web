@@ -20,6 +20,7 @@ export function renderDailyNotes() {
     '<button class="btn" type="button" data-notes-action="login" hidden>所有者登录</button>' +
     '<div id="notes-write-actions" class="notes-write-actions" hidden>' +
     '<button class="btn" type="button" data-notes-action="save">立即保存</button>' +
+    '<button class="btn" type="button" data-notes-action="restore" hidden>恢复这一天</button>' +
     '<button class="btn text" type="button" data-notes-action="delete">删除这一天</button></div></div>' +
     '<div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除这一天的文字？</p>' +
     '<button class="btn" type="button" data-notes-action="cancel-delete">取消</button>' +
@@ -45,7 +46,7 @@ export function paintDailyNotes(root, item, {drafts = [], dates = [], hasMore = 
   if (date.value !== item.date) date.value = item.date;
   editor.dataset.date = item.date;
   editor.hidden = !item.loaded || !item.canEdit;
-  editor.disabled = item.pending?.kind === 'delete';
+  editor.disabled = ['delete', 'restore'].includes(item.pending?.kind);
   if (editor.value !== item.draft) editor.value = item.draft;
   reader.hidden = !item.loaded || item.canEdit || !item.serverText;
   reader.textContent = item.serverText;
@@ -59,6 +60,8 @@ export function paintDailyNotes(root, item, {drafts = [], dates = [], hasMore = 
   find('[data-notes-action="login"]').hidden = !item.loaded || item.canEdit;
   const blocked = Boolean(item.pending) || ['conflict', 'unknown'].includes(item.phase);
   find('[data-notes-action="save"]').disabled = blocked || !item.dirty;
+  find('[data-notes-action="restore"]').hidden = !item.deleted;
+  find('[data-notes-action="restore"]').disabled = blocked || item.dirty;
   find('[data-notes-action="delete"]').disabled = blocked || item.deleted || item.version === 0;
   find('[data-notes-action="next"]').disabled = item.date >= dailyNotesToday();
   const draftBox = find('#notes-drafts');

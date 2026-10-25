@@ -627,6 +627,7 @@ function createDailyNotesContext({
   load,
   put,
   remove,
+  restore,
   onChange = () => {
   },
   onSaved = () => {
@@ -636,7 +637,7 @@ function createDailyNotesContext({
   clearTimer = clearTimeout,
   delay = 700
 }) {
-  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, onSaved, uuid } };
+  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid } };
   const pages = context.pages;
   const emit = () => {
     if (!context.disposed) onChange();
@@ -687,9 +688,9 @@ function createDailyNotesContext({
       }, delay);
     }
   }
-  const matches = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted === true : value.deleted === false && value.text === operation.text);
+  const matches = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted === true : operation.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation.text);
   function accepted(item, value, operation) {
-    const keep = operation.kind !== "delete" && item.draft !== operation.text;
+    const keep = operation.kind === "put" && item.draft !== operation.text;
     item.writeEpoch++;
     adopt(item, value, keep);
     item.remote = null;
@@ -746,7 +747,7 @@ function createReadingActions(context) {
   }
   function edit(date, text, { composing = false } = {}) {
     const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || item.pending?.kind === "delete") return;
+    if (context.disposed || !item.canEdit || !item.loaded || ["delete", "restore"].includes(item.pending?.kind)) return;
     item.draft = text;
     item.dirty = text !== item.serverText;
     stopTimer(item);
@@ -764,7 +765,7 @@ function createReadingActions(context) {
 }
 function createWritingActions(context) {
   const { page, emit, stopTimer, matches, accepted } = context;
-  const { put, remove, uuid } = context.options;
+  const { put, remove, restore, uuid } = context.options;
   async function send(item, operation) {
     stopTimer(item);
     item.pending = operation;
@@ -773,7 +774,10 @@ function createWritingActions(context) {
     item.writeEpoch++;
     emit();
     try {
-      const raw = await (operation.kind === "delete" ? remove(item.date, {
+      const raw = await (operation.kind === "restore" ? restore(item.date, {
+        version: operation.version,
+        save_id: operation.saveId
+      }) : operation.kind === "delete" ? remove(item.date, {
         version: operation.version,
         save_id: operation.saveId
       }) : put(item.date, { text: operation.text, version: operation.version, save_id: operation.saveId }));
@@ -827,7 +831,12 @@ function createWritingActions(context) {
     operation.retryReady = false;
     return send(item, operation);
   }
-  return { save, deletePage, retryPending };
+  async function restorePage(date) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
+    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid() });
+  }
+  return { save, deletePage, restorePage, retryPending };
 }
 function createResolutionActions(context) {
   const { page, emit, stopTimer, adopt, matches, accepted } = context;
@@ -886,8 +895,8 @@ function createResolutionActions(context) {
 function createDailyNotesStore(options) {
   const context = createDailyNotesContext(options);
   Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
-  const { page, pages, read, edit, save, deletePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
-  return { page, pages, read, edit, save, deletePage, reconcile, retryPending, useServer, useDraft, dispose };
+  const { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
+  return { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
 }
 
 // web/core/router.mjs
@@ -2699,7 +2708,7 @@ function registerTodosClock() {
 
 // web/pages/daily-notes.mjs
 function renderDailyNotes() {
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">这一天的碎碎念</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader" tabindex="0"></div><p id="notes-empty" class="notes-empty" hidden>这一天还没有留下文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn" type="button" data-notes-action="login" hidden>所有者登录</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn text" type="button" data-notes-action="delete">删除这一天</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除这一天的文字？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div><aside class="notes-history" aria-label="已有碎碎念的日期"><h2>最近的文字</h2><div id="notes-dates"></div><p id="notes-dates-error" role="status"></p><button class="btn text" type="button" data-notes-action="more" hidden>更早的日期</button></aside></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">这一天的碎碎念</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader" tabindex="0"></div><p id="notes-empty" class="notes-empty" hidden>这一天还没有留下文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn" type="button" data-notes-action="login" hidden>所有者登录</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复这一天</button><button class="btn text" type="button" data-notes-action="delete">删除这一天</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除这一天的文字？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div><aside class="notes-history" aria-label="已有碎碎念的日期"><h2>最近的文字</h2><div id="notes-dates"></div><p id="notes-dates-error" role="status"></p><button class="btn text" type="button" data-notes-action="more" hidden>更早的日期</button></aside></section>';
 }
 var statuses = {
   loading: "正在读取…",
@@ -2718,7 +2727,7 @@ function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false,
   if (date.value !== item.date) date.value = item.date;
   editor.dataset.date = item.date;
   editor.hidden = !item.loaded || !item.canEdit;
-  editor.disabled = item.pending?.kind === "delete";
+  editor.disabled = ["delete", "restore"].includes(item.pending?.kind);
   if (editor.value !== item.draft) editor.value = item.draft;
   reader.hidden = !item.loaded || item.canEdit || !item.serverText;
   reader.textContent = item.serverText;
@@ -2731,6 +2740,8 @@ function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false,
   find('[data-notes-action="login"]').hidden = !item.loaded || item.canEdit;
   const blocked = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
   find('[data-notes-action="save"]').disabled = blocked || !item.dirty;
+  find('[data-notes-action="restore"]').hidden = !item.deleted;
+  find('[data-notes-action="restore"]').disabled = blocked || item.dirty;
   find('[data-notes-action="delete"]').disabled = blocked || item.deleted || item.version === 0;
   find('[data-notes-action="next"]').disabled = item.date >= dailyNotesToday();
   const draftBox = find("#notes-drafts");
@@ -2778,6 +2789,7 @@ function ensureDailyNotesStore() {
     const store = createDailyNotesStore({
       load: (date) => request("/daily-notes?date=" + encodeURIComponent(date)),
       put: (date, body) => request("/daily-notes/" + encodeURIComponent(date), { method: "PUT", body }),
+      restore: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + "/restore", { method: "POST", body }),
       remove: (date, body) => request("/daily-notes/" + encodeURIComponent(date), { method: "DELETE", body }),
       onChange: () => {
         if (expected === notesIdentityNow()) paintDailyNotesPage();
@@ -2870,6 +2882,7 @@ function registerDailyNotesEvents() {
     else if (action === "login") renderLogin();
     else if (action === "today") await selectDailyNotesDate(dailyNotesToday());
     else if (action === "save") await store.save(date);
+    else if (action === "restore") await store.restorePage(date);
     else if (action === "delete") {
       notesConfirmDate = date;
       paintDailyNotesPage();
@@ -3086,7 +3099,7 @@ function makeContext(options) {
       onChange();
     }
   };
-  context.writable = () => !context.disposed && state2.canEdit && idPattern.test(ownerId);
+  context.writable = () => !context.disposed && state2.canEdit && idPattern.test(context.ownerId);
   context.blocked = (item) => {
     const pending = state2.operation?.pending;
     return pending && (pending.kind === "notes" && pending.id === item.id || pending.kind === "groups" && pending.method === "DELETE" && pending.id === item.group_id);
@@ -3122,8 +3135,8 @@ function makeContext(options) {
   return context;
 }
 function persistence(context) {
-  const key = "haoduoyu.memos.drafts.v1." + context.ownerId + "." + context.draftScope;
-  const previousKey = context.restoreDraftScope ? "haoduoyu.memos.drafts.v1." + context.ownerId + "." + context.restoreDraftScope : null;
+  const key = () => "haoduoyu.memos.drafts.v1." + context.ownerId + "." + context.draftScope;
+  const previousKey = () => context.restoreDraftScope ? "haoduoyu.memos.drafts.v1." + context.ownerId + "." + context.restoreDraftScope : null;
   function persist() {
     if (!context.writable()) return;
     if (!context.storage) {
@@ -3132,7 +3145,7 @@ function persistence(context) {
     }
     const drafts = [...context.drafts.values()].filter((item) => item.dirty || item.pending || item.phase === "conflict").slice(0, 200).map(({ timer, ...item }) => ({ ...item, loading: false }));
     try {
-      context.storage.setItem(key, JSON.stringify({ saved_at: (/* @__PURE__ */ new Date()).toISOString(), drafts, operation: context.state.operation }));
+      context.storage.setItem(key(), JSON.stringify({ saved_at: (/* @__PURE__ */ new Date()).toISOString(), drafts, operation: context.state.operation }));
       context.state.storageError = context.storagePersistent ? "" : "浏览器无法记住此页签，刷新后可能无法找回草稿，请保持页面打开。";
     } catch {
       context.state.storageError = "浏览器无法保留草稿，请暂时保持此页面打开。";
@@ -3142,8 +3155,8 @@ function persistence(context) {
     if (context.hydrated || !context.writable()) return;
     context.hydrated = true;
     try {
-      const current = context.storage?.getItem(key);
-      const saved = JSON.parse(current ?? (previousKey ? context.storage?.getItem(previousKey) : null) ?? "{}");
+      const current = context.storage?.getItem(key());
+      const saved = JSON.parse(current ?? (previousKey() ? context.storage?.getItem(previousKey()) : null) ?? "{}");
       if (Array.isArray(saved.drafts)) for (const raw of saved.drafts.slice(0, 200)) {
         const item = recoveredDraft(raw);
         if (item) context.drafts.set(item.id, item);
@@ -3259,6 +3272,10 @@ function memoReads(context) {
       if (context.disposed || sequence !== context.loadSequence) return;
       if (!Array.isArray(value?.groups) || !Array.isArray(value.notes) || typeof value.can_edit !== "boolean")
         throw new Error("备忘录列表不完整，请重新读取。");
+      if (value.draft_scope && context.ownerId && value.draft_scope !== context.ownerId)
+        throw new Error("工作区归属已变化，请重新打开页面核对本机草稿。");
+      if (!context.ownerId && idPattern.test(value.draft_scope || "")) context.ownerId = value.draft_scope;
+      state2.draftOwner = context.ownerId;
       state2.groups = value.groups;
       state2.notes = value.notes;
       state2.canEdit = value.can_edit === true && idPattern.test(context.ownerId);
@@ -3863,7 +3880,7 @@ async function clickAction(action) {
     renderLogin();
     return;
   } else if (action === "refresh") await store.load();
-  else if (action === "recovery") openMemoRecovery(document.querySelector("#memos"), store, state.me?.id);
+  else if (action === "recovery") openMemoRecovery(document.querySelector("#memos"), store, store.state.draftOwner);
   else if (action === "close-recovery") document.querySelector("#memo-recovery").hidden = true;
   else if (action === "restore-draft") await restoreMemoRecovery(document.querySelector("#memos"), store);
   else if (action === "save") await store.saveNote();

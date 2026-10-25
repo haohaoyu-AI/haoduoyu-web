@@ -8,7 +8,7 @@ import {digest,csrfFor} from '../src/security.mjs';
 async function setup(t) {
   const app=await fixture(t),session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const env={DB:app.db,SITE_ORIGIN:app.origin,DAILY_NOTES_OWNER_ID:owner,
-    PUBLIC_BUSINESS_MODE:'1',PUBLIC_BUSINESS_USER_ID:owner,PUBLIC_BUSINESS_ACCOUNT_IDS:'[]'};
+    PUBLIC_BUSINESS_MODE:'0',PUBLIC_BUSINESS_USER_ID:owner,PUBLIC_BUSINESS_ACCOUNT_IDS:'[]'};
   async function note(path='',{method='GET',body,auth=false,headers={},settings=env}={}) {
     const h=new Headers(headers);
     if(auth){h.set('Cookie',session.cookie);h.set('X-CSRF-Token',session.csrfToken);}
@@ -102,7 +102,7 @@ test('bounded input and paged public date index do not alter anonymous todos',as
   const page=await app.note('/dates?page_size=2');assert.deepEqual(page.data.dates,['2026-10-22','2026-10-21']);assert.equal(page.data.has_more,true);
   assert.deepEqual((await app.note('/dates?page_size=2&before='+page.data.next_before)).data.dates,['2026-10-20']);
   const response=await worker.fetch(new Request(app.origin+'/api/v1/todos',{method:'POST',headers:{Origin:app.origin,
-    'Content-Type':'application/json','X-Public-Business':'1'},body:JSON.stringify({id:randomUUID(),date:'2026-10-24',text:'原待办匿名写不变'})}),app.env);
+    'Content-Type':'application/json','X-Public-Business':'1'},body:JSON.stringify({id:randomUUID(),date:'2026-10-24',text:'原待办匿名写不变'})}),{...app.env,PUBLIC_BUSINESS_MODE:'1'});
   assert.equal(response.status,201);
 });
 

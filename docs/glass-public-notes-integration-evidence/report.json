@@ -1,0 +1,35 @@
+{
+  "synthetic": true,
+  "checks": [
+    {
+      "width": 1440,
+      "anonymous_memo_create_save_delete_restore": true,
+      "anonymous_notes_save_delete_restore": true,
+      "backup_401": true,
+      "no_horizontal_overflow": true,
+      "default_todo_articles_snapshot_glass_smoke": true
+    },
+    {
+      "width": 375,
+      "anonymous_memo_create_save_delete_restore": true,
+      "anonymous_notes_save_delete_restore": true,
+      "backup_401": true,
+      "no_horizontal_overflow": true,
+      "default_todo_articles_snapshot_glass_smoke": true
+    }
+  ],
+  "pageerrors": [],
+  "outbound": [],
+  "completed": true,
+  "visual_base": "6565d3cc5f9e8d7ae01702bf2ff9176c7a933da3",
+  "permission_base": "a787527fe93c7090046c5d4e855416b04a29aede",
+  "validated_sha256": {
+    "public/app.js": "abdbe88615311cad64d1977a199765d732e7fe9c09b256b8d913d44bad9c3db9",
+    "public/glass.css": "976d0436e1f060ed5366390b7c42e0b6fb2b398921061ab6d043b3eeacdac3a5",
+    "public/style.css": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f",
+    "public/memos.css": "a45de7c1a4b6e2edfd00a2e29ab9d4dd40a101389e0c42a6ef5a23bb97817eba",
+    "public/index.html": "a870272a9d22e812fa354e4f9ae1d8007bb2cc5c4f310f9ed22c5b166b38328f",
+    "dist/server/index.js": "8dc8b038d5de0b80a6867b1100ba0c9ee9796354be58f6b94313c2985f0802d4"
+  },
+  "scope": "Loopback real Worker and synthetic temporary D1. Desktop1440/mobile375 Chromium. No production data or deployment."
+}
