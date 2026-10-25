@@ -1,17 +1,20 @@
 import { api } from "../core/api.mjs";
 import { $, e } from "../core/dom.mjs";
 import { isRequestAbort } from "../core/requests.mjs";
+import { bjtDate } from "../core/format.mjs";
 import { runtime, state } from "../core/state.mjs";
 import { mergeTodoTemplate, templateSessionActive, templateState } from "../core/todo-templates-state.mjs";
 import { todoDay } from "../core/todos-state.mjs";
 import { loadTodos, submitTodoTemplate } from "./todos.mjs";
 function todoTemplateRows(store) {
-  const adding = todoDay().adding;
+  const day = todoDay(), adding = day.adding, today = todoDay(bjtDate());
+  const added = id => today.items.some(item => item.template_id === id && !item.deleted_at);
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
 aria-label="添加：${e(item.text)}" ${adding || store.pending.has(item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
+<p class="todo-template-added" data-template-added ${added(item.id) ? "" : "hidden"}>今日已添加</p>
 <p class="todo-template-progress"><span data-template-status>${item.habit_status === "habit" ? "习惯" : "待办"}</span> ·
 <span data-template-count>近30天已完成 ${Number(item.completed_days || 0)} 天</span></p></li>`).join("");
 }

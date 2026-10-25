@@ -73,7 +73,7 @@ function todoRow(item, day) {
   const pending = todoBusy(day, item.id);
   const completed = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
   const removal = day.removals.get(item.id), deleted = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
-  if (deleted || (completed && todoCompletedMode() === "hide")) return "";
+  if (deleted || (completed && todoCompletedMode() === "hide" && state.todoPanel !== "history")) return "";
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
@@ -83,7 +83,7 @@ aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ?
 }
 function todoForm(day) {
   const label = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
-  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加每日计划">
+  return `<form ${state.todoPanel === "history" ? "hidden" : ""} id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加每日计划">
 <label for="todo-text" class="sr-only">${label}</label><input id="todo-text" class="input" name="text" maxlength="500" required
 autocomplete="off" placeholder="${label}" value="${e(day.draft)}" >
 <button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>添加</button></form>`;
@@ -108,9 +108,10 @@ ${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</section>`;
 function paintTodoPanels(root) {
   const panel = state.todoPanel || "";
   for (const [id, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"]]) {
-    const node = $("#" + id, root); if (node) node.hidden = panel !== value;
+    const node = $("#" + id, root); if (node) node.hidden = id === "todo-main" ? panel === "templates" : panel !== value;
   }
-  root.querySelectorAll('[data-action="todo-panel"]').forEach(button => {
+  root?.querySelectorAll("#todo-form,.todo-list-options").forEach(node => { node.hidden = panel === "history"; });
+  root?.querySelectorAll('[data-action="todo-panel"]').forEach(button => {
     button.setAttribute("aria-expanded", String(button.dataset.panel === panel));
   });
 }
@@ -119,7 +120,7 @@ async function setTodoPanel(panel) {
   state.todoPanel = ["history", "templates"].includes(panel) ? panel : "";
   if (!state.todoPanel) state.todoDate = "";
   updateRoute(true); paintTodos();
-  if (state.todoPanel === "templates") await loadTodoTemplates();
+  if (state.todoPanel === "templates") await loadTodos();
   else if (!state.todoPanel) await loadTodos();
   const selector = state.todoPanel ? '#todo-' + state.todoPanel + ' [data-action="todo-panel-close"]' : '#todo-text';
   $(selector)?.focus();
@@ -152,16 +153,20 @@ function todoFeedback(day) {
   return error ? `${e(error)} ${day.failedCreate ? `<span>「${e(day.failedCreate.text)}」</span>
 <button class="btn text small" data-action="todo-retry-add">重试添加</button>` : ""} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
+function todoHistoryEmpty(day) {
+  return state.todoPanel === "history" && day.loaded && !day.items.some(item => !item.deleted_at) ? "这一天还没有待办。" : "";
+}
 function renderTodos() {
   const day = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day)}</div>
-<div id="todo-main" ${state.todoPanel ? "hidden" : ""}>${todoForm(day)}
+${renderTodoHistory(day)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day)}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}
+<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day)}</p>
 <ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul></div>
-${renderTodoHistory(day)}${renderTodoTemplates()}</section>`;
+${renderTodoTemplates()}</section>`;
 }
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
@@ -177,7 +182,8 @@ function paintTodos() {
     return;
   }
   const parts = { "todo-caption": todoCaption(day), "todo-status": todoStatus(day), "todo-undo": renderTodoUndo(day),
-    "todo-items": day.items.map((item) => todoRow(item, day)).join("") + pendingTodo(day), "todo-feedback": todoFeedback(day) };
+    "todo-items": day.items.map((item) => todoRow(item, day)).join("") + pendingTodo(day), "todo-feedback": todoFeedback(day),
+    "todo-history-empty": todoHistoryEmpty(day) };
   for (const [id, html] of Object.entries(parts)) {
     const node = $("#" + id, root);
     if (node && node.innerHTML !== html) node.innerHTML = html;
@@ -207,6 +213,7 @@ async function loadTodos(context) {
   const day = todoDay(), date = day.date, owner = todoOwner(), version = runtime.renderVersion;
   const sequence = ++day.sequence, revision = day.revision;
   day.loading = true;
+  day.error = "";
   paintTodos();
   try {
     const data = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
@@ -215,6 +222,7 @@ async function loadTodos(context) {
     receiveTodoPreferences(data.completed_mode, data.preferences_version);
     day.items = data.items;
     day.loaded = true;
+    if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error) {
     if (todoReadActive(owner, version, date, day, sequence) && !isRequestAbort(error) && !error.staleSession) day.error = error.message;
   } finally {
@@ -300,7 +308,7 @@ async function submitTodo({ form, data }) {
 }
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
-  const day = todoDay();
+  const day = todoDay(bjtDate());
   if (day.adding) return;
   let request = day.templateCreates.get(template.id);
   if (!request || request.text !== template.text) {

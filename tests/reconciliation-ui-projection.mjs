@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {projectWorkbenchRound2} from './workbench-round2-projection.mjs';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
@@ -6,6 +7,7 @@ const root=new URL('../',import.meta.url);
 export const reconciliationModules=['web/pages/article-reconciliation.mjs'];
 const hash=value=>createHash('sha256').update(value).digest('hex');
 export function projectReconciliation(file,source) {
+  source=projectWorkbenchRound2(file,source);
   const manifest=JSON.parse(readFileSync(new URL('./reconciliation-ui-delta.json',import.meta.url),'utf8'));
   const expected=manifest.files[file];if(!expected)return source;
   assert.equal(hash(source),expected.after,'exact approved reconciliation delta / exact memo additions retain every released article frontend AST node: '+file);

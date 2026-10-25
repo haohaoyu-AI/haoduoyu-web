@@ -119,3 +119,31 @@
   #memos .memo-toolbar-actions:empty { display:none; }
   #memos .memo-mobile-back:has(button[hidden]) { display:none; }
 }
+
+/* History shows all active rows, including completed items, without changing today preferences. */
+#todo-history:not([hidden])+#todo-main #todo-form,#todo-history:not([hidden])+#todo-main .todo-list-options { display:none; }
+.todo-template-added { color:var(--accent); font-size:12px; margin:7px 0 0; }
+
+/* Flat memo list keeps legacy grouping solely in the storage model. */
+#memos .memo-flat-row { display:flex; align-items:flex-start; gap:4px; min-width:0; }
+#memos .memo-flat-row .memo-list-item { flex:1; width:auto; min-width:0; }
+#memos .memo-flat-row>.btn { flex:none; min-width:44px; min-height:44px; padding:6px; margin-top:3px; }
+#memos .memo-flat-row>[data-memo-action="delete-note"] { font-size:22px; background:transparent; border-color:transparent; box-shadow:none; }
+#memos .memo-document-heading { display:flex; align-items:flex-start; gap:12px; }
+#memos .memo-heading-title { flex:1; min-width:0; }
+#memos [data-memo-action="fullscreen"] { width:44px; height:44px; min-height:44px; padding:10px; flex:none; }
+#memos #memo-fullscreen {
+  inset:12px; width:calc(100vw - 24px); height:calc(100dvh - 24px); max-width:none; max-height:none; margin:0; padding:0;
+  border:1px solid var(--glass-edge); border-radius:18px; color:var(--ink); background:var(--surface); box-shadow:var(--glass-shadow);
+}
+#memos #memo-fullscreen::backdrop { background:rgba(30,40,49,.35); }
+#memos #memo-fullscreen .memo-editor { height:100%; min-height:0; overflow:auto; background:var(--surface); }
+#memos #memo-fullscreen #memo-document { display:flex; flex-direction:column; height:100%; min-height:0; }
+#memos #memo-fullscreen .memo-document-heading,#memos #memo-fullscreen .memo-document-footer { flex:none; }
+#memos #memo-fullscreen .memo-body { flex:1; min-height:120px; height:0; resize:none; }
+#memos #memo-fullscreen .memo-read-body { flex:1; min-height:120px; overflow:auto; }
+body:has(#memo-fullscreen[open]) { overflow:hidden; }
+@media (max-width:760px) {
+  #memos #memo-fullscreen { inset:0; width:100vw; height:100dvh; border-radius:0; }
+  #memos #memo-fullscreen .memo-editor { padding:16px; padding-bottom:max(16px,env(safe-area-inset-bottom)); }
+}

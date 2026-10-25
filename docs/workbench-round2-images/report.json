@@ -1,0 +1,32 @@
+{
+  "baseline": "e284dd5031a195fd8cff549a5b34fbdcce195cef",
+  "synthetic": true,
+  "completed": true,
+  "checks": [
+    "history shows full selected day without changing hide preference 1440",
+    "today-added reflects actual linked rows, deletion, and refresh 1440",
+    "fullscreen preserves node, selection, text, phase and Escape return 1440",
+    "flat legacy notes preserved; direct plus and soft delete without confirmation; all trash restores",
+    "history shows full selected day without changing hide preference 375",
+    "today-added reflects actual linked rows, deletion, and refresh 375",
+    "fullscreen preserves node, selection, text, phase and Escape return 375",
+    "history shows full selected day without changing hide preference 390",
+    "today-added reflects actual linked rows, deletion, and refresh 390",
+    "fullscreen preserves node, selection, text, phase and Escape return 390"
+  ],
+  "pageerrors": [],
+  "captures": [
+    "history-1440.png",
+    "templates-1440.png",
+    "fullscreen-1440.png",
+    "flat-notes-1440.png",
+    "history-375.png",
+    "templates-375.png",
+    "fullscreen-375.png",
+    "flat-notes-375.png",
+    "history-390.png",
+    "templates-390.png",
+    "fullscreen-390.png",
+    "flat-notes-390.png"
+  ]
+}

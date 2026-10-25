@@ -7,6 +7,7 @@ import {openMemoRecovery, resetMemoRecovery, selectMemoRecovery, restoreMemoReco
 export {renderMemos} from './pages/memos.mjs';
 
 let memoStore, memoIdentity = '', memoEvents = false, memoDialog = null, memoDraftScope, memoCreating = false, memoTool = '';
+let memoEditorFocus = null, memoDeleting = '', memoDeleteWait = null;
 export function requestMemoTool(tool) { memoTool = ['trash', 'recovery'].includes(tool) ? tool : ''; }
 function draftStorageScope() {
   if (memoDraftScope) return memoDraftScope;
@@ -24,6 +25,7 @@ const visible = () => state.page === 'memos' && memoIdentity === currentIdentity
 function ensureStore() {
   const identity = currentIdentity();
   if (memoStore && memoIdentity === identity) return memoStore;
+  memoDeleteWait?.(true); memoDeleteWait = null; memoDeleting = ''; memoEditorFocus = null;
   memoStore?.dispose(); memoIdentity = identity; memoDialog = null; resetMemoRecovery();
   const active = () => {
     if (currentIdentity() !== identity) throw new DOMException('登录状态已经改变', 'AbortError');
@@ -33,7 +35,7 @@ function ensureStore() {
   try { local = window.localStorage; } catch { local = null; }
   memoStore = createMemosStore({request, storage: local, ...draftStorageScope(),
     ownerId: state.me?.publicBusiness ? '' : String(state.me?.id || ''),
-    onChange: () => { if (identity === currentIdentity()) paintMemosPage(); }});
+    onChange: () => { if (identity === currentIdentity()) { memoDeleteWait?.(); paintMemosPage(); } }});
   return memoStore;
 }
 function paintDialog(root) {
@@ -52,6 +54,8 @@ export function paintMemosPage() {
   const root = document.querySelector('#memos');
   if (!root) return;
   paintMemos(root, memoStore); paintDialog(root);
+  if (memoDeleting) root.querySelectorAll('[data-memo-action="delete-note"]')
+    .forEach(button => { if (button.dataset.memoTarget === memoDeleting) button.disabled = true; });
   if (memoCreating) root.querySelectorAll('[data-memo-action="new-group"],[data-memo-action="new-note"]')
     .forEach(button => { button.disabled = true; });
 }
@@ -107,7 +111,14 @@ async function createMemo(action, target) {
   try {
     if (action === 'new-group') await store.createGroup('未命名分组');
     else {
-      const pending = store.createNote(target?.dataset.memoTarget || store.state.groupId, '未命名笔记');
+      let group = store.state.groups.find(row => row.id === store.state.groupId && !row.deleted_at) ||
+        store.state.groups.find(row => !row.deleted_at);
+      if (!group) {
+        const id = await store.createGroup('笔记');
+        group = store.state.groups.find(row => row.id === id && !row.deleted_at);
+      }
+      if (!group || store !== memoStore || !visible()) return;
+      const pending = store.createNote(group.id, '未命名笔记');
       paintMemosPage();
       const field = document.querySelector('#memo-title');
       if (visible() && store === memoStore) { field?.focus(); field?.select(); }
@@ -117,10 +128,62 @@ async function createMemo(action, target) {
   if (action === 'new-group' && visible() && store === memoStore)
     document.querySelector('[data-memo-action="new-group"]')?.focus();
 }
+async function selectVisibleMemo(store) {
+  const s = store.state, selected = store.drafts.get(s.noteId);
+  if (selected?.dirty || selected?.pending) return;
+  const rows = s.notes.filter(note => Boolean(note.deleted_at || s.groups.find(group => group.id === note.group_id)?.deleted_at) === s.trash);
+  if (rows.some(note => note.id === s.noteId)) return;
+  s.noteId = rows[0]?.id || '';
+  if (s.noteId) await store.selectNote(s.noteId, {open: false});
+  else s.pane = 'notes';
+}
+async function removeMemo(id) {
+  const store = memoStore, item = store.drafts.get(id);
+  if (memoDeleting || !store.state.canEdit) return;
+  memoDeleting = id; store.state.error = ''; paintMemosPage();
+  try {
+    if (item?.pending && item.phase === 'saving') await new Promise(resolve => {
+      memoDeleteWait = force => { if (force || item.phase !== 'saving') resolve(); };
+    });
+    if (store !== memoStore || memoIdentity !== currentIdentity()) return;
+    memoDeleteWait = null;
+    if (item?.dirty && !item.pending) await store.saveNote(id);
+    if (item?.dirty || item?.pending) {
+      store.state.error = '笔记尚未确认保存，未删除。请先核对保留的草稿。'; return;
+    }
+    await store.removeNote(id); await selectVisibleMemo(store);
+  } finally {
+    if (store === memoStore) { memoDeleting = ''; memoDeleteWait = null; paintMemosPage(); }
+  }
+}
+async function restoreMemo(id) {
+  const store = memoStore, note = store.state.notes.find(row => row.id === id);
+  if (!note) return;
+  if (store.state.groups.find(row => row.id === note.group_id)?.deleted_at) await store.restore('groups', note.group_id);
+  if (store.state.groups.find(row => row.id === note.group_id)?.deleted_at) return;
+  if (note.deleted_at) await store.restore('notes', id);
+  await selectVisibleMemo(store);
+}
+function toggleMemoFullscreen(expanded) {
+  const root = document.querySelector('#memos'), dialog = root?.querySelector('#memo-fullscreen');
+  if (!dialog) return;
+  const editor = root.querySelector('.memo-editor'), field = root.contains(memoEditorFocus) ? memoEditorFocus : root.querySelector('#memo-body');
+  const selection = field ? {start: field.selectionStart, end: field.selectionEnd, direction: field.selectionDirection, scroll: field.scrollTop} : null;
+  if (expanded ?? !dialog.open) {
+    dialog.append(editor); dialog.showModal();
+  } else { dialog.close(); root.querySelector('.memo-layout').append(editor); }
+  paintMemosPage();
+  if (field && !field.hidden && !field.disabled) {
+    field.focus({preventScroll: true}); field.setSelectionRange(selection.start, selection.end, selection.direction); field.scrollTop = selection.scroll;
+  }
+}
 async function clickAction(action, target) {
   const store = ensureStore(), s = store.state;
   if (['new-group', 'new-note'].includes(action)) return createMemo(action, target);
-  if (['rename-group', 'delete-group', 'delete-note', 'use-draft', 'use-server'].includes(action)) {
+  if (action === 'delete-note') return removeMemo(target?.dataset.memoTarget || s.noteId);
+  if (action === 'restore-note') return restoreMemo(target?.dataset.memoTarget || s.noteId);
+  if (action === 'fullscreen') return toggleMemoFullscreen();
+  if (['rename-group', 'delete-group', 'use-draft', 'use-server'].includes(action)) {
     if (s.canEdit) openDialog(action, target?.dataset.memoTarget); return;
   }
   if (action === 'cancel') memoDialog = null;
@@ -136,7 +199,6 @@ async function clickAction(action, target) {
   else if (action === 'operation-check') await store.checkOperation();
   else if (action === 'operation-retry') await store.retryOperation();
   else if (action === 'restore-group') await store.restore('groups', target?.dataset.memoTarget || s.groupId);
-  else if (action === 'restore-note') await store.restore('notes', s.noteId);
   else if (action === 'back-groups') s.pane = 'groups';
   else if (action === 'back-notes') s.pane = 'notes';
   else if (['trash', 'exit-trash'].includes(action) && s.canEdit) {
@@ -160,6 +222,12 @@ function editing(event, composing) {
 function registerEvents() {
   if (memoEvents) return;
   memoEvents = true;
+  document.addEventListener('focusin', event => {
+    if (visible() && ['memo-title', 'memo-body'].includes(event.target.id)) memoEditorFocus = event.target;
+  });
+  document.addEventListener('cancel', event => {
+    if (visible() && event.target.id === 'memo-fullscreen') { event.preventDefault(); toggleMemoFullscreen(false); }
+  }, true);
   document.addEventListener('input', event => editing(event, event.isComposing));
   document.addEventListener('compositionstart', event => {
     if (visible() && ['memo-title', 'memo-body'].includes(event.target.id)) event.target.dataset.composing = 'true';
@@ -200,8 +268,9 @@ function registerEvents() {
 }
 export async function loadMemos() {
   registerEvents(); const store = ensureStore();
-  await store.load();
+  await store.load(); await selectVisibleMemo(store);
   const tool = memoTool; memoTool = '';
+  if (!tool && !store.state.trash && store.state.noteId) store.state.pane = 'editor';
   if (tool && visible() && store.state.canEdit) {
     if (tool === 'trash') { store.state.trash = true; store.state.pane = 'groups'; store.state.groupId = ''; store.state.noteId = ''; }
     paintMemosPage();

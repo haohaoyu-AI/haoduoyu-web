@@ -1,0 +1,34 @@
+{
+  "baseline": "e284dd5031a195fd8cff549a5b34fbdcce195cef",
+  "scope": "Round-two acceptance: history full-day visibility, actual today template indicator, flat memo list, direct recoverable deletion and native fullscreen; API/backend/permissions unchanged. Screenshot-dependent scrollbar and splitter changes pending readable pixels.",
+  "files": {
+    "web/core/todos-state.mjs": {
+      "before": "56fd42042e760aa33b410d67fa4eaba6323599a37fd3e554f71cbb2dab0adbd2",
+      "after": "c3fbf4e776e51290458be143ea73a8a7f37fdb7f27fa1b8c149198a09f1d644d"
+    },
+    "web/memos-controller.mjs": {
+      "before": "e1b50d16dafd6c8a69bbed9bc9f7a3f9d43b768becde4ae408a59a9abf11cb83",
+      "after": "5600be09461eb15e40cf6ace932cb7937243ac8b0f367fbfade400a2b2b002bf"
+    },
+    "web/pages/memos.mjs": {
+      "before": "4f3460792d69621f644924b90a844c54d1f16d331263eaf3604808a7cb7cabee",
+      "after": "c4f8ea4d70aa00b112fe260c0155994ae90e4331c563d54be73e0e29b4f60dde"
+    },
+    "web/pages/todo-templates.mjs": {
+      "before": "24119eafb977bc313d168ca52270d9780b8c388bd63bf60e94c6ce00dd342f80",
+      "after": "71ee2814134d270928cc0c7fa3534bab09dded932cd7b760735a4af5016dcd65"
+    },
+    "web/pages/todos.mjs": {
+      "before": "399ab7445d046d19498029887725e038444ec687fcd4c842b23531519c9e515b",
+      "after": "754bda484d21ca0554c5a7a26c1d9bd4debf5008d4e01d07f678943bec7e5273"
+    },
+    "public/app.js": {
+      "before": "0e414bfe8259b6818f16a312fa0d661b849e6ee859a53233a22ccc6c57f8e9de",
+      "after": "974dcd35cc81976095944c49d377bb96b739c696ef0ca7803e517044203d20dc"
+    },
+    "public/workbench.css": {
+      "before": "91c26754f85c47c212d3aadcbc92e661c0d46a25db5f504e414346400343520f",
+      "after": "f3b43311cbcd764b3cde51af210c3fdde7a8068736eb89516816def6a244bad4"
+    }
+  }
+}

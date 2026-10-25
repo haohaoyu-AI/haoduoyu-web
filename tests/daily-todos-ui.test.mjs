@@ -11,6 +11,37 @@ const item = (id, date, extra = {}) => ({
   created_at: '2026-10-23T08:00:00Z', updated_at: '2026-10-23T08:00:00Z', ...extra,
 });
 
+test('history presents selected-day completed rows without changing today hide preference',()=>{
+  const c=client();
+  c.put('done',item('history-completed','2026-10-22',{completed:true}));
+  c.run("todoPreferences().mode='hide';state.todoDate='2026-10-22';state.todoPanel='history';todoDay().items=[done];todoDay().loaded=true");
+  assert.match(c.run('renderTodos()'),/history-completed/);
+  assert.doesNotMatch(c.run('renderTodos()'),/id="todo-main" hidden/);
+  assert.equal(c.run('todoPreferences().mode'),'hide');
+  c.run("state.todoPanel=''");
+  assert.doesNotMatch(c.run('renderTodos()'),/data-todo-id="history-completed"/);
+});
+
+test('today-added is based on acknowledged linked items and clears after actual soft deletion',()=>{
+  const c=client();
+  c.run("templateState().items=[{id:'common',text:'常用'}];todoDay().adding=true;todoDay().submitting={template_id:'common'}");
+  assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added hidden/);
+  c.put('linked',item('today-linked','2026-10-23',{template_id:'common'}));
+  c.run('todoDay().items=[linked]');
+  assert.doesNotMatch(c.run('todoTemplateRows(templateState())'),/data-template-added hidden/);
+  c.run("todoDay().items[0].deleted_at='2026-10-23T08:01:00Z'");
+  assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added hidden/);
+});
+
+test('common templates opened from history still add to the actual Beijing today',async()=>{
+  const c=client({search:'?page=todos&date=2026-10-20&todo_panel=templates'});
+  c.run("readRoute();paintTodos=()=>{};api=async(path,options)=>({...options.body,completed:false,version:1});let template={id:'common',text:'今日事项'}");
+  assert.equal(c.run('todoDate()'),'2026-10-23');
+  await c.run('submitTodoTemplate(template)');
+  assert.equal(c.run("todoDay('2026-10-23').items[0].date"),'2026-10-23');
+  assert.equal(c.run("todoDay('2026-10-20').items.length"),0);
+});
+
 function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false} = {}) {
   let currentTime = Date.parse(now), uuid = 0, timerId = 0, index = 0;
   const timers = new Map(), events = new Map(), windowEvents = new Map(), nodes = new Map();
