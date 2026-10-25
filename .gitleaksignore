@@ -218,3 +218,6 @@ d8e00419d8f1667c2eb50861ddc3adf4647d194d:.ci/public-assets.json:generic-api-key:
 4984fa2c395cd67b1238134fb6fc48e420b913e5:.ci/public-assets.json:generic-api-key:5
 4984fa2c395cd67b1238134fb6fc48e420b913e5:.ci/public-assets.json:generic-api-key:10
 4984fa2c395cd67b1238134fb6fc48e420b913e5:tests/account-profiles.test.mjs:generic-api-key:26
+
+# Same reviewed SYNTHETIC identity echoed in original proof only; exact historical evidence.
+f51c30f4f2ca1dc20ba97eaf3b66ddc4b1d6459c:docs/workbench-round4-secret-evidence.json:generic-api-key:36
