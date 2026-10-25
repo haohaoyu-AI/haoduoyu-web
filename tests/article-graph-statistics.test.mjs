@@ -46,6 +46,17 @@ test('graph projection permits only default new article metadata and preserves a
     rows: [{id: 'synthetic', account_id: 'account', title: '合成已发布'}], missing: [3, 0], status: 202});
   for (const [key, item] of [['status', null], ['char_count', 1], ['sample', {}], ['sample_json', '{}']])
     assert.throws(() => legacyGraphArticleProjection({...article, [key]: item}), /approved default/);
+  assert.deepEqual(legacyGraphArticleProjection({...article,warnings:[]}),
+    {id:'synthetic',account_id:'account',title:'合成已发布'});
+  const longTitle='😀'.repeat(31);
+  assert.deepEqual(legacyGraphArticleProjection({...article,title:longTitle,platform:'toutiao',warnings:['TOUTIAO_TITLE_TOO_LONG']}),
+    {id:'synthetic',account_id:'account',title:longTitle,platform:'toutiao'});
+  assert.throws(()=>legacyGraphArticleProjection({...article,warnings:['CHAR_COUNT_OUT_OF_RANGE']}),/approved default/);
+  assert.deepEqual(legacyGraphArticleProjection({...article,has_pending_verify:null,verify_state:'unknown'}),
+    {id:'synthetic',account_id:'account',title:'合成已发布'});
+  for(const pair of [{has_pending_verify:false,verify_state:'complete'},{has_pending_verify:null},
+    {has_pending_verify:null,verify_state:'pending'}])
+    assert.throws(()=>legacyGraphArticleProjection({...article,...pair}),/approved default/);
 });
 
 test('candidate graph replacement preserves every legacy statistic and unrelated rows in the actual clocked Worker', async t => {

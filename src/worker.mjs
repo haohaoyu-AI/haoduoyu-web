@@ -19,10 +19,13 @@ import {publicBusinessDocs} from './public-business-docs.mjs';
 import {handleNotionSnapshot} from './notion-snapshot.mjs';
 import {handleDailyNotes} from './daily-notes.mjs';
 import {validateArticleStatusQuery,validateArticleInputComplexity,rethrowArticlePipelineConflict} from './article-pipeline-io.mjs';
+import {upsertArticle,authorizeArticleUpsert} from './article-upsert.mjs';
+import {validateArticlePipelineQueryMultiplicity} from './article-pipeline-query.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
-const writing=new Set(['POST','PUT','DELETE']);
+const writing=new Set(['POST','PUT','PATCH','DELETE']);
+const articleWriting=(method,route)=>(method==='POST'||method==='PATCH')&&route==='/articles'||method==='PUT'&&/^\/articles\/[^/]+$/.test(route);
 const dummyHash='scrypt$32768$8$1$00112233445566778899aabbccddeeff$'+'00'.repeat(64);
 const json=(data,status=200,headers={})=>Response.json({data},{status,headers});
 const csv=value=>{let text=value==null?'':String(value);if(/^[\s]*[=+\-@\t\r]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';};
@@ -114,7 +117,7 @@ async function protectedRead(db,request,route,query,initialRevision,publicActor=
       requireAdmin(actor);
       return json((await store.all('SELECT id,name,account_ids_json,permissions_json,created_at,revoked_at,last_used_at FROM api_keys ORDER BY created_at DESC')).map(({account_ids_json,permissions_json,...row})=>({...row,account_ids:JSON.parse(account_ids_json),permissions:JSON.parse(permissions_json)})));
     }
-    if(route==='/audit') {requireAdmin(actor);return json((await store.all("SELECT log.*,article.title AS entity_label FROM audit AS log LEFT JOIN articles AS article ON article.id=log.entity_id AND (log.action IN ('POST /articles','article.create','article.update') OR log.action='PUT /articles/'||article.id) ORDER BY log.created_at DESC,log.rowid DESC LIMIT 200")).map(({detail_json,...row})=>({...row,detail:JSON.parse(detail_json)})));}
+    if(route==='/audit') {requireAdmin(actor);return json((await store.all("SELECT log.*,article.title AS entity_label FROM audit AS log LEFT JOIN articles AS article ON article.id=log.entity_id AND (log.action IN ('POST /articles','PATCH /articles','article.create','article.update') OR log.action='PUT /articles/'||article.id) ORDER BY log.created_at DESC,log.rowid DESC LIMIT 200")).map(({detail_json,...row})=>({...row,detail:JSON.parse(detail_json)})));}
     if(route==='/backup') {
       requireAdmin(actor);
       const backup=await exportBackup(db,{todoUserId:actor.id});
@@ -151,7 +154,7 @@ async function protectedWrite(db,request,route,env,origin,trace,publicActor=null
     return {actor,response:json({logged_out:true},200,{'Set-Cookie':sessionCookie('',origin)})};
   })).response;
   const input=request.method==='DELETE'&&/^\/api-keys\/[^/]+$/.test(route)?{}:await bodyFor(request);
-  if(request.method==='POST'&&route==='/articles'||request.method==='PUT'&&/^\/articles\/[^/]+$/.test(route))validateArticleInputComplexity(input);
+  if(articleWriting(request.method,route))validateArticleInputComplexity(input);
   let passwordProof,newHash;
   if(route==='/auth/password'&&request.method==='PUT') {
     requireAdmin(first);
@@ -203,6 +206,11 @@ async function protectedWrite(db,request,route,env,origin,trace,publicActor=null
     }
     if(method==='POST'&&route==='/articles') action=b=>records.createArticle(b,actor.scope);
     if(method==='PUT'&&articleMatch) action=b=>records.updateArticle(articleMatch[1],b,actor.scope);
+    const pipelineUpsert=method==='PATCH'&&route==='/articles';
+    if(pipelineUpsert) {
+      await authorizeArticleUpsert(records,input,actor.scope);
+      action=b=>upsertArticle(store,records,b,actor.scope);
+    }
     if(method==='POST'&&route==='/observations') action=b=>records.createObservation(b,actor.scope);
     if(method==='POST'&&route==='/daily-metrics') action=b=>records.upsertDaily(b,actor.scope);
     if(!action) throw fail(404,'NOT_FOUND','接口不存在');
@@ -215,13 +223,16 @@ async function protectedWrite(db,request,route,env,origin,trace,publicActor=null
         return {replayed:true,response:Response.json(payload,{status:saved.status})};
       }
     }
-    const value=await action(input),status=method==='POST'?201:200;
-    store.audit(actor.actor,method+' '+route,value?.id||null,{fields:Object.keys(input)});
+    const planned=await action(input);
+    const value=pipelineUpsert?{...planned.value,upsert_action:planned.unchanged?'unchanged':planned.created?'created':'updated'}:planned;
+    const status=method==='POST'||pipelineUpsert&&planned.created?201:200;
+    if(pipelineUpsert&&planned.unchanged&&!key)return {replayed:true,response:json(value,status)};
+    if(!pipelineUpsert||!planned.unchanged)store.audit(actor.actor,method+' '+route,value?.id||null,{fields:Object.keys(input)});
     if(key) store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,?,?)',actor.actor,key,requestHash,JSON.stringify(value),status,now());
     if(actor.kind==='key') store.queue('UPDATE api_keys SET last_used_at=? WHERE id=?',now(),actor.id);
     return {actor,response:json(value,status)};
   }).catch(error=>{
-    if(request.method==='POST'&&route==='/articles'||request.method==='PUT'&&/^\/articles\/[^/]+$/.test(route))rethrowArticlePipelineConflict(error);
+    if(articleWriting(request.method,route))rethrowArticlePipelineConflict(error);
     throw error;
   });
   return result.response;
@@ -244,7 +255,10 @@ async function handle(request,env,trace) {
     if(route==='/integrations/notion/snapshot'&&method==='POST')
       return json(await handleNotionSnapshot(db,request,env,origin));
     if(method==='GET'&&route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');
-    if(method==='GET'&&route==='/articles')validateArticleStatusQuery(url.searchParams);
+    if(method==='GET'&&route==='/articles') {
+      validateArticleStatusQuery(url.searchParams);
+      validateArticlePipelineQueryMultiplicity(url.searchParams);
+    }
     if(access) {
       request=access.request;
       if(route==='/auth/me') return json({id:'public-business',username:'公开编辑',publicBusiness:true});

@@ -28,6 +28,16 @@ function normalized(value) {
 }
 const snippet=source=>parseWeb(source).body[0];
 const variable=(ast,name)=>ast.body.flatMap(node=>node.declarations||[]).find(node=>node.id.name===name);
+function projectArticleUpsertAuditLabel(ast,file) {
+  if(file!=='web/pages/settings.mjs')return ast;
+  const fn=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='auditLabel');
+  assert.ok(fn,'the original audit label function remains present');
+  const labels=variable(fn.body,'labels').init;
+  const added=snippet('const labels=[["合并存稿","PATCH /articles"]]').declarations[0].init.elements[0];
+  assert.deepEqual(normalized(labels.elements[0]),normalized(added),'exactly one approved PATCH action label');
+  assert.equal(labels.elements.filter(row=>row.elements?.some(item=>item.value==='PATCH /articles')).length,1);
+  labels.elements=labels.elements.slice(1);return ast;
+}
 function stripTodoProperty(ast,declaration,key,expected) {
   const object=variable(ast,declaration).init;
   const found=object.properties.filter(property=>(property.key.name??property.key.value)===key);
@@ -184,7 +194,7 @@ test('formatting preserves declarations in otherwise unchanged modules and every
     'core/modal-request.mjs','core/session-index-state.mjs','pages/articles.mjs','pages/detail.mjs','pages/reviews.mjs','ui/modal.mjs']);
   for(const file of files.filter(file=>!changed.has(file.slice(4))&&!todoIntegration.has(file.slice(4)))) {
     const canonical=async source=>(await transform(source,{format:'esm',charset:'utf8',target:'esnext',minify:false,treeShaking:false})).code;
-    let candidate=projectTodoIntegration(parseWeb(await canonical(await current(file))),file);
+    let candidate=projectArticleUpsertAuditLabel(projectTodoIntegration(parseWeb(await canonical(await current(file))),file),file);
     if(file==='web/ui/entry.mjs')candidate=normalizedEntry(candidate);
     const changed=normalizeChartMarkup(candidate);
     assert.equal(changed,file==='web/pages/dashboard.mjs'?2:0);
@@ -201,6 +211,13 @@ test('formatting preserves declarations in otherwise unchanged modules and every
   const next=(await Promise.all(templateFiles.map(async file=>collect(await current(file),file,true)))).flat();
   const sorted=rows=>rows.map(row=>JSON.stringify(row)).sort();
   assert.deepEqual(sorted(next),sorted(previous),'unchanged module template cooked text and whitespace remain exact');
+});
+test('the generated frontend changes only the approved PATCH audit label',async()=>{
+  const checkpoint='88685601f40ae9b4c28799d42be6240f1dbe7ea6';
+  const previous=execFileSync('git',['show',checkpoint+':public/app.js'],{cwd:root,encoding:'utf8'});
+  const currentBundle=await current('public/app.js'),addition='    ["合并存稿", "PATCH /articles"],\n';
+  assert.equal(currentBundle.split(addition).length,2,'exactly one new generated action label');
+  assert.equal(currentBundle.replace(addition,''),previous,'every other generated frontend byte remains unchanged');
 });
 test('event bindings retain all nine original positions and capture options',async()=>{
   const ast=parseWeb(await current('web/events.mjs'));

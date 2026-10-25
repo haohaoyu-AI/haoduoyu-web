@@ -136,8 +136,20 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
     '/api/v1/daily-metrics', '/api/v1/dashboard', '/api/v1/api-keys', '/api/v1/audit',
     '/api/v1/export', '/api/v1/overview', '/api/v1/backup'];
   const spec = JSON.parse(await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8'));
+  // The separately pinned Phase4 projection validates the complete new PATCH
+  // contract before removing it from this historical route inventory.
+  const legacySpec=articlePipelineSpec(spec);
+  const upsert=spec.paths['/api/v1/articles'].patch;
+  if(upsert) {
+    assert.equal(upsert.operationId,'upsertArticlePipeline');
+    assert.equal(upsert.requestBody.required,true);
+    const input=upsert.requestBody.content['application/json'].schema;
+    assert.ok(input.required.includes('account_id'));
+    assert.equal(input.additionalProperties,false);
+    assert.ok(upsert.responses['200']&&upsert.responses['201']&&upsert.responses['409']);
+  }
   assert.deepEqual(paths.filter(path => path !== '/api/v1/backup').map(path => path.replace(article.data.id, '{id}')).sort(),
-    Object.entries(spec.paths).filter(([path, route]) => route.get && path !== '/api/v1/due-reviews').map(([path]) => path).sort());
+    Object.entries(legacySpec.paths).filter(([path, route]) => route.get && path !== '/api/v1/due-reviews').map(([path]) => path).sort());
   assert.equal(spec.paths['/api/v1/due-reviews'].get.operationId,'listDueReviews');
   // This new endpoint has separate scope/due regressions; the legacy set is unchanged.
   const rows = await syntheticRows(app.db);
@@ -163,7 +175,7 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
   ];
   const templatePath = path => path.replace(article.data.id, '{id}').replace(account, '{id}').replace(credential.data.id, '{id}');
   assert.deepEqual(mutations.filter(row => row.name !== 'bootstrap').map(row => row.method.toLowerCase() + ' ' + templatePath(row.path)).sort(),
-    Object.entries(spec.paths).flatMap(([path, value]) => Object.keys(value)
+    Object.entries(legacySpec.paths).flatMap(([path, value]) => Object.keys(value)
       .filter(method => ['post', 'put', 'delete'].includes(method)).map(method => method + ' ' + path)).sort());
   const NativeDate = globalThis.Date, fixed = NativeDate.now();
   // Only the two Node Worker modules share a fixed read clock. D1 and the actual

@@ -6,10 +6,10 @@ const documentDelta=JSON.parse(readFileSync(new URL('./fixtures/article-pipeline
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?
   Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
 const digest=value=>createHash('sha256').update(typeof value==='string'?value:JSON.stringify(stable(value))).digest('hex');
-export function articlePipelineSpec(spec) {
+const upsertDocumentDelta=()=>JSON.parse(readFileSync(new URL('./fixtures/article-upsert-document-delta.json',import.meta.url),'utf8'));
+function restoreSpecContract(spec,delta) {
   const result=structuredClone(spec);
-  if(!Object.hasOwn(result.components.schemas.ArticleCreate.properties,'status'))return result;
-  for(const {path,was,before,now,after_sha256}of documentDelta.spec_changes) {
+  for(const {path,was,before,now,after_sha256}of delta.spec_changes) {
     let parent=result;
     for(const name of path.slice(0,-1)) {
       assert.ok(parent&&Object.hasOwn(parent,name),'article contract parent exists: '+path.join('/'));
@@ -22,8 +22,13 @@ export function articlePipelineSpec(spec) {
   }
   return result;
 }
-export function articlePipelineDocs(html) {
-  const {replacements,section}=documentDelta.docs;
+export function articlePipelineSpec(spec) {
+  const previous=spec.paths?.['/api/v1/articles']?.patch?restoreSpecContract(spec,upsertDocumentDelta()):structuredClone(spec);
+  if(!Object.hasOwn(previous.components.schemas.ArticleCreate.properties,'status'))return previous;
+  return restoreSpecContract(previous,documentDelta);
+}
+function restoreDocsContract(html,delta) {
+  const {replacements,section}=delta.docs;
   if(!html.includes(section.start))return html;
   assert.equal(html.split(section.start).length,2,'single lifecycle documentation start');
   assert.equal(html.split(section.end).length,2,'single lifecycle documentation end');
@@ -37,6 +42,10 @@ export function articlePipelineDocs(html) {
   }
   return result;
 }
+export function articlePipelineDocs(html) {
+  const previous=html.includes('<!-- article-upsert-contract:start -->')?restoreDocsContract(html,upsertDocumentDelta()):html;
+  return restoreDocsContract(previous,documentDelta);
+}
 
 // Characterization tests exercise only legacy published rows. The historical
 // Worker also sees the new raw columns via SELECT a.* on the upgraded fixture.
@@ -45,6 +54,24 @@ export function articlePipelineDocs(html) {
 const scalars=['status','slot','run_dir','run_date','series_no','writer','illustrator',
   'char_count','subheading_count','image_count','cover_desc'];
 const json=['sample','draft_ref','timings','reruns','blockers','verify_items'];
+export function projectLegacyArticleComputedFields(row) {
+  const result={...row};
+  // Legacy fixtures have unknown pipeline counts, so only their already-known
+  // platform/title can produce a warning. Never treat unknown counts as zero.
+  if(Object.hasOwn(row,'warnings')) {
+    const expected=row.platform==='toutiao'&&typeof row.title==='string'&&Array.from(row.title).length>30?
+      ['TOUTIAO_TITLE_TOO_LONG']:[];
+    assert.deepEqual(row.warnings,expected,'approved default or known legacy title warnings');
+    delete result.warnings;
+  }
+  if(Object.hasOwn(row,'has_pending_verify')||Object.hasOwn(row,'verify_state')) {
+    assert.ok(Object.hasOwn(row,'has_pending_verify')&&Object.hasOwn(row,'verify_state'),'complete approved default verification state');
+    assert.equal(row.has_pending_verify,null,'approved default pending verification remains unknown');
+    assert.equal(row.verify_state,'unknown','approved default verification state remains unknown');
+    delete result.has_pending_verify;delete result.verify_state;
+  }
+  return result;
+}
 export function legacyPublishedArticles(value) {
   const result=structuredClone(value);
   function visit(item) {
@@ -52,6 +79,8 @@ export function legacyPublishedArticles(value) {
     if(Array.isArray(item)){for(const row of item)visit(row);return;}
     if(typeof item.id==='string'&&typeof item.account_id==='string'&&typeof item.title==='string'&&
       Object.hasOwn(item,'status')) {
+      projectLegacyArticleComputedFields(item);
+      delete item.warnings;delete item.has_pending_verify;delete item.verify_state;
       for(const key of scalars) {
         assert.ok(Object.hasOwn(item,key),'complete legacy article scalar extension: '+key);
         assert.equal(item[key],key==='status'?'published':null,'legacy projection cannot hide article metadata: '+key);

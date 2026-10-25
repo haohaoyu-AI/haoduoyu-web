@@ -1539,6 +1539,7 @@ function renderKeys(keys) {
 }
 function auditLabel(action) {
   const labels = [
+    ["合并存稿", "PATCH /articles"],
     ["新增文章", "article.create", "POST /articles"],
     ["修改文章", "article.update", "PUT /articles/:id"],
     [

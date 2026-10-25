@@ -7,6 +7,9 @@ import { nextOverviewChange } from './overview-cache-time.mjs';
 import { articleFacts, cumulativeOverview, paginate, snapshotTimeline } from './analytics.mjs';
 import {pipelineInput,requestedArticleStatus,requireDraftPublicationNull,decodePipelineArticle,
   durationForArticle,compareArticlePublication,requirePublishedMetrics,requireNoDraftMetrics,pipelineKeyConflict} from './article-pipeline-io.mjs';
+import {articlePipelineQuery,articlePipelineSqlFilters,articleWarnings,verificationState} from './article-pipeline-query.mjs';
+
+const pipelineFacts=row=>({...row,warnings:articleWarnings(row),...verificationState(row)});
 
 const METRICS = new Set(['reads', 'impressions', 'likes', 'comments', 'favorites', 'shares', 'approvals', 'reading_users']);
 const PLATFORMS = new Set(['toutiao', 'zhihu', 'wechat', 'other']);
@@ -170,7 +173,7 @@ export function createRecords(store) {
 
   async function enrich(row) {
     const observation = await get('SELECT metrics_json,as_of,collected_at FROM observations WHERE article_id=? ORDER BY as_of DESC,collected_at DESC,id DESC LIMIT 1', row.id);
-    return articleFacts(decodePipelineArticle({ ...row, latest_metrics: observation ? JSON.parse(observation.metrics_json) : null, latest_as_of: observation?.as_of ?? null, latest_collected_at: observation?.collected_at ?? null, duration_seconds: durationForArticle(row) }));
+    return pipelineFacts(articleFacts(decodePipelineArticle({ ...row, latest_metrics: observation ? JSON.parse(observation.metrics_json) : null, latest_as_of: observation?.as_of ?? null, latest_collected_at: observation?.collected_at ?? null, duration_seconds: durationForArticle(row) })));
   }
 
   async function enrichMany(rows) {
@@ -181,7 +184,7 @@ export function createRecords(store) {
       const snapshots=await all(`SELECT o.article_id,o.metrics_json,o.as_of,o.collected_at FROM observations o WHERE o.article_id IN (${chunk.map(()=>'?').join(',')}) AND o.rowid=(SELECT newest.rowid FROM observations newest WHERE newest.article_id=o.article_id ORDER BY newest.as_of DESC,newest.collected_at DESC,newest.id DESC LIMIT 1)`,...chunk);
       for(const snapshot of snapshots) if(!latest.has(snapshot.article_id)) latest.set(snapshot.article_id,snapshot);
     }
-    return rows.map(row=>{const observation=latest.get(row.id); return articleFacts(decodePipelineArticle({...row,latest_metrics:observation?JSON.parse(observation.metrics_json):null,latest_as_of:observation?.as_of??null,latest_collected_at:observation?.collected_at??null,duration_seconds:durationForArticle(row)}));});
+    return rows.map(row=>{const observation=latest.get(row.id); return pipelineFacts(articleFacts(decodePipelineArticle({...row,latest_metrics:observation?JSON.parse(observation.metrics_json):null,latest_as_of:observation?.as_of??null,latest_collected_at:observation?.collected_at??null,duration_seconds:durationForArticle(row)})));});
   }
 
   async function listAccounts(scope = null) {
@@ -244,7 +247,8 @@ export function createRecords(store) {
     scopedWhere(scope, 'a.account_id', clauses, params);
     const accountId = queryValue(query, 'account_id');
     if (accountId) { await account(accountId, scope); clauses.push('a.account_id=?'); params.push(accountId); }
-    clauses.push('a.status=?');params.push(requestedArticleStatus(query));
+    const pipeline=articlePipelineQuery(query),extra=articlePipelineSqlFilters(pipeline);
+    clauses.push('a.status=?',...extra.clauses);params.push(pipeline.status,...extra.params);
     const platform = queryValue(query, 'platform');
     if (platform) { if (!PLATFORMS.has(platform)) fail(400,'VALIDATION_ERROR','平台无效'); clauses.push('c.platform=?'); params.push(platform); }
     const mode = queryValue(query, 'mode');
@@ -268,19 +272,21 @@ export function createRecords(store) {
     const topic=queryValue(query,'topic'), status=queryValue(query,'data_status');
     const pagination = ['page', 'page_size', 'limit', 'offset']
       .some(key => (query instanceof URLSearchParams ? query.get(key) : query[key]) != null);
-    if (paged && !index && pagination && sort === 'published_at' && !topic && !status) {
+    if (paged && !index && pagination && sort === 'published_at' && !topic && !status && !pipeline.hasDerived) {
       const page = await sqlArticlePage(query, clauses, params, order);
       if (page) return page;
     }
-    const projection=index?'a.id,a.title,a.account_id,a.published_at,a.started_at,a.notes,a.status':'a.*';
+    const projection=index&&!pipeline.hasDerived?'a.id,a.title,a.account_id,a.published_at,a.started_at,a.notes,a.status':'a.*';
     const raw = await all(`SELECT ${projection},c.name AS account_name,c.platform FROM articles a JOIN accounts c ON c.id=a.account_id${clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''}`, ...params);
-    let rows = index?raw.map(row=>articleFacts({...row,duration_seconds:durationForArticle(row)})):await enrichMany(raw);
+    let rows = index?raw.map(row=>pipelineFacts(articleFacts({...row,duration_seconds:durationForArticle(row)}))):await enrichMany(raw);
     if(topic) {if(!['entertainment','insurance','unknown'].includes(topic))fail(400,'VALIDATION_ERROR','题材无效');rows=rows.filter(row=>row.topic===topic);}
     if(status) {
       if(!['no_snapshot','missing_reads','missing_likes','missing_comments','incomplete','zero_reads','date_unverified'].includes(status))fail(400,'VALIDATION_ERROR','数据状态无效');
       if(index&&status!=='date_unverified') fail(400,'VALIDATION_ERROR','文章索引不支持依赖快照的数据状态');
       rows=rows.filter(row=>status==='no_snapshot'?row.snapshot_status==='not_collected':status==='date_unverified'?row.date_status==='unverified':status==='zero_reads'?row.latest_metrics?.reads===0:status==='incomplete'?['reads','likes','comments'].some(k=>row.missing_metrics.includes(k)):row.missing_metrics.includes(status.slice(8)));
     }
+    if(pipeline.has_warnings!==undefined)rows=rows.filter(row=>(row.warnings.length>0)===pipeline.has_warnings);
+    if(pipeline.has_pending_verify!==undefined)rows=rows.filter(row=>row.has_pending_verify===pipeline.has_pending_verify);
     const value = row => ['reads','likes','comments','approvals'].includes(sort) ? row.latest_metrics?.[sort] ?? null : sort === 'duration' ? row.duration_seconds : sort==='latest_as_of'?row.latest_as_of:row.published_at;
     return rows.sort((a, b) => {
       const left = value(a), right = value(b);
@@ -315,8 +321,8 @@ export function createRecords(store) {
       if (event.actor.startsWith('user:')) label = (await get('SELECT username FROM users WHERE id=?', event.actor.slice(5)))?.username ?? event.actor;
       return { actor: event.actor, label, at: event.created_at };
     };
-    const recorded = await get("SELECT actor,created_at FROM audit WHERE entity_id=? AND action='POST /articles' ORDER BY created_at,rowid LIMIT 1", id);
-    const modified = await get("SELECT actor,created_at FROM audit WHERE entity_id=? AND (action='POST /articles' OR action=?) ORDER BY created_at DESC,rowid DESC LIMIT 1", id, `PUT /articles/${id}`);
+    const recorded = await get("SELECT actor,created_at FROM audit WHERE entity_id=? AND action IN ('POST /articles','PATCH /articles') ORDER BY created_at,rowid LIMIT 1", id);
+    const modified = await get("SELECT actor,created_at FROM audit WHERE entity_id=? AND (action IN ('POST /articles','PATCH /articles') OR action=?) ORDER BY created_at DESC,rowid DESC LIMIT 1", id, `PUT /articles/${id}`);
     const observations=(await all('SELECT * FROM observations WHERE article_id=? ORDER BY as_of DESC,collected_at DESC,id DESC', id)).map(decodeMetrics);
     return { ...row, recorded_by: await describeActor(recorded), last_modified_by: await describeActor(modified), observations, ...snapshotTimeline(observations,row.date_status==='unverified'?null:row.published_at) };
   }
@@ -357,7 +363,7 @@ export function createRecords(store) {
     return await enrich({id,...value,version:1,created_at:stamp,updated_at:stamp,account_name:owner.name,platform:owner.platform});
   }
 
-  async function updateArticle(id, body, scope = null) {
+  async function validateArticleUpdate(id, body, scope = null) {
     object(body);
     const old = await article(id, scope);
     if (!Number.isSafeInteger(body.version) || body.version < 1) fail(400, 'VALIDATION_ERROR', '更新文章需要当前版本号');
@@ -369,6 +375,11 @@ export function createRecords(store) {
     requireNoDraftMetrics(value,observation,firstDaily);
     if (value.published_at!==null && firstDaily?.earliest && beijingDay(Date.parse(value.published_at)) > firstDaily.earliest) fail(400, 'VALIDATION_ERROR', '发布时间不能晚于已有按日数据');
     if (value.account_id !== old.account_id && await get('SELECT id FROM daily_metrics WHERE article_id=? LIMIT 1', id)) fail(409, 'ARTICLE_HAS_DAILY_METRICS', '已有按日数据的文章不能直接变更所属账号');
+    return {old,value};
+  }
+
+  async function updateArticle(id, body, scope = null) {
+    const {old,value}=await validateArticleUpdate(id,body,scope);
     const updated_at = new Date().toISOString();
     const keys=Object.keys(value);
     run('UPDATE articles SET '+keys.map(key=>key+'=?').join(',')+',version=version+1,updated_at=? WHERE id=? AND version=?',...keys.map(key=>value[key]),updated_at,id,body.version);
@@ -515,5 +526,5 @@ export function createRecords(store) {
     return result;
   }
 
-  return { listAccounts, createAccount, updateAccount, listArticles, articlePage, getArticle, createArticle, updateArticle, listObservations, createObservation, listDaily, upsertDaily, dashboard, overview, dueReviews };
+  return { listAccounts, createAccount, updateAccount, listArticles, articlePage, getArticle, createArticle, updateArticle, validateArticleUpdate, listObservations, createObservation, listDaily, upsertDaily, dashboard, overview, dueReviews };
 }

@@ -1,0 +1,382 @@
+{
+  "baseline": "88685601f40ae9b4c28799d42be6240f1dbe7ea6",
+  "spec_changes": [
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles",
+        "get",
+        "description"
+      ],
+      "was": true,
+      "before": "默认 status=published，只有显式指定 drafting、illustrated、draft_saved、published、failed 之一才切换状态集合；不支持 all、空值或 null。默认保持旧版全量 data 数组；传 page/page_size 或 limit/offset 启用服务端分页，两组不能混用。先授权、过滤及全库稳定排序，再分页。缺值始终排最后，同值按发布时间降序、ID升序。新增 envelope.meta 提供 total、unfiltered_total、page、page_size、offset、has_more。latest_metrics来自最大as_of（同时间按collected_at、id降序）的单份累计快照，不按指标回填旧快照。 fields=index 始终只返回原五个字段，草稿 published_at 为 null。",
+      "now": true,
+      "after_sha256": "272a09058eba74b2dfb1ee1a4adf5353997bf234c8184f291c7b6b092208a25a"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles",
+        "get",
+        "parameters"
+      ],
+      "was": true,
+      "before": [
+        {
+          "$ref": "#/components/parameters/AccountFilter"
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "drafting",
+              "illustrated",
+              "draft_saved",
+              "published",
+              "failed"
+            ],
+            "default": "published"
+          },
+          "description": "仅筛选一个明确生命周期状态；默认 published，不能传 all、空值或 null。"
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          },
+          "description": "标题、原文链接、概况、备注检索。"
+        },
+        {
+          "name": "mode",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "automatic",
+              "mixed",
+              "unknown"
+            ]
+          }
+        },
+        {
+          "name": "from",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ]
+          },
+          "description": "起始发布日期或带时区时间；日期以北京时间00:00起。"
+        },
+        {
+          "name": "to",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ]
+          },
+          "description": "截至发布日期或时间；日期包含当日，时间按实现边界过滤。"
+        },
+        {
+          "name": "sort",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "published_at",
+              "reads",
+              "likes",
+              "comments",
+              "approvals",
+              "latest_as_of",
+              "duration"
+            ],
+            "default": "published_at"
+          }
+        },
+        {
+          "name": "order",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "desc",
+              "asc"
+            ],
+            "default": "desc"
+          }
+        },
+        {
+          "name": "platform",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "toutiao",
+              "zhihu",
+              "wechat",
+              "other"
+            ]
+          },
+          "description": "与账号筛选取交集。"
+        },
+        {
+          "name": "topic",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "entertainment",
+              "insurance",
+              "unknown"
+            ]
+          },
+          "description": "仅按已知运营账号规则推断，不写回标签。"
+        },
+        {
+          "name": "data_status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "no_snapshot",
+              "missing_reads",
+              "missing_likes",
+              "missing_comments",
+              "incomplete",
+              "zero_reads",
+              "date_unverified"
+            ]
+          },
+          "description": "无快照、单项缺值、三项主指标不全、真实零阅读、日期待核实分别筛选。date_unverified 根据现有备注中明确的“日期待核实”等标记或无效日期推导，不改原始日期。"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "default": 1
+          },
+          "description": "从1开始；page/page_size模式默认每页20。"
+        },
+        {
+          "name": "page_size",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 20
+          },
+          "description": "每页1至200篇。"
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 20
+          },
+          "description": "limit/offset模式；offset默认0。"
+        },
+        {
+          "name": "offset",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "default": 0
+          },
+          "description": "排序后的起始行。"
+        },
+        {
+          "name": "fields",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "index"
+            ]
+          },
+          "description": "最小文章索引，只返回 id/title/account_id/platform/published_at，不读取快照。支持文章自身字段筛选及 published_at/duration 排序、date_unverified 状态、原分页；指标/最新快照排序及其他快照状态返回400，不静默忽略。省略 fields 的旧接口不变。"
+        }
+      ],
+      "now": true,
+      "after_sha256": "39465eb6517b25aa1cdd08a91f540ca4d3188f3010e495fd997ebbab68f3f815"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles",
+        "post",
+        "description"
+      ],
+      "was": true,
+      "before": "URL全局去重；同平台platform_article_id也去重。首次version=1，未知制作方式为unknown。 停用账号返回409 ACCOUNT_INACTIVE。 旧式请求保持发布登记校验；显式流水线/status 请求可保存草稿（默认 draft_saved）。published 必须有真实 url/published_at，其他状态必须为 null。返回六个逻辑 JSON 字段；无 PATCH 或双键 upsert。",
+      "now": true,
+      "after_sha256": "1aff890e54a17d935cb7bde901fe2c11a831702f2cb61d6930c963e62213504d"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles",
+        "patch"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "31796e53f0a89bf801572a68f09a3d75e4499bf17a13036f125c6c367eb4ab32"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "warnings"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "6d0215f08844ceecee310d0d08d34856102624af672b00fe838e3e3b56bce7fd"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "has_pending_verify"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "38b56565ded3e489d53c2852eb475ffca1d9689bb1eec8af2defd57ccc6c5065"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "verify_state"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "db1bf022e292db8be5e1d360a639293d4a71bf6e9189cb3e3e85cd62b9a820ca"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "required"
+      ],
+      "was": true,
+      "before": [
+        "account_id",
+        "title",
+        "url",
+        "platform_article_id",
+        "published_at",
+        "started_at",
+        "production_mode",
+        "summary",
+        "notes",
+        "id",
+        "version",
+        "created_at",
+        "updated_at",
+        "account_name",
+        "platform",
+        "latest_metrics",
+        "latest_as_of",
+        "duration_seconds",
+        "status",
+        "slot",
+        "run_dir",
+        "run_date",
+        "series_no",
+        "writer",
+        "illustrator",
+        "sample",
+        "char_count",
+        "subheading_count",
+        "image_count",
+        "cover_desc",
+        "draft_ref",
+        "timings",
+        "reruns",
+        "blockers",
+        "verify_items"
+      ],
+      "now": true,
+      "after_sha256": "4110b8fd8a88cd173a762e25bb3c9fb0086feb1498ec718922da7faeeb6495e8"
+    },
+    {
+      "path": [
+        "components",
+        "responses",
+        "Error409",
+        "description"
+      ],
+      "was": true,
+      "before": "冲突：VERSION_CONFLICT、ARTICLE_EXISTS、ARTICLE_HAS_DAILY_METRICS、ARTICLE_NOT_PUBLISHED、ARTICLE_HAS_METRICS、ACCOUNT_INACTIVE、IDEMPOTENCY_CONFLICT、DUPLICATE；密码并发修改为CONFLICT。",
+      "now": true,
+      "after_sha256": "015884554a6724480fa077d3b041dad1f30d3bc37b15d3a6a31abfe4ac0fb29b"
+    }
+  ],
+  "docs": {
+    "replacements": [
+      {
+        "before": "<li>POST /articles：登记成功发布文章或保存真实草稿</li>",
+        "after": "<li>POST /articles：登记成功发布文章或保存真实草稿</li><li>PATCH /articles：按流水线身份键递归合并保存</li>"
+      },
+      {
+        "before": "；这里没有新增 PATCH 或双键 upsert。",
+        "after": "。普通 PUT 的整字段替换规则保持不变。"
+      }
+    ],
+    "section": {
+      "start": "<!-- article-upsert-contract:start -->",
+      "end": "<!-- article-upsert-contract:end -->",
+      "sha256": "06904f87544220e51ce6e59a98e59115691d08e6a824d28f33c6a604891836c1"
+    }
+  }
+}

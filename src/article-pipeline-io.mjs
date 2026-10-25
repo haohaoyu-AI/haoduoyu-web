@@ -12,6 +12,7 @@ function boundedValue(value,maxDepth,maxNodes) {
   while(queue.length) {
     const [entry,parentDepth]=queue.pop();
     if(++nodes>maxNodes)invalid('文章JSON节点数量超限');
+    if(typeof entry==='number'&&!Number.isFinite(entry))invalid('文章JSON数值必须为有限数');
     if(entry===null||typeof entry!=='object')continue;
     const depth=parentDepth+1;
     if(depth>maxDepth)invalid('文章JSON嵌套层级超限');

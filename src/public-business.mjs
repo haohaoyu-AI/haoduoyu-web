@@ -10,7 +10,7 @@ export function publicBusinessRoute(route,method) {
   if(method==='POST') return ['/accounts','/articles','/observations','/daily-metrics','/todos','/todo-templates'].includes(route)||
     /^\/todos\/[^/]+\/(restore|template)$/.test(route);
   if(method==='PUT') return /^\/(accounts|articles)\/[^/]+$/.test(route);
-  if(method==='PATCH') return route==='/todo-preferences'||/^\/(todos|todo-templates)\/[^/]+$/.test(route);
+  if(method==='PATCH') return route==='/articles'||route==='/todo-preferences'||/^\/(todos|todo-templates)\/[^/]+$/.test(route);
   return method==='DELETE'&&/^\/(todos|todo-templates|accounts|articles|observations|daily-metrics)\/[^/]+$/.test(route);
 }
 

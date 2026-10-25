@@ -39,7 +39,7 @@ small danger" data-action="revoke-key" data-id="${e(k.id)}" data-name="${e(k.nam
   }).join("")}</tbody></table></div>` : empty("暂无凭证", "供自动化工具按账号范围读取或录入数据。")}</section>`;
 }
 function auditLabel(action) {
-  const labels = [["新增文章", "article.create", "POST /articles"], ["修改文章", "article.update", "PUT /articles/:id"], ["追加复盘快照",
+  const labels = [["合并存稿", "PATCH /articles"], ["新增文章", "article.create", "POST /articles"], ["修改文章", "article.update", "PUT /articles/:id"], ["追加复盘快照",
   "observation.create", "POST /observations"], ["填写每日数据", "daily_metrics.upsert", "POST /daily-metrics"], ["添加账号", "account.create",
      "POST /accounts"], ["修改账号", "account.update", "PUT /accounts/:id"], ["创建 AI 凭证", "api_key.create", "api_key.created",
         "POST /api-keys"], ["撤销 AI 凭证", "api_key.revoke", "api_key.revoked", "DELETE /api-keys/:id"], ["修改密码", "auth.password",

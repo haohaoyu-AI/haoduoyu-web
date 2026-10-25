@@ -27,6 +27,27 @@ test('legacy article projection rejects non-default, missing and mixed metadata 
   assert.throws(()=>legacyPublishedArticles({data:missing}),assert.AssertionError);
   assert.throws(()=>legacyPublishedArticles({data:{...extended(),sample_json:null}}),assert.AssertionError);
 });
+test('legacy warning projection checks exact known title warnings while retaining all previous fields',()=>{
+  const plain={...extended(),warnings:[]};
+  assert.deepEqual(legacyPublishedArticles(plain),article);
+  const title='😀'.repeat(31),long={...extended(),platform:'toutiao',title,warnings:['TOUTIAO_TITLE_TOO_LONG']};
+  assert.deepEqual(legacyPublishedArticles(long),{...article,platform:'toutiao',title});
+  const exact={...long,title:'😀'.repeat(30),warnings:[]};
+  assert.equal(legacyPublishedArticles(exact).title,exact.title,'title limits count Unicode code points');
+  for(const warnings of [[],['ENTERTAINMENT_IMAGES_TOO_FEW'],['TOUTIAO_TITLE_TOO_LONG','CHAR_COUNT_OUT_OF_RANGE']])
+    assert.throws(()=>legacyPublishedArticles({...long,warnings}),assert.AssertionError);
+  assert.throws(()=>legacyPublishedArticles({...plain,warnings:['CHAR_COUNT_OUT_OF_RANGE']}),assert.AssertionError);
+});
+test('legacy article verification projection permits only the exact unknown pair for null legacy items',()=>{
+  const legacy={...extended(),warnings:[],has_pending_verify:null,verify_state:'unknown'};
+  assert.deepEqual(legacyPublishedArticles({data:legacy}),{data:article});
+  for(const [has_pending_verify,verify_state]of [[false,'complete'],[true,'pending'],[null,'complete'],[null,null],[0,'unknown']])
+    assert.throws(()=>legacyPublishedArticles({...legacy,has_pending_verify,verify_state}),assert.AssertionError);
+  for(const key of ['has_pending_verify','verify_state']) {
+    const missing={...legacy};delete missing[key];
+    assert.throws(()=>legacyPublishedArticles(missing),assert.AssertionError);
+  }
+});
 test('article document projection restores only the pinned lifecycle delta and rejects drift inside additions',()=>{
   const baseline='fc38d66704c86de8f255751795125bfa71fc7bc7';
   const old=file=>execFileSync('git',['show',baseline+':'+file],{cwd:new URL('../',import.meta.url),encoding:'utf8'});
@@ -36,6 +57,13 @@ test('article document projection restores only the pinned lifecycle delta and r
   assert.equal(articlePipelineDocs(docs),old('public/api-docs.html'));
   const changed=structuredClone(spec);changed.components.schemas.ArticleCreate.properties.status.description+='unexpected';
   assert.throws(()=>articlePipelineSpec(changed),assert.AssertionError);
+  if(spec.paths['/api/v1/articles'].patch) {
+    const patch=structuredClone(spec);patch.paths['/api/v1/articles'].patch.operationId='unexpectedUpsert';
+    assert.throws(()=>articlePipelineSpec(patch),assert.AssertionError,'Phase4 PATCH contract drift cannot be projected away');
+    const computed=structuredClone(spec);computed.components.schemas.Article.properties.verify_state.enum.push('unexpected');
+    assert.throws(()=>articlePipelineSpec(computed),assert.AssertionError,'Phase4 derived state drift cannot be projected away');
+    assert.throws(()=>articlePipelineDocs(docs.replace('流水线合并与筛选','unexpected phase4 section')),assert.AssertionError);
+  }
   const unrelated=structuredClone(spec);unrelated.info.title='Synthetic retained change';
   assert.equal(articlePipelineSpec(unrelated).info.title,'Synthetic retained change','unrelated fields are never projected away');
   assert.throws(()=>articlePipelineDocs(docs.replace('64KiB','32KiB')),assert.AssertionError);

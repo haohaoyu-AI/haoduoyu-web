@@ -10,6 +10,7 @@ import {execFileSync} from 'node:child_process';
 import {posix} from 'node:path';
 import {build} from 'esbuild';
 import {fixture} from './harness.mjs';
+import {projectLegacyArticleComputedFields} from './article-pipeline-projection.mjs';
 
 export const GRAPH_NOW = '2026-10-24T04:00:00.000Z';
 export const GRAPH_TODAY = '2026-10-24';
@@ -161,6 +162,7 @@ export function legacyGraphArticleProjection(value) {
   if (Array.isArray(value)) return value.map(legacyGraphArticleProjection);
   if (!value || typeof value !== 'object') return value;
   const article = Object.hasOwn(value, 'id') && Object.hasOwn(value, 'account_id') && Object.hasOwn(value, 'title');
+  if(article)value=projectLegacyArticleComputedFields(value);
   return Object.fromEntries(Object.entries(value).filter(([key, item]) => {
     if (!article || !GRAPH_PIPELINE_FIELDS.includes(key) && !Object.hasOwn(graphJsonAliases, key)) return true;
     assert.equal(item, key === 'status' ? 'published' : null,
