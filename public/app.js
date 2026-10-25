@@ -2916,7 +2916,7 @@ function acceptNote(context, item, value, pending) {
   context.emit();
   context.schedule(item);
 }
-function reads(context) {
+function memoReads(context) {
   async function selectNote(id, { open = true, select = true } = {}) {
     if (context.disposed || !idPattern.test(id)) return;
     const { state: state2, drafts } = context;
@@ -3317,7 +3317,7 @@ function structure(context) {
 }
 function createMemosStore(options) {
   const context = makeContext(options);
-  Object.assign(context, persistence(context), reads(context), editing(context), resolution(context), operations(context), structure(context));
+  Object.assign(context, persistence(context), memoReads(context), editing(context), resolution(context), operations(context), structure(context));
   const {
     state: state2,
     drafts,

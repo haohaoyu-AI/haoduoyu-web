@@ -126,7 +126,7 @@ function acceptNote(context, item, value, pending) {
   item.dirty = changed(item, value); item.phase = item.dirty ? 'dirty' : 'saved'; item.writeEpoch++;
   context.upsert('notes', value); context.emit(); context.schedule(item);
 }
-function reads(context) {
+function memoReads(context) {
   async function selectNote(id, {open = true, select = true} = {}) {
     if (context.disposed || !idPattern.test(id)) return;
     const {state, drafts} = context;
@@ -396,7 +396,7 @@ function structure(context) {
 
 export function createMemosStore(options) {
   const context = makeContext(options);
-  Object.assign(context, persistence(context), reads(context), editing(context), resolution(context), operations(context), structure(context));
+  Object.assign(context, persistence(context), memoReads(context), editing(context), resolution(context), operations(context), structure(context));
   const {state, drafts, load, selectGroup, selectNote, edit, saveNote, createGroup, renameGroup, createNote,
     removeGroup, removeNote, restore, checkNote, useServer, useDraft, retryPending, checkOperation, retryOperation,
     recoverDraft, recoverOperation, dispose} = context;

@@ -5,10 +5,13 @@ import {readFile, mkdtemp, mkdir, writeFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {transform} from 'esbuild';
+import {checkFrontend} from '../scripts/frontend-build.mjs';
+import {fileURLToPath} from 'node:url';
 import {parseWeb, visitWeb, webStyle} from '../scripts/check-web.mjs';
 
 const root=new URL('../',import.meta.url);
 const CHECKPOINT='2e12147b700ac604d7cccf8e034374644ac99a03';
+const MEMO_BASE='2e83203255f8f38c80e5ed32c8d275edc47141b6';
 const old=path=>execFileSync('git',['show',CHECKPOINT+':'+path],{cwd:root,encoding:'utf8',maxBuffer:1024*1024});
 const current=path=>readFile(new URL(path,root),'utf8');
 // Routing and page lifecycle intentionally changed; their behavior is covered by
@@ -83,7 +86,56 @@ function projectNotesIntegration(ast,file) {
   }
   return ast;
 }
+// Strip only the reviewed memo integration, then compare every remaining AST
+// node with the exact article-backend base. New memo modules remain fully subject
+// to style, behavior, security and generated artifact checks.
+function projectMemoIntegration(ast,file) {
+  if(file==='web/core/constants.mjs') {
+    const list=variable(ast,'nav').init;
+    const extra=list.elements.filter(element=>element.properties.some(property=>property.key.name==='id'&&property.value.value==='memos'));
+    const expected=snippet('const nav=[{id:"memos",label:"备忘录",icon:"articles"}]').declarations[0].init.elements;
+    assert.deepEqual(normalized(extra),normalized(expected),'one exact memo navigation item');
+    list.elements=list.elements.filter(element=>element!==extra[0]);
+  }
+  if(file==='web/ui/components.mjs') {
+    const fn=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name==='pageHeader');
+    const extra=fn.body.body.filter(node=>node.type==='IfStatement'&&node.test.right?.value==='memos');
+    const expected=snippet(`function pageHeader(){if(state.page==="memos")return '<div class="heading-left"><h1>备忘录</h1></div>';}`).body.body;
+    assert.deepEqual(normalized(extra),normalized(expected),'one exact memo page heading');
+    fn.body.body=fn.body.body.filter(node=>node!==extra[0]);
+  }
+  if(file==='web/controller.mjs') projectMemoController(ast);
+  return ast;
+}
+function projectMemoController(ast) {
+  const sources=new Set(['./pages/memos.mjs','./memos-controller.mjs']);
+  const additions=ast.body.filter(node=>node.type==='ImportDeclaration'&&sources.has(node.source.value));
+  const imports=parseWeb('import {renderMemos} from "./pages/memos.mjs";import {loadMemos,paintMemosPage} from "./memos-controller.mjs";').body;
+  assert.deepEqual(normalized(additions),normalized(imports),'only two exact memo imports');
+  ast.body=ast.body.filter(node=>!additions.includes(node));
+  const fn=name=>ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name===name);
+  const mobile=fn('mobileNavigation').body.body[0].argument.quasis[0];
+  assert.equal(mobile.value.cooked,'<nav class="mobile-nav notes-navigation memos-navigation" aria-label="切换模块">');
+  mobile.value.cooked='<nav class="mobile-nav notes-navigation" aria-label="切换模块">';
+  const loading=fn('pageLoading').body.body;
+  const extra=loading.filter(node=>node.type==='IfStatement'&&node.test.right?.value==='memos');
+  assert.deepEqual(normalized(extra),normalized(snippet('function pageLoading(){if(page==="memos")return renderMemos();}').body.body));
+  fn('pageLoading').body.body=loading.filter(node=>node!==extra[0]);
+  const chain=fn('setPageBody').body.body[0].alternate;
+  const expected=snippet('if(page==="memos")paintMemosPage();else replacePageContent(html,true);');
+  assert.deepEqual(normalized(chain.alternate),normalized(expected),'only the memo paint branch');
+  chain.alternate=chain.alternate.alternate;
+  const cases=[];
+  visitWeb(fn('renderPage'),node=>{
+    if(node.type!=='SwitchStatement')return;
+    for(const item of node.cases.filter(row=>row.test?.value==='memos'))cases.push(item);
+    node.cases=node.cases.filter(row=>row.test?.value!=='memos');
+  });
+  const expectedCase=snippet('async function renderPage(){switch(page){case "memos":await loadMemos();break;}}').body.body[0].cases;
+  assert.deepEqual(normalized(cases),normalized(expectedCase),'only the memo loading switch case');
+}
 function projectTodoIntegration(ast,file) {
+  projectMemoIntegration(ast,file);
   projectNotesIntegration(ast,file);
   if(file==='web/core/constants.mjs') {
     const list=variable(ast,'nav').init;
@@ -212,12 +264,25 @@ test('formatting preserves declarations in otherwise unchanged modules and every
   const sorted=rows=>rows.map(row=>JSON.stringify(row)).sort();
   assert.deepEqual(sorted(next),sorted(previous),'unchanged module template cooked text and whitespace remain exact');
 });
-test('the generated frontend changes only the approved PATCH audit label',async()=>{
+test('the reviewed pre-memo frontend changes only the approved PATCH audit label',async()=>{
   const checkpoint='88685601f40ae9b4c28799d42be6240f1dbe7ea6';
   const previous=execFileSync('git',['show',checkpoint+':public/app.js'],{cwd:root,encoding:'utf8'});
-  const currentBundle=await current('public/app.js'),addition='    ["合并存稿", "PATCH /articles"],\n';
-  assert.equal(currentBundle.split(addition).length,2,'exactly one new generated action label');
-  assert.equal(currentBundle.replace(addition,''),previous,'every other generated frontend byte remains unchanged');
+  const reviewed=execFileSync('git',['show',MEMO_BASE+':public/app.js'],{cwd:root,encoding:'utf8'});
+  const addition='    ["合并存稿", "PATCH /articles"],\n';
+  assert.equal(reviewed.split(addition).length,2,'exactly one reviewed generated action label');
+  assert.equal(reviewed.replace(addition,''),previous,'all other pre-memo generated bytes remain unchanged');
+  await checkFrontend(fileURLToPath(root));
+});
+test('memo shared-module projection permits only the exact navigation, header and controller integration',async()=>{
+  for(const file of ['web/core/constants.mjs','web/ui/components.mjs','web/controller.mjs']) {
+    const source=await current(file), candidate=projectMemoIntegration(parseWeb(source),file);
+    const baseline=execFileSync('git',['show',MEMO_BASE+':'+file],{cwd:root,encoding:'utf8'});
+    assert.deepEqual(normalized(candidate),normalized(parseWeb(baseline)),file+' retains every other AST node');
+  }
+  const nav=await current('web/core/constants.mjs');
+  assert.throws(()=>projectMemoIntegration(parseWeb(nav.replace('label: "备忘录"','label: "unapproved"')),'web/core/constants.mjs'));
+  const controller=await current('web/controller.mjs');
+  assert.throws(()=>projectMemoIntegration(parseWeb(controller.replace('await loadMemos();','await loadDailyNotes();')),'web/controller.mjs'));
 });
 test('event bindings retain all nine original positions and capture options',async()=>{
   const ast=parseWeb(await current('web/events.mjs'));
@@ -233,7 +298,7 @@ test('event bindings retain all nine original positions and capture options',asy
   assert.deepEqual(signature(next),signature(register));
 });
 test('web style checks every function type and rejects long fixture lines/functions',async()=>{
-  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,40);
+  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,44);
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));

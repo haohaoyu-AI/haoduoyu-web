@@ -27,9 +27,9 @@
     }
   ],
   "validated_sha256": {
-    "public/app.js": "2cd231f19e3e3a4accd107c54c92943ec9d6f28240fa6f15b86ccf4c2ef9b416",
+    "public/app.js": "ab436baf7c1335fb6ce2b6ab0517b02bde92f7fcefd8aaa25157434633cd1074",
     "public/memos.css": "a45de7c1a4b6e2edfd00a2e29ab9d4dd40a101389e0c42a6ef5a23bb97817eba",
-    "dist/server/index.js": "7e4df7b7b5147153e4f8f38bc348a28371309be7b8f8f3302677c58ffef12168"
+    "dist/server/index.js": "4a3294f3aee72af453f7a3c017fe38eb4cc0084f7f3a4c84644ae6738e2cddcf"
   },
   "browser": "154.0.8037.57",
   "completed": true,
