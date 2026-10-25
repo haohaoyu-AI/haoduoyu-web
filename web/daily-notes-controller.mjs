@@ -81,9 +81,13 @@ function registerDailyNotesEvents() {
   notesEventsRegistered = true;
   document.addEventListener('input', event => {
     if (!notesVisible() || event.target.id !== 'notes-editor') return;
-    ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value, {composing: event.isComposing});
+    ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value, {composing: event.isComposing || event.target.dataset.composing === 'true'});
+  });
+  document.addEventListener('compositionstart', event => {
+    if (notesVisible() && event.target.id === 'notes-editor') event.target.dataset.composing = 'true';
   });
   document.addEventListener('compositionend', event => {
+    if (event.target.id === 'notes-editor') event.target.dataset.composing = 'false';
     if (notesVisible() && event.target.id === 'notes-editor')
       ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value);
   });

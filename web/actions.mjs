@@ -15,7 +15,7 @@ import { articleDetail } from "./pages/detail.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { reviewModal } from "./pages/reviews.mjs";
 import { accountModal, keyModal } from "./pages/settings.mjs";
-import { moveTodoDate, moveTodoMonth, refreshTodos, selectTodoDate } from "./pages/todos.mjs";
+import { moveTodoDate, moveTodoMonth, refreshTodos, selectTodoDate, setTodoPanel, retryTodoCreate } from "./pages/todos.mjs";
 import { cancelTodoTemplateEdit, editTodoTemplate, useTodoTemplate, writeTodoTemplate } from "./pages/todo-templates.mjs";
 import { changeTodoTemplate, deleteTodo, openTodoMenu, restoreTodo } from "./pages/todo-actions.mjs";
 import { field, formEnd, renderSnapshot } from "./ui/components.mjs";
@@ -24,6 +24,7 @@ import { setMenu } from "./ui/menu.mjs";
 import { closeModal, openModal } from "./ui/modal.mjs";
 import { popover } from "./ui/popover.mjs";
 import { toast } from "./ui/toast.mjs";
+import {requestMemoTool} from "./memos-controller.mjs";
 function actionMissingList({ target }) {
   state.filters = { ...defaultFilters(), status: "published", data_status: target.dataset.status || "incomplete" };
   state.account = "";
@@ -297,6 +298,10 @@ const actions = {
   "todo-template-use": ({ id }) => useTodoTemplate(id),
   "todo-template-edit": ({ id }) => editTodoTemplate(id),
   "todo-template-delete": ({ id }) => writeTodoTemplate(id, undefined, true),
+  "memo-tools": ({target}) => { requestMemoTool(target.dataset.tool); navigate("memos"); },
+  "todo-panel": ({target}) => setTodoPanel(target.dataset.panel),
+  "todo-retry-add": retryTodoCreate,
+  "todo-panel-close": () => setTodoPanel(""),
   "todo-template-cancel": cancelTodoTemplateEdit,
   "todo-calendar-prev": () => moveTodoMonth(-1),
   "todo-calendar-next": () => moveTodoMonth(1),

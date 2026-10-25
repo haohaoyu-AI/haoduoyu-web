@@ -1,3 +1,4 @@
+import {workbenchAddedModules} from './workbench-ui-projection.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
@@ -96,10 +97,10 @@ export async function phase7ModuleFiles() {
 }
 export async function verifyPhase7FrontendBoundary() {
   const delta=await phase7Manifest(),files=await phase7ModuleFiles();
-  assert.deepEqual(files,[...delta.modules,...memoAddedModules].sort(),'the complete article and memo module inventory is explicit');
+  assert.deepEqual(files,[...delta.modules,...memoAddedModules,...workbenchAddedModules].sort(),'the complete article and memo module inventory is explicit');
   for(const file of files) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
-    if(memoAddedModules.includes(file))assert.equal(await projectMemoFrontend(file,source),'');
+    if([...memoAddedModules,...workbenchAddedModules].includes(file))assert.equal(await projectMemoFrontend(file,source),'');
     else if(Object.hasOwn(delta.sources,file))await projectPhase7Frontend(file,source);
     else assert.equal(await projectMemoFrontend(file,source),phase7Baseline(file),'unchanged frontend source remains byte-identical: '+file);
   }
@@ -107,7 +108,7 @@ export async function verifyPhase7FrontendBoundary() {
   assert.equal(css.slice(0,base.length),base,'the complete accepted CSS prefix remains byte-identical');
   // These shared branches are protected even inside approved changed functions.
   for(const file of ['web/ui/components.mjs','web/core/router.mjs']) {
-    const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
+    const source=await projectMemoFrontend(file,await readFile(new URL('../'+file,import.meta.url),'utf8'));
     for(const page of ['todos','notes']) {
       const branches=text=>{
         const rows=[];

@@ -10,7 +10,7 @@ function renderLogin() {
   runtime.modalRequestVersion++;
   runtime.renderVersion++;
   $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card"><div class="brand login-brand"><span \
-class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">好多鱼图文</h1></div><form id="login-form" aria-label="账号登录"><div class="form-field">\
+class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">好多鱼工作台</h1></div><form id="login-form" aria-label="账号登录"><div class="form-field">\
 <label for="username">账号</label><input class="input" id="username" name="username" autocomplete="username" required autofocus></div><div \
 class="form-field"><label for="password">密码</label><input class="input" id="password" name="password" type="password" \
 autocomplete="current-password" required></div><p class="form-message" role="alert"></p><button class="btn primary" type="submit">登录 ${icon(

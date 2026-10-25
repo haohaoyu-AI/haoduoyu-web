@@ -16,7 +16,7 @@ var nav = [
   { id: "memos", label: "备忘录", icon: "articles" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
-var settingsTabs = { accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
+var settingsTabs = { workspace: "工作台", accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
 var legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
 var defaultFilters = () => ({
   q: "",
@@ -476,7 +476,7 @@ function renderLogin() {
   closePopover({ restoreFocus: false });
   runtime.modalRequestVersion++;
   runtime.renderVersion++;
-  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">好多鱼图文</h1></div><form id="login-form" aria-label="账号登录"><div class="form-field"><label for="username">账号</label><input class="input" id="username" name="username" autocomplete="username" required autofocus></div><div class="form-field"><label for="password">密码</label><input class="input" id="password" name="password" type="password" autocomplete="current-password" required></div><p class="form-message" role="alert"></p><button class="btn primary" type="submit">登录 ${icon(
+  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">好多鱼工作台</h1></div><form id="login-form" aria-label="账号登录"><div class="form-field"><label for="username">账号</label><input class="input" id="username" name="username" autocomplete="username" required autofocus></div><div class="form-field"><label for="password">密码</label><input class="input" id="password" name="password" type="password" autocomplete="current-password" required></div><p class="form-message" role="alert"></p><button class="btn primary" type="submit">登录 ${icon(
     "arrow",
     15
   )}</button></form></section></main>`;
@@ -681,7 +681,7 @@ function createDailyNotesContext({
   };
   function schedule(item) {
     stopTimer(item);
-    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !["conflict", "unknown", "error", "oversize"].includes(item.phase)) {
+    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !["conflict", "unknown", "error", "oversize"].includes(item.phase)) {
       item.timer = setTimer(() => {
         item.timer = null;
         void context.save(item.date);
@@ -748,6 +748,7 @@ function createReadingActions(context) {
   function edit(date, text, { composing = false } = {}) {
     const item = page(date);
     if (context.disposed || !item.canEdit || !item.loaded || ["delete", "restore"].includes(item.pending?.kind)) return;
+    item.composing = composing;
     item.draft = text;
     item.dirty = text !== item.serverText;
     stopTimer(item);
@@ -930,6 +931,8 @@ function updateRoute(push = false) {
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else u.searchParams.delete("date");
+  if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
+  else u.searchParams.delete("todo_panel");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
   else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
   else u.searchParams.delete("tab");
@@ -959,7 +962,8 @@ function readRoute() {
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
   if (state.page === "notes") setDailyNotesRouteDate(params.get("date"));
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
-  state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : raw === "settings" && !params.has("tab") ? "security" : "accounts");
+  state.todoPanel = state.page === "todos" && ["history", "templates"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
+  state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : raw === "settings" && !params.has("tab") ? "workspace" : "accounts");
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
   state.articleOverviewMode = params.get("article_scope") === "published" ? "published" : "drafts";
@@ -1006,7 +1010,7 @@ var platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "
   wechat: "微"
 }[p] || "文")}</span>`;
 function detailInfo(reason, label2, id) {
-  return `<button class="icon-button" data-action="detail-info" data-reason="${e(reason)}" aria-label="${e(label2)}" aria-expanded="false" aria-controls="detail-info-${e(id)}">${icon("info", 14)}</button>`;
+  return `<button class="icon-button inline-info" data-action="detail-info" data-reason="${e(reason)}" aria-label="${e(label2)}" aria-expanded="false" aria-controls="detail-info-${e(id)}">${icon("info", 14)}</button>`;
 }
 function empty(title, description = "", action = "") {
   return `<div class="empty"><span class="empty-icon">${icon("articles", 22)}</span><h3>${e(title)}</h3>${description ? `<p>${e(
@@ -1017,7 +1021,7 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
-  if (state.page === "notes") return "";
+  if (["notes", "memos"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
   if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button><button class="btn primary" data-action="new-article">${icon(
     "plus"
   )}记录文章</button>`;
@@ -1057,7 +1061,7 @@ function comparisonHTML(comparison) {
   return `<span class="comparison ${direction}" title="${e(comparison.reason || "与前一等长周期比较")}">${change}${percent}</span>`;
 }
 function dashboardInfo(kind, label2, id = "") {
-  return `<button class="icon-button" data-action="dashboard-info" data-kind="${e(kind)}" data-id="${e(id)}" aria-label="${e(label2)}" aria-expanded="false" aria-controls="info-${e(kind)}-${e(id)}">${icon("info", 14)}</button>`;
+  return `<button class="icon-button inline-info" data-action="dashboard-info" data-kind="${e(kind)}" data-id="${e(id)}" aria-label="${e(label2)}" aria-expanded="false" aria-controls="info-${e(kind)}-${e(id)}">${icon("info", 14)}</button>`;
 }
 function platformColor(platform) {
   return `var(--p-${["toutiao", "zhihu", "wechat"].includes(platform) ? platform : "other"})`;
@@ -1963,14 +1967,16 @@ function todoTemplateEditor(store) {
 }
 function renderTodoTemplates() {
   const store = templateState();
-  return `<details id="todo-templates" class="daily-todo-templates"><summary>常用</summary><div class="todo-template-content">
+  return `<section id="todo-templates" class="daily-todo-templates todo-view" ${state.todoPanel === "templates" ? "" : "hidden"}>
+<div class="todo-view-head"><h2>常用待办</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
+<div class="todo-template-content">
 <form id="todo-template-form" class="todo-template-form" ${store.editing ? "hidden" : ""}>
 <label for="todo-template-text" class="sr-only">新建常用待办</label>
 <input id="todo-template-text" class="input" name="text" maxlength="500" required placeholder="新建常用待办" value="${e(store.draft)}">
 <button class="btn" type="submit">保存</button></form><div id="todo-template-editor">${todoTemplateEditor(store)}</div>
 <p id="todo-template-feedback" class="form-message" role="alert">${e(store.error)}</p>
 <p id="todo-template-status" class="daily-todo-status" role="status">${store.loading ? "正在读取…" : ""}</p>
-<ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul></div></details>`;
+<ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul></div></section>`;
 }
 function syncTemplateForm(root, id, value, pending) {
   const input = $(id, root);
@@ -1980,7 +1986,8 @@ function syncTemplateForm(root, id, value, pending) {
   const button2 = $("button[type=submit]", input.form);
   if (button2) {
     button2.disabled = pending;
-    button2.textContent = pending ? "保存中…" : "保存";
+    button2.textContent = "保存";
+    button2.setAttribute("aria-busy", String(pending));
   }
 }
 function paintTodoTemplates() {
@@ -1988,6 +1995,7 @@ function paintTodoTemplates() {
   if (!root || state.page !== "todos" || !state.me) return;
   const store = templateState(), editor = $("#todo-template-editor", root), form = $("#todo-template-edit-form", root);
   if (editor && (form?.dataset.id || null) !== (store.editing?.id || null)) editor.innerHTML = todoTemplateEditor(store);
+  root.dataset.loaded = String(store.loaded);
   const create = $("#todo-template-form", root);
   if (create) create.hidden = Boolean(store.editing);
   syncTemplateForm(root, "#todo-template-text", store.draft, store.adding);
@@ -2138,7 +2146,7 @@ async function useTodoTemplate(id) {
 function refreshOpenTodoTemplates() {
   const store = templateState();
   store.revision++;
-  if ($("#todo-templates")?.open) loadTodoTemplates();
+  if (state.todoPanel === "templates") loadTodoTemplates();
 }
 
 // web/pages/todo-actions.mjs
@@ -2378,6 +2386,7 @@ async function changeTodoCompletedMode(mode) {
 
 // web/pages/todos.mjs
 var todoClock = null;
+var savingTimes = /* @__PURE__ */ new WeakMap(), savingTimers = /* @__PURE__ */ new WeakMap();
 function todoCalendarMonth(date) {
   if (todosState.calendarDate !== date || !validTodoDate(`${todosState.calendarMonth}-01`)) {
     todosState.calendarDate = date;
@@ -2408,6 +2417,7 @@ ${'<span aria-hidden="true"></span>'.repeat(blanks)}${days.map((day) => todoCale
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
+  if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
   const day = todoDay(), date = /* @__PURE__ */ new Date(`${todoCalendarMonth(day.date)}-01T00:00:00Z`);
   date.setUTCMonth(date.getUTCMonth() + offset);
   const month = date.toISOString().slice(0, 7);
@@ -2441,7 +2451,7 @@ function todoRow(item, day) {
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
-${pending ? '<span class="cell-sub" role="status">保存中…</span>' : ""}
+
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
@@ -2449,38 +2459,89 @@ function todoForm(day) {
   const label2 = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
   return `<form id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加每日计划">
 <label for="todo-text" class="sr-only">${label2}</label><input id="todo-text" class="input" name="text" maxlength="500" required
-autocomplete="off" placeholder="${label2}" value="${e(day.draft)}" ${day.adding ? "readonly" : ""}>
-<button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>${day.adding ? "保存中…" : "添加"}</button></form>`;
+autocomplete="off" placeholder="${label2}" value="${e(day.draft)}" >
+<button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>添加</button></form>`;
 }
 function todoCaption(day) {
   const today = day.date === bjtDate();
   return `<time datetime="${e(day.date)}" title="北京时间">${today ? "今天 · " : ""}${e(day.date)}</time>`;
 }
 function todoHeading(day) {
-  return `<span id="todo-caption">${todoCaption(day)}</span>
-<details id="todo-history" class="daily-todo-history" ${day.date !== bjtDate() ? "open" : ""}><summary>日历 / 历史</summary>
+  return `<span id="todo-caption">${todoCaption(day)}</span><div class="todo-view-links">
+<button class="btn text" data-action="todo-panel" data-panel="history" aria-controls="todo-history"
+aria-expanded="${state.todoPanel === "history"}">历史</button>
+<button class="btn text" data-action="todo-panel" data-panel="templates" aria-controls="todo-templates"
+aria-expanded="${state.todoPanel === "templates"}">常用</button></div>`;
+}
+function renderTodoHistory(day) {
+  return `<section id="todo-history" class="todo-view" aria-label="待办历史" ${state.todoPanel === "history" ? "" : "hidden"}>
+<div class="todo-view-head"><h2>待办历史</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day.date)}" data-today="${bjtDate()}">
-${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</details>${renderTodoTemplates()}`;
+${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</section>`;
+}
+function paintTodoPanels(root) {
+  const panel = state.todoPanel || "";
+  for (const [id, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"]]) {
+    const node = $("#" + id, root);
+    if (node) node.hidden = panel !== value;
+  }
+  root.querySelectorAll('[data-action="todo-panel"]').forEach((button2) => {
+    button2.setAttribute("aria-expanded", String(button2.dataset.panel === panel));
+  });
+}
+async function setTodoPanel(panel) {
+  if (!todosVisible()) return;
+  state.todoPanel = ["history", "templates"].includes(panel) ? panel : "";
+  if (!state.todoPanel) state.todoDate = "";
+  updateRoute(true);
+  paintTodos();
+  if (state.todoPanel === "templates") await loadTodoTemplates();
+  else if (!state.todoPanel) await loadTodos();
+  const selector = state.todoPanel ? "#todo-" + state.todoPanel + ' [data-action="todo-panel-close"]' : "#todo-text";
+  $(selector)?.focus();
+}
+function todoPending(day) {
+  return Boolean(day.adding || day.updates.size || day.templateWrites.size || [...day.removals.values()].some((ticket) => ticket.phase !== "ready") || todoPreferences().pending);
 }
 function todoStatus(day) {
-  const removing = [...day.removals.values()].some((ticket) => ticket.phase !== "ready");
-  if (day.adding || day.updates.size || day.templateWrites.size || removing || todoPreferences().pending) return "保存中…";
-  if (day.error || todoPreferences().error) return "";
+  if (todoPending(day) || day.error || todoPreferences().error) return "";
   return day.loading && !day.loaded ? "正在读取…" : day.notice;
+}
+function paintTodoSaving(root, day) {
+  const busy = todoPending(day);
+  root.setAttribute("aria-busy", String(busy));
+  if (!busy) {
+    clearTimeout(savingTimers.get(day));
+    savingTimers.delete(day);
+    savingTimes.delete(day);
+    return;
+  }
+  if (!savingTimes.has(day)) {
+    savingTimes.set(day, Date.now());
+    savingTimers.set(day, setTimeout(() => {
+      if (todosVisible() && todoDay() === day) paintTodos();
+    }, 900));
+  } else if (Date.now() - savingTimes.get(day) >= 900) $("#todo-status", root).textContent = "正在同步…";
+}
+function pendingTodo(day) {
+  return day.adding && day.submitting ? `<li class="todo-pending-row" aria-label="待添加">
+<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day.submitting.text)}</span></li>` : "";
 }
 function todoFeedback(day) {
   const error = [day.error, todoPreferences().error].filter(Boolean).join(" ");
-  return error ? `${e(error)} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
+  return error ? `${e(error)} ${day.failedCreate ? `<span>「${e(day.failedCreate.text)}」</span>
+<button class="btn text small" data-action="todo-retry-add">重试添加</button>` : ""} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
 function renderTodos() {
   const day = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day)}</div>
-${todoForm(day)}
+<div id="todo-main" ${state.todoPanel ? "hidden" : ""}>${todoForm(day)}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}
-<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}</ul></section>`;
+<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul></div>
+${renderTodoHistory(day)}${renderTodoTemplates()}</section>`;
 }
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
@@ -2499,7 +2560,7 @@ function paintTodos() {
     "todo-caption": todoCaption(day),
     "todo-status": todoStatus(day),
     "todo-undo": renderTodoUndo(day),
-    "todo-items": day.items.map((item) => todoRow(item, day)).join(""),
+    "todo-items": day.items.map((item) => todoRow(item, day)).join("") + pendingTodo(day),
     "todo-feedback": todoFeedback(day)
   };
   for (const [id, html] of Object.entries(parts)) {
@@ -2509,11 +2570,14 @@ function paintTodos() {
   paintTodoCalendar(day.date);
   const input = $("#todo-text", root), button2 = $("#todo-form button[type=submit]", root);
   if (input && input.value !== day.draft) input.value = day.draft;
-  if (input) input.readOnly = day.adding;
+  if (input) input.readOnly = false;
   if (button2) {
     button2.disabled = day.adding;
-    button2.textContent = day.adding ? "保存中…" : "添加";
+    button2.textContent = "添加";
+    button2.setAttribute("aria-busy", String(day.adding));
   }
+  paintTodoSaving(root, day);
+  paintTodoPanels(root);
   paintTodoPreferences();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-completed-mode", root))?.focus();
@@ -2524,6 +2588,7 @@ function todoReadActive(owner, version, date, day, sequence) {
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
+  if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
   const day = todoDay(), date = day.date, owner = todoOwner(), version = runtime.renderVersion;
   const sequence = ++day.sequence, revision = day.revision;
   day.loading = true;
@@ -2562,8 +2627,10 @@ function setTodoNotice(day, text) {
   timer?.unref?.();
 }
 async function saveTodo(day, request, templateId = "") {
-  const owner = todoOwner();
+  const owner = todoOwner(), submittedDraft = day.draft;
   day.adding = true;
+  day.submitting = request;
+  day.failedCreate = null;
   day.error = "";
   day.notice = "";
   day.revision++;
@@ -2574,12 +2641,13 @@ async function saveTodo(day, request, templateId = "") {
     mergeTodo(day, item);
     if (templateId) day.templateCreates.delete(templateId);
     else {
-      day.draft = "";
+      if (day.draft === submittedDraft && submittedDraft.trim() === request.text) day.draft = "";
       day.create = null;
     }
     setTodoNotice(day, "已添加");
   } catch (error) {
     if (todoSessionActive(owner)) {
+      day.failedCreate = request;
       showTodoFailure(day, error);
       if (error.status === 410) {
         if (templateId) day.templateCreates.delete(templateId);
@@ -2590,10 +2658,16 @@ async function saveTodo(day, request, templateId = "") {
   } finally {
     if (todoSessionActive(owner)) {
       day.adding = false;
+      day.submitting = null;
       day.revision++;
       paintTodos();
     }
   }
+}
+async function retryTodoCreate() {
+  const day = todoDay();
+  if (todosVisible() && day.failedCreate && !day.adding)
+    await saveTodo(day, day.failedCreate, day.failedCreate.template_id || "");
 }
 async function submitTodo({ form, data }) {
   if (!todosVisible() || !validTodoDate(form.dataset.date)) return;
@@ -2684,10 +2758,7 @@ function refreshTodos() {
 }
 function checkTodoDay() {
   if (!state.me || !syncTodoDay() || !todosVisible()) return;
-  const commonOpen = $("#todo-templates")?.open;
   paintTodos();
-  const common = $("#todo-templates");
-  if (common && commonOpen) common.open = true;
   refreshOpenTodoTemplates();
   loadTodos();
 }
@@ -2728,11 +2799,14 @@ function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false,
   editor.dataset.date = item.date;
   editor.hidden = !item.loaded || !item.canEdit;
   editor.disabled = ["delete", "restore"].includes(item.pending?.kind);
-  if (editor.value !== item.draft) editor.value = item.draft;
+  if (editor.dataset.composing !== "true" && editor.value !== item.draft) editor.value = item.draft;
   reader.hidden = !item.loaded || item.canEdit || !item.serverText;
   reader.textContent = item.serverText;
   find("#notes-empty").hidden = !item.loaded || item.canEdit || Boolean(item.serverText);
-  find("#notes-status").textContent = !item.loaded && item.loading ? "正在读取…" : statuses[item.phase] || (item.canEdit ? "已保存" : "公开只读");
+  const actual = statuses[item.phase] || (item.canEdit ? "已保存" : "公开只读");
+  find("#notes-status").textContent = !item.loaded && item.loading ? "正在读取…" : item.canEdit && ["dirty", "saving", "saved"].includes(item.phase) ? "自动保存" : actual;
+  find("#notes-status").setAttribute("aria-label", actual);
+  find("#notes-status").dataset.phase = item.phase;
   find("#notes-message").hidden = !item.error;
   find("#notes-message").textContent = item.error;
   find("#notes-detail").textContent = item.canEdit ? dailyNotesBytes(item.draft) + " / 65536 字节 · 自动保存" : "所有访客都能阅读";
@@ -2745,8 +2819,9 @@ function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false,
   find('[data-notes-action="delete"]').disabled = blocked || item.deleted || item.version === 0;
   find('[data-notes-action="next"]').disabled = item.date >= dailyNotesToday();
   const draftBox = find("#notes-drafts");
-  draftBox.hidden = !drafts.length;
-  draftBox.innerHTML = "<span>本页签保留的未保存草稿：</span>" + drafts.map((value) => '<button class="btn text" type="button" data-notes-date="' + e(value.date) + '">' + e(value.date) + "</button>").join("");
+  const retained = drafts.filter((value) => value.date !== item.date || ["conflict", "unknown", "oversize", "error"].includes(value.phase));
+  draftBox.hidden = !retained.length;
+  draftBox.innerHTML = "<span>本页签保留的未保存草稿：</span>" + retained.map((value) => '<button class="btn text" type="button" data-notes-date="' + e(value.date) + '">' + e(value.date) + "</button>").join("");
   find("#notes-resolution").hidden = !["conflict", "unknown"].includes(item.phase) && !(item.phase === "error" && !item.loaded);
   find('[data-notes-action="check"]').disabled = item.loading || Boolean(item.pending?.checking);
   find('[data-notes-action="retry"]').hidden = item.phase !== "unknown" || !item.pending?.retryReady || !item.canEdit;
@@ -2859,9 +2934,13 @@ function registerDailyNotesEvents() {
   notesEventsRegistered = true;
   document.addEventListener("input", (event) => {
     if (!notesVisible() || event.target.id !== "notes-editor") return;
-    ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value, { composing: event.isComposing });
+    ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value, { composing: event.isComposing || event.target.dataset.composing === "true" });
+  });
+  document.addEventListener("compositionstart", (event) => {
+    if (notesVisible() && event.target.id === "notes-editor") event.target.dataset.composing = "true";
   });
   document.addEventListener("compositionend", (event) => {
+    if (event.target.id === "notes-editor") event.target.dataset.composing = "false";
     if (notesVisible() && event.target.id === "notes-editor")
       ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value);
   });
@@ -2919,7 +2998,7 @@ async function loadDailyNotes() {
 // web/pages/memos.mjs
 var button = (action, label2, extra = "") => '<button type="button" class="btn" data-memo-action="' + action + '" ' + extra + ">" + label2 + "</button>";
 function renderMemos() {
-  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-groups", "‹ 分组") + button("back-notes", "‹ 笔记") + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span><div class="memo-toolbar-actions">' + button("refresh", "刷新") + button("trash", "回收站", "hidden") + button("recovery", "本机草稿", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-groups" aria-label="分组"><div class="memo-panel-head"><h2 id="memo-groups-heading">分组</h2>' + button("new-group", "＋ 分组", "hidden") + '</div><div id="memo-group-list" class="memo-list"></div></aside><aside class="memo-notes" aria-label="笔记列表"><div class="memo-panel-head"><h2 id="memo-group-heading">笔记</h2>' + button("new-note", "＋ 笔记", "hidden") + '</div><div id="memo-group-actions" class="memo-group-actions" hidden>' + button("rename-group", "重命名分组") + button("delete-group", "删除分组") + button("restore-group", "恢复分组", "hidden") + '</div><div id="memo-note-list" class="memo-list"></div></aside><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden>' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + "</div></div></div></article></div></section>";
+  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回目录") + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span><div class="memo-toolbar-actions">' + button("exit-trash", "返回备忘录", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-group", "＋", 'hidden aria-label="新建分组"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + "</div></div></div></article></div></section>";
 }
 var phases = {
   dirty: "等待自动保存",
@@ -2935,35 +3014,28 @@ var active = (rows, trash) => rows.filter((row) => Boolean(row.deleted_at) === t
 function listButton(kind, row, current, subtitle = "") {
   return '<button type="button" class="memo-list-item' + (row.id === current ? " is-selected" : "") + '" data-memo-' + kind + '="' + e(row.id) + '" aria-pressed="' + (row.id === current) + '"><span>' + e(row.title) + "</span>" + (subtitle ? "<small>" + e(subtitle) + "</small>" : "") + "</button>";
 }
+function groupTree(group, notes, store) {
+  const s = store.state, open = s.groupId === group.id, label2 = e(group.title);
+  const extra = ' data-memo-target="' + e(group.id) + '"';
+  const controls = !s.canEdit ? "" : s.trash ? group.deleted_at ? button("restore-group", "恢复分组", extra) : "" : button("new-note", "＋", extra + ' aria-label="在' + label2 + '中新建笔记"') + '<details class="memo-group-menu"><summary aria-label="' + label2 + '的分组操作">⋯</summary><div class="memo-context-actions">' + button("rename-group", "重命名", extra) + button("delete-group", "删除分组", extra) + "</div></details>";
+  const pending = Boolean(s.operation?.pending);
+  return '<div class="memo-tree-group"><div class="memo-tree-heading"><button type="button" class="memo-group-select' + (open ? " is-selected" : "") + '" data-memo-group="' + e(group.id) + '" aria-expanded="' + open + '" aria-controls="memo-children-' + e(group.id) + '"' + (pending ? " disabled" : "") + "><span>" + label2 + "</span></button>" + controls + '</div><div id="memo-children-' + e(group.id) + '" class="memo-tree-notes"' + (open ? "" : " hidden") + ">" + (notes.map((row) => listButton("note", row, s.noteId)).join("") || '<p class="memo-empty">还没有笔记，点 ＋ 开始记录。</p>') + "</div></div>";
+}
 function paintLists(root, store) {
-  const s = store.state, group = s.groups.find((row) => row.id === s.groupId), find = (q) => root.querySelector(q);
-  find("#memo-groups-heading").textContent = s.trash ? "已删除分组" : "分组";
-  find("#memo-group-heading").textContent = group?.title || (s.trash ? "已删除笔记" : "笔记");
-  find("#memo-group-list").innerHTML = active(s.groups, s.trash).map((row) => listButton(
-    "group",
-    row,
-    s.groupId,
-    row.active_note_count + " 篇笔记"
-  )).join("") || '<p class="memo-empty">' + (s.trash ? "没有已删除分组" : "还没有分组") + "</p>";
-  const notes = s.notes.filter((row) => s.trash ? row.deleted_at || group?.deleted_at && row.group_id === group.id : !row.deleted_at && row.group_id === s.groupId && !group?.deleted_at);
-  find("#memo-note-list").innerHTML = notes.map((row) => listButton(
-    "note",
-    row,
-    s.noteId,
-    s.trash ? s.groups.find((item) => item.id === row.group_id)?.title || "" : ""
-  )).join("") || '<p class="memo-empty">' + (s.trash ? "没有已删除笔记" : "这个分组还没有笔记") + "</p>";
+  const s = store.state, find = (q) => root.querySelector(q);
+  find("#memo-groups-heading").textContent = s.trash ? "回收站" : "目录";
+  const groups = s.groups.filter((group) => s.trash ? group.deleted_at || s.notes.some((note) => note.group_id === group.id && note.deleted_at) : !group.deleted_at);
+  const html = groups.map((group) => groupTree(group, s.notes.filter((note) => note.group_id === group.id && (s.trash ? note.deleted_at || group.deleted_at : !note.deleted_at)), store)).join("") || '<p class="memo-empty">' + (s.trash ? "回收站是空的。" : "点右上角 ＋ 新建分组。") + "</p>";
+  const tree = find("#memo-group-list");
+  if (tree.innerHTML !== html) tree.innerHTML = html;
   find('[data-memo-action="new-group"]').hidden = !s.canEdit || s.trash;
-  find('[data-memo-action="new-note"]').hidden = !s.canEdit || s.trash || !group || Boolean(group.deleted_at);
-  find("#memo-group-actions").hidden = !s.canEdit || !group;
-  for (const action of ["rename-group", "delete-group"]) find('[data-memo-action="' + action + '"]').hidden = Boolean(group?.deleted_at);
-  find('[data-memo-action="restore-group"]').hidden = !group?.deleted_at;
-  const operationBlocked = Boolean(s.operation?.pending);
-  const groupDirty = [...store.drafts.values()].some((item) => item.group_id === s.groupId && (item.dirty || item.pending));
-  for (const action of ["new-group", "new-note", "rename-group", "delete-group", "restore-group"])
-    find('[data-memo-action="' + action + '"]').disabled = operationBlocked || action === "delete-group" && groupDirty;
+  find('[data-memo-action="new-group"]').disabled = Boolean(s.operation?.pending);
+  root.querySelectorAll('[data-memo-action="new-note"]').forEach((button2) => {
+    button2.disabled = Boolean(s.operation?.pending);
+  });
 }
 function paintDrafts(root, store) {
-  const drafts = [...store.drafts.values()].filter((item) => item.dirty || item.pending || ["unknown", "conflict"].includes(item.phase));
+  const drafts = [...store.drafts.values()].filter((item) => ["unknown", "conflict", "offline", "error"].includes(item.phase) || item.id !== store.state.noteId && (item.dirty || item.pending));
   const box = root.querySelector("#memo-drafts");
   box.hidden = !store.state.canEdit || !drafts.length;
   box.innerHTML = "<span>本机保留的草稿：</span>" + drafts.map((item) => '<button type="button" class="btn text" data-memo-draft="' + e(item.id) + '">' + e(item.title || "未命名笔记") + "</button>").join("");
@@ -2981,7 +3053,7 @@ function paintDocument(root, store) {
     const input = find("#memo-" + field2);
     input.hidden = !editable;
     input.disabled = Boolean(structureBusy || item.loading || item.pending && item.pending.method !== "PUT");
-    if (input.value !== item[field2]) input.value = item[field2] || "";
+    if (input.dataset.composing !== "true" && input.value !== item[field2]) input.value = item[field2] || "";
     find("#memo-read-" + field2).hidden = editable;
     find("#memo-read-" + field2).textContent = item[field2] || (field2 === "body" ? "这篇笔记还没有正文。" : "未命名笔记");
   }
@@ -3005,21 +3077,18 @@ function paintMemos(root, store) {
   if (!root) return;
   const s = store.state, item = store.drafts.get(s.noteId), find = (q) => root.querySelector(q);
   root.dataset.pane = s.pane;
-  find("#memo-status").textContent = s.loading ? "正在读取…" : !s.canEdit ? "公开只读" : phases[item?.phase] || "已保存";
+  const actual = phases[item?.phase] || "已保存", routine = ["dirty", "saving", "saved"].includes(item?.phase) || !item;
+  find("#memo-status").textContent = s.loading ? "正在读取…" : !s.canEdit ? "公开只读" : routine ? "自动保存" : actual;
+  find("#memo-status").setAttribute("aria-label", actual);
+  find("#memo-status").dataset.phase = item?.phase || "saved";
   find("#memo-error").hidden = !s.error && !s.storageError;
   find("#memo-error").textContent = [s.error, s.storageError].filter(Boolean).join(" ");
   find('[data-memo-action="login"]').hidden = s.canEdit || s.loading;
-  find('[data-memo-action="trash"]').hidden = !s.canEdit;
-  find('[data-memo-action="recovery"]').hidden = !s.canEdit;
   if (!s.canEdit) find("#memo-recovery").hidden = true;
-  find('[data-memo-action="trash"]').textContent = s.trash ? "返回备忘录" : "回收站";
-  find('[data-memo-action="trash"]').setAttribute("aria-pressed", String(s.trash));
-  find('[data-memo-action="back-groups"]').hidden = s.pane === "groups";
-  find('[data-memo-action="back-notes"]').hidden = s.trash ? s.pane === "notes" : s.pane !== "editor";
-  find('[data-memo-action="back-groups"]').textContent = s.trash ? "已删分组" : "‹ 分组";
-  find('[data-memo-action="back-notes"]').textContent = s.trash ? "已删笔记" : "‹ 笔记";
+  find('[data-memo-action="exit-trash"]').hidden = !s.trash;
+  find('[data-memo-action="back-notes"]').hidden = s.pane !== "editor";
   const operation = s.operation;
-  find("#memo-operation").hidden = !operation?.pending && !operation?.error;
+  find("#memo-operation").hidden = !operation?.error && operation?.phase !== "unknown";
   find("#memo-operation-text").textContent = operation?.error || (operation?.phase === "saving" ? "正在保存操作…" : "操作结果待核对");
   find('[data-memo-action="operation-check"]').hidden = operation?.phase !== "unknown";
   find('[data-memo-action="operation-retry"]').hidden = operation?.phase !== "unknown" || !operation?.retryReady;
@@ -3116,7 +3185,7 @@ function makeContext(options) {
   };
   context.schedule = (item) => {
     context.stop(item);
-    if (context.writable() && item.dirty && !item.loading && !isUncertain(item) && item.phase === "dirty")
+    if (context.writable() && item.dirty && !item.loading && !item.composing && !isUncertain(item) && item.phase === "dirty")
       item.timer = setTimeout(() => {
         item.timer = null;
         void context.saveNote(item.id);
@@ -3313,13 +3382,14 @@ function editing(context) {
   function edit(field2, value, { composing = false } = {}) {
     const item = context.drafts.get(context.state.noteId);
     if (!context.writable() || !item || item.loading || !idPattern.test(item.group_id) || !["title", "body"].includes(field2) || item.deleted_at || context.blocked(item)) return;
+    item.composing = composing;
     item[field2] = value;
     item.dirty = !item.server || changed(item, item.server);
     context.stop(item);
     if (!isUncertain(item)) {
       item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
       item.error = "";
-      if (!cleanTitle(item.title) || memoBytes(item.body) > MEMOS_MAX_BYTES) {
+      if (!composing && (!cleanTitle(item.title) || memoBytes(item.body) > MEMOS_MAX_BYTES)) {
         item.phase = "error";
         item.error = "标题须为 1–120 字，正文最多 64 KiB；草稿已保留。";
       }
@@ -3734,7 +3804,10 @@ async function restoreMemoRecovery(root, store) {
 }
 
 // web/memos-controller.mjs
-var memoStore, memoIdentity = "", memoEvents = false, memoDialog = null, memoDraftScope;
+var memoStore, memoIdentity = "", memoEvents = false, memoDialog = null, memoDraftScope, memoCreating = false, memoTool = "";
+function requestMemoTool(tool) {
+  memoTool = ["trash", "recovery"].includes(tool) ? tool : "";
+}
 function draftStorageScope() {
   if (memoDraftScope) return memoDraftScope;
   const generated = globalThis.crypto.randomUUID();
@@ -3800,6 +3873,9 @@ function paintMemosPage() {
   if (!root) return;
   paintMemos(root, memoStore);
   paintDialog(root);
+  if (memoCreating) root.querySelectorAll('[data-memo-action="new-group"],[data-memo-action="new-note"]').forEach((button2) => {
+    button2.disabled = true;
+  });
 }
 function openDialog(kind, id = "") {
   const s = memoStore.state, group = s.groups.find((row) => row.id === (id || s.groupId));
@@ -3868,10 +3944,35 @@ async function confirmDialog() {
     paintMemosPage();
   }
 }
-async function clickAction(action) {
+async function createMemo(action, target) {
+  if (memoCreating || !memoStore.state.canEdit) return;
+  const store = memoStore;
+  memoCreating = true;
+  paintMemosPage();
+  try {
+    if (action === "new-group") await store.createGroup("未命名分组");
+    else {
+      const pending = store.createNote(target?.dataset.memoTarget || store.state.groupId, "未命名笔记");
+      paintMemosPage();
+      const field2 = document.querySelector("#memo-title");
+      if (visible() && store === memoStore) {
+        field2?.focus();
+        field2?.select();
+      }
+      await pending;
+    }
+  } finally {
+    memoCreating = false;
+    paintMemosPage();
+  }
+  if (action === "new-group" && visible() && store === memoStore)
+    document.querySelector('[data-memo-action="new-group"]')?.focus();
+}
+async function clickAction(action, target) {
   const store = ensureStore(), s = store.state;
-  if (["new-group", "new-note", "rename-group", "delete-group", "delete-note", "use-draft", "use-server"].includes(action)) {
-    if (s.canEdit) openDialog(action);
+  if (["new-group", "new-note"].includes(action)) return createMemo(action, target);
+  if (["rename-group", "delete-group", "delete-note", "use-draft", "use-server"].includes(action)) {
+    if (s.canEdit) openDialog(action, target?.dataset.memoTarget);
     return;
   }
   if (action === "cancel") memoDialog = null;
@@ -3888,11 +3989,11 @@ async function clickAction(action) {
   else if (action === "retry") await store.retryPending(s.noteId);
   else if (action === "operation-check") await store.checkOperation();
   else if (action === "operation-retry") await store.retryOperation();
-  else if (action === "restore-group") await store.restore("groups", s.groupId);
+  else if (action === "restore-group") await store.restore("groups", target?.dataset.memoTarget || s.groupId);
   else if (action === "restore-note") await store.restore("notes", s.noteId);
   else if (action === "back-groups") s.pane = "groups";
   else if (action === "back-notes") s.pane = "notes";
-  else if (action === "trash" && s.canEdit) {
+  else if (["trash", "exit-trash"].includes(action) && s.canEdit) {
     s.trash = !s.trash;
     s.pane = "groups";
     s.groupId = "";
@@ -3912,20 +4013,30 @@ function editing2(event, composing) {
   if (!visible() || !["memo-title", "memo-body"].includes(event.target.id)) return;
   const root = document.querySelector("#memos");
   if (!root?.contains(event.target)) return;
-  memoStore.edit(event.target.id === "memo-title" ? "title" : "body", event.target.value, { composing });
+  memoStore.edit(
+    event.target.id === "memo-title" ? "title" : "body",
+    event.target.value,
+    { composing: composing || event.target.dataset.composing === "true" }
+  );
 }
 function registerEvents() {
   if (memoEvents) return;
   memoEvents = true;
   document.addEventListener("input", (event) => editing2(event, event.isComposing));
-  document.addEventListener("compositionend", (event) => editing2(event, false));
+  document.addEventListener("compositionstart", (event) => {
+    if (visible() && ["memo-title", "memo-body"].includes(event.target.id)) event.target.dataset.composing = "true";
+  });
+  document.addEventListener("compositionend", (event) => {
+    if (["memo-title", "memo-body"].includes(event.target.id)) event.target.dataset.composing = "false";
+    editing2(event, false);
+  });
   document.addEventListener("click", (event) => {
     if (!visible()) return;
     const target = event.target.closest("[data-memo-action],[data-memo-group],[data-memo-note],[data-memo-draft],[data-memo-recovery]");
     if (!target || !document.querySelector("#memos")?.contains(target)) return;
     event.preventDefault();
     run(async () => {
-      if (target.dataset.memoAction) return clickAction(target.dataset.memoAction);
+      if (target.dataset.memoAction) return clickAction(target.dataset.memoAction, target);
       if (target.dataset.memoRecovery !== void 0) {
         selectMemoRecovery(document.querySelector("#memos"), Number(target.dataset.memoRecovery));
         return;
@@ -3965,6 +4076,18 @@ async function loadMemos() {
   registerEvents();
   const store = ensureStore();
   await store.load();
+  const tool = memoTool;
+  memoTool = "";
+  if (tool && visible() && store.state.canEdit) {
+    if (tool === "trash") {
+      store.state.trash = true;
+      store.state.pane = "groups";
+      store.state.groupId = "";
+      store.state.noteId = "";
+    }
+    paintMemosPage();
+    if (tool === "recovery") openMemoRecovery(document.querySelector("#memos"), store, store.state.draftOwner);
+  }
   paintMemosPage();
 }
 
@@ -3989,12 +4112,62 @@ function setMenu(open) {
   }
 }
 
+// web/ui/workbench.mjs
+var mediaPages = /* @__PURE__ */ new Set(["dashboard", "articles", "reviews"]);
+function navigationLink(item, mobile = false) {
+  const selected = item.id === state.page;
+  const query = item.id === "settings" ? "&amp;tab=workspace" : "";
+  return `<a href="?page=${e(item.id)}${query}" data-nav="${e(item.id)}" title="${e(item.label)}"
+class="${mobile ? "mobile-nav-item" : "nav-item"}${selected ? " active" : ""}" aria-label="${e(item.label)}"
+${selected ? 'aria-current="page"' : ""}>${icon(item.icon, 18)}<span class="nav-label">${e(item.label)}</span></a>`;
+}
+function mediaNavigation(mobile = false) {
+  const active2 = mediaPages.has(state.page), name = mobile ? "mobile-media-nav" : "media-nav";
+  return `<details class="${name}${active2 ? " active" : ""}" ${!mobile && active2 ? "open" : ""}>
+<summary title="好多鱼图文" aria-label="好多鱼图文">${icon("articles", 18)}<span class="nav-label">好多鱼图文</span></summary>
+<div class="media-subnav">${nav.filter((item) => mediaPages.has(item.id)).map((item) => navigationLink(item)).join("")}</div></details>`;
+}
+function sidebarNavigation() {
+  return mediaNavigation() + nav.filter((item) => !mediaPages.has(item.id) && item.id !== "settings").map((item) => navigationLink(item)).join("");
+}
+function settingsNavigation() {
+  return navigationLink(nav.find((item) => item.id === "settings"));
+}
+function mobileNavigation() {
+  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${mediaNavigation(true)}${nav.filter((item) => !mediaPages.has(item.id)).map((item) => navigationLink(item, true)).join("")}</nav>`;
+}
+function syncWorkbenchNavigation() {
+  const active2 = mediaPages.has(state.page), side = document.querySelector(".media-nav");
+  if (side) {
+    side.open = active2;
+    side.classList.toggle("active", active2);
+  }
+  const mobile = document.querySelector(".mobile-media-nav");
+  if (mobile) {
+    mobile.open = false;
+    mobile.classList.toggle("active", active2);
+  }
+}
+function closeMediaNavigation(target = null) {
+  const menu = document.querySelector(".mobile-media-nav[open]");
+  if (menu && (!target || !menu.contains(target))) menu.open = false;
+}
+
+// web/pages/workbench-settings.mjs
+function renderWorkbenchSettings() {
+  return `<section class="card workbench-settings"><h2>工作台设置</h2>
+<p class="muted">整理内容与找回未保存的文字。</p><div class="workbench-setting-links">
+<button class="btn" data-action="memo-tools" data-tool="trash">${icon("articles")}备忘录回收站</button>
+<button class="btn text" data-action="memo-tools" data-tool="recovery">${icon("refresh")}找回未保存内容</button>
+</div></section>`;
+}
+
 // web/controller.mjs
 function mainContent() {
   return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented(
     "settings-tab",
     Object.entries(
-      state.me?.publicBusiness ? { accounts: settingsTabs.accounts } : settingsTabs
+      state.me?.publicBusiness ? { workspace: settingsTabs.workspace, accounts: settingsTabs.accounts } : settingsTabs
     ),
     state.settingsTab,
     "设置分类",
@@ -4008,11 +4181,6 @@ function mainContent() {
     "mode"
   )}</div>` : ""}<div id="page-content"></div>`;
 }
-function mobileNavigation() {
-  return `<nav class="mobile-nav notes-navigation memos-navigation" aria-label="切换模块">${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
-data-nav="${e(n.id)}" class="mobile-nav-item${n.id === state.page ? " active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>
-${icon(n.icon, 18)}<span>${e(n.label)}</span></a>`).join("")}</nav>`;
-}
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
   if (!main || shell?.dataset.session !== String(runtime.sessionEpoch) || shell.dataset.user !== state.me?.id) return false;
@@ -4023,26 +4191,27 @@ function reuseShell() {
     if (current) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   }
+  syncWorkbenchNavigation();
   main.innerHTML = mainContent();
   return true;
 }
 function renderShell() {
-  if (state.me?.publicBusiness && state.page === "settings") state.settingsTab = "accounts";
+  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts"].includes(state.settingsTab))
+    state.settingsTab = "workspace";
   stopPageEntry();
   closePopover({ restoreFocus: false });
   if (reuseShell()) {
     renderPage();
     return;
   }
-  const navLink = (n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}" data-nav="${e(n.id)}" class="nav-item ${n.id === state.page ? "active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>${icon(n.icon, 18)}${e(n.label)}</a>`;
-  $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
+  $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
     "close"
-  )}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
+  )}</button></div><nav class="nav-list">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div></aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
   renderPage();
 }
 function navigateLink(page) {
-  const same2 = page === state.page && (page !== "settings" || state.settingsTab === "accounts") && (page !== "todos" || !state.todoDate);
+  const same2 = page === state.page && (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same2 && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
     return;
@@ -4054,8 +4223,11 @@ function navigate(page, tab) {
   if (legacy) page = "settings";
   if (!nav.some((n) => n.id === page)) return;
   state.page = page;
-  if (page === "todos") state.todoDate = "";
-  if (page === "settings") state.settingsTab = legacy || tab || "accounts";
+  if (page === "todos") {
+    state.todoDate = "";
+    state.todoPanel = "";
+  }
+  if (page === "settings") state.settingsTab = legacy || tab || "workspace";
   if (page === "dashboard") state.account = "";
   updateRoute(true);
   closeModal();
@@ -4126,7 +4298,8 @@ async function renderPage() {
         html = await renderReviews(version, context);
         break;
       case "settings":
-        if (state.settingsTab === "accounts") html = renderAccounts();
+        if (state.settingsTab === "workspace") html = renderWorkbenchSettings();
+        else if (state.settingsTab === "accounts") html = renderAccounts();
         else if (state.settingsTab === "keys") {
           data = await api("/api-keys", { context });
           html = renderKeys(data);
@@ -4902,6 +5075,13 @@ var actions = {
   "todo-template-use": ({ id }) => useTodoTemplate(id),
   "todo-template-edit": ({ id }) => editTodoTemplate(id),
   "todo-template-delete": ({ id }) => writeTodoTemplate(id, void 0, true),
+  "memo-tools": ({ target }) => {
+    requestMemoTool(target.dataset.tool);
+    navigate("memos");
+  },
+  "todo-panel": ({ target }) => setTodoPanel(target.dataset.panel),
+  "todo-retry-add": retryTodoCreate,
+  "todo-panel-close": () => setTodoPanel(""),
   "todo-template-cancel": cancelTodoTemplateEdit,
   "todo-calendar-prev": () => moveTodoMonth(-1),
   "todo-calendar-next": () => moveTodoMonth(1),
@@ -5248,6 +5428,7 @@ async function handleFormSubmit(event) {
 
 // web/events.mjs
 async function handleClick(event) {
+  closeMediaNavigation(event.target);
   if (runtime.activePopover?.node.contains(event.target) && event.target.closest("[role=menuitem]")) closePopover();
   if (runtime.activePopover && !runtime.activePopover.node.contains(event.target) && !runtime.activePopover.trigger.contains(event.target)) {
     const control = event.target.closest('button,a[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"])');
@@ -5364,6 +5545,7 @@ function handleFilterSubmit(event) {
   }
 }
 function handleKeydown(event) {
+  if (event.key === "Escape") closeMediaNavigation();
   if (runtime.activePopover) {
     if (event.key === "Tab") {
       const current = runtime.activePopover;
@@ -5387,6 +5569,11 @@ function handleKeydown(event) {
   if (event.key === "Escape" && $(".shell")?.classList.contains("menu-open")) {
     event.preventDefault();
     setMenu(false);
+    return;
+  }
+  if (event.key === "Escape" && state.page === "todos" && state.todoPanel && !$("#overlay").firstChild) {
+    event.preventDefault();
+    void setTodoPanel("");
     return;
   }
   if (!$("#overlay").firstChild) return;

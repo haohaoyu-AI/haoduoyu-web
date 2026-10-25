@@ -1,0 +1,73 @@
+{
+  "baseline": "9c9fb40c10ab9f9cb2fbb0ed87beeccc5bae6108",
+  "worker": {
+    "baseline": {
+      "bytes": 937066,
+      "sha256": "8dc8b038d5de0b80a6867b1100ba0c9ee9796354be58f6b94313c2985f0802d4"
+    },
+    "candidate": {
+      "bytes": 954885,
+      "sha256": "4ada796a9c32426c6846f46ac8f2af7fb2b603242000090730816fbcaa52d882"
+    },
+    "byte_delta": 17819
+  },
+  "unchanged": {
+    "runtime.json": {
+      "bytes": 142,
+      "sha256": "aefc0313cc1a8f2a230d3730977448a895b9a0195f71aba321d0b13afcf98fe1"
+    },
+    ".openai/hosting.json": {
+      "bytes": 91,
+      "sha256": "9b242c64db80608a42f15593115bf5f39d383d01d7b39f699c196d17e0aff554"
+    },
+    "package.json": {
+      "bytes": 1050,
+      "sha256": "ec7fb59a72e3b8d5248ccc8e65ee4dfc3f9046430a0b709955ce580762d9862d"
+    },
+    "package-lock.json": {
+      "bytes": 82018,
+      "sha256": "f6c5d8fc66382f328a990a70de714a7061664877ea06612cf2effc9aa51953bc"
+    },
+    ".gitleaksignore": {
+      "bytes": 18870,
+      "sha256": "0ec46693b927269599aa7015ea03730d624a4f40383bdfd8ff22de3c0119732a"
+    },
+    ".gitleaks.toml": {
+      "bytes": 724,
+      "sha256": "73860605260c130eeeb742177d7eaf3388e0e51696f8cdacbbbffdac80be1156"
+    },
+    "src/worker.mjs": {
+      "bytes": 23679,
+      "sha256": "f26e34e6396ac7370ed81f361cf1a3d316d15ba0a8133730ca094ec7d0416312"
+    },
+    "src/public-note-access.mjs": {
+      "bytes": 2236,
+      "sha256": "9470cf034c48ac80f5bd67fc64e2d9cb95c725e0690237661b09f81ae06a1826"
+    },
+    "src/memos.mjs": {
+      "bytes": 8903,
+      "sha256": "78650e8a00698817a8336e5431b18c10e831714d8eda74381482253ec1c7ef7d"
+    },
+    "src/daily-notes.mjs": {
+      "bytes": 7024,
+      "sha256": "628cd549139b82637fadd8f7bdb7f50f3ab882be4d8b055c930f3a785ad4e177"
+    },
+    "src/snapshot.mjs": {
+      "bytes": 1817,
+      "sha256": "f62ce865fc233e8841f6a23613a2a458dbd9a2135759019ff49b596af0bca791"
+    },
+    "db/schema.ts": {
+      "bytes": 13523,
+      "sha256": "4ec1f258cce1f79d57be961676beb98b398aebc2ae501112efcba097bf39b055"
+    },
+    "drizzle/meta/_journal.json": {
+      "bytes": 1066,
+      "sha256": "7e38ebf2b73719d66eef676b9d7273d1c5713f3a47516479abf8b04f1fc21294"
+    },
+    "public/openapi.json": {
+      "bytes": 236778,
+      "sha256": "29a0fb9852e4e87a4da500065dab9adbe2e21ab6e6d0b5005dfeaf45cb06220e"
+    }
+  },
+  "schema": "18 tables / v7 / 7 migrations unchanged"
+}

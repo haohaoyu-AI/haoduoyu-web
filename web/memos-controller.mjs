@@ -6,7 +6,8 @@ import {renderLogin} from './pages/login.mjs';
 import {openMemoRecovery, resetMemoRecovery, selectMemoRecovery, restoreMemoRecovery} from './memos-recovery.mjs';
 export {renderMemos} from './pages/memos.mjs';
 
-let memoStore, memoIdentity = '', memoEvents = false, memoDialog = null, memoDraftScope;
+let memoStore, memoIdentity = '', memoEvents = false, memoDialog = null, memoDraftScope, memoCreating = false, memoTool = '';
+export function requestMemoTool(tool) { memoTool = ['trash', 'recovery'].includes(tool) ? tool : ''; }
 function draftStorageScope() {
   if (memoDraftScope) return memoDraftScope;
   const generated = globalThis.crypto.randomUUID();
@@ -51,6 +52,8 @@ export function paintMemosPage() {
   const root = document.querySelector('#memos');
   if (!root) return;
   paintMemos(root, memoStore); paintDialog(root);
+  if (memoCreating) root.querySelectorAll('[data-memo-action="new-group"],[data-memo-action="new-note"]')
+    .forEach(button => { button.disabled = true; });
 }
 function openDialog(kind, id = '') {
   const s = memoStore.state, group = s.groups.find(row => row.id === (id || s.groupId));
@@ -98,10 +101,27 @@ async function confirmDialog() {
     dialog.saving = false; paintMemosPage();
   }
 }
-async function clickAction(action) {
+async function createMemo(action, target) {
+  if (memoCreating || !memoStore.state.canEdit) return;
+  const store = memoStore; memoCreating = true; paintMemosPage();
+  try {
+    if (action === 'new-group') await store.createGroup('未命名分组');
+    else {
+      const pending = store.createNote(target?.dataset.memoTarget || store.state.groupId, '未命名笔记');
+      paintMemosPage();
+      const field = document.querySelector('#memo-title');
+      if (visible() && store === memoStore) { field?.focus(); field?.select(); }
+      await pending;
+    }
+  } finally { memoCreating = false; paintMemosPage(); }
+  if (action === 'new-group' && visible() && store === memoStore)
+    document.querySelector('[data-memo-action="new-group"]')?.focus();
+}
+async function clickAction(action, target) {
   const store = ensureStore(), s = store.state;
-  if (['new-group', 'new-note', 'rename-group', 'delete-group', 'delete-note', 'use-draft', 'use-server'].includes(action)) {
-    if (s.canEdit) openDialog(action); return;
+  if (['new-group', 'new-note'].includes(action)) return createMemo(action, target);
+  if (['rename-group', 'delete-group', 'delete-note', 'use-draft', 'use-server'].includes(action)) {
+    if (s.canEdit) openDialog(action, target?.dataset.memoTarget); return;
   }
   if (action === 'cancel') memoDialog = null;
   else if (action === 'confirm') await confirmDialog();
@@ -115,11 +135,11 @@ async function clickAction(action) {
   else if (action === 'retry') await store.retryPending(s.noteId);
   else if (action === 'operation-check') await store.checkOperation();
   else if (action === 'operation-retry') await store.retryOperation();
-  else if (action === 'restore-group') await store.restore('groups', s.groupId);
+  else if (action === 'restore-group') await store.restore('groups', target?.dataset.memoTarget || s.groupId);
   else if (action === 'restore-note') await store.restore('notes', s.noteId);
   else if (action === 'back-groups') s.pane = 'groups';
   else if (action === 'back-notes') s.pane = 'notes';
-  else if (action === 'trash' && s.canEdit) {
+  else if (['trash', 'exit-trash'].includes(action) && s.canEdit) {
     s.trash = !s.trash; s.pane = 'groups'; s.groupId = ''; s.noteId = ''; memoDialog = null;
   }
   paintMemosPage();
@@ -134,20 +154,27 @@ function editing(event, composing) {
   if (!visible() || !['memo-title', 'memo-body'].includes(event.target.id)) return;
   const root = document.querySelector('#memos');
   if (!root?.contains(event.target)) return;
-  memoStore.edit(event.target.id === 'memo-title' ? 'title' : 'body', event.target.value, {composing});
+  memoStore.edit(event.target.id === 'memo-title' ? 'title' : 'body', event.target.value,
+    {composing: composing || event.target.dataset.composing === 'true'});
 }
 function registerEvents() {
   if (memoEvents) return;
   memoEvents = true;
   document.addEventListener('input', event => editing(event, event.isComposing));
-  document.addEventListener('compositionend', event => editing(event, false));
+  document.addEventListener('compositionstart', event => {
+    if (visible() && ['memo-title', 'memo-body'].includes(event.target.id)) event.target.dataset.composing = 'true';
+  });
+  document.addEventListener('compositionend', event => {
+    if (['memo-title', 'memo-body'].includes(event.target.id)) event.target.dataset.composing = 'false';
+    editing(event, false);
+  });
   document.addEventListener('click', event => {
     if (!visible()) return;
     const target = event.target.closest('[data-memo-action],[data-memo-group],[data-memo-note],[data-memo-draft],[data-memo-recovery]');
     if (!target || !document.querySelector('#memos')?.contains(target)) return;
     event.preventDefault();
     run(async () => {
-      if (target.dataset.memoAction) return clickAction(target.dataset.memoAction);
+      if (target.dataset.memoAction) return clickAction(target.dataset.memoAction, target);
       if (target.dataset.memoRecovery !== undefined) {
         selectMemoRecovery(document.querySelector('#memos'), Number(target.dataset.memoRecovery)); return;
       }
@@ -173,5 +200,12 @@ function registerEvents() {
 }
 export async function loadMemos() {
   registerEvents(); const store = ensureStore();
-  await store.load(); paintMemosPage();
+  await store.load();
+  const tool = memoTool; memoTool = '';
+  if (tool && visible() && store.state.canEdit) {
+    if (tool === 'trash') { store.state.trash = true; store.state.pane = 'groups'; store.state.groupId = ''; store.state.noteId = ''; }
+    paintMemosPage();
+    if (tool === 'recovery') openMemoRecovery(document.querySelector('#memos'), store, store.state.draftOwner);
+  }
+  paintMemosPage();
 }

@@ -47,7 +47,7 @@ function createDailyNotesContext({load, put, remove, restore, onChange = () => {
   };
   function schedule(item) {
     stopTimer(item);
-    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading &&
+    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing &&
         !['conflict', 'unknown', 'error', 'oversize'].includes(item.phase)) {
       item.timer = setTimer(() => { item.timer = null; void context.save(item.date); }, delay);
     }
@@ -98,7 +98,7 @@ function createReadingActions(context) {
   function edit(date, text, {composing = false} = {}) {
     const item = page(date);
     if (context.disposed || !item.canEdit || !item.loaded || ['delete', 'restore'].includes(item.pending?.kind)) return;
-    item.draft = text; item.dirty = text !== item.serverText; stopTimer(item);
+    item.composing = composing; item.draft = text; item.dirty = text !== item.serverText; stopTimer(item);
     if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
       if (!['conflict', 'unknown'].includes(item.phase)) item.phase = 'oversize';
       item.error = '文字超过 64 KiB，草稿已保留，请缩短后再保存。';

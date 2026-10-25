@@ -32,7 +32,7 @@ const origin='http://127.0.0.1:'+server.address().port;
 try {
   app=await fixture(null,{persist:false,origin});
   const session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
-  environment={DB:app.db,SITE_ORIGIN:origin,DAILY_NOTES_OWNER_ID:owner,
+  environment={DB:app.db,SITE_ORIGIN:origin,DAILY_NOTES_OWNER_ID:owner,MEMOS_OWNER_ID:owner,
     PUBLIC_BUSINESS_MODE:'1',PUBLIC_BUSINESS_USER_ID:owner,
     PUBLIC_BUSINESS_ACCOUNT_IDS:JSON.stringify(['toutiao-haoduoyu','zhihu-haoduoyu','wechat-xiaoyuer'])};
   const create=async(key,value,method='PATCH')=>{

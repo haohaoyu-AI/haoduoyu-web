@@ -187,7 +187,7 @@ test('notes dispose cancels scheduled writes and isolates late results from the 
 test('notes view puts business text only into value/textContent and offers responsive isolated controls', () => {
   const nodes = new Map();
   const root = {dataset: {}, querySelector(selector) {
-    if (!nodes.has(selector)) nodes.set(selector, {value: '', textContent: '', innerHTML: '', dataset: {}});
+    if (!nodes.has(selector)) nodes.set(selector, {value: '', textContent: '', innerHTML: '', dataset: {}, setAttribute() {}});
     return nodes.get(selector);
   }};
   const attack = '<img src=x onerror=alert(1)>';

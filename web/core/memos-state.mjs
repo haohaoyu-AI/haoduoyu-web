@@ -63,7 +63,7 @@ function makeContext(options) {
   };
   context.schedule = item => {
     context.stop(item);
-    if (context.writable() && item.dirty && !item.loading && !isUncertain(item) && item.phase === 'dirty')
+    if (context.writable() && item.dirty && !item.loading && !item.composing && !isUncertain(item) && item.phase === 'dirty')
       item.timer = setTimeout(() => { item.timer = null; void context.saveNote(item.id); }, delay);
   };
   context.dispose = () => {
@@ -197,10 +197,11 @@ function editing(context) {
     const item = context.drafts.get(context.state.noteId);
     if (!context.writable() || !item || item.loading || !idPattern.test(item.group_id) || !['title', 'body'].includes(field) ||
         item.deleted_at || context.blocked(item)) return;
+    item.composing = composing;
     item[field] = value; item.dirty = !item.server || changed(item, item.server); context.stop(item);
     if (!isUncertain(item)) {
       item.phase = item.pending ? 'saving' : item.dirty ? 'dirty' : 'saved'; item.error = '';
-      if (!cleanTitle(item.title) || memoBytes(item.body) > MEMOS_MAX_BYTES) {
+      if (!composing && (!cleanTitle(item.title) || memoBytes(item.body) > MEMOS_MAX_BYTES)) {
         item.phase = 'error'; item.error = '标题须为 1–120 字，正文最多 64 KiB；草稿已保留。';
       }
     }

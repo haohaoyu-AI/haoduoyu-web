@@ -1,0 +1,82 @@
+{
+  "baseline": "9c9fb40c10ab9f9cb2fbb0ed87beeccc5bae6108",
+  "scope": "User acceptance 8 points: UI, navigation, composition-safe editing and background feedback only; no API/schema/security changes.",
+  "files": {
+    "public/index.html": {
+      "before_sha256": "a870272a9d22e812fa354e4f9ae1d8007bb2cc5c4f310f9ed22c5b166b38328f",
+      "after_sha256": "7ccd7256e6eb1cba0379011b6312cd68084ace3dd2ee6fa361f0606b6143d581"
+    },
+    "scripts/build.mjs": {
+      "before_sha256": "431c8b716b87ec3da83a87c0354ff53f9680efc86f9b3c9d1bcf1ceb2927b2cc",
+      "after_sha256": "2ff2d22a580f8cb26522bb2beda3a1686fc022c0625cf8b1704cb29710687e7e"
+    },
+    "web/actions.mjs": {
+      "before_sha256": "b7648b14a87a806b1c95c88229ad3f3a529a37ac765b0694cf76d3e31877eb66",
+      "after_sha256": "ac0149b69dd85ada9b309c44ccef458ef089fb1262fcfcc9e69bd1d7ea2ce2ff"
+    },
+    "web/controller.mjs": {
+      "before_sha256": "605feb24c9a82cbcdc6c73526d71eaa18bc99d66a86f0ec0eb4bd9117bc663a9",
+      "after_sha256": "e4d1db3f2937df6e1c3e7e787c98d4ab116803c805dcd3de70aced8b0a4e4fa1"
+    },
+    "web/core/constants.mjs": {
+      "before_sha256": "94e5c2ad2d5d1e9ddef184797409f20bd82adf84df3d797bdeeab39036b5f3c3",
+      "after_sha256": "915c71fec2b5cb10ef4d3e5ba9b0532b8538458f331edcea454c86802978d69f"
+    },
+    "web/core/daily-notes-state.mjs": {
+      "before_sha256": "09b7932504da26437f1a947ea327b934c26ccc457914d85ce43a782444c1a5c8",
+      "after_sha256": "49eec206cc561fd6a82524accc5dc0c164a1f734293c65281bd1e6457676d530"
+    },
+    "web/core/memos-state.mjs": {
+      "before_sha256": "c42618b8f59f21ba8edc088272661a6f20e353e2904bac610d7362a8a19f311f",
+      "after_sha256": "59f26e57bac54a7a82545400d246999e1288312ac3d353ccefad4ab70a31402c"
+    },
+    "web/core/router.mjs": {
+      "before_sha256": "70333b97500ef7c75132424692fd8057892b19edda461aa27a0544741d33585d",
+      "after_sha256": "71b43fa03d04b619995a4e95c0817edd45906ef67a6de8bfad3c01c5ca7f6b31"
+    },
+    "web/daily-notes-controller.mjs": {
+      "before_sha256": "0584b95858e4cefa37d63c24c47782e858548afc7773f94777d45846b3124ccf",
+      "after_sha256": "d8662acba77d3f72e230b03d8c608e1aaa41768ee624ad328ffb1271fdff3f57"
+    },
+    "web/events.mjs": {
+      "before_sha256": "a1b106fdaad15b6425ef6f6adfcdcf82a902aa0bcda40c489e5c29de822b9a5e",
+      "after_sha256": "14236d87e97d454e6f8e672ea29283519619f01af9a0d82c8d85dfa1dfff8578"
+    },
+    "web/memos-controller.mjs": {
+      "before_sha256": "197d6789469bb103c1804aaf5ce430a9500d359ba77c88ac768058429ca2bc3f",
+      "after_sha256": "e1b50d16dafd6c8a69bbed9bc9f7a3f9d43b768becde4ae408a59a9abf11cb83"
+    },
+    "web/pages/daily-notes.mjs": {
+      "before_sha256": "4fd78ee4a30662e70ddb718e426396884e21006782d51cdb3b7638238fcb93f5",
+      "after_sha256": "c0834b6c9653bdb12773f5e311dee574e707dec14ef38d8de9c76f83397def93"
+    },
+    "web/pages/login.mjs": {
+      "before_sha256": "8e4e4d7f1ea46f31515be336a7a0b5f3bbd9767d295822db60265a0462422ae1",
+      "after_sha256": "b65ba2b0d880bde014cc9fc01b8550010b675e4a29c3aa9890cc6effa50e66da"
+    },
+    "web/pages/memos.mjs": {
+      "before_sha256": "fcbaf999ecae5116bf35bea33d3414dd5584b43278801a02361bff3722c9cf20",
+      "after_sha256": "4f3460792d69621f644924b90a844c54d1f16d331263eaf3604808a7cb7cabee"
+    },
+    "web/pages/todo-templates.mjs": {
+      "before_sha256": "37b9d18364b70d7a4c37377e71f2d7d4605f8967799bbf5142a15f95c7ac32a5",
+      "after_sha256": "24119eafb977bc313d168ca52270d9780b8c388bd63bf60e94c6ce00dd342f80"
+    },
+    "web/pages/todos.mjs": {
+      "before_sha256": "a7014fbc557c217ec9e9862c0ac184d6599d3f3781946200de570827b3993400",
+      "after_sha256": "399ab7445d046d19498029887725e038444ec687fcd4c842b23531519c9e515b"
+    },
+    "web/pages/workbench-settings.mjs": {
+      "before_sha256": null,
+      "after_sha256": "4d9f5ca8c7cfd2fcf435279b286bc6fe00ec7cac4fd7347c1ee23f2dd7505901"
+    },
+    "web/ui/components.mjs": {
+      "before_sha256": "f51f150f6a71e846e8f78a86fd6f32235365b6fdd6f59c81e1d7944aac436a25",
+      "after_sha256": "0b2236685a45b0e95b32023199cc92945596fb59f7ea5a24c5c5922ff6cb9a1c"
+    },
+    "web/ui/workbench.mjs": {
+      "before_sha256": null,
+      "after_sha256": "0c7bb7260657dcec95ca88bb388755989a76de83c72dc6cc8a0bfbac66f4dbd3"
+    }
+  }
+}

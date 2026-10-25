@@ -6,7 +6,7 @@ import { runtime, state } from "./core/state.mjs";
 import { articleDraft, articleFilterPanel, viewDraft } from "./pages/articles.mjs";
 import { handleArticleVerificationChange } from "./pages/article-verification.mjs";
 import { renderDashboard } from "./pages/dashboard.mjs";
-import { inputTodo, registerTodosClock, selectTodoDate, toggleTodo } from "./pages/todos.mjs";
+import { inputTodo, registerTodosClock, selectTodoDate, setTodoPanel, toggleTodo } from "./pages/todos.mjs";
 import { inputTodoTemplate, loadTodoTemplates } from "./pages/todo-templates.mjs";
 import { canOpenTodoMenu, openTodoMenu } from "./pages/todo-actions.mjs";
 import { changeTodoCompletedMode } from "./pages/todo-preferences.mjs";
@@ -18,7 +18,9 @@ import { closePopover } from "./ui/popover.mjs";
 import { toast } from "./ui/toast.mjs";
 import { actions } from "./actions.mjs";
 import { handleFormSubmit } from "./forms.mjs";
+import {closeMediaNavigation} from "./ui/workbench.mjs";
 async function handleClick(event) {
+  closeMediaNavigation(event.target);
   if (runtime.activePopover?.node.contains(event.target) && event.target.closest("[role=menuitem]")) closePopover();
   if (runtime.activePopover && !runtime.activePopover.node.contains(event.target) && !runtime.activePopover.trigger.contains(event.target)) {
     const control = event.target.closest('button,a[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"])');
@@ -136,6 +138,7 @@ function handleFilterSubmit(event) {
   }
 }
 function handleKeydown(event) {
+  if (event.key === "Escape") closeMediaNavigation();
   if (runtime.activePopover) {
     if (event.key === "Tab") {
       const current = runtime.activePopover;
@@ -161,6 +164,9 @@ function handleKeydown(event) {
     event.preventDefault();
     setMenu(false);
     return;
+  }
+  if (event.key === "Escape" && state.page === "todos" && state.todoPanel && !$("#overlay").firstChild) {
+    event.preventDefault(); void setTodoPanel(""); return;
   }
   if (!$("#overlay").firstChild) return;
   if (event.key === "Escape") {

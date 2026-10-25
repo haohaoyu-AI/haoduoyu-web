@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {projectWorkbenchFrontend} from './workbench-ui-projection.mjs';
 import {readFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
@@ -8,6 +9,7 @@ const root=new URL('../',import.meta.url);
 const manifest=JSON.parse(await readFile(new URL('./public-note-ui-delta.json',import.meta.url),'utf8'));
 const hash=value=>createHash('sha256').update(value).digest('hex');
 export async function projectPublicNoteFrontend(file,source) {
+  if(file!=='public/app.js')source=await projectWorkbenchFrontend(file,source);
   const expected=manifest.files[file];
   if(expected) {
     assert.equal(hash(source),expected.after_sha256,'exact accepted memo module bytes / approved public note UI delta: '+file);

@@ -29,6 +29,8 @@ function updateRoute(push = false) {
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else u.searchParams.delete("date");
+  if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
+  else u.searchParams.delete("todo_panel");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
   else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
   else u.searchParams.delete("tab");
@@ -55,8 +57,9 @@ function readRoute() {
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
   if (state.page === "notes") setDailyNotesRouteDate(params.get("date"));
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
+  state.todoPanel = state.page === "todos" && ["history", "templates"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.
-  get("tab") : raw === "settings" && !params.has("tab") ? "security" : "accounts");
+  get("tab") : raw === "settings" && !params.has("tab") ? "workspace" : "accounts");
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
   state.articleOverviewMode = params.get("article_scope") === "published" ? "published" : "drafts";

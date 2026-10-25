@@ -5,7 +5,7 @@ import { state } from "../core/state.mjs";
 const platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "zhihu", "wechat"].includes(p) ? p : "other")}">${e({
    toutiao: "头", zhihu: "知", wechat: "微" }[p] || "文")}</span>`;
 function detailInfo(reason, label, id) {
-  return `<button class="icon-button" data-action="detail-info" data-reason="${e(reason)}" aria-label="${e(label)}" aria-expanded="false" \
+  return `<button class="icon-button inline-info" data-action="detail-info" data-reason="${e(reason)}" aria-label="${e(label)}" aria-expanded="false" \
 aria-controls="detail-info-${e(id)}">${icon("info", 14)}</button>`;
 }
 function empty(title, description = "", action = "") {
@@ -16,7 +16,7 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
-  if (state.page === "notes") return "";
+  if (["notes", "memos"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
   if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}\
 <button class="icon-button" data-action="refresh" \
 title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button><button class="btn primary" data-action="new-article">${icon(
@@ -63,7 +63,7 @@ function comparisonHTML(comparison) {
   return `<span class="comparison ${direction}" title="${e(comparison.reason || "与前一等长周期比较")}">${change}${percent}</span>`;
 }
 function dashboardInfo(kind, label, id = "") {
-  return `<button class="icon-button" data-action="dashboard-info" data-kind="${e(kind)}" data-id="${e(id)}" aria-label="${e(label)}" \
+  return `<button class="icon-button inline-info" data-action="dashboard-info" data-kind="${e(kind)}" data-id="${e(id)}" aria-label="${e(label)}" \
 aria-expanded="false" aria-controls="info-${e(kind)}-${e(id)}">${icon("info", 14)}</button>`;
 }
 function platformColor(platform) {

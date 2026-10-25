@@ -8,12 +8,12 @@ test('combined frontend boundary pins each memo module and every released articl
   for(const file of memoAddedModules) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
     assert.equal(await projectMemoFrontend(file,source),'');
-    await assert.rejects(projectMemoFrontend(file,source+'\nconst unapprovedMemoDeclaration=true;\n'),/exact accepted memo module bytes/);
+    await assert.rejects(projectMemoFrontend(file,source+'\nconst unapprovedMemoDeclaration=true;\n'),/exact accepted memo module bytes|approved workbench delta/);
   }
 });
 test('memo projection cannot authorize edits to released article functions or unrelated state',async()=>{
   const file='web/controller.mjs',source=await readFile(new URL('../'+file,import.meta.url),'utf8');
   const mutation=source.replace('await loadArticleOverview(version, context)','await loadMemos(version, context)');
   assert.notEqual(mutation,source);
-  await assert.rejects(projectMemoFrontend(file,mutation),/exact memo additions retain every released article frontend AST node/);
+  await assert.rejects(projectMemoFrontend(file,mutation),/exact memo additions retain every released article frontend AST node|approved workbench delta/);
 });

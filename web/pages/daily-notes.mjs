@@ -47,12 +47,15 @@ export function paintDailyNotes(root, item, {drafts = [], dates = [], hasMore = 
   editor.dataset.date = item.date;
   editor.hidden = !item.loaded || !item.canEdit;
   editor.disabled = ['delete', 'restore'].includes(item.pending?.kind);
-  if (editor.value !== item.draft) editor.value = item.draft;
+  if (editor.dataset.composing !== 'true' && editor.value !== item.draft) editor.value = item.draft;
   reader.hidden = !item.loaded || item.canEdit || !item.serverText;
   reader.textContent = item.serverText;
   find('#notes-empty').hidden = !item.loaded || item.canEdit || Boolean(item.serverText);
+  const actual = statuses[item.phase] || (item.canEdit ? '已保存' : '公开只读');
   find('#notes-status').textContent = !item.loaded && item.loading ? '正在读取…' :
-    statuses[item.phase] || (item.canEdit ? '已保存' : '公开只读');
+    item.canEdit && ['dirty', 'saving', 'saved'].includes(item.phase) ? '自动保存' : actual;
+  find('#notes-status').setAttribute('aria-label', actual);
+  find('#notes-status').dataset.phase = item.phase;
   find('#notes-message').hidden = !item.error;
   find('#notes-message').textContent = item.error;
   find('#notes-detail').textContent = item.canEdit ? dailyNotesBytes(item.draft) + ' / 65536 字节 · 自动保存' : '所有访客都能阅读';
@@ -65,8 +68,9 @@ export function paintDailyNotes(root, item, {drafts = [], dates = [], hasMore = 
   find('[data-notes-action="delete"]').disabled = blocked || item.deleted || item.version === 0;
   find('[data-notes-action="next"]').disabled = item.date >= dailyNotesToday();
   const draftBox = find('#notes-drafts');
-  draftBox.hidden = !drafts.length;
-  draftBox.innerHTML = '<span>本页签保留的未保存草稿：</span>' + drafts.map(value =>
+  const retained = drafts.filter(value => value.date !== item.date || ['conflict', 'unknown', 'oversize', 'error'].includes(value.phase));
+  draftBox.hidden = !retained.length;
+  draftBox.innerHTML = '<span>本页签保留的未保存草稿：</span>' + retained.map(value =>
     '<button class="btn text" type="button" data-notes-date="' + e(value.date) + '">' + e(value.date) + '</button>').join('');
   find('#notes-resolution').hidden = !['conflict', 'unknown'].includes(item.phase) && !(item.phase === 'error' && !item.loaded);
   find('[data-notes-action="check"]').disabled = item.loading || Boolean(item.pending?.checking);

@@ -6,12 +6,13 @@ import { updateRoute } from "../core/router.mjs";
 import { runtime, state } from "../core/state.mjs";
 import { mergeTodo, syncTodoDay, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDate } from "../core/todos-state.mjs";
 import { todosState } from "../core/todos-state.mjs";
-import { paintTodoTemplates, refreshOpenTodoTemplates, renderTodoTemplates } from "./todo-templates.mjs";
+import { loadTodoTemplates, paintTodoTemplates, refreshOpenTodoTemplates, renderTodoTemplates } from "./todo-templates.mjs";
 import { renderTodoUndo, todoBusy } from "./todo-actions.mjs";
 import {
   paintTodoPreferences, receiveTodoPreferences, renderTodoPreferences, todoCompletedMode, todoPreferences
 } from "./todo-preferences.mjs";
 let todoClock = null;
+const savingTimes = new WeakMap(), savingTimers = new WeakMap();
 function todoCalendarMonth(date) {
   if (todosState.calendarDate !== date || !validTodoDate(`${todosState.calendarMonth}-01`)) {
     todosState.calendarDate = date;
@@ -42,6 +43,7 @@ ${'<span aria-hidden="true"></span>'.repeat(blanks)}${days.map((day) => todoCale
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
+  if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
   const day = todoDay(), date = new Date(`${todoCalendarMonth(day.date)}-01T00:00:00Z`);
   date.setUTCMonth(date.getUTCMonth() + offset);
   const month = date.toISOString().slice(0, 7);
@@ -75,7 +77,7 @@ function todoRow(item, day) {
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
-${pending ? '<span class="cell-sub" role="status">保存中…</span>' : ""}
+
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
@@ -83,38 +85,83 @@ function todoForm(day) {
   const label = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
   return `<form id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加每日计划">
 <label for="todo-text" class="sr-only">${label}</label><input id="todo-text" class="input" name="text" maxlength="500" required
-autocomplete="off" placeholder="${label}" value="${e(day.draft)}" ${day.adding ? "readonly" : ""}>
-<button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>${day.adding ? "保存中…" : "添加"}</button></form>`;
+autocomplete="off" placeholder="${label}" value="${e(day.draft)}" >
+<button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>添加</button></form>`;
 }
 function todoCaption(day) {
   const today = day.date === bjtDate();
   return `<time datetime="${e(day.date)}" title="北京时间">${today ? "今天 · " : ""}${e(day.date)}</time>`;
 }
 function todoHeading(day) {
-  return `<span id="todo-caption">${todoCaption(day)}</span>
-<details id="todo-history" class="daily-todo-history" ${day.date !== bjtDate() ? "open" : ""}><summary>日历 / 历史</summary>
+  return `<span id="todo-caption">${todoCaption(day)}</span><div class="todo-view-links">
+<button class="btn text" data-action="todo-panel" data-panel="history" aria-controls="todo-history"
+aria-expanded="${state.todoPanel === "history"}">历史</button>
+<button class="btn text" data-action="todo-panel" data-panel="templates" aria-controls="todo-templates"
+aria-expanded="${state.todoPanel === "templates"}">常用</button></div>`;
+}
+function renderTodoHistory(day) {
+  return `<section id="todo-history" class="todo-view" aria-label="待办历史" ${state.todoPanel === "history" ? "" : "hidden"}>
+<div class="todo-view-head"><h2>待办历史</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day.date)}" data-today="${bjtDate()}">
-${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</details>${renderTodoTemplates()}`;
+${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</section>`;
+}
+function paintTodoPanels(root) {
+  const panel = state.todoPanel || "";
+  for (const [id, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"]]) {
+    const node = $("#" + id, root); if (node) node.hidden = panel !== value;
+  }
+  root.querySelectorAll('[data-action="todo-panel"]').forEach(button => {
+    button.setAttribute("aria-expanded", String(button.dataset.panel === panel));
+  });
+}
+async function setTodoPanel(panel) {
+  if (!todosVisible()) return;
+  state.todoPanel = ["history", "templates"].includes(panel) ? panel : "";
+  if (!state.todoPanel) state.todoDate = "";
+  updateRoute(true); paintTodos();
+  if (state.todoPanel === "templates") await loadTodoTemplates();
+  else if (!state.todoPanel) await loadTodos();
+  const selector = state.todoPanel ? '#todo-' + state.todoPanel + ' [data-action="todo-panel-close"]' : '#todo-text';
+  $(selector)?.focus();
+}
+function todoPending(day) {
+  return Boolean(day.adding || day.updates.size || day.templateWrites.size ||
+    [...day.removals.values()].some(ticket => ticket.phase !== "ready") || todoPreferences().pending);
 }
 function todoStatus(day) {
-  const removing = [...day.removals.values()].some((ticket) => ticket.phase !== "ready");
-  if (day.adding || day.updates.size || day.templateWrites.size || removing || todoPreferences().pending) return "保存中…";
-  if (day.error || todoPreferences().error) return "";
+  if (todoPending(day) || day.error || todoPreferences().error) return "";
   return day.loading && !day.loaded ? "正在读取…" : day.notice;
+}
+function paintTodoSaving(root, day) {
+  const busy = todoPending(day);
+  root.setAttribute("aria-busy", String(busy));
+  if (!busy) {
+    clearTimeout(savingTimers.get(day)); savingTimers.delete(day); savingTimes.delete(day); return;
+  }
+  if (!savingTimes.has(day)) {
+    savingTimes.set(day, Date.now());
+    savingTimers.set(day, setTimeout(() => { if (todosVisible() && todoDay() === day) paintTodos(); }, 900));
+  } else if (Date.now() - savingTimes.get(day) >= 900) $("#todo-status", root).textContent = "正在同步…";
+}
+function pendingTodo(day) {
+  return day.adding && day.submitting ? `<li class="todo-pending-row" aria-label="待添加">
+<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day.submitting.text)}</span></li>` : "";
 }
 function todoFeedback(day) {
   const error = [day.error, todoPreferences().error].filter(Boolean).join(" ");
-  return error ? `${e(error)} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
+  return error ? `${e(error)} ${day.failedCreate ? `<span>「${e(day.failedCreate.text)}」</span>
+<button class="btn text small" data-action="todo-retry-add">重试添加</button>` : ""} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
 function renderTodos() {
   const day = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day)}</div>
-${todoForm(day)}
+<div id="todo-main" ${state.todoPanel ? "hidden" : ""}>${todoForm(day)}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}
-<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}</ul></section>`;
+<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul></div>
+${renderTodoHistory(day)}${renderTodoTemplates()}</section>`;
 }
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
@@ -130,7 +177,7 @@ function paintTodos() {
     return;
   }
   const parts = { "todo-caption": todoCaption(day), "todo-status": todoStatus(day), "todo-undo": renderTodoUndo(day),
-    "todo-items": day.items.map((item) => todoRow(item, day)).join(""), "todo-feedback": todoFeedback(day) };
+    "todo-items": day.items.map((item) => todoRow(item, day)).join("") + pendingTodo(day), "todo-feedback": todoFeedback(day) };
   for (const [id, html] of Object.entries(parts)) {
     const node = $("#" + id, root);
     if (node && node.innerHTML !== html) node.innerHTML = html;
@@ -138,11 +185,14 @@ function paintTodos() {
   paintTodoCalendar(day.date);
   const input = $("#todo-text", root), button = $("#todo-form button[type=submit]", root);
   if (input && input.value !== day.draft) input.value = day.draft;
-  if (input) input.readOnly = day.adding;
+  if (input) input.readOnly = false;
   if (button) {
     button.disabled = day.adding;
-    button.textContent = day.adding ? "保存中…" : "添加";
+    button.textContent = "添加";
+    button.setAttribute("aria-busy", String(day.adding));
   }
+  paintTodoSaving(root, day);
+  paintTodoPanels(root);
   paintTodoPreferences();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-completed-mode", root))?.focus();
@@ -153,6 +203,7 @@ function todoReadActive(owner, version, date, day, sequence) {
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
+  if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
   const day = todoDay(), date = day.date, owner = todoOwner(), version = runtime.renderVersion;
   const sequence = ++day.sequence, revision = day.revision;
   day.loading = true;
@@ -191,8 +242,8 @@ function setTodoNotice(day, text) {
   timer?.unref?.();
 }
 async function saveTodo(day, request, templateId = "") {
-  const owner = todoOwner();
-  day.adding = true;
+  const owner = todoOwner(), submittedDraft = day.draft;
+  day.adding = true; day.submitting = request; day.failedCreate = null;
   day.error = "";
   day.notice = "";
   day.revision++;
@@ -203,12 +254,13 @@ async function saveTodo(day, request, templateId = "") {
     mergeTodo(day, item);
     if (templateId) day.templateCreates.delete(templateId);
     else {
-      day.draft = "";
+      if (day.draft === submittedDraft && submittedDraft.trim() === request.text) day.draft = "";
       day.create = null;
     }
     setTodoNotice(day, "已添加");
   } catch (error) {
     if (todoSessionActive(owner)) {
+      day.failedCreate = request;
       showTodoFailure(day, error);
       if (error.status === 410) {
         if (templateId) day.templateCreates.delete(templateId);
@@ -218,11 +270,16 @@ async function saveTodo(day, request, templateId = "") {
     }
   } finally {
     if (todoSessionActive(owner)) {
-      day.adding = false;
+      day.adding = false; day.submitting = null;
       day.revision++;
       paintTodos();
     }
   }
+}
+async function retryTodoCreate() {
+  const day = todoDay();
+  if (todosVisible() && day.failedCreate && !day.adding)
+    await saveTodo(day, day.failedCreate, day.failedCreate.template_id || "");
 }
 async function submitTodo({ form, data }) {
   if (!todosVisible() || !validTodoDate(form.dataset.date)) return;
@@ -313,10 +370,7 @@ function refreshTodos() {
 }
 function checkTodoDay() {
   if (!state.me || !syncTodoDay() || !todosVisible()) return;
-  const commonOpen = $("#todo-templates")?.open;
   paintTodos();
-  const common = $("#todo-templates");
-  if (common && commonOpen) common.open = true;
   refreshOpenTodoTemplates();
   loadTodos();
 }
@@ -335,6 +389,6 @@ function registerTodosClock() {
   scheduleTodoClock();
 }
 export {
-  inputTodo, loadTodos, moveTodoDate, moveTodoMonth, paintTodos, refreshTodos, registerTodosClock, renderTodos,
-  selectTodoDate, setTodoNotice, submitTodo, submitTodoTemplate, toggleTodo
+  inputTodo, loadTodos, moveTodoDate, moveTodoMonth, paintTodos, refreshTodos, registerTodosClock, renderTodos, retryTodoCreate,
+  selectTodoDate, setTodoNotice, setTodoPanel, submitTodo, submitTodoTemplate, toggleTodo
 };

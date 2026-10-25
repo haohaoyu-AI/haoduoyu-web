@@ -1,0 +1,207 @@
+{
+  "baseline": "9c9fb40c10ab9f9cb2fbb0ed87beeccc5bae6108",
+  "synthetic": true,
+  "real_worker": true,
+  "completed": true,
+  "checks": {
+    "2_history_common_return_back_forward_1440": true,
+    "1_direct_plus_focus_is_immediate_and_late_ack_does_not_steal_editor_focus": true,
+    "1_memo_two_columns_tree_direct_creation_or_navigation_1440": true,
+    "3_4_7_settings_in_frame_trash_entry_and_return_1440": true,
+    "5_6_workbench_media_hierarchy_and_compact_clickable_info_1440": true,
+    "2_history_common_return_back_forward_900": true,
+    "1_memo_two_columns_tree_direct_creation_or_navigation_900": true,
+    "3_4_7_settings_in_frame_trash_entry_and_return_900": true,
+    "5_6_workbench_media_hierarchy_and_compact_clickable_info_900": true,
+    "2_history_common_return_back_forward_375": true,
+    "8_todo_optimistic_single_delayed_feedback_editable_next_draft_and_exact_retry": true,
+    "8_memo_long_IME_pending_ack_preserves_caret_and_defers_until_compositionend": true,
+    "8_memo_offline_recovery_and_real_CAS_preserve_local_text": true,
+    "1_memo_two_columns_tree_direct_creation_or_navigation_375": true,
+    "3_4_7_settings_in_frame_trash_entry_and_return_375": true,
+    "5_6_workbench_media_hierarchy_and_compact_clickable_info_375": true,
+    "2_history_common_return_back_forward_390": true,
+    "1_memo_two_columns_tree_direct_creation_or_navigation_390": true,
+    "3_4_7_settings_in_frame_trash_entry_and_return_390": true,
+    "5_6_workbench_media_hierarchy_and_compact_clickable_info_390": true
+  },
+  "captures": [
+    "todo-history-1440.png",
+    "todo-templates-1440.png",
+    "todos-1440.png",
+    "memos-1440.png",
+    "settings-1440.png",
+    "coverage-info-1440.png",
+    "todo-history-900.png",
+    "todo-templates-900.png",
+    "todos-900.png",
+    "memos-900.png",
+    "settings-900.png",
+    "coverage-info-900.png",
+    "todo-history-375.png",
+    "todo-templates-375.png",
+    "todo-delayed-background-375.png",
+    "todo-failure-draft-375.png",
+    "todos-375.png",
+    "memo-tree-375.png",
+    "memo-offline-draft-375.png",
+    "memo-conflict-preserved-375.png",
+    "memos-375.png",
+    "settings-375.png",
+    "coverage-info-375.png",
+    "todo-history-390.png",
+    "todo-templates-390.png",
+    "todos-390.png",
+    "memo-tree-390.png",
+    "memos-390.png",
+    "settings-390.png",
+    "coverage-info-390.png"
+  ],
+  "pageerrors": [],
+  "external_requests": [],
+  "layout": [
+    {
+      "width": 1440,
+      "shellBottom": 974,
+      "sideBottom": 973,
+      "footerBottom": 951,
+      "footerTop": 842
+    },
+    {
+      "width": 900,
+      "shellBottom": 584,
+      "sideBottom": 583,
+      "footerBottom": 561,
+      "footerTop": 451
+    }
+  ],
+  "notes_acceptance": {
+    "synthetic": true,
+    "completed": true,
+    "checks": [
+      "anonymous editor remains writable",
+      "in-flight save preserves composed long text and caret",
+      "IME completion sends exactly one final save",
+      "server text verified; routine draft banner stays quiet",
+      "1440x500 footer inside sidebar with scrollable navigation"
+    ],
+    "pageerrors": [],
+    "short_desktop_geometry": {
+      "footerBottom": 451,
+      "sidebarBottom": 473,
+      "navClient": 187,
+      "navScroll": 380
+    }
+  },
+  "baseline_reproduction": {
+    "baseline": "9c9fb40c10ab9f9cb2fbb0ed87beeccc5bae6108",
+    "synthetic": true,
+    "captures": [
+      "todos-1440.png",
+      "todo-templates-1440.png",
+      "memos-1440.png",
+      "settings-1440.png",
+      "coverage-info-1440.png",
+      "todos-900.png",
+      "todo-templates-900.png",
+      "memos-900.png",
+      "settings-900.png",
+      "coverage-info-900.png",
+      "todos-375.png",
+      "todo-templates-375.png",
+      "memo-tree-375.png",
+      "settings-375.png",
+      "coverage-info-375.png",
+      "todos-390.png",
+      "todo-templates-390.png",
+      "memo-tree-390.png",
+      "settings-390.png",
+      "coverage-info-390.png"
+    ],
+    "geometry": [
+      {
+        "width": 1440,
+        "shellBottom": 974,
+        "sidebarBottom": 973,
+        "footerBottom": 951,
+        "outside": false
+      },
+      {
+        "width": 1440,
+        "info_box": {
+          "x": 1218.609375,
+          "y": 271,
+          "width": 44,
+          "height": 44
+        }
+      },
+      {
+        "width": 900,
+        "shellBottom": 584,
+        "sidebarBottom": 583,
+        "footerBottom": 578,
+        "outside": false
+      },
+      {
+        "width": 900,
+        "info_box": {
+          "x": 768.609375,
+          "y": 255,
+          "width": 44,
+          "height": 44
+        }
+      },
+      {
+        "width": 375,
+        "info_box": {
+          "x": 64.015625,
+          "y": 465.1875,
+          "width": 44,
+          "height": 44
+        }
+      },
+      {
+        "width": 390,
+        "info_box": {
+          "x": 64.015625,
+          "y": 465.1875,
+          "width": 44,
+          "height": 44
+        }
+      }
+    ],
+    "focused_reproduction": [
+      {
+        "width": 1440,
+        "height": 500,
+        "footerBottom": 610,
+        "sidebarBottom": 473,
+        "outside": true,
+        "navClient": 328,
+        "navScroll": 328
+      },
+      {
+        "width": 900,
+        "height": 400,
+        "footerBottom": 578,
+        "sidebarBottom": 383,
+        "outside": true,
+        "navClient": 340,
+        "navScroll": 340
+      },
+      {
+        "case": "pending_add",
+        "readonly": true,
+        "button": "保存中…",
+        "status": "保存中…"
+      }
+    ]
+  },
+  "targeted_node_tests": {
+    "first_run_total": 133,
+    "first_run_pass": 132,
+    "only_failure": "module inventory expected 49, actual 51",
+    "correction": "count the two exact reviewed workbench modules",
+    "corrected_test_rechecked": true
+  }
+}

@@ -24,14 +24,16 @@ function todoTemplateEditor(store) {
 }
 function renderTodoTemplates() {
   const store = templateState();
-  return `<details id="todo-templates" class="daily-todo-templates"><summary>常用</summary><div class="todo-template-content">
+  return `<section id="todo-templates" class="daily-todo-templates todo-view" ${state.todoPanel === "templates" ? "" : "hidden"}>
+<div class="todo-view-head"><h2>常用待办</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
+<div class="todo-template-content">
 <form id="todo-template-form" class="todo-template-form" ${store.editing ? "hidden" : ""}>
 <label for="todo-template-text" class="sr-only">新建常用待办</label>
 <input id="todo-template-text" class="input" name="text" maxlength="500" required placeholder="新建常用待办" value="${e(store.draft)}">
 <button class="btn" type="submit">保存</button></form><div id="todo-template-editor">${todoTemplateEditor(store)}</div>
 <p id="todo-template-feedback" class="form-message" role="alert">${e(store.error)}</p>
 <p id="todo-template-status" class="daily-todo-status" role="status">${store.loading ? "正在读取…" : ""}</p>
-<ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul></div></details>`;
+<ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul></div></section>`;
 }
 function syncTemplateForm(root, id, value, pending) {
   const input = $(id, root);
@@ -41,7 +43,8 @@ function syncTemplateForm(root, id, value, pending) {
   const button = $("button[type=submit]", input.form);
   if (button) {
     button.disabled = pending;
-    button.textContent = pending ? "保存中…" : "保存";
+    button.textContent = "保存";
+    button.setAttribute("aria-busy", String(pending));
   }
 }
 function paintTodoTemplates() {
@@ -49,6 +52,7 @@ function paintTodoTemplates() {
   if (!root || state.page !== "todos" || !state.me) return;
   const store = templateState(), editor = $("#todo-template-editor", root), form = $("#todo-template-edit-form", root);
   if (editor && (form?.dataset.id || null) !== (store.editing?.id || null)) editor.innerHTML = todoTemplateEditor(store);
+  root.dataset.loaded = String(store.loaded);
   const create = $("#todo-template-form", root);
   if (create) create.hidden = Boolean(store.editing);
   syncTemplateForm(root, "#todo-template-text", store.draft, store.adding);
@@ -195,7 +199,7 @@ async function useTodoTemplate(id) {
 function refreshOpenTodoTemplates() {
   const store = templateState();
   store.revision++;
-  if ($("#todo-templates")?.open) loadTodoTemplates();
+  if (state.todoPanel === "templates") loadTodoTemplates();
 }
 export {
   cancelTodoTemplateEdit, editTodoTemplate, inputTodoTemplate, loadTodoTemplates, paintTodoTemplates, refreshOpenTodoTemplates,

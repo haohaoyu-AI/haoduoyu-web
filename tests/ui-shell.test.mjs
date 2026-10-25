@@ -18,7 +18,7 @@ function client(search=''){
  return {run,nodes,location,events,windowEvents,back(){locate(entries[--index]);windowEvents.popstate()},forward(){locate(entries[++index]);windowEvents.popstate()}};
 }
 test('legacy settings routes canonicalize while every query and account survives login restoration',()=>{
- for(const [route,tab] of [['management','accounts'],['accounts','accounts'],['keys','keys'],['settings','security'],['settings&tab=accounts','accounts'],['settings&tab=log','log'],['settings&tab=bad','accounts']]){
+ for(const [route,tab] of [['management','accounts'],['accounts','accounts'],['keys','keys'],['settings','workspace'],['settings&tab=accounts','accounts'],['settings&tab=log','log'],['settings&tab=bad','accounts']]){
   const c=client('?page='+route+'&account=a&q=%3C词%3E&platform=zhihu&sort=reads&order=asc&list_page=2&page_size=10&columns=reads,as_of&top_n=20&top_platform=wechat&period=30d');
   c.run('readRoute({freshLogin:true});updateRoute()');
   assert.equal(c.run('state.page'),'settings');assert.equal(c.run('state.settingsTab'),tab);assert.equal(c.run('state.account'),'a');

@@ -298,7 +298,7 @@ test('completion and undo respond before the network and roll back to saved stat
     const pending = c.run('renderTodos()');
     assert.equal(/class="daily-todo-row[^\"]*\bis-complete\b/.test(pending), !saved, 'strike state changes before response');
     assert.equal(/\bchecked(?:\s|>)/.test(pending), !saved, 'checkbox changes before response');
-    assert.match(pending, /保存中/);
+    assert.doesNotMatch(pending, /保存中/, "fast pending updates do not flash duplicate saving text");
     assert.equal(c.run('todoDay().items[0].completed'), saved, 'persisted state remains the rollback source');
     c.run(`checkbox.checked=${saved}`);
     await c.run('toggleTodo(checkbox)');
@@ -421,11 +421,11 @@ test('midnight timer and returning-tab events switch today automatically without
 test('same-day list updates preserve the live plan input and its caret', () => {
   const c = client(), slots = new Map();
   const input = {value: '正在输入计划', selectionStart: 3, selectionEnd: 3, readOnly: false};
-  const button = {disabled: false, textContent: '添加'};
+  const button = {disabled: false, textContent: '添加', setAttribute() {}};
   for (const id of ['todo-caption', 'todo-status', 'todo-items', 'todo-feedback']) slots.set('#' + id, {innerHTML: ''});
   slots.set('#todo-text', input);
   slots.set('button[type=submit]', button);
-  const root = {dataset: {date: '2026-10-23'}, querySelector: selector => slots.get(selector) || null};
+  const root = {setAttribute() {}, querySelectorAll:()=>[], dataset: {date: '2026-10-23'}, querySelector: selector => slots.get(selector) || null};
   Object.defineProperty(root, 'outerHTML', {set() {assert.fail('same-day refresh must retain the existing form');}});
   c.nodes.set('#daily-todos', root);
   c.put('syntheticInput', input);
@@ -443,7 +443,7 @@ test('saving a task does not recreate an active history date control', () => {
   slots.set('#todo-heading', heading);
   slots.set('#todo-date', dateInput);
   for (const id of ['todo-caption', 'todo-status', 'todo-items', 'todo-feedback']) slots.set('#' + id, {innerHTML: ''});
-  const root = {dataset: {date: '2026-10-22'}, querySelector: selector => slots.get(selector) || null};
+  const root = {setAttribute() {}, querySelectorAll:()=>[], dataset: {date: '2026-10-22'}, querySelector: selector => slots.get(selector) || null};
   Object.defineProperty(root, 'outerHTML', {set() {assert.fail('same-date save must retain the date controls');}});
   c.nodes.set('#daily-todos', root);
   c.put('syntheticDateInput', dateInput);
@@ -456,7 +456,7 @@ test('saving a task does not recreate an active history date control', () => {
 
 test('repeated navigation keeps the current page and history while explicit actions still refresh it', () => {
   for (const page of ['dashboard', 'todos', 'articles', 'reviews', 'settings']) {
-    const c = client({search: `?page=${page}&tab=accounts`, mobile: true});
+    const c = client({search: `?page=${page}&tab=workspace`, mobile: true});
     c.run('readRoute();updateRoute();let rendered=0;renderShell=()=>{rendered++}');
     const length = c.historyLength;
     c.run(`navigateLink(${JSON.stringify(page)})`);
@@ -472,10 +472,10 @@ test('repeated navigation keeps the current page and history while explicit acti
   }
 });
 
-test('daily-plan navigation returns historical dates to today and settings navigation returns to accounts', () => {
+test('daily-plan navigation returns historical dates to today and settings navigation returns to workspace', () => {
   for (const [search, page, check] of [
     ['?page=todos&date=2026-10-22', 'todos', "state.todoDate===''&&todoDate()==='2026-10-23'"],
-    ['?page=settings&tab=keys', 'settings', "state.settingsTab==='accounts'"],
+    ['?page=settings&tab=keys', 'settings', "state.settingsTab==='workspace'"],
   ]) {
     const c = client({search, mobile: true});
     c.run('readRoute();updateRoute();let rendered=0;renderShell=()=>{rendered++}');
@@ -525,7 +525,7 @@ test('hidden completion reacts immediately and a failed save restores the row wi
     let calls=0,rejectSave;api=()=>{calls++;return new Promise((_,reject)=>rejectSave=reject)};
     let save=toggleTodo({dataset:{todoId:original.id,date:original.date},checked:true})`);
   assert.doesNotMatch(c.run('renderTodos()'), /data-todo-id="hide-failure"/);
-  assert.match(c.run('renderTodos()'), /保存中/);
+  assert.doesNotMatch(c.run('renderTodos()'), /保存中/);
   c.run("rejectSave(new Error('Synthetic completion failed'))");
   await c.run('save');
   assert.match(c.run('renderTodos()'), /data-todo-id="hide-failure"/);

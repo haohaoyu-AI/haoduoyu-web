@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {workbenchAddedModules} from './workbench-ui-projection.mjs';
 import {projectPublicNoteFrontend} from './public-note-ui-projection.mjs';
 import {execFileSync} from 'node:child_process';
 import {readFile, readdir} from 'node:fs/promises';
@@ -76,6 +77,7 @@ function projectMemoController(ast) {
 export async function projectMemoFrontend(file,source) {
   const original=source;
   source=await projectPublicNoteFrontend(file,source);
+  if(workbenchAddedModules.includes(file))return source;
   if(memoAddedModules.includes(file)) {
     assert.equal(source,memoBaseline(file,MEMO_SOURCE_BASE),'exact accepted memo module bytes: '+file);
     return '';
@@ -99,9 +101,10 @@ export async function verifyMemoFrontendBoundary() {
     .trim().split('\n').filter(file=>file.endsWith('.mjs'));
   const files=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs'))
     .map(file=>'web/'+file).sort();
-  assert.deepEqual(files,[...production,...memoAddedModules].sort(),'released modules plus exactly four reviewed memo modules');
+  assert.deepEqual(files,[...production,...memoAddedModules,...workbenchAddedModules].sort(),'released modules plus reviewed memo and workbench modules');
   for(const file of files) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
+    if(workbenchAddedModules.includes(file)){assert.equal(await projectPublicNoteFrontend(file,source),'');continue;}
     if(memoAddedModules.includes(file)||memoSharedFiles.includes(file))await projectMemoFrontend(file,source);
     else assert.equal(await projectPublicNoteFrontend(file,source),memoBaseline(file),'every other released frontend source byte remains unchanged: '+file);
   }

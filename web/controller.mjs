@@ -25,18 +25,14 @@ import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { segmented } from "./ui/segmented.mjs";
 import { toast } from "./ui/toast.mjs";
+import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation} from "./ui/workbench.mjs";
+import {renderWorkbenchSettings} from "./pages/workbench-settings.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
-    state.me?.publicBusiness ? { accounts: settingsTabs.accounts } : settingsTabs), state.settingsTab,
+    state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts} : settingsTabs), state.settingsTab,
     "设置分类", "tab", "page-tabs") : ""}${state.page === "dashboard" ?
     `<div class="article-ledger-overview article-ledger-scope">${segmented("article-overview-mode",
       [["drafts", "存稿台账"], ["published", "已发布数据"]], state.articleOverviewMode, "总览口径", "mode")}</div>` : ""}<div id="page-content"></div>`;
-}
-function mobileNavigation() {
-  return `<nav class="mobile-nav notes-navigation memos-navigation" aria-label="切换模块">\
-${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
-data-nav="${e(n.id)}" class="mobile-nav-item${n.id === state.page ? " active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>
-${icon(n.icon, 18)}<span>${e(n.label)}</span></a>`).join("")}</nav>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -48,36 +44,36 @@ function reuseShell() {
     if (current) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   }
+  syncWorkbenchNavigation();
   main.innerHTML = mainContent();
   return true;
 }
 function renderShell() {
-  if (state.me?.publicBusiness && state.page === "settings") state.settingsTab = "accounts";
+  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts"].includes(state.settingsTab))
+    state.settingsTab = "workspace";
   stopPageEntry();
   closePopover({ restoreFocus: false });
   if (reuseShell()) {
     renderPage();
     return;
   }
-  const navLink = (n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}" data-nav="${e(n.id)}" class="nav-item ${n.
-  id === state.page ? "active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>${icon(n.icon, 18)}${e(n.label)}</a>`;
   $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" \
 class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a \
-href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼图文</span></a>\
+href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a>\
 <button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
-  "close")}</button></div><nav class="nav-list">${nav.filter((n) => n.id !== "settings").map(navLink).join("")}</nav><div \
-class="sidebar-bottom">${navLink(nav.find((n) => n.id === "settings"))}<div \
+  "close")}</button></div><nav class="nav-list">${sidebarNavigation()}</nav><div \
+class="sidebar-bottom">${settingsNavigation()}<div \
 class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.
   me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" \
 aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div>\
 </aside><div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" \
-aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼图文</span></header><main id="main" class="content" \
+aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" \
 tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
   renderPage();
 }
 function navigateLink(page) {
-  const same = page === state.page && (page !== "settings" || state.settingsTab === "accounts") && (page !== "todos" || !state.todoDate);
+  const same = page === state.page && (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
     return;
@@ -89,8 +85,8 @@ function navigate(page, tab) {
   if (legacy) page = "settings";
   if (!nav.some((n) => n.id === page)) return;
   state.page = page;
-  if (page === "todos") state.todoDate = "";
-  if (page === "settings") state.settingsTab = legacy || tab || "accounts";
+  if (page === "todos") { state.todoDate = ""; state.todoPanel = ""; }
+  if (page === "settings") state.settingsTab = legacy || tab || "workspace";
   if (page === "dashboard") state.account = "";
   updateRoute(true);
   closeModal();
@@ -159,7 +155,8 @@ async function renderPage() {
         html = await renderReviews(version, context);
         break;
       case "settings":
-        if (state.settingsTab === "accounts") html = renderAccounts();
+        if (state.settingsTab === "workspace") html = renderWorkbenchSettings();
+        else if (state.settingsTab === "accounts") html = renderAccounts();
         else if (state.settingsTab === "keys") {
           data = await api("/api-keys", { context });
           html = renderKeys(data);

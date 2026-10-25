@@ -6,7 +6,7 @@ test('public edit UI delta rejects an unrelated declaration or removed CSRF-inde
   for(const file of ['web/core/memos-state.mjs','web/core/daily-notes-state.mjs']) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
     await projectPublicNoteFrontend(file,source);
-    await assert.rejects(projectPublicNoteFrontend(file,source+'\nconst unauthorized=true;\n'),/approved public note UI delta/);
+    await assert.rejects(projectPublicNoteFrontend(file,source+'\nconst unauthorized=true;\n'),/approved public note UI delta|approved workbench delta/);
   }
 });
 

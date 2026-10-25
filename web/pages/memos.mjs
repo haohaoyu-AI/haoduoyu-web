@@ -4,10 +4,9 @@ const button = (action, label, extra = '') => '<button type="button" class="btn"
   action + '" ' + extra + '>' + label + '</button>';
 export function renderMemos() {
   return '<section id="memos" data-pane="groups" aria-label="长期备忘录">' +
-    '<div class="memo-toolbar"><div class="memo-mobile-back">' + button('back-groups', '‹ 分组') +
-    button('back-notes', '‹ 笔记') + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span>' +
-    '<div class="memo-toolbar-actions">' + button('refresh', '刷新') + button('trash', '回收站', 'hidden') +
-    button('recovery', '本机草稿', 'hidden') + button('login', '所有者登录', 'hidden') + '</div></div>' +
+    '<div class="memo-toolbar"><div class="memo-mobile-back">' + button('back-notes', '‹ 返回目录') +
+    '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span>' +
+    '<div class="memo-toolbar-actions">' + button('exit-trash', '返回备忘录', 'hidden') + button('login', '所有者登录', 'hidden') + '</div></div>' +
     '<p id="memo-error" class="memo-message" role="alert" hidden></p>' +
     '<div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' +
     button('operation-check', '核对操作结果') + button('operation-retry', '重试同一操作', 'hidden') + '</div>' +
@@ -22,13 +21,10 @@ export function renderMemos() {
     '<label id="memo-dialog-label" for="memo-dialog-title">名称</label>' +
     '<input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off">' +
     '<div class="memo-dialog-actions">' + button('cancel', '取消') + button('confirm', '确认') + '</div></section>' +
-    '<div class="memo-layout"><aside class="memo-groups" aria-label="分组">' +
-    '<div class="memo-panel-head"><h2 id="memo-groups-heading">分组</h2>' + button('new-group', '＋ 分组', 'hidden') + '</div>' +
+    '<div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录">' +
+    '<div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' +
+    button('new-group', '＋', 'hidden aria-label="新建分组"') + '</div>' +
     '<div id="memo-group-list" class="memo-list"></div></aside>' +
-    '<aside class="memo-notes" aria-label="笔记列表"><div class="memo-panel-head"><h2 id="memo-group-heading">笔记</h2>' +
-    button('new-note', '＋ 笔记', 'hidden') + '</div><div id="memo-group-actions" class="memo-group-actions" hidden>' +
-    button('rename-group', '重命名分组') + button('delete-group', '删除分组') + button('restore-group', '恢复分组', 'hidden') +
-    '</div><div id="memo-note-list" class="memo-list"></div></aside>' +
     '<article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p>' +
     '<div id="memo-document" hidden><label for="memo-title" class="sr-only">笔记标题</label>' +
     '<input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off">' +
@@ -37,7 +33,9 @@ export function renderMemos() {
     '<textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea>' +
     '<div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div>' +
     '<div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden>' +
-    button('save', '立即保存') + button('delete-note', '删除笔记') + button('restore-note', '恢复笔记', 'hidden') + '</div></div>' +
+    '<details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' +
+    button('save', '立即保存') + button('delete-note', '删除笔记') + button('restore-note', '恢复笔记', 'hidden') +
+    '</div></details></div></div>' +
     '<p id="memo-note-error" class="memo-message" role="alert" hidden></p>' +
     '<div id="memo-resolution" class="memo-resolution" hidden>' + button('check', '核对服务器结果') +
     button('retry', '重试同一保存', 'hidden') + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3>' +
@@ -52,29 +50,40 @@ function listButton(kind, row, current, subtitle = '') {
     '="' + e(row.id) + '" aria-pressed="' + (row.id === current) + '"><span>' + e(row.title) + '</span>' +
     (subtitle ? '<small>' + e(subtitle) + '</small>' : '') + '</button>';
 }
+function groupTree(group, notes, store) {
+  const s = store.state, open = s.groupId === group.id, label = e(group.title);
+  const extra = ' data-memo-target="' + e(group.id) + '"';
+  const controls = !s.canEdit ? '' : s.trash ? (group.deleted_at ? button('restore-group', '恢复分组', extra) : '') :
+    button('new-note', '＋', extra + ' aria-label="在' + label + '中新建笔记"') +
+    '<details class="memo-group-menu"><summary aria-label="' + label + '的分组操作">⋯</summary>' +
+    '<div class="memo-context-actions">' + button('rename-group', '重命名', extra) +
+    button('delete-group', '删除分组', extra) + '</div></details>';
+  const pending = Boolean(s.operation?.pending);
+  return '<div class="memo-tree-group"><div class="memo-tree-heading">' +
+    '<button type="button" class="memo-group-select' + (open ? ' is-selected' : '') + '" data-memo-group="' + e(group.id) +
+    '" aria-expanded="' + open + '" aria-controls="memo-children-' + e(group.id) + '"' +
+    (pending ? ' disabled' : '') + '><span>' + label + '</span></button>' + controls + '</div>' +
+    '<div id="memo-children-' + e(group.id) + '" class="memo-tree-notes"' + (open ? '' : ' hidden') + '>' +
+    (notes.map(row => listButton('note', row, s.noteId)).join('') || '<p class="memo-empty">还没有笔记，点 ＋ 开始记录。</p>') +
+    '</div></div>';
+}
 function paintLists(root, store) {
-  const s = store.state, group = s.groups.find(row => row.id === s.groupId), find = q => root.querySelector(q);
-  find('#memo-groups-heading').textContent = s.trash ? '已删除分组' : '分组';
-  find('#memo-group-heading').textContent = group?.title || (s.trash ? '已删除笔记' : '笔记');
-  find('#memo-group-list').innerHTML = active(s.groups, s.trash).map(row => listButton('group', row, s.groupId,
-    row.active_note_count + ' 篇笔记')).join('') || '<p class="memo-empty">' + (s.trash ? '没有已删除分组' : '还没有分组') + '</p>';
-  const notes = s.notes.filter(row => s.trash ? row.deleted_at || group?.deleted_at && row.group_id === group.id :
-    !row.deleted_at && row.group_id === s.groupId && !group?.deleted_at);
-  find('#memo-note-list').innerHTML = notes.map(row => listButton('note', row, s.noteId,
-    s.trash ? s.groups.find(item => item.id === row.group_id)?.title || '' : '')).join('') ||
-    '<p class="memo-empty">' + (s.trash ? '没有已删除笔记' : '这个分组还没有笔记') + '</p>';
+  const s = store.state, find = q => root.querySelector(q);
+  find('#memo-groups-heading').textContent = s.trash ? '回收站' : '目录';
+  const groups = s.groups.filter(group => s.trash ? group.deleted_at ||
+    s.notes.some(note => note.group_id === group.id && note.deleted_at) : !group.deleted_at);
+  const html = groups.map(group => groupTree(group, s.notes.filter(note => note.group_id === group.id &&
+    (s.trash ? note.deleted_at || group.deleted_at : !note.deleted_at)), store)).join('') ||
+    '<p class="memo-empty">' + (s.trash ? '回收站是空的。' : '点右上角 ＋ 新建分组。') + '</p>';
+  const tree = find('#memo-group-list');
+  if (tree.innerHTML !== html) tree.innerHTML = html;
   find('[data-memo-action="new-group"]').hidden = !s.canEdit || s.trash;
-  find('[data-memo-action="new-note"]').hidden = !s.canEdit || s.trash || !group || Boolean(group.deleted_at);
-  find('#memo-group-actions').hidden = !s.canEdit || !group;
-  for (const action of ['rename-group', 'delete-group']) find('[data-memo-action="' + action + '"]').hidden = Boolean(group?.deleted_at);
-  find('[data-memo-action="restore-group"]').hidden = !group?.deleted_at;
-  const operationBlocked = Boolean(s.operation?.pending);
-  const groupDirty = [...store.drafts.values()].some(item => item.group_id === s.groupId && (item.dirty || item.pending));
-  for (const action of ['new-group', 'new-note', 'rename-group', 'delete-group', 'restore-group'])
-    find('[data-memo-action="' + action + '"]').disabled = operationBlocked || action === 'delete-group' && groupDirty;
+  find('[data-memo-action="new-group"]').disabled = Boolean(s.operation?.pending);
+  root.querySelectorAll('[data-memo-action="new-note"]').forEach(button => { button.disabled = Boolean(s.operation?.pending); });
 }
 function paintDrafts(root, store) {
-  const drafts = [...store.drafts.values()].filter(item => item.dirty || item.pending || ['unknown', 'conflict'].includes(item.phase));
+  const drafts = [...store.drafts.values()].filter(item =>
+    ['unknown', 'conflict', 'offline', 'error'].includes(item.phase) || item.id !== store.state.noteId && (item.dirty || item.pending));
   const box = root.querySelector('#memo-drafts');
   box.hidden = !store.state.canEdit || !drafts.length;
   box.innerHTML = '<span>本机保留的草稿：</span>' + drafts.map(item =>
@@ -94,7 +103,7 @@ function paintDocument(root, store) {
     const input = find('#memo-' + field);
     input.hidden = !editable;
     input.disabled = Boolean(structureBusy || item.loading || item.pending && item.pending.method !== 'PUT');
-    if (input.value !== item[field]) input.value = item[field] || '';
+    if (input.dataset.composing !== 'true' && input.value !== item[field]) input.value = item[field] || '';
     find('#memo-read-' + field).hidden = editable;
     find('#memo-read-' + field).textContent = item[field] || (field === 'body' ? '这篇笔记还没有正文。' : '未命名笔记');
   }
@@ -120,21 +129,18 @@ export function paintMemos(root, store) {
   if (!root) return;
   const s = store.state, item = store.drafts.get(s.noteId), find = q => root.querySelector(q);
   root.dataset.pane = s.pane;
-  find('#memo-status').textContent = s.loading ? '正在读取…' : !s.canEdit ? '公开只读' : phases[item?.phase] || '已保存';
+  const actual = phases[item?.phase] || '已保存', routine = ['dirty', 'saving', 'saved'].includes(item?.phase) || !item;
+  find('#memo-status').textContent = s.loading ? '正在读取…' : !s.canEdit ? '公开只读' : routine ? '自动保存' : actual;
+  find('#memo-status').setAttribute('aria-label', actual);
+  find('#memo-status').dataset.phase = item?.phase || 'saved';
   find('#memo-error').hidden = !s.error && !s.storageError;
   find('#memo-error').textContent = [s.error, s.storageError].filter(Boolean).join(' ');
   find('[data-memo-action="login"]').hidden = s.canEdit || s.loading;
-  find('[data-memo-action="trash"]').hidden = !s.canEdit;
-  find('[data-memo-action="recovery"]').hidden = !s.canEdit;
   if (!s.canEdit) find('#memo-recovery').hidden = true;
-  find('[data-memo-action="trash"]').textContent = s.trash ? '返回备忘录' : '回收站';
-  find('[data-memo-action="trash"]').setAttribute('aria-pressed', String(s.trash));
-  find('[data-memo-action="back-groups"]').hidden = s.pane === 'groups';
-  find('[data-memo-action="back-notes"]').hidden = s.trash ? s.pane === 'notes' : s.pane !== 'editor';
-  find('[data-memo-action="back-groups"]').textContent = s.trash ? '已删分组' : '‹ 分组';
-  find('[data-memo-action="back-notes"]').textContent = s.trash ? '已删笔记' : '‹ 笔记';
+  find('[data-memo-action="exit-trash"]').hidden = !s.trash;
+  find('[data-memo-action="back-notes"]').hidden = s.pane !== 'editor';
   const operation = s.operation;
-  find('#memo-operation').hidden = !operation?.pending && !operation?.error;
+  find('#memo-operation').hidden = !operation?.error && operation?.phase !== 'unknown';
   find('#memo-operation-text').textContent = operation?.error || (operation?.phase === 'saving' ? '正在保存操作…' : '操作结果待核对');
   find('[data-memo-action="operation-check"]').hidden = operation?.phase !== 'unknown';
   find('[data-memo-action="operation-retry"]').hidden = operation?.phase !== 'unknown' || !operation?.retryReady;
