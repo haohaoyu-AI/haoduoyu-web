@@ -19,7 +19,7 @@ npm run check:artifacts
 npm run check:previews
 ```
 
-修改前端时编辑 web/，运行 npm run build，并提交生成的 public/app.js。产物保持单一、UTF-8、ESM、不压缩；CI 在任何构建覆盖前检查源码与已提交产物一致，并核对八个公开资源与 Worker 的字节。源码检查覆盖所有模块、物理行和函数，不忽略目录或长模板。当前可读 bundle 超出 100,000 B 目标，当前 115637 B，准确验证边界见 [阶段 4c 记录](docs/strict-style-csp.md)。
+修改前端时编辑 web/，运行 npm run build，并提交生成的 public/app.js。产物保持单一、UTF-8、ESM、不压缩；CI 在任何构建覆盖前检查源码与已提交产物一致，并核对九个公开资源与 Worker 的字节。源码检查覆盖所有模块、物理行和函数，不忽略目录或长模板。当前可读 bundle 超出 100,000 B 目标，当前 115637 B，准确验证边界见 [阶段 4c 记录](docs/strict-style-csp.md)。
 
 测试在临时 Miniflare D1 创建合成记录，禁止 Worker 外联，不读取生产数据库或备份。测试账号及口令均为 tests/harness.mjs 中明确的本地假值，不可用于部署；截图不保存口令或一次性凭据。
 
@@ -55,3 +55,7 @@ python3 tests/browser-frontend-lifecycle-regression.py --part all
 ## 每日待办
 
 首页可直接填写今日计划，完成后划线或隐藏，长按菜单可删除并撤销；按北京时间跨日自然归档，并可按日期查看历史。实现、权限、增量迁移及旧备份兼容见[每日待办说明](docs/daily-todos.md)。生产状态仍以明确的发布记录为准。
+
+## 长期备忘录
+
+独立的“分组 → 笔记”模块，不按日归档，公开可读，仅明确 owner 的真实登录会话可编辑。包含纯文本自动保存、版本冲突保护、本机未确认草稿、保存收据及可恢复删除。新增 `0006_long_term_memos` 和 v7 备份，兼容旧 v1–v6；发布者必须配置 `MEMOS_OWNER_ID`。边界、API、并行合并注意事项见[长期备忘录说明](docs/long-term-memos.md)。此分支尚未部署。

@@ -9,6 +9,7 @@ var nav = [
   { id: "reviews", label: "数据", icon: "chart" },
   { id: "todos", label: "每日待办", icon: "check" },
   { id: "notes", label: "碎碎念", icon: "edit" },
+  { id: "memos", label: "备忘录", icon: "articles" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
 var settingsTabs = { accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
@@ -289,9 +290,9 @@ function todoDay(date = todoDate()) {
 }
 function syncTodoDay(now = Date.now()) {
   if (todosState.owner !== todoOwner()) resetTodos();
-  const today = bjtDate(now), changed = todosState.today !== today;
+  const today = bjtDate(now), changed2 = todosState.today !== today;
   todosState.today = today;
-  return changed;
+  return changed2;
 }
 function todoSessionActive(owner) {
   return Boolean(state.me) && owner === todoOwner() && owner === todosState.owner;
@@ -411,7 +412,7 @@ function closePopover({ restoreFocus = true } = {}) {
   trigger.setAttribute("aria-expanded", "false");
   if (restoreFocus && trigger.isConnected) trigger.focus();
 }
-function popover(trigger, body, { menu = false, label = "说明" } = {}) {
+function popover(trigger, body, { menu = false, label: label2 = "说明" } = {}) {
   if (runtime.activePopover?.trigger === trigger) {
     closePopover();
     return;
@@ -423,7 +424,7 @@ function popover(trigger, body, { menu = false, label = "说明" } = {}) {
   node.id = id;
   node.className = "popover";
   node.setAttribute("role", menu ? "menu" : "dialog");
-  node.setAttribute("aria-label", label);
+  node.setAttribute("aria-label", label2);
   node.tabIndex = -1;
   node.innerHTML = body;
   (trigger.closest("[role=dialog]") || document.body).append(node);
@@ -946,8 +947,8 @@ var platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "
   zhihu: "知",
   wechat: "微"
 }[p] || "文")}</span>`;
-function detailInfo(reason, label, id) {
-  return `<button class="icon-button" data-action="detail-info" data-reason="${e(reason)}" aria-label="${e(label)}" aria-expanded="false" aria-controls="detail-info-${e(id)}">${icon("info", 14)}</button>`;
+function detailInfo(reason, label2, id) {
+  return `<button class="icon-button" data-action="detail-info" data-reason="${e(reason)}" aria-label="${e(label2)}" aria-expanded="false" aria-controls="detail-info-${e(id)}">${icon("info", 14)}</button>`;
 }
 function empty(title, description = "", action = "") {
   return `<div class="empty"><span class="empty-icon">${icon("articles", 22)}</span><h3>${e(title)}</h3>${description ? `<p>${e(
@@ -978,6 +979,7 @@ function accountFilter() {
   )}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "memos") return '<div class="heading-left"><h1>备忘录</h1></div>';
   if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
@@ -996,8 +998,8 @@ function comparisonHTML(comparison) {
   const percent = comparison.percent == null ? "" : `（${Number(comparison.percent) > 0 ? "+" : ""}${num(comparison.percent)}%）`;
   return `<span class="comparison ${direction}" title="${e(comparison.reason || "与前一等长周期比较")}">${change}${percent}</span>`;
 }
-function dashboardInfo(kind, label, id = "") {
-  return `<button class="icon-button" data-action="dashboard-info" data-kind="${e(kind)}" data-id="${e(id)}" aria-label="${e(label)}" aria-expanded="false" aria-controls="info-${e(kind)}-${e(id)}">${icon("info", 14)}</button>`;
+function dashboardInfo(kind, label2, id = "") {
+  return `<button class="icon-button" data-action="dashboard-info" data-kind="${e(kind)}" data-id="${e(id)}" aria-label="${e(label2)}" aria-expanded="false" aria-controls="info-${e(kind)}-${e(id)}">${icon("info", 14)}</button>`;
 }
 function platformColor(platform) {
   return `var(--p-${["toutiao", "zhihu", "wechat"].includes(platform) ? platform : "other"})`;
@@ -1024,35 +1026,35 @@ function metricSummary(a) {
     key
   )}</dd></div>`).join("")}</dl>`;
 }
-function articleSelect(name, label, choices, value) {
-  return `<label class="form-field">${e(label)}<select name="${e(name)}" class="input" aria-label="${e(label)}"><option value="">全部</option>${Object.entries(choices).map(([key, text]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(text)}</option>`).join("")}</select></label>`;
+function articleSelect(name, label2, choices, value) {
+  return `<label class="form-field">${e(label2)}<select name="${e(name)}" class="input" aria-label="${e(label2)}"><option value="">全部</option>${Object.entries(choices).map(([key, text]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(text)}</option>`).join("")}</select></label>`;
 }
-function field(name, label, type = "text", value = "", options = "", full = false) {
-  return `<div class="form-field${full ? " full" : ""}"><label for="field-${e(name)}">${label}</label><input id="field-${e(name)}" class="input" name="${e(name)}" type="${type}" value="${e(value)}" ${options}></div>`;
+function field(name, label2, type = "text", value = "", options = "", full = false) {
+  return `<div class="form-field${full ? " full" : ""}"><label for="field-${e(name)}">${label2}</label><input id="field-${e(name)}" class="input" name="${e(name)}" type="${type}" value="${e(value)}" ${options}></div>`;
 }
-function formEnd(label = "保存") {
-  return `<p class="form-message" role="alert"></p><div class="form-actions"><button type="button" class="btn" data-action="close-modal">取消</button><button class="btn primary" type="submit">${e(label)}</button></div>`;
+function formEnd(label2 = "保存") {
+  return `<p class="form-message" role="alert"></p><div class="form-actions"><button type="button" class="btn" data-action="close-modal">取消</button><button class="btn primary" type="submit">${e(label2)}</button></div>`;
 }
 function renderSnapshot(row) {
   const m = metricData(row);
-  return `<article class="snapshot"><div class="snapshot-head"><span class="badge ${row.kind === "latest" ? "up" : "neutral"}">${e(kindLabels[row.kind] || row.kind || "每日数据")}</span><span class="snapshot-time">${e(row.date || displayTime(row.as_of))}</span></div><div class="snapshot-metrics">${Object.entries(metrics).filter(([key]) => m[key] != null).map(([key, label]) => `<span>${e(label)} <strong>${e(
+  return `<article class="snapshot"><div class="snapshot-head"><span class="badge ${row.kind === "latest" ? "up" : "neutral"}">${e(kindLabels[row.kind] || row.kind || "每日数据")}</span><span class="snapshot-time">${e(row.date || displayTime(row.as_of))}</span></div><div class="snapshot-metrics">${Object.entries(metrics).filter(([key]) => m[key] != null).map(([key, label2]) => `<span>${e(label2)} <strong>${e(
     num(m[key])
   )}</strong></span>`).join("") || "未记录指标"}</div><p class="cell-sub">来源 ${e(row.source || "未记录")}${row.collected_at ? " · 采集 " + e(displayTime(row.collected_at)) : ""}</p>${row.note ? `<p class="cell-sub">${e(row.note)}</p>` : ""}</article>`;
 }
 
 // web/ui/segmented.mjs
-function segmented(action, items, selected, label, attribute = "tab", classes = "") {
-  return `<div class="segmented${classes ? " " + e(classes) : ""}" role="group" aria-label="${e(label)}">${items.map(([value, text]) => `<button type="button" class="btn" data-action="${e(action)}" data-${e(attribute)}="${e(value)}" aria-pressed="${selected === value}">${e(
+function segmented(action, items, selected, label2, attribute = "tab", classes = "") {
+  return `<div class="segmented${classes ? " " + e(classes) : ""}" role="group" aria-label="${e(label2)}">${items.map(([value, text]) => `<button type="button" class="btn" data-action="${e(action)}" data-${e(attribute)}="${e(value)}" aria-pressed="${selected === value}">${e(
     text
   )}</button>`).join("")}</div>`;
 }
-function platformFilter(action, selected, label = "平台") {
-  return segmented(action, [["", "全部"], ...Object.entries(platforms)], selected, label, "platform");
+function platformFilter(action, selected, label2 = "平台") {
+  return segmented(action, [["", "全部"], ...Object.entries(platforms)], selected, label2, "platform");
 }
 
 // web/ui/table.mjs
-function sortHeading(key, label) {
-  return `<button class="sort-heading" data-action="sort-column" data-sort="${e(key)}" aria-label="按${e(label)}排序">${e(label)} ${state.filters.sort === key ? state.filters.order === "asc" ? "↑" : "↓" : "↕"}</button>`;
+function sortHeading(key, label2) {
+  return `<button class="sort-heading" data-action="sort-column" data-sort="${e(key)}" aria-label="按${e(label2)}排序">${e(label2)} ${state.filters.sort === key ? state.filters.order === "asc" ? "↑" : "↓" : "↕"}</button>`;
 }
 
 // web/ui/toast.mjs
@@ -1087,9 +1089,9 @@ async function renderArticles(version = runtime.renderVersion, context) {
     topic: "题材",
     mode: "生产方式",
     group: "分组"
-  }).map(([key, label]) => [
+  }).map(([key, label2]) => [
     key,
-    label,
+    label2,
     (key === "platform" ? platforms : key === "data_status" ? articleStatuses : articleChoices[key])?.[f[key]] || f[key]
   ])].filter(
     ([, , value]) => value
@@ -1098,7 +1100,7 @@ async function renderArticles(version = runtime.renderVersion, context) {
     "article-platform",
     f.platform,
     "文章平台"
-  )}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}<button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button></form>${chips.length ? `<div class="selected-filters" aria-label="已选条件">${chips.map(([key, label, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key)}" aria-label="移除${e(label)}：${e(value)}">${e(label)}：${e(value)} ×</button>`).join("")}<button class="btn text" data-action="reset-filters">清空</button></div>` : ""}${articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "尚未记录文章", "", '<button class="btn" data-action="reset-filters">清空筛选</button>')}<div class="pagination"><span>共 ${e(num(meta.total))} 篇</span><label>每页<select id="page-size" class="input">${[.../* @__PURE__ */ new Set([
+  )}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}<button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button></form>${chips.length ? `<div class="selected-filters" aria-label="已选条件">${chips.map(([key, label2, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key)}" aria-label="移除${e(label2)}：${e(value)}">${e(label2)}：${e(value)} ×</button>`).join("")}<button class="btn text" data-action="reset-filters">清空</button></div>` : ""}${articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "尚未记录文章", "", '<button class="btn" data-action="reset-filters">清空筛选</button>')}<div class="pagination"><span>共 ${e(num(meta.total))} 篇</span><label>每页<select id="page-size" class="input">${[.../* @__PURE__ */ new Set([
     10,
     20,
     50,
@@ -1114,12 +1116,12 @@ function articleFilterPanel({ filters: f = state.filters, columns: c = state.col
     "发布至",
     "date",
     f.to
-  )}${Object.entries({ topic: "题材", mode: "生产方式", group: "分组" }).map(([key, label]) => articleSelect(
+  )}${Object.entries({ topic: "题材", mode: "生产方式", group: "分组" }).map(([key, label2]) => articleSelect(
     key,
-    label,
+    label2,
     articleChoices[key],
     f[key]
-  )).join("")}<fieldset class="form-field full permission-fields"><legend>显示字段</legend><div class="checkboxes">${Object.entries(articleColumns).map(([key, [label]]) => `<label class="check-option"><input type="checkbox" name="columns" value="${e(key)}" ${c.has(key) ? "checked" : ""}>${e(label)}</label>`).join("")}</div></fieldset><div class="form-field full"><span>更多排序</span><input type="hidden" name="sort" value="${e(f.sort)}"><input type="hidden" name="order" value="${e(f.order)}"><div class="head-actions">${Object.entries(articleColumns).filter(([, [, sort]]) => sort).map(([key, [label, sort]]) => `<button type="button" class="btn small" data-action="draft-sort" data-visible="${sort === "published_at" || c.has(key)}" data-sort="${e(sort)}" aria-pressed="${f.sort === sort}">${e(label)} ${f.sort === sort ? f.order === "asc" ? "↑" : "↓" : "↕"}</button>`).join("") || "使用表头排序"}</div></div><div class="form-field full"><label for="filter-view">常用视图（筛选和字段）</label><select id="filter-view" class="input"><option value="">选择视图后应用</option>${state.savedViews.map((v) => `<option value="${e(v.id)}">${e(v.name)}</option>`).join("")}</select><button type="button" class="btn" data-action="save-view">保存已应用视图</button></div></div><div class="form-actions"><button type="button" class="btn" data-action="reset-draft">重置草稿</button><button type="submit" class="btn">应用</button></div></form>`;
+  )).join("")}<fieldset class="form-field full permission-fields"><legend>显示字段</legend><div class="checkboxes">${Object.entries(articleColumns).map(([key, [label2]]) => `<label class="check-option"><input type="checkbox" name="columns" value="${e(key)}" ${c.has(key) ? "checked" : ""}>${e(label2)}</label>`).join("")}</div></fieldset><div class="form-field full"><span>更多排序</span><input type="hidden" name="sort" value="${e(f.sort)}"><input type="hidden" name="order" value="${e(f.order)}"><div class="head-actions">${Object.entries(articleColumns).filter(([, [, sort]]) => sort).map(([key, [label2, sort]]) => `<button type="button" class="btn small" data-action="draft-sort" data-visible="${sort === "published_at" || c.has(key)}" data-sort="${e(sort)}" aria-pressed="${f.sort === sort}">${e(label2)} ${f.sort === sort ? f.order === "asc" ? "↑" : "↓" : "↕"}</button>`).join("") || "使用表头排序"}</div></div><div class="form-field full"><label for="filter-view">常用视图（筛选和字段）</label><select id="filter-view" class="input"><option value="">选择视图后应用</option>${state.savedViews.map((v) => `<option value="${e(v.id)}">${e(v.name)}</option>`).join("")}</select><button type="button" class="btn" data-action="save-view">保存已应用视图</button></div></div><div class="form-actions"><button type="button" class="btn" data-action="reset-draft">重置草稿</button><button type="submit" class="btn">应用</button></div></form>`;
 }
 function articleDraft(form) {
   const values = new FormData(form), filters = { ...state.filters };
@@ -1145,19 +1147,19 @@ function articleTable(rows) {
   ));
   return `<div class="table-scroll article-desktop"><table class="data-table article-table"><thead><tr><th aria-sort="${!state.columns.has(
     "published"
-  ) && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key, [label, sort]]) => `<th ${sort ? `aria-sort="${state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>${sort ? sortHeading(
+  ) && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key, [label2, sort]]) => `<th ${sort ? `aria-sort="${state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>${sort ? sortHeading(
     sort,
-    label
-  ) : e(label)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}<th>操作</th></tr></thead><tbody class="article-cards">${rows.map((a) => {
+    label2
+  ) : e(label2)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}<th>操作</th></tr></thead><tbody class="article-cards">${rows.map((a) => {
     const group = state.filters.group ? state.filters.group === "account" ? a.account_name : modeLabels[a.production_mode] : null, heading = group && group !== previous ? `<tr class="group-row"><td colspan="${e(columns.length + 2)}">${e(group)}</td></tr>` : "";
     previous = group;
     return `${heading}<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div class="cell-sub">${platformLogo(a.platform)} ${e(a.account_name)} · ${a.date_status === "unverified" ? "日期待核实" : e(
       time(a.published_at, true)
-    )}</div></td>${columns.map(([key, [label]]) => `<td data-label="${e(label)}">${cell(a, key)}</td>`).join("")}<td><button class="icon-button" data-action="article-menu" data-id="${e(a.id)}" aria-label="操作：${e(a.title)}" aria-haspopup="menu" aria-expanded="false" aria-controls="article-menu-${e(a.id)}">⋯</button></td></tr>`;
+    )}</div></td>${columns.map(([key, [label2]]) => `<td data-label="${e(label2)}">${cell(a, key)}</td>`).join("")}<td><button class="icon-button" data-action="article-menu" data-id="${e(a.id)}" aria-label="操作：${e(a.title)}" aria-haspopup="menu" aria-expanded="false" aria-controls="article-menu-${e(a.id)}">⋯</button></td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 function articleMenu(a) {
-  return `<button role="menuitem" data-action="article-detail" data-id="${e(a.id)}">详情</button>${safeURL(a.url) ? `<a role="menuitem" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}${[["edit-article", "编辑"], ["review-article", "补充数据"]].map(([action, label]) => `<button role="menuitem" data-action="${e(action)}" data-id="${e(a.id)}">${e(label)}</button>`).join("")}`;
+  return `<button role="menuitem" data-action="article-detail" data-id="${e(a.id)}">详情</button>${safeURL(a.url) ? `<a role="menuitem" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}${[["edit-article", "编辑"], ["review-article", "补充数据"]].map(([action, label2]) => `<button role="menuitem" data-action="${e(action)}" data-id="${e(a.id)}">${e(label2)}</button>`).join("")}`;
 }
 async function articleModal(id = "") {
   const context = beginModalRequests();
@@ -1188,7 +1190,7 @@ async function articleModal(id = "") {
     "选题开始时间（可选）",
     "datetime-local",
     localDateTime(a.started_at)
-  )}<div class="form-field"><label for="field-production_mode">文章生产方式</label><select class="input" id="field-production_mode" name="production_mode">${Object.entries(modeLabels).map(([key, label]) => `<option value="${key}" ${a.production_mode === key ? "selected" : ""}>${label}</option>`).join("")}</select></div>${field(
+  )}<div class="form-field"><label for="field-production_mode">文章生产方式</label><select class="input" id="field-production_mode" name="production_mode">${Object.entries(modeLabels).map(([key, label2]) => `<option value="${key}" ${a.production_mode === key ? "selected" : ""}>${label2}</option>`).join("")}</select></div>${field(
     "platform_article_id",
     "平台文章标识（可选）",
     "text",
@@ -1213,11 +1215,11 @@ function renderDashboard(data) {
   return renderDashboardSummary(data);
 }
 function renderDashboardSummary(data) {
-  const daily = dailyDates(data), articles = (data.attention_articles || []).filter((a) => ["up", "down"].includes(a.attention?.kind)), visible = state.attentionExpanded ? articles : articles.slice(0, 6);
-  return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible)}${articles.length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ? "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">还没有每日新增数据，录入后这里会显示周期变化和趋势。<button class="btn" data-action="new-daily">录入每日数据</button></div>'}</section>
- ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label]) => `<option value="${e(
+  const daily = dailyDates(data), articles = (data.attention_articles || []).filter((a) => ["up", "down"].includes(a.attention?.kind)), visible2 = state.attentionExpanded ? articles : articles.slice(0, 6);
+  return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible2.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible2)}${articles.length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ? "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">还没有每日新增数据，录入后这里会显示周期变化和趋势。<button class="btn" data-action="new-daily">录入每日数据</button></div>'}</section>
+ ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label2]) => `<option value="${e(
     key
-  )}" ${state.trendMetric === key ? "selected" : ""}>${e(label)}</option>`).join("")}</select></label></div>${renderTrend(
+  )}" ${state.trendMetric === key ? "selected" : ""}>${e(label2)}</option>`).join("")}</select></label></div>${renderTrend(
     data
   )}<h3>本站发布量 ${dashboardInfo("publication", "发布量口径")}</h3>${renderPublicationTrend(data)}${segmented("trend-tab", [
     ["metrics", "每日明细"],
@@ -1229,7 +1231,7 @@ function renderPeriodAccounts(accounts) {
     "comments",
     "评论"
   ], ...approvals ? [["approvals", "赞同"]] : []];
-  return `<div class="table-scroll"><table class="data-table period-table"><thead><tr><th>账号</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key, label]) => `<td data-label="${e(label)}">${dashboardMetric({
+  return `<div class="table-scroll"><table class="data-table period-table"><thead><tr><th>账号</th>${columns.map(([, label2]) => `<th>${e(label2)}</th>`).join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key, label2]) => `<td data-label="${e(label2)}">${dashboardMetric({
     latest_metrics: a.period_metrics
   }, key)}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
@@ -1240,7 +1242,7 @@ function renderAttentionArticles(articles) {
     "attention"
   )}</th><th>关注原因</th></tr></thead><tbody>${articles.map((a) => {
     const platform = a.platform || state.accounts.find((x) => x.id === a.account_id)?.platform, like = "likes", m = a.period_metrics || {}, attention = a.attention || {};
-    const label = { up: "表现较高", down: "表现较低", normal: "近期文章", insufficient: "待积累数据" }[attention.kind] || "待积累数据";
+    const label2 = { up: "表现较高", down: "表现较低", normal: "近期文章", insufficient: "待积累数据" }[attention.kind] || "待积累数据";
     return `<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div class="cell-sub">${e(platform && a.account_name ? `${platforms[platform] || platform} · ${a.account_name}` : accountName(a.account_id))} · ${e(time(a.published_at, true))}</div></td><td><strong class="number">${e(num(m.reads))}</strong>${metricCoverageHTML(
       a,
       "reads"
@@ -1251,7 +1253,7 @@ function renderAttentionArticles(articles) {
     )}</div><div class="attention-interaction"><span>评论 ${e(num(m.comments))}${metricCoverageHTML(
       a,
       "comments"
-    )}</span>${comparisonHTML(a.comparisons?.comments)}</div>${m.approvals != null ? `<div>赞同 ${e(num(m.approvals))}${comparisonHTML(a.comparisons?.approvals)}</div>` : ""}</td><td class="reason-cell"><span class="badge ${attention.kind === "up" ? "up" : attention.kind === "down" ? "warn" : ""}">${e(label)}</span>${dashboardInfo("attention", "比较依据", a.id)}</td></tr>`;
+    )}</span>${comparisonHTML(a.comparisons?.comments)}</div>${m.approvals != null ? `<div>赞同 ${e(num(m.approvals))}${comparisonHTML(a.comparisons?.approvals)}</div>` : ""}</td><td class="reason-cell"><span class="badge ${attention.kind === "up" ? "up" : attention.kind === "down" ? "warn" : ""}">${e(label2)}</span>${dashboardInfo("attention", "比较依据", a.id)}</td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 function renderCumulative(data) {
@@ -1263,7 +1265,7 @@ function renderCumulative(data) {
     interactions
   )], ["数据覆盖", c.coverage == null ? "—" : num(c.coverage * 100) + "%"]];
   return `<div class="overview-status" role="status"><span><i class="fresh-dot ${e(fresh.kind)}"></i>${e(fresh.label)}</span><div>${c.no_snapshot_count ? `<button class="btn text" data-action="missing-list" data-status="no_snapshot">未采集 ${e(num(c.no_snapshot_count))} 篇 →</button>` : ""}${due.length ? `<button class="btn text" data-action="show-due">待复盘 ${e(num(due.length))} 条 →</button>` : ""}</div></div>
- <dl class="dashboard-stats">${stats.map(([label, value], i) => `<div class="stat"><dt>${e(label)}${i === 4 ? dashboardInfo(
+ <dl class="dashboard-stats">${stats.map(([label2, value], i) => `<div class="stat"><dt>${e(label2)}${i === 4 ? dashboardInfo(
     "coverage",
     "数据覆盖与统计口径"
   ) : ""}</dt><dd class="${value === "—" ? "missing-value" : ""}">${e(value)}</dd></div>`).join("")}</dl>
@@ -1280,8 +1282,8 @@ function renderCumulative(data) {
 }
 function renderPlatformTable(rows) {
   return rows.length ? `<div class="table-scroll"><table class="data-table dashboard-table platform-table"><thead><tr><th>账号</th><th>篇数</th><th>累计阅读</th><th>篇均</th><th>中位数</th></tr></thead><tbody>${[...rows].sort((a, b) => (b.totals?.reads ?? -1) - (a.totals?.reads ?? -1)).map((p) => {
-    const accounts = state.accounts.filter((a) => a.platform === p.platform), label = accounts.map((a) => a.name).join("，") || platforms[p.platform] || p.platform;
-    return `<tr data-action="${accounts.length === 1 ? "select-account" : "select-platform"}" data-id="${e(accounts[0]?.id || "")}" data-platform="${e(p.platform)}"><td><span class="account-title">${platformLogo(p.platform)}<button class="article-link" data-action="${accounts.length === 1 ? "select-account" : "select-platform"}" data-id="${e(accounts[0]?.id || "")}" data-platform="${e(p.platform)}">${e(label)}</button>${dashboardInfo(
+    const accounts = state.accounts.filter((a) => a.platform === p.platform), label2 = accounts.map((a) => a.name).join("，") || platforms[p.platform] || p.platform;
+    return `<tr data-action="${accounts.length === 1 ? "select-account" : "select-platform"}" data-id="${e(accounts[0]?.id || "")}" data-platform="${e(p.platform)}"><td><span class="account-title">${platformLogo(p.platform)}<button class="article-link" data-action="${accounts.length === 1 ? "select-account" : "select-platform"}" data-id="${e(accounts[0]?.id || "")}" data-platform="${e(p.platform)}">${e(label2)}</button>${dashboardInfo(
       "platform",
       "账号表现、最佳文章与计划",
       p.platform
@@ -1429,9 +1431,9 @@ async function renderReviews(version = runtime.renderVersion, context) {
     "tab",
     "page-tabs"
   )}<div class="review-summary">${platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`;
-  const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label]) => [
+  const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label2]) => [
     key,
-    ["likes", "approvals"].includes(key) ? `${label}（${key}）` : label
+    ["likes", "approvals"].includes(key) ? `${label2}（${key}）` : label2
   ]), [
     tab === "observations" ? "as_of" : "source",
     tab === "observations" ? "数据截至" : "来源"
@@ -1440,10 +1442,10 @@ async function renderReviews(version = runtime.renderVersion, context) {
     "as_of",
     "due_at"
   ].includes(key) ? e(displayTime(r[key])) : key === "source" ? e(r.source || "未标注来源") : metricData(r)[key] == null ? '<span class="missing-value">未取得</span>' : e(num(metricData(r)[key]));
-  return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label]) => `<th>${e(label)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
+  return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label2]) => `<th>${e(label2)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
     const id = pending ? r.id : r.article_id, a = articles.find((a2) => a2.id === id);
-    return `<tr><td class="title-cell">${id ? `<button class="article-link" data-action="article-detail" data-id="${e(id)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label]) => `<td data-label="${e(
-      label
+    return `<tr><td class="title-cell">${id ? `<button class="article-link" data-action="article-detail" data-id="${e(id)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label2]) => `<td data-label="${e(
+      label2
     )}">${cell(r, key)}</td>`).join("")}<td>${pending ? `<button class="btn small" data-action="review-article" data-id="${e(
       id
     )}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
@@ -1481,7 +1483,7 @@ async function reviewModal(articleId = "", kind = "latest", indexRetry = false) 
     true
   )}</select></div><div class="form-field"><label for="review-article">统计范围</label><select class="input" name="article_id" id="review-article"><option value="">账号总体</option>${articles.filter((a) => a.account_id === accountId).map((a) => `<option value="${e(a.id)}">${e(
     a.title
-  )}</option>`).join("")}</select></div>${field("date", '数据所属日期 <span class="required">*</span>', "date", bjtDate(), `max="${bjtDate()}" required`)}` : `<div class="form-field full"><label for="review-article">文章 <span class="required">*</span></label><select class="input" name="article_id" id="review-article" required>${articles.map((a) => `<option value="${e(a.id)}" ${a.id === articleId ? "selected" : ""}>${e(a.title)} · ${e(accountName(a.account_id))}</option>`).join("")}</select></div><div class="form-field"><label for="field-kind">观察节点</label><select class="input" id="field-kind" name="kind">${Object.entries(kindLabels).map(([key, label]) => `<option value="${key}" ${key === kind ? "selected" : ""}>${label}</option>`).join("")}</select></div>${field(
+  )}</option>`).join("")}</select></div>${field("date", '数据所属日期 <span class="required">*</span>', "date", bjtDate(), `max="${bjtDate()}" required`)}` : `<div class="form-field full"><label for="review-article">文章 <span class="required">*</span></label><select class="input" name="article_id" id="review-article" required>${articles.map((a) => `<option value="${e(a.id)}" ${a.id === articleId ? "selected" : ""}>${e(a.title)} · ${e(accountName(a.account_id))}</option>`).join("")}</select></div><div class="form-field"><label for="field-kind">观察节点</label><select class="input" id="field-kind" name="kind">${Object.entries(kindLabels).map(([key, label2]) => `<option value="${key}" ${key === kind ? "selected" : ""}>${label2}</option>`).join("")}</select></div>${field(
     "as_of",
     '数据截至时间 <span class="required">*</span>',
     "datetime-local",
@@ -1499,9 +1501,9 @@ async function reviewModal(articleId = "", kind = "latest", indexRetry = false) 
     "text",
     "",
     'required maxlength="200"'
-  )}<div class="form-field full"><span class="field-label">${daily ? "当天新增指标" : "累计指标"}</span><span class="hint">至少一项；缺失留空，真实为零才填 0。</span></div>${Object.entries(metrics).map(([key, label]) => field(
+  )}<div class="form-field full"><span class="field-label">${daily ? "当天新增指标" : "累计指标"}</span><span class="hint">至少一项；缺失留空，真实为零才填 0。</span></div>${Object.entries(metrics).map(([key, label2]) => field(
     `metric_${key}`,
-    label,
+    label2,
     "number",
     "",
     'min="0" step="1" inputmode="numeric" placeholder="未取得"'
@@ -1583,9 +1585,9 @@ function renderAudit(audit, keys = []) {
     value
   ).startsWith("user:") ? "用户" : String(value).startsWith("key:") ? "未识别凭据" : "未知来源"} ${num(actors.indexOf(value) + 1)}`;
   for (const row of audit) {
-    const day2 = Number.isFinite(Date.parse(row.created_at)) ? bjtDate(row.created_at) : "日期未知", label = auditLabel(row.action), last = groups.at(-1);
-    if (last && day2 !== "日期未知" && last.day === day2 && last.actor === row.actor && last.label === label) last.rows.push(row);
-    else groups.push({ day: day2, actor: row.actor, label, rows: [row] });
+    const day2 = Number.isFinite(Date.parse(row.created_at)) ? bjtDate(row.created_at) : "日期未知", label2 = auditLabel(row.action), last = groups.at(-1);
+    if (last && day2 !== "日期未知" && last.day === day2 && last.actor === row.actor && last.label === label2) last.rows.push(row);
+    else groups.push({ day: day2, actor: row.actor, label: label2, rows: [row] });
   }
   let day = "";
   return `<section class="card panel"><h2>最近操作</h2><div class="audit-list">${groups.map((g) => {
@@ -1601,7 +1603,7 @@ function accountModal(id = "") {
   const a = state.accounts.find((a2) => a2.id === id) || { platform: "toutiao", name: "", active: true };
   openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid"><div class="form-field"><label for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" ${id ? "disabled" : ""}>${Object.entries(
     platforms
-  ).map(([key, label]) => `<option value="${key}" ${a.platform === key ? "selected" : ""}>${label}</option>`).join(
+  ).map(([key, label2]) => `<option value="${key}" ${a.platform === key ? "selected" : ""}>${label2}</option>`).join(
     ""
   )}</select></div>${field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"')}${id ? `<div class="form-field full"><label class="check-option"><input type="checkbox" name="active" ${a.active ? "checked" : ""}>启用此账号</label><span class="hint">停用保留历史数据。</span></div>` : ""}</div>${formEnd(id ? "保存账号" : "添加账号")}</form>`);
 }
@@ -1686,10 +1688,10 @@ function syncTemplateForm(root, id, value, pending) {
   if (!input) return;
   if (input.value !== value) input.value = value;
   input.readOnly = pending;
-  const button = $("button[type=submit]", input.form);
-  if (button) {
-    button.disabled = pending;
-    button.textContent = pending ? "保存中…" : "保存";
+  const button2 = $("button[type=submit]", input.form);
+  if (button2) {
+    button2.disabled = pending;
+    button2.textContent = pending ? "保存中…" : "保存";
   }
 }
 function paintTodoTemplates() {
@@ -1737,15 +1739,15 @@ function inputTodoTemplate(target) {
   if (target.id === "todo-template-text") templateState().draft = target.value;
   if (target.id === "todo-template-edit-text") templateState().editDraft = target.value;
 }
-async function templateWriteError(error, store, owner, editing = null) {
+async function templateWriteError(error, store, owner, editing3 = null) {
   if (!templateSessionActive(owner) || isRequestAbort(error) || error.staleSession) return;
   store.error = error.message;
   if (error.status === 409) {
     store.error = "这项常用待办已更新，草稿已保留，请核对后再保存。";
     await loadTodoTemplates();
-    if (!templateSessionActive(owner) || !editing || store.editing !== editing) return;
-    const latest = store.items.find((item) => item.id === editing.id);
-    if (latest) editing.version = latest.version;
+    if (!templateSessionActive(owner) || !editing3 || store.editing !== editing3) return;
+    const latest = store.items.find((item) => item.id === editing3.id);
+    if (latest) editing3.version = latest.version;
   }
 }
 async function submitTodoTemplateForm({ data }) {
@@ -1803,8 +1805,8 @@ function cancelTodoTemplateEdit() {
 async function writeTodoTemplate(id, text, remove = false) {
   const store = templateState(), owner = store.owner, item = store.items.find((row) => row.id === id);
   if (!item || store.pending.has(id)) return;
-  const editing = store.editing?.id === id ? store.editing : null;
-  const version = remove ? item.version : editing?.version;
+  const editing3 = store.editing?.id === id ? store.editing : null;
+  const version = remove ? item.version : editing3?.version;
   store.pending.add(id);
   store.error = "";
   store.revision++;
@@ -1820,7 +1822,7 @@ async function writeTodoTemplate(id, text, remove = false) {
     if (store.editing?.id === id) store.editing = null;
     if (remove && state.page === "todos") await loadTodos();
   } catch (error) {
-    if (templateSessionActive(owner)) await templateWriteError(error, store, owner, editing);
+    if (templateSessionActive(owner)) await templateWriteError(error, store, owner, editing3);
   } finally {
     if (templateSessionActive(owner)) {
       store.pending.delete(id);
@@ -1878,8 +1880,8 @@ function openTodoMenu({ target, id, date, anchor }) {
 }
 function renderTodoUndo(day) {
   return [...day.removals.entries()].map(([id, ticket]) => {
-    const label = ticket.phase === "deleting" ? "删除中…" : ticket.phase === "restoring" ? "恢复中…" : "已删除";
-    return `<div class="todo-undo-entry"><span>${label}：${e(ticket.item.text)}</span>
+    const label2 = ticket.phase === "deleting" ? "删除中…" : ticket.phase === "restoring" ? "恢复中…" : "已删除";
+    return `<div class="todo-undo-entry"><span>${label2}：${e(ticket.item.text)}</span>
 <button class="btn text small" data-action="todo-restore" data-id="${e(id)}" data-date="${e(day.date)}"
 data-owner="${e(todoOwner())}" ${ticket.phase === "ready" ? "" : "disabled"}>撤销</button></div>`;
   }).join("");
@@ -2095,9 +2097,9 @@ function todoCalendarMonth(date) {
   return todosState.calendarMonth;
 }
 function todoCalendarDay(date, selected) {
-  const today = date === bjtDate(), active = date === selected;
-  return `<button class="todo-calendar-day${active ? " is-selected" : ""}${today ? " is-today" : ""}" type="button"
-data-action="todo-calendar-date" data-date="${e(date)}" aria-label="${e(date)}" aria-pressed="${active}"
+  const today = date === bjtDate(), active2 = date === selected;
+  return `<button class="todo-calendar-day${active2 ? " is-selected" : ""}${today ? " is-today" : ""}" type="button"
+data-action="todo-calendar-date" data-date="${e(date)}" aria-label="${e(date)}" aria-pressed="${active2}"
 ${today ? 'aria-current="date"' : ""}>${Number(date.slice(-2))}</button>`;
 }
 function todoCalendar(date) {
@@ -2155,10 +2157,10 @@ ${pending ? '<span class="cell-sub" role="status">保存中…</span>' : ""}
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
 function todoForm(day) {
-  const label = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
+  const label2 = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
   return `<form id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加每日计划">
-<label for="todo-text" class="sr-only">${label}</label><input id="todo-text" class="input" name="text" maxlength="500" required
-autocomplete="off" placeholder="${label}" value="${e(day.draft)}" ${day.adding ? "readonly" : ""}>
+<label for="todo-text" class="sr-only">${label2}</label><input id="todo-text" class="input" name="text" maxlength="500" required
+autocomplete="off" placeholder="${label2}" value="${e(day.draft)}" ${day.adding ? "readonly" : ""}>
 <button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>${day.adding ? "保存中…" : "添加"}</button></form>`;
 }
 function todoCaption(day) {
@@ -2216,12 +2218,12 @@ function paintTodos() {
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }
   paintTodoCalendar(day.date);
-  const input = $("#todo-text", root), button = $("#todo-form button[type=submit]", root);
+  const input = $("#todo-text", root), button2 = $("#todo-form button[type=submit]", root);
   if (input && input.value !== day.draft) input.value = day.draft;
   if (input) input.readOnly = day.adding;
-  if (button) {
-    button.disabled = day.adding;
-    button.textContent = day.adding ? "保存中…" : "添加";
+  if (button2) {
+    button2.disabled = day.adding;
+    button2.textContent = day.adding ? "保存中…" : "添加";
   }
   paintTodoPreferences();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
@@ -2481,16 +2483,16 @@ function ensureDailyNotesStore() {
     notesConfirmDate = "";
     notesDateIndex = { dates: [], hasMore: false, cursor: null, loading: false, error: "", sequence: 0 };
     const expected = next;
-    const active = () => {
+    const active2 = () => {
       if (notesIdentityNow() !== expected) {
         store.dispose();
         throw new DOMException("请求已取消", "AbortError");
       }
     };
     const request = async (path, options) => {
-      active();
+      active2();
       const value = await api(path, options);
-      active();
+      active2();
       return value;
     };
     const store = createDailyNotesStore({
@@ -2621,6 +2623,1054 @@ async function loadDailyNotes() {
   paintDailyNotesPage();
 }
 
+// web/pages/memos.mjs
+var button = (action, label2, extra = "") => '<button type="button" class="btn" data-memo-action="' + action + '" ' + extra + ">" + label2 + "</button>";
+function renderMemos() {
+  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-groups", "‹ 分组") + button("back-notes", "‹ 笔记") + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span><div class="memo-toolbar-actions">' + button("refresh", "刷新") + button("trash", "回收站", "hidden") + button("recovery", "本机草稿", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-groups" aria-label="分组"><div class="memo-panel-head"><h2 id="memo-groups-heading">分组</h2>' + button("new-group", "＋ 分组", "hidden") + '</div><div id="memo-group-list" class="memo-list"></div></aside><aside class="memo-notes" aria-label="笔记列表"><div class="memo-panel-head"><h2 id="memo-group-heading">笔记</h2>' + button("new-note", "＋ 笔记", "hidden") + '</div><div id="memo-group-actions" class="memo-group-actions" hidden>' + button("rename-group", "重命名分组") + button("delete-group", "删除分组") + button("restore-group", "恢复分组", "hidden") + '</div><div id="memo-note-list" class="memo-list"></div></aside><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden>' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + "</div></div></div></article></div></section>";
+}
+var phases = {
+  dirty: "等待自动保存",
+  saving: "正在保存…",
+  unknown: "保存结果待核对",
+  conflict: "版本冲突 · 草稿已保留",
+  offline: "离线 · 草稿保留在本机",
+  error: "暂未保存 · 草稿已保留",
+  oversize: "正文超过 64 KiB",
+  loading: "正在读取…"
+};
+var active = (rows, trash) => rows.filter((row) => Boolean(row.deleted_at) === trash);
+function listButton(kind, row, current, subtitle = "") {
+  return '<button type="button" class="memo-list-item' + (row.id === current ? " is-selected" : "") + '" data-memo-' + kind + '="' + e(row.id) + '" aria-pressed="' + (row.id === current) + '"><span>' + e(row.title) + "</span>" + (subtitle ? "<small>" + e(subtitle) + "</small>" : "") + "</button>";
+}
+function paintLists(root, store) {
+  const s = store.state, group = s.groups.find((row) => row.id === s.groupId), find = (q) => root.querySelector(q);
+  find("#memo-groups-heading").textContent = s.trash ? "已删除分组" : "分组";
+  find("#memo-group-heading").textContent = group?.title || (s.trash ? "已删除笔记" : "笔记");
+  find("#memo-group-list").innerHTML = active(s.groups, s.trash).map((row) => listButton(
+    "group",
+    row,
+    s.groupId,
+    row.active_note_count + " 篇笔记"
+  )).join("") || '<p class="memo-empty">' + (s.trash ? "没有已删除分组" : "还没有分组") + "</p>";
+  const notes = s.notes.filter((row) => s.trash ? row.deleted_at || group?.deleted_at && row.group_id === group.id : !row.deleted_at && row.group_id === s.groupId && !group?.deleted_at);
+  find("#memo-note-list").innerHTML = notes.map((row) => listButton(
+    "note",
+    row,
+    s.noteId,
+    s.trash ? s.groups.find((item) => item.id === row.group_id)?.title || "" : ""
+  )).join("") || '<p class="memo-empty">' + (s.trash ? "没有已删除笔记" : "这个分组还没有笔记") + "</p>";
+  find('[data-memo-action="new-group"]').hidden = !s.canEdit || s.trash;
+  find('[data-memo-action="new-note"]').hidden = !s.canEdit || s.trash || !group || Boolean(group.deleted_at);
+  find("#memo-group-actions").hidden = !s.canEdit || !group;
+  for (const action of ["rename-group", "delete-group"]) find('[data-memo-action="' + action + '"]').hidden = Boolean(group?.deleted_at);
+  find('[data-memo-action="restore-group"]').hidden = !group?.deleted_at;
+  const operationBlocked = Boolean(s.operation?.pending);
+  const groupDirty = [...store.drafts.values()].some((item) => item.group_id === s.groupId && (item.dirty || item.pending));
+  for (const action of ["new-group", "new-note", "rename-group", "delete-group", "restore-group"])
+    find('[data-memo-action="' + action + '"]').disabled = operationBlocked || action === "delete-group" && groupDirty;
+}
+function paintDrafts(root, store) {
+  const drafts = [...store.drafts.values()].filter((item) => item.dirty || item.pending || ["unknown", "conflict"].includes(item.phase));
+  const box = root.querySelector("#memo-drafts");
+  box.hidden = !store.state.canEdit || !drafts.length;
+  box.innerHTML = "<span>本机保留的草稿：</span>" + drafts.map((item) => '<button type="button" class="btn text" data-memo-draft="' + e(item.id) + '">' + e(item.title || "未命名笔记") + "</button>").join("");
+}
+function paintDocument(root, store) {
+  const s = store.state, item = store.drafts.get(s.noteId), find = (q) => root.querySelector(q);
+  find("#memo-empty").hidden = Boolean(item);
+  find("#memo-document").hidden = !item;
+  if (!item) return;
+  const group = s.groups.find((row) => row.id === item.group_id), deleted = Boolean(item.deleted_at || group?.deleted_at);
+  const editable = s.canEdit && !deleted;
+  const operation = s.operation?.pending;
+  const structureBusy = operation && (operation.kind === "notes" && operation.id === item.id || operation.kind === "groups" && operation.id === item.group_id && operation.method === "DELETE");
+  for (const field2 of ["title", "body"]) {
+    const input = find("#memo-" + field2);
+    input.hidden = !editable;
+    input.disabled = Boolean(structureBusy || item.loading || item.pending && item.pending.method !== "PUT");
+    if (input.value !== item[field2]) input.value = item[field2] || "";
+    find("#memo-read-" + field2).hidden = editable;
+    find("#memo-read-" + field2).textContent = item[field2] || (field2 === "body" ? "这篇笔记还没有正文。" : "未命名笔记");
+  }
+  find("#memo-detail").textContent = deleted ? "已删除 · 可恢复" : s.canEdit ? new TextEncoder().encode(item.body || "").length + " / 65536 字节 · 自动保存" : "公开只读";
+  find("#memo-note-actions").hidden = !s.canEdit;
+  find('[data-memo-action="save"]').hidden = deleted;
+  find('[data-memo-action="save"]').disabled = !item.dirty || Boolean(item.pending) || item.phase === "conflict";
+  find('[data-memo-action="delete-note"]').hidden = deleted;
+  find('[data-memo-action="delete-note"]').disabled = Boolean(item.pending) || item.dirty || Boolean(s.operation?.pending) || item.version === 0;
+  find('[data-memo-action="restore-note"]').hidden = !item.deleted_at;
+  find('[data-memo-action="restore-note"]').disabled = Boolean(group?.deleted_at || s.operation?.pending || item.pending);
+  find("#memo-note-error").hidden = !item.error;
+  find("#memo-note-error").textContent = item.error || "";
+  find("#memo-resolution").hidden = !["unknown", "conflict"].includes(item.phase);
+  find('[data-memo-action="retry"]').hidden = item.phase !== "unknown" || !item.pending?.retryReady;
+  find("#memo-conflict").hidden = item.phase !== "conflict" || !item.remote;
+  find("#memo-remote").textContent = item.remote ? (item.remote.deleted_at ? "（已删除）\n" : "") + item.remote.title + "\n\n" + item.remote.body : "";
+  find('[data-memo-action="use-draft"]').disabled = !s.canEdit || !item.remote || Boolean(item.remote.deleted_at || group?.deleted_at);
+}
+function paintMemos(root, store) {
+  if (!root) return;
+  const s = store.state, item = store.drafts.get(s.noteId), find = (q) => root.querySelector(q);
+  root.dataset.pane = s.pane;
+  find("#memo-status").textContent = s.loading ? "正在读取…" : !s.canEdit ? "公开只读" : phases[item?.phase] || "已保存";
+  find("#memo-error").hidden = !s.error && !s.storageError;
+  find("#memo-error").textContent = [s.error, s.storageError].filter(Boolean).join(" ");
+  find('[data-memo-action="login"]').hidden = s.canEdit || s.loading;
+  find('[data-memo-action="trash"]').hidden = !s.canEdit;
+  find('[data-memo-action="recovery"]').hidden = !s.canEdit;
+  if (!s.canEdit) find("#memo-recovery").hidden = true;
+  find('[data-memo-action="trash"]').textContent = s.trash ? "返回备忘录" : "回收站";
+  find('[data-memo-action="trash"]').setAttribute("aria-pressed", String(s.trash));
+  find('[data-memo-action="back-groups"]').hidden = s.pane === "groups";
+  find('[data-memo-action="back-notes"]').hidden = s.trash ? s.pane === "notes" : s.pane !== "editor";
+  find('[data-memo-action="back-groups"]').textContent = s.trash ? "已删分组" : "‹ 分组";
+  find('[data-memo-action="back-notes"]').textContent = s.trash ? "已删笔记" : "‹ 笔记";
+  const operation = s.operation;
+  find("#memo-operation").hidden = !operation?.pending && !operation?.error;
+  find("#memo-operation-text").textContent = operation?.error || (operation?.phase === "saving" ? "正在保存操作…" : "操作结果待核对");
+  find('[data-memo-action="operation-check"]').hidden = operation?.phase !== "unknown";
+  find('[data-memo-action="operation-retry"]').hidden = operation?.phase !== "unknown" || !operation?.retryReady;
+  paintLists(root, store);
+  paintDrafts(root, store);
+  paintDocument(root, store);
+}
+
+// web/core/memos-state.mjs
+var MEMOS_MAX_BYTES = 65536;
+var memoBytes = (value) => new TextEncoder().encode(value).length;
+var idPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var cleanTitle = (value) => typeof value === "string" && value.trim() && [...value].length <= 120;
+var noteFields = ["group_id", "title", "body", "position"];
+var changed = (item, value) => noteFields.some((field2) => item[field2] !== value[field2]);
+var isUncertain = (item) => item.pending || ["unknown", "conflict"].includes(item.phase);
+function checkedNote(value, id) {
+  if (!value || value.id !== id || !idPattern.test(value.group_id) || !cleanTitle(value.title) || typeof value.body !== "string" || memoBytes(value.body) > MEMOS_MAX_BYTES || !Number.isSafeInteger(value.version) || value.version < 1 || !Number.isSafeInteger(value.position))
+    throw new Error("笔记读取结果不完整，请核对。");
+  return value;
+}
+function newDraft(value) {
+  return {
+    ...value,
+    dirty: false,
+    phase: "saved",
+    error: "",
+    pending: null,
+    remote: null,
+    server: { ...value },
+    loading: false,
+    sequence: 0,
+    writeEpoch: 0,
+    timer: null
+  };
+}
+function validPending(value) {
+  return value && ["groups", "notes"].includes(value.kind) && idPattern.test(value.id) && ["PUT", "POST", "DELETE"].includes(value.method) && value.path === "/memos/" + value.kind + "/" + value.id + (value.method === "POST" ? "/restore" : "") && value.body && idPattern.test(value.body.save_id) && Number.isSafeInteger(value.body.version) && value.body.version >= 0;
+}
+function recoveredDraft(raw) {
+  if (!raw || !idPattern.test(raw.id) || !idPattern.test(raw.group_id) || typeof raw.title !== "string" || typeof raw.body !== "string" || raw.body.length > 262144 || !Number.isSafeInteger(raw.version) || raw.version < 0 || !Number.isSafeInteger(raw.position) || raw.position < 0 || raw.position > 1e6) return null;
+  if (raw.pending && (!validPending(raw.pending) || raw.pending.kind !== "notes" || raw.pending.method !== "PUT" || raw.pending.id !== raw.id || raw.pending.body.group_id !== raw.group_id || typeof raw.pending.body.title !== "string" || typeof raw.pending.body.body !== "string")) return null;
+  const item = { ...newDraft(raw), dirty: true, server: raw.server || null, remote: raw.remote || null };
+  item.pending = raw.pending ? { ...raw.pending, checking: false, retryReady: false } : null;
+  item.phase = item.pending ? "unknown" : raw.phase === "conflict" ? "conflict" : "dirty";
+  item.error = item.pending ? "上次保存结果待核对，草稿已保留。" : "已找回此浏览器保留的草稿。";
+  return item;
+}
+function makeContext(options) {
+  const { request, ownerId = "", storage: storage2, onChange = () => {
+  }, uuid = () => globalThis.crypto.randomUUID(), delay = 700 } = options;
+  const state2 = {
+    groups: [],
+    notes: [],
+    canEdit: false,
+    loading: false,
+    error: "",
+    groupId: "",
+    noteId: "",
+    pane: "groups",
+    trash: false,
+    operation: null,
+    storageError: ""
+  };
+  const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request, ownerId, storage: storage2, uuid, delay, disposed: false, hydrated: false, loadSequence: 0 };
+  context.draftScope = options.draftScope || uuid();
+  context.restoreDraftScope = options.restoreDraftScope;
+  context.storagePersistent = options.storagePersistent !== false && Boolean(options.draftScope);
+  context.online = options.online || (() => globalThis.navigator?.onLine !== false);
+  context.stop = (item) => {
+    clearTimeout(item.timer);
+    item.timer = null;
+  };
+  context.emit = () => {
+    if (!context.disposed) {
+      context.persist();
+      onChange();
+    }
+  };
+  context.writable = () => !context.disposed && state2.canEdit && idPattern.test(ownerId);
+  context.blocked = (item) => {
+    const pending = state2.operation?.pending;
+    return pending && (pending.kind === "notes" && pending.id === item.id || pending.kind === "groups" && pending.method === "DELETE" && pending.id === item.group_id);
+  };
+  context.upsert = (kind, value) => {
+    const list = state2[kind], index = list.findIndex((row2) => row2.id === value.id);
+    const row = { ...value };
+    if (kind === "notes") delete row.body;
+    if (index < 0) list.push(row);
+    else list[index] = row;
+    list.sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+    if (kind === "notes") for (const group of state2.groups)
+      group.active_note_count = state2.notes.filter((note) => note.group_id === group.id && !note.deleted_at && note.version > 0).length;
+  };
+  context.schedule = (item) => {
+    context.stop(item);
+    if (context.writable() && item.dirty && !item.loading && !isUncertain(item) && item.phase === "dirty")
+      item.timer = setTimeout(() => {
+        item.timer = null;
+        void context.saveNote(item.id);
+      }, delay);
+  };
+  context.dispose = () => {
+    context.persist();
+    context.disposed = true;
+    for (const item of context.drafts.values()) context.stop(item);
+    context.drafts.clear();
+    state2.groups = [];
+    state2.notes = [];
+    state2.operation = null;
+    state2.canEdit = false;
+  };
+  return context;
+}
+function persistence(context) {
+  const key = "haoduoyu.memos.drafts.v1." + context.ownerId + "." + context.draftScope;
+  const previousKey = context.restoreDraftScope ? "haoduoyu.memos.drafts.v1." + context.ownerId + "." + context.restoreDraftScope : null;
+  function persist() {
+    if (!context.writable()) return;
+    if (!context.storage) {
+      context.state.storageError = "浏览器无法保留草稿，请暂时保持此页面打开。";
+      return;
+    }
+    const drafts = [...context.drafts.values()].filter((item) => item.dirty || item.pending || item.phase === "conflict").slice(0, 200).map(({ timer, ...item }) => ({ ...item, loading: false }));
+    try {
+      context.storage.setItem(key, JSON.stringify({ saved_at: (/* @__PURE__ */ new Date()).toISOString(), drafts, operation: context.state.operation }));
+      context.state.storageError = context.storagePersistent ? "" : "浏览器无法记住此页签，刷新后可能无法找回草稿，请保持页面打开。";
+    } catch {
+      context.state.storageError = "浏览器无法保留草稿，请暂时保持此页面打开。";
+    }
+  }
+  function hydrate() {
+    if (context.hydrated || !context.writable()) return;
+    context.hydrated = true;
+    try {
+      const current = context.storage?.getItem(key);
+      const saved = JSON.parse(current ?? (previousKey ? context.storage?.getItem(previousKey) : null) ?? "{}");
+      if (Array.isArray(saved.drafts)) for (const raw of saved.drafts.slice(0, 200)) {
+        const item = recoveredDraft(raw);
+        if (item) context.drafts.set(item.id, item);
+      }
+      if (validPending(saved.operation?.pending))
+        context.state.operation = { ...saved.operation, phase: "unknown", checking: false, retryReady: false };
+    } catch {
+      context.state.storageError = "浏览器草稿读取失败，已保留原记录。";
+    }
+  }
+  async function recoverDraft(raw) {
+    if (!context.writable()) return false;
+    const item = recoveredDraft(raw);
+    if (!item) {
+      context.state.error = "草稿格式不完整，请复制预览中的文字留存。";
+      context.emit();
+      return false;
+    }
+    const current = context.drafts.get(item.id);
+    if (current && (current.dirty || current.pending)) {
+      if (changed(current, item) || current.version !== item.version || current.pending?.body.save_id !== item.pending?.body.save_id) {
+        context.state.error = "此笔记已有另一份草稿，未覆盖。请先复制预览文字，再处理当前草稿。";
+        context.emit();
+        return false;
+      }
+    } else context.drafts.set(item.id, item);
+    context.state.groupId = item.group_id;
+    context.state.noteId = item.id;
+    context.state.pane = "editor";
+    context.emit();
+    await context.selectNote(item.id);
+    return true;
+  }
+  return { persist, hydrate, recoverDraft };
+}
+function acceptNote(context, item, value, pending) {
+  const preserve = changed(item, pending.snapshot || pending.body);
+  if (!preserve) for (const field2 of noteFields) item[field2] = value[field2];
+  item.server = { ...value };
+  item.version = value.version;
+  item.deleted_at = value.deleted_at;
+  item.updated_at = value.updated_at;
+  item.pending = null;
+  item.remote = null;
+  item.error = "";
+  item.dirty = changed(item, value);
+  item.phase = item.dirty ? "dirty" : "saved";
+  item.writeEpoch++;
+  context.upsert("notes", value);
+  context.emit();
+  context.schedule(item);
+}
+function reads(context) {
+  async function selectNote(id, { open = true, select = true } = {}) {
+    if (context.disposed || !idPattern.test(id)) return;
+    const { state: state2, drafts } = context;
+    if (select) {
+      state2.noteId = id;
+      if (open) state2.pane = "editor";
+    }
+    let item = drafts.get(id);
+    if (!item) {
+      item = newDraft({ id, title: "", body: "", version: 0 });
+      drafts.set(id, item);
+    }
+    if (select && item.group_id) state2.groupId = item.group_id;
+    if (item.version === 0 && item.dirty && item.phase !== "conflict") {
+      context.emit();
+      return;
+    }
+    const sequence = ++item.sequence, epoch = item.writeEpoch;
+    item.loading = true;
+    context.emit();
+    try {
+      const value = checkedNote(await context.request("/memos/notes/" + id), id);
+      if (context.disposed || sequence !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
+      if (select && state2.noteId === id) state2.groupId = value.group_id;
+      if (item.dirty && item.version !== value.version || item.phase === "conflict") {
+        item.remote = value;
+        item.phase = "conflict";
+        item.error = "服务器已有新版本，草稿已保留，请核对后选择。";
+      } else {
+        const preserve = item.dirty;
+        if (!preserve) for (const field2 of noteFields) item[field2] = value[field2];
+        item.server = value;
+        item.version = value.version;
+        item.deleted_at = value.deleted_at;
+        item.updated_at = value.updated_at;
+        item.dirty = changed(item, value);
+        item.phase = item.dirty ? "dirty" : "saved";
+        item.error = "";
+        context.upsert("notes", value);
+      }
+    } catch (error) {
+      if (!context.disposed && sequence === item.sequence) {
+        item.error = error.message;
+        if (!isUncertain(item)) item.phase = "error";
+      }
+    } finally {
+      if (!context.disposed && sequence === item.sequence) {
+        item.loading = false;
+        context.emit();
+      }
+    }
+  }
+  async function load() {
+    const { state: state2 } = context, sequence = ++context.loadSequence;
+    state2.loading = true;
+    state2.error = "";
+    context.emit();
+    try {
+      const value = await context.request("/memos");
+      if (context.disposed || sequence !== context.loadSequence) return;
+      if (!Array.isArray(value?.groups) || !Array.isArray(value.notes) || typeof value.can_edit !== "boolean")
+        throw new Error("备忘录列表不完整，请重新读取。");
+      state2.groups = value.groups;
+      state2.notes = value.notes;
+      state2.canEdit = value.can_edit === true && idPattern.test(context.ownerId);
+      if (!state2.canEdit) {
+        for (const item of context.drafts.values()) context.stop(item);
+        context.drafts.clear();
+        state2.operation = null;
+      } else context.hydrate();
+      if (!state2.groups.some((group) => group.id === state2.groupId && (state2.trash || !group.deleted_at)))
+        state2.groupId = state2.groups.find((group) => state2.trash || !group.deleted_at)?.id || "";
+      if (!state2.noteId) state2.noteId = state2.notes.find((note) => note.group_id === state2.groupId && (state2.trash || !note.deleted_at))?.id || "";
+      if (state2.noteId) await selectNote(state2.noteId, { open: false });
+    } catch (error) {
+      if (!context.disposed && sequence === context.loadSequence) state2.error = error.message;
+    } finally {
+      if (!context.disposed && sequence === context.loadSequence) {
+        state2.loading = false;
+        context.emit();
+      }
+    }
+  }
+  async function selectGroup(id) {
+    const group = context.state.groups.find((row) => row.id === id && (context.state.trash || !row.deleted_at));
+    if (!group) return;
+    context.state.groupId = id;
+    context.state.noteId = "";
+    context.state.pane = "notes";
+    const note = context.state.notes.find((row) => row.group_id === id && (context.state.trash || !row.deleted_at));
+    if (note) await selectNote(note.id, { open: false });
+    context.emit();
+  }
+  return { load, selectNote, selectGroup };
+}
+function editing(context) {
+  function edit(field2, value, { composing = false } = {}) {
+    const item = context.drafts.get(context.state.noteId);
+    if (!context.writable() || !item || item.loading || !idPattern.test(item.group_id) || !["title", "body"].includes(field2) || item.deleted_at || context.blocked(item)) return;
+    item[field2] = value;
+    item.dirty = !item.server || changed(item, item.server);
+    context.stop(item);
+    if (!isUncertain(item)) {
+      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
+      item.error = "";
+      if (!cleanTitle(item.title) || memoBytes(item.body) > MEMOS_MAX_BYTES) {
+        item.phase = "error";
+        item.error = "标题须为 1–120 字，正文最多 64 KiB；草稿已保留。";
+      }
+    }
+    context.emit();
+    if (!composing) context.schedule(item);
+  }
+  async function sendNote(item, pending) {
+    context.stop(item);
+    item.pending = pending;
+    item.phase = "saving";
+    item.error = "";
+    item.writeEpoch++;
+    context.emit();
+    try {
+      const value = checkedNote(await context.request(pending.path, { method: pending.method, body: pending.body }), item.id);
+      if (context.disposed || item.pending !== pending) return;
+      if (value.version !== pending.body.version + 1 || changed(value, pending.body)) throw new Error("保存响应需要重新核对。");
+      acceptNote(context, item, value, pending);
+    } catch (error) {
+      if (context.disposed || item.pending !== pending) return;
+      if (error.status === 409) {
+        item.pending = null;
+        item.phase = "conflict";
+        item.error = "版本冲突，草稿已保留，不会自动覆盖。";
+        await context.selectNote(item.id, { open: false, select: false });
+      } else if (error.status >= 400 && error.status < 500) {
+        item.pending = null;
+        item.phase = "error";
+        item.error = error.message;
+        if ([401, 403].includes(error.status)) context.state.canEdit = false;
+      } else {
+        item.phase = "unknown";
+        item.error = "保存结果待核对。草稿已保留，请先查询保存收据。";
+      }
+      context.emit();
+    }
+  }
+  async function saveNote(id = context.state.noteId) {
+    const item = context.drafts.get(id);
+    if (!context.writable() || !item || !item.dirty || isUncertain(item) || item.loading || item.deleted_at || context.blocked(item)) return;
+    context.stop(item);
+    if (!cleanTitle(item.title) || memoBytes(item.body) > MEMOS_MAX_BYTES) {
+      item.phase = "error";
+      item.error = "标题须为 1–120 字，正文最多 64 KiB；草稿已保留。";
+      context.emit();
+      return;
+    }
+    if (!context.online()) {
+      item.phase = "offline";
+      item.error = "当前离线，草稿保留在此浏览器。联网后可立即保存。";
+      context.emit();
+      return;
+    }
+    const snapshot = Object.fromEntries(noteFields.map((field2) => [field2, item[field2]]));
+    const body = { ...snapshot, title: snapshot.title.trim(), body: snapshot.body.replace(/\r\n?/g, "\n") };
+    return sendNote(item, {
+      kind: "notes",
+      id,
+      path: "/memos/notes/" + id,
+      method: "PUT",
+      body: { ...body, version: item.version, save_id: context.uuid() },
+      snapshot
+    });
+  }
+  async function createNote(groupId, title = "新笔记") {
+    if (!context.writable() || !context.state.groups.some((group) => group.id === groupId && !group.deleted_at)) return;
+    const id = context.uuid(), position = Math.min(1e6, Math.max(0, ...context.state.notes.map((note) => note.position)) + 1);
+    const item = newDraft({ id, group_id: groupId, title, body: "", position, version: 0, deleted_at: null });
+    item.dirty = true;
+    item.phase = "dirty";
+    item.server = null;
+    context.drafts.set(id, item);
+    context.state.groupId = groupId;
+    context.state.noteId = id;
+    context.state.pane = "editor";
+    context.upsert("notes", item);
+    context.emit();
+    await saveNote(id);
+    return id;
+  }
+  return { edit, sendNote, saveNote, createNote };
+}
+function resolution(context) {
+  async function checkNote(id = context.state.noteId) {
+    const item = context.drafts.get(id), pending = item?.pending;
+    if (!context.writable() || !item) return;
+    if (!pending) return context.selectNote(id, { open: false });
+    if (pending.checking) return;
+    pending.checking = true;
+    pending.retryReady = false;
+    context.emit();
+    try {
+      const receipt = await context.request("/memos/operations/" + pending.body.save_id);
+      if (context.disposed || item.pending !== pending) return;
+      if (receipt?.found === false) {
+        pending.retryReady = true;
+        item.error = "暂未找到保存收据；可手动重试同一保存，不会新建重复操作。";
+        return;
+      }
+      if (receipt?.found !== true || receipt.kind !== "notes" || receipt.id !== id) throw new Error("保存收据不匹配。");
+      const value = checkedNote(await context.request("/memos/notes/" + id), id);
+      if (context.disposed || item.pending !== pending) return;
+      if (value.version === receipt.version && !changed(value, pending.body)) acceptNote(context, item, value, pending);
+      else {
+        item.pending = null;
+        item.remote = value;
+        item.phase = "conflict";
+        item.dirty = true;
+        item.error = "原保存已记录，服务器随后又有更新。请核对两个版本。";
+      }
+    } catch (error) {
+      if (!context.disposed && item.pending === pending) item.error = "核对失败，保留草稿并暂停发送：" + error.message;
+    } finally {
+      pending.checking = false;
+      context.emit();
+    }
+  }
+  async function retryPending(id = context.state.noteId) {
+    const item = context.drafts.get(id), pending = item?.pending;
+    if (!context.writable() || item?.phase !== "unknown" || !pending?.retryReady || pending.checking) return;
+    pending.retryReady = false;
+    return context.sendNote(item, pending);
+  }
+  function useServer(id = context.state.noteId) {
+    const item = context.drafts.get(id);
+    if (!context.writable() || !item?.remote || item.pending || item.phase !== "conflict") return;
+    context.stop(item);
+    const value = item.remote;
+    Object.assign(item, newDraft(value));
+    context.upsert("notes", value);
+    context.emit();
+  }
+  async function useDraft(id = context.state.noteId) {
+    const item = context.drafts.get(id);
+    if (!context.writable() || !item?.remote || item.pending || item.phase !== "conflict" || item.remote.deleted_at) return;
+    item.server = item.remote;
+    item.version = item.remote.version;
+    item.remote = null;
+    item.dirty = changed(item, item.server);
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    context.emit();
+    return context.saveNote(id);
+  }
+  return { checkNote, retryPending, useServer, useDraft };
+}
+function operations(context) {
+  async function sendOperation(pending) {
+    const operation2 = { pending, phase: "saving", error: "", retryReady: false };
+    context.state.operation = operation2;
+    context.emit();
+    try {
+      const value = await context.request(pending.path, { method: pending.method, body: pending.body });
+      if (context.disposed || context.state.operation !== operation2) return;
+      if (value?.id !== pending.id || !Number.isSafeInteger(value.version)) throw new Error("操作结果需要核对。");
+      context.upsert(pending.kind, value);
+      context.state.operation = null;
+      if (pending.kind === "notes") context.drafts.delete(pending.id);
+      await context.load();
+    } catch (error) {
+      if (context.disposed || context.state.operation !== operation2) return;
+      operation2.error = error.message;
+      if (error.status >= 400 && error.status < 500) {
+        operation2.phase = "error";
+        operation2.pending = null;
+      } else {
+        operation2.phase = "unknown";
+        operation2.error = "操作结果待核对，请先查询保存收据，暂不重复操作。";
+      }
+      context.emit();
+    }
+  }
+  async function operation(kind, id, method, body) {
+    if (!context.writable() || context.state.operation?.pending) return;
+    if (!context.online()) {
+      context.state.operation = { phase: "offline", pending: null, error: "当前离线，请联网后重试此操作。" };
+      context.emit();
+      return;
+    }
+    return sendOperation({
+      kind,
+      id,
+      method,
+      path: "/memos/" + kind + "/" + id + (method === "POST" ? "/restore" : ""),
+      body: { ...body, save_id: context.uuid() }
+    });
+  }
+  async function checkOperation() {
+    const value = context.state.operation, pending = value?.pending;
+    if (!context.writable() || !pending || value.checking) return;
+    value.checking = true;
+    value.retryReady = false;
+    context.emit();
+    try {
+      const receipt = await context.request("/memos/operations/" + pending.body.save_id);
+      if (context.disposed || context.state.operation !== value) return;
+      if (receipt?.found === false) {
+        value.retryReady = true;
+        value.error = "暂未找到收据，可手动重试同一操作。";
+      } else if (receipt?.found === true && receipt.id === pending.id && receipt.kind === pending.kind) {
+        context.state.operation = null;
+        await context.load();
+      } else throw new Error("操作收据不匹配。");
+    } catch (error) {
+      if (!context.disposed && context.state.operation === value) value.error = "核对失败：" + error.message;
+    } finally {
+      value.checking = false;
+      context.emit();
+    }
+  }
+  async function retryOperation() {
+    const value = context.state.operation;
+    if (!context.writable() || !value?.pending || !value.retryReady || value.checking) return;
+    return sendOperation(value.pending);
+  }
+  function recoverOperation(raw) {
+    if (!context.writable() || !validPending(raw?.pending)) return false;
+    if (context.state.operation?.pending) {
+      context.state.error = "当前已有待核对操作，请先核对，未替换原操作。";
+      context.emit();
+      return false;
+    }
+    context.state.operation = {
+      ...raw,
+      pending: { ...raw.pending },
+      phase: "unknown",
+      checking: false,
+      retryReady: false,
+      error: "已找回上次操作，请先核对保存收据。"
+    };
+    context.emit();
+    return true;
+  }
+  return { operation, checkOperation, retryOperation, recoverOperation };
+}
+function structure(context) {
+  const pendingInGroup = (id) => [...context.drafts.values()].some((item) => item.group_id === id && (item.dirty || item.pending));
+  async function createGroup(title) {
+    if (!cleanTitle(title)) return;
+    const id = context.uuid(), position = Math.min(1e6, Math.max(0, ...context.state.groups.map((group) => group.position)) + 1);
+    await context.operation("groups", id, "PUT", { title: title.trim(), position, version: 0 });
+    if (context.state.groups.some((group) => group.id === id)) await context.selectGroup(id);
+    return id;
+  }
+  async function renameGroup(id, title) {
+    const group = context.state.groups.find((value) => value.id === id);
+    if (!group || group.deleted_at || !cleanTitle(title)) return;
+    return context.operation("groups", id, "PUT", { title: title.trim(), position: group.position, version: group.version });
+  }
+  async function removeGroup(id, confirmation) {
+    const group = context.state.groups.find((value) => value.id === id);
+    if (!group || group.deleted_at) return;
+    const snapshot = confirmation || group;
+    if (["version", "title", "active_note_count"].some((field2) => snapshot[field2] !== group[field2])) {
+      context.state.error = "分组已更新，请重新核对标题和笔记数量后确认删除。";
+      context.emit();
+      return;
+    }
+    if (pendingInGroup(id)) {
+      context.state.error = "此分组还有未保存草稿，请先保存或核对后再删除。";
+      context.emit();
+      return;
+    }
+    return context.operation("groups", id, "DELETE", {
+      version: snapshot.version,
+      confirm_title: snapshot.title,
+      confirm_note_count: snapshot.active_note_count
+    });
+  }
+  async function removeNote(id) {
+    const item = context.drafts.get(id), note = context.state.notes.find((value) => value.id === id);
+    if (!note || note.deleted_at || item && (item.dirty || item.pending)) {
+      context.state.error = "请先保存或核对笔记草稿，再删除。";
+      context.emit();
+      return;
+    }
+    return context.operation("notes", id, "DELETE", { version: note.version });
+  }
+  async function restore(kind, id) {
+    if (!["groups", "notes"].includes(kind)) return;
+    const value = context.state[kind].find((row) => row.id === id);
+    if (!value?.deleted_at) return;
+    if (kind === "notes" && !context.state.groups.some((group) => group.id === value.group_id && !group.deleted_at)) {
+      context.state.error = "请先恢复此笔记所属的分组。";
+      context.emit();
+      return;
+    }
+    return context.operation(kind, id, "POST", { version: value.version });
+  }
+  return { createGroup, renameGroup, removeGroup, removeNote, restore };
+}
+function createMemosStore(options) {
+  const context = makeContext(options);
+  Object.assign(context, persistence(context), reads(context), editing(context), resolution(context), operations(context), structure(context));
+  const {
+    state: state2,
+    drafts,
+    load,
+    selectGroup,
+    selectNote,
+    edit,
+    saveNote,
+    createGroup,
+    renameGroup,
+    createNote,
+    removeGroup,
+    removeNote,
+    restore,
+    checkNote,
+    useServer,
+    useDraft,
+    retryPending,
+    checkOperation,
+    retryOperation,
+    recoverDraft,
+    recoverOperation,
+    dispose
+  } = context;
+  return {
+    state: state2,
+    drafts,
+    load,
+    selectGroup,
+    selectNote,
+    edit,
+    saveNote,
+    createGroup,
+    renameGroup,
+    createNote,
+    removeGroup,
+    removeNote,
+    restore,
+    checkNote,
+    useServer,
+    useDraft,
+    retryPending,
+    checkOperation,
+    retryOperation,
+    recoverDraft,
+    recoverOperation,
+    dispose
+  };
+}
+
+// web/memos-recovery.mjs
+var recoveries = [], selectedRecovery = -1;
+function resetMemoRecovery() {
+  recoveries = [];
+  selectedRecovery = -1;
+}
+function recoverable(raw) {
+  return raw && typeof raw.id === "string" && typeof raw.title === "string" && typeof raw.body === "string" && raw.body.length <= 262144 && (raw.dirty || raw.pending || raw.phase === "conflict");
+}
+function snapshots(storage2, ownerId) {
+  const prefix = "haoduoyu.memos.drafts.v1." + ownerId, rows = [], seen = /* @__PURE__ */ new Set();
+  const keys = [];
+  for (let index = 0; index < Math.min(storage2.length, 1e3); index++) {
+    const key = storage2.key(index);
+    if (key === prefix || key?.startsWith(prefix + ".")) keys.push(key);
+    if (keys.length === 200) break;
+  }
+  for (const key of keys) {
+    try {
+      const text = storage2.getItem(key);
+      if (!text || text.length > 8 * 1024 * 1024) continue;
+      const value = JSON.parse(text);
+      if (!Array.isArray(value.drafts)) continue;
+      for (const raw of value.drafts.slice(0, 200).filter(recoverable)) {
+        const fingerprint = JSON.stringify([raw.id, raw.title, raw.body, raw.version, raw.pending?.body?.save_id || ""]);
+        if (seen.has(fingerprint)) continue;
+        seen.add(fingerprint);
+        rows.push({ raw, savedAt: value.saved_at || raw.updated_at || "", key });
+      }
+    } catch {
+    }
+  }
+  return rows.sort((a, b) => b.savedAt.localeCompare(a.savedAt)).slice(0, 100);
+}
+function label(row, index) {
+  const timestamp = Date.parse(row.savedAt), date = Number.isFinite(timestamp) ? new Date(timestamp).toLocaleString() : "保存时间未知";
+  return index + 1 + ". " + (row.raw.title || "未命名笔记") + " · " + date + " · 版本 " + row.raw.version;
+}
+function openMemoRecovery(root, store, ownerId) {
+  if (!store.state.canEdit || !ownerId || !root) return;
+  resetMemoRecovery();
+  const find = (q) => root.querySelector(q);
+  try {
+    recoveries = snapshots(window.localStorage, ownerId);
+  } catch {
+    store.state.error = "无法读取此浏览器保存的草稿。";
+  }
+  find("#memo-recovery").hidden = false;
+  find("#memo-recovery-detail").hidden = true;
+  find("#memo-recovery-list").innerHTML = recoveries.map((row, index) => '<button type="button" class="memo-recovery-item" data-memo-recovery="' + index + '">' + e(label(row, index)) + "</button>").join("");
+  find("#memo-recovery-status").textContent = recoveries.length ? "仅显示此所有者在本机保留的最近 100 份草稿。选择后可复制文字；恢复前会核对服务器版本。" : "此浏览器没有找到可恢复的草稿。";
+}
+function selectMemoRecovery(root, index) {
+  const row = recoveries[index];
+  if (!root || !row || !Number.isSafeInteger(index)) return;
+  selectedRecovery = index;
+  root.querySelector("#memo-recovery-detail").hidden = false;
+  root.querySelector("#memo-recovery-selected").textContent = label(row, index);
+  root.querySelector("#memo-recovery-copy").value = row.raw.title + "\n\n" + row.raw.body;
+  root.querySelector("#memo-recovery-copy").focus();
+}
+async function restoreMemoRecovery(root, store) {
+  const row = recoveries[selectedRecovery];
+  if (!row || !store.state.canEdit) return;
+  await store.recoverDraft(row.raw);
+  root.querySelector("#memo-recovery-status").textContent = store.state.error || "草稿已取回编辑区。请核对保存状态；存在服务器新版本时不会自动覆盖。";
+}
+
+// web/memos-controller.mjs
+var memoStore, memoIdentity = "", memoEvents = false, memoDialog = null, memoDraftScope;
+function draftStorageScope() {
+  if (memoDraftScope) return memoDraftScope;
+  const generated = globalThis.crypto.randomUUID();
+  try {
+    const key = "haoduoyu.memos.tab.v1", saved = window.sessionStorage.getItem(key);
+    const previous = /^[a-f0-9-]{36}$/i.test(saved || "") ? saved : "";
+    window.sessionStorage.setItem(key, generated);
+    memoDraftScope = { draftScope: generated, restoreDraftScope: previous, storagePersistent: true };
+  } catch {
+    memoDraftScope = { draftScope: generated, storagePersistent: false };
+  }
+  return memoDraftScope;
+}
+var currentIdentity = () => String(runtime.sessionEpoch) + ":" + String(state.me?.id || "") + ":" + String(state.me?.csrfToken || "");
+var visible = () => state.page === "memos" && memoIdentity === currentIdentity();
+function ensureStore() {
+  const identity = currentIdentity();
+  if (memoStore && memoIdentity === identity) return memoStore;
+  memoStore?.dispose();
+  memoIdentity = identity;
+  memoDialog = null;
+  resetMemoRecovery();
+  const active2 = () => {
+    if (currentIdentity() !== identity) throw new DOMException("登录状态已经改变", "AbortError");
+  };
+  const request = async (path, options) => {
+    active2();
+    const value = await api(path, options);
+    active2();
+    return value;
+  };
+  let local;
+  try {
+    local = window.localStorage;
+  } catch {
+    local = null;
+  }
+  memoStore = createMemosStore({
+    request,
+    storage: local,
+    ...draftStorageScope(),
+    ownerId: state.me?.publicBusiness ? "" : String(state.me?.id || ""),
+    onChange: () => {
+      if (identity === currentIdentity()) paintMemosPage();
+    }
+  });
+  return memoStore;
+}
+function paintDialog(root) {
+  const find = (query) => root.querySelector(query), dialog = memoDialog;
+  find("#memo-dialog").hidden = !dialog;
+  if (!dialog) return;
+  find("#memo-dialog-heading").textContent = dialog.heading;
+  find("#memo-dialog-description").textContent = dialog.description || "";
+  find("#memo-dialog-label").hidden = !dialog.input;
+  find("#memo-dialog-title").hidden = !dialog.input;
+  find('[data-memo-action="confirm"]').disabled = Boolean(dialog.saving);
+  find('[data-memo-action="cancel"]').disabled = Boolean(dialog.saving);
+}
+function paintMemosPage() {
+  if (!visible() || !memoStore) return;
+  const root = document.querySelector("#memos");
+  if (!root) return;
+  paintMemos(root, memoStore);
+  paintDialog(root);
+}
+function openDialog(kind, id = "") {
+  const s = memoStore.state, group = s.groups.find((row) => row.id === (id || s.groupId));
+  const note = memoStore.drafts.get(id || s.noteId);
+  const descriptions = {
+    "new-group": { heading: "新建分组", input: true, value: "" },
+    "new-note": { heading: "新建笔记", input: true, value: "新笔记" },
+    "rename-group": { heading: "重命名分组", input: true, value: group?.title || "" },
+    "delete-group": {
+      heading: "删除整个分组？",
+      input: false,
+      description: "“" + (group?.title || "") + "”及其中 " + (group?.active_note_count || 0) + " 篇笔记将从公开页面隐藏。可在回收站恢复整个分组。"
+    },
+    "delete-note": {
+      heading: "删除这篇笔记？",
+      input: false,
+      description: "“" + (note?.title || "") + "”将从公开页面隐藏。可在回收站恢复。"
+    },
+    "use-draft": {
+      heading: "用草稿更新服务器版本？",
+      input: false,
+      description: "请先核对下方服务器内容。确认后，此草稿会保存为新版本。"
+    },
+    "use-server": {
+      heading: "采用服务器内容？",
+      input: false,
+      description: "当前本机未保存的草稿将被替换，请先复制需要保留的文字。"
+    }
+  };
+  memoDialog = {
+    kind,
+    id: id || (kind.includes("group") ? s.groupId : s.noteId),
+    ...descriptions[kind],
+    groupSnapshot: group ? { version: group.version, title: group.title, active_note_count: group.active_note_count } : null
+  };
+  paintMemosPage();
+  const input = document.querySelector("#memo-dialog-title");
+  input.value = memoDialog.value || "";
+  if (memoDialog.input) {
+    input.focus();
+    input.select();
+  } else document.querySelector('[data-memo-action="cancel"]')?.focus();
+}
+async function confirmDialog() {
+  const dialog = memoDialog;
+  if (!dialog || dialog.saving) return;
+  const title = document.querySelector("#memo-dialog-title")?.value.trim() || "";
+  if (dialog.input && !title) {
+    dialog.description = "名称不能为空。";
+    paintMemosPage();
+    return;
+  }
+  dialog.saving = true;
+  paintMemosPage();
+  try {
+    if (dialog.kind === "new-group") await memoStore.createGroup(title);
+    else if (dialog.kind === "new-note") await memoStore.createNote(memoStore.state.groupId, title);
+    else if (dialog.kind === "rename-group") await memoStore.renameGroup(dialog.id, title);
+    else if (dialog.kind === "delete-group") await memoStore.removeGroup(dialog.id, dialog.groupSnapshot);
+    else if (dialog.kind === "delete-note") await memoStore.removeNote(dialog.id);
+    else if (dialog.kind === "use-draft") await memoStore.useDraft(dialog.id);
+    else if (dialog.kind === "use-server") await memoStore.useServer(dialog.id);
+    if (memoDialog === dialog) memoDialog = null;
+  } finally {
+    dialog.saving = false;
+    paintMemosPage();
+  }
+}
+async function clickAction(action) {
+  const store = ensureStore(), s = store.state;
+  if (["new-group", "new-note", "rename-group", "delete-group", "delete-note", "use-draft", "use-server"].includes(action)) {
+    if (s.canEdit) openDialog(action);
+    return;
+  }
+  if (action === "cancel") memoDialog = null;
+  else if (action === "confirm") await confirmDialog();
+  else if (action === "login") {
+    renderLogin();
+    return;
+  } else if (action === "refresh") await store.load();
+  else if (action === "recovery") openMemoRecovery(document.querySelector("#memos"), store, state.me?.id);
+  else if (action === "close-recovery") document.querySelector("#memo-recovery").hidden = true;
+  else if (action === "restore-draft") await restoreMemoRecovery(document.querySelector("#memos"), store);
+  else if (action === "save") await store.saveNote();
+  else if (action === "check") await store.checkNote(s.noteId);
+  else if (action === "retry") await store.retryPending(s.noteId);
+  else if (action === "operation-check") await store.checkOperation();
+  else if (action === "operation-retry") await store.retryOperation();
+  else if (action === "restore-group") await store.restore("groups", s.groupId);
+  else if (action === "restore-note") await store.restore("notes", s.noteId);
+  else if (action === "back-groups") s.pane = "groups";
+  else if (action === "back-notes") s.pane = "notes";
+  else if (action === "trash" && s.canEdit) {
+    s.trash = !s.trash;
+    s.pane = "groups";
+    s.groupId = "";
+    s.noteId = "";
+    memoDialog = null;
+  }
+  paintMemosPage();
+}
+function run(action) {
+  Promise.resolve().then(action).catch((error) => {
+    if (!visible() || error.name === "AbortError" || error.staleSession) return;
+    memoStore.state.error = error.message || "操作失败，未保存草稿仍保留。";
+    paintMemosPage();
+  });
+}
+function editing2(event, composing) {
+  if (!visible() || !["memo-title", "memo-body"].includes(event.target.id)) return;
+  const root = document.querySelector("#memos");
+  if (!root?.contains(event.target)) return;
+  memoStore.edit(event.target.id === "memo-title" ? "title" : "body", event.target.value, { composing });
+}
+function registerEvents() {
+  if (memoEvents) return;
+  memoEvents = true;
+  document.addEventListener("input", (event) => editing2(event, event.isComposing));
+  document.addEventListener("compositionend", (event) => editing2(event, false));
+  document.addEventListener("click", (event) => {
+    if (!visible()) return;
+    const target = event.target.closest("[data-memo-action],[data-memo-group],[data-memo-note],[data-memo-draft],[data-memo-recovery]");
+    if (!target || !document.querySelector("#memos")?.contains(target)) return;
+    event.preventDefault();
+    run(async () => {
+      if (target.dataset.memoAction) return clickAction(target.dataset.memoAction);
+      if (target.dataset.memoRecovery !== void 0) {
+        selectMemoRecovery(document.querySelector("#memos"), Number(target.dataset.memoRecovery));
+        return;
+      }
+      memoDialog = null;
+      if (target.dataset.memoGroup) await memoStore.selectGroup(target.dataset.memoGroup);
+      else await memoStore.selectNote(target.dataset.memoNote || target.dataset.memoDraft);
+      paintMemosPage();
+    });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (!visible() || !memoDialog || !document.querySelector("#memo-dialog")?.contains(event.target)) return;
+    if (event.key === "Escape" && !memoDialog.saving) {
+      memoDialog = null;
+      paintMemosPage();
+    }
+    if (event.key === "Enter" && event.target.id === "memo-dialog-title") {
+      event.preventDefault();
+      run(confirmDialog);
+    }
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (memoIdentity !== currentIdentity() || !memoStore?.state.canEdit) return;
+    if (memoStore.state.operation?.pending || [...memoStore.drafts.values()].some((item) => item.dirty || item.pending)) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
+  window.addEventListener("online", () => {
+    if (visible()) paintMemosPage();
+  });
+  window.addEventListener("offline", () => {
+    if (visible()) paintMemosPage();
+  });
+}
+async function loadMemos() {
+  registerEvents();
+  const store = ensureStore();
+  await store.load();
+  paintMemosPage();
+}
+
 // web/ui/menu.mjs
 function syncMenu() {
   const side = $(".sidebar");
@@ -2656,7 +3706,7 @@ function mainContent() {
   ) : ""}<div id="page-content"></div>`;
 }
 function mobileNavigation() {
-  return `<nav class="mobile-nav notes-navigation" aria-label="切换模块">${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
+  return `<nav class="mobile-nav notes-navigation memos-navigation" aria-label="切换模块">${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
 data-nav="${e(n.id)}" class="mobile-nav-item${n.id === state.page ? " active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>
 ${icon(n.icon, 18)}<span>${e(n.label)}</span></a>`).join("")}</nav>`;
 }
@@ -2712,11 +3762,13 @@ function navigate(page, tab) {
 function pageLoading(page) {
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
+  if (page === "memos") return renderMemos();
   return skeleton();
 }
 function setPageBody(html, page) {
   if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
+  else if (page === "memos") paintMemosPage();
   else replacePageContent(html, true);
 }
 async function renderPage() {
@@ -2738,6 +3790,9 @@ async function renderPage() {
         break;
       case "notes":
         await loadDailyNotes();
+        break;
+      case "memos":
+        await loadMemos();
         break;
       case "dashboard":
         data = await api(
@@ -2940,8 +3995,8 @@ function registerTodoGestures(onOpen, isEligible = () => true) {
 function renderArticleAnalytics(a) {
   const timeline = a.timeline || [], nodes = a.nodes || [];
   return `${metricSummary(a)}<p class="cell-sub">截至 ${a.latest_metrics == null ? "未采集" : e(displayTime(a.latest_as_of))} · 采集于 ${a.latest_metrics == null ? "未采集" : e(displayTime(a.latest_collected_at))}</p><section class="detail-section"><h3>观察节点</h3><ol class="snapshot-nodes">${nodes.map((n) => {
-    const unknown = n.kind !== "latest" && a.date_status === "unverified" && !n.snapshot, status = unknown ? "unknown" : n.status, label = unknown ? "日期待核实" : { recorded: "已记录", before_due: "记录早于节点", not_due: "未到期", not_collected: "未采集" }[status] || "状态未知";
-    return `<li class="node ${e(status)}"><strong>${e(kindLabels[n.kind] || n.kind)}</strong><span>${e(label)}</span><small>${e(displayTime(
+    const unknown = n.kind !== "latest" && a.date_status === "unverified" && !n.snapshot, status = unknown ? "unknown" : n.status, label2 = unknown ? "日期待核实" : { recorded: "已记录", before_due: "记录早于节点", not_due: "未到期", not_collected: "未采集" }[status] || "状态未知";
+    return `<li class="node ${e(status)}"><strong>${e(kindLabels[n.kind] || n.kind)}</strong><span>${e(label2)}</span><small>${e(displayTime(
       n.snapshot?.as_of || n.due_at
     ))}</small></li>`;
   }).join("")}</ol><h3>快照时间线 ${detailInfo(
@@ -2972,9 +4027,9 @@ async function articleDetail(id) {
     "修改者",
     `${a.last_modified_by?.label || "未记录"} · ${displayTime(a.last_modified_by?.at)}`
   ], ["录入时间", displayTime(a.created_at)], ["修改时间", displayTime(a.updated_at)]];
-  openModal(a.title, `<div class="head-actions">${safeURL(a.url) ? `<a class="btn small" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}<button class="btn small" data-action="edit-article" data-id="${e(a.id)}">编辑</button><button class="btn small primary" data-action="review-article" data-id="${e(a.id)}">+ 补充数据</button></div>${renderArticleAnalytics(a)}<details class="detail-section"><summary>记录信息</summary><dl class="detail-grid">${fields.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(
+  openModal(a.title, `<div class="head-actions">${safeURL(a.url) ? `<a class="btn small" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}<button class="btn small" data-action="edit-article" data-id="${e(a.id)}">编辑</button><button class="btn small primary" data-action="review-article" data-id="${e(a.id)}">+ 补充数据</button></div>${renderArticleAnalytics(a)}<details class="detail-section"><summary>记录信息</summary><dl class="detail-grid">${fields.map(([label2, value]) => `<div><dt>${e(label2)}</dt><dd>${e(
     value
-  )}</dd></div>`).join("")}</dl></details>${[["summary", "概况"], ["notes", "备注"]].filter(([key]) => a[key]?.trim()).map(([key, label]) => `<section class="detail-section"><h3>${e(label)}</h3><p>${e(a[key])}</p></section>`).join("")}`, { drawer: true, context: `<div class="account-title">${platformLogo(a.platform)}${e(a.account_name || accountName(a.account_id))} · ${a.date_status === "unverified" ? "日期待核实" : e(displayTime(a.published_at))}</div>` });
+  )}</dd></div>`).join("")}</dl></details>${[["summary", "概况"], ["notes", "备注"]].filter(([key]) => a[key]?.trim()).map(([key, label2]) => `<section class="detail-section"><h3>${e(label2)}</h3><p>${e(a[key])}</p></section>`).join("")}`, { drawer: true, context: `<div class="account-title">${platformLogo(a.platform)}${e(a.account_name || accountName(a.account_id))} · ${a.date_status === "unverified" ? "日期待核实" : e(displayTime(a.published_at))}</div>` });
 }
 
 // web/actions.mjs
@@ -3413,12 +4468,12 @@ async function handleFormSubmit(event) {
   if (!form.matches("#login-form,#article-form,#review-form,#account-form,#key-form,#password-form,#revoke-form,#article-filters,#save-view-form")) return;
   event.preventDefault();
   if (form.id === "article-filters") return;
-  const button = $("button[type=submit]", form), message = $(".form-message", form), values = new FormData(form), data = Object.fromEntries(
+  const button2 = $("button[type=submit]", form), message = $(".form-message", form), values = new FormData(form), data = Object.fromEntries(
     values
   );
-  if (button?.disabled) return;
+  if (button2?.disabled) return;
   if (message) message.textContent = "";
-  if (button) button.disabled = true;
+  if (button2) button2.disabled = true;
   try {
     const handler = forms[form.id];
     if (handler) await handler({ form, data, values });
@@ -3427,7 +4482,7 @@ async function handleFormSubmit(event) {
     if (message && message.isConnected) message.textContent = err.code === "VERSION_CONFLICT" ? "这条记录已被其他人或 AI 更新。请关闭后重新打开，核对最新内容再保存。" : err.message;
     else toast(err.message, true);
   } finally {
-    if (button?.isConnected) button.disabled = false;
+    if (button2?.isConnected) button2.disabled = false;
   }
 }
 
@@ -3603,7 +4658,7 @@ function handlePopstate() {
     renderShell();
   }
 }
-function registerEvents() {
+function registerEvents2() {
   registerTodosClock();
   registerTodoGestures(openTodoMenu, canOpenTodoMenu);
   document.addEventListener("click", handleClick);
@@ -3618,5 +4673,5 @@ function registerEvents() {
 }
 
 // web/main.mjs
-registerEvents();
+registerEvents2();
 init();

@@ -53,6 +53,32 @@ export const matrixTodoTemplateLinks=sqliteTable('matrix_todo_template_links',{
 export const matrixDailyNotes=sqliteTable('matrix_daily_notes',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),date:text('date').notNull(),text:text('text').notNull().default(''),version:integer('version').notNull(),change_seq:integer('change_seq').notNull(),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
 },t=>[primaryKey({columns:[t.user_id,t.date]}),index('matrix_daily_notes_user_changes').on(t.user_id,t.change_seq,t.date),check('matrix_daily_notes_version',sql`${t.version} >= 1`),check('matrix_daily_notes_change_seq',sql`${t.change_seq} >= 1`)]);
+export const matrixMemoGroups=sqliteTable('matrix_memo_groups',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id),id:text('id').notNull(),title:text('title').notNull(),
+  position:integer('position').notNull(),version:integer('version').notNull(),change_seq:integer('change_seq').notNull(),
+  created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),index('matrix_memo_group_owner_order').on(t.user_id,t.deleted_at,t.position,t.id),
+  check('matrix_memo_group_title',sql`length(${t.title}) BETWEEN 1 AND 120`),
+  check('matrix_memo_group_position',sql`typeof(${t.position})='integer' AND ${t.position} BETWEEN 0 AND 1000000`),
+  check('matrix_memo_group_version',sql`typeof(${t.version})='integer' AND ${t.version} BETWEEN 1 AND 9007199254740991`),
+  check('matrix_memo_group_change_seq',sql`typeof(${t.change_seq})='integer' AND ${t.change_seq} BETWEEN 1 AND 9007199254740991`),
+]);
+export const matrixMemoNotes=sqliteTable('matrix_memo_notes',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id),id:text('id').notNull(),group_id:text('group_id').notNull(),
+  title:text('title').notNull(),body:text('body').notNull().default(''),position:integer('position').notNull(),
+  version:integer('version').notNull(),change_seq:integer('change_seq').notNull(),
+  created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  foreignKey({columns:[t.user_id,t.group_id],foreignColumns:[matrixMemoGroups.user_id,matrixMemoGroups.id]}),
+  index('matrix_memo_note_owner_order').on(t.user_id,t.group_id,t.deleted_at,t.position,t.id),
+  check('matrix_memo_note_title',sql`length(${t.title}) BETWEEN 1 AND 120`),
+  check('matrix_memo_note_body',sql`length(CAST(${t.body} AS BLOB)) <= 65536`),
+  check('matrix_memo_note_position',sql`typeof(${t.position})='integer' AND ${t.position} BETWEEN 0 AND 1000000`),
+  check('matrix_memo_note_version',sql`typeof(${t.version})='integer' AND ${t.version} BETWEEN 1 AND 9007199254740991`),
+  check('matrix_memo_note_change_seq',sql`typeof(${t.change_seq})='integer' AND ${t.change_seq} BETWEEN 1 AND 9007199254740991`),
+]);
 export const matrixSessions=sqliteTable('matrix_sessions',{
   token_hash:text('token_hash').primaryKey(),user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),expires_at:text('expires_at').notNull(),
 },t=>[index('matrix_session_user').on(t.user_id)]);

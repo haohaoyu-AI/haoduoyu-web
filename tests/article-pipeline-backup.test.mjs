@@ -78,6 +78,7 @@ async function seed(db,{pipeline=true}={}) {
 }
 function historical(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<7){delete data.tables.memo_groups;delete data.tables.memo_notes;}
   for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
   if(version<5){delete data.source_revision;delete data.tables.daily_notes;}
   if(version<4) {
@@ -90,9 +91,9 @@ function historical(input,version) {
   return data;
 }
 
-test('v6 round-trips all pipeline fields, raw JSON, NULL status and existing related data',async t=>{
+test('v7 round-trips all pipeline fields, raw JSON, NULL status and existing related data',async t=>{
   const source=await database(t),{owner,articles}=await seed(source),before=await exportBackup(source);
-  assert.equal(before.data.format,'haoduoyu-matrix-d1-v6');
+  assert.equal(before.data.format,'haoduoyu-matrix-d1-v7');
   assert.equal(Object.keys(before.data.tables.articles[0]).length,oldArticleFields.length+17);
   const scoped=await exportBackup(source,{todoUserId:owner});
   assert.equal(scoped.data.tables.daily_notes.length,1);
@@ -132,7 +133,7 @@ test('v1-v5 restore original article columns and only missing pipeline fields re
   }
 });
 
-test('v6 validates exact article fields and pipeline values before writing any row',async t=>{
+test('v7 validates exact article fields and pipeline values before writing any row',async t=>{
   const source=await database(t);await seed(source);const backup=await exportBackup(source),target=await database(t);
   const cases=[['status','unknown'],['slot','ZH1'],['writer','bot'],['illustrator','other'],['series_no',0],
     ['series_no',Number.MAX_SAFE_INTEGER+1],['char_count',-1],['subheading_count',1.5],['image_count','1'],
@@ -168,7 +169,7 @@ test('v5 note revisions and exact historic article contracts are validated befor
   assert.deepEqual(await tableRows(target,'users'),[]);assert.deepEqual(await tableRows(target,'control'),[]);
 });
 
-test('v6 rejects nonempty targets and failed article foreign keys stay fenced',async t=>{
+test('v7 rejects nonempty targets and failed article foreign keys stay fenced',async t=>{
   const source=await database(t);await seed(source);const full=await exportBackup(source);
   await assert.rejects(restoreIntoEmptyDatabase(source,full,{allowEmptyRestore:true}),e=>e.code==='RESTORE_NOT_EMPTY');
   const invalid=structuredClone(full.data);invalid.tables.articles[0].account_id='missing-account';

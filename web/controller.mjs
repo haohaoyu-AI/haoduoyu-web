@@ -15,6 +15,8 @@ import { renderAccounts, renderAudit, renderKeys, renderSecurity } from "./pages
 import { loadTodos, paintTodos, renderTodos } from "./pages/todos.mjs";
 import { renderDailyNotes } from "./pages/daily-notes.mjs";
 import { loadDailyNotes, paintDailyNotesPage } from "./daily-notes-controller.mjs";
+import { renderMemos } from "./pages/memos.mjs";
+import { loadMemos, paintMemosPage } from "./memos-controller.mjs";
 import { pageHeader, skeleton } from "./ui/components.mjs";
 import { replacePageContent, stopPageEntry } from "./ui/entry.mjs";
 import { setMenu, syncMenu } from "./ui/menu.mjs";
@@ -28,7 +30,7 @@ function mainContent() {
     "设置分类", "tab", "page-tabs") : ""}<div id="page-content"></div>`;
 }
 function mobileNavigation() {
-  return `<nav class="mobile-nav notes-navigation" aria-label="切换模块">\
+  return `<nav class="mobile-nav notes-navigation memos-navigation" aria-label="切换模块">\
 ${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
 data-nav="${e(n.id)}" class="mobile-nav-item${n.id === state.page ? " active" : ""}" ${n.id === state.page ? 'aria-current="page"' : ""}>
 ${icon(n.icon, 18)}<span>${e(n.label)}</span></a>`).join("")}</nav>`;
@@ -95,11 +97,13 @@ function navigate(page, tab) {
 function pageLoading(page) {
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
+  if (page === "memos") return renderMemos();
   return skeleton();
 }
 function setPageBody(html, page) {
   if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
+  else if (page === "memos") paintMemosPage();
   else replacePageContent(html, true);
 }
 async function renderPage() {
@@ -121,6 +125,9 @@ async function renderPage() {
         break;
       case "notes":
         await loadDailyNotes();
+        break;
+      case "memos":
+        await loadMemos();
         break;
       case "dashboard":
         data = await api(`/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`,

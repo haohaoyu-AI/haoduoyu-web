@@ -19,7 +19,7 @@ const standalone=target==='cloudflare'?cloudflareConfig(runtime,process.env):nul
 await writeFile(resolve(publicRoot,'app.js'),await frontendBundle(root));
 const types={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',json:'application/json; charset=utf-8',svg:'image/svg+xml',txt:'text/plain; charset=utf-8'};
 const assets={};
-for(const name of ['index.html','app.js','style.css','openapi.json','favicon.svg','robots.txt','llms.txt']) {
+for(const name of ['index.html','app.js','style.css','memos.css','openapi.json','favicon.svg','robots.txt','llms.txt']) {
   assets[name]={type:types[name.split('.').at(-1)],content:await readFile(resolve(publicRoot,name),'utf8')};
 }
 assets['api-docs']={type:types.html,content:await readFile(resolve(publicRoot,'api-docs.html'),'utf8')};
@@ -38,7 +38,7 @@ if(target==='platform') {
   assert.equal(manifest.d1,'DB');assert.equal(manifest.r2,null);assert.ok(!manifest.static);
 }
 const journal=JSON.parse(await readFile(resolve(root,'drizzle/meta/_journal.json'),'utf8'));
-assert.equal(journal.entries.length,6,'Initial schema, additive todo/notes and reviewed article graph migration');
+assert.equal(journal.entries.length,7,'Initial schema, additive todo/notes and reviewed article graph migration');
 let tables=0;
 for(const [idx,entry] of journal.entries.entries()) {
   assert.equal(entry.idx,idx);
@@ -57,7 +57,7 @@ for(const [idx,entry] of journal.entries.entries()) {
     if(statement.startsWith('CREATE TABLE')) tables++;
   }
 }
-assert.equal(tables,16);
+assert.equal(tables,18);
 assert.equal(relative(root,dist),'dist','Build output must remain inside this project');
 const output=target==='platform'?dist:resolve(dist,'cloudflare');
 const entry=target==='platform'?resolve(output,'server/index.js'):resolve(output,'index.js');
@@ -76,5 +76,5 @@ if(target==='platform') {
 }
 const worker=await import(pathToFileURL(entry).href+'?build='+Date.now());
 assert.equal(typeof worker.default?.fetch,'function');
-console.log(target==='platform'?'Built independent Sites Worker: DB only, six reviewed migrations, 16 matrix tables, no legacy tables or R2 binding.':
-  'Built standalone Cloudflare Worker and six reviewed migrations locally; '+(standalone.configured?'configuration supplied.':'unconfigured template only.')+' No resources created or deployed.');
+console.log(target==='platform'?'Built independent Sites Worker: DB only, seven reviewed migrations, 18 matrix tables, no legacy tables or R2 binding.':
+  'Built standalone Cloudflare Worker and seven reviewed migrations locally; '+(standalone.configured?'configuration supplied.':'unconfigured template only.')+' No resources created or deployed.');

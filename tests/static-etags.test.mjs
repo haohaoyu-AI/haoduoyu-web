@@ -10,12 +10,12 @@ import worker from '../dist/server/index.js';
 import {assets} from '../src/assets.generated.mjs';
 import {fixture} from './harness.mjs';
 
-const files = ['app.js', 'style.css', 'favicon.svg', 'openapi.json'];
+const files = ['app.js', 'style.css', 'memos.css', 'favicon.svg', 'openapi.json'];
 const etagFor = content => '"' + createHash('sha256').update(content).digest('hex') + '"';
 const security = ['Content-Security-Policy', 'X-Content-Type-Options', 'Referrer-Policy', 'Permissions-Policy'];
 const request = (path, options = {}) => worker.fetch(new Request('http://localhost' + path, options), {});
 
-test('four explicit static paths have content hashes, no-cache, HEAD and bodyless conditional responses', async t => {
+test('explicit static paths have content hashes, no-cache, HEAD and bodyless conditional responses', async t => {
   for (const file of files) await t.test(file, async () => {
     const bytes = await readFile(new URL('../public/' + file, import.meta.url)), expected = etagFor(bytes);
     const get = await request('/' + file);

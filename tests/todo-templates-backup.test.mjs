@@ -13,6 +13,7 @@ const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
 function versionData(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<7){delete data.tables.memo_groups;delete data.tables.memo_notes;}
   if(version<6)for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
   if(version<5){delete data.tables.daily_notes;delete data.source_revision;}
   if(version<4) {
@@ -42,13 +43,13 @@ async function sourceWithTemplates(t) {
   return {...app,session,owner,other};
 }
 
-test('v6 HTTP backup scopes template tables while operator restore preserves deleted templates and links',async t=>{
+test('v7 HTTP backup scopes template tables while operator restore preserves deleted templates and links',async t=>{
   const source=await sourceWithTemplates(t);
   const response=await worker.fetch(new Request(source.origin+'/api/v1/backup',{headers:{Cookie:source.session.cookie}}),
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v6');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v7');
   for(const name of ['todos','todo_templates','todo_template_links']) {
     assert.equal(http.data.tables[name].length,1);
     assert.equal(http.data.tables[name][0].user_id,source.owner);

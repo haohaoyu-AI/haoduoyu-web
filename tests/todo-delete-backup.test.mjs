@@ -12,6 +12,7 @@ const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
 function olderData(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<7){delete data.tables.memo_groups;delete data.tables.memo_notes;}
   if(version<6)for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
   if(version<5){delete data.tables.daily_notes;delete data.source_revision;}
   if(version<4) {
@@ -43,13 +44,13 @@ async function sourceWithPreferences(t) {
   return {...app,session,owner,other};
 }
 
-test('v6 backup scopes preferences to the session and preserves deleted todos through full restoration',async t=>{
+test('v7 backup scopes preferences to the session and preserves deleted todos through full restoration',async t=>{
   const source=await sourceWithPreferences(t);
   const response=await worker.fetch(new Request(source.origin+'/api/v1/backup',{headers:{Cookie:source.session.cookie}}),
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v6');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v7');
   assert.equal(http.data.tables.todo_preferences.length,1);
   assert.equal(http.data.tables.todo_preferences[0].user_id,source.owner);
   assert.equal(http.data.tables.todo_preferences[0].completed_mode,'hide');
@@ -88,7 +89,7 @@ test('v1 through v3 restore exact old todo rows with null deletion time and no i
   }
 });
 
-test('v6 and historical restore validate their exact todo columns before adding compatibility defaults',async t=>{
+test('v7 and historical restore validate their exact todo columns before adding compatibility defaults',async t=>{
   const source=await sourceWithPreferences(t),backup=await exportBackup(source.db),target=await fixture(t,{bootstrap:false});
   const invalid=[];
   for(const version of [2,3]) {

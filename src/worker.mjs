@@ -18,12 +18,13 @@ import {deletePublicBusiness} from './public-business-delete.mjs';
 import {publicBusinessDocs} from './public-business-docs.mjs';
 import {handleNotionSnapshot} from './notion-snapshot.mjs';
 import {handleDailyNotes} from './daily-notes.mjs';
+import {handleMemos} from './memos.mjs';
 import {validateArticleStatusQuery,validateArticleInputComplexity,rethrowArticlePipelineConflict} from './article-pipeline-io.mjs';
 import {upsertArticle,authorizeArticleUpsert} from './article-upsert.mjs';
 import {validateArticlePipelineQueryMultiplicity} from './article-pipeline-query.mjs';
 
 const prefix='/api/v1';
-const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
+const revalidatedStatic=new Set(['/app.js','/style.css','/memos.css','/favicon.svg','/openapi.json']);
 const writing=new Set(['POST','PUT','PATCH','DELETE']);
 const articleWriting=(method,route)=>(method==='POST'||method==='PATCH')&&route==='/articles'||method==='PUT'&&/^\/articles\/[^/]+$/.test(route);
 const dummyHash='scrypt$32768$8$1$00112233445566778899aabbccddeeff$'+'00'.repeat(64);
@@ -252,6 +253,8 @@ async function handle(request,env,trace) {
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
     if(route==='/daily-notes'||route.startsWith('/daily-notes/'))
       return handleDailyNotes(db,request,route,env,origin,state.revision);
+    if(route==='/memos'||route.startsWith('/memos/'))
+      return handleMemos(db,request,route,env,origin,state.revision);
     if(route==='/integrations/notion/snapshot'&&method==='POST')
       return json(await handleNotionSnapshot(db,request,env,origin));
     if(method==='GET'&&route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');

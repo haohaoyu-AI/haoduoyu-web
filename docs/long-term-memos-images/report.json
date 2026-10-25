@@ -1,0 +1,40 @@
+{
+  "synthetic": true,
+  "real_backend": true,
+  "checks": [
+    "existing real owner login retains memo route and enables owner capability",
+    "desktop create/rename group and note; title/body autosave; plaintext rendering; no horizontal overflow",
+    "independent anonymous desktop reader sees only public text and no mutation controls",
+    "mobile group/list/editor navigation and autosave, 375px without overflow",
+    "mobile anonymous reader can navigate the same two-level public structure",
+    "real concurrent mobile update causes desktop CAS409; local/server text retained; explicit resolution saves",
+    "lost response after real commit resolves through receipt lookup with exactly one PUT, no blind replay",
+    "offline draft survives reload; no automatic write replay; explicit recovery saves retained text",
+    "owner note soft-delete hides public text; mobile trash navigation/restore retains body",
+    "nonempty group requires title/count confirmation; mobile group restore preserves child note"
+  ],
+  "screenshots": [
+    "docs/long-term-memos-images/desktop-owner-1440.png",
+    "docs/long-term-memos-images/mobile-owner-editor-375.png"
+  ],
+  "pageerrors": [],
+  "blocked_external": [],
+  "expected_network_failures": [
+    {
+      "method": "PUT",
+      "count": 1,
+      "reason": "Deliberate response loss after real commit; verified receipt lookup and no blind replay."
+    }
+  ],
+  "validated_sha256": {
+    "public/app.js": "2cd231f19e3e3a4accd107c54c92943ec9d6f28240fa6f15b86ccf4c2ef9b416",
+    "public/memos.css": "a45de7c1a4b6e2edfd00a2e29ab9d4dd40a101389e0c42a6ef5a23bb97817eba",
+    "dist/server/index.js": "7e4df7b7b5147153e4f8f38bc348a28371309be7b8f8f3302677c58ffef12168"
+  },
+  "browser": "154.0.8037.57",
+  "completed": true,
+  "scope": "Loopback real Worker; temporary synthetic D1; real synthetic owner session; Chromium desktop and mobile emulation only.",
+  "limitations": [
+    "No production traffic or data; mobile evidence uses 375px Chromium emulation, not a physical device."
+  ]
+}

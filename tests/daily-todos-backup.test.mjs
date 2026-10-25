@@ -8,13 +8,13 @@ import {stable} from '../src/security.mjs';
 import {ARTICLE_PIPELINE_FIELDS} from '../src/article-pipeline-fields.mjs';
 
 const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
-test('v6 backup preserves daily todos and rejects incomplete or nonempty restores',async t=>{
+test('v7 backup preserves daily todos and rejects incomplete or nonempty restores',async t=>{
   const source=await fixture(t),session=await source.login();
   const created=await source.request('/api/v1/todos',{method:'POST',session,body:{id:randomUUID(),date:'2026-10-23',text:'合成备份待办'}});
   assert.equal(created.status,201,created.text);
   assert.equal((await source.request('/api/v1/todos/'+created.data.id,{method:'PATCH',session,body:{completed:true,version:1}})).status,200);
   const backup=await exportBackup(source.db);
-  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v6');
+  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v7');
   assert.equal(backup.data.tables.todos.length,1);
   const target=await fixture(t,{bootstrap:false});
   const result=await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
@@ -34,6 +34,7 @@ test('v1 backup still restores into an empty upgraded database without inventing
   delete data.source_revision;
   delete data.tables.todo_preferences;
   delete data.tables.daily_notes;
+  delete data.tables.memo_groups;delete data.tables.memo_notes;
   const target=await fixture(t,{bootstrap:false});
   const result=await restoreIntoEmptyDatabase(target.db,sign(data),{allowEmptyRestore:true});
   assert.equal(result.counts.todos,0);assert.equal(result.counts.todo_templates,0);assert.equal(result.counts.todo_template_links,0);assert.equal(result.counts.accounts,3);
