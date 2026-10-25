@@ -1,0 +1,621 @@
+{
+  "baseline_commit": "6043d18cd75634542baecc6ffa665712cdf32eb1",
+  "phase": "working-tree-glass-refresh",
+  "synthetic": true,
+  "real_worker": true,
+  "temporary_d1": true,
+  "shared_browser_used": false,
+  "completed": true,
+  "captures": [
+    "overview-1440.png",
+    "articles-1440.png",
+    "todos-1440.png",
+    "notes-1440.png",
+    "article-detail-1440.png",
+    "article-filter-1440.png",
+    "overview-375.png",
+    "articles-375.png",
+    "todos-375.png",
+    "notes-375.png",
+    "article-detail-375.png",
+    "article-filter-375.png",
+    "overview-390.png",
+    "articles-390.png",
+    "todos-390.png",
+    "notes-390.png",
+    "article-detail-390.png",
+    "article-filter-390.png"
+  ],
+  "checks": {
+    "overview-1440": true,
+    "articles-1440": true,
+    "todos-1440": true,
+    "notes-1440": true,
+    "modal_escape_focus_1440": true,
+    "filter_open_escape_1440": true,
+    "overview-375": true,
+    "articles-375": true,
+    "todos-375": true,
+    "notes-375": true,
+    "modal_escape_focus_375": true,
+    "filter_open_escape_375": true,
+    "overview-390": true,
+    "articles-390": true,
+    "todos-390": true,
+    "notes-390": true,
+    "modal_escape_focus_390": true,
+    "filter_open_escape_390": true,
+    "responsive_reduced_motion_1024": true,
+    "responsive_reduced_motion_760": true
+  },
+  "pageerrors": [],
+  "blocked_external_requests": [],
+  "responses": [
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/accounts",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/todos",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/daily-notes",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/daily-notes/dates",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/daily-notes",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 1440,
+      "method": "GET",
+      "path": "/api/v1/articles/8833cf35-70fb-42ad-8232-08ab02abf352",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/accounts",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/todos",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/daily-notes",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/daily-notes/dates",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/daily-notes",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 375,
+      "method": "GET",
+      "path": "/api/v1/articles/8833cf35-70fb-42ad-8232-08ab02abf352",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/accounts",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/todos",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/daily-notes",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/daily-notes/dates",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/daily-notes",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/articles",
+      "status": 200
+    },
+    {
+      "width": 390,
+      "method": "GET",
+      "path": "/api/v1/articles/8833cf35-70fb-42ad-8232-08ab02abf352",
+      "status": 200
+    }
+  ],
+  "layout": [
+    {
+      "name": "overview-1440",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "h1": [
+        "总览"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "articles-1440",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "h1": [
+        "文章"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "todos-1440",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "h1": [
+        "每日待办"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        }
+      ]
+    },
+    {
+      "name": "notes-1440",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "h1": [
+        "碎碎念"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "article-detail-1440",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "h1": [
+        "文章"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 16,
+          "height": 16
+        }
+      ]
+    },
+    {
+      "name": "article-filter-1440",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "h1": [
+        "文章"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "overview-375",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "h1": [
+        "总览"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "articles-375",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "h1": [
+        "文章"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "todos-375",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "h1": [
+        "每日待办"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        }
+      ]
+    },
+    {
+      "name": "notes-375",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "h1": [
+        "碎碎念"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "article-detail-375",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "h1": [
+        "文章"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 16,
+          "height": 16
+        }
+      ]
+    },
+    {
+      "name": "article-filter-375",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "h1": [
+        "文章"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "overview-390",
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "h1": [
+        "总览"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "articles-390",
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "h1": [
+        "文章"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "todos-390",
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "h1": [
+        "每日待办"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 22,
+          "height": 22
+        }
+      ]
+    },
+    {
+      "name": "notes-390",
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "h1": [
+        "碎碎念"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    },
+    {
+      "name": "article-detail-390",
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "h1": [
+        "文章"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 16,
+          "height": 16
+        }
+      ]
+    },
+    {
+      "name": "article-filter-390",
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "h1": [
+        "文章"
+      ],
+      "unnamedButtons": 0,
+      "smallTargets": []
+    }
+  ],
+  "assets": {
+    "public/app.js": "41e4a44558567f604821ad3489bfb40fb8375d645d3d9e76df46b770a4883201",
+    "public/style.css": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f",
+    "public/glass.css": "976d0436e1f060ed5366390b7c42e0b6fb2b398921061ab6d043b3eeacdac3a5",
+    "dist/server/index.js": "f867a4f53e10737ff3b9b46e0ec096d6061397631747c9c130bd125ed11df065"
+  },
+  "browser": "154.0.8037.57",
+  "server_exit": 143,
+  "memo_integration": {
+    "synthetic": true,
+    "completed": true,
+    "checks": [
+      "375 two-level navigation, owner save feedback and persisted body",
+      "390 two-level navigation, owner save feedback and persisted body",
+      "anonymous public read-only boundary"
+    ],
+    "captures": [
+      "memo-editor-1440.png",
+      "memo-groups-375.png",
+      "memo-notes-375.png",
+      "memo-editor-375.png",
+      "memo-groups-390.png",
+      "memo-notes-390.png",
+      "memo-editor-390.png",
+      "memo-public-390.png"
+    ],
+    "pageerrors": [],
+    "external_requests": []
+  },
+  "reused_evidence": {
+    "source_commit": "6c6551e5fa86d1af724403270611c96d149b7d5c",
+    "node_targeted_checks": 62,
+    "todo_browser_checks": 13,
+    "memo_boundary_checks": 10,
+    "note_real_worker_checks": 3
+  }
+}

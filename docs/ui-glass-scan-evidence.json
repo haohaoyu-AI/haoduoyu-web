@@ -1,0 +1,58 @@
+{
+  "previous_ci_run": 40169845142,
+  "review": "Four exact historical fingerprints only; no real secret found, scanner and rules unchanged.",
+  "findings": [
+    {
+      "commit": "a1f23331025fd2d24142569c095be9154f27fd3f",
+      "file": ".ci/public-assets.json",
+      "line": 5,
+      "rule": "generic-api-key",
+      "context": "\"api-docs.html\": \"5bf58549997360d89da60b01c6f070c6a0f3070480e0bb2395a79ccffe05b655\"",
+      "value_type": "SHA-256 of corresponding public Git blob",
+      "asset": "public/api-docs.html",
+      "blob_bytes": 12423,
+      "recomputed_sha256": "5bf58549997360d89da60b01c6f070c6a0f3070480e0bb2395a79ccffe05b655",
+      "matches": true,
+      "fingerprint": "a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:5"
+    },
+    {
+      "commit": "a1f23331025fd2d24142569c095be9154f27fd3f",
+      "file": ".ci/public-assets.json",
+      "line": 10,
+      "rule": "generic-api-key",
+      "context": "\"openapi.json\": \"29a0fb9852e4e87a4da500065dab9adbe2e21ab6e6d0b5005dfeaf45cb06220e\"",
+      "value_type": "SHA-256 of corresponding public Git blob",
+      "asset": "public/openapi.json",
+      "blob_bytes": 236778,
+      "recomputed_sha256": "29a0fb9852e4e87a4da500065dab9adbe2e21ab6e6d0b5005dfeaf45cb06220e",
+      "matches": true,
+      "fingerprint": "a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:10"
+    },
+    {
+      "commit": "daec2c2d6b186601cad236c93626a6330cdccc61",
+      "file": ".ci/public-assets.json",
+      "line": 5,
+      "rule": "generic-api-key",
+      "context": "\"api-docs.html\": \"5bf58549997360d89da60b01c6f070c6a0f3070480e0bb2395a79ccffe05b655\"",
+      "value_type": "SHA-256 of corresponding public Git blob",
+      "asset": "public/api-docs.html",
+      "blob_bytes": 12423,
+      "recomputed_sha256": "5bf58549997360d89da60b01c6f070c6a0f3070480e0bb2395a79ccffe05b655",
+      "matches": true,
+      "fingerprint": "daec2c2d6b186601cad236c93626a6330cdccc61:.ci/public-assets.json:generic-api-key:5"
+    },
+    {
+      "commit": "daec2c2d6b186601cad236c93626a6330cdccc61",
+      "file": ".ci/public-assets.json",
+      "line": 10,
+      "rule": "generic-api-key",
+      "context": "\"openapi.json\": \"29a0fb9852e4e87a4da500065dab9adbe2e21ab6e6d0b5005dfeaf45cb06220e\"",
+      "value_type": "SHA-256 of corresponding public Git blob",
+      "asset": "public/openapi.json",
+      "blob_bytes": 236778,
+      "recomputed_sha256": "29a0fb9852e4e87a4da500065dab9adbe2e21ab6e6d0b5005dfeaf45cb06220e",
+      "matches": true,
+      "fingerprint": "daec2c2d6b186601cad236c93626a6330cdccc61:.ci/public-assets.json:generic-api-key:10"
+    }
+  ]
+}

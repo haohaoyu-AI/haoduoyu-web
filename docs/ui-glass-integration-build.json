@@ -1,0 +1,67 @@
+{
+  "baseline_commit": "6043d18cd75634542baecc6ffa665712cdf32eb1",
+  "worker": {
+    "baseline": {
+      "bytes": 851009,
+      "sha256": "328196f20ad3622e2376c417abbd80a8d05670adfb4b056e30b5320e7a2a8066"
+    },
+    "candidate": {
+      "bytes": 870119,
+      "sha256": "f867a4f53e10737ff3b9b46e0ec096d6061397631747c9c130bd125ed11df065"
+    },
+    "byte_delta": 19110
+  },
+  "unchanged_files": {
+    "runtime.json": {
+      "bytes": 142,
+      "sha256": "aefc0313cc1a8f2a230d3730977448a895b9a0195f71aba321d0b13afcf98fe1",
+      "equal_to_production": true
+    },
+    ".openai/hosting.json": {
+      "bytes": 91,
+      "sha256": "9b242c64db80608a42f15593115bf5f39d383d01d7b39f699c196d17e0aff554",
+      "equal_to_production": true
+    },
+    "public/app.js": {
+      "bytes": 279595,
+      "sha256": "41e4a44558567f604821ad3489bfb40fb8375d645d3d9e76df46b770a4883201",
+      "equal_to_production": true
+    },
+    "public/style.css": {
+      "bytes": 45481,
+      "sha256": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f",
+      "equal_to_production": true
+    },
+    "public/memos.css": {
+      "bytes": 6956,
+      "sha256": "a45de7c1a4b6e2edfd00a2e29ab9d4dd40a101389e0c42a6ef5a23bb97817eba",
+      "equal_to_production": true
+    },
+    "package.json": {
+      "bytes": 1050,
+      "sha256": "ec7fb59a72e3b8d5248ccc8e65ee4dfc3f9046430a0b709955ce580762d9862d",
+      "equal_to_production": true
+    },
+    "package-lock.json": {
+      "bytes": 82018,
+      "sha256": "f6c5d8fc66382f328a990a70de714a7061664877ea06612cf2effc9aa51953bc",
+      "equal_to_production": true
+    },
+    "src/worker.mjs": {
+      "bytes": 23533,
+      "sha256": "fe490561cf68affdab08154eeee6505e25fb9fd88e8c62ff981e18400861a34f",
+      "equal_to_production": true
+    },
+    "db/schema.ts": {
+      "bytes": 13523,
+      "sha256": "4ec1f258cce1f79d57be961676beb98b398aebc2ae501112efcba097bf39b055",
+      "equal_to_production": true
+    },
+    "drizzle/meta/_journal.json": {
+      "bytes": 1066,
+      "sha256": "7e38ebf2b73719d66eef676b9d7273d1c5713f3a47516479abf8b04f1fc21294",
+      "equal_to_production": true
+    }
+  },
+  "schema": "18 logical tables; 7 reviewed migrations; unchanged"
+}
