@@ -60,9 +60,9 @@ test('over-budget complete reads fail rather than presenting a partial ledger',a
   await assert.rejects(readArticleReconciliation(store,{},null),error=>error.status===413);
 });
 test('todo, notes, memo, schema, snapshot and glass stylesheet bytes stay equal to current production',async()=>{
-  const files=['public/glass.css','public/style.css','public/memos.css','src/snapshot.mjs','src/snapshot-projection.mjs','src/daily-notes.mjs','src/memos.mjs'];
-  files.push(...execFileSync('git',['ls-tree','-r','--name-only','9c9fb40','db','drizzle'],{encoding:'utf8'}).trim().split('\n'));
-  for(const file of files)assert.deepEqual(await readFile(new URL('../'+file,import.meta.url)),execFileSync('git',['show','9c9fb40:'+file]));
+  const files=['public/workbench.css','public/index.html','public/glass.css','public/style.css','public/memos.css','src/snapshot.mjs','src/snapshot-projection.mjs','src/daily-notes.mjs','src/memos.mjs'];
+  files.push(...execFileSync('git',['ls-tree','-r','--name-only','f405b4c','db','drizzle','web'],{encoding:'utf8'}).trim().split('\n').filter(file=>!['web/controller.mjs','web/core/router.mjs','web/events.mjs','web/actions.mjs'].includes(file)));
+  for(const file of files)assert.deepEqual(await readFile(new URL('../'+file,import.meta.url)),execFileSync('git',['show','f405b4c:'+file]));
 });
 
 test('new UI and API projections reject changed additions and preserve the complete preceding contract',async()=>{
@@ -71,6 +71,6 @@ test('new UI and API projections reject changed additions and preserve the compl
   const file='web/pages/article-reconciliation.mjs',source=await readFile(new URL('../'+file,import.meta.url),'utf8');
   assert.equal(projectReconciliation(file,source),'');assert.throws(()=>projectReconciliation(file,source+'\nconst unauthorized=1;'));
   const spec=JSON.parse(await readFile(new URL('../public/openapi.json',import.meta.url),'utf8'));
-  assert.deepEqual(reconciliationDocumentSpec(spec),JSON.parse(execFileSync('git',['show','9c9fb40:public/openapi.json'],{encoding:'utf8'})));
+  assert.deepEqual(reconciliationDocumentSpec(spec),JSON.parse(execFileSync('git',['show','f405b4c:public/openapi.json'],{encoding:'utf8'})));
   spec.paths['/api/v1/article-reconciliation'].get.summary='unauthorized';assert.throws(()=>reconciliationDocumentSpec(spec));
 });

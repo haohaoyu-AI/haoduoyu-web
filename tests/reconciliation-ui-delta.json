@@ -1,29 +1,29 @@
 {
-  "baseline": "9c9fb40c10ab9f9cb2fbb0ed87beeccc5bae6108",
+  "baseline": "f405b4cc309a7cb1f40133cc7e19d827244a3fa4",
   "files": {
     "web/controller.mjs": {
-      "before": "605feb24c9a82cbcdc6c73526d71eaa18bc99d66a86f0ec0eb4bd9117bc663a9",
-      "after": "fbd2f72ebbaef568b979c92f54a19361d368be150bd9f0becbdf7898e4fc6557"
+      "before": "e4d1db3f2937df6e1c3e7e787c98d4ab116803c805dcd3de70aced8b0a4e4fa1",
+      "after": "b5525155a4e38e4adb8f3b78ee454637bbeba0860d09958f1975be20c83145c7"
     },
     "web/core/router.mjs": {
-      "before": "70333b97500ef7c75132424692fd8057892b19edda461aa27a0544741d33585d",
-      "after": "bbc952c02b7e35a9c67715b75226df009dec994410df59a97b4bd80aa2638fba"
+      "before": "71b43fa03d04b619995a4e95c0817edd45906ef67a6de8bfad3c01c5ca7f6b31",
+      "after": "beccc464fd890bc929aff45202a4bff8f622fd51742a24fe5c72b92179a71ffd"
     },
     "web/events.mjs": {
-      "before": "a1b106fdaad15b6425ef6f6adfcdcf82a902aa0bcda40c489e5c29de822b9a5e",
-      "after": "088211e99ad1d841f3c1eeed3ede3fe12b92cd18ff8577e47353c851266c1246"
+      "before": "14236d87e97d454e6f8e672ea29283519619f01af9a0d82c8d85dfa1dfff8578",
+      "after": "16c943bc0d8a72113abb533b6d4713b9bb08a554f4ffcc3ec112fe2e79b0b3fd"
     },
     "web/actions.mjs": {
-      "before": "b7648b14a87a806b1c95c88229ad3f3a529a37ac765b0694cf76d3e31877eb66",
-      "after": "ca79c2a82235ef2201d530e50a779e4c58701b566a6cf0d51a17dd58c9710b1f"
+      "before": "ac0149b69dd85ada9b309c44ccef458ef089fb1262fcfcc9e69bd1d7ea2ce2ff",
+      "after": "c790d398639db3b08fc5e30f1e33303ce5aa0241ca4a27d111c9a567e8ac24cf"
     },
     "web/pages/article-reconciliation.mjs": {
       "before": null,
       "after": "5446aa8932b040f026d8b8fcafeb663298cb98437cca7022c231dd40685afcc4"
     },
     "public/app.js": {
-      "before": "abdbe88615311cad64d1977a199765d732e7fe9c09b256b8d913d44bad9c3db9",
-      "after": "71ef3e176158af95c763b34376823b2ac527a1cda080cd17539e8f046bdfddbc"
+      "before": "6d52e0fc5997e9c2a376e32be53058ac3245b794e6ccde402208b282a549e159",
+      "after": "0e414bfe8259b6818f16a312fa0d661b849e6ee859a53233a22ccc6c57f8e9de"
     }
   }
 }
