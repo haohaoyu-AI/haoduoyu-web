@@ -7,6 +7,7 @@ const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==
   Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
 const digest=value=>createHash('sha256').update(typeof value==='string'?value:JSON.stringify(stable(value))).digest('hex');
 const upsertDocumentDelta=()=>JSON.parse(readFileSync(new URL('./fixtures/article-upsert-document-delta.json',import.meta.url),'utf8'));
+const snapshotDocumentDelta=()=>JSON.parse(readFileSync(new URL('./fixtures/snapshot-document-delta.json',import.meta.url),'utf8'));
 function restoreSpecContract(spec,delta) {
   const result=structuredClone(spec);
   for(const {path,was,before,now,after_sha256}of delta.spec_changes) {
@@ -22,8 +23,15 @@ function restoreSpecContract(spec,delta) {
   }
   return result;
 }
+export function snapshotDocumentSpec(spec) {
+  const paths=Object.keys(spec.paths??{}).filter(path=>path==='/api/v1/snapshot'||path.startsWith('/api/v1/snapshot/'));
+  if(!paths.length)return structuredClone(spec);
+  assert.deepEqual(paths.sort(),['/api/v1/snapshot','/api/v1/snapshot/index'],'exact approved snapshot path inventory');
+  return restoreSpecContract(spec,snapshotDocumentDelta());
+}
 export function articlePipelineSpec(spec) {
-  const previous=spec.paths?.['/api/v1/articles']?.patch?restoreSpecContract(spec,upsertDocumentDelta()):structuredClone(spec);
+  const snapshot=snapshotDocumentSpec(spec);
+  const previous=snapshot.paths?.['/api/v1/articles']?.patch?restoreSpecContract(snapshot,upsertDocumentDelta()):snapshot;
   if(!Object.hasOwn(previous.components.schemas.ArticleCreate.properties,'status'))return previous;
   return restoreSpecContract(previous,documentDelta);
 }
@@ -42,8 +50,14 @@ function restoreDocsContract(html,delta) {
   }
   return result;
 }
+export function snapshotDocumentDocs(html) {
+  const delta=snapshotDocumentDelta(),{start,end}=delta.docs.section;
+  assert.equal(html.includes(start),html.includes(end),'complete approved snapshot documentation markers');
+  return restoreDocsContract(html,delta);
+}
 export function articlePipelineDocs(html) {
-  const previous=html.includes('<!-- article-upsert-contract:start -->')?restoreDocsContract(html,upsertDocumentDelta()):html;
+  const snapshot=snapshotDocumentDocs(html);
+  const previous=snapshot.includes('<!-- article-upsert-contract:start -->')?restoreDocsContract(snapshot,upsertDocumentDelta()):snapshot;
   return restoreDocsContract(previous,documentDelta);
 }
 
