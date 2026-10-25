@@ -203,3 +203,6 @@ a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:
 # Parallel article-reconciliation branch: public OpenAPI SHA-256, independently recomputed.
 # Exact historical finding only; proof: docs/workbench-secret-scan-evidence.json.
 13e0c9054c57bc66969a0040a7380d5f4191d6d9:.ci/public-assets.json:generic-api-key:10
+
+# Actual reconciliation: independently recomputed public OpenAPI content SHA256 only.
+13e0c9054c57bc66969a0040a7380d5f4191d6d9:.ci/public-assets.json:generic-api-key:10
