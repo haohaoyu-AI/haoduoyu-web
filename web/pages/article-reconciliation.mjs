@@ -2,7 +2,7 @@ import { warningLabels } from "../core/article-ledger.mjs";
 import { api } from "../core/api.mjs";
 import { e } from "../core/dom.mjs";
 import { slotLabels, statusLabels, writerLabels } from "../core/constants.mjs";
-let current = null;
+let reconciliationData = null;
 const fieldLabels = { run_date: "日期", status: "状态", slot: "槽位", writer: "写作者", series_no: "编号" };
 const label = (choices, value) => choices[value] || "未知";
 function options(values, choices) {
@@ -40,13 +40,13 @@ function table(data, filters = {}) {
 }
 export function changeReconciliationFilters(element) {
   const form = element.closest("#reconciliation-filters");
-  if (!form || !current) return false;
-  document.querySelector("#reconciliation-results").innerHTML = table(current, Object.fromEntries(new FormData(form)));
+  if (!form || !reconciliationData) return false;
+  document.querySelector("#reconciliation-results").innerHTML = table(reconciliationData, Object.fromEntries(new FormData(form)));
   return true;
 }
 export function renderReconciliation(data) {
   if (data?.complete !== true || !Array.isArray(data.rows)) throw new Error("对账数据未完整取得，请重试。");
-  current = data;
+  reconciliationData = data;
   const values = key => [...new Set(data.rows.map(row => row[key] ?? "unknown"))].sort();
   const dates = Object.fromEntries(values("run_date").map(value => [value, value === "unknown" ? "日期未标注" : value]));
   return `<div class="article-ledger-overview article-reconciliation"><section class="card"><h2>实际文章对账</h2>

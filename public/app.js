@@ -702,8 +702,8 @@ async function apiTransport(path, opts) {
   return { ok: response.ok, status: response.status, text };
 }
 function apiFailure(path, response, payload, epoch, identity) {
-  const current2 = epoch === runtime.sessionEpoch && identity === (state.me?.id ?? null);
-  if (response.status === 401 && path !== "/auth/login" && current2) {
+  const current = epoch === runtime.sessionEpoch && identity === (state.me?.id ?? null);
+  if (response.status === 401 && path !== "/auth/login" && current) {
     state.me = null;
     closeModal();
     renderLogin();
@@ -712,7 +712,7 @@ function apiFailure(path, response, payload, epoch, identity) {
   const error = new Error(message);
   error.status = response.status;
   error.code = payload.error?.code;
-  if (response.status === 401 && !current2) error.staleSession = true;
+  if (response.status === 401 && !current) error.staleSession = true;
   return error;
 }
 async function api(path, options2 = {}) {
@@ -739,7 +739,7 @@ async function api(path, options2 = {}) {
 }
 
 // web/pages/article-reconciliation.mjs
-var current = null;
+var reconciliationData = null;
 var fieldLabels = { run_date: "日期", status: "状态", slot: "槽位", writer: "写作者", series_no: "编号" };
 var label = (choices, value) => choices[value] || "未知";
 function options(values, choices) {
@@ -772,13 +772,13 @@ function table(data, filters = {}) {
 }
 function changeReconciliationFilters(element) {
   const form = element.closest("#reconciliation-filters");
-  if (!form || !current) return false;
-  document.querySelector("#reconciliation-results").innerHTML = table(current, Object.fromEntries(new FormData(form)));
+  if (!form || !reconciliationData) return false;
+  document.querySelector("#reconciliation-results").innerHTML = table(reconciliationData, Object.fromEntries(new FormData(form)));
   return true;
 }
 function renderReconciliation(data) {
   if (data?.complete !== true || !Array.isArray(data.rows)) throw new Error("对账数据未完整取得，请重试。");
-  current = data;
+  reconciliationData = data;
   const values = (key) => [...new Set(data.rows.map((row) => row[key] ?? "unknown"))].sort();
   const dates = Object.fromEntries(values("run_date").map((value) => [value, value === "unknown" ? "日期未标注" : value]));
   return `<div class="article-ledger-overview article-reconciliation"><section class="card"><h2>实际文章对账</h2>
@@ -2878,24 +2878,24 @@ function paintDailyNotesPage() {
 async function loadNoteDates(more = false) {
   ensureDailyNotesStore();
   if (more && (!notesDateIndex.hasMore || notesDateIndex.loading)) return;
-  const expected = notesIdentity, current2 = notesDateIndex, sequence = ++current2.sequence;
-  const before = more ? current2.cursor : null;
-  current2.loading = true;
-  current2.error = "";
+  const expected = notesIdentity, current = notesDateIndex, sequence = ++current.sequence;
+  const before = more ? current.cursor : null;
+  current.loading = true;
+  current.error = "";
   paintDailyNotesPage();
   try {
     const result = await api("/daily-notes/dates?page_size=30" + (before ? "&before=" + encodeURIComponent(before) : ""));
-    if (expected !== notesIdentityNow() || current2 !== notesDateIndex || sequence !== current2.sequence) return;
+    if (expected !== notesIdentityNow() || current !== notesDateIndex || sequence !== current.sequence) return;
     if (!Array.isArray(result?.dates) || result.dates.some((value) => !validDailyNotesDate(value)) || typeof result.has_more !== "boolean" || result.has_more && (!validDailyNotesDate(result.next_before) || before && result.next_before >= before))
       throw new Error("日期列表不完整，请稍后重新读取。");
-    current2.dates = [.../* @__PURE__ */ new Set([...more ? current2.dates : [], ...result.dates])].sort().reverse();
-    current2.hasMore = result.has_more;
-    current2.cursor = result.next_before;
+    current.dates = [.../* @__PURE__ */ new Set([...more ? current.dates : [], ...result.dates])].sort().reverse();
+    current.hasMore = result.has_more;
+    current.cursor = result.next_before;
   } catch (error) {
-    if (expected === notesIdentityNow() && sequence === current2.sequence) current2.error = error.message;
+    if (expected === notesIdentityNow() && sequence === current.sequence) current.error = error.message;
   } finally {
-    if (expected === notesIdentityNow() && current2 === notesDateIndex && sequence === current2.sequence) {
-      current2.loading = false;
+    if (expected === notesIdentityNow() && current === notesDateIndex && sequence === current.sequence) {
+      current.loading = false;
       paintDailyNotesPage();
     }
   }
@@ -2990,8 +2990,8 @@ var phases = {
   loading: "正在读取…"
 };
 var active = (rows, trash) => rows.filter((row) => Boolean(row.deleted_at) === trash);
-function listButton(kind, row, current2, subtitle = "") {
-  return '<button type="button" class="memo-list-item' + (row.id === current2 ? " is-selected" : "") + '" data-memo-' + kind + '="' + e(row.id) + '" aria-pressed="' + (row.id === current2) + '"><span>' + e(row.title) + "</span>" + (subtitle ? "<small>" + e(subtitle) + "</small>" : "") + "</button>";
+function listButton(kind, row, current, subtitle = "") {
+  return '<button type="button" class="memo-list-item' + (row.id === current ? " is-selected" : "") + '" data-memo-' + kind + '="' + e(row.id) + '" aria-pressed="' + (row.id === current) + '"><span>' + e(row.title) + "</span>" + (subtitle ? "<small>" + e(subtitle) + "</small>" : "") + "</button>";
 }
 function paintLists(root, store) {
   const s = store.state, group = s.groups.find((row) => row.id === s.groupId), find = (q) => root.querySelector(q);
@@ -3213,8 +3213,8 @@ function persistence(context) {
     if (context.hydrated || !context.writable()) return;
     context.hydrated = true;
     try {
-      const current2 = context.storage?.getItem(key());
-      const saved = JSON.parse(current2 ?? (previousKey() ? context.storage?.getItem(previousKey()) : null) ?? "{}");
+      const current = context.storage?.getItem(key());
+      const saved = JSON.parse(current ?? (previousKey() ? context.storage?.getItem(previousKey()) : null) ?? "{}");
       if (Array.isArray(saved.drafts)) for (const raw of saved.drafts.slice(0, 200)) {
         const item = recoveredDraft(raw);
         if (item) context.drafts.set(item.id, item);
@@ -3233,9 +3233,9 @@ function persistence(context) {
       context.emit();
       return false;
     }
-    const current2 = context.drafts.get(item.id);
-    if (current2 && (current2.dirty || current2.pending)) {
-      if (changed(current2, item) || current2.version !== item.version || current2.pending?.body.save_id !== item.pending?.body.save_id) {
+    const current = context.drafts.get(item.id);
+    if (current && (current.dirty || current.pending)) {
+      if (changed(current, item) || current.version !== item.version || current.pending?.body.save_id !== item.pending?.body.save_id) {
         context.state.error = "此笔记已有另一份草稿，未覆盖。请先复制预览文字，再处理当前草稿。";
         context.emit();
         return false;
@@ -4076,9 +4076,9 @@ function reuseShell() {
   if (!main || shell?.dataset.session !== String(runtime.sessionEpoch) || shell.dataset.user !== state.me?.id) return false;
   setMenu(false);
   for (const link of $$(".nav-item,.mobile-nav-item", shell)) {
-    const current2 = link.dataset.nav === state.page;
-    link.classList.toggle("active", current2);
-    if (current2) link.setAttribute("aria-current", "page");
+    const current = link.dataset.nav === state.page;
+    link.classList.toggle("active", current);
+    if (current) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   }
   main.innerHTML = mainContent();
@@ -4279,24 +4279,24 @@ function verificationIntent(index, done) {
 }
 function createArticleVerificationStore({ article, load, put, uuid = () => crypto.randomUUID(), onChange = () => {
 }, isCurrent = () => true }) {
-  let current2 = copy(article), phase = "idle", message = "", pending = null, busy = false, retryReady = false;
-  const snapshot = () => ({ article: copy(current2), phase, message, busy, retryReady });
+  let current = copy(article), phase = "idle", message = "", pending = null, busy = false, retryReady = false;
+  const snapshot = () => ({ article: copy(current), phase, message, busy, retryReady });
   const notify = () => onChange(snapshot());
   function received(value) {
-    if (!validArticle(value, current2.id)) throw new Error("详情读取不完整，请重新打开核对。");
-    current2 = copy(value);
+    if (!validArticle(value, current.id)) throw new Error("详情读取不完整，请重新打开核对。");
+    current = copy(value);
   }
   async function reconcile(conflict = false) {
     let remote;
     try {
-      remote = await load(current2.id);
+      remote = await load(current.id);
     } catch {
       phase = "unknown";
       retryReady = false;
       message = "保存结果尚未确认，请重新核对；不会自动重发。";
       return false;
     }
-    if (!validArticle(remote, current2.id)) {
+    if (!validArticle(remote, current.id)) {
       phase = "unknown";
       retryReady = false;
       message = "详情读取不完整，保存结果尚未确认。";
@@ -4333,7 +4333,7 @@ function createArticleVerificationStore({ article, load, put, uuid = () => crypt
     notify();
     let response;
     try {
-      response = await put(current2.id, copy(pending.body), pending.key);
+      response = await put(current.id, copy(pending.body), pending.key);
     } catch (error) {
       if (error.status >= 400 && error.status < 500 && error.status !== 409) {
         pending = null;
@@ -4342,18 +4342,18 @@ function createArticleVerificationStore({ article, load, put, uuid = () => crypt
       } else await reconcile(error.status === 409);
       return;
     }
-    if (!validArticle(response, current2.id) || response.version <= pending.body.version || !same(response.verify_items, pending.body.verify_items)) {
+    if (!validArticle(response, current.id) || response.version <= pending.body.version || !same(response.verify_items, pending.body.verify_items)) {
       await reconcile();
       return;
     }
-    received({ ...current2, ...response });
+    received({ ...current, ...response });
     pending = null;
     phase = "saved";
     message = "已保存。";
     try {
-      const remote = await load(current2.id);
-      if (validArticle(remote, current2.id) && remote.version >= current2.version) {
-        const matches = same(remote.verify_items, current2.verify_items);
+      const remote = await load(current.id);
+      if (validArticle(remote, current.id) && remote.version >= current.version) {
+        const matches = same(remote.verify_items, current.verify_items);
         received(remote);
         if (!matches) {
           phase = "conflict";
@@ -4365,11 +4365,11 @@ function createArticleVerificationStore({ article, load, put, uuid = () => crypt
     }
   }
   async function save(index, done) {
-    if (busy || pending || !Number.isSafeInteger(index) || typeof done !== "boolean" || !Array.isArray(current2.verify_items) || !current2.verify_items[index] || typeof current2.verify_items[index] !== "object") return;
-    if (current2.verify_items[index].done === done) return;
-    const items = copy(current2.verify_items);
+    if (busy || pending || !Number.isSafeInteger(index) || typeof done !== "boolean" || !Array.isArray(current.verify_items) || !current.verify_items[index] || typeof current.verify_items[index] !== "object") return;
+    if (current.verify_items[index].done === done) return;
+    const items = copy(current.verify_items);
     items[index].done = done;
-    pending = { index, done, before: copy(current2.verify_items), body: { version: current2.version, verify_items: items }, key: uuid() };
+    pending = { index, done, before: copy(current.verify_items), body: { version: current.version, verify_items: items }, key: uuid() };
     busy = true;
     try {
       await send();
@@ -5429,9 +5429,9 @@ function handleFilterSubmit(event) {
 function handleKeydown(event) {
   if (runtime.activePopover) {
     if (event.key === "Tab") {
-      const current2 = runtime.activePopover;
+      const current = runtime.activePopover;
       setTimeout(() => {
-        if (runtime.activePopover === current2 && !current2.node.contains(document.activeElement)) closePopover({ restoreFocus: false });
+        if (runtime.activePopover === current && !current.node.contains(document.activeElement)) closePopover({ restoreFocus: false });
       }, 0);
     }
     if (event.key === "Escape") {
