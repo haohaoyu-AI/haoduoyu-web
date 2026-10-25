@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
-import {snapshotDocumentSpec,snapshotDocumentDocs,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
+import {reconciliationDocumentSpec,snapshotDocumentSpec,snapshotDocumentDocs,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
 
 const baseline='fe8efa479c0c2865970b43053db4deb62a3380c9';
 const old=file=>execFileSync('git',['show',baseline+':'+file],{cwd:new URL('../',import.meta.url),encoding:'utf8'});
 const previousSpec=JSON.parse(old('public/openapi.json')),previousDocs=old('public/api-docs.html');
-const spec=JSON.parse(readFileSync(new URL('../public/openapi.json',import.meta.url),'utf8'));
+const spec=reconciliationDocumentSpec(JSON.parse(readFileSync(new URL('../public/openapi.json',import.meta.url),'utf8')));
 const docs=readFileSync(new URL('../public/api-docs.html',import.meta.url),'utf8');
 const delta=JSON.parse(readFileSync(new URL('./fixtures/snapshot-document-delta.json',import.meta.url),'utf8'));
 const paths=['/api/v1/snapshot','/api/v1/snapshot/index'];

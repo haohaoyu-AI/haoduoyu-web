@@ -29,8 +29,16 @@ export function snapshotDocumentSpec(spec) {
   assert.deepEqual(paths.sort(),['/api/v1/snapshot','/api/v1/snapshot/index'],'exact approved snapshot path inventory');
   return restoreSpecContract(spec,snapshotDocumentDelta());
 }
+export function reconciliationDocumentSpec(spec) {
+  const input=structuredClone(spec),path='/api/v1/article-reconciliation';
+  if(input.paths?.[path]) {
+    const approved=JSON.parse(readFileSync(new URL('./fixtures/reconciliation-document-delta.json',import.meta.url),'utf8'));
+    assert.equal(digest(input.paths[path]),approved.sha256,'exact approved reconciliation API contract');delete input.paths[path];
+  }
+  return input;
+}
 export function articlePipelineSpec(spec) {
-  const snapshot=snapshotDocumentSpec(spec);
+  const snapshot=snapshotDocumentSpec(reconciliationDocumentSpec(spec));
   const previous=snapshot.paths?.['/api/v1/articles']?.patch?restoreSpecContract(snapshot,upsertDocumentDelta()):snapshot;
   if(!Object.hasOwn(previous.components.schemas.ArticleCreate.properties,'status'))return previous;
   return restoreSpecContract(previous,documentDelta);

@@ -1,3 +1,4 @@
+import {readArticleReconciliation} from './article-reconciliation.mjs';
 import { randomUUID,randomBytes } from 'node:crypto';
 import { hashPassword,verifyPassword } from '../shared/auth.mjs';
 import { createRecords } from './records.mjs';
@@ -93,6 +94,7 @@ async function protectedRead(db,request,route,query,initialRevision,publicActor=
     const articleMatch=/^\/articles\/([^/]+)$/.exec(route);
     if(route==='/auth/me') {requireAdmin(actor);return json({id:actor.id,username:actor.username,csrfToken:csrfFor(actor.token)});}
     if(route==='/accounts') return json(await records.listAccounts(actor.scope));
+    if(route==='/article-reconciliation') return json(await readArticleReconciliation(store,query,actor.scope));
     if(route==='/articles') return Response.json(await records.articlePage(query,actor.scope));
     if(articleMatch) {
       const value=await records.getArticle(articleMatch[1],actor.scope);

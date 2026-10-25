@@ -1,3 +1,4 @@
+import { changeReconciliationFilters } from "./pages/article-reconciliation.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
 import { applyArticleFilters, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
 import { $, $$, e } from "./core/dom.mjs";
@@ -47,6 +48,7 @@ async function handleClick(event) {
 }
 function handleChange(event) {
   const el = event.target;
+  if (changeReconciliationFilters(el)) return;
   if (el.matches?.("[data-article-verify-index]")) {
     handleArticleVerificationChange(el);
     return;

@@ -4,7 +4,7 @@ import {storeFor} from './storage.mjs';
 
 const buckets=new Map();
 const reads=new Set(['/auth/me','/accounts','/articles','/observations','/daily-metrics','/dashboard','/overview','/due-reviews',
-  '/todos','/todo-templates','/todo-preferences','/export']);
+  '/article-reconciliation','/todos','/todo-templates','/todo-preferences','/export']);
 export function publicBusinessRoute(route,method) {
   if(method==='GET') return reads.has(route)||/^\/articles\/[^/]+$/.test(route);
   if(method==='POST') return ['/accounts','/articles','/observations','/daily-metrics','/todos','/todo-templates'].includes(route)||

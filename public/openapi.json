@@ -3414,6 +3414,89 @@
           }
         }
       }
+    },
+    "/api/v1/article-reconciliation": {
+      "get": {
+        "summary": "实际文章对账与明确gzh槽位编号进度",
+        "description": "当前授权账号的完整一致读取，最多4000行/1MiB，超过整体413；不接受参数。保留null状态，不推断日期、题材、样本编号或排期。schedule未配置的expected/missing/overdue为null；编号间隔仅为候选。沿现文章读取权限，API key须有read和账号范围。",
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "完整实际记录、日期/状态计数、gzh真实编号去重/重复/最高号/内部间隔候选；样本映射未知",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "complete",
+                        "rows",
+                        "total",
+                        "counts",
+                        "dates",
+                        "schedule",
+                        "insurance"
+                      ],
+                      "properties": {
+                        "complete": {
+                          "const": true
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "counts": {
+                          "type": "object"
+                        },
+                        "dates": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "schedule": {
+                          "type": "object"
+                        },
+                        "insurance": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权"
+          },
+          "403": {
+            "description": "读取权限或账号范围不允许"
+          },
+          "413": {
+            "description": "完整读取超过预算，无部分结果"
+          }
+        }
+      }
     }
   },
   "components": {

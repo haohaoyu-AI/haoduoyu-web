@@ -1,0 +1,29 @@
+{
+  "baseline": "9c9fb40c10ab9f9cb2fbb0ed87beeccc5bae6108",
+  "files": {
+    "web/controller.mjs": {
+      "before": "605feb24c9a82cbcdc6c73526d71eaa18bc99d66a86f0ec0eb4bd9117bc663a9",
+      "after": "fbd2f72ebbaef568b979c92f54a19361d368be150bd9f0becbdf7898e4fc6557"
+    },
+    "web/core/router.mjs": {
+      "before": "70333b97500ef7c75132424692fd8057892b19edda461aa27a0544741d33585d",
+      "after": "bbc952c02b7e35a9c67715b75226df009dec994410df59a97b4bd80aa2638fba"
+    },
+    "web/events.mjs": {
+      "before": "a1b106fdaad15b6425ef6f6adfcdcf82a902aa0bcda40c489e5c29de822b9a5e",
+      "after": "088211e99ad1d841f3c1eeed3ede3fe12b92cd18ff8577e47353c851266c1246"
+    },
+    "web/actions.mjs": {
+      "before": "b7648b14a87a806b1c95c88229ad3f3a529a37ac765b0694cf76d3e31877eb66",
+      "after": "ca79c2a82235ef2201d530e50a779e4c58701b566a6cf0d51a17dd58c9710b1f"
+    },
+    "web/pages/article-reconciliation.mjs": {
+      "before": null,
+      "after": "e5e31947691fab1329b8c502da4e753de29aa7a67eca9275acf5e38729fbb2a5"
+    },
+    "public/app.js": {
+      "before": "abdbe88615311cad64d1977a199765d732e7fe9c09b256b8d913d44bad9c3db9",
+      "after": "94d821a18f63ac37712c82dc9c1b0897effb9cdb6360d6167b46430dabed1154"
+    }
+  }
+}
