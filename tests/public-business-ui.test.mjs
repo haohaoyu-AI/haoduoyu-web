@@ -19,7 +19,7 @@ function client() {
 test('anonymous public UI opens business directly and never offers credential/security tabs or logout',()=>{
   const c=client();
   c.run("state.me={id:'public-business',username:'公开编辑',publicBusiness:true};state.accounts=[];readRoute();renderShell()");
-  assert.equal(c.run('state.settingsTab'),'accounts');
+  assert.equal(c.run('state.settingsTab'),'workspace');
   const html=c.nodes.get('#app').innerHTML;
   assert.match(html,/公开编辑/);assert.match(html,/data-nav="todos"/);
   assert.doesNotMatch(html,/data-tab="(?:keys|security|log)"|data-action="logout"|password-form|login-form/);

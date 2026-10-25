@@ -203,5 +203,15 @@
     "only_failure": "module inventory expected 49, actual 51",
     "correction": "count the two exact reviewed workbench modules",
     "corrected_test_rechecked": true
+  },
+  "ci_followup": {
+    "run": 40177951902,
+    "tests": 708,
+    "pass": 707,
+    "fail": 1,
+    "only_failure": "tests/public-business-ui.test.mjs:22 expected accounts, actual workspace",
+    "correction": "expected default settings workspace as required by acceptance item 4",
+    "full_failed_test_rechecked": "1/1 pass",
+    "runtime_and_package_unchanged": true
   }
 }
