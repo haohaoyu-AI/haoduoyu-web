@@ -206,3 +206,6 @@ a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:
 
 # Actual reconciliation: independently recomputed public OpenAPI content SHA256 only.
 13e0c9054c57bc66969a0040a7380d5f4191d6d9:.ci/public-assets.json:generic-api-key:10
+
+# Accepted reconciliation OpenAPI digest, reintroduced on current workbench integration.
+47ec91bcf563509b76416b59929baaf3abc058a8:.ci/public-assets.json:generic-api-key:10

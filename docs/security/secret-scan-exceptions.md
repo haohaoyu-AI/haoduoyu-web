@@ -148,3 +148,11 @@ generic-api-key。Python从该提交原始public/openapi.json Git blob重算SHA2
 与pin精确匹配。该值为公开文件摘要，不是凭据。仅追加此具体提交/文件/规则/行
 指纹，默认规则、旧例外和未来提交均不改变。受限脱敏报告保留；远端全refs数量
 以最终CI为准，不将本地覆盖范围冒称远端范围。
+
+## 最新工作台整合：同一已审OpenAPI摘要
+
+固定Gitleaks8.30.1推送前扫描95内容提交，仅命中
+`47ec91bcf563509b76416b59929baaf3abc058a8` 的 `.ci/public-assets.json:10`。
+Python从该提交原始OpenAPI Git blob独立复算，239665字节内容与已通过CI237
+的e2c4d61逐字相同，SHA256与pin匹配。仅追加该新提交/路径/规则/行的精确指纹。
+既有规则、原例外和未来提交不变，原受限脱敏报告保留；最终远端覆盖以CI为准。
