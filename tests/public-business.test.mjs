@@ -149,6 +149,8 @@ test('public per-isolate request, write and daily limits are bounded',()=>{
 
 test('varying spoofed peer headers cannot bypass the anonymous write limiter',async t=>{
   const app=await publicApp(t);
+  // All 21 attempts must share one fixed minute; wall-clock rollover resets this limiter by design.
+  t.mock.timers.enable({apis:['Date'],now:Date.now()});
   for(let i=0;i<21;i++) {
     const result=await app.publicRequest('/todos',{method:'POST',body:{id:randomUUID(),date:'2026-10-24',text:''},
       headers:{'CF-Connecting-IP':'192.0.2.'+(i+1),'X-Forwarded-For':'198.51.100.'+(i+1)}});
