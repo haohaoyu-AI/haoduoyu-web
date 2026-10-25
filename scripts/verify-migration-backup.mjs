@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {Miniflare} from 'miniflare';
 import {restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {verifyBackupInventory, verifyRestoredInventory} from './migration-inventory.mjs';
+import {applyLocalSchemaMigrations} from './migration-contract.mjs';
 
 let runtime;
 try {
@@ -18,11 +19,7 @@ try {
     d1Databases: ['DB'], d1Persist: false,
     outboundService: () => new Response('External requests disabled', {status: 502})});
   const db = await runtime.getD1Database('DB');
-  const journal = JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json', import.meta.url), 'utf8'));
-  for (const {tag} of journal.entries) {
-    const sql = await readFile(new URL('../drizzle/' + tag + '.sql', import.meta.url), 'utf8');
-    await db.batch(sql.split('--> statement-breakpoint').map(value => value.trim()).filter(Boolean).map(value => db.prepare(value)));
-  }
+  await applyLocalSchemaMigrations(db);
   await restoreIntoEmptyDatabase(db, backup, {allowEmptyRestore: true});
   const result = await verifyRestoredInventory(db, backup, inventory);
   console.log(JSON.stringify({...result, scope: 'local isolated restore; source inventory provenance must be independently verified'}));

@@ -5,6 +5,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { buildOverview, buildDueReviews, overviewWindow } from './overview.mjs';
 import { nextOverviewChange } from './overview-cache-time.mjs';
 import { articleFacts, cumulativeOverview, paginate, snapshotTimeline } from './analytics.mjs';
+import {pipelineInput,requestedArticleStatus,requireDraftPublicationNull,decodePipelineArticle,
+  durationForArticle,compareArticlePublication,requirePublishedMetrics,requireNoDraftMetrics,pipelineKeyConflict} from './article-pipeline-io.mjs';
 
 const METRICS = new Set(['reads', 'impressions', 'likes', 'comments', 'favorites', 'shares', 'approvals', 'reading_users']);
 const PLATFORMS = new Set(['toutiao', 'zhihu', 'wechat', 'other']);
@@ -168,7 +170,7 @@ export function createRecords(store) {
 
   async function enrich(row) {
     const observation = await get('SELECT metrics_json,as_of,collected_at FROM observations WHERE article_id=? ORDER BY as_of DESC,collected_at DESC,id DESC LIMIT 1', row.id);
-    return articleFacts({ ...row, latest_metrics: observation ? JSON.parse(observation.metrics_json) : null, latest_as_of: observation?.as_of ?? null, latest_collected_at: observation?.collected_at ?? null, duration_seconds: row.started_at ? Math.round((Date.parse(row.published_at) - Date.parse(row.started_at)) / 1000) : null });
+    return articleFacts(decodePipelineArticle({ ...row, latest_metrics: observation ? JSON.parse(observation.metrics_json) : null, latest_as_of: observation?.as_of ?? null, latest_collected_at: observation?.collected_at ?? null, duration_seconds: durationForArticle(row) }));
   }
 
   async function enrichMany(rows) {
@@ -179,7 +181,7 @@ export function createRecords(store) {
       const snapshots=await all(`SELECT o.article_id,o.metrics_json,o.as_of,o.collected_at FROM observations o WHERE o.article_id IN (${chunk.map(()=>'?').join(',')}) AND o.rowid=(SELECT newest.rowid FROM observations newest WHERE newest.article_id=o.article_id ORDER BY newest.as_of DESC,newest.collected_at DESC,newest.id DESC LIMIT 1)`,...chunk);
       for(const snapshot of snapshots) if(!latest.has(snapshot.article_id)) latest.set(snapshot.article_id,snapshot);
     }
-    return rows.map(row=>{const observation=latest.get(row.id); return articleFacts({...row,latest_metrics:observation?JSON.parse(observation.metrics_json):null,latest_as_of:observation?.as_of??null,latest_collected_at:observation?.collected_at??null,duration_seconds:row.started_at?Math.round((Date.parse(row.published_at)-Date.parse(row.started_at))/1000):null});});
+    return rows.map(row=>{const observation=latest.get(row.id); return articleFacts(decodePipelineArticle({...row,latest_metrics:observation?JSON.parse(observation.metrics_json):null,latest_as_of:observation?.as_of??null,latest_collected_at:observation?.collected_at??null,duration_seconds:durationForArticle(row)}));});
   }
 
   async function listAccounts(scope = null) {
@@ -242,6 +244,7 @@ export function createRecords(store) {
     scopedWhere(scope, 'a.account_id', clauses, params);
     const accountId = queryValue(query, 'account_id');
     if (accountId) { await account(accountId, scope); clauses.push('a.account_id=?'); params.push(accountId); }
+    clauses.push('a.status=?');params.push(requestedArticleStatus(query));
     const platform = queryValue(query, 'platform');
     if (platform) { if (!PLATFORMS.has(platform)) fail(400,'VALIDATION_ERROR','平台无效'); clauses.push('c.platform=?'); params.push(platform); }
     const mode = queryValue(query, 'mode');
@@ -269,9 +272,9 @@ export function createRecords(store) {
       const page = await sqlArticlePage(query, clauses, params, order);
       if (page) return page;
     }
-    const projection=index?'a.id,a.title,a.account_id,a.published_at,a.started_at,a.notes':'a.*';
+    const projection=index?'a.id,a.title,a.account_id,a.published_at,a.started_at,a.notes,a.status':'a.*';
     const raw = await all(`SELECT ${projection},c.name AS account_name,c.platform FROM articles a JOIN accounts c ON c.id=a.account_id${clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''}`, ...params);
-    let rows = index?raw.map(row=>articleFacts({...row,duration_seconds:row.started_at?Math.round((Date.parse(row.published_at)-Date.parse(row.started_at))/1000):null})):await enrichMany(raw);
+    let rows = index?raw.map(row=>articleFacts({...row,duration_seconds:durationForArticle(row)})):await enrichMany(raw);
     if(topic) {if(!['entertainment','insurance','unknown'].includes(topic))fail(400,'VALIDATION_ERROR','题材无效');rows=rows.filter(row=>row.topic===topic);}
     if(status) {
       if(!['no_snapshot','missing_reads','missing_likes','missing_comments','incomplete','zero_reads','date_unverified'].includes(status))fail(400,'VALIDATION_ERROR','数据状态无效');
@@ -284,7 +287,7 @@ export function createRecords(store) {
       if (left === null && right !== null) return 1;
       if (right === null && left !== null) return -1;
       const difference = left === right ? 0 : left > right ? 1 : -1;
-      return (order === 'asc' ? difference : -difference) || b.published_at.localeCompare(a.published_at) || a.id.localeCompare(b.id);
+      return (order === 'asc' ? difference : -difference) || compareArticlePublication(a,b);
     });
   }
 
@@ -293,7 +296,7 @@ export function createRecords(store) {
     const fields=queryValue(query,'fields');
     if(fields!=null&&fields!=='index') fail(400,'VALIDATION_ERROR','显示字段模式无效');
     const index=fields==='index',rows=await listArticles(query,scope,index,true);
-    const clauses=[],params=[];scopedWhere(scope,'a.account_id',clauses,params);
+    const clauses=[],params=[];scopedWhere(scope,'a.account_id',clauses,params);clauses.push('a.status=?');params.push(requestedArticleStatus(query));
     const total=(await get(`SELECT count(*) AS total FROM articles a${clauses.length?' WHERE '+clauses.join(' AND '):''}`,...params)).total;
     const page=Array.isArray(rows)?paginate(rows,query,total):rows;
     page.meta.unfiltered_total=total;
@@ -326,23 +329,30 @@ export function createRecords(store) {
     if (publishingAccount.active !== 1 && (!old || old.account_id !== accountId)) {
       fail(409, 'ACCOUNT_INACTIVE', '该运营账号已停用，不能登记新文章');
     }
-    const title = text(choose('title'), '文章标题', 300), url = articleURL(choose('url'));
-    const published = timestamp(choose('published_at'), '发布时间');
+    const title = text(choose('title'), '文章标题', 300),pipeline=pipelineInput(body,old,title);
+    const urlRaw=choose('url',null),publishedRaw=choose('published_at',null);
+    requireDraftPublicationNull(pipeline.status,urlRaw,publishedRaw);
+    const url=pipeline.status==='published'?articleURL(urlRaw):null;
+    const published=pipeline.status==='published'?timestamp(publishedRaw,'发布时间'):null;
     const startedRaw = choose('started_at', null);
     const started = startedRaw === null || startedRaw === '' ? null : timestamp(startedRaw, '选题开始时间');
-    if (started && started > published) fail(400, 'VALIDATION_ERROR', '选题开始时间不能晚于发布时间');
+    if (started && published!==null && started > published) fail(400, 'VALIDATION_ERROR', '选题开始时间不能晚于发布时间');
     const mode = choose('production_mode', 'unknown');
     if (!MODES.has(mode)) fail(400, 'VALIDATION_ERROR', '生产方式须为 manual、automatic、mixed 或 unknown');
     const externalRaw = choose('platform_article_id', null);
     const externalId = externalRaw === null || externalRaw === '' ? null : text(externalRaw, '平台文章标识', 300);
     const duplicate = await get('SELECT a.id FROM articles a JOIN accounts c ON c.id=a.account_id WHERE (a.url=? OR (? IS NOT NULL AND a.platform_article_id=? AND c.platform=?)) AND a.id<>? LIMIT 1', url, externalId, externalId, publishingAccount.platform, old?.id ?? '');
     if (duplicate) fail(409, 'ARTICLE_EXISTS', '该平台文章或链接已经登记');
-    return { account_id: accountId, title, url, published_at: published, started_at: started, production_mode: mode, platform_article_id: externalId, summary: text(choose('summary', ''), '文章概况', 10000, { optional: true }), notes: text(choose('notes', ''), '备注', 20000, { optional: true }) };
+    if(pipeline.run_dir!==null&&await get('SELECT id FROM articles WHERE run_dir=? AND id<>? LIMIT 1',pipeline.run_dir,old?.id??''))pipelineKeyConflict();
+    if(pipeline.slot!==null&&pipeline.run_date!==null&&await get('SELECT id FROM articles WHERE slot=? AND run_date=? AND id<>? LIMIT 1',pipeline.slot,pipeline.run_date,old?.id??''))pipelineKeyConflict();
+    return { account_id: accountId, title, url, published_at: published, started_at: started, production_mode: mode, platform_article_id: externalId, summary: text(choose('summary', ''), '文章概况', 10000, { optional: true }), notes: text(choose('notes', ''), '备注', 20000, { optional: true }),...pipeline };
   }
 
   async function createArticle(body, scope = null) {
     const value = await articleValues(body, scope), id = randomUUID(), stamp = new Date().toISOString();
-    run('INSERT INTO articles(id,account_id,title,url,platform_article_id,published_at,started_at,production_mode,summary,notes,version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', id, value.account_id, value.title, value.url, value.platform_article_id, value.published_at, value.started_at, value.production_mode, value.summary, value.notes, 1, stamp, stamp);
+    const keys=['id',...Object.keys(value),'version','created_at','updated_at'];
+    const created={id,...value,version:1,created_at:stamp,updated_at:stamp};
+    run('INSERT INTO articles('+keys.join(',')+') VALUES('+keys.map(()=>'?').join(',')+')',...keys.map(key=>created[key]));
     const owner = await account(value.account_id,scope);
     return await enrich({id,...value,version:1,created_at:stamp,updated_at:stamp,account_name:owner.name,platform:owner.platform});
   }
@@ -356,10 +366,12 @@ export function createRecords(store) {
     const observation = await get('SELECT min(as_of) AS earliest FROM observations WHERE article_id=?', id);
     if (observation?.earliest && value.published_at > observation.earliest) fail(400, 'VALIDATION_ERROR', '发布时间不能晚于已有指标的数据截止时间');
     const firstDaily = await get('SELECT min(date) AS earliest FROM daily_metrics WHERE article_id=?', id);
-    if (firstDaily?.earliest && beijingDay(Date.parse(value.published_at)) > firstDaily.earliest) fail(400, 'VALIDATION_ERROR', '发布时间不能晚于已有按日数据');
+    requireNoDraftMetrics(value,observation,firstDaily);
+    if (value.published_at!==null && firstDaily?.earliest && beijingDay(Date.parse(value.published_at)) > firstDaily.earliest) fail(400, 'VALIDATION_ERROR', '发布时间不能晚于已有按日数据');
     if (value.account_id !== old.account_id && await get('SELECT id FROM daily_metrics WHERE article_id=? LIMIT 1', id)) fail(409, 'ARTICLE_HAS_DAILY_METRICS', '已有按日数据的文章不能直接变更所属账号');
     const updated_at = new Date().toISOString();
-    run('UPDATE articles SET account_id=?,title=?,url=?,platform_article_id=?,published_at=?,started_at=?,production_mode=?,summary=?,notes=?,version=version+1,updated_at=? WHERE id=? AND version=?', value.account_id, value.title, value.url, value.platform_article_id, value.published_at, value.started_at, value.production_mode, value.summary, value.notes, updated_at, id, body.version);
+    const keys=Object.keys(value);
+    run('UPDATE articles SET '+keys.map(key=>key+'=?').join(',')+',version=version+1,updated_at=? WHERE id=? AND version=?',...keys.map(key=>value[key]),updated_at,id,body.version);
     // Global revision CAS protects these reads; this version CAS is also checked in-batch.
     store.expectChange();
     const owner = await account(value.account_id,scope);
@@ -378,6 +390,7 @@ export function createRecords(store) {
   async function createObservation(body, scope = null) {
     object(body);
     const target = await article(body.article_id, scope);
+    requirePublishedMetrics(target);
     const asOf = timestamp(body.as_of, '数据截止时间');
     const collected = body.collected_at === undefined ? new Date().toISOString() : timestamp(body.collected_at, '采集时间');
     if (asOf < target.published_at) fail(400, 'VALIDATION_ERROR', '文章指标不能早于发布时间');
@@ -410,6 +423,7 @@ export function createRecords(store) {
     if (articleId !== null) {
       const item = await article(articleId, scope);
       if (item.account_id !== target.id) fail(400, 'VALIDATION_ERROR', '文章不属于所选运营账号');
+      requirePublishedMetrics(item);
       if (day < beijingDay(Date.parse(item.published_at))) fail(400, 'VALIDATION_ERROR', '文章按日数据不能早于发布日期');
     }
     const metrics = metricObject(body.metrics), source = text(body.source, '数据来源', 200);
@@ -427,7 +441,9 @@ export function createRecords(store) {
     const accounts = (await listAccounts(scope)).filter(row => !accountId || row.id === accountId);
     const articles = await listArticles(accountId ? { account_id: accountId } : {}, scope);
     const today = beijingDay(at), from = shiftDay(today, -2), days = [from, shiftDay(from, 1), today];
-    const daily = await listDaily({ from, to: today, ...(accountId ? { account_id: accountId } : {}) }, scope);
+    const publishedIds=new Set(articles.map(row=>row.id));
+    const daily = (await listDaily({ from, to: today, ...(accountId ? { account_id: accountId } : {}) }, scope))
+      .filter(row=>row.article_id===null||publishedIds.has(row.article_id));
     const trend = days.map(date => ({ date, accounts: accounts.map(row => {
       const matching = daily.filter(value => value.account_id === row.id && value.date === date);
       return { account_id: row.id, ...coverageForDay(date, matching.find(value => value.article_id === null), matching.filter(value => value.article_id !== null)) };
@@ -468,7 +484,7 @@ export function createRecords(store) {
       }
     }
     due.sort((a, b) => a.due_at.localeCompare(b.due_at) || a.id.localeCompare(b.id));
-    const top = articles.filter(row => row.latest_metrics?.reads !== undefined).sort((a, b) => b.latest_metrics.reads - a.latest_metrics.reads || b.published_at.localeCompare(a.published_at)).slice(0, 10);
+    const top = articles.filter(row => row.latest_metrics?.reads !== undefined).sort((a, b) => b.latest_metrics.reads - a.latest_metrics.reads || compareArticlePublication(a,b)).slice(0, 10);
     return { window: { from, to: today, timezone: 'Asia/Shanghai', todayIncomplete: true }, accounts: accountRows, totals: { article_count: articles.length, automatic_count: articles.filter(row => row.production_mode === 'automatic').length, unknown_mode_count: articles.filter(row => row.production_mode === 'unknown').length, median_duration_seconds: median }, top_articles: top, due_reviews: due, trend };
   }
 

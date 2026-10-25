@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {traceHeaders, traceJSON, traceText, traceDocument} from './request-trace-projection.mjs';
+import {articlePipelineSpec} from './article-pipeline-projection.mjs';
 
 test('legacy projection validates and removes only the authorized header and top-level error field', () => {
   const id = randomUUID(), headers = new Headers({'X-Request-Id': id, 'Cache-Control': 'no-store', 'X-Other-Trace': 'keep', 'Content-Type': 'application/json'});
@@ -27,7 +28,7 @@ test('OpenAPI has only the compatible response-header and top-level error-ID add
   const value = JSON.parse(await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8'));
   const previous = JSON.parse(execFileSync('git', ['show', '24b5c5082a115cd9ee78e440c0848245079e6048:public/openapi.json'],
     {cwd: new URL('../', import.meta.url), encoding: 'utf8'}));
-  assert.equal(value.info.version, '1.1.0');assert.deepEqual(traceDocument(value), previous);
+  assert.equal(value.info.version, '1.1.0');assert.deepEqual(traceDocument(articlePipelineSpec(value)), previous);
   assert.deepEqual(value.components.schemas.Error.required, previous.components.schemas.Error.required);
   assert.deepEqual(value.components.schemas.Error.properties.error, previous.components.schemas.Error.properties.error);
   assert.deepEqual(value.paths['/api/v1/dashboard'].get.responses['200'].headers.Deprecation,

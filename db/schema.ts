@@ -5,8 +5,30 @@ export const matrixAccounts=sqliteTable('matrix_accounts',{
   id:text('id').primaryKey(),platform:text('platform').notNull(),name:text('name').notNull(),active:integer('active').notNull().default(1),created_at:text('created_at').notNull(),
 },t=>[check('matrix_account_active',sql`${t.active} IN (0,1)`)]);
 export const matrixArticles=sqliteTable('matrix_articles',{
-  id:text('id').primaryKey(),account_id:text('account_id').notNull().references(()=>matrixAccounts.id),title:text('title').notNull(),url:text('url').notNull(),platform_article_id:text('platform_article_id'),published_at:text('published_at').notNull(),started_at:text('started_at'),production_mode:text('production_mode').notNull().default('unknown'),summary:text('summary').notNull().default(''),notes:text('notes').notNull().default(''),version:integer('version').notNull().default(1),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
-},t=>[uniqueIndex('matrix_article_url').on(t.account_id,t.url),uniqueIndex('matrix_article_platform_id').on(t.account_id,t.platform_article_id).where(sql`${t.platform_article_id} IS NOT NULL AND ${t.platform_article_id} != ''`),index('matrix_article_account_date').on(t.account_id,t.published_at),check('matrix_article_mode',sql`${t.production_mode} IN ('manual','automatic','mixed','unknown')`)]);
+  id:text('id').primaryKey(),account_id:text('account_id').notNull().references(()=>matrixAccounts.id),title:text('title').notNull(),url:text('url'),platform_article_id:text('platform_article_id'),published_at:text('published_at'),started_at:text('started_at'),production_mode:text('production_mode').notNull().default('unknown'),summary:text('summary').notNull().default(''),notes:text('notes').notNull().default(''),version:integer('version').notNull().default(1),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
+  status:text('status').default('published'),slot:text('slot'),run_dir:text('run_dir'),run_date:text('run_date'),series_no:integer('series_no'),writer:text('writer'),illustrator:text('illustrator'),sample_json:text('sample_json'),char_count:integer('char_count'),subheading_count:integer('subheading_count'),image_count:integer('image_count'),cover_desc:text('cover_desc'),draft_ref_json:text('draft_ref_json'),timings_json:text('timings_json'),reruns_json:text('reruns_json'),blockers_json:text('blockers_json'),verify_items_json:text('verify_items_json'),
+},t=>[
+  uniqueIndex('matrix_article_url').on(t.account_id,t.url),
+  uniqueIndex('matrix_article_platform_id').on(t.account_id,t.platform_article_id).where(sql`${t.platform_article_id} IS NOT NULL AND ${t.platform_article_id} != ''`),
+  index('matrix_article_account_date').on(t.account_id,t.published_at),
+  uniqueIndex('matrix_article_run_dir').on(t.run_dir).where(sql`${t.run_dir} IS NOT NULL`),
+  uniqueIndex('matrix_article_slot_date').on(t.slot,t.run_date).where(sql`${t.slot} IS NOT NULL AND ${t.run_date} IS NOT NULL`),
+  check('matrix_article_mode',sql`${t.production_mode} IN ('manual','automatic','mixed','unknown')`),
+  check('matrix_article_pipeline_status',sql`${t.status} IS NULL OR ${t.status} IN ('drafting','illustrated','draft_saved','published','failed')`),
+  check('matrix_article_pipeline_slot',sql`${t.slot} IS NULL OR ${t.slot} IN ('zh1','zh2','tt1','tt2','zh3','tt3','gzh')`),
+  check('matrix_article_pipeline_writer',sql`${t.writer} IS NULL OR ${t.writer} IN ('dedao','gemini_web','human','other')`),
+  check('matrix_article_pipeline_illustrator',sql`${t.illustrator} IS NULL OR ${t.illustrator} IN ('codex','pil','human')`),
+  check('matrix_article_pipeline_series_no',sql`${t.series_no} IS NULL OR (typeof(${t.series_no})='integer' AND ${t.series_no} BETWEEN 1 AND 9007199254740991)`),
+  check('matrix_article_pipeline_char_count',sql`${t.char_count} IS NULL OR (typeof(${t.char_count})='integer' AND ${t.char_count} BETWEEN 0 AND 9007199254740991)`),
+  check('matrix_article_pipeline_subheading_count',sql`${t.subheading_count} IS NULL OR (typeof(${t.subheading_count})='integer' AND ${t.subheading_count} BETWEEN 0 AND 9007199254740991)`),
+  check('matrix_article_pipeline_image_count',sql`${t.image_count} IS NULL OR (typeof(${t.image_count})='integer' AND ${t.image_count} BETWEEN 0 AND 9007199254740991)`),
+  check('matrix_article_pipeline_sample_json',sql`${t.sample_json} IS NULL OR CASE WHEN json_valid(${t.sample_json}) THEN json_type(${t.sample_json})='object' ELSE 0 END`),
+  check('matrix_article_pipeline_draft_ref_json',sql`${t.draft_ref_json} IS NULL OR CASE WHEN json_valid(${t.draft_ref_json}) THEN json_type(${t.draft_ref_json})='object' ELSE 0 END`),
+  check('matrix_article_pipeline_timings_json',sql`${t.timings_json} IS NULL OR CASE WHEN json_valid(${t.timings_json}) THEN json_type(${t.timings_json})='object' ELSE 0 END`),
+  check('matrix_article_pipeline_reruns_json',sql`${t.reruns_json} IS NULL OR CASE WHEN json_valid(${t.reruns_json}) THEN json_type(${t.reruns_json})='object' ELSE 0 END`),
+  check('matrix_article_pipeline_blockers_json',sql`${t.blockers_json} IS NULL OR CASE WHEN json_valid(${t.blockers_json}) THEN json_type(${t.blockers_json})='array' ELSE 0 END`),
+  check('matrix_article_pipeline_verify_items_json',sql`${t.verify_items_json} IS NULL OR CASE WHEN json_valid(${t.verify_items_json}) THEN json_type(${t.verify_items_json})='array' ELSE 0 END`),
+]);
 export const matrixObservations=sqliteTable('matrix_observations',{
   id:text('id').primaryKey(),article_id:text('article_id').notNull().references(()=>matrixArticles.id),as_of:text('as_of').notNull(),collected_at:text('collected_at').notNull(),kind:text('kind').notNull(),metrics_json:text('metrics_json').notNull(),source:text('source').notNull(),note:text('note').notNull().default(''),created_at:text('created_at').notNull(),
 },t=>[index('matrix_observation_article_time').on(t.article_id,t.as_of),check('matrix_observation_kind',sql`${t.kind} IN ('latest','d1','d3','d7')`)]);

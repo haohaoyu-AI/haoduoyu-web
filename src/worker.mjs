@@ -18,6 +18,7 @@ import {deletePublicBusiness} from './public-business-delete.mjs';
 import {publicBusinessDocs} from './public-business-docs.mjs';
 import {handleNotionSnapshot} from './notion-snapshot.mjs';
 import {handleDailyNotes} from './daily-notes.mjs';
+import {validateArticleStatusQuery,validateArticleInputComplexity,rethrowArticlePipelineConflict} from './article-pipeline-io.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/favicon.svg','/openapi.json']);
@@ -150,6 +151,7 @@ async function protectedWrite(db,request,route,env,origin,trace,publicActor=null
     return {actor,response:json({logged_out:true},200,{'Set-Cookie':sessionCookie('',origin)})};
   })).response;
   const input=request.method==='DELETE'&&/^\/api-keys\/[^/]+$/.test(route)?{}:await bodyFor(request);
+  if(request.method==='POST'&&route==='/articles'||request.method==='PUT'&&/^\/articles\/[^/]+$/.test(route))validateArticleInputComplexity(input);
   let passwordProof,newHash;
   if(route==='/auth/password'&&request.method==='PUT') {
     requireAdmin(first);
@@ -218,6 +220,9 @@ async function protectedWrite(db,request,route,env,origin,trace,publicActor=null
     if(key) store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,?,?)',actor.actor,key,requestHash,JSON.stringify(value),status,now());
     if(actor.kind==='key') store.queue('UPDATE api_keys SET last_used_at=? WHERE id=?',now(),actor.id);
     return {actor,response:json(value,status)};
+  }).catch(error=>{
+    if(request.method==='POST'&&route==='/articles'||request.method==='PUT'&&/^\/articles\/[^/]+$/.test(route))rethrowArticlePipelineConflict(error);
+    throw error;
   });
   return result.response;
 }
@@ -239,6 +244,7 @@ async function handle(request,env,trace) {
     if(route==='/integrations/notion/snapshot'&&method==='POST')
       return json(await handleNotionSnapshot(db,request,env,origin));
     if(method==='GET'&&route==='/overview' && url.searchParams.getAll('period').length>1) throw fail(400,'VALIDATION_ERROR','period 只能提供一次');
+    if(method==='GET'&&route==='/articles')validateArticleStatusQuery(url.searchParams);
     if(access) {
       request=access.request;
       if(route==='/auth/me') return json({id:'public-business',username:'公开编辑',publicBusiness:true});

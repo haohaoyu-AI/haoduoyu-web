@@ -1,5 +1,7 @@
 # Phase2A: article parent rebuild gate is blocked
 
+Historical diagnostic: the single-parent path below remains rejected. The separate three-table candidate subsequently passed local D1 validation and was authorized for Phase2B model/API activation; see [the current Phase2B scope and remote execution gate](article-pipeline-phase2b.md). No remote migration is implied.
+
 This branch starts at `ad0516f59b5b841d831845c2a716641bfd1a520a` (PR38, stacked on PR37). Neither earlier PR was modified. No production request, DDL, deployment, credential action, import or cron was performed.
 
 ## Actual local D1 evidence

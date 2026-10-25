@@ -4,22 +4,13 @@ import { readFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import {applyLocalSchemaMigrations} from '../scripts/migration-contract.mjs';
 
 export const ORIGIN='http://localhost';
 export const USERNAME='synthetic-admin';
 export const PASSWORD='Integration-only-password-2026!';
 export async function applyFixtureMigrations(db,{through=Infinity}={}) {
-  const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
-  await db.prepare('CREATE TABLE IF NOT EXISTS __fixture_migrations(name TEXT PRIMARY KEY)').run();
-  const migrated=await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_control'").first();
-  // Adopt the original synthetic fixture's initial migration when reopening it.
-  if(migrated) await db.prepare('INSERT OR IGNORE INTO __fixture_migrations(name) VALUES(?)').bind(journal.entries[0].tag).run();
-  for(const entry of journal.entries.slice(0,through)) {
-    if(await db.prepare('SELECT name FROM __fixture_migrations WHERE name=?').bind(entry.tag).first()) continue;
-    const sql=await readFile(new URL('../drizzle/'+entry.tag+'.sql',import.meta.url),'utf8');
-    const statements=sql.split('--> statement-breakpoint').map(s=>s.trim()).filter(Boolean).map(sql=>db.prepare(sql));
-    await db.batch([...statements,db.prepare('INSERT INTO __fixture_migrations(name) VALUES(?)').bind(entry.tag)]);
-  }
+  return applyLocalSchemaMigrations(db,{through});
 }
 export async function fixture(t,{persist=false,port=0,origin=ORIGIN,username=USERNAME,password=PASSWORD,bootstrap=true,trustConnectingIp=false,migrationCount=Infinity,bootstrapSecret=randomBytes(32).toString('hex')}={}) {
   const runtime=JSON.parse(await readFile(new URL('../runtime.json',import.meta.url),'utf8'));

@@ -1,5 +1,7 @@
 # Phase2A 三表引用图候选：仅合成隔离验证
 
+后续状态：Phase2B 已获准将同一候选接入活动模型与 API；见 [Phase2B 范围和执行门禁](article-pipeline-phase2b.md)。本报告保留 Phase2A 当时的证据，下面的“未接入”描述仅指该历史阶段；真实远端事务通道与空间仍未验证，不能据此部署。
+
 基线为 `ad0516f59b5b841d831845c2a716641bfd1a520a`，继承既有诊断提交 `4cb7081`。PR37/38不改；没有访问线上数据、配置凭据、执行线上DDL、部署或启用Cron。
 
 候选文件为 [0005_article_pipeline.sql](../migration-candidates/0005_article_pipeline.sql)，SHA-256：

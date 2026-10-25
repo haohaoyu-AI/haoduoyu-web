@@ -85,8 +85,14 @@ test('all reviewed error call sites and HTTP error projections retain their base
   for(const message of noteBackupMessages)assert.deepEqual(calls.filter(row=>row.file==='src/backup.mjs'&&row.message===message)
     .map(({status,code,message,alternateMessage})=>({status,code,message,alternateMessage})),
     [{status:400,code:'INVALID_BACKUP',message,alternateMessage:message}]);
+  // v6 adds only these two article-backup validations; retain every historical
+  // source tuple and legacy HTTP result without replacing the frozen snapshot.
+  const articleBackupMessages=['旧文章备份的链接和发布时间不得为空','文章流水线备份无效'];
+  for(const message of articleBackupMessages)assert.deepEqual(calls.filter(row=>row.file==='src/backup.mjs'&&row.message===message)
+    .map(({status,code,message,alternateMessage})=>({status,code,message,alternateMessage})),
+    [{status:400,code:'INVALID_BACKUP',message,alternateMessage:message}]);
   const legacyCalls=calls.filter(row=>!(row.file==='src/records.mjs'&&indexMessages.includes(row.message))&&
-    !(row.file==='src/backup.mjs'&&noteBackupMessages.includes(row.message)));
+    !(row.file==='src/backup.mjs'&&[...noteBackupMessages,...articleBackupMessages].includes(row.message)));
   assert.deepEqual(semantic(legacyCalls), semantic(approvedCalls));
   assert.deepEqual(http, expected.http);
   t.diagnostic(`${calls.length} source call sites; ${http.length} real Worker HTTP error contracts`);

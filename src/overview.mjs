@@ -3,6 +3,7 @@ import { DAY, beijingDay, shift, distance, dates, median } from './lib/time.mjs'
 // Read-only calculations over recorded daily increments. Cumulative snapshots are
 // used only to determine review due dates, never to synthesize daily performance.
 import { articleFacts, beijingDate } from './analytics.mjs';
+import { isPublishedArticle } from './article-lifecycle.mjs';
 export const OVERVIEW_METRICS = ['reads', 'impressions', 'likes', 'comments', 'favorites', 'shares', 'approvals', 'reading_users'];
 const MIN_SAMPLES = 5;
 const latest = values => values.filter(Boolean).sort().at(-1) ?? null;
@@ -152,7 +153,7 @@ export function pendingReviewEvents(articles, observations) {
     reviewMap.get(row.article_id).push(row);
   }
   const events = [];
-  for (const article of articles.map(articleFacts).filter(row => row.date_status === 'recorded'))
+  for (const article of articles.filter(isPublishedArticle).map(articleFacts).filter(row => row.date_status === 'recorded'))
     for (const [kind, days] of [['d1', 1], ['d3', 3], ['d7', 7]]) {
       const dueAt = Date.parse(article.published_at) + days * DAY;
       if (!(reviewMap.get(article.id) ?? []).some(row => row.kind === kind && Date.parse(row.as_of) >= dueAt))
@@ -173,7 +174,7 @@ export function buildOverview({ accounts, articles, daily, observations, period 
   // Inputs are already scoped by records.mjs; retain this join filter so records
   // outside the selected accounts can never enter aggregates or peer baselines.
   const accountIds = new Set(accounts.map(row => row.id));
-  articles = articles.filter(row => accountIds.has(row.account_id));
+  articles = articles.filter(row => accountIds.has(row.account_id) && isPublishedArticle(row));
   const articleIds = new Set(articles.map(row => row.id));
   daily = daily.filter(row => accountIds.has(row.account_id) && (row.article_id === null || articleIds.has(row.article_id)) && row.date <= window.to);
   observations = observations.filter(row => articleIds.has(row.article_id));

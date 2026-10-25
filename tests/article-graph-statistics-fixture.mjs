@@ -5,16 +5,68 @@ import {mkdtemp, readFile, writeFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {posix} from 'node:path';
+import {build} from 'esbuild';
 import {fixture} from './harness.mjs';
 
 export const GRAPH_NOW = '2026-10-24T04:00:00.000Z';
 export const GRAPH_TODAY = '2026-10-24';
+export const GRAPH_BASELINE = 'fc38d66704c86de8f255751795125bfa71fc7bc7';
 export const GRAPH_PIPELINE_FIELDS = Object.freeze([
   'status', 'slot', 'run_dir', 'run_date', 'series_no', 'writer', 'illustrator', 'sample_json',
   'char_count', 'subheading_count', 'image_count', 'cover_desc', 'draft_ref_json',
   'timings_json', 'reruns_json', 'blockers_json', 'verify_items_json',
 ]);
+// These are the API names of six already-listed JSON fields, not additional
+// business/statistical fields that the comparison is permitted to ignore.
+const graphJsonAliases = Object.freeze({
+  sample: 'sample_json', draft_ref: 'draft_ref_json', timings: 'timings_json',
+  reruns: 'reruns_json', blockers: 'blockers_json', verify_items: 'verify_items_json',
+});
 const base = '/api/v1';
+const repository = new URL('../', import.meta.url);
+const historical = path => execFileSync('git', ['show', GRAPH_BASELINE + ':' + path],
+  {cwd: repository, maxBuffer: 8 * 1024 * 1024});
+let historicalBundle;
+function historicalAssets() {
+  const assets = {}, types = {html: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8',
+    css: 'text/css; charset=utf-8', json: 'application/json; charset=utf-8',
+    svg: 'image/svg+xml; charset=utf-8', txt: 'text/plain; charset=utf-8'};
+  for (const name of ['index.html', 'app.js', 'style.css', 'openapi.json', 'favicon.svg', 'robots.txt', 'llms.txt', 'api-docs.html']) {
+    const bytes = historical('public/' + name);
+    assets[name === 'api-docs.html' ? 'api-docs' : name] = {
+      type: types[name.split('.').at(-1)], content: bytes.toString('utf8'),
+      etag: '"' + createHash('sha256').update(bytes).digest('hex') + '"', length: bytes.length,
+    };
+  }
+  return 'export const assets=' + JSON.stringify(assets) + ';';
+}
+async function baselineBundle() {
+  if (historicalBundle) return historicalBundle;
+  assert.deepEqual(historical('package-lock.json'), await readFile(new URL('../package-lock.json', import.meta.url)));
+  historicalBundle = build({
+    entryPoints: ['src/worker.mjs'], bundle: true, write: false, format: 'esm',
+    platform: 'neutral', target: 'es2022', external: ['node:*'],
+    plugins: [{
+      name: 'fixed-first-party-graph-baseline',
+      setup(plugin) {
+        plugin.onResolve({filter: /.*/}, args => {
+          if (args.path.startsWith('node:')) return {path: args.path, external: true};
+          const path = args.kind === 'entry-point' ? 'src/worker.mjs' : posix.normalize(posix.join(posix.dirname(args.importer), args.path));
+          assert.ok(path.startsWith('src/') || path.startsWith('shared/'), 'unexpected historical module');
+          return {path, namespace: 'fixed-graph-baseline'};
+        });
+        plugin.onLoad({filter: /.*/, namespace: 'fixed-graph-baseline'}, args => ({
+          contents: args.path === 'src/assets.generated.mjs' ? historicalAssets() : historical(args.path).toString('utf8'),
+          loader: 'js',
+        }));
+      },
+    }],
+  }).then(result => result.outputFiles[0].contents);
+  return historicalBundle;
+}
 
 function clockWrapper() {
   return [
@@ -43,11 +95,10 @@ export async function graphStatisticsFixture(t) {
     try {await app?.mf.dispose();}
     finally {await rm(directory, {recursive: true, force: true});}
   });
-  const bundle = await readFile(new URL('../dist/server/index.js', import.meta.url));
-  // Distinct module instances prevent the pre-migration overview cache from
-  // masking a post-migration change when the candidate keeps revision intact.
-  await writeFile(join(directory, 'before.mjs'), bundle);
-  await writeFile(join(directory, 'after.mjs'), bundle);
+  // The old five-migration schema must be queried by its fixed old Worker.
+  // Both modules also have independent caches; no stale response masks changes.
+  await writeFile(join(directory, 'before.mjs'), await baselineBundle());
+  await writeFile(join(directory, 'after.mjs'), await readFile(new URL('../dist/server/index.js', import.meta.url)));
   const entry = join(directory, 'entry.mjs');
   await writeFile(entry, clockWrapper());
   const previous = process.env.TEST_WORKER_PATH;
@@ -110,7 +161,12 @@ export function legacyGraphArticleProjection(value) {
   if (Array.isArray(value)) return value.map(legacyGraphArticleProjection);
   if (!value || typeof value !== 'object') return value;
   const article = Object.hasOwn(value, 'id') && Object.hasOwn(value, 'account_id') && Object.hasOwn(value, 'title');
-  return Object.fromEntries(Object.entries(value).filter(([key]) => !article || !GRAPH_PIPELINE_FIELDS.includes(key))
+  return Object.fromEntries(Object.entries(value).filter(([key, item]) => {
+    if (!article || !GRAPH_PIPELINE_FIELDS.includes(key) && !Object.hasOwn(graphJsonAliases, key)) return true;
+    assert.equal(item, key === 'status' ? 'published' : null,
+      'historical article migration must retain the approved default for ' + key);
+    return false;
+  })
     .map(([key, item]) => [key, legacyGraphArticleProjection(item)]));
 }
 

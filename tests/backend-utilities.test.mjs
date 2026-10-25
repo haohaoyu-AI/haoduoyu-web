@@ -1,4 +1,5 @@
 import {legacyBackupEnvelope} from './todo-backup-projection.mjs';
+import {legacyPublishedArticles,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
 import {traceHeaders, traceText, traceDocument} from './request-trace-projection.mjs';
 import {dashboardHeaders, dashboardSpec} from './dashboard-deprecation-projection.mjs';
 import test from 'node:test';
@@ -136,7 +137,7 @@ async function previousWorker(t) {
   // and the applied original migration immutable; new behavior is tested separately.
   for(const file of ['runtime.json','.openai/hosting.json','drizzle/0000_lively_stellaris.sql','drizzle/meta/0000_snapshot.json'])
     assert.equal(await source(file),old(file),file+' remains unchanged');
-  assert.deepEqual(dashboardSpec(traceDocument(JSON.parse(await source('public/openapi.json')))), JSON.parse(old('public/openapi.json')));
+  assert.deepEqual(dashboardSpec(traceDocument(articlePipelineSpec(JSON.parse(await source('public/openapi.json'))))), JSON.parse(old('public/openapi.json')));
   await writeFile(join(dir, 'src/assets.generated.mjs'), await source('src/assets.generated.mjs'));
   await build({entryPoints: [join(dir, 'src/worker.mjs')], outfile: join(dir, 'worker.mjs'), bundle: true, format: 'esm', platform: 'node', target: 'es2022'});
   return (await import(pathToFileURL(join(dir, 'worker.mjs')).href)).default;
@@ -162,6 +163,9 @@ test('pre-5a and candidate HTTP reads retain complete bodies, statuses and heade
       const response = await worker.fetch(new Request(app.origin + path, {headers: cookie ? {Cookie: cookie} : {}}), {DB: app.db, SITE_ORIGIN: app.origin});
       let body=traceText(await response.text(),response.status,response.headers);
       if(path==='/api/v1/backup'&&response.status===200) body=JSON.stringify(legacyBackupEnvelope(JSON.parse(body)));
+      else if(response.headers.get('content-type')?.includes('application/json')&&path!=='/openapi.json')body=JSON.stringify(legacyPublishedArticles(JSON.parse(body)));
+      if(path==='/openapi.json')body=JSON.stringify(articlePipelineSpec(JSON.parse(body)));
+      if(path==='/api-docs')body=articlePipelineDocs(body);
       responses.push({status: response.status, headers: dashboardHeaders(path, response.status, traceHeaders(response.headers)),body});
     }
     // Backup contains ephemeral synthetic authentication hashes: never print bodies on failure.

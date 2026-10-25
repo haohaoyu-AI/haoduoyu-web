@@ -6,11 +6,13 @@ import worker from '../src/worker.mjs';
 import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {digest} from '../shared/auth.mjs';
 import {stable} from '../src/security.mjs';
+import {ARTICLE_PIPELINE_FIELDS} from '../src/article-pipeline-fields.mjs';
 
 const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
 function olderData(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<6)for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
   if(version<5){delete data.tables.daily_notes;delete data.source_revision;}
   if(version<4) {
     delete data.tables.todo_preferences;
@@ -41,13 +43,13 @@ async function sourceWithPreferences(t) {
   return {...app,session,owner,other};
 }
 
-test('v5 backup scopes preferences to the session and preserves deleted todos through full restoration',async t=>{
+test('v6 backup scopes preferences to the session and preserves deleted todos through full restoration',async t=>{
   const source=await sourceWithPreferences(t);
   const response=await worker.fetch(new Request(source.origin+'/api/v1/backup',{headers:{Cookie:source.session.cookie}}),
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v5');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v6');
   assert.equal(http.data.tables.todo_preferences.length,1);
   assert.equal(http.data.tables.todo_preferences[0].user_id,source.owner);
   assert.equal(http.data.tables.todo_preferences[0].completed_mode,'hide');
@@ -86,7 +88,7 @@ test('v1 through v3 restore exact old todo rows with null deletion time and no i
   }
 });
 
-test('v5 and historical restore validate their exact todo columns before adding compatibility defaults',async t=>{
+test('v6 and historical restore validate their exact todo columns before adding compatibility defaults',async t=>{
   const source=await sourceWithPreferences(t),backup=await exportBackup(source.db),target=await fixture(t,{bootstrap:false});
   const invalid=[];
   for(const version of [2,3]) {
@@ -108,7 +110,7 @@ test('v5 and historical restore validate their exact todo columns before adding 
 
 test('every backup format rejects a target with existing preferences before any write',async t=>{
   const source=await fixture(t),backup=await exportBackup(source.db);
-  for(const version of [1,2,3,4,5]) {
+  for(const version of [1,2,3,4,5,6]) {
     let writes=0,checks=0;
     const target={prepare(sql) {
       if(sql==='SELECT count(*) AS n FROM matrix_todo_preferences') return {bind() {return this;},async first() {checks++;return {n:1};}};

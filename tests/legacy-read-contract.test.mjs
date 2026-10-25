@@ -1,4 +1,5 @@
 import {traceJSON, traceDocument} from './request-trace-projection.mjs';
+import {legacyPublishedArticles,articlePipelineSpec,articlePipelineDocs} from './article-pipeline-projection.mjs';
 import {dashboardHeaders, dashboardSpec} from './dashboard-deprecation-projection.mjs';
 import {stylePolicyHeaders} from './style-policy-projection.mjs';
 import test from 'node:test';
@@ -35,8 +36,8 @@ async function legacyWorker(t) {
   return (await import(pathToFileURL(join(directory, 'dist/server/index.js')).href)).default;
 }
 function project(path, json) {
-  const value = path === '/openapi.json' ? dashboardSpec(traceDocument(json)) : structuredClone(json);
-  if (path === '/api/v1/backup') return legacyBackupEnvelope(value);
+  if (path === '/api/v1/backup') return legacyBackupEnvelope(json);
+  const value = path === '/openapi.json' ? dashboardSpec(traceDocument(articlePipelineSpec(json))) : legacyPublishedArticles(json);
   if (path === '/api/v1/auth/me' && value.data) delete value.data.id;
   if (path === '/api/v1/audit' && value.data) {
     value.data = value.data.map(({entity_label, ...row}) => row);
@@ -83,7 +84,7 @@ async function emptyClone(rows) {
   } catch (error) {await app.mf.dispose();throw error;}
 }
 function normalizedMutation(response, body, name, baseCookie) {
-  const result = structuredClone(body), headers = [...stylePolicyHeaders(response.headers)];
+  const result = legacyPublishedArticles(body), headers = [...stylePolicyHeaders(response.headers)];
   const generated = ['new-account', 'new-article', 'new-observation', 'new-key'];
   if (generated.includes(name)) {
     assert.ok(typeof result.data.id === 'string' && result.data.id.length > 0, 'generated opaque id');
@@ -194,7 +195,7 @@ test('documented legacy GET and mutation contracts match the pre-phase2 Worker w
           headersForComparison.delete('ETag');headersForComparison.delete('Content-Length');
         }
         responses.push({status: response.status, headers: dashboardHeaders(path, response.status, stylePolicyHeaders(headersForComparison)),
-          body: json ? project(path, traceJSON(JSON.parse(text), response.status, response.headers)) : text});
+          body: json ? project(path, traceJSON(JSON.parse(text), response.status, response.headers)) : path==='/api-docs'?articlePipelineDocs(text):text});
       }
       // Backup holds only synthetic hashes, but never dump even those on a failed assertion.
       if (path === '/api/v1/backup') assert.ok(isDeepStrictEqual(responses[1], responses[0]), kind + ' exact legacy backup equality after verified todo extension');

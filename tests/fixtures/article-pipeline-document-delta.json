@@ -1,0 +1,1549 @@
+{
+  "baseline": "fc38d66704c86de8f255751795125bfa71fc7bc7",
+  "spec_changes": [
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles",
+        "get",
+        "summary"
+      ],
+      "was": true,
+      "before": "检索已发布文章",
+      "now": true,
+      "after_sha256": "d6c46b083aa3a1791439ccdb046c067527c27f90a613f82b41b0dd7402f1c761"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles",
+        "get",
+        "description"
+      ],
+      "was": true,
+      "before": "默认保持旧版全量 data 数组；传 page/page_size 或 limit/offset 启用服务端分页，两组不能混用。先授权、过滤及全库稳定排序，再分页。缺值始终排最后，同值按发布时间降序、ID升序。新增 envelope.meta 提供 total、unfiltered_total、page、page_size、offset、has_more。latest_metrics来自最大as_of（同时间按collected_at、id降序）的单份累计快照，不按指标回填旧快照。",
+      "now": true,
+      "after_sha256": "b3585683415543c8c01600bc124c58eaf1b0faa70a6636e1b4bc00b297eac54e"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles",
+        "get",
+        "parameters"
+      ],
+      "was": true,
+      "before": [
+        {
+          "$ref": "#/components/parameters/AccountFilter"
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          },
+          "description": "标题、原文链接、概况、备注检索。"
+        },
+        {
+          "name": "mode",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "automatic",
+              "mixed",
+              "unknown"
+            ]
+          }
+        },
+        {
+          "name": "from",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ]
+          },
+          "description": "起始发布日期或带时区时间；日期以北京时间00:00起。"
+        },
+        {
+          "name": "to",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ]
+          },
+          "description": "截至发布日期或时间；日期包含当日，时间按实现边界过滤。"
+        },
+        {
+          "name": "sort",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "published_at",
+              "reads",
+              "likes",
+              "comments",
+              "approvals",
+              "latest_as_of",
+              "duration"
+            ],
+            "default": "published_at"
+          }
+        },
+        {
+          "name": "order",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "desc",
+              "asc"
+            ],
+            "default": "desc"
+          }
+        },
+        {
+          "name": "platform",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "toutiao",
+              "zhihu",
+              "wechat",
+              "other"
+            ]
+          },
+          "description": "与账号筛选取交集。"
+        },
+        {
+          "name": "topic",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "entertainment",
+              "insurance",
+              "unknown"
+            ]
+          },
+          "description": "仅按已知运营账号规则推断，不写回标签。"
+        },
+        {
+          "name": "data_status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "no_snapshot",
+              "missing_reads",
+              "missing_likes",
+              "missing_comments",
+              "incomplete",
+              "zero_reads",
+              "date_unverified"
+            ]
+          },
+          "description": "无快照、单项缺值、三项主指标不全、真实零阅读、日期待核实分别筛选。date_unverified 根据现有备注中明确的“日期待核实”等标记或无效日期推导，不改原始日期。"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "default": 1
+          },
+          "description": "从1开始；page/page_size模式默认每页20。"
+        },
+        {
+          "name": "page_size",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 20
+          },
+          "description": "每页1至200篇。"
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 20
+          },
+          "description": "limit/offset模式；offset默认0。"
+        },
+        {
+          "name": "offset",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "default": 0
+          },
+          "description": "排序后的起始行。"
+        },
+        {
+          "name": "fields",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "index"
+            ]
+          },
+          "description": "最小文章索引，只返回 id/title/account_id/platform/published_at，不读取快照。支持文章自身字段筛选及 published_at/duration 排序、date_unverified 状态、原分页；指标/最新快照排序及其他快照状态返回400，不静默忽略。省略 fields 的旧接口不变。"
+        }
+      ],
+      "now": true,
+      "after_sha256": "414febed3332a08e2275109c697b7e079561d6eb449e442ac0f61afdaa6d1b4a"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles",
+        "post",
+        "summary"
+      ],
+      "was": true,
+      "before": "登记实际已发布文章",
+      "now": true,
+      "after_sha256": "3dc7917fc7836ddc42630d9b49eae701f0a38ff7326e9bf7e6048fb249a0a48c"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles",
+        "post",
+        "description"
+      ],
+      "was": true,
+      "before": "URL全局去重；同平台platform_article_id也去重。首次version=1，未知制作方式为unknown。 停用账号返回409 ACCOUNT_INACTIVE。",
+      "now": true,
+      "after_sha256": "3feed60322fdacefeb617c00d180ad74c060697c8f1e52a64ef074fb96b4a570"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/articles/{id}",
+        "put",
+        "description"
+      ],
+      "was": true,
+      "before": "先GET当前version。冲突后回读并合并授权变更，不要强行覆盖。新账号也必须在token授权范围内。没有删除API。 停用账号内历史修正允许；迁入停用账号返回409 ACCOUNT_INACTIVE。",
+      "now": true,
+      "after_sha256": "0e997d765509b5fca85845ed29829338e2e22b08c47ae1d74a00e7ed0d0d2be7"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/observations",
+        "post",
+        "description"
+      ],
+      "was": true,
+      "before": "Append-only。kind是复盘阶段标签，不证明准点采集；保留真实as_of和collected_at。不得把多份累计值相加成区间量。没有更新/删除API。",
+      "now": true,
+      "after_sha256": "45323c124667cd7d437798719b65249ee804596f6ebf0be837af631b1b9ec472"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/daily-metrics",
+        "post",
+        "description"
+      ],
+      "was": true,
+      "before": "无论新建还是更正均返回201。省略article_id为账号整体；同一范围和日期保持同一id并替换metrics/source。不能把累计快照当日增量。",
+      "now": true,
+      "after_sha256": "0359459792cc6675f131c5e963902e7e3facf479696de308a352644da0d8bbf3"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "url",
+        "type"
+      ],
+      "was": true,
+      "before": "string",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "url",
+        "description"
+      ],
+      "was": true,
+      "before": "完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment。相同链接不能重复登记。",
+      "now": true,
+      "after_sha256": "3699f7d51e8440cf24e33495157596bb35af95806e587cc3232ab15ff0049c2e"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "url",
+        "format"
+      ],
+      "was": true,
+      "before": "uri",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "url",
+        "maxLength"
+      ],
+      "was": true,
+      "before": 2048,
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "url",
+        "anyOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "9db90f8b908b298b87ab372543b468d6769c88f2bf6d7769eb96c3ca17286d08"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "published_at",
+        "type"
+      ],
+      "was": true,
+      "before": "string",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "published_at",
+        "description"
+      ],
+      "was": true,
+      "before": "实际发布时间，不得在未来。",
+      "now": true,
+      "after_sha256": "4e81a3e5c03f8839a6d9b3b4b9ee671bf21df172189bf20d58f4a1867b500141"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "published_at",
+        "format"
+      ],
+      "was": true,
+      "before": "date-time",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "published_at",
+        "anyOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "802e7c8808c10b564debd961c8a74baa674bc63fa45fbccfdfb2adad77ef0422"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "status"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "bc0da9622e7d6d0f191c7337cacdef3a40e3f1d77ef2a02f2f3b415780285b60"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "slot"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "258acce809e48e18715f6d5461fec6ac730dae3cf67b39b0b6a434d4194bb126"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "run_dir"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "8451bb8ad9f4ad3426dcbc1f70dcb188f4d7220fb6a185c57b7e09af776aa380"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "run_date"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "34c61c504ac4315d22f873690593b0048cd07ad04783d95fd4df17e262288a4e"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "series_no"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "75cbb49416fe2bc60f753018343e193f3829a45ad5e387f069613ed109bc6e47"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "writer"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "09496a4c84e7856882d78df2c1d65fd3357604fd435296db00e1fd0873c120d9"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "illustrator"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c7a1bfe37ebd4b6d9d51a9c695510313519aad3ace1321f51dcaa2094ddd3d10"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "sample"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "ed6fa105ce924106a43a0969ff2513e196874a0610aa409b742e15da68e62e5d"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "char_count"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c648138a09188a772c3b2c1506772441b163022ed2f3d50696caae8bb95adf6f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "subheading_count"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c648138a09188a772c3b2c1506772441b163022ed2f3d50696caae8bb95adf6f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "image_count"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c648138a09188a772c3b2c1506772441b163022ed2f3d50696caae8bb95adf6f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "cover_desc"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "133efc6382d8777b26b8601085fe371def6ff1cba475a9ce5d7f650270f24593"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "draft_ref"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "a70ac05738ad5de727ad85fb55a78420eba8f3c1420239cc9e5b6c5087504331"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "timings"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "30e818761ecacbf85c7d8959f17bd33fd7329a2569d86415a953596d80f05587"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "reruns"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c9007906e874cf8dbb2ddcf40a1573098787d11e4c091e622c1eb7124d31fcf0"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "blockers"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "60358ff2506ce8fc303fd5fba029174d85cb04988bfac4141fec03a8def6f9ce"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "properties",
+        "verify_items"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "24812f72006b3f586058de9b69a2553ad766da30c4e710302e194dc018796e53"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "required"
+      ],
+      "was": true,
+      "before": [
+        "account_id",
+        "title",
+        "url",
+        "published_at"
+      ],
+      "now": true,
+      "after_sha256": "2c05f55010bc106493111404f663ed07ed860957e68ecad250360b93a2074de9"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "description"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "2c1b973cca256d5c1e9831b2033d6c1997329fab3d9873f1f458014e351b2392"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleCreate",
+        "allOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "b08e5444a4b7182877b60c438244e0f33964d22addbe36cfb4ed4a05882564ee"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "url",
+        "type"
+      ],
+      "was": true,
+      "before": "string",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "url",
+        "description"
+      ],
+      "was": true,
+      "before": "完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment。相同链接不能重复登记。",
+      "now": true,
+      "after_sha256": "3699f7d51e8440cf24e33495157596bb35af95806e587cc3232ab15ff0049c2e"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "url",
+        "format"
+      ],
+      "was": true,
+      "before": "uri",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "url",
+        "maxLength"
+      ],
+      "was": true,
+      "before": 2048,
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "url",
+        "anyOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "9db90f8b908b298b87ab372543b468d6769c88f2bf6d7769eb96c3ca17286d08"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "published_at",
+        "type"
+      ],
+      "was": true,
+      "before": "string",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "published_at",
+        "description"
+      ],
+      "was": true,
+      "before": "实际发布时间，不得在未来。",
+      "now": true,
+      "after_sha256": "4e81a3e5c03f8839a6d9b3b4b9ee671bf21df172189bf20d58f4a1867b500141"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "published_at",
+        "format"
+      ],
+      "was": true,
+      "before": "date-time",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "published_at",
+        "anyOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "802e7c8808c10b564debd961c8a74baa674bc63fa45fbccfdfb2adad77ef0422"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "status"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "bc0da9622e7d6d0f191c7337cacdef3a40e3f1d77ef2a02f2f3b415780285b60"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "slot"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "258acce809e48e18715f6d5461fec6ac730dae3cf67b39b0b6a434d4194bb126"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "run_dir"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "8451bb8ad9f4ad3426dcbc1f70dcb188f4d7220fb6a185c57b7e09af776aa380"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "run_date"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "34c61c504ac4315d22f873690593b0048cd07ad04783d95fd4df17e262288a4e"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "series_no"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "75cbb49416fe2bc60f753018343e193f3829a45ad5e387f069613ed109bc6e47"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "writer"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "09496a4c84e7856882d78df2c1d65fd3357604fd435296db00e1fd0873c120d9"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "illustrator"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c7a1bfe37ebd4b6d9d51a9c695510313519aad3ace1321f51dcaa2094ddd3d10"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "sample"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "ed6fa105ce924106a43a0969ff2513e196874a0610aa409b742e15da68e62e5d"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "char_count"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c648138a09188a772c3b2c1506772441b163022ed2f3d50696caae8bb95adf6f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "subheading_count"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c648138a09188a772c3b2c1506772441b163022ed2f3d50696caae8bb95adf6f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "image_count"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c648138a09188a772c3b2c1506772441b163022ed2f3d50696caae8bb95adf6f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "cover_desc"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "133efc6382d8777b26b8601085fe371def6ff1cba475a9ce5d7f650270f24593"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "draft_ref"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "a70ac05738ad5de727ad85fb55a78420eba8f3c1420239cc9e5b6c5087504331"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "timings"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "30e818761ecacbf85c7d8959f17bd33fd7329a2569d86415a953596d80f05587"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "reruns"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c9007906e874cf8dbb2ddcf40a1573098787d11e4c091e622c1eb7124d31fcf0"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "blockers"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "60358ff2506ce8fc303fd5fba029174d85cb04988bfac4141fec03a8def6f9ce"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "properties",
+        "verify_items"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "24812f72006b3f586058de9b69a2553ad766da30c4e710302e194dc018796e53"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "description"
+      ],
+      "was": true,
+      "before": "先GET最新版本再提交。未给字段保留原值。已有日报时不能直接变更所属账号。",
+      "now": true,
+      "after_sha256": "80ba955223910ff0e14861aca98084ec1ac0c93b8633bc03add67e19c2f03853"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleUpdate",
+        "allOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "2daa47949ea4f32e785f75d30224e3fa197ac4c9da6b78c68723f5fe3e028e23"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "url",
+        "type"
+      ],
+      "was": true,
+      "before": "string",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "url",
+        "description"
+      ],
+      "was": true,
+      "before": "完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment。相同链接不能重复登记。",
+      "now": true,
+      "after_sha256": "3699f7d51e8440cf24e33495157596bb35af95806e587cc3232ab15ff0049c2e"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "url",
+        "format"
+      ],
+      "was": true,
+      "before": "uri",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "url",
+        "maxLength"
+      ],
+      "was": true,
+      "before": 2048,
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "url",
+        "anyOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "9db90f8b908b298b87ab372543b468d6769c88f2bf6d7769eb96c3ca17286d08"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "published_at",
+        "type"
+      ],
+      "was": true,
+      "before": "string",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "published_at",
+        "description"
+      ],
+      "was": true,
+      "before": "实际发布时间，不得在未来。",
+      "now": true,
+      "after_sha256": "4e81a3e5c03f8839a6d9b3b4b9ee671bf21df172189bf20d58f4a1867b500141"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "published_at",
+        "format"
+      ],
+      "was": true,
+      "before": "date-time",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "published_at",
+        "anyOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "802e7c8808c10b564debd961c8a74baa674bc63fa45fbccfdfb2adad77ef0422"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "duration_seconds",
+        "anyOf"
+      ],
+      "was": true,
+      "before": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "description": "实际开始至发布时间的秒数；开始时间未知则null。"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "now": true,
+      "after_sha256": "fca9a35b4d0e11d94a857f0a45a7fb653206f32022a0817e56b0f02ec300816f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "date_status",
+        "enum"
+      ],
+      "was": true,
+      "before": [
+        "unverified",
+        "recorded"
+      ],
+      "now": true,
+      "after_sha256": "f070504d2cf203627c50be3d9406ef1aace58d290e2e85a7a870a63e6420c1c2"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "date_status",
+        "description"
+      ],
+      "was": true,
+      "before": "recorded表示日期已记录，不代表外部平台已重新核实。",
+      "now": true,
+      "after_sha256": "93424cca48bd2052a8c7b74cefb53a0004b7e6597779771e19344d3a2fd6b542"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "snapshot_status",
+        "enum"
+      ],
+      "was": true,
+      "before": [
+        "not_collected",
+        "collected"
+      ],
+      "now": true,
+      "after_sha256": "385f7098abf655d0569ac7a6240552784df44b87aa0a10e571d578d8b6afb8ee"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "snapshot_status",
+        "description"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "8fc0e5c37d66e5e1a2ee67e055bfe7aaf871cdfae2182b9f81fc4d6eda4fa1ad"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "status"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "d0965476dac091680881e4d202ebdf7a36f2cb4683092ef15409d224aedceb72"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "slot"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "258acce809e48e18715f6d5461fec6ac730dae3cf67b39b0b6a434d4194bb126"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "run_dir"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "8451bb8ad9f4ad3426dcbc1f70dcb188f4d7220fb6a185c57b7e09af776aa380"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "run_date"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "34c61c504ac4315d22f873690593b0048cd07ad04783d95fd4df17e262288a4e"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "series_no"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "75cbb49416fe2bc60f753018343e193f3829a45ad5e387f069613ed109bc6e47"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "writer"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "09496a4c84e7856882d78df2c1d65fd3357604fd435296db00e1fd0873c120d9"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "illustrator"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c7a1bfe37ebd4b6d9d51a9c695510313519aad3ace1321f51dcaa2094ddd3d10"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "sample"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "ed6fa105ce924106a43a0969ff2513e196874a0610aa409b742e15da68e62e5d"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "char_count"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c648138a09188a772c3b2c1506772441b163022ed2f3d50696caae8bb95adf6f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "subheading_count"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c648138a09188a772c3b2c1506772441b163022ed2f3d50696caae8bb95adf6f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "image_count"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c648138a09188a772c3b2c1506772441b163022ed2f3d50696caae8bb95adf6f"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "cover_desc"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "133efc6382d8777b26b8601085fe371def6ff1cba475a9ce5d7f650270f24593"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "draft_ref"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "a70ac05738ad5de727ad85fb55a78420eba8f3c1420239cc9e5b6c5087504331"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "timings"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "30e818761ecacbf85c7d8959f17bd33fd7329a2569d86415a953596d80f05587"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "reruns"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c9007906e874cf8dbb2ddcf40a1573098787d11e4c091e622c1eb7124d31fcf0"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "blockers"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "60358ff2506ce8fc303fd5fba029174d85cb04988bfac4141fec03a8def6f9ce"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "properties",
+        "verify_items"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "24812f72006b3f586058de9b69a2553ad766da30c4e710302e194dc018796e53"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "required"
+      ],
+      "was": true,
+      "before": [
+        "account_id",
+        "title",
+        "url",
+        "platform_article_id",
+        "published_at",
+        "started_at",
+        "production_mode",
+        "summary",
+        "notes",
+        "id",
+        "version",
+        "created_at",
+        "updated_at",
+        "account_name",
+        "platform",
+        "latest_metrics",
+        "latest_as_of",
+        "duration_seconds"
+      ],
+      "now": true,
+      "after_sha256": "d7f8bfb25331ef5f5bf26dc0f2365ff94caf20eee3563b4978699482e99c8389"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Article",
+        "description"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "da9a5c54c38341855ad8e986c9a7452ba3e5a2df90e6adc2b22142d0230d1f7b"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticlePagination",
+        "properties",
+        "unfiltered_total",
+        "description"
+      ],
+      "was": true,
+      "before": "当前授权账号内未应用筛选的全库篇数。",
+      "now": true,
+      "after_sha256": "a875ba45b46ed09dcbe05d7e895057551f104ccd38bd615b4d66778d66394db5"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleIndex",
+        "properties",
+        "published_at",
+        "type"
+      ],
+      "was": true,
+      "before": "string",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleIndex",
+        "properties",
+        "published_at",
+        "format"
+      ],
+      "was": true,
+      "before": "date-time",
+      "now": false
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ArticleIndex",
+        "properties",
+        "published_at",
+        "anyOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "f7d02fc41a9035c035b62246c642c4c1fc35eadf502da4db8413080d46aa6e23"
+    },
+    {
+      "path": [
+        "components",
+        "responses",
+        "Error409",
+        "description"
+      ],
+      "was": true,
+      "before": "冲突：VERSION_CONFLICT、ARTICLE_EXISTS、ARTICLE_HAS_DAILY_METRICS、ACCOUNT_INACTIVE、IDEMPOTENCY_CONFLICT、DUPLICATE；密码并发修改为CONFLICT。",
+      "now": true,
+      "after_sha256": "dbc6154c68add4c6b10c1a1a93b726cbd5e4ef9b9b4ab3c85c9d87a0c7307e11"
+    }
+  ],
+  "docs": {
+    "replacements": [
+      {
+        "before": "GET /articles：检索已发布文章",
+        "after": "GET /articles：默认检索已发布文章；显式 status 选择单一生命周期状态"
+      },
+      {
+        "before": "POST /articles：登记成功发布文章",
+        "after": "POST /articles：登记成功发布文章或保存真实草稿"
+      },
+      {
+        "before": "totals 仍统计已登记全部文章及制作效率",
+        "after": "totals 仍统计已登记的 published 文章及制作效率"
+      },
+      {
+        "before": "总览 cumulative、platform_comparison、top_articles 始终独立按授权全库计算",
+        "after": "总览 cumulative、platform_comparison、top_articles 始终独立按授权范围内 published 全库计算"
+      }
+    ],
+    "section": {
+      "start": "<!-- article-pipeline-contract:start -->",
+      "end": "<!-- article-pipeline-contract:end -->",
+      "sha256": "786e49f4b74d4eef80f2bab3525cf08a31ebc2174459ac85d5ab9ac3a827bc14"
+    }
+  }
+}

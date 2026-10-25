@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {applyGraphCandidate} from './article-graph-migration.mjs';
-import {GRAPH_NOW, GRAPH_TODAY, GRAPH_PIPELINE_FIELDS, graphStatisticsFixture,
+import {GRAPH_NOW, GRAPH_TODAY, GRAPH_BASELINE, GRAPH_PIPELINE_FIELDS, graphStatisticsFixture,
   legacyGraphArticleProjection, graphPersistedRows} from './article-graph-statistics-fixture.mjs';
 
 function routes(app) {
@@ -36,6 +36,18 @@ async function capture(app, paths, phase) {
   return responses;
 }
 
+test('graph projection permits only default new article metadata and preserves all statistical numbers', () => {
+  const metadata = Object.fromEntries(GRAPH_PIPELINE_FIELDS.map(key => [key, key === 'status' ? 'published' : null]));
+  const article = {id: 'synthetic', account_id: 'account', title: '合成已发布', ...metadata,
+    sample: null, draft_ref: null, timings: null, reruns: null, blockers: null, verify_items: null};
+  const input = {totals: {article_count: 7, reads: 0, likes: null}, rows: [article],
+    missing: [3, 0], status: 202};
+  assert.deepEqual(legacyGraphArticleProjection(input), {totals: {article_count: 7, reads: 0, likes: null},
+    rows: [{id: 'synthetic', account_id: 'account', title: '合成已发布'}], missing: [3, 0], status: 202});
+  for (const [key, item] of [['status', null], ['char_count', 1], ['sample', {}], ['sample_json', '{}']])
+    assert.throws(() => legacyGraphArticleProjection({...article, [key]: item}), /approved default/);
+});
+
 test('candidate graph replacement preserves every legacy statistic and unrelated rows in the actual clocked Worker', async t => {
   const app = await graphStatisticsFixture(t), paths = routes(app);
   assert.equal(GRAPH_PIPELINE_FIELDS.length, 17);
@@ -61,13 +73,13 @@ test('candidate graph replacement preserves every legacy statistic and unrelated
 
   await applyGraphCandidate(app.db);
 
-  // The after view is an independent instance of the exact same product bundle,
-  // so an old overview cache cannot turn a broken migration into a false pass.
+  // Before uses the fixed old source and old schema; after uses the current
+  // product bundle and candidate schema. Their caches remain independent.
   const after = await capture(app, paths, 'after');
   for (const path of paths) assert.deepEqual(after[path], before[path], 'legacy API changed: ' + path);
   assert.deepEqual(await graphPersistedRows(app.db), rowsBefore);
   assert.deepEqual((await app.db.prepare('PRAGMA foreign_key_check').all()).results, []);
   assert.equal(Object.values((await app.db.prepare('PRAGMA quick_check').all()).results[0])[0], 'ok');
-  t.diagnostic('Actual Workerd before/after modules; frozen Beijing-noon clock; ' + paths.length +
+  t.diagnostic('Actual Workerd: baseline ' + GRAPH_BASELINE + ' / current bundle; frozen Beijing-noon clock; ' + paths.length +
     ' legacy responses identical; 16 table row sets preserved; no statistical values projected or tolerated.');
 });

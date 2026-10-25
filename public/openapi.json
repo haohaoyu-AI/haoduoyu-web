@@ -673,8 +673,8 @@
     "/api/v1/articles": {
       "get": {
         "operationId": "listArticles",
-        "summary": "检索已发布文章",
-        "description": "默认保持旧版全量 data 数组；传 page/page_size 或 limit/offset 启用服务端分页，两组不能混用。先授权、过滤及全库稳定排序，再分页。缺值始终排最后，同值按发布时间降序、ID升序。新增 envelope.meta 提供 total、unfiltered_total、page、page_size、offset、has_more。latest_metrics来自最大as_of（同时间按collected_at、id降序）的单份累计快照，不按指标回填旧快照。",
+        "summary": "检索文章（默认仅已发布）",
+        "description": "默认 status=published，只有显式指定 drafting、illustrated、draft_saved、published、failed 之一才切换状态集合；不支持 all、空值或 null。默认保持旧版全量 data 数组；传 page/page_size 或 limit/offset 启用服务端分页，两组不能混用。先授权、过滤及全库稳定排序，再分页。缺值始终排最后，同值按发布时间降序、ID升序。新增 envelope.meta 提供 total、unfiltered_total、page、page_size、offset、has_more。latest_metrics来自最大as_of（同时间按collected_at、id降序）的单份累计快照，不按指标回填旧快照。 fields=index 始终只返回原五个字段，草稿 published_at 为 null。",
         "tags": [
           "业务数据"
         ],
@@ -742,6 +742,23 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/AccountFilter"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "drafting",
+                "illustrated",
+                "draft_saved",
+                "published",
+                "failed"
+              ],
+              "default": "published"
+            },
+            "description": "仅筛选一个明确生命周期状态；默认 published，不能传 all、空值或 null。"
           },
           {
             "name": "q",
@@ -944,8 +961,8 @@
       },
       "post": {
         "operationId": "createArticle",
-        "summary": "登记实际已发布文章",
-        "description": "URL全局去重；同平台platform_article_id也去重。首次version=1，未知制作方式为unknown。 停用账号返回409 ACCOUNT_INACTIVE。",
+        "summary": "登记已发布文章或保存真实草稿",
+        "description": "URL全局去重；同平台platform_article_id也去重。首次version=1，未知制作方式为unknown。 停用账号返回409 ACCOUNT_INACTIVE。 旧式请求保持发布登记校验；显式流水线/status 请求可保存草稿（默认 draft_saved）。published 必须有真实 url/published_at，其他状态必须为 null。返回六个逻辑 JSON 字段；无 PATCH 或双键 upsert。",
         "tags": [
           "业务数据"
         ],
@@ -1094,7 +1111,7 @@
       "put": {
         "operationId": "updateArticle",
         "summary": "按当前version更新文章",
-        "description": "先GET当前version。冲突后回读并合并授权变更，不要强行覆盖。新账号也必须在token授权范围内。没有删除API。 停用账号内历史修正允许；迁入停用账号返回409 ACCOUNT_INACTIVE。",
+        "description": "先GET当前version。冲突后回读并合并授权变更，不要强行覆盖。新账号也必须在token授权范围内。没有删除API。 停用账号内历史修正允许；迁入停用账号返回409 ACCOUNT_INACTIVE。 未提供状态/JSON 保留，提供的 JSON 整字段替换而非深合并。草稿发布须真实链接及时间；有文章级指标时不能改回非发布状态。",
         "tags": [
           "业务数据"
         ],
@@ -1252,7 +1269,7 @@
       "post": {
         "operationId": "createObservation",
         "summary": "追加实际采集的累计快照",
-        "description": "Append-only。kind是复盘阶段标签，不证明准点采集；保留真实as_of和collected_at。不得把多份累计值相加成区间量。没有更新/删除API。",
+        "description": "Append-only。kind是复盘阶段标签，不证明准点采集；保留真实as_of和collected_at。不得把多份累计值相加成区间量。没有更新/删除API。 仅 published 文章可录入，其他状态返回 409 ARTICLE_NOT_PUBLISHED。",
         "tags": [
           "业务数据"
         ],
@@ -1424,7 +1441,7 @@
       "post": {
         "operationId": "upsertDailyMetrics",
         "summary": "按账号/文章范围/日期回填或更正日报",
-        "description": "无论新建还是更正均返回201。省略article_id为账号整体；同一范围和日期保持同一id并替换metrics/source。不能把累计快照当日增量。",
+        "description": "无论新建还是更正均返回201。省略article_id为账号整体；同一范围和日期保持同一id并替换metrics/source。不能把累计快照当日增量。 文章级数据仅允许 published，其他状态返回 409 ARTICLE_NOT_PUBLISHED；省略 article_id 的账号整体日数据不受文章状态限制。",
         "tags": [
           "业务数据"
         ],
@@ -2034,24 +2051,6 @@
           }
         ],
         "responses": {
-          "400": {
-            "$ref": "#/components/responses/Error400"
-          },
-          "401": {
-            "$ref": "#/components/responses/Error401"
-          },
-          "403": {
-            "$ref": "#/components/responses/Error403"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error404"
-          },
-          "422": {
-            "$ref": "#/components/responses/Error422"
-          },
-          "500": {
-            "$ref": "#/components/responses/Error500"
-          },
           "200": {
             "description": "成功",
             "content": {
@@ -2077,6 +2076,24 @@
                 "$ref": "#/components/headers/RequestId"
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
           }
         }
       }
@@ -2363,10 +2380,18 @@
             "minLength": 1
           },
           "url": {
-            "type": "string",
-            "description": "完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment。相同链接不能重复登记。",
-            "format": "uri",
-            "maxLength": 2048
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 2048,
+                "description": "真实完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment，相同链接不能重复登记。"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "published 必须为真实 HTTP(S) 链接；其他状态必须为 null。"
           },
           "platform_article_id": {
             "anyOf": [
@@ -2381,9 +2406,17 @@
             ]
           },
           "published_at": {
-            "type": "string",
-            "description": "实际发布时间，不得在未来。",
-            "format": "date-time"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "description": "真实发布时间，不得在未来；不得为草稿伪造发布时间。"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "published 必须为真实发布时间；其他状态必须为 null。"
           },
           "started_at": {
             "anyOf": [
@@ -2414,13 +2447,536 @@
           "notes": {
             "type": "string",
             "maxLength": 20000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "drafting",
+              "illustrated",
+              "draft_saved",
+              "published",
+              "failed"
+            ],
+            "description": "正常写入必须是有效状态，显式 null 无效。旧式 POST 未带任何流水线字段时默认 published；显式流水线字段且省略 status 时默认 draft_saved。PUT 省略时保留原状态。"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "zh1",
+                  "zh2",
+                  "tt1",
+                  "tt2",
+                  "zh3",
+                  "tt3",
+                  "gzh"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_dir": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$",
+                "description": "安全相对目录；保留分段，不扁平化。非空值唯一。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "description": "真实运行日期 YYYY-MM-DD；与非空 slot 的组合唯一。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series_no": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991,
+                "description": "正安全整数；未提供且原值为空时，可从完整【保险200篇·第N篇】标题提取。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "writer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "dedao",
+                  "gemini_web",
+                  "human",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "illustrator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "codex",
+                  "pil",
+                  "human"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sample": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {},
+            "additionalProperties": true,
+            "description": "样本对象。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "char_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subheading_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cover_desc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10000,
+                "description": "纯文字封面描述。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draft_ref": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "pgc_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "appmsgid": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": true,
+            "description": "平台草稿引用；pgc_id、appmsgid 为字符串或 null，不转成数字。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "timings": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "finished_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": true,
+            "description": "真实计时；finished_at 须为带时区时间，保存时规范为 UTC。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "reruns": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "watchdog": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": true,
+            "description": "重跑记录；watchdog 为非负安全整数或 null。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "blockers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            },
+            "description": "阻塞项对象数组；已知 type 子键为字符串或 null。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "verify_items": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "验证项对象数组。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
           }
         },
         "required": [
           "account_id",
-          "title",
-          "url",
-          "published_at"
+          "title"
+        ],
+        "description": "旧式请求不带任何流水线字段时保持 published，url 和 published_at 仍必填。显式 status 或任一流水线字段进入新路径；省略 status 默认 draft_saved。非发布状态的 url、published_at 省略或 null，不能填占位链接或伪造时间。六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。",
+        "allOf": [
+          {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "sample_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "draft_ref_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "timings_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "reruns_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "blockers_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "verify_items_json"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "oneOf": [
+              {
+                "description": "旧式发布登记或显式 published。",
+                "required": [
+                  "url",
+                  "published_at"
+                ],
+                "properties": {
+                  "status": {
+                    "const": "published"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 2048,
+                    "description": "真实完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment，相同链接不能重复登记。"
+                  },
+                  "published_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "真实发布时间，不得在未来；不得为草稿伪造发布时间。"
+                  }
+                },
+                "anyOf": [
+                  {
+                    "required": [
+                      "status"
+                    ]
+                  },
+                  {
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "slot"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "run_dir"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "run_date"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "series_no"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "writer"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "illustrator"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "sample"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "char_count"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "subheading_count"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "image_count"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "cover_desc"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "draft_ref"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "timings"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "reruns"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "blockers"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "verify_items"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "description": "显式非发布状态，或带流水线字段且省略 status 的 draft_saved。",
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "drafting",
+                      "illustrated",
+                      "draft_saved",
+                      "failed"
+                    ]
+                  },
+                  "url": {
+                    "type": "null"
+                  },
+                  "published_at": {
+                    "type": "null"
+                  }
+                },
+                "anyOf": [
+                  {
+                    "required": [
+                      "status"
+                    ]
+                  },
+                  {
+                    "not": {
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "slot"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "run_dir"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "run_date"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "series_no"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "writer"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "illustrator"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "sample"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "char_count"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "subheading_count"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "image_count"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "cover_desc"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "draft_ref"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "timings"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "reruns"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "blockers"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "verify_items"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
         ]
       },
       "ArticleUpdate": {
@@ -2437,10 +2993,18 @@
             "minLength": 1
           },
           "url": {
-            "type": "string",
-            "description": "完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment。相同链接不能重复登记。",
-            "format": "uri",
-            "maxLength": 2048
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 2048,
+                "description": "真实完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment，相同链接不能重复登记。"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "published 必须为真实 HTTP(S) 链接；其他状态必须为 null。"
           },
           "platform_article_id": {
             "anyOf": [
@@ -2455,9 +3019,17 @@
             ]
           },
           "published_at": {
-            "type": "string",
-            "description": "实际发布时间，不得在未来。",
-            "format": "date-time"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "description": "真实发布时间，不得在未来；不得为草稿伪造发布时间。"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "published 必须为真实发布时间；其他状态必须为 null。"
           },
           "started_at": {
             "anyOf": [
@@ -2493,11 +3065,339 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "drafting",
+              "illustrated",
+              "draft_saved",
+              "published",
+              "failed"
+            ],
+            "description": "正常写入必须是有效状态，显式 null 无效。旧式 POST 未带任何流水线字段时默认 published；显式流水线字段且省略 status 时默认 draft_saved。PUT 省略时保留原状态。"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "zh1",
+                  "zh2",
+                  "tt1",
+                  "tt2",
+                  "zh3",
+                  "tt3",
+                  "gzh"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_dir": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$",
+                "description": "安全相对目录；保留分段，不扁平化。非空值唯一。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "description": "真实运行日期 YYYY-MM-DD；与非空 slot 的组合唯一。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series_no": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991,
+                "description": "正安全整数；未提供且原值为空时，可从完整【保险200篇·第N篇】标题提取。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "writer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "dedao",
+                  "gemini_web",
+                  "human",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "illustrator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "codex",
+                  "pil",
+                  "human"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sample": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {},
+            "additionalProperties": true,
+            "description": "样本对象。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "char_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subheading_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cover_desc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10000,
+                "description": "纯文字封面描述。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draft_ref": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "pgc_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "appmsgid": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": true,
+            "description": "平台草稿引用；pgc_id、appmsgid 为字符串或 null，不转成数字。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "timings": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "finished_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": true,
+            "description": "真实计时；finished_at 须为带时区时间，保存时规范为 UTC。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "reruns": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "watchdog": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": true,
+            "description": "重跑记录；watchdog 为非负安全整数或 null。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "blockers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            },
+            "description": "阻塞项对象数组；已知 type 子键为字符串或 null。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "verify_items": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "验证项对象数组。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
           }
         },
-        "description": "先GET最新版本再提交。未给字段保留原值。已有日报时不能直接变更所属账号。",
+        "description": "先 GET 最新 version 再 PUT；未提供字段保留原值（包括 status 和六个 JSON 字段）。提供的逻辑 JSON 整字段替换，不深合并；null 清空。发布草稿须同时补齐真实 url/published_at；已发布文章转为非发布状态须同时清空这两项，已有文章级指标则返回 ARTICLE_HAS_METRICS。已有日报时不能直接变更所属账号。六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。",
         "required": [
           "version"
+        ],
+        "allOf": [
+          {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "sample_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "draft_ref_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "timings_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "reruns_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "blockers_json"
+                  ]
+                },
+                {
+                  "required": [
+                    "verify_items_json"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "status"
+              ],
+              "properties": {
+                "status": {
+                  "const": "published"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "maxLength": 2048,
+                  "description": "真实完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment，相同链接不能重复登记。"
+                },
+                "published_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "真实发布时间，不得在未来；不得为草稿伪造发布时间。"
+                }
+              }
+            },
+            "else": {
+              "if": {
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "url": {
+                    "type": "null"
+                  },
+                  "published_at": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
         ]
       },
       "Article": {
@@ -2514,10 +3414,18 @@
             "minLength": 1
           },
           "url": {
-            "type": "string",
-            "description": "完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment。相同链接不能重复登记。",
-            "format": "uri",
-            "maxLength": 2048
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 2048,
+                "description": "真实完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment，相同链接不能重复登记。"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "published 必须为真实 HTTP(S) 链接；其他状态必须为 null。"
           },
           "platform_article_id": {
             "anyOf": [
@@ -2532,9 +3440,17 @@
             ]
           },
           "published_at": {
-            "type": "string",
-            "description": "实际发布时间，不得在未来。",
-            "format": "date-time"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "description": "真实发布时间，不得在未来；不得为草稿伪造发布时间。"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "published 必须为真实发布时间；其他状态必须为 null。"
           },
           "started_at": {
             "anyOf": [
@@ -2622,7 +3538,7 @@
               {
                 "type": "integer",
                 "minimum": 0,
-                "description": "实际开始至发布时间的秒数；开始时间未知则null。"
+                "description": "实际开始至发布时间的秒数；未发布或开始时间未知时为 null。"
               },
               {
                 "type": "null"
@@ -2656,21 +3572,277 @@
           "date_status": {
             "enum": [
               "unverified",
-              "recorded"
+              "recorded",
+              "not_published"
             ],
-            "description": "recorded表示日期已记录，不代表外部平台已重新核实。"
+            "description": "recorded 表示日期已记录，不代表外部平台已重新核实；未发布为 not_published。"
           },
           "snapshot_status": {
             "enum": [
               "not_collected",
-              "collected"
-            ]
+              "collected",
+              "not_applicable"
+            ],
+            "description": "未发布为 not_applicable；不把草稿当作缺少采集的已发布文章。"
           },
           "missing_metrics": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "drafting",
+                  "illustrated",
+                  "draft_saved",
+                  "published",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "正常写入是五个有效状态之一；历史 SQL null 可保留，不能视为 published。"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "zh1",
+                  "zh2",
+                  "tt1",
+                  "tt2",
+                  "zh3",
+                  "tt3",
+                  "gzh"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_dir": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$",
+                "description": "安全相对目录；保留分段，不扁平化。非空值唯一。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "description": "真实运行日期 YYYY-MM-DD；与非空 slot 的组合唯一。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series_no": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991,
+                "description": "正安全整数；未提供且原值为空时，可从完整【保险200篇·第N篇】标题提取。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "writer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "dedao",
+                  "gemini_web",
+                  "human",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "illustrator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "codex",
+                  "pil",
+                  "human"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sample": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {},
+            "additionalProperties": true,
+            "description": "样本对象。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "char_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subheading_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cover_desc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10000,
+                "description": "纯文字封面描述。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draft_ref": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "pgc_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "appmsgid": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": true,
+            "description": "平台草稿引用；pgc_id、appmsgid 为字符串或 null，不转成数字。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "timings": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "finished_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": true,
+            "description": "真实计时；finished_at 须为带时区时间，保存时规范为 UTC。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "reruns": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "watchdog": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": true,
+            "description": "重跑记录；watchdog 为非负安全整数或 null。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "blockers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            },
+            "description": "阻塞项对象数组；已知 type 子键为字符串或 null。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
+          },
+          "verify_items": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "验证项对象数组。 六个逻辑 JSON 字段 sample、draft_ref、timings、reruns、blockers、verify_items 序列化后的 UTF-8 总大小不超过 64KiB；每字段最多 12 层、4096 个值节点。未知合法子键保留；任意层级拒绝 __proto__、constructor、prototype。使用对象/数组/null，不接受字符串化 JSON 或原始 *_json 字段。"
           }
         },
         "required": [
@@ -2691,8 +3863,26 @@
           "platform",
           "latest_metrics",
           "latest_as_of",
-          "duration_seconds"
-        ]
+          "duration_seconds",
+          "status",
+          "slot",
+          "run_dir",
+          "run_date",
+          "series_no",
+          "writer",
+          "illustrator",
+          "sample",
+          "char_count",
+          "subheading_count",
+          "image_count",
+          "cover_desc",
+          "draft_ref",
+          "timings",
+          "reruns",
+          "blockers",
+          "verify_items"
+        ],
+        "description": "文章及派生事实。响应仅返回逻辑 JSON 对象/数组，不返回 *_json 存储列；正常 API 写入状态始终为五个有效值之一。未发布文章不进入既有发布统计、累计榜或 D1/D3/D7 到期提醒。"
       },
       "ArticleDetail": {
         "allOf": [
@@ -4432,7 +5622,7 @@
           "unfiltered_total": {
             "type": "integer",
             "minimum": 0,
-            "description": "当前授权账号内未应用筛选的全库篇数。"
+            "description": "当前授权账号内、当前 status（默认 published）的未应用其他筛选篇数。"
           },
           "page": {
             "type": "integer",
@@ -4685,8 +5875,15 @@
             "type": "string"
           },
           "published_at": {
-            "type": "string",
-            "format": "date-time"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -4790,7 +5987,7 @@
         }
       },
       "Error409": {
-        "description": "冲突：VERSION_CONFLICT、ARTICLE_EXISTS、ARTICLE_HAS_DAILY_METRICS、ACCOUNT_INACTIVE、IDEMPOTENCY_CONFLICT、DUPLICATE；密码并发修改为CONFLICT。",
+        "description": "冲突：VERSION_CONFLICT、ARTICLE_EXISTS、ARTICLE_HAS_DAILY_METRICS、ARTICLE_NOT_PUBLISHED、ARTICLE_HAS_METRICS、ACCOUNT_INACTIVE、IDEMPOTENCY_CONFLICT、DUPLICATE；密码并发修改为CONFLICT。",
         "content": {
           "application/json": {
             "schema": {

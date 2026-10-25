@@ -6,6 +6,7 @@ import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { frontendBundle } from './frontend-build.mjs';
 import { cloudflareConfig } from './cloudflare-config.mjs';
+import {articleMigrationTag,validateMigrationSource} from './migration-contract.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const publicRoot=resolve(root,'public'),dist=resolve(root,'dist');
@@ -37,11 +38,16 @@ if(target==='platform') {
   assert.equal(manifest.d1,'DB');assert.equal(manifest.r2,null);assert.ok(!manifest.static);
 }
 const journal=JSON.parse(await readFile(resolve(root,'drizzle/meta/_journal.json'),'utf8'));
-assert.equal(journal.entries.length,5,'Initial schema plus additive todo and daily-note migrations');
+assert.equal(journal.entries.length,6,'Initial schema, additive todo/notes and reviewed article graph migration');
 let tables=0;
 for(const [idx,entry] of journal.entries.entries()) {
   assert.equal(entry.idx,idx);
   const sql=await readFile(resolve(root,'drizzle',entry.tag+'.sql'),'utf8');
+  if(idx===5) {
+    validateMigrationSource(entry.tag,sql);
+    assert.equal(entry.tag,articleMigrationTag);
+    continue; // The reviewed rebuild preserves 16 logical tables; its temporary CREATEs are not additions.
+  }
   for(const statement of sql.split('--> statement-breakpoint').map(s=>s.trim()).filter(Boolean)) {
     if(idx===3&&['ALTER TABLE `matrix_todos` ADD `deleted_at` text;',
       'ALTER TABLE `matrix_todo_template_links` ADD `created_with_todo` integer DEFAULT 1 NOT NULL;'].includes(statement)) continue;
@@ -70,5 +76,5 @@ if(target==='platform') {
 }
 const worker=await import(pathToFileURL(entry).href+'?build='+Date.now());
 assert.equal(typeof worker.default?.fetch,'function');
-console.log(target==='platform'?'Built independent Sites Worker: DB only, one initial and four additive migrations, 16 matrix tables, no legacy tables or R2 binding.':
-  'Built standalone Cloudflare Worker and five migrations locally; '+(standalone.configured?'configuration supplied.':'unconfigured template only.')+' No resources created or deployed.');
+console.log(target==='platform'?'Built independent Sites Worker: DB only, six reviewed migrations, 16 matrix tables, no legacy tables or R2 binding.':
+  'Built standalone Cloudflare Worker and six reviewed migrations locally; '+(standalone.configured?'configuration supplied.':'unconfigured template only.')+' No resources created or deployed.');

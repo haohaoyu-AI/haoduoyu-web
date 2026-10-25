@@ -1,4 +1,5 @@
 import {traceJSON} from './request-trace-projection.mjs';
+import {legacyPublishedArticles} from './article-pipeline-projection.mjs';
 import {stylePolicyHeaders} from './style-policy-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,7 +32,7 @@ async function read(app, query, implementation = worker, headers = {Cookie: app.
   return {status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: traceJSON(JSON.parse(text), response.status, response.headers), receipts,
     counts: db.totals()};
 }
-function contract(value) {return {status: value.status, headers: value.headers, body: value.body};}
+function contract(value) {return {status: value.status, headers: value.headers, body: legacyPublishedArticles(value.body)};}
 
 test('C6 page query loads only the current article page and its snapshots', async t => {
   const app = await setup(t);
@@ -99,8 +100,15 @@ test('C6 ties, raw dates, missing metrics, pagination extremes and validation re
   await app.db.prepare("UPDATE matrix_articles SET published_at=? WHERE id='bench-article-1'")
     .bind('2026-10-01T12:00:00+08:00').run();
   await app.db.prepare("UPDATE matrix_articles SET published_at='' WHERE id='bench-article-2'").run();
-  // The current schema disallows null dates; do not weaken it to create a fixture.
-  await assert.rejects(app.db.prepare("UPDATE matrix_articles SET published_at=NULL WHERE id='bench-article-3'").run(), /NOT NULL/);
+  // 0005 intentionally permits true draft NULL dates. Published API writes still
+  // reject NULL; keep this legacy comparison cohort valid for the old Worker.
+  const columns=(await app.db.prepare('PRAGMA table_info(matrix_articles)').all()).results;
+  assert.equal(columns.find(row=>row.name==='published_at').notnull,0);
+  const nullPublished=await app.request('/api/v1/articles',{session:app.session,method:'POST',body:{
+    account_id:(await app.db.prepare('SELECT account_id FROM matrix_articles LIMIT 1').first()).account_id,
+    title:'Synthetic published null rejection',url:'https://example.invalid/null-published',published_at:null,
+  }});
+  assert.equal(nullPublished.status,400);
   for (const query of ['?page=1', '?page=2&page_size=1', '?page=1&page_size=200&order=asc',
     '?limit=1&offset=1&order=asc', '?limit=200&offset=0', '?offset=9007199254740991',
     '?page=9007199254740991&page_size=1', '?page=9007199254740991&page_size=200',

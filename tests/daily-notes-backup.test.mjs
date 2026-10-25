@@ -5,24 +5,24 @@ import {readFile} from 'node:fs/promises';
 import {Miniflare} from 'miniflare';
 import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {digest,stable} from '../src/security.mjs';
+import {ARTICLE_PIPELINE_FIELDS} from '../src/article-pipeline-fields.mjs';
+import {applyLocalSchemaMigrations} from '../scripts/migration-contract.mjs';
 import {createSourceInventory,verifyBackupInventory,verifyRestoredInventory} from '../scripts/migration-inventory.mjs';
 
 const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const stamp='2026-10-24T01:02:03.000Z';
 const rows=async(db,name)=>(await db.prepare('SELECT * FROM matrix_'+name+' ORDER BY rowid').all()).results;
 async function apply(db,index) {
-  const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
-  const sql=await readFile(new URL('../drizzle/'+journal.entries[index].tag+'.sql',import.meta.url),'utf8');
-  await db.batch(sql.split('--> statement-breakpoint').map(s=>s.trim()).filter(Boolean).map(s=>db.prepare(s)));
+  await applyLocalSchemaMigrations(db,{through:index+1});
 }
-async function database(t,{through=5}={}) {
+async function database(t,{through=6}={}) {
   const runtime=JSON.parse(await readFile(new URL('../runtime.json',import.meta.url),'utf8'));
   const mf=new Miniflare({modules:true,cf:false,script:'export default {fetch(){return new Response(null,{status:404})}}',
     compatibilityDate:runtime.compatibility_date,compatibilityFlags:runtime.compatibility_flags,
     d1Databases:['DB'],d1Persist:false,outboundService:()=>new Response(null,{status:502})});
   t.after(()=>mf.dispose());
   const db=await mf.getD1Database('DB');
-  for(let index=0;index<through;index++)await apply(db,index);
+  await applyLocalSchemaMigrations(db,{through});
   return db;
 }
 async function seed(db,{notes=true}={}) {
@@ -51,8 +51,8 @@ async function seed(db,{notes=true}={}) {
 }
 function historical(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
-  delete data.source_revision;
-  delete data.tables.daily_notes;
+  if(version<6)for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
+  if(version<5){delete data.source_revision;delete data.tables.daily_notes;}
   if(version<4) {
     delete data.tables.todo_preferences;
     for(const row of data.tables.todos)delete row.deleted_at;
@@ -77,7 +77,7 @@ test('0004 is additive on an existing database and leaves every todo row/schema 
   for(const [name,value] of Object.entries(old.tables))assert.deepEqual(current.tables[name],value,name);
 });
 
-test('v5 scopes daily notes to the user while full operator backup preserves all users and tombstones',async t=>{
+test('v6 scopes daily notes to the user while full operator backup preserves all users and tombstones',async t=>{
   const db=await database(t),{owner}=await seed(db);
   await db.batch([
     db.prepare('UPDATE matrix_control SET revision=99 WHERE id=1'),
@@ -85,7 +85,7 @@ test('v5 scopes daily notes to the user while full operator backup preserves all
       .bind('synthetic-notion-notes','cursor',digest('synthetic'),'{"cursor":98}',stamp),
   ]);
   const scoped=await exportBackup(db,{todoUserId:owner}),full=await exportBackup(db);
-  assert.equal(full.data.format,'haoduoyu-matrix-d1-v5');
+  assert.equal(full.data.format,'haoduoyu-matrix-d1-v6');
   assert.equal(full.data.source_revision,99);
   assert.equal(Object.keys(full.data.tables).length,13);
   assert.equal(scoped.data.tables.daily_notes.length,1);assert.equal(scoped.data.tables.daily_notes[0].user_id,owner);
@@ -135,7 +135,7 @@ test('v1-v4 restore into empty upgraded databases with no invented notes and exa
 
 test('all versions refuse nonempty notes before writes; current format rejects missing/invalid note columns',async t=>{
   const db=await database(t);await seed(db);const full=await exportBackup(db);
-  for(const version of [1,2,3,4,5]) {
+  for(const version of [1,2,3,4,5,6]) {
     let writes=0,checks=0;
     const target={prepare(sql){
       if(sql.startsWith('SELECT count(*) AS n FROM '))return {bind(){return this;},async first(){
@@ -143,7 +143,7 @@ test('all versions refuse nonempty notes before writes; current format rejects m
       }};
       writes++;throw Error('nonempty restore must not write');
     }};
-    const data=version===5?full.data:historical(full.data,version);
+    const data=version===6?full.data:historical(full.data,version);
     await assert.rejects(restoreIntoEmptyDatabase(target,sign(data),{allowEmptyRestore:true}),e=>e.code==='RESTORE_NOT_EMPTY');
     assert.equal(checks,1);assert.equal(writes,0);
   }

@@ -1,5 +1,6 @@
 import { fail } from './lib/errors.mjs';
 import { DAY, validStamp, beijingDate, sortedMedian } from './lib/time.mjs';
+import { isPublishedArticle } from './article-lifecycle.mjs';
 export { validStamp, beijingDate } from './lib/time.mjs';
 // Derived views only: never write inferred topics, dates or metrics to records.
 export const METRIC_KEYS = ['reads','impressions','likes','comments','favorites','shares','approvals','reading_users'];
@@ -12,12 +13,15 @@ export function articleFacts(article) {
   const accountName = article.account_name ?? '';
   const topic = article.platform === 'wechat' && (accountName === '小鱼儿真保鲜' || article.account_id === 'wechat-xiaoyuer') ? 'insurance'
     : ['toutiao','zhihu'].includes(article.platform) && (accountName === '好多鱼' || ['toutiao-haoduoyu','zhihu-haoduoyu'].includes(article.account_id)) ? 'entertainment' : 'unknown';
+  if (!isPublishedArticle(article)) return { ...article, topic, topic_source: topic === 'unknown' ? 'unknown' : 'inferred',
+    date_status: 'not_published', snapshot_status: 'not_applicable', missing_metrics: [], duration_seconds: null };
   const pending = !validStamp(article.published_at) || /(?:日期|发布日期|发布时间|发布日|时间)待(?:核实|确认)|\[date-unverified\]/i.test(article.notes ?? '');
   return { ...article, topic, topic_source: topic === 'unknown' ? 'unknown' : 'inferred', date_status: pending ? 'unverified' : 'recorded',
     snapshot_status: article.latest_metrics == null ? 'not_collected' : 'collected',
     missing_metrics: METRIC_KEYS.filter(key => !known(article.latest_metrics?.[key])) };
 }
 export function summarizeArticles(rows) {
+  rows = rows.filter(isPublishedArticle);
   const observed = rows.filter(a=>a.latest_metrics != null), readRows = rows.filter(a=>known(a.latest_metrics?.reads));
   const values = readRows.map(a=>a.latest_metrics.reads).sort((a,b)=>a-b);
   const totals = {}, metricCoverage = {};
@@ -39,7 +43,7 @@ export function summarizeArticles(rows) {
     best_article:[...readRows].sort((a,b)=>b.latest_metrics.reads-a.latest_metrics.reads || String(b.published_at).localeCompare(String(a.published_at)) || a.id.localeCompare(b.id))[0] ?? null };
 }
 export function cumulativeOverview(articles, {topN=5,topPlatform='',now=Date.now(),accounts=[]}={}) {
-  const rows=articles.map(articleFacts), summary=summarizeArticles(rows);
+  const rows=articles.filter(isPublishedArticle).map(articleFacts), summary=summarizeArticles(rows);
   const platformRows=[...new Set([...accounts.map(a=>a.platform),...rows.map(a=>a.platform)])].map(platform=>({platform,...summarizeArticles(rows.filter(a=>a.platform===platform))}));
   const top=rows.filter(a=>(!topPlatform || a.platform===topPlatform)&&known(a.latest_metrics?.reads))
     .sort((a,b)=>b.latest_metrics.reads-a.latest_metrics.reads || String(b.published_at).localeCompare(String(a.published_at)) || a.id.localeCompare(b.id)).slice(0,topN);
