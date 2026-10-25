@@ -9,12 +9,29 @@ import {countingDb} from './counting-d1.mjs';
 import {traceRoute} from '../src/lib/request-trace.mjs';
 
 const BASE='6043d18cd75634542baecc6ffa665712cdf32eb1';
-test('snapshot integration retains every released UI, schema and memo implementation byte',async()=>{
+test('snapshot integration retains released implementation bytes except reviewed visual asset registration',async()=>{
   const files=execFileSync('git',['ls-tree','-r','--name-only',BASE,'web','db','drizzle'],{encoding:'utf8'}).trim().split('\n');
   files.push('public/app.js','public/index.html','public/style.css','public/memos.css','src/memos.mjs',
     'src/memos-validation.mjs','src/backup.mjs','src/storage.mjs','scripts/build.mjs');
-  for(const file of files)assert.deepEqual(await readFile(new URL('../'+file,import.meta.url)),
-    execFileSync('git',['show',BASE+':'+file]),file);
+  for(const file of files) {
+    let expected=execFileSync('git',['show',BASE+':'+file]);
+    const replacements=file==='public/index.html' ? [
+      ['content="#0b6b61"','content="#e8c3ae"'],
+      ['<link rel="stylesheet" href="/memos.css">',
+        '<link rel="stylesheet" href="/memos.css">\n    <link rel="stylesheet" href="/glass.css">'],
+    ] : file==='scripts/build.mjs' ? [
+      ["'style.css','memos.css',","'style.css','memos.css','glass.css',"],
+    ] : [];
+    if(replacements.length) {
+      let text=expected.toString('utf8');
+      for(const [before,after] of replacements) {
+        assert.equal(text.split(before).length,2,'one exact reviewed baseline occurrence: '+file);
+        text=text.replace(before,after);
+      }
+      expected=Buffer.from(text);
+    }
+    assert.deepEqual(await readFile(new URL('../'+file,import.meta.url)),expected,file);
+  }
   for(const route of ['/api/v1/memos','/api/v1/snapshot','/api/v1/snapshot/index'])assert.equal(traceRoute(route),route);
 });
 
