@@ -193,8 +193,14 @@ test('public detail redacts credential and user attribution for previously authe
   const preflight=await app.publicRequest('/todos',{method:'OPTIONS',headers:{Origin:'https://foreign.invalid'}});
   assert.equal(preflight.status,401);assert.equal(preflight.headers.get('Access-Control-Allow-Origin'),null);
   const docs=await worker.fetch(new Request(app.origin+'/api-docs'),app.env);
-  assert.match(await docs.text(),/X-Public-Business/);
-  assert.doesNotMatch((await app.request('/api-docs')).text,/X-Public-Business/);
+  const publicDocs=await docs.text(),privateDocs=(await app.request('/api-docs')).text;
+  assert.match(publicDocs,/X-Public-Business/);
+  assert.match(publicDocs,/公开业务模式（由站长显式启用）/);
+  assert.doesNotMatch(privateDocs,/公开业务模式（由站长显式启用）/);
+  assert.match(privateDocs,/经营数据需要账号密码或独立授权凭证。/);
+  // The additive notes/reminder contract documents its conditional public mode
+  // in both documents. This must not inject the site's enabled-mode section.
+  assert.match(privateDocs,/PUBLIC_BUSINESS_MODE=1 的同源 X-Public-Business:1 请求/);
 });
 
 test('valid original sessions and scoped tokens keep their identity instead of being rebound to the public owner',async t=>{
