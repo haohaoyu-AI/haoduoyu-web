@@ -57,11 +57,6 @@
       "sha256": "73860605260c130eeeb742177d7eaf3388e0e51696f8cdacbbbffdac80be1156",
       "equal_to_production": true
     },
-    ".gitleaksignore": {
-      "bytes": 18526,
-      "sha256": "e3f10eb127cf1bf690b6d940c4faf0ce477d5d308fc6185c518cb20b1f040c90",
-      "equal_to_production": true
-    },
     "package.json": {
       "bytes": 1050,
       "sha256": "ec7fb59a72e3b8d5248ccc8e65ee4dfc3f9046430a0b709955ce580762d9862d",
@@ -113,5 +108,14 @@
       "equal_to_production": true
     }
   },
-  "schema": "18 logical tables; 7 reviewed migrations; unchanged"
+  "schema": "18 logical tables; 7 reviewed migrations; unchanged",
+  "scan_baseline": {
+    "path": ".gitleaksignore",
+    "production_entries_preserved": true,
+    "added_exact_fingerprints": [
+      "64591439f1fe83e347acdd0f90128b805959299c:.ci/public-assets.json:generic-api-key:5",
+      "64591439f1fe83e347acdd0f90128b805959299c:.ci/public-assets.json:generic-api-key:10"
+    ],
+    "reason": "Same verified public asset hashes reintroduced by merge diff; no real secret or rule-wide exception."
+  }
 }

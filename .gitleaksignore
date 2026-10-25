@@ -194,3 +194,8 @@ daec2c2d6b186601cad236c93626a6330cdccc61:.ci/public-assets.json:generic-api-key:
 # Production snapshot integration: exact same independently recomputed public doc pins.
 a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:5
 a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:10
+
+# Glass + snapshot merge: same two public document SHA-256 pins, recomputed from exact Git blobs.
+# Narrow historical fingerprints only; proof: docs/ui-glass-scan-evidence.json.
+64591439f1fe83e347acdd0f90128b805959299c:.ci/public-assets.json:generic-api-key:5
+64591439f1fe83e347acdd0f90128b805959299c:.ci/public-assets.json:generic-api-key:10
