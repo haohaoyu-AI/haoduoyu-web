@@ -562,6 +562,8 @@ with sync_playwright() as playwright:
     wait_held(page, held)
     page.locator('.mobile-nav [data-nav=articles]').tap()
     page.locator('#page-content[aria-busy=false]').wait_for()
+    # The article ledger opens saved drafts; this fixture seeds published articles.
+    page.locator('#article-filters [name=status]').select_option('published')
     expect(page.locator('[data-action=article-detail]:visible')).to_have_count(3)
     fail(page, held, handler, pattern, '合成测试：迟到删除失败，原事项保留。')
     page.wait_for_timeout(100)

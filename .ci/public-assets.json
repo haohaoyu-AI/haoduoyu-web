@@ -5,10 +5,11 @@
     "api-docs.html": "96784b315e55e4411f87e1b9ce62510abca55bfc478b2f1dbd28f47d0ce04559",
     "app.js": "bea903e4d79668f372ab9c631352dab0a7aa36024ef1a9b95f66754b5c175cd7",
     "favicon.svg": "7c9efae613cbef58279b0e8f96eb2e1badc728e6ec289eaa63c7239a05ddd727",
-    "index.html": "0672159ba31ebecba0eb4a9b1328ca9222cb6aa3753f0ec729ff8fe5e8bf4336",
+    "index.html": "67479bcf1ee343825d491a2187c1ac42548c86d1d6d0abaad91740aebf8dde44",
     "llms.txt": "c83ffbf1b1d224ec0e504181383f8c54add06331321458cac45562d9b8134429",
     "openapi.json": "8539fe6521527de163440f3957efb4567bcca96f2f6a82a823967bf926b35e5a",
     "robots.txt": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
-    "style.css": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f"
+    "style.css": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f",
+    "glass.css": "976d0436e1f060ed5366390b7c42e0b6fb2b398921061ab6d043b3eeacdac3a5"
   }
 }
