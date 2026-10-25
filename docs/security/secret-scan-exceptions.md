@@ -93,3 +93,18 @@ Python/Node复算SHA256均与pin精确相同；Git blob为d9eb6f5591f4d3c82c903d
 [官方8.30.1解析](https://github.com/gitleaks/gitleaks/blob/v8.30.1/config/config.go#L215-L341)与
 [匹配实现](https://github.com/gitleaks/gitleaks/blob/v8.30.1/detect/detect.go#L708-L826)。
 原失败及脱敏报告仍保留，不将历史原始命中描述为零。
+
+## Phase2B：两条公开资产摘要误报（2026-10-25）
+
+CI216（40158953228）扫描全量远端 refs，在 `ac353c497d10f09fab8fed93370c1b7d109327e7`
+的 `.ci/public-assets.json` 第5、10行命中两个 `generic-api-key`。两行分别是
+`public/api-docs.html` 和 `public/openapi.json` 的 SHA256 pin。对该提交原始 Git blob
+复算，分别为 `38049c12afb0df72efa127798a972acba0162fd4c1dc1db2da3d50ad23792c75`
+和 `b2b623e1a2659a81d828b9d1aac748a6a1e5f27db7ade798f94a30ff3323a035`，与 pin 相同。
+这些公开文件摘要不是凭据。本次仅添加这两个提交/路径/规则/行精确指纹；不增加目录、
+整文件、规则或未来提交豁免，默认规则和既有例外不改。若今后 squash/改行再次命中，
+必须对具体新记录重新复核，不能由此推断自动豁免。
+
+校验固定 Gitleaks8.30.1 官方归档 SHA256 后，本地原扫描参数覆盖63内容提交，
+原始命中2项，采用这两条精确指纹后为0。CI216覆盖181内容提交，覆盖范围不同，
+不把本地数量冒称远端数量；最终远端重验以最新提交 CI 为准。原始失败记录保留。

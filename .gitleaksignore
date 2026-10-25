@@ -1,5 +1,8 @@
 # Exact reviewed historical false-positive fingerprints only.
 # See docs/security/secret-scan-exceptions.md; never ignore a whole test directory.
+# Recomputed public api-docs.html/openapi.json SHA256 asset pins; not credentials.
+ac353c497d10f09fab8fed93370c1b7d109327e7:.ci/public-assets.json:generic-api-key:5
+ac353c497d10f09fab8fed93370c1b7d109327e7:.ci/public-assets.json:generic-api-key:10
 4883735fd6f0e75bfe0cfbe11ce5096fe11d8a35:cloud-web/evidence/cloud-continuation-round2-20261014/file-hashes.json:generic-api-key:23
 5d57d863e261488f4edf260d13f08dcba6263ac0:tests/claude-outline-provider.mjs:generic-api-key:10
 5d57d863e261488f4edf260d13f08dcba6263ac0:tests/claude.mjs:generic-api-key:102
