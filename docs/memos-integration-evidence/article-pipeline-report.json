@@ -1,0 +1,82 @@
+{
+  "scope": "Production-base local integration only; isolated Chromium and loopback real Worker; temporary synthetic D1; no production access.",
+  "base_commit": "fe8efa479c0c2865970b43053db4deb62a3380c9",
+  "memo_commit": "0bff743cc6951a6fb51ffa47dd8cdcc4c55bcbb6",
+  "branch": "opt/memos-production-integration",
+  "limitations": [
+    "Mobile screenshots and operation checks use Chromium emulation, not physical devices."
+  ],
+  "suite": "article-pipeline",
+  "completed": true,
+  "checks": {
+    "default_landing_todos_1440": true,
+    "notes_public_readonly_owner_login_boundary": {
+      "public_write_status": 401,
+      "owner_can_edit": true
+    },
+    "published_native_middle_click_link_keeps_status_and_platform": true,
+    "overview_draft_default_real_counts_and_published_switch": {
+      "unpublished": 4,
+      "draft_saved": 3,
+      "published": 1,
+      "writers": [
+        [
+          "得到大脑",
+          "1",
+          "0"
+        ],
+        [
+          "Gemini",
+          "1",
+          "0"
+        ],
+        [
+          "人工",
+          "1",
+          "1"
+        ],
+        [
+          "其他",
+          "1",
+          "0"
+        ]
+      ]
+    },
+    "articles_default_status_five_options_and_columns": true,
+    "pipeline_filters_columns_route_roundtrip_tt1_boundary": {
+      "images": 25,
+      "warnings": []
+    },
+    "detail_safe_json_unpublished_and_unknown_done_preservation": true,
+    "verification_real_cas_409_reloads_without_replay": true,
+    "verification_explicit_retry_same_body_and_idempotency_key": {
+      "attempts": 2,
+      "same_key": true,
+      "same_body": true
+    },
+    "safe_and_unsafe_draft_links_edit_null_zero_unknown_json_preservation": true,
+    "create_draft_without_publication_null_zero_and_text_id": true,
+    "all_five_status_routes_and_published_real_zero_detail": true,
+    "mobile_390_navigation_cards_detail_form_filter_overview_notes": true,
+    "mobile_375_navigation_cards_detail_form_filter_overview_notes": true,
+    "no_page_errors_xss_dialogs_or_external_requests": true
+  },
+  "pageerrors": [],
+  "blocked_external_requests": [],
+  "validated_sha256": {
+    "public/app.js": "41e4a44558567f604821ad3489bfb40fb8375d645d3d9e76df46b770a4883201",
+    "public/style.css": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f",
+    "dist/server/index.js": "328196f20ad3622e2376c417abbd80a8d05670adfb4b056e30b5320e7a2a8066"
+  },
+  "browser": {
+    "executable": "/usr/bin/chromium",
+    "version": "154.0.8037.57"
+  },
+  "archived_screenshot": "docs/memos-integration-evidence/article-pipeline-desktop-1440.png",
+  "dialogs": [],
+  "test_projection_update": "Existing mobile navigation count assertion changed from 6 to 7 for the explicitly added memo module; all other scenarios unchanged.",
+  "expected_injected_responses": [
+    "Real concurrent update returns CAS409 without replay.",
+    "Synthetic503 followed only by explicit retry with identical body and idempotency key."
+  ]
+}

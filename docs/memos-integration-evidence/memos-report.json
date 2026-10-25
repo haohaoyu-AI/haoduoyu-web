@@ -1,0 +1,38 @@
+{
+  "scope": "Production-base local integration only; isolated Chromium and loopback real Worker; temporary synthetic D1; no production access.",
+  "base_commit": "fe8efa479c0c2865970b43053db4deb62a3380c9",
+  "memo_commit": "0bff743cc6951a6fb51ffa47dd8cdcc4c55bcbb6",
+  "branch": "opt/memos-production-integration",
+  "limitations": [
+    "Mobile screenshots and operation checks use Chromium emulation, not physical devices."
+  ],
+  "suite": "memos",
+  "completed": true,
+  "checks": [
+    "existing real owner login retains memo route and enables owner capability",
+    "desktop create/rename group and note; title/body autosave; plaintext rendering; no horizontal overflow",
+    "independent anonymous desktop reader sees only public text and no mutation controls",
+    "mobile group/list/editor navigation and autosave, 375px without overflow",
+    "mobile anonymous reader can navigate the same two-level public structure",
+    "real concurrent mobile update causes desktop CAS409; local/server text retained; explicit resolution saves",
+    "lost response after real commit resolves through receipt lookup with exactly one PUT, no blind replay",
+    "offline draft survives reload; no automatic write replay; explicit recovery saves retained text",
+    "owner note soft-delete hides public text; mobile trash navigation/restore retains body",
+    "nonempty group requires title/count confirmation; mobile group restore preserves child note"
+  ],
+  "pageerrors": [],
+  "blocked_external_requests": [],
+  "validated_sha256": {
+    "public/app.js": "41e4a44558567f604821ad3489bfb40fb8375d645d3d9e76df46b770a4883201",
+    "public/memos.css": "a45de7c1a4b6e2edfd00a2e29ab9d4dd40a101389e0c42a6ef5a23bb97817eba",
+    "dist/server/index.js": "328196f20ad3622e2376c417abbd80a8d05670adfb4b056e30b5320e7a2a8066"
+  },
+  "browser": "154.0.8037.57",
+  "archived_screenshot": "docs/memos-integration-evidence/memos-mobile-375.png",
+  "expected_network_failures": [
+    {
+      "count": 1,
+      "reason": "Deliberately dropped response after real commit; receipt lookup with exactly one PUT and no blind replay."
+    }
+  ]
+}

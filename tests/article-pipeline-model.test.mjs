@@ -42,7 +42,7 @@ test('active migration is the exact approved SQL; old SQL and all non-article me
   assert.equal((await loadArticleMigration()).length,25);
   assert.equal(sql,await readFile(new URL('migration-candidates/'+articleMigrationTag+'.sql',root),'utf8'));
   const journal=JSON.parse(await readFile(new URL('drizzle/meta/_journal.json',root),'utf8'));
-  assert.equal(journal.entries.length,6);assert.equal(journal.entries[5].tag,articleMigrationTag);
+  assert.equal(journal.entries.length,7);assert.equal(journal.entries[5].tag,articleMigrationTag);
   for(const entry of journal.entries.slice(0,5)) {
     const path='drizzle/'+entry.tag+'.sql';
     assert.equal(await readFile(new URL(path,root),'utf8'),execFileSync('git',['show',base+':'+path],{cwd:root,encoding:'utf8'}));
@@ -73,7 +73,7 @@ test('active local executor atomically upgrades populated schema and fixture led
   const after=await captureGraphState(db);assertGraphPreserved(before,after,{pipelineAdded:true});
   assert.equal(after.tables.matrix_articles.rows[0].__graph_rowid__,'9007199254740993');
   assert.deepEqual(await ledger(db),[...beforeLedger,{name:articleMigrationTag}]);
-  await applyLocalSchemaMigrations(db);
+  await applyLocalSchemaMigrations(db,{through:6});
   assert.deepEqual(await captureGraphState(db),after,'reopening an already migrated fixture does not rewrite data');
   await assert.rejects(applyArticleMigration(db),/GRAPH_ALREADY_APPLIED/);
 });
@@ -90,12 +90,12 @@ test('active executor failure at final ledger write rolls back DDL and data; cat
   assert.deepEqual(await captureGraphState(db),before);assert.deepEqual(await ledger(db),beforeLedger);
 });
 
-test('unverified transport and incomplete prior ledger fail closed; empty full schema has only 16 matrix tables',async t=>{
+test('unverified transport and incomplete prior ledger fail closed; article migration schema has only 16 matrix tables',async t=>{
   const db=await database(t);
   await assert.rejects(applyArticleMigration(db,{ledgerTable:'d1_migrations'}),/Unverified migration ledger/);
   await db.prepare('DELETE FROM __fixture_migrations WHERE name=?').bind('0004_daily_notes').run();
   await assert.rejects(applyArticleMigration(db),/GRAPH_PRIOR_LEDGER_MISMATCH/);
-  const target=await database(t,{through:Infinity}),state=await captureGraphState(target);
+  const target=await database(t,{through:6}),state=await captureGraphState(target);
   assert.equal(state.tableNames.length,16);
   for(const table of Object.values(state.tables))assert.equal(table.rows.length,0);
   assert.equal((await ledger(target)).length,6);

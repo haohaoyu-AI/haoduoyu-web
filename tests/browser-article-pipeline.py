@@ -382,7 +382,7 @@ try:
             mobile.goto(ORIGIN)
             ready(mobile)
             expect(mobile.locator('#daily-todos')).to_be_visible()
-            assert len(mobile.locator('.mobile-nav [data-nav]').all()) == 6
+            assert len(mobile.locator('.mobile-nav [data-nav]').all()) == 7
             no_overflow(mobile)
             capture(mobile, 'mobile-todos-landing-' + str(width))
             nav(mobile, 'articles')

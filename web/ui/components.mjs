@@ -40,6 +40,7 @@ function accountFilter() {
   state.account)}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "memos") return '<div class="heading-left"><h1>备忘录</h1></div>';
   if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(

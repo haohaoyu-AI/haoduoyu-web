@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {readFile, readdir} from 'node:fs/promises';
 import {parseWeb} from '../scripts/check-web.mjs';
+import {memoAddedModules,projectMemoFrontend} from './memos-ui-projection.mjs';
 
 export const PHASE7_BASELINE='37a1e4f2618e1fea6ded05911b2a73572968442a';
 const root=new URL('../',import.meta.url);
@@ -82,6 +83,7 @@ export async function phase7Manifest() {
   assert.equal(manifest.baseline,PHASE7_BASELINE);return manifest;
 }
 export async function projectPhase7Frontend(file,source) {
+  source=await projectMemoFrontend(file,source);
   const delta=await phase7Manifest();
   const changes=file==='public/app.js'?delta.bundle:delta.sources[file];
   if(!changes)return source;
@@ -94,11 +96,12 @@ export async function phase7ModuleFiles() {
 }
 export async function verifyPhase7FrontendBoundary() {
   const delta=await phase7Manifest(),files=await phase7ModuleFiles();
-  assert.deepEqual(files,delta.modules,'the complete frontend module inventory is explicit');
+  assert.deepEqual(files,[...delta.modules,...memoAddedModules].sort(),'the complete article and memo module inventory is explicit');
   for(const file of files) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
-    if(Object.hasOwn(delta.sources,file))await projectPhase7Frontend(file,source);
-    else assert.equal(source,phase7Baseline(file),'unchanged frontend source remains byte-identical: '+file);
+    if(memoAddedModules.includes(file))assert.equal(await projectMemoFrontend(file,source),'');
+    else if(Object.hasOwn(delta.sources,file))await projectPhase7Frontend(file,source);
+    else assert.equal(await projectMemoFrontend(file,source),phase7Baseline(file),'unchanged frontend source remains byte-identical: '+file);
   }
   const css=await readFile(new URL('../public/style.css',import.meta.url),'utf8'),base=phase7Baseline('public/style.css');
   assert.equal(css.slice(0,base.length),base,'the complete accepted CSS prefix remains byte-identical');

@@ -2,15 +2,21 @@ import { randomUUID } from 'node:crypto';
 
 const methods = new Set(['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']);
 const paths = [
-  '/', '/index.html', '/app.js', '/style.css', '/favicon.svg', '/openapi.json', '/robots.txt', '/llms.txt', '/api-docs', '/health',
+  '/', '/index.html', '/app.js', '/style.css', '/memos.css', '/favicon.svg', '/openapi.json', '/robots.txt', '/llms.txt', '/api-docs', '/health',
   ...['bootstrap', 'auth/me', 'auth/login', 'auth/logout', 'auth/password', 'accounts', 'articles', 'observations',
-    'daily-metrics', 'todos', 'todo-templates', 'todo-preferences', 'dashboard', 'overview', 'due-reviews', 'api-keys', 'audit', 'backup', 'export'].map(path => '/api/v1/' + path),
+    'daily-metrics', 'todos', 'todo-templates', 'todo-preferences', 'memos', 'dashboard', 'overview', 'due-reviews', 'api-keys', 'audit', 'backup', 'export'].map(path => '/api/v1/' + path),
 ];
 const routes = new Map(paths.map(path => [path, path]));
 const dynamic = ['articles', 'accounts', 'api-keys', 'todos', 'todo-templates'].map(name => [
   new RegExp('^/api/v1/' + name + '/[^/]+$'), '/api/v1/' + name + '/{id}',
 ]);
 for(const action of ['restore','template']) dynamic.push([new RegExp('^/api/v1/todos/[^/]+/'+action+'$'),'/api/v1/todos/{id}/'+action]);
+for(const kind of ['groups','notes','operations']) dynamic.push([
+  new RegExp('^/api/v1/memos/'+kind+'/[^/]+$'),'/api/v1/memos/'+kind+'/{id}',
+]);
+for(const kind of ['groups','notes']) dynamic.push([
+  new RegExp('^/api/v1/memos/'+kind+'/[^/]+/restore$'),'/api/v1/memos/'+kind+'/{id}/restore',
+]);
 const labels = new Set([...paths, ...dynamic.map(([, label]) => label), 'unmatched', 'unmatched-api', 'unmatched-static']);
 const safeMethod = method => methods.has(method) ? method : 'OTHER';
 

@@ -13,7 +13,7 @@ test('Phase7 projection refuses edits to approved nodes, unrelated properties an
   for(const mutation of [source.replace('今日头条','未授权平台名'),source.replace('draft_saved: "草稿已存"','draft_saved: "未授权状态名"'),
     source+'\nconst unapprovedPhase7Declaration = true;\n']) {
     assert.notEqual(mutation,source,'mutation fixture must change the source');
-    await assert.rejects(projectPhase7Frontend(file,mutation),/exact approved Phase7 AST changes/);
+    await assert.rejects(projectPhase7Frontend(file,mutation),/exact approved Phase7 AST changes|exact memo additions retain every released article frontend AST node/);
   }
   const delta=await phase7Manifest();
   assert.ok(delta.sources['web/core/state.mjs'].some(row=>row.key==='variable:state.articleOverviewMode'));

@@ -23,7 +23,7 @@ function fields() {
 }
 async function setup(t) {
   const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
-  assert.equal(journal.entries.length,6,'Phase2B must activate the reviewed migration; never apply a test-only fallback');
+  assert.equal(journal.entries.length,7,'Phase2B must activate the reviewed migration; never apply a test-only fallback');
   const app=await fixture(t),session=await app.login();
   const owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const columns=(await app.db.prepare('PRAGMA table_info(matrix_articles)').all()).results.map(x=>x.name);

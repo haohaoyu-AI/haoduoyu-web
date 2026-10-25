@@ -21,8 +21,13 @@ const v5Columns={
   audit:['id','actor','action','entity_id','detail_json','created_at'],
   idempotency:['actor','key','request_hash','response_json','status','created_at'],
 };
-const columns={...v5Columns,articles:[...v5Columns.articles,...ARTICLE_PIPELINE_FIELDS]};
-const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes']);
+const v6Columns={...v5Columns,articles:[...v5Columns.articles,...ARTICLE_PIPELINE_FIELDS]};
+const memoColumns={
+  memo_groups:['user_id','id','title','position','version','change_seq','created_at','updated_at','deleted_at'],
+  memo_notes:['user_id','id','group_id','title','body','position','version','change_seq','created_at','updated_at','deleted_at'],
+};
+const columns={...v6Columns,...memoColumns};
+const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','memo_groups','memo_notes']);
 const backupTable=name=>privateTables.has(name)?'matrix_'+name:name;
 const v4Columns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>name!=='daily_notes'));
 const legacyColumns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>!privateTables.has(name)));
@@ -33,8 +38,27 @@ const v2Columns=Object.fromEntries(Object.entries(v3Columns).filter(([name])=>![
 const versionColumns=new Map([
   ['haoduoyu-matrix-d1-v1',legacyColumns],['haoduoyu-matrix-d1-v2',v2Columns],
   ['haoduoyu-matrix-d1-v3',v3Columns],['haoduoyu-matrix-d1-v4',v4Columns],
-  ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',columns],
+  ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',v6Columns],['haoduoyu-matrix-d1-v7',columns],
 ]);
+function validateMemos(tables,sourceRevision) {
+  const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
+  const users=new Set(tables.users.map(row=>row.id)),groups=new Set(),notes=new Set(),counts=new Map();
+  const validText=value=>typeof value==='string'&&value.isWellFormed()&&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+  const timestamp=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
+  for(const name of Object.keys(memoColumns))for(const row of tables[name]) {
+    const key=JSON.stringify([row.user_id,row.id]),seen=name==='memo_groups'?groups:notes;
+    const countKey=name+':'+row.user_id,count=(counts.get(countKey)||0)+1;counts.set(countKey,count);
+    if(!uuid.test(row.user_id)||!uuid.test(row.id)||!users.has(row.user_id)||seen.has(key)||
+      !validText(row.title)||!row.title.trim()||[...row.title].length>120||/[\r\n\t]/.test(row.title)||
+      !Number.isSafeInteger(row.position)||row.position<0||row.position>1000000||
+      !Number.isSafeInteger(row.version)||row.version<1||!Number.isSafeInteger(row.change_seq)||row.change_seq<1||row.change_seq>sourceRevision||
+      !timestamp(row.created_at)||!timestamp(row.updated_at)||row.deleted_at!==null&&!timestamp(row.deleted_at)||
+      count>(name==='memo_groups'?32:200))throw fail(400,'INVALID_BACKUP','备忘录字段或归属无效');
+    if(name==='memo_notes'&&(!uuid.test(row.group_id)||!groups.has(JSON.stringify([row.user_id,row.group_id]))||
+      !validText(row.body)||Buffer.byteLength(row.body,'utf8')>65536))throw fail(400,'INVALID_BACKUP','备忘录笔记或分组归属无效');
+    seen.add(key);
+  }
+}
 export async function exportBackup(db,{todoUserId}={}) {
   const data=await consistentRead(db,async(store,sourceRevision)=>{
     const tables={};
@@ -43,7 +67,7 @@ export async function exportBackup(db,{todoUserId}={}) {
       tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
         ...(scoped?[todoUserId]:[]));
     }
-    return {format:'haoduoyu-matrix-d1-v6',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
+    return {format:'haoduoyu-matrix-d1-v7',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
   });
   return {data,sha256:digest(JSON.stringify(stable(data)))};
 }
@@ -52,15 +76,15 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   if(!allowEmptyRestore) throw fail(403,'RESTORE_DISABLED','恢复只允许在显式指定的空隔离数据库执行');
   if(!versionColumns.has(backup?.data?.format)||backup.sha256!==digest(JSON.stringify(stable(backup.data)))) throw fail(400,'INVALID_BACKUP','备份格式或校验和无效');
   const expected=versionColumns.get(backup.data.format);
-  const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6'].includes(backup.data.format);
-  const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6'].includes(backup.data.format);
-  const hasPipeline=backup.data.format==='haoduoyu-matrix-d1-v6';
+  const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7'].includes(backup.data.format);
+  const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7'].includes(backup.data.format);
+  const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7'].includes(backup.data.format);
   const sourceRevision=hasSourceRevision?backup.data.source_revision:0;
   if(hasSourceRevision&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
     throw fail(400,'INVALID_BACKUP','备份修订号无效');
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
-  const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],...supplied};
+  const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],memo_groups:[],memo_notes:[],...supplied};
   for(const [name,fields] of Object.entries(expected)) {
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {
@@ -75,6 +99,7 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
     }
   }
   if(tables.daily_notes.some(row=>row.change_seq>sourceRevision))throw fail(400,'INVALID_BACKUP','碎碎念变更号超过源修订号');
+  validateMemos(tables,sourceRevision);
   // Validate the exact historic columns before introducing compatibility defaults.
   if(!hasTodoTombstones) {
     tables.todos=tables.todos.map(row=>({...row,deleted_at:null}));

@@ -43,6 +43,13 @@
       "when": 1792898271682,
       "tag": "0005_article_pipeline",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792907038349,
+      "tag": "0006_long_term_memos",
+      "breakpoints": true
     }
   ]
 }
