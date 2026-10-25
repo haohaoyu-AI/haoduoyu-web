@@ -1,0 +1,31 @@
+{
+  "baseline": "fe8efa479c0c2865970b43053db4deb62a3380c9",
+  "spec_changes": [
+    {
+      "path": [
+        "paths",
+        "/api/v1/snapshot"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "214b73247bc219cd5e83ae5a6fbc9e1df716c4919c010142b19a8a12f8fe5b8f"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/snapshot/index"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "7ee77c17b264c08ecee588a05e20b106f8579d7377ca717f35603d1c62a71ac2"
+    }
+  ],
+  "docs": {
+    "replacements": [],
+    "section": {
+      "start": "<!-- snapshot-contract:start -->",
+      "end": "<!-- snapshot-contract:end -->",
+      "sha256": "6720e2b6b1fd16769f6a2b34482101a65b4a89e1f4029e45675bc153cd19c75f"
+    }
+  }
+}
