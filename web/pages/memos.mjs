@@ -61,7 +61,11 @@ function flatNoteRow(note, store) {
   const deleted = Boolean(note.deleted_at || group?.deleted_at), extra = ' data-memo-target="' + e(note.id) + '"';
   const control = !s.canEdit ? '' : s.trash ? button('restore-note', '恢复', extra) :
     button('delete-note', '×', extra + ' aria-label="删除' + e(note.title) + '" title="移至回收站"');
-  return '<div class="memo-flat-row">' + listButton('note', note, s.noteId) + control + '</div>';
+  const removed = note.deleted_at || group?.deleted_at;
+  const days = removed ? Math.max(0,30-Math.floor((Date.now()-Date.parse(removed))/86400000)) : 0;
+  const retention = s.trash ? '<small class="memo-retention">' +
+    (days ? '30天恢复期 · 剩余' + days + '天' : '已归档 · 可恢复') + '</small>' : '';
+  return '<div class="memo-flat-row">' + listButton('note', note, s.noteId) + control + retention + '</div>';
 }
 function paintLists(root, store) {
   const s = store.state, find = q => root.querySelector(q);
@@ -90,7 +94,7 @@ function paintDrafts(root, store) {
 function paintDocument(root, store) {
   const s = store.state, item = store.drafts.get(s.noteId), find = q => root.querySelector(q);
   find('#memo-empty').hidden = Boolean(item);
-  find('#memo-empty').textContent = s.trash ? '这里单独保留已删除笔记，选择后可恢复。' : '选择一篇笔记，长期记录常用信息。';
+  find('#memo-empty').textContent = s.trash ? '选择笔记查看' : '选择一篇笔记';
   find('#memo-document').hidden = !item;
   if (!item) return;
   const group = s.groups.find(row => row.id === item.group_id), deleted = Boolean(item.deleted_at || group?.deleted_at);
@@ -133,13 +137,14 @@ export function paintMemos(root, store) {
   root.dataset.pane = s.pane;
   const actual = phases[item?.phase] || '已保存', routine = ['dirty', 'saving', 'saved'].includes(item?.phase) || !item;
   find('#memo-status').textContent = s.loading ? '正在读取…' : !s.canEdit ? '公开只读' : routine ? '自动保存' : actual;
+  find('#memo-status').hidden = s.trash && !s.loading;
   find('#memo-status').setAttribute('aria-label', actual);
   find('#memo-status').dataset.phase = item?.phase || 'saved';
   find('#memo-error').hidden = !s.error && !s.storageError;
   find('#memo-error').textContent = [s.error, s.storageError].filter(Boolean).join(' ');
   find('[data-memo-action="login"]').hidden = s.canEdit || s.loading;
   if (!s.canEdit) find('#memo-recovery').hidden = true;
-  find('[data-memo-action="exit-trash"]').hidden = !s.trash;
+  find('[data-memo-action="exit-trash"]').hidden = !s.trash || root.closest('.workbench-settings') !== null;
   find('[data-memo-action="back-notes"]').hidden = s.pane !== 'editor';
   const operation = s.operation;
   find('#memo-operation').hidden = !operation?.error && operation?.phase !== 'unknown';

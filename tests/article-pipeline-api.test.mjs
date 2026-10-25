@@ -23,7 +23,9 @@ function fields() {
 }
 async function setup(t) {
   const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
-  assert.equal(journal.entries.length,8,'Phase2B must activate the reviewed migration; never apply a test-only fallback');
+  assert.equal(journal.entries.length,9,'The active journal retains the reviewed article migration and additive workbench migration');
+  assert.equal(journal.entries[5].tag,'0005_article_pipeline');
+  assert.equal(journal.entries[8].tag,'0008_workbench_updates');
   const app=await fixture(t),session=await app.login();
   const owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const columns=(await app.db.prepare('PRAGMA table_info(matrix_articles)').all()).results.map(x=>x.name);

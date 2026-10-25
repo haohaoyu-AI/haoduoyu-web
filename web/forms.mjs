@@ -32,7 +32,7 @@ async function submitArticleForm({ form, data }) {
   if (!saved) return;
   closeModal();
   const epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
-  toast(form.dataset.id ? "文章台账已更新。" : "文章已保存。");
+  toast(form.dataset.id ? "文章已更新。" : "文章已保存。");
   try { await renderPage(); } catch {
     if (epoch === runtime.sessionEpoch && ticket === runtime.modalRequestVersion) {
       toast("文章已保存，但列表暂时无法刷新，请稍后刷新页面。", true);
@@ -63,13 +63,26 @@ async function submitReviewForm({ form, data }) {
   return;
 }
 async function submitAccountForm({ form, data, values }) {
-  const id = form.dataset.id;
-  await api(id ? `/accounts/${encodeURIComponent(id)}` : "/accounts", { method: id ? "PUT" : "POST", body: id ? { name: data.name.trim(), active: values.
-  has("active") } : { platform: data.platform, name: data.name.trim() } });
-  state.accounts = (await api("/accounts")).sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - ["toutiao", "zhihu",
+  const id = form.dataset.id, epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
+  const profile = String(data.profile_url || "").trim();
+  const body = id ? { name: data.name.trim(), active: values.has("active") } : { platform: data.platform, name: data.name.trim() };
+  if (profile || id && (state.accountProfiles || []).some((row) => row.account_id === id)) body.profile_url = profile;
+  const signature = JSON.stringify(body);
+  if (form.accountSaveSignature !== signature) {
+    form.accountSaveSignature = signature;
+    form.accountSaveKey = crypto.randomUUID();
+  }
+  const saved = await api(id ? `/accounts/${encodeURIComponent(id)}` : "/accounts", {
+    method: id ? "PUT" : "POST", body, headers: { "Idempotency-Key": form.accountSaveKey }
+  });
+  if (epoch !== runtime.sessionEpoch || ticket !== runtime.modalRequestVersion) return;
+  const [accounts, profiles] = await Promise.all([api("/accounts"), api("/account-profiles")]);
+  if (epoch !== runtime.sessionEpoch || ticket !== runtime.modalRequestVersion) return;
+  state.accountProfiles = profiles;
+  state.accounts = accounts.sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - ["toutiao", "zhihu",
   "wechat", "other"].indexOf(b.platform));
   closeModal();
-  toast("运营账号已保存。");
+  toast(saved.profile_reused ? `该主页已关联「${saved.name}」，已使用现有账号。` : "运营账号已保存。");
   renderShell();
   return;
 }

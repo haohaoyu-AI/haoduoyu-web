@@ -63,7 +63,7 @@ async function renderArticles(version = runtime.renderVersion, context) {
   state.articles = articles;
   state.articleMeta = meta;
   const content = articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "尚未记录文章",
-    "可先保存草稿，发布时再填写真实链接和时间。", '<button class="btn" data-action="reset-filters">清空筛选</button>');
+    "", '<button class="btn" data-action="reset-filters">清空筛选</button>');
   return `<section class="card article-list article-ledger article-ledger-list"><form id="article-filters" class="filters">
 <label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}"
 placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${statusSelect(f.status || "draft_saved")}
@@ -185,7 +185,7 @@ ${field("draft_editor_url", "草稿编辑链接（HTTP/HTTPS）", "url", article
 }
 function articleForm(article, id) {
   return `<form id="article-form" class="article-ledger article-ledger-form" data-id="${e(id)}" data-version="${e(article.version || "")}">
-<p class="form-context">北京时间 · 草稿无需公开链接或发布时间；只有已发布记录才填写发布信息。</p><div class="form-grid">
+<p class="form-context">北京时间</p><div class="form-grid">
 ${field("title", '文章标题 <span class="required">*</span>', "text", article.title, 'maxlength="300" required', true)}
 <label class="form-field full">所属运营账号 <span class="required">*</span><select class="input" id="field-account_id"
 name="account_id" required>${accountOptions(article.account_id, false, true)}</select></label>${articleMetadataFields(article)}
@@ -206,7 +206,7 @@ async function articleModal(id = "") {
   if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
   const active = state.accounts.filter(account => account.active || account.id === article.account_id);
   if (!active.length) { toast("请先添加一个启用的运营账号。", true); return; }
-  openModal(id ? "编辑文章台账" : "记录文章", articleForm(article, id));
+  openModal(id ? "编辑文章" : "记录文章", articleForm(article, id));
   runtime.articleFormRecord = { record: article, sessionEpoch: runtime.sessionEpoch, ticket: runtime.modalRequestVersion };
 }
 export { articleDraft, articleFilterPanel, articleMenu, articleModal, articleTable, renderArticles, viewDraft };

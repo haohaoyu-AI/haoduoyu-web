@@ -65,7 +65,7 @@ function paintTodoCalendar(date) {
 }
 function todoDateControls(date) {
   return `<div class="daily-todo-dates"><button class="btn small" data-action="todo-prev" aria-label="前一天">‹</button>
-<label for="todo-date" class="sr-only">查看日期</label><input class="input" id="todo-date" type="date" value="${e(date)}">
+<label for="todo-date" class="sr-only">选择计划日期</label><input class="input" id="todo-date" type="date" value="${e(date)}">
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
@@ -83,7 +83,7 @@ aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ?
 }
 function todoForm(day) {
   const label = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
-  return `<form ${state.todoPanel === "history" ? "hidden" : ""} id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加每日计划">
+  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加 ${e(day.date)} 的计划">
 <label for="todo-text" class="sr-only">${label}</label><input id="todo-text" class="input" name="text" maxlength="500" required
 autocomplete="off" placeholder="${label}" value="${e(day.draft)}" >
 <button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>添加</button></form>`;
@@ -94,14 +94,15 @@ function todoCaption(day) {
 }
 function todoHeading(day) {
   return `<span id="todo-caption">${todoCaption(day)}</span><div class="todo-view-links">
+<button id="todo-return-today" class="btn text" data-action="todo-panel-close" ${state.todoDate && !state.todoPanel ? "" : "hidden"}>返回今日待办</button>
 <button class="btn text" data-action="todo-panel" data-panel="history" aria-controls="todo-history"
-aria-expanded="${state.todoPanel === "history"}">历史</button>
+aria-expanded="${state.todoPanel === "history"}">日历</button>
 <button class="btn text" data-action="todo-panel" data-panel="templates" aria-controls="todo-templates"
 aria-expanded="${state.todoPanel === "templates"}">常用</button></div>`;
 }
 function renderTodoHistory(day) {
-  return `<section id="todo-history" class="todo-view" aria-label="待办历史" ${state.todoPanel === "history" ? "" : "hidden"}>
-<div class="todo-view-head"><h2>待办历史</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
+  return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
+<div class="todo-view-head"><h2>待办日历</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day.date)}" data-today="${bjtDate()}">
 ${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</section>`;
 }
@@ -110,7 +111,8 @@ function paintTodoPanels(root) {
   for (const [id, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"]]) {
     const node = $("#" + id, root); if (node) node.hidden = id === "todo-main" ? panel === "templates" : panel !== value;
   }
-  root?.querySelectorAll("#todo-form,.todo-list-options").forEach(node => { node.hidden = panel === "history"; });
+  root?.querySelectorAll(".todo-list-options").forEach(node => { node.hidden = panel === "history"; });
+  const back = $("#todo-return-today", root); if (back) back.hidden = !state.todoDate || Boolean(panel);
   root?.querySelectorAll('[data-action="todo-panel"]').forEach(button => {
     button.setAttribute("aria-expanded", String(button.dataset.panel === panel));
   });
@@ -190,8 +192,10 @@ function paintTodos() {
   }
   paintTodoCalendar(day.date);
   const input = $("#todo-text", root), button = $("#todo-form button[type=submit]", root);
+  const prompt = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label = $('label[for="todo-text"]', root);
   if (input && input.value !== day.draft) input.value = day.draft;
-  if (input) input.readOnly = false;
+  if (input) { input.readOnly = false; input.placeholder = prompt; }
+  if (label) label.textContent = prompt;
   if (button) {
     button.disabled = day.adding;
     button.textContent = "添加";
@@ -308,7 +312,7 @@ async function submitTodo({ form, data }) {
 }
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
-  const day = todoDay(bjtDate());
+  const day = todoDay();
   if (day.adding) return;
   let request = day.templateCreates.get(template.id);
   if (!request || request.text !== template.text) {
@@ -358,7 +362,7 @@ async function toggleTodo(target) {
 }
 function selectTodoDate(date) {
   if (!validTodoDate(date) || state.page !== "todos") return;
-  state.todoDate = date === bjtDate() ? "" : date;
+  state.todoDate = date;
   todosState.calendarDate = date;
   todosState.calendarMonth = date.slice(0, 7);
   updateRoute(true);

@@ -1,6 +1,7 @@
 import {projectReconciliation,reconciliationModules} from './reconciliation-ui-projection.mjs';
 import assert from 'node:assert/strict';
 import {workbenchAddedModules} from './workbench-ui-projection.mjs';
+import {round4AddedModules,projectWorkbenchRound4} from './workbench-round4-projection.mjs';
 import {projectPublicNoteFrontend} from './public-note-ui-projection.mjs';
 import {execFileSync} from 'node:child_process';
 import {readFile, readdir} from 'node:fs/promises';
@@ -103,7 +104,8 @@ export async function verifyMemoFrontendBoundary() {
   const files=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs'))
     .map(file=>'web/'+file).sort();
   for(const file of reconciliationModules)assert.equal(projectReconciliation(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  const existing=files.filter(file=>!reconciliationModules.includes(file));
+  for(const file of round4AddedModules)assert.equal(projectWorkbenchRound4(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
+  const existing=files.filter(file=>![...reconciliationModules,...round4AddedModules].includes(file));
   assert.deepEqual(existing,[...production,...memoAddedModules,...workbenchAddedModules].sort(),'released modules plus reviewed memo and workbench modules');
   for(const file of existing) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');

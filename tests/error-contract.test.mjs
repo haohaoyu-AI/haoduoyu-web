@@ -95,8 +95,20 @@ test('all reviewed error call sites and HTTP error projections retain their base
   for(const message of memoBackupMessages)assert.deepEqual(calls.filter(row=>row.file==='src/backup.mjs'&&row.message===message)
     .map(({status,code,message,alternateMessage})=>({status,code,message,alternateMessage})),
     [{status:400,code:'INVALID_BACKUP',message,alternateMessage:message}]);
+  // Round four adds exactly these profile and v9-record validations. Prove each
+  // complete tuple once before projecting it away; all old calls/HTTP stay locked.
+  const workbenchCalls=[
+    {file:'src/records.mjs',status:422,code:'PROFILE_LIMIT_EXCEEDED',message:'账号主页超过单次可读取数量，请缩小账号范围'},
+    {file:'src/records.mjs',status:409,code:'ACCOUNT_PROFILE_EXISTS',message:'该公开主页已登记，请使用其他主页或联系管理员'},
+    {file:'src/records.mjs',status:409,code:'ACCOUNT_PROFILE_EXISTS',message:'该公开主页已关联其他账号，请使用已存在的账号'},
+    {file:'src/backup.mjs',status:400,code:'INVALID_BACKUP',message:'工作台记录字段、归属或主页链接无效'},
+  ].map(row=>({...row,alternateMessage:row.message}));
+  for(const expected of workbenchCalls)assert.deepEqual(calls
+    .filter(row=>row.file===expected.file&&row.message===expected.message)
+    .map(({baselineLine,ordinal,...row})=>row),[expected]);
+  const workbenchCall=row=>workbenchCalls.some(expected=>Object.entries(expected).every(([key,value])=>row[key]===value));
   const legacyCalls=calls.filter(row=>!(row.file==='src/records.mjs'&&indexMessages.includes(row.message))&&
-    !(row.file==='src/backup.mjs'&&[...noteBackupMessages,...articleBackupMessages,...memoBackupMessages].includes(row.message)));
+    !(row.file==='src/backup.mjs'&&[...noteBackupMessages,...articleBackupMessages,...memoBackupMessages].includes(row.message))&&!workbenchCall(row));
   assert.deepEqual(semantic(legacyCalls), semantic(approvedCalls));
   assert.deepEqual(http, expected.http);
   t.diagnostic(`${calls.length} source call sites; ${http.length} real Worker HTTP error contracts`);

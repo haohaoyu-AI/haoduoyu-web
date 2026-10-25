@@ -1,0 +1,43 @@
+{
+  "synthetic": true,
+  "baseline": "4aefa4d4d596ad540324bc78898ae208121647b4",
+  "completed": true,
+  "checks": [
+    "real multi-entry autosave, server timestamps, selected category and quiet focus 1440",
+    "future calendar input and persistence, chosen-day templates, return today 1440",
+    "settings directly owns trash, restore stays settings, legacy URL compatibility 1440",
+    "daily reminders idempotent readback and complete stable sync manifest 1440",
+    "paste public profile, safe saved link, duplicate account reused",
+    "plain article labels and concise content 1440",
+    "real multi-entry autosave, server timestamps, selected category and quiet focus 375",
+    "future calendar input and persistence, chosen-day templates, return today 375",
+    "settings directly owns trash, restore stays settings, legacy URL compatibility 375",
+    "daily reminders idempotent readback and complete stable sync manifest 375",
+    "plain article labels and concise content 375",
+    "real multi-entry autosave, server timestamps, selected category and quiet focus 390",
+    "future calendar input and persistence, chosen-day templates, return today 390",
+    "settings directly owns trash, restore stays settings, legacy URL compatibility 390",
+    "daily reminders idempotent readback and complete stable sync manifest 390",
+    "plain article labels and concise content 390"
+  ],
+  "pageerrors": [],
+  "http_errors": [],
+  "captures": [
+    "notes-1440.png",
+    "calendar-1440.png",
+    "settings-trash-1440.png",
+    "reminders-1440.png",
+    "account-profile.png",
+    "publishing-1440.png",
+    "notes-375.png",
+    "calendar-375.png",
+    "settings-trash-375.png",
+    "reminders-375.png",
+    "publishing-375.png",
+    "notes-390.png",
+    "calendar-390.png",
+    "settings-trash-390.png",
+    "reminders-390.png",
+    "publishing-390.png"
+  ]
+}

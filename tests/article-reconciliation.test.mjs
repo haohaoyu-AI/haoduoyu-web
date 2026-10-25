@@ -23,7 +23,8 @@ test('actual reconciliation preserves unknowns, distinct numbers, duplicate IDs 
 test('reconciliation rendering escapes all user text and never invents schedule values or title-derived series',()=>{
   const data=reconcileArticles([{...row('a',null),title:'<img src=x onerror=alert(1)>',sample:{ref:'<script>danger</script>'}}]);
   const html=renderReconciliation(data);assert.ok(!html.includes('<img'));assert.ok(!html.includes('<script>'));
-  assert.ok(html.includes('&lt;img'));assert.ok(html.includes('应产出：未配置'));assert.ok(html.includes('样本编号映射：未知'));
+  assert.ok(html.includes('&lt;img'));assert.ok(html.includes('应产出：未配置'));
+  assert.match(html,/<details><summary>编号口径<\/summary><p>起点、目标与样本编号映射未知/);
   assert.ok(renderReconciliation(reconcileArticles([])).includes('没有符合条件'));assert.throws(()=>renderReconciliation({complete:false}));
 });
 test('API scans complete pages in one consistent read, retains nulls and isolates account-scoped keys and public scope',async t=>{

@@ -10,6 +10,7 @@ var icons = {
   settings: '<path d="m9 3-1 3-3 1-2 3 2 2v3l-1 2 3 3 3-1 2 2 3-1 1-3 3-1 2-3-2-2V9l1-2-3-3-3 1-2-2z"/><circle cx="12" cy="12" r="3"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   check: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 4h3m4 0h3"/>',
   arrow: '<path d="M5 12h14m-5-5 5 5-5 5"/>',
   search: '<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
@@ -41,6 +42,7 @@ var nav = [
   { id: "todos", label: "每日待办", icon: "check" },
   { id: "notes", label: "碎碎念", icon: "edit" },
   { id: "memos", label: "备忘录", icon: "articles" },
+  { id: "reminders", label: "工作提醒", icon: "calendar" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
 var settingsTabs = { workspace: "工作台", accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
@@ -102,6 +104,7 @@ var state = {
   me: null,
   savedViews: [],
   accounts: [],
+  accountProfiles: [],
   page: "dashboard",
   settingsTab: "accounts",
   account: "",
@@ -527,7 +530,7 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
-  if (["notes", "memos"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
+  if (["notes", "memos", "reminders"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
   if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button>`;
   if (state.page === "articles") return `<a class="btn" href="/api/v1/export" download>${icon("download")}导出 CSV</a><button class="btn primary" data-action="new-article">${icon("plus")}记录文章</button>`;
   if (state.page === "reviews") return `<button class="btn primary" data-action="new-review">${icon("plus")}录入数据</button>`;
@@ -545,6 +548,7 @@ function accountFilter() {
   )}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "reminders") return '<div class="heading-left"><h1>每日工作提醒</h1></div>';
   if (state.page === "memos") return '<div class="heading-left"><h1>' + (state.memoView === "trash" ? "备忘录回收站" : "备忘录") + "</h1></div>";
   if (state.page === "notes") return '<div class="heading-left"><h1>' + (dailyNotesRouteCategory() === "work" ? "工作碎碎念" : "生活碎碎念") + "</h1></div>";
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
@@ -790,7 +794,7 @@ function validTodoDate(date) {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
 }
 function todoDate() {
-  return state.page === "todos" && state.todoPanel !== "templates" && validTodoDate(state.todoDate) ? state.todoDate : bjtDate();
+  return state.page === "todos" && validTodoDate(state.todoDate) ? state.todoDate : bjtDate();
 }
 function todoDay(date = todoDate()) {
   if (todosState.owner !== todoOwner()) resetTodos();
@@ -1059,12 +1063,12 @@ function statusCounts(counts) {
 }
 function insurance(data) {
   const value = data.insurance;
-  return `<section class="card"><h2>保险编号进度</h2><p class="muted">仅统计当前授权范围内明确 gzh 槽位，不从标题推断。</p>
+  return `<section class="card"><h2 title="仅按公众号槽位统计">保险编号进度</h2>
 <dl class="article-ledger-stats"><div><dt>实际记录</dt><dd>${e(value.recorded)}</dd></div><div><dt>去重编号</dt><dd>${e(value.unique_count)}</dd></div>
 <div><dt>最高编号</dt><dd>${e(value.highest ?? "未知")}</dd></div></dl><p>${e(statusCounts(value.counts))}</p>
 <p>重复号：${e(value.duplicate_numbers.map((row) => `${row.number}（${row.article_ids.length}条）`).join("、") || "无")}</p>
 <p>缺号候选：${e(value.observed_gap_ranges.map((row) => row.from === row.to ? row.from : `${row.from}–${row.to}`).join("、") || "未观察到内部间隔")}</p>
-<p class="muted">候选仅为已有最低号与最高号之间的间隔。起点、目标未配置，不能断言缺号或计算完成率。样本编号映射：未知。</p></section>`;
+<details><summary>编号口径</summary><p>起点、目标与样本编号映射未知；候选仅为已记录编号之间的间隔。</p></details></section>`;
 }
 function articleRows(rows) {
   return rows.map((row) => `<tr><td><button class="btn text" data-action="article-detail" data-id="${e(row.id)}">${e(row.title)}</button></td>
@@ -1076,7 +1080,7 @@ function articleRows(rows) {
 }
 function table(data, filters = {}) {
   const rows = data.rows.filter((row) => ["run_date", "slot", "writer", "status"].every((key) => !filters[key] || (row[key] ?? "unknown") === filters[key]));
-  return `<p role="status">筛选内实际记录 ${e(rows.length)} 条；完整授权范围 ${e(data.total)} 条。</p>${rows.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>文章</th><th>存稿日期</th><th>槽位</th><th>状态</th>
+  return `<p role="status">筛选结果 ${e(rows.length)} 条</p>${rows.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>文章</th><th>存稿日期</th><th>槽位</th><th>状态</th>
 <th>写作者</th><th>编号</th><th>缺字段</th><th>待核</th><th>警告</th><th>样本</th></tr></thead><tbody>${articleRows(rows)}</tbody></table></div>` : '<p class="muted">没有符合条件的实际文章记录。</p>'}`;
 }
 function changeReconciliationFilters(element) {
@@ -1086,19 +1090,17 @@ function changeReconciliationFilters(element) {
   return true;
 }
 function renderReconciliation(data) {
-  if (data?.complete !== true || !Array.isArray(data.rows)) throw new Error("对账数据未完整取得，请重试。");
+  if (data?.complete !== true || !Array.isArray(data.rows)) throw new Error("发布情况未完整取得，请重试。");
   reconciliationData = data;
   const values = (key) => [...new Set(data.rows.map((row) => row[key] ?? "unknown"))].sort();
   const dates = Object.fromEntries(values("run_date").map((value) => [value, value === "unknown" ? "日期未标注" : value]));
-  return `<div class="article-ledger-overview article-reconciliation"><section class="card"><h2>实际文章对账</h2>
-<p class="muted">按存稿日期 run_date 核对完整实际记录，未知状态保留；草稿不计入已发布。</p>
+  return `<div class="article-ledger-overview article-reconciliation"><section class="card"><h2>发布情况</h2>
 <p>应产出：未配置 · 缺产：未配置 · 逾期：未配置</p><p>${e(statusCounts(data.counts))}</p>
 <form id="reconciliation-filters" class="filters">
 <label class="form-field">日期<select class="input" name="run_date">${options(values("run_date"), dates)}</select></label>
 <label class="form-field">槽位<select class="input" name="slot">${options(values("slot"), slotLabels)}</select></label>
 <label class="form-field">写作者<select class="input" name="writer">${options(values("writer"), writerLabels)}</select></label>
 <label class="form-field">状态<select class="input" name="status">${options(values("status"), statusLabels)}</select></label></form>
-<p class="cell-sub">表格可横向滑动，查看状态、槽位、待核及缺字段。</p>
 <div id="reconciliation-results">${table(data)}</div></section>${insurance(data)}</div>`;
 }
 async function loadReconciliation(context) {
@@ -1153,6 +1155,7 @@ function updateRoute(push = false) {
   else u.searchParams.delete("article_scope");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
+  else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
   else u.searchParams.delete("date");
   if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
   else u.searchParams.delete("todo_panel");
@@ -1188,9 +1191,15 @@ function readRoute() {
     setDailyNotesRouteCategory(params.get("notes_category"));
   }
   state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";
+  if (state.memoView === "trash") {
+    state.page = "settings";
+    state.memoView = "";
+  }
+  state.reminderDate = state.page === "reminders" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoPanel = state.page === "todos" && ["history", "templates"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : raw === "settings" && !params.has("tab") ? "workspace" : "accounts");
+  if (raw === "memos" && params.get("memo_view") === "trash") state.settingsTab = "workspace";
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
   state.articleOverviewMode = ["published", "reconciliation"].includes(params.get("article_scope")) ? params.get("article_scope") : "drafts";
@@ -1346,7 +1355,7 @@ async function renderArticles(version = runtime.renderVersion, context) {
   state.articleMeta = meta;
   const content = articles.length ? articleTable(articles) : empty(
     meta.unfiltered_total ? "筛选无结果" : "尚未记录文章",
-    "可先保存草稿，发布时再填写真实链接和时间。",
+    "",
     '<button class="btn" data-action="reset-filters">清空筛选</button>'
   );
   return `<section class="card article-list article-ledger article-ledger-list"><form id="article-filters" class="filters">
@@ -1464,7 +1473,7 @@ ${field("draft_editor_url", "草稿编辑链接（HTTP/HTTPS）", "url", article
 }
 function articleForm(article, id) {
   return `<form id="article-form" class="article-ledger article-ledger-form" data-id="${e(id)}" data-version="${e(article.version || "")}">
-<p class="form-context">北京时间 · 草稿无需公开链接或发布时间；只有已发布记录才填写发布信息。</p><div class="form-grid">
+<p class="form-context">北京时间</p><div class="form-grid">
 ${field("title", '文章标题 <span class="required">*</span>', "text", article.title, 'maxlength="300" required', true)}
 <label class="form-field full">所属运营账号 <span class="required">*</span><select class="input" id="field-account_id"
 name="account_id" required>${accountOptions(article.account_id, false, true)}</select></label>${articleMetadataFields(article)}
@@ -1488,7 +1497,7 @@ async function articleModal(id = "") {
     toast("请先添加一个启用的运营账号。", true);
     return;
   }
-  openModal(id ? "编辑文章台账" : "记录文章", articleForm(article, id));
+  openModal(id ? "编辑文章" : "记录文章", articleForm(article, id));
   runtime.articleFormRecord = { record: article, sessionEpoch: runtime.sessionEpoch, ticket: runtime.modalRequestVersion };
 }
 
@@ -1553,10 +1562,10 @@ async function loadArticleLedgerSummary(context, { accountId = "", request = api
 // web/pages/article-ledger-overview.mjs
 var writerNames = { dedao: "得到大脑", gemini_web: "Gemini", human: "人工", other: "其他", unknown: "未记录" };
 function renderArticleLedgerSummary(data) {
-  if (data?.verified !== true) return '<section class="card article-ledger-overview" role="alert"><h2>文章台账</h2><p>数量未取得，请重新加载。</p></section>';
-  if (data.total === 0) return '<section class="card article-ledger-overview article-ledger-empty"><h2>文章台账</h2><p>尚未记录文章。</p><p class="muted">可以先保存草稿，发布后再补充链接和数据。</p><button class="btn" data-action="new-article">记录草稿</button></section>';
+  if (data?.verified !== true) return '<section class="card article-ledger-overview" role="alert"><h2>文章列表</h2><p>数量未取得，请重新加载。</p></section>';
+  if (data.total === 0) return '<section class="card article-ledger-overview article-ledger-empty"><h2>文章列表</h2><p>尚未记录文章。</p></section>';
   const stats = [["草稿 / 未发布", data.unpublished], ["已存草稿", data.draft_saved], ["已发布", data.published]];
-  return `<section class="card article-ledger-overview"><div class="section-heading"><h2>文章台账</h2></div><dl class="article-ledger-stats">${stats.map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(num(value))}</dd></div>`).join("")}</dl><h3>按写作者</h3><div class="table-scroll"><table class="data-table article-ledger-writers"><thead><tr><th>写作者</th><th>草稿 / 未发布</th><th>已发布</th></tr></thead><tbody>${data.writers.map((row) => `<tr><td>${e(writerNames[row.writer] || "未记录")}</td><td data-label="草稿 / 未发布">${e(num(row.unpublished))}</td><td data-label="已发布">${e(num(row.published))}</td></tr>`).join("")}</tbody></table></div><p class="cell-sub">按本站完整分页记录统计；翻页期间可能有更新，不是原子快照。未配置槽位排期，不计算应产出或缺失。</p></section>`;
+  return `<section class="card article-ledger-overview"><div class="section-heading"><h2 title="读取期间记录可能更新；产出计划未配置">文章列表</h2></div><dl class="article-ledger-stats">${stats.map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(num(value))}</dd></div>`).join("")}</dl><h3>按写作者</h3><div class="table-scroll"><table class="data-table article-ledger-writers"><thead><tr><th>写作者</th><th>草稿 / 未发布</th><th>已发布</th></tr></thead><tbody>${data.writers.map((row) => `<tr><td>${e(writerNames[row.writer] || "未记录")}</td><td data-label="草稿 / 未发布">${e(num(row.unpublished))}</td><td data-label="已发布">${e(num(row.published))}</td></tr>`).join("")}</tbody></table></div></section>`;
 }
 
 // web/pages/dashboard.mjs
@@ -1577,7 +1586,7 @@ function renderDashboard(data) {
 }
 function renderDashboardSummary(data) {
   const daily = dailyDates(data), articles = (data.attention_articles || []).filter((a) => ["up", "down"].includes(a.attention?.kind)), visible2 = state.attentionExpanded ? articles : articles.slice(0, 6);
-  return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible2.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible2)}${articles.length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ? "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">还没有每日新增数据，录入后这里会显示周期变化和趋势。<button class="btn" data-action="new-daily">录入每日数据</button></div>'}</section>
+  return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible2.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible2)}${articles.length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ? "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">暂无每日新增数据。<button class="btn" data-action="new-daily">录入每日数据</button></div>'}</section>
  ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label3]) => `<option value="${e(
     key
   )}" ${state.trendMetric === key ? "selected" : ""}>${e(label3)}</option>`).join("")}</select></label></div>${renderTrend(
@@ -1673,12 +1682,12 @@ function renderTopTable(rows, offset = 0) {
 }
 function dashboardInfoBody(kind, id) {
   const d = state.dashboard || {}, c = d.cumulative || {}, totals = d.totals || {};
-  if (kind === "coverage") return `<p>${e(c.metric_note)}</p><p>篇均分母：有阅读数据 ${e(num(c.data_article_count))} 篇；覆盖率沿用接口口径。</p><p>截至 ${e(time(c.as_of))} · 采集 ${e(time(c.collected_at))}</p><p><button class="btn text" data-action="missing-list" data-status="missing_reads">缺阅读 ${e(num(c.missing_reads_count))} 篇 →</button><button class="btn text" data-action="missing-list" data-status="date_unverified">日期待核实 ${e(num(c.unverified_date_count))} 篇 →</button></p><p>点赞 ${e(num(c.totals?.likes))} · 评论 ${e(num(c.totals?.comments))} · 赞同 ${e(num(c.totals?.approvals))}；互动仅在赞、评均取得时相加。</p><p>自动化占比 ${totals.article_count ? e(num(totals.automatic_count / totals.article_count * 100)) + "%" : "—"} · 耗时中位数 ${e(duration(totals.median_duration_seconds))}</p>`;
+  if (kind === "coverage") return `<p>${e(c.metric_note)}</p><p>篇均分母：有阅读数据 ${e(num(c.data_article_count))} 篇。</p><p>截至 ${e(time(c.as_of))} · 采集 ${e(time(c.collected_at))}</p><p><button class="btn text" data-action="missing-list" data-status="missing_reads">缺阅读 ${e(num(c.missing_reads_count))} 篇 →</button><button class="btn text" data-action="missing-list" data-status="date_unverified">日期待核实 ${e(num(c.unverified_date_count))} 篇 →</button></p><p>点赞 ${e(num(c.totals?.likes))} · 评论 ${e(num(c.totals?.comments))} · 赞同 ${e(num(c.totals?.approvals))}；互动仅在赞、评均取得时相加。</p><p>自动化占比 ${totals.article_count ? e(num(totals.automatic_count / totals.article_count * 100)) + "%" : "—"} · 耗时中位数 ${e(duration(totals.median_duration_seconds))}</p>`;
   if (kind === "platform") {
     const p = (d.platform_comparison || []).find((p2) => p2.platform === id) || {}, accounts = state.accounts.filter((a) => a.platform === id);
     return `<p>${accounts.length > 1 ? "同平台多账号，表中为平台汇总；各账号可分别进入文章列表。" : "累计指标来自该平台汇总。"}</p>${accounts.map((a) => `<button class="btn text" data-action="select-account" data-id="${e(a.id)}">${e(a.name)} →</button>`).join(
       ""
-    )}<p>覆盖 ${p.coverage == null ? "—" : e(num(p.coverage * 100)) + "%"} · 截至 ${e(time(p.as_of))}</p><p>计划：${id === "wechat" ? "每天1篇保险" : ["toutiao", "zhihu"].includes(id) ? "每天3篇文娱" : "未设置"}；计划不补成实际。</p>${p.best_article ? `<p>最佳文章：<button class="article-link" data-action="article-detail" data-id="${e(p.best_article.id)}">${e(p.best_article.title)}</button> · 阅读 ${e(num(p.best_article.latest_metrics?.reads))}</p>` : "<p>暂无有阅读数据的文章。</p>"}`;
+    )}<p>覆盖 ${p.coverage == null ? "—" : e(num(p.coverage * 100)) + "%"} · 截至 ${e(time(p.as_of))}</p>${p.best_article ? `<p>最佳文章：<button class="article-link" data-action="article-detail" data-id="${e(p.best_article.id)}">${e(p.best_article.title)}</button> · 阅读 ${e(num(p.best_article.latest_metrics?.reads))}</p>` : "<p>暂无有阅读数据的文章。</p>"}`;
   }
   if (kind === "attention") {
     const a = (d.attention_articles || []).find((a2) => a2.id === id);
@@ -1872,11 +1881,26 @@ async function reviewModal(articleId = "", kind = "latest", indexRetry = false) 
 }
 
 // web/pages/settings.mjs
+function profileForAccount(id) {
+  return (state.accountProfiles || []).find((profile) => profile.account_id === id);
+}
+function profileLink(account) {
+  const profile = profileForAccount(account.id);
+  if (!profile?.profile_url) return `<div class="cell-sub">尚未关联公开主页</div>`;
+  let url;
+  try {
+    url = new URL(profile.profile_url);
+  } catch {
+    return "";
+  }
+  if (url.protocol !== "https:" || url.username || url.password || url.port || !["www.zhihu.com", "www.toutiao.com", "mp.weixin.qq.com"].includes(url.hostname)) return "";
+  return `<div class="cell-sub"><a href="${e(url.href)}" target="_blank" rel="noopener noreferrer">打开公开主页 ${icon("link", 11)}</a></div>`;
+}
 function renderAccounts() {
   const accounts = rowsForAccount(state.accounts);
   return `<section class="card">${accounts.length ? `<div class="table-scroll"><table class="data-table accounts-table"><thead><tr><th>账号</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${accounts.map((a) => `<tr><td><span class="account-title">${platformLogo(
     a.platform
-  )}${e(a.name)}</span><div class="cell-sub">${e(platforms[a.platform] || a.platform)}</div></td><td><span class="badge ${a.active ? "up" : ""}">${a.active ? "使用中" : "已停用"}</span></td><td>${e(time(a.created_at))}</td><td><button class="btn small" data-action="edit-account" data-id="${e(a.id)}">${icon("edit", 13)}编辑</button></td></tr>`).join("")}</tbody></table></div>` : empty("暂无账号")}</section>`;
+  )}${e(a.name)}</span><div class="cell-sub">${e(platforms[a.platform] || a.platform)}</div>${profileLink(a)}</td><td><span class="badge ${a.active ? "up" : ""}">${a.active ? "使用中" : "已停用"}</span></td><td>${e(time(a.created_at))}</td><td><button class="btn small" data-action="edit-account" data-id="${e(a.id)}">${icon("edit", 13)}编辑</button></td></tr>`).join("")}</tbody></table></div>` : empty("暂无账号")}</section>`;
 }
 function renderKeys(keys) {
   return `<section class="card">${keys.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>凭证名称</th><th>账号范围</th><th>权限</th><th>最近使用</th><th>状态</th><th></th></tr></thead><tbody>${keys.map((k) => {
@@ -1961,9 +1985,11 @@ function renderAudit(audit, keys = []) {
   }).join("") || empty("暂无操作记录")}</div></section>`;
 }
 function accountModal(id = "") {
-  const a = state.accounts.find((a2) => a2.id === id) || { platform: "toutiao", name: "", active: true };
-  openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid"><div class="form-field"><label for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" ${id ? "disabled" : ""}>${Object.entries(
-    platforms
+  const a = state.accounts.find((a2) => a2.id === id) || { platform: "", name: "", active: true };
+  const profile = profileForAccount(id);
+  const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" placeholder="粘贴今日头条、知乎或微信公众号主页"><span class="hint">保存主页无需登录平台。支持识别重复主页；后台统计仍需另行录入。</span></div>`;
+  openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid">${homepage}<div class="form-field"><label for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" ${id ? "disabled" : ""}>${Object.entries(
+    id ? platforms : { "": "根据主页自动识别", ...platforms }
   ).map(([key, label3]) => `<option value="${key}" ${a.platform === key ? "selected" : ""}>${label3}</option>`).join(
     ""
   )}</select></div>${field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"')}${id ? `<div class="form-field full"><label class="check-option"><input type="checkbox" name="active" ${a.active ? "checked" : ""}>启用此账号</label><span class="hint">停用保留历史数据。</span></div>` : ""}</div>${formEnd(id ? "保存账号" : "添加账号")}</form>`);
@@ -2017,14 +2043,15 @@ function mergeTodoTemplate(item) {
 
 // web/pages/todo-templates.mjs
 function todoTemplateRows(store) {
-  const day = todoDay(), adding = day.adding, today = todoDay(bjtDate());
-  const added = (id) => today.items.some((item) => item.template_id === id && !item.deleted_at);
+  const day = todoDay(), adding = day.adding;
+  const added = (id) => day.items.some((item) => item.date === day.date && item.template_id === id && !item.deleted_at);
+  const addedLabel = day.date === bjtDate() ? "今日已添加" : "当日已添加";
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
 aria-label="添加：${e(item.text)}" ${adding || store.pending.has(item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
-<p class="todo-template-added" data-template-added ${added(item.id) ? "" : "hidden"}>今日已添加</p>
+<p class="todo-template-added" data-template-added ${added(item.id) ? "" : "hidden"}>${addedLabel}</p>
 <p class="todo-template-progress"><span data-template-status>${item.habit_status === "habit" ? "习惯" : "待办"}</span> ·
 <span data-template-count>近30天已完成 ${Number(item.completed_days || 0)} 天</span></p></li>`).join("");
 }
@@ -2509,7 +2536,7 @@ function paintTodoCalendar(date) {
 }
 function todoDateControls(date) {
   return `<div class="daily-todo-dates"><button class="btn small" data-action="todo-prev" aria-label="前一天">‹</button>
-<label for="todo-date" class="sr-only">查看日期</label><input class="input" id="todo-date" type="date" value="${e(date)}">
+<label for="todo-date" class="sr-only">选择计划日期</label><input class="input" id="todo-date" type="date" value="${e(date)}">
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
@@ -2527,7 +2554,7 @@ aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ?
 }
 function todoForm(day) {
   const label3 = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
-  return `<form ${state.todoPanel === "history" ? "hidden" : ""} id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加每日计划">
+  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day.date)}" aria-label="添加 ${e(day.date)} 的计划">
 <label for="todo-text" class="sr-only">${label3}</label><input id="todo-text" class="input" name="text" maxlength="500" required
 autocomplete="off" placeholder="${label3}" value="${e(day.draft)}" >
 <button class="btn primary" type="submit" ${day.adding ? "disabled" : ""}>添加</button></form>`;
@@ -2538,14 +2565,15 @@ function todoCaption(day) {
 }
 function todoHeading(day) {
   return `<span id="todo-caption">${todoCaption(day)}</span><div class="todo-view-links">
+<button id="todo-return-today" class="btn text" data-action="todo-panel-close" ${state.todoDate && !state.todoPanel ? "" : "hidden"}>返回今日待办</button>
 <button class="btn text" data-action="todo-panel" data-panel="history" aria-controls="todo-history"
-aria-expanded="${state.todoPanel === "history"}">历史</button>
+aria-expanded="${state.todoPanel === "history"}">日历</button>
 <button class="btn text" data-action="todo-panel" data-panel="templates" aria-controls="todo-templates"
 aria-expanded="${state.todoPanel === "templates"}">常用</button></div>`;
 }
 function renderTodoHistory(day) {
-  return `<section id="todo-history" class="todo-view" aria-label="待办历史" ${state.todoPanel === "history" ? "" : "hidden"}>
-<div class="todo-view-head"><h2>待办历史</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
+  return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
+<div class="todo-view-head"><h2>待办日历</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day.date)}" data-today="${bjtDate()}">
 ${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</section>`;
 }
@@ -2555,9 +2583,11 @@ function paintTodoPanels(root) {
     const node = $("#" + id, root);
     if (node) node.hidden = id === "todo-main" ? panel === "templates" : panel !== value;
   }
-  root?.querySelectorAll("#todo-form,.todo-list-options").forEach((node) => {
+  root?.querySelectorAll(".todo-list-options").forEach((node) => {
     node.hidden = panel === "history";
   });
+  const back = $("#todo-return-today", root);
+  if (back) back.hidden = !state.todoDate || Boolean(panel);
   root?.querySelectorAll('[data-action="todo-panel"]').forEach((button2) => {
     button2.setAttribute("aria-expanded", String(button2.dataset.panel === panel));
   });
@@ -2647,8 +2677,13 @@ function paintTodos() {
   }
   paintTodoCalendar(day.date);
   const input = $("#todo-text", root), button2 = $("#todo-form button[type=submit]", root);
+  const prompt = day.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label3 = $('label[for="todo-text"]', root);
   if (input && input.value !== day.draft) input.value = day.draft;
-  if (input) input.readOnly = false;
+  if (input) {
+    input.readOnly = false;
+    input.placeholder = prompt;
+  }
+  if (label3) label3.textContent = prompt;
   if (button2) {
     button2.disabled = day.adding;
     button2.textContent = "添加";
@@ -2768,7 +2803,7 @@ async function submitTodo({ form, data }) {
 }
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
-  const day = todoDay(bjtDate());
+  const day = todoDay();
   if (day.adding) return;
   let request = day.templateCreates.get(template.id);
   if (!request || request.text !== template.text) {
@@ -2818,7 +2853,7 @@ async function toggleTodo(target) {
 }
 function selectTodoDate(date) {
   if (!validTodoDate(date) || state.page !== "todos") return;
-  state.todoDate = date === bjtDate() ? "" : date;
+  state.todoDate = date;
   todosState.calendarDate = date;
   todosState.calendarMonth = date.slice(0, 7);
   updateRoute(true);
@@ -2860,7 +2895,7 @@ function registerTodosClock() {
 // web/pages/daily-notes.mjs
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ["life", "work"].map((value) => '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' + (value === "work" ? "工作碎碎念" : "生活碎碎念") + "</button>").join("") + '</div><p class="notes-legacy-notice muted"' + (category === "work" ? " hidden" : "") + '>原有碎碎念保留在此兼容默认项，未自动分析或分类。</p><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">这一天的碎碎念</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader" tabindex="0"></div><p id="notes-empty" class="notes-empty" hidden>这一天还没有留下文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn" type="button" data-notes-action="login" hidden>所有者登录</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复这一天</button><button class="btn text" type="button" data-notes-action="delete">删除这一天</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除这一天的文字？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div><aside class="notes-history" aria-label="已有碎碎念的日期"><h2>最近的文字</h2><div id="notes-dates"></div><p id="notes-dates-error" role="status"></p><button class="btn text" type="button" data-notes-action="more" hidden>更早的日期</button></aside></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ["life", "work"].map((value) => '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' + (value === "work" ? "工作碎碎念" : "生活碎碎念") + "</button>").join("") + '</div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-card" class="note-entry notes-legacy-card" hidden><div class="note-entry-head"><span class="note-entry-time">原有记录</span><span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">这一天的碎碎念</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader" tabindex="0"></div><p id="notes-empty" class="notes-empty" hidden>这一天还没有留下文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复这一天</button><button class="btn text" type="button" data-notes-action="delete">删除原有记录</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除原有记录？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div></article><aside class="notes-history" aria-label="已有碎碎念的日期"><h2>最近的文字</h2><div id="notes-dates"></div><p id="notes-dates-error" role="status"></p><button class="btn text" type="button" data-notes-action="more" hidden>更早的日期</button></aside></section>';
 }
 var statuses = {
   loading: "正在读取…",
@@ -2871,7 +2906,7 @@ var statuses = {
   error: "暂未保存",
   oversize: "文字过长"
 };
-function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false, datesLoading = false, datesError = "" } = {}) {
+function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false, datesLoading = false, datesError = "", compatibility = false } = {}) {
   if (!root) return;
   root.dataset.date = item.date;
   const find = (selector) => root.querySelector(selector);
@@ -2885,65 +2920,652 @@ function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false,
   reader.textContent = item.serverText;
   find("#notes-empty").hidden = !item.loaded || item.canEdit || Boolean(item.serverText);
   const actual = statuses[item.phase] || (item.canEdit ? "已保存" : "公开只读");
-  find("#notes-status").textContent = !item.loaded && item.loading ? "正在读取…" : item.canEdit && ["dirty", "saving", "saved"].includes(item.phase) ? "自动保存" : actual;
-  find("#notes-status").setAttribute("aria-label", actual);
-  find("#notes-status").dataset.phase = item.phase;
+  const status = find(compatibility ? "#notes-legacy-status" : "#notes-status");
+  status.textContent = !item.loaded && item.loading ? "正在读取…" : item.canEdit && ["dirty", "saving", "saved"].includes(item.phase) ? "自动保存" : actual;
+  status.setAttribute("aria-label", actual);
+  status.dataset.phase = item.phase;
   find("#notes-message").hidden = !item.error;
   find("#notes-message").textContent = item.error;
   find("#notes-detail").textContent = item.canEdit ? dailyNotesBytes(item.draft) + " / 65536 字节 · 自动保存" : "所有访客都能阅读";
   find("#notes-write-actions").hidden = !item.loaded || !item.canEdit;
-  find('[data-notes-action="login"]').hidden = !item.loaded || item.canEdit;
-  const blocked = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
-  find('[data-notes-action="save"]').disabled = blocked || !item.dirty;
+  if (!compatibility) find('[data-notes-action="login"]').hidden = !item.loaded || item.canEdit;
+  const blocked2 = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
+  find('[data-notes-action="save"]').disabled = blocked2 || !item.dirty;
   find('[data-notes-action="restore"]').hidden = !item.deleted;
-  find('[data-notes-action="restore"]').disabled = blocked || item.dirty;
-  find('[data-notes-action="delete"]').disabled = blocked || item.deleted || item.version === 0;
+  find('[data-notes-action="restore"]').disabled = blocked2 || item.dirty;
+  find('[data-notes-action="delete"]').disabled = blocked2 || item.deleted || item.version === 0;
   find('[data-notes-action="next"]').disabled = item.date >= dailyNotesToday();
-  const draftBox = find("#notes-drafts");
-  const retained = drafts.filter((value) => value.date !== item.date || ["conflict", "unknown", "oversize", "error"].includes(value.phase));
-  draftBox.hidden = !retained.length;
-  draftBox.innerHTML = "<span>本页签保留的未保存草稿：</span>" + retained.map((value) => '<button class="btn text" type="button" data-notes-date="' + e(value.date) + '">' + e(value.date) + "</button>").join("");
+  if (!compatibility) {
+    const draftBox = find("#notes-drafts");
+    const retained = drafts.filter((value) => value.date !== item.date || ["conflict", "unknown", "oversize", "error"].includes(value.phase));
+    draftBox.hidden = !retained.length;
+    draftBox.innerHTML = "<span>本页签保留的未保存草稿：</span>" + retained.map((value) => '<button class="btn text" type="button" data-notes-date="' + e(value.date) + '">' + e(value.date) + "</button>").join("");
+  }
   find("#notes-resolution").hidden = !["conflict", "unknown"].includes(item.phase) && !(item.phase === "error" && !item.loaded);
   find('[data-notes-action="check"]').disabled = item.loading || Boolean(item.pending?.checking);
   find('[data-notes-action="retry"]').hidden = item.phase !== "unknown" || !item.pending?.retryReady || !item.canEdit;
   find("#notes-conflict-actions").hidden = item.phase !== "conflict" || !item.remote;
   find("#notes-remote").textContent = item.remote?.deleted ? "（这一天已删除）" : item.remote?.text || "（空白）";
   find('[data-notes-action="use-draft"]').disabled = item.remote?.can_edit !== true;
-  find("#notes-dates").innerHTML = dates.map((value) => '<button class="btn text notes-day' + (value === item.date ? " notes-day-current" : "") + '" type="button" data-notes-date="' + e(value) + '">' + e(value) + "</button>").join("");
+  if (!compatibility) {
+    find("#notes-dates").innerHTML = dates.map((value) => '<button class="btn text notes-day' + (value === item.date ? " notes-day-current" : "") + '" type="button" data-notes-date="' + e(value) + '">' + e(value) + "</button>").join("");
+    const more = find('[data-notes-action="more"]');
+    more.hidden = !hasMore;
+    more.disabled = datesLoading;
+    more.textContent = datesLoading ? "正在读取…" : "更早的日期";
+    find("#notes-dates-error").textContent = datesError || (!datesLoading && !dates.length ? "还没有已保存的文字。可用上方日期选择任意过去的一天。" : "");
+  }
+}
+function noteEntryTime(value) {
+  if (!value || !Number.isFinite(Date.parse(value))) return "";
+  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value));
+}
+function createEntryElement(item) {
+  const node = document.createElement("article");
+  node.className = "note-entry";
+  node.dataset.noteEntry = item.id;
+  node.innerHTML = '<div class="note-entry-head"><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div><label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader"></div><p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn text" type="button" data-note-entry-action="save" hidden>重试保存</button><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
+  return node;
+}
+function paintEntry(node, item, confirmId) {
+  const find = (selector) => node.querySelector(selector), editor = find("textarea"), time2 = find("time");
+  const actualTime = noteEntryTime(item.createdAt);
+  time2.textContent = actualTime || "新记录";
+  if (actualTime) {
+    time2.dateTime = item.createdAt;
+    time2.title = "记录时间（北京时间）";
+  } else {
+    time2.removeAttribute("datetime");
+    time2.removeAttribute("title");
+  }
+  const phase = statuses[item.phase] || (item.deleted ? "已删除" : item.version ? "已保存" : "写下后自动保存");
+  const status = find(".note-entry-status");
+  status.textContent = phase;
+  status.dataset.phase = item.phase;
+  editor.dataset.date = item.date;
+  editor.dataset.category = item.category;
+  editor.hidden = !item.canEdit || item.deleted;
+  editor.disabled = ["delete", "restore"].includes(item.pending?.kind);
+  if (editor.dataset.composing !== "true" && editor.value !== item.draft) {
+    const active2 = document.activeElement === editor, start = editor.selectionStart, end = editor.selectionEnd, direction = editor.selectionDirection, scroll = editor.scrollTop;
+    editor.value = item.draft;
+    if (active2) {
+      editor.setSelectionRange(Math.min(start, item.draft.length), Math.min(end, item.draft.length), direction);
+      editor.scrollTop = scroll;
+    }
+  }
+  const reader = find(".note-entry-reader");
+  reader.textContent = item.deleted ? "这条记录已删除。" : item.serverText;
+  reader.hidden = item.canEdit && !item.deleted;
+  const message = find(".note-entry-message");
+  message.textContent = item.error;
+  message.hidden = !item.error;
+  find(".note-entry-actions").hidden = !item.canEdit;
+  const busy = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
+  const save = find('[data-note-entry-action="save"]');
+  save.hidden = !["error", "oversize"].includes(item.phase);
+  save.disabled = busy || !item.dirty || item.phase === "oversize";
+  find('[data-note-entry-action="delete"]').hidden = item.deleted;
+  find('[data-note-entry-action="delete"]').disabled = busy;
+  find('[data-note-entry-action="restore"]').hidden = !item.deleted;
+  find('[data-note-entry-action="restore"]').disabled = busy;
+  find(".note-entry-confirm").hidden = confirmId !== item.id;
+  find(".note-entry-resolution").hidden = !["unknown", "conflict"].includes(item.phase) && item.phase !== "error";
+  find('[data-note-entry-action="check"]').disabled = item.loading || Boolean(item.pending?.checking);
+  find('[data-note-entry-action="retry"]').hidden = item.phase !== "unknown" || !item.pending?.retryReady || !item.canEdit;
+  find(".note-entry-conflict").hidden = item.phase !== "conflict" || !item.remote;
+  find(".note-entry-conflict pre").textContent = item.remote?.deleted ? "（这条记录已删除）" : item.remote?.text || "（空白）";
+  find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
+}
+function paintNoteEntries(root, store, current, legacy, {
+  drafts = [],
+  dates = [],
+  hasMore = false,
+  datesLoading = false,
+  datesError = "",
+  confirmId = ""
+} = {}) {
+  const find = (selector) => root.querySelector(selector), list = find("#notes-entry-list");
+  root.dataset.date = current.date;
+  const dateInput = find("#notes-date");
+  if (dateInput.value !== current.date) dateInput.value = current.date;
+  find('[data-notes-action="next"]').disabled = current.date >= dailyNotesToday();
+  const canEdit = current.loaded && current.canEdit;
+  find('[data-notes-action="new"]').hidden = !canEdit;
+  find('[data-notes-action="login"]').hidden = !current.loaded || current.canEdit;
+  find("#notes-entry-message").textContent = current.error;
+  find("#notes-entry-message").hidden = !current.error;
+  const items = current.ids.map((id) => store.entry(id)).filter(Boolean);
+  const nodes = new Map([...list.children].map((node) => [node.dataset.noteEntry, node]));
+  const wanted = new Set(items.map((item) => item.id));
+  for (const [id, node] of nodes) if (!wanted.has(id)) node.remove();
+  let cursor = list.firstElementChild;
+  for (const item of items) {
+    const node = nodes.get(item.id) || createEntryElement(item);
+    if (node === cursor) cursor = cursor.nextElementSibling;
+    else list.insertBefore(node, cursor);
+    paintEntry(node, item, confirmId);
+  }
+  const legacyVisible = legacy.version > 0 || legacy.dirty || legacy.pending || ["unknown", "conflict", "error"].includes(legacy.phase);
+  find("#notes-legacy-card").hidden = !legacyVisible;
+  find("#notes-entry-empty").hidden = !current.loaded || items.length > 0 || legacyVisible;
+  const unresolved = items.filter((item) => ["error", "unknown", "conflict", "oversize"].includes(item.phase));
+  const status = find("#notes-status");
+  status.textContent = !current.loaded && current.loading ? "正在读取…" : current.error ? "读取失败" : unresolved.length ? "有草稿待处理" : canEdit ? "自动保存" : current.loaded ? "公开只读" : "正在读取…";
+  const draftBox = find("#notes-drafts");
+  const retained = [...new Set(drafts.filter((value) => value.date !== current.date || value.category !== current.category).map((value) => value.category + ":" + value.date))];
+  draftBox.hidden = !retained.length;
+  draftBox.innerHTML = "<span>保留的草稿：</span>" + retained.map((key) => {
+    const [category, date] = key.split(":");
+    return '<button class="btn text" type="button" data-notes-draft-category="' + e(category) + '" data-notes-date="' + e(date) + '">' + (category === "work" ? "工作 " : "生活 ") + e(date) + "</button>";
+  }).join("");
+  find("#notes-dates").innerHTML = dates.map((date) => '<button class="btn text notes-day' + (date === current.date ? " notes-day-current" : "") + '" type="button" data-notes-date="' + e(date) + '">' + e(date) + "</button>").join("");
   const more = find('[data-notes-action="more"]');
   more.hidden = !hasMore;
   more.disabled = datesLoading;
   more.textContent = datesLoading ? "正在读取…" : "更早的日期";
-  find("#notes-dates-error").textContent = datesError || (!datesLoading && !dates.length ? "还没有已保存的文字。可用上方日期选择任意过去的一天。" : "");
+  find("#notes-dates-error").textContent = datesError || (!datesLoading && !dates.length ? "还没有已保存的记录。" : "");
+}
+
+// web/core/note-entries-state.mjs
+var uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+var blocked = (item) => ["conflict", "unknown"].includes(item.phase);
+var timestamp = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+function checkedEntry(value, category, date, id) {
+  if (!value || !uuidPattern.test(value.id) || id && value.id !== id || value.category !== category || value.date !== date || typeof value.text !== "string" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || !timestamp(value.created_at) || !timestamp(value.updated_at) || typeof value.content_hash !== "string" || !value.content_hash) {
+    throw new Error("记录读取不完整，请重新核对。");
+  }
+  return value;
+}
+function checkedCollection(value, category, date) {
+  if (!value || value.category !== category || value.date !== date || !Array.isArray(value.entries) || value.entries.length > 200 || typeof value.can_edit !== "boolean") throw new Error("记录列表不完整，请重新读取。");
+  const ids = /* @__PURE__ */ new Set();
+  for (const entry of value.entries) {
+    checkedEntry(entry, category, date);
+    if (entry.deleted || ids.has(entry.id)) throw new Error("记录列表不完整，请重新读取。");
+    ids.add(entry.id);
+  }
+  return value;
+}
+function createEntriesContext({
+  category,
+  load,
+  loadEntry,
+  loadOperation,
+  put,
+  remove,
+  restore,
+  onChange = () => {
+  },
+  onSaved = () => {
+  },
+  uuid = () => crypto.randomUUID(),
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+  delay = 400
+}) {
+  if (!["life", "work"].includes(category)) throw new Error("请选择有效分类。");
+  const pages = /* @__PURE__ */ new Map(), entries = /* @__PURE__ */ new Map();
+  const context = {
+    category,
+    pages,
+    entries,
+    disposed: false,
+    options: { load, loadEntry, loadOperation, put, remove, restore, onSaved, uuid }
+  };
+  const emit = () => {
+    if (!context.disposed) onChange();
+  };
+  const page = (date) => {
+    if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
+    if (!pages.has(date)) pages.set(date, {
+      category,
+      date,
+      ids: [],
+      loaded: false,
+      loading: false,
+      canEdit: false,
+      error: "",
+      sequence: 0,
+      composerId: ""
+    });
+    return pages.get(date);
+  };
+  const entry = (id) => entries.get(id);
+  const stopTimer = (item) => {
+    if (item.timer !== null) clearTimer(item.timer);
+    item.timer = null;
+  };
+  function makeEntry(id, date, canEdit) {
+    return {
+      id,
+      category,
+      date,
+      loaded: true,
+      loading: false,
+      canEdit,
+      serverText: "",
+      draft: "",
+      version: 0,
+      createdAt: null,
+      updatedAt: null,
+      contentHash: "",
+      deleted: false,
+      dirty: false,
+      phase: "empty",
+      error: "",
+      remote: null,
+      pending: null,
+      timer: null,
+      sequence: 0,
+      writeEpoch: 0,
+      composing: false
+    };
+  }
+  function adopt(item, value, preserve = false) {
+    item.canEdit = value.can_edit;
+    item.serverText = value.deleted ? "" : value.text;
+    item.version = value.version;
+    item.createdAt = value.created_at;
+    item.updatedAt = value.updated_at;
+    item.contentHash = value.content_hash;
+    item.deleted = value.deleted;
+    if (!preserve) item.draft = item.serverText;
+    item.dirty = item.draft !== item.serverText;
+    item.loaded = true;
+  }
+  function schedule(item) {
+    stopTimer(item);
+    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !blocked(item) && !["error", "oversize"].includes(item.phase) && (item.version > 0 || item.draft.trim())) {
+      item.timer = setTimer(() => {
+        item.timer = null;
+        void context.save(item.id);
+      }, delay);
+    }
+  }
+  function merge(item, value) {
+    if (value.version < Math.max(item.version, item.remote?.version || 0)) return;
+    item.writeEpoch++;
+    item.canEdit = value.can_edit;
+    if (blocked(item)) item.remote = value;
+    else if (item.dirty && value.version !== item.version) {
+      item.remote = value;
+      item.phase = "conflict";
+      item.error = "这条记录已有新版本，草稿已保留，请核对。";
+      stopTimer(item);
+    } else {
+      adopt(item, value, item.dirty);
+      item.phase = item.dirty ? "dirty" : "saved";
+      item.error = "";
+    }
+  }
+  function dispose() {
+    context.disposed = true;
+    for (const item of entries.values()) stopTimer(item);
+  }
+  Object.assign(context, { page, entry, emit, stopTimer, adopt, schedule, merge, makeEntry, dispose });
+  return context;
+}
+function createEntryReadingActions(context) {
+  const { category, page, entry, entries, emit, adopt, merge, schedule, makeEntry } = context;
+  const { load, loadEntry } = context.options;
+  async function read(date) {
+    const current = page(date), sequence = ++current.sequence;
+    const epochs = new Map(current.ids.map((id) => [id, entry(id)?.writeEpoch]));
+    current.loading = true;
+    current.error = "";
+    emit();
+    try {
+      const value = checkedCollection(await load(date), category, date);
+      if (context.disposed || sequence !== current.sequence) return;
+      current.canEdit = value.can_edit;
+      const found = /* @__PURE__ */ new Set();
+      for (const raw of value.entries) {
+        found.add(raw.id);
+        let item = entry(raw.id);
+        if (!item) {
+          item = makeEntry(raw.id, date, raw.can_edit);
+          entries.set(raw.id, item);
+          adopt(item, raw);
+          item.phase = "saved";
+        } else if (!item.pending && item.writeEpoch === epochs.get(item.id)) merge(item, raw);
+      }
+      const retained = current.ids.filter((id) => {
+        const item = entry(id);
+        return found.has(id) || item.version === 0 || item.dirty || item.pending || item.deleted || blocked(item) || item.writeEpoch !== epochs.get(id);
+      });
+      current.ids = [.../* @__PURE__ */ new Set([...retained, ...value.entries.map((item) => item.id)])];
+      current.loaded = true;
+      await Promise.all(current.ids.filter((id) => !found.has(id) && entry(id).version > 0 && entry(id).dirty && !entry(id).pending && !entry(id).deleted).map((id) => readOne(id)));
+    } catch (error) {
+      if (!context.disposed && sequence === current.sequence) current.error = error.message;
+    } finally {
+      if (!context.disposed && sequence === current.sequence) {
+        current.loading = false;
+        emit();
+        for (const id of current.ids) schedule(entry(id));
+      }
+    }
+  }
+  async function readOne(id) {
+    const item = entry(id);
+    if (!item || context.disposed) return;
+    const sequence = ++item.sequence, epoch = item.writeEpoch;
+    item.loading = true;
+    emit();
+    try {
+      const value = checkedEntry(await loadEntry(id), category, item.date, id);
+      if (!context.disposed && sequence === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
+    } catch (error) {
+      if (!context.disposed && sequence === item.sequence) {
+        item.error = error.message;
+        if (!blocked(item)) item.phase = "error";
+      }
+    } finally {
+      if (!context.disposed && sequence === item.sequence) {
+        item.loading = false;
+        emit();
+        schedule(item);
+      }
+    }
+  }
+  return { read, readOne };
+}
+function createEntryEditingActions(context) {
+  const { page, entry, entries, emit, stopTimer, schedule, makeEntry } = context;
+  const { uuid } = context.options;
+  function start(date) {
+    const current = page(date);
+    if (context.disposed || !current.loaded || !current.canEdit) return;
+    const existing = entry(current.composerId);
+    if (existing && existing.version === 0 && !existing.deleted) return existing;
+    const id = uuid();
+    if (!uuidPattern.test(id) || entries.has(id)) throw new Error("暂时无法新建记录，请重试。");
+    const item = makeEntry(id, date, current.canEdit);
+    entries.set(id, item);
+    current.ids.push(id);
+    current.composerId = id;
+    emit();
+    return item;
+  }
+  function edit(id, text, { composing = false } = {}) {
+    const item = entry(id);
+    if (!item || context.disposed || !item.canEdit || item.deleted || ["delete", "restore"].includes(item.pending?.kind)) return;
+    item.draft = text;
+    item.composing = composing;
+    item.dirty = text !== item.serverText;
+    stopTimer(item);
+    if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
+      if (!blocked(item)) item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留，请缩短后再保存。";
+    } else if (!blocked(item)) {
+      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : item.version ? "saved" : "empty";
+      item.error = "";
+    }
+    emit();
+    if (!composing) schedule(item);
+  }
+  return { start, edit };
+}
+function createEntryWritingActions(context) {
+  const { category, page, entry, entries, emit, stopTimer, adopt, schedule } = context;
+  const { put, remove, restore, uuid, onSaved } = context.options;
+  const matches = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted : operation.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation.text);
+  function accepted(item, value, operation) {
+    const preserve = operation.kind === "put" && item.draft !== operation.text;
+    item.writeEpoch++;
+    adopt(item, value, preserve);
+    item.remote = null;
+    item.pending = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    onSaved(item.date);
+    schedule(item);
+  }
+  async function send(item, operation) {
+    stopTimer(item);
+    item.pending = operation;
+    item.phase = "saving";
+    item.error = "";
+    item.writeEpoch++;
+    emit();
+    try {
+      const body = { version: operation.version, save_id: operation.saveId };
+      const raw = operation.kind === "delete" ? await remove(item.id, body) : operation.kind === "restore" ? await restore(item.id, body) : await put(item.id, { ...body, category: item.category, date: item.date, text: operation.text });
+      if (context.disposed || item.pending !== operation) return;
+      const value = checkedEntry(raw, category, item.date, item.id);
+      if (!matches(value, operation)) throw new Error("保存响应需要重新核对。");
+      accepted(item, value, operation);
+    } catch (error) {
+      if (context.disposed || item.pending !== operation) return;
+      if (error.status === 409 && (!error.code || ["VERSION_CONFLICT", "NOTE_ENTRY_DELETED"].includes(error.code))) {
+        item.pending = null;
+        item.phase = "conflict";
+        item.error = error.message || "这条记录已有新版本，草稿已保留。";
+        emit();
+        await context.readOne(item.id);
+      } else if (error.status >= 400 && error.status < 500) {
+        item.pending = null;
+        item.phase = "error";
+        item.error = error.message;
+        if ([401, 403].includes(error.status)) item.canEdit = false;
+        emit();
+      } else {
+        item.phase = "unknown";
+        item.error = "正在核对保存结果，草稿已保留。";
+        emit();
+        await context.reconcile(item.id);
+      }
+    }
+  }
+  async function save(id) {
+    const item = entry(id);
+    if (!item) return;
+    stopTimer(item);
+    if (context.disposed || !item.canEdit || item.deleted || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
+    if (!item.version && !item.draft.trim()) return;
+    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
+      item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留。";
+      emit();
+      return;
+    }
+    return send(item, { kind: "put", version: item.version, text: item.draft, saveId: uuid() });
+  }
+  async function deleteEntry(id) {
+    const item = entry(id);
+    if (!item || context.disposed || !item.canEdit || item.pending || blocked(item) || item.deleted) return;
+    if (!item.version) {
+      stopTimer(item);
+      const current = page(item.date);
+      current.ids = current.ids.filter((value) => value !== id);
+      entries.delete(id);
+      if (current.composerId === id) current.composerId = "";
+      emit();
+      return;
+    }
+    return send(item, { kind: "delete", version: item.version, saveId: uuid() });
+  }
+  async function restoreEntry(id) {
+    const item = entry(id);
+    if (!item || context.disposed || !item.canEdit || !item.deleted || item.pending || blocked(item)) return;
+    return send(item, { kind: "restore", version: item.version, saveId: uuid() });
+  }
+  return { matches, accepted, send, save, deleteEntry, restoreEntry };
+}
+function createEntryResolutionActions(context) {
+  const { category, entry, emit, stopTimer, adopt, matches, accepted } = context;
+  const { load, loadEntry, loadOperation } = context.options;
+  async function reconcile(id) {
+    const item = entry(id), operation = item?.pending;
+    if (context.disposed || item?.phase !== "unknown" || !operation || operation.checking) return;
+    operation.checking = true;
+    operation.retryReady = false;
+    emit();
+    try {
+      const receipt = await loadOperation(operation.saveId);
+      if (context.disposed || item.pending !== operation) return;
+      if (!receipt || typeof receipt.found !== "boolean" || receipt.found && (receipt.id !== id || receipt.version !== operation.version + 1 || typeof receipt.content_hash !== "string")) {
+        throw new Error("保存凭据不完整。");
+      }
+      let value;
+      try {
+        value = checkedEntry(await loadEntry(id), category, item.date, id);
+      } catch (error) {
+        if (error.status !== 404 || receipt.found || operation.version !== 0 || operation.kind !== "put") throw error;
+        const collection = checkedCollection(await load(item.date), category, item.date);
+        value = collection.entries.find((raw) => raw.id === id);
+        if (!value) {
+          if (context.disposed || item.pending !== operation) return;
+          item.canEdit = collection.can_edit;
+          operation.retryReady = collection.can_edit;
+          item.error = operation.retryReady ? "服务器尚未收到此保存，可重试；后续草稿已保留。" : "保存尚未确认，草稿已保留。";
+          return;
+        }
+      }
+      if (context.disposed || item.pending !== operation) return;
+      item.canEdit = value.can_edit;
+      if (receipt.found && receipt.content_hash === value.content_hash && receipt.version === value.version && matches(value, operation)) {
+        accepted(item, value, operation);
+      } else if (value.version > operation.version) {
+        item.remote = value;
+        item.pending = null;
+        item.phase = "conflict";
+        item.error = "服务器已有更新，草稿已保留，请核对后选择。";
+      } else {
+        item.remote = value;
+        operation.retryReady = !receipt.found && value.can_edit && value.version === operation.version;
+        item.error = operation.retryReady ? "服务器尚无新版本，可重试原保存；后续草稿已保留。" : "保存结果尚未确认，草稿已保留，请再次核对。";
+      }
+    } catch (error) {
+      if (!context.disposed && item.pending === operation) {
+        item.error = "核对失败，草稿已保留：" + error.message;
+        if ([401, 403].includes(error.status)) item.canEdit = false;
+      }
+    } finally {
+      operation.checking = false;
+      emit();
+    }
+  }
+  async function retryPending(id) {
+    const item = entry(id), operation = item?.pending;
+    if (context.disposed || item?.phase !== "unknown" || !item.canEdit || !operation?.retryReady || operation.checking) return;
+    operation.retryReady = false;
+    return context.send(item, operation);
+  }
+  function useServer(id) {
+    const item = entry(id);
+    if (!item?.remote || item.pending || item.phase !== "conflict") return;
+    stopTimer(item);
+    adopt(item, item.remote);
+    item.remote = null;
+    item.phase = "saved";
+    item.error = "";
+    emit();
+  }
+  async function useDraft(id) {
+    const item = entry(id);
+    if (!item?.remote || item.pending || item.phase !== "conflict" || !item.remote.can_edit || item.remote.deleted) return;
+    adopt(item, item.remote, true);
+    item.remote = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    return context.save(id);
+  }
+  return { reconcile, retryPending, useServer, useDraft };
+}
+function createNoteEntriesStore(options2) {
+  const context = createEntriesContext(options2);
+  Object.assign(
+    context,
+    createEntryReadingActions(context),
+    createEntryEditingActions(context),
+    createEntryWritingActions(context)
+  );
+  Object.assign(context, createEntryResolutionActions(context));
+  const {
+    category,
+    pages,
+    entries,
+    page,
+    entry,
+    start,
+    read,
+    readOne,
+    edit,
+    save,
+    deleteEntry,
+    restoreEntry,
+    reconcile,
+    retryPending,
+    useServer,
+    useDraft,
+    dispose
+  } = context;
+  return {
+    category,
+    pages,
+    entries,
+    page,
+    entry,
+    start,
+    read,
+    readOne,
+    edit,
+    save,
+    deleteEntry,
+    restoreEntry,
+    reconcile,
+    retryPending,
+    useServer,
+    useDraft,
+    dispose
+  };
 }
 
 // web/daily-notes-controller.mjs
-var notesStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesActiveCategory = "";
-var notesStores = /* @__PURE__ */ new Map(), notesDateIndices = /* @__PURE__ */ new Map();
-var notesDateIndex = { dates: [], hasMore: false, cursor: null, loading: false, error: "", sequence: 0 };
+var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "";
+var notesStores = /* @__PURE__ */ new Map(), entryStores = /* @__PURE__ */ new Map(), notesDateIndices = /* @__PURE__ */ new Map();
+var notesDateIndex;
 var notesIdentityNow = () => String(runtime.sessionEpoch) + ":" + String(state.me?.id || "") + ":" + String(state.me?.csrfToken || "");
 var notesVisible = () => state.page === "notes" && notesIdentity === notesIdentityNow();
+function newDateSource() {
+  return { dates: [], hasMore: false, cursor: null, error: "" };
+}
 function newDateIndex() {
-  return { dates: [], hasMore: false, cursor: null, loading: false, error: "", sequence: 0 };
+  return {
+    dates: [],
+    hasMore: false,
+    loading: false,
+    error: "",
+    sequence: 0,
+    sources: { legacy: newDateSource(), entries: newDateSource() }
+  };
 }
 function ensureDailyNotesStore() {
   const next = notesIdentityNow(), category = dailyNotesRouteCategory();
   if (notesIdentity !== next) {
-    for (const store of notesStores.values()) store.dispose();
+    for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
     notesStores.clear();
+    entryStores.clear();
     notesDateIndices.clear();
     notesIdentity = next;
     notesConfirmDate = "";
+    notesConfirmEntry = "";
   }
   if (notesActiveCategory !== category) {
     notesActiveCategory = category;
     notesConfirmDate = "";
+    notesConfirmEntry = "";
   }
   if (!notesStores.has(category)) {
     const expected = next;
     const active2 = () => {
       if (notesIdentityNow() !== expected) {
-        store.dispose();
+        legacy.dispose();
+        entries.dispose();
         throw new DOMException("请求已取消", "AbortError");
       }
     };
@@ -2954,98 +3576,144 @@ function ensureDailyNotesStore() {
       return value;
     };
     const suffix = (separator) => category === "work" ? separator + "category=work" : "";
-    const store = createDailyNotesStore({
+    const changed2 = () => {
+      if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) paintDailyNotesPage();
+    };
+    const saved = () => {
+      if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) void loadNoteDates();
+    };
+    const legacy = createDailyNotesStore({
       load: (date) => request("/daily-notes?date=" + encodeURIComponent(date) + suffix("&")),
       put: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + suffix("?"), { method: "PUT", body }),
       restore: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + "/restore" + suffix("?"), { method: "POST", body }),
       remove: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + suffix("?"), { method: "DELETE", body }),
-      onChange: () => {
-        if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) paintDailyNotesPage();
-      },
-      onSaved: () => {
-        if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) void loadNoteDates();
-      }
+      onChange: changed2,
+      onSaved: saved
     });
-    notesStores.set(category, store);
+    const entries = createNoteEntriesStore({
+      category,
+      load: (date) => request("/note-entries?category=" + category + "&date=" + encodeURIComponent(date)),
+      loadEntry: (id) => request("/note-entries/" + encodeURIComponent(id)),
+      loadOperation: (id) => request("/note-entries/operations/" + encodeURIComponent(id)),
+      put: (id, body) => request("/note-entries/" + encodeURIComponent(id), { method: "PUT", body }),
+      remove: (id, body) => request("/note-entries/" + encodeURIComponent(id), { method: "DELETE", body }),
+      restore: (id, body) => request("/note-entries/" + encodeURIComponent(id) + "/restore", { method: "POST", body }),
+      onChange: changed2,
+      onSaved: saved
+    });
+    notesStores.set(category, legacy);
+    entryStores.set(category, entries);
     notesDateIndices.set(category, newDateIndex());
   }
   notesStore = notesStores.get(category);
+  entryStore = entryStores.get(category);
   notesDateIndex = notesDateIndices.get(category);
   return notesStore;
+}
+function retainedDrafts() {
+  const result = [];
+  for (const [category, store] of notesStores) for (const item of store.pages.values()) {
+    if (item.dirty || item.pending || ["unknown", "conflict", "oversize", "error"].includes(item.phase)) result.push({ category, ...item });
+  }
+  for (const [category, store] of entryStores) for (const item of store.entries.values()) {
+    if (item.dirty || item.pending || ["unknown", "conflict", "oversize", "error"].includes(item.phase)) result.push({ category, ...item });
+  }
+  return result;
 }
 function paintDailyNotesPage() {
   if (!notesVisible()) return;
   const root = document.querySelector("#daily-notes");
-  if (!root) return;
-  const item = notesStore.page(dailyNotesRouteDate());
-  const drafts = [...notesStore.pages.values()].filter((value) => value.dirty || value.pending || ["unknown", "conflict", "oversize"].includes(value.phase));
-  paintDailyNotes(root, item, {
-    drafts,
+  if (!root || !notesStore || !entryStore) return;
+  const date = dailyNotesRouteDate(), legacy = notesStore.page(date), current = entryStore.page(date);
+  paintDailyNotes(root, legacy, { compatibility: true });
+  paintNoteEntries(root, entryStore, current, legacy, {
+    drafts: retainedDrafts(),
     dates: notesDateIndex.dates,
     hasMore: notesDateIndex.hasMore,
     datesLoading: notesDateIndex.loading,
-    datesError: notesDateIndex.error
+    datesError: notesDateIndex.error,
+    confirmId: notesConfirmEntry
   });
-  root.querySelector("#notes-delete-confirm").hidden = notesConfirmDate !== item.date;
+  root.querySelector("#notes-delete-confirm").hidden = notesConfirmDate !== date;
 }
 async function loadNoteDates(more = false) {
   ensureDailyNotesStore();
   if (more && (!notesDateIndex.hasMore || notesDateIndex.loading)) return;
-  const expected = notesIdentity, current = notesDateIndex, sequence = ++current.sequence;
-  const before = more ? current.cursor : null;
+  const expected = notesIdentity, current = notesDateIndex, category = dailyNotesRouteCategory(), sequence = ++current.sequence;
   current.loading = true;
   current.error = "";
   paintDailyNotesPage();
-  try {
-    const result = await api("/daily-notes/dates?page_size=30" + (dailyNotesRouteCategory() === "work" ? "&category=work" : "") + (before ? "&before=" + encodeURIComponent(before) : ""));
-    if (expected !== notesIdentityNow() || current !== notesDateIndex || sequence !== current.sequence) return;
-    if (!Array.isArray(result?.dates) || result.dates.some((value) => !validDailyNotesDate(value)) || typeof result.has_more !== "boolean" || result.has_more && (!validDailyNotesDate(result.next_before) || before && result.next_before >= before))
-      throw new Error("日期列表不完整，请稍后重新读取。");
-    current.dates = [.../* @__PURE__ */ new Set([...more ? current.dates : [], ...result.dates])].sort().reverse();
-    current.hasMore = result.has_more;
-    current.cursor = result.next_before;
-  } catch (error) {
-    if (expected === notesIdentityNow() && sequence === current.sequence) current.error = error.message;
-  } finally {
-    if (expected === notesIdentityNow() && current === notesDateIndex && sequence === current.sequence) {
-      current.loading = false;
-      paintDailyNotesPage();
+  await Promise.all(Object.entries(current.sources).map(async ([kind, source]) => {
+    if (more && !source.hasMore) return;
+    const before = more ? source.cursor : null;
+    try {
+      const path = kind === "entries" ? "/note-entries/dates?category=" + category + "&page_size=30" : "/daily-notes/dates?page_size=30" + (category === "work" ? "&category=work" : "");
+      const result = await api(path + (before ? "&before=" + encodeURIComponent(before) : ""));
+      if (expected !== notesIdentityNow() || sequence !== current.sequence) return;
+      if (!Array.isArray(result?.dates) || result.dates.some((value) => !validDailyNotesDate(value)) || typeof result.has_more !== "boolean" || result.has_more && (!validDailyNotesDate(result.next_before) || before && result.next_before >= before)) throw new Error("日期列表不完整，请重新读取。");
+      source.dates = [.../* @__PURE__ */ new Set([...more ? source.dates : [], ...result.dates])].sort().reverse();
+      source.hasMore = result.has_more;
+      source.cursor = result.next_before;
+      source.error = "";
+    } catch (error) {
+      if (expected === notesIdentityNow() && sequence === current.sequence) source.error = error.message;
     }
-  }
+  }));
+  if (expected !== notesIdentityNow() || sequence !== current.sequence) return;
+  current.dates = [...new Set(Object.values(current.sources).flatMap((source) => source.dates))].sort().reverse();
+  current.hasMore = Object.values(current.sources).some((source) => source.hasMore);
+  current.error = [...new Set(Object.values(current.sources).map((source) => source.error).filter(Boolean))].join(" ");
+  current.loading = false;
+  paintDailyNotesPage();
 }
 async function selectDailyNotesDate(value) {
   if (!validDailyNotesDate(value) || value > dailyNotesToday()) return;
   ensureDailyNotesStore();
   notesConfirmDate = "";
+  notesConfirmEntry = "";
   setDailyNotesRouteDate(value);
   updateRoute(true);
+  const legacy = notesStore, entries = entryStore;
   paintDailyNotesPage();
-  await notesStore.read(value);
+  await Promise.all([legacy.read(value), entries.read(value)]);
 }
 function shiftedNotesDate(date, delta) {
   return new Date(Date.parse(date + "T12:00:00Z") + delta * 864e5).toISOString().slice(0, 10);
+}
+function focusEntry(id) {
+  const editor = document.querySelector('[data-note-entry-editor="' + id + '"]');
+  editor?.focus();
+  editor?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
 }
 function registerDailyNotesEvents() {
   if (notesEventsRegistered) return;
   notesEventsRegistered = true;
   document.addEventListener("input", (event) => {
-    if (!notesVisible() || event.target.id !== "notes-editor") return;
-    ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value, { composing: event.isComposing || event.target.dataset.composing === "true" });
+    if (!notesVisible()) return;
+    const composing = event.isComposing || event.target.dataset.composing === "true";
+    if (event.target.id === "notes-editor") ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value, { composing });
+    else if (event.target.dataset.noteEntryEditor) {
+      const store = entryStores.get(event.target.dataset.category);
+      store?.edit(event.target.dataset.noteEntryEditor, event.target.value, { composing });
+    }
   });
   document.addEventListener("compositionstart", (event) => {
-    if (notesVisible() && event.target.id === "notes-editor") event.target.dataset.composing = "true";
+    if (notesVisible() && (event.target.id === "notes-editor" || event.target.dataset.noteEntryEditor)) event.target.dataset.composing = "true";
   });
   document.addEventListener("compositionend", (event) => {
-    if (event.target.id === "notes-editor") event.target.dataset.composing = "false";
-    if (notesVisible() && event.target.id === "notes-editor")
-      ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value);
+    if (event.target.id !== "notes-editor" && !event.target.dataset.noteEntryEditor) return;
+    event.target.dataset.composing = "false";
+    if (!notesVisible()) return;
+    if (event.target.id === "notes-editor") ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value);
+    else entryStores.get(event.target.dataset.category)?.edit(event.target.dataset.noteEntryEditor, event.target.value);
   });
   document.addEventListener("change", (event) => {
     if (notesVisible() && event.target.id === "notes-date") void selectDailyNotesDate(event.target.value);
   });
   document.addEventListener("click", async (event) => {
     if (!notesVisible()) return;
-    const root = document.querySelector("#daily-notes"), target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category]");
+    const root = document.querySelector("#daily-notes");
+    const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action]");
     if (!target || !root?.contains(target)) return;
     event.preventDefault();
     if (target.dataset.notesCategory) {
@@ -3055,11 +3723,44 @@ function registerDailyNotesEvents() {
       return;
     }
     if (target.dataset.notesDate) {
-      await selectDailyNotesDate(target.dataset.notesDate);
+      if (target.dataset.notesDraftCategory && target.dataset.notesDraftCategory !== dailyNotesRouteCategory()) {
+        setDailyNotesRouteCategory(target.dataset.notesDraftCategory);
+        setDailyNotesRouteDate(target.dataset.notesDate);
+        updateRoute(true);
+        renderShell();
+      } else await selectDailyNotesDate(target.dataset.notesDate);
       return;
     }
-    const store = ensureDailyNotesStore(), date = dailyNotesRouteDate(), action = target.dataset.notesAction;
-    if (action === "previous" || action === "next") await selectDailyNotesDate(shiftedNotesDate(date, action === "previous" ? -1 : 1));
+    const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate();
+    if (target.dataset.noteEntryAction) {
+      const id = target.closest("[data-note-entry]")?.dataset.noteEntry, item = entries.entry(id);
+      if (!item) return;
+      const action2 = target.dataset.noteEntryAction;
+      if (action2 === "save") await entries.save(id);
+      else if (action2 === "restore") await entries.restoreEntry(id);
+      else if (action2 === "delete") {
+        notesConfirmEntry = id;
+        paintDailyNotesPage();
+      } else if (action2 === "cancel-delete") {
+        notesConfirmEntry = "";
+        paintDailyNotesPage();
+      } else if (action2 === "confirm-delete") {
+        notesConfirmEntry = "";
+        await entries.deleteEntry(id);
+        paintDailyNotesPage();
+      } else if (action2 === "check") {
+        if (item.phase === "unknown") await entries.reconcile(id);
+        else await entries.readOne(id);
+      } else if (action2 === "retry") await entries.retryPending(id);
+      else if (action2 === "use-server") entries.useServer(id);
+      else if (action2 === "use-draft") await entries.useDraft(id);
+      return;
+    }
+    const action = target.dataset.notesAction;
+    if (action === "new") {
+      const item = entries.start(date);
+      if (item) focusEntry(item.id);
+    } else if (action === "previous" || action === "next") await selectDailyNotesDate(shiftedNotesDate(date, action === "previous" ? -1 : 1));
     else if (action === "login") renderLogin();
     else if (action === "today") await selectDailyNotesDate(dailyNotesToday());
     else if (action === "save") await store.save(date);
@@ -3084,7 +3785,7 @@ function registerDailyNotesEvents() {
   });
   window.addEventListener("beforeunload", (event) => {
     if (notesIdentity !== notesIdentityNow() || !notesStore) return;
-    if ([...notesStores.values()].some((store) => [...store.pages.values()].some((item) => item.dirty || item.pending || item.phase === "unknown"))) {
+    if (retainedDrafts().some((item) => item.dirty || item.pending || item.phase === "unknown")) {
       event.preventDefault();
       event.returnValue = "";
     }
@@ -3092,8 +3793,9 @@ function registerDailyNotesEvents() {
 }
 async function loadDailyNotes() {
   registerDailyNotesEvents();
-  const store = ensureDailyNotesStore();
-  await Promise.all([store.read(dailyNotesRouteDate()), loadNoteDates()]);
+  setDailyNotesRouteDate(dailyNotesRouteDate());
+  const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate();
+  await Promise.all([store.read(date), entries.read(date), loadNoteDates()]);
   paintDailyNotesPage();
 }
 
@@ -3120,7 +3822,10 @@ function flatNoteRow(note, store) {
   const s = store.state, group = s.groups.find((row) => row.id === note.group_id);
   const deleted = Boolean(note.deleted_at || group?.deleted_at), extra = ' data-memo-target="' + e(note.id) + '"';
   const control = !s.canEdit ? "" : s.trash ? button("restore-note", "恢复", extra) : button("delete-note", "×", extra + ' aria-label="删除' + e(note.title) + '" title="移至回收站"');
-  return '<div class="memo-flat-row">' + listButton("note", note, s.noteId) + control + "</div>";
+  const removed = note.deleted_at || group?.deleted_at;
+  const days = removed ? Math.max(0, 30 - Math.floor((Date.now() - Date.parse(removed)) / 864e5)) : 0;
+  const retention = s.trash ? '<small class="memo-retention">' + (days ? "30天恢复期 · 剩余" + days + "天" : "已归档 · 可恢复") + "</small>" : "";
+  return '<div class="memo-flat-row">' + listButton("note", note, s.noteId) + control + retention + "</div>";
 }
 function paintLists(root, store) {
   const s = store.state, find = (q) => root.querySelector(q);
@@ -3146,7 +3851,7 @@ function paintDrafts(root, store) {
 function paintDocument(root, store) {
   const s = store.state, item = store.drafts.get(s.noteId), find = (q) => root.querySelector(q);
   find("#memo-empty").hidden = Boolean(item);
-  find("#memo-empty").textContent = s.trash ? "这里单独保留已删除笔记，选择后可恢复。" : "选择一篇笔记，长期记录常用信息。";
+  find("#memo-empty").textContent = s.trash ? "选择笔记查看" : "选择一篇笔记";
   find("#memo-document").hidden = !item;
   if (!item) return;
   const group = s.groups.find((row) => row.id === item.group_id), deleted = Boolean(item.deleted_at || group?.deleted_at);
@@ -3187,13 +3892,14 @@ function paintMemos(root, store) {
   root.dataset.pane = s.pane;
   const actual = phases[item?.phase] || "已保存", routine = ["dirty", "saving", "saved"].includes(item?.phase) || !item;
   find("#memo-status").textContent = s.loading ? "正在读取…" : !s.canEdit ? "公开只读" : routine ? "自动保存" : actual;
+  find("#memo-status").hidden = s.trash && !s.loading;
   find("#memo-status").setAttribute("aria-label", actual);
   find("#memo-status").dataset.phase = item?.phase || "saved";
   find("#memo-error").hidden = !s.error && !s.storageError;
   find("#memo-error").textContent = [s.error, s.storageError].filter(Boolean).join(" ");
   find('[data-memo-action="login"]').hidden = s.canEdit || s.loading;
   if (!s.canEdit) find("#memo-recovery").hidden = true;
-  find('[data-memo-action="exit-trash"]').hidden = !s.trash;
+  find('[data-memo-action="exit-trash"]').hidden = !s.trash || root.closest(".workbench-settings") !== null;
   find('[data-memo-action="back-notes"]').hidden = s.pane !== "editor";
   const operation = s.operation;
   find("#memo-operation").hidden = !operation?.error && operation?.phase !== "unknown";
@@ -3878,7 +4584,7 @@ function snapshots(storage2, ownerId) {
   return rows.sort((a, b) => b.savedAt.localeCompare(a.savedAt)).slice(0, 100);
 }
 function label2(row, index) {
-  const timestamp = Date.parse(row.savedAt), date = Number.isFinite(timestamp) ? new Date(timestamp).toLocaleString() : "保存时间未知";
+  const timestamp2 = Date.parse(row.savedAt), date = Number.isFinite(timestamp2) ? new Date(timestamp2).toLocaleString() : "保存时间未知";
   return index + 1 + ". " + (row.raw.title || "未命名笔记") + " · " + date + " · 版本 " + row.raw.version;
 }
 function openMemoRecovery(root, store, ownerId) {
@@ -3931,7 +4637,8 @@ function draftStorageScope() {
   return memoDraftScope;
 }
 var currentIdentity = () => String(runtime.sessionEpoch) + ":" + String(state.me?.id || "") + ":" + String(state.me?.csrfToken || "");
-var visible = () => state.page === "memos" && memoIdentity === currentIdentity();
+var settingsTrash = () => state.page === "settings" && state.settingsTab === "workspace";
+var visible = () => (state.page === "memos" || settingsTrash()) && memoIdentity === currentIdentity();
 function ensureStore() {
   const identity = currentIdentity();
   if (memoStore && memoIdentity === identity) return memoStore;
@@ -4277,7 +4984,7 @@ function registerEvents() {
 async function loadMemos() {
   registerEvents();
   const store = ensureStore();
-  const trash = state.memoView === "trash";
+  const trash = settingsTrash() || state.memoView === "trash";
   if (store.state.trash !== trash) {
     store.state.noteId = "";
     store.state.groupId = "";
@@ -4607,11 +5314,56 @@ function setupSidebarResize() {
 
 // web/pages/workbench-settings.mjs
 function renderWorkbenchSettings() {
-  return `<section class="card workbench-settings"><h2>工作台设置</h2>
-<p class="muted">整理内容与找回未保存的文字。</p><div class="workbench-setting-links">
-<button class="btn" data-action="memo-tools" data-tool="trash">${icon("articles")}备忘录回收站</button>
-<button class="btn text" data-action="memo-tools" data-tool="recovery">${icon("refresh")}找回未保存内容</button>
-</div></section>`;
+  return `<section class="workbench-settings"><div class="section-heading"><h2>回收站</h2>
+<button class="btn text" data-action="memo-tools" data-tool="recovery">${icon("refresh")}找回未保存内容</button></div>
+<p class="trash-policy">删除后30天内可恢复；超过30天归档保留，仍可恢复。</p>${renderMemos()}</section>`;
+}
+
+// web/pages/work-reminders.mjs
+function renderWorkReminders() {
+  return '<section id="work-reminders" aria-label="每日工作提醒"><div class="reminder-toolbar"><label for="reminder-date" class="sr-only">提醒日期</label><input id="reminder-date" class="input" type="date"><button type="button" class="btn text" data-reminder-today>今天</button></div><p id="reminder-error" role="alert" hidden></p><div id="reminder-list" aria-live="polite"></div></section>';
+}
+function paintWorkReminders(data, error = "") {
+  const root = document.querySelector("#work-reminders");
+  if (!root) return;
+  const date = data?.date || bjtDate(), field2 = root.querySelector("#reminder-date");
+  if (document.activeElement !== field2) field2.value = date;
+  const message = root.querySelector("#reminder-error");
+  message.hidden = !error;
+  message.textContent = error;
+  const rows = data?.items || [];
+  root.querySelector("#reminder-list").innerHTML = data?.loading ? '<p role="status">正在读取…</p>' : rows.length ? rows.map((row) => '<article class="card reminder-card"><time datetime="' + e(row.updated_at) + '">' + e(new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(row.updated_at))) + "</time><p>" + e(row.summary) + "</p></article>").join("") : '<div class="card reminder-empty">暂无工作提醒</div>';
+}
+
+// web/work-reminders-controller.mjs
+var reminderSequence = 0, reminderEvents = false;
+async function loadWorkReminders() {
+  registerReminderEvents();
+  const sequence = ++reminderSequence, session = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
+  const current = () => sequence === reminderSequence && session === runtime.sessionEpoch && state.page === "reminders";
+  paintWorkReminders({ date, items: [], loading: true });
+  try {
+    const data = await api("/work-reminders?date=" + encodeURIComponent(date));
+    if (current()) paintWorkReminders(data);
+  } catch (error) {
+    if (current()) paintWorkReminders({ date, items: [] }, error.message || "提醒读取失败，请稍后重试");
+  }
+}
+function selectReminderDate(value) {
+  if (!validTodoDate(value)) return;
+  state.reminderDate = value;
+  updateRoute(true);
+  void loadWorkReminders();
+}
+function registerReminderEvents() {
+  if (reminderEvents) return;
+  reminderEvents = true;
+  document.addEventListener("change", (event) => {
+    if (state.page === "reminders" && event.target.id === "reminder-date") selectReminderDate(event.target.value);
+  });
+  document.addEventListener("click", (event) => {
+    if (state.page === "reminders" && event.target.closest("[data-reminder-today]")) selectReminderDate(bjtDate());
+  });
 }
 
 // web/controller.mjs
@@ -4627,7 +5379,7 @@ function mainContent() {
     "page-tabs"
   ) : ""}${state.page === "dashboard" ? `<div class="article-ledger-overview article-ledger-scope">${segmented(
     "article-overview-mode",
-    [["drafts", "存稿台账"], ["published", "已发布数据"], ["reconciliation", "实际对账"]],
+    [["drafts", "文章列表"], ["published", "文章数据"], ["reconciliation", "发布情况"]],
     state.articleOverviewMode,
     "总览口径",
     "mode"
@@ -4658,7 +5410,7 @@ function renderShell() {
   }
   $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
     "close"
-  )}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div></aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
+  )}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div></aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
   setupSidebarResize();
   renderPage();
@@ -4672,6 +5424,10 @@ function navigateLink(page) {
   navigate(page);
 }
 function navigate(page, tab) {
+  if (page === "memos" && tab === "trash") {
+    page = "settings";
+    tab = "workspace";
+  }
   const legacy = Object.hasOwn(legacyPages, page) ? legacyPages[page] : null;
   if (legacy) page = "settings";
   if (!nav.some((n) => n.id === page)) return;
@@ -4692,12 +5448,16 @@ function pageLoading(page) {
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
+  if (page === "reminders") return renderWorkReminders();
+  if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
   return skeleton();
 }
 function setPageBody(html, page) {
   if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
+  else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
+  else if (page === "reminders") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
@@ -4746,6 +5506,9 @@ async function renderPage() {
       case "memos":
         await loadMemos();
         break;
+      case "reminders":
+        await loadWorkReminders();
+        break;
       case "dashboard":
         html = await loadArticleOverview(version, context);
         break;
@@ -4756,9 +5519,15 @@ async function renderPage() {
         html = await renderReviews(version, context);
         break;
       case "settings":
-        if (state.settingsTab === "workspace") html = renderWorkbenchSettings();
-        else if (state.settingsTab === "accounts") html = renderAccounts();
-        else if (state.settingsTab === "keys") {
+        if (state.settingsTab === "workspace") {
+          await loadMemos();
+          break;
+        } else if (state.settingsTab === "accounts") {
+          data = await api("/account-profiles", { context });
+          if (version !== runtime.renderVersion) return;
+          state.accountProfiles = data;
+          html = renderAccounts();
+        } else if (state.settingsTab === "keys") {
           data = await api("/api-keys", { context });
           html = renderKeys(data);
         } else if (state.settingsTab === "security") html = renderSecurity();
@@ -5087,10 +5856,10 @@ function endTodoPress(gesture, event) {
   if (gesture.blocked?.pointerId === event.pointerId) gesture.blocked.until = Date.now() + 800;
 }
 function blockTodoPressClick(gesture, event) {
-  const blocked = gesture.blocked;
-  if (!blocked || Date.now() > blocked.until || !event.pointerType && event.detail === 0) return;
-  const samePointer = event.pointerId === blocked.pointerId;
-  const samePosition = Math.hypot(event.clientX - blocked.x, event.clientY - blocked.y) <= 25;
+  const blocked2 = gesture.blocked;
+  if (!blocked2 || Date.now() > blocked2.until || !event.pointerType && event.detail === 0) return;
+  const samePointer = event.pointerId === blocked2.pointerId;
+  const samePosition = Math.hypot(event.clientX - blocked2.x, event.clientY - blocked2.y) <= 25;
   if (!samePointer && !samePosition) return;
   event.preventDefault();
   event.stopImmediatePropagation();
@@ -5548,7 +6317,7 @@ var actions = {
   "todo-template-edit": ({ id }) => editTodoTemplate(id),
   "todo-template-delete": ({ id }) => writeTodoTemplate(id, void 0, true),
   "memo-tools": ({ target }) => {
-    if (target.dataset.tool === "trash") navigate("memos", "trash");
+    if (target.dataset.tool === "trash") navigate("settings", "workspace");
     else {
       requestMemoTool(target.dataset.tool);
       navigate("memos");
@@ -5783,7 +6552,7 @@ async function submitArticleForm({ form, data }) {
   if (!saved) return;
   closeModal();
   const epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
-  toast(form.dataset.id ? "文章台账已更新。" : "文章已保存。");
+  toast(form.dataset.id ? "文章已更新。" : "文章已保存。");
   try {
     await renderPage();
   } catch {
@@ -5815,16 +6584,32 @@ async function submitReviewForm({ form, data }) {
   return;
 }
 async function submitAccountForm({ form, data, values }) {
-  const id = form.dataset.id;
-  await api(id ? `/accounts/${encodeURIComponent(id)}` : "/accounts", { method: id ? "PUT" : "POST", body: id ? { name: data.name.trim(), active: values.has("active") } : { platform: data.platform, name: data.name.trim() } });
-  state.accounts = (await api("/accounts")).sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - [
+  const id = form.dataset.id, epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
+  const profile = String(data.profile_url || "").trim();
+  const body = id ? { name: data.name.trim(), active: values.has("active") } : { platform: data.platform, name: data.name.trim() };
+  if (profile || id && (state.accountProfiles || []).some((row) => row.account_id === id)) body.profile_url = profile;
+  const signature = JSON.stringify(body);
+  if (form.accountSaveSignature !== signature) {
+    form.accountSaveSignature = signature;
+    form.accountSaveKey = crypto.randomUUID();
+  }
+  const saved = await api(id ? `/accounts/${encodeURIComponent(id)}` : "/accounts", {
+    method: id ? "PUT" : "POST",
+    body,
+    headers: { "Idempotency-Key": form.accountSaveKey }
+  });
+  if (epoch !== runtime.sessionEpoch || ticket !== runtime.modalRequestVersion) return;
+  const [accounts, profiles] = await Promise.all([api("/accounts"), api("/account-profiles")]);
+  if (epoch !== runtime.sessionEpoch || ticket !== runtime.modalRequestVersion) return;
+  state.accountProfiles = profiles;
+  state.accounts = accounts.sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - [
     "toutiao",
     "zhihu",
     "wechat",
     "other"
   ].indexOf(b.platform));
   closeModal();
-  toast("运营账号已保存。");
+  toast(saved.profile_reused ? `该主页已关联「${saved.name}」，已使用现有账号。` : "运营账号已保存。");
   renderShell();
   return;
 }

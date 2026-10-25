@@ -11,12 +11,14 @@ const item = (id, date, extra = {}) => ({
   created_at: '2026-10-23T08:00:00Z', updated_at: '2026-10-23T08:00:00Z', ...extra,
 });
 
-test('history presents selected-day completed rows without changing today hide preference',()=>{
+test('calendar presents selected-day plans and completed rows without changing today hide preference',()=>{
   const c=client();
   c.put('done',item('history-completed','2026-10-22',{completed:true}));
   c.run("todoPreferences().mode='hide';state.todoDate='2026-10-22';state.todoPanel='history';todoDay().items=[done];todoDay().loaded=true");
   assert.match(c.run('renderTodos()'),/history-completed/);
   assert.doesNotMatch(c.run('renderTodos()'),/id="todo-main" hidden/);
+  assert.match(c.run('renderTodos()'),/>日历<|>待办日历</);
+  assert.match(c.run('renderTodos()'),/<form id="todo-form"[^>]*data-date="2026-10-22"/);
   assert.equal(c.run('todoPreferences().mode'),'hide');
   c.run("state.todoPanel=''");
   assert.doesNotMatch(c.run('renderTodos()'),/data-todo-id="history-completed"/);
@@ -33,13 +35,21 @@ test('today-added is based on acknowledged linked items and clears after actual 
   assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added hidden/);
 });
 
-test('common templates opened from history still add to the actual Beijing today',async()=>{
-  const c=client({search:'?page=todos&date=2026-10-20&todo_panel=templates'});
-  c.run("readRoute();paintTodos=()=>{};api=async(path,options)=>({...options.body,completed:false,version:1});let template={id:'common',text:'今日事项'}");
-  assert.equal(c.run('todoDate()'),'2026-10-23');
-  await c.run('submitTodoTemplate(template)');
-  assert.equal(c.run("todoDay('2026-10-23').items[0].date"),'2026-10-23');
-  assert.equal(c.run("todoDay('2026-10-20').items.length"),0);
+test('common templates use the selected calendar day and only show acknowledged membership on that day',async()=>{
+  for (const date of ['2026-10-20','2026-10-24']) {
+    const c=client({search:`?page=todos&date=${date}&todo_panel=templates`});
+    c.run("readRoute();paintTodos=()=>{};api=async(path,options)=>({...options.body,completed:false,version:1});let template={id:'common',text:'所选日事项'};templateState().items=[template]");
+    assert.equal(c.run('todoDate()'),date);
+    await c.run('submitTodoTemplate(template)');
+    assert.equal(c.run('todoDay().items[0].date'),date);
+    assert.equal(c.run("todoDay('2026-10-23').items.length"),0);
+    assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added >当日已添加/);
+    c.run("state.todoDate=''");
+    assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added hidden>今日已添加/);
+    c.run(`todoDay().items=todoDay('${date}').items`);
+    assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added hidden>今日已添加/,
+      'a linked row from another date cannot produce a today badge');
+  }
 });
 
 function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false} = {}) {
@@ -104,6 +114,44 @@ function prepareForm(c, {date = '2026-10-23', text = '写下今天的计划'} = 
   c.run(`paintTodos=()=>{};todoDay(${JSON.stringify(date)}).draft=${JSON.stringify(text)}`);
   return form;
 }
+
+test('future calendar plans save and reload on the chosen date and returning today preserves that day',async()=>{
+  const c=client({search:'?page=todos&date=2027-01-01&todo_panel=history'});
+  c.run("readRoute();let saved=[],calls=[];paintTodos=()=>{};api=async(path,options)=>{calls.push({path,options});if(options?.method){const row={...options.body,completed:false,version:1};saved.push(row);return row}return {items:saved.filter(row=>row.date===new URL('http://localhost'+path).searchParams.get('date'))}};");
+  const html=c.run('renderTodos()');
+  assert.match(html,/<form id="todo-form"[^>]*data-date="2027-01-01"/);
+  assert.doesNotMatch(html,/<form[^>]*hidden[^>]*id="todo-form"/);
+  assert.match(html,/data-action="todo-panel-close">‹ 返回今日待办/);
+  prepareForm(c,{date:'2027-01-01',text:'提前安排元旦计划'});
+  await c.run('submitTodo({form:syntheticTodoForm,data:todoData})');
+  assert.equal(c.run('calls[0].options.body.date'),'2027-01-01');
+  assert.equal(c.run("todoDay('2026-10-23').items.length"),0);
+  c.run('todoDay().items=[]');
+  await c.run('loadTodos()');
+  assert.equal(c.run('todoDay().items[0].text'),'提前安排元旦计划');
+  await c.run("setTodoPanel('')");
+  assert.equal(c.run('todoDate()'),'2026-10-23');
+  assert.equal(c.run('state.todoPanel'),'');
+  assert.equal(new URL(c.location.href).searchParams.has('date'),false);
+  assert.equal(new URL(c.location.href).searchParams.has('todo_panel'),false);
+  assert.equal(c.run("todoDay('2027-01-01').items[0].text"),'提前安排元旦计划');
+});
+
+test('a selected calendar date stays pinned across Beijing midnight and template badges follow the actual day',async()=>{
+  const c=client({now:'2026-10-23T15:59:59Z'});
+  c.run("paintTodos=()=>{};api=async()=>({items:[]});state.todoPanel='history';selectTodoDate('2026-10-23');templateState().items=[{id:'common',text:'常用'}]");
+  c.put('linked',item('selected-today-linked','2026-10-23',{template_id:'common'}));
+  c.run('todoDay().items=[linked]');
+  assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added >今日已添加/);
+  c.setNow('2026-10-23T16:00:00Z');
+  c.run('syncTodoDay()');
+  assert.equal(c.run('todoDate()'),'2026-10-23');
+  assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added >当日已添加/);
+  await c.run("setTodoPanel('')");
+  assert.equal(c.run('todoDate()'),'2026-10-24');
+  assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added hidden>今日已添加/);
+  assert.equal(c.run("todoDay('2026-10-23').items[0].date"),'2026-10-23');
+});
 
 test('today follows Beijing midnight while explicit history and unfinished items stay on their original date', () => {
   const c = client({now: '2026-10-23T15:59:59Z'});
@@ -449,18 +497,30 @@ test('midnight timer and returning-tab events switch today automatically without
   }
 });
 
-test('same-day list updates preserve the live plan input and its caret', () => {
+test('list updates preserve input and caret while pinned-day labels follow Beijing midnight', () => {
   const c = client(), slots = new Map();
-  const input = {value: '正在输入计划', selectionStart: 3, selectionEnd: 3, readOnly: false};
+  const input = {value: '正在输入计划', selectionStart: 3, selectionEnd: 3, readOnly: false, placeholder: '今天想完成什么？'};
+  const label = {textContent: '今天想完成什么？'};
   const button = {disabled: false, textContent: '添加', setAttribute() {}};
   for (const id of ['todo-caption', 'todo-status', 'todo-items', 'todo-feedback']) slots.set('#' + id, {innerHTML: ''});
   slots.set('#todo-text', input);
+  slots.set('label[for="todo-text"]', label);
   slots.set('button[type=submit]', button);
   const root = {setAttribute() {}, querySelectorAll:()=>[], dataset: {date: '2026-10-23'}, querySelector: selector => slots.get(selector) || null};
   Object.defineProperty(root, 'outerHTML', {set() {assert.fail('same-day refresh must retain the existing form');}});
   c.nodes.set('#daily-todos', root);
   c.put('syntheticInput', input);
   c.run("document.activeElement=syntheticInput;todoDay().draft='正在输入计划';todoDay().loaded=true;paintTodos()");
+  assert.equal(c.run('document.activeElement===syntheticInput'), true);
+  assert.equal(input.value, '正在输入计划');
+  assert.equal(input.selectionStart, 3);
+  assert.equal(input.selectionEnd, 3);
+  c.run("state.todoDate='2026-10-23'");
+  c.setNow('2026-10-23T16:00:00Z');
+  c.run('syncTodoDay();paintTodos()');
+  assert.equal(c.run('todoDate()'), '2026-10-23');
+  assert.equal(input.placeholder, '这一天的计划');
+  assert.equal(label.textContent, '这一天的计划');
   assert.equal(c.run('document.activeElement===syntheticInput'), true);
   assert.equal(input.value, '正在输入计划');
   assert.equal(input.selectionStart, 3);

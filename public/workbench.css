@@ -121,7 +121,7 @@
 }
 
 /* History shows all active rows, including completed items, without changing today preferences. */
-#todo-history:not([hidden])+#todo-main #todo-form,#todo-history:not([hidden])+#todo-main .todo-list-options { display:none; }
+#todo-history:not([hidden])+#todo-main .todo-list-options { display:none; }
 .todo-template-added { color:var(--accent); font-size:12px; margin:7px 0 0; }
 
 /* Flat memo list keeps legacy grouping solely in the storage model. */
@@ -233,4 +233,53 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
   .sidebar .notes-nav>summary { width:auto; justify-content:flex-start; }
   .mobile-nav { left:12px; right:12px; width:auto; max-width:none; box-sizing:border-box;
     padding-bottom:calc(6px + env(safe-area-inset-bottom)); }
+}
+
+/* Round 4: compact timestamped entries and one clear selected category. */
+.notes-categories { padding:4px; gap:4px; border:1px solid var(--glass-edge); border-radius:16px; }
+.notes-categories button { min-height:44px; padding:9px 14px; border:1px solid transparent; border-radius:12px; }
+.notes-categories button[aria-pressed="false"] { background:transparent; box-shadow:none; color:var(--ink-2); }
+.notes-categories button[aria-pressed="true"] {
+  background:rgba(255,255,255,.88); border-color:rgba(255,255,255,.94); color:var(--accent); font-weight:650;
+  box-shadow:0 3px 10px rgba(111,72,55,.08);
+}
+.notes-entry-toolbar,.note-entry-head,.note-entry-actions,.reminder-toolbar {
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.notes-entry-toolbar { margin:16px 0; }
+.notes-entry-list { display:grid; gap:16px; }
+.note-entry { min-width:0; padding:20px; border:1px solid var(--glass-edge); border-radius:20px; background:var(--glass-panel); }
+.note-entry-head { justify-content:space-between; margin-bottom:8px; }
+.note-entry-time { font-size:13px; font-weight:600; color:var(--ink-2); }
+.note-entry-status { font-size:12px; color:var(--ink-2); }
+.note-entry-editor { width:100%; min-height:96px; padding:8px 0; resize:vertical; font:inherit; line-height:1.8;
+  border:0; border-bottom:1px solid transparent; background:transparent; color:var(--ink); }
+.note-entry-reader,.note-entry-resolution pre,.reminder-card p { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.8; }
+#daily-notes :is(.notes-editor,.note-entry-editor):is(:focus,:focus-visible) { outline:none; box-shadow:none; }
+#daily-notes :is(.notes-editor,.note-entry-editor):focus-visible { border-bottom:1px solid rgba(82,116,122,.45); }
+.note-entry-actions { margin-top:8px; }
+.note-entry-actions .btn { min-height:44px; }
+.note-entry-message,.note-entry-resolution,.note-entry-confirm { margin-top:12px; }
+.notes-legacy-card { margin-top:20px; }
+.daily-notes .notes-legacy-card .notes-sheet { padding:0; border:0; min-height:96px; background:transparent; }
+.notes-legacy-card .notes-editor { min-height:96px; }
+#memos .memo-flat-row { flex-wrap:wrap; }
+.memo-retention { flex:0 0 100%; padding:0 12px 6px; color:var(--ink-2); font-size:12px; }
+.trash-policy { margin:8px 0 20px; color:var(--ink-2); font-size:13px; }
+.workbench-settings #memos .memo-layout { min-height:360px; }
+.workbench-settings #memos .memo-toolbar { min-height:0; margin-bottom:12px; }
+.workbench-settings #memos .memo-body,.workbench-settings #memos .memo-read-body { min-height:220px; }
+.reminder-toolbar { margin-bottom:20px; }
+.reminder-toolbar .input { width:auto; min-width:160px; }
+.reminder-card { margin-bottom:16px; padding:24px; }
+.reminder-card time { color:var(--ink-2); font-size:12px; }
+.reminder-card p { margin-top:12px; }
+.reminder-empty { padding:28px; color:var(--ink-2); }
+@media (max-width:760px) {
+  .mobile-nav.workbench-navigation { grid-template-columns:repeat(6,minmax(0,1fr)); }
+  .mobile-nav-item,.mobile-media-nav>summary,.mobile-notes-nav>summary { font-size:10px; }
+  .mobile-nav .nav-label { overflow-wrap:anywhere; white-space:normal; text-align:center; }
+  .note-entry { padding:16px; }
+  .note-entry-editor { font-size:16px; }
+  .workbench-settings #memos .memo-layout { min-height:340px; }
 }

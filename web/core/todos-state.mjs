@@ -18,7 +18,7 @@ function validTodoDate(date) {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
 }
 function todoDate() {
-  return state.page === "todos" && state.todoPanel !== "templates" && validTodoDate(state.todoDate) ? state.todoDate : bjtDate();
+  return state.page === "todos" && validTodoDate(state.todoDate) ? state.todoDate : bjtDate();
 }
 function todoDay(date = todoDate()) {
   if (todosState.owner !== todoOwner()) resetTodos();

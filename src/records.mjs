@@ -8,6 +8,7 @@ import { articleFacts, cumulativeOverview, paginate, snapshotTimeline } from './
 import {pipelineInput,requestedArticleStatus,requireDraftPublicationNull,decodePipelineArticle,
   durationForArticle,compareArticlePublication,requirePublishedMetrics,requireNoDraftMetrics,pipelineKeyConflict} from './article-pipeline-io.mjs';
 import {articlePipelineQuery,articlePipelineSqlFilters,articleWarnings,verificationState} from './article-pipeline-query.mjs';
+import {normalizeAccountProfile,hasAccountProfileInput,hasAccountProfileValue} from './account-profiles.mjs';
 
 const pipelineFacts=row=>({...row,warnings:articleWarnings(row),...verificationState(row)});
 
@@ -193,13 +194,36 @@ export function createRecords(store) {
     return await all(`SELECT * FROM accounts${clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''} ORDER BY created_at,id`, ...params);
   }
 
-  async function createAccount(body) {
+  async function listAccountProfiles(scope = null) {
+    const clauses = [], params = [];
+    scopedWhere(scope, 'p.account_id', clauses, params);
+    const rows = await all(`SELECT p.* FROM matrix_account_profiles p JOIN accounts a ON a.id=p.account_id${clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''} ORDER BY p.created_at,p.account_id LIMIT 1001`, ...params);
+    if (rows.length > 1000) fail(422, 'PROFILE_LIMIT_EXCEEDED', '账号主页超过单次可读取数量，请缩小账号范围');
+    return rows;
+  }
+
+  async function existingProfile(profile, scope = null, except = null) {
+    checkScope(scope);
+    const existing = await get('SELECT a.*,p.profile_url,p.platform_identity FROM matrix_account_profiles p JOIN accounts a ON a.id=p.account_id WHERE p.platform_identity=?', profile.platform_identity);
+    if (!existing || existing.id === except) return null;
+    if (scope !== null && !scope.includes(existing.id)) fail(409, 'ACCOUNT_PROFILE_EXISTS', '该公开主页已登记，请使用其他主页或联系管理员');
+    return existing;
+  }
+
+  async function createAccount(body, scope = null) {
     object(body);
-    if (!PLATFORMS.has(body.platform)) fail(400, 'VALIDATION_ERROR', '平台须为 toutiao、zhihu、wechat 或 other');
+    const profile = hasAccountProfileValue(body) ? normalizeAccountProfile(body.profile_url, body.platform || undefined) : null;
+    const platform = profile?.platform || body.platform;
+    if (!PLATFORMS.has(platform)) fail(400, 'VALIDATION_ERROR', '平台须为 toutiao、zhihu、wechat 或 other');
     const id = randomUUID(), name = text(body.name, '账号名称', 100);
+    if (profile) {
+      const existing = await existingProfile(profile, scope);
+      if (existing) return {...existing, profile_reused: true};
+    }
     const created_at = new Date().toISOString();
-    run('INSERT INTO accounts(id,platform,name,active,created_at) VALUES(?,?,?,?,?)', id, body.platform, name, 1, created_at);
-    return {id,platform:body.platform,name,active:1,created_at};
+    run('INSERT INTO accounts(id,platform,name,active,created_at) VALUES(?,?,?,?,?)', id, platform, name, 1, created_at);
+    if (profile) run('INSERT INTO matrix_account_profiles(account_id,profile_url,platform_identity,created_at,updated_at) VALUES(?,?,?,?,?)', id, profile.profile_url, profile.platform_identity, created_at, created_at);
+    return {id,platform,name,active:1,created_at,...(profile ? {profile_url: profile.profile_url, platform_identity: profile.platform_identity} : {})};
   }
 
   async function updateAccount(id, body) {
@@ -211,8 +235,17 @@ export function createRecords(store) {
       if (![true, false, 0, 1].includes(body.active)) fail(400, 'VALIDATION_ERROR', '账号启用状态无效');
       active = Number(body.active);
     }
+    let profile;
+    if (hasAccountProfileInput(body)) {
+      if (hasAccountProfileValue(body)) {
+        profile = normalizeAccountProfile(body.profile_url, old.platform);
+        if (await existingProfile(profile, null, id)) fail(409, 'ACCOUNT_PROFILE_EXISTS', '该公开主页已关联其他账号，请使用已存在的账号');
+        const stamp = new Date().toISOString();
+        run('INSERT INTO matrix_account_profiles(account_id,profile_url,platform_identity,created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET profile_url=excluded.profile_url,platform_identity=excluded.platform_identity,updated_at=excluded.updated_at', id, profile.profile_url, profile.platform_identity, stamp, stamp);
+      } else run('DELETE FROM matrix_account_profiles WHERE account_id=?', id);
+    }
     run('UPDATE accounts SET name=?,active=? WHERE id=?', name, active, id);
-    return {...old,name,active};
+    return {...old,name,active,...(hasAccountProfileInput(body) ? {profile_url: profile?.profile_url || null, platform_identity: profile?.platform_identity || null} : {})};
   }
 
   async function sqlArticlePage(query, clauses, params, order) {
@@ -526,5 +559,5 @@ export function createRecords(store) {
     return result;
   }
 
-  return { listAccounts, createAccount, updateAccount, listArticles, articlePage, getArticle, createArticle, updateArticle, validateArticleUpdate, listObservations, createObservation, listDaily, upsertDaily, dashboard, overview, dueReviews };
+  return { listAccounts, listAccountProfiles, createAccount, updateAccount, listArticles, articlePage, getArticle, createArticle, updateArticle, validateArticleUpdate, listObservations, createObservation, listDaily, upsertDaily, dashboard, overview, dueReviews };
 }

@@ -29,7 +29,7 @@ test('0007 only adds work storage and preserves all eighteen existing tables and
   const catalog=(await app.db.prepare("SELECT name,sql FROM sqlite_schema WHERE type='table' AND name LIKE 'matrix_%' ORDER BY name").all()).results;
   assert.equal(catalog.length,18);const rows={};
   for(const {name} of catalog)rows[name]=(await app.db.prepare('SELECT * FROM '+name+' ORDER BY rowid').all()).results;
-  await applyFixtureMigrations(app.db);
+  await applyFixtureMigrations(app.db,{through:8});
   for(const {name,sql} of catalog) {
     assert.equal((await app.db.prepare("SELECT sql FROM sqlite_schema WHERE type='table' AND name=?").bind(name).first()).sql,sql);
     assert.deepEqual((await app.db.prepare('SELECT * FROM '+name+' ORDER BY rowid').all()).results,rows[name],name);
@@ -37,7 +37,8 @@ test('0007 only adds work storage and preserves all eighteen existing tables and
   assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_daily_work_notes').first()).n,0);
   assert.deepEqual((await app.call('/daily-notes?date='+DAY)).data,old.data);
   const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url)));
-  assert.equal(journal.entries.length,8);assert.equal(journal.entries[7].tag,'0007_work_daily_notes');
+  assert.equal(journal.entries.length,9);assert.equal(journal.entries[7].tag,'0007_work_daily_notes');
+  assert.equal(journal.entries[8].tag,'0008_workbench_updates');
   const previous=JSON.parse(await readFile(new URL('../drizzle/meta/0006_snapshot.json',import.meta.url)));
   const current=JSON.parse(await readFile(new URL('../drizzle/meta/0007_snapshot.json',import.meta.url)));
   assert.equal(current.prevId,previous.id);assert.equal(Object.keys(current.tables).length,19);
@@ -97,11 +98,14 @@ test('v8 backups preserve work and tombstones, accept old v7 into empty targets 
   assert.equal(scoped.data.tables.daily_work_notes.length,1);assert.equal(scoped.data.tables.daily_work_notes[0].user_id,app.owner);
   const hidden=await app.call('/daily-notes?date='+DAY+'&category=work');
   assert.equal(hidden.data.text,'');assert.equal(hidden.data.deleted,true);
-  const backup=await exportBackup(app.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v8');
+  const backup=await exportBackup(app.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v9');
   assert.equal(backup.data.tables.daily_work_notes.length,2);assert.ok(backup.data.tables.daily_work_notes.every(row=>row.deleted_at));
   const empty=await fixture(t,{bootstrap:false});await restoreIntoEmptyDatabase(empty.db,backup,{allowEmptyRestore:true});
   assert.deepEqual((await empty.db.prepare('SELECT * FROM matrix_daily_work_notes').all()).results,backup.data.tables.daily_work_notes);
   const data=structuredClone(backup.data);data.format='haoduoyu-matrix-d1-v7';delete data.tables.daily_work_notes;
+  for(const name of ['note_entries','work_reminders','account_profiles']) {
+    assert.deepEqual(data.tables[name],[],'historical fixture cannot hide workbench data: '+name);delete data.tables[name];
+  }
   const legacy={data,sha256:digest(JSON.stringify(stable(data)))},target=await fixture(t,{bootstrap:false});
   await restoreIntoEmptyDatabase(target.db,legacy,{allowEmptyRestore:true});
   assert.equal((await target.db.prepare('SELECT count(*) AS n FROM matrix_daily_work_notes').first()).n,0);

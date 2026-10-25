@@ -56,6 +56,27 @@ export const matrixDailyNotes=sqliteTable('matrix_daily_notes',{
 export const matrixDailyWorkNotes=sqliteTable('matrix_daily_work_notes',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),date:text('date').notNull(),text:text('text').notNull().default(''),version:integer('version').notNull(),change_seq:integer('change_seq').notNull(),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
 },t=>[primaryKey({columns:[t.user_id,t.date]}),index('matrix_daily_work_notes_user_changes').on(t.user_id,t.change_seq,t.date),check('matrix_daily_work_notes_version',sql`${t.version} >= 1`),check('matrix_daily_work_notes_change_seq',sql`${t.change_seq} >= 1`)]);
+export const matrixNoteEntries=sqliteTable('matrix_note_entries',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  category:text('category').notNull(),date:text('date').notNull(),text:text('text').notNull().default(''),
+  version:integer('version').notNull(),change_seq:integer('change_seq').notNull(),
+  created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),
+  index('matrix_note_entry_day').on(t.user_id,t.category,t.date,t.created_at,t.id),
+  check('matrix_note_entry_category',sql`${t.category} IN ('life','work')`),
+  check('matrix_note_entry_version',sql`${t.version} >= 1`),check('matrix_note_entry_changes',sql`${t.change_seq} >= 1`)]);
+export const matrixWorkReminders=sqliteTable('matrix_work_reminders',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  date:text('date').notNull(),source_key:text('source_key').notNull(),summary:text('summary').notNull(),
+  version:integer('version').notNull(),change_seq:integer('change_seq').notNull(),
+  created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),uniqueIndex('matrix_work_reminder_source').on(t.user_id,t.date,t.source_key),
+  check('matrix_work_reminder_version',sql`${t.version} >= 1`),check('matrix_work_reminder_changes',sql`${t.change_seq} >= 1`)]);
+export const matrixAccountProfiles=sqliteTable('matrix_account_profiles',{
+  account_id:text('account_id').primaryKey().references(()=>matrixAccounts.id,{onDelete:'cascade'}),
+  profile_url:text('profile_url').notNull(),platform_identity:text('platform_identity').notNull(),
+  created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
+},t=>[uniqueIndex('matrix_account_profile_url').on(t.profile_url),uniqueIndex('matrix_account_profile_identity').on(t.platform_identity)]);
 export const matrixMemoGroups=sqliteTable('matrix_memo_groups',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id),id:text('id').notNull(),title:text('title').notNull(),
   position:integer('position').notNull(),version:integer('version').notNull(),change_seq:integer('change_seq').notNull(),

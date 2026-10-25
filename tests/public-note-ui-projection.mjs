@@ -1,6 +1,7 @@
 import {projectReconciliation} from './reconciliation-ui-projection.mjs';
 import assert from 'node:assert/strict';
 import {projectWorkbenchRound3} from './workbench-round3-projection.mjs';
+import {projectWorkbenchRound4} from './workbench-round4-projection.mjs';
 import {projectWorkbenchFrontend} from './workbench-ui-projection.mjs';
 import {readFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
@@ -30,6 +31,7 @@ export async function projectPublicNoteFrontend(file,source) {
 export async function projectPublicNoteBackend(file,source) {
   const expected=manifest.backend[file];
   if(!expected)return source;
+  source=projectWorkbenchRound4(file,source);
   if(hash(source)!==expected.after_sha256)source=projectWorkbenchRound3(file,source);
   assert.equal(hash(source),expected.after_sha256,'exact approved public note backend delta: '+file);
   if(expected.before_sha256===null)return '';

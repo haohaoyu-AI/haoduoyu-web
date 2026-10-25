@@ -31,7 +31,7 @@ test('ledger summary counts only actual statuses and writer values without inven
 test('empty real set stays clean and unavailable data is not rendered as zero',()=>{
   const summary=summarizeArticleLedger([]),empty=renderArticleLedgerSummary(summary),unknown=renderArticleLedgerSummary();
   assert.equal(summary.total,0);assert.deepEqual(summary.writers,[]);assert.match(empty,/尚未记录文章/);
-  assert.match(empty,/data-action="new-article"/);assert.doesNotMatch(empty,/<table|<dd>|应产出|缺失/);
+  assert.doesNotMatch(empty,/data-action="new-article"|记录草稿|<table|<dd>|应产出|缺失/);
   assert.match(unknown,/数量未取得/);assert.doesNotMatch(unknown,/>0</);
 });
 
@@ -69,7 +69,7 @@ test('bounded total and failed requests remain unavailable instead of truncating
 test('summary HTML escapes all labels, retains genuine zero comparison cells and does not infer scheduled output',()=>{
   const summary=summarizeArticleLedger([article('a','draft_saved','dedao'),article('b','published','human')]);
   const html=renderArticleLedgerSummary(summary);
-  assert.match(html,/得到大脑/);assert.match(html,/人工/);assert.match(html,/>0<\/td>/);assert.match(html,/不是原子快照/);
+  assert.match(html,/得到大脑/);assert.match(html,/人工/);assert.match(html,/>0<\/td>/);assert.match(html,/读取期间记录可能更新/);
   assert.doesNotMatch(html,/今日应产出|缺失 \d|完成率|耗时中位/);
   const untrusted=structuredClone(summary);untrusted.writers[0].writer='<img src=x onerror=1>';
   const safe=renderArticleLedgerSummary(untrusted);assert.doesNotMatch(safe,/<img|onerror/);assert.match(safe,/未记录/);

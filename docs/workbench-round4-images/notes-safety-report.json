@@ -1,0 +1,15 @@
+{
+  "synthetic": true,
+  "checks": [
+    "IME, fast serial autosave, real server time and stable focus/selection 375",
+    "two entries, unknown-write exact retry, continued draft and explicit conflict resolution 375",
+    "category/date isolation, delayed acknowledgement, reload and responsive layout 375",
+    "server-authorized read-only rendering 375",
+    "IME, fast serial autosave, real server time and stable focus/selection 1440",
+    "two entries, unknown-write exact retry, continued draft and explicit conflict resolution 1440",
+    "category/date isolation, delayed acknowledgement, reload and responsive layout 1440",
+    "server-authorized read-only rendering 1440"
+  ],
+  "pageerrors": [],
+  "external_requests": []
+}

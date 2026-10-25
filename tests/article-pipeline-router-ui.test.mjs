@@ -151,7 +151,7 @@ test('default dashboard uses all five complete ledger cohorts with one page cont
   assert.ok(calls.every(call=>call.options.context===calls[0].options.context));
   assert.equal(calls[0].options.context.kind,'page');assert.equal(app.run('state.dashboard'),null);
   const content=app.nodes.get('#page-content');
-  assert.match(content.innerHTML,/文章台账/);assert.match(content.innerHTML,/<dt>草稿 \/ 未发布<\/dt><dd>2<\/dd>/);
+  assert.match(content.innerHTML,/文章列表/);assert.match(content.innerHTML,/<dt>草稿 \/ 未发布<\/dt><dd>2<\/dd>/);
   assert.match(content.innerHTML,/<dt>已发布<\/dt><dd>1<\/dd>/);assert.doesNotMatch(content.innerHTML,/dashboard-stats|error-panel/);
   assert.equal(content.attributes['aria-busy'],'false');
 });

@@ -3,7 +3,7 @@ import {registerPublicBusiness} from './business-access.mjs';
 import {storeFor} from './storage.mjs';
 
 const buckets=new Map();
-const reads=new Set(['/auth/me','/accounts','/articles','/observations','/daily-metrics','/dashboard','/overview','/due-reviews',
+const reads=new Set(['/auth/me','/accounts','/account-profiles','/articles','/observations','/daily-metrics','/dashboard','/overview','/due-reviews',
   '/article-reconciliation','/todos','/todo-templates','/todo-preferences','/export']);
 export function publicBusinessRoute(route,method) {
   if(method==='GET') return reads.has(route)||/^\/articles\/[^/]+$/.test(route);

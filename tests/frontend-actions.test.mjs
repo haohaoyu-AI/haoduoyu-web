@@ -1,5 +1,6 @@
 import {reconciliationModules} from './reconciliation-ui-projection.mjs';
 import {workbenchAddedModules} from './workbench-ui-projection.mjs';
+import {round4AddedModules} from './workbench-round4-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -254,7 +255,7 @@ test('event bindings retain all nine original positions and capture options',asy
 });
 test('web style checks every function type and rejects long fixture lines/functions',async()=>{
   const report=await webStyle();assert.deepEqual(report.violations,[]);
-  assert.equal(report.files,40+(await phase7Manifest()).added_modules.length+memoAddedModules.length+workbenchAddedModules.length+reconciliationModules.length);
+  assert.equal(report.files,40+(await phase7Manifest()).added_modules.length+memoAddedModules.length+workbenchAddedModules.length+reconciliationModules.length+round4AddedModules.length);
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));

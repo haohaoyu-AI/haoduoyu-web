@@ -1,0 +1,634 @@
+{
+  "baseline": "4aefa4d4d596ad540324bc78898ae208121647b4",
+  "scope": "Fourth-round workbench requests: additive note entries, reminders, account profiles, read-only opt-in sync manifest and v9 backup; explicit UI copy/layout changes; existing v1/v2 snapshots and Notion delivery remain unchanged.",
+  "files": {
+    "db/schema.ts": {
+      "before": "8642beeef97936d4304121dba194066a12bc6cd5f1653d1c32b8fd5022891807",
+      "after": "0e6974df4ba030d9048cf701f2dee3234ecc1839c9699cae226e68e1a71671f0"
+    },
+    "drizzle/0008_workbench_updates.sql": {
+      "before": null,
+      "after": "d28ab09e68b119cd41c2e924f715ef893a5b4d6bd09b28dc23b64a10ced21e81"
+    },
+    "drizzle/meta/0008_snapshot.json": {
+      "before": null,
+      "after": "58b2dde9fdc54a8fa70364a5443fc650481dcb80352b47389dc4951e46d2e975"
+    },
+    "drizzle/meta/_journal.json": {
+      "before": "53d58b4ebba7aa5a8629bbc59444a6ca45052d3f98690e5e2fb921154f386f49",
+      "after": "b91f68e9b05633884c76b332e0089672e7c7146288fea533b185d5b78726ce3c"
+    },
+    "public/api-docs.html": {
+      "before": "2b96fe5f79578dd1ee8664c54130582b0cd2400999ceed3514c72102e124755f",
+      "after": "2fae454f8c83226a07a7b6e1f16eac8267918e01e019c76d4387e96d394c784d"
+    },
+    "public/app.js": {
+      "before": "4681e592fb1d9f5612ab908dd475eff452cdd2f0825fd3751e58f4b99e32f4ae",
+      "after": "a7e7e6c975f3d0c26f2736545dd93f7122a4687e929727011abf02e423ed3b95"
+    },
+    "public/llms.txt": {
+      "before": "eebdc79bc711fe4bc65a2676c993135a5eaaa79df81e3c9207b270674716026a",
+      "after": "9494a4ecf86296151cb2e9784ba6b1305a765de5cdc2f5f5f6591c0279870d1a"
+    },
+    "public/openapi.json": {
+      "before": "04b09abce8879520dac609316cac6d4d1d1c9c003a13124635f0b5bb8799c329",
+      "after": "e1676f9ddc968793566ee93c572c93f602d28b1318683b01a896d05d4bfb2771"
+    },
+    "public/workbench.css": {
+      "before": "b2ab7fac1baeea0647a015cbe70fd71f356e24cc386a4960f88fa07a150454f7",
+      "after": "c6b6058194eaae75804869f8a0eb9ab8606cb5ead1f7326b4bcc06a862d2457d"
+    },
+    "scripts/build.mjs": {
+      "before": "e3ceed39217b542201d20c18ccb6050cacb53d182b27bd8aa74de0f62554accb",
+      "after": "8a0aa5eaa39255e55ded082d0805993fa79ce2e8c0fec0b97513c0b51ce37dd8"
+    },
+    "scripts/migration-contract.mjs": {
+      "before": "aa35b51d0ec5bfbb7d13ca960fb80b2619aadf8a45d8410bc4aa06301d6841b1",
+      "after": "4cf78ff9cd4100e829783e237c1e7091aa0e9412c4efdb6acb4ec60f6d7bff2d"
+    },
+    "scripts/migration-inventory.mjs": {
+      "before": "ab35b3deac4504efc931f8db2714e698431d4773bd8b9744a1f31f855d7f6017",
+      "after": "985c7aa49b2aeb402171d2b3454a73e1c19046be375a012b37fcedda9a4a0950"
+    },
+    "src/account-profiles.mjs": {
+      "before": null,
+      "after": "40e8858d41367ff45408e91d7236b4fa8d472cb615ad3dd98e0cc6d44bfeff09"
+    },
+    "src/backup.mjs": {
+      "before": "6feb1124245e37b6b2ff299a2f315fc0654626154bccda57ae902d02dfda57ed",
+      "after": "0c7b9b4da92e52f83c986cf7bf58df0202019c6ccd9d723492714e2ebdd53530"
+    },
+    "src/note-entries.mjs": {
+      "before": null,
+      "after": "a58150f886cd098a4f3744fe5d7cf49ca43c83ca9fc467bf6ffe53e5ffbafd63"
+    },
+    "src/note-entry-validation.mjs": {
+      "before": null,
+      "after": "826ae27d1187fc17bdbe3b73b5e782055fa57a82182712542df63de76723bcd4"
+    },
+    "src/public-business.mjs": {
+      "before": "feef414996f44eef9df51a55ffc4ea68882af7cda254c0e8123beabfcb20c41a",
+      "after": "82a0f67c90fc6a6e730b41b0a304006e28b85fcd9e17c7b10706eeec0fc3bc5e"
+    },
+    "src/records.mjs": {
+      "before": "2c0c6a40f1ec34bd8d696d34cb95ab4b683b47d05b346362b0d59e0298984d08",
+      "after": "03d49352bb87a444f711217975980e1584d82af36cd47d00add530e7a29ab91d"
+    },
+    "src/work-reminders.mjs": {
+      "before": null,
+      "after": "5472cd3883738a0c11de069c1c7ab33b4b764c63992140d0a31c71182a196de7"
+    },
+    "src/workbench-snapshot.mjs": {
+      "before": null,
+      "after": "5ff7c8876fef10d1c7c3ea7354490f846c62dae8cd06a7228a9f5faf55003c76"
+    },
+    "src/worker.mjs": {
+      "before": "7999236af3b77e5724070a334ad1756cfd30dfad56ff96a65b0aa73262ce5b81",
+      "after": "fba54e9de893a4e6a88b4f4c73ea18ea33d35cd07ead19505fe3c38711f6eba7"
+    },
+    "web/actions.mjs": {
+      "before": "d434c9d13a06b933f8b2a7974cab737640c5c981fa38ea7e43dd1ff4ef5d0b48",
+      "after": "3f9a522ce6a7a6717a72e2adcad820235ef791151bf5cdd858fe79c4819a28c4"
+    },
+    "web/controller.mjs": {
+      "before": "58638f02dcf8cd44ddccfbb0fef11c89d5d5b66366ccc9342a2590ef220aa40d",
+      "after": "28627e4d37cdb11fd2f159aab6922ce45d4e652a286fe373e1e3b5f01a9d055f"
+    },
+    "web/core/constants.mjs": {
+      "before": "915c71fec2b5cb10ef4d3e5ba9b0532b8538458f331edcea454c86802978d69f",
+      "after": "6959c609a2c231592e18df1034c601789de3f25db3d31bfcd4bffa0943b591bb"
+    },
+    "web/core/dom.mjs": {
+      "before": "8281ba7003da9f9582a229439340b1f41c5b1672e621c7add5cc5ffcc37455f7",
+      "after": "cc8828f26c1e5374c73963474082614f3298448d335710c36338962017118a68"
+    },
+    "web/core/note-entries-state.mjs": {
+      "before": null,
+      "after": "0ae3fc13869ed7b40777ac6834ac8ebf80969b8aeb74a8e94380919d87d28662"
+    },
+    "web/core/router.mjs": {
+      "before": "e30ad17bd67b08f9d04380fdb62e764d8c07040657e31a900db5a0b69d715f7d",
+      "after": "a61fd09cf75bb25493d238b537cd0f6e160cabca1391652062a5da4137d21152"
+    },
+    "web/core/state.mjs": {
+      "before": "6b5d9c9c55f2b32f82ec8477992179a89aadd8ec9e73879022ea97f6da765264",
+      "after": "d1979c548879ffbfece26d38f649ba3010c1720270c4bf72538df119d1d68f8c"
+    },
+    "web/core/todos-state.mjs": {
+      "before": "c3fbf4e776e51290458be143ea73a8a7f37fdb7f27fa1b8c149198a09f1d644d",
+      "after": "56fd42042e760aa33b410d67fa4eaba6323599a37fd3e554f71cbb2dab0adbd2"
+    },
+    "web/daily-notes-controller.mjs": {
+      "before": "1231c07922d28a70c1abd9e83ddc656cc738f14dd62e31a98a2a24ea7eb8753b",
+      "after": "5606b91623a272869158329a5cde3e8f9a3abffd65953b836fddc33eb4f39ee7"
+    },
+    "web/forms.mjs": {
+      "before": "1e75a932cbd781cddea1066d8668d44480c8d2db9d4ae8cb20ba875867f8f947",
+      "after": "27432a544265de41a14b6d2aee0b16d9ff6a66f69af311b8d372a2fe687c965d"
+    },
+    "web/memos-controller.mjs": {
+      "before": "917c91c6ddccf34ce58208a5918eb4950094115e25dc65bd705e137b510de7f6",
+      "after": "e8bbb83503a4493cc502175ed006b6a41c019475fe85ada062e4b2428d67dd09"
+    },
+    "web/pages/article-ledger-overview.mjs": {
+      "before": "cacd2a63bd0681e00753dd834d4c5d64ce0ecf7c80dff2d5f650bf0264e7d656",
+      "after": "780d0e45647b8b079e6d8716556e0291be0c5ef3fe580dee89c499ec809740d0"
+    },
+    "web/pages/article-reconciliation.mjs": {
+      "before": "5446aa8932b040f026d8b8fcafeb663298cb98437cca7022c231dd40685afcc4",
+      "after": "2b515d83122894a0aab52b8d89aefdca03ac6f004e983454dd65789f66be022a"
+    },
+    "web/pages/articles.mjs": {
+      "before": "543e8220937eee6f264f35a396bde3bee8481e5648d0240f27a24227fa658c0b",
+      "after": "08a59742774e7fb95719680c6c9eb2288aadd1fc48ddfd65d9eada4019299fe2"
+    },
+    "web/pages/daily-notes.mjs": {
+      "before": "9621bb587388ce968b0ff006a73593de052e42001fde882641a8ad5ca4938f2c",
+      "after": "7480bb4908ff19dc180e40e3c46434f93a1d1523a5fd33e4f754427d061a9d8c"
+    },
+    "web/pages/dashboard.mjs": {
+      "before": "393f1749ef0f80434e5c17d5b584219b6310e80815644d8db1c50d345c2e9433",
+      "after": "7ad8a25646d5628b38f3b10b90b826a4693fd1f4d9d94b593f3d405fe009fc69"
+    },
+    "web/pages/memos.mjs": {
+      "before": "7c2d8039f085f5522513f4c9c3a7cd8a2917b41ad3229b065d32cb162e047a59",
+      "after": "7b7ab5df08db29d9cd27018a04d86eb8f999be91df6cfd04773976282b713da1"
+    },
+    "web/pages/settings.mjs": {
+      "before": "7ae0de9754ff9cc7d518d5c46658086bd3405e37ba61aa474e87721782c11aee",
+      "after": "52284b84a97a641edcccf78ffef9b6ca2a59645816d9513e5e47261da96259e7"
+    },
+    "web/pages/todo-templates.mjs": {
+      "before": "71ee2814134d270928cc0c7fa3534bab09dded932cd7b760735a4af5016dcd65",
+      "after": "55d8fc9f5e95e6ae4f98082a838bbc21a5a89888e19b1ac29f3eb9349d21a736"
+    },
+    "web/pages/todos.mjs": {
+      "before": "754bda484d21ca0554c5a7a26c1d9bd4debf5008d4e01d07f678943bec7e5273",
+      "after": "457a9963d4b6d8f2574a4358bfee57e168264de9b62854df8e3a9da67d80a0c5"
+    },
+    "web/pages/work-reminders.mjs": {
+      "before": null,
+      "after": "3497e5743eb945f5959370d9bed2ef8d14f68d5d1b2021873f736c242903c54a"
+    },
+    "web/pages/workbench-settings.mjs": {
+      "before": "4d9f5ca8c7cfd2fcf435279b286bc6fe00ec7cac4fd7347c1ee23f2dd7505901",
+      "after": "30d1c5cc5c2cc165dc413990a76d133434970392239228a6551de3968bf9976a"
+    },
+    "web/ui/components.mjs": {
+      "before": "ddd7d75bb2d3d015b781c7878c0f1b3562604ae839b45485f62a7a8a842545b2",
+      "after": "3bd0a2c18a3aeecd1b80e8265f0040d4099946b3cb456c9da23e9314b3a00b1c"
+    },
+    "web/work-reminders-controller.mjs": {
+      "before": null,
+      "after": "81234ffbb14ddc43fa97be7d17b200a8aa534d8e5131caddf8d76d6dec1e7c39"
+    }
+  },
+  "spec_changes": [
+    {
+      "path": [
+        "components",
+        "parameters",
+        "WorkbenchCsrf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "0dc60ceda5135081551cb5add19792d196702e6f1be43e7445cd9cd9a521c59d"
+    },
+    {
+      "path": [
+        "components",
+        "parameters",
+        "WorkbenchOrigin"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "3ad0260e79d25a62f6fa00484790f11a5d89e526ddcf6f4dc06112ef0eb286f9"
+    },
+    {
+      "path": [
+        "components",
+        "parameters",
+        "WorkbenchPublicWrite"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "b4a403958d47dda664bad493e3d84eba932b08984d016a22fb2b712c11f25662"
+    },
+    {
+      "path": [
+        "components",
+        "responses",
+        "WorkbenchRateLimit"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "dfdfc10c39ea1a837f6e98e0f7d1064b5c5f128ac261885026c1f4fa7da37576"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Account",
+        "properties",
+        "platform_identity"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "174e29b899b9ef9154a4d74f2c92ab3c556781ce17e916f91e14d80521818844"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Account",
+        "properties",
+        "profile_reused"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "34acd902136f7cf1ca52b6d2f16d7a23607417f72d8e7154092a859276dbb510"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "Account",
+        "properties",
+        "profile_url"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "103a5e49c0d9cf1dac5970a1cd10e230b60d4c4fb8ce0e37b45d6929c01b45e5"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "AccountCreate",
+        "anyOf"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "788d4fb8260ca38d41baec3067047e134463a5902062c4c65bd14af8f9326565"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "AccountCreate",
+        "description"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "9262c1b8ccf22eab1c9ef3086cf549909b43b067bd944cb34c18927a50d63c5a"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "AccountCreate",
+        "properties",
+        "profile_url"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "270195d9d629478e9bf9d6792e9e8611e5d9797fa636c46ae1b4aec33f97305b"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "AccountCreate",
+        "required"
+      ],
+      "was": true,
+      "now": true,
+      "before": [
+        "platform",
+        "name"
+      ],
+      "after_sha256": "1c429aa3f7749956917a7a20d9cdb4d0d7f4d9f1a8cd86db1248731238332c44"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "AccountProfile"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "1665bc621790f8e05b068165890a35666126f5907309f31bc348407d951f0bc3"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "AccountUpdate",
+        "description"
+      ],
+      "was": true,
+      "now": true,
+      "before": "只允许修改显示名或启用状态；未给的字段保留原值，不能修改平台。",
+      "after_sha256": "146b3b9a68facaae082ac789cba91a2257cf3d068b8b98b8d1b0bab904024be6"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "AccountUpdate",
+        "properties",
+        "profile_url"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "270195d9d629478e9bf9d6792e9e8611e5d9797fa636c46ae1b4aec33f97305b"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "MatrixBackupV9"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "1afab88d6e46f183d76d6691ad9bae736e9a17425cd84cd43d29424d5696cbdd"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "NoteEntry"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "fc59ee1b44efa4ef93dbff68fcd71164548cd26818f0c0399ef9b0ec1a0eb81b"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "NoteEntryDateIndex"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "5228e6e96498c904e4827592ed35a4d01419f644ab0954001bb1abc35acd75ef"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "NoteEntryDay"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "445826b7dedc594b4976d2b91024e9d5783521425e3ae8f8f589d4f786d31046"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "NoteEntryReceipt"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "4ec2b9e8aa7438ebd2e12b49b9b54e3bf660ff594c1edd3483d25bbc54b404e7"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "NoteEntrySave"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c4b73499cce2ebd85b289f5a5357be14e6254aec73bb74e2af0c6ebc359a46bd"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "NoteWriteMarker"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "63e1feda51adcff3c28be880fb06a9530bb49e3e02c5b73d48e1c53d70f0878c"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "WorkReminder"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "a170702572f73033425a70d04af53203769539dc28dfb992fe3e543816e53786"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "WorkReminderDay"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "5a455d29eeef218d64b5cdaffe5ed0730c9954d1cae539da0c013b69092a1680"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "WorkReminderSave"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "a0fa78a3f98cd6b726d933ef12816a81545fbd318a7aa67e82c3ed59530d789d"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "WorkbenchManifestEntity"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "82863c212758492279e0d2ea5e205317338c1bd58c7bbbbe4ded5724ad7d2d00"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "WorkbenchRecord"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "06eee23660e277297753bd9c3c0c73bd1c19351c4c12546807170d43f40d0150"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "WorkbenchSnapshot"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "f119fdce6e4c1978d67869ca03deef3412e9a30e90564840a2b89ad64ec76172"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "WorkbenchSnapshotBase"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "528e27b20841dc7a88c94897c8a8c0bbc749bfc088d54b3ff4c1f715859ad16b"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "WorkbenchSnapshotIndex"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "890ef9e611f02dc00d9225643009982123a59645cf6fe9327fd122c69f7b64cc"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/account-profiles"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "9af8976e643adde29ef3ab09a1e989f581120588f63a13ed3b93410776749fd5"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/accounts",
+        "post",
+        "description"
+      ],
+      "was": true,
+      "now": true,
+      "before": "",
+      "after_sha256": "a64d4caeab5fe31a05de3573c81bb77157feef4b294c43ce1842cb54f5e41b8f"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/accounts",
+        "post",
+        "responses",
+        "200"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "4bf36c2009d27f5a268f96527c98bbebfa7b8cdf56995a4326daafdd59343d06"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/backup"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "528f9ec8976eae968e42b4c0dd9fad39a7c3df7f4d051f99498e238ba33108a1"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/note-entries"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "564cc3bcef8e14512e6ed38ae9e0514d47e409cc66bf95cc6f923cd010ee3865"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/note-entries/dates"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "3037c25e5b7d7a6809f802f83a6abc1efd10d1245b194fa0b36042bd159d5b00"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/note-entries/operations/{save_id}"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "7bfc5a9b802f0f089833ecdd7d19b19f5ee24034297774328450680a43167235"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/note-entries/{id}"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "eb0feea9d1119b98ec8a1253f3f0eeaea3f3c991e1410cf6895433dd543178d8"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/note-entries/{id}/restore"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "399155ee18b0f35848a8f94629043df8f05e180714d1da2d2f3d5747aad3e1d0"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/work-reminders"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "ef8fa18c693a16ba0c53655a373c35ce12c9f7fc03515e90d544658af7c66f5b"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/work-reminders/{id}"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "05f65eb7311807236ca86176602e5c0c5419e9fae82e45f051beeca96ac70dcc"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/work-reminders/{id}/restore"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "3b54f5b9d71c17c9d54cfdfcec9e9b8a5a3b654bb7186a5af8d79a399e76b6a9"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/workbench-snapshot"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "f164090369a70a9d92b94bcdd34fa987ac935d4fcf5442ae77518c8ed102279c"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/workbench-snapshot/index"
+      ],
+      "was": false,
+      "now": true,
+      "after_sha256": "c0fadffafbc7f98e93f7d58a3d07d1ab62b20b17e4c23d11ff8a7a937ca4989f"
+    }
+  ],
+  "docs_section": {
+    "start": "<!-- workbench-round4:start -->",
+    "end": "<!-- workbench-round4:end -->",
+    "sha256": "b87a4609e6a0c61c33ea05a43416342c2a6a01e65a90cba068422c806fbe6008"
+  }
+}

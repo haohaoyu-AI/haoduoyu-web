@@ -2,6 +2,10 @@ import { digest,fail } from '../shared/auth.mjs';
 import { consistentRead,ensureControl,statement } from './storage.mjs';
 import { stable } from './security.mjs';
 import {ARTICLE_PIPELINE_FIELDS,LEGACY_ARTICLE_PIPELINE_DEFAULTS,validateArticlePipelineFields} from './article-pipeline-fields.mjs';
+import {normalizeAccountProfile} from './account-profiles.mjs';
+import {NOTE_ENTRY_LIMITS,noteEntryId,noteEntryCategory} from './note-entry-validation.mjs';
+import {WORK_REMINDER_LIMITS,workReminderId,workReminderSourceKey,workReminderSummary} from './work-reminders.mjs';
+import {snapshotDate} from './business-snapshot.mjs';
 
 // Explicit columns/order prevent a supplied backup from injecting identifiers.
 // Sessions and throttle windows are intentionally not restored: restored users
@@ -27,9 +31,16 @@ const memoColumns={
   memo_notes:['user_id','id','group_id','title','body','position','version','change_seq','created_at','updated_at','deleted_at'],
 };
 const v7Columns={...v6Columns,...memoColumns};
-const columns={...v7Columns,daily_work_notes:v5Columns.daily_notes};
-const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','daily_work_notes','memo_groups','memo_notes']);
-const backupTable=name=>privateTables.has(name)?'matrix_'+name:name;
+const v8Columns={...v7Columns,daily_work_notes:v5Columns.daily_notes};
+const workbenchColumns={
+  note_entries:['user_id','id','category','date','text','version','change_seq','created_at','updated_at','deleted_at'],
+  work_reminders:['user_id','id','date','source_key','summary','version','change_seq','created_at','updated_at','deleted_at'],
+  account_profiles:['account_id','profile_url','platform_identity','created_at','updated_at'],
+};
+const columns={...v8Columns,...workbenchColumns};
+const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','daily_work_notes','memo_groups','memo_notes',
+  'note_entries','work_reminders']);
+const backupTable=name=>privateTables.has(name)||name==='account_profiles'?'matrix_'+name:name;
 const v4Columns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>name!=='daily_notes'));
 const legacyColumns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>!privateTables.has(name)));
 const v3Columns=Object.fromEntries(Object.entries(v4Columns).filter(([name])=>name!=='todo_preferences')
@@ -39,7 +50,8 @@ const v2Columns=Object.fromEntries(Object.entries(v3Columns).filter(([name])=>![
 const versionColumns=new Map([
   ['haoduoyu-matrix-d1-v1',legacyColumns],['haoduoyu-matrix-d1-v2',v2Columns],
   ['haoduoyu-matrix-d1-v3',v3Columns],['haoduoyu-matrix-d1-v4',v4Columns],
-  ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',v6Columns],['haoduoyu-matrix-d1-v7',v7Columns],['haoduoyu-matrix-d1-v8',columns],
+  ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',v6Columns],['haoduoyu-matrix-d1-v7',v7Columns],['haoduoyu-matrix-d1-v8',v8Columns],
+  ['haoduoyu-matrix-d1-v9',columns],
 ]);
 function validateMemos(tables,sourceRevision) {
   const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
@@ -60,6 +72,55 @@ function validateMemos(tables,sourceRevision) {
     seen.add(key);
   }
 }
+function validateWorkbench(tables,sourceRevision) {
+  const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+  const users=new Set(tables.users.map(row=>row.id)),accounts=new Map(tables.accounts.map(row=>[row.id,row]));
+  const timestamp=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)&&
+    Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
+  const validText=value=>typeof value==='string'&&value.isWellFormed()&&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+  const validTime=row=>timestamp(row.created_at)&&timestamp(row.updated_at)&&row.created_at<=row.updated_at&&
+    (row.deleted_at===null||timestamp(row.deleted_at)&&row.deleted_at>=row.created_at&&row.deleted_at<=row.updated_at);
+  const invalid=()=>{throw fail(400,'INVALID_BACKUP','工作台记录字段、归属或主页链接无效');};
+  for(const name of ['note_entries','work_reminders']) {
+    const seen=new Set(),sources=new Set(),counts=new Map();
+    for(const row of tables[name]) {
+      const key=JSON.stringify([row.user_id,row.id]);
+      if(!uuid.test(row.user_id)||!users.has(row.user_id)||seen.has(key)||
+        !Number.isSafeInteger(row.version)||row.version<1||!Number.isSafeInteger(row.change_seq)||
+        row.change_seq<1||row.change_seq>sourceRevision||!validTime(row))invalid();
+      try {
+        if((name==='note_entries'?noteEntryId:workReminderId)(row.id)!==row.id)invalid();
+        snapshotDate(row.date);
+        if(name==='note_entries') {
+          noteEntryCategory(row.category);
+          if(!validText(row.text)||Buffer.byteLength(row.text,'utf8')>NOTE_ENTRY_LIMITS.text)invalid();
+        } else {
+          workReminderSourceKey(row.source_key);workReminderSummary(row.summary);
+          const source=JSON.stringify([row.user_id,row.date,row.source_key]);
+          if(sources.has(source))invalid();sources.add(source);
+        }
+      } catch {invalid();}
+      seen.add(key);
+      if(row.deleted_at===null) {
+        const day=JSON.stringify([row.user_id,row.date,...(name==='note_entries'?[row.category]:[])]);
+        const count=(counts.get(day)||0)+1;counts.set(day,count);
+        if(count>(name==='note_entries'?NOTE_ENTRY_LIMITS.per_day:WORK_REMINDER_LIMITS.per_day))invalid();
+      }
+    }
+  }
+  const ids=new Set(),urls=new Set(),identities=new Set();
+  for(const row of tables.account_profiles) {
+    const account=accounts.get(row.account_id);
+    if(typeof row.account_id!=='string'||!row.account_id||row.account_id.length>100||!account||ids.has(row.account_id)||
+      urls.has(row.profile_url)||identities.has(row.platform_identity)||!timestamp(row.created_at)||!timestamp(row.updated_at)||
+      row.created_at>row.updated_at)invalid();
+    try {
+      const profile=normalizeAccountProfile(row.profile_url,account.platform);
+      if(profile.profile_url!==row.profile_url||profile.platform_identity!==row.platform_identity)invalid();
+    } catch {invalid();}
+    ids.add(row.account_id);urls.add(row.profile_url);identities.add(row.platform_identity);
+  }
+}
 export async function exportBackup(db,{todoUserId}={}) {
   const data=await consistentRead(db,async(store,sourceRevision)=>{
     const tables={};
@@ -68,7 +129,7 @@ export async function exportBackup(db,{todoUserId}={}) {
       tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
         ...(scoped?[todoUserId]:[]));
     }
-    return {format:'haoduoyu-matrix-d1-v8',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
+    return {format:'haoduoyu-matrix-d1-v9',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
   });
   return {data,sha256:digest(JSON.stringify(stable(data)))};
 }
@@ -77,15 +138,16 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   if(!allowEmptyRestore) throw fail(403,'RESTORE_DISABLED','恢复只允许在显式指定的空隔离数据库执行');
   if(!versionColumns.has(backup?.data?.format)||backup.sha256!==digest(JSON.stringify(stable(backup.data)))) throw fail(400,'INVALID_BACKUP','备份格式或校验和无效');
   const expected=versionColumns.get(backup.data.format);
-  const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8'].includes(backup.data.format);
-  const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8'].includes(backup.data.format);
-  const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8'].includes(backup.data.format);
+  const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9'].includes(backup.data.format);
+  const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9'].includes(backup.data.format);
+  const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9'].includes(backup.data.format);
   const sourceRevision=hasSourceRevision?backup.data.source_revision:0;
   if(hasSourceRevision&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
     throw fail(400,'INVALID_BACKUP','备份修订号无效');
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
-  const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],daily_work_notes:[],memo_groups:[],memo_notes:[],...supplied};
+  const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],daily_work_notes:[],memo_groups:[],memo_notes:[],
+    note_entries:[],work_reminders:[],account_profiles:[],...supplied};
   for(const [name,fields] of Object.entries(expected)) {
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {
@@ -101,6 +163,7 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   }
   if([...tables.daily_notes,...tables.daily_work_notes].some(row=>row.change_seq>sourceRevision))throw fail(400,'INVALID_BACKUP','碎碎念变更号超过源修订号');
   validateMemos(tables,sourceRevision);
+  validateWorkbench(tables,sourceRevision);
   // Validate the exact historic columns before introducing compatibility defaults.
   if(!hasTodoTombstones) {
     tables.todos=tables.todos.map(row=>({...row,deleted_at:null}));

@@ -1,5 +1,6 @@
 import {reconciliationModules,projectReconciliation} from './reconciliation-ui-projection.mjs';
 import {workbenchAddedModules} from './workbench-ui-projection.mjs';
+import {round4AddedModules,projectWorkbenchRound4} from './workbench-round4-projection.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
@@ -99,7 +100,8 @@ export async function phase7ModuleFiles() {
 export async function verifyPhase7FrontendBoundary() {
   const delta=await phase7Manifest(),all=await phase7ModuleFiles();
   for(const file of reconciliationModules)assert.equal(projectReconciliation(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  const files=all.filter(file=>!reconciliationModules.includes(file));
+  for(const file of round4AddedModules)assert.equal(projectWorkbenchRound4(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
+  const files=all.filter(file=>![...reconciliationModules,...round4AddedModules].includes(file));
   assert.deepEqual(files,[...delta.modules,...memoAddedModules,...workbenchAddedModules].sort(),'the complete article and memo module inventory is explicit');
   for(const file of files) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');

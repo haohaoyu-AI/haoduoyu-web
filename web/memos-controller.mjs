@@ -23,7 +23,8 @@ function draftStorageScope() {
   return memoDraftScope;
 }
 const currentIdentity = () => String(runtime.sessionEpoch) + ':' + String(state.me?.id || '') + ':' + String(state.me?.csrfToken || '');
-const visible = () => state.page === 'memos' && memoIdentity === currentIdentity();
+const settingsTrash = () => state.page === 'settings' && state.settingsTab === 'workspace';
+const visible = () => (state.page === 'memos' || settingsTrash()) && memoIdentity === currentIdentity();
 function ensureStore() {
   const identity = currentIdentity();
   if (memoStore && memoIdentity === identity) return memoStore;
@@ -268,7 +269,7 @@ function registerEvents() {
 }
 export async function loadMemos() {
   registerEvents(); const store = ensureStore();
-  const trash = state.memoView === 'trash';
+  const trash = settingsTrash() || state.memoView === 'trash';
   if (store.state.trash !== trash) { store.state.noteId = ''; store.state.groupId = ''; store.state.pane = 'notes'; }
   store.state.trash = trash;
   await store.load(); await selectVisibleMemo(store);

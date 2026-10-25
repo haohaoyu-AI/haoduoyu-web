@@ -13,6 +13,7 @@ const nav = [
   { id: "todos", label: "每日待办", icon: "check" },
   { id: "notes", label: "碎碎念", icon: "edit" },
   { id: "memos", label: "备忘录", icon: "articles" },
+  { id: "reminders", label: "工作提醒", icon: "calendar" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
 const settingsTabs = { workspace: "工作台", accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };

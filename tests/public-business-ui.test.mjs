@@ -21,11 +21,16 @@ test('anonymous public UI opens business directly and never offers credential/se
   c.run("state.me={id:'public-business',username:'公开编辑',publicBusiness:true};state.accounts=[];readRoute();renderShell()");
   assert.equal(c.run('state.settingsTab'),'workspace');
   const html=c.nodes.get('#app').innerHTML;
-  assert.match(html,/公开编辑/);assert.match(html,/data-nav="todos"/);
+  assert.match(html,/data-nav="todos"/);
+  assert.doesNotMatch(html,/公开编辑|class="user-row"|class="avatar"|class="user-name"/);
   assert.doesNotMatch(html,/data-tab="(?:keys|security|log)"|data-action="logout"|password-form|login-form/);
   const options=JSON.parse(c.run("JSON.stringify(apiOptions({method:'POST',body:{text:'synthetic'}}))"));
   assert.equal(options.headers['X-Public-Business'],'1');assert.equal(options.headers['X-CSRF-Token'],undefined);
   c.run("state.me={id:'synthetic-private',username:'Private',csrfToken:'synthetic-private-csrf'}");
+  c.run('renderShell()');
+  assert.match(c.nodes.get('#app').innerHTML,/class="user-row"|class="avatar"/);
+  assert.match(c.nodes.get('#app').innerHTML,/Private/);
+  assert.match(c.nodes.get('#app').innerHTML,/data-action="logout"/);
   const privateOptions=JSON.parse(c.run("JSON.stringify(apiOptions({method:'POST',body:{}}))"));
   assert.equal(privateOptions.headers['X-Public-Business'],undefined);
   assert.equal(privateOptions.headers['X-CSRF-Token'],'synthetic-private-csrf');

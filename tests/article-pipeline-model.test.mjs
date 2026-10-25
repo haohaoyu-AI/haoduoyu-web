@@ -42,7 +42,8 @@ test('active migration is the exact approved SQL; old SQL and all non-article me
   assert.equal((await loadArticleMigration()).length,25);
   assert.equal(sql,await readFile(new URL('migration-candidates/'+articleMigrationTag+'.sql',root),'utf8'));
   const journal=JSON.parse(await readFile(new URL('drizzle/meta/_journal.json',root),'utf8'));
-  assert.equal(journal.entries.length,8);assert.equal(journal.entries[5].tag,articleMigrationTag);
+  assert.equal(journal.entries.length,9);assert.equal(journal.entries[5].tag,articleMigrationTag);
+  assert.equal(journal.entries[8].tag,'0008_workbench_updates');
   for(const entry of journal.entries.slice(0,5)) {
     const path='drizzle/'+entry.tag+'.sql';
     assert.equal(await readFile(new URL(path,root),'utf8'),execFileSync('git',['show',base+':'+path],{cwd:root,encoding:'utf8'}));

@@ -501,7 +501,7 @@
       "post": {
         "operationId": "createAccount",
         "summary": "管理员创建运营账号",
-        "description": "",
+        "description": "原有管理员创建及既有公开业务编辑规则；可选 profile_url 本地规范化并推断平台，原 platform/name 请求继续有效。相同规范身份已在授权范围内则重用既有账号，200并返回 profile_reused:true；范围外重复409 ACCOUNT_PROFILE_EXISTS，不返回该账号资料。Bearer 不获得账号创建权限。",
         "tags": [
           "管理员"
         ],
@@ -557,6 +557,44 @@
           },
           "500": {
             "$ref": "#/components/responses/Error500"
+          },
+          "200": {
+            "description": "该规范主页已登记且当前调用者可见；重用已有账号，不修改原名称或另建账号。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/Account"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "profile_reused": {
+                              "const": true
+                            }
+                          },
+                          "required": [
+                            "profile_reused"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
           }
         },
         "parameters": [
@@ -4298,6 +4336,1540 @@
           }
         }
       }
+    },
+    "/api/v1/note-entries": {
+      "get": {
+        "operationId": "listNoteEntries",
+        "summary": "完整读取某日生活或工作碎碎念条目",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 仅 category/date 查询，默认 life 和北京时间今天。该日该分类最多200条活动记录；返回完整列表，超过上限503 NOTES_LIMIT。旧 /daily-notes 兼容项独立读取，不自动迁移或与新条目合并。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "life",
+                "work"
+              ],
+              "default": "life"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "description": "有效自然日；省略时取北京时间今天。重复和未知查询参数返回400。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "该日全部未删除条目。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NoteEntryDay"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/note-entries/dates": {
+      "get": {
+        "operationId": "listNoteEntryDates",
+        "summary": "分页列出指定分类的去重活动日期",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 dates 降序去重；before 为不含该日期的游标，page_size 默认30、最多100。仅未删除条目产生日期；未知或重复参数返回400。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "life",
+                "work"
+              ],
+              "default": "life"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "去重日期分页及 next_before。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NoteEntryDateIndex"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/note-entries/{id}": {
+      "get": {
+        "operationId": "getNoteEntry",
+        "summary": "按稳定 UUID 读取条目或编辑者墓碑",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 不接受查询参数。不存在返回404；删除项对普通公开读者返回404，对编辑者保留全文与 deleted_at。content_hash 覆盖该条存储字段，用于收据核对。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "客户端生成并保持不变的 UUID；大小写规范为小写。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "完整条目；编辑者可读取删除项正文。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NoteEntry"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveNoteEntry",
+        "summary": "创建或按版本更新一条碎碎念",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 JSON 必须恰好包含定义字段。save_id 为稳定 UUID，成功确认前保留原值；version=0 创建，更新使用当前版本。相同 save_id 不同请求返回409 IDEMPOTENCY_CONFLICT；已成功请求仅在对应版本仍为当前版本时可原样重放，后来更新后返回409 VERSION_CONFLICT。结果不明先读取核对，不换标识盲目重发。共享 notes owner 限流为每分钟60次、每天2000次写入（每隔离实例尽力限制），429 NOTES_RATE_LIMIT；请求体最多256KiB。 每次成功新保存推进 version/change_seq；即使同毫秒也可区分。创建或恢复超过200条活动记录返回409 NOTES_LIMIT。已删除记录须先恢复，直接 PUT 返回409 NOTE_ENTRY_DELETED。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "客户端生成并保持不变的 UUID；大小写规范为小写。"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchOrigin"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchCsrf"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchPublicWrite"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteEntrySave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存后的当前记录。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NoteEntry"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "description": "BODY_TOO_LARGE：JSON 请求体超过256KiB；NOTES_TOO_LARGE：碎碎念正文超过64KiB；WORK_REMINDERS_TOO_LARGE：提醒摘要超过16KiB或该日活动提醒超过100条。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "$ref": "#/components/responses/WorkbenchRateLimit"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteNoteEntry",
+        "summary": "按当前版本软删除条目",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 JSON 必须恰好包含定义字段。save_id 为稳定 UUID，成功确认前保留原值；version=0 创建，更新使用当前版本。相同 save_id 不同请求返回409 IDEMPOTENCY_CONFLICT；已成功请求仅在对应版本仍为当前版本时可原样重放，后来更新后返回409 VERSION_CONFLICT。结果不明先读取核对，不换标识盲目重发。共享 notes owner 限流为每分钟60次、每天2000次写入（每隔离实例尽力限制），429 NOTES_RATE_LIMIT；请求体最多256KiB。 ",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "客户端生成并保持不变的 UUID；大小写规范为小写。"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchOrigin"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchCsrf"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchPublicWrite"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteWriteMarker"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存后的当前记录。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NoteEntry"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "description": "BODY_TOO_LARGE：JSON 请求体超过256KiB；NOTES_TOO_LARGE：碎碎念正文超过64KiB；WORK_REMINDERS_TOO_LARGE：提醒摘要超过16KiB或该日活动提醒超过100条。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "$ref": "#/components/responses/WorkbenchRateLimit"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/note-entries/{id}/restore": {
+      "post": {
+        "operationId": "restoreNoteEntry",
+        "summary": "显式恢复条目及保留正文",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 JSON 必须恰好包含定义字段。save_id 为稳定 UUID，成功确认前保留原值；version=0 创建，更新使用当前版本。相同 save_id 不同请求返回409 IDEMPOTENCY_CONFLICT；已成功请求仅在对应版本仍为当前版本时可原样重放，后来更新后返回409 VERSION_CONFLICT。结果不明先读取核对，不换标识盲目重发。共享 notes owner 限流为每分钟60次、每天2000次写入（每隔离实例尽力限制），429 NOTES_RATE_LIMIT；请求体最多256KiB。 恢复保留原 created_at，推进 version、change_seq、updated_at；该日活动记录上限200。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "客户端生成并保持不变的 UUID；大小写规范为小写。"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchOrigin"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchCsrf"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchPublicWrite"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteWriteMarker"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存后的当前记录。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NoteEntry"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "description": "BODY_TOO_LARGE：JSON 请求体超过256KiB；NOTES_TOO_LARGE：碎碎念正文超过64KiB；WORK_REMINDERS_TOO_LARGE：提醒摘要超过16KiB或该日活动提醒超过100条。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "$ref": "#/components/responses/WorkbenchRateLimit"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/note-entries/operations/{save_id}": {
+      "get": {
+        "operationId": "getNoteEntryReceipt",
+        "summary": "编辑者读取 metadata 保存收据",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 按当前编辑 actor 隔离；未登录且非公开编辑模式返回401，其他身份返回403。无查询参数。found=false 表示无此保存收据；found=true 只返回元数据，可能对应旧版本，须再 GET 条目比对 id/version/content_hash。未知新建结果应同时读取相应分类/日期核实 can_edit，不能仅根据404推断写入权限。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "save_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "找到或未找到的元数据收据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NoteEntryReceipt"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-reminders": {
+      "get": {
+        "operationId": "listWorkReminders",
+        "summary": "完整读取某日站内工作提醒",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 仅 date 查询；默认北京时间今天，返回 data.items。按 created_at/id 升序，最多100条活动提醒，超限413 WORK_REMINDERS_TOO_LARGE，不截断。source_key 是来源稳定键；同日同来源更新原记录。提醒只是站内保存的数据，不创建 cron、外部推送或平台登录。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "description": "有效自然日；省略时取北京时间今天。重复和未知查询参数返回400。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "该日全部未删除提醒。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkReminderDay"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "413": {
+            "description": "WORK_REMINDERS_TOO_LARGE：该日超过100条完整读取上限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-reminders/{id}": {
+      "put": {
+        "operationId": "saveWorkReminder",
+        "summary": "按稳定来源键保存工作提醒",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 JSON 必须恰好包含定义字段。save_id 为稳定 UUID，成功确认前保留原值；version=0 创建，更新使用当前版本。相同 save_id 不同请求返回409 IDEMPOTENCY_CONFLICT；已成功请求仅在对应版本仍为当前版本时可原样重放，后来更新后返回409 VERSION_CONFLICT。结果不明先读取核对，不换标识盲目重发。共享 notes owner 限流为每分钟60次、每天2000次写入（每隔离实例尽力限制），429 NOTES_RATE_LIMIT；请求体最多256KiB。 date/source_key 不可更改。相同 owner/date/source_key（含墓碑）已存在但 UUID 不同返回409 WORK_REMINDER_EXISTS，改用原 UUID 更新。当前版本且摘要没变不推进版本或更新时间，仍预留 save_id 收据。摘要最多16KiB；创建/恢复最多100条活动提醒，超限413 WORK_REMINDERS_TOO_LARGE。已删除项须先显式恢复。仅集合 GET 可读，无 GET 单项或 operations 路径。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "客户端生成并保持不变的 UUID；大小写规范为小写。"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchOrigin"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchCsrf"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchPublicWrite"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkReminderSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存后的当前记录。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkReminder"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "description": "BODY_TOO_LARGE：JSON 请求体超过256KiB；NOTES_TOO_LARGE：碎碎念正文超过64KiB；WORK_REMINDERS_TOO_LARGE：提醒摘要超过16KiB或该日活动提醒超过100条。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "$ref": "#/components/responses/WorkbenchRateLimit"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteWorkReminder",
+        "summary": "软删除站内工作提醒",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 JSON 必须恰好包含定义字段。save_id 为稳定 UUID，成功确认前保留原值；version=0 创建，更新使用当前版本。相同 save_id 不同请求返回409 IDEMPOTENCY_CONFLICT；已成功请求仅在对应版本仍为当前版本时可原样重放，后来更新后返回409 VERSION_CONFLICT。结果不明先读取核对，不换标识盲目重发。共享 notes owner 限流为每分钟60次、每天2000次写入（每隔离实例尽力限制），429 NOTES_RATE_LIMIT；请求体最多256KiB。 当前版本且已经删除时为幂等无变化，保留收据；不存在或版本变化拒绝。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "客户端生成并保持不变的 UUID；大小写规范为小写。"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchOrigin"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchCsrf"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchPublicWrite"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteWriteMarker"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存后的当前记录。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkReminder"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "description": "BODY_TOO_LARGE：JSON 请求体超过256KiB；NOTES_TOO_LARGE：碎碎念正文超过64KiB；WORK_REMINDERS_TOO_LARGE：提醒摘要超过16KiB或该日活动提醒超过100条。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "$ref": "#/components/responses/WorkbenchRateLimit"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-reminders/{id}/restore": {
+      "post": {
+        "operationId": "restoreWorkReminder",
+        "summary": "恢复站内工作提醒",
+        "description": "固定读取 DAILY_NOTES_OWNER_ID 的记录；读取公开，不接受 user_id 改变归属。编辑只允许该 owner 的既有管理员会话（正确 Origin 和 X-CSRF-Token），或 PUBLIC_BUSINESS_MODE=1 时同源且 X-Public-Business:1 的公开请求。Bearer/API key 不授予写入或保存收据权限，其他登录用户不能编辑。 JSON 必须恰好包含定义字段。save_id 为稳定 UUID，成功确认前保留原值；version=0 创建，更新使用当前版本。相同 save_id 不同请求返回409 IDEMPOTENCY_CONFLICT；已成功请求仅在对应版本仍为当前版本时可原样重放，后来更新后返回409 VERSION_CONFLICT。结果不明先读取核对，不换标识盲目重发。共享 notes owner 限流为每分钟60次、每天2000次写入（每隔离实例尽力限制），429 NOTES_RATE_LIMIT；请求体最多256KiB。 当前版本且已是活动状态时不推进版本；实际恢复须满足该日100条活动提醒上限。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "客户端生成并保持不变的 UUID；大小写规范为小写。"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchOrigin"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchCsrf"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchPublicWrite"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteWriteMarker"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存后的当前记录。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkReminder"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "description": "BODY_TOO_LARGE：JSON 请求体超过256KiB；NOTES_TOO_LARGE：碎碎念正文超过64KiB；WORK_REMINDERS_TOO_LARGE：提醒摘要超过16KiB或该日活动提醒超过100条。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "$ref": "#/components/responses/WorkbenchRateLimit"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "NOTES_CONFIG、NOTES_REVISION、WORK_REMINDERS_REVISION、SETUP_REQUIRED 或 BUSY；无法核实归属或安全修订时拒绝写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workbench-snapshot": {
+      "get": {
+        "operationId": "getWorkbenchSnapshot",
+        "summary": "读取明确日期的完整工作台投影",
+        "description": "只读独立工作台命名空间；已有 /snapshot v1 和 notes=all 的 v2 均保持不变，不写 Notion。仅明确 PUBLIC_BUSINESS_USER_ID 的既有 matrix_session，或 PUBLIC_BUSINESS_MODE=1 的匿名公开范围；任何 Authorization 头均返回403 SNAPSHOT_SESSION_REQUIRED，其他登录用户返回403。PUBLIC_BUSINESS_USER_ID、DAILY_NOTES_OWNER_ID、MEMOS_OWNER_ID 必须显式配置且核实存在；todo 用业务 owner，生活/工作日记及提醒用日记 owner，memo 用备忘录 owner。会话/公开账号范围仍纳入 scope_id。 两个端点均返回相同、完整、按 entity_id 排序的 entities 元数据清单，涵盖所有日期、墓碑及无日期 memo。稳定 ID 前缀为 todo:<uuid>、legacy-life:<date>、legacy-work:<date>、note-entry:<uuid>、work-reminder:<uuid>、memo-group:<uuid>、memo-note:<uuid>。按 (scope_id,entity_id) 去重；旧兼容日记和新条目独立，不按文字或时间合并。保存来源 created_at/updated_at、version、可用 change_seq 和逐实体 content_hash；不提供虚构发生时间。manifest_hash 覆盖完整清单，global_content_hash 覆盖无日期内容；排除 generated_at，对象键规范化、实体排序。scope_id 变化须重建基线，不能推断删除；跨请求有竞争，应用同步批次前重新核对同范围 manifest_hash、global_content_hash 和受影响日期。 完整读取所有来源后投影所选日期，不设最近日期截止、不静默截断。整次请求（含鉴权、修订检查、重试）上限：45次SQL、4000源投影行、1MiB源JSON、1000日期、8MiB累计哈希输入、1MiB响应、100000累计观察 rows_read、50账号；源查询每页200行。超限413 SNAPSHOT_LIMIT，无法核实回执503 SNAPSHOT_BUDGET，源数据非法503 SNAPSHOT_DATA，不返回部分成功。rows_read 为查询后观察值，不是查询前扫描或CPU硬上限。 恰好一个有效 date；data 含该日期和全部无日期记录，集合为 todos、life_notes、work_notes、work_reminders、memo_groups、memos。date_content_hash 与索引该日期哈希一致；content_hash 还包含无日期 memo 正文，因此用途不同。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "完整的当前工作台投影。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkbenchSnapshot"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-store"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "const": "Cookie, Authorization"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "description": "SNAPSHOT_SCOPE_CHANGED：读取期间范围变化，请重建基线。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "description": "SNAPSHOT_LIMIT：完整请求超出读取预算，未返回部分数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "SNAPSHOT_CONFIG、MEMOS_CONFIG、SNAPSHOT_DATA、SNAPSHOT_BUDGET、SETUP_REQUIRED 或 BUSY；配置、源数据或完整性预算无法核实。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/workbench-snapshot/index": {
+      "get": {
+        "operationId": "getWorkbenchSnapshotIndex",
+        "summary": "读取全量工作台实体与日期清单",
+        "description": "只读独立工作台命名空间；已有 /snapshot v1 和 notes=all 的 v2 均保持不变，不写 Notion。仅明确 PUBLIC_BUSINESS_USER_ID 的既有 matrix_session，或 PUBLIC_BUSINESS_MODE=1 的匿名公开范围；任何 Authorization 头均返回403 SNAPSHOT_SESSION_REQUIRED，其他登录用户返回403。PUBLIC_BUSINESS_USER_ID、DAILY_NOTES_OWNER_ID、MEMOS_OWNER_ID 必须显式配置且核实存在；todo 用业务 owner，生活/工作日记及提醒用日记 owner，memo 用备忘录 owner。会话/公开账号范围仍纳入 scope_id。 两个端点均返回相同、完整、按 entity_id 排序的 entities 元数据清单，涵盖所有日期、墓碑及无日期 memo。稳定 ID 前缀为 todo:<uuid>、legacy-life:<date>、legacy-work:<date>、note-entry:<uuid>、work-reminder:<uuid>、memo-group:<uuid>、memo-note:<uuid>。按 (scope_id,entity_id) 去重；旧兼容日记和新条目独立，不按文字或时间合并。保存来源 created_at/updated_at、version、可用 change_seq 和逐实体 content_hash；不提供虚构发生时间。manifest_hash 覆盖完整清单，global_content_hash 覆盖无日期内容；排除 generated_at，对象键规范化、实体排序。scope_id 变化须重建基线，不能推断删除；跨请求有竞争，应用同步批次前重新核对同范围 manifest_hash、global_content_hash 和受影响日期。 完整读取所有来源后投影所选日期，不设最近日期截止、不静默截断。整次请求（含鉴权、修订检查、重试）上限：45次SQL、4000源投影行、1MiB源JSON、1000日期、8MiB累计哈希输入、1MiB响应、100000累计观察 rows_read、50账号；源查询每页200行。超限413 SNAPSHOT_LIMIT，无法核实回执503 SNAPSHOT_BUDGET，源数据非法503 SNAPSHOT_DATA，不返回部分成功。rows_read 为查询后观察值，不是查询前扫描或CPU硬上限。 无查询参数。dates 按日期升序，每个日期 content_hash 对应详情 date_content_hash；index_hash=manifest_hash，包含只有墓碑的日期。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "完整的当前工作台投影。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkbenchSnapshotIndex"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-store"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "const": "Cookie, Authorization"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "description": "SNAPSHOT_SCOPE_CHANGED：读取期间范围变化，请重建基线。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "description": "SNAPSHOT_LIMIT：完整请求超出读取预算，未返回部分数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "SNAPSHOT_CONFIG、MEMOS_CONFIG、SNAPSHOT_DATA、SNAPSHOT_BUDGET、SETUP_REQUIRED 或 BUSY；配置、源数据或完整性预算无法核实。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account-profiles": {
+      "get": {
+        "operationId": "listAccountProfiles",
+        "summary": "列出已授权账号的公开主页映射",
+        "description": "沿用账号读取权限：管理员会话、具 read 的范围 Bearer，或已开启的公开业务账号范围；仅返回当前范围的映射。最多1000条完整结果，超限422 PROFILE_LIMIT_EXCEEDED。主页只是本地解析的公开链接，不访问外站、不执行平台登录或采集私有统计。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "授权范围内的主页映射。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AccountProfile"
+                      },
+                      "maxItems": 1000
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "422": {
+            "description": "PROFILE_LIMIT_EXCEEDED：超过1000条，请缩小账号范围。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      }
+    },
+    "/api/v1/backup": {
+      "get": {
+        "operationId": "getMatrixBackupV9",
+        "summary": "管理员导出 v9 完整备份包",
+        "description": "仅既有管理员会话；不接受范围 API key 或匿名公开读取。v9 在 v8 上增加 note_entries、work_reminders、account_profiles，保留墓碑、来源修订和校验和；会话和限流窗口不恢复。旧 v1–v8 可经运维工具恢复到显式指定的空隔离库，新表为空；校验失败或目标已有数据拒绝，恢复未完成保持隔离。此端点与文章 CSV /export 不同，不提供 HTTP 恢复或覆盖现有库。",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "附件 JSON；API data 内为 {data,sha256} 备份包。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MatrixBackupV9"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "const": "attachment; filename=\"haoduoyu-matrix-backup.json\""
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4375,6 +5947,37 @@
           "type": "string",
           "description": "不透明记录 ID；使用 API 返回值。",
           "minLength": 1
+        }
+      },
+      "WorkbenchOrigin": {
+        "name": "Origin",
+        "in": "header",
+        "required": true,
+        "description": "编辑者会话和公开写入均必须与 SITE_ORIGIN 完全相同。",
+        "schema": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "WorkbenchCsrf": {
+        "name": "X-CSRF-Token",
+        "in": "header",
+        "required": false,
+        "description": "owner 管理员会话写入必填；公开同源写入改用 X-Public-Business:1。Bearer 不能编辑这些模块。",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "WorkbenchPublicWrite": {
+        "name": "X-Public-Business",
+        "in": "header",
+        "required": false,
+        "description": "仅 PUBLIC_BUSINESS_MODE=1 的匿名同源写入使用，值必须为1。",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "1"
+          ]
         }
       }
     },
@@ -4509,6 +6112,23 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "profile_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "platform_identity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profile_reused": {
+            "type": "boolean",
+            "description": "仅 POST 重用已有授权账号时为 true，状态200；不覆盖既有名称或主页。"
           }
         },
         "required": [
@@ -4535,12 +6155,38 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 100
+          },
+          "profile_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2048,
+            "description": "可选公开主页。支持头条 numeric/token 用户页、知乎 people/org（可含活动子页）、微信公众号 profile_ext?action=home&__biz。仅允许 HTTP(S) 已知域名，无凭据、自定义端口、空白、控制字符或反斜线；文章/后台链接无效。服务器本地生成规范 HTTPS profile_url 和 platform_identity，去除无关追踪参数，不访问或登录平台。null 或空串不提供主页；PUT 时清除已有映射。"
           }
         },
         "required": [
-          "platform",
           "name"
-        ]
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "platform"
+            ]
+          },
+          {
+            "required": [
+              "profile_url"
+            ],
+            "properties": {
+              "profile_url": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        ],
+        "description": "原有 platform/name 创建继续有效；提供有效 profile_url 可推断平台，显式 platform 必须一致。规范身份在可见范围已存在时返回200和 profile_reused:true，不建重复账号；范围外重复只返回409 ACCOUNT_PROFILE_EXISTS，不泄露记录。"
       },
       "AccountUpdate": {
         "type": "object",
@@ -4563,9 +6209,17 @@
                 ]
               }
             ]
+          },
+          "profile_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2048,
+            "description": "可选公开主页。支持头条 numeric/token 用户页、知乎 people/org（可含活动子页）、微信公众号 profile_ext?action=home&__biz。仅允许 HTTP(S) 已知域名，无凭据、自定义端口、空白、控制字符或反斜线；文章/后台链接无效。服务器本地生成规范 HTTPS profile_url 和 platform_identity，去除无关追踪参数，不访问或登录平台。null 或空串不提供主页；PUT 时清除已有映射。"
           }
         },
-        "description": "只允许修改显示名或启用状态；未给的字段保留原值，不能修改平台。"
+        "description": "修改显示名、启用状态或公开主页；未给字段保留，不能修改平台。profile_url 必须与原平台一致；null/空串清除映射，已关联其他账号的规范身份返回409 ACCOUNT_PROFILE_EXISTS。仅管理员或既有公开业务编辑权限，Bearer 不能修改账号。"
       },
       "ArticleCreate": {
         "type": "object",
@@ -8160,6 +9814,841 @@
             "format": "date-time"
           }
         }
+      },
+      "NoteEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "life",
+              "work"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "text": {
+            "type": "string",
+            "description": "纯文字；CRLF/CR 转 LF，UTF-8 最多65536字节；拒绝不完整 Unicode 和非制表/换行控制字符。"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "change_seq": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "can_edit": {
+            "type": "boolean"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "date",
+          "text",
+          "version",
+          "change_seq",
+          "created_at",
+          "updated_at",
+          "deleted_at",
+          "deleted",
+          "can_edit",
+          "content_hash"
+        ]
+      },
+      "NoteEntrySave": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "life",
+              "work"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "text": {
+            "type": "string",
+            "description": "纯文字；CRLF/CR 转 LF，UTF-8 最多65536字节；拒绝不完整 Unicode 和非制表/换行控制字符。"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740990
+          },
+          "save_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "category",
+          "date",
+          "text",
+          "version",
+          "save_id"
+        ],
+        "additionalProperties": false,
+        "description": "category、date 在创建后不可更改；created_at/updated_at 由服务器实际保存时间产生，不接受 happened_at 或任何调用者时间字段。"
+      },
+      "NoteWriteMarker": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740990
+          },
+          "save_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "version",
+          "save_id"
+        ],
+        "additionalProperties": false
+      },
+      "NoteEntryDay": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "life",
+              "work"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NoteEntry"
+            },
+            "maxItems": 200
+          },
+          "can_edit": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "category",
+          "date",
+          "entries",
+          "can_edit"
+        ],
+        "description": "该分类、日期的全部未删除条目，按 created_at、id 升序。超过完整读取上限返回503 NOTES_LIMIT，不截断。"
+      },
+      "NoteEntryDateIndex": {
+        "type": "object",
+        "properties": {
+          "dates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "maxItems": 100
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_before": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        },
+        "required": [
+          "dates",
+          "has_more",
+          "next_before"
+        ]
+      },
+      "NoteEntryReceipt": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "found": {
+                "const": false
+              }
+            },
+            "required": [
+              "found"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "found": {
+                "const": true
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "deleted_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "change_seq": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "content_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "found",
+              "id",
+              "version",
+              "deleted_at",
+              "change_seq",
+              "content_hash"
+            ]
+          }
+        ],
+        "description": "只含保存元数据，不含正文。旧收据会保留；须与最新条目的 id、version 和 content_hash 同时匹配后才能确认自己的保存。"
+      },
+      "WorkReminder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "source_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:-]{1,100}$",
+            "maxLength": 100
+          },
+          "summary": {
+            "type": "string",
+            "description": "纯文字，换行规范化，UTF-8 最多16384字节。"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "change_seq": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "can_edit": {
+            "type": "boolean"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "source_key",
+          "summary",
+          "version",
+          "change_seq",
+          "created_at",
+          "updated_at",
+          "deleted_at",
+          "deleted",
+          "can_edit",
+          "content_hash"
+        ]
+      },
+      "WorkReminderSave": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "source_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:-]{1,100}$",
+            "maxLength": 100
+          },
+          "summary": {
+            "type": "string",
+            "description": "纯文字，换行规范化，UTF-8 最多16384字节。"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740990
+          },
+          "save_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "date",
+          "source_key",
+          "summary",
+          "version",
+          "save_id"
+        ],
+        "additionalProperties": false,
+        "description": "date、source_key 创建后不可更改；(owner,date,source_key) 包括墓碑在内唯一，重复来源使用原 id 和当前 version 更新。时间由服务器产生。"
+      },
+      "WorkReminderDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkReminder"
+            },
+            "maxItems": 100
+          },
+          "can_edit": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date",
+          "items",
+          "can_edit"
+        ]
+      },
+      "AccountProfile": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "profile_url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "platform_identity": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "account_id",
+          "profile_url",
+          "platform_identity",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "WorkbenchManifestEntity": {
+        "type": "object",
+        "properties": {
+          "entity_id": {
+            "type": "string"
+          },
+          "entity_type": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "life_note",
+              "work_note",
+              "work_reminder",
+              "memo_group",
+              "memo_note"
+            ]
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "entity_id",
+          "entity_type",
+          "date",
+          "updated_at",
+          "deleted_at",
+          "content_hash"
+        ]
+      },
+      "WorkbenchRecord": {
+        "type": "object",
+        "properties": {
+          "entity_id": {
+            "type": "string"
+          },
+          "entity_type": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "life_note",
+              "work_note",
+              "work_reminder",
+              "memo_group",
+              "memo_note"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "legacy_daily_note",
+              "note_entry",
+              "work_reminder",
+              "memo_group",
+              "memo_note"
+            ]
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "life",
+              "work"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "change_seq": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "text": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "source_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:-]{1,100}$",
+            "maxLength": 100
+          },
+          "title": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer"
+          },
+          "body": {
+            "type": "string"
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "entity_id",
+          "entity_type",
+          "source",
+          "source_id",
+          "date",
+          "version",
+          "created_at",
+          "updated_at",
+          "deleted_at",
+          "content_hash"
+        ],
+        "description": "稳定来源记录。删除时保留元数据而省略正文/摘要/标题等内容；memo 墓碑仍有 group_id，删除分组使其未独立删除笔记成为有效墓碑。created_at 保留来源值，可为 null，不虚构发生时间。"
+      },
+      "WorkbenchSnapshotBase": {
+        "type": "object",
+        "properties": {
+          "snapshot_format": {
+            "const": "haoduoyu-workbench-snapshot-v1"
+          },
+          "projection": {
+            "const": "current"
+          },
+          "complete": {
+            "const": true
+          },
+          "scope_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "timezone": {
+            "const": "Asia/Shanghai"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "manifest_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "global_content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "entities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkbenchManifestEntity"
+            },
+            "maxItems": 4000
+          }
+        },
+        "required": [
+          "snapshot_format",
+          "projection",
+          "complete",
+          "scope_id",
+          "timezone",
+          "generated_at",
+          "manifest_hash",
+          "global_content_hash",
+          "entities"
+        ]
+      },
+      "WorkbenchSnapshot": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WorkbenchSnapshotBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "date_content_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "content_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "todos": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/WorkbenchRecord"
+                    }
+                  },
+                  "life_notes": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/WorkbenchRecord"
+                    }
+                  },
+                  "work_notes": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/WorkbenchRecord"
+                    }
+                  },
+                  "work_reminders": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/WorkbenchRecord"
+                    }
+                  },
+                  "memo_groups": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/WorkbenchRecord"
+                    }
+                  },
+                  "memos": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/WorkbenchRecord"
+                    }
+                  }
+                },
+                "required": [
+                  "todos",
+                  "life_notes",
+                  "work_notes",
+                  "work_reminders",
+                  "memo_groups",
+                  "memos"
+                ]
+              }
+            },
+            "required": [
+              "date",
+              "date_content_hash",
+              "content_hash",
+              "data"
+            ]
+          }
+        ]
+      },
+      "WorkbenchSnapshotIndex": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WorkbenchSnapshotBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "dates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date",
+                      "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "content_hash": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    }
+                  },
+                  "required": [
+                    "date",
+                    "content_hash"
+                  ]
+                },
+                "maxItems": 1000
+              },
+              "index_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "dates",
+              "index_hash"
+            ]
+          }
+        ]
+      },
+      "MatrixBackupV9": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "format": {
+                "const": "haoduoyu-matrix-d1-v9"
+              },
+              "source_revision": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "exported_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "tables": {
+                "type": "object",
+                "description": "完整保留 v8 的全部表并加入 note_entries、work_reminders、account_profiles；按审核后的显式字段导出，含墓碑。私有表按登录管理员 user_id 筛选。",
+                "properties": {
+                  "note_entries": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "work_reminders": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "account_profiles": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                },
+                "required": [
+                  "note_entries",
+                  "work_reminders",
+                  "account_profiles"
+                ],
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            },
+            "required": [
+              "format",
+              "source_revision",
+              "exported_at",
+              "tables"
+            ]
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "data",
+          "sha256"
+        ],
+        "description": "外层 API data 内的备份包，sha256 校验规范化备份 data。仅管理员会话可读；恢复是显式允许的空隔离库运维工具，无 HTTP 恢复接口。v1–v8 继续兼容，新表默认为空；不覆盖现有数据，不恢复会话或限流窗口。"
       }
     },
     "responses": {
@@ -8316,6 +10805,26 @@
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/RequestId"
+          }
+        }
+      },
+      "WorkbenchRateLimit": {
+        "description": "NOTES_RATE_LIMIT：notes owner 共享每分钟60次、每天2000次写入限制；保留草稿后重试。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Retry-After": {
+            "schema": {
+              "const": "60"
+            }
           }
         }
       }

@@ -309,7 +309,7 @@ const actions = {
   "todo-template-edit": ({ id }) => editTodoTemplate(id),
   "todo-template-delete": ({ id }) => writeTodoTemplate(id, undefined, true),
   "memo-tools": ({target}) => {
-    if (target.dataset.tool === "trash") navigate("memos", "trash");
+    if (target.dataset.tool === "trash") navigate("settings", "workspace");
     else { requestMemoTool(target.dataset.tool); navigate("memos"); }
   },
   "todo-panel": ({target}) => setTodoPanel(target.dataset.panel),

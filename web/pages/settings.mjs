@@ -5,11 +5,23 @@ import { state } from "../core/state.mjs";
 import { empty, field, formEnd, platformLogo } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
 import { toast } from "../ui/toast.mjs";
+function profileForAccount(id) {
+  return (state.accountProfiles || []).find((profile) => profile.account_id === id);
+}
+function profileLink(account) {
+  const profile = profileForAccount(account.id);
+  if (!profile?.profile_url) return `<div class="cell-sub">尚未关联公开主页</div>`;
+  let url;
+  try { url = new URL(profile.profile_url); } catch { return ""; }
+  if (url.protocol !== "https:" || url.username || url.password || url.port ||
+    !["www.zhihu.com", "www.toutiao.com", "mp.weixin.qq.com"].includes(url.hostname)) return "";
+  return `<div class="cell-sub"><a href="${e(url.href)}" target="_blank" rel="noopener noreferrer">打开公开主页 ${icon("link", 11)}</a></div>`;
+}
 function renderAccounts() {
   const accounts = rowsForAccount(state.accounts);
   return `<section class="card">${accounts.length ? `<div class="table-scroll"><table class="data-table accounts-table"><thead><tr><th>账号\
 </th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${accounts.map((a) => `<tr><td><span class="account-title">${platformLogo(
-  a.platform)}${e(a.name)}</span><div class="cell-sub">${e(platforms[a.platform] || a.platform)}</div></td><td><span class="badge ${a.active ?
+  a.platform)}${e(a.name)}</span><div class="cell-sub">${e(platforms[a.platform] || a.platform)}</div>${profileLink(a)}</td><td><span class="badge ${a.active ?
   "up" : ""}">${a.active ? "使用中" : "已停用"}</span></td><td>${e(time(a.created_at))}</td><td><button class="btn small" \
 data-action="edit-account" data-id="${e(a.id)}">${icon("edit", 13)}编辑</button></td></tr>`).join("")}</tbody></table></div>` : empty("暂无账号")}</section>`;
 }
@@ -84,10 +96,16 @@ class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, tr
   }).join("") || empty("暂无操作记录")}</div></section>`;
 }
 function accountModal(id = "") {
-  const a = state.accounts.find((a2) => a2.id === id) || { platform: "toutiao", name: "", active: true };
-  openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid"><div class="form-field"><label \
+  const a = state.accounts.find((a2) => a2.id === id) || { platform: "", name: "", active: true };
+  const profile = profileForAccount(id);
+  const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" \
+id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" \
+placeholder="粘贴今日头条、知乎或微信公众号主页"><span class="hint">保存主页无需登录平台。支持识别重复主页；后台统计仍需另行录入。</span></div>`;
+  openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid">${homepage}\
+<div class="form-field"><label \
 for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" ${id ? "disabled" : ""}>${Object.entries(
-  platforms).map(([key, label]) => `<option value="${key}" ${a.platform === key ? "selected" : ""}>${label}</option>`).join(
+  id ? platforms : { "": "根据主页自动识别", ...platforms }).map(([key, label]) => `<option value="${key}" ${a.platform === key ?
+  "selected" : ""}>${label}</option>`).join(
   "")}</select></div>${field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"')}${id ? `<div \
 class="form-field full"><label class="check-option"><input type="checkbox" name="active" ${a.active ? "checked" : ""}>启用此账号</label><span \
 class="hint">停用保留历史数据。</span></div>` : ""}</div>${formEnd(id ? "保存账号" : "添加账号")}</form>`);
@@ -113,5 +131,6 @@ export {
   renderAccounts,
   renderAudit,
   renderKeys,
-  renderSecurity
+  renderSecurity,
+  profileForAccount
 };

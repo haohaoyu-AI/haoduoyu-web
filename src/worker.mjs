@@ -24,6 +24,9 @@ import {validateArticleStatusQuery,validateArticleInputComplexity,rethrowArticle
 import {upsertArticle,authorizeArticleUpsert} from './article-upsert.mjs';
 import {validateArticlePipelineQueryMultiplicity} from './article-pipeline-query.mjs';
 import {handleSnapshot} from './snapshot.mjs';
+import {handleNoteEntries} from './note-entries.mjs';
+import {handleWorkbenchSnapshot} from './workbench-snapshot.mjs';
+import {handleWorkReminders} from './work-reminders.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/memos.css','/favicon.svg','/openapi.json']);
@@ -94,6 +97,7 @@ async function protectedRead(db,request,route,query,initialRevision,publicActor=
     const articleMatch=/^\/articles\/([^/]+)$/.exec(route);
     if(route==='/auth/me') {requireAdmin(actor);return json({id:actor.id,username:actor.username,csrfToken:csrfFor(actor.token)});}
     if(route==='/accounts') return json(await records.listAccounts(actor.scope));
+    if(route==='/account-profiles') return json(await records.listAccountProfiles(actor.scope));
     if(route==='/article-reconciliation') return json(await readArticleReconciliation(store,query,actor.scope));
     if(route==='/articles') return Response.json(await records.articlePage(query,actor.scope));
     if(articleMatch) {
@@ -201,7 +205,7 @@ async function protectedWrite(db,request,route,env,origin,trace,publicActor=null
     if(method==='POST'&&route==='/accounts') {
       if(!publicActor) requireAdmin(actor);
       else requirePublicAccount(actor);
-      action=b=>records.createAccount(b);
+      action=b=>records.createAccount(b,actor.scope);
     }
     if(method==='PUT'&&accountMatch) {
       if(!publicActor) requireAdmin(actor);
@@ -229,9 +233,11 @@ async function protectedWrite(db,request,route,env,origin,trace,publicActor=null
     }
     const planned=await action(input);
     const value=pipelineUpsert?{...planned.value,upsert_action:planned.unchanged?'unchanged':planned.created?'created':'updated'}:planned;
-    const status=method==='POST'||pipelineUpsert&&planned.created?201:200;
+    const reusedProfile=route==='/accounts'&&Boolean(planned.profile_reused);
+    const status=reusedProfile?200:method==='POST'||pipelineUpsert&&planned.created?201:200;
+    if(reusedProfile&&!key)return {replayed:true,response:json(value,status)};
     if(pipelineUpsert&&planned.unchanged&&!key)return {replayed:true,response:json(value,status)};
-    if(!pipelineUpsert||!planned.unchanged)store.audit(actor.actor,method+' '+route,value?.id||null,{fields:Object.keys(input)});
+    if(!reusedProfile&&(!pipelineUpsert||!planned.unchanged))store.audit(actor.actor,method+' '+route,value?.id||null,{fields:Object.keys(input)});
     if(key) store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,?,?)',actor.actor,key,requestHash,JSON.stringify(value),status,now());
     if(actor.kind==='key') store.queue('UPDATE api_keys SET last_used_at=? WHERE id=?',now(),actor.id);
     return {actor,response:json(value,status)};
@@ -252,11 +258,16 @@ async function handle(request,env,trace) {
     const origin=originFor(env),db=env.DB,route=path.slice(prefix.length);
     if(route==='/bootstrap'&&method==='POST') {await ensureControl(db);return bootstrap(db,request,env,origin);}
     if(route==='/snapshot'||route==='/snapshot/index')return handleSnapshot(db,request,route,env);
+    if(route==='/workbench-snapshot'||route==='/workbench-snapshot/index')return handleWorkbenchSnapshot(db,request,route,env);
     const access=await publicBusinessAccess(db,request,route,env,origin);
     const state=await db.prepare('SELECT initialized,revision FROM matrix_control WHERE id=1').first();
     if(state?.initialized!==1) throw fail(503,'SETUP_REQUIRED',state?.initialized===2?'数据库恢复未完成，服务保持隔离':'请先完成管理员初始化');
     if(route==='/daily-notes'||route.startsWith('/daily-notes/'))
       return handleDailyNotes(db,request,route,env,origin,state.revision);
+    if(route==='/note-entries'||route.startsWith('/note-entries/'))
+      return handleNoteEntries(db,request,route,env,origin,state.revision);
+    if(route==='/work-reminders'||route.startsWith('/work-reminders/'))
+      return handleWorkReminders(db,request,route,env,origin,state.revision);
     if(route==='/memos'||route.startsWith('/memos/'))
       return handleMemos(db,request,route,env,origin,state.revision);
     if(route==='/integrations/notion/snapshot'&&method==='POST')

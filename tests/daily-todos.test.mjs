@@ -59,6 +59,21 @@ test('todos create once per user UUID, replay the current item, and keep complet
   }
 });
 
+test('future plans persist only on the chosen date and are readable after creation',async t=>{
+  const app=await setup(t),future='2099-01-01',body=input({date:future,text:'提前安排未来计划'});
+  const created=await create(app,app.session,body);
+  assert.equal(created.status,201,created.text);
+  assert.equal(created.data.date,future);
+  assert.equal(created.data.completed,false);
+  const selected=await list(app,app.session,future);
+  assert.equal(selected.status,200,selected.text);
+  assert.deepEqual(selected.data.items,[created.data]);
+  assert.deepEqual((await list(app,app.session)).data.items,[]);
+  const stored=await app.db.prepare('SELECT date,text FROM matrix_todos WHERE user_id=(SELECT id FROM matrix_users WHERE username=?) AND id=?')
+    .bind(USERNAME,body.id).first();
+  assert.deepEqual(stored,{date:future,text:body.text});
+});
+
 test('todos isolate users even when their UUIDs match and do not leak text into global audit',async t=>{
   const app=await setup(t),other=await anotherSession(app),body=input(),privateBody=input({text:'第二用户私密计划'});
   await create(app,app.session,body);

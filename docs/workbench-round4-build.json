@@ -1,0 +1,15 @@
+{
+  "baseline": "4aefa4d4d596ad540324bc78898ae208121647b4",
+  "worker": {
+    "bytes": 1240064,
+    "sha256": "1ae5c087f9eca0b5ef4b714dd773867a1e1eadb1a92e6d9a81c2fa060e4851c0"
+  },
+  "archive": {
+    "name": "haoduoyu-workbench-round4.tar",
+    "bytes": 1648640,
+    "sha256": "ed880fddfd62370633c6e28ec18ea4f8e88eb117e0972092fb3495ddd09bdfdb"
+  },
+  "migration": "0008_workbench_updates:3additive tables only;22tables/9migrations; apply before Worker",
+  "runtime_config_changes": false,
+  "deployed": false
+}

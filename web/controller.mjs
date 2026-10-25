@@ -28,12 +28,14 @@ import { segmented } from "./ui/segmented.mjs";
 import { toast } from "./ui/toast.mjs";
 import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize} from "./ui/workbench.mjs";
 import {renderWorkbenchSettings} from "./pages/workbench-settings.mjs";
+import {renderWorkReminders} from "./pages/work-reminders.mjs";
+import {loadWorkReminders} from "./work-reminders-controller.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
     state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts} : settingsTabs), state.settingsTab,
     "设置分类", "tab", "page-tabs") : ""}${state.page === "dashboard" ?
     `<div class="article-ledger-overview article-ledger-scope">${segmented("article-overview-mode",
-      [["drafts", "存稿台账"], ["published", "已发布数据"], ["reconciliation", "实际对账"]],
+      [["drafts", "文章列表"], ["published", "文章数据"], ["reconciliation", "发布情况"]],
       state.articleOverviewMode, "总览口径", "mode")}</div>` : ""}<div id="page-content"></div>`;
 }
 function reuseShell() {
@@ -64,10 +66,10 @@ class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a \
 href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a>\
 <button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
   "close")}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div \
-class="sidebar-bottom">${settingsNavigation()}<div \
+class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div \
 class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.
   me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" \
-aria-label="退出登录">${icon("logout", 16)}</button>`}</div></div>\
+aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div>\
 </aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" \
 aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" \
 tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
@@ -85,6 +87,7 @@ function navigateLink(page) {
   navigate(page);
 }
 function navigate(page, tab) {
+  if (page === "memos" && tab === "trash") { page = "settings"; tab = "workspace"; }
   const legacy = Object.hasOwn(legacyPages, page) ? legacyPages[page] : null;
   if (legacy) page = "settings";
   if (!nav.some((n) => n.id === page)) return;
@@ -102,12 +105,16 @@ function pageLoading(page) {
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
+  if (page === "reminders") return renderWorkReminders();
+  if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
   return skeleton();
 }
 function setPageBody(html, page) {
   if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
+  else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
+  else if (page === "reminders") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
@@ -154,6 +161,9 @@ async function renderPage() {
       case "memos":
         await loadMemos();
         break;
+      case "reminders":
+        await loadWorkReminders();
+        break;
       case "dashboard":
         html = await loadArticleOverview(version, context);
         break;
@@ -164,8 +174,12 @@ async function renderPage() {
         html = await renderReviews(version, context);
         break;
       case "settings":
-        if (state.settingsTab === "workspace") html = renderWorkbenchSettings();
-        else if (state.settingsTab === "accounts") html = renderAccounts();
+        if (state.settingsTab === "workspace") { await loadMemos(); break; }
+        else if (state.settingsTab === "accounts") {
+          data = await api("/account-profiles", {context});
+          if (version !== runtime.renderVersion) return;
+          state.accountProfiles = data; html = renderAccounts();
+        }
         else if (state.settingsTab === "keys") {
           data = await api("/api-keys", { context });
           html = renderKeys(data);

@@ -13,6 +13,9 @@ const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
 function versionData(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<9)for(const name of ['note_entries','work_reminders','account_profiles']) {
+    assert.deepEqual(data.tables[name],[],'historical fixture cannot hide workbench data: '+name);delete data.tables[name];
+  }
   if(version<8)delete data.tables.daily_work_notes;
   if(version<7){delete data.tables.memo_groups;delete data.tables.memo_notes;}
   if(version<6)for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
@@ -50,7 +53,7 @@ test('v7 HTTP backup scopes template tables while operator restore preserves del
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v8');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v9');
   for(const name of ['todos','todo_templates','todo_template_links']) {
     assert.equal(http.data.tables[name].length,1);
     assert.equal(http.data.tables[name][0].user_id,source.owner);
@@ -136,7 +139,7 @@ test('legacy backup projection verifies checksums and refuses populated or missi
   const v2=versionData(backup.data,2);
   assert.deepEqual(legacyBackupEnvelope({data:sign(v2)}),projected);
   assert.deepEqual(legacyBackupEnvelope({data:sign(versionData(backup.data,3))}),projected);
-  for(const name of ['todos','todo_templates','todo_template_links','todo_preferences','daily_notes']) {
+  for(const name of ['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','note_entries','work_reminders','account_profiles']) {
     const populated=structuredClone(backup.data);populated.tables[name]=[{id:'synthetic'}];
     assert.throws(()=>legacyBackupEnvelope({data:sign(populated)}));
     const missing=structuredClone(backup.data);delete missing.tables[name];

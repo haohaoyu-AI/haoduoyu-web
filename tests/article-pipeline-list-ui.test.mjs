@@ -28,7 +28,7 @@ test('article list uses the explicit saved-draft cohort and forwards every appro
   assert.equal(query.get('series_no_min'),'1');assert.equal(query.get('series_no_max'),'200');
   assert.equal(query.get('page'),'1');assert.equal(query.get('page_size'),'20');
   assert.equal(app.requests[0].options.context.marker,'list-context');
-  assert.match(html,/尚未记录文章/);assert.match(html,/草稿无需|可先保存草稿/);
+  assert.match(html,/尚未记录文章/);assert.doesNotMatch(html,/草稿无需|可先保存草稿/);
   const select=html.match(/<select name="status"[\s\S]*?<\/select>/)?.[0];
   assert.ok(select);assert.equal((select.match(/<option\b/g)||[]).length,5);assert.doesNotMatch(select,/value=""|>全部</);
 });

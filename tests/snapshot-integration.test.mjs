@@ -64,5 +64,5 @@ test('combined Worker serves memo and snapshot independently and never reads mem
   const denied=await worker.fetch(new Request(app.origin+'/api/v1/snapshot/index',
     {headers:{Authorization:'Bearer SYNTHETIC-INTEGRATION-DENIED'}}),env);assert.equal(denied.status,403);
   const backup=await app.request('/api/v1/backup',{session});assert.equal(backup.status,200);
-  assert.equal(backup.data.data.format,'haoduoyu-matrix-d1-v8');
+  assert.equal(backup.data.data.format,'haoduoyu-matrix-d1-v9');
 });
