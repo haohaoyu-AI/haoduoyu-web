@@ -102,6 +102,18 @@ test('configuration emits only explicit non-secret fields and never creates a cr
   assert.throws(()=>cloudflareConfig({compatibility_date:'2026-07-30'},{NOTION_SNAPSHOT_ACCOUNT_IDS:'[]'}));
 });
 
+test('Notion rate-limit delay survives the shared Worker error renderer',async t=>{
+  const app=await setup(t),originalFetch=globalThis.fetch;
+  t.after(()=>{globalThis.fetch=originalFetch;});
+  globalThis.fetch=async(input,options)=>{
+    if(new URL(String(input)).origin!=='https://api.notion.com')return originalFetch(input,options);
+    return Response.json({message:'synthetic limit'},{status:429,headers:{'Retry-After':'17'}});
+  };
+  const response=await worker.fetch(app.trigger(),app.env);
+  assert.equal(response.status,429);assert.equal(response.headers.get('Retry-After'),'17');
+  assert.equal((await response.json()).error.code,'NOTION_RATE_LIMIT');
+});
+
 test('built Worker completes local D1 to simulated Notion readback and preserves the source tables',async t=>{
   const app=await setup(t),originalFetch=globalThis.fetch,pages=new Map();let posts=0;
   t.after(()=>{globalThis.fetch=originalFetch;});

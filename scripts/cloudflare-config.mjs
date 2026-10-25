@@ -17,6 +17,10 @@ export function cloudflareConfig(runtime, env = {}) {
     assert.equal(origin.origin, env.CLOUDFLARE_SITE_ORIGIN);
   }
   const publicVars = {};
+  if(env.DAILY_NOTES_OWNER_ID!==undefined) {
+    assert.match(env.DAILY_NOTES_OWNER_ID,/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i);
+    publicVars.DAILY_NOTES_OWNER_ID=env.DAILY_NOTES_OWNER_ID;
+  }
   const notionKeys=['NOTION_SNAPSHOT_OWNER_ID','NOTION_SNAPSHOT_PARENT_ID','NOTION_SNAPSHOT_ACCOUNT_IDS'];
   if(notionKeys.some(key=>env[key]!==undefined)) {
     assert.ok(notionKeys.every(key=>typeof env[key]==='string'), 'All non-secret Notion snapshot configuration is required');

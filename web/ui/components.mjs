@@ -16,6 +16,7 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
+  if (state.page === "notes") return "";
   if (state.page === "dashboard") return `${dashboardInfo("metrics", "总览数据口径", "header")}<button class="icon-button" data-action="refresh" \
 title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button><button class="btn primary" data-action="new-article">${icon(
   "plus")}记录发布</button>`;
@@ -38,6 +39,7 @@ function accountFilter() {
   state.account)}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
   state.accounts).length : null;

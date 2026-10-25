@@ -4,7 +4,7 @@ import {digest, stable} from '../src/security.mjs';
 import {consistentRead} from '../src/storage.mjs';
 
 export const restoredTables = Object.freeze([
-  'accounts', 'users', 'todos', 'todo_templates', 'todo_template_links', 'todo_preferences',
+  'accounts', 'users', 'todos', 'todo_templates', 'todo_template_links', 'todo_preferences', 'daily_notes',
   'articles', 'observations', 'daily_metrics', 'api_keys', 'audit', 'idempotency',
 ]);
 export const resetTables = Object.freeze(['sessions', 'login_attempts', 'control']);
@@ -29,10 +29,12 @@ export async function createSourceInventory(db) {
 }
 
 export function verifyBackupInventory(backup, inventory) {
-  if (backup?.data?.format !== 'haoduoyu-matrix-d1-v4' ||
+  if (backup?.data?.format !== 'haoduoyu-matrix-d1-v5' ||
       backup.sha256 !== digest(JSON.stringify(stable(backup.data))) ||
       inventory?.format !== 'haoduoyu-migration-inventory-v1' ||
-      !Number.isSafeInteger(inventory.source_revision) || inventory.source_revision < 0) fail();
+      !Number.isSafeInteger(inventory.source_revision) || inventory.source_revision < 0 ||
+      inventory.source_revision > Number.MAX_SAFE_INTEGER - 2 ||
+      backup.data.source_revision !== inventory.source_revision) fail();
   if (JSON.stringify(Object.keys(backup.data.tables || {}).sort()) !== JSON.stringify([...restoredTables].sort()) ||
       JSON.stringify(Object.keys(inventory.tables || {}).sort()) !== JSON.stringify([...tables].sort())) fail();
   for (const name of tables) {
@@ -54,8 +56,9 @@ export async function verifyRestoredInventory(db, backup, sourceInventory) {
     if (actual.count !== expected.count || actual.sha256 !== expected.sha256) fail();
   }
   if (target.tables.sessions.count !== 0 || target.tables.login_attempts.count !== 0 || target.tables.control.count !== 1) fail();
-  const control = await db.prepare('SELECT initialized FROM matrix_control WHERE id=1').first();
-  if (control?.initialized !== 1) fail();
+  const control = await db.prepare('SELECT initialized,revision FROM matrix_control WHERE id=1').first();
+  if (control?.initialized !== 1 || !Number.isSafeInteger(control.revision) ||
+      control.revision <= sourceInventory.source_revision) fail();
   const fk = await db.prepare('PRAGMA foreign_key_check').all();
   // D1 exposes quick_check, not SQLite's full integrity_check pragma.
   const integrity = await db.prepare('PRAGMA quick_check').all();

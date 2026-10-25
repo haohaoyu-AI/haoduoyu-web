@@ -52,7 +52,29 @@ function projectPeriodTable(ast) {
   });
   assert.deepEqual({classes,cells},{classes:1,cells:1},'only the period-table class and escaped responsive metric label are projected');
 }
+// Only the three exact notes additions are projected. The rest of these shared
+// modules, including all original declarations/templates, remains locked.
+function projectNotesIntegration(ast,file) {
+  if(file==='web/core/constants.mjs') {
+    const list=variable(ast,'nav').init;
+    const extra=list.elements.filter(element=>element.properties.some(property=>property.key.name==='id'&&property.value.value==='notes'));
+    const expected=snippet('const nav=[{id:"notes",label:"碎碎念",icon:"edit"}]').declarations[0].init.elements;
+    assert.deepEqual(normalized(extra),normalized(expected),'exactly one bounded notes navigation item');
+    list.elements=list.elements.filter(element=>element!==extra[0]);
+  }
+  if(file==='web/ui/components.mjs') {
+    for(const [name,body] of [['headerActions',''],['pageHeader','<div class="heading-left"><h1>碎碎念</h1></div>']]) {
+      const fn=ast.body.find(node=>node.type==='FunctionDeclaration'&&node.id.name===name);
+      const extra=fn.body.body.filter(node=>node.type==='IfStatement'&&node.test.right?.value==='notes');
+      const expected=snippet('function '+name+'(){if(state.page==="notes")return '+JSON.stringify(body)+';}').body.body;
+      assert.deepEqual(normalized(extra),normalized(expected),'exactly one bounded notes branch in '+name);
+      fn.body.body=fn.body.body.filter(node=>node!==extra[0]);
+    }
+  }
+  return ast;
+}
 function projectTodoIntegration(ast,file) {
+  projectNotesIntegration(ast,file);
   if(file==='web/core/constants.mjs') {
     const list=variable(ast,'nav').init;
     const extra=list.elements.filter(element=>element.properties.some(property=>property.key.name==='id'&&property.value.value==='todos'));
@@ -194,7 +216,7 @@ test('event bindings retain all nine original positions and capture options',asy
   assert.deepEqual(signature(next),signature(register));
 });
 test('web style checks every function type and rejects long fixture lines/functions',async()=>{
-  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,37);
+  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,40);
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));

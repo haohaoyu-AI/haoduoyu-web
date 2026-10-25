@@ -73,8 +73,9 @@ export async function handleNotionSnapshot(db,request,env,origin,{push=pushNotio
     const code=codes.has(error?.code)?error.code:'NOTION_UNAVAILABLE';
     // No token, raw response, snapshot body or private error is persisted/logged.
     await finish(db,actor,receipt,uncertain?202:503,{code,pending:uncertain,previous_delivery:receipt.previousDelivery});
-    const failure=fail(code==='NOTION_RATE_LIMIT'?429:503,code,uncertain?
-      'Notion 结果未确认，已停止；请先回读核对，不会自动重发':'Notion 暂不可用，未创建快照');
+    const failure=Object.assign(new Error(uncertain?
+      'Notion 结果未确认，已停止；请先回读核对，不会自动重发':'Notion 暂不可用，未创建快照'),
+      {status:code==='NOTION_RATE_LIMIT'?429:503,code});
     if(code==='NOTION_RATE_LIMIT')failure.notionRetryAfter=Math.max(1,Math.min(86400,Number(error.retryAfter)||60));
     throw failure;
   }

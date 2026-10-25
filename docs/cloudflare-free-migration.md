@@ -2,6 +2,8 @@
 
 2026-10-24：用户预算为免费，仅授权迁移准备和独立分支保存。当前旧 Sites 与旧数据继续保留；不合适就维持现状、继续原有使用方式，是无需购买服务的退出条件。本准备不创建账号、凭据、Worker、D1 或其他云资源，不自动付费，不变更 DNS/WAF/认证，不迁移生产数据。
 
+此文件保留迁移准备阶段的授权与待验证状态，不代表最新线上部署状态。碎碎念独立增量的当前发布边界见 [daily-notes.md](daily-notes.md)；以下本地工具版本/表数已同步更新。
+
 ## 免费边界
 
 官方截至本次核查的信息：
@@ -33,7 +35,7 @@ npm run build
 npm run build:cloudflare
 ```
 
-默认构建仍输出原 platform 布局。新 target 输出 dist/cloudflare/index.js 和四份原 SQL 迁移，不包含 .openai；保留现有 assets 生成方式、响应头与字节。Cloudflare 构建不会删除已有 dist/server 平台产物，default platform 仍保持原先清理 dist 的行为。不能先构建 platform 归档后再用其他构建覆盖产物，再把混合目录作为旧版归档。
+默认构建仍输出原 platform 布局。新 target 输出 dist/cloudflare/index.js 和五份 SQL 迁移（原四份及新增0004），不包含 .openai；保留现有 assets 生成方式。Cloudflare 构建不会删除已有 dist/server 平台产物，default platform 仍保持原先清理 dist 的行为。不能先构建 platform 归档后再用其他构建覆盖产物，再把混合目录作为旧版归档。
 
 没有账号配置时只生成 **wrangler.template.json**，其中标识是不可用于部署的占位符。没有部署命令、GitHub 自动部署任务或创建资源操作。单纯本地构建不能证明账号是 Free。
 
@@ -43,16 +45,16 @@ npm run build:cloudflare
 
 ## 全用户备份与离线校验
 
-“个人使用”不等于数据库只有一个用户。现有 GET /api/v1/backup 以当前用户过滤 todos、todo_templates、todo_template_links、todo_preferences；检查文件自身 checksum 通过也可能漏掉其他用户的私人记录。
+“个人使用”不等于数据库只有一个用户。现有 GET /api/v1/backup 以当前用户过滤 todos、todo_templates、todo_template_links、todo_preferences、daily_notes；检查文件自身 checksum 通过也可能漏掉其他用户的私人记录。
 
 新增 scripts/migration-inventory.mjs 是不挂 HTTP 路由的 operator 工具：
 
-- createSourceInventory(db)：在一致读中，从**完整源数据库**直接清点 15 张 matrix 表，保存行数和按稳定 JSON 规范化后的整表哈希。不接受未知 matrix 表静默遗漏。
-- exportBackup(db)：复用现有函数且不传 todoUserId，取得当前 v4 全用户备份。完整源库存与备份应在获批写入冻结后生成并再次核验，不能从网页的用户过滤备份反推库存。
-- verifyBackupInventory：要求 v4、原 checksum、15 表库存及 12 张恢复表的行数/内容哈希全部一致。库存不是数字签名；其完整源身份、版本与保管来源必须另外核实。工具不能凭空访问当前 Sites 的生产 DB，受支持的生产 operator 导出渠道仍待确认。
+- createSourceInventory(db)：在一致读中，从**完整源数据库**直接清点 16 张 matrix 表，保存行数和按稳定 JSON 规范化后的整表哈希。不接受未知 matrix 表静默遗漏。
+- exportBackup(db)：复用现有函数且不传 todoUserId，取得当前 v5 全用户备份。完整源库存与备份应在获批写入冻结后生成并再次核验，不能从网页的用户过滤备份反推库存。
+- verifyBackupInventory：要求 v5、原 checksum、同源 source_revision、16 表库存及 13 张恢复表的行数/内容哈希全部一致。库存不是数字签名；其完整源身份、版本与保管来源必须另外核实。工具不能凭空访问当前 Sites 的生产 DB，受支持的生产 operator 导出渠道仍待确认。
 - verifyRestoredInventory：恢复后再逐表比对哈希，并检查外键、D1 支持的 PRAGMA quick_check，以及恢复围栏。D1 不支持的 SQLite integrity_check 不作为可运行命令。
 
-恢复分类必须明确：12 张持久表原样恢复；sessions、login_attempts 清空，control 根据恢复流程重新建立。所有用户须重新登录；密码哈希、AI token 哈希、权限/撤销状态、审计、幂等、待办删除状态、模板及偏好都保留。所有私人表哈希包含 user_id，能检测跨用户遗漏；还需在业务验收中验证用户隔离。
+恢复分类必须明确：13 张持久表原样恢复；sessions、login_attempts 清空，control 根据恢复流程重新建立且 revision 高于源值。所有用户须重新登录；密码哈希、AI token 哈希、权限/撤销状态、审计、幂等、待办删除状态、模板、偏好及笔记都保留。所有私人表哈希包含 user_id，能检测跨用户遗漏；还需在业务验收中验证用户隔离。
 
 离线工具将备份恢复到全新临时 Miniflare D1，禁止外联，不接收云账号或数据库标识，完成后销毁自己的临时运行环境：
 
