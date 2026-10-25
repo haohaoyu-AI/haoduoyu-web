@@ -47,7 +47,7 @@ function makeContext(options) {
   context.online = options.online || (() => globalThis.navigator?.onLine !== false);
   context.stop = item => { clearTimeout(item.timer); item.timer = null; };
   context.emit = () => { if (!context.disposed) { context.persist(); onChange(); } };
-  context.writable = () => !context.disposed && state.canEdit && idPattern.test(ownerId);
+  context.writable = () => !context.disposed && state.canEdit && idPattern.test(context.ownerId);
   context.blocked = item => {
     const pending = state.operation?.pending;
     return pending && (pending.kind === 'notes' && pending.id === item.id ||
@@ -74,15 +74,15 @@ function makeContext(options) {
   return context;
 }
 function persistence(context) {
-  const key = 'haoduoyu.memos.drafts.v1.' + context.ownerId + '.' + context.draftScope;
-  const previousKey = context.restoreDraftScope ? 'haoduoyu.memos.drafts.v1.' + context.ownerId + '.' + context.restoreDraftScope : null;
+  const key = () => 'haoduoyu.memos.drafts.v1.' + context.ownerId + '.' + context.draftScope;
+  const previousKey = () => context.restoreDraftScope ? 'haoduoyu.memos.drafts.v1.' + context.ownerId + '.' + context.restoreDraftScope : null;
   function persist() {
     if (!context.writable()) return;
     if (!context.storage) { context.state.storageError = '浏览器无法保留草稿，请暂时保持此页面打开。'; return; }
     const drafts = [...context.drafts.values()].filter(item => item.dirty || item.pending || item.phase === 'conflict').slice(0, 200)
       .map(({timer, ...item}) => ({...item, loading: false}));
     try {
-      context.storage.setItem(key, JSON.stringify({saved_at: new Date().toISOString(), drafts, operation: context.state.operation}));
+      context.storage.setItem(key(), JSON.stringify({saved_at: new Date().toISOString(), drafts, operation: context.state.operation}));
       context.state.storageError = context.storagePersistent ? '' : '浏览器无法记住此页签，刷新后可能无法找回草稿，请保持页面打开。';
     } catch {
       context.state.storageError = '浏览器无法保留草稿，请暂时保持此页面打开。';
@@ -92,8 +92,8 @@ function persistence(context) {
     if (context.hydrated || !context.writable()) return;
     context.hydrated = true;
     try {
-      const current = context.storage?.getItem(key);
-      const saved = JSON.parse(current ?? (previousKey ? context.storage?.getItem(previousKey) : null) ?? '{}');
+      const current = context.storage?.getItem(key());
+      const saved = JSON.parse(current ?? (previousKey() ? context.storage?.getItem(previousKey()) : null) ?? '{}');
       if (Array.isArray(saved.drafts)) for (const raw of saved.drafts.slice(0, 200)) {
         const item = recoveredDraft(raw);
         if (item) context.drafts.set(item.id, item);
@@ -166,6 +166,10 @@ function memoReads(context) {
       if (context.disposed || sequence !== context.loadSequence) return;
       if (!Array.isArray(value?.groups) || !Array.isArray(value.notes) || typeof value.can_edit !== 'boolean')
         throw new Error('备忘录列表不完整，请重新读取。');
+      if (value.draft_scope && context.ownerId && value.draft_scope !== context.ownerId)
+        throw new Error('工作区归属已变化，请重新打开页面核对本机草稿。');
+      if (!context.ownerId && idPattern.test(value.draft_scope || '')) context.ownerId = value.draft_scope;
+      state.draftOwner = context.ownerId;
       state.groups = value.groups; state.notes = value.notes; state.canEdit = value.can_edit === true && idPattern.test(context.ownerId);
       if (!state.canEdit) {
         for (const item of context.drafts.values()) context.stop(item);

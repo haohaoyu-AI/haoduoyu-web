@@ -1,6 +1,8 @@
-import {authenticate,requireAdmin,requireCsrf,bodyFor,digest,stable,fail} from './security.mjs';
+import {bodyFor,digest,stable,fail} from './security.mjs';
 import {storeFor,consistentRead,mutate} from './storage.mjs';
 import {MEMO_LIMITS,memoId,memoInput,memosOwner} from './memos-validation.mjs';
+
+import {noteEditor,noteDraftScope,limitNoteWrites} from './public-note-access.mjs';
 
 const json=value=>Response.json({data:value});
 const fields='id,title,position,version,change_seq,created_at,updated_at,deleted_at';
@@ -10,18 +12,6 @@ function entityHash(row) {return digest(JSON.stringify(stable(row)));}
 async function ownerExists(store,owner) {
   if(!await store.get('SELECT id FROM users WHERE id=?',owner))throw fail(503,'MEMOS_CONFIG','备忘录归属尚未核实');
 }
-async function writer(store,request,owner,origin) {
-  const actor=await authenticate(store,request,'write');
-  requireAdmin(actor);
-  if(actor.id!==owner)throw fail(403,'FORBIDDEN','仅明确所有者可修改备忘录');
-  requireCsrf(request,actor,origin);
-  return actor;
-}
-async function canEdit(store,request,owner) {
-  if(!request.headers.has('cookie')||request.headers.has('authorization'))return false;
-  try {const actor=await authenticate(store,request);return actor.kind==='session'&&actor.id===owner;}
-  catch(error){if([401,403].includes(error.status))return false;throw error;}
-}
 async function rowFor(store,kind,owner,id) {
   return store.get(`SELECT ${select[kind]} FROM ${tables[kind]} WHERE user_id=? AND id=?`,owner,id);
 }
@@ -29,8 +19,8 @@ async function activeParent(store,owner,id) {
   const group=await store.get('SELECT id,deleted_at FROM matrix_memo_groups WHERE user_id=? AND id=?',owner,id);
   if(!group||group.deleted_at!==null)throw fail(409,'MEMO_GROUP_UNAVAILABLE','分组已删除或不存在，请先恢复分组');
 }
-async function readIndex(store,request,owner) {
-  const editable=await canEdit(store,request,owner);
+async function readIndex(store,request,owner,env,origin) {
+  const actor=await noteEditor(store,request,owner,env,'memos',origin),editable=Boolean(actor);
   const groups=await store.all('SELECT '+fields+' FROM matrix_memo_groups WHERE user_id=?'+
     (editable?'':' AND deleted_at IS NULL')+' ORDER BY position,created_at,id LIMIT ?',owner,MEMO_LIMITS.groups+1);
   const notes=await store.all('SELECT '+fields.split(',').map(field=>'n.'+field).join(',')+',n.group_id FROM matrix_memo_notes n '+
@@ -38,23 +28,23 @@ async function readIndex(store,request,owner) {
     (editable?'':' AND n.deleted_at IS NULL AND g.deleted_at IS NULL')+' ORDER BY n.position,n.created_at,n.id LIMIT ?',owner,MEMO_LIMITS.notes+1);
   if(groups.length>MEMO_LIMITS.groups||notes.length>MEMO_LIMITS.notes)throw fail(503,'MEMOS_LIMIT','备忘录数量超过当前读取上限');
   return json({groups:groups.map(group=>({...group,active_note_count:notes.filter(note=>note.group_id===group.id&&note.deleted_at===null).length})),
-    notes,can_edit:editable});
+    notes,can_edit:editable,...(actor?.kind==='public'?{draft_scope:noteDraftScope(owner)}:{})});
 }
-async function readMemo(db,request,route,owner,initialRevision) {
+async function readMemo(db,request,route,owner,env,origin,initialRevision) {
   return consistentRead(db,async store=>{
     await ownerExists(store,owner);
-    if(route==='/memos')return readIndex(store,request,owner);
+    if(route==='/memos')return readIndex(store,request,owner,env,origin);
     const receipt=/^\/memos\/operations\/([^/]+)$/.exec(route);
     if(receipt) {
       memoId(receipt[1]);
-      const actor=await authenticate(store,request);requireAdmin(actor);
-      if(actor.id!==owner)throw fail(403,'FORBIDDEN','保存状态仅明确所有者可查看');
+      const actor=await noteEditor(store,request,owner,env,'memos',origin);
+      if(!actor)throw fail(request.headers.has('cookie')||request.headers.has('authorization')?403:401,'FORBIDDEN','当前身份无权读取此工作区保存状态');
       const saved=await store.get('SELECT response_json FROM idempotency WHERE actor=? AND key=?',actor.actor,'memo:'+receipt[1]);
       return json(saved?{found:true,...JSON.parse(saved.response_json)}:{found:false});
     }
     const detail=/^\/memos\/notes\/([^/]+)$/.exec(route);
     if(!detail)throw fail(404,'NOT_FOUND','备忘录接口不存在');
-    const id=memoId(detail[1]),editable=await canEdit(store,request,owner),row=await rowFor(store,'notes',owner,id);
+    const id=memoId(detail[1]),editable=Boolean(await noteEditor(store,request,owner,env,'memos',origin)),row=await rowFor(store,'notes',owner,id);
     if(!row)throw fail(404,'NOT_FOUND','笔记不存在');
     if(!editable) {
       const group=await rowFor(store,'groups',owner,row.group_id);
@@ -99,17 +89,18 @@ function queueValue(store,kind,owner,row,value) {
     owner,...columns.map(field=>value[field]));
   store.expectChange();
 }
-async function writeMemo(db,request,route,owner,origin) {
+async function writeMemo(db,request,route,owner,env,origin) {
   const method=request.method,match=/^\/memos\/(groups|notes)\/([^/]+)(\/restore)?$/.exec(route);
   if(!match||!['PUT','DELETE','POST'].includes(method)||Boolean(match[3])!==(method==='POST'))
     throw fail(404,'NOT_FOUND','备忘录接口不存在');
   const [,kind,rawId,suffix]=match,id=memoId(rawId),restore=Boolean(suffix);
-  await writer(storeFor(db),request,owner,origin);
+  await noteEditor(storeFor(db),request,owner,env,'memos',origin,{write:true});
+  limitNoteWrites(owner,'memos');
   const input=memoInput(await bodyFor(request),kind,method,restore),key='memo:'+input.save_id;
   const hash=digest(JSON.stringify(stable({method,kind,id,restore,...input})));
   return (await mutate(db,async store=>{
     await ownerExists(store,owner);
-    const actor=await writer(store,request,owner,origin),row=await rowFor(store,kind,owner,id);
+    const actor=await noteEditor(store,request,owner,env,'memos',origin,{write:true}),row=await rowFor(store,kind,owner,id);
     const saved=await store.get('SELECT request_hash,response_json FROM idempotency WHERE actor=? AND key=?',actor.actor,key);
     if(saved) {
       if(saved.request_hash!==hash)throw fail(409,'IDEMPOTENCY_CONFLICT','保存标识已用于不同内容，请保留草稿');
@@ -132,6 +123,6 @@ async function writeMemo(db,request,route,owner,origin) {
 export async function handleMemos(db,request,route,env,origin,initialRevision) {
   const owner=memosOwner(env);
   if(new URL(request.url).search)throw fail(400,'VALIDATION_ERROR','备忘录接口不接受查询参数');
-  if(request.method==='GET')return readMemo(db,request,route,owner,initialRevision);
-  return writeMemo(db,request,route,owner,origin);
+  if(request.method==='GET')return readMemo(db,request,route,owner,env,origin,initialRevision);
+  return writeMemo(db,request,route,owner,env,origin);
 }

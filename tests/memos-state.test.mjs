@@ -231,3 +231,15 @@ test('memo recovered structural operation requires receipt check before exact re
   f.setSend(() => { throw new Error('lost'); }); await f.store.retryOperation();
   assert.deepEqual(f.calls.filter(call => call.method).at(-1).body, pending.body);
 });
+
+test('public memo capability hydrates its server-scoped draft namespace before permitting writes',async t=>{
+  const scope='60000000-0000-4000-8000-000000000099',saved=new Map(),writes=[];
+  const store=createMemosStore({ownerId:'',draftScope:'public-tab',storage:{
+    getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value)},request:async(path,opts)=>{
+      if(opts){writes.push(opts);return {id:path.split('/').at(-1),...opts.body,version:1,deleted_at:null};}
+      return {groups:[],notes:[],can_edit:true,draft_scope:scope};
+    }});
+  t.after(()=>store.dispose());await store.load();await store.createGroup('anonymous synthetic');
+  assert.equal(writes.length,1);assert.equal(store.state.canEdit,true);
+  assert.ok([...saved.keys()].every(key=>key.includes(scope)));
+});

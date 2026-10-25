@@ -61,3 +61,5 @@ python3 tests/browser-frontend-lifecycle-regression.py --part all
 独立的“分组 → 笔记”模块，不按日归档，公开可读，仅明确 owner 的真实登录会话可编辑。包含纯文本自动保存、版本冲突保护、本机未确认草稿、保存收据及可恢复删除。新增 `0006_long_term_memos` 和 v7 备份，兼容旧 v1–v6；发布者必须配置 `MEMOS_OWNER_ID`。边界、API、并行合并注意事项见[长期备忘录说明](docs/long-term-memos.md)。此分支尚未部署。
 
 与生产文章 UI `fe8efa4` 的整合、共享触点及只追加 `0006` 的交付包说明见[整合交接 README](docs/memos-integration/README.md)。后续视觉改版应以该整合分支的最终提交为起点。
+
+当前权限调整分支基于生产 `701db4f`，支持公开业务模式下碎碎念和备忘录免登录编辑、可恢复删除；管理与备份仍受保护。该调整待父级发布，见[权限及视觉交接说明](docs/public-notes-memos-access.md)。

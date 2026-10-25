@@ -107,7 +107,7 @@ async function clickAction(action) {
   else if (action === 'confirm') await confirmDialog();
   else if (action === 'login') { renderLogin(); return; }
   else if (action === 'refresh') await store.load();
-  else if (action === 'recovery') openMemoRecovery(document.querySelector('#memos'), store, state.me?.id);
+  else if (action === 'recovery') openMemoRecovery(document.querySelector('#memos'), store, store.state.draftOwner);
   else if (action === 'close-recovery') document.querySelector('#memo-recovery').hidden = true;
   else if (action === 'restore-draft') await restoreMemoRecovery(document.querySelector('#memos'), store);
   else if (action === 'save') await store.saveNote();

@@ -8,7 +8,7 @@ import {digest,csrfFor} from '../src/security.mjs';
 async function setup(t) {
   const app=await fixture(t),session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const env={DB:app.db,SITE_ORIGIN:app.origin,MEMOS_OWNER_ID:owner,DAILY_NOTES_OWNER_ID:owner,
-    PUBLIC_BUSINESS_MODE:'1',PUBLIC_BUSINESS_USER_ID:owner,PUBLIC_BUSINESS_ACCOUNT_IDS:'[]'};
+    PUBLIC_BUSINESS_MODE:'0',PUBLIC_BUSINESS_USER_ID:owner,PUBLIC_BUSINESS_ACCOUNT_IDS:'[]'};
   async function memo(path='',{method='GET',body,auth=false,headers={},settings=env}={}) {
     const h=new Headers(headers);
     if(auth){h.set('Cookie',session.cookie);h.set('X-CSRF-Token',session.csrfToken);}
@@ -172,7 +172,7 @@ test('memos validate text, depth, sorting, identity and ownership without changi
   assert.ok(!JSON.stringify(await app.memo()).includes('OTHER-OWNER-CANARY'));
   assert.equal((await app.memo('/notes/'+nid,{method:'PUT',auth:true,body:note(otherGroup,'move',1)})).status,400);
   const todo=await worker.fetch(new Request(app.origin+'/api/v1/todos',{method:'POST',headers:{Origin:app.origin,
-    'Content-Type':'application/json','X-Public-Business':'1'},body:JSON.stringify({id:randomUUID(),date:'2026-10-25',text:'原待办匿名写'})}),app.env);
+    'Content-Type':'application/json','X-Public-Business':'1'},body:JSON.stringify({id:randomUUID(),date:'2026-10-25',text:'原待办匿名写'})}),{...app.env,PUBLIC_BUSINESS_MODE:'1'});
   assert.equal(todo.status,201);
   const daily=await worker.fetch(new Request(app.origin+'/api/v1/daily-notes?date=2026-10-25'),app.env);
   assert.equal(daily.status,200);assert.equal((await daily.json()).data.text,'');

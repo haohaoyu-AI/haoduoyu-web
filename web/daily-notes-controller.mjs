@@ -25,6 +25,7 @@ function ensureDailyNotesStore() {
     const store = createDailyNotesStore({
       load: date => request('/daily-notes?date=' + encodeURIComponent(date)),
       put: (date, body) => request('/daily-notes/' + encodeURIComponent(date), {method: 'PUT', body}),
+      restore: (date, body) => request('/daily-notes/' + encodeURIComponent(date) + '/restore', {method: 'POST', body}),
       remove: (date, body) => request('/daily-notes/' + encodeURIComponent(date), {method: 'DELETE', body}),
       onChange: () => { if (expected === notesIdentityNow()) paintDailyNotesPage(); },
       onSaved: () => { if (expected === notesIdentityNow()) void loadNoteDates(); }
@@ -100,6 +101,7 @@ function registerDailyNotesEvents() {
     else if (action === 'login') renderLogin();
     else if (action === 'today') await selectDailyNotesDate(dailyNotesToday());
     else if (action === 'save') await store.save(date);
+    else if (action === 'restore') await store.restorePage(date);
     else if (action === 'delete') { notesConfirmDate = date; paintDailyNotesPage(); }
     else if (action === 'cancel-delete') { notesConfirmDate = ''; paintDailyNotesPage(); }
     else if (action === 'confirm-delete') { notesConfirmDate = ''; await store.deletePage(date); paintDailyNotesPage(); }
