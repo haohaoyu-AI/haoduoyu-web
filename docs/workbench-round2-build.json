@@ -62,5 +62,16 @@
       "6": "global navigation / main-content boundary, not memo editor divider"
     }
   },
-  "ci": "Final isolated-branch push required; exact run and terminal result supplied in handoff."
+  "ci": "Final isolated-branch push required; exact run and terminal result supplied in handoff.",
+  "ci_followup": {
+    "run": 40185189275,
+    "tests": 718,
+    "pass": 717,
+    "fail": 1,
+    "cause": "article reconciliation freeze guard compared authorized round-two workbench.css and UI files directly with f405",
+    "fix": "apply exact approved round-two SHA-256 projection before retaining byte-for-byte baseline comparison",
+    "rechecked_failed_test": true,
+    "rechecked_unapproved_mutation_rejection": true,
+    "runtime_and_archive_unchanged": true
+  }
 }

@@ -8,6 +8,7 @@ import {fixture} from './harness.mjs';
 import {countingDb} from './counting-d1.mjs';
 import {reconcileArticles,readArticleReconciliation} from '../src/article-reconciliation.mjs';
 import {renderReconciliation} from '../web/pages/article-reconciliation.mjs';
+import {projectWorkbenchRound2} from './workbench-round2-projection.mjs';
 const row=(id,series_no,status='draft_saved',slot='gzh')=>({id,series_no,status,slot,run_date:null,writer:null,
   title:'保险第200篇不是编号依据',sample:null,missing_fields:['run_date','writer'],warnings:[],has_pending_verify:null,verify_state:'unknown'});
 test('actual reconciliation preserves unknowns, distinct numbers, duplicate IDs and bounded gap ranges without a target',()=>{
@@ -59,10 +60,14 @@ test('over-budget complete reads fail rather than presenting a partial ledger',a
   const store={all:async()=>Array.from({length:200},()=>({id:randomUUID(),title:'x'.repeat(10000),status:null}))};
   await assert.rejects(readArticleReconciliation(store,{},null),error=>error.status===413);
 });
-test('todo, notes, memo, schema, snapshot and glass stylesheet bytes stay equal to current production',async()=>{
+test('todo, notes, memo, schema, snapshot and glass baseline stays exact after the approved round-two UI delta',async()=>{
   const files=['public/workbench.css','public/index.html','public/glass.css','public/style.css','public/memos.css','src/snapshot.mjs','src/snapshot-projection.mjs','src/daily-notes.mjs','src/memos.mjs'];
   files.push(...execFileSync('git',['ls-tree','-r','--name-only','f405b4c','db','drizzle','web'],{encoding:'utf8'}).trim().split('\n').filter(file=>!['web/controller.mjs','web/core/router.mjs','web/events.mjs','web/actions.mjs'].includes(file)));
-  for(const file of files)assert.deepEqual(await readFile(new URL('../'+file,import.meta.url)),execFileSync('git',['show','f405b4c:'+file]));
+  for(const file of files) {
+    const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
+    const baseline=projectWorkbenchRound2(file,source);
+    assert.deepEqual(Buffer.from(baseline),execFileSync('git',['show','f405b4c:'+file]),file);
+  }
 });
 
 test('new UI and API projections reject changed additions and preserve the complete preceding contract',async()=>{
