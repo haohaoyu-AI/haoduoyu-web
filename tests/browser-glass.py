@@ -13,7 +13,7 @@ from playwright.sync_api import expect, sync_playwright
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'artifacts/ui-glass'
 OUT.mkdir(parents=True, exist_ok=True)
-REPORT = {'baseline_commit': '6043d18cd75634542baecc6ffa665712cdf32eb1', 'phase': 'working-tree-glass-refresh', 'synthetic': True,
+REPORT = {'baseline_commit': '701db4febbdb17b098d8734b22d94f1a813d7616', 'phase': 'working-tree-glass-refresh', 'synthetic': True,
           'real_worker': True, 'temporary_d1': True, 'shared_browser_used': False,
           'completed': False, 'captures': [], 'checks': {}, 'pageerrors': [],
           'blocked_external_requests': [], 'responses': [], 'layout': [],

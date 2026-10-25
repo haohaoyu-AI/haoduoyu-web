@@ -187,9 +187,10 @@ abe3540cabddd9c479e2efa7a654aac648320a90:docs/frontend-product-hashes.json:gener
 # User-approved phase 5c squash reintroduction of the same public digest.
 2b19f7fab20d250aeb9d0e71d65a3fdaeafb7c6e:.ci/public-assets.json:generic-api-key:10
 
-# Reviewed UI integration: public api-docs.html / openapi.json SHA-256 values only.
-# Independently recomputed from the matching public Git blobs; see docs/ui-glass-scan-evidence.json.
-a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:5
-a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:10
+# Atomic snapshot: independently recomputed public documentation SHA256 pins only.
 daec2c2d6b186601cad236c93626a6330cdccc61:.ci/public-assets.json:generic-api-key:5
 daec2c2d6b186601cad236c93626a6330cdccc61:.ci/public-assets.json:generic-api-key:10
+
+# Production snapshot integration: exact same independently recomputed public doc pins.
+a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:5
+a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:10

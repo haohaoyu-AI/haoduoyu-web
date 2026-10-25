@@ -1,5 +1,5 @@
 {
-  "baseline_commit": "6043d18cd75634542baecc6ffa665712cdf32eb1",
+  "baseline_commit": "701db4febbdb17b098d8734b22d94f1a813d7616",
   "phase": "working-tree-glass-refresh",
   "synthetic": true,
   "real_worker": true,
@@ -132,7 +132,7 @@
     {
       "width": 1440,
       "method": "GET",
-      "path": "/api/v1/articles/8833cf35-70fb-42ad-8232-08ab02abf352",
+      "path": "/api/v1/articles/903b7f4f-26a4-44c2-a530-ed59d786f1dc",
       "status": 200
     },
     {
@@ -216,7 +216,7 @@
     {
       "width": 375,
       "method": "GET",
-      "path": "/api/v1/articles/8833cf35-70fb-42ad-8232-08ab02abf352",
+      "path": "/api/v1/articles/903b7f4f-26a4-44c2-a530-ed59d786f1dc",
       "status": 200
     },
     {
@@ -300,7 +300,7 @@
     {
       "width": 390,
       "method": "GET",
-      "path": "/api/v1/articles/8833cf35-70fb-42ad-8232-08ab02abf352",
+      "path": "/api/v1/articles/903b7f4f-26a4-44c2-a530-ed59d786f1dc",
       "status": 200
     }
   ],
@@ -586,7 +586,7 @@
     "public/app.js": "41e4a44558567f604821ad3489bfb40fb8375d645d3d9e76df46b770a4883201",
     "public/style.css": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f",
     "public/glass.css": "976d0436e1f060ed5366390b7c42e0b6fb2b398921061ab6d043b3eeacdac3a5",
-    "dist/server/index.js": "f867a4f53e10737ff3b9b46e0ec096d6061397631747c9c130bd125ed11df065"
+    "dist/server/index.js": "909cbebe7ba86769092d11007fc9d4bdad15cd4240f9d93e5b1ad90bc69da70a"
   },
   "browser": "154.0.8037.57",
   "server_exit": 143,

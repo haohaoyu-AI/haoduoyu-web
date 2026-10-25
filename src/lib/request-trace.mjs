@@ -4,7 +4,8 @@ const methods = new Set(['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIO
 const paths = [
   '/', '/index.html', '/app.js', '/style.css', '/memos.css', '/favicon.svg', '/openapi.json', '/robots.txt', '/llms.txt', '/api-docs', '/health',
   ...['bootstrap', 'auth/me', 'auth/login', 'auth/logout', 'auth/password', 'accounts', 'articles', 'observations',
-    'daily-metrics', 'todos', 'todo-templates', 'todo-preferences', 'memos', 'dashboard', 'overview', 'due-reviews', 'api-keys', 'audit', 'backup', 'export'].map(path => '/api/v1/' + path),
+    'daily-metrics', 'todos', 'todo-templates', 'todo-preferences', 'memos', 'dashboard', 'overview', 'due-reviews', 'api-keys', 'audit', 'backup', 'export',
+    'snapshot', 'snapshot/index'].map(path => '/api/v1/' + path),
 ];
 const routes = new Map(paths.map(path => [path, path]));
 const dynamic = ['articles', 'accounts', 'api-keys', 'todos', 'todo-templates'].map(name => [

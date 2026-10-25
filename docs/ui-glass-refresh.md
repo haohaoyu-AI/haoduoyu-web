@@ -1,6 +1,6 @@
 # 全站磨砂玻璃视觉改版
 
-整合生产基线：`6043d18cd75634542baecc6ffa665712cdf32eb1`。候选分支：`opt/ui-glass-production-integration`。视觉来源：`6c6551e5fa86d1af724403270611c96d149b7d5c`。
+整合生产基线：`701db4febbdb17b098d8734b22d94f1a813d7616`。候选分支：`opt/ui-glass-current-production`。视觉来源：`6c6551e5fa86d1af724403270611c96d149b7d5c`。
 
 用户在本任务直接附上的 5 张参考图已实际逐张查看，其中第 1 / 3 张重复。原图未加入仓库。参考中的透视、裁切、HR / 金融 / 机票业务及商标不属于页面内容。
 
@@ -24,7 +24,7 @@
 - `public/index.html` 引入该文件并更新浏览器主题色；构建资产清单与 `.ci/public-assets.json` 同步登记。
 - `public/app.js`、现有 `public/style.css`、业务控制器、API、数据库及权限均保持原有内容。
 - 模糊仅作用于桌面外框与手机底部导航；手机外框关闭模糊以保持固定导航定位。提供不支持 backdrop-filter 的实色降级、reduced-motion 和 forced-colors 规则。
-- 已从备忘录生产基线 6043d18 建立候选，保持 `style.css` → `memos.css` → `glass.css` 加载顺序及 10 项资源哈希。原 18 表 / 7 迁移、备忘录 / notes / todo / 文章源码和运行配置保持原样。未包含 atomic snapshot 分支。
+- 已从备忘录视觉候选合入最新快照生产基线 701db4f，保持 `style.css` → `memos.css` → `glass.css` 加载顺序及 10 项资源哈希。原 18 表 / 7 迁移、备忘录 / notes / todo / 文章源码和运行配置保持原样。保留 701 的完整 atomic snapshot 功能、路由与公开文档。
 
 ## 验证与截图
 
@@ -54,4 +54,4 @@
 
 [构建与配置字节证据](ui-glass-integration-build.json)记录基线和候选 Worker 的实际字节数、SHA-256，以及不变文件的逐字节验证。构建包的增加来自视觉资产嵌入，业务源码、数据库、runtime.json、hosting.json、依赖均未改。
 
-[历史扫描证据](ui-glass-scan-evidence.json)逐条记录两个提交 `.ci/public-assets.json` 第 5 / 10 行的上下文、值、对应公开文件字节数和重算摘要。仅将这 4 个“提交 + 文件 + 规则 + 行号”的准确指纹追加到既有 `.gitleaksignore`；不扩大路径或规则白名单，不关闭扫描，不删除历史。此精确处理由本轮明确授权。
+[历史扫描证据](ui-glass-scan-evidence.json)逐条记录两个提交 `.ci/public-assets.json` 第 5 / 10 行的上下文、值、对应公开文件字节数和重算摘要。这 4 个“提交 + 文件 + 规则 + 行号”的准确指纹已由 701 基线审核纳入；最终候选直接保留 701 的 `.gitleaksignore`，相对生产没有安全配置变化。未扩大路径或规则白名单，未关闭扫描，未删除历史。
