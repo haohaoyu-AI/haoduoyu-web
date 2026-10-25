@@ -1,20 +1,26 @@
 import {api} from './core/api.mjs';
 import {state, runtime} from './core/state.mjs';
 import {updateRoute} from './core/router.mjs';
+import {renderShell} from './controller.mjs';
 import {createDailyNotesStore, dailyNotesRouteDate, dailyNotesToday,
-  setDailyNotesRouteDate, validDailyNotesDate} from './core/daily-notes-state.mjs';
+  setDailyNotesRouteDate, validDailyNotesDate, dailyNotesRouteCategory, setDailyNotesRouteCategory} from './core/daily-notes-state.mjs';
 import {paintDailyNotes} from './pages/daily-notes.mjs';
 import {renderLogin} from './pages/login.mjs';
 
-let notesStore, notesIdentity = '', notesEventsRegistered = false, notesConfirmDate = '';
+let notesStore, notesIdentity = '', notesEventsRegistered = false, notesConfirmDate = '', notesActiveCategory = '';
+const notesStores = new Map(), notesDateIndices = new Map();
 let notesDateIndex = {dates: [], hasMore: false, cursor: null, loading: false, error: '', sequence: 0};
 const notesIdentityNow = () => String(runtime.sessionEpoch) + ':' + String(state.me?.id || '') + ':' + String(state.me?.csrfToken || '');
 const notesVisible = () => state.page === 'notes' && notesIdentity === notesIdentityNow();
+function newDateIndex() { return {dates: [], hasMore: false, cursor: null, loading: false, error: '', sequence: 0}; }
 function ensureDailyNotesStore() {
-  const next = notesIdentityNow();
-  if (!notesStore || notesIdentity !== next) {
-    notesStore?.dispose(); notesIdentity = next; notesConfirmDate = '';
-    notesDateIndex = {dates: [], hasMore: false, cursor: null, loading: false, error: '', sequence: 0};
+  const next = notesIdentityNow(), category = dailyNotesRouteCategory();
+  if (notesIdentity !== next) {
+    for (const store of notesStores.values()) store.dispose();
+    notesStores.clear(); notesDateIndices.clear(); notesIdentity = next; notesConfirmDate = '';
+  }
+  if (notesActiveCategory !== category) { notesActiveCategory = category; notesConfirmDate = ''; }
+  if (!notesStores.has(category)) {
     const expected = next;
     const active = () => {
       if (notesIdentityNow() !== expected) { store.dispose(); throw new DOMException('请求已取消', 'AbortError'); }
@@ -22,16 +28,18 @@ function ensureDailyNotesStore() {
     const request = async (path, options) => {
       active(); const value = await api(path, options); active(); return value;
     };
+    const suffix = separator => category === 'work' ? separator + 'category=work' : '';
     const store = createDailyNotesStore({
-      load: date => request('/daily-notes?date=' + encodeURIComponent(date)),
-      put: (date, body) => request('/daily-notes/' + encodeURIComponent(date), {method: 'PUT', body}),
-      restore: (date, body) => request('/daily-notes/' + encodeURIComponent(date) + '/restore', {method: 'POST', body}),
-      remove: (date, body) => request('/daily-notes/' + encodeURIComponent(date), {method: 'DELETE', body}),
-      onChange: () => { if (expected === notesIdentityNow()) paintDailyNotesPage(); },
-      onSaved: () => { if (expected === notesIdentityNow()) void loadNoteDates(); }
+      load: date => request('/daily-notes?date=' + encodeURIComponent(date) + suffix('&')),
+      put: (date, body) => request('/daily-notes/' + encodeURIComponent(date) + suffix('?'), {method: 'PUT', body}),
+      restore: (date, body) => request('/daily-notes/' + encodeURIComponent(date) + '/restore' + suffix('?'), {method: 'POST', body}),
+      remove: (date, body) => request('/daily-notes/' + encodeURIComponent(date) + suffix('?'), {method: 'DELETE', body}),
+      onChange: () => { if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) paintDailyNotesPage(); },
+      onSaved: () => { if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) void loadNoteDates(); }
     });
-    notesStore = store;
+    notesStores.set(category, store); notesDateIndices.set(category, newDateIndex());
   }
+  notesStore = notesStores.get(category); notesDateIndex = notesDateIndices.get(category);
   return notesStore;
 }
 export function paintDailyNotesPage() {
@@ -52,7 +60,8 @@ async function loadNoteDates(more = false) {
   const before = more ? current.cursor : null;
   current.loading = true; current.error = ''; paintDailyNotesPage();
   try {
-    const result = await api('/daily-notes/dates?page_size=30' + (before ? '&before=' + encodeURIComponent(before) : ''));
+    const result = await api('/daily-notes/dates?page_size=30' +
+      (dailyNotesRouteCategory() === 'work' ? '&category=work' : '') + (before ? '&before=' + encodeURIComponent(before) : ''));
     if (expected !== notesIdentityNow() || current !== notesDateIndex || sequence !== current.sequence) return;
     if (!Array.isArray(result?.dates) || result.dates.some(value => !validDailyNotesDate(value)) ||
         typeof result.has_more !== 'boolean' || result.has_more &&
@@ -96,9 +105,12 @@ function registerDailyNotesEvents() {
   });
   document.addEventListener('click', async event => {
     if (!notesVisible()) return;
-    const root = document.querySelector('#daily-notes'), target = event.target.closest('[data-notes-action],[data-notes-date]');
+    const root = document.querySelector('#daily-notes'), target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category]');
     if (!target || !root?.contains(target)) return;
     event.preventDefault();
+    if (target.dataset.notesCategory) {
+      setDailyNotesRouteCategory(target.dataset.notesCategory); updateRoute(true); renderShell(); return;
+    }
     if (target.dataset.notesDate) { await selectDailyNotesDate(target.dataset.notesDate); return; }
     const store = ensureDailyNotesStore(), date = dailyNotesRouteDate(), action = target.dataset.notesAction;
     if (action === 'previous' || action === 'next') await selectDailyNotesDate(shiftedNotesDate(date, action === 'previous' ? -1 : 1));
@@ -119,7 +131,7 @@ function registerDailyNotesEvents() {
   });
   window.addEventListener('beforeunload', event => {
     if (notesIdentity !== notesIdentityNow() || !notesStore) return;
-    if ([...notesStore.pages.values()].some(item => item.dirty || item.pending || item.phase === 'unknown')) {
+    if ([...notesStores.values()].some(store => [...store.pages.values()].some(item => item.dirty || item.pending || item.phase === 'unknown'))) {
       event.preventDefault(); event.returnValue = '';
     }
   });

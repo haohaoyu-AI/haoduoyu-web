@@ -1,8 +1,14 @@
 import {e} from '../core/dom.mjs';
-import {dailyNotesBytes, dailyNotesToday} from '../core/daily-notes-state.mjs';
+import {dailyNotesBytes, dailyNotesToday, dailyNotesRouteCategory} from '../core/daily-notes-state.mjs';
 
 export function renderDailyNotes() {
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念">' +
+  const category = dailyNotesRouteCategory();
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '">' +
+    '<div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ['life', 'work'].map(value =>
+      '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' +
+      (value === 'work' ? '工作碎碎念' : '生活碎碎念') + '</button>').join('') + '</div>' +
+    '<p class="notes-legacy-notice muted"' + (category === 'work' ? ' hidden' : '') +
+    '>原有碎碎念保留在此兼容默认项，未自动分析或分类。</p>' +
     '<div class="notes-toolbar"><div class="notes-date-controls">' +
     '<button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button>' +
     '<label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span>' +

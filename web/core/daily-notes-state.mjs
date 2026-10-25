@@ -10,7 +10,9 @@ export function dailyNotesToday() {
   }).formatToParts(new Date()).map(part => [part.type, part.value]));
   return parts.year + '-' + parts.month + '-' + parts.day;
 }
-let routeDate = '';
+let routeDate = '', routeCategory = 'life';
+export const dailyNotesRouteCategory = () => routeCategory;
+export function setDailyNotesRouteCategory(value) { routeCategory = value === 'work' ? 'work' : 'life'; }
 export function dailyNotesRouteDate() { return routeDate || dailyNotesToday(); }
 export function setDailyNotesRouteDate(value) { routeDate = validDailyNotesDate(value) ? value : ''; }
 export function dailyNotesBytes(text) { return new TextEncoder().encode(text).length; }

@@ -2,7 +2,7 @@ import { articleColumns, defaultColumns, defaultFilters, legacyPages, modeLabels
   slotLabels, statusLabels, writerLabels } from "./constants.mjs";
 import { state } from "./state.mjs";
 import { storage } from "./storage.mjs";
-import { dailyNotesRouteDate, setDailyNotesRouteDate } from "./daily-notes-state.mjs";
+import { dailyNotesRouteDate, setDailyNotesRouteDate, dailyNotesRouteCategory, setDailyNotesRouteCategory } from "./daily-notes-state.mjs";
 import { validTodoDate } from "./todos-state.mjs";
 function normalizeArticlePipelineFilters(filters) {
   const allowed = { status: Object.keys(statusLabels), slot: ["", ...Object.keys(slotLabels)], writer: ["", ...Object.keys(writerLabels)],
@@ -23,6 +23,10 @@ function normalizeArticlePipelineFilters(filters) {
 function updateRoute(push = false) {
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
+  if (state.page === "notes" && dailyNotesRouteCategory() === "work") u.searchParams.set("notes_category", "work");
+  else u.searchParams.delete("notes_category");
+  if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
+  else u.searchParams.delete("memo_view");
   u.searchParams.set("period", state.overviewPeriod);
   if (["published", "reconciliation"].includes(state.articleOverviewMode)) u.searchParams.set("article_scope", state.articleOverviewMode);
   else u.searchParams.delete("article_scope");
@@ -55,7 +59,10 @@ function readRoute() {
   const raw = params.get("page");
   const fallback = "todos";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
-  if (state.page === "notes") setDailyNotesRouteDate(params.get("date"));
+  if (state.page === "notes") {
+    setDailyNotesRouteDate(params.get("date")); setDailyNotesRouteCategory(params.get("notes_category"));
+  }
+  state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoPanel = state.page === "todos" && ["history", "templates"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.

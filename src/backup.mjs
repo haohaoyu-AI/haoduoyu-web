@@ -26,8 +26,9 @@ const memoColumns={
   memo_groups:['user_id','id','title','position','version','change_seq','created_at','updated_at','deleted_at'],
   memo_notes:['user_id','id','group_id','title','body','position','version','change_seq','created_at','updated_at','deleted_at'],
 };
-const columns={...v6Columns,...memoColumns};
-const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','memo_groups','memo_notes']);
+const v7Columns={...v6Columns,...memoColumns};
+const columns={...v7Columns,daily_work_notes:v5Columns.daily_notes};
+const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','daily_work_notes','memo_groups','memo_notes']);
 const backupTable=name=>privateTables.has(name)?'matrix_'+name:name;
 const v4Columns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>name!=='daily_notes'));
 const legacyColumns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>!privateTables.has(name)));
@@ -38,7 +39,7 @@ const v2Columns=Object.fromEntries(Object.entries(v3Columns).filter(([name])=>![
 const versionColumns=new Map([
   ['haoduoyu-matrix-d1-v1',legacyColumns],['haoduoyu-matrix-d1-v2',v2Columns],
   ['haoduoyu-matrix-d1-v3',v3Columns],['haoduoyu-matrix-d1-v4',v4Columns],
-  ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',v6Columns],['haoduoyu-matrix-d1-v7',columns],
+  ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',v6Columns],['haoduoyu-matrix-d1-v7',v7Columns],['haoduoyu-matrix-d1-v8',columns],
 ]);
 function validateMemos(tables,sourceRevision) {
   const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
@@ -67,7 +68,7 @@ export async function exportBackup(db,{todoUserId}={}) {
       tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
         ...(scoped?[todoUserId]:[]));
     }
-    return {format:'haoduoyu-matrix-d1-v7',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
+    return {format:'haoduoyu-matrix-d1-v8',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
   });
   return {data,sha256:digest(JSON.stringify(stable(data)))};
 }
@@ -76,21 +77,21 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   if(!allowEmptyRestore) throw fail(403,'RESTORE_DISABLED','恢复只允许在显式指定的空隔离数据库执行');
   if(!versionColumns.has(backup?.data?.format)||backup.sha256!==digest(JSON.stringify(stable(backup.data)))) throw fail(400,'INVALID_BACKUP','备份格式或校验和无效');
   const expected=versionColumns.get(backup.data.format);
-  const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7'].includes(backup.data.format);
-  const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7'].includes(backup.data.format);
-  const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7'].includes(backup.data.format);
+  const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8'].includes(backup.data.format);
+  const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8'].includes(backup.data.format);
+  const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8'].includes(backup.data.format);
   const sourceRevision=hasSourceRevision?backup.data.source_revision:0;
   if(hasSourceRevision&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
     throw fail(400,'INVALID_BACKUP','备份修订号无效');
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
-  const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],memo_groups:[],memo_notes:[],...supplied};
+  const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],daily_work_notes:[],memo_groups:[],memo_notes:[],...supplied};
   for(const [name,fields] of Object.entries(expected)) {
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {
       if(!row||Object.keys(row).sort().join(',')!==[...fields].sort().join(',')||fields.some(field=>row[field]!==null&&!['string','number'].includes(typeof row[field]))||
         name==='todo_template_links'&&hasTodoTombstones&&![0,1].includes(row.created_with_todo)||
-        name==='daily_notes'&&(!Number.isSafeInteger(row.version)||row.version<1||!Number.isSafeInteger(row.change_seq)||row.change_seq<1))
+        ['daily_notes','daily_work_notes'].includes(name)&&(!Number.isSafeInteger(row.version)||row.version<1||!Number.isSafeInteger(row.change_seq)||row.change_seq<1))
         throw fail(400,'INVALID_BACKUP','备份列格式无效');
       if(name==='articles') {
         if((row.url===null||row.published_at===null)&&!hasPipeline)throw fail(400,'INVALID_BACKUP','旧文章备份的链接和发布时间不得为空');
@@ -98,7 +99,7 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
       }
     }
   }
-  if(tables.daily_notes.some(row=>row.change_seq>sourceRevision))throw fail(400,'INVALID_BACKUP','碎碎念变更号超过源修订号');
+  if([...tables.daily_notes,...tables.daily_work_notes].some(row=>row.change_seq>sourceRevision))throw fail(400,'INVALID_BACKUP','碎碎念变更号超过源修订号');
   validateMemos(tables,sourceRevision);
   // Validate the exact historic columns before introducing compatibility defaults.
   if(!hasTodoTombstones) {

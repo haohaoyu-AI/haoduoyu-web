@@ -287,6 +287,16 @@ function actionResetFilters({}) {
   return;
 }
 const actions = {
+  "media-menu": ({event}) => {
+    if (!['dashboard', 'articles', 'reviews'].includes(state.page)) {
+      event.preventDefault(); navigate('dashboard'); document.querySelector('.mobile-media-nav').open = true;
+    }
+  },
+  "notes-menu": ({event}) => {
+    if (state.page !== 'notes') {
+      event.preventDefault(); navigate('notes'); document.querySelector('.mobile-notes-nav').open = true;
+    }
+  },
   "article-overview-mode": actionArticleOverviewMode,
   "article-verify-retry": retryArticleVerification,
   "article-verify-refresh": refreshArticleVerification,
@@ -298,7 +308,10 @@ const actions = {
   "todo-template-use": ({ id }) => useTodoTemplate(id),
   "todo-template-edit": ({ id }) => editTodoTemplate(id),
   "todo-template-delete": ({ id }) => writeTodoTemplate(id, undefined, true),
-  "memo-tools": ({target}) => { requestMemoTool(target.dataset.tool); navigate("memos"); },
+  "memo-tools": ({target}) => {
+    if (target.dataset.tool === "trash") navigate("memos", "trash");
+    else { requestMemoTool(target.dataset.tool); navigate("memos"); }
+  },
   "todo-panel": ({target}) => setTodoPanel(target.dataset.panel),
   "todo-retry-add": retryTodoCreate,
   "todo-panel-close": () => setTodoPanel(""),

@@ -1,0 +1,14 @@
+{
+  "baseline": "8649a55ef74a4b58ddab09b0720b871bd1962654",
+  "worker": {
+    "bytes": 1038528,
+    "sha256": "aa82491e12d5f2722cd12364500eb78a6c8a27a45f0461d45d52c2475a8839d3"
+  },
+  "archive": {
+    "name": "haoduoyu-workbench-round3.tar",
+    "bytes": 1372160,
+    "sha256": "ea75b26217efce952c5344d01448af7103615d990a45c74658514a1d7d6835cb"
+  },
+  "migration": "0007_work_daily_notes: additive only; 19 tables / 8 migrations; apply before Worker",
+  "deployed": false
+}

@@ -11,6 +11,11 @@ export function dailyNotesOwner(env) {
   if(typeof id!=='string'||!uuid.test(id))throw fail(503,'NOTES_CONFIG','碎碎念尚未配置明确归属');
   return id.toLowerCase();
 }
+function noteCategory(query) {
+  const category=query.has('category')?query.get('category'):'life';
+  if(!['life','work'].includes(category))throw fail(400,'VALIDATION_ERROR','碎碎念分类无效');
+  return category;
+}
 function view(row,date,canEdit) {
   if(!row||row.deleted_at!==null&&!canEdit)
     return {date,text:'',version:0,updated_at:null,deleted:false,can_edit:canEdit};
@@ -36,37 +41,39 @@ function inputFor(input,method) {
 }
 
 export async function handleDailyNotes(db,request,route,env,origin,initialRevision) {
-  const owner=dailyNotesOwner(env),method=request.method,url=new URL(request.url);
+  const owner=dailyNotesOwner(env),method=request.method,url=new URL(request.url),category=noteCategory(url.searchParams);
+  const table=category==='work'?'matrix_daily_work_notes':'matrix_daily_notes';
   if(method==='GET'&&(route==='/daily-notes'||route==='/daily-notes/dates')) {
     return consistentRead(db,async store=>{
       if(!await store.get('SELECT id FROM users WHERE id=?',owner))throw fail(503,'NOTES_CONFIG','碎碎念归属尚未核实');
       if(route.endsWith('/dates')) {
-        queryKeys(url.searchParams,['before','page_size']);
+        queryKeys(url.searchParams,['before','page_size','category']);
         const before=url.searchParams.has('before')?snapshotDate(url.searchParams.get('before')):null;
         const raw=url.searchParams.get('page_size')||'30';
         if(!/^[1-9]\d*$/.test(raw)||Number(raw)>100)throw fail(400,'VALIDATION_ERROR','日期列表每页最多100项');
-        const count=Number(raw),rows=await store.all('SELECT date FROM matrix_daily_notes WHERE user_id=? AND deleted_at IS NULL AND text<>?'+(before?' AND date<?':'')+' ORDER BY date DESC LIMIT ?',owner,'',...(before?[before]:[]),count+1);
+        const count=Number(raw),rows=await store.all('SELECT date FROM '+table+' WHERE user_id=? AND deleted_at IS NULL AND text<>?'+(before?' AND date<?':'')+' ORDER BY date DESC LIMIT ?',owner,'',...(before?[before]:[]),count+1);
         const dates=rows.slice(0,count).map(row=>row.date),has_more=rows.length>count;
         return json({dates,has_more,next_before:has_more?dates.at(-1):null});
       }
-      queryKeys(url.searchParams,['date']);
+      queryKeys(url.searchParams,['date','category']);
       const date=url.searchParams.has('date')?snapshotDate(url.searchParams.get('date')):beijingDay(Date.now());
       const canEdit=Boolean(await noteEditor(store,request,owner,env,'notes',origin));
-      const row=await store.get('SELECT date,text,version,updated_at,deleted_at FROM matrix_daily_notes WHERE user_id=? AND date=?',owner,date);
+      const row=await store.get('SELECT date,text,version,updated_at,deleted_at FROM '+table+' WHERE user_id=? AND date=?',owner,date);
       return json(view(row,date,canEdit));
     },initialRevision);
   }
   const match=/^\/daily-notes\/(\d{4}-\d{2}-\d{2})(\/restore)?$/.exec(route);
   if(!match||!['PUT','DELETE','POST'].includes(method)||Boolean(match[2])!==(method==='POST'))throw fail(404,'NOT_FOUND','碎碎念接口不存在');
-  if(url.search)throw fail(400,'VALIDATION_ERROR','保存接口不接受查询参数');
+  queryKeys(url.searchParams,['category']);
   const date=snapshotDate(match[1]);
   await noteEditor(storeFor(db),request,owner,env,'notes',origin,{write:true});
   limitNoteWrites(owner,'notes');
   const input=inputFor(await bodyFor(request),method);
-  const key='daily-notes:'+input.save_id.toLowerCase(),hash=digest(JSON.stringify(stable({method,date,...input})));
+  const key='daily-notes:'+(category==='work'?'work:':'')+input.save_id.toLowerCase();
+  const hash=digest(JSON.stringify(stable({method,date,...(category==='work'?{category}:{}),...input})));
   return (await mutate(db,async store=>{
     const actor=await noteEditor(store,request,owner,env,'notes',origin,{write:true});
-    const row=await store.get('SELECT date,text,version,created_at,updated_at,deleted_at FROM matrix_daily_notes WHERE user_id=? AND date=?',owner,date);
+    const row=await store.get('SELECT date,text,version,created_at,updated_at,deleted_at FROM '+table+' WHERE user_id=? AND date=?',owner,date);
     const saved=await store.get('SELECT request_hash,response_json FROM idempotency WHERE actor=? AND key=?',actor.actor,key);
     if(saved) {
       if(saved.request_hash!==hash)throw fail(409,'IDEMPOTENCY_CONFLICT','保存标识已用于不同内容，请保留草稿');
@@ -84,8 +91,8 @@ export async function handleDailyNotes(db,request,route,env,origin,initialRevisi
     const changeSeq=(await store.get('SELECT revision FROM matrix_control WHERE id=1')).revision+1;
     if(!Number.isSafeInteger(changeSeq)||changeSeq<1)throw fail(503,'NOTES_REVISION','碎碎念版本需要私下核对，草稿尚未保存');
     const value={date,text:method==='PUT'?input.text:row.text,version,created_at:row?.created_at||time,updated_at:time,deleted_at:deleted?time:null};
-    if(row)store.queue('UPDATE matrix_daily_notes SET text=?,version=?,change_seq=?,updated_at=?,deleted_at=? WHERE user_id=? AND date=? AND version=?',value.text,version,changeSeq,time,value.deleted_at,owner,date,input.version);
-    else store.queue('INSERT INTO matrix_daily_notes(user_id,date,text,version,change_seq,created_at,updated_at,deleted_at) VALUES(?,?,?,?,?,?,?,?)',owner,date,value.text,version,changeSeq,time,time,null);
+    if(row)store.queue('UPDATE '+table+' SET text=?,version=?,change_seq=?,updated_at=?,deleted_at=? WHERE user_id=? AND date=? AND version=?',value.text,version,changeSeq,time,value.deleted_at,owner,date,input.version);
+    else store.queue('INSERT INTO '+table+'(user_id,date,text,version,change_seq,created_at,updated_at,deleted_at) VALUES(?,?,?,?,?,?,?,?)',owner,date,value.text,version,changeSeq,time,time,null);
     store.expectChange();
     const result=view(value,date,true);
     store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,200,?)',actor.actor,key,hash,

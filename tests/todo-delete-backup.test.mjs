@@ -12,6 +12,7 @@ const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
 function olderData(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<8)delete data.tables.daily_work_notes;
   if(version<7){delete data.tables.memo_groups;delete data.tables.memo_notes;}
   if(version<6)for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
   if(version<5){delete data.tables.daily_notes;delete data.source_revision;}
@@ -50,7 +51,7 @@ test('v7 backup scopes preferences to the session and preserves deleted todos th
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v7');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v8');
   assert.equal(http.data.tables.todo_preferences.length,1);
   assert.equal(http.data.tables.todo_preferences[0].user_id,source.owner);
   assert.equal(http.data.tables.todo_preferences[0].completed_mode,'hide');

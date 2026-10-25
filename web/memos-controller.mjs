@@ -1,4 +1,6 @@
 import {api} from './core/api.mjs';
+import {navigate} from './controller.mjs';
+import {storage} from './core/storage.mjs';
 import {runtime, state} from './core/state.mjs';
 import {createMemosStore} from './core/memos-state.mjs';
 import {paintMemos} from './pages/memos.mjs';
@@ -53,7 +55,7 @@ export function paintMemosPage() {
   if (!visible() || !memoStore) return;
   const root = document.querySelector('#memos');
   if (!root) return;
-  paintMemos(root, memoStore); paintDialog(root);
+  paintMemos(root, memoStore); paintDialog(root); setupMemoSplit(root);
   if (memoDeleting) root.querySelectorAll('[data-memo-action="delete-note"]')
     .forEach(button => { if (button.dataset.memoTarget === memoDeleting) button.disabled = true; });
   if (memoCreating) root.querySelectorAll('[data-memo-action="new-group"],[data-memo-action="new-note"]')
@@ -130,7 +132,6 @@ async function createMemo(action, target) {
 }
 async function selectVisibleMemo(store) {
   const s = store.state, selected = store.drafts.get(s.noteId);
-  if (selected?.dirty || selected?.pending) return;
   const rows = s.notes.filter(note => Boolean(note.deleted_at || s.groups.find(group => group.id === note.group_id)?.deleted_at) === s.trash);
   if (rows.some(note => note.id === s.noteId)) return;
   s.noteId = rows[0]?.id || '';
@@ -201,9 +202,8 @@ async function clickAction(action, target) {
   else if (action === 'restore-group') await store.restore('groups', target?.dataset.memoTarget || s.groupId);
   else if (action === 'back-groups') s.pane = 'groups';
   else if (action === 'back-notes') s.pane = 'notes';
-  else if (['trash', 'exit-trash'].includes(action) && s.canEdit) {
-    s.trash = !s.trash; s.pane = 'groups'; s.groupId = ''; s.noteId = ''; memoDialog = null;
-  }
+  else if (action === 'exit-trash') { navigate('settings', 'workspace'); return; }
+  else if (action === 'trash' && s.canEdit) { navigate('memos', 'trash'); return; }
   paintMemosPage();
 }
 function run(action) {
@@ -221,7 +221,7 @@ function editing(event, composing) {
 }
 function registerEvents() {
   if (memoEvents) return;
-  memoEvents = true;
+  memoEvents = true; registerMemoSplitEvents();
   document.addEventListener('focusin', event => {
     if (visible() && ['memo-title', 'memo-body'].includes(event.target.id)) memoEditorFocus = event.target;
   });
@@ -268,6 +268,9 @@ function registerEvents() {
 }
 export async function loadMemos() {
   registerEvents(); const store = ensureStore();
+  const trash = state.memoView === 'trash';
+  if (store.state.trash !== trash) { store.state.noteId = ''; store.state.groupId = ''; store.state.pane = 'notes'; }
+  store.state.trash = trash;
   await store.load(); await selectVisibleMemo(store);
   const tool = memoTool; memoTool = '';
   if (!tool && !store.state.trash && store.state.noteId) store.state.pane = 'editor';
@@ -277,4 +280,73 @@ export async function loadMemos() {
     if (tool === 'recovery') openMemoRecovery(document.querySelector('#memos'), store, store.state.draftOwner);
   }
   paintMemosPage();
+}
+
+let memoSplitRoot = null, memoSplitObserver = null, memoSplitRatio, memoSplitDrag = null;
+const memoSplitStorage = 'haoduoyu.memos.split-ratio.v1';
+function applyMemoSplit(width = null, persist = false) {
+  const root = memoSplitRoot, layout = root?.querySelector('.memo-layout'), handle = root?.querySelector('#memo-resizer');
+  if (!root?.isConnected || !layout || !handle) return;
+  const mobile = window.innerWidth <= 760; handle.hidden = mobile;
+  if (mobile) { root.style.removeProperty('--memo-list-w'); return; }
+  const area = layout.clientWidth - 10, min = area < 400 ? 120 : 160;
+  const max = Math.max(min, Math.floor(Math.min(480, area - 200, area * .65)));
+  if (memoSplitRatio === undefined) {
+    const saved = Number(storage.get(memoSplitStorage));
+    memoSplitRatio = Number.isFinite(saved) && saved >= .1 && saved <= .8 ? saved : .3;
+  }
+  const value = Math.round(Math.max(min, Math.min(max, width ?? area * memoSplitRatio)));
+  root.style.setProperty('--memo-list-w', value + 'px');
+  for (const [name, number] of Object.entries({min, max, now:value})) handle.setAttribute('aria-value' + name, String(number));
+  handle.setAttribute('aria-valuetext', '笔记列表宽度 ' + value + ' 像素');
+  if (width !== null) memoSplitRatio = value / area;
+  if (persist) storage.set(memoSplitStorage, String(memoSplitRatio));
+}
+function setupMemoSplit(root) {
+  if (root === memoSplitRoot) return;
+  memoSplitObserver?.disconnect(); memoSplitRoot = root;
+  if (typeof ResizeObserver === 'function') {
+    memoSplitObserver = new ResizeObserver(() => applyMemoSplit());
+    memoSplitObserver.observe(root.querySelector('.memo-layout'));
+  }
+  applyMemoSplit();
+}
+function finishMemoSplit(cancel = false) {
+  const drag = memoSplitDrag; if (!drag) return;
+  memoSplitDrag = null;
+  if (cancel) { memoSplitRatio = drag.ratio; applyMemoSplit(); }
+  else applyMemoSplit(Number(drag.handle.getAttribute('aria-valuenow')), true);
+  drag.root.classList.remove('memo-resizing');
+  if (drag.handle.hasPointerCapture?.(drag.pointer)) drag.handle.releasePointerCapture(drag.pointer);
+}
+function startMemoSplit(event) {
+  const handle = event.target.closest?.('#memo-resizer');
+  if (!handle || handle.hidden || event.button !== 0 || event.isPrimary === false) return;
+  event.preventDefault(); finishMemoSplit();
+  memoSplitDrag = {root:memoSplitRoot,handle,pointer:event.pointerId,x:event.clientX,
+    width:Number(handle.getAttribute('aria-valuenow')),ratio:memoSplitRatio};
+  memoSplitRoot.classList.add('memo-resizing'); handle.focus({preventScroll:true}); handle.setPointerCapture(event.pointerId);
+}
+function keyMemoSplit(event) {
+  if (memoSplitDrag && event.key === 'Escape') {
+    event.preventDefault(); event.stopPropagation(); finishMemoSplit(true); return;
+  }
+  const handle = event.target.closest?.('#memo-resizer');
+  if (!handle || handle.hidden || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+  event.preventDefault(); event.stopPropagation();
+  const value = event.key === 'Home' ? Number(handle.getAttribute('aria-valuemin')) : event.key === 'End' ?
+    Number(handle.getAttribute('aria-valuemax')) : Number(handle.getAttribute('aria-valuenow')) +
+    (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 32 : 16);
+  applyMemoSplit(value, true);
+}
+function registerMemoSplitEvents() {
+  document.addEventListener('pointerdown', startMemoSplit);
+  document.addEventListener('pointermove', event => {
+    if (event.pointerId === memoSplitDrag?.pointer) { event.preventDefault(); applyMemoSplit(memoSplitDrag.width + event.clientX - memoSplitDrag.x); }
+  });
+  document.addEventListener('pointerup', event => { if (event.pointerId === memoSplitDrag?.pointer) finishMemoSplit(); });
+  document.addEventListener('pointercancel', event => { if (event.pointerId === memoSplitDrag?.pointer) finishMemoSplit(true); });
+  document.addEventListener('lostpointercapture', event => { if (event.pointerId === memoSplitDrag?.pointer) finishMemoSplit(); });
+  document.addEventListener('keydown', keyMemoSplit, true);
+  window.addEventListener('resize', () => { finishMemoSplit(true); applyMemoSplit(); });
 }

@@ -63,7 +63,7 @@ function sqlOnDay(column) {const day=sqlDay(column);return `(${day}=? OR ${day} 
 
 // The caller owns ONE consistentRead around authentication, scope resolution,
 // these reads, projection and hashing. It also budgets every store SQL call.
-export async function readSnapshotData(store,{ownerId,accountIds,notesOwnerId},budget,{date=null}={}) {
+export async function readSnapshotData(store,{ownerId,accountIds,notesOwnerId},budget,{date=null,includeWork=false}={}) {
   if(date!==null)snapshotDate(date);
   const scope=JSON.stringify(accountIds),inScope=' IN (SELECT value FROM json_each(?))';
   async function all(sql,args=[],order='id') {
@@ -82,6 +82,8 @@ export async function readSnapshotData(store,{ownerId,accountIds,notesOwnerId},b
     (date===null?'':' AND d.date>=? AND d.date<=?'),date===null?[ownerId]:[ownerId,windowStart,date],'l.todo_id');
   const notes=await all('SELECT date,text,version,created_at,updated_at FROM matrix_daily_notes WHERE user_id=? AND deleted_at IS NULL'+
     (date===null?'':' AND date=?'),date===null?[notesOwnerId]:[notesOwnerId,date],'date');
+  const workNotes=includeWork?await all('SELECT date,text,version,created_at,updated_at FROM matrix_daily_work_notes WHERE user_id=? AND deleted_at IS NULL'+
+    (date===null?'':' AND date=?'),date===null?[notesOwnerId]:[notesOwnerId,date],'date'):[];
   const accounts=await all('SELECT id,platform,name,active,created_at FROM matrix_accounts WHERE id'+inScope,[scope]);
   if(accounts.length!==accountIds.length||new Set(accounts.map(row=>row.id)).size!==accountIds.length)dataError();
   const observations=(await all('SELECT o.id,o.article_id,o.as_of,o.collected_at,o.kind,o.metrics_json,o.source,o.note,o.created_at FROM matrix_observations o JOIN matrix_articles a ON a.id=o.article_id WHERE a.account_id'+inScope+
@@ -91,10 +93,10 @@ export async function readSnapshotData(store,{ownerId,accountIds,notesOwnerId},b
   const articleFilter=date===null?'':` AND (a.run_date=? OR (a.published_at IS NOT NULL AND ${sqlOnDay('a.published_at')}) OR EXISTS(SELECT 1 FROM matrix_observations o WHERE o.article_id=a.id AND ${sqlOnDay('o.as_of')}) OR EXISTS(SELECT 1 FROM matrix_daily_metrics d WHERE d.article_id=a.id AND d.account_id${inScope} AND d.date=?))`;
   const articles=(await all('SELECT '+articleColumns.map(column=>'a.'+column).join(',')+' FROM matrix_articles a WHERE a.account_id'+inScope+articleFilter,
     date===null?[scope]:[scope,date,date,date,scope,date],'a.id')).map(decodeArticle);
-  return groupData({todos,templates,links,notes,accounts,articles,observations,daily_metrics},date,budget);
+  return groupData({todos,templates,links,notes,workNotes,accounts,articles,observations,daily_metrics},date,budget,includeWork);
 }
 
-function groupData(data,loadedDate,budget) {
+function groupData(data,loadedDate,budget,includeWork) {
   const byDate=new Map(),articlesById=new Map(data.articles.map(row=>[row.id,row]));
   const templates=entities(data.templates),templateById=new Map(templates.map(row=>[row.id,row]));
   const links=new Map(data.links.map(row=>[row.todo_id,row.template_id])),completionSets=new Map();
@@ -102,7 +104,7 @@ function groupData(data,loadedDate,budget) {
     businessDate(date);
     if(!byDate.has(date)) {
       if(loadedDate===null&&byDate.size>=(budget.limits?.maxDates??budget.maxDates??1000))limitError();
-      byDate.set(date,{todos:[],notes:[],articleIds:new Set(),observations:[],daily_metrics:[]});
+      byDate.set(date,{todos:[],notes:[],work_notes:[],articleIds:new Set(),observations:[],daily_metrics:[]});
     }
     return byDate.get(date);
   };
@@ -117,6 +119,7 @@ function groupData(data,loadedDate,budget) {
     }
   }
   for(const row of data.notes)bucket(row.date).notes.push(row);
+  for(const row of data.workNotes)bucket(row.date).work_notes.push(row);
   for(const row of data.articles) {
     if(row.run_date!==null)bucket(row.run_date).articleIds.add(row.id);
     if(row.published_at!==null)bucket(timestampDate(row.published_at)).articleIds.add(row.id);
@@ -134,12 +137,12 @@ function groupData(data,loadedDate,budget) {
     }
   }
   for(const day of byDate.values()) {
-    for(const name of ['todos','notes','observations','daily_metrics'])day[name]=entities(day[name]);
+    for(const name of ['todos','notes','work_notes','observations','daily_metrics'])day[name]=entities(day[name]);
     // Reuse each already-decoded article across its dates. Re-canonicalizing it
     // per reference could amplify a large article before the hash budget runs.
     day.articles=[...day.articleIds].sort().map(id=>articlesById.get(id));delete day.articleIds;
   }
-  return {loadedDate,byDate,templates,accounts:entities(data.accounts),
+  return {loadedDate,includeWork,byDate,templates,accounts:entities(data.accounts),
     completionDays:new Map([...completionSets].map(([id,days])=>[id,[...days].sort()]))};
 }
 function lowerBound(values,date,inclusive=false) {
@@ -158,9 +161,9 @@ function habit30days(data,date) {
 export function snapshotForDate(data,date,{scope_id,generated_at},budget) {
   snapshotDate(date);
   if(data.loadedDate!==null&&data.loadedDate!==date)dataError();
-  const day=data.byDate.get(date)||{todos:[],notes:[],articles:[],observations:[],daily_metrics:[]};
-  const snapshot={snapshot_format:'haoduoyu-daily-snapshot-v1',projection:'current',date,scope_id,timezone,
-    data:{todos:day.todos,templates:data.templates,notes:day.notes,accounts:data.accounts,articles:day.articles,
+  const day=data.byDate.get(date)||{todos:[],notes:[],work_notes:[],articles:[],observations:[],daily_metrics:[]};
+  const snapshot={snapshot_format:data.includeWork?'haoduoyu-daily-snapshot-v2':'haoduoyu-daily-snapshot-v1',projection:'current',date,scope_id,timezone,
+    data:{todos:day.todos,templates:data.templates,notes:day.notes,...(data.includeWork?{work_notes:day.work_notes}:{}),accounts:data.accounts,articles:day.articles,
       observations:day.observations,daily_metrics:day.daily_metrics,habit30days:habit30days(data,date)}};
   const content_hash=budget.hash(snapshot);
   return {...snapshot,generated_at,content_hash};
@@ -170,7 +173,7 @@ export function snapshotIndex(data,{scope_id,generated_at},budget) {
   if(data.loadedDate!==null)dataError();
   const dates=[...data.byDate.keys()].sort();
   if(dates.length>(budget.limits?.maxDates??budget.maxDates??1000))limitError();
-  const snapshot={snapshot_format:'haoduoyu-daily-snapshot-index-v1',projection:'current',scope_id,timezone,complete:true,
+  const snapshot={snapshot_format:data.includeWork?'haoduoyu-daily-snapshot-index-v2':'haoduoyu-daily-snapshot-index-v1',projection:'current',scope_id,timezone,complete:true,
     dates:dates.map(date=>({date,content_hash:snapshotForDate(data,date,{scope_id,generated_at},budget).content_hash}))};
   const index_hash=budget.hash(snapshot);
   return {...snapshot,generated_at,index_hash};

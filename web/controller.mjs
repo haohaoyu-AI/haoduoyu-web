@@ -76,7 +76,8 @@ tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   renderPage();
 }
 function navigateLink(page) {
-  const same = page === state.page && (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
+  const same = page === state.page && (page !== "memos" || !state.memoView) &&
+    (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
     return;
@@ -88,6 +89,7 @@ function navigate(page, tab) {
   if (legacy) page = "settings";
   if (!nav.some((n) => n.id === page)) return;
   state.page = page;
+  if (page === "memos") state.memoView = tab === "trash" ? "trash" : "";
   if (page === "todos") { state.todoDate = ""; state.todoPanel = ""; }
   if (page === "settings") state.settingsTab = legacy || tab || "workspace";
   if (page === "dashboard") state.account = "";

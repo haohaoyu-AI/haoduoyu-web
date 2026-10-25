@@ -7,9 +7,10 @@ const v6RestoredTables = Object.freeze([
   'accounts', 'users', 'todos', 'todo_templates', 'todo_template_links', 'todo_preferences', 'daily_notes',
   'articles', 'observations', 'daily_metrics', 'api_keys', 'audit', 'idempotency',
 ]);
-export const restoredTables = Object.freeze([...v6RestoredTables, 'memo_groups', 'memo_notes']);
+const v7RestoredTables = Object.freeze([...v6RestoredTables, 'memo_groups', 'memo_notes']);
+export const restoredTables = Object.freeze([...v7RestoredTables, 'daily_work_notes']);
 export const resetTables = Object.freeze(['sessions', 'login_attempts', 'control']);
-const tableSets = new Map([['haoduoyu-matrix-d1-v6', v6RestoredTables], ['haoduoyu-matrix-d1-v7', restoredTables]]);
+const tableSets = new Map([['haoduoyu-matrix-d1-v6', v6RestoredTables], ['haoduoyu-matrix-d1-v7', v7RestoredTables], ['haoduoyu-matrix-d1-v8', restoredTables]]);
 const checksum = rows => digest(JSON.stringify(rows.map(row => JSON.stringify(stable(row))).sort()));
 const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 
@@ -18,7 +19,8 @@ const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 export async function createSourceInventory(db) {
   return consistentRead(db, async (store, sourceRevision) => {
     const schema = (await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'matrix_%'").all()).results;
-    const restored = schema.some(row => row.name === 'matrix_memo_groups') ? restoredTables : v6RestoredTables;
+    const restored = schema.some(row => row.name === 'matrix_daily_work_notes') ? restoredTables :
+      schema.some(row => row.name === 'matrix_memo_groups') ? v7RestoredTables : v6RestoredTables;
     const tables = [...restored, ...resetTables];
     assert.deepEqual(schema.map(row => row.name).sort(), tables.map(name => 'matrix_' + name).sort(), 'Unexpected source schema');
     const result = {};

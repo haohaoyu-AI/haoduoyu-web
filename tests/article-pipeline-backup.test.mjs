@@ -78,6 +78,7 @@ async function seed(db,{pipeline=true}={}) {
 }
 function historical(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<8)delete data.tables.daily_work_notes;
   if(version<7){delete data.tables.memo_groups;delete data.tables.memo_notes;}
   for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
   if(version<5){delete data.source_revision;delete data.tables.daily_notes;}
@@ -93,7 +94,7 @@ function historical(input,version) {
 
 test('v7 round-trips all pipeline fields, raw JSON, NULL status and existing related data',async t=>{
   const source=await database(t),{owner,articles}=await seed(source),before=await exportBackup(source);
-  assert.equal(before.data.format,'haoduoyu-matrix-d1-v7');
+  assert.equal(before.data.format,'haoduoyu-matrix-d1-v8');
   assert.equal(Object.keys(before.data.tables.articles[0]).length,oldArticleFields.length+17);
   const scoped=await exportBackup(source,{todoUserId:owner});
   assert.equal(scoped.data.tables.daily_notes.length,1);

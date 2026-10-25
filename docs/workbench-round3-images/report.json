@@ -1,0 +1,36 @@
+{
+  "synthetic": true,
+  "baseline": "8649a55ef74a4b58ddab09b0720b871bd1962654",
+  "completed": true,
+  "checks": [
+    "life/work independent text, dates, delayed acknowledgement, refresh and Back 1440",
+    "internal memo splitter and gentle editing focus 1440",
+    "standalone trash scope survives selection, refresh, Back/Forward and restore 1440",
+    "warm versioned favicon and results-first dashboard; article API retained 1440",
+    "life/work independent text, dates, delayed acknowledgement, refresh and Back 375",
+    "internal memo splitter and gentle editing focus 375",
+    "standalone trash scope survives selection, refresh, Back/Forward and restore 375",
+    "warm versioned favicon and results-first dashboard; article API retained 375",
+    "media submenu does not leak or clip across four modules, refresh and history 375",
+    "life/work independent text, dates, delayed acknowledgement, refresh and Back 390",
+    "internal memo splitter and gentle editing focus 390",
+    "standalone trash scope survives selection, refresh, Back/Forward and restore 390",
+    "warm versioned favicon and results-first dashboard; article API retained 390",
+    "media submenu does not leak or clip across four modules, refresh and history 390"
+  ],
+  "pageerrors": [],
+  "http_errors": [],
+  "captures": [
+    "work-notes-1440.png",
+    "memos-1440.png",
+    "memo-trash-1440.png",
+    "work-notes-375.png",
+    "memos-375.png",
+    "memo-trash-375.png",
+    "mobile-navigation-375.png",
+    "work-notes-390.png",
+    "memos-390.png",
+    "memo-trash-390.png",
+    "mobile-navigation-390.png"
+  ]
+}

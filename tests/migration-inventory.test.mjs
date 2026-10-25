@@ -28,13 +28,13 @@ async function sourceWithOtherUser(t) {
 
 test('independent 18-table inventory detects a valid-checksum HTTP backup missing another user private rows', async t => {
   const source = await sourceWithOtherUser(t), inventory = await createSourceInventory(source.db);
-  assert.equal(Object.keys(inventory.tables).length, 18);
+  assert.equal(Object.keys(inventory.tables).length, 19);
   assert.equal(inventory.tables.users.count, 2);
   const scoped = (await source.request('/api/v1/backup', {session: source.session})).data;
   assert.equal(scoped.data.tables.todos.length, 0);
   assert.throws(() => verifyBackupInventory(scoped, inventory), /MIGRATION_INVENTORY_MISMATCH/);
   const full = await exportBackup(source.db);
-  assert.deepEqual(verifyBackupInventory(full, inventory), {verified: true, restored_tables: 15, reset_tables: 3});
+  assert.deepEqual(verifyBackupInventory(full, inventory), {verified: true, restored_tables: 16, reset_tables: 3});
   const target = await fixture(t, {bootstrap: false});
   await restoreIntoEmptyDatabase(target.db, full, {allowEmptyRestore: true});
   await verifyRestoredInventory(target.db, full, inventory);

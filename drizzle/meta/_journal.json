@@ -50,6 +50,13 @@
       "when": 1792907038349,
       "tag": "0006_long_term_memos",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1792933649815,
+      "tag": "0007_work_daily_notes",
+      "breakpoints": true
     }
   ]
 }

@@ -6,7 +6,7 @@ export function renderMemos() {
   return '<section id="memos" data-pane="groups" aria-label="长期备忘录">' +
     '<div class="memo-toolbar"><div class="memo-mobile-back">' + button('back-notes', '‹ 返回笔记') +
     '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span>' +
-    '<div class="memo-toolbar-actions">' + button('exit-trash', '返回备忘录', 'hidden') + button('login', '所有者登录', 'hidden') + '</div></div>' +
+    '<div class="memo-toolbar-actions">' + button('exit-trash', '‹ 返回工作台设置', 'hidden') + button('login', '所有者登录', 'hidden') + '</div></div>' +
     '<p id="memo-error" class="memo-message" role="alert" hidden></p>' +
     '<div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' +
     button('operation-check', '核对操作结果') + button('operation-retry', '重试同一操作', 'hidden') + '</div>' +
@@ -25,6 +25,9 @@ export function renderMemos() {
     '<div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' +
     button('new-note', '＋', 'hidden aria-label="新建笔记"') + '</div>' +
     '<div id="memo-group-list" class="memo-list"></div></aside>' +
+    '<div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" ' +
+    'aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="280" ' +
+    'title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div>' +
     '<article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p>' +
     '<div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title">' +
     '<label for="memo-title" class="sr-only">笔记标题</label>' +
@@ -80,13 +83,14 @@ function paintDrafts(root, store) {
   const drafts = [...store.drafts.values()].filter(item =>
     ['unknown', 'conflict', 'offline', 'error'].includes(item.phase) || item.id !== store.state.noteId && (item.dirty || item.pending));
   const box = root.querySelector('#memo-drafts');
-  box.hidden = !store.state.canEdit || !drafts.length;
+  box.hidden = store.state.trash || !store.state.canEdit || !drafts.length;
   box.innerHTML = '<span>本机保留的草稿：</span>' + drafts.map(item =>
     '<button type="button" class="btn text" data-memo-draft="' + e(item.id) + '">' + e(item.title || '未命名笔记') + '</button>').join('');
 }
 function paintDocument(root, store) {
   const s = store.state, item = store.drafts.get(s.noteId), find = q => root.querySelector(q);
   find('#memo-empty').hidden = Boolean(item);
+  find('#memo-empty').textContent = s.trash ? '这里单独保留已删除笔记，选择后可恢复。' : '选择一篇笔记，长期记录常用信息。';
   find('#memo-document').hidden = !item;
   if (!item) return;
   const group = s.groups.find(row => row.id === item.group_id), deleted = Boolean(item.deleted_at || group?.deleted_at);

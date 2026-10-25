@@ -15,7 +15,7 @@ const rows=async(db,name)=>(await db.prepare('SELECT * FROM matrix_'+name+' ORDE
 async function apply(db,index) {
   await applyLocalSchemaMigrations(db,{through:index+1});
 }
-async function database(t,{through=7}={}) {
+async function database(t,{through=Infinity}={}) {
   const runtime=JSON.parse(await readFile(new URL('../runtime.json',import.meta.url),'utf8'));
   const mf=new Miniflare({modules:true,cf:false,script:'export default {fetch(){return new Response(null,{status:404})}}',
     compatibilityDate:runtime.compatibility_date,compatibilityFlags:runtime.compatibility_flags,
@@ -51,6 +51,7 @@ async function seed(db,{notes=true}={}) {
 }
 function historical(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<8)delete data.tables.daily_work_notes;
   if(version<7){delete data.tables.memo_groups;delete data.tables.memo_notes;}
   if(version<6)for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
   if(version<5){delete data.source_revision;delete data.tables.daily_notes;}
@@ -86,17 +87,17 @@ test('v7 scopes daily notes to the user while full operator backup preserves all
       .bind('synthetic-notion-notes','cursor',digest('synthetic'),'{"cursor":98}',stamp),
   ]);
   const scoped=await exportBackup(db,{todoUserId:owner}),full=await exportBackup(db);
-  assert.equal(full.data.format,'haoduoyu-matrix-d1-v7');
+  assert.equal(full.data.format,'haoduoyu-matrix-d1-v8');
   assert.equal(full.data.source_revision,99);
-  assert.equal(Object.keys(full.data.tables).length,15);
+  assert.equal(Object.keys(full.data.tables).length,16);
   assert.equal(scoped.data.tables.daily_notes.length,1);assert.equal(scoped.data.tables.daily_notes[0].user_id,owner);
   assert.ok(!JSON.stringify(scoped.data.tables.daily_notes).includes('OTHER-USER-NOTE-CANARY'));
   assert.ok(scoped.data.tables.daily_notes[0].deleted_at);
   assert.equal(full.data.tables.daily_notes.length,2);
   const inventory=await createSourceInventory(db);
-  assert.equal(Object.keys(inventory.tables).length,18);
+  assert.equal(Object.keys(inventory.tables).length,19);
   assert.throws(()=>verifyBackupInventory(scoped,inventory),/MIGRATION_INVENTORY_MISMATCH/);
-  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:15,reset_tables:3});
+  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:16,reset_tables:3});
   const target=await database(t);
   const restored=await restoreIntoEmptyDatabase(target,full,{allowEmptyRestore:true});
   assert.equal(restored.counts.daily_notes,2);

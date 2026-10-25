@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {round3DocumentSpec,round3DocumentDocs} from './workbench-round3-projection.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 
@@ -30,6 +31,7 @@ export function snapshotDocumentSpec(spec) {
   return restoreSpecContract(spec,snapshotDocumentDelta());
 }
 export function reconciliationDocumentSpec(spec) {
+  spec=round3DocumentSpec(spec);
   const input=structuredClone(spec),path='/api/v1/article-reconciliation';
   if(input.paths?.[path]) {
     const approved=JSON.parse(readFileSync(new URL('./fixtures/reconciliation-document-delta.json',import.meta.url),'utf8'));
@@ -59,6 +61,7 @@ function restoreDocsContract(html,delta) {
   return result;
 }
 export function snapshotDocumentDocs(html) {
+  html=round3DocumentDocs(html);
   const delta=snapshotDocumentDelta(),{start,end}=delta.docs.section;
   assert.equal(html.includes(start),html.includes(end),'complete approved snapshot documentation markers');
   return restoreDocsContract(html,delta);

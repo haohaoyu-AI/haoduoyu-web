@@ -2843,7 +2843,7 @@
       "get": {
         "operationId": "getDailySnapshot",
         "summary": "原子读取明确日期的当前业务快照",
-        "description": "只接受一个必填 date=YYYY-MM-DD，不推断今天/昨天，不接受其他查询参数。无该日业务记录时仍返回当前模板、账号及该日习惯窗口，其余业务数组为空。仅支持既有 matrix_session 中用户等于显式 PUBLIC_BUSINESS_USER_ID 的有效所有者会话，或 PUBLIC_BUSINESS_MODE=1 时的匿名公开读取。PUBLIC_BUSINESS_USER_ID 与 DAILY_NOTES_OWNER_ID 即使在私有模式也须明确配置并对应真实用户；不回退到首个用户。所有者会话保留全部账号可见性；匿名仅取既有 PUBLIC_BUSINESS_ACCOUNT_IDS 加公开创建、减公开删除的账号。其他已登录用户返回403；任何 Authorization 头（包括 Bearer/API key）均返回403 SNAPSHOT_SESSION_REQUIRED，不授予新 API key 权限。security 的空对象仅表示满足上述条件的公开模式，并非始终匿名可读。所有鉴权、范围解析、业务读取、投影和哈希在同一 consistentRead 内执行，并在返回前复查会话；并发变化整次重读。GET 不写业务数据库或 Notion。响应为完整 data 包装或明确错误，绝不截断后宣称完整。预算为45次SQL（含鉴权、修订检查和重试）、4000投影行、1MiB源投影JSON、1000索引日期、8MiB累计哈希输入、1MiB最终响应、累计 rows_read 100000；查询后观察 rows_read，不是查询前扫描/CPU硬上限，尚无线上边缘CPU保证。成功响应 Cache-Control: private, no-store；Vary: Cookie, Authorization。客户端保存 scope_id、日期集合与哈希；核对当前完整索引日期并集已保存日期，重新读取变更日和已消失日期，才能发现很早的修改、删除最后一条记录和日期迁移。scope_id 变化须重建基线，不能按删除处理。索引和详情是独立原子请求；相同 scope_id 下若详情哈希与索引条目不一致，重新读取索引及受影响详情；应用结果前复查索引，发生变化再核对，不把请求间竞争视为完整同步或删除证明。",
+        "description": "默认仍为原v1；可选notes=all显式读取双分类v2，工作在data.work_notes。只接受一个必填 date=YYYY-MM-DD，不推断今天/昨天，不接受其他查询参数。无该日业务记录时仍返回当前模板、账号及该日习惯窗口，其余业务数组为空。仅支持既有 matrix_session 中用户等于显式 PUBLIC_BUSINESS_USER_ID 的有效所有者会话，或 PUBLIC_BUSINESS_MODE=1 时的匿名公开读取。PUBLIC_BUSINESS_USER_ID 与 DAILY_NOTES_OWNER_ID 即使在私有模式也须明确配置并对应真实用户；不回退到首个用户。所有者会话保留全部账号可见性；匿名仅取既有 PUBLIC_BUSINESS_ACCOUNT_IDS 加公开创建、减公开删除的账号。其他已登录用户返回403；任何 Authorization 头（包括 Bearer/API key）均返回403 SNAPSHOT_SESSION_REQUIRED，不授予新 API key 权限。security 的空对象仅表示满足上述条件的公开模式，并非始终匿名可读。所有鉴权、范围解析、业务读取、投影和哈希在同一 consistentRead 内执行，并在返回前复查会话；并发变化整次重读。GET 不写业务数据库或 Notion。响应为完整 data 包装或明确错误，绝不截断后宣称完整。预算为45次SQL（含鉴权、修订检查和重试）、4000投影行、1MiB源投影JSON、1000索引日期、8MiB累计哈希输入、1MiB最终响应、累计 rows_read 100000；查询后观察 rows_read，不是查询前扫描/CPU硬上限，尚无线上边缘CPU保证。成功响应 Cache-Control: private, no-store；Vary: Cookie, Authorization。客户端保存 scope_id、日期集合与哈希；核对当前完整索引日期并集已保存日期，重新读取变更日和已消失日期，才能发现很早的修改、删除最后一条记录和日期迁移。scope_id 变化须重建基线，不能按删除处理。索引和详情是独立原子请求；相同 scope_id 下若详情哈希与索引条目不一致，重新读取索引及受影响详情；应用结果前复查索引，发生变化再核对，不把请求间竞争视为完整同步或删除证明。",
         "tags": [
           "业务数据"
         ],
@@ -2864,6 +2864,18 @@
               "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
             },
             "description": "明确有效的北京时间自然日 YYYY-MM-DD；只能提供一次。"
+          },
+          {
+            "name": "notes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all"
+              ]
+            },
+            "description": "显式双分类v2；省略则保留原v1生活快照及哈希。"
           }
         ],
         "responses": {
@@ -2872,186 +2884,382 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
+                  "oneOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "snapshot_format": {
-                          "type": "string",
-                          "const": "haoduoyu-daily-snapshot-v1"
-                        },
-                        "projection": {
-                          "type": "string",
-                          "const": "current",
-                          "description": "当前数据库对该业务日期的投影；不是历史时点备份。"
-                        },
-                        "date": {
-                          "type": "string",
-                          "format": "date",
-                          "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
-                        },
-                        "scope_id": {
-                          "type": "string",
-                          "pattern": "^[a-f0-9]{64}$",
-                          "description": "授权模式、显式业务与日记 owner、实际账号集合的稳定标识。变化时重新建立同步基线，不能推断数据删除。"
-                        },
-                        "timezone": {
-                          "type": "string",
-                          "const": "Asia/Shanghai"
-                        },
                         "data": {
                           "type": "object",
                           "properties": {
-                            "todos": {
-                              "type": "array",
-                              "items": {
-                                "type": "object"
-                              },
-                              "description": "目标日未软删除待办：id、date、text、completed（0/1）、version、created_at、updated_at；有效模板关联额外提供 template_id、template_version、template_active=true。"
+                            "snapshot_format": {
+                              "type": "string",
+                              "const": "haoduoyu-daily-snapshot-v1"
                             },
-                            "templates": {
-                              "type": "array",
-                              "items": {
-                                "type": "object"
-                              },
-                              "description": "当前未软删除模板：id、text、version、created_at、updated_at；完成天数另见 habit30days。"
+                            "projection": {
+                              "type": "string",
+                              "const": "current",
+                              "description": "当前数据库对该业务日期的投影；不是历史时点备份。"
                             },
-                            "notes": {
-                              "type": "array",
-                              "items": {
-                                "type": "object"
-                              },
-                              "description": "既有 DAILY_NOTES_OWNER_ID 的目标日公开日记投影：date、text、version、created_at、updated_at；排除软删除记录，不含 memo。"
+                            "date": {
+                              "type": "string",
+                              "format": "date",
+                              "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
                             },
-                            "accounts": {
-                              "type": "array",
-                              "items": {
-                                "type": "object"
-                              },
-                              "description": "当前可见账号框架：id、platform、name、active、created_at；所有者会话可见全部账号，匿名范围按既有公开配置及公开增删记录解析。",
-                              "maxItems": 50
+                            "scope_id": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$",
+                              "description": "授权模式、显式业务与日记 owner、实际账号集合的稳定标识。变化时重新建立同步基线，不能推断数据删除。"
                             },
-                            "articles": {
-                              "type": "array",
-                              "items": {
-                                "type": "object"
-                              },
-                              "description": "run_date 或北京时间 published_at 属于目标日，或被当日观察/日指标引用的文章。包含显式基础字段及全部流水线字段，保留草稿、null 和逻辑 JSON；不输出 *_json，也不添加文章列表的计算字段。"
+                            "timezone": {
+                              "type": "string",
+                              "const": "Asia/Shanghai"
                             },
-                            "observations": {
-                              "type": "array",
-                              "items": {
-                                "type": "object"
-                              },
-                              "description": "as_of 属于目标北京时间日的累计观察：id、article_id、as_of、collected_at、kind、metrics、source、note、created_at；collected_at 不决定日期归属。"
-                            },
-                            "daily_metrics": {
-                              "type": "array",
-                              "items": {
-                                "type": "object"
-                              },
-                              "description": "date 等于目标日的发生量：id、account_id、article_id、date、metrics、source、updated_at；metrics 为解码对象，缺值不补零。"
-                            },
-                            "habit30days": {
+                            "data": {
                               "type": "object",
                               "properties": {
-                                "window_start": {
-                                  "type": "string",
-                                  "format": "date",
-                                  "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$",
-                                  "description": "目标日减29天；与 window_end 合计30个北京时间自然日。"
-                                },
-                                "window_end": {
-                                  "type": "string",
-                                  "format": "date",
-                                  "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
-                                },
-                                "threshold": {
-                                  "type": "integer",
-                                  "const": 21
+                                "todos": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "目标日未软删除待办：id、date、text、completed（0/1）、version、created_at、updated_at；有效模板关联额外提供 template_id、template_version、template_active=true。"
                                 },
                                 "templates": {
                                   "type": "array",
                                   "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "template_id": {
-                                        "type": "string"
-                                      },
-                                      "completed_days": {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 30,
-                                        "description": "窗口内关联未删除且 completed=1 待办的不同日期数，同日多次完成只计一天。"
-                                      },
-                                      "habit_status": {
-                                        "type": "string",
-                                        "enum": [
-                                          "habit",
-                                          "todo"
-                                        ],
-                                        "description": "completed_days >= 21 为 habit，否则 todo。"
-                                      }
+                                    "type": "object"
+                                  },
+                                  "description": "当前未软删除模板：id、text、version、created_at、updated_at；完成天数另见 habit30days。"
+                                },
+                                "notes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "既有 DAILY_NOTES_OWNER_ID 的目标日公开日记投影：date、text、version、created_at、updated_at；排除软删除记录，不含 memo。"
+                                },
+                                "accounts": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "当前可见账号框架：id、platform、name、active、created_at；所有者会话可见全部账号，匿名范围按既有公开配置及公开增删记录解析。",
+                                  "maxItems": 50
+                                },
+                                "articles": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "run_date 或北京时间 published_at 属于目标日，或被当日观察/日指标引用的文章。包含显式基础字段及全部流水线字段，保留草稿、null 和逻辑 JSON；不输出 *_json，也不添加文章列表的计算字段。"
+                                },
+                                "observations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "as_of 属于目标北京时间日的累计观察：id、article_id、as_of、collected_at、kind、metrics、source、note、created_at；collected_at 不决定日期归属。"
+                                },
+                                "daily_metrics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "date 等于目标日的发生量：id、account_id、article_id、date、metrics、source、updated_at；metrics 为解码对象，缺值不补零。"
+                                },
+                                "habit30days": {
+                                  "type": "object",
+                                  "properties": {
+                                    "window_start": {
+                                      "type": "string",
+                                      "format": "date",
+                                      "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$",
+                                      "description": "目标日减29天；与 window_end 合计30个北京时间自然日。"
                                     },
-                                    "required": [
-                                      "template_id",
-                                      "completed_days",
-                                      "habit_status"
-                                    ],
-                                    "additionalProperties": false
-                                  }
+                                    "window_end": {
+                                      "type": "string",
+                                      "format": "date",
+                                      "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+                                    },
+                                    "threshold": {
+                                      "type": "integer",
+                                      "const": 21
+                                    },
+                                    "templates": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "template_id": {
+                                            "type": "string"
+                                          },
+                                          "completed_days": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 30,
+                                            "description": "窗口内关联未删除且 completed=1 待办的不同日期数，同日多次完成只计一天。"
+                                          },
+                                          "habit_status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "habit",
+                                              "todo"
+                                            ],
+                                            "description": "completed_days >= 21 为 habit，否则 todo。"
+                                          }
+                                        },
+                                        "required": [
+                                          "template_id",
+                                          "completed_days",
+                                          "habit_status"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "window_start",
+                                    "window_end",
+                                    "threshold",
+                                    "templates"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
-                                "window_start",
-                                "window_end",
-                                "threshold",
-                                "templates"
+                                "todos",
+                                "templates",
+                                "notes",
+                                "accounts",
+                                "articles",
+                                "observations",
+                                "daily_metrics",
+                                "habit30days"
                               ],
                               "additionalProperties": false
+                            },
+                            "generated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "本次请求的生成时间，不参与内容哈希。"
+                            },
+                            "content_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$",
+                              "description": "除 generated_at、content_hash 外，完整快照（含 scope_id、模板、账号和习惯窗口）的稳定 SHA-256。对象键及实体集合顺序规范化；嵌套业务数组保持原顺序。"
                             }
                           },
                           "required": [
-                            "todos",
-                            "templates",
-                            "notes",
-                            "accounts",
-                            "articles",
-                            "observations",
-                            "daily_metrics",
-                            "habit30days"
+                            "snapshot_format",
+                            "projection",
+                            "date",
+                            "scope_id",
+                            "timezone",
+                            "data",
+                            "generated_at",
+                            "content_hash"
                           ],
                           "additionalProperties": false
-                        },
-                        "generated_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "description": "本次请求的生成时间，不参与内容哈希。"
-                        },
-                        "content_hash": {
-                          "type": "string",
-                          "pattern": "^[a-f0-9]{64}$",
-                          "description": "除 generated_at、content_hash 外，完整快照（含 scope_id、模板、账号和习惯窗口）的稳定 SHA-256。对象键及实体集合顺序规范化；嵌套业务数组保持原顺序。"
                         }
                       },
                       "required": [
-                        "snapshot_format",
-                        "projection",
-                        "date",
-                        "scope_id",
-                        "timezone",
-                        "data",
-                        "generated_at",
-                        "content_hash"
+                        "data"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "snapshot_format": {
+                              "type": "string",
+                              "enum": [
+                                "haoduoyu-daily-snapshot-v2"
+                              ]
+                            },
+                            "projection": {
+                              "type": "string",
+                              "const": "current",
+                              "description": "当前数据库对该业务日期的投影；不是历史时点备份。"
+                            },
+                            "date": {
+                              "type": "string",
+                              "format": "date",
+                              "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            "scope_id": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$",
+                              "description": "授权模式、显式业务与日记 owner、实际账号集合的稳定标识。变化时重新建立同步基线，不能推断数据删除。"
+                            },
+                            "timezone": {
+                              "type": "string",
+                              "const": "Asia/Shanghai"
+                            },
+                            "data": {
+                              "type": "object",
+                              "properties": {
+                                "todos": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "目标日未软删除待办：id、date、text、completed（0/1）、version、created_at、updated_at；有效模板关联额外提供 template_id、template_version、template_active=true。"
+                                },
+                                "templates": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "当前未软删除模板：id、text、version、created_at、updated_at；完成天数另见 habit30days。"
+                                },
+                                "notes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "既有 DAILY_NOTES_OWNER_ID 的目标日公开日记投影：date、text、version、created_at、updated_at；排除软删除记录，不含 memo。"
+                                },
+                                "accounts": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "当前可见账号框架：id、platform、name、active、created_at；所有者会话可见全部账号，匿名范围按既有公开配置及公开增删记录解析。",
+                                  "maxItems": 50
+                                },
+                                "articles": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "run_date 或北京时间 published_at 属于目标日，或被当日观察/日指标引用的文章。包含显式基础字段及全部流水线字段，保留草稿、null 和逻辑 JSON；不输出 *_json，也不添加文章列表的计算字段。"
+                                },
+                                "observations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "as_of 属于目标北京时间日的累计观察：id、article_id、as_of、collected_at、kind、metrics、source、note、created_at；collected_at 不决定日期归属。"
+                                },
+                                "daily_metrics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "date 等于目标日的发生量：id、account_id、article_id、date、metrics、source、updated_at；metrics 为解码对象，缺值不补零。"
+                                },
+                                "habit30days": {
+                                  "type": "object",
+                                  "properties": {
+                                    "window_start": {
+                                      "type": "string",
+                                      "format": "date",
+                                      "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$",
+                                      "description": "目标日减29天；与 window_end 合计30个北京时间自然日。"
+                                    },
+                                    "window_end": {
+                                      "type": "string",
+                                      "format": "date",
+                                      "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+                                    },
+                                    "threshold": {
+                                      "type": "integer",
+                                      "const": 21
+                                    },
+                                    "templates": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "template_id": {
+                                            "type": "string"
+                                          },
+                                          "completed_days": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 30,
+                                            "description": "窗口内关联未删除且 completed=1 待办的不同日期数，同日多次完成只计一天。"
+                                          },
+                                          "habit_status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "habit",
+                                              "todo"
+                                            ],
+                                            "description": "completed_days >= 21 为 habit，否则 todo。"
+                                          }
+                                        },
+                                        "required": [
+                                          "template_id",
+                                          "completed_days",
+                                          "habit_status"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "window_start",
+                                    "window_end",
+                                    "threshold",
+                                    "templates"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "work_notes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "工作碎碎念，与生活notes独立。"
+                                }
+                              },
+                              "required": [
+                                "todos",
+                                "templates",
+                                "notes",
+                                "accounts",
+                                "articles",
+                                "observations",
+                                "daily_metrics",
+                                "habit30days",
+                                "work_notes"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "generated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "本次请求的生成时间，不参与内容哈希。"
+                            },
+                            "content_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$",
+                              "description": "除 generated_at、content_hash 外，完整快照（含 scope_id、模板、账号和习惯窗口）的稳定 SHA-256。对象键及实体集合顺序规范化；嵌套业务数组保持原顺序。"
+                            }
+                          },
+                          "required": [
+                            "snapshot_format",
+                            "projection",
+                            "date",
+                            "scope_id",
+                            "timezone",
+                            "data",
+                            "generated_at",
+                            "content_hash"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "data"
                       ],
                       "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             },
@@ -3188,7 +3396,7 @@
       "get": {
         "operationId": "getDailySnapshotIndex",
         "summary": "完整列出当前范围的真实业务日期及逐日哈希",
-        "description": "不接受任何查询参数。成功时 complete=true，并返回所有真实业务日期与逐日 content_hash；不是最近N天列表，也不是历史备份目录。仅支持既有 matrix_session 中用户等于显式 PUBLIC_BUSINESS_USER_ID 的有效所有者会话，或 PUBLIC_BUSINESS_MODE=1 时的匿名公开读取。PUBLIC_BUSINESS_USER_ID 与 DAILY_NOTES_OWNER_ID 即使在私有模式也须明确配置并对应真实用户；不回退到首个用户。所有者会话保留全部账号可见性；匿名仅取既有 PUBLIC_BUSINESS_ACCOUNT_IDS 加公开创建、减公开删除的账号。其他已登录用户返回403；任何 Authorization 头（包括 Bearer/API key）均返回403 SNAPSHOT_SESSION_REQUIRED，不授予新 API key 权限。security 的空对象仅表示满足上述条件的公开模式，并非始终匿名可读。所有鉴权、范围解析、业务读取、投影和哈希在同一 consistentRead 内执行，并在返回前复查会话；并发变化整次重读。GET 不写业务数据库或 Notion。响应为完整 data 包装或明确错误，绝不截断后宣称完整。预算为45次SQL（含鉴权、修订检查和重试）、4000投影行、1MiB源投影JSON、1000索引日期、8MiB累计哈希输入、1MiB最终响应、累计 rows_read 100000；查询后观察 rows_read，不是查询前扫描/CPU硬上限，尚无线上边缘CPU保证。成功响应 Cache-Control: private, no-store；Vary: Cookie, Authorization。客户端保存 scope_id、日期集合与哈希；核对当前完整索引日期并集已保存日期，重新读取变更日和已消失日期，才能发现很早的修改、删除最后一条记录和日期迁移。scope_id 变化须重建基线，不能按删除处理。索引和详情是独立原子请求；相同 scope_id 下若详情哈希与索引条目不一致，重新读取索引及受影响详情；应用结果前复查索引，发生变化再核对，不把请求间竞争视为完整同步或删除证明。",
+        "description": "默认仍为原v1；可选notes=all显式读取双分类v2，工作在data.work_notes。不接受任何查询参数。成功时 complete=true，并返回所有真实业务日期与逐日 content_hash；不是最近N天列表，也不是历史备份目录。仅支持既有 matrix_session 中用户等于显式 PUBLIC_BUSINESS_USER_ID 的有效所有者会话，或 PUBLIC_BUSINESS_MODE=1 时的匿名公开读取。PUBLIC_BUSINESS_USER_ID 与 DAILY_NOTES_OWNER_ID 即使在私有模式也须明确配置并对应真实用户；不回退到首个用户。所有者会话保留全部账号可见性；匿名仅取既有 PUBLIC_BUSINESS_ACCOUNT_IDS 加公开创建、减公开删除的账号。其他已登录用户返回403；任何 Authorization 头（包括 Bearer/API key）均返回403 SNAPSHOT_SESSION_REQUIRED，不授予新 API key 权限。security 的空对象仅表示满足上述条件的公开模式，并非始终匿名可读。所有鉴权、范围解析、业务读取、投影和哈希在同一 consistentRead 内执行，并在返回前复查会话；并发变化整次重读。GET 不写业务数据库或 Notion。响应为完整 data 包装或明确错误，绝不截断后宣称完整。预算为45次SQL（含鉴权、修订检查和重试）、4000投影行、1MiB源投影JSON、1000索引日期、8MiB累计哈希输入、1MiB最终响应、累计 rows_read 100000；查询后观察 rows_read，不是查询前扫描/CPU硬上限，尚无线上边缘CPU保证。成功响应 Cache-Control: private, no-store；Vary: Cookie, Authorization。客户端保存 scope_id、日期集合与哈希；核对当前完整索引日期并集已保存日期，重新读取变更日和已消失日期，才能发现很早的修改、删除最后一条记录和日期迁移。scope_id 变化须重建基线，不能按删除处理。索引和详情是独立原子请求；相同 scope_id 下若详情哈希与索引条目不一致，重新读取索引及受影响详情；应用结果前复查索引，发生变化再核对，不把请求间竞争视为完整同步或删除证明。",
         "tags": [
           "业务数据"
         ],
@@ -3204,85 +3412,172 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
+                  "oneOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "snapshot_format": {
-                          "type": "string",
-                          "const": "haoduoyu-daily-snapshot-index-v1"
-                        },
-                        "projection": {
-                          "type": "string",
-                          "const": "current"
-                        },
-                        "scope_id": {
-                          "type": "string",
-                          "pattern": "^[a-f0-9]{64}$",
-                          "description": "授权模式、显式业务与日记 owner、实际账号集合的稳定标识。变化时重新建立同步基线，不能推断数据删除。"
-                        },
-                        "timezone": {
-                          "type": "string",
-                          "const": "Asia/Shanghai"
-                        },
-                        "complete": {
-                          "type": "boolean",
-                          "const": true,
-                          "description": "成功响应覆盖当前范围的全部真实业务日期，无分页、窗口或截断。"
-                        },
-                        "dates": {
-                          "type": "array",
-                          "maxItems": 1000,
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "date": {
-                                "type": "string",
-                                "format": "date",
-                                "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
-                              },
-                              "content_hash": {
-                                "type": "string",
-                                "pattern": "^[a-f0-9]{64}$"
-                              }
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "snapshot_format": {
+                              "type": "string",
+                              "const": "haoduoyu-daily-snapshot-index-v1"
                             },
-                            "required": [
-                              "date",
-                              "content_hash"
-                            ],
-                            "additionalProperties": false
+                            "projection": {
+                              "type": "string",
+                              "const": "current"
+                            },
+                            "scope_id": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$",
+                              "description": "授权模式、显式业务与日记 owner、实际账号集合的稳定标识。变化时重新建立同步基线，不能推断数据删除。"
+                            },
+                            "timezone": {
+                              "type": "string",
+                              "const": "Asia/Shanghai"
+                            },
+                            "complete": {
+                              "type": "boolean",
+                              "const": true,
+                              "description": "成功响应覆盖当前范围的全部真实业务日期，无分页、窗口或截断。"
+                            },
+                            "dates": {
+                              "type": "array",
+                              "maxItems": 1000,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "date": {
+                                    "type": "string",
+                                    "format": "date",
+                                    "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  "content_hash": {
+                                    "type": "string",
+                                    "pattern": "^[a-f0-9]{64}$"
+                                  }
+                                },
+                                "required": [
+                                  "date",
+                                  "content_hash"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "按日期升序。来源为未删除待办/日记、文章 run_date/北京时间 published_at、观察 as_of 和日指标 date；仅有账号或模板不会产生日期。相同修订、相同 scope_id 下，每项哈希等于该日详情的 content_hash。"
+                            },
+                            "generated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "本次请求的生成时间，不参与内容哈希。"
+                            },
+                            "index_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$",
+                              "description": "除 generated_at、index_hash 外完整索引的稳定 SHA-256；不能替代对已保存但已不在索引中的日期的读取。"
+                            }
                           },
-                          "description": "按日期升序。来源为未删除待办/日记、文章 run_date/北京时间 published_at、观察 as_of 和日指标 date；仅有账号或模板不会产生日期。相同修订、相同 scope_id 下，每项哈希等于该日详情的 content_hash。"
-                        },
-                        "generated_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "description": "本次请求的生成时间，不参与内容哈希。"
-                        },
-                        "index_hash": {
-                          "type": "string",
-                          "pattern": "^[a-f0-9]{64}$",
-                          "description": "除 generated_at、index_hash 外完整索引的稳定 SHA-256；不能替代对已保存但已不在索引中的日期的读取。"
+                          "required": [
+                            "snapshot_format",
+                            "projection",
+                            "scope_id",
+                            "timezone",
+                            "complete",
+                            "dates",
+                            "generated_at",
+                            "index_hash"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "snapshot_format",
-                        "projection",
-                        "scope_id",
-                        "timezone",
-                        "complete",
-                        "dates",
-                        "generated_at",
-                        "index_hash"
+                        "data"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "snapshot_format": {
+                              "type": "string",
+                              "enum": [
+                                "haoduoyu-daily-snapshot-index-v2"
+                              ]
+                            },
+                            "projection": {
+                              "type": "string",
+                              "const": "current"
+                            },
+                            "scope_id": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$",
+                              "description": "授权模式、显式业务与日记 owner、实际账号集合的稳定标识。变化时重新建立同步基线，不能推断数据删除。"
+                            },
+                            "timezone": {
+                              "type": "string",
+                              "const": "Asia/Shanghai"
+                            },
+                            "complete": {
+                              "type": "boolean",
+                              "const": true,
+                              "description": "成功响应覆盖当前范围的全部真实业务日期，无分页、窗口或截断。"
+                            },
+                            "dates": {
+                              "type": "array",
+                              "maxItems": 1000,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "date": {
+                                    "type": "string",
+                                    "format": "date",
+                                    "pattern": "^(?!0000)\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  "content_hash": {
+                                    "type": "string",
+                                    "pattern": "^[a-f0-9]{64}$"
+                                  }
+                                },
+                                "required": [
+                                  "date",
+                                  "content_hash"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "按日期升序。来源为未删除待办/日记、文章 run_date/北京时间 published_at、观察 as_of 和日指标 date；仅有账号或模板不会产生日期。相同修订、相同 scope_id 下，每项哈希等于该日详情的 content_hash。"
+                            },
+                            "generated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "本次请求的生成时间，不参与内容哈希。"
+                            },
+                            "index_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$",
+                              "description": "除 generated_at、index_hash 外完整索引的稳定 SHA-256；不能替代对已保存但已不在索引中的日期的读取。"
+                            }
+                          },
+                          "required": [
+                            "snapshot_format",
+                            "projection",
+                            "scope_id",
+                            "timezone",
+                            "complete",
+                            "dates",
+                            "generated_at",
+                            "index_hash"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "data"
                       ],
                       "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             },
@@ -3412,7 +3707,21 @@
           "500": {
             "$ref": "#/components/responses/Error500"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "notes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all"
+              ]
+            },
+            "description": "显式双分类v2；省略则保留原v1生活快照及哈希。"
+          }
+        ]
       }
     },
     "/api/v1/article-reconciliation": {
@@ -3494,6 +3803,498 @@
           },
           "413": {
             "description": "完整读取超过预算，无部分结果"
+          }
+        }
+      }
+    },
+    "/api/v1/daily-notes": {
+      "get": {
+        "operationId": "getCategorizedDailyNote",
+        "summary": "getCategorizedDailyNote",
+        "description": "明确使用DAILY_NOTES_OWNER_ID；省略category始终为生活兼容项。工作不覆盖生活。写入沿用现有公开编辑配置、同源Origin、X-Public-Business、版本、保存标识和限流；后台与凭据保护不变。",
+        "security": [
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "life",
+                "work"
+              ],
+              "default": "life"
+            },
+            "description": "life为旧内容兼容默认项，work独立保存；不自动分析分类。"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前分类记录；版本、墓碑和保存标识相互隔离。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "date",
+                        "text",
+                        "version",
+                        "deleted",
+                        "can_edit"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "updated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "deleted": {
+                          "type": "boolean"
+                        },
+                        "can_edit": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/daily-notes/dates": {
+      "get": {
+        "operationId": "listCategorizedDailyNoteDates",
+        "summary": "listCategorizedDailyNoteDates",
+        "description": "明确使用DAILY_NOTES_OWNER_ID；省略category始终为生活兼容项。工作不覆盖生活。写入沿用现有公开编辑配置、同源Origin、X-Public-Business、版本、保存标识和限流；后台与凭据保护不变。",
+        "security": [
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "life",
+                "work"
+              ],
+              "default": "life"
+            },
+            "description": "life为旧内容兼容默认项，work独立保存；不自动分析分类。"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前分类的dates、has_more和next_before。"
+          }
+        }
+      }
+    },
+    "/api/v1/daily-notes/{date}": {
+      "put": {
+        "operationId": "putCategorizedDailyNote",
+        "summary": "putCategorizedDailyNote",
+        "description": "明确使用DAILY_NOTES_OWNER_ID；省略category始终为生活兼容项。工作不覆盖生活。写入沿用现有公开编辑配置、同源Origin、X-Public-Business、版本、保存标识和限流；后台与凭据保护不变。",
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "life",
+                "work"
+              ],
+              "default": "life"
+            },
+            "description": "life为旧内容兼容默认项，work独立保存；不自动分析分类。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前分类记录；版本、墓碑和保存标识相互隔离。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "date",
+                        "text",
+                        "version",
+                        "deleted",
+                        "can_edit"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "updated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "deleted": {
+                          "type": "boolean"
+                        },
+                        "can_edit": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAS或保存标识冲突，保留草稿，不自动覆盖。"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "save_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "纯文字，UTF-8最多64KiB。"
+                  }
+                },
+                "required": [
+                  "version",
+                  "save_id",
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCategorizedDailyNote",
+        "summary": "deleteCategorizedDailyNote",
+        "description": "明确使用DAILY_NOTES_OWNER_ID；省略category始终为生活兼容项。工作不覆盖生活。写入沿用现有公开编辑配置、同源Origin、X-Public-Business、版本、保存标识和限流；后台与凭据保护不变。",
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "life",
+                "work"
+              ],
+              "default": "life"
+            },
+            "description": "life为旧内容兼容默认项，work独立保存；不自动分析分类。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前分类记录；版本、墓碑和保存标识相互隔离。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "date",
+                        "text",
+                        "version",
+                        "deleted",
+                        "can_edit"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "updated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "deleted": {
+                          "type": "boolean"
+                        },
+                        "can_edit": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAS或保存标识冲突，保留草稿，不自动覆盖。"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "save_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "version",
+                  "save_id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/daily-notes/{date}/restore": {
+      "post": {
+        "operationId": "restoreCategorizedDailyNote",
+        "summary": "restoreCategorizedDailyNote",
+        "description": "明确使用DAILY_NOTES_OWNER_ID；省略category始终为生活兼容项。工作不覆盖生活。写入沿用现有公开编辑配置、同源Origin、X-Public-Business、版本、保存标识和限流；后台与凭据保护不变。",
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "life",
+                "work"
+              ],
+              "default": "life"
+            },
+            "description": "life为旧内容兼容默认项，work独立保存；不自动分析分类。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前分类记录；版本、墓碑和保存标识相互隔离。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "date",
+                        "text",
+                        "version",
+                        "deleted",
+                        "can_edit"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "updated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "deleted": {
+                          "type": "boolean"
+                        },
+                        "can_edit": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAS或保存标识冲突，保留草稿，不自动覆盖。"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "save_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "version",
+                  "save_id"
+                ],
+                "additionalProperties": false
+              }
+            }
           }
         }
       }

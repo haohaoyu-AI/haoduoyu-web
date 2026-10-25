@@ -2,39 +2,59 @@ import {nav} from '../core/constants.mjs';
 import {e, icon} from '../core/dom.mjs';
 import {state} from '../core/state.mjs';
 import {storage} from '../core/storage.mjs';
+import {dailyNotesRouteCategory} from '../core/daily-notes-state.mjs';
 
 const mediaPages = new Set(['dashboard', 'articles', 'reviews']);
 function navigationLink(item, mobile = false) {
-  const selected = item.id === state.page;
-  const query = item.id === 'settings' ? '&amp;tab=workspace' : '';
-  return `<a href="?page=${e(item.id)}${query}" data-nav="${e(item.id)}" title="${e(item.label)}"
+  const selected = item.id === state.page && (!item.category || item.category === dailyNotesRouteCategory());
+  const query = item.id === 'settings' ? '&amp;tab=workspace' : item.category ? '&amp;notes_category=' + item.category : '';
+  return `<a href="?page=${e(item.id)}${query}" data-nav="${e(item.id)}" ${item.category ? `data-notes-category="${item.category}"` : ''}
+title="${e(item.label)}"
 class="${mobile ? 'mobile-nav-item' : 'nav-item'}${selected ? ' active' : ''}" aria-label="${e(item.label)}"
 ${selected ? 'aria-current="page"' : ''}>${icon(item.icon, 18)}<span class="nav-label">${e(item.label)}</span></a>`;
 }
 export function mediaNavigation(mobile = false) {
   const active = mediaPages.has(state.page), name = mobile ? 'mobile-media-nav' : 'media-nav';
   return `<details class="${name}${active ? ' active' : ''}" ${!mobile && active ? 'open' : ''}>
-<summary title="好多鱼图文" aria-label="好多鱼图文" aria-expanded="${!mobile && active}">${icon('articles', 18)}<span class="nav-label">好多鱼图文</span></summary>
+<summary ${mobile ? 'data-action="media-menu"' : ''} title="好多鱼图文" aria-label="好多鱼图文" aria-expanded="${!mobile && active}">
+${icon('articles', 18)}<span class="nav-label">好多鱼图文</span></summary>
 <div class="media-subnav">${nav.filter(item => mediaPages.has(item.id)).map(item => navigationLink(item)).join('')}</div></details>`;
+}
+export function notesNavigation(mobile = false) {
+  const active = state.page === 'notes', name = mobile ? 'mobile-notes-nav' : 'notes-nav';
+  return `<details class="${name}${active ? ' active' : ''}" ${!mobile && active ? 'open' : ''}>
+<summary ${mobile ? 'data-action="notes-menu"' : ''} title="碎碎念" aria-label="碎碎念" aria-expanded="${!mobile && active}">
+${icon('edit', 18)}<span class="nav-label">碎碎念</span></summary><div class="notes-subnav">
+${['life', 'work'].map(category => navigationLink({id:'notes',category,icon:'edit',label:category === 'work' ? '工作碎碎念' : '生活碎碎念'})).join('')}
+</div></details>`;
 }
 export function sidebarNavigation() {
   return mediaNavigation() + nav.filter(item => !mediaPages.has(item.id) && item.id !== 'settings')
-    .map(item => navigationLink(item)).join('');
+    .map(item => item.id === 'notes' ? notesNavigation() : navigationLink(item)).join('');
 }
 export function settingsNavigation() { return navigationLink(nav.find(item => item.id === 'settings')); }
 export function mobileNavigation() {
   return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${mediaNavigation(true)}${nav
-    .filter(item => !mediaPages.has(item.id)).map(item => navigationLink(item, true)).join('')}</nav>`;
+    .filter(item => !mediaPages.has(item.id)).map(item => item.id === 'notes' ? notesNavigation(true) : navigationLink(item, true)).join('')}</nav>`;
 }
 export function syncWorkbenchNavigation() {
   const active = mediaPages.has(state.page), side = document.querySelector('.media-nav');
   if (side) { side.open = active; side.classList.toggle('active', active); syncMediaExpanded(side); }
+  for (const menu of document.querySelectorAll('.notes-nav,.mobile-notes-nav')) {
+    menu.open = state.page === 'notes' && menu.classList.contains('notes-nav');
+    menu.classList.toggle('active', state.page === 'notes'); syncMediaExpanded(menu);
+  }
+  for (const link of document.querySelectorAll('[data-notes-category]')) {
+    const selected = state.page === 'notes' && link.dataset.notesCategory === dailyNotesRouteCategory();
+    link.classList.toggle('active', selected);
+    if (selected) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  }
   const mobile = document.querySelector('.mobile-media-nav');
   if (mobile) { mobile.open = false; mobile.classList.toggle('active', active); syncMediaExpanded(mobile); }
 }
 export function closeMediaNavigation(target = null) {
-  const menu = document.querySelector('.mobile-media-nav[open]');
-  if (menu && (!target || !menu.contains(target))) { menu.open = false; syncMediaExpanded(menu); }
+  for (const menu of document.querySelectorAll('.mobile-media-nav[open],.mobile-notes-nav[open]'))
+    if (!target || !menu.contains(target)) { menu.open = false; syncMediaExpanded(menu); }
 }
 
 function syncMediaExpanded(menu) {
@@ -113,7 +133,7 @@ export function setupSidebarResize() {
   if (sidebarResizeEvents) return;
   sidebarResizeEvents = true;
   document.addEventListener('toggle', event => {
-    if (event.target.matches?.('.media-nav,.mobile-media-nav')) syncMediaExpanded(event.target);
+    if (event.target.matches?.('.media-nav,.mobile-media-nav,.notes-nav,.mobile-notes-nav')) syncMediaExpanded(event.target);
   }, true);
   document.addEventListener('pointerdown', startSidebarDrag);
   document.addEventListener('pointermove', moveSidebarDrag);

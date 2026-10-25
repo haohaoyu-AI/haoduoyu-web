@@ -1,6 +1,6 @@
 import { changeReconciliationFilters } from "./pages/article-reconciliation.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
-import { applyArticleFilters, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
+import { applyArticleFilters, navigate, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
 import { $, $$, e } from "./core/dom.mjs";
 import { readRoute, updateRoute } from "./core/router.mjs";
 import { runtime, state } from "./core/state.mjs";
@@ -19,6 +19,7 @@ import { closePopover } from "./ui/popover.mjs";
 import { toast } from "./ui/toast.mjs";
 import { actions } from "./actions.mjs";
 import { handleFormSubmit } from "./forms.mjs";
+import {setDailyNotesRouteCategory} from "./core/daily-notes-state.mjs";
 import {closeMediaNavigation} from "./ui/workbench.mjs";
 async function handleClick(event) {
   closeMediaNavigation(event.target);
@@ -37,7 +38,8 @@ async function handleClick(event) {
   if (runtime.activePopover?.node.contains(target) && !["reset-draft", "draft-sort"].includes(target.dataset.action)) closePopover();
   if (target.dataset.nav) {
     event.preventDefault();
-    navigateLink(target.dataset.nav);
+    if (target.dataset.notesCategory) { setDailyNotesRouteCategory(target.dataset.notesCategory); navigate("notes"); }
+    else navigateLink(target.dataset.nav);
     return;
   }
   const action = target.dataset.action, id = target.dataset.id;

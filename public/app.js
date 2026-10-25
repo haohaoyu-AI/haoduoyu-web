@@ -198,6 +198,317 @@ function safeURL(value) {
   }
 }
 
+// web/core/daily-notes-state.mjs
+var DAILY_NOTES_MAX_BYTES = 65536;
+function validDailyNotesDate(value) {
+  if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = /* @__PURE__ */ new Date(value + "T00:00:00Z");
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+function dailyNotesToday() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(/* @__PURE__ */ new Date()).map((part) => [part.type, part.value]));
+  return parts.year + "-" + parts.month + "-" + parts.day;
+}
+var routeDate = "", routeCategory = "life";
+var dailyNotesRouteCategory = () => routeCategory;
+function setDailyNotesRouteCategory(value) {
+  routeCategory = value === "work" ? "work" : "life";
+}
+function dailyNotesRouteDate() {
+  return routeDate || dailyNotesToday();
+}
+function setDailyNotesRouteDate(value) {
+  routeDate = validDailyNotesDate(value) ? value : "";
+}
+function dailyNotesBytes(text) {
+  return new TextEncoder().encode(text).length;
+}
+function checkedPage(value, date) {
+  if (!value || value.date !== date || typeof value.text !== "string" || !Number.isSafeInteger(value.version) || value.version < 0 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES) throw new Error("碎碎念读取结果不完整，请重新核对。");
+  return value;
+}
+function createDailyNotesContext({
+  load,
+  put,
+  remove,
+  restore,
+  onChange = () => {
+  },
+  onSaved = () => {
+  },
+  uuid = () => crypto.randomUUID(),
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+  delay = 700
+}) {
+  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid } };
+  const pages = context.pages;
+  const emit = () => {
+    if (!context.disposed) onChange();
+  };
+  const page = (date) => {
+    if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
+    if (!pages.has(date)) pages.set(date, {
+      date,
+      loaded: false,
+      loading: false,
+      canEdit: false,
+      serverText: "",
+      draft: "",
+      version: 0,
+      updatedAt: null,
+      deleted: false,
+      dirty: false,
+      phase: "loading",
+      error: "",
+      remote: null,
+      pending: null,
+      timer: null,
+      sequence: 0,
+      writeEpoch: 0
+    });
+    return pages.get(date);
+  };
+  const stopTimer = (item) => {
+    if (item.timer !== null) clearTimer(item.timer);
+    item.timer = null;
+  };
+  const adopt = (item, value, preserve = false) => {
+    item.canEdit = value.can_edit;
+    item.serverText = value.deleted ? "" : value.text;
+    item.version = value.version;
+    item.updatedAt = value.updated_at;
+    item.deleted = value.deleted;
+    if (!preserve) item.draft = item.serverText;
+    item.dirty = item.draft !== item.serverText;
+    item.loaded = true;
+  };
+  function schedule(item) {
+    stopTimer(item);
+    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !["conflict", "unknown", "error", "oversize"].includes(item.phase)) {
+      item.timer = setTimer(() => {
+        item.timer = null;
+        void context.save(item.date);
+      }, delay);
+    }
+  }
+  const matches = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted === true : operation.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation.text);
+  function accepted(item, value, operation) {
+    const keep = operation.kind === "put" && item.draft !== operation.text;
+    item.writeEpoch++;
+    adopt(item, value, keep);
+    item.remote = null;
+    item.pending = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    onSaved(item.date);
+    schedule(item);
+  }
+  function dispose() {
+    context.disposed = true;
+    for (const item of pages.values()) stopTimer(item);
+  }
+  Object.assign(context, { page, emit, stopTimer, adopt, schedule, matches, accepted, dispose });
+  return context;
+}
+function createReadingActions(context) {
+  const { page, emit, stopTimer, adopt, schedule } = context;
+  const { load } = context.options;
+  async function read(date) {
+    const item = page(date), sequence = ++item.sequence, writeEpoch = item.writeEpoch;
+    item.loading = true;
+    emit();
+    try {
+      const value = checkedPage(await load(date), date);
+      if (context.disposed || sequence !== item.sequence) return;
+      if (item.pending || writeEpoch !== item.writeEpoch) return;
+      if (["conflict", "unknown"].includes(item.phase)) {
+        item.remote = value;
+        item.canEdit = value.can_edit;
+      } else if (item.dirty && value.version !== item.version) {
+        item.remote = value;
+        item.canEdit = value.can_edit;
+        item.phase = "conflict";
+        item.error = "服务器已有新版本，草稿已保留，请核对后选择。";
+      } else {
+        adopt(item, value, item.dirty);
+        item.phase = item.dirty ? "dirty" : "saved";
+        item.error = "";
+      }
+    } catch (error) {
+      if (!context.disposed && sequence === item.sequence) {
+        item.error = error.message;
+        if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
+      }
+    } finally {
+      if (!context.disposed && sequence === item.sequence) {
+        item.loading = false;
+        emit();
+        schedule(item);
+      }
+    }
+  }
+  function edit(date, text, { composing = false } = {}) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || ["delete", "restore"].includes(item.pending?.kind)) return;
+    item.composing = composing;
+    item.draft = text;
+    item.dirty = text !== item.serverText;
+    stopTimer(item);
+    if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
+      if (!["conflict", "unknown"].includes(item.phase)) item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留，请缩短后再保存。";
+    } else if (!["conflict", "unknown"].includes(item.phase)) {
+      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
+      item.error = "";
+    }
+    emit();
+    if (!composing) schedule(item);
+  }
+  return { read, edit };
+}
+function createWritingActions(context) {
+  const { page, emit, stopTimer, matches, accepted } = context;
+  const { put, remove, restore, uuid } = context.options;
+  async function send(item, operation) {
+    stopTimer(item);
+    item.pending = operation;
+    item.phase = "saving";
+    item.error = "";
+    item.writeEpoch++;
+    emit();
+    try {
+      const raw = await (operation.kind === "restore" ? restore(item.date, {
+        version: operation.version,
+        save_id: operation.saveId
+      }) : operation.kind === "delete" ? remove(item.date, {
+        version: operation.version,
+        save_id: operation.saveId
+      }) : put(item.date, { text: operation.text, version: operation.version, save_id: operation.saveId }));
+      if (context.disposed || item.pending !== operation) return;
+      const value = checkedPage(raw, item.date);
+      if (!matches(value, operation)) throw new Error("保存响应需要重新核对。");
+      accepted(item, value, operation);
+    } catch (error) {
+      if (context.disposed || item.pending !== operation) return;
+      if (error.status === 409) {
+        item.pending = null;
+        item.phase = "conflict";
+        item.dirty = true;
+        item.error = "服务器已有新版本，草稿已保留，不会自动覆盖。";
+        emit();
+        await context.read(item.date);
+      } else if (error.status >= 400 && error.status < 500) {
+        item.pending = null;
+        item.phase = "error";
+        item.error = error.message;
+        if ([401, 403].includes(error.status)) item.canEdit = false;
+        emit();
+      } else {
+        item.phase = "unknown";
+        item.error = "正在核对保存结果，草稿已保留。";
+        emit();
+        await context.reconcile(item.date);
+      }
+    }
+  }
+  async function save(date) {
+    const item = page(date);
+    stopTimer(item);
+    if (context.disposed || !item.canEdit || !item.loaded || item.loading || item.pending || ["conflict", "unknown"].includes(item.phase) || !item.dirty) return;
+    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
+      item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留。";
+      emit();
+      return;
+    }
+    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid() });
+  }
+  async function deletePage(date) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
+    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid() });
+  }
+  async function retryPending(date) {
+    const item = page(date), operation = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation?.retryReady || operation.checking || !item.canEdit) return;
+    operation.retryReady = false;
+    return send(item, operation);
+  }
+  async function restorePage(date) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
+    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid() });
+  }
+  return { save, deletePage, restorePage, retryPending };
+}
+function createResolutionActions(context) {
+  const { page, emit, stopTimer, adopt, matches, accepted } = context;
+  const { load } = context.options;
+  async function reconcile(date) {
+    const item = page(date), operation = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation || operation.checking) return;
+    operation.checking = true;
+    operation.retryReady = false;
+    emit();
+    try {
+      const value = checkedPage(await load(date), date);
+      if (context.disposed || item.pending !== operation) return;
+      item.canEdit = value.can_edit;
+      if (matches(value, operation)) accepted(item, value, operation);
+      else if (value.version > operation.version) {
+        item.remote = value;
+        item.pending = null;
+        item.phase = "conflict";
+        item.dirty = true;
+        item.error = "服务器已有不同的新版本，草稿已保留，不会自动覆盖。";
+      } else {
+        item.remote = value;
+        operation.retryReady = value.can_edit && value.version === operation.version;
+        item.error = operation.retryReady ? "已核对服务器尚无新版本。可手动重试原保存，后续草稿仍会保留。" : "保存结果尚未确认，草稿已保留。请再次核对，暂不重复发送。";
+      }
+    } catch (error) {
+      if (!context.disposed && item.pending === operation) item.error = "核对失败，草稿已保留：" + error.message;
+    } finally {
+      operation.checking = false;
+      emit();
+    }
+  }
+  function useServer(date) {
+    const item = page(date);
+    if (!item.remote || item.pending || item.phase !== "conflict") return;
+    stopTimer(item);
+    adopt(item, item.remote);
+    item.remote = null;
+    item.phase = "saved";
+    item.error = "";
+    emit();
+  }
+  async function useDraft(date) {
+    const item = page(date);
+    if (!item.remote || item.pending || item.phase !== "conflict" || !item.remote.can_edit) return;
+    adopt(item, item.remote, true);
+    item.remote = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    return context.save(date);
+  }
+  return { reconcile, useServer, useDraft };
+}
+function createDailyNotesStore(options2) {
+  const context = createDailyNotesContext(options2);
+  Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
+  const { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
+  return { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
+}
+
 // web/ui/components.mjs
 var platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "zhihu", "wechat"].includes(p) ? p : "other")}">${e({
   toutiao: "头",
@@ -217,9 +528,7 @@ function badgeMode(mode) {
 }
 function headerActions() {
   if (["notes", "memos"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
-  if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button><button class="btn primary" data-action="new-article">${icon(
-    "plus"
-  )}记录文章</button>`;
+  if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button>`;
   if (state.page === "articles") return `<a class="btn" href="/api/v1/export" download>${icon("download")}导出 CSV</a><button class="btn primary" data-action="new-article">${icon("plus")}记录文章</button>`;
   if (state.page === "reviews") return `<button class="btn primary" data-action="new-review">${icon("plus")}录入数据</button>`;
   if (state.page === "todos") return "";
@@ -236,8 +545,8 @@ function accountFilter() {
   )}</select></label>`;
 }
 function pageHeader() {
-  if (state.page === "memos") return '<div class="heading-left"><h1>备忘录</h1></div>';
-  if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
+  if (state.page === "memos") return '<div class="heading-left"><h1>' + (state.memoView === "trash" ? "备忘录回收站" : "备忘录") + "</h1></div>";
+  if (state.page === "notes") return '<div class="heading-left"><h1>' + (dailyNotesRouteCategory() === "work" ? "工作碎碎念" : "生活碎碎念") + "</h1></div>";
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
     state.accounts
@@ -810,313 +1119,6 @@ var storage = { get(key) {
   }
 } };
 
-// web/core/daily-notes-state.mjs
-var DAILY_NOTES_MAX_BYTES = 65536;
-function validDailyNotesDate(value) {
-  if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = /* @__PURE__ */ new Date(value + "T00:00:00Z");
-  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-function dailyNotesToday() {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(/* @__PURE__ */ new Date()).map((part) => [part.type, part.value]));
-  return parts.year + "-" + parts.month + "-" + parts.day;
-}
-var routeDate = "";
-function dailyNotesRouteDate() {
-  return routeDate || dailyNotesToday();
-}
-function setDailyNotesRouteDate(value) {
-  routeDate = validDailyNotesDate(value) ? value : "";
-}
-function dailyNotesBytes(text) {
-  return new TextEncoder().encode(text).length;
-}
-function checkedPage(value, date) {
-  if (!value || value.date !== date || typeof value.text !== "string" || !Number.isSafeInteger(value.version) || value.version < 0 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES) throw new Error("碎碎念读取结果不完整，请重新核对。");
-  return value;
-}
-function createDailyNotesContext({
-  load,
-  put,
-  remove,
-  restore,
-  onChange = () => {
-  },
-  onSaved = () => {
-  },
-  uuid = () => crypto.randomUUID(),
-  setTimer = setTimeout,
-  clearTimer = clearTimeout,
-  delay = 700
-}) {
-  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid } };
-  const pages = context.pages;
-  const emit = () => {
-    if (!context.disposed) onChange();
-  };
-  const page = (date) => {
-    if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
-    if (!pages.has(date)) pages.set(date, {
-      date,
-      loaded: false,
-      loading: false,
-      canEdit: false,
-      serverText: "",
-      draft: "",
-      version: 0,
-      updatedAt: null,
-      deleted: false,
-      dirty: false,
-      phase: "loading",
-      error: "",
-      remote: null,
-      pending: null,
-      timer: null,
-      sequence: 0,
-      writeEpoch: 0
-    });
-    return pages.get(date);
-  };
-  const stopTimer = (item) => {
-    if (item.timer !== null) clearTimer(item.timer);
-    item.timer = null;
-  };
-  const adopt = (item, value, preserve = false) => {
-    item.canEdit = value.can_edit;
-    item.serverText = value.deleted ? "" : value.text;
-    item.version = value.version;
-    item.updatedAt = value.updated_at;
-    item.deleted = value.deleted;
-    if (!preserve) item.draft = item.serverText;
-    item.dirty = item.draft !== item.serverText;
-    item.loaded = true;
-  };
-  function schedule(item) {
-    stopTimer(item);
-    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !["conflict", "unknown", "error", "oversize"].includes(item.phase)) {
-      item.timer = setTimer(() => {
-        item.timer = null;
-        void context.save(item.date);
-      }, delay);
-    }
-  }
-  const matches = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted === true : operation.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation.text);
-  function accepted(item, value, operation) {
-    const keep = operation.kind === "put" && item.draft !== operation.text;
-    item.writeEpoch++;
-    adopt(item, value, keep);
-    item.remote = null;
-    item.pending = null;
-    item.phase = item.dirty ? "dirty" : "saved";
-    item.error = "";
-    emit();
-    onSaved(item.date);
-    schedule(item);
-  }
-  function dispose() {
-    context.disposed = true;
-    for (const item of pages.values()) stopTimer(item);
-  }
-  Object.assign(context, { page, emit, stopTimer, adopt, schedule, matches, accepted, dispose });
-  return context;
-}
-function createReadingActions(context) {
-  const { page, emit, stopTimer, adopt, schedule } = context;
-  const { load } = context.options;
-  async function read(date) {
-    const item = page(date), sequence = ++item.sequence, writeEpoch = item.writeEpoch;
-    item.loading = true;
-    emit();
-    try {
-      const value = checkedPage(await load(date), date);
-      if (context.disposed || sequence !== item.sequence) return;
-      if (item.pending || writeEpoch !== item.writeEpoch) return;
-      if (["conflict", "unknown"].includes(item.phase)) {
-        item.remote = value;
-        item.canEdit = value.can_edit;
-      } else if (item.dirty && value.version !== item.version) {
-        item.remote = value;
-        item.canEdit = value.can_edit;
-        item.phase = "conflict";
-        item.error = "服务器已有新版本，草稿已保留，请核对后选择。";
-      } else {
-        adopt(item, value, item.dirty);
-        item.phase = item.dirty ? "dirty" : "saved";
-        item.error = "";
-      }
-    } catch (error) {
-      if (!context.disposed && sequence === item.sequence) {
-        item.error = error.message;
-        if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
-      }
-    } finally {
-      if (!context.disposed && sequence === item.sequence) {
-        item.loading = false;
-        emit();
-        schedule(item);
-      }
-    }
-  }
-  function edit(date, text, { composing = false } = {}) {
-    const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || ["delete", "restore"].includes(item.pending?.kind)) return;
-    item.composing = composing;
-    item.draft = text;
-    item.dirty = text !== item.serverText;
-    stopTimer(item);
-    if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
-      if (!["conflict", "unknown"].includes(item.phase)) item.phase = "oversize";
-      item.error = "文字超过 64 KiB，草稿已保留，请缩短后再保存。";
-    } else if (!["conflict", "unknown"].includes(item.phase)) {
-      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
-      item.error = "";
-    }
-    emit();
-    if (!composing) schedule(item);
-  }
-  return { read, edit };
-}
-function createWritingActions(context) {
-  const { page, emit, stopTimer, matches, accepted } = context;
-  const { put, remove, restore, uuid } = context.options;
-  async function send(item, operation) {
-    stopTimer(item);
-    item.pending = operation;
-    item.phase = "saving";
-    item.error = "";
-    item.writeEpoch++;
-    emit();
-    try {
-      const raw = await (operation.kind === "restore" ? restore(item.date, {
-        version: operation.version,
-        save_id: operation.saveId
-      }) : operation.kind === "delete" ? remove(item.date, {
-        version: operation.version,
-        save_id: operation.saveId
-      }) : put(item.date, { text: operation.text, version: operation.version, save_id: operation.saveId }));
-      if (context.disposed || item.pending !== operation) return;
-      const value = checkedPage(raw, item.date);
-      if (!matches(value, operation)) throw new Error("保存响应需要重新核对。");
-      accepted(item, value, operation);
-    } catch (error) {
-      if (context.disposed || item.pending !== operation) return;
-      if (error.status === 409) {
-        item.pending = null;
-        item.phase = "conflict";
-        item.dirty = true;
-        item.error = "服务器已有新版本，草稿已保留，不会自动覆盖。";
-        emit();
-        await context.read(item.date);
-      } else if (error.status >= 400 && error.status < 500) {
-        item.pending = null;
-        item.phase = "error";
-        item.error = error.message;
-        if ([401, 403].includes(error.status)) item.canEdit = false;
-        emit();
-      } else {
-        item.phase = "unknown";
-        item.error = "正在核对保存结果，草稿已保留。";
-        emit();
-        await context.reconcile(item.date);
-      }
-    }
-  }
-  async function save(date) {
-    const item = page(date);
-    stopTimer(item);
-    if (context.disposed || !item.canEdit || !item.loaded || item.loading || item.pending || ["conflict", "unknown"].includes(item.phase) || !item.dirty) return;
-    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
-      item.phase = "oversize";
-      item.error = "文字超过 64 KiB，草稿已保留。";
-      emit();
-      return;
-    }
-    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid() });
-  }
-  async function deletePage(date) {
-    const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
-    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid() });
-  }
-  async function retryPending(date) {
-    const item = page(date), operation = item.pending;
-    if (context.disposed || item.phase !== "unknown" || !operation?.retryReady || operation.checking || !item.canEdit) return;
-    operation.retryReady = false;
-    return send(item, operation);
-  }
-  async function restorePage(date) {
-    const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
-    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid() });
-  }
-  return { save, deletePage, restorePage, retryPending };
-}
-function createResolutionActions(context) {
-  const { page, emit, stopTimer, adopt, matches, accepted } = context;
-  const { load } = context.options;
-  async function reconcile(date) {
-    const item = page(date), operation = item.pending;
-    if (context.disposed || item.phase !== "unknown" || !operation || operation.checking) return;
-    operation.checking = true;
-    operation.retryReady = false;
-    emit();
-    try {
-      const value = checkedPage(await load(date), date);
-      if (context.disposed || item.pending !== operation) return;
-      item.canEdit = value.can_edit;
-      if (matches(value, operation)) accepted(item, value, operation);
-      else if (value.version > operation.version) {
-        item.remote = value;
-        item.pending = null;
-        item.phase = "conflict";
-        item.dirty = true;
-        item.error = "服务器已有不同的新版本，草稿已保留，不会自动覆盖。";
-      } else {
-        item.remote = value;
-        operation.retryReady = value.can_edit && value.version === operation.version;
-        item.error = operation.retryReady ? "已核对服务器尚无新版本。可手动重试原保存，后续草稿仍会保留。" : "保存结果尚未确认，草稿已保留。请再次核对，暂不重复发送。";
-      }
-    } catch (error) {
-      if (!context.disposed && item.pending === operation) item.error = "核对失败，草稿已保留：" + error.message;
-    } finally {
-      operation.checking = false;
-      emit();
-    }
-  }
-  function useServer(date) {
-    const item = page(date);
-    if (!item.remote || item.pending || item.phase !== "conflict") return;
-    stopTimer(item);
-    adopt(item, item.remote);
-    item.remote = null;
-    item.phase = "saved";
-    item.error = "";
-    emit();
-  }
-  async function useDraft(date) {
-    const item = page(date);
-    if (!item.remote || item.pending || item.phase !== "conflict" || !item.remote.can_edit) return;
-    adopt(item, item.remote, true);
-    item.remote = null;
-    item.phase = item.dirty ? "dirty" : "saved";
-    item.error = "";
-    emit();
-    return context.save(date);
-  }
-  return { reconcile, useServer, useDraft };
-}
-function createDailyNotesStore(options2) {
-  const context = createDailyNotesContext(options2);
-  Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
-  const { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
-  return { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
-}
-
 // web/core/router.mjs
 function normalizeArticlePipelineFilters(filters) {
   const allowed = {
@@ -1142,6 +1144,10 @@ function normalizeArticlePipelineFilters(filters) {
 function updateRoute(push = false) {
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
+  if (state.page === "notes" && dailyNotesRouteCategory() === "work") u.searchParams.set("notes_category", "work");
+  else u.searchParams.delete("notes_category");
+  if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
+  else u.searchParams.delete("memo_view");
   u.searchParams.set("period", state.overviewPeriod);
   if (["published", "reconciliation"].includes(state.articleOverviewMode)) u.searchParams.set("article_scope", state.articleOverviewMode);
   else u.searchParams.delete("article_scope");
@@ -1177,7 +1183,11 @@ function readRoute() {
   const raw = params.get("page");
   const fallback = "todos";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
-  if (state.page === "notes") setDailyNotesRouteDate(params.get("date"));
+  if (state.page === "notes") {
+    setDailyNotesRouteDate(params.get("date"));
+    setDailyNotesRouteCategory(params.get("notes_category"));
+  }
+  state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoPanel = state.page === "todos" && ["history", "templates"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : raw === "settings" && !params.has("tab") ? "workspace" : "accounts");
@@ -2849,7 +2859,8 @@ function registerTodosClock() {
 
 // web/pages/daily-notes.mjs
 function renderDailyNotes() {
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">这一天的碎碎念</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader" tabindex="0"></div><p id="notes-empty" class="notes-empty" hidden>这一天还没有留下文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn" type="button" data-notes-action="login" hidden>所有者登录</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复这一天</button><button class="btn text" type="button" data-notes-action="delete">删除这一天</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除这一天的文字？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div><aside class="notes-history" aria-label="已有碎碎念的日期"><h2>最近的文字</h2><div id="notes-dates"></div><p id="notes-dates-error" role="status"></p><button class="btn text" type="button" data-notes-action="more" hidden>更早的日期</button></aside></section>';
+  const category = dailyNotesRouteCategory();
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ["life", "work"].map((value) => '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' + (value === "work" ? "工作碎碎念" : "生活碎碎念") + "</button>").join("") + '</div><p class="notes-legacy-notice muted"' + (category === "work" ? " hidden" : "") + '>原有碎碎念保留在此兼容默认项，未自动分析或分类。</p><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">这一天的碎碎念</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader" tabindex="0"></div><p id="notes-empty" class="notes-empty" hidden>这一天还没有留下文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn" type="button" data-notes-action="login" hidden>所有者登录</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复这一天</button><button class="btn text" type="button" data-notes-action="delete">删除这一天</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除这一天的文字？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div><aside class="notes-history" aria-label="已有碎碎念的日期"><h2>最近的文字</h2><div id="notes-dates"></div><p id="notes-dates-error" role="status"></p><button class="btn text" type="button" data-notes-action="more" hidden>更早的日期</button></aside></section>';
 }
 var statuses = {
   loading: "正在读取…",
@@ -2907,17 +2918,28 @@ function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false,
 }
 
 // web/daily-notes-controller.mjs
-var notesStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "";
+var notesStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesActiveCategory = "";
+var notesStores = /* @__PURE__ */ new Map(), notesDateIndices = /* @__PURE__ */ new Map();
 var notesDateIndex = { dates: [], hasMore: false, cursor: null, loading: false, error: "", sequence: 0 };
 var notesIdentityNow = () => String(runtime.sessionEpoch) + ":" + String(state.me?.id || "") + ":" + String(state.me?.csrfToken || "");
 var notesVisible = () => state.page === "notes" && notesIdentity === notesIdentityNow();
+function newDateIndex() {
+  return { dates: [], hasMore: false, cursor: null, loading: false, error: "", sequence: 0 };
+}
 function ensureDailyNotesStore() {
-  const next = notesIdentityNow();
-  if (!notesStore || notesIdentity !== next) {
-    notesStore?.dispose();
+  const next = notesIdentityNow(), category = dailyNotesRouteCategory();
+  if (notesIdentity !== next) {
+    for (const store of notesStores.values()) store.dispose();
+    notesStores.clear();
+    notesDateIndices.clear();
     notesIdentity = next;
     notesConfirmDate = "";
-    notesDateIndex = { dates: [], hasMore: false, cursor: null, loading: false, error: "", sequence: 0 };
+  }
+  if (notesActiveCategory !== category) {
+    notesActiveCategory = category;
+    notesConfirmDate = "";
+  }
+  if (!notesStores.has(category)) {
     const expected = next;
     const active2 = () => {
       if (notesIdentityNow() !== expected) {
@@ -2931,20 +2953,24 @@ function ensureDailyNotesStore() {
       active2();
       return value;
     };
+    const suffix = (separator) => category === "work" ? separator + "category=work" : "";
     const store = createDailyNotesStore({
-      load: (date) => request("/daily-notes?date=" + encodeURIComponent(date)),
-      put: (date, body) => request("/daily-notes/" + encodeURIComponent(date), { method: "PUT", body }),
-      restore: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + "/restore", { method: "POST", body }),
-      remove: (date, body) => request("/daily-notes/" + encodeURIComponent(date), { method: "DELETE", body }),
+      load: (date) => request("/daily-notes?date=" + encodeURIComponent(date) + suffix("&")),
+      put: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + suffix("?"), { method: "PUT", body }),
+      restore: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + "/restore" + suffix("?"), { method: "POST", body }),
+      remove: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + suffix("?"), { method: "DELETE", body }),
       onChange: () => {
-        if (expected === notesIdentityNow()) paintDailyNotesPage();
+        if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) paintDailyNotesPage();
       },
       onSaved: () => {
-        if (expected === notesIdentityNow()) void loadNoteDates();
+        if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) void loadNoteDates();
       }
     });
-    notesStore = store;
+    notesStores.set(category, store);
+    notesDateIndices.set(category, newDateIndex());
   }
+  notesStore = notesStores.get(category);
+  notesDateIndex = notesDateIndices.get(category);
   return notesStore;
 }
 function paintDailyNotesPage() {
@@ -2971,7 +2997,7 @@ async function loadNoteDates(more = false) {
   current.error = "";
   paintDailyNotesPage();
   try {
-    const result = await api("/daily-notes/dates?page_size=30" + (before ? "&before=" + encodeURIComponent(before) : ""));
+    const result = await api("/daily-notes/dates?page_size=30" + (dailyNotesRouteCategory() === "work" ? "&category=work" : "") + (before ? "&before=" + encodeURIComponent(before) : ""));
     if (expected !== notesIdentityNow() || current !== notesDateIndex || sequence !== current.sequence) return;
     if (!Array.isArray(result?.dates) || result.dates.some((value) => !validDailyNotesDate(value)) || typeof result.has_more !== "boolean" || result.has_more && (!validDailyNotesDate(result.next_before) || before && result.next_before >= before))
       throw new Error("日期列表不完整，请稍后重新读取。");
@@ -3019,9 +3045,15 @@ function registerDailyNotesEvents() {
   });
   document.addEventListener("click", async (event) => {
     if (!notesVisible()) return;
-    const root = document.querySelector("#daily-notes"), target = event.target.closest("[data-notes-action],[data-notes-date]");
+    const root = document.querySelector("#daily-notes"), target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category]");
     if (!target || !root?.contains(target)) return;
     event.preventDefault();
+    if (target.dataset.notesCategory) {
+      setDailyNotesRouteCategory(target.dataset.notesCategory);
+      updateRoute(true);
+      renderShell();
+      return;
+    }
     if (target.dataset.notesDate) {
       await selectDailyNotesDate(target.dataset.notesDate);
       return;
@@ -3052,7 +3084,7 @@ function registerDailyNotesEvents() {
   });
   window.addEventListener("beforeunload", (event) => {
     if (notesIdentity !== notesIdentityNow() || !notesStore) return;
-    if ([...notesStore.pages.values()].some((item) => item.dirty || item.pending || item.phase === "unknown")) {
+    if ([...notesStores.values()].some((store) => [...store.pages.values()].some((item) => item.dirty || item.pending || item.phase === "unknown"))) {
       event.preventDefault();
       event.returnValue = "";
     }
@@ -3068,7 +3100,7 @@ async function loadDailyNotes() {
 // web/pages/memos.mjs
 var button = (action, label3, extra = "") => '<button type="button" class="btn" data-memo-action="' + action + '" ' + extra + ">" + label3 + "</button>";
 function renderMemos() {
-  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span><div class="memo-toolbar-actions">' + button("exit-trash", "返回备忘录", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", "＋", 'hidden aria-label="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" stroke-width="1.6"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
+  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", "＋", 'hidden aria-label="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="280" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" stroke-width="1.6"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
 }
 var phases = {
   dirty: "等待自动保存",
@@ -3108,12 +3140,13 @@ function paintLists(root, store) {
 function paintDrafts(root, store) {
   const drafts = [...store.drafts.values()].filter((item) => ["unknown", "conflict", "offline", "error"].includes(item.phase) || item.id !== store.state.noteId && (item.dirty || item.pending));
   const box = root.querySelector("#memo-drafts");
-  box.hidden = !store.state.canEdit || !drafts.length;
+  box.hidden = store.state.trash || !store.state.canEdit || !drafts.length;
   box.innerHTML = "<span>本机保留的草稿：</span>" + drafts.map((item) => '<button type="button" class="btn text" data-memo-draft="' + e(item.id) + '">' + e(item.title || "未命名笔记") + "</button>").join("");
 }
 function paintDocument(root, store) {
   const s = store.state, item = store.drafts.get(s.noteId), find = (q) => root.querySelector(q);
   find("#memo-empty").hidden = Boolean(item);
+  find("#memo-empty").textContent = s.trash ? "这里单独保留已删除笔记，选择后可恢复。" : "选择一篇笔记，长期记录常用信息。";
   find("#memo-document").hidden = !item;
   if (!item) return;
   const group = s.groups.find((row) => row.id === item.group_id), deleted = Boolean(item.deleted_at || group?.deleted_at);
@@ -3956,6 +3989,7 @@ function paintMemosPage() {
   if (!root) return;
   paintMemos(root, memoStore);
   paintDialog(root);
+  setupMemoSplit(root);
   if (memoDeleting) root.querySelectorAll('[data-memo-action="delete-note"]').forEach((button2) => {
     if (button2.dataset.memoTarget === memoDeleting) button2.disabled = true;
   });
@@ -4062,7 +4096,6 @@ async function createMemo(action, target) {
 }
 async function selectVisibleMemo(store) {
   const s = store.state, selected = store.drafts.get(s.noteId);
-  if (selected?.dirty || selected?.pending) return;
   const rows = s.notes.filter((note) => Boolean(note.deleted_at || s.groups.find((group) => group.id === note.group_id)?.deleted_at) === s.trash);
   if (rows.some((note) => note.id === s.noteId)) return;
   s.noteId = rows[0]?.id || "";
@@ -4152,12 +4185,12 @@ async function clickAction(action, target) {
   else if (action === "restore-group") await store.restore("groups", target?.dataset.memoTarget || s.groupId);
   else if (action === "back-groups") s.pane = "groups";
   else if (action === "back-notes") s.pane = "notes";
-  else if (["trash", "exit-trash"].includes(action) && s.canEdit) {
-    s.trash = !s.trash;
-    s.pane = "groups";
-    s.groupId = "";
-    s.noteId = "";
-    memoDialog = null;
+  else if (action === "exit-trash") {
+    navigate("settings", "workspace");
+    return;
+  } else if (action === "trash" && s.canEdit) {
+    navigate("memos", "trash");
+    return;
   }
   paintMemosPage();
 }
@@ -4181,6 +4214,7 @@ function editing2(event, composing) {
 function registerEvents() {
   if (memoEvents) return;
   memoEvents = true;
+  registerMemoSplitEvents();
   document.addEventListener("focusin", (event) => {
     if (visible() && ["memo-title", "memo-body"].includes(event.target.id)) memoEditorFocus = event.target;
   });
@@ -4243,6 +4277,13 @@ function registerEvents() {
 async function loadMemos() {
   registerEvents();
   const store = ensureStore();
+  const trash = state.memoView === "trash";
+  if (store.state.trash !== trash) {
+    store.state.noteId = "";
+    store.state.groupId = "";
+    store.state.pane = "notes";
+  }
+  store.state.trash = trash;
   await store.load();
   await selectVisibleMemo(store);
   const tool = memoTool;
@@ -4259,6 +4300,105 @@ async function loadMemos() {
     if (tool === "recovery") openMemoRecovery(document.querySelector("#memos"), store, store.state.draftOwner);
   }
   paintMemosPage();
+}
+var memoSplitRoot = null, memoSplitObserver = null, memoSplitRatio, memoSplitDrag = null;
+var memoSplitStorage = "haoduoyu.memos.split-ratio.v1";
+function applyMemoSplit(width = null, persist = false) {
+  const root = memoSplitRoot, layout = root?.querySelector(".memo-layout"), handle = root?.querySelector("#memo-resizer");
+  if (!root?.isConnected || !layout || !handle) return;
+  const mobile = window.innerWidth <= 760;
+  handle.hidden = mobile;
+  if (mobile) {
+    root.style.removeProperty("--memo-list-w");
+    return;
+  }
+  const area = layout.clientWidth - 10, min = area < 400 ? 120 : 160;
+  const max = Math.max(min, Math.floor(Math.min(480, area - 200, area * 0.65)));
+  if (memoSplitRatio === void 0) {
+    const saved = Number(storage.get(memoSplitStorage));
+    memoSplitRatio = Number.isFinite(saved) && saved >= 0.1 && saved <= 0.8 ? saved : 0.3;
+  }
+  const value = Math.round(Math.max(min, Math.min(max, width ?? area * memoSplitRatio)));
+  root.style.setProperty("--memo-list-w", value + "px");
+  for (const [name, number] of Object.entries({ min, max, now: value })) handle.setAttribute("aria-value" + name, String(number));
+  handle.setAttribute("aria-valuetext", "笔记列表宽度 " + value + " 像素");
+  if (width !== null) memoSplitRatio = value / area;
+  if (persist) storage.set(memoSplitStorage, String(memoSplitRatio));
+}
+function setupMemoSplit(root) {
+  if (root === memoSplitRoot) return;
+  memoSplitObserver?.disconnect();
+  memoSplitRoot = root;
+  if (typeof ResizeObserver === "function") {
+    memoSplitObserver = new ResizeObserver(() => applyMemoSplit());
+    memoSplitObserver.observe(root.querySelector(".memo-layout"));
+  }
+  applyMemoSplit();
+}
+function finishMemoSplit(cancel = false) {
+  const drag = memoSplitDrag;
+  if (!drag) return;
+  memoSplitDrag = null;
+  if (cancel) {
+    memoSplitRatio = drag.ratio;
+    applyMemoSplit();
+  } else applyMemoSplit(Number(drag.handle.getAttribute("aria-valuenow")), true);
+  drag.root.classList.remove("memo-resizing");
+  if (drag.handle.hasPointerCapture?.(drag.pointer)) drag.handle.releasePointerCapture(drag.pointer);
+}
+function startMemoSplit(event) {
+  const handle = event.target.closest?.("#memo-resizer");
+  if (!handle || handle.hidden || event.button !== 0 || event.isPrimary === false) return;
+  event.preventDefault();
+  finishMemoSplit();
+  memoSplitDrag = {
+    root: memoSplitRoot,
+    handle,
+    pointer: event.pointerId,
+    x: event.clientX,
+    width: Number(handle.getAttribute("aria-valuenow")),
+    ratio: memoSplitRatio
+  };
+  memoSplitRoot.classList.add("memo-resizing");
+  handle.focus({ preventScroll: true });
+  handle.setPointerCapture(event.pointerId);
+}
+function keyMemoSplit(event) {
+  if (memoSplitDrag && event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    finishMemoSplit(true);
+    return;
+  }
+  const handle = event.target.closest?.("#memo-resizer");
+  if (!handle || handle.hidden || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const value = event.key === "Home" ? Number(handle.getAttribute("aria-valuemin")) : event.key === "End" ? Number(handle.getAttribute("aria-valuemax")) : Number(handle.getAttribute("aria-valuenow")) + (event.key === "ArrowRight" ? 1 : -1) * (event.shiftKey ? 32 : 16);
+  applyMemoSplit(value, true);
+}
+function registerMemoSplitEvents() {
+  document.addEventListener("pointerdown", startMemoSplit);
+  document.addEventListener("pointermove", (event) => {
+    if (event.pointerId === memoSplitDrag?.pointer) {
+      event.preventDefault();
+      applyMemoSplit(memoSplitDrag.width + event.clientX - memoSplitDrag.x);
+    }
+  });
+  document.addEventListener("pointerup", (event) => {
+    if (event.pointerId === memoSplitDrag?.pointer) finishMemoSplit();
+  });
+  document.addEventListener("pointercancel", (event) => {
+    if (event.pointerId === memoSplitDrag?.pointer) finishMemoSplit(true);
+  });
+  document.addEventListener("lostpointercapture", (event) => {
+    if (event.pointerId === memoSplitDrag?.pointer) finishMemoSplit();
+  });
+  document.addEventListener("keydown", keyMemoSplit, true);
+  window.addEventListener("resize", () => {
+    finishMemoSplit(true);
+    applyMemoSplit();
+  });
 }
 
 // web/ui/menu.mjs
@@ -4285,26 +4425,36 @@ function setMenu(open) {
 // web/ui/workbench.mjs
 var mediaPages = /* @__PURE__ */ new Set(["dashboard", "articles", "reviews"]);
 function navigationLink(item, mobile = false) {
-  const selected = item.id === state.page;
-  const query = item.id === "settings" ? "&amp;tab=workspace" : "";
-  return `<a href="?page=${e(item.id)}${query}" data-nav="${e(item.id)}" title="${e(item.label)}"
+  const selected = item.id === state.page && (!item.category || item.category === dailyNotesRouteCategory());
+  const query = item.id === "settings" ? "&amp;tab=workspace" : item.category ? "&amp;notes_category=" + item.category : "";
+  return `<a href="?page=${e(item.id)}${query}" data-nav="${e(item.id)}" ${item.category ? `data-notes-category="${item.category}"` : ""}
+title="${e(item.label)}"
 class="${mobile ? "mobile-nav-item" : "nav-item"}${selected ? " active" : ""}" aria-label="${e(item.label)}"
 ${selected ? 'aria-current="page"' : ""}>${icon(item.icon, 18)}<span class="nav-label">${e(item.label)}</span></a>`;
 }
 function mediaNavigation(mobile = false) {
   const active2 = mediaPages.has(state.page), name = mobile ? "mobile-media-nav" : "media-nav";
   return `<details class="${name}${active2 ? " active" : ""}" ${!mobile && active2 ? "open" : ""}>
-<summary title="好多鱼图文" aria-label="好多鱼图文" aria-expanded="${!mobile && active2}">${icon("articles", 18)}<span class="nav-label">好多鱼图文</span></summary>
+<summary ${mobile ? 'data-action="media-menu"' : ""} title="好多鱼图文" aria-label="好多鱼图文" aria-expanded="${!mobile && active2}">
+${icon("articles", 18)}<span class="nav-label">好多鱼图文</span></summary>
 <div class="media-subnav">${nav.filter((item) => mediaPages.has(item.id)).map((item) => navigationLink(item)).join("")}</div></details>`;
 }
+function notesNavigation(mobile = false) {
+  const active2 = state.page === "notes", name = mobile ? "mobile-notes-nav" : "notes-nav";
+  return `<details class="${name}${active2 ? " active" : ""}" ${!mobile && active2 ? "open" : ""}>
+<summary ${mobile ? 'data-action="notes-menu"' : ""} title="碎碎念" aria-label="碎碎念" aria-expanded="${!mobile && active2}">
+${icon("edit", 18)}<span class="nav-label">碎碎念</span></summary><div class="notes-subnav">
+${["life", "work"].map((category) => navigationLink({ id: "notes", category, icon: "edit", label: category === "work" ? "工作碎碎念" : "生活碎碎念" })).join("")}
+</div></details>`;
+}
 function sidebarNavigation() {
-  return mediaNavigation() + nav.filter((item) => !mediaPages.has(item.id) && item.id !== "settings").map((item) => navigationLink(item)).join("");
+  return mediaNavigation() + nav.filter((item) => !mediaPages.has(item.id) && item.id !== "settings").map((item) => item.id === "notes" ? notesNavigation() : navigationLink(item)).join("");
 }
 function settingsNavigation() {
   return navigationLink(nav.find((item) => item.id === "settings"));
 }
 function mobileNavigation() {
-  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${mediaNavigation(true)}${nav.filter((item) => !mediaPages.has(item.id)).map((item) => navigationLink(item, true)).join("")}</nav>`;
+  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${mediaNavigation(true)}${nav.filter((item) => !mediaPages.has(item.id)).map((item) => item.id === "notes" ? notesNavigation(true) : navigationLink(item, true)).join("")}</nav>`;
 }
 function syncWorkbenchNavigation() {
   const active2 = mediaPages.has(state.page), side = document.querySelector(".media-nav");
@@ -4312,6 +4462,17 @@ function syncWorkbenchNavigation() {
     side.open = active2;
     side.classList.toggle("active", active2);
     syncMediaExpanded(side);
+  }
+  for (const menu of document.querySelectorAll(".notes-nav,.mobile-notes-nav")) {
+    menu.open = state.page === "notes" && menu.classList.contains("notes-nav");
+    menu.classList.toggle("active", state.page === "notes");
+    syncMediaExpanded(menu);
+  }
+  for (const link of document.querySelectorAll("[data-notes-category]")) {
+    const selected = state.page === "notes" && link.dataset.notesCategory === dailyNotesRouteCategory();
+    link.classList.toggle("active", selected);
+    if (selected) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
   }
   const mobile = document.querySelector(".mobile-media-nav");
   if (mobile) {
@@ -4321,11 +4482,11 @@ function syncWorkbenchNavigation() {
   }
 }
 function closeMediaNavigation(target = null) {
-  const menu = document.querySelector(".mobile-media-nav[open]");
-  if (menu && (!target || !menu.contains(target))) {
-    menu.open = false;
-    syncMediaExpanded(menu);
-  }
+  for (const menu of document.querySelectorAll(".mobile-media-nav[open],.mobile-notes-nav[open]"))
+    if (!target || !menu.contains(target)) {
+      menu.open = false;
+      syncMediaExpanded(menu);
+    }
 }
 function syncMediaExpanded(menu) {
   menu?.querySelector?.("summary")?.setAttribute("aria-expanded", String(menu.open));
@@ -4424,7 +4585,7 @@ function setupSidebarResize() {
   if (sidebarResizeEvents) return;
   sidebarResizeEvents = true;
   document.addEventListener("toggle", (event) => {
-    if (event.target.matches?.(".media-nav,.mobile-media-nav")) syncMediaExpanded(event.target);
+    if (event.target.matches?.(".media-nav,.mobile-media-nav,.notes-nav,.mobile-notes-nav")) syncMediaExpanded(event.target);
   }, true);
   document.addEventListener("pointerdown", startSidebarDrag);
   document.addEventListener("pointermove", moveSidebarDrag);
@@ -4503,7 +4664,7 @@ function renderShell() {
   renderPage();
 }
 function navigateLink(page) {
-  const same2 = page === state.page && (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
+  const same2 = page === state.page && (page !== "memos" || !state.memoView) && (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same2 && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
     return;
@@ -4515,6 +4676,7 @@ function navigate(page, tab) {
   if (legacy) page = "settings";
   if (!nav.some((n) => n.id === page)) return;
   state.page = page;
+  if (page === "memos") state.memoView = tab === "trash" ? "trash" : "";
   if (page === "todos") {
     state.todoDate = "";
     state.todoPanel = "";
@@ -5360,6 +5522,20 @@ function actionResetFilters({}) {
   return;
 }
 var actions = {
+  "media-menu": ({ event }) => {
+    if (!["dashboard", "articles", "reviews"].includes(state.page)) {
+      event.preventDefault();
+      navigate("dashboard");
+      document.querySelector(".mobile-media-nav").open = true;
+    }
+  },
+  "notes-menu": ({ event }) => {
+    if (state.page !== "notes") {
+      event.preventDefault();
+      navigate("notes");
+      document.querySelector(".mobile-notes-nav").open = true;
+    }
+  },
   "article-overview-mode": actionArticleOverviewMode,
   "article-verify-retry": retryArticleVerification,
   "article-verify-refresh": refreshArticleVerification,
@@ -5372,8 +5548,11 @@ var actions = {
   "todo-template-edit": ({ id }) => editTodoTemplate(id),
   "todo-template-delete": ({ id }) => writeTodoTemplate(id, void 0, true),
   "memo-tools": ({ target }) => {
-    requestMemoTool(target.dataset.tool);
-    navigate("memos");
+    if (target.dataset.tool === "trash") navigate("memos", "trash");
+    else {
+      requestMemoTool(target.dataset.tool);
+      navigate("memos");
+    }
   },
   "todo-panel": ({ target }) => setTodoPanel(target.dataset.panel),
   "todo-retry-add": retryTodoCreate,
@@ -5740,7 +5919,10 @@ async function handleClick(event) {
   if (runtime.activePopover?.node.contains(target) && !["reset-draft", "draft-sort"].includes(target.dataset.action)) closePopover();
   if (target.dataset.nav) {
     event.preventDefault();
-    navigateLink(target.dataset.nav);
+    if (target.dataset.notesCategory) {
+      setDailyNotesRouteCategory(target.dataset.notesCategory);
+      navigate("notes");
+    } else navigateLink(target.dataset.nav);
     return;
   }
   const action = target.dataset.action, id = target.dataset.id;
