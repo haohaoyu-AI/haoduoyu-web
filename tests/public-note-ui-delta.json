@@ -21,5 +21,19 @@
       "before_sha256": "d69270ed40f9490bdb5c0cef2c3620b65f40dfff9804ea8efc0903690f3f5151",
       "after_sha256": "197d6789469bb103c1804aaf5ce430a9500d359ba77c88ac768058429ca2bc3f"
     }
+  },
+  "backend": {
+    "src/memos.mjs": {
+      "before_sha256": "69ab34c189f6ed70db1386ea13e624c78cdecc9e673bf0f51e1d915a669d63da",
+      "after_sha256": "78650e8a00698817a8336e5431b18c10e831714d8eda74381482253ec1c7ef7d"
+    },
+    "src/daily-notes.mjs": {
+      "before_sha256": "1bc677e183f89498e48bf8e579b374cfcaee145079c93a395a7e81c7732717ac",
+      "after_sha256": "628cd549139b82637fadd8f7bdb7f50f3ab882be4d8b055c930f3a785ad4e177"
+    },
+    "src/public-note-access.mjs": {
+      "before_sha256": null,
+      "after_sha256": "9470cf034c48ac80f5bd67fc64e2d9cb95c725e0690237661b09f81ae06a1826"
+    }
   }
 }

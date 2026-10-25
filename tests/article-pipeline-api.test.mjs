@@ -238,7 +238,7 @@ test('nullable draft publication sort is stable and metric NULL values remain la
   }
 });
 
-test('pipeline CRUD preserves Bearer account scope, public anonymous business rules, and original todo/private-note APIs',async t=>{
+test('pipeline CRUD preserves Bearer account scope, public anonymous business rules, and todo APIs and approved public-note access',async t=>{
   const app=await setup(t),allowed=await app.create(draft()),outside=await app.create(draft({account_id:otherAccount}));
   const issued=await app.api('/api-keys',{method:'POST',body:{name:'synthetic-pipeline-writer',account_ids:[account],permissions:['read','write']}});
   assert.equal(issued.status,201);const token=issued.data.token;
@@ -259,5 +259,5 @@ test('pipeline CRUD preserves Bearer account scope, public anonymous business ru
   assert.equal((await app.api('/todos?date=2026-10-24',pub)).status,200);
   const note=await app.api('/daily-notes/2026-10-24',{method:'PUT',body:{text:'碎碎念仍为私有写',version:0,save_id:randomUUID()}});assert.equal(note.status,200,note.text);
   assert.equal((await app.api('/daily-notes?date=2026-10-24',pub)).data.text,'碎碎念仍为私有写');
-  assert.equal((await app.api('/daily-notes/2026-10-24',{...pub,method:'PUT',body:{text:'不可匿名改',version:1,save_id:randomUUID()}})).status,401);
+  assert.equal((await app.api('/daily-notes/2026-10-24',{...pub,method:'PUT',body:{text:'已授权匿名编辑',version:1,save_id:randomUUID()}})).status,200);
 });

@@ -9,3 +9,10 @@ test('public edit UI delta rejects an unrelated declaration or removed CSRF-inde
     await assert.rejects(projectPublicNoteFrontend(file,source+'\nconst unauthorized=true;\n'),/approved public note UI delta/);
   }
 });
+
+test('public note backend projection pins the dedicated public actor implementation',async()=>{
+  const {projectPublicNoteBackend}=await import('./public-note-ui-projection.mjs');
+  const file='src/public-note-access.mjs',source=await readFile(new URL('../'+file,import.meta.url),'utf8');
+  assert.equal(await projectPublicNoteBackend(file,source),'');
+  await assert.rejects(projectPublicNoteBackend(file,source.replace("kind:'public'","kind:'session'")),/exact approved public note backend delta/);
+});

@@ -212,7 +212,7 @@ test('tt1_1024 synthetic draft has no warnings, coexists without URLs and never 
   for(const path of paths){const response=await app.api(path);good(response,200);assert.deepEqual(response.data,before[path]);}
 });
 
-test('PATCH preserves session CSRF, Bearer permissions/account scope, public business ownership, and todo/private-note access',async t=>{
+test('PATCH preserves session CSRF, Bearer permissions/account scope, public business ownership, and todo and approved public-note access',async t=>{
   const app=await setup(t),body=draft(),created=await app.patch(body);good(created,201);
   for(const headers of [{'X-CSRF-Token':null},{Origin:'https://foreign.invalid'}])good(await app.patch({...body,version:1,title:'不应保存'},{headers}),403);
   const read=await app.api('/api-keys',{method:'POST',body:{name:'synthetic-readonly',account_ids:[account],permissions:['read']}});good(read,201);
@@ -230,7 +230,7 @@ test('PATCH preserves session CSRF, Bearer permissions/account scope, public bus
   const todo=await app.api('/todos',{...anonymous,method:'POST',body:{id:randomUUID(),date:'2026-10-24',text:'匿名待办仍可写'}});good(todo,201);
   const note=await app.api('/daily-notes/2026-10-24',{method:'PUT',body:{text:'碎碎念仍只限所有者写',version:0,save_id:randomUUID()}});good(note,200);
   const publicNote=await app.api('/daily-notes?date=2026-10-24',anonymous);good(publicNote,200);assert.equal(publicNote.data.text,'碎碎念仍只限所有者写');
-  good(await app.api('/daily-notes/2026-10-24',{...anonymous,method:'PUT',body:{text:'拒绝匿名覆盖',version:1,save_id:randomUUID()}}),401);
+  good(await app.api('/daily-notes/2026-10-24',{...anonymous,method:'PUT',body:{text:'已授权匿名编辑',version:1,save_id:randomUUID()}}),200);
 });
 
 test('a previously successful idempotency receipt cannot leak a cached article after its Bearer account scope is narrowed',async t=>{

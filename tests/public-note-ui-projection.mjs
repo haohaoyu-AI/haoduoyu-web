@@ -21,3 +21,12 @@ export async function projectPublicNoteFrontend(file,source) {
   }
   return source;
 }
+export async function projectPublicNoteBackend(file,source) {
+  const expected=manifest.backend[file];
+  if(!expected)return source;
+  assert.equal(hash(source),expected.after_sha256,'exact approved public note backend delta: '+file);
+  if(expected.before_sha256===null)return '';
+  const before=execFileSync('git',['show',manifest.baseline+':'+file],{cwd:root,encoding:'utf8'});
+  assert.equal(hash(before),expected.before_sha256);
+  return before;
+}
