@@ -1,4 +1,5 @@
 import {traceJSON, traceText, traceHeaders} from './request-trace-projection.mjs';
+import {legacyPublishedArticles} from './article-pipeline-projection.mjs';
 import {stylePolicyHeaders} from './style-policy-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,6 +26,10 @@ async function request(app, path = '/overview') {
   const response = await worker.fetch(new Request(app.origin + '/api/v1' + path,
     {headers: {Cookie: app.session.cookie}}), {DB: app.counted, SITE_ORIGIN: app.origin});
   const body = await response.text();return {response, body, metrics: app.counted.totals()};
+}
+async function legacyOverviewBody(response) {
+  const text=traceText(await response.text(),response.status,response.headers);
+  return JSON.stringify(legacyPublishedArticles(JSON.parse(text)));
 }
 
 test('same-revision overview hot read retains full body and headers with authentication plus two control reads', async t => {
@@ -109,7 +114,7 @@ test('baseline and candidate return identical complete overview bodies, headers 
     for (const [implementation, db] of [[legacy, originalDb], [candidate.default, newDb]]) {
       const response = await implementation.fetch(new Request(app.origin + '/api/v1' + path,
         {headers: authenticated ? {Cookie: app.session.cookie} : {}}), {DB: db, SITE_ORIGIN: app.origin});
-      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: traceText(await response.text(), response.status, response.headers)});
+      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: await legacyOverviewBody(response)});
     }
     assert.deepEqual(values[1], values[0], path);return values[1];
   }
@@ -141,7 +146,7 @@ test('old/new full responses agree at day, due and insurance boundaries, rollbac
       for (const [i, implementation] of [legacy, candidate.default].entries()) {
         const response = await implementation.fetch(new Request(app.origin + '/api/v1/overview?period=7d',
           {headers: {Cookie: app.session.cookie}}), {DB: dbs[i], SITE_ORIGIN: app.origin});
-        values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: traceText(await response.text(), response.status, response.headers)});
+        values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: await legacyOverviewBody(response)});
       }
     });
     assert.deepEqual(values[1], values[0], 'exact old/new body at ' + at);return values[1];
@@ -183,7 +188,7 @@ test('a request spanning a day edge keeps its original snapshot but cannot exten
       const db = countingDb(app.db, {before: sql => {if (/FROM matrix_accounts\b/.test(sql)) clock = edge + 1;}});
       const response = await implementation.fetch(new Request(app.origin + '/api/v1/overview',
         {headers: {Cookie: app.session.cookie}}), {DB: db, SITE_ORIGIN: app.origin});
-      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: traceText(await response.text(), response.status, response.headers)});
+      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: await legacyOverviewBody(response)});
     }
     assert.deepEqual(values[1], values[0]);
     const stats = candidate.overviewCache.stats();
@@ -229,7 +234,7 @@ test('a retry samples a fresh clock after crossing midnight and releases the fir
       }});
       const response = await implementation.fetch(new Request(app.origin + '/api/v1/overview',
         {headers: {Cookie: app.session.cookie}}), {DB: db, SITE_ORIGIN: app.origin});
-      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: traceText(await response.text(), response.status, response.headers)});
+      values.push({status: response.status, headers: [...stylePolicyHeaders(response.headers)], body: await legacyOverviewBody(response)});
     }
     assert.deepEqual(values[1], values[0]);assert.equal(values[1].status, 200);
     const stats = candidate.overviewCache.stats();

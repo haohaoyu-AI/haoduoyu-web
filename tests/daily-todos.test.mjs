@@ -215,10 +215,11 @@ test('Beijing midnight selects a new day while completed and unfinished history 
 
 test('generated todo migration only appends its table and preserves existing rows and schema',async t=>{
   const app=await setup(t,{migrationCount:1});
-  const article=await app.request('/api/v1/articles',{method:'POST',session:app.session,body:{
-    account_id:'toutiao-haoduoyu',title:'迁移前历史记录',url:'https://example.invalid/todo-migration',published_at:'2026-10-22T00:00:00.000Z',
-  }});
-  assert.equal(article.status,201);
+  // Characterize 0001 on its actual original 13-column article schema, rather
+  // than calling the new 30-column article API against a pre-upgrade database.
+  await app.db.prepare('INSERT INTO matrix_articles(id,account_id,title,url,published_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)')
+    .bind('synthetic-before-todo','toutiao-haoduoyu','迁移前历史记录','https://example.invalid/todo-migration',
+      '2026-10-22T00:00:00.000Z','2026-10-22T00:00:00.000Z','2026-10-22T00:00:00.000Z').run();
   await app.db.prepare('CREATE TABLE legacy_todo_sentinel(id TEXT PRIMARY KEY,text TEXT)').run();
   await app.db.prepare("INSERT INTO legacy_todo_sentinel VALUES('synthetic','preserve existing data')").run();
   const schemaQuery="SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE tbl_name LIKE 'matrix_%' OR tbl_name='legacy_todo_sentinel' ORDER BY name";
@@ -233,7 +234,10 @@ test('generated todo migration only appends its table and preserves existing row
   assert.deepEqual(after.filter(row=>row.tbl_name!=='matrix_todos'),schemas);
   for(const table of tables) assert.deepEqual((await app.db.prepare('SELECT * FROM "'+table+'" ORDER BY rowid').all()).results,snapshots.get(table),table);
   assert.equal((await app.db.prepare('PRAGMA foreign_key_check').all()).results.length,0);
-  await applyFixtureMigrations(app.db);
+  // This additive-todo characterization includes an intentionally unknown user
+  // table. Stop before 0005: that migration correctly fails closed on it, as
+  // covered independently by the article graph/model boundary tests.
+  await applyFixtureMigrations(app.db,{through:5});
   const created=await create(app,app.session,input());assert.equal(created.status,201);
   assert.deepEqual((await app.db.prepare('SELECT * FROM legacy_todo_sentinel').all()).results,snapshots.get('legacy_todo_sentinel'));
 });

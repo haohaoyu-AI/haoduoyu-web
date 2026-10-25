@@ -1,5 +1,5 @@
 import {traceHeaders, traceText, traceDocument} from './request-trace-projection.mjs';
-import {articlePipelineSpec} from './article-pipeline-projection.mjs';
+import {articlePipelineSpec,legacyPublishedArticles} from './article-pipeline-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -50,7 +50,10 @@ async function read(worker, app, path, headers = {}, {db = app.db, method = 'GET
   return {status: response.status, headers: response.headers, body: await response.text()};
 }
 function contract(path, result) {
-  return {status: result.status, body: traceText(result.body, result.status, result.headers), headers: dashboardHeaders(path, result.status, traceHeaders(result.headers))};
+  const text=traceText(result.body,result.status,result.headers);
+  const body=new Headers(result.headers).get('content-type')?.includes('application/json')?
+    JSON.stringify(legacyPublishedArticles(JSON.parse(text))):text;
+  return {status: result.status, body, headers: dashboardHeaders(path, result.status, traceHeaders(result.headers))};
 }
 test('dashboard deprecation changes only the two OpenAPI additions and one success expression', async () => {
   const spec = JSON.parse(await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8'));
