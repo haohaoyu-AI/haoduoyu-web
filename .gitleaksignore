@@ -213,3 +213,8 @@ a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:
 # Round3 public documentation SHA-256 pins; proof: docs/workbench-round3-secret-evidence.json.
 d8e00419d8f1667c2eb50861ddc3adf4647d194d:.ci/public-assets.json:generic-api-key:5
 d8e00419d8f1667c2eb50861ddc3adf4647d194d:.ci/public-assets.json:generic-api-key:10
+
+# Round4 public file checksums and explicit SYNTHETIC profile identity only; evidence: docs/workbench-round4-secret-evidence.json.
+4984fa2c395cd67b1238134fb6fc48e420b913e5:.ci/public-assets.json:generic-api-key:5
+4984fa2c395cd67b1238134fb6fc48e420b913e5:.ci/public-assets.json:generic-api-key:10
+4984fa2c395cd67b1238134fb6fc48e420b913e5:tests/account-profiles.test.mjs:generic-api-key:26

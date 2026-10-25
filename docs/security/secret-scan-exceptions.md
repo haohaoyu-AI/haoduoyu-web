@@ -160,3 +160,7 @@ Python从该提交原始OpenAPI Git blob独立复算，239665字节内容与已�
 ## 工作台第三轮：公开文档SHA256精确历史指纹
 
 固定Gitleaks8.30.1扫描220内容提交，仅命中`d8e00419d8f1667c2eb50861ddc3adf4647d194d`的`.ci/public-assets.json:5`与`:10`。两值分别是公开`api-docs.html`与`openapi.json`的静态摘要，已从该提交Git blob独立复算并精确匹配。逐项字节数、摘要、位置与类型证据见`docs/workbench-round3-secret-evidence.json`。仅追加这两个具体提交/文件/规则/行指纹，不改变扫描范围、默认规则、未来提交或Git历史。
+
+## 工作台第四轮：公开摘要与显式合成主页标识
+
+Gitleaks8.30.1扫描222内容提交，仅命中`4984fa2c395cd67b1238134fb6fc48e420b913e5`的`.ci/public-assets.json:5`、`:10`与`tests/account-profiles.test.mjs:26`。前两项从该提交公开文档Git blob独立复算SHA256；第三项为含`SYNTHETIC`字样的公开主页规范化测试期望值，经本地规范化函数复算一致，不作为认证凭据。逐项文件、类型与证据见`docs/workbench-round4-secret-evidence.json`。仅追加3条精确历史指纹，不改扫描规则、范围、未来提交或Git历史。
