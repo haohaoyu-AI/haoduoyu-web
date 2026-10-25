@@ -29,7 +29,7 @@ export async function createSourceInventory(db) {
 }
 
 export function verifyBackupInventory(backup, inventory) {
-  if (backup?.data?.format !== 'haoduoyu-matrix-d1-v6' ||
+  if (backup?.data?.format !== 'haoduoyu-matrix-d1-v5' ||
       backup.sha256 !== digest(JSON.stringify(stable(backup.data))) ||
       inventory?.format !== 'haoduoyu-migration-inventory-v1' ||
       !Number.isSafeInteger(inventory.source_revision) || inventory.source_revision < 0 ||

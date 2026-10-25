@@ -5,16 +5,15 @@ import {fixture} from './harness.mjs';
 import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {digest} from '../shared/auth.mjs';
 import {stable} from '../src/security.mjs';
-import {ARTICLE_PIPELINE_FIELDS} from '../src/article-pipeline-fields.mjs';
 
 const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
-test('v6 backup preserves daily todos and rejects incomplete or nonempty restores',async t=>{
+test('v5 backup preserves daily todos and rejects incomplete or nonempty restores',async t=>{
   const source=await fixture(t),session=await source.login();
   const created=await source.request('/api/v1/todos',{method:'POST',session,body:{id:randomUUID(),date:'2026-10-23',text:'合成备份待办'}});
   assert.equal(created.status,201,created.text);
   assert.equal((await source.request('/api/v1/todos/'+created.data.id,{method:'PATCH',session,body:{completed:true,version:1}})).status,200);
   const backup=await exportBackup(source.db);
-  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v6');
+  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v5');
   assert.equal(backup.data.tables.todos.length,1);
   const target=await fixture(t,{bootstrap:false});
   const result=await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
@@ -29,7 +28,6 @@ test('v6 backup preserves daily todos and rejects incomplete or nonempty restore
 
 test('v1 backup still restores into an empty upgraded database without inventing todos or templates',async t=>{
   const source=await fixture(t),v4=await exportBackup(source.db),data=structuredClone(v4.data);
-  for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
   data.format='haoduoyu-matrix-d1-v1';delete data.tables.todos;delete data.tables.todo_templates;delete data.tables.todo_template_links;
   delete data.source_revision;
   delete data.tables.todo_preferences;

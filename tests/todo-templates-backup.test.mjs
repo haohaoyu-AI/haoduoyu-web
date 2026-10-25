@@ -6,14 +6,12 @@ import worker from '../src/worker.mjs';
 import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {digest} from '../shared/auth.mjs';
 import {stable} from '../src/security.mjs';
-import {ARTICLE_PIPELINE_FIELDS} from '../src/article-pipeline-fields.mjs';
 import {legacyBackupEnvelope} from './todo-backup-projection.mjs';
 
 const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
 function versionData(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
-  if(version<6)for(const row of data.tables.articles)for(const name of ARTICLE_PIPELINE_FIELDS)delete row[name];
   if(version<5){delete data.tables.daily_notes;delete data.source_revision;}
   if(version<4) {
     delete data.tables.todo_preferences;
@@ -42,13 +40,13 @@ async function sourceWithTemplates(t) {
   return {...app,session,owner,other};
 }
 
-test('v6 HTTP backup scopes template tables while operator restore preserves deleted templates and links',async t=>{
+test('v5 HTTP backup scopes template tables while operator restore preserves deleted templates and links',async t=>{
   const source=await sourceWithTemplates(t);
   const response=await worker.fetch(new Request(source.origin+'/api/v1/backup',{headers:{Cookie:source.session.cookie}}),
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v6');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v5');
   for(const name of ['todos','todo_templates','todo_template_links']) {
     assert.equal(http.data.tables[name].length,1);
     assert.equal(http.data.tables[name][0].user_id,source.owner);
@@ -100,7 +98,7 @@ test('template backup validation rejects missing tables, extra columns and tampe
 
 test('all backup versions check that both new template tables are empty before any write',async t=>{
   const source=await fixture(t),backup=await exportBackup(source.db);
-  for(const version of [1,2,3,4,5,6]) for(const nonempty of ['matrix_todo_templates','matrix_todo_template_links']) {
+  for(const version of [1,2,3,4,5]) for(const nonempty of ['matrix_todo_templates','matrix_todo_template_links']) {
     const data=versionData(backup.data,version);
     let writes=0,templateChecks=0;
     const target={prepare(sql) {
