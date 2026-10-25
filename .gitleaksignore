@@ -209,3 +209,7 @@ a1f23331025fd2d24142569c095be9154f27fd3f:.ci/public-assets.json:generic-api-key:
 
 # Accepted reconciliation OpenAPI digest, reintroduced on current workbench integration.
 47ec91bcf563509b76416b59929baaf3abc058a8:.ci/public-assets.json:generic-api-key:10
+
+# Round3 public documentation SHA-256 pins; proof: docs/workbench-round3-secret-evidence.json.
+d8e00419d8f1667c2eb50861ddc3adf4647d194d:.ci/public-assets.json:generic-api-key:5
+d8e00419d8f1667c2eb50861ddc3adf4647d194d:.ci/public-assets.json:generic-api-key:10
