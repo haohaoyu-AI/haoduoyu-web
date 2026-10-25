@@ -1,11 +1,12 @@
 import { digest,fail } from '../shared/auth.mjs';
 import { consistentRead,ensureControl,statement } from './storage.mjs';
 import { stable } from './security.mjs';
+import {ARTICLE_PIPELINE_FIELDS,LEGACY_ARTICLE_PIPELINE_DEFAULTS,validateArticlePipelineFields} from './article-pipeline-fields.mjs';
 
 // Explicit columns/order prevent a supplied backup from injecting identifiers.
 // Sessions and throttle windows are intentionally not restored: restored users
 // must log in again, and no old session capability is resurrected.
-const columns={
+const v5Columns={
   accounts:['id','platform','name','active','created_at'],
   users:['id','username','password_hash','created_at'],
   todos:['user_id','id','date','text','completed','version','created_at','updated_at','deleted_at'],
@@ -20,10 +21,11 @@ const columns={
   audit:['id','actor','action','entity_id','detail_json','created_at'],
   idempotency:['actor','key','request_hash','response_json','status','created_at'],
 };
+const columns={...v5Columns,articles:[...v5Columns.articles,...ARTICLE_PIPELINE_FIELDS]};
 const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes']);
 const backupTable=name=>privateTables.has(name)?'matrix_'+name:name;
-const v4Columns=Object.fromEntries(Object.entries(columns).filter(([name])=>name!=='daily_notes'));
-const legacyColumns=Object.fromEntries(Object.entries(columns).filter(([name])=>!privateTables.has(name)));
+const v4Columns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>name!=='daily_notes'));
+const legacyColumns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>!privateTables.has(name)));
 const v3Columns=Object.fromEntries(Object.entries(v4Columns).filter(([name])=>name!=='todo_preferences')
   .map(([name,fields])=>[name,name==='todos'?fields.filter(field=>field!=='deleted_at'):
     name==='todo_template_links'?fields.filter(field=>field!=='created_with_todo'):fields]));
@@ -31,7 +33,7 @@ const v2Columns=Object.fromEntries(Object.entries(v3Columns).filter(([name])=>![
 const versionColumns=new Map([
   ['haoduoyu-matrix-d1-v1',legacyColumns],['haoduoyu-matrix-d1-v2',v2Columns],
   ['haoduoyu-matrix-d1-v3',v3Columns],['haoduoyu-matrix-d1-v4',v4Columns],
-  ['haoduoyu-matrix-d1-v5',columns],
+  ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',columns],
 ]);
 export async function exportBackup(db,{todoUserId}={}) {
   const data=await consistentRead(db,async(store,sourceRevision)=>{
@@ -41,7 +43,7 @@ export async function exportBackup(db,{todoUserId}={}) {
       tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
         ...(scoped?[todoUserId]:[]));
     }
-    return {format:'haoduoyu-matrix-d1-v5',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
+    return {format:'haoduoyu-matrix-d1-v6',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
   });
   return {data,sha256:digest(JSON.stringify(stable(data)))};
 }
@@ -50,8 +52,11 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   if(!allowEmptyRestore) throw fail(403,'RESTORE_DISABLED','恢复只允许在显式指定的空隔离数据库执行');
   if(!versionColumns.has(backup?.data?.format)||backup.sha256!==digest(JSON.stringify(stable(backup.data)))) throw fail(400,'INVALID_BACKUP','备份格式或校验和无效');
   const expected=versionColumns.get(backup.data.format);
-  const sourceRevision=expected===columns?backup.data.source_revision:0;
-  if(expected===columns&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
+  const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6'].includes(backup.data.format);
+  const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6'].includes(backup.data.format);
+  const hasPipeline=backup.data.format==='haoduoyu-matrix-d1-v6';
+  const sourceRevision=hasSourceRevision?backup.data.source_revision:0;
+  if(hasSourceRevision&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
     throw fail(400,'INVALID_BACKUP','备份修订号无效');
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
@@ -60,17 +65,22 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {
       if(!row||Object.keys(row).sort().join(',')!==[...fields].sort().join(',')||fields.some(field=>row[field]!==null&&!['string','number'].includes(typeof row[field]))||
-        name==='todo_template_links'&&[columns,v4Columns].includes(expected)&&![0,1].includes(row.created_with_todo)||
+        name==='todo_template_links'&&hasTodoTombstones&&![0,1].includes(row.created_with_todo)||
         name==='daily_notes'&&(!Number.isSafeInteger(row.version)||row.version<1||!Number.isSafeInteger(row.change_seq)||row.change_seq<1))
         throw fail(400,'INVALID_BACKUP','备份列格式无效');
+      if(name==='articles') {
+        if((row.url===null||row.published_at===null)&&!hasPipeline)throw fail(400,'INVALID_BACKUP','旧文章备份的链接和发布时间不得为空');
+        if(hasPipeline)try{validateArticlePipelineFields(row);}catch{throw fail(400,'INVALID_BACKUP','文章流水线备份无效');}
+      }
     }
   }
   if(tables.daily_notes.some(row=>row.change_seq>sourceRevision))throw fail(400,'INVALID_BACKUP','碎碎念变更号超过源修订号');
   // Validate the exact historic columns before introducing compatibility defaults.
-  if(![columns,v4Columns].includes(expected)) {
+  if(!hasTodoTombstones) {
     tables.todos=tables.todos.map(row=>({...row,deleted_at:null}));
     tables.todo_template_links=tables.todo_template_links.map(row=>({...row,created_with_todo:1}));
   }
+  if(!hasPipeline)tables.articles=tables.articles.map(row=>({...LEGACY_ARTICLE_PIPELINE_DEFAULTS,...row}));
   for(const name of Object.keys(columns)) {
     const count=await statement(db,`SELECT count(*) AS n FROM ${backupTable(name)}`).first();
     if(count.n) throw fail(409,'RESTORE_NOT_EMPTY','恢复目标必须为空，禁止覆盖现有数据');
