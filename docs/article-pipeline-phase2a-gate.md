@@ -44,6 +44,8 @@ The separate local backup-only patch is in ignored `artifacts/phase2a/backup-v6-
 
 ## Next review gate
 
+Follow-up: the parent approved a separate synthetic three-table graph experiment. Its candidate and validation are recorded in [the graph candidate report](article-pipeline-graph-candidate.md). The original single-parent candidate below remains rejected; the replacement is not a production-approved migration or an activated API/model.
+
 The parent must review a different migration strategy before implementation resumes. Possible review subjects are D1 support for an in-place NOT NULL change, or a separately designed migration covering the affected article/metric dependency group. Neither was attempted here. Do not bypass the gate by turning off foreign key enforcement, dropping metric rows or editing SQLite's schema tables.
 
 Official background: [D1 foreign key enforcement](https://developers.cloudflare.com/d1/sql-api/foreign-keys/), [D1 atomic batches](https://developers.cloudflare.com/d1/worker-api/d1-database/), [SQLite table-alteration procedures](https://www.sqlite.org/lang_altertable.html). These rules do not substitute for the failed real D1 experiment above.
