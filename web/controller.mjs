@@ -1,3 +1,4 @@
+import { loadReconciliation, renderReconciliation } from "./pages/article-reconciliation.mjs";
 import { beginPageRequests, isRequestAbort } from "./core/requests.mjs";
 import { api } from "./core/api.mjs";
 import { legacyPages, nav, settingsTabs } from "./core/constants.mjs";
@@ -32,7 +33,8 @@ function mainContent() {
     state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts} : settingsTabs), state.settingsTab,
     "设置分类", "tab", "page-tabs") : ""}${state.page === "dashboard" ?
     `<div class="article-ledger-overview article-ledger-scope">${segmented("article-overview-mode",
-      [["drafts", "存稿台账"], ["published", "已发布数据"]], state.articleOverviewMode, "总览口径", "mode")}</div>` : ""}<div id="page-content"></div>`;
+      [["drafts", "存稿台账"], ["published", "已发布数据"], ["reconciliation", "实际对账"]],
+      state.articleOverviewMode, "总览口径", "mode")}</div>` : ""}<div id="page-content"></div>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -111,6 +113,10 @@ function publishedArticleLinks(html) {
   return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
 }
 async function loadArticleOverview(version, context) {
+  if (state.articleOverviewMode === "reconciliation") {
+    const data = await loadReconciliation(context);
+    return version === runtime.renderVersion ? renderReconciliation(data) : "";
+  }
   if (state.articleOverviewMode !== "published") {
     state.dashboard = null;
     const summary = await loadArticleLedgerSummary(context);

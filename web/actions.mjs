@@ -184,7 +184,7 @@ function actionOverviewPeriod({ target }) {
 }
 function actionArticleOverviewMode({ target }) {
   const mode = target.dataset.mode;
-  if (!["drafts", "published"].includes(mode) || state.articleOverviewMode === mode) return;
+  if (!["drafts", "published", "reconciliation"].includes(mode) || state.articleOverviewMode === mode) return;
   state.articleOverviewMode = mode;
   updateRoute(true);
   renderShell();

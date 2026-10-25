@@ -1,0 +1,41 @@
+# 实际文章对账与保险编号进度
+
+本分支从生产 `9c9fb40c10ab9f9cb2fbb0ed87beeccc5bae6108` 继续，仅交付原任务书第2步的实际记录页面。入口为总览第三项“实际对账”，URL `?page=dashboard&article_scope=reconciliation`。原默认todo首页、存稿台账/已发布两种口径继续保留。
+
+## 数据口径
+
+新增只读 `GET /api/v1/article-reconciliation`，不接受查询参数。沿原文章读取身份：公开模式仅已配置公开账号范围；管理员会话和现有带read权限的API key沿原授权账号范围。没有新权限或凭据。API key可能更新既有last_used_at使用元数据；聚合不写业务记录。
+
+全部页在既有consistentRead内读取，200行一页，按run_date与id稳定排序。没有status默认筛选，所以null或未知状态保留。超过4000行或1MiB物化投影整体返回413 RECONCILIATION_LIMIT，不把部分记录称为完整结果。并发修订重试整次读取。没有新增索引、表或迁移；线上CPU/实际扫描成本未实测。
+
+日期使用明确run_date；未记录日期单独显示“未标注”，不拿created_at、标题或发布时间补猜。日期/slot/writer/status筛选在取得完整授权投影后本地执行。筛选内表格数量与完整授权数量分别显示，保险卡明确仍是完整授权范围。只有status=published进入已发布计数，其他状态/null不算已发布。
+
+表格展示实际标题、日期、槽位、状态、写作者、series_no、缺字段、派生警告与待核。缺字段检查date/status/slot/writer及gzh编号；不存库。核对值沿既有done严格布尔语义；未知不当完成。标题及所有业务JSON用转义文本显示，详情沿原文章详情入口。读失败显示错误，空记录显示空态。
+
+排期当前没有配置，因此schedule.configured=false，expected/missing/overdue均为null，页面均显示“未配置”；这些值不是0。没有每天1/3篇、固定槽位应产出或逾期推断。
+
+## 保险编号
+
+仅已有slot=gzh的记录进入保险汇总，不从题材、标题或series_no存在与否猜保险归属。计数包括实际记录、已编号记录、正安全整数series_no去重数、最高/最低已观察号、重复号与对应文章ID、各状态记录数。编号重复不自动合并文章。
+
+候选间隔只由已观察最低/最高号之间的内部断档产生，以区间表示，避免枚举巨大编号范围。起点和目标均null，不宣称必须从1开始，也不把候选当确定缺号或算完成率；空站最高号显示未知，实际已记录/去重数为确切0。
+
+sample的实际JSON可在对应文章“原始样本记录”展开查看。当前没有用户提供的样本编号映射表，所以sample_mapping=unknown；不解析标题或任意JSON键去猜映射关系。
+
+## 边界、证据与发布
+
+改动共享触点：worker GET分发、public-business只读允许列表、request-trace静态标签；controller总览第三项、router保存该口径、actions切换和events筛选事件。新增独立聚合与页面模块；既有todo/notes/memo、快照内容、数据库、style/memos/glass样式原字节保留。生成app.js及其pin重建，OpenAPI新增端点并更新pin。
+
+为保持既有历史回归，tests/reconciliation-ui-delta.json固定具体新增/修改文件哈希，移除本次精确增量后继续原memo、notes与Phase7边界断言；新增文件明确列入模块清单，不按目录豁免。OpenAPI只剥离哈希固定的新端点，其余旧契约继续验证。变异测试拒绝修改后的新增模块或接口契约。
+
+定向验证覆盖空/null/未知、重复与去重/间隔候选、205行真实D1分页、公开/会话/API key账号范围、并发重读、预算整体失败、安全文本、保护文件字节、旧文档/路由及前端契约。早期合成夹具违反slot/date唯一约束和错误假设key元数据零写入，已按既有真实契约修正后对应重验通过；前端行长/新增模块计数和旧bundle不一致也已修复，没有跳过失败断言。最终完整CI结果以交付消息为准。
+
+[真实Worker合成浏览器报告](article-reconciliation-evidence/report.json)及同目录1440/375px截图，覆盖导航、真实数字、筛选空态、刷新口径恢复、失败反馈、默认todo与memo入口。非生产内容；没有生产调用或写入。
+
+交付包仅组合Worker、runtime、本文及manifest。不含迁移、真实配置或部署脚本。父级发布时保留现有18表/v7数据库和全部owner/公开范围绑定；无需任何迁移、bootstrap或恢复。回退只恢复生产9c9fb40 Worker与原配置，数据库不变。本轮不创建PR、merge、部署、Notion直推、secret或Cron。
+
+## 后续只需用户确认
+
+1. 各槽位的生效日期、执行日/每次篇数、截止时间（北京时间）；未明确前保持未配置。
+2. 保险系列确定的起始号和目标号；没有目标就继续仅展示真实已记录进度。
+3. 若要显示样本映射，提供“series_no → 样本标识”的明确对应；不提供则保持未知，可继续查看原始记录。

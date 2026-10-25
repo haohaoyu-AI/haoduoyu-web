@@ -24,7 +24,7 @@ function updateRoute(push = false) {
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
   u.searchParams.set("period", state.overviewPeriod);
-  if (state.articleOverviewMode === "published") u.searchParams.set("article_scope", "published");
+  if (["published", "reconciliation"].includes(state.articleOverviewMode)) u.searchParams.set("article_scope", state.articleOverviewMode);
   else u.searchParams.delete("article_scope");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
@@ -62,7 +62,7 @@ function readRoute() {
   get("tab") : raw === "settings" && !params.has("tab") ? "workspace" : "accounts");
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
-  state.articleOverviewMode = params.get("article_scope") === "published" ? "published" : "drafts";
+  state.articleOverviewMode = ["published", "reconciliation"].includes(params.get("article_scope")) ? params.get("article_scope") : "drafts";
   const account = params.get("account") || "";
   state.account = state.page !== "dashboard" && state.accounts.some((a) => a.id === account) ? account : "";
   state.filters = defaultFilters();

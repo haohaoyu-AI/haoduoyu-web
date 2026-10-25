@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "real_worker": true,
+  "checks": [
+    "1440 navigation, totals/duplicates/gaps, filters/empty, route, error, todo/memo",
+    "375 navigation, totals/duplicates/gaps, filters/empty, route, error, todo/memo"
+  ],
+  "pageerrors": [],
+  "worker_sha256": "d88b9022f318786f5949bf492d2545d03ce555bff2e76a57678800cf394543cb"
+}
