@@ -7,7 +7,7 @@ const source = await frontendSource();
 function client(){
  const body={style:{}},nodes=new Map([['#overlay',{innerHTML:'',firstChild:null,contains(){return false}}]]);
  const document={querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>[],addEventListener(){},body,activeElement:body};
- const context=vm.createContext({AbortController, AbortSignal, DOMException, Headers,document,window:{addEventListener(){}},location:{href:'http://localhost/',search:''},history:{replaceState(){}},URL,URLSearchParams,Intl,localStorage:{getItem(){}},requestAnimationFrame(){},setTimeout,clearTimeout});
+ const context=vm.createContext({AbortController, AbortSignal, DOMException, Headers,structuredClone,document,window:{addEventListener(){}},location:{href:'http://localhost/',search:''},history:{replaceState(){}},URL,URLSearchParams,Intl,localStorage:{getItem(){}},requestAnimationFrame(){},setTimeout,clearTimeout});
  new vm.Script(source).runInContext(context);vm.runInContext("state.me={id:'synthetic-ui-user'}",context);return {run:s=>vm.runInContext(s,context),nodes,document,context};
 }
 test('data table hides only wholly missing metrics; zeros and likes/approvals remain separate',async()=>{
@@ -24,12 +24,12 @@ test('data due scope and a stale response do not leak another platform or overwr
  c.run("clearArticleIndexes();let finish;state.articles=[{id:'newer'}];state.reviewArticles=[{id:'newer-review'}];api=path=>path.startsWith('/articles')?new Promise(resolve=>finish=resolve):Promise.resolve([]);let old=renderReviews();renderVersion++;finish([{id:'obsolete'}])");assert.equal(await c.run('old'),'');assert.equal(c.run('state.articles[0].id'),'newer');
 });
 test('detail keeps unknown date nodes neutral, zero/missing/approvals distinct and reasons in popovers',()=>{
- const c=client();c.run(`sample={date_status:'unverified',latest_metrics:{reads:0,likes:0,approvals:4},nodes:['d1','d3','d7','latest'].map(kind=>({kind,status:'not_collected',snapshot:null,due_at:null})),timeline:[{id:'s',kind:'latest',as_of:'2026-10-17T00:00:00Z',metrics:{reads:12,likes:0,approvals:4},changes:{reads:{delta:12,percent:null,comparable:true,reason:'前期为真实零，增幅无定义'},likes:{delta:0,percent:null,comparable:true,reason:'前期为真实零'},approvals:{delta:-2,percent:-33,comparable:true,reason:'相邻快照'}}}]}`);
+ const c=client();c.run(`sample={status:'published',date_status:'unverified',latest_metrics:{reads:0,likes:0,approvals:4},nodes:['d1','d3','d7','latest'].map(kind=>({kind,status:'not_collected',snapshot:null,due_at:null})),timeline:[{id:'s',kind:'latest',as_of:'2026-10-17T00:00:00Z',metrics:{reads:12,likes:0,approvals:4},changes:{reads:{delta:12,percent:null,comparable:true,reason:'前期为真实零，增幅无定义'},likes:{delta:0,percent:null,comparable:true,reason:'前期为真实零'},approvals:{delta:-2,percent:-33,comparable:true,reason:'相邻快照'}}}]}`);
  const html=c.run('renderArticleAnalytics(sample)');assert.equal((html.match(/class="node unknown"/g)||[]).length,3);assert.equal((html.match(/class="stat"/g)||[]).length,4);assert.match(html,/>0<\/strong>/);assert.match(html,/未取得/);assert.match(html,/data-reason="前期为真实零，增幅无定义"/);assert.match(html,/comparison down/);assert.doesNotMatch(html,/<p[^>]*>[^<]*增幅无定义/);
  c.run('sample.latest_metrics=null');const empty=c.run('metricSummary(sample)');assert.equal((empty.match(/未采集/g)||[]).length,6);assert.doesNotMatch(empty,/>0<\/strong>/);
 });
 test('detail escapes title/meta/notes, folds records and retains the original page focus between modals',async()=>{
- const c=client();c.run(`api=async()=>({id:'a',title:'<img onerror=1>',account_name:'<账号>',platform:'zhihu',url:'javascript:bad',notes:'<script>bad</script>',summary:'  ',nodes:[],timeline:[]});`);
+ const c=client();c.run(`api=async()=>({id:'a',status:'published',title:'<img onerror=1>',account_name:'<账号>',platform:'zhihu',url:'javascript:bad',notes:'<script>bad</script>',summary:'  ',nodes:[],timeline:[]});`);
  await c.run("articleDetail('a')");const html=c.nodes.get('#overlay').innerHTML;assert.match(html,/&lt;img/);assert.match(html,/&lt;账号&gt;/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<img|<script|href="javascript:|<h3>概况/);assert.match(html,/<details class="detail-section"><summary>记录信息/);assert.match(html,/补充数据/);
  let focused=false;const opener={isConnected:true,focus(){focused=true}},nested={};c.context.originalOpener=opener;c.document.activeElement=nested;c.nodes.get('#overlay').contains=n=>n===nested;c.nodes.get('#overlay').firstChild={};c.run("lastFocus=originalOpener;openModal('编辑','表单');closeModal()");assert.equal(focused,true);
 });

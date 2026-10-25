@@ -93,6 +93,23 @@ test('uncommitted unknown result blocks new writes; explicit retry rereads and u
   assert.ok(reads>=3);assert.equal(store.snapshot().phase,'saved');
 });
 
+test('verification retry cannot write after its drawer closes or session changes during readback',async()=>{
+  for(const change of ['drawer','session']) {
+    const gate=deferred(),active={open:true,epoch:1};let writes=0,reads=0;
+    const store=createArticleVerificationStore({article:article(),
+      isCurrent:()=>active.open&&active.epoch===1,
+      load:async()=>{if(++reads===2)await gate.promise;return article();},
+      put:async()=>{writes++;throw Error('unknown delivery');}});
+    await store.save(0,true);
+    assert.equal(store.snapshot().retryReady,true);
+    const retry=store.retry();
+    if(change==='drawer')active.open=false;else active.epoch++;
+    gate.resolve();await retry;
+    assert.equal(writes,1,change+' invalidation must prevent the deferred retry PUT');
+    assert.equal(store.snapshot().busy,false);
+  }
+});
+
 test('failed reconciliation never retries a write and later newer/null state becomes an explicit conflict',async()=>{
   let unavailable=true,writes=0;
   const store=createArticleVerificationStore({article:article(),

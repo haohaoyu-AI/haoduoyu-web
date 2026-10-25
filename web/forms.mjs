@@ -3,10 +3,11 @@ import { init, renderPage, renderShell } from "./controller.mjs";
 import { api } from "./core/api.mjs";
 import { metrics } from "./core/constants.mjs";
 import { $, e, icon } from "./core/dom.mjs";
-import { iso, safeURL } from "./core/format.mjs";
-import { state } from "./core/state.mjs";
+import { iso } from "./core/format.mjs";
+import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
 import { renderLogin } from "./pages/login.mjs";
+import { articleFormCurrent, saveArticleForm } from "./pages/article-form.mjs";
 import { submitTodo } from "./pages/todos.mjs";
 import { submitTodoTemplateEdit, submitTodoTemplateForm } from "./pages/todo-templates.mjs";
 import { closeModal, openModal } from "./ui/modal.mjs";
@@ -27,17 +28,16 @@ async function submitLoginForm({ data }) {
   return;
 }
 async function submitArticleForm({ form, data }) {
-  const body = { account_id: data.account_id, title: data.title.trim(), url: data.url.trim(), published_at: iso(data.published_at), started_at: iso(
-  data.started_at), production_mode: data.production_mode, summary: data.summary, notes: data.notes, platform_article_id: data.platform_article_id?.
-  trim() || "" };
-  if (!safeURL(body.url)) throw new Error("文章链接请使用 http 或 https 地址。");
-  if (body.started_at && new Date(body.started_at) > new Date(body.published_at)) throw new Error("选题开始时间不能晚于发布时间。");
-  const id = form.dataset.id;
-  if (id) body.version = Number(form.dataset.version);
-  await api(id ? `/articles/${encodeURIComponent(id)}` : "/articles", { method: id ? "PUT" : "POST", body });
+  const saved = await saveArticleForm({ form, data });
+  if (!saved) return;
   closeModal();
-  toast(id ? "发布记录已更新。" : "发布记录已保存。");
-  await renderPage();
+  const epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
+  toast(form.dataset.id ? "文章台账已更新。" : "文章已保存。");
+  try { await renderPage(); } catch {
+    if (epoch === runtime.sessionEpoch && ticket === runtime.modalRequestVersion) {
+      toast("文章已保存，但列表暂时无法刷新，请稍后刷新页面。", true);
+    }
+  }
   return;
 }
 async function submitReviewForm({ form, data }) {
@@ -137,6 +137,7 @@ async function handleFormSubmit(event) {
     if (handler) await handler({ form, data, values });
   } catch (err) {
     if (err.staleSession || isRequestAbort(err)) return;
+    if (form.id === "article-form" && !articleFormCurrent(form)) return;
     if (message && message.isConnected) message.textContent = err.code === "VERSION_CONFLICT" ? "这条记录已被其他人或 AI 更新。请关闭后重新打开，核对最新内容再保存。" :
     err.message;
     else toast(err.message, true);

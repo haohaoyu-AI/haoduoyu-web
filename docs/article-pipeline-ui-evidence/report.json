@@ -1,0 +1,107 @@
+{
+  "synthetic": true,
+  "real_worker": true,
+  "temporary_d1": true,
+  "shared_browser_used": false,
+  "completed": true,
+  "browser": {
+    "executable": "/usr/bin/chromium",
+    "version": "154.0.8037.57"
+  },
+  "product_sha256": {
+    "public/app.js": "bea903e4d79668f372ab9c631352dab0a7aa36024ef1a9b95f66754b5c175cd7",
+    "public/style.css": "6397232ef788775f21ba6f19835afb4ffec183e459ad7230e1b9bfa729d7591f",
+    "dist/server/index.js": "de68871d5e63877e04453920f0e5b60a1d8db442ed68a02753a2b851ec37d1ef"
+  },
+  "checks": {
+    "default_landing_todos_1440": true,
+    "notes_public_readonly_owner_login_boundary": {
+      "public_write_status": 401,
+      "owner_can_edit": true
+    },
+    "published_native_middle_click_link_keeps_status_and_platform": true,
+    "overview_draft_default_real_counts_and_published_switch": {
+      "unpublished": 4,
+      "draft_saved": 3,
+      "published": 1,
+      "writers": [
+        [
+          "得到大脑",
+          "1",
+          "0"
+        ],
+        [
+          "Gemini",
+          "1",
+          "0"
+        ],
+        [
+          "人工",
+          "1",
+          "1"
+        ],
+        [
+          "其他",
+          "1",
+          "0"
+        ]
+      ]
+    },
+    "articles_default_status_five_options_and_columns": true,
+    "pipeline_filters_columns_route_roundtrip_tt1_boundary": {
+      "images": 25,
+      "warnings": []
+    },
+    "detail_safe_json_unpublished_and_unknown_done_preservation": true,
+    "verification_real_cas_409_reloads_without_replay": true,
+    "verification_explicit_retry_same_body_and_idempotency_key": {
+      "attempts": 2,
+      "same_key": true,
+      "same_body": true
+    },
+    "safe_and_unsafe_draft_links_edit_null_zero_unknown_json_preservation": true,
+    "create_draft_without_publication_null_zero_and_text_id": true,
+    "all_five_status_routes_and_published_real_zero_detail": true,
+    "mobile_390_navigation_cards_detail_form_filter_overview_notes": true,
+    "mobile_375_navigation_cards_detail_form_filter_overview_notes": true,
+    "no_page_errors_xss_dialogs_or_external_requests": true
+  },
+  "pageerrors": [],
+  "dialogs": [],
+  "blocked_external_requests": [],
+  "viewport_widths": [
+    1440,
+    390,
+    375
+  ],
+  "check_count": 15,
+  "capture_count": 23,
+  "retained_captures": [
+    "desktop-default-drafts-1440.png",
+    "desktop-detail-safe-json-1440.png",
+    "mobile-default-drafts-375.png",
+    "mobile-edit-form-390.png",
+    "mobile-overview-375.png"
+  ],
+  "full_local_report": "artifacts/article-pipeline/report.json",
+  "test_source_sha256": "7bd48cef8452548737ce4dad4accae018f4fe1ee458d3cdc36700f07f57624d5",
+  "api_response_status_counts": {
+    "200": 93,
+    "409": 1,
+    "503": 1,
+    "201": 1
+  },
+  "limits": [
+    "Synthetic records only; no production or connected browser access.",
+    "One desktop Chromium version plus mobile viewport emulation, not physical devices.",
+    "Overview counts are from the paginated API fixture, not an atomic cross-page snapshot.",
+    "One injected pre-forward 503 for explicit verification retry; real Worker CAS409 used for conflict.",
+    "No external draft editor permission or availability check."
+  ],
+  "screenshot_capture": {
+    "separate_visual_capture": true,
+    "synthetic_seed": "fresh fixture:4 unpublished,3 draft_saved,1 published",
+    "animations": "disabled",
+    "viewport_only": true
+  }
+}

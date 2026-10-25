@@ -1,5 +1,5 @@
 import { cancelModalRequests } from "./core/requests.mjs";
-import { navigate, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
+import { navigate, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
 import { api } from "./core/api.mjs";
 import { defaultColumns, defaultFilters, settingsTabs } from "./core/constants.mjs";
 import { $, e } from "./core/dom.mjs";
@@ -9,6 +9,7 @@ import { updateRoute } from "./core/router.mjs";
 import { clearArticleIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { articleDraft, articleFilterPanel, articleMenu, articleModal } from "./pages/articles.mjs";
+import { refreshArticleVerification, retryArticleVerification } from "./pages/article-verification.mjs";
 import { dashboardInfoBody, renderDashboard } from "./pages/dashboard.mjs";
 import { articleDetail } from "./pages/detail.mjs";
 import { renderLogin } from "./pages/login.mjs";
@@ -24,7 +25,7 @@ import { closeModal, openModal } from "./ui/modal.mjs";
 import { popover } from "./ui/popover.mjs";
 import { toast } from "./ui/toast.mjs";
 function actionMissingList({ target }) {
-  state.filters = { ...defaultFilters(), data_status: target.dataset.status || "incomplete" };
+  state.filters = { ...defaultFilters(), status: "published", data_status: target.dataset.status || "incomplete" };
   state.account = "";
   state.listPage = 1;
   navigate("articles");
@@ -131,7 +132,7 @@ async function actionTopPlatform({ target, action }) {
 }
 function actionAllTop({ target, event, action }) {
   event.preventDefault();
-  state.filters = { ...defaultFilters(), platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
+  state.filters = { ...defaultFilters(), status: "published", platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
      ...action === "all-top" ? { sort: "reads", order: "desc" } : {} };
   state.account = "";
   state.listPage = 1;
@@ -147,7 +148,7 @@ function actionTrendTab({ target, action }) {
   if (["metrics", "publication"].includes(target.dataset.tab)) {
     state.trendTab = target.dataset.tab;
     state.trendOpen = true;
-    replacePageContent(renderDashboard(state.dashboard));
+    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
     $("[data-action=trend-tab][data-tab=" + state.trendTab + "]")?.focus();
   }
   return;
@@ -180,6 +181,14 @@ function actionOverviewPeriod({ target }) {
   }
   return;
 }
+function actionArticleOverviewMode({ target }) {
+  const mode = target.dataset.mode;
+  if (!["drafts", "published"].includes(mode) || state.articleOverviewMode === mode) return;
+  state.articleOverviewMode = mode;
+  updateRoute(true);
+  renderShell();
+  $("[data-action=article-overview-mode][aria-pressed=true]")?.focus();
+}
 function actionShowDue({}) {
   state.reviewTab = "pending";
   navigate("reviews");
@@ -188,7 +197,7 @@ function actionShowDue({}) {
 function actionToggleAttention({}) {
   state.attentionExpanded = !state.attentionExpanded;
   if (state.dashboard) {
-    replacePageContent(renderDashboard(state.dashboard));
+    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
   }
   return;
 }
@@ -236,6 +245,7 @@ function actionNewKey({}) {
   return;
 }
 function actionSelectAccount({ id }) {
+  state.filters = { ...defaultFilters(), status: "published" };
   state.account = id;
   state.listPage = 1;
   navigate("articles");
@@ -276,6 +286,9 @@ function actionResetFilters({}) {
   return;
 }
 const actions = {
+  "article-overview-mode": actionArticleOverviewMode,
+  "article-verify-retry": retryArticleVerification,
+  "article-verify-refresh": refreshArticleVerification,
   "todo-menu": openTodoMenu,
   "todo-delete": ({ target }) => deleteTodo(target.dataset),
   "todo-restore": ({ target }) => restoreTodo(target.dataset),

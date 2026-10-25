@@ -17,11 +17,12 @@ function badgeMode(mode) {
 }
 function headerActions() {
   if (state.page === "notes") return "";
-  if (state.page === "dashboard") return `${dashboardInfo("metrics", "总览数据口径", "header")}<button class="icon-button" data-action="refresh" \
+  if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}\
+<button class="icon-button" data-action="refresh" \
 title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button><button class="btn primary" data-action="new-article">${icon(
-  "plus")}记录发布</button>`;
+  "plus")}记录文章</button>`;
   if (state.page === "articles") return `<a class="btn" href="/api/v1/export" download>${icon("download")}导出 CSV</a><button class="btn \
-primary" data-action="new-article">${icon("plus")}记录发布</button>`;
+primary" data-action="new-article">${icon("plus")}记录文章</button>`;
   if (state.page === "reviews") return `<button class="btn primary" data-action="new-review">${icon("plus")}录入数据</button>`;
   if (state.page === "todos") return "";
   if (state.settingsTab === "accounts") return `<button class="btn primary" data-action="new-account">${icon("plus")}添加账号</button>`;

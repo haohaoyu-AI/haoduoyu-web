@@ -36,11 +36,11 @@ test('old saved views migrate metrics into an unapplied draft, version2 preserve
  assert.equal(app.run("[...viewDraft({version:2,filters:{},columns:['reads']}).columns].join(',')"),'reads');
 });
 test('new cumulative and article UI escape titles and distinguish genuine zeros from missing metrics',()=>{
- const app=client();app.run("fixtureArticle={id:'a',platform:'zhihu',account_name:'<b>bad</b>',title:'<img src=x onerror=1>',url:'javascript:bad',latest_metrics:{reads:0,likes:0},latest_as_of:null};");
+ const app=client();app.run("state.filters.status='published';state.columns=new Set(['reads','likes','comments','as_of']);fixtureArticle={id:'a',status:'published',platform:'zhihu',account_name:'<b>bad</b>',title:'<img src=x onerror=1>',url:'javascript:bad',latest_metrics:{reads:0,likes:0},latest_as_of:null};");
  const html=app.run('articleTable([fixtureArticle])');assert.ok(html.includes('&lt;img'));assert.doesNotMatch(html,/<img\b/);assert.doesNotMatch(html,/href="javascript:/);assert.ok(html.includes('未取得'));assert.ok(html.includes('>0</strong>'));assert.ok(app.run("dashboardMetric({latest_metrics:null},'reads')").includes('未采集'));
 });
 test('single-snapshot detail shows no growth; all-zero daily values remain visible rather than missing',()=>{
- const app=client();const one=app.run("renderArticleAnalytics({platform:'zhihu',latest_metrics:{reads:0},timeline:[{id:'a',kind:'latest',metrics:{reads:0},changes:null}],nodes:[]})");assert.match(one,/只有一期数据/);assert.doesNotMatch(one,/snapshot-changes/);
+ const app=client();const one=app.run("renderArticleAnalytics({status:'published',platform:'zhihu',latest_metrics:{reads:0},timeline:[{id:'a',kind:'latest',metrics:{reads:0},changes:null}],nodes:[]})");assert.match(one,/只有一期数据/);assert.doesNotMatch(one,/snapshot-changes/);
  const trend=app.run("renderTrend({accounts:[{id:'a',name:'合成',platform:'toutiao'}],trend:[{date:'2026-10-15',accounts:[{account_id:'a',metrics:{reads:0}}]}]})");assert.match(trend,/数据不足/);assert.match(trend,/：0 阅读/);assert.doesNotMatch(trend,/：未取得/);
 });
 

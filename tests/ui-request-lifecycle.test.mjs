@@ -61,7 +61,7 @@ test('one cancelled GET consumer does not cancel a second consumer of the shared
 });
 test('a fast page change aborts the previous page GET without replacing the new page or showing an error', async () => {
   const d = delayed(), c = client(d.fetch);
-  c.run("state.page='dashboard'");const old = c.run('renderPage()');
+  c.run("state.page='dashboard';state.articleOverviewMode='published'");const old = c.run('renderPage()');
   c.run("state.page='settings';state.settingsTab='security'");await c.run('renderPage()');
   const aborted = d.calls[0].options.signal?.aborted === true;
   d.finish({});await old;
@@ -84,7 +84,7 @@ test('refresh starts a new GET; late old results cannot fill the new render', as
       signal?.addEventListener('abort', () => reject(new DOMException('Synthetic refresh abort', 'AbortError')));
     });
   });
-  c.run("state.page='dashboard';renderDashboardSummary=data=>data.marker");
+  c.run("state.page='dashboard';state.articleOverviewMode='published';renderDashboardSummary=data=>data.marker");
   const old = c.run('renderPage()');await c.run('renderPage()');finish();await old;
   assert.equal(reads, 2);assert.equal(todoReads, 0);assert.equal(signal?.aborted, true);
   assert.equal(c.nodes.get('#page-content').innerHTML, 'fresh');assert.equal(c.run('state.dashboard.marker'), 'fresh');

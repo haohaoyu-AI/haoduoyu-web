@@ -38,7 +38,8 @@ test('draft table escapes text, marks all reading values unpublished and derives
   app.run("state.columns=new Set(['status','slot','writer','char_count','image_count','draft_ref','total_duration','warnings','verify','topic','reads','likes','comments','as_of']);");
   app.run("syntheticDraft={id:'d',account_id:'account',platform:'toutiao',account_name:'<账号>',title:'<svg onload=bad>',status:'draft_saved',slot:null,writer:null,char_count:null,image_count:null,draft_ref:{editor_url:'javascript:bad'},warnings:[],has_pending_verify:null,verify_state:'unknown',latest_metrics:{reads:0,likes:0},topic:'entertainment'};");
   const html=app.run('articleTable([syntheticDraft])');
-  assert.match(html,/&lt;svg/);assert.match(html,/&lt;账号&gt;/);assert.doesNotMatch(html,/<svg\b|href="javascript:|文娱（推断）/);
+  assert.match(html,/&lt;svg onload=bad&gt;/);assert.match(html,/&lt;账号&gt;/);
+  assert.doesNotMatch(html,/<svg\b[^>]*\bonload\s*=|href="javascript:|文娱（推断）/);
   assert.ok((html.match(/未发布/g)||[]).length>=4);assert.match(html,/未标注/);assert.match(html,/未确认|未知/);
   assert.doesNotMatch(html,/>0<\/strong>/,'a draft never turns a stored cumulative zero into a published reading metric');
   const menu=app.run('articleMenu(syntheticDraft)');assert.doesNotMatch(menu,/review-article|补充数据/);

@@ -391,7 +391,7 @@ test('daily plans and explicit statistics overview render and request independen
   await c.run('renderPage()');
   assert.match(c.nodes.get('#page-content').innerHTML, /id="todo-form"/);
   assert.deepEqual(JSON.parse(c.run('JSON.stringify(reads)')), ['/todos?date=2026-10-23']);
-  c.run(`state.page='dashboard';reads=[];renderDashboardSummary=()=>'<section>Independent statistics</section>'`);
+  c.run(`state.page='dashboard';state.articleOverviewMode='published';reads=[];renderDashboardSummary=()=>'<section>Independent statistics</section>'`);
   await c.run('renderPage()');
   assert.equal(c.run('reads.length'), 1);
   assert.match(c.run('reads[0]'), /^\/overview\?/);

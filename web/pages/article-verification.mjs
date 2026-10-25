@@ -10,7 +10,7 @@ function validArticle(value, id) {
 function verificationIntent(index, done) {
   return `第 ${index + 1} 项设为${done ? "已处理" : "待处理"}`;
 }
-function createArticleVerificationStore({ article, load, put, uuid = () => crypto.randomUUID(), onChange = () => {} }) {
+function createArticleVerificationStore({ article, load, put, uuid = () => crypto.randomUUID(), onChange = () => {}, isCurrent = () => true }) {
   let current = copy(article), phase = "idle", message = "", pending = null, busy = false, retryReady = false;
   const snapshot = () => ({ article: copy(current), phase, message, busy, retryReady });
   const notify = () => onChange(snapshot());
@@ -44,6 +44,7 @@ function createArticleVerificationStore({ article, load, put, uuid = () => crypt
     return retryReady;
   }
   async function send() {
+    if (!isCurrent()) return;
     phase = "saving"; message = "正在保存…"; retryReady = false; notify();
     let response;
     try { response = await put(current.id, copy(pending.body), pending.key); } catch (error) {
@@ -90,6 +91,7 @@ let binding = null;
 function bindArticleVerification(article, { isCurrent, render }) {
   const epoch = runtime.sessionEpoch, value = { articleId: article.id, epoch, isCurrent, render, store: null };
   value.store = createArticleVerificationStore({ article,
+    isCurrent: () => binding === value && epoch === runtime.sessionEpoch && isCurrent(),
     load: (id) => api(`/articles/${encodeURIComponent(id)}`),
     put: (id, body, key) => api(`/articles/${encodeURIComponent(id)}`, {
       method: "PUT", body, headers: { "Idempotency-Key": key }

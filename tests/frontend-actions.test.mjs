@@ -6,11 +6,14 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {transform} from 'esbuild';
 import {parseWeb, visitWeb, webStyle} from '../scripts/check-web.mjs';
+import {phase7Manifest, projectPhase7Frontend} from './article-pipeline-ui-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 const CHECKPOINT='2e12147b700ac604d7cccf8e034374644ac99a03';
 const old=path=>execFileSync('git',['show',CHECKPOINT+':'+path],{cwd:root,encoding:'utf8',maxBuffer:1024*1024});
-const current=path=>readFile(new URL(path,root),'utf8');
+// Validate every explicitly approved Phase7 declaration/property hash before
+// replaying the existing historical checks against the accepted 37a frontend.
+const current=async path=>projectPhase7Frontend(path,await readFile(new URL(path,root),'utf8'));
 // Routing and page lifecycle intentionally changed; their behavior is covered by
 // the daily-todo UI/browser tests. Other modules retain their historical checks
 // after projecting only the exact added field, branch or dashboard wrapper.
@@ -212,7 +215,7 @@ test('formatting preserves declarations in otherwise unchanged modules and every
   const sorted=rows=>rows.map(row=>JSON.stringify(row)).sort();
   assert.deepEqual(sorted(next),sorted(previous),'unchanged module template cooked text and whitespace remain exact');
 });
-test('the generated frontend changes only the approved PATCH audit label',async()=>{
+test('the generated frontend retains the historical PATCH-label byte lock after bounded Phase7 projection',async()=>{
   const checkpoint='88685601f40ae9b4c28799d42be6240f1dbe7ea6';
   const previous=execFileSync('git',['show',checkpoint+':public/app.js'],{cwd:root,encoding:'utf8'});
   const currentBundle=await current('public/app.js'),addition='    ["合并存稿", "PATCH /articles"],\n';
@@ -233,7 +236,8 @@ test('event bindings retain all nine original positions and capture options',asy
   assert.deepEqual(signature(next),signature(register));
 });
 test('web style checks every function type and rejects long fixture lines/functions',async()=>{
-  const report=await webStyle();assert.deepEqual(report.violations,[]);assert.equal(report.files,40);
+  const report=await webStyle();assert.deepEqual(report.violations,[]);
+  assert.equal(report.files,40+(await phase7Manifest()).added_modules.length);
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));

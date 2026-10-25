@@ -41,8 +41,8 @@ try {
   };
   const exact=await create('tt1',{
     account_id:'toutiao-haoduoyu',title,run_dir:'tt1_1024',slot:'tt1',run_date:'2026-10-24',status:'draft_saved',
-    writer:'dedao',illustrator:'codex',char_count:2236,subheading_count:5,image_count:25,
-    draft_ref:{pgc_id:'7699934907375567402'},reruns:{watchdog:1},
+    writer:'dedao',illustrator:'codex',series_no:17,char_count:2236,subheading_count:5,image_count:25,
+    draft_ref:{pgc_id:'7699934907375567402',future:{keep:true}},reruns:{watchdog:1},
     started_at:'2026-10-24T00:00:00.000Z',timings:{finished_at:'2026-10-24T00:31:00.000Z',writing:{seconds:540}},
     sample:{source:'合成来源 <script>globalThis.syntheticXSS=true</script>',confirmed:false},
     blockers:[{type:'source',message:'合成阻塞 <img src=x onerror=alert(1)>'}],
@@ -51,7 +51,8 @@ try {
   assert.deepEqual(exact.warnings,[],'tt1 boundary fixture must have no warnings');
   await create('unknown',{
     account_id:'toutiao-haoduoyu',title:'合成缺字段草稿',run_dir:'synthetic/unknown',slot:'tt2',run_date:'2026-10-24',
-    status:'draft_saved',writer:'human',draft_ref:{pgc_id:'000123000'},verify_items:null,
+    status:'draft_saved',writer:'human',draft_ref:{pgc_id:'000123000',editor_url:'https://example.invalid/synthetic-editor',future:{keep:'draft metadata'}},
+    timings:{future:{keep:'timing metadata'}},verify_items:null,
   });
   await create('unsafe',{
     account_id:'zhihu-haoduoyu',title:'<img src=x onerror="alert(1)">合成安全文本',run_dir:'synthetic/unsafe',slot:'zh1',

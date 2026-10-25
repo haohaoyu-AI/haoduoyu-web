@@ -8,6 +8,7 @@ import { resetSessionIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
 import { articleDraft, renderArticles } from "./pages/articles.mjs";
+import { loadArticleLedgerSummary, renderArticleLedgerSummary } from "./pages/article-ledger-overview.mjs";
 import { renderDashboardSummary } from "./pages/dashboard.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { renderReviews } from "./pages/reviews.mjs";
@@ -25,7 +26,9 @@ import { toast } from "./ui/toast.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
     state.me?.publicBusiness ? { accounts: settingsTabs.accounts } : settingsTabs), state.settingsTab,
-    "设置分类", "tab", "page-tabs") : ""}<div id="page-content"></div>`;
+    "设置分类", "tab", "page-tabs") : ""}${state.page === "dashboard" ?
+    `<div class="article-ledger-overview article-ledger-scope">${segmented("article-overview-mode",
+      [["drafts", "存稿台账"], ["published", "已发布数据"]], state.articleOverviewMode, "总览口径", "mode")}</div>` : ""}<div id="page-content"></div>`;
 }
 function mobileNavigation() {
   return `<nav class="mobile-nav notes-navigation" aria-label="切换模块">\
@@ -102,6 +105,23 @@ function setPageBody(html, page) {
   else if (page === "notes") paintDailyNotesPage();
   else replacePageContent(html, true);
 }
+function publishedArticleLinks(html) {
+  const query = new URLSearchParams({ page: "articles", status: "published", sort: "reads", order: "desc" });
+  if (state.topPlatform) query.set("platform", state.topPlatform);
+  return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
+}
+async function loadArticleOverview(version, context) {
+  if (state.articleOverviewMode !== "published") {
+    state.dashboard = null;
+    const summary = await loadArticleLedgerSummary(context);
+    return version === runtime.renderVersion ? renderArticleLedgerSummary(summary) : "";
+  }
+  const data = await api(`/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`,
+    { context });
+  if (version !== runtime.renderVersion) return "";
+  state.dashboard = data;
+  return publishedArticleLinks(renderDashboardSummary(data));
+}
 async function renderPage() {
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -123,11 +143,7 @@ async function renderPage() {
         await loadDailyNotes();
         break;
       case "dashboard":
-        data = await api(`/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`,
-        { context });
-        if (version !== runtime.renderVersion) return;
-        state.dashboard = data;
-        html = renderDashboardSummary(data);
+        html = await loadArticleOverview(version, context);
         break;
       case "articles":
         html = await renderArticles(version, context);
@@ -218,6 +234,7 @@ export {
   init,
   navigate,
   navigateLink,
+  publishedArticleLinks,
   reloadFilteredPage,
   renderPage,
   renderShell

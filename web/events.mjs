@@ -1,9 +1,10 @@
 import { isRequestAbort } from "./core/requests.mjs";
-import { applyArticleFilters, navigateLink, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
+import { applyArticleFilters, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
 import { $, $$, e } from "./core/dom.mjs";
 import { readRoute, updateRoute } from "./core/router.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { articleDraft, articleFilterPanel, viewDraft } from "./pages/articles.mjs";
+import { handleArticleVerificationChange } from "./pages/article-verification.mjs";
 import { renderDashboard } from "./pages/dashboard.mjs";
 import { inputTodo, registerTodosClock, selectTodoDate, toggleTodo } from "./pages/todos.mjs";
 import { inputTodoTemplate, loadTodoTemplates } from "./pages/todo-templates.mjs";
@@ -46,6 +47,10 @@ async function handleClick(event) {
 }
 function handleChange(event) {
   const el = event.target;
+  if (el.matches?.("[data-article-verify-index]")) {
+    handleArticleVerificationChange(el);
+    return;
+  }
   if (el.id === "todo-completed-mode") {
     changeTodoCompletedMode(el.value);
     return;
@@ -80,11 +85,11 @@ function handleChange(event) {
   } else if (el.id === "trend-date") {
     state.trendDate = el.value;
     state.trendOpen = true;
-    replacePageContent(renderDashboard(state.dashboard));
+    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
   } else if (el.id === "trend-metric") {
     state.trendMetric = el.value;
     state.trendOpen = true;
-    replacePageContent(renderDashboard(state.dashboard));
+    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
   } else if (el.closest("#article-filters") && el.name && el.name !== "q") {
     state.filters[el.name] = el.value;
     reloadFilteredPage("[name=" + el.name + "]");

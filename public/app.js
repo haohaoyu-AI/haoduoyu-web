@@ -2,6 +2,10 @@
 var platforms = { toutiao: "今日头条", zhihu: "知乎", wechat: "微信公众号", other: "其他平台" };
 var modeLabels = { manual: "人工", automatic: "自动化", mixed: "人工＋自动化", unknown: "未记录" };
 var kindLabels = { latest: "最新数据", d1: "第 1 天观察", d3: "第 3 天观察", d7: "第 7 天观察" };
+var statusLabels = { drafting: "起草中", illustrated: "已配图", draft_saved: "草稿已存", published: "已发布", failed: "受阻" };
+var slotLabels = { zh1: "知乎 1", zh2: "知乎 2", tt1: "头条 1", tt2: "头条 2", zh3: "知乎 3", tt3: "头条 3", gzh: "公众号" };
+var writerLabels = { dedao: "得到大脑", gemini_web: "Gemini", human: "本人", other: "其他" };
+var illustratorLabels = { codex: "Codex", pil: "PIL", human: "本人" };
 var metrics = { reads: "阅读", impressions: "展现", likes: "点赞", comments: "评论", favorites: "收藏", shares: "分享", approvals: "赞同", reading_users: "阅读人数" };
 var nav = [
   { id: "dashboard", label: "总览", icon: "grid" },
@@ -13,7 +17,25 @@ var nav = [
 ];
 var settingsTabs = { accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
 var legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
-var defaultFilters = () => ({ q: "", mode: "", from: "", to: "", sort: "published_at", order: "desc", group: "", platform: "", topic: "", data_status: "" });
+var defaultFilters = () => ({
+  q: "",
+  mode: "",
+  from: "",
+  to: "",
+  sort: "published_at",
+  order: "desc",
+  group: "",
+  platform: "",
+  topic: "",
+  data_status: "",
+  status: "draft_saved",
+  slot: "",
+  writer: "",
+  has_warnings: "",
+  has_pending_verify: "",
+  series_no_min: "",
+  series_no_max: ""
+});
 var articleColumns = {
   reads: ["阅读", "reads"],
   likes: ["点赞", "likes"],
@@ -26,7 +48,18 @@ var articleColumns = {
     "发布日期",
     "published_at"
   ],
-  account: ["账号", ""]
+  account: ["账号", ""],
+  status: ["状态", ""],
+  slot: ["槽位", ""],
+  writer: ["写作者", ""],
+  char_count: ["字数", ""],
+  subheading_count: ["小标题", ""],
+  image_count: ["图数", ""],
+  draft_ref: ["草稿凭证", ""],
+  total_duration: ["流水线耗时", ""],
+  warnings: ["警告", ""],
+  verify: ["待核", ""],
+  topic: ["题材", ""]
 };
 var articleStatuses = { no_snapshot: "未采集", missing_reads: "缺阅读数据", missing_likes: "缺点赞数据", missing_comments: "缺评论数据", incomplete: "指标不完整", zero_reads: "真实0阅读", date_unverified: "日期待核实" };
 var articleChoices = {
@@ -34,7 +67,7 @@ var articleChoices = {
   mode: modeLabels,
   group: { account: "按账号", mode: "按生产方式" }
 };
-var defaultColumns = ["reads", "likes", "comments", "as_of"];
+var defaultColumns = ["status", "slot", "writer", "warnings"];
 
 // web/core/state.mjs
 var state = {
@@ -50,6 +83,7 @@ var state = {
   reviewTab: "observations",
   reviewArticles: [],
   articles: [],
+  articleOverviewMode: "drafts",
   columns: new Set(defaultColumns),
   filters: defaultFilters(),
   listPage: 1,
@@ -856,10 +890,33 @@ function createDailyNotesStore(options) {
 }
 
 // web/core/router.mjs
+function normalizeArticlePipelineFilters(filters) {
+  const allowed = {
+    status: Object.keys(statusLabels),
+    slot: ["", ...Object.keys(slotLabels)],
+    writer: ["", ...Object.keys(writerLabels)],
+    has_warnings: ["", "true", "false"],
+    has_pending_verify: ["", "true", "false"]
+  };
+  for (const [key, choices] of Object.entries(allowed)) {
+    if (!choices.includes(filters[key])) filters[key] = defaultFilters()[key];
+  }
+  for (const key of ["series_no_min", "series_no_max"]) {
+    const value = filters[key];
+    if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1) filters[key] = "";
+  }
+  if (filters.series_no_min && filters.series_no_max && Number(filters.series_no_min) > Number(filters.series_no_max)) {
+    filters.series_no_min = "";
+    filters.series_no_max = "";
+  }
+  return filters;
+}
 function updateRoute(push = false) {
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
   u.searchParams.set("period", state.overviewPeriod);
+  if (state.articleOverviewMode === "published") u.searchParams.set("article_scope", "published");
+  else u.searchParams.delete("article_scope");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else u.searchParams.delete("date");
@@ -895,6 +952,7 @@ function readRoute() {
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : raw === "settings" && !params.has("tab") ? "security" : "accounts");
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
+  state.articleOverviewMode = params.get("article_scope") === "published" ? "published" : "drafts";
   const account = params.get("account") || "";
   state.account = state.page !== "dashboard" && state.accounts.some((a) => a.id === account) ? account : "";
   state.filters = defaultFilters();
@@ -920,6 +978,7 @@ function readRoute() {
     "mode"
   ] };
   for (const [key, values] of Object.entries(allowed)) if (!values.includes(state.filters[key])) state.filters[key] = defaultFilters()[key];
+  normalizeArticlePipelineFilters(state.filters);
   const int = (key, def, max) => /^\d+$/.test(params.get(key) || "") && Number(params.get(key)) > 0 && Number(params.get(key)) <= max ? Number(
     params.get(key)
   ) : def;
@@ -928,16 +987,6 @@ function readRoute() {
   state.topN = int("top_n", 5, 100);
   state.topPlatform = ["toutiao", "zhihu", "wechat", "other"].includes(params.get("top_platform")) ? params.get("top_platform") : "";
   state.columns = new Set(params.has("columns") ? params.get("columns").split(",").filter((c) => Object.hasOwn(articleColumns, c)) : defaultColumns);
-}
-
-// web/core/modal-request.mjs
-async function modalRequest(path, ticket, version, context) {
-  try {
-    return await api(path, { context });
-  } catch (err) {
-    if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return null;
-    throw err;
-  }
 }
 
 // web/ui/components.mjs
@@ -959,10 +1008,10 @@ function badgeMode(mode) {
 }
 function headerActions() {
   if (state.page === "notes") return "";
-  if (state.page === "dashboard") return `${dashboardInfo("metrics", "总览数据口径", "header")}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button><button class="btn primary" data-action="new-article">${icon(
+  if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button><button class="btn primary" data-action="new-article">${icon(
     "plus"
-  )}记录发布</button>`;
-  if (state.page === "articles") return `<a class="btn" href="/api/v1/export" download>${icon("download")}导出 CSV</a><button class="btn primary" data-action="new-article">${icon("plus")}记录发布</button>`;
+  )}记录文章</button>`;
+  if (state.page === "articles") return `<a class="btn" href="/api/v1/export" download>${icon("download")}导出 CSV</a><button class="btn primary" data-action="new-article">${icon("plus")}记录文章</button>`;
   if (state.page === "reviews") return `<button class="btn primary" data-action="new-review">${icon("plus")}录入数据</button>`;
   if (state.page === "todos") return "";
   if (state.settingsTab === "accounts") return `<button class="btn primary" data-action="new-account">${icon("plus")}添加账号</button>`;
@@ -1040,6 +1089,74 @@ function renderSnapshot(row) {
   )}</strong></span>`).join("") || "未记录指标"}</div><p class="cell-sub">来源 ${e(row.source || "未记录")}${row.collected_at ? " · 采集 " + e(displayTime(row.collected_at)) : ""}</p>${row.note ? `<p class="cell-sub">${e(row.note)}</p>` : ""}</article>`;
 }
 
+// web/core/article-ledger.mjs
+var warningLabels = {
+  TOUTIAO_TITLE_TOO_LONG: "头条标题超过 30 字",
+  CHAR_COUNT_OUT_OF_RANGE: "字数不在 2000–2300",
+  SUBHEADING_COUNT_OUT_OF_RANGE: "小标题不在 5–7",
+  ENTERTAINMENT_IMAGES_TOO_FEW: "文娱配图不足 25 张",
+  DRAFT_CREDENTIAL_MISSING: "缺少草稿凭证"
+};
+var isPublished = (row) => !Object.hasOwn(row, "status") || row.status === "published";
+function safeLedgerURL(value) {
+  if (typeof value !== "string" || !/^https?:\/\//i.test(value) || /[\s\u0000-\u001f\u007f]/u.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && !!url.hostname && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+function safeDraftReference(row) {
+  const value = row.draft_ref && typeof row.draft_ref === "object" ? row.draft_ref : {}, refs = [];
+  for (const [key, label] of [["pgc_id", "PGC"], ["appmsgid", "APPMSG"]]) {
+    if (typeof value[key] === "string" && value[key].trim()) refs.push({ label: `${label} ${value[key]}` });
+  }
+  if (safeLedgerURL(value.editor_url)) refs.push({ label: "草稿编辑链接", href: value.editor_url });
+  return refs;
+}
+function pipelineDuration(row) {
+  if (typeof row.started_at !== "string" || typeof row.timings?.finished_at !== "string") return null;
+  const start = Date.parse(row.started_at), end = Date.parse(row.timings.finished_at);
+  return Number.isFinite(start) && Number.isFinite(end) && end >= start ? Math.round((end - start) / 1e3) : null;
+}
+function ledgerTopic(row) {
+  if (row.slot === "gzh") return "保险";
+  return ["zh1", "zh2", "zh3", "tt1", "tt2", "tt3"].includes(row.slot) ? "文娱" : "未标注";
+}
+function ledgerCell(row, key) {
+  if (["reads", "likes", "comments", "approvals", "as_of"].includes(key)) {
+    if (!isPublished(row)) return '<span class="article-ledger-muted">未发布</span>';
+    return key === "as_of" && row.latest_as_of ? e(time(row.latest_as_of, true)) : dashboardMetric(row, key);
+  }
+  if (key === "status") return e(statusLabels[row.status] || (isPublished(row) ? "已发布" : "未确认"));
+  if (key === "slot") return e(slotLabels[row.slot] || "未标注");
+  if (key === "writer") return e(writerLabels[row.writer] || "未记录");
+  if (["char_count", "subheading_count", "image_count"].includes(key)) return row[key] == null ? "未取得" : e(num(row[key]));
+  if (key === "draft_ref") return safeDraftReference(row).map((ref) => ref.href ? `<a href="${e(ref.href)}" target="_blank" rel="noopener noreferrer">${e(ref.label)} ↗</a>` : `<span>${e(ref.label)}</span>`).join("<br>") || "未取得";
+  if (key === "total_duration") {
+    const seconds = pipelineDuration(row);
+    return seconds === null ? "未取得" : e(duration(seconds));
+  }
+  if (key === "warnings") return Array.isArray(row.warnings) ? row.warnings.map((code) => e(warningLabels[code] || code)).join("；") || "无警告" : "未取得";
+  if (key === "verify") return row.has_pending_verify === true ? "有待处理" : row.verify_state === "complete" ? "已核对" : "未确认";
+  if (key === "topic") return e(ledgerTopic(row));
+  if (key === "mode") return e(modeLabels[row.production_mode] || "未记录");
+  if (key === "duration") return row.duration_seconds == null ? "未取得" : e(duration(row.duration_seconds));
+  if (key === "account") return e(row.account_name || "未记录");
+  return !isPublished(row) ? "未发布" : row.published_at ? e(time(row.published_at, true)) : "未取得";
+}
+
+// web/core/modal-request.mjs
+async function modalRequest(path, ticket, version, context) {
+  try {
+    return await api(path, { context });
+  } catch (err) {
+    if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return null;
+    throw err;
+  }
+}
+
 // web/ui/segmented.mjs
 function segmented(action, items, selected, label, attribute = "tab", classes = "") {
   return `<div class="segmented${classes ? " " + e(classes) : ""}" role="group" aria-label="${e(label)}">${items.map(([value, text]) => `<button type="button" class="btn" data-action="${e(action)}" data-${e(attribute)}="${e(value)}" aria-pressed="${selected === value}">${e(
@@ -1067,10 +1184,76 @@ function toast(message, error = false) {
 }
 
 // web/pages/articles.mjs
+var pipelineColumns = /* @__PURE__ */ new Set([
+  "status",
+  "slot",
+  "writer",
+  "char_count",
+  "subheading_count",
+  "image_count",
+  "draft_ref",
+  "total_duration",
+  "warnings",
+  "verify",
+  "topic"
+]);
+var pipelineFilters = ["status", "slot", "writer", "has_warnings", "has_pending_verify", "series_no_min", "series_no_max"];
+var boolChoices = { true: "是", false: "否" };
+var publishedArticle = (article) => !Object.hasOwn(article, "status") || article.status === "published";
+function statusSelect(value = "draft_saved", allowUnknown = false) {
+  const unknown = allowUnknown && !Object.hasOwn(statusLabels, value);
+  if (!unknown && !Object.hasOwn(statusLabels, value)) value = "draft_saved";
+  return `<label class="form-field">状态<select name="status" class="input" aria-label="文章状态">
+${unknown ? '<option value="" selected disabled>未确认，请选择状态</option>' : ""}
+${Object.entries(statusLabels).map(([key, label]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(label)}</option>`).join("")}
+</select></label>`;
+}
+function filterChips(f) {
+  const labels = {
+    q: "搜索",
+    platform: "平台",
+    data_status: "数据状态",
+    from: "发布自",
+    to: "发布至",
+    mode: "生产方式",
+    topic: "旧题材筛选",
+    group: "分组",
+    slot: "槽位",
+    writer: "写作者",
+    has_warnings: "有警告",
+    has_pending_verify: "待核",
+    series_no_min: "系列自",
+    series_no_max: "系列至"
+  };
+  const choices = {
+    platform: platforms,
+    data_status: articleStatuses,
+    slot: slotLabels,
+    writer: writerLabels,
+    has_warnings: boolChoices,
+    has_pending_verify: boolChoices,
+    ...articleChoices
+  };
+  const chips = [["account", "账号", state.account ? accountName(state.account) : ""], ...Object.entries(labels).map(([key, label]) => [key, label, choices[key]?.[f[key]] || f[key]])].filter(([, , value]) => value);
+  if (!chips.length) return "";
+  return `<div class="selected-filters" aria-label="已选条件">${chips.map(([key, label, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key)}"
+aria-label="移除${e(label)}：${e(value)}">${e(label)}：${e(value)} ×</button>`).join("")}
+<button class="btn text" data-action="reset-filters">清空</button></div>`;
+}
+function articlePagination(meta) {
+  const sizes = [.../* @__PURE__ */ new Set([10, 20, 50, 100, state.pageSize])].sort((a, b) => a - b);
+  return `<div class="pagination"><span>共 ${e(num(meta.total))} 篇</span><label>每页
+<select id="page-size" class="input">${sizes.map((n) => `<option value="${e(n)}" ${state.pageSize === n ? "selected" : ""}>${e(n)}</option>`).join("")}</select></label><button class="btn" data-action="list-prev" aria-label="上一页" ${state.listPage <= 1 ? "disabled" : ""}>‹</button>
+<span>${e(num(state.listPage))} / ${e(num(Math.max(1, Math.ceil(meta.total / state.pageSize))))}</span>
+<button class="btn" data-action="list-next" aria-label="下一页" ${meta.has_more ? "" : "disabled"}>›</button></div>`;
+}
 async function renderArticles(version = runtime.renderVersion, context) {
   const f = { ...state.filters }, params = new URLSearchParams();
   if (state.account) params.set("account_id", state.account);
-  for (const key of ["q", "mode", "from", "to", "sort", "order", "platform", "topic", "data_status"]) if (f[key]) params.set(key, f[key]);
+  for (const key of ["q", "mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
+    if (f[key]) params.set(key, f[key]);
+  }
+  params.set("status", f.status || "draft_saved");
   params.set("page", state.listPage);
   params.set("page_size", state.pageSize);
   const payload = await api(`/articles?${params}`, { envelope: true, context });
@@ -1078,122 +1261,219 @@ async function renderArticles(version = runtime.renderVersion, context) {
   const articles = payload.data, meta = payload.meta || { total: articles.length, unfiltered_total: articles.length, has_more: false };
   state.articles = articles;
   state.articleMeta = meta;
-  const chips = [["account", "账号", state.account ? accountName(state.account) : ""], ...Object.entries({
-    q: "搜索",
-    platform: "平台",
-    data_status: "数据状态",
-    from: "发布自",
-    to: "发布至",
-    topic: "题材",
-    mode: "生产方式",
-    group: "分组"
-  }).map(([key, label]) => [
-    key,
-    label,
-    (key === "platform" ? platforms : key === "data_status" ? articleStatuses : articleChoices[key])?.[f[key]] || f[key]
-  ])].filter(
-    ([, , value]) => value
+  const content = articles.length ? articleTable(articles) : empty(
+    meta.unfiltered_total ? "筛选无结果" : "尚未记录文章",
+    "可先保存草稿，发布时再填写真实链接和时间。",
+    '<button class="btn" data-action="reset-filters">清空筛选</button>'
   );
-  return `<section class="card article-list"><form id="article-filters" class="filters"><label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}" placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${platformFilter(
-    "article-platform",
-    f.platform,
-    "文章平台"
-  )}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}<button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button></form>${chips.length ? `<div class="selected-filters" aria-label="已选条件">${chips.map(([key, label, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key)}" aria-label="移除${e(label)}：${e(value)}">${e(label)}：${e(value)} ×</button>`).join("")}<button class="btn text" data-action="reset-filters">清空</button></div>` : ""}${articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "尚未记录文章", "", '<button class="btn" data-action="reset-filters">清空筛选</button>')}<div class="pagination"><span>共 ${e(num(meta.total))} 篇</span><label>每页<select id="page-size" class="input">${[.../* @__PURE__ */ new Set([
-    10,
-    20,
-    50,
-    100,
-    state.pageSize
-  ])].sort((a, b) => a - b).map((n) => `<option value="${e(n)}" ${state.pageSize === n ? "selected" : ""}>${e(n)}</option>`).join(
-    ""
-  )}</select></label><button class="btn" data-action="list-prev" aria-label="上一页" ${state.listPage <= 1 ? "disabled" : ""}>‹</button><span>${e(num(state.listPage))} / ${e(num(Math.max(1, Math.ceil(meta.total / state.pageSize))))}</span><button class="btn" data-action="list-next" aria-label="下一页" ${meta.has_more ? "" : "disabled"}>›</button></div></section>`;
+  return `<section class="card article-list article-ledger article-ledger-list"><form id="article-filters" class="filters">
+<label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}"
+placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${statusSelect(f.status || "draft_saved")}
+${platformFilter("article-platform", f.platform, "文章平台")}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}
+<button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button>
+</form>${filterChips(f)}${content}${articlePagination(meta)}</section>`;
+}
+function pipelineFilterFields(f) {
+  return `${statusSelect(f.status || "draft_saved")}${articleSelect("slot", "槽位", slotLabels, f.slot)}
+${articleSelect("writer", "写作者", writerLabels, f.writer)}${articleSelect("has_warnings", "有警告", boolChoices, f.has_warnings)}
+${articleSelect("has_pending_verify", "有明确待核", boolChoices, f.has_pending_verify)}
+${field("series_no_min", "系列编号自", "number", f.series_no_min, 'min="1" step="1"')}
+${field("series_no_max", "系列编号至", "number", f.series_no_max, 'min="1" step="1"')}`;
 }
 function articleFilterPanel({ filters: f = state.filters, columns: c = state.columns, account = state.account } = {}) {
-  return `<form id="filter-panel">${["q", "platform", "data_status"].map((key) => `<input type="hidden" name="${e(key)}" value="${e(f[key])}">`).join("")}<h2>筛选 <span class="badge">草稿 · 应用后生效</span></h2><div class="form-grid"><label class="form-field full">运营账号<select name="account" class="input" aria-label="运营账号">${accountOptions(account)}</select></label>${field("from", "发布自", "date", f.from)}${field(
-    "to",
-    "发布至",
-    "date",
-    f.to
-  )}${Object.entries({ topic: "题材", mode: "生产方式", group: "分组" }).map(([key, label]) => articleSelect(
-    key,
-    label,
-    articleChoices[key],
-    f[key]
-  )).join("")}<fieldset class="form-field full permission-fields"><legend>显示字段</legend><div class="checkboxes">${Object.entries(articleColumns).map(([key, [label]]) => `<label class="check-option"><input type="checkbox" name="columns" value="${e(key)}" ${c.has(key) ? "checked" : ""}>${e(label)}</label>`).join("")}</div></fieldset><div class="form-field full"><span>更多排序</span><input type="hidden" name="sort" value="${e(f.sort)}"><input type="hidden" name="order" value="${e(f.order)}"><div class="head-actions">${Object.entries(articleColumns).filter(([, [, sort]]) => sort).map(([key, [label, sort]]) => `<button type="button" class="btn small" data-action="draft-sort" data-visible="${sort === "published_at" || c.has(key)}" data-sort="${e(sort)}" aria-pressed="${f.sort === sort}">${e(label)} ${f.sort === sort ? f.order === "asc" ? "↑" : "↓" : "↕"}</button>`).join("") || "使用表头排序"}</div></div><div class="form-field full"><label for="filter-view">常用视图（筛选和字段）</label><select id="filter-view" class="input"><option value="">选择视图后应用</option>${state.savedViews.map((v) => `<option value="${e(v.id)}">${e(v.name)}</option>`).join("")}</select><button type="button" class="btn" data-action="save-view">保存已应用视图</button></div></div><div class="form-actions"><button type="button" class="btn" data-action="reset-draft">重置草稿</button><button type="submit" class="btn">应用</button></div></form>`;
+  return `<form id="filter-panel">${["q", "platform", "data_status"].map((key) => `<input type="hidden" name="${e(key)}" value="${e(f[key])}">`).join("")}
+<h2>文章筛选 <span class="badge">应用后生效</span></h2><div class="form-grid"><label class="form-field full">运营账号
+<select name="account" class="input" aria-label="运营账号">${accountOptions(account)}</select></label>${pipelineFilterFields(f)}
+${field("from", "发布自", "date", f.from)}${field("to", "发布至", "date", f.to)}
+${Object.entries({ mode: "生产方式", group: "分组" }).map(([key, label]) => articleSelect(key, label, articleChoices[key], f[key])).join("")}
+<fieldset class="form-field full permission-fields"><legend>显示字段</legend><div class="checkboxes">
+${Object.entries(articleColumns).map(([key, [label]]) => `<label class="check-option"><input type="checkbox" name="columns"
+value="${e(key)}" ${c.has(key) ? "checked" : ""}>${e(label)}</label>`).join("")}</div></fieldset>
+<div class="form-field full"><span>更多排序</span><input type="hidden" name="sort" value="${e(f.sort)}">
+<input type="hidden" name="order" value="${e(f.order)}"><div class="head-actions">${sortChoices(f, c)}</div></div>
+<div class="form-field full"><label for="filter-view">常用视图（筛选和字段）</label><select id="filter-view" class="input">
+<option value="">选择视图后应用</option>${state.savedViews.map((v) => `<option value="${e(v.id)}">${e(v.name)}</option>`).join("")}
+</select><button type="button" class="btn" data-action="save-view">保存已应用视图</button></div></div>
+<div class="form-actions"><button type="button" class="btn" data-action="reset-draft">重置草稿</button>
+<button type="submit" class="btn">应用</button></div></form>`;
+}
+function sortChoices(f, columns) {
+  return Object.entries(articleColumns).filter(([, [, sort]]) => sort).map(([key, [label, sort]]) => `<button type="button" class="btn small" data-action="draft-sort" data-visible="${sort === "published_at" || columns.has(key)}"
+data-sort="${e(sort)}" aria-pressed="${f.sort === sort}">${e(label)} ${f.sort === sort ? f.order === "asc" ? "↑" : "↓" : "↕"}</button>`).join("") || "使用表头排序";
 }
 function articleDraft(form) {
   const values = new FormData(form), filters = { ...state.filters };
-  for (const key of ["q", "platform", "data_status", "from", "to", "topic", "mode", "group", "sort", "order"]) filters[key] = String(values.get(key) || "");
+  for (const key of ["q", "platform", "data_status", "from", "to", "mode", "group", "sort", "order", ...pipelineFilters]) {
+    filters[key] = String(values.get(key) || "");
+  }
+  filters.topic = "";
+  if (!Object.hasOwn(statusLabels, filters.status)) filters.status = "draft_saved";
   if (!Object.values(articleColumns).some(([, sort]) => sort === filters.sort)) filters.sort = "published_at";
   if (!["asc", "desc"].includes(filters.order)) filters.order = "desc";
-  return { filters, columns: new Set(values.getAll("columns").filter((c) => Object.hasOwn(articleColumns, c))), account: String(values.get("account") || "") };
+  return {
+    filters: normalizeArticlePipelineFilters(filters),
+    columns: new Set(values.getAll("columns").filter((c) => Object.hasOwn(articleColumns, c))),
+    account: String(values.get("account") || "")
+  };
 }
 function viewDraft(view) {
-  return { filters: { ...defaultFilters(), ...Object.fromEntries(Object.entries(view.filters).filter(([key]) => Object.hasOwn(
-    defaultFilters(),
-    key
-  ))) }, columns: /* @__PURE__ */ new Set([...view.columns.filter((key) => Object.hasOwn(articleColumns, key)), ...view.version !== 2 && !view.columns.includes("as_of") ? ["likes", "comments", "as_of"] : []]), account: state.account };
+  return { filters: normalizeArticlePipelineFilters({ ...defaultFilters(), ...Object.fromEntries(Object.entries(view.filters).filter(([key]) => Object.hasOwn(defaultFilters(), key))) }), columns: /* @__PURE__ */ new Set([
+    ...view.columns.filter((key) => Object.hasOwn(articleColumns, key)),
+    ...view.version !== 2 && !view.columns.includes("as_of") ? ["likes", "comments", "as_of"] : []
+  ]), account: state.account };
+}
+function articleCell(article, key) {
+  if (pipelineColumns.has(key)) return ledgerCell(article, key);
+  if (["reads", "likes", "comments", "approvals", "as_of", "published"].includes(key) && !publishedArticle(article)) return "未发布";
+  if (["reads", "likes", "comments", "approvals"].includes(key)) return dashboardMetric(article, key);
+  if (key === "as_of") return article.latest_as_of ? e(time(article.latest_as_of, true)) : dashboardMetric(article, "as_of");
+  if (key === "mode") return badgeMode(article.production_mode);
+  if (key === "duration") return publishedArticle(article) ? e(duration(article.duration_seconds)) : "未发布";
+  if (key === "account") return e(article.account_name);
+  return article.date_status === "unverified" ? "日期待核实" : e(time(article.published_at, true));
+}
+function articleSubtitle(article) {
+  const stamp = publishedArticle(article) ? article.date_status === "unverified" ? "日期待核实" : time(article.published_at, true) : article.run_date || "日期未标注";
+  return `${platformLogo(article.platform)} ${e(article.account_name)} · ${e(stamp)} · ${e(ledgerTopic(article))}`;
+}
+function articleRow(article, columns) {
+  return `<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(article.id)}">
+${e(article.title)}</button><div class="cell-sub">${articleSubtitle(article)}</div></td>
+${columns.map(([key, [label]]) => `<td data-label="${e(label)}">${articleCell(article, key)}</td>`).join("")}
+<td><button class="icon-button" data-action="article-menu" data-id="${e(article.id)}" aria-label="操作：${e(article.title)}"
+aria-haspopup="menu" aria-expanded="false" aria-controls="article-menu-${e(article.id)}">⋯</button></td></tr>`;
 }
 function articleTable(rows) {
   const columns = Object.entries(articleColumns).filter(([key]) => state.columns.has(key));
   let previous = null;
-  const cell = (a, key) => ["reads", "likes", "comments", "approvals"].includes(key) ? dashboardMetric(a, key) : key === "as_of" ? a.latest_as_of ? e(time(a.latest_as_of, true)) : dashboardMetric(a, "as_of") : key === "mode" ? badgeMode(a.production_mode) : key === "duration" ? e(duration(
-    a.duration_seconds
-  )) : key === "account" ? e(a.account_name) : a.date_status === "unverified" ? "日期待核实" : e(time(
-    a.published_at,
-    true
-  ));
-  return `<div class="table-scroll article-desktop"><table class="data-table article-table"><thead><tr><th aria-sort="${!state.columns.has(
-    "published"
-  ) && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key, [label, sort]]) => `<th ${sort ? `aria-sort="${state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>${sort ? sortHeading(
-    sort,
-    label
-  ) : e(label)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}<th>操作</th></tr></thead><tbody class="article-cards">${rows.map((a) => {
-    const group = state.filters.group ? state.filters.group === "account" ? a.account_name : modeLabels[a.production_mode] : null, heading = group && group !== previous ? `<tr class="group-row"><td colspan="${e(columns.length + 2)}">${e(group)}</td></tr>` : "";
+  return `<div class="table-scroll article-desktop"><table class="data-table article-table"><thead><tr>
+<th aria-sort="${!state.columns.has("published") && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key, [label, sort]]) => `<th ${sort ? `aria-sort="${state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>
+${sort ? sortHeading(sort, label) : e(label)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}
+<th>操作</th></tr></thead><tbody class="article-cards">${rows.map((article) => {
+    const group = state.filters.group ? state.filters.group === "account" ? article.account_name : modeLabels[article.production_mode] : null;
+    const heading = group && group !== previous ? `<tr class="group-row"><td colspan="${e(columns.length + 2)}">${e(group)}</td></tr>` : "";
     previous = group;
-    return `${heading}<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button><div class="cell-sub">${platformLogo(a.platform)} ${e(a.account_name)} · ${a.date_status === "unverified" ? "日期待核实" : e(
-      time(a.published_at, true)
-    )}</div></td>${columns.map(([key, [label]]) => `<td data-label="${e(label)}">${cell(a, key)}</td>`).join("")}<td><button class="icon-button" data-action="article-menu" data-id="${e(a.id)}" aria-label="操作：${e(a.title)}" aria-haspopup="menu" aria-expanded="false" aria-controls="article-menu-${e(a.id)}">⋯</button></td></tr>`;
+    return heading + articleRow(article, columns);
   }).join("")}</tbody></table></div>`;
 }
-function articleMenu(a) {
-  return `<button role="menuitem" data-action="article-detail" data-id="${e(a.id)}">详情</button>${safeURL(a.url) ? `<a role="menuitem" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}${[["edit-article", "编辑"], ["review-article", "补充数据"]].map(([action, label]) => `<button role="menuitem" data-action="${e(action)}" data-id="${e(a.id)}">${e(label)}</button>`).join("")}`;
+function articleMenu(article) {
+  return `<button role="menuitem" data-action="article-detail" data-id="${e(article.id)}">详情</button>${safeURL(article.url) ? `<a role="menuitem" href="${e(article.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}
+<button role="menuitem" data-action="edit-article" data-id="${e(article.id)}">编辑</button>${publishedArticle(article) ? `<button role="menuitem" data-action="review-article" data-id="${e(article.id)}">补充数据</button>` : ""}`;
+}
+function nullableSelect(name, label, choices, value) {
+  return `<label class="form-field">${e(label)}<select class="input" name="${e(name)}"><option value="">未标注</option>
+${Object.entries(choices).map(([key, text]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(text)}</option>`).join("")}
+</select></label>`;
+}
+function articleMetadataFields(article) {
+  const status = Object.hasOwn(article, "status") ? article.status : "published";
+  return `${statusSelect(status, true)}${nullableSelect("slot", "槽位", slotLabels, article.slot)}
+${nullableSelect("writer", "写作者", writerLabels, article.writer)}${nullableSelect("illustrator", "配图者", illustratorLabels, article.illustrator)}
+${field("run_dir", "流水线标识（保留斜杠）", "text", article.run_dir, 'maxlength="512"')}
+${field("run_date", "存稿日期", "date", article.run_date)}${field("series_no", "系列编号", "number", article.series_no, 'min="1" step="1"')}
+${field("char_count", "字数", "number", article.char_count, 'min="0" step="1"')}
+${field("subheading_count", "小标题数", "number", article.subheading_count, 'min="0" step="1"')}
+${field("image_count", "图数", "number", article.image_count, 'min="0" step="1"')}
+${field("finished_at", "流水线结束", "datetime-local", localDateTime(article.timings?.finished_at))}
+${field("draft_pgc_id", "头条草稿 pgc_id", "text", article.draft_ref?.pgc_id, 'maxlength="300"')}
+${field("draft_appmsgid", "公众号草稿 appmsgid", "text", article.draft_ref?.appmsgid, 'maxlength="300"')}
+${field("draft_editor_url", "草稿编辑链接（HTTP/HTTPS）", "url", article.draft_ref?.editor_url, 'placeholder="https://…"')}`;
+}
+function articleForm(article, id) {
+  return `<form id="article-form" class="article-ledger article-ledger-form" data-id="${e(id)}" data-version="${e(article.version || "")}">
+<p class="form-context">北京时间 · 草稿无需公开链接或发布时间；只有已发布记录才填写发布信息。</p><div class="form-grid">
+${field("title", '文章标题 <span class="required">*</span>', "text", article.title, 'maxlength="300" required', true)}
+<label class="form-field full">所属运营账号 <span class="required">*</span><select class="input" id="field-account_id"
+name="account_id" required>${accountOptions(article.account_id, false, true)}</select></label>${articleMetadataFields(article)}
+${field("url", "已发布文章链接（发布时必填）", "url", article.url, 'placeholder="https://…"', true)}
+${field("published_at", "实际发布时间（发布时必填）", "datetime-local", localDateTime(article.published_at))}
+${field("started_at", "流水线开始（可选）", "datetime-local", localDateTime(article.started_at))}
+${nullableSelect("production_mode", "原生产方式", modeLabels, article.production_mode)}
+${field("platform_article_id", "平台文章标识（可选）", "text", article.platform_article_id)}
+<label class="form-field full" for="field-summary">文章概况<textarea class="input" name="summary" id="field-summary"
+maxlength="10000">${e(article.summary)}</textarea></label><label class="form-field full" for="field-notes">备注
+<textarea class="input" name="notes" id="field-notes" maxlength="20000">${e(article.notes)}</textarea></label>
+</div>${formEnd(id ? "保存修改" : "保存文章")}</form>`;
 }
 async function articleModal(id = "") {
-  const context = beginModalRequests();
-  const ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion;
-  let a = { account_id: state.account, production_mode: "unknown" };
-  if (id) a = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version, context);
+  const context = beginModalRequests(), ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion;
+  let article = { account_id: state.account, production_mode: "unknown", status: "draft_saved" };
+  if (id) article = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version, context);
   if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
-  const activeAccounts = state.accounts.filter((x) => x.active || x.id === a.account_id);
-  if (!activeAccounts.length) {
+  const active = state.accounts.filter((account) => account.active || account.id === article.account_id);
+  if (!active.length) {
     toast("请先添加一个启用的运营账号。", true);
     return;
   }
-  openModal(id ? "编辑发布记录" : "记录发布", `<form id="article-form" data-id="${e(id)}" data-version="${e(a.version || "")}"><p class="form-context">北京时间</p><div class="form-grid">${field(
-    "title",
-    '文章标题 <span class="required">*</span>',
-    "text",
-    a.title,
-    'maxlength="500" required',
-    true
-  )}<div class="form-field full"><label for="field-account_id">所属运营账号 <span class="required">*</span></label><select class="input" id="field-account_id" name="account_id" required>${accountOptions(a.account_id, false, true)}</select></div>${field("url", '已发布文章链接 <span class="required">*</span>', "url", a.url, 'placeholder="https://…" required', true)}${field(
-    "published_at",
-    '实际发布时间 <span class="required">*</span>',
-    "datetime-local",
-    localDateTime(a.published_at),
-    "required"
-  )}${field(
-    "started_at",
-    "选题开始时间（可选）",
-    "datetime-local",
-    localDateTime(a.started_at)
-  )}<div class="form-field"><label for="field-production_mode">文章生产方式</label><select class="input" id="field-production_mode" name="production_mode">${Object.entries(modeLabels).map(([key, label]) => `<option value="${key}" ${a.production_mode === key ? "selected" : ""}>${label}</option>`).join("")}</select></div>${field(
-    "platform_article_id",
-    "平台文章标识（可选）",
-    "text",
-    a.platform_article_id
-  )}<div class="form-field full"><label for="field-summary">文章概况</label><textarea class="input" name="summary" id="field-summary" maxlength="5000">${e(a.summary)}</textarea></div><div class="form-field full"><label for="field-notes">备注</label><textarea class="input" name="notes" id="field-notes" maxlength="10000">${e(a.notes)}</textarea></div></div>${formEnd(id ? "保存修改" : "保存发布记录")}</form>`);
+  openModal(id ? "编辑文章台账" : "记录文章", articleForm(article, id));
+  runtime.articleFormRecord = { record: article, sessionEpoch: runtime.sessionEpoch, ticket: runtime.modalRequestVersion };
+}
+
+// web/core/article-ledger-data.mjs
+var ledgerStatuses = ["drafting", "illustrated", "draft_saved", "published", "failed"];
+var ledgerWriters = ["dedao", "gemini_web", "human", "other"];
+var ledgerLimits = { pageSize: 200, maxRequests: 20, maxRows: 2e3 };
+function ledgerReadError() {
+  return Object.assign(new Error("文章台账读取未完成，请重新加载。"), { code: "LEDGER_INCOMPLETE" });
+}
+function summarizeArticleLedger(rows) {
+  if (!Array.isArray(rows)) throw ledgerReadError();
+  const counts = Object.fromEntries(ledgerStatuses.map((status) => [status, 0]));
+  const writers = [...ledgerWriters, "unknown"].map((writer) => ({ writer, unpublished: 0, published: 0, total: 0 }));
+  for (const row of rows) {
+    if (!row || !ledgerStatuses.includes(row.status)) throw ledgerReadError();
+    counts[row.status]++;
+    const writer = writers.find((item) => item.writer === (ledgerWriters.includes(row.writer) ? row.writer : "unknown"));
+    writer[row.status === "published" ? "published" : "unpublished"]++;
+    writer.total++;
+  }
+  return {
+    verified: true,
+    total: rows.length,
+    unpublished: rows.length - counts.published,
+    published: counts.published,
+    draft_saved: counts.draft_saved,
+    counts,
+    writers: writers.filter((writer) => writer.total > 0),
+    consistency: "paged_not_atomic"
+  };
+}
+function validateLedgerPage(payload, status, accountId, page, expectedTotal, seen) {
+  const rows = payload?.data, meta = payload?.meta, offset = (page - 1) * ledgerLimits.pageSize;
+  if (!Array.isArray(rows) || !meta || !Number.isSafeInteger(meta.total) || meta.total < 0 || meta.total > ledgerLimits.maxRows || meta.page !== page || meta.page_size !== ledgerLimits.pageSize || meta.offset !== offset || typeof meta.has_more !== "boolean" || expectedTotal !== void 0 && expectedTotal !== meta.total || rows.length > ledgerLimits.pageSize || rows.length !== Math.min(ledgerLimits.pageSize, Math.max(0, meta.total - offset)) || meta.has_more !== offset + rows.length < meta.total) throw ledgerReadError();
+  for (const row of rows) {
+    if (!row || typeof row.id !== "string" || !row.id || row.status !== status || typeof row.account_id !== "string" || accountId && row.account_id !== accountId || seen.has(row.id)) throw ledgerReadError();
+    seen.add(row.id);
+  }
+  return { rows, meta };
+}
+async function loadArticleLedgerSummary(context, { accountId = "", request = api } = {}) {
+  const rows = [], seen = /* @__PURE__ */ new Set();
+  let requests = 0;
+  for (const status of ledgerStatuses) {
+    let total;
+    for (let page = 1; ; page++) {
+      if (++requests > ledgerLimits.maxRequests) throw ledgerReadError();
+      const query = new URLSearchParams({ status, page: String(page), page_size: String(ledgerLimits.pageSize) });
+      if (accountId) query.set("account_id", accountId);
+      const payload = await request(`/articles?${query}`, { envelope: true, context });
+      const result = validateLedgerPage(payload, status, accountId, page, total, seen);
+      if (rows.length + result.rows.length > ledgerLimits.maxRows) throw ledgerReadError();
+      total = result.meta.total;
+      rows.push(...result.rows);
+      if (!result.meta.has_more) break;
+    }
+  }
+  return { ...summarizeArticleLedger(rows), requests };
+}
+
+// web/pages/article-ledger-overview.mjs
+var writerNames = { dedao: "得到大脑", gemini_web: "Gemini", human: "人工", other: "其他", unknown: "未记录" };
+function renderArticleLedgerSummary(data) {
+  if (data?.verified !== true) return '<section class="card article-ledger-overview" role="alert"><h2>文章台账</h2><p>数量未取得，请重新加载。</p></section>';
+  if (data.total === 0) return '<section class="card article-ledger-overview article-ledger-empty"><h2>文章台账</h2><p>尚未记录文章。</p><p class="muted">可以先保存草稿，发布后再补充链接和数据。</p><button class="btn" data-action="new-article">记录草稿</button></section>';
+  const stats = [["草稿 / 未发布", data.unpublished], ["已存草稿", data.draft_saved], ["已发布", data.published]];
+  return `<section class="card article-ledger-overview"><div class="section-heading"><h2>文章台账</h2></div><dl class="article-ledger-stats">${stats.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(num(value))}</dd></div>`).join("")}</dl><h3>按写作者</h3><div class="table-scroll"><table class="data-table article-ledger-writers"><thead><tr><th>写作者</th><th>草稿 / 未发布</th><th>已发布</th></tr></thead><tbody>${data.writers.map((row) => `<tr><td>${e(writerNames[row.writer] || "未记录")}</td><td data-label="草稿 / 未发布">${e(num(row.unpublished))}</td><td data-label="已发布">${e(num(row.published))}</td></tr>`).join("")}</tbody></table></div><p class="cell-sub">按本站完整分页记录统计；翻页期间可能有更新，不是原子快照。未配置槽位排期，不计算应产出或缺失。</p></section>`;
 }
 
 // web/pages/dashboard.mjs
@@ -2653,7 +2933,13 @@ function mainContent() {
     "设置分类",
     "tab",
     "page-tabs"
-  ) : ""}<div id="page-content"></div>`;
+  ) : ""}${state.page === "dashboard" ? `<div class="article-ledger-overview article-ledger-scope">${segmented(
+    "article-overview-mode",
+    [["drafts", "存稿台账"], ["published", "已发布数据"]],
+    state.articleOverviewMode,
+    "总览口径",
+    "mode"
+  )}</div>` : ""}<div id="page-content"></div>`;
 }
 function mobileNavigation() {
   return `<nav class="mobile-nav notes-navigation" aria-label="切换模块">${nav.map((n) => `<a href="?page=${e(n.id)}${n.id === "settings" ? "&amp;tab=accounts" : ""}"
@@ -2689,8 +2975,8 @@ function renderShell() {
   renderPage();
 }
 function navigateLink(page) {
-  const same = page === state.page && (page !== "settings" || state.settingsTab === "accounts") && (page !== "todos" || !state.todoDate);
-  if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
+  const same2 = page === state.page && (page !== "settings" || state.settingsTab === "accounts") && (page !== "todos" || !state.todoDate);
+  if (same2 && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
     return;
   }
@@ -2719,6 +3005,25 @@ function setPageBody(html, page) {
   else if (page === "notes") paintDailyNotesPage();
   else replacePageContent(html, true);
 }
+function publishedArticleLinks(html) {
+  const query = new URLSearchParams({ page: "articles", status: "published", sort: "reads", order: "desc" });
+  if (state.topPlatform) query.set("platform", state.topPlatform);
+  return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
+}
+async function loadArticleOverview(version, context) {
+  if (state.articleOverviewMode !== "published") {
+    state.dashboard = null;
+    const summary = await loadArticleLedgerSummary(context);
+    return version === runtime.renderVersion ? renderArticleLedgerSummary(summary) : "";
+  }
+  const data = await api(
+    `/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`,
+    { context }
+  );
+  if (version !== runtime.renderVersion) return "";
+  state.dashboard = data;
+  return publishedArticleLinks(renderDashboardSummary(data));
+}
 async function renderPage() {
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -2740,13 +3045,7 @@ async function renderPage() {
         await loadDailyNotes();
         break;
       case "dashboard":
-        data = await api(
-          `/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`,
-          { context }
-        );
-        if (version !== runtime.renderVersion) return;
-        state.dashboard = data;
-        html = renderDashboardSummary(data);
+        html = await loadArticleOverview(version, context);
         break;
       case "articles":
         html = await renderArticles(version, context);
@@ -2832,6 +3131,195 @@ async function init({ freshLogin = false } = {}) {
       renderLogin();
       toast(err.message, true);
     } else renderLogin();
+  }
+}
+
+// web/pages/article-verification.mjs
+var copy = (value) => structuredClone(value);
+var same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+function validArticle(value, id) {
+  return value?.id === id && Number.isSafeInteger(value.version) && value.version > 0 && (value.verify_items === null || Array.isArray(value.verify_items));
+}
+function verificationIntent(index, done) {
+  return `第 ${index + 1} 项设为${done ? "已处理" : "待处理"}`;
+}
+function createArticleVerificationStore({ article, load, put, uuid = () => crypto.randomUUID(), onChange = () => {
+}, isCurrent = () => true }) {
+  let current = copy(article), phase = "idle", message = "", pending = null, busy = false, retryReady = false;
+  const snapshot = () => ({ article: copy(current), phase, message, busy, retryReady });
+  const notify = () => onChange(snapshot());
+  function received(value) {
+    if (!validArticle(value, current.id)) throw new Error("详情读取不完整，请重新打开核对。");
+    current = copy(value);
+  }
+  async function reconcile(conflict = false) {
+    let remote;
+    try {
+      remote = await load(current.id);
+    } catch {
+      phase = "unknown";
+      retryReady = false;
+      message = "保存结果尚未确认，请重新核对；不会自动重发。";
+      return false;
+    }
+    if (!validArticle(remote, current.id)) {
+      phase = "unknown";
+      retryReady = false;
+      message = "详情读取不完整，保存结果尚未确认。";
+      return false;
+    }
+    if (pending && remote.version > pending.body.version && same(remote.verify_items, pending.body.verify_items)) {
+      received(remote);
+      pending = null;
+      phase = "saved";
+      retryReady = false;
+      message = "已核对服务器记录，当前选择已保存。";
+      return false;
+    }
+    if (conflict || pending && remote.version !== pending.body.version) {
+      const intent = pending ? verificationIntent(pending.index, pending.done) : "本次选择";
+      received(remote);
+      pending = null;
+      phase = "conflict";
+      retryReady = false;
+      message = `${intent}未保存；已显示最新版本，请核对后重新选择。`;
+      return false;
+    }
+    received(remote);
+    phase = pending ? "unknown" : "idle";
+    retryReady = !!pending && same(remote.verify_items, pending.before);
+    message = pending ? retryReady ? "原保存尚未确认；已读取当前版本，可显式重试原保存。" : "记录状态尚未确认，请重新核对；不会重发保存。" : "已重新读取最新记录。";
+    return retryReady;
+  }
+  async function send() {
+    if (!isCurrent()) return;
+    phase = "saving";
+    message = "正在保存…";
+    retryReady = false;
+    notify();
+    let response;
+    try {
+      response = await put(current.id, copy(pending.body), pending.key);
+    } catch (error) {
+      if (error.status >= 400 && error.status < 500 && error.status !== 409) {
+        pending = null;
+        phase = "error";
+        message = error.message || "保存被拒绝，请核对后重试。";
+      } else await reconcile(error.status === 409);
+      return;
+    }
+    if (!validArticle(response, current.id) || response.version <= pending.body.version || !same(response.verify_items, pending.body.verify_items)) {
+      await reconcile();
+      return;
+    }
+    received({ ...current, ...response });
+    pending = null;
+    phase = "saved";
+    message = "已保存。";
+    try {
+      const remote = await load(current.id);
+      if (validArticle(remote, current.id) && remote.version >= current.version) {
+        const matches = same(remote.verify_items, current.verify_items);
+        received(remote);
+        if (!matches) {
+          phase = "conflict";
+          message = "保存后记录又有更新，已显示最新内容。";
+        }
+      }
+    } catch {
+      message = "已保存，最新详情暂未读取。";
+    }
+  }
+  async function save(index, done) {
+    if (busy || pending || !Number.isSafeInteger(index) || typeof done !== "boolean" || !Array.isArray(current.verify_items) || !current.verify_items[index] || typeof current.verify_items[index] !== "object") return;
+    if (current.verify_items[index].done === done) return;
+    const items = copy(current.verify_items);
+    items[index].done = done;
+    pending = { index, done, before: copy(current.verify_items), body: { version: current.version, verify_items: items }, key: uuid() };
+    busy = true;
+    try {
+      await send();
+    } finally {
+      busy = false;
+      notify();
+    }
+  }
+  async function refresh() {
+    if (busy) return;
+    busy = true;
+    notify();
+    try {
+      await reconcile();
+    } finally {
+      busy = false;
+      notify();
+    }
+  }
+  async function retry() {
+    if (busy || !pending) return;
+    busy = true;
+    notify();
+    try {
+      if (await reconcile()) await send();
+    } finally {
+      busy = false;
+      notify();
+    }
+  }
+  return { snapshot, save, refresh, retry };
+}
+var binding = null;
+function bindArticleVerification(article, { isCurrent, render }) {
+  const epoch = runtime.sessionEpoch, value = { articleId: article.id, epoch, isCurrent, render, store: null };
+  value.store = createArticleVerificationStore({
+    article,
+    isCurrent: () => binding === value && epoch === runtime.sessionEpoch && isCurrent(),
+    load: (id) => api(`/articles/${encodeURIComponent(id)}`),
+    put: (id, body, key) => api(`/articles/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body,
+      headers: { "Idempotency-Key": key }
+    }),
+    onChange: (state2) => {
+      if (binding === value && epoch === runtime.sessionEpoch && isCurrent()) render(state2);
+    }
+  });
+  binding = value;
+  return value.store.snapshot();
+}
+function activeBinding() {
+  return binding && binding.epoch === runtime.sessionEpoch && binding.isCurrent() ? binding : null;
+}
+async function handleArticleVerificationChange(target) {
+  const active = activeBinding();
+  if (!active || target.dataset.articleId !== active.articleId) return;
+  const index = Number(target.dataset.articleVerifyIndex);
+  const value = target.type === "checkbox" ? target.checked : target.value === "true" ? true : target.value === "false" ? false : null;
+  if (typeof value === "boolean") {
+    try {
+      await active.store.save(index, value);
+    } catch (error) {
+      verificationFeedback(error);
+    }
+  }
+}
+function verificationFeedback(error) {
+  if (!activeBinding()) return;
+  const status = document.querySelector("#overlay [data-article-verify-status]");
+  if (status) status.textContent = error.message || "详情暂时无法刷新，请重新打开核对。";
+}
+async function refreshArticleVerification() {
+  try {
+    await activeBinding()?.store.refresh();
+  } catch (error) {
+    verificationFeedback(error);
+  }
+}
+async function retryArticleVerification() {
+  try {
+    await activeBinding()?.store.retry();
+  } catch (error) {
+    verificationFeedback(error);
   }
 }
 
@@ -2937,7 +3425,90 @@ function registerTodoGestures(onOpen, isEligible = () => true) {
 }
 
 // web/pages/detail.mjs
+var articleStatus = { drafting: "撰写中", illustrated: "已配图", draft_saved: "草稿已存", published: "已发布", failed: "失败" };
+var articleWriter = { dedao: "得到大脑", gemini_web: "Gemini", human: "本人", other: "其他" };
+var warningLabels2 = {
+  TOUTIAO_TITLE_TOO_LONG: "头条标题超过 30 字",
+  CHAR_COUNT_OUT_OF_RANGE: "字数不在 2000–2300",
+  SUBHEADING_COUNT_OUT_OF_RANGE: "小标题不在 5–7",
+  ENTERTAINMENT_IMAGES_TOO_FEW: "文娱图片少于 25 张",
+  DRAFT_CREDENTIAL_MISSING: "草稿凭证未确认"
+};
+var isPublished2 = (a) => !Object.hasOwn(a, "status") || a.status === "published";
+var observed = (value) => value === null || value === void 0 ? "未取得" : String(value);
+function safeDetailURL(value) {
+  if (typeof value !== "string" || !/^https?:\/\//i.test(value) || /[\s\u0000-\u001f\u007f]/u.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return !!url.hostname && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+function jsonText(value) {
+  return JSON.stringify(value, null, 2) ?? "未取得";
+}
+function readonlyJSON(label, value) {
+  return `<details class="detail-section article-ledger-json"><summary>${e(label)}</summary><pre>${e(
+    value === null || value === void 0 ? "未取得" : jsonText(value)
+  )}</pre></details>`;
+}
+function draftReference(a) {
+  const ref = a.draft_ref || {}, ids = [["pgc_id", "头条草稿"], ["appmsgid", "公众号草稿"]].filter(([key]) => typeof ref[key] === "string" && ref[key].trim());
+  return `<section class="detail-section"><h3>草稿凭证</h3>${ids.map(([key, label]) => `<p>${e(label)} · <code>${e(ref[key])}</code></p>`).join("")}${safeDetailURL(ref.editor_url) ? `<p><a href="${e(ref.editor_url)}" target="_blank" rel="noopener noreferrer">草稿编辑链接 ↗</a></p>` : ""}${!ids.length && !safeDetailURL(ref.editor_url) ? '<p class="cell-sub">未确认</p>' : ""}<p class="cell-sub">链接只校验格式，未验证远端权限或草稿是否存在。</p></section>`;
+}
+function itemText(item) {
+  const label = ["label", "description", "text", "message", "title", "key"].find((name) => typeof item[name] === "string" && item[name]);
+  return label ? item[label] : jsonText(item);
+}
+function verificationControl(a, item, index, disabled) {
+  const attrs = `data-article-id="${e(a.id)}" data-article-verify-index="${index}" ${disabled ? "disabled" : ""}`;
+  if (typeof item.done === "boolean") return `<label class="check-option"><input type="checkbox" ${attrs} ${item.done ? "checked" : ""}><span>${e(itemText(item))}</span><small>${item.done ? "已处理" : "待处理"}</small></label>`;
+  return `<label class="article-verify-unknown"><span>${e(itemText(item))}</span><span class="badge">未确认</span><select class="input" aria-label="第 ${index + 1} 项处理状态" ${attrs}><option value="" selected>未确认，请明确选择</option><option value="false">标记待处理</option><option value="true">标记已处理</option></select></label>`;
+}
+function verificationSection(a, view) {
+  const items = Array.isArray(a.verify_items) ? a.verify_items : null;
+  const disabled = view.busy || view.phase === "unknown";
+  const stateLabel = { pending: "有待处理项", complete: "已确认处理状态", unknown: "状态未确认" }[a.verify_state] || "状态未确认";
+  return `<section class="detail-section article-verification"><h3>待核清单 <span class="badge">${e(stateLabel)}</span></h3>${items ? items.length ? `<ul class="article-verification-items">${items.map((item, index) => `<li>${verificationControl(
+    a,
+    item,
+    index,
+    disabled
+  )}<details><summary>原始信息</summary><pre>${e(jsonText(item))}</pre></details></li>`).join("")}</ul>` : '<p class="cell-sub">清单为空，没有已记录的待核项。</p>' : '<p class="cell-sub">未取得清单，不能判断是否已处理。</p>'}<p class="article-verify-status" data-article-verify-status role="status" aria-live="polite">${e(view.message || "修改后按当前版本保存。")}</p><div class="head-actions">${view.phase === "unknown" ? `<button class="btn small" data-action="article-verify-refresh" ${view.busy ? "disabled" : ""}>重新核对</button>${view.retryReady ? `<button class="btn small" data-action="article-verify-retry" ${view.busy ? "disabled" : ""}>重试原保存</button>` : ""}` : ""}</div></section>`;
+}
+function articlePipelineFields(a) {
+  const topic = a.slot === "gzh" ? "保险" : ["zh1", "zh2", "zh3", "tt1", "tt2", "tt3"].includes(a.slot) ? "文娱" : "未标注";
+  const seconds = a.started_at && a.timings?.finished_at ? (Date.parse(a.timings.finished_at) - Date.parse(a.started_at)) / 1e3 : null;
+  return [
+    ["状态", articleStatus[a.status] || "未确认"],
+    ["槽位", a.slot || "未标注"],
+    ["题材", topic],
+    ["写作者", articleWriter[a.writer] || "未标注"],
+    ["配图者", a.illustrator || "未标注"],
+    ["字数", observed(a.char_count)],
+    ["小标题", observed(a.subheading_count)],
+    ["图数", observed(a.image_count)],
+    ["流水线开始", displayTime(a.started_at)],
+    ["流水线结束", displayTime(a.timings?.finished_at)],
+    ["流水线总耗时", Number.isFinite(seconds) && seconds >= 0 ? duration(seconds) : "未取得"]
+  ];
+}
+function renderArticleDetailBody(a, view = { phase: "idle", busy: false, retryReady: false, message: "" }) {
+  const info = [
+    ["生产方式", modeLabels[a.production_mode] || "未记录"],
+    ["原始发布时间", isPublished2(a) ? displayTime(a.published_at) : "未发布"],
+    ["录入者", a.recorded_by?.label || "未记录"],
+    ["修改者", a.last_modified_by?.label || "未记录"],
+    ["录入时间", displayTime(a.created_at)],
+    ["修改时间", displayTime(a.updated_at)]
+  ];
+  return `<div class="article-ledger-detail" data-article-detail="${e(a.id)}"><div class="head-actions">${isPublished2(a) && safeDetailURL(a.url) ? `<a class="btn small" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}<button class="btn small" data-action="edit-article" data-id="${e(a.id)}">编辑</button>${isPublished2(a) ? `<button class="btn small primary" data-action="review-article" data-id="${e(a.id)}">+ 补充数据</button>` : ""}</div><dl class="detail-grid">${articlePipelineFields(a).map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl>${Array.isArray(a.warnings) && a.warnings.length ? `<p class="info-line warn">${a.warnings.map((code) => e(warningLabels2[code] || code)).join(" · ")}</p>` : ""}${draftReference(a)}${readonlyJSON("样本来源", a.sample)}${readonlyJSON("阶段时间线", a.timings)}${readonlyJSON("阻塞记录", a.blockers)}${verificationSection(a, view)}${renderArticleAnalytics(a)}<details class="detail-section"><summary>记录信息</summary><dl class="detail-grid">${info.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl></details>${[["summary", "概况"], ["notes", "备注"]].filter(([key]) => typeof a[key] === "string" && a[key].trim()).map(([key, label]) => `<section class="detail-section"><h3>${e(label)}</h3><p>${e(
+    a[key]
+  )}</p></section>`).join("")}</div>`;
+}
 function renderArticleAnalytics(a) {
+  if (!isPublished2(a)) return '<section class="detail-section article-unpublished"><h3>阅读与复盘</h3><strong>未发布</strong><p class="cell-sub">发布后再记录阅读指标和复盘节点。</p></section>';
   const timeline = a.timeline || [], nodes = a.nodes || [];
   return `${metricSummary(a)}<p class="cell-sub">截至 ${a.latest_metrics == null ? "未采集" : e(displayTime(a.latest_as_of))} · 采集于 ${a.latest_metrics == null ? "未采集" : e(displayTime(a.latest_collected_at))}</p><section class="detail-section"><h3>观察节点</h3><ol class="snapshot-nodes">${nodes.map((n) => {
     const unknown = n.kind !== "latest" && a.date_status === "unverified" && !n.snapshot, status = unknown ? "unknown" : n.status, label = unknown ? "日期待核实" : { recorded: "已记录", before_due: "记录早于节点", not_due: "未到期", not_collected: "未采集" }[status] || "状态未知";
@@ -2968,18 +3539,23 @@ async function articleDetail(id) {
     context
   );
   if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
-  const fields = [["生产方式", modeLabels[a.production_mode] || "未记录"], ["原始发布时间", displayTime(a.published_at)], ["选题时间", displayTime(a.started_at)], ["耗时", duration(a.duration_seconds)], ["录入者", a.recorded_by?.label || "未记录"], [
-    "修改者",
-    `${a.last_modified_by?.label || "未记录"} · ${displayTime(a.last_modified_by?.at)}`
-  ], ["录入时间", displayTime(a.created_at)], ["修改时间", displayTime(a.updated_at)]];
-  openModal(a.title, `<div class="head-actions">${safeURL(a.url) ? `<a class="btn small" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}<button class="btn small" data-action="edit-article" data-id="${e(a.id)}">编辑</button><button class="btn small primary" data-action="review-article" data-id="${e(a.id)}">+ 补充数据</button></div>${renderArticleAnalytics(a)}<details class="detail-section"><summary>记录信息</summary><dl class="detail-grid">${fields.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(
-    value
-  )}</dd></div>`).join("")}</dl></details>${[["summary", "概况"], ["notes", "备注"]].filter(([key]) => a[key]?.trim()).map(([key, label]) => `<section class="detail-section"><h3>${e(label)}</h3><p>${e(a[key])}</p></section>`).join("")}`, { drawer: true, context: `<div class="account-title">${platformLogo(a.platform)}${e(a.account_name || accountName(a.account_id))} · ${a.date_status === "unverified" ? "日期待核实" : e(displayTime(a.published_at))}</div>` });
+  openModal(a.title, renderArticleDetailBody(a), { drawer: true, context: `<div class="account-title">${platformLogo(a.platform)}${e(
+    a.account_name || accountName(a.account_id)
+  )} · ${e(articleStatus[a.status] || "未确认")}</div>` });
+  const modal = runtime.modalRequestVersion, epoch = runtime.sessionEpoch;
+  const isCurrent = () => modal === runtime.modalRequestVersion && version === runtime.renderVersion && epoch === runtime.sessionEpoch && document.querySelector("#overlay .article-ledger-detail")?.dataset.articleDetail === a.id;
+  bindArticleVerification(a, { isCurrent, render(view) {
+    if (!isCurrent()) return;
+    const focused = document.activeElement?.dataset?.articleVerifyIndex;
+    document.querySelector("#overlay .article-ledger-detail").outerHTML = renderArticleDetailBody(view.article, view);
+    document.querySelector("#modal-title").textContent = view.article.title;
+    if (focused !== void 0 && !view.busy) Array.from(document.querySelectorAll("#overlay [data-article-verify-index]")).find((node) => node.dataset.articleVerifyIndex === focused)?.focus();
+  } });
 }
 
 // web/actions.mjs
 function actionMissingList({ target }) {
-  state.filters = { ...defaultFilters(), data_status: target.dataset.status || "incomplete" };
+  state.filters = { ...defaultFilters(), status: "published", data_status: target.dataset.status || "incomplete" };
   state.account = "";
   state.listPage = 1;
   navigate("articles");
@@ -3087,6 +3663,7 @@ function actionAllTop({ target, event, action }) {
   event.preventDefault();
   state.filters = {
     ...defaultFilters(),
+    status: "published",
     platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
     ...action === "all-top" ? { sort: "reads", order: "desc" } : {}
   };
@@ -3104,7 +3681,7 @@ function actionTrendTab({ target, action }) {
   if (["metrics", "publication"].includes(target.dataset.tab)) {
     state.trendTab = target.dataset.tab;
     state.trendOpen = true;
-    replacePageContent(renderDashboard(state.dashboard));
+    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
     $("[data-action=trend-tab][data-tab=" + state.trendTab + "]")?.focus();
   }
   return;
@@ -3136,6 +3713,14 @@ function actionOverviewPeriod({ target }) {
   }
   return;
 }
+function actionArticleOverviewMode({ target }) {
+  const mode = target.dataset.mode;
+  if (!["drafts", "published"].includes(mode) || state.articleOverviewMode === mode) return;
+  state.articleOverviewMode = mode;
+  updateRoute(true);
+  renderShell();
+  $("[data-action=article-overview-mode][aria-pressed=true]")?.focus();
+}
 function actionShowDue({}) {
   state.reviewTab = "pending";
   navigate("reviews");
@@ -3144,7 +3729,7 @@ function actionShowDue({}) {
 function actionToggleAttention({}) {
   state.attentionExpanded = !state.attentionExpanded;
   if (state.dashboard) {
-    replacePageContent(renderDashboard(state.dashboard));
+    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
   }
   return;
 }
@@ -3193,6 +3778,7 @@ function actionNewKey({}) {
   return;
 }
 function actionSelectAccount({ id }) {
+  state.filters = { ...defaultFilters(), status: "published" };
   state.account = id;
   state.listPage = 1;
   navigate("articles");
@@ -3233,6 +3819,9 @@ function actionResetFilters({}) {
   return;
 }
 var actions = {
+  "article-overview-mode": actionArticleOverviewMode,
+  "article-verify-retry": retryArticleVerification,
+  "article-verify-refresh": refreshArticleVerification,
   "todo-menu": openTodoMenu,
   "todo-delete": ({ target }) => deleteTodo(target.dataset),
   "todo-restore": ({ target }) => restoreTodo(target.dataset),
@@ -3294,6 +3883,158 @@ var actions = {
   "reset-filters": actionResetFilters
 };
 
+// web/pages/article-form.mjs
+var textValue = (value) => typeof value === "string" ? value.trim() : "";
+var objectValue = (value) => value && typeof value === "object" && !Array.isArray(value);
+function articleFormCurrent(form, cache = runtime.articleFormRecord) {
+  return !!cache && cache === runtime.articleFormRecord && cache.sessionEpoch === runtime.sessionEpoch && cache.ticket === runtime.modalRequestVersion && form.isConnected && (cache.record?.id || "") === (form.dataset.id || "") && String(cache.record?.version || "") === (form.dataset.version || "");
+}
+function articleFormRecord(form) {
+  const cache = runtime.articleFormRecord, id = form.dataset.id || "";
+  if (!articleFormCurrent(form, cache) || !objectValue(cache.record) || id && (!Number.isSafeInteger(cache.record.version) || cache.record.version < 1)) {
+    throw new Error("表单记录已失效，请关闭后重新打开再保存。");
+  }
+  return cache;
+}
+function nullableNumber(value, label, minimum = 0) {
+  const raw = textValue(value);
+  if (!raw) return null;
+  const number = Number(raw);
+  if (!/^\d+$/.test(raw) || !Number.isSafeInteger(number) || number < minimum) {
+    throw new Error(`${label}请填写${minimum ? "正" : "非负"}整数，未知时留空。`);
+  }
+  return number;
+}
+function choice(value, choices, label, fallback = null) {
+  const raw = textValue(value);
+  if (!raw) return fallback;
+  if (!Object.hasOwn(choices, raw)) throw new Error(`${label}无效，请重新选择。`);
+  return raw;
+}
+function articleTime(value, label, original) {
+  const raw = textValue(value);
+  if (!raw) return null;
+  const parts = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(raw);
+  if (!parts) throw new Error(`${label}请填写有效的北京时间。`);
+  const canonical = `${parts[1]}T${parts[2]}:${parts[3] || "00"}.${(parts[4] || "").padEnd(3, "0")}`;
+  const stamp = /* @__PURE__ */ new Date(`${canonical}+08:00`);
+  if (!Number.isFinite(stamp.getTime()) || new Date(stamp.getTime() + 8 * 36e5).toISOString().slice(0, 23) !== canonical) {
+    throw new Error(`${label}请填写真实日期和时间。`);
+  }
+  if (original && raw === localDateTime(original)) return new Date(original).toISOString();
+  return stamp.toISOString();
+}
+function mergedObject(original, fields) {
+  if (original != null && !objectValue(original)) throw new Error("原记录的 JSON 字段无法安全编辑，请重新打开核对。");
+  const result = original == null ? {} : structuredClone(original);
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== null || Object.hasOwn(result, key)) result[key] = value;
+  }
+  return Object.keys(result).length || original != null ? result : null;
+}
+function publicationFields(data, original, status) {
+  const raw = textValue(data.url), time2 = textValue(data.published_at);
+  if (status !== "published" && (raw || time2)) {
+    throw new Error("未发布状态不能保留公开链接或发布时间，请明确清空发布信息或选择已发布。");
+  }
+  if (status !== "published") return { url: null, published_at: null };
+  if (!raw || !time2 || !safeLedgerURL(raw)) throw new Error("已发布文章须填写真实的 HTTP/HTTPS 链接和实际发布时间。");
+  const url = new URL(raw);
+  url.hash = "";
+  return { url: url.toString(), published_at: articleTime(time2, "实际发布时间", original.published_at) };
+}
+function buildArticleFormPayload(data, original = {}) {
+  const status = choice(data.status, statusLabels, "文章状态");
+  if (!status) throw new Error("请明确选择文章状态，未确认的状态不会自动保存为草稿或已发布。");
+  const body = {
+    account_id: textValue(data.account_id),
+    title: textValue(data.title),
+    status,
+    ...publicationFields(data, original, status),
+    started_at: articleTime(data.started_at, "流水线开始", original.started_at),
+    production_mode: choice(data.production_mode, modeLabels, "生产方式", "unknown"),
+    summary: textValue(data.summary),
+    notes: textValue(data.notes),
+    platform_article_id: textValue(data.platform_article_id) || null,
+    slot: choice(data.slot, slotLabels, "槽位"),
+    writer: choice(data.writer, writerLabels, "写作者"),
+    illustrator: choice(data.illustrator, illustratorLabels, "配图者"),
+    run_dir: textValue(data.run_dir) || null,
+    run_date: textValue(data.run_date) || null,
+    series_no: nullableNumber(data.series_no, "系列编号", 1),
+    char_count: nullableNumber(data.char_count, "字数"),
+    subheading_count: nullableNumber(data.subheading_count, "小标题数"),
+    image_count: nullableNumber(data.image_count, "图数")
+  };
+  if (!body.account_id || !body.title) throw new Error("请填写文章标题并选择所属运营账号。");
+  if (body.published_at && body.started_at && body.started_at > body.published_at) {
+    throw new Error("流水线开始时间不能晚于发布时间。");
+  }
+  const editor = textValue(data.draft_editor_url);
+  if (editor && !safeLedgerURL(editor)) throw new Error("草稿编辑链接请使用有效的 HTTP/HTTPS 地址。");
+  body.draft_ref = mergedObject(original.draft_ref, {
+    pgc_id: textValue(data.draft_pgc_id) || null,
+    appmsgid: textValue(data.draft_appmsgid) || null,
+    editor_url: editor || null
+  });
+  body.timings = mergedObject(original.timings, { finished_at: articleTime(data.finished_at, "流水线结束", original.timings?.finished_at) });
+  if (original.id) body.version = original.version;
+  return body;
+}
+function equalValue(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && equalValue(a[key], b[key]));
+}
+function savedArticle(value, pending) {
+  return typeof value?.id === "string" && !!value.id && (!pending.id || value.id === pending.id) && Number.isSafeInteger(value.version) && value.version > (pending.body.version || 0) && Object.entries(pending.body).every(([key, expected]) => key === "version" || equalValue(value[key], expected));
+}
+function uncertainArticleSave(cache, message) {
+  cache.saveAttempt.phase = "unknown";
+  return new Error(message || "保存结果尚未确认，请先在文章列表核对；当前表单不会重复提交，请勿重复新建。");
+}
+async function reconcileArticleSave(cache, request, isCurrent) {
+  if (!cache.saveAttempt.id) throw uncertainArticleSave(cache);
+  let remote;
+  try {
+    remote = await request(`/articles/${encodeURIComponent(cache.saveAttempt.id)}`);
+  } catch {
+    if (!isCurrent()) return null;
+    throw uncertainArticleSave(cache, "保存结果尚未确认，当前表单不会再次提交。请稍后重新打开记录核对。");
+  }
+  if (!isCurrent()) return null;
+  if (savedArticle(remote, cache.saveAttempt)) return remote;
+  throw uncertainArticleSave(cache, "保存结果与当前记录未能确认一致，当前表单不会再次提交。请重新打开最新记录核对。");
+}
+async function saveArticleForm({ form, data }, { request = api, uuid = () => crypto.randomUUID() } = {}) {
+  const cache = articleFormRecord(form), isCurrent = () => articleFormCurrent(form, cache);
+  if (cache.saveAttempt) throw new Error("此表单已有保存请求，请关闭后核对文章列表或最新详情，不要重复新建。");
+  const body = buildArticleFormPayload(data, cache.record), id = form.dataset.id || "";
+  cache.saveAttempt = { id, body: structuredClone(body), key: uuid(), phase: "saving" };
+  let value;
+  try {
+    value = await request(id ? `/articles/${encodeURIComponent(id)}` : "/articles", {
+      method: id ? "PUT" : "POST",
+      body,
+      headers: { "Idempotency-Key": cache.saveAttempt.key }
+    });
+  } catch (error) {
+    if (!isCurrent()) return null;
+    if (error.status >= 400 && error.status < 500) {
+      if (error.status === 409 && error.code === "VERSION_CONFLICT") cache.saveAttempt.phase = "conflict";
+      else delete cache.saveAttempt;
+      throw error;
+    }
+    value = await reconcileArticleSave(cache, request, isCurrent);
+  }
+  if (!isCurrent()) return null;
+  if (!savedArticle(value, cache.saveAttempt)) value = await reconcileArticleSave(cache, request, isCurrent);
+  if (!isCurrent()) return null;
+  cache.saveAttempt.phase = "saved";
+  return value;
+}
+
 // web/forms.mjs
 async function submitSaveViewForm({ data }) {
   const saved = { id: crypto.randomUUID(), name: data.name.trim(), version: 2, filters: { ...state.filters }, columns: [...state.columns] };
@@ -3311,17 +4052,18 @@ async function submitLoginForm({ data }) {
   return;
 }
 async function submitArticleForm({ form, data }) {
-  const body = { account_id: data.account_id, title: data.title.trim(), url: data.url.trim(), published_at: iso(data.published_at), started_at: iso(
-    data.started_at
-  ), production_mode: data.production_mode, summary: data.summary, notes: data.notes, platform_article_id: data.platform_article_id?.trim() || "" };
-  if (!safeURL(body.url)) throw new Error("文章链接请使用 http 或 https 地址。");
-  if (body.started_at && new Date(body.started_at) > new Date(body.published_at)) throw new Error("选题开始时间不能晚于发布时间。");
-  const id = form.dataset.id;
-  if (id) body.version = Number(form.dataset.version);
-  await api(id ? `/articles/${encodeURIComponent(id)}` : "/articles", { method: id ? "PUT" : "POST", body });
+  const saved = await saveArticleForm({ form, data });
+  if (!saved) return;
   closeModal();
-  toast(id ? "发布记录已更新。" : "发布记录已保存。");
-  await renderPage();
+  const epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
+  toast(form.dataset.id ? "文章台账已更新。" : "文章已保存。");
+  try {
+    await renderPage();
+  } catch {
+    if (epoch === runtime.sessionEpoch && ticket === runtime.modalRequestVersion) {
+      toast("文章已保存，但列表暂时无法刷新，请稍后刷新页面。", true);
+    }
+  }
   return;
 }
 async function submitReviewForm({ form, data }) {
@@ -3424,6 +4166,7 @@ async function handleFormSubmit(event) {
     if (handler) await handler({ form, data, values });
   } catch (err) {
     if (err.staleSession || isRequestAbort(err)) return;
+    if (form.id === "article-form" && !articleFormCurrent(form)) return;
     if (message && message.isConnected) message.textContent = err.code === "VERSION_CONFLICT" ? "这条记录已被其他人或 AI 更新。请关闭后重新打开，核对最新内容再保存。" : err.message;
     else toast(err.message, true);
   } finally {
@@ -3461,6 +4204,10 @@ async function handleClick(event) {
 }
 function handleChange(event) {
   const el = event.target;
+  if (el.matches?.("[data-article-verify-index]")) {
+    handleArticleVerificationChange(el);
+    return;
+  }
   if (el.id === "todo-completed-mode") {
     changeTodoCompletedMode(el.value);
     return;
@@ -3495,11 +4242,11 @@ function handleChange(event) {
   } else if (el.id === "trend-date") {
     state.trendDate = el.value;
     state.trendOpen = true;
-    replacePageContent(renderDashboard(state.dashboard));
+    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
   } else if (el.id === "trend-metric") {
     state.trendMetric = el.value;
     state.trendOpen = true;
-    replacePageContent(renderDashboard(state.dashboard));
+    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
   } else if (el.closest("#article-filters") && el.name && el.name !== "q") {
     state.filters[el.name] = el.value;
     reloadFilteredPage("[name=" + el.name + "]");

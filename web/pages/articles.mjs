@@ -5,6 +5,7 @@ import { statusLabels, slotLabels, writerLabels, illustratorLabels, ledgerCell, 
 import { e, icon } from "../core/dom.mjs";
 import { accountName, duration, localDateTime, num, safeURL, time } from "../core/format.mjs";
 import { modalRequest } from "../core/modal-request.mjs";
+import { normalizeArticlePipelineFilters } from "../core/router.mjs";
 import { runtime, state } from "../core/state.mjs";
 import { accountOptions, articleSelect, badgeMode, dashboardInfo, dashboardMetric, empty, field, formEnd, platformLogo } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
@@ -63,7 +64,7 @@ async function renderArticles(version = runtime.renderVersion, context) {
   state.articleMeta = meta;
   const content = articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "尚未记录文章",
     "可先保存草稿，发布时再填写真实链接和时间。", '<button class="btn" data-action="reset-filters">清空筛选</button>');
-  return `<section class="card article-list article-ledger"><form id="article-filters" class="filters">
+  return `<section class="card article-list article-ledger article-ledger-list"><form id="article-filters" class="filters">
 <label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}"
 placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${statusSelect(f.status || "draft_saved")}
 ${platformFilter("article-platform", f.platform, "文章平台")}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}
@@ -110,12 +111,12 @@ function articleDraft(form) {
   if (!Object.hasOwn(statusLabels, filters.status)) filters.status = "draft_saved";
   if (!Object.values(articleColumns).some(([, sort]) => sort === filters.sort)) filters.sort = "published_at";
   if (!["asc", "desc"].includes(filters.order)) filters.order = "desc";
-  return { filters, columns: new Set(values.getAll("columns").filter(c => Object.hasOwn(articleColumns, c))),
+  return { filters: normalizeArticlePipelineFilters(filters), columns: new Set(values.getAll("columns").filter(c => Object.hasOwn(articleColumns, c))),
     account: String(values.get("account") || "") };
 }
 function viewDraft(view) {
-  return { filters: { ...defaultFilters(), ...Object.fromEntries(Object.entries(view.filters).filter(([key]) =>
-    Object.hasOwn(defaultFilters(), key))) }, columns: new Set([...view.columns.filter(key => Object.hasOwn(articleColumns, key)),
+  return { filters: normalizeArticlePipelineFilters({ ...defaultFilters(), ...Object.fromEntries(Object.entries(view.filters).filter(([key]) =>
+    Object.hasOwn(defaultFilters(), key))) }), columns: new Set([...view.columns.filter(key => Object.hasOwn(articleColumns, key)),
     ...view.version !== 2 && !view.columns.includes("as_of") ? ["likes", "comments", "as_of"] : []]), account: state.account };
 }
 function articleCell(article, key) {
@@ -183,7 +184,7 @@ ${field("draft_appmsgid", "公众号草稿 appmsgid", "text", article.draft_ref?
 ${field("draft_editor_url", "草稿编辑链接（HTTP/HTTPS）", "url", article.draft_ref?.editor_url, 'placeholder="https://…"')}`;
 }
 function articleForm(article, id) {
-  return `<form id="article-form" class="article-ledger" data-id="${e(id)}" data-version="${e(article.version || "")}">
+  return `<form id="article-form" class="article-ledger article-ledger-form" data-id="${e(id)}" data-version="${e(article.version || "")}">
 <p class="form-context">北京时间 · 草稿无需公开链接或发布时间；只有已发布记录才填写发布信息。</p><div class="form-grid">
 ${field("title", '文章标题 <span class="required">*</span>', "text", article.title, 'maxlength="300" required', true)}
 <label class="form-field full">所属运营账号 <span class="required">*</span><select class="input" id="field-account_id"
