@@ -1,0 +1,82 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {frontendSource} from './frontend-client.mjs';
+
+const source=await frontendSource();
+function client() {
+  const body={style:{}},nodes=new Map([['#overlay',{innerHTML:'',firstChild:null,contains(){return false;}}]]),requests=[];
+  const document={querySelector:key=>nodes.get(key)||null,querySelectorAll:()=>[],addEventListener(){},body,activeElement:body};
+  const context=vm.createContext({AbortController,AbortSignal,DOMException,Headers,document,
+    window:{addEventListener(){}},location:{href:'http://localhost/?page=articles',search:'?page=articles'},
+    history:{replaceState(){}},localStorage:{getItem(){},setItem(){}},URL,URLSearchParams,Intl,console,
+    requestAnimationFrame(){},setTimeout,clearTimeout});
+  new vm.Script(source).runInContext(context);
+  const run=code=>vm.runInContext(code,context);
+  context.capture=(path,options)=>{requests.push({path,options});return {data:[],meta:{total:0,unfiltered_total:0,has_more:false}};};
+  run("state.me={id:'synthetic-ledger-ui'};state.accounts=[{id:'account',name:'好多鱼',platform:'toutiao',active:1}];api=capture;");
+  return {run,nodes,requests,context};
+}
+
+test('article list uses the explicit saved-draft cohort and forwards every approved scalar/derived filter',async()=>{
+  const app=client();
+  app.run("state.filters={...defaultFilters(),slot:'tt1',writer:'dedao',has_warnings:'false',has_pending_verify:'true',series_no_min:'1',series_no_max:'200'};");
+  const html=await app.run("renderArticles(runtime.renderVersion,{marker:'list-context'})");
+  const query=new URL(app.requests[0].path,'http://localhost').searchParams;
+  assert.equal(query.get('status'),'draft_saved');assert.equal(query.get('slot'),'tt1');assert.equal(query.get('writer'),'dedao');
+  assert.equal(query.get('has_warnings'),'false');assert.equal(query.get('has_pending_verify'),'true');
+  assert.equal(query.get('series_no_min'),'1');assert.equal(query.get('series_no_max'),'200');
+  assert.equal(query.get('page'),'1');assert.equal(query.get('page_size'),'20');
+  assert.equal(app.requests[0].options.context.marker,'list-context');
+  assert.match(html,/尚未记录文章/);assert.match(html,/草稿无需|可先保存草稿/);
+  const select=html.match(/<select name="status"[\s\S]*?<\/select>/)?.[0];
+  assert.ok(select);assert.equal((select.match(/<option\b/g)||[]).length,5);assert.doesNotMatch(select,/value=""|>全部</);
+});
+
+test('draft table escapes text, marks all reading values unpublished and derives topic only from an explicit slot',()=>{
+  const app=client();
+  app.run("state.columns=new Set(['status','slot','writer','char_count','image_count','draft_ref','total_duration','warnings','verify','topic','reads','likes','comments','as_of']);");
+  app.run("syntheticDraft={id:'d',account_id:'account',platform:'toutiao',account_name:'<账号>',title:'<svg onload=bad>',status:'draft_saved',slot:null,writer:null,char_count:null,image_count:null,draft_ref:{editor_url:'javascript:bad'},warnings:[],has_pending_verify:null,verify_state:'unknown',latest_metrics:{reads:0,likes:0},topic:'entertainment'};");
+  const html=app.run('articleTable([syntheticDraft])');
+  assert.match(html,/&lt;svg/);assert.match(html,/&lt;账号&gt;/);assert.doesNotMatch(html,/<svg\b|href="javascript:|文娱（推断）/);
+  assert.ok((html.match(/未发布/g)||[]).length>=4);assert.match(html,/未标注/);assert.match(html,/未确认|未知/);
+  assert.doesNotMatch(html,/>0<\/strong>/,'a draft never turns a stored cumulative zero into a published reading metric');
+  const menu=app.run('articleMenu(syntheticDraft)');assert.doesNotMatch(menu,/review-article|补充数据/);
+});
+
+test('published and legacy article metrics retain actual zeros while missing values remain unavailable',()=>{
+  const app=client();app.run("state.columns=new Set(['reads','likes','comments','as_of']);");
+  const html=app.run("articleTable([{id:'p',platform:'zhihu',title:'Published',account_name:'Account',latest_metrics:{reads:0,likes:0},published_at:'2026-10-24T00:00:00Z'}])");
+  assert.ok((html.match(/>0<\/strong>/g)||[]).length>=2);assert.match(html,/未取得/);assert.doesNotMatch(html,/未发布/);
+});
+
+test('filter panel exposes exact status and metadata choices without an inferred topic or unsupported metadata sort',()=>{
+  const app=client(),html=app.run('articleFilterPanel()');
+  for(const field of ['status','slot','writer','has_warnings','has_pending_verify','series_no_min','series_no_max'])
+    assert.ok(html.includes('name="'+field+'"'),field);
+  for(const column of ['status','slot','writer','char_count','subheading_count','image_count','draft_ref','total_duration','warnings','verify'])
+    assert.ok(html.includes('value="'+column+'"'),column);
+  assert.doesNotMatch(html,/<select name="topic"|data-sort="(?:status|writer|slot|char_count|image_count)"/);
+  const legacy=app.run("[...viewDraft({version:2,filters:{status:'published',writer:'human'},columns:['reads']}).columns].join(',')");
+  assert.equal(legacy,'reads');assert.equal(app.run("viewDraft({version:2,filters:{status:'published'},columns:['status']}).filters.status"),'published');
+});
+
+test('new article form is a real draft with nullable publication fields and an active scoped snapshot ticket',async()=>{
+  const app=client();await app.run('articleModal()');
+  const html=app.nodes.get('#overlay').innerHTML;
+  assert.match(html,/id="article-form"/);assert.match(html,/value="draft_saved" selected/);
+  for(const field of ['status','slot','writer','illustrator','run_dir','run_date','series_no','char_count','subheading_count','image_count',
+    'draft_pgc_id','draft_appmsgid','draft_editor_url','finished_at'])assert.ok(html.includes('name="'+field+'"'),field);
+  assert.match(html,/流水线开始/);assert.match(html,/流水线结束/);assert.doesNotMatch(html,/选题开始时间/);
+  const url=html.match(/<input[^>]*id="field-url"[^>]*>/)?.[0],published=html.match(/<input[^>]*id="field-published_at"[^>]*>/)?.[0];
+  assert.ok(url&&published);assert.doesNotMatch(url,/\brequired\b/);assert.doesNotMatch(published,/\brequired\b/);
+  assert.equal(app.run('runtime.articleFormRecord.record.status'),'draft_saved');
+  assert.equal(app.run('runtime.articleFormRecord.sessionEpoch'),app.run('runtime.sessionEpoch'));
+  assert.equal(app.run('runtime.articleFormRecord.ticket'),app.run('runtime.modalRequestVersion'));
+});
+
+test('obsolete article response cannot replace a newer page or its loaded rows',async()=>{
+  const app=client();app.run("let finishList;api=()=>new Promise(resolve=>finishList=resolve);state.articles=[{id:'newer'}];let obsolete=renderArticles();runtime.renderVersion++;");
+  app.run("finishList({data:[{id:'old'}],meta:{total:1}})");
+  assert.equal(await app.run('obsolete'),'');assert.equal(app.run('state.articles[0].id'),'newer');
+});
