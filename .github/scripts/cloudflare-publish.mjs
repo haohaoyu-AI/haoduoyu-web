@@ -21,12 +21,14 @@ function sort(value) {
   if(object(value))return Object.fromEntries(Object.keys(value).sort().map(key=>[key,sort(value[key])]));
   return value;
 }
-function check(condition,code) {if(!condition)throw new PublishFailure(code);}
-function keys(value,allowed) {
-  check(object(value)&&Object.keys(value).every(key=>allowed.includes(key)),'UNSUPPORTED_CONFIGURATION');
+function check(condition,code,location) {if(!condition)throw new PublishFailure(code,location);}
+function keys(value,allowed,location) {
+  check(object(value)&&Object.keys(value).every(key=>allowed.includes(key)),'UNSUPPORTED_CONFIGURATION',location);
 }
 class PublishFailure extends Error {
-  constructor(code) {super(code);this.code=code;}
+  // Locations below are fixed source literals. Never include API key names,
+  // binding values, server error messages or response bodies in public logs.
+  constructor(code,location) {super(code);this.code=code;this.location=location;}
 }
 function identifier(value) {return typeof value==='string'&&UUID.test(value);}
 function stringList(value) {return Array.isArray(value)&&value.every(item=>typeof item==='string');}
@@ -39,58 +41,59 @@ function bindingsSnapshot(bindings) {
       'UNSUPPORTED_BINDINGS');
     check(!names.has(binding.name),'UNSUPPORTED_BINDINGS');names.add(binding.name);
     if(binding.type==='plain_text') {
-      keys(binding,['name','type','text']);check(typeof binding.text==='string','UNSUPPORTED_BINDINGS');
+      keys(binding,['name','type','text'],'binding.plain_text.fields');check(typeof binding.text==='string','UNSUPPORTED_BINDINGS');
     }else if(binding.type==='json') {
-      keys(binding,['name','type','json']);check(own(binding,'json'),'UNSUPPORTED_BINDINGS');
+      keys(binding,['name','type','json'],'binding.json.fields');check(own(binding,'json'),'UNSUPPORTED_BINDINGS');
     }else if(binding.type==='secret_text') {
       // The API intentionally cannot return secret values. Inherit by name/type;
       // never replace a redacted secret with an empty or dashboard-visible value.
-      keys(binding,['name','type']);
+      keys(binding,['name','type'],'binding.secret_text.fields');
     }else if(binding.type==='d1') {
-      keys(binding,['name','type','id']);check(identifier(binding.id),'UNSUPPORTED_BINDINGS');
+      keys(binding,['name','type','id'],'binding.d1.fields');check(identifier(binding.id),'UNSUPPORTED_BINDINGS');
     }else throw new PublishFailure('UNSUPPORTED_BINDINGS');
   }
   return [...bindings].sort((a,b)=>a.name.localeCompare(b.name));
 }
 function runtimeSnapshot(runtime) {
-  keys(runtime,['compatibility_date','compatibility_flags','usage_model','limits','exports','migration_tag']);
+  keys(runtime,['compatibility_date','compatibility_flags','usage_model','limits','exports','migration_tag'],'runtime.fields');
   check(typeof runtime.compatibility_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(runtime.compatibility_date),
-    'UNSUPPORTED_CONFIGURATION');
-  if(own(runtime,'compatibility_flags'))check(stringList(runtime.compatibility_flags),'UNSUPPORTED_CONFIGURATION');
+    'UNSUPPORTED_CONFIGURATION','runtime.compatibility_date');
+  if(own(runtime,'compatibility_flags'))check(stringList(runtime.compatibility_flags),'UNSUPPORTED_CONFIGURATION','runtime.compatibility_flags');
   if(own(runtime,'usage_model'))check(['bundled','unbound','standard'].includes(runtime.usage_model),
-    'UNSUPPORTED_CONFIGURATION');
+    'UNSUPPORTED_CONFIGURATION','runtime.usage_model');
   if(own(runtime,'limits')) {
-    keys(runtime.limits,['cpu_ms']);
+    keys(runtime.limits,['cpu_ms'],'runtime.limits.fields');
     if(own(runtime.limits,'cpu_ms'))check(Number.isSafeInteger(runtime.limits.cpu_ms)&&runtime.limits.cpu_ms>0,
-      'UNSUPPORTED_CONFIGURATION');
+      'UNSUPPORTED_CONFIGURATION','runtime.limits.cpu_ms');
   }
   // This release never migrates or provisions Durable Objects/containers/assets.
-  if(own(runtime,'migration_tag'))check(runtime.migration_tag==='', 'UNSUPPORTED_CONFIGURATION');
+  if(own(runtime,'migration_tag'))check(runtime.migration_tag==='', 'UNSUPPORTED_CONFIGURATION','runtime.migration_tag');
   if(own(runtime,'exports')) {
-    check(object(runtime.exports),'UNSUPPORTED_CONFIGURATION');
+    check(object(runtime.exports),'UNSUPPORTED_CONFIGURATION','runtime.exports');
     for(const [name,entry] of Object.entries(runtime.exports)) {
-      check(name==='default','UNSUPPORTED_CONFIGURATION');
-      keys(entry,['type','state','cache']);
-      check(entry.type==='worker'&&(!own(entry,'state')||entry.state==='created'),'UNSUPPORTED_CONFIGURATION');
+      check(name==='default','UNSUPPORTED_CONFIGURATION','runtime.exports.names');
+      keys(entry,['type','state','cache'],'runtime.exports.default.fields');
+      check(entry.type==='worker'&&(!own(entry,'state')||entry.state==='created'),'UNSUPPORTED_CONFIGURATION','runtime.exports.default.type_state');
       if(own(entry,'cache')) {
-        keys(entry.cache,['enabled']);check(typeof entry.cache.enabled==='boolean','UNSUPPORTED_CONFIGURATION');
+        keys(entry.cache,['enabled'],'runtime.exports.default.cache.fields');
+        check(typeof entry.cache.enabled==='boolean','UNSUPPORTED_CONFIGURATION','runtime.exports.default.cache.enabled');
       }
     }
   }
   return runtime;
 }
 export function versionSnapshot(version,expectedId) {
-  keys(version,['id','number','metadata','resources','annotations','startup_time_ms']);
+  keys(version,['id','number','metadata','resources','annotations','startup_time_ms'],'version.fields');
   check(identifier(version.id)&&version.id===expectedId,'VERSION_MISMATCH');
-  keys(version.resources,['bindings','script','script_runtime']);
+  keys(version.resources,['bindings','script','script_runtime'],'version.resources.fields');
   const script=version.resources.script;
-  keys(script,['etag','handlers','named_handlers','last_deployed_from','placement_mode']);
-  check(typeof script.etag==='string'&&script.etag.length>0,'UNSUPPORTED_CONFIGURATION');
+  keys(script,['etag','handlers','named_handlers','last_deployed_from','placement_mode'],'script.fields');
+  check(typeof script.etag==='string'&&script.etag.length>0,'UNSUPPORTED_CONFIGURATION','script.etag');
   check(stringList(script.handlers)&&script.handlers.length===1&&script.handlers[0]==='fetch',
-    'UNSUPPORTED_CONFIGURATION');
+    'UNSUPPORTED_CONFIGURATION','script.handlers');
   if(own(script,'named_handlers'))check(Array.isArray(script.named_handlers)&&script.named_handlers.length===0,
-    'UNSUPPORTED_CONFIGURATION');
-  if(own(script,'placement_mode'))check(script.placement_mode==='smart','UNSUPPORTED_CONFIGURATION');
+    'UNSUPPORTED_CONFIGURATION','script.named_handlers');
+  if(own(script,'placement_mode'))check(script.placement_mode==='smart','UNSUPPORTED_CONFIGURATION','script.placement_mode');
   const invariantScript={...script};
   // Content etag and uploader attribution change when the accepted bytes change.
   delete invariantScript.etag;delete invariantScript.last_deployed_from;
@@ -99,7 +102,7 @@ export function versionSnapshot(version,expectedId) {
 }
 function settingsSnapshot(settings) {
   // These settings are non-versioned and are NEVER sent in either write.
-  keys(settings,['logpush','observability','tags','tail_consumers','streaming_tail_consumers']);
+  keys(settings,['logpush','observability','tags','tail_consumers','streaming_tail_consumers'],'script_settings.fields');
   return settings;
 }
 function combinedSnapshot(settings,snapshot,nonversioned) {
@@ -108,7 +111,7 @@ function combinedSnapshot(settings,snapshot,nonversioned) {
   // Reject cache/migrations/targeted placement/new features instead of resetting
   // settings that this narrowly scoped publisher cannot fully verify.
   keys(settings,['annotations','bindings','compatibility_date','compatibility_flags','usage_model','limits','exports',
-    'placement','logpush','observability','tags','tail_consumers','streaming_tail_consumers']);
+    'placement','logpush','observability','tags','tail_consumers','streaming_tail_consumers'],'combined_settings.fields');
   same(bindingsSnapshot(settings.bindings),snapshot.bindings);
   for(const key of ['compatibility_date','compatibility_flags','usage_model','limits','exports']) {
     if(!own(settings,key))continue;
@@ -118,7 +121,8 @@ function combinedSnapshot(settings,snapshot,nonversioned) {
     ['compatibility_date','compatibility_flags','usage_model','limits','exports'].filter(key=>own(settings,key))
       .map(key=>[key,settings[key]]))});
   if(own(settings,'placement')) {
-    keys(settings.placement,['mode']);check(settings.placement.mode==='smart','UNSUPPORTED_CONFIGURATION');
+    keys(settings.placement,['mode'],'combined_settings.placement.fields');
+    check(settings.placement.mode==='smart','UNSUPPORTED_CONFIGURATION','combined_settings.placement.mode');
     check(snapshot.script.placement_mode==='smart','CONFIGURATION_CHANGED');
   }else check(!snapshot.script.placement_mode,'CONFIGURATION_CHANGED');
   for(const key of ['logpush','observability','tags','tail_consumers','streaming_tail_consumers'])
@@ -257,6 +261,7 @@ export async function publishExistingWorker(config,{request=fetch,timeoutMs=3000
     report.status='deployed';report.code='DEPLOYMENT_CONFIRMED';
   }catch(error) {
     report.code=error instanceof PublishFailure?error.code:'PUBLISH_FAILED';
+    if(error instanceof PublishFailure&&error.location)report.check=error.location;
     if(stage==='upload'||stage==='deploy') {
       report.status='uncertain';report.write_stage=stage;await reconcile(api,report);
     }else if(stage==='verify_upload')report.status='uploaded_not_deployed';

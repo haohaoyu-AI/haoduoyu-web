@@ -183,6 +183,21 @@ test('an unknown candidate field leaves the candidate undeployed rather than ass
   assert.equal(report.uploaded_version_id,NEW);assert.equal(writes(mock).length,1);
 });
 
+test('preflight reports only fixed validation locations, never API field names or values',async()=>{
+  for(const [change,location] of [
+    [mock=>{mock.state.versions.get(OLD)[SENTINEL]=SENTINEL;},'version.fields'],
+    [mock=>{mock.state.versions.get(OLD).resources.bindings[0][SENTINEL]=SENTINEL;},'binding.d1.fields'],
+    [mock=>{mock.state.versions.get(OLD).resources.script_runtime.compatibility_date=SENTINEL;},'runtime.compatibility_date'],
+    [mock=>{mock.state.versions.get(OLD).resources.script_runtime.exports[SENTINEL]={type:SENTINEL};},'runtime.exports.names'],
+    [mock=>{mock.state.versions.get(OLD).resources.script.named_handlers=[{name:SENTINEL}];},'script.named_handlers'],
+    [mock=>{mock.state.settings[SENTINEL]=SENTINEL;},'script_settings.fields']
+  ]) {
+    const mock=mockCloudflare();change(mock);const report=await run(mock);
+    assert.equal(report.status,'blocked');assert.equal(report.code,'UNSUPPORTED_CONFIGURATION');
+    assert.equal(report.check,location);assert.equal(writes(mock).length,0);privateFree(report);
+  }
+});
+
 for(const field of ['latest','active','deploymentId','settings','sourceBinding'])
   test(`rechecks ${field} immediately before deploying`,async()=>{
     const mock=mockCloudflare(({path,state,calls})=>{

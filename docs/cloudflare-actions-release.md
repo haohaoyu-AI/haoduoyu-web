@@ -30,6 +30,10 @@
 
 Cloudflare 版本继承以 latest uploaded 版本为来源，不保证是当前部署版本。因此发布控制必须验证 latest、唯一 100% 在用版本及明确输入的当前版本一致，使用严格逐名继承现有绑定，保留 D1、普通变量、secret 和兼容设置。还必须从 Worker 元数据确认该 Worker 的 `has_assets=false`，否则阻止只上传代码，避免剥离原生静态文件。任何不支持的配置、不一致或不确定结果都停止；上传和切换各最多一次，不盲重发 POST。日志只含摘要、版本/部署 ID 与固定状态，不输出 API 响应体、token 或绑定值。
 
+校验失败时的 `check` 仅是代码内固定位置，例如 `binding.d1.fields` 或 `runtime.compatibility_date`，不会拼接 API 返回的字段名或值。`blocked` 表示尚未发送第一个写请求；`uploaded_not_deployed` 表示版本已经上传但未切流量；`uncertain` 必须先只读核对实际结果，不能直接重跑。
+
+首次手动发布 [40334078613](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40334078613) 于 2026-10-26 13:50:32 UTC 失败。第六轮 Worker 长度与 SHA-256 验证成功，发布步骤在首个 POST 前报告 `blocked / UNSUPPORTED_CONFIGURATION`。该次没有上传新版本或切换流量；需取得具体校验位置和实际响应形状后修复，不能据此扩大令牌权限或忽略未知配置。
+
 ## 本次发布与回退
 
 父线程于 **2026-10-26 11:27:39 UTC** 回读：部署 `33fbea88-b27c-49c0-b695-7798bc400dd8`，版本 `83512373-c500-47c3-a451-7dde59d2174b`，100%。这是当时证据，不能跳过执行前的新回读。
