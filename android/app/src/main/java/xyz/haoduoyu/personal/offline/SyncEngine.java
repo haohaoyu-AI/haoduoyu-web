@@ -24,7 +24,7 @@ import java.util.Set;
 
 /**
  * Conservative offline reconciliation over the existing versioned APIs.
- * No client-clock cursor, last-write-wins, public fallback, or blind write replay.
+ * No client-clock cursor, last-write-wins, identity fallback, or blind write replay.
  */
 public final class SyncEngine {
     static final String FORMAT = "haoduoyu-workbench-snapshot-v1";
@@ -55,10 +55,6 @@ public final class SyncEngine {
         started = System.currentTimeMillis();
         requests = 0;
         account = repository.snapshot().optString("account_id", "");
-        if (account.isEmpty()) {
-            repository.status("binding_required", "本地内容已保存；请登录并确认绑定账号后同步", 0);
-            return;
-        }
         long serverRetryUntil;
         try { serverRetryUntil = Long.parseLong(repository.uiState("server_retry_until", "0")); }
         catch (NumberFormatException invalidRetry) { serverRetryUntil = 0; }
@@ -68,11 +64,48 @@ public final class SyncEngine {
         }
         try {
             JSONObject me = get("/auth/me");
-            if (!account.equals(me.optString("id"))) {
-                throw new ProtocolProblem("identity_changed", "登录账号与本机数据不一致，已暂停同步并保留本地内容");
+            if (!ApiClient.isPublicBusiness(me)) {
+                throw new ProtocolProblem("identity_not_supported", "当前接口返回的不是免登录公共工作台身份；本版本不会切换账号或重放旧队列，本地内容均已保留");
             }
             JSONObject initialIndex = readIndex();
+            JSONObject oldWorkspace = repository.workspace();
+            if ("public".equals(oldWorkspace.optString("mode"))
+                    && (!ApiClient.ORIGIN.equals(oldWorkspace.optString("origin"))
+                    || !initialIndex.getString("scope_id").equals(oldWorkspace.optString("scope_id")))) {
+                throw new ProtocolProblem("scope_changed", "公共工作台目标范围发生变化，已暂停同步；旧队列与本地内容保留，原公开上传同意不适用于新目标");
+            }
+            JSONObject workspace;
+            try {
+                workspace = repository.discoverPublicTarget(ApiClient.ORIGIN, initialIndex.getString("scope_id"));
+            } catch (IllegalStateException incompatibleLegacyIdentity) {
+                throw new ProtocolProblem("identity_not_supported", "本机保留了旧版私有账号或已尝试的原身份操作；未迁移这些操作，也未上传到公共工作台，请先核对保留数据");
+            }
+            account = workspace.getString("account_id");
+            require("public".equals(workspace.optString("mode"))
+                    && ApiClient.ORIGIN.equals(workspace.optString("origin"))
+                    && initialIndex.getString("scope_id").equals(workspace.optString("scope_id"))
+                    && LocalRepository.publicAccountId(ApiClient.ORIGIN, initialIndex.getString("scope_id")).equals(account),
+                    "公共工作台身份与已核验范围不一致");
             checkScope(initialIndex);
+            if (!repository.publicUploadAllowed(ApiClient.ORIGIN, initialIndex.getString("scope_id"))) {
+                // Discovery and downloads are read-only. Consent is a separate explicit UI action.
+                pull();
+                try { cachePublishedArticles(); }
+                catch (MoreWork more) { throw more; }
+                catch (InterruptedIOException interrupted) { throw interrupted; }
+                catch (Exception optionalReadFailure) {
+                    // Optional published metadata never turns a verified core pull into a partial apply.
+                    if (optionalReadFailure instanceof ApiClient.ApiException
+                            && ((ApiClient.ApiException) optionalReadFailure).retryAfterMillis > 0) {
+                        long wait = System.currentTimeMillis() + Math.min(86400000L,
+                                ((ApiClient.ApiException) optionalReadFailure).retryAfterMillis);
+                        repository.setUiState("server_retry_until", Long.toString(wait));
+                    }
+                }
+                repository.setUiState("sync_failures", "0");
+                repository.status("public_consent_required", "已读取公共工作台；本地修改尚未公开上传，请确认此目标后启用自动同步", 0);
+                return;
+            }
             int writes = 0;
             // Recover an attempted request before pulling its own committed result as a conflict.
             JSONObject head = repository.nextOperation();
@@ -117,7 +150,7 @@ public final class SyncEngine {
                     "snapshot_changed".equals(problem.code) ? System.currentTimeMillis() + 10000 : 0);
         } catch (ApiClient.ApiException failure) {
             if (failure.status == 401 || failure.status == 403) {
-                repository.status("login_required", "登录已失效或当前账号无权写入；本地队列已保留，请重新登录核对", 0);
+                repository.status("public_access_denied", "公共工作台暂不可访问或无编辑权限；本地队列已保留，不会改用其他身份上传", 0);
             } else if (failure.status == 429 || failure.status >= 500) {
                 repository.status("retry", "网络或服务暂不可用，本地内容已保存，将自动重试", retryAt(failure.retryAfterMillis));
             } else {
@@ -183,7 +216,7 @@ public final class SyncEngine {
         String pinned = repository.snapshot().optString("scope_id", "");
         String incoming = envelope.getString("scope_id");
         if (!pinned.isEmpty() && !pinned.equals(incoming)) {
-            throw new ProtocolProblem("scope_changed", "线上数据归属范围变化，已暂停同步；本地内容和队列保留，请先核对账号与数据归属");
+            throw new ProtocolProblem("scope_changed", "线上数据归属范围变化，已暂停同步；本地内容和队列保留，请先核对工作台与数据归属");
         }
         if (pinned.isEmpty()) repository.bindScope(incoming);
     }
@@ -226,6 +259,7 @@ public final class SyncEngine {
         for (String date : dates) {
             JSONObject day = get("/workbench-snapshot?date=" + date);
             verifyEnvelope(day, false);
+            require(date.equals(day.optString("date")), "快照响应日期与原请求不一致");
             sameManifest(index, day);
             for (JSONObject row : verifyDay(day)) staged.put(row.getString("entity_id"), copy(row));
             persistStage(index, staged);
@@ -259,6 +293,9 @@ public final class SyncEngine {
         // UI edits may coalesce an unattempted tail. Read/build/freeze under the same
         // repository monitor so that a just-saved edit cannot fall between those steps.
         synchronized (repository) {
+            if (!repository.publicUploadAllowed(ApiClient.ORIGIN, repository.snapshot().optString("scope_id"))) {
+                throw new ProtocolProblem("public_consent_required", "尚未同意向此公共工作台上传，本地操作已保留");
+            }
             original = repository.nextOperation();
             if (original == null) return !hasConflict();
             operationId = original.getString("op_id");
@@ -277,7 +314,11 @@ public final class SyncEngine {
                 if (persisted != null) wire = persisted;
             }
         }
-        require(account.equals(wire.optString("account_id")), "操作原账号与当前账号不一致");
+        if (!"public".equals(wire.optString("identity_mode"))
+                || !ApiClient.ORIGIN.equals(wire.optString("origin"))
+                || !account.equals(wire.optString("account_id"))) {
+            throw new ProtocolProblem("identity_not_supported", "原请求属于不同身份或旧版签发范围，已暂停；不会改写原请求后重放");
+        }
         if (!repository.snapshot().optString("scope_id").equals(wire.optString("scope_id"))) {
             throw new ProtocolProblem("scope_changed", "操作的原数据范围发生变化，已暂停同步");
         }
@@ -355,6 +396,7 @@ public final class SyncEngine {
         require(validDay(date), "本地记录日期无效");
         JSONObject day = get("/workbench-snapshot?date=" + date);
         verifyEnvelope(day, false);
+        require(date.equals(day.optString("date")), "记录核对响应日期与原请求不一致");
         checkScope(day);
         for (JSONObject row : verifyDay(day)) if (payload.getString("entity_id").equals(row.getString("entity_id"))) return row;
         return null;
@@ -453,6 +495,7 @@ public final class SyncEngine {
                 .put("receipt_path", receipt.isEmpty() ? "" : ApiClient.PREFIX + receipt)
                 .put("expected_version", version).put("entity_id", key).put("action", action)
                 .put("payload", payload).put("account_id", account)
+                .put("identity_mode", "public").put("origin", ApiClient.ORIGIN)
                 .put("scope_id", repository.snapshot().getString("scope_id"));
     }
 

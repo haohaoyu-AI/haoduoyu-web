@@ -18,7 +18,7 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public final class SyncEngineTest {
-    private static final String ACCOUNT = "owner-account";
+    private static final String ACCOUNT = ApiClient.PUBLIC_BUSINESS_ID;
     private static final String SCOPE = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     private static final String DATE = "2026-10-26";
     private static final String STAMP = "2026-10-26T10:00:00.000Z";
@@ -36,7 +36,8 @@ public final class SyncEngineTest {
     private static String last(String path) { return path.substring(path.lastIndexOf('/') + 1); }
     private static LocalRepository repository(Memory memory) throws Exception {
         LocalRepository repository = new LocalRepository(memory);
-        repository.bindAccount(ACCOUNT);
+        repository.discoverPublicTarget(ApiClient.ORIGIN, SCOPE);
+        repository.consentPublicUpload(ApiClient.ORIGIN, SCOPE);
         return repository;
     }
 
@@ -62,15 +63,17 @@ public final class SyncEngineTest {
         final Map<String, JSONObject> rows = new LinkedHashMap<>();
         final Map<String, JSONObject> receipts = new HashMap<>();
         final List<JSONObject> bodies = new ArrayList<>();
-        int puts, posts, patches, requests, indexReads;
+        int puts, posts, patches, deletes, requests, indexReads;
         boolean lostReply, failBeforeApply, laterWebEdit, rejectWrites, corruptBody, articlesUnavailable;
         boolean changeAtThirdIndex;
         String scope = SCOPE;
         String currentAccount = ACCOUNT;
+        boolean publicBusiness = true;
 
         @Override public ApiClient.Response send(String method, String path, JSONObject body) throws Exception {
             requests++;
-            if (path.endsWith("/auth/me")) return ok(new JSONObject().put("id", currentAccount).put("username", "owner"));
+            if (path.endsWith("/auth/me")) return ok(new JSONObject().put("id", currentAccount)
+                    .put("username", "公开编辑").put("publicBusiness", publicBusiness));
             if (path.endsWith("/workbench-snapshot/index")) {
                 indexReads++;
                 if (changeAtThirdIndex && indexReads == 3) rows.put("note-entry:" + NOTE, note(NOTE, DATE, "web version", 2));
@@ -102,6 +105,21 @@ public final class SyncEngineTest {
                     throw new IOException("reply lost after commit");
                 }
                 return ok(new JSONObject().put("id", id).put("version", version + 1));
+            }
+            if ("DELETE".equals(method) && path.contains("/note-entries/")) {
+                deletes++; bodies.add(cloneObject(body));
+                String id = last(path), key = "note-entry:" + id;
+                JSONObject current = rows.get(key);
+                if (current == null) return error(404, "NOT_FOUND");
+                if (body.getInt("version") != current.getInt("version")) return error(409, "VERSION_CONFLICT");
+                JSONObject deleted = cloneObject(current).put("version", current.getInt("version") + 1)
+                        .put("change_seq", current.getInt("version") + 1).put("deleted_at", STAMP);
+                deleted.remove("text"); rows.put(key, hashed(deleted));
+                receipts.put(body.getString("save_id"), new JSONObject().put("id", id)
+                        .put("version", deleted.getInt("version")).put("deleted_at", STAMP)
+                        .put("change_seq", deleted.getInt("version")).put("content_hash", "raw-deleted-row-hash"));
+                if (lostReply) { lostReply = false; throw new IOException("lost delete reply after commit"); }
+                return ok(new JSONObject().put("id", id).put("version", deleted.getInt("version")));
             }
             if ("POST".equals(method) && path.endsWith("/todos")) {
                 posts++; bodies.add(cloneObject(body));
@@ -287,16 +305,21 @@ public final class SyncEngineTest {
         server.scope = SCOPE; server.currentAccount = "somebody-else";
         new SyncEngine(repository, new ApiClient(server)).run();
         assertEquals(0, server.puts);
-        assertEquals("identity_changed", repository.snapshot().getJSONObject("status").getString("code"));
+        assertEquals("identity_not_supported", repository.snapshot().getJSONObject("status").getString("code"));
     }
 
-    @Test public void unboundDraftsNeverAttachThemselvesToRemoteIdentity() throws Exception {
+    @Test public void unboundDraftsCanDiscoverPublicDataButNeverUploadBeforeConsent() throws Exception {
         LocalRepository repository = new LocalRepository(new Memory());
         repository.create("note_entry", "life", DATE, content("unbound draft"));
         Server server = new Server();
         new SyncEngine(repository, new ApiClient(server)).run();
-        assertEquals(0, server.requests);
-        assertEquals("binding_required", repository.snapshot().getJSONObject("status").getString("code"));
+        assertTrue(server.requests > 0);
+        assertEquals(0, server.puts);
+        assertEquals("public_consent_required", repository.snapshot().getJSONObject("status").getString("code"));
+        assertEquals("public", repository.workspace().getString("mode"));
+        assertFalse(repository.publicUploadAllowed(ApiClient.ORIGIN, SCOPE));
+        assertEquals("queued", repository.nextOperation().getString("status"));
+        assertTrue(repository.nextOperation().isNull("wire"));
     }
 
     @Test public void snapshotRaceAndTamperCannotPublishPartialData() throws Exception {
@@ -336,7 +359,7 @@ public final class SyncEngineTest {
         repository.create("note_entry", "life", DATE, content("protected"));
         Server server = new Server(); server.rejectWrites = true;
         new SyncEngine(repository, new ApiClient(server)).run();
-        assertEquals("login_required", repository.snapshot().getJSONObject("status").getString("code"));
+        assertEquals("public_access_denied", repository.snapshot().getJSONObject("status").getString("code"));
         assertEquals("frozen", repository.nextOperation().getString("status"));
         assertEquals(1, server.puts);
     }
@@ -373,12 +396,12 @@ public final class SyncEngineTest {
             }
         }
         FailingDisk disk = new FailingDisk(); LocalRepository repository = repository(disk);
-        disk.fail = true; // Scope pin is a durable mutation before any remote write.
+        disk.fail = true; // Discovery/remote-state commit is durable before any remote write.
         try {
             new SyncEngine(repository, new ApiClient(new Server())).run();
             fail("Disk failure should be reported to the caller");
         } catch (IOException expected) { assertEquals("disk full", expected.getMessage()); }
-        assertEquals("", repository.snapshot().getString("scope_id"));
+        assertEquals(SCOPE, repository.snapshot().getString("scope_id"));
         assertEquals("local", repository.snapshot().getJSONObject("status").getString("code"));
     }
 
@@ -396,5 +419,186 @@ public final class SyncEngineTest {
         new SyncEngine(repository, limited).run();
         assertEquals(1, calls[0]);
         assertEquals("retry", repository.snapshot().getJSONObject("status").getString("code"));
+    }
+
+    @Test public void firstDiscoveryReadsExistingServerDataAndConsentEnablesOnlyThatTarget() throws Exception {
+        LocalRepository repository = new LocalRepository(new Memory()); Server server = new Server();
+        server.rows.put("note-entry:" + NOTE, note(NOTE, DATE, "already on website", 1));
+        new SyncEngine(repository, new ApiClient(server)).run();
+        assertEquals("already on website", repository.confirmed("note-entry:" + NOTE).getString("text"));
+        assertEquals("public_consent_required", repository.snapshot().getJSONObject("status").getString("code"));
+        repository.edit("note-entry:" + NOTE, content("offline mobile change"));
+        new SyncEngine(repository, new ApiClient(server)).run();
+        assertEquals(0, server.puts);
+        assertEquals("already on website", server.rows.get("note-entry:" + NOTE).getString("text"));
+        repository.consentPublicUpload(ApiClient.ORIGIN, SCOPE);
+        new SyncEngine(repository, new ApiClient(server)).run();
+        assertEquals(1, server.puts);
+        assertEquals("offline mobile change", server.rows.get("note-entry:" + NOTE).getString("text"));
+        assertEquals("synced", repository.snapshot().getJSONObject("status").getString("code"));
+        assertEquals(LocalRepository.publicAccountId(ApiClient.ORIGIN, SCOPE), repository.snapshot().getString("account_id"));
+    }
+
+    @Test public void publicIdentityAndHashesMatchActualAnonymousWorkerFixture() throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (InputStream stream = getClass().getResourceAsStream("/public-workbench-contract.json")) {
+            assertNotNull(stream);
+            byte[] chunk = new byte[4096]; int size;
+            while ((size = stream.read(chunk)) != -1) bytes.write(chunk, 0, size);
+        }
+        JSONObject fixture = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
+        assertTrue(fixture.getBoolean("synthetic_public_fixture"));
+        assertTrue(ApiClient.isPublicBusiness(fixture.getJSONObject("me")));
+        SyncEngine.verifyEnvelope(fixture.getJSONObject("index"), true);
+        SyncEngine.verifyEnvelope(fixture.getJSONObject("daily"), false);
+        SyncEngine.verifyEnvelope(fixture.getJSONObject("global_day"), false);
+        assertTrue(SyncEngine.verifyDay(fixture.getJSONObject("daily")).size() > 0);
+        assertTrue(SyncEngine.verifyDay(fixture.getJSONObject("global_day")).size() > 0);
+    }
+
+    private JSONObject publicHttpFixture() throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (InputStream stream = getClass().getResourceAsStream("/public-workbench-contract.json")) {
+            assertNotNull(stream);
+            byte[] chunk = new byte[4096]; int size;
+            while ((size = stream.read(chunk)) != -1) bytes.write(chunk, 0, size);
+        }
+        return new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
+    }
+
+    @Test public void actualHttpSnapshotsHaveOneDataEnvelopeAndInnerDateCollections() throws Exception {
+        JSONObject wire = publicHttpFixture().getJSONObject("wire");
+        ApiClient api = new ApiClient((method, path, body) -> {
+            JSONObject recorded = path.endsWith("/auth/me") ? wire.getJSONObject("me")
+                    : path.endsWith("/index") ? wire.getJSONObject("index") : wire.getJSONObject("daily");
+            // The worker's actual HTTP JSON is replayed verbatim; never wrap a fixture again.
+            return new ApiClient.Response(recorded.getInt("status"), cloneObject(recorded.getJSONObject("body")));
+        });
+        JSONObject indexBody = wire.getJSONObject("index").getJSONObject("body");
+        JSONObject dailyBody = wire.getJSONObject("daily").getJSONObject("body");
+        assertFalse(indexBody.has("snapshot_format"));
+        assertEquals(SyncEngine.FORMAT, indexBody.getJSONObject("data").getString("snapshot_format"));
+        assertTrue(dailyBody.getJSONObject("data").getJSONObject("data").get("todos") instanceof JSONArray);
+        assertTrue(ApiClient.isPublicBusiness(api.me()));
+        JSONObject index = api.object("GET", "/api/v1/workbench-snapshot/index", null);
+        JSONObject day = api.object("GET", "/api/v1/workbench-snapshot?date=2026-10-24", null);
+        SyncEngine.verifyEnvelope(index, true); SyncEngine.verifyEnvelope(day, false);
+        assertEquals(SyncEngine.FORMAT, day.getString("snapshot_format"));
+        assertFalse(day.getJSONObject("data").has("snapshot_format"));
+        assertTrue(SyncEngine.verifyDay(day).size() > 0);
+    }
+
+    @Test public void firstPullReplaysActualCompleteWorkerHttpBodiesWithoutManualWrapping() throws Exception {
+        JSONObject recorded = publicHttpFixture().getJSONObject("wire_pull");
+        LocalRepository repository = new LocalRepository(new Memory());
+        final int[] writes = {0};
+        ApiClient api = new ApiClient((method, path, body) -> {
+            if (!"GET".equals(method)) { writes[0]++; fail("First public pull must not write before consent"); }
+            String name;
+            if (path.endsWith("/auth/me")) name = "me";
+            else if (path.endsWith("/workbench-snapshot/index")) name = "index";
+            else if (path.equals("/api/v1/workbench-snapshot?date=2026-10-24")) name = "daily";
+            else if (path.endsWith("/articles")) name = "articles";
+            else throw new IOException("Unexpected fixture route: " + path);
+            JSONObject response = recorded.getJSONObject(name);
+            return new ApiClient.Response(response.getInt("status"), cloneObject(response.getJSONObject("body")));
+        });
+        new SyncEngine(repository, api).run();
+        assertEquals(0, writes[0]);
+        assertEquals("public_consent_required", repository.snapshot().getJSONObject("status").getString("code"));
+        int entityCount = recorded.getJSONObject("index").getJSONObject("body").getJSONObject("data").getJSONArray("entities").length();
+        assertEquals(3, entityCount);
+        assertEquals(entityCount, repository.snapshot().getJSONObject("entities").length());
+        assertEquals("Existing public website todo", repository.confirmed("todo:40000000-0000-4000-8000-000000000001").getString("text"));
+        assertEquals("Existing public life note", repository.confirmed("note-entry:40000000-0000-4000-8000-000000000002").getString("text"));
+        assertEquals("Existing public work note", repository.confirmed("note-entry:40000000-0000-4000-8000-000000000003").getString("text"));
+    }
+
+    @Test public void nonPublicSessionCannotBecomePublicFallback() throws Exception {
+        LocalRepository repository = new LocalRepository(new Memory());
+        String key = repository.create("note_entry", "life", DATE, content("private device draft"));
+        Server server = new Server(); server.publicBusiness = false; server.currentAccount = NOTE;
+        new SyncEngine(repository, new ApiClient(server)).run();
+        assertEquals(0, server.puts);
+        assertEquals(0, server.indexReads);
+        assertEquals("identity_not_supported", repository.snapshot().getJSONObject("status").getString("code"));
+        assertEquals("", repository.snapshot().getString("account_id"));
+        assertEquals("private device draft", repository.snapshot().getJSONObject("entities").getJSONObject(key).getJSONObject("local").getString("text"));
+        assertFalse(ApiClient.isPublicBusiness(new JSONObject().put("id", ApiClient.PUBLIC_BUSINESS_ID).put("publicBusiness", "true")));
+    }
+
+    @Test public void legacyTwoPointZeroUnboundStateSurvivesRestartAndUploadsOnlyAfterConsent() throws Exception {
+        Memory memory = new Memory(); LocalRepository oldApp = new LocalRepository(memory);
+        String key = oldApp.create("note_entry", "life", DATE, content("saved in 2.0.0"));
+        String operationId = oldApp.nextOperation().getString("op_id");
+        oldApp.setDraft("composer:life:" + DATE, "unsaved draft stays");
+        oldApp.setUiState("selected_date", DATE);
+        JSONObject oldState = oldApp.snapshot(); oldState.remove("workspace"); memory.state = oldState;
+        LocalRepository updated = new LocalRepository(memory); Server server = new Server();
+        server.rows.put("note-entry:" + NOTE, note(NOTE, DATE, "server prior record", 1));
+        new SyncEngine(updated, new ApiClient(server)).run();
+        assertEquals(0, server.puts);
+        assertEquals(operationId, updated.nextOperation().getString("op_id"));
+        assertEquals("queued", updated.nextOperation().getString("status"));
+        assertEquals("unsaved draft stays", updated.draft("composer:life:" + DATE));
+        assertEquals(DATE, updated.uiState("selected_date", ""));
+        assertEquals("server prior record", updated.confirmed("note-entry:" + NOTE).getString("text"));
+        updated.consentPublicUpload(ApiClient.ORIGIN, SCOPE);
+        updated = new LocalRepository(memory);
+        new SyncEngine(updated, new ApiClient(server)).run();
+        assertEquals(1, server.puts);
+        assertEquals(operationId, server.bodies.get(0).getString("save_id"));
+        assertEquals("saved in 2.0.0", updated.confirmed(key).getString("text"));
+        assertEquals("unsaved draft stays", updated.draft("composer:life:" + DATE));
+    }
+
+    @Test public void legacyPrivateFrozenRequestIsNeverRetargetedToPublic() throws Exception {
+        Memory memory = new Memory(); LocalRepository oldApp = new LocalRepository(memory);
+        String key = oldApp.create("note_entry", "life", DATE, content("private attempted body"));
+        JSONObject legacy = oldApp.snapshot(); legacy.remove("workspace");
+        legacy.put("account_id", NOTE).put("scope_id", SCOPE);
+        JSONObject operation = legacy.getJSONArray("operations").getJSONObject(0);
+        JSONObject wire = new JSONObject().put("account_id", NOTE).put("scope_id", SCOPE)
+                .put("method", "PUT").put("path", "/api/v1/note-entries/" + key.substring(key.indexOf(':') + 1))
+                .put("expected_version", 0).put("action", "upsert").put("entity_id", key)
+                .put("payload", operation.getJSONObject("payload"))
+                .put("body", new JSONObject().put("text", "private attempted body").put("category", "life")
+                        .put("date", DATE).put("version", 0).put("save_id", operation.getString("op_id")));
+        operation.put("wire", wire).put("status", "frozen"); memory.state = legacy;
+        LocalRepository updated = new LocalRepository(memory); Server server = new Server();
+        new SyncEngine(updated, new ApiClient(server)).run();
+        assertEquals(0, server.puts);
+        assertEquals(NOTE, updated.snapshot().getString("account_id"));
+        assertEquals(SyncEngine.canonical(wire), SyncEngine.canonical(updated.nextOperation().getJSONObject("wire")));
+        assertEquals("identity_not_supported", updated.snapshot().getJSONObject("status").getString("code"));
+        // An old attempted request with no recorded account is equally unsafe to retarget.
+        legacy.put("account_id", ""); wire.put("account_id", "");
+        legacy.getJSONArray("operations").getJSONObject(0).put("wire", cloneObject(wire));
+        memory.state = cloneObject(legacy);
+        updated = new LocalRepository(memory);
+        new SyncEngine(updated, new ApiClient(server)).run();
+        assertEquals(0, server.puts);
+        assertEquals("", updated.snapshot().getString("account_id"));
+        assertEquals(SyncEngine.canonical(wire), SyncEngine.canonical(updated.nextOperation().getJSONObject("wire")));
+        assertEquals("identity_not_supported", updated.snapshot().getJSONObject("status").getString("code"));
+    }
+
+    @Test public void publicDeleteLostReplyRecoversByReceiptWithoutResurrection() throws Exception {
+        Memory memory = new Memory(); LocalRepository repository = repository(memory); Server server = new Server();
+        String key = "note-entry:" + NOTE;
+        server.rows.put(key, note(NOTE, DATE, "to be deleted", 1));
+        new SyncEngine(repository, new ApiClient(server)).run();
+        repository.remove(key); server.lostReply = true;
+        new SyncEngine(repository, new ApiClient(server)).run();
+        assertEquals("frozen", repository.nextOperation().getString("status"));
+        assertEquals("public", repository.nextOperation().getJSONObject("wire").getString("identity_mode"));
+        repository = new LocalRepository(memory);
+        new SyncEngine(repository, new ApiClient(server)).run();
+        new SyncEngine(repository, new ApiClient(server)).run();
+        assertEquals(1, server.deletes);
+        assertEquals(0, server.puts);
+        assertNull(repository.nextOperation());
+        assertFalse(repository.confirmed(key).isNull("deleted_at"));
+        assertEquals(2, repository.confirmed(key).getInt("version"));
     }
 }

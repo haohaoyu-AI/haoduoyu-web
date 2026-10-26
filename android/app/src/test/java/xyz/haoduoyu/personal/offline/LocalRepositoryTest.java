@@ -461,4 +461,216 @@ public final class LocalRepositoryTest {
         assertEquals("real", repository.nextOperation().getJSONObject("payload").getString("text"));
         assertEquals("real", entry(new LocalRepository(store), key).getJSONObject("local").getString("text"));
     }
+
+    private static final String ORIGIN = "https://haoduoyu.xyz";
+
+    private static JSONObject publicWire(String scope, String text) throws Exception {
+        return wire(text).put("identity_mode", "public").put("origin", ORIGIN).put("scope_id", scope)
+                .put("account_id", LocalRepository.publicAccountId(ORIGIN, scope));
+    }
+
+    private static void legacySchemaOne(MemoryStore store, String account, String scope) throws Exception {
+        JSONObject saved = new JSONObject(store.persisted);
+        saved.remove("workspace");
+        saved.put("account_id", account).put("scope_id", scope);
+        store.persisted = saved.toString();
+    }
+
+    @Test public void publicIdentityIncludesOriginAndScopeRatherThanStaticWebsiteLabel() {
+        String target = LocalRepository.publicAccountId(ORIGIN, SCOPE);
+        assertTrue(target.startsWith("public:"));
+        assertNotEquals("public-business", target);
+        assertEquals(target, LocalRepository.publicAccountId("https://HAODUOYU.XYZ:443/", SCOPE));
+        assertNotEquals(target, LocalRepository.publicAccountId(ORIGIN, "another-scope"));
+        assertNotEquals(target, LocalRepository.publicAccountId("https://another.example", SCOPE));
+    }
+
+    @Test public void oldUnboundSchemaOneMigratesAtomicallyWithoutLosingLocalCollections() throws Exception {
+        MemoryStore store = new MemoryStore();
+        LocalRepository old = new LocalRepository(store);
+        String key = old.create("todo", null, DATE, note("尚未联网的旧待办"));
+        old.setDraft("composer", "旧草稿");
+        old.setDraft("intentionally-empty", "");
+        old.setUiState("scroll:todo", "236");
+        old.setUiState("tab", "todo");
+        legacySchemaOne(store, "", "");
+        LocalRepository upgraded = new LocalRepository(store);
+        JSONObject before = upgraded.snapshot();
+        JSONObject target = upgraded.discoverPublicTarget(ORIGIN, SCOPE);
+        JSONObject after = upgraded.snapshot();
+        assertEquals(1, after.getInt("schema"));
+        for (String field : new String[]{"entities", "operations", "drafts", "ui", "conflicts", "manifest", "sync_stage"})
+            assertTrue("Preserve " + field, JsonUtil.equal(before.get(field), after.get(field)));
+        assertEquals(before.getJSONArray("operations").getJSONObject(0).getString("op_id"),
+                after.getJSONArray("operations").getJSONObject(0).getString("op_id"));
+        assertEquals("public", target.getString("mode"));
+        assertEquals(ORIGIN, target.getString("origin"));
+        assertEquals(LocalRepository.publicAccountId(ORIGIN, SCOPE), after.getString("account_id"));
+        assertFalse(target.getBoolean("upload_consented"));
+        assertFalse(upgraded.publicUploadAllowed(ORIGIN, SCOPE));
+        assertEquals("尚未联网的旧待办", entry(upgraded, key).getJSONObject("local").getString("text"));
+        LocalRepository restarted = new LocalRepository(store);
+        assertTrue(restarted.containsDraft("intentionally-empty"));
+        assertEquals("旧草稿", restarted.draft("composer"));
+        assertEquals("236", restarted.uiState("scroll:todo", ""));
+        assertFalse(restarted.publicUploadAllowed(ORIGIN, SCOPE));
+    }
+
+    @Test public void anonymousPullCanPopulateWorkspaceBeforeAnyUploadConsent() throws Exception {
+        MemoryStore store = new MemoryStore();
+        LocalRepository repository = new LocalRepository(store);
+        String localKey = repository.create("note_entry", "life", DATE, note("本地未授权上传"));
+        String originalOperation = repository.nextOperation().getString("op_id");
+        repository.discoverPublicTarget(ORIGIN, SCOPE);
+        repository.applyRemote(LocalRepository.publicAccountId(ORIGIN, SCOPE), SCOPE,
+                new JSONArray().put(row(fixedKey(), "公开工作台已有数据", 2)), manifest());
+        assertEquals("公开工作台已有数据", repository.confirmed(fixedKey()).getString("text"));
+        assertEquals("本地未授权上传", entry(repository, localKey).getJSONObject("local").getString("text"));
+        assertEquals(originalOperation, repository.nextOperation().getString("op_id"));
+        assertFalse(repository.publicUploadAllowed(ORIGIN, SCOPE));
+        String before = store.persisted;
+        rejected(() -> repository.freezeOperation(originalOperation, publicWire(SCOPE, "本地未授权上传")));
+        assertEquals(before, store.persisted);
+        assertEquals("queued", repository.nextOperation().getString("status"));
+        assertTrue(repository.nextOperation().isNull("wire"));
+    }
+
+    @Test public void explicitPublicConsentSurvivesRestartAndAllowsOnlyTheExactFrozenTarget() throws Exception {
+        MemoryStore store = new MemoryStore();
+        LocalRepository repository = new LocalRepository(store);
+        repository.create("note_entry", "life", DATE, note("确认上传"));
+        repository.discoverPublicTarget(ORIGIN, SCOPE);
+        JSONObject detached = repository.workspace();
+        detached.put("upload_consented", true);
+        assertFalse(repository.publicUploadAllowed(ORIGIN, SCOPE));
+        repository.consentPublicUpload(ORIGIN, SCOPE);
+        LocalRepository restarted = new LocalRepository(store);
+        assertTrue(restarted.publicUploadAllowed(ORIGIN, SCOPE));
+        assertFalse(restarted.publicUploadAllowed(ORIGIN, "another-scope"));
+        assertFalse(restarted.publicUploadAllowed("https://another.example", SCOPE));
+        String operation = restarted.nextOperation().getString("op_id");
+        String before = store.persisted;
+        rejected(() -> restarted.freezeOperation(operation, wire("missing identity")));
+        assertEquals(before, store.persisted);
+        JSONObject correct = publicWire(SCOPE, "确认上传");
+        restarted.freezeOperation(operation, correct);
+        JSONObject rediscovered = restarted.discoverPublicTarget(ORIGIN, SCOPE);
+        assertTrue(rediscovered.getBoolean("upload_consented"));
+        assertTrue(JsonUtil.equal(correct, restarted.nextOperation().getJSONObject("wire")));
+    }
+
+    @Test public void publicConsentIsScopedAndStorageFailureDoesNotGrantIt() throws Exception {
+        MemoryStore store = new MemoryStore();
+        LocalRepository repository = new LocalRepository(store);
+        repository.discoverPublicTarget(ORIGIN, SCOPE);
+        String before = store.persisted;
+        rejected(() -> repository.consentPublicUpload(ORIGIN, "other"));
+        assertEquals(before, store.persisted);
+        rejected(() -> repository.consentPublicUpload("https://another.example", SCOPE));
+        assertEquals(before, store.persisted);
+        store.failNextWrite = true;
+        rejected(() -> repository.consentPublicUpload(ORIGIN, SCOPE));
+        assertEquals(before, store.persisted);
+        assertFalse(repository.publicUploadAllowed(ORIGIN, SCOPE));
+        assertFalse(new LocalRepository(store).publicUploadAllowed(ORIGIN, SCOPE));
+    }
+
+    @Test public void failedPublicMigrationPreservesTheWholeLegacyDocument() throws Exception {
+        MemoryStore store = new MemoryStore();
+        LocalRepository old = new LocalRepository(store);
+        old.create("todo", null, DATE, note("old"));
+        old.setDraft("composer", "retain");
+        legacySchemaOne(store, "", "");
+        LocalRepository upgraded = new LocalRepository(store);
+        String before = store.persisted;
+        store.failNextWrite = true;
+        rejected(() -> upgraded.discoverPublicTarget(ORIGIN, SCOPE));
+        assertEquals(before, store.persisted);
+        assertEquals("", upgraded.snapshot().getString("account_id"));
+        assertEquals(0, upgraded.workspace().length());
+        assertEquals("retain", upgraded.draft("composer"));
+    }
+
+    @Test public void privateBindingCannotBeReclassifiedAsAnonymousPublicWorkspace() throws Exception {
+        MemoryStore store = new MemoryStore();
+        LocalRepository old = remoteRepository(store, row(fixedKey(), "private baseline", 3));
+        old.edit(fixedKey(), note("private pending"));
+        old.setDraft("private", "do not publish");
+        legacySchemaOne(store, ACCOUNT, SCOPE);
+        LocalRepository upgraded = new LocalRepository(store);
+        String before = store.persisted;
+        rejected(() -> upgraded.discoverPublicTarget(ORIGIN, SCOPE));
+        assertEquals(before, store.persisted);
+        assertEquals(ACCOUNT, upgraded.snapshot().getString("account_id"));
+        assertEquals("do not publish", upgraded.draft("private"));
+    }
+
+    @Test public void oldUnboundFrozenWireCannotBeRetargetedOrRewritten() throws Exception {
+        MemoryStore store = new MemoryStore();
+        LocalRepository old = new LocalRepository(store);
+        old.create("note_entry", "life", DATE, note("unknown result"));
+        String operation = old.nextOperation().getString("op_id");
+        JSONObject original = wire("unknown result");
+        old.freezeOperation(operation, original);
+        legacySchemaOne(store, "", "");
+        LocalRepository upgraded = new LocalRepository(store);
+        String before = store.persisted;
+        rejected(() -> upgraded.discoverPublicTarget(ORIGIN, SCOPE));
+        assertEquals(before, store.persisted);
+        assertTrue(JsonUtil.equal(original, upgraded.nextOperation().getJSONObject("wire")));
+        assertEquals("", upgraded.snapshot().getString("account_id"));
+    }
+
+    @Test public void changedPublicOriginOrScopeNeverRetargetsExistingData() throws Exception {
+        MemoryStore store = new MemoryStore();
+        LocalRepository repository = new LocalRepository(store);
+        repository.create("todo", null, DATE, note("belongs here"));
+        repository.discoverPublicTarget(ORIGIN, SCOPE);
+        repository.consentPublicUpload(ORIGIN, SCOPE);
+        String before = store.persisted;
+        rejected(() -> repository.discoverPublicTarget(ORIGIN, "other-scope"));
+        assertEquals(before, store.persisted);
+        rejected(() -> repository.discoverPublicTarget("https://another.example", SCOPE));
+        assertEquals(before, store.persisted);
+        assertTrue(repository.publicUploadAllowed(ORIGIN, SCOPE));
+    }
+
+    @Test public void unboundConfirmedPrivateBaselineRequiresManualIdentityRecovery() throws Exception {
+        MemoryStore store = new MemoryStore();
+        remoteRepository(store, row(fixedKey(), "unidentified baseline", 4));
+        legacySchemaOne(store, "", "");
+        LocalRepository upgraded = new LocalRepository(store);
+        String before = store.persisted;
+        rejected(() -> upgraded.discoverPublicTarget(ORIGIN, SCOPE));
+        assertEquals(before, store.persisted);
+        assertEquals("unidentified baseline", upgraded.confirmed(fixedKey()).getString("text"));
+    }
+
+    @Test public void legacyPublicLabelRequiresMatchingPinnedScopeAndNoFrozenWire() throws Exception {
+        MemoryStore store = new MemoryStore();
+        remoteRepository(store, row(fixedKey(), "known public snapshot", 2));
+        legacySchemaOne(store, "public-business", SCOPE);
+        LocalRepository upgraded = new LocalRepository(store);
+        upgraded.discoverPublicTarget(ORIGIN, SCOPE);
+        assertEquals("known public snapshot", upgraded.confirmed(fixedKey()).getString("text"));
+        assertEquals(LocalRepository.publicAccountId(ORIGIN, SCOPE), upgraded.snapshot().getString("account_id"));
+        assertFalse(upgraded.publicUploadAllowed(ORIGIN, SCOPE));
+    }
+
+    @Test public void knownPublicWorkspaceRejectsAnOlderIdentitylessFrozenRequest() throws Exception {
+        MemoryStore store = new MemoryStore();
+        LocalRepository repository = new LocalRepository(store);
+        repository.create("note_entry", "work", DATE, note("still retained"));
+        repository.discoverPublicTarget(ORIGIN, SCOPE);
+        repository.consentPublicUpload(ORIGIN, SCOPE);
+        // Model an old client document: the request is frozen but has no target identity tags.
+        JSONObject document = repository.snapshot();
+        document.getJSONArray("operations").getJSONObject(0).put("status", "frozen").put("wire", wire("still retained"));
+        store.persisted = document.toString();
+        LocalRepository reopened = new LocalRepository(store);
+        String before = store.persisted;
+        rejected(() -> reopened.discoverPublicTarget(ORIGIN, SCOPE));
+        assertEquals(before, store.persisted);
+        assertEquals("still retained", reopened.nextOperation().getJSONObject("wire").getJSONObject("body").getString("text"));
+    }
 }

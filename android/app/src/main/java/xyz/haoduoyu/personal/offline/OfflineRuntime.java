@@ -15,11 +15,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import org.json.JSONObject;
 
 /** Process-wide ownership: UI storage writes never wait behind network requests. */
 public final class OfflineRuntime {
     private static OfflineRuntime instance;
+    private static Supplier<ApiClient.Transport> transportFactory = AndroidApiTransport::new;
     private static final int PERIODIC_JOB = 27260, RECOVERY_JOB = 27261;
     public final LocalRepository repository;
     public final ApiClient api;
@@ -37,7 +39,7 @@ public final class OfflineRuntime {
     private OfflineRuntime(Context source) throws Exception {
         context = source.getApplicationContext();
         repository = new LocalRepository(new SqliteStateStore(context));
-        api = new ApiClient(new AndroidApiTransport());
+        api = new ApiClient(transportFactory.get());
         schedulePeriodic();
         ConnectivityManager connectivity = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (connectivity != null) connectivity.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
@@ -92,14 +94,13 @@ public final class OfflineRuntime {
     private void performSync() {
         try {
             JSONObject state = repository.snapshot();
-            if (state.optString("account_id").isEmpty()) return;
             JSONObject status = state.optJSONObject("status");
             if (status != null && status.optLong("retry_at", 0) > System.currentTimeMillis()) {
                 scheduleRecovery(status.optLong("retry_at") - System.currentTimeMillis());
                 return;
             }
-            // Freeze the session for this pass. A concurrent login must never retarget old operations.
-            new SyncEngine(repository, new ApiClient(new AndroidApiTransport(true))).run();
+            // A fresh or upgraded database still discovers the explicit public identity.
+            new SyncEngine(repository, new ApiClient(transportFactory.get())).run();
             JSONObject after = repository.snapshot().optJSONObject("status");
             if (after != null && after.optLong("retry_at", 0) > 0) {
                 scheduleRecovery(Math.max(5000, after.optLong("retry_at") - System.currentTimeMillis()));

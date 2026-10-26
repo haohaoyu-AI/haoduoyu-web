@@ -1,0 +1,838 @@
+{
+  "synthetic_public_fixture": true,
+  "source": "real src/worker.mjs with synthetic SQLite; no production requests",
+  "me": {
+    "id": "public-business",
+    "username": "公开编辑",
+    "publicBusiness": true
+  },
+  "index": {
+    "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+    "projection": "current",
+    "complete": true,
+    "scope_id": "baae6411306b811f473ff2ff8c1ba21e8e4476a42291d7d9ccc637d9675a355e",
+    "timezone": "Asia/Shanghai",
+    "generated_at": "2026-10-26T13:43:57.285Z",
+    "manifest_hash": "085fa59e258bcceda0a8744eb48b31eb0c3fafdb49eef1680626e8576f5dd3ff",
+    "global_content_hash": "48bccd61c0c4816d055d8dbdea6a904c20d7986ada4ad79c35039dbe41bfe5b5",
+    "entities": [
+      {
+        "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+        "entity_type": "memo_group",
+        "date": null,
+        "updated_at": "2026-10-26T13:43:57.278Z",
+        "deleted_at": null,
+        "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+      },
+      {
+        "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+        "entity_type": "memo_note",
+        "date": null,
+        "updated_at": "2026-10-26T13:43:57.282Z",
+        "deleted_at": null,
+        "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+      },
+      {
+        "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+        "entity_type": "life_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T13:43:57.238Z",
+        "deleted_at": null,
+        "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+      },
+      {
+        "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+        "entity_type": "work_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T13:43:57.244Z",
+        "deleted_at": null,
+        "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+      },
+      {
+        "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+        "entity_type": "todo",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T13:43:57.232Z",
+        "deleted_at": null,
+        "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+      }
+    ],
+    "dates": [
+      {
+        "date": "2026-10-24",
+        "content_hash": "5ef346750a4edfd7cc9a6a26a2f39c58b5e2137a2ef14f7776048da6b91a8266"
+      }
+    ],
+    "index_hash": "085fa59e258bcceda0a8744eb48b31eb0c3fafdb49eef1680626e8576f5dd3ff"
+  },
+  "daily": {
+    "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+    "projection": "current",
+    "complete": true,
+    "scope_id": "baae6411306b811f473ff2ff8c1ba21e8e4476a42291d7d9ccc637d9675a355e",
+    "timezone": "Asia/Shanghai",
+    "generated_at": "2026-10-26T13:43:57.296Z",
+    "manifest_hash": "085fa59e258bcceda0a8744eb48b31eb0c3fafdb49eef1680626e8576f5dd3ff",
+    "global_content_hash": "48bccd61c0c4816d055d8dbdea6a904c20d7986ada4ad79c35039dbe41bfe5b5",
+    "entities": [
+      {
+        "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+        "entity_type": "memo_group",
+        "date": null,
+        "updated_at": "2026-10-26T13:43:57.278Z",
+        "deleted_at": null,
+        "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+      },
+      {
+        "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+        "entity_type": "memo_note",
+        "date": null,
+        "updated_at": "2026-10-26T13:43:57.282Z",
+        "deleted_at": null,
+        "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+      },
+      {
+        "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+        "entity_type": "life_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T13:43:57.238Z",
+        "deleted_at": null,
+        "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+      },
+      {
+        "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+        "entity_type": "work_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T13:43:57.244Z",
+        "deleted_at": null,
+        "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+      },
+      {
+        "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+        "entity_type": "todo",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T13:43:57.232Z",
+        "deleted_at": null,
+        "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+      }
+    ],
+    "date": "2026-10-24",
+    "date_content_hash": "5ef346750a4edfd7cc9a6a26a2f39c58b5e2137a2ef14f7776048da6b91a8266",
+    "data": {
+      "todos": [
+        {
+          "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+          "entity_type": "todo",
+          "source": "todo",
+          "source_id": "40000000-0000-4000-8000-000000000001",
+          "date": "2026-10-24",
+          "version": 1,
+          "created_at": "2026-10-26T13:43:57.232Z",
+          "updated_at": "2026-10-26T13:43:57.232Z",
+          "deleted_at": null,
+          "text": "Existing public website todo",
+          "completed": 0,
+          "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+        }
+      ],
+      "life_notes": [
+        {
+          "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+          "entity_type": "life_note",
+          "source": "note_entry",
+          "source_id": "40000000-0000-4000-8000-000000000002",
+          "date": "2026-10-24",
+          "category": "life",
+          "version": 1,
+          "change_seq": 2,
+          "created_at": "2026-10-26T13:43:57.238Z",
+          "updated_at": "2026-10-26T13:43:57.238Z",
+          "deleted_at": null,
+          "text": "Existing public life note",
+          "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+        }
+      ],
+      "work_notes": [
+        {
+          "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+          "entity_type": "work_note",
+          "source": "note_entry",
+          "source_id": "40000000-0000-4000-8000-000000000003",
+          "date": "2026-10-24",
+          "category": "work",
+          "version": 1,
+          "change_seq": 3,
+          "created_at": "2026-10-26T13:43:57.244Z",
+          "updated_at": "2026-10-26T13:43:57.244Z",
+          "deleted_at": null,
+          "text": "Existing public work note",
+          "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+        }
+      ],
+      "work_reminders": [],
+      "memo_groups": [
+        {
+          "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+          "entity_type": "memo_group",
+          "source": "memo_group",
+          "source_id": "40000000-0000-4000-8000-000000000004",
+          "date": null,
+          "version": 1,
+          "change_seq": 4,
+          "created_at": "2026-10-26T13:43:57.278Z",
+          "updated_at": "2026-10-26T13:43:57.278Z",
+          "deleted_at": null,
+          "title": "Native offline",
+          "position": 0,
+          "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+        }
+      ],
+      "memos": [
+        {
+          "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+          "entity_type": "memo_note",
+          "source": "memo_note",
+          "source_id": "40000000-0000-4000-8000-000000000005",
+          "date": null,
+          "version": 1,
+          "change_seq": 5,
+          "created_at": "2026-10-26T13:43:57.282Z",
+          "updated_at": "2026-10-26T13:43:57.282Z",
+          "deleted_at": null,
+          "title": "Native memo",
+          "body": "Existing public memo body",
+          "position": 0,
+          "group_id": "40000000-0000-4000-8000-000000000004",
+          "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+        }
+      ]
+    },
+    "content_hash": "98db723962290c0dbf620f4ef5c3db980c2de2eda44c1fdb430b668372e96eac"
+  },
+  "global_day": {
+    "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+    "projection": "current",
+    "complete": true,
+    "scope_id": "baae6411306b811f473ff2ff8c1ba21e8e4476a42291d7d9ccc637d9675a355e",
+    "timezone": "Asia/Shanghai",
+    "generated_at": "2026-10-26T13:43:57.316Z",
+    "manifest_hash": "085fa59e258bcceda0a8744eb48b31eb0c3fafdb49eef1680626e8576f5dd3ff",
+    "global_content_hash": "48bccd61c0c4816d055d8dbdea6a904c20d7986ada4ad79c35039dbe41bfe5b5",
+    "entities": [
+      {
+        "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+        "entity_type": "memo_group",
+        "date": null,
+        "updated_at": "2026-10-26T13:43:57.278Z",
+        "deleted_at": null,
+        "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+      },
+      {
+        "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+        "entity_type": "memo_note",
+        "date": null,
+        "updated_at": "2026-10-26T13:43:57.282Z",
+        "deleted_at": null,
+        "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+      },
+      {
+        "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+        "entity_type": "life_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T13:43:57.238Z",
+        "deleted_at": null,
+        "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+      },
+      {
+        "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+        "entity_type": "work_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T13:43:57.244Z",
+        "deleted_at": null,
+        "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+      },
+      {
+        "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+        "entity_type": "todo",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T13:43:57.232Z",
+        "deleted_at": null,
+        "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+      }
+    ],
+    "date": "2000-01-01",
+    "date_content_hash": "6c854e99ec7ac286f2505914e280bb89e9b0c429cb632fe7fd8d3f3e105a7fe1",
+    "data": {
+      "todos": [],
+      "life_notes": [],
+      "work_notes": [],
+      "work_reminders": [],
+      "memo_groups": [
+        {
+          "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+          "entity_type": "memo_group",
+          "source": "memo_group",
+          "source_id": "40000000-0000-4000-8000-000000000004",
+          "date": null,
+          "version": 1,
+          "change_seq": 4,
+          "created_at": "2026-10-26T13:43:57.278Z",
+          "updated_at": "2026-10-26T13:43:57.278Z",
+          "deleted_at": null,
+          "title": "Native offline",
+          "position": 0,
+          "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+        }
+      ],
+      "memos": [
+        {
+          "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+          "entity_type": "memo_note",
+          "source": "memo_note",
+          "source_id": "40000000-0000-4000-8000-000000000005",
+          "date": null,
+          "version": 1,
+          "change_seq": 5,
+          "created_at": "2026-10-26T13:43:57.282Z",
+          "updated_at": "2026-10-26T13:43:57.282Z",
+          "deleted_at": null,
+          "title": "Native memo",
+          "body": "Existing public memo body",
+          "position": 0,
+          "group_id": "40000000-0000-4000-8000-000000000004",
+          "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+        }
+      ]
+    },
+    "content_hash": "c8c2559ff910cabd590e87eeda9f0ad6bb4e1a04921566ed471d4dd45350fc48"
+  },
+  "articles": {
+    "status": 200,
+    "data": [],
+    "meta": {
+      "total": 0,
+      "unfiltered_total": 0,
+      "page": 1,
+      "page_size": null,
+      "offset": 0,
+      "has_more": false,
+      "pagination": "legacy"
+    }
+  },
+  "wire": {
+    "me": {
+      "status": 200,
+      "body": {
+        "data": {
+          "id": "public-business",
+          "username": "公开编辑",
+          "publicBusiness": true
+        }
+      }
+    },
+    "index": {
+      "status": 200,
+      "body": {
+        "data": {
+          "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+          "projection": "current",
+          "complete": true,
+          "scope_id": "baae6411306b811f473ff2ff8c1ba21e8e4476a42291d7d9ccc637d9675a355e",
+          "timezone": "Asia/Shanghai",
+          "generated_at": "2026-10-26T13:43:57.285Z",
+          "manifest_hash": "085fa59e258bcceda0a8744eb48b31eb0c3fafdb49eef1680626e8576f5dd3ff",
+          "global_content_hash": "48bccd61c0c4816d055d8dbdea6a904c20d7986ada4ad79c35039dbe41bfe5b5",
+          "entities": [
+            {
+              "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "date": null,
+              "updated_at": "2026-10-26T13:43:57.278Z",
+              "deleted_at": null,
+              "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+            },
+            {
+              "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "date": null,
+              "updated_at": "2026-10-26T13:43:57.282Z",
+              "deleted_at": null,
+              "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+            },
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+              "entity_type": "life_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.238Z",
+              "deleted_at": null,
+              "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+            },
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+              "entity_type": "work_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.244Z",
+              "deleted_at": null,
+              "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+            },
+            {
+              "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.232Z",
+              "deleted_at": null,
+              "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+            }
+          ],
+          "dates": [
+            {
+              "date": "2026-10-24",
+              "content_hash": "5ef346750a4edfd7cc9a6a26a2f39c58b5e2137a2ef14f7776048da6b91a8266"
+            }
+          ],
+          "index_hash": "085fa59e258bcceda0a8744eb48b31eb0c3fafdb49eef1680626e8576f5dd3ff"
+        }
+      }
+    },
+    "daily": {
+      "status": 200,
+      "body": {
+        "data": {
+          "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+          "projection": "current",
+          "complete": true,
+          "scope_id": "baae6411306b811f473ff2ff8c1ba21e8e4476a42291d7d9ccc637d9675a355e",
+          "timezone": "Asia/Shanghai",
+          "generated_at": "2026-10-26T13:43:57.296Z",
+          "manifest_hash": "085fa59e258bcceda0a8744eb48b31eb0c3fafdb49eef1680626e8576f5dd3ff",
+          "global_content_hash": "48bccd61c0c4816d055d8dbdea6a904c20d7986ada4ad79c35039dbe41bfe5b5",
+          "entities": [
+            {
+              "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "date": null,
+              "updated_at": "2026-10-26T13:43:57.278Z",
+              "deleted_at": null,
+              "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+            },
+            {
+              "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "date": null,
+              "updated_at": "2026-10-26T13:43:57.282Z",
+              "deleted_at": null,
+              "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+            },
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+              "entity_type": "life_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.238Z",
+              "deleted_at": null,
+              "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+            },
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+              "entity_type": "work_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.244Z",
+              "deleted_at": null,
+              "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+            },
+            {
+              "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.232Z",
+              "deleted_at": null,
+              "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+            }
+          ],
+          "date": "2026-10-24",
+          "date_content_hash": "5ef346750a4edfd7cc9a6a26a2f39c58b5e2137a2ef14f7776048da6b91a8266",
+          "data": {
+            "todos": [
+              {
+                "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+                "entity_type": "todo",
+                "source": "todo",
+                "source_id": "40000000-0000-4000-8000-000000000001",
+                "date": "2026-10-24",
+                "version": 1,
+                "created_at": "2026-10-26T13:43:57.232Z",
+                "updated_at": "2026-10-26T13:43:57.232Z",
+                "deleted_at": null,
+                "text": "Existing public website todo",
+                "completed": 0,
+                "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+              }
+            ],
+            "life_notes": [
+              {
+                "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+                "entity_type": "life_note",
+                "source": "note_entry",
+                "source_id": "40000000-0000-4000-8000-000000000002",
+                "date": "2026-10-24",
+                "category": "life",
+                "version": 1,
+                "change_seq": 2,
+                "created_at": "2026-10-26T13:43:57.238Z",
+                "updated_at": "2026-10-26T13:43:57.238Z",
+                "deleted_at": null,
+                "text": "Existing public life note",
+                "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+              }
+            ],
+            "work_notes": [
+              {
+                "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+                "entity_type": "work_note",
+                "source": "note_entry",
+                "source_id": "40000000-0000-4000-8000-000000000003",
+                "date": "2026-10-24",
+                "category": "work",
+                "version": 1,
+                "change_seq": 3,
+                "created_at": "2026-10-26T13:43:57.244Z",
+                "updated_at": "2026-10-26T13:43:57.244Z",
+                "deleted_at": null,
+                "text": "Existing public work note",
+                "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+              }
+            ],
+            "work_reminders": [],
+            "memo_groups": [
+              {
+                "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+                "entity_type": "memo_group",
+                "source": "memo_group",
+                "source_id": "40000000-0000-4000-8000-000000000004",
+                "date": null,
+                "version": 1,
+                "change_seq": 4,
+                "created_at": "2026-10-26T13:43:57.278Z",
+                "updated_at": "2026-10-26T13:43:57.278Z",
+                "deleted_at": null,
+                "title": "Native offline",
+                "position": 0,
+                "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+              }
+            ],
+            "memos": [
+              {
+                "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+                "entity_type": "memo_note",
+                "source": "memo_note",
+                "source_id": "40000000-0000-4000-8000-000000000005",
+                "date": null,
+                "version": 1,
+                "change_seq": 5,
+                "created_at": "2026-10-26T13:43:57.282Z",
+                "updated_at": "2026-10-26T13:43:57.282Z",
+                "deleted_at": null,
+                "title": "Native memo",
+                "body": "Existing public memo body",
+                "position": 0,
+                "group_id": "40000000-0000-4000-8000-000000000004",
+                "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+              }
+            ]
+          },
+          "content_hash": "98db723962290c0dbf620f4ef5c3db980c2de2eda44c1fdb430b668372e96eac"
+        }
+      }
+    },
+    "global_day": {
+      "status": 200,
+      "body": {
+        "data": {
+          "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+          "projection": "current",
+          "complete": true,
+          "scope_id": "baae6411306b811f473ff2ff8c1ba21e8e4476a42291d7d9ccc637d9675a355e",
+          "timezone": "Asia/Shanghai",
+          "generated_at": "2026-10-26T13:43:57.316Z",
+          "manifest_hash": "085fa59e258bcceda0a8744eb48b31eb0c3fafdb49eef1680626e8576f5dd3ff",
+          "global_content_hash": "48bccd61c0c4816d055d8dbdea6a904c20d7986ada4ad79c35039dbe41bfe5b5",
+          "entities": [
+            {
+              "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "date": null,
+              "updated_at": "2026-10-26T13:43:57.278Z",
+              "deleted_at": null,
+              "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+            },
+            {
+              "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "date": null,
+              "updated_at": "2026-10-26T13:43:57.282Z",
+              "deleted_at": null,
+              "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+            },
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+              "entity_type": "life_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.238Z",
+              "deleted_at": null,
+              "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+            },
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+              "entity_type": "work_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.244Z",
+              "deleted_at": null,
+              "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+            },
+            {
+              "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.232Z",
+              "deleted_at": null,
+              "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+            }
+          ],
+          "date": "2000-01-01",
+          "date_content_hash": "6c854e99ec7ac286f2505914e280bb89e9b0c429cb632fe7fd8d3f3e105a7fe1",
+          "data": {
+            "todos": [],
+            "life_notes": [],
+            "work_notes": [],
+            "work_reminders": [],
+            "memo_groups": [
+              {
+                "entity_id": "memo-group:40000000-0000-4000-8000-000000000004",
+                "entity_type": "memo_group",
+                "source": "memo_group",
+                "source_id": "40000000-0000-4000-8000-000000000004",
+                "date": null,
+                "version": 1,
+                "change_seq": 4,
+                "created_at": "2026-10-26T13:43:57.278Z",
+                "updated_at": "2026-10-26T13:43:57.278Z",
+                "deleted_at": null,
+                "title": "Native offline",
+                "position": 0,
+                "content_hash": "b1a7e06e35729f735d6cbcb9c083003cef32be7509061b78820f4f2f3d280540"
+              }
+            ],
+            "memos": [
+              {
+                "entity_id": "memo-note:40000000-0000-4000-8000-000000000005",
+                "entity_type": "memo_note",
+                "source": "memo_note",
+                "source_id": "40000000-0000-4000-8000-000000000005",
+                "date": null,
+                "version": 1,
+                "change_seq": 5,
+                "created_at": "2026-10-26T13:43:57.282Z",
+                "updated_at": "2026-10-26T13:43:57.282Z",
+                "deleted_at": null,
+                "title": "Native memo",
+                "body": "Existing public memo body",
+                "position": 0,
+                "group_id": "40000000-0000-4000-8000-000000000004",
+                "content_hash": "49126b91a53b6bebc461f673794a5a71f342e4449800a3d6366ecbdc2d7dbe88"
+              }
+            ]
+          },
+          "content_hash": "c8c2559ff910cabd590e87eeda9f0ad6bb4e1a04921566ed471d4dd45350fc48"
+        }
+      }
+    },
+    "articles": {
+      "status": 200,
+      "body": {
+        "data": [],
+        "meta": {
+          "total": 0,
+          "unfiltered_total": 0,
+          "page": 1,
+          "page_size": null,
+          "offset": 0,
+          "has_more": false,
+          "pagination": "legacy"
+        }
+      }
+    }
+  },
+  "wire_pull": {
+    "me": {
+      "status": 200,
+      "body": {
+        "data": {
+          "id": "public-business",
+          "username": "公开编辑",
+          "publicBusiness": true
+        }
+      }
+    },
+    "index": {
+      "status": 200,
+      "body": {
+        "data": {
+          "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+          "projection": "current",
+          "complete": true,
+          "scope_id": "baae6411306b811f473ff2ff8c1ba21e8e4476a42291d7d9ccc637d9675a355e",
+          "timezone": "Asia/Shanghai",
+          "generated_at": "2026-10-26T13:43:57.246Z",
+          "manifest_hash": "204e48721952de736006adad50b6103de3f816e43de3d807ee5534193a543fef",
+          "global_content_hash": "6c854e99ec7ac286f2505914e280bb89e9b0c429cb632fe7fd8d3f3e105a7fe1",
+          "entities": [
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+              "entity_type": "life_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.238Z",
+              "deleted_at": null,
+              "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+            },
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+              "entity_type": "work_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.244Z",
+              "deleted_at": null,
+              "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+            },
+            {
+              "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.232Z",
+              "deleted_at": null,
+              "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+            }
+          ],
+          "dates": [
+            {
+              "date": "2026-10-24",
+              "content_hash": "5ef346750a4edfd7cc9a6a26a2f39c58b5e2137a2ef14f7776048da6b91a8266"
+            }
+          ],
+          "index_hash": "204e48721952de736006adad50b6103de3f816e43de3d807ee5534193a543fef"
+        }
+      }
+    },
+    "daily": {
+      "status": 200,
+      "body": {
+        "data": {
+          "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+          "projection": "current",
+          "complete": true,
+          "scope_id": "baae6411306b811f473ff2ff8c1ba21e8e4476a42291d7d9ccc637d9675a355e",
+          "timezone": "Asia/Shanghai",
+          "generated_at": "2026-10-26T13:43:57.253Z",
+          "manifest_hash": "204e48721952de736006adad50b6103de3f816e43de3d807ee5534193a543fef",
+          "global_content_hash": "6c854e99ec7ac286f2505914e280bb89e9b0c429cb632fe7fd8d3f3e105a7fe1",
+          "entities": [
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+              "entity_type": "life_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.238Z",
+              "deleted_at": null,
+              "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+            },
+            {
+              "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+              "entity_type": "work_note",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.244Z",
+              "deleted_at": null,
+              "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+            },
+            {
+              "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "date": "2026-10-24",
+              "updated_at": "2026-10-26T13:43:57.232Z",
+              "deleted_at": null,
+              "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+            }
+          ],
+          "date": "2026-10-24",
+          "date_content_hash": "5ef346750a4edfd7cc9a6a26a2f39c58b5e2137a2ef14f7776048da6b91a8266",
+          "data": {
+            "todos": [
+              {
+                "entity_id": "todo:40000000-0000-4000-8000-000000000001",
+                "entity_type": "todo",
+                "source": "todo",
+                "source_id": "40000000-0000-4000-8000-000000000001",
+                "date": "2026-10-24",
+                "version": 1,
+                "created_at": "2026-10-26T13:43:57.232Z",
+                "updated_at": "2026-10-26T13:43:57.232Z",
+                "deleted_at": null,
+                "text": "Existing public website todo",
+                "completed": 0,
+                "content_hash": "20c96cdca10ccb7908004afc8d977a532dcad5160bd7370d347c5c49d410d666"
+              }
+            ],
+            "life_notes": [
+              {
+                "entity_id": "note-entry:40000000-0000-4000-8000-000000000002",
+                "entity_type": "life_note",
+                "source": "note_entry",
+                "source_id": "40000000-0000-4000-8000-000000000002",
+                "date": "2026-10-24",
+                "category": "life",
+                "version": 1,
+                "change_seq": 2,
+                "created_at": "2026-10-26T13:43:57.238Z",
+                "updated_at": "2026-10-26T13:43:57.238Z",
+                "deleted_at": null,
+                "text": "Existing public life note",
+                "content_hash": "e40bd40b80bd91e4ca193457d1fa3aa2002d3449f59d4680c648514644f40081"
+              }
+            ],
+            "work_notes": [
+              {
+                "entity_id": "note-entry:40000000-0000-4000-8000-000000000003",
+                "entity_type": "work_note",
+                "source": "note_entry",
+                "source_id": "40000000-0000-4000-8000-000000000003",
+                "date": "2026-10-24",
+                "category": "work",
+                "version": 1,
+                "change_seq": 3,
+                "created_at": "2026-10-26T13:43:57.244Z",
+                "updated_at": "2026-10-26T13:43:57.244Z",
+                "deleted_at": null,
+                "text": "Existing public work note",
+                "content_hash": "c908c9957f3928849fdb45b1b8134887bf760cf577dc122844238a9cca4cd0e0"
+              }
+            ],
+            "work_reminders": [],
+            "memo_groups": [],
+            "memos": []
+          },
+          "content_hash": "613d4c765b6ef2a5880b58e4f3abbdaf0c75f902c8eb39fc7585d7e3fc7c6c46"
+        }
+      }
+    },
+    "articles": {
+      "status": 200,
+      "body": {
+        "data": [],
+        "meta": {
+          "total": 0,
+          "unfiltered_total": 0,
+          "page": 1,
+          "page_size": null,
+          "offset": 0,
+          "has_more": false,
+          "pagination": "legacy"
+        }
+      }
+    }
+  }
+}

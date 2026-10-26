@@ -5,7 +5,9 @@ import org.json.JSONObject;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.net.URI;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -34,6 +36,7 @@ public final class LocalRepository {
                     .put("entities", new JSONObject()).put("operations", new JSONArray())
                     .put("conflicts", new JSONArray()).put("drafts", new JSONObject())
                     .put("ui", new JSONObject()).put("manifest", new JSONObject()).put("sync_stage", new JSONObject())
+                    .put("workspace", new JSONObject())
                     .put("status", new JSONObject().put("code", "local").put("message", "本机已就绪，尚未同步").put("retry_at", 0));
             store.write(JsonUtil.copy(loaded));
         }
@@ -70,6 +73,22 @@ public final class LocalRepository {
             if ("frozen".equals(operation.optString("status")) && operation.optJSONObject("wire") == null)
                 throw new IllegalStateException("已提交操作缺少原请求，原数据保留");
         }
+        if (value.has("workspace")) {
+            JSONObject workspace = value.optJSONObject("workspace");
+            if (workspace == null) throw new IllegalStateException("本机工作台身份格式无效，原数据保留");
+            if (workspace.length() > 0) {
+                String mode = workspace.optString("mode");
+                if (!isOneOf(mode, "public", "private")
+                        || !(workspace.opt("upload_consented") instanceof Boolean)
+                        || !workspace.optString("account_id").equals(value.optString("account_id"))
+                        || !workspace.optString("scope_id").equals(value.optString("scope_id"))
+                        || workspace.optString("scope_id").isEmpty()
+                        || !normalizedOrigin(workspace.optString("origin")).equals(workspace.optString("origin"))
+                        || "public".equals(mode) && !publicAccountId(workspace.optString("origin"), workspace.optString("scope_id"))
+                        .equals(workspace.optString("account_id")))
+                    throw new IllegalStateException("本机工作台身份不一致，原数据保留");
+            }
+        }
     }
 
     private synchronized void change(Change change) throws Exception {
@@ -83,6 +102,122 @@ public final class LocalRepository {
     }
 
     public synchronized JSONObject snapshot() { return JsonUtil.copy(state); }
+
+    /** Returns persisted target metadata, not a claim that a person is logged in. */
+    public synchronized JSONObject workspace() {
+        JSONObject target = state.optJSONObject("workspace");
+        return target == null ? new JSONObject() : JsonUtil.copy(target);
+    }
+
+    /** Public labels such as public-business are not globally unique identities. */
+    public static String publicAccountId(String origin, String scopeId) {
+        String targetOrigin = normalizedOrigin(origin);
+        validScope(scopeId);
+        return "public:" + JsonUtil.sha256(new JSONArray().put("haoduoyu-public-workspace-v1").put(targetOrigin).put(scopeId));
+    }
+
+    /**
+     * A verified anonymous public manifest may bind an unbound legacy local
+     * workspace for reads. Upload consent is a separate explicit UI decision.
+     * No entity, draft, queue payload or frozen wire is rewritten by migration.
+     */
+    public synchronized JSONObject discoverPublicTarget(String origin, String scopeId) throws Exception {
+        final String targetOrigin = normalizedOrigin(origin);
+        final String targetAccount = publicAccountId(targetOrigin, scopeId);
+        final JSONObject[] result = new JSONObject[1];
+        change(candidate -> {
+            JSONObject known = candidate.optJSONObject("workspace");
+            String oldAccount = candidate.getString("account_id"), oldScope = candidate.getString("scope_id");
+            if (known != null && known.length() > 0) {
+                if (!samePublicTarget(known, targetOrigin, scopeId, targetAccount))
+                    throw new IllegalStateException("工作台身份或范围不同，已暂停；原数据、草稿和队列全部保留");
+                validatePublicWires(candidate, targetOrigin, scopeId, targetAccount);
+                result[0] = JsonUtil.copy(known);
+                return;
+            }
+            // A previous real owner binding is never reclassified as anonymous.
+            boolean legacyPublicLabel = "public-business".equals(oldAccount) && scopeId.equals(oldScope);
+            boolean sameDerivedTarget = targetAccount.equals(oldAccount) && scopeId.equals(oldScope);
+            if (!oldAccount.isEmpty() && !legacyPublicLabel && !sameDerivedTarget)
+                throw new IllegalStateException("本机已有其他账号身份，不能自动迁移到公开工作台；原数据保留");
+            if (!oldScope.isEmpty() && !scopeId.equals(oldScope))
+                throw new IllegalStateException("旧数据范围与公开工作台不同，不能改绑；原数据保留");
+            JSONArray operations = candidate.getJSONArray("operations");
+            for (int index = 0; index < operations.length(); index++) {
+                JSONObject operation = operations.getJSONObject(index);
+                if (operation.optJSONObject("wire") != null || "frozen".equals(operation.optString("status")))
+                    throw new IllegalStateException("存在身份尚未核实的旧冻结请求，不能迁移或重写；原操作保留");
+            }
+            if (!legacyPublicLabel && !sameDerivedTarget) {
+                JSONObject entities = candidate.getJSONObject("entities");
+                for (String key : JsonUtil.keys(entities)) {
+                    if (entities.getJSONObject(key).optJSONObject("server") != null)
+                        throw new IllegalStateException("旧线上基线身份尚未核实，不能自动归入公开工作台；原数据保留");
+                }
+            }
+            JSONObject target = new JSONObject().put("mode", "public").put("origin", targetOrigin)
+                    .put("scope_id", scopeId).put("account_id", targetAccount).put("upload_consented", false);
+            candidate.put("account_id", targetAccount).put("scope_id", scopeId).put("workspace", target);
+            result[0] = JsonUtil.copy(target);
+        });
+        return result[0];
+    }
+
+    public synchronized boolean publicUploadAllowed(String origin, String scopeId) {
+        String targetOrigin = normalizedOrigin(origin);
+        String account = publicAccountId(targetOrigin, scopeId);
+        JSONObject target = state.optJSONObject("workspace");
+        return samePublicTarget(target, targetOrigin, scopeId, account)
+                && target.optBoolean("upload_consented", false)
+                && account.equals(state.optString("account_id")) && scopeId.equals(state.optString("scope_id"));
+    }
+
+    /** Called only after the UI states the exact HTTPS target and its public visibility. */
+    public synchronized void consentPublicUpload(String origin, String scopeId) throws Exception {
+        String targetOrigin = normalizedOrigin(origin);
+        String targetAccount = publicAccountId(targetOrigin, scopeId);
+        change(candidate -> {
+            JSONObject target = candidate.optJSONObject("workspace");
+            if (!samePublicTarget(target, targetOrigin, scopeId, targetAccount))
+                throw new IllegalStateException("待确认的公开工作台已变化；没有授权其他目标");
+            validatePublicWires(candidate, targetOrigin, scopeId, targetAccount);
+            target.put("upload_consented", true).put("consented_at", Instant.now().toString());
+        });
+    }
+
+    private static boolean samePublicTarget(JSONObject target, String origin, String scope, String account) {
+        return target != null && "public".equals(target.optString("mode"))
+                && origin.equals(target.optString("origin")) && scope.equals(target.optString("scope_id"))
+                && account.equals(target.optString("account_id"));
+    }
+
+    private static void validatePublicWires(JSONObject candidate, String origin, String scope, String account) throws Exception {
+        JSONArray operations = candidate.getJSONArray("operations");
+        for (int index = 0; index < operations.length(); index++) {
+            JSONObject wire = operations.getJSONObject(index).optJSONObject("wire");
+            if (wire != null && (!"public".equals(wire.optString("identity_mode"))
+                    || !origin.equals(wire.optString("origin")) || !scope.equals(wire.optString("scope_id"))
+                    || !account.equals(wire.optString("account_id"))))
+                throw new IllegalStateException("旧冻结请求与当前公开工作台身份不一致；原请求未改变，已暂停");
+        }
+    }
+
+    private static String normalizedOrigin(String value) {
+        try {
+            URI uri = new URI(value == null ? "" : value);
+            String path = uri.getRawPath();
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getHost().isEmpty()
+                    || uri.getRawUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null
+                    || uri.getPort() != -1 && uri.getPort() != 443 || path != null && !path.isEmpty() && !"/".equals(path))
+                throw new IllegalArgumentException("工作台必须使用明确的 HTTPS origin");
+            return "https://" + uri.getHost().toLowerCase(Locale.ROOT);
+        } catch (java.net.URISyntaxException invalid) { throw new IllegalArgumentException("工作台 origin 无效", invalid); }
+    }
+
+    private static void validScope(String value) {
+        if (value == null || value.isEmpty() || value.length() > 1024 || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0)
+            throw new IllegalArgumentException("工作台范围标识无效");
+    }
 
     public synchronized void bindAccount(String accountId) throws Exception {
         change(candidate -> pin(candidate, "account_id", accountId));
@@ -245,6 +380,16 @@ public final class LocalRepository {
         final JSONObject[] result = new JSONObject[1];
         if (wire == null) throw new IllegalArgumentException("同步请求不能为空");
         change(candidate -> {
+            JSONObject target = candidate.optJSONObject("workspace");
+            if (target != null && "public".equals(target.optString("mode"))) {
+                if (!target.optBoolean("upload_consented", false))
+                    throw new IllegalStateException("公开工作台上传尚未确认；本机记录和队列保留");
+                if (!"public".equals(wire.optString("identity_mode"))
+                        || !target.optString("origin").equals(wire.optString("origin"))
+                        || !target.optString("scope_id").equals(wire.optString("scope_id"))
+                        || !target.optString("account_id").equals(wire.optString("account_id")))
+                    throw new IllegalStateException("公开工作台请求身份不匹配，原队列保留");
+            }
             JSONArray operations = candidate.getJSONArray("operations");
             JSONObject operation = findOperation(candidate, opId);
             if (operation == null) throw new IllegalArgumentException("同步操作不存在");

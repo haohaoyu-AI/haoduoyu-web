@@ -1,4 +1,4 @@
-name: Android personal preview check
+name: Android personal offline check
 on:
   push:
     branches: ['android/personal-v1']
@@ -83,7 +83,8 @@ jobs:
           assert "sdkVersion:'26'" in badging
           assert 'Verified using v2 scheme (APK Signature Scheme v2): true' in signature
           assert "name='xyz.haoduoyu.personal'" in release_badging
-          assert "versionName='2.0.0'" in release_badging
+          assert "versionName='2.0.1'" in release_badging
+          assert "versionCode='3'" in release_badging
           assert "sdkVersion:'26'" in release_badging
           assert "launchable-activity: name='xyz.haoduoyu.personal.OfflineActivity'" in release_badging
           assert 'application-debuggable' not in release_badging
@@ -106,15 +107,15 @@ jobs:
           }
           suites = [ET.parse(path).getroot() for path in pathlib.Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml')]
           record['jvm_tests'] = {key: sum(int(suite.attrib.get(key, 0)) for suite in suites) for key in ['tests', 'failures', 'errors', 'skipped']}
-          assert record['jvm_tests']['tests'] >= 40
-          assert record['jvm_tests']['failures'] == record['jvm_tests']['errors'] == 0
+          assert record['jvm_tests']['tests'] >= 80
+          assert record['jvm_tests']['failures'] == record['jvm_tests']['errors'] == record['jvm_tests']['skipped'] == 0
           unsigned = directory / 'haoduoyu-personal-offline-v2-release-unsigned.apk'
-          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'application_id': 'xyz.haoduoyu.personal', 'version_name': '2.0.0', 'version_code': 2, 'min_sdk': 26, 'debuggable': False, 'launcher': 'xyz.haoduoyu.personal.OfflineActivity', 'installable': False, 'local_signature': 'pending'}
+          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'application_id': 'xyz.haoduoyu.personal', 'version_name': '2.0.1', 'version_code': 3, 'min_sdk': 26, 'debuggable': False, 'launcher': 'xyz.haoduoyu.personal.OfflineActivity', 'installable': False, 'local_signature': 'pending'}
           (directory / 'delivery.json').write_text(json.dumps(record, indent=2) + '\n')
           (directory / 'SHA256SUMS.txt').write_text(record['sha256'] + '  ' + apk.name + '\n')
           print(json.dumps(record, indent=2))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('Debug preview and unsigned release candidate retained for one day for delivery. No private key, cache, signed release or deployment is uploaded. Signing approval and physical-device acceptance remain pending.\n')
+              summary.write('Debug preview and unsigned release candidate retained for one day for delivery. Public anonymous API and 2.0 upgrade checks use synthetic data. Local stable release signing and Library transfer are separate verified steps; physical-device acceptance remains pending.\n')
           PY
       - name: Retain verified debug preview for Library delivery
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -127,7 +128,7 @@ jobs:
           include-hidden-files: false
       - name: Acquire verified official Windows Java 17 signing runtime
         id: signing_runtime
-        if: always()
+        if: ${{ false }} # Verified runtime is already retained locally; no repeated download.
         run: |
           set -euo pipefail
           mkdir -p signing-runtime-delivery

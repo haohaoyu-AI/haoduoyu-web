@@ -1,6 +1,7 @@
 package xyz.haoduoyu.personal;
 
 import android.app.job.JobScheduler;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Looper;
@@ -24,20 +25,37 @@ import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.LooperMode;
 import org.robolectric.annotation.SQLiteMode;
+import org.robolectric.shadows.ShadowAlertDialog;
+import org.robolectric.shadows.ShadowPopupMenu;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.cert.Certificate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import javax.net.ssl.HttpsURLConnection;
 
+import xyz.haoduoyu.personal.offline.AndroidApiTransport;
+import xyz.haoduoyu.personal.offline.ApiClient;
+import xyz.haoduoyu.personal.offline.JsonUtil;
 import xyz.haoduoyu.personal.offline.LocalRepository;
 import xyz.haoduoyu.personal.offline.OfflineRuntime;
 import xyz.haoduoyu.personal.offline.SqliteStateStore;
@@ -52,6 +70,7 @@ import static org.junit.Assert.*;
 public final class NativeOfflineUiTest {
     private ActivityController<OfflineActivity> controller;
     private ProxySelector previousProxy;
+    private Object previousTransportFactory;
     private final List<URI> attemptedNetwork = new CopyOnWriteArrayList<>();
 
     @Before public void isolateRuntimeAndBlockNetwork() throws Exception {
@@ -60,6 +79,8 @@ public final class NativeOfflineUiTest {
         OfflineRuntime old = singleton();
         if (old != null) closeRuntime(old);
         singletonField().set(null, null);
+        previousTransportFactory = transportFactoryField().get(null);
+        setTransportFactory(() -> (method, path, body) -> { throw new IOException("Synthetic offline transport"); });
         previousProxy = ProxySelector.getDefault();
         ProxySelector.setDefault(new ProxySelector() {
             @Override public List<Proxy> select(URI target) {
@@ -79,7 +100,10 @@ public final class NativeOfflineUiTest {
             JobScheduler jobs = (JobScheduler) RuntimeEnvironment.getApplication().getSystemService(Context.JOB_SCHEDULER_SERVICE);
             if (jobs != null) jobs.cancelAll();
             Shadows.shadowOf(Looper.getMainLooper()).idle();
-        } finally { ProxySelector.setDefault(previousProxy); }
+        } finally {
+            transportFactoryField().set(null, previousTransportFactory);
+            ProxySelector.setDefault(previousProxy);
+        }
     }
 
     @Test public void firstScreenAcceptsNativeTextWithoutLoadingARemoteWebDocument() throws Exception {
@@ -97,7 +121,7 @@ public final class NativeOfflineUiTest {
         assertEquals(0, runtime.repository.snapshot().getJSONObject("entities").length());
         runtime.requestSync();
         drainWorkers(runtime);
-        assertTrue("An unbound local workspace must not touch any remote API", attemptedNetwork.isEmpty());
+        assertTrue("Injected offline transport must not open a physical connection", attemptedNetwork.isEmpty());
         assertEquals(0, webViews(activity.getWindow().getDecorView()));
     }
 
@@ -173,6 +197,185 @@ public final class NativeOfflineUiTest {
         assertEquals(1, runtime.repository.snapshot().getJSONArray("operations").length());
         assertTrue(attemptedNetwork.isEmpty());
     }
+
+    @Test public void legacyLocalWorkspacePullsPublicDataButKeepsItsQueueUntilAnActualConsentClick() throws Exception {
+        final String date = "2026-10-24", slot = "composer:todo:" + date;
+        final String localText = "Unsent todo from version 2.0", draft = "Unfinished version 2.0 draft";
+        SqliteStateStore oldDisk = new SqliteStateStore(RuntimeEnvironment.getApplication());
+        String entityId, operationId;
+        try {
+            LocalRepository old = new LocalRepository(oldDisk);
+            entityId = old.create("todo", null, date, new JSONObject().put("text", localText));
+            old.setDraft(slot, draft); old.setUiState("tab", "todo"); old.setUiState("date", date);
+            JSONObject legacy = old.snapshot(); legacy.remove("workspace");
+            operationId = legacy.getJSONArray("operations").getJSONObject(0).getString("op_id");
+            assertEquals(1, legacy.getInt("schema"));
+            assertEquals("", legacy.getString("account_id"));
+            assertTrue(legacy.getJSONArray("operations").getJSONObject(0).isNull("wire"));
+            oldDisk.write(legacy);
+        } finally { oldDisk.close(); }
+
+        PublicFixtureTransport server = new PublicFixtureTransport();
+        setTransportFactory(() -> server);
+        OfflineActivity activity = launch(null);
+        OfflineRuntime runtime = awaitReady(activity);
+        await("Anonymous discovery must finish a verified pull without a login", () ->
+                "public_consent_required".equals(runtime.repository.snapshot().getJSONObject("status").optString("code")));
+        drainWorkers(runtime);
+        JSONObject target = runtime.repository.workspace();
+        assertEquals("public", target.getString("mode"));
+        assertEquals(ApiClient.ORIGIN, target.getString("origin"));
+        assertFalse(target.getBoolean("upload_consented"));
+        assertEquals(LocalRepository.publicAccountId(ApiClient.ORIGIN, target.getString("scope_id")), target.getString("account_id"));
+        assertEquals(0, server.writes.size());
+        assertFalse(server.paths.stream().anyMatch(path -> path.contains("/auth/login")));
+        assertEquals(draft, field(activity, "composer", EditText.class).getText().toString());
+        JSONObject before = readDisk();
+        assertEquals(localText, before.getJSONObject("entities").getJSONObject(entityId).getJSONObject("local").getString("text"));
+        assertEquals(operationId, before.getJSONArray("operations").getJSONObject(0).getString("op_id"));
+        assertEquals("queued", before.getJSONArray("operations").getJSONObject(0).getString("status"));
+        assertTrue(before.getJSONArray("operations").getJSONObject(0).isNull("wire"));
+        assertNotNull(before.getJSONObject("entities").optJSONObject("todo:40000000-0000-4000-8000-000000000001"));
+
+        Button more = buttonWithText(activity.getWindow().getDecorView(), "更多");
+        assertNotNull(more); assertTrue(more.performClick());
+        android.widget.PopupMenu menu = ShadowPopupMenu.getLatestPopupMenu();
+        assertNotNull(menu);
+        assertEquals("公开工作台与同步授权", menu.getMenu().findItem(1).getTitle().toString());
+        assertTrue(menu.getMenu().performIdentifierAction(1, 0));
+        AlertDialog consent = ShadowAlertDialog.getLatestAlertDialog();
+        assertNotNull(consent);
+        assertEquals("连接公开工作台", Shadows.shadowOf(consent).getTitle().toString());
+        assertEquals("允许公开同步", consent.getButton(AlertDialog.BUTTON_POSITIVE).getText().toString());
+        assertEquals(0, server.writes.size());
+        assertTrue(consent.getButton(AlertDialog.BUTTON_POSITIVE).performClick());
+        await("Only the explicit native consent click may release the old outbox", () ->
+                runtime.repository.workspace().optBoolean("upload_consented") && !server.writes.isEmpty());
+        drainWorkers(runtime);
+        JSONObject after = readDisk(), op = after.getJSONArray("operations").getJSONObject(0);
+        assertEquals(operationId, op.getString("op_id"));
+        assertEquals("frozen", op.getString("status"));
+        assertEquals(localText, op.getJSONObject("payload").getString("text"));
+        assertEquals("public", op.getJSONObject("wire").getString("identity_mode"));
+        assertEquals(target.getString("scope_id"), op.getJSONObject("wire").getString("scope_id"));
+        assertEquals(draft, after.getJSONObject("drafts").getString(slot));
+        assertEquals(localText, server.writes.get(0).getJSONObject("body").getString("text"));
+        assertTrue(attemptedNetwork.isEmpty());
+    }
+
+    @Test public void actualTransportRequiresExplicitPublicIdentityAndConstructsThePublicWriteHeaders() throws Exception {
+        List<FakeHttpsConnection> opened = new ArrayList<>();
+        AndroidApiTransport.ConnectionFactory factory = url -> {
+            String response = url.getPath().equals("/api/v1/auth/me")
+                    ? "{\"data\":{\"id\":\"public-business\",\"publicBusiness\":true}}" : "{\"data\":{\"version\":1}}";
+            FakeHttpsConnection connection = new FakeHttpsConnection(url, response); opened.add(connection); return connection;
+        };
+        AndroidApiTransport.CookieAccess noCookies = new AndroidApiTransport.CookieAccess() {
+            @Override public String get() { return null; }
+            @Override public void set(String value) { fail("Pinned sync must not mutate browser cookies"); }
+            @Override public void flush() { fail("Pinned sync must not flush browser cookies"); }
+        };
+        AndroidApiTransport transport = new AndroidApiTransport(factory, noCookies);
+        assertWriteRefused(transport); assertTrue(opened.isEmpty());
+        transport.send("GET", "/api/v1/auth/me", null);
+        JSONObject body = new JSONObject().put("id", "50000000-0000-4000-8000-000000000001").put("text", "Public native wire");
+        transport.send("POST", "/api/v1/todos", body);
+        assertEquals(2, opened.size());
+        FakeHttpsConnection post = opened.get(1);
+        assertEquals("POST", post.getRequestMethod());
+        assertEquals(ApiClient.ORIGIN, post.getRequestProperty("Origin"));
+        assertEquals("1", post.getRequestProperty("X-Public-Business"));
+        assertNull(post.getRequestProperty("Cookie"));
+        assertNull(post.getRequestProperty("Authorization"));
+        assertNull(post.getRequestProperty("X-CSRF-Token"));
+        assertEquals(body.toString(), new String(post.written.toByteArray(), StandardCharsets.UTF_8));
+        assertTrue(post.disconnected);
+
+        for (String me : new String[]{"{\"id\":\"public-business\",\"publicBusiness\":\"true\"}",
+                "{\"id\":\"60000000-0000-4000-8000-000000000001\",\"csrfToken\":\"synthetic-private\"}"}) {
+            List<FakeHttpsConnection> rejectedConnections = new ArrayList<>();
+            AndroidApiTransport refused = new AndroidApiTransport(url -> {
+                FakeHttpsConnection connection = new FakeHttpsConnection(url, "{\"data\":" + me + "}");
+                rejectedConnections.add(connection); return connection;
+            }, noCookies);
+            refused.send("GET", "/api/v1/auth/me", null);
+            assertWriteRefused(refused);
+            assertEquals("An unverified/private identity must fail before opening a write connection", 1, rejectedConnections.size());
+        }
+        assertTrue(attemptedNetwork.isEmpty());
+    }
+
+    private static void assertWriteRefused(AndroidApiTransport transport) throws Exception {
+        try { transport.send("POST", "/api/v1/todos", new JSONObject()); fail("Expected public identity gate"); }
+        catch (IOException expected) { /* No connection is opened until strict public discovery. */ }
+    }
+
+    /** Replays real source-worker synthetic projections; writes deliberately fail before acknowledgement. */
+    private static final class PublicFixtureTransport implements ApiClient.Transport {
+        final JSONObject fixture;
+        final List<String> paths = new CopyOnWriteArrayList<>();
+        final List<JSONObject> writes = new CopyOnWriteArrayList<>();
+        PublicFixtureTransport() throws Exception {
+            try (InputStream input = NativeOfflineUiTest.class.getResourceAsStream("/public-workbench-contract.json")) {
+                assertNotNull(input); fixture = new JSONObject(new String(input.readAllBytes(), StandardCharsets.UTF_8));
+            }
+            assertTrue(fixture.getBoolean("synthetic_public_fixture"));
+        }
+        @Override public ApiClient.Response send(String method, String path, JSONObject body) throws Exception {
+            paths.add(path);
+            if (!"GET".equals(method)) {
+                writes.add(new JSONObject().put("path", path).put("body", new JSONObject(body.toString())));
+                return new ApiClient.Response(503, new JSONObject().put("error", new JSONObject().put("code", "SYNTHETIC_OFFLINE")));
+            }
+            JSONObject captured, wire = fixture.getJSONObject("wire");
+            if (path.equals("/api/v1/auth/me")) captured = wire.getJSONObject("me");
+            else if (path.equals("/api/v1/workbench-snapshot/index")) captured = wire.getJSONObject("index");
+            else if (path.startsWith("/api/v1/workbench-snapshot?date=")) {
+                String date = path.substring(path.indexOf('=') + 1);
+                if (date.equals(fixture.getJSONObject("daily").getString("date"))) captured = wire.getJSONObject("daily");
+                else {
+                    captured = new JSONObject(wire.getJSONObject("global_day").toString());
+                    JSONObject data = captured.getJSONObject("body").getJSONObject("data"); data.put("date", date);
+                    data.put("date_content_hash", JsonUtil.sha256(new JSONObject().put("scope_id", data.getString("scope_id")).put("entities", new JSONArray())));
+                    data.put("content_hash", JsonUtil.sha256(new JSONObject().put("snapshot_format", data.getString("snapshot_format"))
+                            .put("scope_id", data.getString("scope_id")).put("date", date).put("timezone", data.getString("timezone")).put("data", data.getJSONObject("data"))));
+                }
+            } else if (path.startsWith("/api/v1/articles")) captured = wire.getJSONObject("articles");
+            else throw new AssertionError("Unexpected API call in public upgrade UI test: " + method + " " + path);
+            return new ApiClient.Response(captured.getInt("status"), new JSONObject(captured.getJSONObject("body").toString()));
+        }
+    }
+
+    private static final class FakeHttpsConnection extends HttpsURLConnection {
+        final byte[] response;
+        final ByteArrayOutputStream written = new ByteArrayOutputStream();
+        boolean disconnected;
+        FakeHttpsConnection(URL url, String response) { super(url); this.response = response.getBytes(StandardCharsets.UTF_8); }
+        @Override public void disconnect() { disconnected = true; }
+        @Override public boolean usingProxy() { return false; }
+        @Override public void connect() { }
+        @Override public int getResponseCode() { return 200; }
+        @Override public InputStream getInputStream() { return new ByteArrayInputStream(response); }
+        @Override public OutputStream getOutputStream() { return written; }
+        @Override public Map<String, List<String>> getHeaderFields() { return Collections.emptyMap(); }
+        @Override public String getHeaderField(String name) { return null; }
+        @Override public String getCipherSuite() { return "SYNTHETIC"; }
+        @Override public Certificate[] getLocalCertificates() { return null; }
+        @Override public Certificate[] getServerCertificates() { return new Certificate[0]; }
+    }
+
+    private static Button buttonWithText(View view, String text) {
+        if (view instanceof Button && text.contentEquals(((Button) view).getText())) return (Button) view;
+        if (view instanceof ViewGroup) for (int i = 0; i < ((ViewGroup) view).getChildCount(); i++) {
+            Button found = buttonWithText(((ViewGroup) view).getChildAt(i), text); if (found != null) return found;
+        }
+        return null;
+    }
+
+    private static Field transportFactoryField() throws Exception {
+        Field field = OfflineRuntime.class.getDeclaredField("transportFactory"); field.setAccessible(true); return field;
+    }
+    private static void setTransportFactory(Supplier<ApiClient.Transport> factory) throws Exception { transportFactoryField().set(null, factory); }
 
     private OfflineActivity launch(Bundle state) {
         controller = Robolectric.buildActivity(OfflineActivity.class);

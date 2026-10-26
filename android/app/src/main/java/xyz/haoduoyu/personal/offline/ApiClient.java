@@ -10,6 +10,7 @@ import java.io.InterruptedIOException;
 public final class ApiClient {
     public static final String ORIGIN = "https://haoduoyu.xyz";
     public static final String PREFIX = "/api/v1";
+    public static final String PUBLIC_BUSINESS_ID = "public-business";
 
     public interface Transport {
         Response send(String method, String path, JSONObject body) throws Exception;
@@ -91,4 +92,10 @@ public final class ApiClient {
     }
 
     public JSONObject me() throws Exception { return object("GET", PREFIX + "/auth/me", null); }
+
+    /** Public editing is an explicit server identity, never a fallback after an auth failure. */
+    public static boolean isPublicBusiness(JSONObject me) {
+        return me != null && PUBLIC_BUSINESS_ID.equals(me.optString("id", ""))
+                && Boolean.TRUE.equals(me.opt("publicBusiness"));
+    }
 }

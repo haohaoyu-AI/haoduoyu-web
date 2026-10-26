@@ -268,7 +268,11 @@ public final class OfflineActivity extends Activity {
         JSONArray operations = state.optJSONArray("operations");
         int pending = operations == null ? 0 : operations.length();
         String label = sync == null ? "" : sync.optString("message");
-        status.setText((state.optString("account_id").isEmpty() ? "未关联账号 · 本机草稿" : "本机资料")
+        JSONObject target = runtime.repository.workspace();
+        boolean publicTarget = "public".equals(target.optString("mode"));
+        boolean uploadAllowed = publicTarget && target.optBoolean("upload_consented");
+        status.setOnClickListener(view -> { if (uploadAllowed) showSyncDetails(); else showPublicWorkspace(); });
+        status.setText((publicTarget ? (uploadAllowed ? "公开工作台 · 已允许同步" : "公开工作台 · 点此允许本机记录公开同步") : "本机记录 · 等待核实公开工作台")
                 + (pending == 0 ? "" : " · 待同步 " + pending + " 项") + (label.isEmpty() ? "" : "\n" + label));
         for (int i=0; i<tabs.getChildCount(); i++) {
             Button item = (Button) tabs.getChildAt(i); boolean active = tab.equals(item.getTag()); item.setTextColor(active ? ACCENT : MUTED); item.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
@@ -380,11 +384,11 @@ public final class OfflineActivity extends Activity {
     private void showMenu(View anchor) {
         if(runtime==null){error("正在读取本机资料，请保留当前输入");return;}
         PopupMenu menu=new PopupMenu(this,anchor);
-        String[] names={"立即同步","登录 / 重新登录","冲突与保留副本","网页版与低频功能","关于离线版","本机草稿"};
+        String[] names={"立即同步","公开工作台与同步授权","冲突与保留副本","网页版与低频功能","关于离线版","本机草稿"};
         for(int i=0;i<names.length;i++)menu.getMenu().add(0,i, i,names[i]);
         menu.setOnMenuItemClickListener(item->{switch(item.getItemId()){
             case 0:runtime.requestSync();error("已请求同步；没有网络时仍可继续记录");break;
-            case 1:login();break;
+            case 1:showPublicWorkspace();break;
             case 2:showConflicts();break;
             case 3:persistPosition();startActivity(new Intent(this,MainActivity.class));break;
             case 4:new AlertDialog.Builder(this).setTitle("好多鱼离线版").setMessage("版本 "+BuildConfig.VERSION_NAME+"\n待办、备忘录、生活和工作碎碎念先存本机，再与 haoduoyu.xyz 原数据同步。\n图文记录与每日提醒仅显示实际获取的副本。\nAndroid 可能延迟后台任务；强制停止后须重新打开应用才能继续同步。没有新增系统定时通知。\n卸载或清除数据会删除本机未同步内容。"+(BuildConfig.DEBUG?"\n当前为调试预览，不能当作正式发布签名版。":"")).setPositiveButton("知道了",null).show();break;
@@ -392,30 +396,27 @@ public final class OfflineActivity extends Activity {
             default:break;
         }return true;});menu.show();
     }
-    private void showSyncDetails() { if(runtime==null)return;new AlertDialog.Builder(this).setTitle("本机与同步状态").setMessage(status.getText()+"\n\n未发送操作和冲突副本会保留到重启后。同步只使用原账号与原接口；登录失效或权限变化时暂停，不切换身份重放。").setPositiveButton("请求同步",(dialog,which)->runtime.requestSync()).setNegativeButton("关闭",null).show(); }
+    private void showSyncDetails() { if(runtime==null)return;new AlertDialog.Builder(this).setTitle("本机与同步状态").setMessage(status.getText()+"\n\n未发送操作和冲突副本会保留到重启后。网站无需账号。同步使用网站现有公开接口；上传需先允许当前公开目标。权限、身份或目标变化时暂停，保留本机内容，不切换工作台重放。").setPositiveButton("请求同步",(dialog,which)->runtime.requestSync()).setNegativeButton("关闭",null).show(); }
 
-    private void login() {
-        LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);fields.setPadding(dp(20),0,dp(20),0);
-        EditText username=new EditText(this);username.setSingleLine(true);username.setHint("原网站账号");fields.addView(username);
-        EditText password=new EditText(this);password.setSingleLine(true);password.setHint("密码（不会保存）");password.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);fields.addView(password);
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("使用原网站账号").setView(fields).setPositiveButton("登录",null).setNegativeButton("取消",null).create();
-        dialog.setOnShowListener(ignored->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
-            String user=username.getText().toString(),pass=password.getText().toString();if(user.isEmpty()||pass.isEmpty())return;
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
-            // Authentication has its own executor so UI database edits remain responsive.
-            startupAndLogin.execute(()->{
-                try{
-                    runtime.api.request("POST","/api/v1/auth/login",new JSONObject().put("username",user).put("password",pass));
-                    JSONObject identity=runtime.api.me();String id=identity.getString("id"),name=identity.optString("username",user);
-                    main.post(()->{password.setText("");dialog.dismiss();if(!alive)return;
-                        String bound=runtime.repository.snapshot().optString("account_id");
-                        if(!bound.isEmpty()&&!bound.equals(id)){error("本机离线库属于另一账号。内容仍保留，请登录原账号后同步。");return;}
-                        if(bound.isEmpty())new AlertDialog.Builder(this).setTitle("关联本机记录").setMessage("将本机离线记录关联到账号「"+name+"」并与该网站账号同步？后续不会自动换账号发送。").setPositiveButton("关联并同步",(confirm,which)->local(()->runtime.repository.bindAccount(id))).setNegativeButton("暂不关联",null).show();
-                        else{runtime.requestSync();render();}
-                    });
-                }catch(Exception failure){main.post(()->{password.setText("");if(alive){dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);error("登录未完成，请核对账号、网络和网站权限。");}});}
-            });
-        }));dialog.show();
+    private void showPublicWorkspace() {
+        if (runtime == null) return;
+        JSONObject target = runtime.repository.workspace();
+        if (!"public".equals(target.optString("mode"))) {
+            new AlertDialog.Builder(this).setTitle("核实公开工作台")
+                    .setMessage("网站无需注册或登录。联网后会核实 https://haoduoyu.xyz 当前公开工作台，并先下载已有记录。\n\n本机记录和草稿已保留；未核实目标或尚未同意公开上传时，不会发送本机队列。若检测到旧的其他身份或目标变更，会暂停以保护数据。")
+                    .setPositiveButton("联网核实", (dialog, which) -> runtime.requestSync())
+                    .setNegativeButton("关闭", null).show();
+            return;
+        }
+        String origin = target.optString("origin"), scope = target.optString("scope_id");
+        boolean allowed = target.optBoolean("upload_consented");
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this).setTitle("连接公开工作台")
+                .setMessage("同步目标：" + origin + "\n\n这是原网站现有的公开工作台，无需账号。允许后，本机待办、备忘录、生活和工作碎碎念及后续修改、删除会同步到该网站，可被拥有网站公开访问权限的人看到。\n\n授权只对当前核实的工作台有效；目标或身份变更会暂停，不会自动改投另一工作台。" +
+                        (allowed ? "\n\n已允许公开同步。" : "\n\n暂不上传时仍可下载已有记录，本机内容继续保留。"));
+        if (allowed) dialog.setPositiveButton("立即同步", (selected, which) -> runtime.requestSync());
+        else dialog.setPositiveButton("允许公开同步", (selected, which) ->
+                local(() -> runtime.repository.consentPublicUpload(origin, scope)));
+        dialog.setNegativeButton(allowed ? "关闭" : "暂不上传", null).show();
     }
 
     private void showConflicts() {

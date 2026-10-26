@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync,mkdirSync,writeFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
+import {registerHooks} from 'node:module';
 import {digest,csrfFor,stable} from '../../src/security.mjs';
 import {handleTodos} from '../../src/todos.mjs';
 import {handleMemos} from '../../src/memos.mjs';
@@ -14,11 +15,29 @@ const ORIGIN='https://haoduoyu.invalid',DATE='2026-10-24',STAMP=DATE+'T01:02:03.
 const OWNER='10000000-0000-4000-8000-000000000001',OTHER='20000000-0000-4000-8000-000000000002';
 const TOKEN='a'.repeat(64),FOREIGN_TOKEN='b'.repeat(64);
 const wireId=()=>randomUUID();
+const capturedWire=result=>{const {status,...body}=result;return {status,body};};
 const expected=(status,code)=>error=>error.status===status&&(!code||error.code===code);
+
+// Load the real source worker, including its public access router. Its generated
+// static-asset module is irrelevant to API requests and is the only import
+// replaced; this does not build or rewrite any website source/output file.
+const workerSource=new URL('../../src/worker.mjs',import.meta.url).href;
+let sourceWorkerPromise;
+function sourceWorker() {
+  if(!sourceWorkerPromise)sourceWorkerPromise=(async()=>{
+    const hook=registerHooks({resolve(specifier,context,nextResolve) {
+      if(context.parentURL===workerSource&&specifier==='./assets.generated.mjs')
+        return {url:'data:text/javascript,export%20const%20assets%3D%7B%7D%3B',shortCircuit:true};
+      return nextResolve(specifier,context);
+    }});
+    try {return (await import(workerSource)).default;}finally {hook.deregister();}
+  })();
+  return sourceWorkerPromise;
+}
 
 // Runs real handlers and real migrations against SQLite, with D1's atomic batch
 // boundary. No HTTP listener, dependency installation, network or live records.
-function fixture(t) {
+function fixture(t,{origin=ORIGIN}={}) {
   const sqlite=new DatabaseSync(':memory:');t.after(()=>sqlite.close());
   for(const name of readdirSync(new URL('../../drizzle/',import.meta.url)).filter(n=>n.endsWith('.sql')).sort())
     sqlite.exec(readFileSync(new URL('../../drizzle/'+name,import.meta.url),'utf8'));
@@ -51,23 +70,38 @@ function fixture(t) {
       }catch(error){if(sqlite.isTransaction)sqlite.exec('ROLLBACK');throw error;}
     }
   };
-  const env={SITE_ORIGIN:ORIGIN,PUBLIC_BUSINESS_MODE:'0',PUBLIC_BUSINESS_USER_ID:OWNER,
+  const env={SITE_ORIGIN:origin,PUBLIC_BUSINESS_MODE:'0',PUBLIC_BUSINESS_USER_ID:OWNER,
     PUBLIC_BUSINESS_ACCOUNT_IDS:'["android-contract"]',DAILY_NOTES_OWNER_ID:OWNER,MEMOS_OWNER_ID:OWNER};
   async function call(path,{method='GET',body,token=TOKEN,settings=env}={}) {
     const headers=new Headers({'Cookie':'matrix_session='+token});
     if(body!==undefined)headers.set('Content-Type','application/json');
-    if(!['GET','HEAD'].includes(method)){headers.set('Origin',ORIGIN);headers.set('X-CSRF-Token',csrfFor(token));}
-    const request=new Request(ORIGIN+'/api/v1'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+    if(!['GET','HEAD'].includes(method)){headers.set('Origin',origin);headers.set('X-CSRF-Token',csrfFor(token));}
+    const request=new Request(origin+'/api/v1'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
     const route=path.split('?')[0];let response;
     if(route.startsWith('/workbench-snapshot'))response=await handleWorkbenchSnapshot(db,request,route,settings);
-    else if(route.startsWith('/note-entries'))response=await handleNoteEntries(db,request,route,settings,ORIGIN);
-    else if(route.startsWith('/daily-notes'))response=await handleDailyNotes(db,request,route,settings,ORIGIN);
-    else if(route.startsWith('/memos'))response=await handleMemos(db,request,route,settings,ORIGIN);
-    else if(route.startsWith('/todos'))response=await handleTodos(db,request,route,ORIGIN);
+    else if(route.startsWith('/note-entries'))response=await handleNoteEntries(db,request,route,settings,origin);
+    else if(route.startsWith('/daily-notes'))response=await handleDailyNotes(db,request,route,settings,origin);
+    else if(route.startsWith('/memos'))response=await handleMemos(db,request,route,settings,origin);
+    else if(route.startsWith('/todos'))response=await handleTodos(db,request,route,origin);
     else throw Error('Unexpected fixture route');
     return {status:response.status,...await response.json()};
   }
-  return {sqlite,db,insert,env,call,get batches(){return batches;},loseCommit(){loseNextCommit=true;}};
+  const publicRequests=[];
+  async function publicCall(path,{method='GET',body,headers={},publicWrite=true,token,settings={}}={}) {
+    const wireHeaders=new Headers(headers);
+    if(token!==undefined)wireHeaders.set('Cookie','matrix_session='+token);
+    if(body!==undefined)wireHeaders.set('Content-Type','application/json');
+    if(!['GET','HEAD'].includes(method)) {
+      if(!wireHeaders.has('Origin'))wireHeaders.set('Origin',origin);
+      if(publicWrite&&!wireHeaders.has('X-Public-Business'))wireHeaders.set('X-Public-Business','1');
+    }
+    const request=new Request(origin+'/api/v1'+path,{method,headers:wireHeaders,
+      body:body===undefined?undefined:JSON.stringify(body)});
+    publicRequests.push({method,path,headers:Object.fromEntries(request.headers),body});
+    const response=await (await sourceWorker()).fetch(request,{...env,PUBLIC_BUSINESS_MODE:'1',...settings,DB:db});
+    return {status:response.status,...await response.json()};
+  }
+  return {sqlite,db,insert,env,call,publicCall,publicRequests,get batches(){return batches;},loseCommit(){loseNextCommit=true;}};
 }
 const noteBody=(text,version=0,category='life')=>({category,date:DATE,text,version,save_id:wireId()});
 const groupBody=(version=0)=>({title:'Native offline',position:0,version,save_id:wireId()});
@@ -152,4 +186,125 @@ test('Android scope binding cannot infer write permission or merge legacy notes 
     mkdirSync(new URL('.',output),{recursive:true});
     writeFileSync(output,JSON.stringify({index,daily},null,2)+'\n');
   }
+});
+
+test('anonymous source worker exposes the public identity and existing workspace without an account',async t=>{
+  const f=fixture(t,{origin:'https://public-first-'+wireId()+'.invalid'});
+  const me=await f.publicCall('/auth/me');
+  assert.equal(me.status,200);assert.equal(me.data.id,'public-business');assert.equal(me.data.publicBusiness,true);
+  assert.equal(Object.hasOwn(me.data,'csrfToken'),false);
+  const tid='40000000-0000-4000-8000-000000000001',life='40000000-0000-4000-8000-000000000002';
+  const work='40000000-0000-4000-8000-000000000003',gid='40000000-0000-4000-8000-000000000004';
+  const nid='40000000-0000-4000-8000-000000000005';
+  assert.equal((await f.publicCall('/todos',{method:'POST',body:{id:tid,date:DATE,text:'Existing public website todo'}})).status,201);
+  assert.equal((await f.publicCall('/note-entries/'+life,{method:'PUT',body:noteBody('Existing public life note')})).status,200);
+  assert.equal((await f.publicCall('/note-entries/'+work,{method:'PUT',body:noteBody('Existing public work note',0,'work')})).status,200);
+  // A wholly captured first pull with only dated entities does not depend on
+  // the host clock when the JVM replays it later. The full fixture below also
+  // retains actual global memo projections for the other contract tests.
+  const wire_pull={me:capturedWire(me),
+    index:capturedWire(await f.publicCall('/workbench-snapshot/index')),
+    daily:capturedWire(await f.publicCall('/workbench-snapshot?date='+DATE)),
+    articles:capturedWire(await f.publicCall('/articles'))};
+  assert.equal(wire_pull.index.body.data.entities.length,3);
+  assert.equal((await f.publicCall('/memos/groups/'+gid,{method:'PUT',body:groupBody()})).status,200);
+  assert.equal((await f.publicCall('/memos/notes/'+nid,{method:'PUT',body:memoBody(gid,'Existing public memo body')})).status,200);
+  const indexWire=await f.publicCall('/workbench-snapshot/index');
+  const dailyWire=await f.publicCall('/workbench-snapshot?date='+DATE);
+  assert.equal(indexWire.status,200);assert.equal(dailyWire.status,200);
+  assert.equal(Object.hasOwn(indexWire,'snapshot_format'),false,'Actual HTTP success wraps the snapshot envelope in data');
+  assert.equal(Object.hasOwn(dailyWire,'snapshot_format'),false);
+  assert.equal(indexWire.data.snapshot_format,'haoduoyu-workbench-snapshot-v1');
+  assert.equal(dailyWire.data.snapshot_format,'haoduoyu-workbench-snapshot-v1');
+  assert.ok(Array.isArray(dailyWire.data.data.todos),'Date snapshot has its own collection data inside HTTP data');
+  const index=indexWire.data,daily=dailyWire.data;
+  assert.equal(daily.complete,true);assert.equal(daily.manifest_hash,index.manifest_hash);
+  assert.equal(daily.data.todos[0].source_id,tid);
+  assert.equal(daily.data.life_notes[0].text,'Existing public life note');
+  assert.equal(daily.data.work_notes[0].text,'Existing public work note');
+  assert.equal(daily.data.memos[0].body,'Existing public memo body');
+  assert.equal((await f.publicCall('/todos?date='+DATE)).data.items[0].text,'Existing public website todo');
+  assert.equal((await f.publicCall('/memos')).data.can_edit,true);
+  const blockedId=wireId(),blocked={method:'POST',body:{id:blockedId,date:DATE,text:'must not be created'}};
+  assert.equal((await f.publicCall('/todos',{...blocked,publicWrite:false})).status,403);
+  assert.equal((await f.publicCall('/todos',{...blocked,headers:{Origin:'https://foreign.invalid'}})).status,403);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM matrix_todos WHERE id=?').get(blockedId).n,0);
+  for(const wire of f.publicRequests) {
+    assert.equal(wire.headers.cookie,undefined);assert.equal(wire.headers.authorization,undefined);
+    if(!['GET','HEAD'].includes(wire.method)&&wire.headers['x-public-business']==='1'&&wire.headers.origin===f.env.SITE_ORIGIN)
+      assert.equal(wire.headers['x-csrf-token'],undefined,'Public wire does not invent a private session CSRF token');
+  }
+  if(process.env.WRITE_ANDROID_PUBLIC_FIXTURE==='1') {
+    const globalWire=await f.publicCall('/workbench-snapshot?date=2000-01-01');
+    const global_day=globalWire.data;
+    const articles=await f.publicCall('/articles');
+    const wire={me:capturedWire(me),index:capturedWire(indexWire),daily:capturedWire(dailyWire),global_day:capturedWire(globalWire),articles:capturedWire(articles)};
+    assert.equal(Object.hasOwn(wire.index.body,'snapshot_format'),false);
+    assert.equal(wire.index.body.data.snapshot_format,'haoduoyu-workbench-snapshot-v1');
+    assert.ok(Array.isArray(wire.daily.body.data.data.todos));
+    const output=new URL('../app/src/test/resources/public-workbench-contract.json',import.meta.url);
+    mkdirSync(new URL('.',output),{recursive:true});
+    writeFileSync(output,JSON.stringify({synthetic_public_fixture:true,source:'real src/worker.mjs with synthetic SQLite; no production requests',me:me.data,index,daily,global_day,articles,wire,wire_pull},null,2)+'\n');
+  }
+});
+
+test('anonymous public wires keep UUID, CAS, deletion and receipt semantics through lost acknowledgements',async t=>{
+  const f=fixture(t,{origin:'https://public-retry-'+wireId()+'.invalid'}),tid=wireId();
+  const todo={method:'POST',body:{id:tid,date:DATE,text:'Public queued todo'}};
+  f.loseCommit();assert.equal((await f.publicCall('/todos',todo)).status,500);
+  assert.equal(f.batches,1);
+  assert.equal((await f.publicCall('/todos',todo)).data.version,1);assert.equal(f.batches,1);
+  const completion={method:'PATCH',body:{version:1,completed:true}};
+  assert.equal((await f.publicCall('/todos/'+tid,completion)).data.version,2);
+  assert.equal((await f.publicCall('/todos/'+tid,completion)).status,409);
+  const observed=(await f.publicCall('/todos?date='+DATE)).data.items.find(row=>row.id===tid);
+  assert.equal(observed.version,2);assert.equal(observed.completed,true);
+  const deletion={method:'DELETE',body:{date:DATE,version:2}};
+  assert.equal((await f.publicCall('/todos/'+tid,deletion)).data.version,3);
+  assert.equal((await f.publicCall('/todos/'+tid,deletion)).data.version,3);
+  assert.equal((await f.publicCall('/todos',todo)).status,410);
+
+  const id=wireId(),entry=noteBody('Public offline text');
+  f.loseCommit();assert.equal((await f.publicCall('/note-entries/'+id,{method:'PUT',body:entry})).status,500);
+  const receipt=(await f.publicCall('/note-entries/operations/'+entry.save_id)).data;
+  assert.equal(receipt.found,true);assert.equal(receipt.id,id);assert.equal(receipt.version,1);
+  assert.equal((await f.publicCall('/note-entries/'+id,{method:'PUT',body:entry})).data.version,1);
+  assert.equal((await f.publicCall('/note-entries/'+id,{method:'PUT',body:noteBody('Newer website edit',1)})).data.version,2);
+  assert.equal((await f.publicCall('/note-entries/'+id,{method:'PUT',body:entry})).status,409);
+  assert.equal((await f.publicCall('/note-entries/'+id,{method:'PUT',body:noteBody('Stale queued text',1)})).status,409);
+  assert.equal((await f.publicCall('/note-entries/'+id)).data.text,'Newer website edit');
+  assert.equal((await f.publicCall('/note-entries/operations/'+entry.save_id)).data.version,1);
+  const removeEntry={method:'DELETE',body:{version:2,save_id:wireId()}};
+  assert.equal((await f.publicCall('/note-entries/'+id,removeEntry)).data.version,3);
+  assert.equal((await f.publicCall('/note-entries/'+id,removeEntry)).data.version,3);
+  const snapshot=(await f.publicCall('/workbench-snapshot?date='+DATE)).data;
+  const tombstone=snapshot.data.life_notes.find(row=>row.source_id===id);
+  assert.ok(tombstone.deleted_at);assert.equal(Object.hasOwn(tombstone,'text'),false);
+  assert.ok(snapshot.data.todos.find(row=>row.source_id===tid).deleted_at);
+
+  const gid=wireId(),nid=wireId();
+  assert.equal((await f.publicCall('/memos/groups/'+gid,{method:'PUT',body:groupBody()})).status,200);
+  const memo=memoBody(gid,'Public memo committed once');
+  f.loseCommit();assert.equal((await f.publicCall('/memos/notes/'+nid,{method:'PUT',body:memo})).status,500);
+  assert.equal((await f.publicCall('/memos/operations/'+memo.save_id)).data.found,true);
+  assert.equal((await f.publicCall('/memos/notes/'+nid,{method:'PUT',body:memo})).data.version,1);
+  assert.equal((await f.publicCall('/memos/notes/'+nid,{method:'PUT',body:memoBody(gid,'Public website memo changed',1)})).data.version,2);
+  assert.equal((await f.publicCall('/memos/notes/'+nid,{method:'PUT',body:memo})).status,409);
+  assert.equal((await f.publicCall('/memos/operations/'+memo.save_id)).data.version,1);
+});
+
+test('public-business is not a unique workspace id and cannot silently replace a private session',async t=>{
+  const f=fixture(t,{origin:'https://public-scope-'+wireId()+'.invalid'});
+  const firstMe=(await f.publicCall('/auth/me')).data;
+  const first=(await f.publicCall('/workbench-snapshot/index')).data;
+  const changed={PUBLIC_BUSINESS_USER_ID:OTHER,DAILY_NOTES_OWNER_ID:OTHER,MEMOS_OWNER_ID:OTHER};
+  const nextMe=(await f.publicCall('/auth/me',{settings:changed})).data;
+  const next=(await f.publicCall('/workbench-snapshot/index',{settings:changed})).data;
+  assert.equal(firstMe.id,'public-business');assert.equal(nextMe.id,firstMe.id);
+  assert.equal(nextMe.publicBusiness,true);assert.notEqual(first.scope_id,next.scope_id);
+  const privateMe=(await f.publicCall('/auth/me',{token:TOKEN})).data;
+  assert.equal(privateMe.id,OWNER);assert.equal(privateMe.publicBusiness,undefined);
+  assert.equal((await f.publicCall('/auth/me',{settings:{PUBLIC_BUSINESS_MODE:'0'}})).status,401);
+  assert.equal((await f.publicCall('/todos',{method:'POST',token:TOKEN,
+    body:{id:wireId(),date:DATE,text:'Public header cannot replace private CSRF'}})).status,403);
 });
