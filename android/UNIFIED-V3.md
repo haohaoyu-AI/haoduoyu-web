@@ -72,3 +72,16 @@ Old persistent job IDs are cancelled on thin-shell startup and the old service i
 The separate native recovery activity is read-only. Empty draft keys, entity/tombstone metadata, operation order, frozen requests, full conflict history and unknown root fields remain in the complete JSON/text export. Large previews are labelled as previews; complete file export retains the original payload. Clipboard decisions count UTF-8 bytes without allocating another large record, capped at 64 KiB. Only system-provider `content:` URIs are accepted. Imported archives stay quarantined under a separate read-only directory, and cannot set active consent or initialize either outbox.
 
 The dedicated workflow is updated only on `android/unified-v3`. It independently reconstructs fixed 2.0.1 source and runs its original checks unchanged, then compiles/tests/lints the actual 3.0.0/code 4 `MainActivity` candidate and inspects APK metadata. Release signing is explicitly required to remain absent in CI. The hosted ephemeral `.debug` reference cannot replace the installed stable release; final signing still requires the original private key at the authorized house machine. No credential, original APK, production record or device operation is consumed by synthetic tests.
+
+## Verified cloud candidate
+
+[CI 40368024053](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40368024053) verifies source `ca9e2a581acf6791df2b4e34c8921df9efdee474` on the pinned JDK17/SDK35 toolchain:
+
+- Fixed 2.0.1 fixture `d5e417384fc66870e810cd14626f770a1be88d0e`: 80 JVM/SQLite/native tests, 16 Node checks, both lints and release compilation; zero failures/errors/skips.
+- Current 3.0.0/code 4 candidate: 106 JVM/SQLite/native tests, 20 Node checks, debug/release lint and both build types; zero failures/errors/skips.
+- Release package `xyz.haoduoyu.personal`, minSdk 26, launcher `MainActivity`, not debuggable. The release APK is **unsigned and not installable**: 95,704 bytes, SHA256 `35913afeffbd5b34d2e5435827aaf66a5f960645db9a3479985f953c0a9afa10`.
+- Hosted `.debug` reference: 126,121 bytes, SHA256 `706e6790406bf8dee5a97abb9d3d5aaade1038e725e150da58bd44420c65386e`. Its ephemeral debug signature is not the release certificate and cannot upgrade the original app.
+
+The new actual-SQLite tests cover successful recovery, a lost response followed by receipt recovery without duplicate writes, two original life/work operations in order, and missing consent/failed backup/failed SQL write without source replacement. Recovery UI tests verify empty drafts, large-record file export, rejection of non-provider destinations and stale export callbacks. An interrupted picker cannot silently export an empty or different snapshot; the user can reopen export after returning.
+
+Robolectric does not implement the platform Service Worker controller. Its dedicated test shadow retains and asserts the real application's standard settings calls; it does not replace the native bridge scripts, old engine or database. Actual browser Service Worker/IndexedDB persistence, keyboard/file/back behavior and device acceptance remain separate web/device gates. The available local cloud JRE also passed 84 pure Java and 20 Node checks; no local SDK, Android device or original signing key was available. No formal signed 3.0 APK or production deployment is claimed.
