@@ -14,10 +14,10 @@ function auditHtml(identity, rows) {
     window: {addEventListener() {}}, location: {href: 'http://localhost/', search: ''},
     history: {replaceState() {}}, URL, URLSearchParams, Intl,
     localStorage: {getItem() {}}, requestAnimationFrame() {}, setTimeout, clearTimeout,
-    identity, rows,
+    __auditFixtureIdentity: identity, __auditFixtureRows: rows,
   });
   new vm.Script(source).runInContext(context);
-  return vm.runInContext('state.me=identity;renderAudit(rows)', context);
+  return vm.runInContext('state.me=__auditFixtureIdentity;renderAudit(__auditFixtureRows)', context);
 }
 
 test('authenticated identity adds its exact user id and renders only that audit actor as me', async t => {
