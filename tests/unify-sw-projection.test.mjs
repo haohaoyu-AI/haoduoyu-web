@@ -13,6 +13,7 @@ import {unifySwBaseline,unifySwPaths,unifySwAddedModules,unifySwBefore,unifySwMa
 import {projectUnifyTodosOffline,projectUnifyTodosOfflineModules} from './unify-todos-offline-projection.mjs';
 import {projectUnifyNotesOffline,projectUnifyNotesOfflineModules} from './unify-notes-offline-projection.mjs';
 import {projectUnifyMemosOffline} from './unify-memos-offline-projection.mjs';
+import {projectUnifyConflictResolution} from './unify-conflict-resolution-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
@@ -21,7 +22,7 @@ const delta=unifySwManifest();
 test('SW shell pins eleven exact paths and one new module over the fixed final mobile baseline',async()=>{
   assert.equal(unifySwPaths.length,11);assert.deepEqual(unifySwAddedModules,['web/offline/sw-client.mjs']);
   for(const file of unifySwPaths) {
-    const source=projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,read(file)))),before=unifySwBefore(file);
+    const source=projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,read(file))))),before=unifySwBefore(file);
     assert.equal(swHash(source),delta.files[file].after,'current source remains exact: '+file);
     assert.equal(projectUnifySw(file,source),before,file);
     assert.equal(projectUnifySw(file,before),before,'exact stage-two bytes remain accepted: '+file);
@@ -89,7 +90,7 @@ test('SW projection preserves API, permissions, configuration, schema and every 
 });
 
 test('the exact SW build is deterministic and its complete shell generation excludes all API and auth URLs',()=>{
-  const beforeB=(file)=>projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,read(file))));
+  const beforeB=(file)=>projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,read(file)))));
   const indexHtml=beforeB('public/index.html');
   const swSource=beforeB('public/sw.js');
   const assets=Object.fromEntries(shellAssetPaths.filter(path=>path!=='/').map(path=>[path,beforeB('public'+path)]));

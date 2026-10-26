@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {projectUnifyConflictResolutionHistory,projectUnifyConflictResolutionModules} from './unify-conflict-resolution-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifyMemosOfflineBaseline='3193568bb7275ad7b8cdf752ea0a6ef197d8a6a8';
@@ -84,6 +85,7 @@ function historicalHashes(file) {
   return historicalDigests.get(file);
 }
 export function projectUnifyMemosOfflineHistory(file,source) {
+  source=projectUnifyConflictResolutionHistory(file,source);
   if(!unifyMemosOfflinePaths.includes(file))return source;
   const entry=unifyMemosOfflineManifest().files[file],digest=memosOfflineHash(source);
   if(digest===entry.after||source===unifyMemosOfflineBefore(file))return projectUnifyMemosOffline(file,source);
@@ -95,6 +97,7 @@ export function projectUnifyMemosOfflineHistory(file,source) {
 }
 
 export function projectUnifyMemosOfflineModules(files,readSource=read) {
+  files=projectUnifyConflictResolutionModules(files,readSource);
   for(const file of files.filter(file=>unifyMemosOfflineAddedModules.includes(file))) {
     const source=readSource(file);
     assert.equal(memosOfflineHash(source),unifyMemosOfflineManifest().files[file].after,label+' exact current added module: '+file);

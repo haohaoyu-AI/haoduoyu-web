@@ -10,6 +10,7 @@ import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
 import {projectUnifyNotesOffline,projectUnifyNotesOfflineModules} from './unify-notes-offline-projection.mjs';
 import {projectUnifyMemosOffline} from './unify-memos-offline-projection.mjs';
+import {projectUnifyConflictResolution} from './unify-conflict-resolution-projection.mjs';
 import {unifyTodosOfflineBaseline,unifyTodosOfflinePatch,unifyTodosOfflinePaths,unifyTodosOfflineAddedModules,
   unifyTodosOfflineBefore,unifyTodosOfflineManifest,validateUnifyTodosOfflineDelta,projectUnifyTodosOffline,
   projectUnifyTodosOfflineHistory,projectUnifyTodosOfflineModules,todosOfflineHash} from './unify-todos-offline-projection.mjs';
@@ -24,7 +25,7 @@ test('todo-offline pins the fixed source and patch with exactly fifteen producti
   assert.deepEqual(git('diff','--name-only',unifyTodosOfflineBaseline,unifyTodosOfflinePatch,'--',...roots).trim().split('\n'),
     [...unifyTodosOfflinePaths],'the reviewed commit itself cannot contain an extra production path');
   for(const file of unifyTodosOfflinePaths) {
-    const source=projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,read(file))),before=unifyTodosOfflineBefore(file);
+    const source=projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,read(file)))),before=unifyTodosOfflineBefore(file);
     assert.equal(source,git('show',unifyTodosOfflinePatch+':'+file),'exact frozen patch bytes: '+file);
     assert.equal(todosOfflineHash(source),delta.files[file].after,'exact current source hash: '+file);
     assert.equal(projectUnifyTodosOffline(file,source),before,file);
@@ -114,7 +115,7 @@ test('todo-offline composes through every fixed earlier layer without changing h
 
 test('todo-offline leaves backend, API routes, permissions, schema, runtime and release configuration unchanged',()=>{
   assert.deepEqual(projectedChangedFiles(unifyTodosOfflineBaseline,roots,
-    (file,source)=>projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,source)))),[],
+    (file,source)=>projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,source))))),[],
     'all extra production edits, untracked files and deletions remain visible');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','public/openapi.json','public/api-docs.html','public/llms.txt','src/worker.mjs'])

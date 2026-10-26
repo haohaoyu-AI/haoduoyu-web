@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
+import {projectUnifyConflictResolution,projectUnifyConflictResolutionModules} from './unify-conflict-resolution-projection.mjs';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
@@ -22,19 +23,21 @@ test('memo-offline pins final C and the fixed D source with exactly eleven produ
   assert.deepEqual(git('diff','--name-only',unifyMemosOfflineBaseline,unifyMemosOfflinePatch,'--',...roots).trim().split('\n'),
     [...unifyMemosOfflinePaths],'the D source itself cannot contain an extra production path');
   for(const file of unifyMemosOfflinePaths) {
-    const source=read(file),before=unifyMemosOfflineBefore(file);
+    const source=projectUnifyConflictResolution(file,read(file)),before=unifyMemosOfflineBefore(file);
     assert.equal(source,git('show',unifyMemosOfflinePatch+':'+file),'exact frozen D source: '+file);
     assert.equal(memosOfflineHash(source),delta.files[file].after,'exact current D digest: '+file);
     assert.equal(projectUnifyMemosOffline(file,source),before,file);
     assert.equal(projectUnifyMemosOffline(file,before),before,'fixed final C input remains valid: '+file);
   }
   for(const file of ['web/core/api.mjs',...unifyNotesOfflinePaths.filter(file=>!unifyMemosOfflinePaths.includes(file))])
-    assert.equal(read(file),git('show',unifyMemosOfflineBaseline+':'+file),'the complete fixed C/B implementation remains unchanged: '+file);
+    assert.equal(projectUnifyConflictResolution(file,read(file)),git('show',unifyMemosOfflineBaseline+':'+file),
+      'the complete fixed C/B implementation remains unchanged: '+file);
 });
 
 test('memo-offline preserves every one of the 69 C modules and adds exactly two reviewed modules',()=>{
   const released=git('ls-tree','-r','--name-only',unifyMemosOfflineBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
-  const current=readdirSync(new URL('../web/',import.meta.url),{recursive:true}).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
+  const current=projectUnifyConflictResolutionModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
+    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort());
   assert.equal(released.length,69);assert.equal(current.length,71);
   assert.deepEqual(current,[...released,...unifyMemosOfflineAddedModules].sort());
   assert.deepEqual(projectUnifyMemosOfflineModules(current),released,'all original module paths remain exact');
@@ -100,7 +103,7 @@ test('memo-offline composes through fixed earlier layers while retaining every o
   const manifests=git('ls-tree','-r','--name-only',unifyMemosOfflineBaseline,'tests').trim().split('\n').filter(file=>file.endsWith('-delta.json'));
   for(const file of manifests)assert.equal(read(file),git('show',unifyMemosOfflineBaseline+':'+file),'old manifest byte lock: '+file);
   for(const file of unifyMemosOfflinePaths) {
-    const source=read(file),before=unifyMemosOfflineBefore(file);
+    const source=projectUnifyConflictResolution(file,read(file)),before=unifyMemosOfflineBefore(file);
     assert.equal(projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,source)),projectUnifyNotesOffline(file,before),
       'D inverse restores the unchanged strict C input: '+file);
     for(const project of [projectUnifySw,projectUnifyStage2,projectUnifyStage1])
@@ -112,7 +115,8 @@ test('memo-offline composes through fixed earlier layers while retaining every o
 });
 
 test('memo-offline leaves backend, API routes, schema, permissions, runtime and release configuration unchanged',()=>{
-  assert.deepEqual(projectedChangedFiles(unifyMemosOfflineBaseline,roots,projectUnifyMemosOffline),[],
+  assert.deepEqual(projectedChangedFiles(unifyMemosOfflineBaseline,roots,
+    (file,source)=>projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,source))),[],
     'all extra production edits, untracked paths and deletions remain visible');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','.github/workflows/cloudflare-manual-release.yml','.github/scripts/cloudflare-publish.mjs',

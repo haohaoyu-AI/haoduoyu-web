@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {projectUnifyMemosOffline,projectUnifyMemosOfflineModules} from './unify-memos-offline-projection.mjs';
+import {projectUnifyConflictResolution} from './unify-conflict-resolution-projection.mjs';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
@@ -22,7 +23,7 @@ test('note-offline pins final B and the fixed C source with exactly seventeen pr
   assert.deepEqual(git('diff','--name-only',unifyNotesOfflineBaseline,unifyNotesOfflinePatch,'--',...roots).trim().split('\n'),
     [...unifyNotesOfflinePaths],'the C source itself cannot contain an extra production path');
   for(const file of unifyNotesOfflinePaths) {
-    const source=projectUnifyMemosOffline(file,read(file)),before=unifyNotesOfflineBefore(file);
+    const source=projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,read(file))),before=unifyNotesOfflineBefore(file);
     assert.equal(source,git('show',unifyNotesOfflinePatch+':'+file),'exact frozen C source: '+file);
     assert.equal(notesOfflineHash(source),delta.files[file].after,'exact current C digest: '+file);
     assert.equal(projectUnifyNotesOffline(file,source),before,file);
@@ -85,7 +86,7 @@ test('note-offline composes through the fixed earlier layers while retaining eve
   const manifests=git('ls-tree','-r','--name-only',unifyNotesOfflineBaseline,'tests').trim().split('\n').filter(file=>file.endsWith('-delta.json'));
   for(const file of manifests)assert.equal(read(file),git('show',unifyNotesOfflineBaseline+':'+file),'old manifest byte lock: '+file);
   for(const file of unifyNotesOfflinePaths) {
-    const source=projectUnifyMemosOffline(file,read(file)),before=unifyNotesOfflineBefore(file);
+    const source=projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,read(file))),before=unifyNotesOfflineBefore(file);
     assert.equal(projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,source)),projectUnifyTodosOffline(file,before),
       'C inverse restores the unchanged strict B input: '+file);
     for(const project of [projectUnifySw,projectUnifyStage2,projectUnifyStage1])
@@ -98,7 +99,7 @@ test('note-offline composes through the fixed earlier layers while retaining eve
 
 test('note-offline leaves backend, API routes, schema, permissions, runtime and release configuration unchanged',()=>{
   assert.deepEqual(projectedChangedFiles(unifyNotesOfflineBaseline,roots,
-    (file,source)=>projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,source))),[],
+    (file,source)=>projectUnifyNotesOffline(file,projectUnifyMemosOffline(file,projectUnifyConflictResolution(file,source)))),[],
     'all extra production edits, untracked paths and deletions remain visible');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','.github/workflows/cloudflare-manual-release.yml','.github/scripts/cloudflare-publish.mjs',
