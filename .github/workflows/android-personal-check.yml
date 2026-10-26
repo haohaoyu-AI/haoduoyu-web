@@ -1,7 +1,7 @@
 name: Android personal offline check
 on:
   push:
-    branches: ['android/personal-v1']
+    branches: ['android/personal-v1', 'android/unified-v3']
     paths: ['android/**', '.github/workflows/android-personal-check.yml']
 permissions:
   contents: read
