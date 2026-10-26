@@ -14,6 +14,11 @@ function client(fetch) {
 }
 const row=id=>({id,title:'Synthetic '+id,account_id:'synthetic-account',platform:'zhihu',published_at:'2026-10-01T00:00:00.000Z'});
 const ok=data=>Response.json({data});
+async function waitForTransport(started) {
+  const deadline=performance.now()+1000;
+  while(!started()&&performance.now()<deadline)await new Promise(resolve=>setTimeout(resolve,0));
+  assert.ok(started(),'the actual API transport must start after offline storage initialization');
+}
 test('index coalesces canonical queries, isolates filters and retains immutable minimal rows',async()=>{
   const calls=[],c=client(async(path,options)=>{calls.push({path,options});return ok([row(path)]);});
   c.run("let first=articleIndex('platform=zhihu&account_id=a'),second=articleIndex('account_id=a&platform=zhihu')");
@@ -42,9 +47,12 @@ test('old session responses cannot fill a new session cache; logout and current 
     if(++reads===1)return new Promise(resolve=>{finish=()=>resolve(ok([row('old-session')]));});
     return ok([row('new-session')]);
   });
-  c.run("let old=articleIndex();clearArticleIndexes();state.me={id:'synthetic-other'}");
+  c.run('let old=articleIndex()');
+  const rejected=assert.rejects(c.run('old'),error=>error.staleIndex===true);
+  await waitForTransport(()=>typeof finish==='function');
+  c.run("clearArticleIndexes();state.me={id:'synthetic-other'}");
   assert.equal((await c.run('articleIndex()'))[0].id,'new-session');finish();
-  await assert.rejects(c.run('old'),error=>error.staleIndex===true);
+  await rejected;
   assert.equal(c.run("[...articleIndexes.keys()].every(key=>key.startsWith('synthetic-other:'))"),true);
   unauthorized=true;await assert.rejects(c.run("api('/accounts')"),error=>error.status===401);
   assert.equal(c.run('state.me'),null);assert.equal(c.run('articleIndexes.size'),0);

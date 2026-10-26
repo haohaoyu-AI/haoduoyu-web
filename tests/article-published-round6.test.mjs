@@ -8,6 +8,11 @@ import {articleDraft,articleFilterPanel,articleModal,renderArticles,viewDraft} f
 const statuses=['drafting','illustrated','draft_saved','published','failed'];
 const accounts=[{id:'account-a',platform:'zhihu',name:'合成甲账号',active:1},
   {id:'account-b',platform:'toutiao',name:'合成乙账号',active:1}];
+async function waitForTransport(started) {
+  const deadline=performance.now()+1000;
+  while(!started()&&performance.now()<deadline)await new Promise(resolve=>setTimeout(resolve,0));
+  assert.ok(started(),'the actual API transport must start after offline storage initialization');
+}
 function fixtures() {
   return Array.from({length:80},(_,index)=>{
     const status=index<75?statuses[index%5]:null,published=status==='published';
@@ -142,7 +147,8 @@ test('late responses after render, session or selected-account changes never rep
     let finish;const current=[{id:'current-visible-record'}],meta={total:99};
     state.account='account-a';state.articles=current;state.articleMeta=meta;
     globalThis.fetch=()=>new Promise(resolve=>finish=resolve);
-    const pending=renderArticles(runtime.renderVersion);change();
+    const pending=renderArticles(runtime.renderVersion);pending.catch(()=>{});
+    await waitForTransport(()=>typeof finish==='function');change();
     finish(Response.json({data:[rows[0]],meta:{total:1,unfiltered_total:1,has_more:false}}));
     assert.equal(await pending,'');assert.equal(state.articles,current);assert.equal(state.articleMeta,meta);
   }

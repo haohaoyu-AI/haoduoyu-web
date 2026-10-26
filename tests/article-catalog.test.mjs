@@ -220,6 +220,11 @@ function defaultApi(t,rows,{transport}={}) {
   }};
 }
 const cachedCatalogs=()=>[...articleIndexes.values()].filter(value=>value?.kind==='article-catalog');
+async function waitForTransport(started) {
+  const deadline=performance.now()+1000;
+  while(!started()&&performance.now()<deadline)await new Promise(resolve=>setTimeout(resolve,0));
+  assert.ok(started(),'the actual API transport must start after offline storage initialization');
+}
 
 test('completed default API catalogs cache for ten seconds while every current filter and page uses the full original set',async t=>{
   const rows=[article('draft','draft_saved'),article('zero','published',{latest_metrics:{reads:0}}),article('unknown',null)];
@@ -268,6 +273,8 @@ test('in-flight catalogs are never shared between contexts and aborted late resu
   const first=loadArticleCatalog(oldContext,{allowedAccountIds:['a']});
   const rejected=assert.rejects(first,{name:'AbortError'});
   const second=loadArticleCatalog(newContext,{allowedAccountIds:['a']});
+  second.catch(()=>{});
+  await waitForTransport(()=>waiting.length===2);
   assert.equal(waiting.length,2);assert.equal(cachedCatalogs().length,0);
   oldContext.controller.abort();await rejected;
   waiting[1]();const current=await second;
