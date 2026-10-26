@@ -244,7 +244,8 @@ test('conflict choices retain both bodies until an actual supported resolution',
   const id = randomUUID(), key = entityKey(scope, 'conflict:synthetic'), local = {id, text: '本地全文'}, remote = {id, text: '线上全文'};
   await f.db.transaction(['entities', 'outbox', 'conflicts'], 'readwrite', async tx => {
     await tx.put('entities', {key: entityKey(scope, 'todo:' + id), scope, entity_id: 'todo:' + id, local, server: remote, dirty: true, conflict: key});
-    await tx.put('conflicts', {key, scope, entity_id: 'todo:' + id, operation: {entity_type: 'todo', protocol: 1}, local, remote, resolved_at: null});
+    await tx.put('conflicts', {key, scope, entity_id: 'todo:' + id, operation: {entity_type: 'todo', protocol: 1,
+      source_id: id, entity_id: 'todo:' + id, method: 'POST', path: '/todos'}, local, remote, resolved_at: null});
   });
   for (const choice of ['use-local', 'keep-both']) {
     assert.equal((await f.app.resolve(key, choice)).needs_followup, true);

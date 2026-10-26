@@ -1324,11 +1324,12 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
 }
 
 // web/offline/conflict.mjs
-function createConflictStore({ db, now = Date.now }) {
+function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
   async function record({ operation, remote = null, reason = "version" }) {
     return db.transaction(["entities", "outbox", "conflicts"], "readwrite", async (tx) => {
       const current = await tx.get("outbox", operation.key);
       if (!current || current.scope !== operation.scope) throw new Error("Offline operation is no longer current");
+      if (!canDispatch(operation) || !canDispatch(current)) return null;
       if (current.claim_owner !== operation.claim_owner || ["archived", "conflict"].includes(current.status)) {
         throw new Error("Offline conflict claim changed");
       }
@@ -1403,12 +1404,22 @@ var active2 = (operation) => !["acked", "archived"].includes(operation.status);
 var deleted = (value) => Boolean(value && (value.deleted || value.deleted_at));
 var ordered = (rows) => rows.sort((a, b) => a.seq - b.seq);
 var needsUpgrade = () => Object.assign(new Error("此本机操作需新版页面处理，原内容已保留。"), { code: "OFFLINE_UPGRADE_REQUIRED" });
+function canonicalRoute(operation) {
+  const { entity_type: type, source_id: id, entity_id, method, path } = operation;
+  if (!uuidPattern2.test(id) || entity_id !== prefixes[type] + id) return false;
+  const base = type === "todo" ? "/todos" : type === "template" ? "/todo-templates" : type === "note_entry" ? "/note-entries" : "/memos/" + (type === "memo_note" ? "notes" : "groups");
+  if (["todo", "template"].includes(type)) {
+    if (method === "POST") return path === base || type === "todo" && path === base + "/" + id + "/restore";
+    return ["PATCH", "DELETE"].includes(method) && path === base + "/" + id;
+  }
+  return (method === "PUT" || type === "note_entry" && method === "DELETE") && path === base + "/" + id;
+}
 function dispatchCapabilities(options2) {
   const types2 = new Set(options2.enabledTypes || Object.keys(prefixes));
   const protocols = new Set(options2.supportedProtocols || [1]);
   const canDispatch = (operation) => {
     const protocol = operation?.protocol === void 0 ? 1 : operation.protocol;
-    return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types2.has(operation.entity_type) && Number.isSafeInteger(protocol) && protocol === 1 && protocols.has(protocol) && !Object.hasOwn(operation, "depends_on"));
+    return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types2.has(operation.entity_type) && Number.isSafeInteger(protocol) && protocol === 1 && protocols.has(protocol) && !Object.hasOwn(operation, "depends_on") && canonicalRoute(operation));
   };
   const requireDispatch = (operation) => {
     if (!canDispatch(operation)) throw needsUpgrade();
@@ -1512,9 +1523,10 @@ function validAcknowledgement(operation, remote) {
 }
 function createContext(options2) {
   const { db, request, getScope, now = Date.now, uuid = () => crypto.randomUUID(), timeout = 2e4 } = options2;
-  const owner = uuid(), conflicts = createConflictStore({ db, now });
+  const owner = uuid();
   const state2 = { phase: "idle", pending: 0, unsupported: 0, error: null };
   const { canDispatch, requireDispatch } = dispatchCapabilities(options2);
+  const conflicts = createConflictStore({ db, now, canDispatch });
   const leaseKey = (scope) => entityKey(scope, "outbox-lease");
   const checkScope = (scope) => {
     if (getScope() !== scope) throw Object.assign(new Error("Offline identity changed"), { code: "OFFLINE_SCOPE_CHANGED" });
@@ -1740,6 +1752,8 @@ function processingMethods(context) {
   }
   async function fail3(operation, error) {
     if ([409, 410, 404].includes(error.status)) {
+      const current = await context.db.transaction(["outbox"], "readonly", (tx) => tx.get("outbox", operation.key));
+      if (!context.canDispatch(current)) return;
       let remote = null;
       try {
         remote = await readRemote(operation);
@@ -2250,6 +2264,8 @@ function runtimeContext(options2) {
     stopped: false
   };
   const send = async (path, opts) => {
+    if (opts?.method && !["GET", "HEAD"].includes(opts.method.toUpperCase()) && !writableRoute(path, opts, features))
+      throw fail2("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
     if (!online() || !state2.verifiedScope || state2.verifiedScope !== state2.scope) throw offlineError();
     const owner = state2.scope, generation = context.generation;
     try {

@@ -149,3 +149,60 @@ test('an unsupported peer conflict remains readable and an old page cannot archi
   await assert.rejects(runtime.resolve(conflict.key,'use-server'),error=>error.code==='OFFLINE_UPGRADE_REQUIRED');
   assert.deepEqual(await all(db,'outbox'),before);assert.equal((await all(db,'conflicts'))[0].resolved_at,null);
 });
+test('malformed persisted type and path metadata never routes a todo dispatcher into the online memo API',async t=>{
+  for(const kind of ['memo-index','memo-note','different-uuid','wrong-method'])await t.test(kind,async t=>{
+    const db=createMemoryDB(),id=randomUUID(),saved=await peer(db).enqueue({scope,entity_type:'todo',entity_id:id,
+      method:'POST',body:{id,date,text:'Synthetic retained malformed operation'}});
+    const routes={'memo-index':['POST','/memos'],'memo-note':['PUT','/memos/notes/'+id],
+      'different-uuid':['PATCH','/todos/'+randomUUID()],'wrong-method':['PUT','/todos/'+id]};
+    const [method,path]=routes[kind],malformed={...saved.operation,method,path};
+    await db.transaction(['outbox'],'readwrite',tx=>tx.put('outbox',malformed));const writes=[],entities=await all(db,'entities');
+    const old=createOutbox({...bOptions,db,getScope:()=>scope,request:()=>assert.fail('malformed rows never dispatch')});
+    assert.equal((await old.drain()).unsupported,1);
+    const runtime=createOfflineRuntime({db,request:async(path,options={})=>{
+      if(path==='/auth/me')return {id:'synthetic-owner',username:'Synthetic owner',publicBusiness:true};
+      if(path.startsWith('/workbench-snapshot'))return snapshot(path.includes('?')?date:null);
+      writes.push(path);return {...options.body,id,version:1};
+    }});t.after(()=>runtime.stop());
+    await runtime.sync();assert.deepEqual(writes,[]);assert.deepEqual(await all(db,'outbox'),[malformed]);
+    assert.deepEqual(await all(db,'entities'),entities);assert.deepEqual(await all(db,'conflicts'),[]);
+    assert.equal(runtime.state.unsupported,1);assert.equal(offlineStatusLabel(runtime.state),'需新版');
+  });
+});
+test('an error response cannot let an old conflict handler modify a peer-upgraded protocol operation',async t=>{
+  for(const status of [409,404,410])await t.test(String(status),async()=>{
+    const db=createMemoryDB(),id=randomUUID(),saved=await peer(db).enqueue({scope,entity_type:'todo',entity_id:id,
+      method:'POST',body:{id,date,text:'Synthetic upgraded conflict body'}});const calls=[],entities=await all(db,'entities');let upgraded;
+    const old=createOutbox({...bOptions,db,getScope:()=>scope,request:async(path,options={})=>{
+      calls.push(path);
+      if(options.method){
+        await db.transaction(['outbox'],'readwrite',async tx=>{
+          upgraded={...await tx.get('outbox',saved.operation.key),protocol:2,depends_on:[]};await tx.put('outbox',upgraded);
+        });
+        throw Object.assign(new Error('Synthetic conflict'),{status,code:'VERSION_CONFLICT'});
+      }
+      return path.startsWith('/todos?')?{items:[]}:{complete:true,scope_id:scope,data:{todos:[]}};
+    }});
+    const result=await old.drain();assert.equal(calls.length,1,'no unsupported reconciliation reads after the peer upgrade');
+    assert.deepEqual(await all(db,'outbox'),[upgraded]);assert.deepEqual(await all(db,'conflicts'),[]);
+    assert.deepEqual(await all(db,'entities'),entities);assert.equal(result.pending,1);assert.equal(result.unsupported,1);
+  });
+});
+test('the conflict transaction preserves a protocol upgrade that happens during reconciliation',async t=>{
+  for(const status of [409,404])await t.test(String(status),async()=>{
+    const db=createMemoryDB(),id=randomUUID(),saved=await peer(db).enqueue({scope,entity_type:'todo',entity_id:id,
+      method:'POST',body:{id,date,text:'Synthetic mid-reconciliation upgrade'}});const calls=[],entities=await all(db,'entities');let upgraded;
+    const old=createOutbox({...bOptions,db,getScope:()=>scope,request:async(path,options={})=>{
+      calls.push(path);
+      if(options.method)throw Object.assign(new Error('Synthetic conflict'),{status,code:'VERSION_CONFLICT'});
+      assert.ok(path.startsWith('/todos?'));
+      await db.transaction(['outbox'],'readwrite',async tx=>{
+        upgraded={...await tx.get('outbox',saved.operation.key),protocol:2,depends_on:[]};await tx.put('outbox',upgraded);
+      });
+      return {items:[{id,date,text:'Synthetic conflicting server text',completed:false,version:1}]};
+    }});
+    const result=await old.drain();assert.equal(calls.length,2,'one write and the reconciliation already in flight');
+    assert.deepEqual(await all(db,'outbox'),[upgraded]);assert.deepEqual(await all(db,'conflicts'),[]);
+    assert.deepEqual(await all(db,'entities'),entities);assert.equal(result.pending,1);assert.equal(result.unsupported,1);
+  });
+});

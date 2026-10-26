@@ -69,6 +69,8 @@ function runtimeContext(options) {
   const context = {db, request, now, uuid, online, onIdentity, features, state, cache, emit, listeners,
     generation: 0, authFlight: null, syncFlight: null, timer: null, channel: null, stopped: false};
   const send = async (path, opts) => {
+    if (opts?.method && !['GET', 'HEAD'].includes(opts.method.toUpperCase()) && !writableRoute(path, opts, features))
+      throw fail('此本机操作需新版页面处理，原内容已保留。', 'OFFLINE_UPGRADE_REQUIRED');
     if (!online() || !state.verifiedScope || state.verifiedScope !== state.scope) throw offlineError();
     const owner = state.scope, generation = context.generation;
     try {

@@ -9,13 +9,25 @@ const active = operation => !['acked', 'archived'].includes(operation.status);
 const deleted = value => Boolean(value && (value.deleted || value.deleted_at));
 const ordered = rows => rows.sort((a, b) => a.seq - b.seq);
 const needsUpgrade = () => Object.assign(new Error('此本机操作需新版页面处理，原内容已保留。'), {code: 'OFFLINE_UPGRADE_REQUIRED'});
+function canonicalRoute(operation) {
+  const {entity_type: type, source_id: id, entity_id, method, path} = operation;
+  if (!uuidPattern.test(id) || entity_id !== prefixes[type] + id) return false;
+  const base = type === 'todo' ? '/todos' : type === 'template' ? '/todo-templates' :
+    type === 'note_entry' ? '/note-entries' : '/memos/' + (type === 'memo_note' ? 'notes' : 'groups');
+  if (['todo', 'template'].includes(type)) {
+    if (method === 'POST') return path === base || type === 'todo' && path === base + '/' + id + '/restore';
+    return ['PATCH', 'DELETE'].includes(method) && path === base + '/' + id;
+  }
+  return (method === 'PUT' || type === 'note_entry' && method === 'DELETE') && path === base + '/' + id;
+}
 function dispatchCapabilities(options) {
   const types = new Set(options.enabledTypes || Object.keys(prefixes));
   const protocols = new Set(options.supportedProtocols || [1]);
   const canDispatch = operation => {
     const protocol = operation?.protocol === undefined ? 1 : operation.protocol;
     return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types.has(operation.entity_type) &&
-      Number.isSafeInteger(protocol) && protocol === 1 && protocols.has(protocol) && !Object.hasOwn(operation, 'depends_on'));
+      Number.isSafeInteger(protocol) && protocol === 1 && protocols.has(protocol) &&
+      !Object.hasOwn(operation, 'depends_on') && canonicalRoute(operation));
   };
   const requireDispatch = operation => { if (!canDispatch(operation)) throw needsUpgrade(); };
   return {canDispatch, requireDispatch};
@@ -117,9 +129,10 @@ function validAcknowledgement(operation, remote) {
 
 function createContext(options) {
   const {db, request, getScope, now = Date.now, uuid = () => crypto.randomUUID(), timeout = 20000} = options;
-  const owner = uuid(), conflicts = createConflictStore({db, now});
+  const owner = uuid();
   const state = {phase: 'idle', pending: 0, unsupported: 0, error: null};
   const {canDispatch, requireDispatch} = dispatchCapabilities(options);
+  const conflicts = createConflictStore({db, now, canDispatch});
   const leaseKey = scope => entityKey(scope, 'outbox-lease');
   const checkScope = scope => {
     if (getScope() !== scope) throw Object.assign(new Error('Offline identity changed'), {code: 'OFFLINE_SCOPE_CHANGED'});
@@ -328,6 +341,8 @@ function processingMethods(context) {
 
   async function fail(operation, error) {
     if ([409, 410, 404].includes(error.status)) {
+      const current = await context.db.transaction(['outbox'], 'readonly', tx => tx.get('outbox', operation.key));
+      if (!context.canDispatch(current)) return;
       let remote = null;
       try { remote = await readRemote(operation); } catch {}
       return conflicts.record({operation, remote, reason: deleted(remote) ? 'deleted' : error.code || 'version'});
