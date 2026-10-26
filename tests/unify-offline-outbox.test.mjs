@@ -194,7 +194,8 @@ test('online tombstone produces a preserved conflict and is never implicitly res
   const id = randomUUID(), methods = [];
   const app = setup(async (path, opts) => {
     if (opts.method) { methods.push(opts.method); throw error(409, 'NOTE_ENTRY_DELETED'); }
-    return {id, text: '删除前正文', version: 3, deleted_at: '2026-10-26T00:00:00Z', can_edit: true};
+    return {...noteResponse({body: {category: 'life', date, text: '删除前正文'}, source_id: id, expected_version: 2}),
+      deleted: true, deleted_at: '2026-10-26T00:00:00Z'};
   });
   await app.outbox.enqueue(note('离线修改仍保留', 1, id));
   assert.equal((await app.outbox.drain()).phase, 'conflict'); await app.outbox.drain();
@@ -202,9 +203,12 @@ test('online tombstone produces a preserved conflict and is never implicitly res
   const [conflict] = await app.outbox.conflicts.list(scope);
   assert.equal(conflict.reason, 'deleted'); assert.equal(conflict.local.text, '离线修改仍保留');
   assert.equal(conflict.remote.text, '删除前正文');
-  await assert.rejects(app.outbox.conflicts.resolve(conflict.key, 'use-server', {scope: other}), /scope/);
+  await assert.rejects(app.outbox.conflicts.resolve(conflict.key, 'use-server', {scope: other}),
+    failure => failure.code === 'OFFLINE_SCOPE_CHANGED');
   await app.outbox.conflicts.resolve(conflict.key, 'keep-both', {scope});
-  assert.equal((await app.outbox.list(scope))[0].status, 'conflict'); assert.equal(methods.length, 1);
+  const [copy] = await app.outbox.list(scope);
+  assert.equal(copy.status, 'queued'); assert.notEqual(copy.source_id, id); assert.equal(copy.body.version, 0);
+  assert.equal(copy.protocol, 3); assert.equal(methods.length, 1);
   assert.equal((await app.outbox.conflicts.list(scope)).length, 1);
 });
 
@@ -340,7 +344,7 @@ test('repeating an old conflict resolution cannot archive a later fresh edit', a
   const id = randomUUID(); let online = false;
   const app = setup(async (path, opts) => {
     if (opts.method && !online) throw error(409, 'VERSION_CONFLICT');
-    return {id, date, category: 'life', text: '线上正文', version: 2, deleted_at: null, can_edit: true};
+    return noteResponse({body: {date, category: 'life', text: '线上正文'}, source_id: id, expected_version: 1});
   });
   await app.outbox.enqueue(note('本机副本', 1, id)); await app.outbox.drain();
   const [conflict] = await app.outbox.conflicts.list(scope);

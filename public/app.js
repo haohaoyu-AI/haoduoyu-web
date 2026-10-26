@@ -244,12 +244,12 @@ function createDailyNotesContext({
   },
   onSaved = () => {
   },
-  uuid: uuid3 = () => crypto.randomUUID(),
+  uuid: uuid5 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   delay = 700
 }) {
-  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid: uuid3 } };
+  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid: uuid5 } };
   const pages = context.pages;
   const emit = () => {
     if (!context.disposed) onChange();
@@ -300,9 +300,9 @@ function createDailyNotesContext({
       }, delay);
     }
   }
-  const matches2 = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted === true : operation.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation.text);
-  function accepted(item, value, operation) {
-    const keep = operation.kind === "put" && item.draft !== operation.text;
+  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted === true : operation2.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation2.text);
+  function accepted(item, value, operation2) {
+    const keep = operation2.kind === "put" && item.draft !== operation2.text;
     item.writeEpoch++;
     adopt(item, value, keep);
     item.remote = null;
@@ -324,12 +324,12 @@ function createReadingActions(context) {
   const { page, emit, stopTimer, adopt, schedule } = context;
   const { load } = context.options;
   async function read(date) {
-    const item = page(date), sequence = ++item.sequence, writeEpoch = item.writeEpoch;
+    const item = page(date), sequence2 = ++item.sequence, writeEpoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
       const value = checkedPage(await load(date), date);
-      if (context.disposed || sequence !== item.sequence) return;
+      if (context.disposed || sequence2 !== item.sequence) return;
       if (item.pending || writeEpoch !== item.writeEpoch) return;
       if (["conflict", "unknown"].includes(item.phase)) {
         item.remote = value;
@@ -345,12 +345,12 @@ function createReadingActions(context) {
         item.error = "";
       }
     } catch (error) {
-      if (!context.disposed && sequence === item.sequence) {
+      if (!context.disposed && sequence2 === item.sequence) {
         item.error = error.message;
         if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence === item.sequence) {
+      if (!context.disposed && sequence2 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
@@ -378,28 +378,28 @@ function createReadingActions(context) {
 }
 function createWritingActions(context) {
   const { page, emit, stopTimer, matches: matches2, accepted } = context;
-  const { put, remove, restore, uuid: uuid3 } = context.options;
-  async function send(item, operation) {
+  const { put, remove, restore, uuid: uuid5 } = context.options;
+  async function send(item, operation2) {
     stopTimer(item);
-    item.pending = operation;
+    item.pending = operation2;
     item.phase = "saving";
     item.error = "";
     item.writeEpoch++;
     emit();
     try {
-      const raw = await (operation.kind === "restore" ? restore(item.date, {
-        version: operation.version,
-        save_id: operation.saveId
-      }) : operation.kind === "delete" ? remove(item.date, {
-        version: operation.version,
-        save_id: operation.saveId
-      }) : put(item.date, { text: operation.text, version: operation.version, save_id: operation.saveId }));
-      if (context.disposed || item.pending !== operation) return;
+      const raw = await (operation2.kind === "restore" ? restore(item.date, {
+        version: operation2.version,
+        save_id: operation2.saveId
+      }) : operation2.kind === "delete" ? remove(item.date, {
+        version: operation2.version,
+        save_id: operation2.saveId
+      }) : put(item.date, { text: operation2.text, version: operation2.version, save_id: operation2.saveId }));
+      if (context.disposed || item.pending !== operation2) return;
       const value = checkedPage(raw, item.date);
-      if (!matches2(value, operation)) throw new Error("保存响应需要重新核对。");
-      accepted(item, value, operation);
+      if (!matches2(value, operation2)) throw new Error("保存响应需要重新核对。");
+      accepted(item, value, operation2);
     } catch (error) {
-      if (context.disposed || item.pending !== operation) return;
+      if (context.disposed || item.pending !== operation2) return;
       if (error.status === 409) {
         item.pending = null;
         item.phase = "conflict";
@@ -431,23 +431,23 @@ function createWritingActions(context) {
       emit();
       return;
     }
-    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid3() });
+    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid5() });
   }
   async function deletePage(date) {
     const item = page(date);
     if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
-    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid3() });
+    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid5() });
   }
   async function retryPending(date) {
-    const item = page(date), operation = item.pending;
-    if (context.disposed || item.phase !== "unknown" || !operation?.retryReady || operation.checking || !item.canEdit) return;
-    operation.retryReady = false;
-    return send(item, operation);
+    const item = page(date), operation2 = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation2?.retryReady || operation2.checking || !item.canEdit) return;
+    operation2.retryReady = false;
+    return send(item, operation2);
   }
   async function restorePage(date) {
     const item = page(date);
     if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
-    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid3() });
+    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid5() });
   }
   return { save, deletePage, restorePage, retryPending };
 }
@@ -455,17 +455,17 @@ function createResolutionActions(context) {
   const { page, emit, stopTimer, adopt, matches: matches2, accepted } = context;
   const { load } = context.options;
   async function reconcile(date) {
-    const item = page(date), operation = item.pending;
-    if (context.disposed || item.phase !== "unknown" || !operation || operation.checking) return;
-    operation.checking = true;
-    operation.retryReady = false;
+    const item = page(date), operation2 = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation2 || operation2.checking) return;
+    operation2.checking = true;
+    operation2.retryReady = false;
     emit();
     try {
       const value = checkedPage(await load(date), date);
-      if (context.disposed || item.pending !== operation) return;
+      if (context.disposed || item.pending !== operation2) return;
       item.canEdit = value.can_edit;
-      if (matches2(value, operation)) accepted(item, value, operation);
-      else if (value.version > operation.version) {
+      if (matches2(value, operation2)) accepted(item, value, operation2);
+      else if (value.version > operation2.version) {
         item.remote = value;
         item.pending = null;
         item.phase = "conflict";
@@ -473,13 +473,13 @@ function createResolutionActions(context) {
         item.error = "服务器已有不同的新版本，草稿已保留，不会自动覆盖。";
       } else {
         item.remote = value;
-        operation.retryReady = value.can_edit && value.version === operation.version;
-        item.error = operation.retryReady ? "已核对服务器尚无新版本。可手动重试原保存，后续草稿仍会保留。" : "保存结果尚未确认，草稿已保留。请再次核对，暂不重复发送。";
+        operation2.retryReady = value.can_edit && value.version === operation2.version;
+        item.error = operation2.retryReady ? "已核对服务器尚无新版本。可手动重试原保存，后续草稿仍会保留。" : "保存结果尚未确认，草稿已保留。请再次核对，暂不重复发送。";
       }
     } catch (error) {
-      if (!context.disposed && item.pending === operation) item.error = "核对失败，草稿已保留：" + error.message;
+      if (!context.disposed && item.pending === operation2) item.error = "核对失败，草稿已保留：" + error.message;
     } finally {
-      operation.checking = false;
+      operation2.checking = false;
       emit();
     }
   }
@@ -826,20 +826,20 @@ function todoDay(date = todoDate()) {
 }
 function syncTodoDay(now = Date.now()) {
   if (todosState.owner !== todoOwner()) resetTodos();
-  const today2 = bjtDate(now), changed3 = todosState.today !== today2;
+  const today2 = bjtDate(now), changed4 = todosState.today !== today2;
   todosState.today = today2;
-  return changed3;
+  return changed4;
 }
 function todoSessionActive(owner) {
   return Boolean(state.me) && owner === todoOwner() && owner === todosState.owner;
 }
-function mergeTodo(day3, item) {
-  const index = day3.items.findIndex((row) => row.id === item.id);
-  if (index < 0) day3.items.push(item);
-  else if (day3.items[index].version <= item.version) day3.items[index] = item;
+function mergeTodo(day4, item) {
+  const index = day4.items.findIndex((row) => row.id === item.id);
+  if (index < 0) day4.items.push(item);
+  else if (day4.items[index].version <= item.version) day4.items[index] = item;
 }
-function todoTemplateAdded(day3, id) {
-  return day3.items.some((item) => item.date === day3.date && item.template_id === id && !item.deleted_at);
+function todoTemplateAdded(day4, id) {
+  return day4.items.some((item) => item.date === day4.date && item.template_id === id && !item.deleted_at);
 }
 
 // web/core/session-index-state.mjs
@@ -908,11 +908,11 @@ function applyChartStyles(container) {
 }
 function replacePageContent(html, animate = false) {
   stopPageEntry();
-  const content = $("#page-content");
-  if (!content) return;
-  content.innerHTML = html;
-  applyChartStyles(content);
-  if (animate) animatePageEntry(content);
+  const content2 = $("#page-content");
+  if (!content2) return;
+  content2.innerHTML = html;
+  applyChartStyles(content2);
+  if (animate) animatePageEntry(content2);
 }
 
 // web/ui/popover.mjs
@@ -924,7 +924,7 @@ function closePopover({ restoreFocus = true } = {}) {
   trigger.setAttribute("aria-expanded", "false");
   if (restoreFocus && trigger.isConnected) trigger.focus();
 }
-function popover(trigger, body, { menu = false, label: label3 = "说明" } = {}) {
+function popover(trigger, body2, { menu = false, label: label3 = "说明" } = {}) {
   if (runtime.activePopover?.trigger === trigger) {
     closePopover();
     return;
@@ -938,7 +938,7 @@ function popover(trigger, body, { menu = false, label: label3 = "说明" } = {})
   node.setAttribute("role", menu ? "menu" : "dialog");
   node.setAttribute("aria-label", label3);
   node.tabIndex = -1;
-  node.innerHTML = body;
+  node.innerHTML = body2;
   (trigger.closest("[role=dialog]") || document.body).append(node);
   runtime.activePopover = { node, trigger, menu };
   const anchor = trigger.getBoundingClientRect(), r = node.getBoundingClientRect();
@@ -961,12 +961,12 @@ function renderLogin() {
 }
 
 // web/ui/modal.mjs
-function openModal(title, body, { drawer = false, context = "" } = {}) {
+function openModal(title, body2, { drawer = false, context = "" } = {}) {
   cancelModalRequests();
   closePopover();
   runtime.modalRequestVersion++;
   if (!$("#overlay").contains(document.activeElement)) runtime.lastFocus = document.activeElement;
-  $("#overlay").innerHTML = `<div class="modal-backdrop ${drawer ? "drawer-backdrop" : ""}"><section class="modal ${drawer ? "drawer" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header class="modal-head"><div>${context}<h2 id="modal-title">${e(title)}</h2></div><button class="icon-button" data-action="close-modal" aria-label="关闭">${icon("close", 20)}</button></header><div class="modal-body">${body}</div></section></div>`;
+  $("#overlay").innerHTML = `<div class="modal-backdrop ${drawer ? "drawer-backdrop" : ""}"><section class="modal ${drawer ? "drawer" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header class="modal-head"><div>${context}<h2 id="modal-title">${e(title)}</h2></div><button class="icon-button" data-action="close-modal" aria-label="关闭">${icon("close", 20)}</button></header><div class="modal-body">${body2}</div></section></div>`;
   document.body.style.overflow = "hidden";
   requestAnimationFrame(() => {
     const field2 = $("input:not([type=checkbox]),select,textarea,button", $("#overlay"));
@@ -1034,8 +1034,8 @@ function transactionAPI(transaction, schedule) {
 function keepTransactionAlive(transaction, name) {
   let stopped = false, finished = false;
   const queue = [];
-  const schedule = (operation) => new Promise((resolve, reject) => {
-    queue.push({ operation, resolve, reject });
+  const schedule = (operation2) => new Promise((resolve, reject) => {
+    queue.push({ operation: operation2, resolve, reject });
   });
   function pulse() {
     if (stopped) return;
@@ -1174,13 +1174,13 @@ function createMemoryDB() {
 // web/offline/document.mjs
 var localMarker = /* @__PURE__ */ Symbol("haoduoyu-local-durable-document");
 var documents = /* @__PURE__ */ new WeakMap();
-function localDocument({ local, server = null, operation = null, conflict = null }) {
+function localDocument({ local, server = null, operation: operation2 = null, conflict = null }) {
   const { content_hash, change_seq, ...value } = structuredClone(local);
   const document2 = Object.freeze({ ...value, [localMarker]: true });
   documents.set(document2, {
     local: value,
     server: structuredClone(server),
-    operation: structuredClone(operation),
+    operation: structuredClone(operation2),
     conflict: structuredClone(conflict)
   });
   return document2;
@@ -1212,15 +1212,15 @@ function isNoteApiRow(row) {
   return Boolean(isObject(row) && !Object.hasOwn(row, "entity_type") && uuidPattern.test(row.id) && ["life", "work"].includes(row.category) && validDay(row.date) && typeof row.text === "string" && new TextEncoder().encode(row.text).byteLength <= 65536 && Number.isSafeInteger(row.version) && row.version >= 1 && typeof row.deleted === "boolean" && typeof row.can_edit === "boolean" && timestamp(row.created_at) && timestamp(row.updated_at) && (row.deleted_at === null || timestamp(row.deleted_at)) && row.deleted === (row.deleted_at !== null) && Number.isSafeInteger(row.change_seq) && row.change_seq >= 0 && hashPattern.test(row.content_hash));
 }
 function checkedResponse(route, value) {
-  const invalid = () => fail("碎碎念读取结果不完整，未覆盖本机内容。", "OFFLINE_RESPONSE_INVALID");
+  const invalid3 = () => fail("碎碎念读取结果不完整，未覆盖本机内容。", "OFFLINE_RESPONSE_INVALID");
   if (route.kind === "note_entry") {
-    if (!isNoteApiRow(value) || value.id !== route.id) throw invalid();
+    if (!isNoteApiRow(value) || value.id !== route.id) throw invalid3();
     return structuredClone(value);
   }
-  if (!isObject(value) || value.category !== route.category || value.date !== route.date || typeof value.can_edit !== "boolean" || !Array.isArray(value.entries) || value.entries.length > 200) throw invalid();
+  if (!isObject(value) || value.category !== route.category || value.date !== route.date || typeof value.can_edit !== "boolean" || !Array.isArray(value.entries) || value.entries.length > 200) throw invalid3();
   const ids = /* @__PURE__ */ new Set();
   for (const row of value.entries) {
-    if (!isNoteApiRow(row) || row.category !== route.category || row.date !== route.date || row.deleted || row.can_edit !== value.can_edit || ids.has(row.id)) throw invalid();
+    if (!isNoteApiRow(row) || row.category !== route.category || row.date !== route.date || row.deleted || row.can_edit !== value.can_edit || ids.has(row.id)) throw invalid3();
     ids.add(row.id);
   }
   return structuredClone(value);
@@ -1486,14 +1486,14 @@ var identityFingerprint = (value) => JSON.stringify([value.id, value.publicBusin
 function safeAccounts(value) {
   if (!Array.isArray(value)) throw new Error("账户读取不完整。");
   if (value.some((row) => !row || ![0, 1].includes(row.active))) throw new Error("账户状态读取不完整。");
-  const fields4 = ["id", "name", "platform", "active", "account_name", "position", "created_at", "updated_at"];
-  return value.map((row) => Object.fromEntries(fields4.filter((key) => row[key] !== void 0).map((key) => [key, row[key]])));
+  const fields5 = ["id", "name", "platform", "active", "account_name", "position", "created_at", "updated_at"];
+  return value.map((row) => Object.fromEntries(fields5.filter((key) => row[key] !== void 0).map((key) => [key, row[key]])));
 }
 function checkedResponse2(route, value) {
-  const invalid = () => Object.assign(new Error("读取结果不完整，未覆盖本机数据。"), { code: "OFFLINE_RESPONSE_INVALID" });
-  if (value === void 0 || value === null) throw invalid();
+  const invalid3 = () => Object.assign(new Error("读取结果不完整，未覆盖本机数据。"), { code: "OFFLINE_RESPONSE_INVALID" });
+  if (value === void 0 || value === null) throw invalid3();
   if (["todo", "template"].includes(route.kind) && (!Array.isArray(value.items) || value.items.some((row) => !row || !uuidPattern2.test(row.id) || !Number.isSafeInteger(row.version) || row.version < 1 || typeof row.text !== "string" || !row.text.trim() || row.text.length > 500 || !Number.isFinite(Date.parse(row.created_at)) || !Number.isFinite(Date.parse(row.updated_at)) || route.kind === "todo" && (row.date !== route.date || typeof row.completed !== "boolean" || row.deleted_at !== null))))
-    throw invalid();
+    throw invalid3();
   return route.kind === "accounts" ? safeAccounts(value) : clone(value);
 }
 function belongs(row, route) {
@@ -1537,9 +1537,9 @@ function identityMethods(db, now) {
   return {
     readIdentity: () => db.transaction(["meta"], "readonly", (tx) => tx.get("meta", key)),
     async saveIdentity(me, scope) {
-      const identity3 = safeIdentity(me);
-      await db.transaction(["meta"], "readwrite", (tx) => tx.put("meta", { key, identity: identity3, scope, verified_at: now() }));
-      return identity3;
+      const identity4 = safeIdentity(me);
+      await db.transaction(["meta"], "readwrite", (tx) => tx.put("meta", { key, identity: identity4, scope, verified_at: now() }));
+      return identity4;
     },
     forgetIdentity: () => db.transaction(["meta"], "readwrite", (tx) => tx.delete("meta", key))
   };
@@ -1670,29 +1670,116 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
   };
 }
 
+// web/offline/resolution-ledger.mjs
+function resolutionParent(rows, operation2) {
+  return rows.find((row) => row.scope === operation2.scope && row.resolution?.id === operation2.resolution_id);
+}
+async function outstandingResolution(tx, conflict, acknowledgements = [], completedChild = null) {
+  const children = new Set(conflict.resolution.conflict_keys || []), acked = new Set(acknowledgements.map((row) => row.operation_key));
+  const pending = (await tx.getAll("outbox")).some((row) => row.scope === conflict.scope && row.resolution_id === conflict.resolution.id && !["acked", "archived"].includes(row.status) && !acked.has(row.key));
+  const conflicts = (await tx.getAll("conflicts")).some((row) => row.scope === conflict.scope && row.resolved_at === null && row.key !== completedChild && (row.resolution_parent === conflict.key || children.has(row.key)));
+  return { pending, conflicts };
+}
+async function finishParents(tx, conflict, time2) {
+  let key = conflict.resolution_parent, completedChild = conflict.key;
+  const seen = /* @__PURE__ */ new Set();
+  while (key && !seen.has(key)) {
+    seen.add(key);
+    const parent = await tx.get("conflicts", key);
+    if (!parent || parent.scope !== conflict.scope || !parent.resolution) return;
+    const completed = [.../* @__PURE__ */ new Set([...parent.resolution.completed_children || [], completedChild])];
+    const waiting = await outstandingResolution(tx, parent, parent.resolution.acknowledgements || [], completedChild);
+    if (waiting.pending || waiting.conflicts) {
+      await tx.put("conflicts", { ...parent, resolved_at: null, resolution: {
+        ...parent.resolution,
+        state: "conflict",
+        completed_children: completed
+      } });
+      return;
+    }
+    await tx.put("conflicts", { ...parent, resolved_at: time2, resolution: {
+      ...parent.resolution,
+      completed_children: completed,
+      state: "superseded",
+      completed_by: conflict.key,
+      completed_at: time2
+    } });
+    completedChild = parent.key;
+    key = parent.resolution_parent;
+  }
+}
+async function recordResolutionAck(tx, operation2, remote, time2) {
+  if (!operation2.resolution_id) return;
+  const conflict = resolutionParent(await tx.getAll("conflicts"), operation2);
+  if (operation2.protocol === 3 && (!conflict || conflict.key !== operation2.origin_conflict || conflict.resolved_at !== null || !conflict.resolution.operation_keys.includes(operation2.key)))
+    throw Object.assign(new Error("本机选择凭据不完整，未确认此次保存。"), { code: "OFFLINE_DECISION_EVIDENCE_MISSING" });
+  if (!conflict || conflict.resolved_at !== null || !conflict.resolution.operation_keys.includes(operation2.key)) return;
+  const resolution2 = conflict.resolution;
+  const acknowledgements = [
+    ...(resolution2.acknowledgements || []).filter((row) => row.operation_key !== operation2.key),
+    { operation_key: operation2.key, save_id: operation2.save_id, remote, acknowledged_at: time2 }
+  ];
+  const waiting = await outstandingResolution(tx, conflict, acknowledgements);
+  const allAcknowledged = resolution2.operation_keys.every((key) => acknowledgements.some((row) => row.operation_key === key));
+  const hasCompletedChildren = Boolean(resolution2.completed_children?.length);
+  const complete = !waiting.pending && !waiting.conflicts && (allAcknowledged || hasCompletedChildren);
+  const next = { ...conflict, resolved_at: complete ? time2 : null, resolution: {
+    ...resolution2,
+    acknowledgements,
+    state: complete ? hasCompletedChildren ? "superseded" : "synced" : waiting.conflicts || hasCompletedChildren ? "conflict" : "queued",
+    ...complete ? { completed_at: time2 } : {}
+  } };
+  await tx.put("conflicts", next);
+  if (complete) await finishParents(tx, next, time2);
+}
+async function recordResolutionConflict(tx, operation2, child) {
+  if (!operation2.resolution_id) return child;
+  const parent = resolutionParent(await tx.getAll("conflicts"), operation2);
+  if (!parent || parent.resolved_at !== null) return child;
+  const keys = [.../* @__PURE__ */ new Set([...parent.resolution.conflict_keys || [], child.key])];
+  await tx.put("conflicts", { ...parent, resolution: { ...parent.resolution, state: "conflict", conflict_keys: keys } });
+  return { ...child, resolution_parent: parent.key };
+}
+async function recordResolutionFailure(tx, operation2, fields5) {
+  if (!operation2.resolution_id) return;
+  const conflict = resolutionParent(await tx.getAll("conflicts"), operation2);
+  if (!conflict || conflict.resolved_at !== null) return;
+  const waiting = await outstandingResolution(tx, conflict, conflict.resolution.acknowledgements || []);
+  const state2 = waiting.conflicts || conflict.resolution.completed_children?.length ? "conflict" : fields5.status === "blocked" ? "blocked" : fields5.status === "paused" ? "paused" : "queued";
+  await tx.put("conflicts", { ...conflict, resolution: {
+    ...conflict.resolution,
+    state: state2,
+    last_error: fields5.error || null
+  } });
+}
+async function finishServerResolution(tx, conflict, time2) {
+  if (conflict.resolution?.state === "accepted-server") await finishParents(tx, conflict, time2);
+}
+
 // web/offline/conflict.mjs
 function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
-  async function record({ operation, remote = null, reason = "version" }) {
+  async function record({ operation: operation2, remote = null, reason = "version" }) {
     return db.transaction(["entities", "outbox", "conflicts"], "readwrite", async (tx) => {
-      const current = await tx.get("outbox", operation.key);
-      if (!current || current.scope !== operation.scope) throw new Error("Offline operation is no longer current");
-      if (!canDispatch(operation) || !canDispatch(current)) return null;
-      if (current.claim_owner !== operation.claim_owner || ["archived", "conflict"].includes(current.status)) {
+      const current = await tx.get("outbox", operation2.key);
+      if (!current || current.scope !== operation2.scope) throw new Error("Offline operation is no longer current");
+      if (!canDispatch(operation2) || !canDispatch(current)) return null;
+      if (current.claim_owner !== operation2.claim_owner || ["archived", "conflict"].includes(current.status)) {
         throw new Error("Offline conflict claim changed");
       }
-      const entity = await tx.get("entities", entityKey(operation.scope, operation.entity_id));
-      const key = entityKey(operation.scope, "conflict:" + operation.id);
-      const conflict = {
+      const entity = await tx.get("entities", entityKey(operation2.scope, operation2.entity_id));
+      const key = entityKey(operation2.scope, "conflict:" + operation2.id);
+      let conflict = {
         key,
-        scope: operation.scope,
-        entity_id: operation.entity_id,
+        scope: operation2.scope,
+        entity_id: operation2.entity_id,
         operation: current,
-        local: entity?.local || operation.local,
+        local: entity?.local || operation2.local,
         remote,
         reason,
         created_at: now(),
         resolved_at: null
       };
+      conflict = await recordResolutionConflict(tx, current, conflict);
       await tx.put("conflicts", conflict);
       await tx.put("outbox", { ...current, status: "conflict", error: reason });
       if (entity) await tx.put("entities", { ...entity, conflict: key, dirty: true });
@@ -1700,45 +1787,10 @@ function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
     });
   }
   const list = (scope) => db.transaction(["conflicts"], "readonly", async (tx) => (await tx.getAll("conflicts")).filter((value) => value.scope === scope && value.resolved_at === null));
-  async function resolve(key, choice2, { scope } = {}) {
-    if (!["use-server", "use-local", "keep-both"].includes(choice2)) throw new TypeError("Unknown conflict choice");
-    return db.transaction(["conflicts", "outbox", "entities"], "readwrite", async (tx) => {
-      const conflict = await tx.get("conflicts", key);
-      if (!conflict || conflict.scope !== scope) throw new Error("Conflict scope does not match");
-      if (conflict.resolved_at !== null) return { ...conflict, already_resolved: true };
-      const entity = await tx.get("entities", entityKey(scope, conflict.entity_id));
-      if (entity?.conflict !== key || JSON.stringify(entity.local) !== JSON.stringify(conflict.local)) {
-        return { ...conflict, needs_followup: true };
-      }
-      if (choice2 !== "use-server") {
-        const pending = { ...conflict, requested_choice: choice2, needs_followup: true };
-        await tx.put("conflicts", pending);
-        return pending;
-      }
-      const resolved = { ...conflict, choice: choice2, needs_followup: false, resolved_at: now() };
-      await tx.put("conflicts", resolved);
-      if (choice2 === "use-server") {
-        for (const operation of await tx.getAll("outbox")) {
-          if (operation.scope === scope && operation.entity_id === conflict.entity_id) {
-            await tx.put("outbox", { ...operation, status: "archived" });
-          }
-        }
-        if (entity) await tx.put("entities", {
-          ...entity,
-          server: conflict.remote,
-          local: conflict.remote,
-          dirty: false,
-          conflict: null
-        });
-      }
-      return resolved;
-    });
-  }
-  return { record, list, resolve };
+  return { record, list };
 }
 
-// web/offline/outbox.mjs
-var RETRY_DELAYS = Object.freeze([5e3, 15e3, 6e4, 3e5]);
+// web/offline/conflict-plan.mjs
 var prefixes = {
   todo: "todo:",
   template: "template:",
@@ -1747,13 +1799,520 @@ var prefixes = {
   memo_group: "memo-group:"
 };
 var uuidPattern3 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var active2 = (operation) => !["acked", "archived"].includes(operation.status);
+var clientIdPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+var removed2 = (value) => Boolean(value && (value.deleted || value.deleted_at));
+var revision = (value) => Number.isSafeInteger(value) && value >= 1 && value < Number.MAX_SAFE_INTEGER;
+var plain = (value) => typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+var invalid = () => {
+  throw new TypeError("冲突内容不完整，请保留原文并重新核对。");
+};
+function checkedDay(value) {
+  if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) invalid();
+  const stamp2 = Date.parse(value + "T00:00:00Z");
+  if (!Number.isFinite(stamp2) || new Date(stamp2).toISOString().slice(0, 10) !== value) invalid();
+  return value;
+}
+function shortText(value) {
+  if (typeof value !== "string" || !value.trim() || value.length > 500 || value.includes("\0")) invalid();
+  return value.trim();
+}
+function longText(value) {
+  if (!plain(value)) invalid();
+  value = value.replace(/\r\n?/g, "\n");
+  if (new TextEncoder().encode(value).length > 65536) invalid();
+  return value;
+}
+function memoContent(local, type) {
+  if (!plain(local.title) || !local.title.trim() || [...local.title.trim()].length > 120 || /[\r\n\t]/.test(local.title) || !Number.isSafeInteger(local.position) || local.position < 0 || local.position > 1e6) invalid();
+  const value = { title: local.title.trim(), position: local.position };
+  if (type === "memo_note") {
+    if (!uuidPattern3.test(local.group_id)) invalid();
+    Object.assign(value, { group_id: local.group_id.toLowerCase(), body: longText(local.body) });
+  }
+  return value;
+}
+function content(local, type) {
+  if (!local || typeof local !== "object" || Array.isArray(local)) invalid();
+  if (local.version !== void 0 && (!Number.isSafeInteger(local.version) || local.version < 0 || local.version >= Number.MAX_SAFE_INTEGER)) invalid();
+  if (type === "todo") {
+    if (typeof local.completed !== "boolean") invalid();
+    return { date: checkedDay(local.date), text: shortText(local.text), completed: local.completed };
+  }
+  if (type === "template") return { text: shortText(local.text) };
+  if (type === "note_entry") {
+    if (!["life", "work"].includes(local.category)) invalid();
+    return { category: local.category, date: checkedDay(local.date), text: longText(local.text) };
+  }
+  return memoContent(local, type);
+}
+function contextFor({ conflict, remote, choice: choice2, uuid: uuid5 }) {
+  const type = conflict?.operation?.entity_type, scope = conflict?.scope, prefix = prefixes[type];
+  if (!prefix || !["use-server", "use-local", "keep-both"].includes(choice2) || typeof scope !== "string" || !scope) invalid();
+  const entity = conflict.entity_id, pattern = ["todo", "template"].includes(type) ? clientIdPattern : uuidPattern3;
+  if (typeof entity !== "string" || !entity.startsWith(prefix) || !pattern.test(entity.slice(prefix.length)) || conflict.operation.scope !== void 0 && conflict.operation.scope !== scope || conflict.operation.entity_id !== void 0 && conflict.operation.entity_id !== entity) invalid();
+  const id = entity.slice(prefix.length).toLowerCase(), local = conflict.local;
+  if (local?.id !== void 0 && local.id.toLowerCase?.() !== id || conflict.operation.source_id !== void 0 && conflict.operation.source_id.toLowerCase?.() !== id) invalid();
+  if (remote && (typeof remote !== "object" || remote.id?.toLowerCase?.() !== id || !revision(remote.version))) invalid();
+  const used = /* @__PURE__ */ new Set([id, conflict.operation.save_id?.toLowerCase?.(), local?.group_id?.toLowerCase?.()]);
+  const fresh = () => {
+    const value = uuid5();
+    if (typeof value !== "string" || !pattern.test(value) || used.has(value.toLowerCase())) invalid();
+    used.add(value.toLowerCase());
+    return value.toLowerCase();
+  };
+  const reserve = (values) => {
+    for (const value of values) if (typeof value === "string") used.add(value.toLowerCase());
+  };
+  return { type, scope, id, local, remote, choice: choice2, fresh, reserve };
+}
+function operation(context, id, method, path, body2, value, base = null, deleted2 = false) {
+  const local = { ...value, id, version: (body2.version || 0) + 1, can_edit: true, deleted: deleted2, deleted_at: null };
+  return {
+    scope: context.scope,
+    entity_type: context.type,
+    entity_id: id,
+    method,
+    path,
+    body: body2,
+    base: base ? structuredClone(base) : null,
+    local
+  };
+}
+function copyResult(context, id, operations2) {
+  return {
+    mode: "copy",
+    target_id: id,
+    operations: operations2,
+    explanation: removed2(context.local) ? "将删除前的本机内容另存为新记录，原记录保持原状。" : "将本机内容另存为新记录，原记录保持原状。"
+  };
+}
+function todoPlan(context, value) {
+  const { id, remote, local, choice: choice2, fresh } = context, path = "/todos/" + id;
+  if (choice2 === "use-local" && remote && !removed2(remote) && remote.date === value.date && remote.text === value.text) {
+    const method = removed2(local) ? "DELETE" : "PATCH";
+    const body2 = method === "DELETE" ? { date: value.date, version: remote.version } : { completed: value.completed, version: remote.version };
+    return {
+      mode: "replace",
+      target_id: id,
+      operations: [operation(context, id, method, path, body2, value, remote, method === "DELETE")]
+    };
+  }
+  const target = fresh(), created = { ...value, completed: false };
+  const operations2 = [operation(context, target, "POST", "/todos", { id: target, date: value.date, text: value.text }, created)];
+  if (value.completed) operations2.push(operation(context, target, "PATCH", "/todos/" + target, { completed: true, version: 1 }, value));
+  return copyResult(context, target, operations2);
+}
+function templatePlan(context, value) {
+  const { id, remote, local, choice: choice2, fresh } = context;
+  if (choice2 === "use-local" && remote && !removed2(remote)) {
+    const method = removed2(local) ? "DELETE" : "PATCH", body2 = { version: remote.version };
+    if (method === "PATCH") body2.text = value.text;
+    return { mode: "replace", target_id: id, operations: [
+      operation(context, id, method, "/todo-templates/" + id, body2, value, remote, method === "DELETE")
+    ] };
+  }
+  const target = fresh();
+  return copyResult(context, target, [operation(context, target, "POST", "/todo-templates", { id: target, text: value.text }, value)]);
+}
+function notePlan(context, value) {
+  const { id, remote, local, choice: choice2, fresh } = context;
+  if (choice2 === "use-local" && remote && !removed2(remote) && remote.category === value.category && remote.date === value.date) {
+    const method = removed2(local) ? "DELETE" : "PUT", body3 = { version: remote.version, save_id: fresh() };
+    if (method === "PUT") Object.assign(body3, value);
+    return { mode: "replace", target_id: id, operations: [
+      operation(context, id, method, "/note-entries/" + id, body3, value, remote, method === "DELETE")
+    ] };
+  }
+  const target = fresh(), body2 = { ...value, version: 0, save_id: fresh() };
+  return copyResult(context, target, [operation(context, target, "PUT", "/note-entries/" + target, body2, value)]);
+}
+function liveMemoGroup(group) {
+  return group && uuidPattern3.test(group.id) && revision(group.version) && group.deleted_at === null && !group.deleted && (group.position === void 0 || Number.isSafeInteger(group.position) && group.position >= 0 && group.position <= 1e6);
+}
+function memoOperation(context, id, body2, value, base = null) {
+  const kind = context.type === "memo_note" ? "notes" : "groups";
+  const result = operation(context, id, "PUT", "/memos/" + kind + "/" + id, body2, value, base);
+  if (context.type === "memo_note") Object.assign(result, { protocol: 2, depends_on: ["memo-group:" + body2.group_id] });
+  return result;
+}
+function memoParentCopy(context, value, groups) {
+  const live2 = groups.filter(liveMemoGroup).sort((a, b) => (a.position || 0) - (b.position || 0) || a.id.localeCompare(b.id));
+  const operations2 = [];
+  let parent = live2[0]?.id.toLowerCase();
+  if (!parent) {
+    parent = context.fresh();
+    const groupValue = { title: "本机冲突副本", position: 0 };
+    const groupBody = { ...groupValue, version: 0, save_id: context.fresh() };
+    operations2.push(memoOperation({ ...context, type: "memo_group" }, parent, groupBody, groupValue));
+  }
+  const target = context.fresh(), local = { ...value, group_id: parent };
+  const body2 = { ...local, version: 0, save_id: context.fresh() };
+  operations2.push(memoOperation(context, target, body2, local));
+  return {
+    ...copyResult(context, target, operations2),
+    explanation: "原笔记所在位置已不可用，将本机正文另存为新笔记，原内容保留。"
+  };
+}
+function memoPlan(context, value, groups) {
+  const { id, remote, local, choice: choice2, fresh, type } = context;
+  if (removed2(local)) return {
+    mode: "blocked",
+    operations: [],
+    target_id: id,
+    explanation: "本机保留的是删除意图；备忘录删除需联网确认，原文与冲突仍保留。"
+  };
+  if (type === "memo_note" && !groups.some((group) => group?.id === value.group_id && liveMemoGroup(group)))
+    return memoParentCopy(context, value, groups);
+  const replace = choice2 === "use-local" && remote && !removed2(remote) && (type !== "memo_note" || remote.group_id === value.group_id);
+  const target = replace ? id : fresh(), body2 = { ...value, version: replace ? remote.version : 0, save_id: fresh() };
+  const operations2 = [memoOperation(context, target, body2, value, replace ? remote : null)];
+  return replace ? { mode: "replace", target_id: target, operations: operations2 } : copyResult(context, target, operations2);
+}
+function planConflictResolution({ conflict, remote = null, choice: choice2, groups = [], uuid: uuid5 = () => crypto.randomUUID() }) {
+  const context = contextFor({ conflict, remote, choice: choice2, uuid: uuid5 });
+  if (choice2 === "use-server") return { mode: "server", target_id: context.id, operations: [] };
+  if (choice2 === "use-local" && removed2(context.local) && (!remote || removed2(remote)))
+    return { mode: "server", target_id: context.id, operations: [], explanation: "线上已删除，确认删除结果；删除前原文仍保留。" };
+  if (!Array.isArray(groups)) invalid();
+  context.reserve(groups.map((group) => group?.id));
+  const value = content(context.local, context.type);
+  if (context.type === "todo") return todoPlan(context, value);
+  if (context.type === "template") return templatePlan(context, value);
+  if (context.type === "note_entry") return notePlan(context, value);
+  return memoPlan(context, value, groups);
+}
+
+// web/offline/conflict-decisions.mjs
+var live = (row) => !["acked", "archived"].includes(row.status);
+var own = (value, key) => Object.hasOwn(value, key);
+var currentLocal = (row) => own(row, "review_local") ? row.review_local : row.local;
+var currentRemote = (row) => own(row, "review_remote") ? row.review_remote : row.remote;
+var failure = (message, code = "OFFLINE_CONFLICT_CHANGED") => Object.assign(new Error(message), { code });
+var canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
+var stable = (value) => JSON.stringify(canonical(value));
+function conflictDecisionToken(conflict) {
+  return stable({
+    key: conflict.key,
+    local: currentLocal(conflict),
+    remote: currentRemote(conflict),
+    operation: conflict.operation,
+    copy_required: conflict.copy_required === true,
+    resolved_at: conflict.resolved_at
+  });
+}
+function remoteEvidence(value, type) {
+  if (!value) return null;
+  const fields5 = type === "todo" ? ["date", "text", "completed"] : type === "template" ? ["text"] : type === "note_entry" ? ["category", "date", "text"] : type === "memo_note" ? ["group_id", "title", "body", "position"] : ["title", "position"];
+  return {
+    id: value.id || value.source_id,
+    version: value.version,
+    deleted: Boolean(value.deleted || value.deleted_at),
+    ...Object.fromEntries(fields5.filter((key) => own(value, key)).map((key) => [key, value[key]]))
+  };
+}
+function branchState(conflict, entity, operations2, drafts) {
+  return stable({ conflict, entity, operations: operations2, drafts });
+}
+async function storedState(tx, scope, key) {
+  const conflict = await tx.get("conflicts", key);
+  if (!conflict || conflict.scope !== scope) throw failure("冲突不属于当前身份。", "OFFLINE_SCOPE_CHANGED");
+  const entity = await tx.get("entities", entityKey(scope, conflict.entity_id));
+  const operations2 = (await tx.getAll("outbox")).filter((row) => row.scope === scope && row.entity_id === conflict.entity_id && live(row)).sort((a, b) => a.seq - b.seq);
+  const id = conflict.operation.source_id;
+  const drafts = (await tx.getAll("meta")).filter((row) => row.scope === scope && row.draft_kind && row.data?.id === id);
+  return { conflict, entity, operations: operations2, drafts, signature: branchState(conflict, entity, operations2, drafts) };
+}
+function checkSelection(captured, expected, canDispatch) {
+  const { conflict, entity, operations: operations2 } = captured;
+  if (conflict.resolved_at !== null || conflict.resolution) return;
+  if (expected !== void 0 && expected !== conflictDecisionToken(conflict)) throw failure("比较内容已变化，请重新核对。");
+  if (!canDispatch(conflict.operation) || operations2.some((row) => !canDispatch(row)))
+    throw failure("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
+  if (!entity || entity.conflict !== conflict.key || !operations2.some((row) => row.key === conflict.operation.key))
+    throw failure("这份冲突已变化，原文已保留，请重新核对。");
+}
+function createConflictDecisions({
+  db,
+  getScope,
+  prepare,
+  append,
+  canDispatch = () => true,
+  now = Date.now,
+  uuid: uuid5 = () => crypto.randomUUID()
+}) {
+  async function transaction(captured, scope, assertActive, callback) {
+    return db.transaction(["entities", "outbox", "conflicts", "meta"], "readwrite", async (tx) => {
+      assertActive();
+      const latest = await storedState(tx, scope, captured.conflict.key);
+      if (latest.conflict.resolved_at !== null || latest.conflict.resolution) return { ...latest.conflict, already_resolved: true };
+      if (latest.signature !== captured.signature) throw failure("本机内容刚有变化，原文已保留，请重新核对。");
+      const result = await callback(tx, latest);
+      assertActive();
+      return result;
+    });
+  }
+  async function review(captured, scope, active5, remote, message, extra = {}) {
+    return transaction(captured, scope, active5, async (tx) => {
+      const history2 = [...captured.conflict.remote_history || []];
+      if (!history2.some((value) => stable(value) === stable(currentRemote(captured.conflict))))
+        history2.push(currentRemote(captured.conflict));
+      const next = {
+        ...captured.conflict,
+        remote_history: history2,
+        review_local: captured.entity.local,
+        review_remote: remote,
+        needs_recompare: true,
+        resolution_message: message,
+        ...extra
+      };
+      await tx.put("conflicts", next);
+      return next;
+    });
+  }
+  async function commit(captured, scope, active5, choice2, prepared, plan) {
+    return transaction(captured, scope, active5, async (tx) => {
+      const conflict = captured.conflict, resolutionId = uuid5();
+      for (const operation3 of captured.operations)
+        await tx.put("outbox", { ...operation3, status: "archived", archived_by: resolutionId });
+      const entity = {
+        ...captured.entity,
+        server: prepared.remote,
+        local: prepared.remote,
+        dirty: false,
+        conflict: null,
+        remote_missing: !prepared.remote
+      };
+      if (prepared.remote?.can_edit !== void 0) entity.api_server = prepared.remote;
+      await tx.put("entities", entity);
+      await rememberParents(tx, scope, prepared.groups || [], plan.operations);
+      const stamp2 = new Date(now()).toISOString();
+      const inputs = plan.operations.map((input) => ({
+        ...input,
+        protocol: 3,
+        resolution_id: resolutionId,
+        origin_conflict: conflict.key,
+        resolution_receipt: 1,
+        local: { ...input.local, created_at: input.base?.created_at || stamp2, updated_at: stamp2 }
+      }));
+      const saved = await append(tx, inputs, { assertActive: active5 });
+      const resolution2 = {
+        id: resolutionId,
+        mode: plan.mode,
+        target_id: plan.target_id,
+        operation_keys: saved.map((row) => row.operation.key),
+        state: saved.length ? "queued" : "accepted-server"
+      };
+      const operation2 = saved.length ? {
+        ...conflict.operation,
+        protocol: 3,
+        resolution_id: resolutionId,
+        origin_conflict: conflict.key,
+        resolution_receipt: 1
+      } : conflict.operation;
+      const result = {
+        ...conflict,
+        choice: choice2,
+        needs_recompare: false,
+        needs_followup: false,
+        resolved_at: saved.length ? null : now(),
+        original_operation: conflict.original_operation || conflict.operation,
+        operation: operation2,
+        resolution: resolution2,
+        resolution_remote: prepared.remote,
+        resolution_message: plan.explanation || ""
+      };
+      await tx.put("conflicts", result);
+      await finishServerResolution(tx, result, now());
+      return result;
+    });
+  }
+  async function resolve(key, choice2, { scope = getScope(), assertActive = () => {
+  }, expected, copyConfirmed = false } = {}) {
+    if (!["use-server", "use-local", "keep-both"].includes(choice2)) throw new TypeError("Unknown conflict choice");
+    const active5 = () => {
+      assertActive();
+      if (!scope || scope !== getScope()) throw failure("身份范围已变化，冲突和原文保持原样。", "OFFLINE_SCOPE_CHANGED");
+    };
+    active5();
+    const captured = await db.transaction(["entities", "outbox", "conflicts", "meta"], "readonly", (tx) => storedState(tx, scope, key));
+    active5();
+    if (captured.conflict.resolved_at !== null || captured.conflict.resolution)
+      return { ...captured.conflict, already_resolved: true };
+    checkSelection(captured, expected, canDispatch);
+    if (stable(captured.entity.local) !== stable(currentLocal(captured.conflict)))
+      return review(captured, scope, active5, currentRemote(captured.conflict), "本机已有后续修改，请核对新比较内容后再选择。");
+    const prepared = await prepare(captured.conflict, { assertActive: active5 });
+    active5();
+    const type = captured.conflict.operation.entity_type;
+    if (stable(remoteEvidence(prepared.remote, type)) !== stable(remoteEvidence(currentRemote(captured.conflict), type)))
+      return review(captured, scope, active5, prepared.remote, "线上刚有更新，请核对新比较内容后再选择。");
+    const selected = { ...captured.conflict, local: currentLocal(captured.conflict), remote: prepared.remote };
+    const plan = planConflictResolution({ conflict: selected, remote: prepared.remote, choice: choice2, groups: prepared.groups || [], uuid: uuid5 });
+    if (plan.mode === "blocked") return { ...captured.conflict, blocked: true, resolution_message: plan.explanation };
+    if (choice2 === "use-local" && plan.mode === "copy" && !copyConfirmed)
+      return review(captured, scope, active5, prepared.remote, plan.explanation + "请明确选择另存本地副本。", { copy_required: true });
+    active5();
+    return commit(captured, scope, active5, choice2, prepared, plan);
+  }
+  return { resolve };
+}
+async function rememberParents(tx, scope, groups, operations2) {
+  for (const input of operations2.filter((row) => row.entity_type === "memo_note")) {
+    const id = input.body.group_id, server = groups.find((row) => row.id === id && !row.deleted_at && !row.deleted);
+    if (!server) continue;
+    const entity_id = "memo-group:" + id, key = entityKey(scope, entity_id), old = await tx.get("entities", key);
+    if (old?.server?.version > server.version) throw failure("分组刚有更新，请重新核对后保存。");
+    await tx.put("entities", {
+      ...old,
+      key,
+      scope,
+      entity_id,
+      server,
+      local: old?.dirty ? old.local : server,
+      dirty: old?.dirty === true,
+      remote_missing: false
+    });
+  }
+}
+
+// web/offline/conflict-transport.mjs
+var prefixes2 = {
+  todo: "todo:",
+  template: "template:",
+  note_entry: "note-entry:",
+  memo_note: "memo-note:",
+  memo_group: "memo-group:"
+};
+var uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
+var object = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
+var version = (value) => Number.isSafeInteger(value) && value >= 1 && value < Number.MAX_SAFE_INTEGER;
+var sequence = (value) => Number.isSafeInteger(value) && value >= 0;
+var timestamp2 = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
+var invalid2 = () => {
+  throw Object.assign(new Error("线上内容读取不完整，原文已保留，请重新核对。"), { code: "OFFLINE_RESPONSE_INVALID" });
+};
+var removed3 = (row) => row?.deleted === true || row?.deleted_at !== null && row?.deleted_at !== void 0;
+var own2 = (value, key) => Object.hasOwn(value, key);
+function day2(value) {
+  return typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
+}
+function shortText2(value) {
+  return typeof value === "string" && value.isWellFormed() && value.trim().length > 0 && value.length <= 500 && !value.includes("\0");
+}
+function body(value) {
+  return typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\r]/.test(value) && new TextEncoder().encode(value).byteLength <= 65536;
+}
+function identity(row, id, type) {
+  return object(row) && (row.id === id || row.id === void 0 && row.source_id === id) && (!own2(row, "source_id") || row.source_id === id) && (!own2(row, "entity_id") || row.entity_id === prefixes2[type] + id);
+}
+function deletion(row) {
+  return (!own2(row, "deleted") || typeof row.deleted === "boolean") && (!own2(row, "deleted_at") || row.deleted_at === null || timestamp2(row.deleted_at)) && (!own2(row, "deleted") || !own2(row, "deleted_at") || row.deleted === (row.deleted_at !== null));
+}
+function basicRemote(row, id, type) {
+  if (!identity(row, id, type) || !version(row.version) || !deletion(row)) invalid2();
+  if (type === "todo" && (!day2(row.date) || !removed3(row) && (!shortText2(row.text) || typeof row.completed !== "boolean"))) invalid2();
+  if (type === "template" && !removed3(row) && !shortText2(row.text)) invalid2();
+  return structuredClone(row);
+}
+function noteRemote(row, id) {
+  if (!isNoteApiRow(row) || row.id !== id || row.can_edit !== true || !body(row.text)) invalid2();
+  return structuredClone(row);
+}
+function memoMeta(row, note = false) {
+  if (!object(row) || !uuid.test(row.id) || typeof row.title !== "string" || !row.title.isWellFormed() || !row.title.trim() || [...row.title].length > 120 || /[\u0000-\u001f\u007f]/.test(row.title) || !Number.isSafeInteger(row.position) || row.position < 0 || row.position > 1e6 || !version(row.version) || !sequence(row.change_seq) || !timestamp2(row.created_at) || !timestamp2(row.updated_at) || row.deleted_at !== null && !timestamp2(row.deleted_at) || note && !uuid.test(row.group_id)) invalid2();
+  if (own2(row, "deleted") && row.deleted !== (row.deleted_at !== null)) invalid2();
+  if (own2(row, "active_note_count") && (!sequence(row.active_note_count) || row.active_note_count > 200)) invalid2();
+}
+function memoIndex(value) {
+  if (!object(value) || value.can_edit !== true || !Array.isArray(value.groups) || value.groups.length > 32 || !Array.isArray(value.notes) || value.notes.length > 200) invalid2();
+  const groups = /* @__PURE__ */ new Set(), notes = /* @__PURE__ */ new Set();
+  for (const row of value.groups) {
+    memoMeta(row);
+    if (groups.has(row.id)) invalid2();
+    groups.add(row.id);
+  }
+  for (const row of value.notes) {
+    memoMeta(row, true);
+    if (notes.has(row.id) || !groups.has(row.group_id)) invalid2();
+    notes.add(row.id);
+  }
+  return structuredClone(value);
+}
+function memoDetail(row, id, index) {
+  if (!identity(row, id, "memo_note") || row.can_edit !== true || !body(row.body)) invalid2();
+  memoMeta(row, true);
+  const metadata2 = index.notes.find((value) => value.id === id);
+  const fields5 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at", "group_id"];
+  if (!metadata2 || fields5.some((key) => metadata2[key] !== row[key])) invalid2();
+  return structuredClone(row);
+}
+function noteAbsence(value, local, id) {
+  if (!object(value) || value.can_edit !== true || value.category !== local.category || value.date !== local.date || !Array.isArray(value.entries) || value.entries.length > 200) invalid2();
+  const ids = /* @__PURE__ */ new Set();
+  for (const row of value.entries) {
+    noteRemote(row, row?.id);
+    if (row.id === id || ids.has(row.id) || row.deleted || row.category !== local.category || row.date !== local.date) invalid2();
+    ids.add(row.id);
+  }
+}
+function conflictIdentity(conflict) {
+  const operation2 = conflict?.operation, type = operation2?.entity_type, id = operation2?.source_id;
+  if (!prefixes2[type] || !uuid.test(id) || typeof conflict.scope !== "string" || !conflict.scope || operation2.scope !== conflict.scope || operation2.entity_id !== prefixes2[type] + id || conflict.entity_id !== operation2.entity_id) invalid2();
+  return { operation: operation2, type, id, scope: conflict.scope };
+}
+function createConflictPreparation({ readRemote, network }) {
+  async function guarded(read, assertActive) {
+    assertActive();
+    const value = await read();
+    assertActive();
+    return value;
+  }
+  return async function prepare(conflict, { assertActive = () => {
+  } } = {}) {
+    assertActive();
+    const { operation: operation2, type, id, scope } = conflictIdentity(conflict);
+    if (type === "memo_group" || type === "memo_note") {
+      const index = memoIndex(await guarded(() => network(scope, "/memos"), assertActive));
+      if (type === "memo_group") {
+        const row2 = index.groups.find((value) => value.id === id);
+        return { remote: row2 ? { ...row2, can_edit: true } : null, groups: index.groups };
+      }
+      const row = await guarded(() => readRemote(operation2), assertActive);
+      if (row === null) {
+        if (index.notes.some((value) => value.id === id)) invalid2();
+        return { remote: null, groups: index.groups };
+      }
+      return { remote: memoDetail(row, id, index), groups: index.groups };
+    }
+    const remote = await guarded(() => readRemote(operation2), assertActive);
+    if (remote !== null) return { remote: type === "note_entry" ? noteRemote(remote, id) : basicRemote(remote, id, type), groups: [] };
+    if (type === "note_entry") {
+      const local = own2(conflict, "review_local") ? conflict.review_local : conflict.local;
+      if (!object(local) || !["life", "work"].includes(local.category) || !day2(local.date)) invalid2();
+      const path = "/note-entries?category=" + local.category + "&date=" + local.date;
+      noteAbsence(await guarded(() => network(scope, path), assertActive), local, id);
+    }
+    return { remote: null, groups: [] };
+  };
+}
+
+// web/offline/outbox.mjs
+var RETRY_DELAYS = Object.freeze([5e3, 15e3, 6e4, 3e5]);
+var prefixes3 = {
+  todo: "todo:",
+  template: "template:",
+  note_entry: "note-entry:",
+  memo_note: "memo-note:",
+  memo_group: "memo-group:"
+};
+var uuidPattern4 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var active2 = (operation2) => !["acked", "archived"].includes(operation2.status);
 var deleted = (value) => Boolean(value && (value.deleted || value.deleted_at));
 var ordered = (rows) => rows.sort((a, b) => a.seq - b.seq);
 var needsUpgrade = () => Object.assign(new Error("此本机操作需新版页面处理，原内容已保留。"), { code: "OFFLINE_UPGRADE_REQUIRED" });
-function canonicalRoute(operation) {
-  const { entity_type: type, source_id: id, entity_id, method, path } = operation;
-  if (!uuidPattern3.test(id) || entity_id !== prefixes[type] + id) return false;
+function canonicalRoute(operation2) {
+  const { entity_type: type, source_id: id, entity_id, method, path } = operation2;
+  if (!uuidPattern4.test(id) || entity_id !== prefixes3[type] + id) return false;
   const base = type === "todo" ? "/todos" : type === "template" ? "/todo-templates" : type === "note_entry" ? "/note-entries" : "/memos/" + (type === "memo_note" ? "notes" : "groups");
   if (["todo", "template"].includes(type)) {
     if (method === "POST") return path === base || type === "todo" && path === base + "/" + id + "/restore";
@@ -1762,32 +2321,41 @@ function canonicalRoute(operation) {
   return (method === "PUT" || type === "note_entry" && method === "DELETE") && path === base + "/" + id;
 }
 function dispatchCapabilities(options2) {
-  const types2 = new Set(options2.enabledTypes || Object.keys(prefixes));
-  const protocols = new Set(options2.supportedProtocols || [1]);
-  const memoDependencies = (operation) => options2.supportedDependencies === true && operation.entity_type === "memo_note" && operation.method === "PUT" && uuidPattern3.test(operation.body?.group_id) && Array.isArray(operation.depends_on) && operation.depends_on.length === 1 && operation.depends_on[0] === "memo-group:" + operation.body.group_id;
-  const canDispatch = (operation) => {
-    const protocol = operation?.protocol === void 0 ? 1 : operation.protocol;
-    return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types2.has(operation.entity_type) && Number.isSafeInteger(protocol) && protocols.has(protocol) && canonicalRoute(operation) && (protocol === 1 && !Object.hasOwn(operation, "depends_on") || protocol === 2 && memoDependencies(operation)));
+  const types2 = new Set(options2.enabledTypes || Object.keys(prefixes3));
+  const protocols = new Set(options2.supportedProtocols || [1, 2, 3]);
+  const memoDependencies = (operation2) => options2.supportedDependencies === true && operation2.entity_type === "memo_note" && operation2.method === "PUT" && uuidPattern4.test(operation2.body?.group_id) && Array.isArray(operation2.depends_on) && operation2.depends_on.length === 1 && operation2.depends_on[0] === "memo-group:" + operation2.body.group_id;
+  const decision = (operation2) => {
+    let origin;
+    try {
+      origin = JSON.parse(operation2.origin_conflict);
+    } catch {
+      return false;
+    }
+    return options2.resolutionReceipts !== false && uuidPattern4.test(operation2.resolution_id) && operation2.resolution_receipt === 1 && Array.isArray(origin) && origin.length === 2 && origin[0] === operation2.scope && typeof origin[1] === "string" && origin[1].startsWith("conflict:") && (!Object.hasOwn(operation2, "depends_on") || memoDependencies(operation2));
   };
-  const requireDispatch = (operation) => {
-    if (!canDispatch(operation)) throw needsUpgrade();
+  const canDispatch = (operation2) => {
+    const protocol = operation2?.protocol === void 0 ? 1 : operation2.protocol;
+    return Boolean(operation2 && Object.hasOwn(prefixes3, operation2.entity_type) && types2.has(operation2.entity_type) && Number.isSafeInteger(protocol) && protocols.has(protocol) && canonicalRoute(operation2) && (protocol === 1 && !Object.hasOwn(operation2, "depends_on") || protocol === 2 && memoDependencies(operation2) || protocol === 3 && decision(operation2)));
+  };
+  const requireDispatch = (operation2) => {
+    if (!canDispatch(operation2)) throw needsUpgrade();
   };
   return { canDispatch, requireDispatch };
 }
-function identity(input, uuid3) {
-  const prefix = prefixes[input.entity_type];
+function identity2(input, uuid5) {
+  const prefix = prefixes3[input.entity_type];
   if (!prefix) throw new TypeError("This entity is read-only offline");
-  const raw = input.entity_id || input.body?.id || uuid3();
+  const raw = input.entity_id || input.body?.id || uuid5();
   const id = raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
-  if (!uuidPattern3.test(id)) throw new TypeError("Offline entity requires a stable UUID");
+  if (!uuidPattern4.test(id)) throw new TypeError("Offline entity requires a stable UUID");
   return { id: id.toLowerCase(), entity_id: prefix + id.toLowerCase() };
 }
-function operationFor(input, uuid3, time2) {
+function operationFor(input, uuid5, time2) {
   const initialStatus = input.initial_status || "queued";
   if (!["queued", "unknown"].includes(initialStatus)) throw new TypeError("Invalid initial offline operation status");
-  if (initialStatus === "unknown" && (!uuidPattern3.test(input.body?.save_id) || !input.entity_id))
+  if (initialStatus === "unknown" && (!uuidPattern4.test(input.body?.save_id) || !input.entity_id))
     throw new TypeError("Unknown operation import requires its original save_id and entity identity");
-  const { id, entity_id } = identity(input, uuid3), type = input.entity_type;
+  const { id, entity_id } = identity2(input, uuid5), type = input.entity_type;
   const method = input.method?.toUpperCase();
   const base = type === "todo" ? "/todos" : type === "template" ? "/todo-templates" : type === "note_entry" ? "/note-entries" : "/memos/" + (type === "memo_note" ? "notes" : "groups");
   const restore = type === "todo" && method === "POST" && input.path === base + "/" + id + "/restore";
@@ -1796,26 +2364,26 @@ function operationFor(input, uuid3, time2) {
   if (!allowed.includes(method)) throw new TypeError("Unsupported offline mutation");
   const path = create ? base : base + "/" + id + (restore ? "/restore" : "");
   if (input.path && input.path !== path) throw new TypeError("Offline mutation path does not match its entity");
-  const body = structuredClone(input.body || {});
-  if (typeof body.text === "string") {
-    body.text = ["todo", "template"].includes(type) ? body.text.trim() : body.text.replace(/\r\n?/g, "\n");
+  const body2 = structuredClone(input.body || {});
+  if (typeof body2.text === "string") {
+    body2.text = ["todo", "template"].includes(type) ? body2.text.trim() : body2.text.replace(/\r\n?/g, "\n");
   }
-  if (typeof body.title === "string") body.title = body.title.trim();
-  if (typeof body.body === "string") body.body = body.body.replace(/\r\n?/g, "\n");
+  if (typeof body2.title === "string") body2.title = body2.title.trim();
+  if (typeof body2.body === "string") body2.body = body2.body.replace(/\r\n?/g, "\n");
   if (create) {
-    if (body.id && body.id.toLowerCase() !== id) throw new TypeError("Client UUID cannot change");
-    body.id = id;
+    if (body2.id && body2.id.toLowerCase() !== id) throw new TypeError("Client UUID cannot change");
+    body2.id = id;
   }
-  const expected = create ? 0 : body.version;
+  const expected = create ? 0 : body2.version;
   if (!Number.isSafeInteger(expected) || expected < 0 || expected >= Number.MAX_SAFE_INTEGER) {
     throw new TypeError("Offline mutation requires an expected version");
   }
-  const saveId = body.save_id || uuid3();
-  if (!uuidPattern3.test(saveId)) throw new TypeError("Offline save_id requires a UUID");
-  if (!["todo", "template"].includes(type)) body.save_id = saveId.toLowerCase();
-  else delete body.save_id;
-  const operation = {
-    id: uuid3(),
+  const saveId = body2.save_id || uuid5();
+  if (!uuidPattern4.test(saveId)) throw new TypeError("Offline save_id requires a UUID");
+  if (!["todo", "template"].includes(type)) body2.save_id = saveId.toLowerCase();
+  else delete body2.save_id;
+  const operation2 = {
+    id: uuid5(),
     scope: input.scope,
     entity_type: type,
     entity_id,
@@ -1823,7 +2391,7 @@ function operationFor(input, uuid3, time2) {
     protocol: input.protocol === void 0 ? 1 : input.protocol,
     method,
     path,
-    body,
+    body: body2,
     expected_version: expected,
     save_id: saveId.toLowerCase(),
     created_at: time2,
@@ -1831,56 +2399,58 @@ function operationFor(input, uuid3, time2) {
     next_attempt_at: 0,
     status: initialStatus,
     base: input.base || null,
-    local: { ...structuredClone(input.local || body), id, version: expected + 1 },
+    local: { ...structuredClone(input.local || body2), id, version: expected + 1 },
     claim_owner: null,
     error: null
   };
-  operation.key = entityKey(input.scope, "operation:" + operation.id);
-  if (Object.hasOwn(input, "depends_on")) operation.depends_on = structuredClone(input.depends_on);
-  assertOfflineData(operation);
-  return operation;
+  operation2.key = entityKey(input.scope, "operation:" + operation2.id);
+  if (Object.hasOwn(input, "depends_on")) operation2.depends_on = structuredClone(input.depends_on);
+  for (const field2 of ["resolution_id", "resolution_receipt", "origin_conflict"])
+    if (Object.hasOwn(input, field2)) operation2[field2] = input[field2];
+  assertOfflineData(operation2);
+  return operation2;
 }
 async function digest(value) {
-  const canonical2 = (node) => Array.isArray(node) ? node.map(canonical2) : node && typeof node === "object" ? Object.fromEntries(Object.keys(node).sort().map((key) => [key, canonical2(node[key])])) : node;
-  const bytes = new TextEncoder().encode(JSON.stringify(canonical2(value)));
+  const canonical4 = (node) => Array.isArray(node) ? node.map(canonical4) : node && typeof node === "object" ? Object.fromEntries(Object.keys(node).sort().map((key) => [key, canonical4(node[key])])) : node;
+  const bytes = new TextEncoder().encode(JSON.stringify(canonical4(value)));
   const hash = await globalThis.crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(hash)].map((value2) => value2.toString(16).padStart(2, "0")).join("");
 }
 async function memoHash(row, kind) {
-  const fields4 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at"];
-  if (kind === "memo_note") fields4.push("group_id", "body");
-  return digest(Object.fromEntries(fields4.map((field2) => [field2, row[field2]])));
+  const fields5 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at"];
+  if (kind === "memo_note") fields5.push("group_id", "body");
+  return digest(Object.fromEntries(fields5.map((field2) => [field2, row[field2]])));
 }
-function desired(operation, remote) {
-  if (!remote || remote.id !== operation.source_id) return false;
-  if (operation.method === "DELETE") return deleted(remote);
+function desired(operation2, remote) {
+  if (!remote || remote.id !== operation2.source_id) return false;
+  if (operation2.method === "DELETE") return deleted(remote);
   if (deleted(remote)) return false;
-  const keys = operation.entity_type === "todo" ? operation.path.endsWith("/restore") ? ["date"] : operation.method === "POST" ? ["date", "text", ...operation.body.template_id ? ["template_id"] : []] : ["completed"] : operation.entity_type === "template" ? ["text"] : Object.keys(operation.body).filter((key) => !["version", "save_id"].includes(key));
-  return keys.every((key) => remote[key] === operation.body[key]);
+  const keys = operation2.entity_type === "todo" ? operation2.path.endsWith("/restore") ? ["date"] : operation2.method === "POST" ? ["date", "text", ...operation2.body.template_id ? ["template_id"] : []] : ["completed"] : operation2.entity_type === "template" ? ["text"] : Object.keys(operation2.body).filter((key) => !["version", "save_id"].includes(key));
+  return keys.every((key) => remote[key] === operation2.body[key]);
 }
-function expectedFields(operation, remote) {
-  const base = operation.base;
+function expectedFields(operation2, remote) {
+  const base = operation2.base;
   if (!base) return true;
-  const fields4 = operation.entity_type === "todo" ? deleted(remote) ? ["date"] : ["date", "text"] : [];
-  return fields4.every((key) => base[key] === void 0 || remote[key] === base[key]);
+  const fields5 = operation2.entity_type === "todo" ? deleted(remote) ? ["date"] : ["date", "text"] : [];
+  return fields5.every((key) => base[key] === void 0 || remote[key] === base[key]);
 }
 function completeNoteRow(remote) {
   const time2 = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
-  return remote && uuidPattern3.test(remote.id) && ["life", "work"].includes(remote.category) && /^\d{4}-\d{2}-\d{2}$/.test(remote.date) && typeof remote.text === "string" && typeof remote.deleted === "boolean" && remote.can_edit === true && /^[a-f0-9]{64}$/.test(remote.content_hash) && Number.isSafeInteger(remote.change_seq) && remote.change_seq >= 0 && time2(remote.created_at) && time2(remote.updated_at) && (remote.deleted_at === null || time2(remote.deleted_at)) && remote.deleted === (remote.deleted_at !== null);
+  return remote && uuidPattern4.test(remote.id) && ["life", "work"].includes(remote.category) && /^\d{4}-\d{2}-\d{2}$/.test(remote.date) && typeof remote.text === "string" && typeof remote.deleted === "boolean" && remote.can_edit === true && /^[a-f0-9]{64}$/.test(remote.content_hash) && Number.isSafeInteger(remote.change_seq) && remote.change_seq >= 0 && time2(remote.created_at) && time2(remote.updated_at) && (remote.deleted_at === null || time2(remote.deleted_at)) && remote.deleted === (remote.deleted_at !== null);
 }
-function validAcknowledgement(operation, remote) {
-  if (operation.entity_type === "note_entry" && !completeNoteRow(remote)) return false;
-  if (operation.entity_type === "template" && operation.method === "DELETE") {
-    return remote?.id === operation.source_id && remote.deleted === true;
+function validAcknowledgement(operation2, remote) {
+  if (operation2.entity_type === "note_entry" && !completeNoteRow(remote)) return false;
+  if (operation2.entity_type === "template" && operation2.method === "DELETE") {
+    return remote?.id === operation2.source_id && remote.deleted === true;
   }
-  if (operation.path.endsWith("/restore") && remote?.version === operation.expected_version) {
-    return desired(operation, remote) && expectedFields(operation, remote);
+  if (operation2.path.endsWith("/restore") && remote?.version === operation2.expected_version) {
+    return desired(operation2, remote) && expectedFields(operation2, remote);
   }
-  return Number.isSafeInteger(remote?.version) && remote.version === operation.expected_version + 1 && desired(operation, remote) && expectedFields(operation, remote);
+  return Number.isSafeInteger(remote?.version) && remote.version === operation2.expected_version + 1 && desired(operation2, remote) && expectedFields(operation2, remote);
 }
 function createContext(options2) {
-  const { db, request, getScope, now = Date.now, uuid: uuid3 = () => crypto.randomUUID(), timeout = 2e4 } = options2;
-  const owner = uuid3();
+  const { db, request, getScope, now = Date.now, uuid: uuid5 = () => crypto.randomUUID(), timeout = 2e4 } = options2;
+  const owner = uuid5();
   const state2 = { phase: "idle", pending: 0, unsupported: 0, error: null };
   const { canDispatch, requireDispatch } = dispatchCapabilities(options2);
   const conflicts = createConflictStore({ db, now, canDispatch });
@@ -1908,9 +2478,9 @@ function createContext(options2) {
       return true;
     });
   }
-  async function network(scope, path, opts = {}) {
+  async function network(scope, path, opts = {}, claim = true) {
     checkScope(scope);
-    if (!await lease(scope)) throw new Error("Offline sync lease changed");
+    if (claim && !await lease(scope)) throw new Error("Offline sync lease changed");
     checkScope(scope);
     const controller = new AbortController();
     let timer;
@@ -1928,12 +2498,16 @@ function createContext(options2) {
       clearTimeout(timer);
     }
   }
+  const readNetwork = (scope, path, opts = {}) => {
+    if (!["GET", "HEAD"].includes((opts.method || "GET").toUpperCase())) throw new TypeError("Conflict preparation is read-only");
+    return network(scope, path, opts, false);
+  };
   return {
     db,
     request,
     getScope,
     now,
-    uuid: uuid3,
+    uuid: uuid5,
     timeout,
     owner,
     conflicts,
@@ -1943,15 +2517,16 @@ function createContext(options2) {
     list,
     lease,
     network,
+    readNetwork,
     canDispatch,
     requireDispatch,
     retryable
   };
 }
-async function replayOperation(tx, operation, input, all) {
-  const replay = all.find((value) => value.save_id === operation.save_id);
+async function replayOperation(tx, operation2, input, all) {
+  const replay = all.find((value) => value.save_id === operation2.save_id);
   if (!replay) return null;
-  if (replay.entity_id !== operation.entity_id || replay.path !== operation.path || replay.method !== operation.method || JSON.stringify(replay.body) !== JSON.stringify(operation.body)) throw new Error("Offline save_id cannot change its original request");
+  if (replay.entity_id !== operation2.entity_id || replay.path !== operation2.path || replay.method !== operation2.method || JSON.stringify(replay.body) !== JSON.stringify(operation2.body)) throw new Error("Offline save_id cannot change its original request");
   const entity = await tx.get("entities", entityKey(input.scope, replay.entity_id));
   if (!entity) throw new Error("Offline operation entity is missing");
   if (input.initial_status === "unknown" && replay.status === "queued") {
@@ -1960,95 +2535,97 @@ async function replayOperation(tx, operation, input, all) {
   }
   return { operation: replay, entity };
 }
-async function noteCapacity(tx, operation, old) {
-  if (operation.entity_type !== "note_entry" || operation.expected_version !== 0 || operation.status === "unknown" || old) return;
+async function noteCapacity(tx, operation2, old) {
+  if (operation2.entity_type !== "note_entry" || operation2.expected_version !== 0 || operation2.status === "unknown" || old) return;
   let count = 0;
   for (const entity of await tx.getAll("entities")) {
     const row = entity.dirty ? entity.local : entity.server;
-    if (entity.scope === operation.scope && entity.entity_id.startsWith("note-entry:") && (entity.dirty || !entity.remote_missing) && row?.category === operation.body.category && row?.date === operation.body.date && !deleted(row)) count++;
+    if (entity.scope === operation2.scope && entity.entity_id.startsWith("note-entry:") && (entity.dirty || !entity.remote_missing) && row?.category === operation2.body.category && row?.date === operation2.body.date && !deleted(row)) count++;
   }
   if (count >= 200) throw Object.assign(new Error("本机当日记录已达 200 条，草稿已保留。"), { code: "OFFLINE_CACHE_LIMIT" });
 }
 function storageMethods(context) {
-  const { db, checkScope, uuid: uuid3, now, owner } = context;
-  async function enqueue(input) {
+  const { db, checkScope, uuid: uuid5, now, owner } = context;
+  async function enqueueInTransaction(tx, input) {
     input.assertActive?.();
     checkScope(input.scope);
-    const operation = operationFor(input, uuid3, now());
-    context.requireDispatch(operation);
-    return db.transaction(["entities", "outbox", "meta"], "readwrite", async (tx) => {
-      checkScope(input.scope);
+    const operation2 = operationFor(input, uuid5, now());
+    context.requireDispatch(operation2);
+    checkScope(input.scope);
+    input.assertActive?.();
+    const all = (await tx.getAll("outbox")).filter((value) => value.scope === input.scope);
+    const replay = await replayOperation(tx, operation2, input, all);
+    if (replay) {
       input.assertActive?.();
-      const all = (await tx.getAll("outbox")).filter((value) => value.scope === input.scope);
-      const replay = await replayOperation(tx, operation, input, all);
-      if (replay) {
-        input.assertActive?.();
-        return replay;
-      }
-      const rows = all.filter(active2);
-      if (rows.length >= 1e3) throw new Error("Offline queue is full; this edit was not saved");
-      const previous = ordered(rows.filter((value) => value.entity_id === operation.entity_id)).at(-1);
-      const conflict = rows.some((value) => value.entity_id === operation.entity_id && value.status === "conflict");
-      if (conflict || previous && operation.expected_version !== previous.expected_version + 1) {
-        throw new Error("Offline edits must use the preceding local version");
-      }
-      const sequenceKey = entityKey(input.scope, "outbox-sequence");
-      const sequence = (await tx.get("meta", sequenceKey))?.value || 0;
-      operation.seq = sequence + 1;
-      const key = entityKey(input.scope, operation.entity_id), old = await tx.get("entities", key);
-      await noteCapacity(tx, operation, old);
-      const visible2 = old?.dirty ? old.local : old?.server || operation.base;
-      operation.base = operation.base || old?.server || null;
-      operation.local = {
-        ...visible2,
-        ...operation.local,
-        ...operation.entity_type === "todo" && operation.path === "/todos" ? { completed: false } : {},
-        ...operation.path.endsWith("/restore") ? { deleted: false, deleted_at: null } : {},
-        ...operation.method === "DELETE" ? { deleted: true } : {}
-      };
-      const entity = {
-        ...old,
-        key,
-        scope: input.scope,
-        entity_id: operation.entity_id,
-        server: old?.server || operation.base,
-        local: operation.local,
-        dirty: true
-      };
-      input.assertActive?.();
-      await tx.put("entities", entity);
-      await tx.put("outbox", operation);
-      await tx.put("meta", { key: sequenceKey, value: operation.seq });
-      input.assertActive?.();
-      return { operation, entity };
-    });
+      return replay;
+    }
+    const rows = all.filter(active2);
+    if (rows.length >= 1e3) throw new Error("Offline queue is full; this edit was not saved");
+    const previous = ordered(rows.filter((value) => value.entity_id === operation2.entity_id)).at(-1);
+    const conflict = rows.some((value) => value.entity_id === operation2.entity_id && value.status === "conflict");
+    if (conflict || previous && operation2.expected_version !== previous.expected_version + 1) {
+      throw new Error("Offline edits must use the preceding local version");
+    }
+    const sequenceKey = entityKey(input.scope, "outbox-sequence");
+    const sequence2 = (await tx.get("meta", sequenceKey))?.value || 0;
+    operation2.seq = sequence2 + 1;
+    const key = entityKey(input.scope, operation2.entity_id), old = await tx.get("entities", key);
+    await noteCapacity(tx, operation2, old);
+    const visible2 = old?.dirty ? old.local : old?.server || operation2.base;
+    operation2.base = operation2.base || old?.server || null;
+    operation2.local = {
+      ...visible2,
+      ...operation2.local,
+      ...operation2.entity_type === "todo" && operation2.path === "/todos" ? { completed: false } : {},
+      ...operation2.path.endsWith("/restore") ? { deleted: false, deleted_at: null } : {},
+      ...operation2.method === "DELETE" ? { deleted: true } : {}
+    };
+    const entity = {
+      ...old,
+      key,
+      scope: input.scope,
+      entity_id: operation2.entity_id,
+      server: old?.server || operation2.base,
+      local: operation2.local,
+      dirty: true
+    };
+    input.assertActive?.();
+    await tx.put("entities", entity);
+    await tx.put("outbox", operation2);
+    await tx.put("meta", { key: sequenceKey, value: operation2.seq });
+    input.assertActive?.();
+    return { operation: operation2, entity };
   }
-  async function update(operation, fields4) {
-    if (!context.canDispatch(operation)) return null;
-    return db.transaction(["outbox", "meta"], "readwrite", async (tx) => {
-      const current = await tx.get("outbox", operation.key);
-      const held = await tx.get("meta", context.leaseKey(operation.scope));
+  async function enqueue(input) {
+    return db.transaction(["entities", "outbox", "meta"], "readwrite", (tx) => enqueueInTransaction(tx, input));
+  }
+  async function update(operation2, fields5) {
+    if (!context.canDispatch(operation2)) return null;
+    return db.transaction(["outbox", "meta", "conflicts"], "readwrite", async (tx) => {
+      const current = await tx.get("outbox", operation2.key);
+      const held = await tx.get("meta", context.leaseKey(operation2.scope));
       if (!context.canDispatch(current) || held?.owner !== owner || !["queued", "unknown", "sending"].includes(current.status)) return null;
-      if (!Object.hasOwn(fields4, "claim_owner") && current.claim_owner !== owner) return null;
-      const result = { ...current, ...fields4 };
+      if (!Object.hasOwn(fields5, "claim_owner") && current.claim_owner !== owner) return null;
+      const result = { ...current, ...fields5 };
       await tx.put("outbox", result);
+      if (fields5.status) await recordResolutionFailure(tx, result, fields5);
       return result;
     });
   }
-  async function acknowledge(operation, remote) {
-    context.requireDispatch(operation);
-    if (operation.entity_type === "note_entry" && !completeNoteRow(remote)) throw new Error("Incomplete note acknowledgement");
-    checkScope(operation.scope);
-    await db.transaction(["entities", "outbox"], "readwrite", async (tx) => {
-      checkScope(operation.scope);
-      const current = await tx.get("outbox", operation.key);
+  async function acknowledge(operation2, remote) {
+    context.requireDispatch(operation2);
+    if (operation2.entity_type === "note_entry" && !completeNoteRow(remote)) throw new Error("Incomplete note acknowledgement");
+    checkScope(operation2.scope);
+    await db.transaction(["entities", "outbox", "conflicts"], "readwrite", async (tx) => {
+      checkScope(operation2.scope);
+      const current = await tx.get("outbox", operation2.key);
       if (!context.canDispatch(current) || current.claim_owner !== owner || !["sending", "unknown"].includes(current.status)) {
         throw new Error("Offline operation claim changed");
       }
-      const key = entityKey(operation.scope, operation.entity_id), entity = await tx.get("entities", key);
-      const confirmed = operation.entity_type === "template" && operation.method === "DELETE" ? { ...operation.base, ...entity.server, ...remote, version: operation.expected_version + 1 } : remote;
-      await tx.delete("outbox", operation.key);
-      const remaining = (await tx.getAll("outbox")).some((value) => value.scope === operation.scope && value.entity_id === operation.entity_id && active2(value));
+      const key = entityKey(operation2.scope, operation2.entity_id), entity = await tx.get("entities", key);
+      const confirmed = operation2.entity_type === "template" && operation2.method === "DELETE" ? { ...operation2.base, ...entity.server, ...remote, version: operation2.expected_version + 1 } : remote;
+      await tx.delete("outbox", operation2.key);
+      const remaining = (await tx.getAll("outbox")).some((value) => value.scope === operation2.scope && value.entity_id === operation2.entity_id && active2(value));
       await tx.put("entities", {
         ...entity,
         server: confirmed,
@@ -2056,17 +2633,18 @@ function storageMethods(context) {
         dirty: remaining,
         conflict: null
       });
+      await recordResolutionAck(tx, current, confirmed, now());
     });
   }
-  return { enqueue, update, acknowledge };
+  return { enqueue, enqueueInTransaction, update, acknowledge };
 }
 function remoteMethods(context) {
   const { network } = context;
-  async function readRemote(operation) {
-    const scope = operation.scope, type = operation.entity_type;
+  async function readRemote(operation2) {
+    const scope = operation2.scope, type = operation2.entity_type;
     if (type === "note_entry" || type === "memo_note") {
       try {
-        return await network(scope, operation.path);
+        return await network(scope, operation2.path);
       } catch (error) {
         if (error.status === 404) return null;
         throw error;
@@ -2075,51 +2653,51 @@ function remoteMethods(context) {
     if (type === "memo_group") {
       const index2 = await network(scope, "/memos");
       if (index2?.can_edit !== true || !Array.isArray(index2.groups)) throw new Error("Invalid memo index");
-      const row2 = index2.groups.find((value) => value.id === operation.source_id);
+      const row2 = index2.groups.find((value) => value.id === operation2.source_id);
       return row2 ? { ...row2, can_edit: true } : null;
     }
-    const path = type === "template" ? "/todo-templates" : "/todos?date=" + (operation.body.date || operation.base?.date || operation.local.date);
+    const path = type === "template" ? "/todo-templates" : "/todos?date=" + (operation2.body.date || operation2.base?.date || operation2.local.date);
     const index = await network(scope, path);
     if (!Array.isArray(index?.items)) throw new Error("Incomplete offline entity index");
-    const row = index.items.find((value) => value.id === operation.source_id);
+    const row = index.items.find((value) => value.id === operation2.source_id);
     if (row || type === "template") return row || null;
-    const day3 = operation.body.date || operation.base?.date || operation.local.date;
-    const snapshot = await network(scope, "/workbench-snapshot?date=" + day3);
+    const day4 = operation2.body.date || operation2.base?.date || operation2.local.date;
+    const snapshot = await network(scope, "/workbench-snapshot?date=" + day4);
     if (snapshot?.complete !== true || snapshot.scope_id !== scope || !Array.isArray(snapshot.data?.todos)) {
       throw new Error("Todo absence could not be verified completely");
     }
-    return snapshot.data.todos.find((value) => value.source_id === operation.source_id) ? { ...snapshot.data.todos.find((value) => value.source_id === operation.source_id), id: operation.source_id } : null;
+    return snapshot.data.todos.find((value) => value.source_id === operation2.source_id) ? { ...snapshot.data.todos.find((value) => value.source_id === operation2.source_id), id: operation2.source_id } : null;
   }
   return { readRemote };
 }
 function receiptMethods(context) {
   const { network, readRemote } = context;
-  async function receiptRead(operation) {
-    const note = operation.entity_type === "note_entry", scope = operation.scope;
-    const receiptPath = (note ? "/note-entries" : "/memos") + "/operations/" + operation.save_id;
+  async function receiptRead(operation2) {
+    const note = operation2.entity_type === "note_entry", scope = operation2.scope;
+    const receiptPath = (note ? "/note-entries" : "/memos") + "/operations/" + operation2.save_id;
     const receipt = await network(scope, receiptPath);
     if (!receipt || typeof receipt.found !== "boolean") throw new Error("Invalid offline save receipt");
-    const remote = await readRemote(operation);
+    const remote = await readRemote(operation2);
     if (receipt.found) {
-      const hash = note ? remote?.content_hash : remote && await memoHash(remote, operation.entity_type);
+      const hash = note ? remote?.content_hash : remote && await memoHash(remote, operation2.entity_type);
       const expectedHash = note ? receipt.content_hash : receipt.entity_hash;
-      const kind = operation.entity_type === "memo_note" ? "notes" : "groups";
-      if (receipt.id === operation.source_id && receipt.version === operation.expected_version + 1 && (note || receipt.kind === kind) && remote?.can_edit === true && remote.version === receipt.version && hash === expectedHash && desired(operation, remote)) {
+      const kind = operation2.entity_type === "memo_note" ? "notes" : "groups";
+      if (receipt.id === operation2.source_id && receipt.version === operation2.expected_version + 1 && (note || receipt.kind === kind) && remote?.can_edit === true && remote.version === receipt.version && hash === expectedHash && desired(operation2, remote)) {
         return { result: "ack", remote };
       }
       return { result: "conflict", remote };
     }
-    if (!remote && operation.expected_version === 0) {
-      const path = note ? "/note-entries?category=" + operation.body.category + "&date=" + operation.body.date : "/memos";
+    if (!remote && operation2.expected_version === 0) {
+      const path = note ? "/note-entries?category=" + operation2.body.category + "&date=" + operation2.body.date : "/memos";
       const index = await network(scope, path);
       if (index?.can_edit !== true) throw new Error("Offline editor capability could not be verified");
-      const rows = note ? index.entries : operation.entity_type === "memo_note" ? index.notes : index.groups;
-      if (!Array.isArray(rows) || rows.some((value) => value.id === operation.source_id)) {
+      const rows = note ? index.entries : operation2.entity_type === "memo_note" ? index.notes : index.groups;
+      if (!Array.isArray(rows) || rows.some((value) => value.id === operation2.source_id)) {
         throw new Error("Offline create absence could not be verified");
       }
       return { result: "retry", remote };
     }
-    if (remote?.can_edit === true && !deleted(remote) && remote.version === operation.expected_version) {
+    if (remote?.can_edit === true && !deleted(remote) && remote.version === operation2.expected_version) {
       return { result: "retry", remote };
     }
     return { result: "conflict", remote };
@@ -2128,46 +2706,51 @@ function receiptMethods(context) {
 }
 function processingMethods(context) {
   const { receiptRead, readRemote, acknowledge, update, network, conflicts, now, owner } = context;
-  async function reconcile(operation) {
-    if (!["todo", "template"].includes(operation.entity_type)) return receiptRead(operation);
-    const remote = await readRemote(operation);
-    if (remote && remote.version === operation.expected_version + 1 && desired(operation, remote) && expectedFields(operation, remote)) return { result: "ack", remote };
-    if (!remote && operation.expected_version === 0) return { result: "retry", remote };
-    if (operation.path.endsWith("/restore") && remote?.version === operation.expected_version && deleted(remote)) {
+  async function reconcile(operation2) {
+    if (!["todo", "template"].includes(operation2.entity_type)) return receiptRead(operation2);
+    const remote = await readRemote(operation2);
+    if (remote && remote.version === operation2.expected_version + 1 && desired(operation2, remote) && expectedFields(operation2, remote)) return { result: "ack", remote };
+    if (!remote && operation2.expected_version === 0) return { result: "retry", remote };
+    if (operation2.path.endsWith("/restore") && remote?.version === operation2.expected_version && deleted(remote)) {
       return { result: "retry", remote };
     }
-    if (remote && !deleted(remote) && remote.version === operation.expected_version && expectedFields(operation, remote)) {
+    if (remote && !deleted(remote) && remote.version === operation2.expected_version && expectedFields(operation2, remote)) {
       return { result: "retry", remote };
     }
     return { result: "conflict", remote };
   }
-  async function fail5(operation, error) {
+  async function fail5(operation2, error) {
     if ([409, 410, 404].includes(error.status)) {
-      const current = await context.db.transaction(["outbox"], "readonly", (tx) => tx.get("outbox", operation.key));
+      const current = await context.db.transaction(["outbox"], "readonly", (tx) => tx.get("outbox", operation2.key));
       if (!context.canDispatch(current)) return;
       let remote = null;
       try {
-        remote = await readRemote(operation);
+        remote = await readRemote(operation2);
       } catch {
       }
-      return conflicts.record({ operation, remote, reason: deleted(remote) ? "deleted" : error.code || "version" });
+      return conflicts.record({ operation: operation2, remote, reason: deleted(remote) ? "deleted" : error.code || "version" });
     }
-    const attempts = operation.attempts + 1;
+    const attempts = operation2.attempts + 1;
     const delay = RETRY_DELAYS[Math.min(attempts - 1, RETRY_DELAYS.length - 1)];
     const status = [401, 403].includes(error.status) ? "paused" : error.status && error.status < 500 && error.status !== 429 ? "blocked" : "unknown";
-    return update(operation, {
+    return update(operation2, {
       status,
       attempts,
       next_attempt_at: now() + (error.status === 429 ? Math.max(6e4, delay) : delay),
       error: error.code || "OFFLINE_UNKNOWN"
     });
   }
-  async function process(operation) {
-    if (!context.canDispatch(operation)) return;
+  async function process(operation2) {
+    if (!context.canDispatch(operation2)) return;
     try {
-      const claimed = await update(operation, { claim_owner: owner });
+      const claimed = await update(operation2, { claim_owner: owner });
       if (!claimed) return;
-      if (["unknown", "sending"].includes(operation.status)) {
+      if (claimed.protocol === 3) {
+        const origin = await context.db.transaction(["conflicts"], "readonly", (tx) => tx.get("conflicts", claimed.origin_conflict));
+        if (!origin || origin.scope !== claimed.scope || origin.resolved_at !== null || origin.resolution?.id !== claimed.resolution_id || !origin.resolution.operation_keys.includes(claimed.key))
+          throw Object.assign(new Error("本机选择凭据不完整，原请求已保留。"), { status: 422, code: "OFFLINE_DECISION_EVIDENCE_MISSING" });
+      }
+      if (["unknown", "sending"].includes(operation2.status)) {
         const checked3 = await reconcile(claimed);
         if (checked3.result === "ack") return await acknowledge(claimed, checked3.remote);
         if (checked3.result === "conflict") return conflicts.record({
@@ -2178,33 +2761,36 @@ function processingMethods(context) {
       }
       const sending = await update(claimed, { status: "sending" });
       if (!sending) return;
-      const remote = await network(operation.scope, operation.path, { method: operation.method, body: operation.body });
-      if (!validAcknowledgement(operation, remote)) throw new Error("Invalid offline write acknowledgement");
+      const remote = await network(operation2.scope, operation2.path, { method: operation2.method, body: operation2.body });
+      if (!validAcknowledgement(operation2, remote)) throw new Error("Invalid offline write acknowledgement");
       return await acknowledge(sending, remote);
     } catch (error) {
-      return fail5({ ...operation, claim_owner: owner }, error);
+      return fail5({ ...operation2, claim_owner: owner }, error);
     }
   }
   return { reconcile, fail: fail5, process };
 }
-async function dependencyState(context, operation, rows) {
-  if (!operation.depends_on?.length) return "ready";
-  if (operation.depends_on.some((id) => rows.some((row) => row.entity_id === id && active2(row)))) return "pending";
-  return context.db.transaction(["entities"], "readonly", async (tx) => {
-    for (const id of operation.depends_on) {
-      const parent = await tx.get("entities", entityKey(operation.scope, id));
+async function dependencyState(context, operation2, rows) {
+  if (!operation2.depends_on?.length) return "ready";
+  if (operation2.depends_on.some((id) => rows.some((row) => row.entity_id === id && active2(row)))) return "pending";
+  return context.db.transaction(["entities", "outbox"], "readonly", async (tx) => {
+    for (const id of operation2.depends_on) {
+      const parent = await tx.get("entities", entityKey(operation2.scope, id));
       if (deleted(parent?.server)) return "deleted";
-      if (!parent?.server || parent.remote_missing || parent.server.version < 1) return "unknown";
+      if (!parent?.server || parent.remote_missing || parent.server.version < 1) {
+        const abandoned = operation2.protocol === 3 && (await tx.getAll("outbox")).some((row) => row.scope === operation2.scope && row.entity_id === id && row.resolution_id === operation2.resolution_id && row.status === "archived");
+        return abandoned ? "deleted" : "unknown";
+      }
     }
     return "ready";
   });
 }
-async function dependenciesReady(context, operation, rows) {
-  const state2 = await dependencyState(context, operation, rows);
+async function dependenciesReady(context, operation2, rows) {
+  const state2 = await dependencyState(context, operation2, rows);
   if (state2 === "deleted") {
-    const claimed = await context.update(operation, { claim_owner: context.owner });
+    const claimed = await context.update(operation2, { claim_owner: context.owner });
     if (claimed) {
-      const entity = await context.db.transaction(["entities"], "readonly", (tx) => tx.get("entities", entityKey(operation.scope, operation.entity_id)));
+      const entity = await context.db.transaction(["entities"], "readonly", (tx) => tx.get("entities", entityKey(operation2.scope, operation2.entity_id)));
       await context.conflicts.record({ operation: claimed, remote: entity?.server || null, reason: "MEMO_GROUP_UNAVAILABLE" });
     }
   }
@@ -2223,15 +2809,15 @@ function executionMethods(context) {
       for (let count = 0; count < 1e3; count++) {
         checkScope(scope);
         const rows = await list(scope);
-        let operation;
+        let operation2;
         for (const candidate of await retryable(scope)) {
           if (candidate.next_attempt_at <= now() && await dependenciesReady(context, candidate, rows)) {
-            operation = candidate;
+            operation2 = candidate;
             break;
           }
         }
-        if (!operation) break;
-        await process(operation);
+        if (!operation2) break;
+        await process(operation2);
       }
       const pending = await list(scope);
       state2.pending = pending.length;
@@ -2259,9 +2845,9 @@ function executionMethods(context) {
     return db.transaction(["outbox"], "readwrite", async (tx) => {
       checkScope(scope);
       let count = 0;
-      for (const operation of await tx.getAll("outbox")) {
-        if (operation.scope === scope && canDispatch(operation) && operation.status === "paused") {
-          await tx.put("outbox", { ...operation, status: "unknown", next_attempt_at: 0, claim_owner: null });
+      for (const operation2 of await tx.getAll("outbox")) {
+        if (operation2.scope === scope && canDispatch(operation2) && operation2.status === "paused") {
+          await tx.put("outbox", { ...operation2, status: "unknown", next_attempt_at: 0, claim_owner: null });
           count++;
         }
       }
@@ -2277,8 +2863,36 @@ function createOutbox(options2) {
   Object.assign(context, receiptMethods(context));
   Object.assign(context, processingMethods(context));
   Object.assign(context, executionMethods(context));
+  const preparationReads = remoteMethods({ ...context, network: context.readNetwork });
+  const prepare = createConflictPreparation({ readRemote: preparationReads.readRemote, network: context.readNetwork });
+  const decisions = createConflictDecisions({
+    db: context.db,
+    getScope: context.getScope,
+    now: context.now,
+    uuid: context.uuid,
+    canDispatch: context.canDispatch,
+    prepare,
+    append: async (tx, inputs, { assertActive }) => {
+      const result = [];
+      for (const input of inputs) result.push(await context.enqueueInTransaction(tx, { ...input, assertActive }));
+      return result;
+    }
+  });
+  async function resolve(...args) {
+    const scope = context.getScope();
+    try {
+      return await decisions.resolve(...args);
+    } finally {
+      if (scope && context.state.phase !== "syncing") await context.db.transaction(["meta"], "readwrite", async (tx) => {
+        const key = context.leaseKey(scope), held = await tx.get("meta", key);
+        if (held?.owner === context.owner) await tx.delete("meta", key);
+      }).catch(() => {
+      });
+    }
+  }
+  context.conflicts.resolve = resolve;
   const { enqueue, drain, resume, list, state: state2, conflicts, canDispatch, retryable } = context;
-  return { enqueue, drain, resume, list, state: state2, conflicts, canDispatch, retryable };
+  return { enqueue, drain, resume, list, state: state2, conflicts, canDispatch, retryable, resolve };
 }
 
 // web/offline/sync.mjs
@@ -2318,17 +2932,17 @@ var SNAPSHOT_PULL_LIMITS = Object.freeze({
   maxHashBytes: 8388608,
   maxRequests: 128
 });
-var stable = (value) => Array.isArray(value) ? value.map(stable) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])) : value;
-var canonical = (value) => JSON.stringify(stable(value));
-var equal = (a, b) => canonical(a) === canonical(b);
-var object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var stable2 = (value) => Array.isArray(value) ? value.map(stable2) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable2(value[key])])) : value;
+var canonical2 = (value) => JSON.stringify(stable2(value));
+var equal = (a, b) => canonical2(a) === canonical2(b);
+var object2 = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 function fail2(code, message, status) {
   throw Object.assign(new Error(message), { code, ...status ? { status } : {} });
 }
 function requireValue(condition, message = "工作台快照内容不完整，未覆盖本地数据。") {
   if (!condition) fail2("OFFLINE_SNAPSHOT_INVALID", message);
 }
-function day2(value) {
+function day3(value) {
   requireValue(typeof value === "string" && datePattern.test(value));
   const parsed = /* @__PURE__ */ new Date(value + "T00:00:00Z");
   requireValue(Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value);
@@ -2338,9 +2952,9 @@ function stamp(value, nullable = false) {
   if (value === null && nullable) return;
   const parts = typeof value === "string" && /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   requireValue(parts && Number(parts[2]) < 24 && Number(parts[3]) < 60 && Number(parts[4]) < 60 && Number.isFinite(Date.parse(value)) && (parts[5] === "Z" || Number(parts[5].slice(1, 3)) < 24 && Number(parts[5].slice(4)) < 60));
-  day2(parts[1]);
+  day3(parts[1]);
 }
-function identity2(scope, getScope) {
+function identity3(scope, getScope) {
   if (getScope() !== scope) fail2("OFFLINE_SCOPE_CHANGED", "当前身份范围已变化，请重新核实；原本地内容已保留。");
 }
 function budget(limits, crypto2) {
@@ -2363,7 +2977,7 @@ function budget(limits, crypto2) {
       if (++requests > limits.maxRequests) fail2("OFFLINE_SNAPSHOT_LIMIT", "本次完整快照请求数超过预算，未覆盖本地数据。", 413);
     },
     async hash(value) {
-      const input = encoder.encode(canonical(value));
+      const input = encoder.encode(canonical2(value));
       hashBytes += input.byteLength;
       if (hashBytes > limits.maxHashBytes) fail2("OFFLINE_SNAPSHOT_LIMIT", "本次完整快照哈希预算不足，未覆盖本地数据。", 413);
       if (!crypto2?.subtle) fail2("OFFLINE_CRYPTO_UNAVAILABLE", "无法核实快照哈希，未覆盖本地数据。");
@@ -2383,14 +2997,14 @@ function metadata(row) {
   };
 }
 function envelope(value, scope, limits) {
-  if (object(value) && value.scope_id !== scope) fail2("OFFLINE_SCOPE_CHANGED", "快照身份范围与已核实范围不同，原本地内容已保留。");
-  requireValue(object(value) && value.snapshot_format === FORMAT && value.projection === "current" && value.complete === true && value.scope_id === scope && value.timezone === "Asia/Shanghai" && hashPattern2.test(value.manifest_hash) && hashPattern2.test(value.global_content_hash) && Array.isArray(value.entities) && value.entities.length <= limits.maxEntities);
+  if (object2(value) && value.scope_id !== scope) fail2("OFFLINE_SCOPE_CHANGED", "快照身份范围与已核实范围不同，原本地内容已保留。");
+  requireValue(object2(value) && value.snapshot_format === FORMAT && value.projection === "current" && value.complete === true && value.scope_id === scope && value.timezone === "Asia/Shanghai" && hashPattern2.test(value.manifest_hash) && hashPattern2.test(value.global_content_hash) && Array.isArray(value.entities) && value.entities.length <= limits.maxEntities);
   stamp(value.generated_at);
   const seen = /* @__PURE__ */ new Set();
   let previous = "";
   for (const row of value.entities) {
-    requireValue(object(row) && Object.keys(row).sort().join(",") === "content_hash,date,deleted_at,entity_id,entity_type,updated_at" && typeof row.entity_id === "string" && row.entity_id.length > 0 && row.entity_id.length <= 256 && !seen.has(row.entity_id) && row.entity_id > previous && types.has(row.entity_type) && hashPattern2.test(row.content_hash));
-    if (row.date !== null) day2(row.date);
+    requireValue(object2(row) && Object.keys(row).sort().join(",") === "content_hash,date,deleted_at,entity_id,entity_type,updated_at" && typeof row.entity_id === "string" && row.entity_id.length > 0 && row.entity_id.length <= 256 && !seen.has(row.entity_id) && row.entity_id > previous && types.has(row.entity_type) && hashPattern2.test(row.content_hash));
+    if (row.date !== null) day3(row.date);
     stamp(row.updated_at);
     stamp(row.deleted_at, true);
     seen.add(row.entity_id);
@@ -2404,7 +3018,7 @@ async function indexFor(value, scope, limits, readBudget) {
   const represented = new Set(value.entities.filter((row) => row.date !== null).map((row) => row.date));
   let previous = "";
   for (const row of value.dates) {
-    requireValue(object(row) && Object.keys(row).sort().join(",") === "content_hash,date" && day2(row.date) > previous && hashPattern2.test(row.content_hash) && represented.has(row.date));
+    requireValue(object2(row) && Object.keys(row).sort().join(",") === "content_hash,date" && day3(row.date) > previous && hashPattern2.test(row.content_hash) && represented.has(row.date));
     previous = row.date;
     represented.delete(row.date);
     requireValue(row.content_hash === await readBudget.hash({ scope_id: scope, entities: value.entities.filter((entity) => entity.date === row.date) }));
@@ -2419,18 +3033,18 @@ function sameIndex(a, b) {
 }
 async function detailFor(value, date, index, limits, readBudget) {
   envelope(value, index.scope_id, limits);
-  requireValue(value.date === date && value.manifest_hash === index.manifest_hash && value.global_content_hash === index.global_content_hash && equal(value.entities, index.entities) && object(value.data) && Object.keys(value.data).sort().join(",") === [...collections].sort().join(",") && hashPattern2.test(value.content_hash) && hashPattern2.test(value.date_content_hash));
+  requireValue(value.date === date && value.manifest_hash === index.manifest_hash && value.global_content_hash === index.global_content_hash && equal(value.entities, index.entities) && object2(value.data) && Object.keys(value.data).sort().join(",") === [...collections].sort().join(",") && hashPattern2.test(value.content_hash) && hashPattern2.test(value.date_content_hash));
   const expected = new Map(index.entities.filter((row) => row.date === null || row.date === date).map((row) => [row.entity_id, row])), records = [];
   for (const name of collections) {
     const rows = value.data[name];
     requireValue(Array.isArray(rows));
     let previous = "";
     for (const row of rows) {
-      requireValue(object(row) && Object.keys(row).every((key) => recordKeys.has(key)) && row.entity_id > previous && expected.has(row.entity_id) && equal(metadata(row), expected.get(row.entity_id)) && typeof row.source === "string" && typeof row.source_id === "string" && Number.isSafeInteger(row.version) && row.version >= 1);
+      requireValue(object2(row) && Object.keys(row).every((key) => recordKeys.has(key)) && row.entity_id > previous && expected.has(row.entity_id) && equal(metadata(row), expected.get(row.entity_id)) && typeof row.source === "string" && typeof row.source_id === "string" && Number.isSafeInteger(row.version) && row.version >= 1);
       stamp(row.created_at, true);
       if (row.change_seq !== void 0) requireValue(Number.isSafeInteger(row.change_seq) && row.change_seq >= 0);
-      const { content_hash, ...content } = row;
-      requireValue(content_hash === await readBudget.hash(content));
+      const { content_hash, ...content2 } = row;
+      requireValue(content_hash === await readBudget.hash(content2));
       previous = row.entity_id;
       expected.delete(row.entity_id);
       records.push(row);
@@ -2444,7 +3058,7 @@ async function detailFor(value, date, index, limits, readBudget) {
 }
 async function applySnapshot({ db, getScope, scope, key, index, initial, cached, records, now }) {
   await db.transaction(["entities", "meta"], "readwrite", async (tx) => {
-    identity2(scope, getScope);
+    identity3(scope, getScope);
     const current = await tx.get("meta", key);
     if (!equal(current ?? null, initial.meta ?? null)) fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新本地快照，请重新核对。");
     const all = (await tx.getAll("entities")).filter((row) => row.scope === scope), manifest = new Set(index.entities.map((row) => row.entity_id));
@@ -2474,7 +3088,7 @@ async function applySnapshot({ db, getScope, scope, key, index, initial, cached,
         fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面刚确认了记录，未把它判为线上缺失。");
       await tx.put("entities", { ...row, server: null, snapshot_hash: null, remote_missing: true, synced_at: now() });
     }
-    identity2(scope, getScope);
+    identity3(scope, getScope);
     await tx.put("meta", { key, value: { index, verified_at: now() } });
   });
 }
@@ -2495,12 +3109,12 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
       meta: await tx.get("meta", key),
       entities: (await tx.getAll("entities")).filter((row) => row.scope === scope)
     }));
-    identity2(scope, getScope);
+    identity3(scope, getScope);
     async function get(path) {
-      identity2(scope, getScope);
+      identity3(scope, getScope);
       readBudget.request();
       const value = await request(path);
-      identity2(scope, getScope);
+      identity3(scope, getScope);
       readBudget.response(value);
       return value;
     }
@@ -2508,21 +3122,21 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
     const previous = initial.meta?.value?.index;
     const oldDates = new Map(previous?.scope_id === scope ? previous.dates.map((row) => [row.date, row.content_hash]) : []);
     const dates = new Map(index.dates.map((row) => [row.date, row.content_hash]));
-    const changed3 = new Set([.../* @__PURE__ */ new Set([...oldDates.keys(), ...dates.keys()])].filter((date) => oldDates.get(date) !== dates.get(date)));
+    const changed4 = new Set([.../* @__PURE__ */ new Set([...oldDates.keys(), ...dates.keys()])].filter((date) => oldDates.get(date) !== dates.get(date)));
     const cached = new Map(initial.entities.map((row) => [row.entity_id, row]));
     let needGlobal = !previous || previous.global_content_hash !== index.global_content_hash;
     for (const entity of index.entities) {
       const row = cached.get(entity.entity_id);
       if (!row?.server || row.snapshot_hash !== entity.content_hash) {
         if (entity.date === null) needGlobal = true;
-        else changed3.add(entity.date);
+        else changed4.add(entity.date);
       }
     }
-    if (!changed3.size && needGlobal && index.entities.some((row) => row.date === null))
-      changed3.add(probeDate === void 0 ? new Date(now() + 8 * 36e5).toISOString().slice(0, 10) : day2(probeDate));
-    if (changed3.size + 2 > limits.maxRequests) fail2("OFFLINE_SNAPSHOT_LIMIT", "变化日期过多，未返回部分同步结果。", 413);
+    if (!changed4.size && needGlobal && index.entities.some((row) => row.date === null))
+      changed4.add(probeDate === void 0 ? new Date(now() + 8 * 36e5).toISOString().slice(0, 10) : day3(probeDate));
+    if (changed4.size + 2 > limits.maxRequests) fail2("OFFLINE_SNAPSHOT_LIMIT", "变化日期过多，未返回部分同步结果。", 413);
     const records = /* @__PURE__ */ new Map();
-    for (const date of [...changed3].sort()) {
+    for (const date of [...changed4].sort()) {
       const rows = await detailFor(await get("/workbench-snapshot?date=" + encodeURIComponent(date)), date, index, limits, readBudget);
       for (const row of rows) {
         if (records.has(row.entity_id)) requireValue(equal(records.get(row.entity_id), row));
@@ -2531,10 +3145,10 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
     }
     const verified = await indexFor(await get("/workbench-snapshot/index"), scope, limits, readBudget);
     if (!sameIndex(index, verified)) fail2("OFFLINE_SNAPSHOT_CHANGED", "读取期间线上内容已变化，请稍后重新核对；本地内容已保留。");
-    identity2(scope, getScope);
+    identity3(scope, getScope);
     await applySnapshot({ db, getScope, scope, key, index, initial, cached, records, now });
     state2.last_success = now();
-    return { status: "synced", scope, changed_dates: [...changed3].sort(), entities: index.entities.length };
+    return { status: "synced", scope, changed_dates: [...changed4].sort(), entities: index.entities.length };
   }
   function pull(options2) {
     if (inFlight) return inFlight;
@@ -2580,22 +3194,22 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
 }
 
 // web/offline/note-mutations.mjs
-var uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var failure = (message, code = "OFFLINE_INVALID_MUTATION") => Object.assign(new Error(message), { code, localNotSaved: true });
+var uuid2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var failure2 = (message, code = "OFFLINE_INVALID_MUTATION") => Object.assign(new Error(message), { code, localNotSaved: true });
 function noteMutationRoute(path, options2, features) {
   const match = /^\/note-entries\/([a-f0-9-]{36})$/i.exec(path), method = (options2.method || "GET").toUpperCase();
-  return features.notes && match && uuid.test(match[1]) && ["PUT", "DELETE"].includes(method) ? { type: "note_entry", id: match[1].toLowerCase(), method } : null;
+  return features.notes && match && uuid2.test(match[1]) && ["PUT", "DELETE"].includes(method) ? { type: "note_entry", id: match[1].toLowerCase(), method } : null;
 }
-function checked(body, method) {
-  const fields4 = method === "PUT" ? ["category", "date", "text", "version", "save_id"] : ["version", "save_id"];
-  if (!body || Object.keys(body).sort().join(",") !== fields4.sort().join(",") || !uuid.test(body.save_id) || !Number.isSafeInteger(body.version) || body.version < (method === "PUT" ? 0 : 1) || body.version >= Number.MAX_SAFE_INTEGER)
-    throw failure("保存字段或原保存标识不完整，本次修改未保存。");
+function checked(body2, method) {
+  const fields5 = method === "PUT" ? ["category", "date", "text", "version", "save_id"] : ["version", "save_id"];
+  if (!body2 || Object.keys(body2).sort().join(",") !== fields5.sort().join(",") || !uuid2.test(body2.save_id) || !Number.isSafeInteger(body2.version) || body2.version < (method === "PUT" ? 0 : 1) || body2.version >= Number.MAX_SAFE_INTEGER)
+    throw failure2("保存字段或原保存标识不完整，本次修改未保存。");
   if (method === "PUT") {
-    const day3 = /* @__PURE__ */ new Date(body.date + "T00:00:00Z");
-    if (!["life", "work"].includes(body.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body.date) || !Number.isFinite(day3.getTime()) || day3.toISOString().slice(0, 10) !== body.date || typeof body.text !== "string" || !body.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body.text) || new TextEncoder().encode(body.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
-      throw failure("分类、日期或正文无效，草稿已保留。");
+    const day4 = /* @__PURE__ */ new Date(body2.date + "T00:00:00Z");
+    if (!["life", "work"].includes(body2.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body2.date) || !Number.isFinite(day4.getTime()) || day4.toISOString().slice(0, 10) !== body2.date || typeof body2.text !== "string" || !body2.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body2.text) || new TextEncoder().encode(body2.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
+      throw failure2("分类、日期或正文无效，草稿已保留。");
   }
-  return structuredClone(body);
+  return structuredClone(body2);
 }
 function createNoteMutations(context) {
   async function mutate(path, options2, route, guard) {
@@ -2603,29 +3217,29 @@ function createNoteMutations(context) {
     const active5 = () => {
       guard();
       if (!owner || owner !== state2.scope || generation !== context.generation)
-        throw failure("身份范围已变化，本次修改未保存。", "OFFLINE_SCOPE_CHANGED");
+        throw failure2("身份范围已变化，本次修改未保存。", "OFFLINE_SCOPE_CHANGED");
     };
     active5();
-    const body = checked(options2.body, route.method);
-    if (!await cache.noteCapability()) throw failure("请先联网核实碎碎念编辑能力。", "OFFLINE_SCOPE_REQUIRED");
+    const body2 = checked(options2.body, route.method);
+    if (!await cache.noteCapability()) throw failure2("请先联网核实碎碎念编辑能力。", "OFFLINE_SCOPE_REQUIRED");
     active5();
     const stored = await cache.entity("note-entry:" + route.id), visible2 = offlineValue(stored);
     active5();
-    if (route.method === "PUT" && body.version === 0 && !visible2) {
+    if (route.method === "PUT" && body2.version === 0 && !visible2) {
       const existing = await cache.entities();
       active5();
-      if (existing.filter((row) => row.entity_id.startsWith("note-entry:") && (row.dirty ? row.local : row.server)?.category === body.category && (row.dirty ? row.local : row.server)?.date === body.date && !(row.dirty ? row.local : row.server)?.deleted && !(row.dirty ? row.local : row.server)?.deleted_at && (row.dirty || !row.remote_missing)).length >= 200)
-        throw failure("本机该日记录已达 200 条，草稿已保留。", "OFFLINE_CACHE_LIMIT");
+      if (existing.filter((row) => row.entity_id.startsWith("note-entry:") && (row.dirty ? row.local : row.server)?.category === body2.category && (row.dirty ? row.local : row.server)?.date === body2.date && !(row.dirty ? row.local : row.server)?.deleted && !(row.dirty ? row.local : row.server)?.deleted_at && (row.dirty || !row.remote_missing)).length >= 200)
+        throw failure2("本机该日记录已达 200 条，草稿已保留。", "OFFLINE_CACHE_LIMIT");
     }
-    if (!options2.offlineUnknown && body.version !== (visible2?.version || 0))
-      throw failure("本机已有更新，请重新读取后保存，草稿已保留。", "OFFLINE_CACHE_CHANGED");
-    if (route.method === "DELETE" && !visible2) throw failure("此记录尚未保存在本机。", "OFFLINE_CACHE_MISS");
-    if (visible2 && route.method === "PUT" && (visible2.category !== body.category || visible2.date !== body.date))
-      throw failure("记录的分类和日期不可更改。");
+    if (!options2.offlineUnknown && body2.version !== (visible2?.version || 0))
+      throw failure2("本机已有更新，请重新读取后保存，草稿已保留。", "OFFLINE_CACHE_CHANGED");
+    if (route.method === "DELETE" && !visible2) throw failure2("此记录尚未保存在本机。", "OFFLINE_CACHE_MISS");
+    if (visible2 && route.method === "PUT" && (visible2.category !== body2.category || visible2.date !== body2.date))
+      throw failure2("记录的分类和日期不可更改。");
     const stamp2 = new Date(now()).toISOString();
     const local = {
       ...visible2,
-      ...body,
+      ...body2,
       id: route.id,
       can_edit: true,
       deleted: route.method === "DELETE",
@@ -2641,7 +3255,7 @@ function createNoteMutations(context) {
         entity_id: route.id,
         method: route.method,
         path,
-        body,
+        body: body2,
         base: stored?.server || null,
         local,
         initial_status: options2.offlineUnknown ? "unknown" : "queued",
@@ -2703,8 +3317,8 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     await db.transaction(["meta"], "readwrite", async (tx) => {
       active5();
       for (const row of clean) {
-        const identity3 = row.kind === "legacy" ? row.category + ":" + row.date : row.id;
-        const key = entityKey(owner, "draft:" + row.kind + ":" + identity3 + ":" + draftOwner);
+        const identity4 = row.kind === "legacy" ? row.category + ":" + row.date : row.id;
+        const key = entityKey(owner, "draft:" + row.kind + ":" + identity4 + ":" + draftOwner);
         if (unresolved(row)) await tx.put("meta", { key, scope: owner, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now() });
         else if (row.kind === "note_entry") {
           await tx.delete("meta", key);
@@ -2730,27 +3344,141 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
   return { capture, list, flush: () => Promise.all([...pending]) };
 }
 
+// web/offline/conflict-draft-guards.mjs
+var factories = /* @__PURE__ */ new Set();
+var uuid3 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var changed = () => {
+  throw Object.assign(new Error("本机输入或身份已变化，请保留原文并重新比较。"), { code: "OFFLINE_CONFLICT_CHANGED" });
+};
+var fields2 = (value, names) => value ? Object.fromEntries(names.filter((name) => value[name] !== void 0).map((name) => [name, value[name]])) : null;
+var canonical3 = (value) => Array.isArray(value) ? value.map(canonical3) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical3(value[key])])) : value;
+var stable3 = (value) => JSON.stringify(canonical3(value));
+function pendingIntent(value) {
+  if (!value) return null;
+  return {
+    ...fields2(value, ["kind", "id", "method", "path", "version", "text", "saveId"]),
+    body: fields2(value.body, ["version", "save_id", "title", "body", "group_id", "position", "category", "date", "text", "completed"]),
+    snapshot: fields2(value.snapshot, ["title", "body", "group_id", "position", "category", "date", "text", "completed"])
+  };
+}
+function draftSnapshot(value, kind) {
+  if (!value) return null;
+  return {
+    ...fields2(value, kind === "memo" ? ["title", "body", "group_id", "position"] : ["draft"]),
+    composing: value.composing === true,
+    pending: pendingIntent(value.pending)
+  };
+}
+function entityId(value, prefix) {
+  if (typeof value !== "string" || !value.startsWith(prefix)) return null;
+  const id = value.slice(prefix.length);
+  return uuid3.test(id) ? id.toLowerCase() : null;
+}
+function privateMemoJournals(storage2, owner, id) {
+  if (!storage2 || typeof owner !== "string" || !owner) changed();
+  const prefix = "haoduoyu.memos.drafts.v1." + owner + ".", rows = [];
+  try {
+    const length = storage2.length;
+    if (!Number.isSafeInteger(length) || length < 0) changed();
+    for (let index = 0; index < length; index++) {
+      const key = storage2.key(index);
+      if (typeof key !== "string" || !key.startsWith(prefix)) continue;
+      const raw = JSON.parse(storage2.getItem(key) || "{}");
+      if (!Array.isArray(raw.drafts)) changed();
+      const drafts = raw.drafts.filter((draft) => draft?.id === id).map((draft) => draftSnapshot(draft, "memo"));
+      if (drafts.length) rows.push([key, drafts.sort((a, b) => stable3(a).localeCompare(stable3(b)))]);
+    }
+    return rows.sort((a, b) => a[0].localeCompare(b[0]));
+  } catch {
+    changed();
+  }
+}
+function registerConflictDraftGuard(factory) {
+  if (typeof factory !== "function") throw new TypeError("Conflict draft guard must be a factory");
+  factories.add(factory);
+  return () => factories.delete(factory);
+}
+function captureConflictDraftGuard(entity_id) {
+  const checks = [...factories].map((factory) => factory(entity_id)).filter(Boolean);
+  if (checks.some((check) => typeof check !== "function")) throw new TypeError("Conflict draft guard must return a function");
+  return () => {
+    for (const check of checks) check();
+  };
+}
+function createMemoConflictDraftGuard({
+  getStore,
+  getIdentity,
+  getStorage = () => globalThis.localStorage,
+  getComposing = () => false
+}) {
+  return (entity_id) => {
+    const id = entityId(entity_id, "memo-note:"), store = id && getStore();
+    if (!store) return null;
+    const identity4 = getIdentity(), owner = store.state.draftOwner;
+    const snapshot = () => stable3({
+      draft: draftSnapshot(store.drafts.get(id), "memo"),
+      operation: store.state.operation?.pending?.id === id ? pendingIntent(store.state.operation.pending) : null,
+      composing: getComposing(id) === true,
+      journals: privateMemoJournals(getStorage(), owner, id)
+    });
+    let initial;
+    try {
+      initial = snapshot();
+    } catch {
+      changed();
+    }
+    return () => {
+      if (store !== getStore() || identity4 !== getIdentity() || owner !== store.state.draftOwner) changed();
+      try {
+        if (snapshot() !== initial) changed();
+      } catch {
+        changed();
+      }
+    };
+  };
+}
+function createNoteConflictDraftGuard({ getStores, getIdentity, getComposing = () => false }) {
+  return (entity_id) => {
+    const id = entityId(entity_id, "note-entry:");
+    if (!id) return null;
+    const find = () => [...getStores()].filter(([, store]) => store.entries.has(id));
+    const initialStores = find();
+    if (!initialStores.length) return null;
+    const identity4 = getIdentity();
+    const snapshot = (rows) => stable3({
+      drafts: rows.map(([category, store]) => [category, draftSnapshot(store.entries.get(id), "note")]),
+      composing: getComposing(id) === true
+    });
+    const initial = snapshot(initialStores);
+    return () => {
+      const current = find();
+      if (identity4 !== getIdentity() || current.length !== initialStores.length || current.some(([category, store], index) => category !== initialStores[index][0] || store !== initialStores[index][1])) changed();
+      if (snapshot(current) !== initial) changed();
+    };
+  };
+}
+
 // web/offline/memos.mjs
-var uuid2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var uuid4 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 var active3 = (value) => !["archived", "acked"].includes(value.status);
 var fail3 = (message, code = "OFFLINE_MEMO_INVALID") => Object.assign(new Error(message), { code });
 var keyFor = (scope, kind, id) => entityKey(scope, (kind === "notes" ? "memo-note:" : "memo-group:") + id);
-var fields2 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at", "group_id", "body"];
+var fields3 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at", "group_id", "body"];
 function memoRoute(path) {
   if (path === "/memos") return { kind: "index" };
   const match = /^\/memos\/(notes|groups)\/([a-f0-9-]{36})$/i.exec(path);
-  return match && uuid2.test(match[2]) ? { kind: match[1], id: match[2].toLowerCase() } : null;
+  return match && uuid4.test(match[2]) ? { kind: match[1], id: match[2].toLowerCase() } : null;
 }
 function checked2(row, kind, detail = false) {
-  if (!row || !uuid2.test(row.id) || typeof row.title !== "string" || !row.title.trim() || !Number.isSafeInteger(row.version) || row.version < 1 || !Number.isSafeInteger(row.position) || kind === "notes" && (!uuid2.test(row.group_id) || detail && typeof row.body !== "string")) {
+  if (!row || !uuid4.test(row.id) || typeof row.title !== "string" || !row.title.trim() || !Number.isSafeInteger(row.version) || row.version < 1 || !Number.isSafeInteger(row.position) || kind === "notes" && (!uuid4.test(row.group_id) || detail && typeof row.body !== "string")) {
     throw fail3("备忘录读取不完整，未覆盖本机内容。");
   }
-  return Object.fromEntries(fields2.filter((field2) => row[field2] !== void 0).map((field2) => [field2, row[field2]]));
+  return Object.fromEntries(fields3.filter((field2) => row[field2] !== void 0).map((field2) => [field2, row[field2]]));
 }
 function memoDocument(entity, records, canEdit, index = false) {
   const value = offlineValue(entity);
   if (!value || entity.remote_missing && !entity.dirty) return null;
-  const operation = records.operations.filter((row) => row.entity_id === entity.entity_id && active3(row)).at(-1) || null;
+  const operation2 = records.operations.filter((row) => row.entity_id === entity.entity_id && active3(row)).at(-1) || null;
   const conflict = records.conflicts.find((row) => row.entity_id === entity.entity_id && row.resolved_at === null) || null;
   const local = { ...value, id: value.id || value.source_id, can_edit: canEdit };
   if (!entity.dirty && entity.remote_index?.version > value.version) {
@@ -2758,8 +3486,8 @@ function memoDocument(entity, records, canEdit, index = false) {
     if (!entity.remote_index.deleted_at) throw fail3("正文已有新版本，请联网读取后编辑。", "OFFLINE_CACHE_MISS");
     return localDocument({ local: { ...local, deleted_at: entity.remote_index.deleted_at }, server: entity.server });
   }
-  if (!entity.dirty && !operation && !conflict) return local;
-  return localDocument({ local, server: entity.server || null, operation, conflict });
+  if (!entity.dirty && !operation2 && !conflict) return local;
+  return localDocument({ local, server: entity.server || null, operation: operation2, conflict });
 }
 function scoped(context, assertActive = () => {
 }) {
@@ -2773,21 +3501,21 @@ function scoped(context, assertActive = () => {
   } };
 }
 function checkedInput(raw, kind, createId) {
-  const body = structuredClone(raw || {});
-  if (!body.save_id) body.save_id = createId();
-  const fields4 = ["title", "position", "version", "save_id", ...kind === "notes" ? ["group_id", "body"] : []];
-  const plain = (value) => typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
-  const invalid = () => {
+  const body2 = structuredClone(raw || {});
+  if (!body2.save_id) body2.save_id = createId();
+  const fields5 = ["title", "position", "version", "save_id", ...kind === "notes" ? ["group_id", "body"] : []];
+  const plain2 = (value) => typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+  const invalid3 = () => {
     throw Object.assign(fail3("备忘录字段无效，输入仍保留。"), { status: 400 });
   };
-  if (Object.keys(body).sort().join(",") !== fields4.sort().join(",") || !uuid2.test(body.save_id) || !Number.isSafeInteger(body.version) || body.version < 0 || body.version >= Number.MAX_SAFE_INTEGER || !Number.isSafeInteger(body.position) || body.position < 0 || body.position > 1e6 || !plain(body.title) || !body.title.trim() || [...body.title.trim()].length > 120 || /[\r\n\t]/.test(body.title)) invalid();
-  body.title = body.title.trim();
+  if (Object.keys(body2).sort().join(",") !== fields5.sort().join(",") || !uuid4.test(body2.save_id) || !Number.isSafeInteger(body2.version) || body2.version < 0 || body2.version >= Number.MAX_SAFE_INTEGER || !Number.isSafeInteger(body2.position) || body2.position < 0 || body2.position > 1e6 || !plain2(body2.title) || !body2.title.trim() || [...body2.title.trim()].length > 120 || /[\r\n\t]/.test(body2.title)) invalid3();
+  body2.title = body2.title.trim();
   if (kind === "notes") {
-    if (!uuid2.test(body.group_id) || !plain(body.body)) invalid();
-    body.body = body.body.replace(/\r\n?/g, "\n");
-    if (new TextEncoder().encode(body.body).length > 65536) invalid();
+    if (!uuid4.test(body2.group_id) || !plain2(body2.body)) invalid3();
+    body2.body = body2.body.replace(/\r\n?/g, "\n");
+    if (new TextEncoder().encode(body2.body).length > 65536) invalid3();
   }
-  return body;
+  return body2;
 }
 function memoReads(context) {
   async function project(path) {
@@ -2826,7 +3554,7 @@ function memoReads(context) {
   return { project };
 }
 function memoCache(context) {
-  const serverFence3 = (rows, route) => JSON.stringify(rows.filter((row) => row.server && row.entity_id.startsWith("memo-") && (route.kind === "index" || row.entity_id === "memo-note:" + route.id)).map((row) => [row.entity_id, Object.fromEntries(fields2.map((field2) => [field2, row.server[field2]]))]).sort((a, b) => a[0].localeCompare(b[0])));
+  const serverFence3 = (rows, route) => JSON.stringify(rows.filter((row) => row.server && row.entity_id.startsWith("memo-") && (route.kind === "index" || row.entity_id === "memo-note:" + route.id)).map((row) => [row.entity_id, Object.fromEntries(fields3.map((field2) => [field2, row.server[field2]]))]).sort((a, b) => a[0].localeCompare(b[0])));
   async function fence(path) {
     const guard = scoped(context), route = memoRoute(path);
     const rows = await context.db.transaction(["entities"], "readonly", (tx) => tx.getAll("entities"));
@@ -2878,7 +3606,7 @@ function memoWrites(context) {
     if (!route || !["notes", "groups"].includes(route.kind) || options2.method?.toUpperCase() !== "PUT") {
       throw fail3("备忘录删除和恢复需联网确认。", "OFFLINE_UNSUPPORTED");
     }
-    const body = checkedInput(options2.body, route.kind, context.uuid);
+    const body2 = checkedInput(options2.body, route.kind, context.uuid);
     const cap = await context.db.transaction(["meta"], "readonly", (tx) => tx.get("meta", entityKey(guard.scope, "memo-capability")));
     guard.check();
     if (cap?.can_edit !== true) throw fail3("请先联网确认备忘录编辑权限。", "OFFLINE_SCOPE_REQUIRED");
@@ -2889,9 +3617,9 @@ function memoWrites(context) {
     if (visible2?.deleted_at || visible2?.deleted) throw fail3("笔记已删除，请联网核对后恢复。", "OFFLINE_MEMO_DELETED");
     const local = {
       ...visible2,
-      ...body,
+      ...body2,
       id: route.id,
-      version: body.version + 1,
+      version: body2.version + 1,
       created_at: visible2?.created_at || new Date(context.now()).toISOString(),
       updated_at: new Date(context.now()).toISOString(),
       deleted_at: null
@@ -2902,11 +3630,11 @@ function memoWrites(context) {
       entity_id: route.id,
       method: "PUT",
       path,
-      body,
+      body: body2,
       base: old?.server || null,
       local,
       assertActive: guard.check,
-      ...route.kind === "notes" ? { protocol: 2, depends_on: ["memo-group:" + body.group_id] } : {},
+      ...route.kind === "notes" ? { protocol: 2, depends_on: ["memo-group:" + body2.group_id] } : {},
       ...options2.offlineUnknown ? { initial_status: "unknown" } : {}
     });
     guard.check();
@@ -2928,7 +3656,7 @@ function createMemoOfflineAdapter(options2) {
 // web/offline/runtime.mjs
 var OFFLINE_FEATURES = Object.freeze({ todos: true, notes: true, memos: true });
 var scopePattern = /^[a-f0-9]{64}$/;
-var uuidPattern4 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var uuidPattern5 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 var networkFailure = (error) => error?.code === "NETWORK_UNAVAILABLE" || error?.code === "OFFLINE_NETWORK";
 var fail4 = (message, code) => Object.assign(new Error(message), { code });
 var today = (now) => new Date(now() + 8 * 36e5).toISOString().slice(0, 10);
@@ -2958,35 +3686,35 @@ function writableRoute(path, options2, features) {
   if (["/todos", "/todo-templates"].includes(path) && method === "POST")
     return { type: path === "/todos" ? "todo" : "template", create: true };
   const match = /^\/(todos|todo-templates)\/([a-f0-9-]{36})(\/restore)?$/i.exec(path);
-  if (!match || !uuidPattern4.test(match[2])) return null;
+  if (!match || !uuidPattern5.test(match[2])) return null;
   if (match[3] && (method !== "POST" || match[1] !== "todos") || !match[3] && !["PATCH", "DELETE"].includes(method)) return null;
   return { type: match[1] === "todos" ? "todo" : "template", id: match[2].toLowerCase(), restore: Boolean(match[3]) };
 }
-function checkedBody(route, options2, uuid3) {
-  const body = structuredClone(options2.body || {}), method = (options2.method || "GET").toUpperCase();
+function checkedBody(route, options2, uuid5) {
+  const body2 = structuredClone(options2.body || {}), method = (options2.method || "GET").toUpperCase();
   const required = route.create ? route.type === "todo" ? ["id", "date", "text"] : ["id", "text"] : route.type === "todo" ? route.restore || method === "DELETE" ? ["date", "version"] : ["completed", "version"] : method === "DELETE" ? ["version"] : ["text", "version"];
-  if (route.create && !body.id) body.id = uuid3();
+  if (route.create && !body2.id) body2.id = uuid5();
   const allowed = [...required, ...route.create && route.type === "todo" ? ["template_id"] : []];
-  if (required.some((key) => !Object.hasOwn(body, key)) || Object.keys(body).some((key) => !allowed.includes(key)))
+  if (required.some((key) => !Object.hasOwn(body2, key)) || Object.keys(body2).some((key) => !allowed.includes(key)))
     throw fail4("请求字段不完整，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
-  if (body.id && !uuidPattern4.test(body.id) || body.template_id && !uuidPattern4.test(body.template_id))
+  if (body2.id && !uuidPattern5.test(body2.id) || body2.template_id && !uuidPattern5.test(body2.template_id))
     throw fail4("事项标识无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
-  if (body.date && (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body.date) || !Number.isFinite(Date.parse(body.date + "T00:00:00Z")) || (/* @__PURE__ */ new Date(body.date + "T00:00:00Z")).toISOString().slice(0, 10) !== body.date))
+  if (body2.date && (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body2.date) || !Number.isFinite(Date.parse(body2.date + "T00:00:00Z")) || (/* @__PURE__ */ new Date(body2.date + "T00:00:00Z")).toISOString().slice(0, 10) !== body2.date))
     throw fail4("请选择有效日期。", "OFFLINE_INVALID_MUTATION");
-  if (Object.hasOwn(body, "text") && (typeof body.text !== "string" || !body.text.trim() || body.text.length > 500 || body.text.includes("\0")))
+  if (Object.hasOwn(body2, "text") && (typeof body2.text !== "string" || !body2.text.trim() || body2.text.length > 500 || body2.text.includes("\0")))
     throw fail4("请填写 1–500 字的内容。", "OFFLINE_INVALID_MUTATION");
-  if (Object.hasOwn(body, "completed") && typeof body.completed !== "boolean")
+  if (Object.hasOwn(body2, "completed") && typeof body2.completed !== "boolean")
     throw fail4("完成状态无效。", "OFFLINE_INVALID_MUTATION");
-  if (!route.create && (!Number.isSafeInteger(body.version) || body.version < 1 || body.version >= Number.MAX_SAFE_INTEGER))
+  if (!route.create && (!Number.isSafeInteger(body2.version) || body2.version < 1 || body2.version >= Number.MAX_SAFE_INTEGER))
     throw fail4("版本无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
-  return body;
+  return body2;
 }
 function runtimeContext(options2) {
   const {
     db,
     request,
     now = Date.now,
-    uuid: uuid3 = () => crypto.randomUUID(),
+    uuid: uuid5 = () => crypto.randomUUID(),
     online = () => globalThis.navigator?.onLine !== false,
     onIdentity = () => {
     },
@@ -3015,7 +3743,7 @@ function runtimeContext(options2) {
     db,
     request,
     now,
-    uuid: uuid3,
+    uuid: uuid5,
     online,
     onIdentity,
     features,
@@ -3051,15 +3779,16 @@ function runtimeContext(options2) {
     request: send,
     getScope: () => state2.scope,
     now,
-    uuid: uuid3,
+    uuid: uuid5,
     timeout: options2.timeout,
     enabledTypes: [
       ...features.todos ? ["todo", "template"] : [],
       ...features.notes ? ["note_entry"] : [],
       ...features.memos ? ["memo_note", "memo_group"] : []
     ],
-    supportedProtocols: features.memos ? [1, 2] : [1],
-    supportedDependencies: features.memos === true
+    supportedProtocols: features.memos ? [1, 2, 3] : [1, 3],
+    supportedDependencies: features.memos === true,
+    resolutionReceipts: true
   });
   context.snapshot = createSnapshotSync({ db, request: send, getScope: () => state2.scope, now });
   context.memos = createMemoOfflineAdapter({
@@ -3069,7 +3798,7 @@ function runtimeContext(options2) {
     getScope: () => state2.scope,
     getGeneration: () => context.generation,
     now,
-    uuid: uuid3
+    uuid: uuid5
   });
   return context;
 }
@@ -3089,22 +3818,22 @@ function identityActions(context) {
     emit();
   }
   async function adopt(me, index, generation) {
-    const identity3 = safeIdentity(me);
+    const identity4 = safeIdentity(me);
     if (generation !== context.generation) throw fail4("身份读取已过期。", "OFFLINE_SCOPE_CHANGED");
     if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== "current")
       throw fail4("身份范围读取不完整，请联网重试。", "OFFLINE_SCOPE_REQUIRED");
-    if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity3))) {
+    if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity4))) {
       await invalidate({ forget: true });
       throw fail4("当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。", "OFFLINE_SCOPE_CHANGED");
     }
-    await cache.saveIdentity(identity3, index.scope_id);
+    await cache.saveIdentity(identity4, index.scope_id);
     if (generation !== context.generation || state2.scope && state2.scope !== index.scope_id) {
       await invalidate({ forget: true });
       throw fail4("身份核实已过期，原本机数据已保留。", "OFFLINE_SCOPE_CHANGED");
     }
     state2.scope = index.scope_id;
     state2.verifiedScope = index.scope_id;
-    state2.identity = identity3;
+    state2.identity = identity4;
     state2.online = true;
     state2.error = null;
     onIdentity(me);
@@ -3171,14 +3900,14 @@ function identityActions(context) {
 function stateActions(context) {
   const { state: state2, outbox, emit, online } = context;
   async function refresh() {
-    const sequence = context.refreshSequence = (context.refreshSequence || 0) + 1;
+    const sequence2 = context.refreshSequence = (context.refreshSequence || 0) + 1;
     if (!state2.scope) {
       emit();
       return { ...state2 };
     }
     const owner = state2.scope, generation = context.generation;
     const [pending, conflicts] = await Promise.all([outbox.list(owner), outbox.conflicts.list(owner)]);
-    if (sequence !== context.refreshSequence || owner !== state2.scope || generation !== context.generation) return { ...state2 };
+    if (sequence2 !== context.refreshSequence || owner !== state2.scope || generation !== context.generation) return { ...state2 };
     state2.pending = pending.length;
     state2.conflicts = conflicts.length;
     state2.online = online() && state2.online;
@@ -3195,13 +3924,29 @@ function stateActions(context) {
     result.conflicts = result.conflicts.map((row) => outbox.canDispatch(row.operation) ? row : { ...row, needs_upgrade: true });
     return owner === state2.scope && generation === context.generation ? result : { operations: [], conflicts: [] };
   }
-  async function resolve(key, choice2) {
+  async function resolve(key, choice2, options2 = {}) {
     if (!state2.scope) throw fail4("请先核实身份。", "OFFLINE_SCOPE_REQUIRED");
     const conflict = (await outbox.conflicts.list(state2.scope)).find((row) => row.key === key);
     if (conflict && !outbox.canDispatch(conflict.operation)) throw fail4("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
-    const result = await outbox.conflicts.resolve(key, choice2, { scope: state2.scope });
+    const owner = state2.scope, generation = context.generation;
+    const checkDraft = captureConflictDraftGuard(conflict?.entity_id);
+    const active5 = () => {
+      if (options2.signal?.aborted) throw new DOMException("请求已取消", "AbortError");
+      if (owner !== state2.scope || generation !== context.generation) throw fail4("身份已变化，原文已保留。", "OFFLINE_SCOPE_CHANGED");
+      checkDraft();
+    };
+    active5();
+    await context.verifyScope();
+    active5();
+    const result = await outbox.resolve(key, choice2, {
+      scope: owner,
+      assertActive: active5,
+      expected: options2.expected,
+      copyConfirmed: options2.copyConfirmed
+    });
     await refresh();
     context.broadcast();
+    if (result.resolution?.state === "queued" && context.online()) context.scheduleRetry();
     return result;
   }
   return { refresh, queue, resolve };
@@ -3303,7 +4048,7 @@ async function rememberRead(context, path, value, baseline, memo) {
   }
 }
 function mutationActions(context) {
-  const { state: state2, cache, now, uuid: uuid3, outbox, features } = context;
+  const { state: state2, cache, now, uuid: uuid5, outbox, features } = context;
   async function mutate(path, options2, route, guard) {
     guard();
     if (!state2.scope || !state2.identity) throw fail4("请先联网读取此工作台，再保存离线内容。", "OFFLINE_SCOPE_REQUIRED");
@@ -3313,14 +4058,14 @@ function mutationActions(context) {
       if (owner !== state2.scope || generation !== context.generation)
         throw fail4("身份范围已变化，本次修改未保存，输入已保留。", "OFFLINE_SCOPE_CHANGED");
     };
-    const body = checkedBody(route, options2, uuid3), id = route.id || body.id;
+    const body2 = checkedBody(route, options2, uuid5), id = route.id || body2.id;
     const old = await cache.entity(route.type + ":" + id), base = old?.server || null, visible2 = offlineValue(old);
     active5();
     if (!route.create && !visible2) throw fail4("此事项尚未保存在本机，请联网读取后再操作。", "OFFLINE_CACHE_MISS");
     const stamp2 = new Date(now()).toISOString(), method = options2.method.toUpperCase();
     const local = {
       ...visible2,
-      ...body,
+      ...body2,
       id,
       created_at: visible2?.created_at || stamp2,
       updated_at: stamp2,
@@ -3328,8 +4073,8 @@ function mutationActions(context) {
       ...route.create ? { completed: false, ...route.type === "template" ? { completed_days: 0, habit_status: "todo" } : {} } : {},
       ...route.restore ? { deleted: false } : {}
     };
-    if (body.template_id) {
-      const template = offlineValue(await cache.entity("template:" + body.template_id));
+    if (body2.template_id) {
+      const template = offlineValue(await cache.entity("template:" + body2.template_id));
       active5();
       if (!template || template.deleted) throw fail4("常用待办尚未保存在本机，请联网读取。", "OFFLINE_CACHE_MISS");
       local.template_version = template.version;
@@ -3342,7 +4087,7 @@ function mutationActions(context) {
       entity_id: id,
       method,
       path,
-      body,
+      body: body2,
       base,
       local,
       assertActive: active5
@@ -3551,8 +4296,8 @@ async function apiTransport(path, opts) {
   }
   return { ok: response.ok, status: response.status, text };
 }
-function apiFailure(path, response, payload, epoch, identity3) {
-  const current = epoch === runtime.sessionEpoch && identity3 === (state.me?.id ?? null);
+function apiFailure(path, response, payload, epoch, identity4) {
+  const current = epoch === runtime.sessionEpoch && identity4 === (state.me?.id ?? null);
   if (response.status === 401 && path !== "/auth/login" && current) {
     state.me = null;
     closeModal();
@@ -3566,7 +4311,7 @@ function apiFailure(path, response, payload, epoch, identity3) {
   return error;
 }
 async function apiNetwork(path, options2 = {}) {
-  const epoch = runtime.sessionEpoch, identity3 = state.me?.id ?? null;
+  const epoch = runtime.sessionEpoch, identity4 = state.me?.id ?? null;
   const { envelope: envelope2 = false, context, ...requestOptions } = options2;
   const opts = apiOptions(requestOptions), method = (opts.method || "GET").toUpperCase();
   const scope = method === "GET" ? context || backgroundRequests() : null;
@@ -3584,13 +4329,13 @@ async function apiNetwork(path, options2 = {}) {
   } catch {
     throw new Error("服务暂时不可用，请稍后重试。");
   }
-  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity3);
+  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity4);
   return envelope2 ? payload : payload.data;
 }
 function api(path, options2 = {}) {
-  const epoch = runtime.sessionEpoch, identity3 = state.me?.id ?? null;
+  const epoch = runtime.sessionEpoch, identity4 = state.me?.id ?? null;
   const active5 = () => {
-    if (epoch !== runtime.sessionEpoch || identity3 !== (state.me?.id ?? null) || options2.signal?.aborted || options2.context?.controller.signal.aborted) throw new DOMException("请求已取消", "AbortError");
+    if (epoch !== runtime.sessionEpoch || identity4 !== (state.me?.id ?? null) || options2.signal?.aborted || options2.context?.controller.signal.aborted) throw new DOMException("请求已取消", "AbortError");
   };
   return offlineRequest(path, options2, apiNetwork, (me) => {
     if (state.me && state.me.id === me.id) state.me = me;
@@ -3801,11 +4546,11 @@ function readRoute() {
 }
 
 // web/core/modal-request.mjs
-async function modalRequest(path, ticket, version, context) {
+async function modalRequest(path, ticket, version2, context) {
   try {
     return await api(path, { context });
   } catch (err) {
-    if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return null;
+    if (ticket !== runtime.modalRequestVersion || version2 !== runtime.renderVersion) return null;
     throw err;
   }
 }
@@ -3901,7 +4646,7 @@ function articlePagination(meta) {
 <span>${e(num(state.listPage))} / ${e(num(Math.max(1, Math.ceil(meta.total / state.pageSize))))}</span>
 <button class="btn" data-action="list-next" aria-label="下一页" ${meta.has_more ? "" : "disabled"}>›</button></div>`;
 }
-async function renderArticles(version = runtime.renderVersion, context) {
+async function renderArticles(version2 = runtime.renderVersion, context) {
   state.filters.status = "published";
   const f = { ...state.filters }, params = new URLSearchParams(), account = state.account, epoch = runtime.sessionEpoch;
   if (account) params.set("account_id", account);
@@ -3912,7 +4657,7 @@ async function renderArticles(version = runtime.renderVersion, context) {
   params.set("page", state.listPage);
   params.set("page_size", state.pageSize);
   const payload = await api(`/articles?${params}`, { envelope: true, context });
-  if (version !== runtime.renderVersion || epoch !== runtime.sessionEpoch || account !== state.account) return "";
+  if (version2 !== runtime.renderVersion || epoch !== runtime.sessionEpoch || account !== state.account) return "";
   const allowed = new Set(state.accounts.map((row) => row.id));
   if (!Array.isArray(payload.data) || payload.data.some((row) => row?.status !== "published" || !allowed.has(row.account_id) || account && row.account_id !== account)) {
     throw Object.assign(new Error("已发布文章读取未完成，请重新加载。"), { code: "ARTICLE_PAGE_INCOMPLETE" });
@@ -3920,7 +4665,7 @@ async function renderArticles(version = runtime.renderVersion, context) {
   const articles = payload.data, meta = payload.meta || { total: articles.length, unfiltered_total: articles.length, has_more: false };
   state.articles = articles;
   state.articleMeta = meta;
-  const content = articles.length ? articleTable(articles) : empty(
+  const content2 = articles.length ? articleTable(articles) : empty(
     meta.unfiltered_total ? "筛选无结果" : "暂无已发布文章",
     "",
     '<button class="btn" data-action="reset-filters">清空筛选</button>'
@@ -3930,7 +4675,7 @@ async function renderArticles(version = runtime.renderVersion, context) {
 placeholder="搜索标题或链接…" aria-label="搜索文章"></label>
 ${platformFilter("article-platform", f.platform, "文章平台")}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}
 <button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button>
-</form>${filterChips(f)}${content}${articlePagination(meta)}</section>`;
+</form>${filterChips(f)}${content2}${articlePagination(meta)}</section>`;
 }
 function pipelineFilterFields(f) {
   return `${articleSelect("slot", "槽位", slotLabels, f.slot)}
@@ -4056,10 +4801,10 @@ maxlength="10000">${e(article.summary)}</textarea></label><label class="form-fie
 </div>${formEnd(id ? "保存修改" : "保存文章")}</form>`;
 }
 async function articleModal(id = "") {
-  const context = beginModalRequests(), ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion;
+  const context = beginModalRequests(), ticket = ++runtime.modalRequestVersion, version2 = runtime.renderVersion;
   let article = { account_id: state.account, production_mode: "unknown", status: "draft_saved" };
-  if (id) article = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version, context);
-  if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
+  if (id) article = await modalRequest(`/articles/${encodeURIComponent(id)}`, ticket, version2, context);
+  if (ticket !== runtime.modalRequestVersion || version2 !== runtime.renderVersion) return;
   const active5 = state.accounts.filter((account) => account.active || account.id === article.account_id);
   if (!active5.length) {
     toast("请先添加一个启用的运营账号。", true);
@@ -4194,7 +4939,7 @@ function dashboardInfoBody(kind, id) {
   if (kind === "publication") return `<p>${e(d.publication_note)}</p>`;
   if (kind === "trend") return `<p>只用真实每日新增，不以累计快照补零或插值。</p>${(d.accounts || []).map((a) => `<p>${e(
     accountLabel(a)
-  )}：${e(num((d.trend || []).filter((day3) => day3.accounts.some((r) => r.account_id === a.id && r.metrics?.[state.trendMetric] != null)).length))}/${e(num((d.trend || []).length))}天有该指标；缺日处断开。</p>`).join("")}`;
+  )}：${e(num((d.trend || []).filter((day4) => day4.accounts.some((r) => r.account_id === a.id && r.metrics?.[state.trendMetric] != null)).length))}/${e(num((d.trend || []).length))}天有该指标；缺日处断开。</p>`).join("")}`;
   return `<p>${e(c.metric_note || "likes为点赞，approvals为赞同，分别记录；未采集、未取得和真实0分开。")}</p><p>周期仅使用真实每日新增，不补零、不插值。累计快照不补每日数据。</p>`;
 }
 function renderPublicationTrend(data) {
@@ -4249,12 +4994,12 @@ function renderTrend(data) {
 // web/core/article-index.mjs
 var indexRequests = /* @__PURE__ */ new WeakMap();
 async function articleIndex(query = "", context) {
-  const identity3 = state.me?.id, generation = runtime.articleIndexGeneration;
-  if (!identity3) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
+  const identity4 = state.me?.id, generation = runtime.articleIndexGeneration;
+  if (!identity4) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
   const scope = context || backgroundRequests();
   const params = new URLSearchParams(Object.entries(Object.fromEntries(new URLSearchParams(query))).sort(([a], [b]) => a.localeCompare(b)));
   params.set("fields", "index");
-  const key = identity3 + ":" + params.toString();
+  const key = identity4 + ":" + params.toString();
   let pending = articleIndexes.get(key);
   const owner = pending && indexRequests.get(pending);
   if (owner && !owner.done && owner.scope !== scope) pending = null;
@@ -4272,19 +5017,19 @@ async function articleIndex(query = "", context) {
     });
   }
   const rows = await pending;
-  if (generation !== runtime.articleIndexGeneration || identity3 !== state.me?.id) {
-    if (!state.me || identity3 !== state.me.id) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
+  if (generation !== runtime.articleIndexGeneration || identity4 !== state.me?.id) {
+    if (!state.me || identity4 !== state.me.id) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
     return articleIndex(query, context);
   }
   return rows;
 }
 
 // web/pages/reviews.mjs
-async function renderReviews(version = runtime.renderVersion, context, { isCurrent = () => true, compactFilters = false } = {}) {
+async function renderReviews(version2 = runtime.renderVersion, context, { isCurrent = () => true, compactFilters = false } = {}) {
   const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches2 = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
   const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
-  if (version !== runtime.renderVersion || !isCurrent()) return "";
-  if (generation !== runtime.articleIndexGeneration) return renderReviews(version, context, { isCurrent, compactFilters });
+  if (version2 !== runtime.renderVersion || !isCurrent()) return "";
+  if (generation !== runtime.articleIndexGeneration) return renderReviews(version2, context, { isCurrent, compactFilters });
   state.reviewArticles = articles;
   const account = (r) => r.account_id || articles.find((a) => a.id === r.article_id)?.account_id, records = rows.filter((r) => matches2(account(
     r
@@ -4320,10 +5065,10 @@ async function renderReviews(version = runtime.renderVersion, context, { isCurre
 }
 async function reviewRecordsModal() {
   openModal("数据记录", '<div id="media-records" role="status">正在读取…</div>', { drawer: true });
-  const ticket = runtime.modalRequestVersion, version = runtime.renderVersion, context = beginModalRequests();
-  const isCurrent = () => ticket === runtime.modalRequestVersion && version === runtime.renderVersion;
+  const ticket = runtime.modalRequestVersion, version2 = runtime.renderVersion, context = beginModalRequests();
+  const isCurrent = () => ticket === runtime.modalRequestVersion && version2 === runtime.renderVersion;
   try {
-    const html = await renderReviews(version, context, { isCurrent, compactFilters: true });
+    const html = await renderReviews(version2, context, { isCurrent, compactFilters: true });
     const root = document.querySelector("#media-records");
     if (isCurrent() && root) {
       root.innerHTML = html;
@@ -4339,16 +5084,16 @@ async function reviewRecordsModal() {
 }
 async function reviewModal(articleId = "", kind = "latest", indexRetry = false) {
   const context = beginModalRequests();
-  const ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion, generation = runtime.articleIndexGeneration;
+  const ticket = ++runtime.modalRequestVersion, version2 = runtime.renderVersion, generation = runtime.articleIndexGeneration;
   const directArticle = Boolean(articleId);
   let articles;
   try {
     articles = await articleIndex("", context);
   } catch (err) {
-    if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
+    if (ticket !== runtime.modalRequestVersion || version2 !== runtime.renderVersion) return;
     throw err;
   }
-  if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
+  if (ticket !== runtime.modalRequestVersion || version2 !== runtime.renderVersion) return;
   if (generation !== runtime.articleIndexGeneration) return reviewModal(articleId, kind, indexRetry);
   if (directArticle && !articles.some((a) => a.id === articleId)) {
     if (indexRetry) throw new Error("文章不存在或无权访问，请刷新后重试。");
@@ -4490,10 +5235,10 @@ function renderAudit(audit, keys = []) {
     if (last && day22 !== "日期未知" && last.day === day22 && last.actor === row.actor && last.label === label3) last.rows.push(row);
     else groups.push({ day: day22, actor: row.actor, label: label3, rows: [row] });
   }
-  let day3 = "";
+  let day4 = "";
   return `<section class="card panel"><h2>最近操作</h2><div class="audit-list">${groups.map((g) => {
-    const heading = day3 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
-    day3 = g.day;
+    const heading = day4 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
+    day4 = g.day;
     return `${heading}<details class="audit-item"><summary><div><strong>${e(g.label)} ×${e(num(g.rows.length))}</strong><div class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, true))}${g.rows.length > 1 ? " — " + e(time(g.rows[0].created_at, true)) : ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
       const article = r.entity_id && typeof r.entity_label === "string" && r.entity_label ? r : null;
       return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.created_at))}</time>${article ? `<br><button class="article-link" data-action="article-detail" data-id="${e(article.entity_id)}">${e(article.entity_label)}</button>` : ""}</li>`;
@@ -4560,18 +5305,18 @@ function mergeTodoTemplate(item) {
 }
 
 // web/pages/todo-templates.mjs
-function templateUnavailable(store, day3, id) {
-  return !store.loaded || !day3.loaded || day3.loading || day3.adding || store.pending.has(id) || todoTemplateAdded(day3, id) || [...day3.removals.values()].some((ticket) => ticket.phase === "restoring" && ticket.item.template_id === id);
+function templateUnavailable(store, day4, id) {
+  return !store.loaded || !day4.loaded || day4.loading || day4.adding || store.pending.has(id) || todoTemplateAdded(day4, id) || [...day4.removals.values()].some((ticket) => ticket.phase === "restoring" && ticket.item.template_id === id);
 }
 function inlineTodoTemplateContent(store) {
-  const day3 = todoDay(), label3 = day3.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day4 = todoDay(), label3 = day4.date === bjtDate() ? "今日已添加" : "当日已添加";
   const status = store.loading && !store.loaded ? '<span class="todo-template-inline-status" role="status">正在读取常用待办…</span>' : "";
   const error = store.error ? `<p class="form-message" role="alert">${e(store.error)}
 <button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
   return status + error + store.items.map((item) => {
-    const added = todoTemplateAdded(day3, item.id);
+    const added = todoTemplateAdded(day4, item.id);
     return `<button type="button" class="todo-template-chip${added ? " is-added" : ""}" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="${e(added ? item.text + "，" + label3 : "添加：" + item.text)}" ${templateUnavailable(store, day3, item.id) ? "disabled" : ""}>
+aria-label="${e(added ? item.text + "，" + label3 : "添加：" + item.text)}" ${templateUnavailable(store, day4, item.id) ? "disabled" : ""}>
 <span class="todo-template-chip-text">${e(item.text)}</span>${added ? `<span class="todo-template-chip-status">${label3}</span>` : ""}</button>`;
   }).join("");
 }
@@ -4592,12 +5337,12 @@ function paintInlineTodoTemplates(store) {
   root.setAttribute("aria-busy", String(store.loading));
 }
 function todoTemplateRows(store) {
-  const day3 = todoDay();
-  const added = (id) => todoTemplateAdded(day3, id);
-  const addedLabel = day3.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day4 = todoDay();
+  const added = (id) => todoTemplateAdded(day4, id);
+  const addedLabel = day4.date === bjtDate() ? "今日已添加" : "当日已添加";
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day3, item.id) ? "disabled" : ""}>${e(item.text)}</button>
+aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day4, item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
 <p class="todo-template-added" data-template-added ${added(item.id) ? "" : "hidden"}>${addedLabel}</p>
@@ -4658,29 +5403,29 @@ function paintTodoTemplates() {
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }
 }
-function templateReadActive(store, owner, sequence, version, date) {
-  return templateSessionActive(owner) && store.sequence === sequence && version === runtime.renderVersion && state.page === "todos" && date === todoDate();
+function templateReadActive(store, owner, sequence2, version2, date) {
+  return templateSessionActive(owner) && store.sequence === sequence2 && version2 === runtime.renderVersion && state.page === "todos" && date === todoDate();
 }
 async function loadTodoTemplates({ ensure = false } = {}) {
   if (state.page !== "todos" || !state.me) return;
-  const store = templateState(), date = todoDate(), version = runtime.renderVersion;
-  if (ensure && (store.loaded && !store.error && !store.loading || store.loading && store.readDate === date && store.readVersion === version)) return;
-  const owner = store.owner, sequence = ++store.sequence, revision = store.revision;
+  const store = templateState(), date = todoDate(), version2 = runtime.renderVersion;
+  if (ensure && (store.loaded && !store.error && !store.loading || store.loading && store.readDate === date && store.readVersion === version2)) return;
+  const owner = store.owner, sequence2 = ++store.sequence, revision2 = store.revision;
   store.readDate = date;
-  store.readVersion = version;
+  store.readVersion = version2;
   store.loading = true;
   store.error = "";
   paintTodoTemplates();
   try {
     const data = await api("/todo-templates");
-    if (!templateReadActive(store, owner, sequence, version, date)) return;
-    if (revision !== store.revision) return loadTodoTemplates();
+    if (!templateReadActive(store, owner, sequence2, version2, date)) return;
+    if (revision2 !== store.revision) return loadTodoTemplates();
     store.items = data.items;
     store.loaded = true;
   } catch (error) {
-    if (templateReadActive(store, owner, sequence, version, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
+    if (templateReadActive(store, owner, sequence2, version2, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
   } finally {
-    if (templateSessionActive(owner) && store.sequence === sequence) {
+    if (templateSessionActive(owner) && store.sequence === sequence2) {
       store.loading = false;
       paintTodoTemplates();
     }
@@ -4757,7 +5502,7 @@ async function writeTodoTemplate(id, text, remove = false) {
   const store = templateState(), owner = store.owner, item = store.items.find((row) => row.id === id);
   if (!item || store.pending.has(id)) return;
   const editing3 = store.editing?.id === id ? store.editing : null;
-  const version = remove ? item.version : editing3?.version;
+  const version2 = remove ? item.version : editing3?.version;
   store.pending.add(id);
   store.error = "";
   store.revision++;
@@ -4765,7 +5510,7 @@ async function writeTodoTemplate(id, text, remove = false) {
   try {
     const saved = await api(`/todo-templates/${encodeURIComponent(id)}`, {
       method: remove ? "DELETE" : "PATCH",
-      body: remove ? { version } : { text, version }
+      body: remove ? { version: version2 } : { text, version: version2 }
     });
     if (!templateSessionActive(owner)) return;
     if (remove) store.items = store.items.filter((row) => row.id !== id);
@@ -4804,13 +5549,13 @@ function refreshOpenTodoTemplates() {
 }
 
 // web/pages/todo-actions.mjs
-function todoBusy(day3, id) {
-  return day3.updates.has(id) || day3.removals.has(id) || day3.templateWrites.has(id);
+function todoBusy(day4, id) {
+  return day4.updates.has(id) || day4.removals.has(id) || day4.templateWrites.has(id);
 }
 function todoActionContext({ id, date, owner = todoOwner() }) {
   if (!state.me || state.page !== "todos" || !validTodoDate(date) || date !== todoDate() || !todoSessionActive(owner)) return null;
-  const day3 = todoDay(date), item = day3.items.find((row) => row.id === id);
-  return item ? { day: day3, item, owner } : null;
+  const day4 = todoDay(date), item = day4.items.find((row) => row.id === id);
+  return item ? { day: day4, item, owner } : null;
 }
 function canOpenTodoMenu({ id, date, anchor }) {
   const context = todoActionContext({ id, date });
@@ -4829,69 +5574,69 @@ function openTodoMenu({ target, id, date, anchor }) {
   popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
-function renderTodoUndo(day3) {
-  return [...day3.removals.entries()].map(([id, ticket]) => {
+function renderTodoUndo(day4) {
+  return [...day4.removals.entries()].map(([id, ticket]) => {
     const label3 = ticket.phase === "deleting" ? "删除中…" : ticket.phase === "restoring" ? "恢复中…" : "已删除";
     return `<div class="todo-undo-entry"><span>${label3}：${e(ticket.item.text)}</span>
-<button class="btn text small" data-action="todo-restore" data-id="${e(id)}" data-date="${e(day3.date)}"
+<button class="btn text small" data-action="todo-restore" data-id="${e(id)}" data-date="${e(day4.date)}"
 data-owner="${e(todoOwner())}" ${ticket.phase === "ready" ? "" : "disabled"}>撤销</button></div>`;
   }).join("");
 }
-function expireTodoUndo(day3, id, ticket, owner) {
+function expireTodoUndo(day4, id, ticket, owner) {
   clearTimeout(ticket.timer);
   ticket.timer = setTimeout(() => {
-    if (!todoSessionActive(owner) || day3.removals.get(id) !== ticket || ticket.phase !== "ready") return;
-    day3.removals.delete(id);
+    if (!todoSessionActive(owner) || day4.removals.get(id) !== ticket || ticket.phase !== "ready") return;
+    day4.removals.delete(id);
     paintTodos();
   }, 8e3);
   ticket.timer?.unref?.();
 }
-async function todoActionFailure(day3, error, owner) {
+async function todoActionFailure(day4, error, owner) {
   if (!todoSessionActive(owner) || isRequestAbort(error) || error.staleSession) return;
-  day3.error = error.message;
-  if ([404, 409].includes(error.status) && day3.date === todoDate()) {
-    day3.error = "这项计划已更新，请核对最新内容后再操作。";
+  day4.error = error.message;
+  if ([404, 409].includes(error.status) && day4.date === todoDate()) {
+    day4.error = "这项计划已更新，请核对最新内容后再操作。";
     await loadTodos();
   }
 }
 async function deleteTodo(options2) {
   const context = todoActionContext(options2);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day3, item, owner } = context, ticket = { item, phase: "deleting", timer: null };
-  day3.removals.set(item.id, ticket);
-  day3.error = "";
-  day3.notice = "";
-  day3.revision++;
+  const { day: day4, item, owner } = context, ticket = { item, phase: "deleting", timer: null };
+  day4.removals.set(item.id, ticket);
+  day4.error = "";
+  day4.notice = "";
+  day4.revision++;
   paintTodos();
   try {
-    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day3.date, version: item.version } });
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day4.date, version: item.version } });
     if (!todoSessionActive(owner)) return;
-    mergeTodo(day3, saved);
+    mergeTodo(day4, saved);
     ticket.item = saved;
     ticket.phase = "ready";
-    expireTodoUndo(day3, item.id, ticket, owner);
+    expireTodoUndo(day4, item.id, ticket, owner);
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error) {
     if (!todoSessionActive(owner)) return;
-    day3.removals.delete(item.id);
-    await todoActionFailure(day3, error, owner);
+    day4.removals.delete(item.id);
+    await todoActionFailure(day4, error, owner);
     if (todoSessionActive(owner) && item.template_id && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner)) {
-      day3.revision++;
+      day4.revision++;
       paintTodos();
     }
   }
 }
 async function restoreTodo({ id, date, owner = todoOwner() }) {
   if (!state.me || state.page !== "todos" || date !== todoDate() || !todoSessionActive(owner)) return;
-  const day3 = todoDay(date), ticket = day3.removals.get(id);
+  const day4 = todoDay(date), ticket = day4.removals.get(id);
   if (!ticket || ticket.phase !== "ready") return;
   clearTimeout(ticket.timer);
   ticket.phase = "restoring";
-  mergeTodo(day3, ticket.item);
-  day3.error = "";
-  day3.revision++;
+  mergeTodo(day4, ticket.item);
+  day4.error = "";
+  day4.revision++;
   paintTodos();
   try {
     const saved = await api(`/todos/${encodeURIComponent(id)}/restore`, {
@@ -4899,73 +5644,73 @@ async function restoreTodo({ id, date, owner = todoOwner() }) {
       body: { date, version: ticket.item.version }
     });
     if (!todoSessionActive(owner)) return;
-    mergeTodo(day3, saved);
-    day3.removals.delete(id);
-    setTodoNotice(day3, "已恢复");
+    mergeTodo(day4, saved);
+    day4.removals.delete(id);
+    setTodoNotice(day4, "已恢复");
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error) {
     if (!todoSessionActive(owner)) return;
-    if (error.status === 409) day3.removals.delete(id);
+    if (error.status === 409) day4.removals.delete(id);
     else {
       ticket.phase = "ready";
-      expireTodoUndo(day3, id, ticket, owner);
+      expireTodoUndo(day4, id, ticket, owner);
     }
-    await todoActionFailure(day3, error, owner);
+    await todoActionFailure(day4, error, owner);
     if (todoSessionActive(owner) && ticket.item.template_id && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner)) {
-      day3.revision++;
+      day4.revision++;
       paintTodos();
     }
   }
 }
-function todoTemplateRequest(day3, item) {
-  let request = day3.templateLinks.get(item.id);
+function todoTemplateRequest(day4, item) {
+  let request = day4.templateLinks.get(item.id);
   if (!request || request.version !== item.version || request.template_version !== (item.template_version || 0)) {
     request = {
-      date: day3.date,
+      date: day4.date,
       version: item.version,
       template_id: item.template_id || crypto.randomUUID(),
       template_version: item.template_version || 0
     };
-    day3.templateLinks.set(item.id, request);
+    day4.templateLinks.set(item.id, request);
   }
   return request;
 }
 async function changeTodoTemplate(options2, remove = false) {
   const context = todoActionContext(options2);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day3, item, owner } = context;
+  const { day: day4, item, owner } = context;
   if (remove !== Boolean(item.template_active) || templateState().pending.has(item.template_id)) return;
-  day3.templateWrites.add(item.id);
-  day3.error = "";
-  day3.notice = "";
-  day3.revision++;
+  day4.templateWrites.add(item.id);
+  day4.error = "";
+  day4.notice = "";
+  day4.revision++;
   paintTodos();
   try {
     const saved = await api(remove ? `/todo-templates/${encodeURIComponent(item.template_id)}` : `/todos/${encodeURIComponent(item.id)}/template`, {
       method: remove ? "DELETE" : "POST",
-      body: remove ? { version: item.template_version } : todoTemplateRequest(day3, item)
+      body: remove ? { version: item.template_version } : todoTemplateRequest(day4, item)
     });
     if (!todoSessionActive(owner)) return;
     if (remove) templateState().items = templateState().items.filter((row) => row.id !== item.template_id);
     else {
-      mergeTodo(day3, saved.todo);
+      mergeTodo(day4, saved.todo);
       mergeTodoTemplate(saved.template);
     }
-    day3.templateLinks.delete(item.id);
-    setTodoNotice(day3, remove ? "已取消常用，事项已保留" : "已添加为常用");
+    day4.templateLinks.delete(item.id);
+    setTodoNotice(day4, remove ? "已取消常用，事项已保留" : "已添加为常用");
     refreshOpenTodoTemplates();
-    if (remove && day3.date === todoDate()) await loadTodos();
+    if (remove && day4.date === todoDate()) await loadTodos();
   } catch (error) {
     if (todoSessionActive(owner)) {
-      await todoActionFailure(day3, error, owner);
+      await todoActionFailure(day4, error, owner);
       if (todoSessionActive(owner) && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner)) {
-      day3.templateWrites.delete(item.id);
-      day3.revision++;
+      day4.templateWrites.delete(item.id);
+      day4.revision++;
       paintTodos();
     }
   }
@@ -4976,11 +5721,11 @@ function todoPreferences() {
   todoDay();
   return todosState.preferences;
 }
-function receiveTodoPreferences(mode, version) {
+function receiveTodoPreferences(mode, version2) {
   const prefs = todoPreferences();
-  if (!["strike", "hide"].includes(mode) || !Number.isInteger(version) || prefs.pending || version < prefs.version) return;
+  if (!["strike", "hide"].includes(mode) || !Number.isInteger(version2) || prefs.pending || version2 < prefs.version) return;
   prefs.mode = mode;
-  prefs.version = version;
+  prefs.version = version2;
   prefs.loaded = true;
 }
 function todoCompletedMode() {
@@ -5066,20 +5811,20 @@ aria-label="上一月" ${month === "0001-01" ? "disabled" : ""}>‹</button>
 <button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一月"
 ${month === "9999-12" ? "disabled" : ""}>›</button></div>
 <div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
-${["一", "二", "三", "四", "五", "六", "日"].map((day3) => `<span class="todo-calendar-weekday" aria-hidden="true">${day3}</span>`).join("")}
-${'<span aria-hidden="true"></span>'.repeat(blanks)}${days.map((day3) => todoCalendarDay(day3, date)).join("")}</div>`;
+${["一", "二", "三", "四", "五", "六", "日"].map((day4) => `<span class="todo-calendar-weekday" aria-hidden="true">${day4}</span>`).join("")}
+${'<span aria-hidden="true"></span>'.repeat(blanks)}${days.map((day4) => todoCalendarDay(day4, date)).join("")}</div>`;
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
-  const day3 = todoDay(), date = /* @__PURE__ */ new Date(`${todoCalendarMonth(day3.date)}-01T00:00:00Z`);
+  const day4 = todoDay(), date = /* @__PURE__ */ new Date(`${todoCalendarMonth(day4.date)}-01T00:00:00Z`);
   date.setUTCMonth(date.getUTCMonth() + offset);
   const month = date.toISOString().slice(0, 7);
   if (!validTodoDate(`${month}-01`)) return;
   todosState.calendarMonth = month;
   const calendar = $("#todo-calendar"), action = document.activeElement?.dataset?.action;
   if (!calendar) return;
-  paintTodoCalendar(day3.date);
+  paintTodoCalendar(day4.date);
   if (["todo-calendar-prev", "todo-calendar-next"].includes(action)) $(`[data-action="${action}"]`, calendar)?.focus();
 }
 function paintTodoCalendar(date) {
@@ -5097,42 +5842,42 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
-function todoRow(item, day3) {
-  const pending = todoBusy(day3, item.id);
-  const completed = day3.updates.has(item.id) ? day3.updates.get(item.id) : item.completed;
-  const removal = day3.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
+function todoRow(item, day4) {
+  const pending = todoBusy(day4, item.id);
+  const completed = day4.updates.has(item.id) ? day4.updates.get(item.id) : item.completed;
+  const removal = day4.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
   if (deleted2 || completed && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
-  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day3.date)}">
-<label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day3.date)}" ${completed ? "checked" : ""}
+  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day4.date)}">
+<label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day4.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
 
-<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day3.date)}"
+<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day4.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
-function todoForm(day3) {
-  const label3 = day3.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
-  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day3.date)}" aria-label="添加 ${e(day3.date)} 的计划">
+function todoForm(day4) {
+  const label3 = day4.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
+  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day4.date)}" aria-label="添加 ${e(day4.date)} 的计划">
 <label for="todo-text" class="sr-only">${label3}</label><input id="todo-text" class="input" name="text" maxlength="500" required
-autocomplete="off" placeholder="${label3}" value="${e(day3.draft)}" >
-<button class="btn primary" type="submit" ${day3.adding ? "disabled" : ""}>添加</button></form>`;
+autocomplete="off" placeholder="${label3}" value="${e(day4.draft)}" >
+<button class="btn primary" type="submit" ${day4.adding ? "disabled" : ""}>添加</button></form>`;
 }
-function todoCaption(day3) {
-  const today2 = day3.date === bjtDate();
-  return `<time datetime="${e(day3.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day3.date)}</time>`;
+function todoCaption(day4) {
+  const today2 = day4.date === bjtDate();
+  return `<time datetime="${e(day4.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day4.date)}</time>`;
 }
-function todoHeading(day3) {
-  return `<span id="todo-caption">${todoCaption(day3)}</span><div class="todo-view-links">
+function todoHeading(day4) {
+  return `<span id="todo-caption">${todoCaption(day4)}</span><div class="todo-view-links">
 <button id="todo-return-today" class="btn text" data-action="todo-panel-close" ${state.todoDate && !state.todoPanel ? "" : "hidden"}>返回今日待办</button>
 <button class="btn text" data-action="todo-panel" data-panel="history" aria-controls="todo-history"
 aria-expanded="${state.todoPanel === "history"}">日历</button>
 <button class="btn text" data-action="todo-panel" data-panel="templates" aria-controls="todo-templates"
 aria-expanded="${state.todoPanel === "templates"}">管理常用</button></div>`;
 }
-function renderTodoHistory(day3) {
+function renderTodoHistory(day4) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
 <div class="todo-view-head"><h2>待办日历</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
-<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day3.date)}" data-today="${bjtDate()}">
-${todoCalendar(day3.date)}</div>${todoDateControls(day3.date)}</section>`;
+<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day4.date)}" data-today="${bjtDate()}">
+${todoCalendar(day4.date)}</div>${todoDateControls(day4.date)}</section>`;
 }
 function paintTodoPanels(root) {
   const panel = state.todoPanel || "";
@@ -5160,51 +5905,51 @@ async function setTodoPanel(panel) {
   const selector = state.todoPanel ? "#todo-" + state.todoPanel + ' [data-action="todo-panel-close"]' : "#todo-text";
   $(selector)?.focus();
 }
-function todoPending(day3) {
-  return Boolean(day3.adding || day3.updates.size || day3.templateWrites.size || [...day3.removals.values()].some((ticket) => ticket.phase !== "ready") || todoPreferences().pending);
+function todoPending(day4) {
+  return Boolean(day4.adding || day4.updates.size || day4.templateWrites.size || [...day4.removals.values()].some((ticket) => ticket.phase !== "ready") || todoPreferences().pending);
 }
-function todoStatus(day3) {
-  if (todoPending(day3) || day3.error || todoPreferences().error) return "";
-  return day3.loading && !day3.loaded ? "正在读取…" : day3.notice;
+function todoStatus(day4) {
+  if (todoPending(day4) || day4.error || todoPreferences().error) return "";
+  return day4.loading && !day4.loaded ? "正在读取…" : day4.notice;
 }
-function paintTodoSaving(root, day3) {
-  const busy = todoPending(day3);
+function paintTodoSaving(root, day4) {
+  const busy = todoPending(day4);
   root.setAttribute("aria-busy", String(busy));
   if (!busy) {
-    clearTimeout(savingTimers.get(day3));
-    savingTimers.delete(day3);
-    savingTimes.delete(day3);
+    clearTimeout(savingTimers.get(day4));
+    savingTimers.delete(day4);
+    savingTimes.delete(day4);
     return;
   }
-  if (!savingTimes.has(day3)) {
-    savingTimes.set(day3, Date.now());
-    savingTimers.set(day3, setTimeout(() => {
-      if (todosVisible() && todoDay() === day3) paintTodos();
+  if (!savingTimes.has(day4)) {
+    savingTimes.set(day4, Date.now());
+    savingTimers.set(day4, setTimeout(() => {
+      if (todosVisible() && todoDay() === day4) paintTodos();
     }, 900));
-  } else if (Date.now() - savingTimes.get(day3) >= 900) $("#todo-status", root).textContent = "正在同步…";
+  } else if (Date.now() - savingTimes.get(day4) >= 900) $("#todo-status", root).textContent = "正在同步…";
 }
-function pendingTodo(day3) {
-  return day3.adding && day3.submitting ? `<li class="todo-pending-row" aria-label="待添加">
-<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day3.submitting.text)}</span></li>` : "";
+function pendingTodo(day4) {
+  return day4.adding && day4.submitting ? `<li class="todo-pending-row" aria-label="待添加">
+<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day4.submitting.text)}</span></li>` : "";
 }
-function todoFeedback(day3) {
-  const error = [day3.error, todoPreferences().error].filter(Boolean).join(" ");
-  return error ? `${e(error)} ${day3.failedCreate ? `<span>「${e(day3.failedCreate.text)}」</span>
+function todoFeedback(day4) {
+  const error = [day4.error, todoPreferences().error].filter(Boolean).join(" ");
+  return error ? `${e(error)} ${day4.failedCreate ? `<span>「${e(day4.failedCreate.text)}」</span>
 <button class="btn text small" data-action="todo-retry-add">重试添加</button>` : ""} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
-function todoHistoryEmpty(day3) {
-  return state.todoPanel === "history" && day3.loaded && !day3.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
+function todoHistoryEmpty(day4) {
+  return state.todoPanel === "history" && day4.loaded && !day4.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
 }
 function renderTodos() {
-  const day3 = todoDay();
-  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day3.date)}" aria-label="每日计划">
-<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day3)}</div>
-${renderTodoHistory(day3)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day3)}${renderInlineTodoTemplates()}
-<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day3)}</div>
-<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day3)}</p>
-<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day3)}</div>${renderTodoPreferences()}
-<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day3)}</p>
-<ul id="todo-items" class="daily-todo-items">${day3.items.map((item) => todoRow(item, day3)).join("")}${pendingTodo(day3)}</ul></div>
+  const day4 = todoDay();
+  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day4.date)}" aria-label="每日计划">
+<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day4)}</div>
+${renderTodoHistory(day4)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day4)}${renderInlineTodoTemplates()}
+<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day4)}</div>
+<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day4)}</p>
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day4)}</div>${renderTodoPreferences()}
+<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day4)}</p>
+<ul id="todo-items" class="daily-todo-items">${day4.items.map((item) => todoRow(item, day4)).join("")}${pendingTodo(day4)}</ul></div>
 ${renderTodoTemplates()}</section>`;
 }
 function todosVisible() {
@@ -5213,70 +5958,70 @@ function todosVisible() {
 function paintTodos() {
   const root = $("#daily-todos");
   if (!root || !todosVisible()) return;
-  const day3 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const day4 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
   const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
-  if (root.dataset.date !== day3.date) {
+  if (root.dataset.date !== day4.date) {
     root.outerHTML = renderTodos();
     paintTodoTemplates();
     return;
   }
   const parts = {
-    "todo-caption": todoCaption(day3),
-    "todo-status": todoStatus(day3),
-    "todo-undo": renderTodoUndo(day3),
-    "todo-items": day3.items.map((item) => todoRow(item, day3)).join("") + pendingTodo(day3),
-    "todo-feedback": todoFeedback(day3),
-    "todo-history-empty": todoHistoryEmpty(day3)
+    "todo-caption": todoCaption(day4),
+    "todo-status": todoStatus(day4),
+    "todo-undo": renderTodoUndo(day4),
+    "todo-items": day4.items.map((item) => todoRow(item, day4)).join("") + pendingTodo(day4),
+    "todo-feedback": todoFeedback(day4),
+    "todo-history-empty": todoHistoryEmpty(day4)
   };
   for (const [id, html] of Object.entries(parts)) {
     const node = $("#" + id, root);
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }
-  paintTodoCalendar(day3.date);
+  paintTodoCalendar(day4.date);
   const input = $("#todo-text", root), button2 = $("#todo-form button[type=submit]", root);
-  const prompt = day3.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label3 = $('label[for="todo-text"]', root);
-  if (input && input.value !== day3.draft) input.value = day3.draft;
+  const prompt = day4.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label3 = $('label[for="todo-text"]', root);
+  if (input && input.value !== day4.draft) input.value = day4.draft;
   if (input) {
     input.readOnly = false;
     input.placeholder = prompt;
   }
   if (label3) label3.textContent = prompt;
   if (button2) {
-    button2.disabled = day3.adding;
+    button2.disabled = day4.adding;
     button2.textContent = "添加";
-    button2.setAttribute("aria-busy", String(day3.adding));
+    button2.setAttribute("aria-busy", String(day4.adding));
   }
-  paintTodoSaving(root, day3);
+  paintTodoSaving(root, day4);
   paintTodoPanels(root);
   paintTodoPreferences();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-completed-mode", root))?.focus();
   paintTodoTemplates();
 }
-function todoReadActive(owner, version, date, day3, sequence) {
-  return todoSessionActive(owner) && version === runtime.renderVersion && todoDate() === date && day3.sequence === sequence && todosVisible();
+function todoReadActive(owner, version2, date, day4, sequence2) {
+  return todoSessionActive(owner) && version2 === runtime.renderVersion && todoDate() === date && day4.sequence === sequence2 && todosVisible();
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
   void loadTodoTemplates({ ensure: true });
-  const day3 = todoDay(), date = day3.date, owner = todoOwner(), version = runtime.renderVersion;
-  const sequence = ++day3.sequence, revision = day3.revision;
-  day3.loading = true;
-  day3.error = "";
+  const day4 = todoDay(), date = day4.date, owner = todoOwner(), version2 = runtime.renderVersion;
+  const sequence2 = ++day4.sequence, revision2 = day4.revision;
+  day4.loading = true;
+  day4.error = "";
   paintTodos();
   try {
     const data = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
-    if (!todoReadActive(owner, version, date, day3, sequence)) return;
-    if (day3.revision !== revision) return loadTodos(context);
+    if (!todoReadActive(owner, version2, date, day4, sequence2)) return;
+    if (day4.revision !== revision2) return loadTodos(context);
     receiveTodoPreferences(data.completed_mode, data.preferences_version);
-    day3.items = data.items;
-    day3.loaded = true;
+    day4.items = data.items;
+    day4.loaded = true;
     if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error) {
-    if (todoReadActive(owner, version, date, day3, sequence) && !isRequestAbort(error) && !error.staleSession) day3.error = error.message;
+    if (todoReadActive(owner, version2, date, day4, sequence2) && !isRequestAbort(error) && !error.staleSession) day4.error = error.message;
   } finally {
-    if (todoReadActive(owner, version, date, day3, sequence)) {
-      day3.loading = false;
+    if (todoReadActive(owner, version2, date, day4, sequence2)) {
+      day4.loading = false;
       paintTodos();
     }
   }
@@ -5285,125 +6030,125 @@ function inputTodo(target) {
   const date = target.form?.dataset.date;
   if (target.id === "todo-text" && validTodoDate(date)) todoDay(date).draft = target.value;
 }
-function showTodoFailure(day3, error) {
-  if (!isRequestAbort(error) && !error.staleSession) day3.error = error.message;
+function showTodoFailure(day4, error) {
+  if (!isRequestAbort(error) && !error.staleSession) day4.error = error.message;
 }
-function setTodoNotice(day3, text) {
-  const owner = todoOwner(), version = ++day3.noticeVersion;
-  day3.notice = text;
+function setTodoNotice(day4, text) {
+  const owner = todoOwner(), version2 = ++day4.noticeVersion;
+  day4.notice = text;
   const timer = setTimeout(() => {
-    if (!todoSessionActive(owner) || day3.noticeVersion !== version) return;
-    day3.notice = "";
-    if (day3.date === todoDate()) paintTodos();
+    if (!todoSessionActive(owner) || day4.noticeVersion !== version2) return;
+    day4.notice = "";
+    if (day4.date === todoDate()) paintTodos();
   }, 2500);
   timer?.unref?.();
 }
-async function saveTodo(day3, request, templateId = "") {
-  const owner = todoOwner(), submittedDraft = day3.draft;
-  day3.adding = true;
-  day3.submitting = request;
-  day3.failedCreate = null;
-  day3.error = "";
-  day3.notice = "";
-  day3.revision++;
+async function saveTodo(day4, request, templateId = "") {
+  const owner = todoOwner(), submittedDraft = day4.draft;
+  day4.adding = true;
+  day4.submitting = request;
+  day4.failedCreate = null;
+  day4.error = "";
+  day4.notice = "";
+  day4.revision++;
   paintTodos();
   try {
     const item = await api("/todos", { method: "POST", body: request });
     if (!todoSessionActive(owner)) return;
-    mergeTodo(day3, item);
-    if (templateId) day3.templateCreates.delete(templateId);
+    mergeTodo(day4, item);
+    if (templateId) day4.templateCreates.delete(templateId);
     else {
-      if (day3.draft === submittedDraft && submittedDraft.trim() === request.text) day3.draft = "";
-      day3.create = null;
+      if (day4.draft === submittedDraft && submittedDraft.trim() === request.text) day4.draft = "";
+      day4.create = null;
     }
-    setTodoNotice(day3, "已添加");
+    setTodoNotice(day4, "已添加");
   } catch (error) {
     if (todoSessionActive(owner)) {
-      day3.failedCreate = request;
-      showTodoFailure(day3, error);
+      day4.failedCreate = request;
+      showTodoFailure(day4, error);
       if (error.status === 410) {
-        if (templateId) day3.templateCreates.delete(templateId);
-        else day3.create = null;
-        day3.error = "原事项已被删除，输入已保留，可再次添加。";
+        if (templateId) day4.templateCreates.delete(templateId);
+        else day4.create = null;
+        day4.error = "原事项已被删除，输入已保留，可再次添加。";
       }
     }
   } finally {
     if (todoSessionActive(owner)) {
-      day3.adding = false;
-      day3.submitting = null;
-      day3.revision++;
+      day4.adding = false;
+      day4.submitting = null;
+      day4.revision++;
       paintTodos();
     }
   }
 }
 async function retryTodoCreate() {
-  const day3 = todoDay();
-  if (todosVisible() && day3.failedCreate && !day3.adding)
-    await saveTodo(day3, day3.failedCreate, day3.failedCreate.template_id || "");
+  const day4 = todoDay();
+  if (todosVisible() && day4.failedCreate && !day4.adding)
+    await saveTodo(day4, day4.failedCreate, day4.failedCreate.template_id || "");
 }
 async function submitTodo({ form, data }) {
   if (!todosVisible() || !validTodoDate(form.dataset.date)) return;
-  const day3 = todoDay(form.dataset.date), text = String(data.text || "").trim();
-  if (day3.adding) return;
-  day3.draft = String(data.text || "");
-  if (day3.date !== todoDate()) {
+  const day4 = todoDay(form.dataset.date), text = String(data.text || "").trim();
+  if (day4.adding) return;
+  day4.draft = String(data.text || "");
+  if (day4.date !== todoDate()) {
     paintTodos();
     return;
   }
   if (!text || text.length > 500) {
-    day3.error = "请填写 1–500 字的计划。";
+    day4.error = "请填写 1–500 字的计划。";
     paintTodos();
     return;
   }
-  if (!day3.create || day3.create.text !== text) day3.create = { id: crypto.randomUUID(), date: day3.date, text };
-  await saveTodo(day3, day3.create);
+  if (!day4.create || day4.create.text !== text) day4.create = { id: crypto.randomUUID(), date: day4.date, text };
+  await saveTodo(day4, day4.create);
 }
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
-  const day3 = todoDay();
-  if (day3.adding || todoTemplateAdded(day3, template.id)) return;
-  let request = day3.templateCreates.get(template.id);
+  const day4 = todoDay();
+  if (day4.adding || todoTemplateAdded(day4, template.id)) return;
+  let request = day4.templateCreates.get(template.id);
   if (!request || request.text !== template.text) {
-    request = { id: crypto.randomUUID(), date: day3.date, text: template.text, template_id: template.id };
-    day3.templateCreates.set(template.id, request);
+    request = { id: crypto.randomUUID(), date: day4.date, text: template.text, template_id: template.id };
+    day4.templateCreates.set(template.id, request);
   }
-  await saveTodo(day3, request, template.id);
+  await saveTodo(day4, request, template.id);
 }
 async function toggleTodo(target) {
   if (!todosVisible()) return;
-  const day3 = todoDay(target.dataset.date), owner = todoOwner();
-  const item = day3.items.find((row) => row.id === target.dataset.todoId);
-  if (!item || item.deleted_at || day3.date !== todoDate()) return;
-  if (todoBusy(day3, item.id)) {
-    target.checked = day3.updates.has(item.id) ? day3.updates.get(item.id) : item.completed;
+  const day4 = todoDay(target.dataset.date), owner = todoOwner();
+  const item = day4.items.find((row) => row.id === target.dataset.todoId);
+  if (!item || item.deleted_at || day4.date !== todoDate()) return;
+  if (todoBusy(day4, item.id)) {
+    target.checked = day4.updates.has(item.id) ? day4.updates.get(item.id) : item.completed;
     return;
   }
   const completed = target.checked;
-  day3.updates.set(item.id, completed);
-  day3.error = "";
-  day3.notice = "";
-  day3.revision++;
+  day4.updates.set(item.id, completed);
+  day4.error = "";
+  day4.notice = "";
+  day4.revision++;
   paintTodos();
   try {
     const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
     if (todoSessionActive(owner)) {
-      mergeTodo(day3, updated);
-      setTodoNotice(day3, "已保存");
+      mergeTodo(day4, updated);
+      setTodoNotice(day4, "已保存");
       if (updated.template_id) refreshOpenTodoTemplates();
     }
   } catch (error) {
     if (!todoSessionActive(owner)) return;
-    day3.updates.set(item.id, item.completed);
-    showTodoFailure(day3, error);
-    if (error.status === 409 && day3.date === todoDate()) {
-      day3.error = "这项计划已更新，已重新读取，请核对后再操作。";
+    day4.updates.set(item.id, item.completed);
+    showTodoFailure(day4, error);
+    if (error.status === 409 && day4.date === todoDate()) {
+      day4.error = "这项计划已更新，已重新读取，请核对后再操作。";
       await loadTodos();
       if (todoSessionActive(owner) && item.template_id) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner)) {
-      day3.updates.delete(item.id);
-      day3.revision++;
+      day4.updates.delete(item.id);
+      day4.revision++;
       paintTodos();
     }
   }
@@ -5472,9 +6217,9 @@ function createNotesEditorView() {
     view.explicit = false;
     return view;
   }
-  function requestCollapse(category, date, key, revision, { explicit = false } = {}) {
+  function requestCollapse(category, date, key, revision2, { explicit = false } = {}) {
     const view = page(category, date);
-    if (view.active !== key || view.revision !== revision) return;
+    if (view.active !== key || view.revision !== revision2) return;
     view.collapseRequested = true;
     view.explicit = explicit;
   }
@@ -5600,9 +6345,9 @@ function paintEntrySummary(node, item) {
 }
 function paintSavedEntry(node, item) {
   paintEntrySummary(node, item);
-  const draft = noteDraftNeedsAttention(item), body = node.querySelector(".note-entry-reader");
-  body.textContent = item.deleted ? "这条记录已删除。" : displayedText(item);
-  body.classList.toggle("note-entry-draft-label", draft);
+  const draft = noteDraftNeedsAttention(item), body2 = node.querySelector(".note-entry-reader");
+  body2.textContent = item.deleted ? "这条记录已删除。" : displayedText(item);
+  body2.classList.toggle("note-entry-draft-label", draft);
   node.dataset.draft = String(draft);
   const edit = node.querySelector('[data-note-entry-action="edit"]');
   edit.hidden = !item.canEdit && !draft;
@@ -5712,9 +6457,9 @@ function paintNoteEntries(root, store, current, legacy, { drafts = [], confirmId
 }
 
 // web/core/note-entries-state.mjs
-var uuidPattern5 = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+var uuidPattern6 = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var blocked = (item) => ["conflict", "unknown"].includes(item.phase);
-var timestamp2 = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+var timestamp3 = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
 var noteValue = (value) => isLocalDocument(value) ? documentValue(value) : value;
 var persistedVersion = (item) => item.localBacked ? item.localVersion : item.version;
 var savedText = (item) => item.localBacked ? item.durableText : item.serverText;
@@ -5722,13 +6467,13 @@ var savedPhase = (item) => item.localBacked ? item.localQueued ? "queued" : "cac
 var localFailure = (error) => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || "");
 function checkedLocalDocument(value, category, date, id) {
   const { local, server } = documentState(value);
-  if (!local || !uuidPattern5.test(local.id) || id && local.id !== id || local.category !== category || local.date !== date || typeof local.text !== "string" || dailyNotesBytes(local.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(local.version) || local.version < 1 || typeof local.deleted !== "boolean" || typeof local.can_edit !== "boolean") throw new Error("本机记录读取不完整，草稿已保留。");
+  if (!local || !uuidPattern6.test(local.id) || id && local.id !== id || local.category !== category || local.date !== date || typeof local.text !== "string" || dailyNotesBytes(local.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(local.version) || local.version < 1 || typeof local.deleted !== "boolean" || typeof local.can_edit !== "boolean") throw new Error("本机记录读取不完整，草稿已保留。");
   if (server) checkedEntry(server, category, date, local.id);
   return value;
 }
 function checkedEntry(value, category, date, id) {
   if (isLocalDocument(value)) return checkedLocalDocument(value, category, date, id);
-  if (!value || !uuidPattern5.test(value.id) || id && value.id !== id || value.category !== category || value.date !== date || typeof value.text !== "string" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || !timestamp2(value.created_at) || !timestamp2(value.updated_at) || typeof value.content_hash !== "string" || !value.content_hash) {
+  if (!value || !uuidPattern6.test(value.id) || id && value.id !== id || value.category !== category || value.date !== date || typeof value.text !== "string" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || !timestamp3(value.created_at) || !timestamp3(value.updated_at) || typeof value.content_hash !== "string" || !value.content_hash) {
     throw new Error("记录读取不完整，请重新核对。");
   }
   return value;
@@ -5756,7 +6501,7 @@ function createEntriesContext({
   },
   onSaved = () => {
   },
-  uuid: uuid3 = () => crypto.randomUUID(),
+  uuid: uuid5 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   delay = 400
@@ -5768,7 +6513,7 @@ function createEntriesContext({
     pages,
     entries,
     disposed: false,
-    options: { load, loadEntry, loadOperation, put, remove, restore, onSaved, uuid: uuid3 }
+    options: { load, loadEntry, loadOperation, put, remove, restore, onSaved, uuid: uuid5 }
   };
   const emit = () => {
     if (!context.disposed) onChange();
@@ -5898,13 +6643,13 @@ function createEntriesContext({
 function createEntryLocalActions(context) {
   const { adopt, stopTimer } = context;
   function adoptLocal(item, value, preserve = false) {
-    const { local, server, operation, conflict } = documentState(value), draft = item.draft;
+    const { local, server, operation: operation2, conflict } = documentState(value), draft = item.draft;
     if (server && server.version >= item.version) adopt(item, server, true);
     item.localVersion = local.version;
     item.durableText = local.deleted ? "" : local.text;
     item.localBacked = true;
-    item.localQueued = Boolean(operation);
-    item.localOperation = operation;
+    item.localQueued = Boolean(operation2);
+    item.localOperation = operation2;
     item.localConflict = conflict;
     item.localCreatedAt = local.created_at || null;
     item.localUpdatedAt = local.updated_at || null;
@@ -5930,9 +6675,9 @@ function createEntryLocalActions(context) {
     }
   }
   function mergeLocal(item, value) {
-    const { local, operation, conflict, server } = documentState(value);
+    const { local, operation: operation2, conflict, server } = documentState(value);
     if (local.version < persistedVersion(item) || item.pending) return;
-    if (item.localQueued && !operation && !conflict) {
+    if (item.localQueued && !operation2 && !conflict) {
       if (server) context.merge(item, server);
       return;
     }
@@ -5945,14 +6690,14 @@ function createEntryReadingActions(context) {
   const { category, page, entry, entries, emit, adopt, merge, schedule, makeEntry } = context;
   const { load, loadEntry } = context.options;
   async function read(date, options2 = {}) {
-    const current = page(date), sequence = ++current.sequence;
+    const current = page(date), sequence2 = ++current.sequence;
     const epochs = new Map(current.ids.map((id) => [id, entry(id)?.writeEpoch]));
     current.loading = true;
     current.error = "";
     emit();
     try {
       const value = checkedCollection(await load(date, options2), category, date);
-      if (context.disposed || sequence !== current.sequence) return;
+      if (context.disposed || sequence2 !== current.sequence) return;
       current.canEdit = value.can_edit;
       const found = /* @__PURE__ */ new Set();
       for (const raw of value.entries) {
@@ -5974,9 +6719,9 @@ function createEntryReadingActions(context) {
       current.loaded = true;
       await Promise.all(current.ids.filter((id) => !found.has(id) && persistedVersion(entry(id)) > 0 && (entry(id).dirty || entry(id).localBacked) && !entry(id).pending).map((id) => readOne(id, options2)));
     } catch (error) {
-      if (!context.disposed && sequence === current.sequence) current.error = error.message;
+      if (!context.disposed && sequence2 === current.sequence) current.error = error.message;
     } finally {
-      if (!context.disposed && sequence === current.sequence) {
+      if (!context.disposed && sequence2 === current.sequence) {
         current.loading = false;
         emit();
         for (const id of current.ids) schedule(entry(id));
@@ -5986,19 +6731,19 @@ function createEntryReadingActions(context) {
   async function readOne(id, options2 = {}) {
     const item = entry(id);
     if (!item || context.disposed) return;
-    const sequence = ++item.sequence, epoch = item.writeEpoch;
+    const sequence2 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
       const value = checkedEntry(await loadEntry(id, options2), category, item.date, id);
-      if (!context.disposed && sequence === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
+      if (!context.disposed && sequence2 === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
     } catch (error) {
-      if (!context.disposed && sequence === item.sequence) {
+      if (!context.disposed && sequence2 === item.sequence) {
         item.error = error.message;
         if (!blocked(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence === item.sequence) {
+      if (!context.disposed && sequence2 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
@@ -6009,14 +6754,14 @@ function createEntryReadingActions(context) {
 }
 function createEntryEditingActions(context) {
   const { page, entry, entries, emit, stopTimer, schedule, makeEntry } = context;
-  const { uuid: uuid3 } = context.options;
+  const { uuid: uuid5 } = context.options;
   function start(date) {
     const current = page(date);
     if (context.disposed || !current.loaded || !current.canEdit) return;
     const existing = entry(current.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted) return existing;
-    const id = uuid3();
-    if (!uuidPattern5.test(id) || entries.has(id)) throw new Error("暂时无法新建记录，请重试。");
+    const id = uuid5();
+    if (!uuidPattern6.test(id) || entries.has(id)) throw new Error("暂时无法新建记录，请重试。");
     const item = makeEntry(id, date, current.canEdit);
     entries.set(id, item);
     current.ids.push(id);
@@ -6046,7 +6791,7 @@ function createEntryEditingActions(context) {
 function createEntryRecoveryActions(context) {
   const { category, page, entry, entries, makeEntry, stopTimer, emit } = context;
   function restoreDraft(raw) {
-    if (!raw || raw.category !== category || !validDailyNotesDate(raw.date) || !uuidPattern5.test(raw.id) || typeof raw.draft !== "string" || raw.draft.length > 262144 || context.disposed) return;
+    if (!raw || raw.category !== category || !validDailyNotesDate(raw.date) || !uuidPattern6.test(raw.id) || typeof raw.draft !== "string" || raw.draft.length > 262144 || context.disposed) return;
     const current = page(raw.date);
     let item = entry(raw.id);
     if (item && (item.pending || item.composing || item.dirty)) return item;
@@ -6071,13 +6816,13 @@ function createEntryRecoveryActions(context) {
       durableText: raw.durableText ?? null
     };
     if (raw.pending && !pendingDurable) {
-      const operation = raw.pending;
-      const valid = ["put", "delete", "restore"].includes(operation.kind) && uuidPattern5.test(operation.saveId) && Number.isSafeInteger(operation.version) && operation.version >= 0 && (operation.kind !== "put" || typeof operation.text === "string" && dailyNotesBytes(operation.text) <= DAILY_NOTES_MAX_BYTES);
+      const operation2 = raw.pending;
+      const valid = ["put", "delete", "restore"].includes(operation2.kind) && uuidPattern6.test(operation2.saveId) && Number.isSafeInteger(operation2.version) && operation2.version >= 0 && (operation2.kind !== "put" || typeof operation2.text === "string" && dailyNotesBytes(operation2.text) <= DAILY_NOTES_MAX_BYTES);
       item.pending = valid ? {
-        kind: operation.kind,
-        version: operation.version,
-        saveId: operation.saveId,
-        ...operation.kind === "put" ? { text: operation.text } : {},
+        kind: operation2.kind,
+        version: operation2.version,
+        saveId: operation2.saveId,
+        ...operation2.kind === "put" ? { text: operation2.text } : {},
         uncertain: true,
         checking: false,
         retryReady: false
@@ -6095,10 +6840,10 @@ function createEntryRecoveryActions(context) {
 }
 function createEntryWritingActions(context) {
   const { category, page, entry, entries, emit, stopTimer, adopt, schedule } = context;
-  const { put, remove, restore, uuid: uuid3, onSaved } = context.options;
-  const matches2 = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted : operation.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation.text);
-  function accepted(item, value, operation) {
-    const preserve = operation.kind === "put" && item.draft !== operation.text;
+  const { put, remove, restore, uuid: uuid5, onSaved } = context.options;
+  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted : operation2.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation2.text);
+  function accepted(item, value, operation2) {
+    const preserve = operation2.kind === "put" && item.draft !== operation2.text;
     item.writeEpoch++;
     adopt(item, value, preserve);
     item.remote = null;
@@ -6109,10 +6854,10 @@ function createEntryWritingActions(context) {
     onSaved(item.date);
     schedule(item);
   }
-  function acceptedLocal(item, value, operation) {
+  function acceptedLocal(item, value, operation2) {
     const local = documentValue(value);
-    if (!matches2(local, operation)) throw new Error("本机保存结果需要重新核对。");
-    const preserve = operation.kind === "put" && item.draft !== operation.text;
+    if (!matches2(local, operation2)) throw new Error("本机保存结果需要重新核对。");
+    const preserve = operation2.kind === "put" && item.draft !== operation2.text;
     item.writeEpoch++;
     adopt(item, value, preserve);
     item.pending = null;
@@ -6120,31 +6865,31 @@ function createEntryWritingActions(context) {
     onSaved(item.date);
     schedule(item);
   }
-  async function send(item, operation) {
+  async function send(item, operation2) {
     stopTimer(item);
-    item.pending = operation;
+    item.pending = operation2;
     item.phase = "saving";
     item.error = "";
     item.writeEpoch++;
     emit();
     try {
-      const body = { version: operation.version, save_id: operation.saveId };
-      const options2 = operation.uncertain ? { offlineUnknown: true } : void 0;
-      const raw = operation.kind === "delete" ? await remove(item.id, body, options2) : operation.kind === "restore" ? await restore(item.id, body, options2) : await put(item.id, { ...body, category: item.category, date: item.date, text: operation.text }, options2);
-      if (context.disposed || item.pending !== operation) return;
+      const body2 = { version: operation2.version, save_id: operation2.saveId };
+      const options2 = operation2.uncertain ? { offlineUnknown: true } : void 0;
+      const raw = operation2.kind === "delete" ? await remove(item.id, body2, options2) : operation2.kind === "restore" ? await restore(item.id, body2, options2) : await put(item.id, { ...body2, category: item.category, date: item.date, text: operation2.text }, options2);
+      if (context.disposed || item.pending !== operation2) return;
       const value = checkedEntry(raw, category, item.date, item.id);
       if (isLocalDocument(value)) {
-        acceptedLocal(item, value, operation);
+        acceptedLocal(item, value, operation2);
         return;
       }
-      if (!matches2(value, operation)) throw new Error("保存响应需要重新核对。");
-      accepted(item, value, operation);
+      if (!matches2(value, operation2)) throw new Error("保存响应需要重新核对。");
+      accepted(item, value, operation2);
     } catch (error) {
-      if (context.disposed || item.pending !== operation) return;
+      if (context.disposed || item.pending !== operation2) return;
       if (localFailure(error)) {
-        item.pending = operation.uncertain ? operation : null;
-        item.phase = operation.uncertain ? "unknown" : "error";
-        item.error = operation.uncertain ? "原保存仍待核对，本机接管未完成：" + error.message : error.message;
+        item.pending = operation2.uncertain ? operation2 : null;
+        item.phase = operation2.uncertain ? "unknown" : "error";
+        item.error = operation2.uncertain ? "原保存仍待核对，本机接管未完成：" + error.message : error.message;
         emit();
       } else if (error.status === 409 && (!error.code || ["VERSION_CONFLICT", "NOTE_ENTRY_DELETED"].includes(error.code))) {
         item.pending = null;
@@ -6159,7 +6904,7 @@ function createEntryWritingActions(context) {
         if ([401, 403].includes(error.status)) item.canEdit = false;
         emit();
       } else {
-        operation.uncertain = true;
+        operation2.uncertain = true;
         item.phase = "unknown";
         item.error = "正在核对保存结果，草稿已保留。";
         emit();
@@ -6179,7 +6924,7 @@ function createEntryWritingActions(context) {
       emit();
       return;
     }
-    return send(item, { kind: "put", version: persistedVersion(item), text: item.draft, saveId: uuid3() });
+    return send(item, { kind: "put", version: persistedVersion(item), text: item.draft, saveId: uuid5() });
   }
   async function deleteEntry(id) {
     const item = entry(id);
@@ -6193,12 +6938,12 @@ function createEntryWritingActions(context) {
       emit();
       return;
     }
-    return send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid3() });
+    return send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid5() });
   }
   async function restoreEntry(id) {
     const item = entry(id);
     if (!item || context.disposed || !item.canEdit || !item.deleted || item.pending || blocked(item)) return;
-    return send(item, { kind: "restore", version: persistedVersion(item), saveId: uuid3() });
+    return send(item, { kind: "restore", version: persistedVersion(item), saveId: uuid5() });
   }
   return { matches: matches2, accepted, acceptedLocal, send, save, deleteEntry, restoreEntry };
 }
@@ -6206,66 +6951,66 @@ function createEntryResolutionActions(context) {
   const { category, entry, emit, stopTimer, adopt, matches: matches2, accepted, acceptedLocal } = context;
   const { load, loadEntry, loadOperation } = context.options;
   async function reconcile(id) {
-    const item = entry(id), operation = item?.pending;
-    if (context.disposed || item?.phase !== "unknown" || !operation || operation.checking) return;
-    operation.checking = true;
-    operation.retryReady = false;
+    const item = entry(id), operation2 = item?.pending;
+    if (context.disposed || item?.phase !== "unknown" || !operation2 || operation2.checking) return;
+    operation2.checking = true;
+    operation2.retryReady = false;
     emit();
     try {
-      const receipt = await loadOperation(operation.saveId);
-      if (context.disposed || item.pending !== operation) return;
-      if (!receipt || typeof receipt.found !== "boolean" || receipt.found && (receipt.id !== id || receipt.version !== operation.version + 1 || typeof receipt.content_hash !== "string")) {
+      const receipt = await loadOperation(operation2.saveId);
+      if (context.disposed || item.pending !== operation2) return;
+      if (!receipt || typeof receipt.found !== "boolean" || receipt.found && (receipt.id !== id || receipt.version !== operation2.version + 1 || typeof receipt.content_hash !== "string")) {
         throw new Error("保存凭据不完整。");
       }
       let value;
       try {
         value = checkedEntry(await loadEntry(id), category, item.date, id);
       } catch (error) {
-        if (error.status !== 404 || receipt.found || operation.version !== 0 || operation.kind !== "put") throw error;
+        if (error.status !== 404 || receipt.found || operation2.version !== 0 || operation2.kind !== "put") throw error;
         const collection = checkedCollection(await load(item.date), category, item.date);
         value = collection.entries.find((raw) => noteValue(raw).id === id);
         if (isLocalDocument(value)) throw new Error("原保存结果仍由同步队列核实，本机内容已保留。");
         if (!value) {
-          if (context.disposed || item.pending !== operation) return;
+          if (context.disposed || item.pending !== operation2) return;
           item.canEdit = collection.can_edit;
-          operation.retryReady = collection.can_edit;
-          item.error = operation.retryReady ? "服务器尚未收到此保存，可重试；后续草稿已保留。" : "保存尚未确认，草稿已保留。";
+          operation2.retryReady = collection.can_edit;
+          item.error = operation2.retryReady ? "服务器尚未收到此保存，可重试；后续草稿已保留。" : "保存尚未确认，草稿已保留。";
           return;
         }
       }
-      if (context.disposed || item.pending !== operation) return;
+      if (context.disposed || item.pending !== operation2) return;
       if (isLocalDocument(value)) {
-        if (documentState(value).operation?.save_id === operation.saveId) return acceptedLocal(item, value, operation);
+        if (documentState(value).operation?.save_id === operation2.saveId) return acceptedLocal(item, value, operation2);
         throw new Error("保存结果仍由同步队列核实，本机内容已保留。");
       }
       item.canEdit = value.can_edit;
-      if (receipt.found && receipt.content_hash === value.content_hash && receipt.version === value.version && matches2(value, operation)) {
-        accepted(item, value, operation);
-      } else if (value.version > operation.version) {
+      if (receipt.found && receipt.content_hash === value.content_hash && receipt.version === value.version && matches2(value, operation2)) {
+        accepted(item, value, operation2);
+      } else if (value.version > operation2.version) {
         item.remote = value;
         item.pending = null;
         item.phase = "conflict";
         item.error = "服务器已有更新，草稿已保留，请核对后选择。";
       } else {
         item.remote = value;
-        operation.retryReady = !receipt.found && value.can_edit && value.version === operation.version;
-        item.error = operation.retryReady ? "服务器尚无新版本，可重试原保存；后续草稿已保留。" : "保存结果尚未确认，草稿已保留，请再次核对。";
+        operation2.retryReady = !receipt.found && value.can_edit && value.version === operation2.version;
+        item.error = operation2.retryReady ? "服务器尚无新版本，可重试原保存；后续草稿已保留。" : "保存结果尚未确认，草稿已保留，请再次核对。";
       }
     } catch (error) {
-      if (!context.disposed && item.pending === operation) {
+      if (!context.disposed && item.pending === operation2) {
         item.error = "核对失败，草稿已保留：" + error.message;
         if ([401, 403].includes(error.status)) item.canEdit = false;
       }
     } finally {
-      operation.checking = false;
+      operation2.checking = false;
       emit();
     }
   }
   async function retryPending(id) {
-    const item = entry(id), operation = item?.pending;
-    if (context.disposed || item?.phase !== "unknown" || !item.canEdit || !operation?.retryReady || operation.checking) return;
-    operation.retryReady = false;
-    return context.send(item, operation);
+    const item = entry(id), operation2 = item?.pending;
+    if (context.disposed || item?.phase !== "unknown" || !item.canEdit || !operation2?.retryReady || operation2.checking) return;
+    operation2.retryReady = false;
+    return context.send(item, operation2);
   }
   function useServer(id) {
     const item = entry(id);
@@ -6454,14 +7199,14 @@ async function showRetainedArchive() {
     button2.dataset.notesAction = "export-drafts";
     button2.textContent = "导出本机保留草稿";
     box.append(button2);
-    const body = document.createElement("div");
-    body.className = "notes-retained-texts";
-    box.append(body);
+    const body2 = document.createElement("div");
+    body2.className = "notes-retained-texts";
+    box.append(body2);
     box.addEventListener("toggle", async () => {
       if (!box.open || expected !== notesIdentityNow()) return;
       const current = await archivedDrafts();
       if (expected !== notesIdentityNow()) return;
-      body.replaceChildren(...current.map((row) => {
+      body2.replaceChildren(...current.map((row) => {
         const pre = document.createElement("pre");
         pre.textContent = `${row.kind === "legacy" ? "原有记录" : "条目"} · ${row.category === "work" ? "工作" : "生活"} · ${row.date}
 ${row.draft}`;
@@ -6535,7 +7280,7 @@ function ensureDailyNotesStore() {
       return value;
     };
     const suffix = (separator) => category === "work" ? separator + "category=work" : "";
-    const changed3 = () => {
+    const changed4 = () => {
       if (expected !== notesIdentityNow()) return;
       void captureNotesDrafts(legacy, entries, category)?.catch(() => {
       });
@@ -6550,19 +7295,19 @@ function ensureDailyNotesStore() {
       put: readOnly,
       restore: readOnly,
       remove: readOnly,
-      onChange: changed3,
-      onSaved: changed3
+      onChange: changed4,
+      onSaved: changed4
     });
     const entries = createNoteEntriesStore({
       category,
       load: (date, options2) => options2?.localOnly ? getOfflineRuntime().localRead("/note-entries?category=" + category + "&date=" + date) : request("/note-entries?category=" + category + "&date=" + encodeURIComponent(date)),
       loadEntry: (id, options2) => options2?.localOnly ? getOfflineRuntime().localRead("/note-entries/" + id) : request("/note-entries/" + encodeURIComponent(id)),
       loadOperation: (id) => request("/note-entries/operations/" + encodeURIComponent(id)),
-      put: (id, body, options2) => request("/note-entries/" + encodeURIComponent(id), { ...options2, method: "PUT", body }),
-      remove: (id, body, options2) => request("/note-entries/" + encodeURIComponent(id), { ...options2, method: "DELETE", body }),
-      restore: (id, body, options2) => request("/note-entries/" + encodeURIComponent(id) + "/restore", { ...options2, method: "POST", body }),
-      onChange: changed3,
-      onSaved: changed3
+      put: (id, body2, options2) => request("/note-entries/" + encodeURIComponent(id), { ...options2, method: "PUT", body: body2 }),
+      remove: (id, body2, options2) => request("/note-entries/" + encodeURIComponent(id), { ...options2, method: "DELETE", body: body2 }),
+      restore: (id, body2, options2) => request("/note-entries/" + encodeURIComponent(id) + "/restore", { ...options2, method: "POST", body: body2 }),
+      onChange: changed4,
+      onSaved: changed4
     });
     entryIdentities.set(entries, expected);
     notesStores.set(category, legacy);
@@ -6629,9 +7374,9 @@ function requestEditorCollapse(event) {
   if (!host || host.contains(event.relatedTarget) || event.relatedTarget?.closest(
     '[data-note-entry-action="edit"],[data-notes-action="new"],[data-notes-action="edit-legacy"]'
   )) return;
-  const category = root.dataset.category, date = root.dataset.date, { active: active5, revision } = editorViews.page(category, date);
+  const category = root.dataset.category, date = root.dataset.date, { active: active5, revision: revision2 } = editorViews.page(category, date);
   setTimeout(() => {
-    editorViews.requestCollapse(category, date, active5, revision);
+    editorViews.requestCollapse(category, date, active5, revision2);
     if (notesVisible() && category === dailyNotesRouteCategory() && date === dailyNotesRouteDate()) paintDailyNotesPage();
   }, 0);
 }
@@ -6715,8 +7460,8 @@ async function handleNotesClick(event) {
     if (item) openEditor(item.id);
   } else if (action === "edit-legacy") openEditor("legacy");
   else if (action === "collapse") {
-    const { active: active5, revision } = editorViews.page(dailyNotesRouteCategory(), date);
-    editorViews.requestCollapse(dailyNotesRouteCategory(), date, active5, revision, { explicit: true });
+    const { active: active5, revision: revision2 } = editorViews.page(dailyNotesRouteCategory(), date);
+    editorViews.requestCollapse(dailyNotesRouteCategory(), date, active5, revision2, { explicit: true });
     paintDailyNotesPage();
   } else if (action === "previous" || action === "next") await selectDailyNotesDate(shiftedNotesDate(date, action === "previous" ? -1 : 1));
   else if (action === "login") renderLogin();
@@ -6728,6 +7473,11 @@ function registerDailyNotesEvents() {
   if (notesEventsRegistered) return;
   notesEventsRegistered = true;
   registerNotesInputEvents();
+  registerConflictDraftGuard(createNoteConflictDraftGuard({
+    getStores: () => entryStores,
+    getIdentity: notesIdentityNow,
+    getComposing: (id) => document.querySelector('[data-note-entry-editor="' + id + '"]')?.dataset.composing === "true"
+  }));
   window.addEventListener("haoduoyu:before-refresh", (event) => {
     if (typeof event.detail?.waitUntil !== "function" || notesIdentity !== notesIdentityNow()) return;
     const resumes = [], expected = notesIdentityNow(), root = document.querySelector("#daily-notes");
@@ -6821,8 +7571,8 @@ function flatNoteRow(note, store) {
   const s = store.state, group = s.groups.find((row) => row.id === note.group_id);
   const deleted2 = Boolean(note.deleted_at || group?.deleted_at), extra = ' data-memo-target="' + e(note.id) + '"';
   const control = !s.canEdit ? "" : s.trash ? button("restore-note", "恢复", extra) : button("delete-note", "×", extra + ' aria-label="删除' + e(note.title) + '" title="移至回收站"');
-  const removed2 = note.deleted_at || group?.deleted_at;
-  const days = removed2 ? Math.max(0, 30 - Math.floor((Date.now() - Date.parse(removed2)) / 864e5)) : 0;
+  const removed4 = note.deleted_at || group?.deleted_at;
+  const days = removed4 ? Math.max(0, 30 - Math.floor((Date.now() - Date.parse(removed4)) / 864e5)) : 0;
   const retention = s.trash ? '<small class="memo-retention">' + (days ? "30天恢复期 · 剩余" + days + "天" : "已归档 · 可恢复") + "</small>" : "";
   return '<div class="memo-flat-row">' + listButton("note", note, s.noteId) + control + retention + "</div>";
 }
@@ -6855,8 +7605,8 @@ function paintDocument(root, store) {
   if (!item) return;
   const group = s.groups.find((row) => row.id === item.group_id), deleted2 = Boolean(item.deleted_at || group?.deleted_at);
   const editable = s.canEdit && !deleted2;
-  const operation = s.operation?.pending;
-  const structureBusy = operation && (operation.kind === "notes" && operation.id === item.id || operation.kind === "groups" && operation.id === item.group_id && operation.method === "DELETE");
+  const operation2 = s.operation?.pending;
+  const structureBusy = operation2 && (operation2.kind === "notes" && operation2.id === item.id || operation2.kind === "groups" && operation2.id === item.group_id && operation2.method === "DELETE");
   for (const field2 of ["title", "body"]) {
     const input = find("#memo-" + field2);
     input.hidden = !editable;
@@ -6900,26 +7650,26 @@ function paintMemos(root, store) {
   if (!s.canEdit) find("#memo-recovery").hidden = true;
   find('[data-memo-action="exit-trash"]').hidden = !s.trash || root.closest(".workbench-settings") !== null;
   find('[data-memo-action="back-notes"]').hidden = s.pane !== "editor";
-  const operation = s.operation;
-  find("#memo-operation").hidden = !operation?.error && operation?.phase !== "unknown";
-  find("#memo-operation-text").textContent = operation?.error || (operation?.phase === "saving" ? "正在保存操作…" : "操作结果待核对");
-  find('[data-memo-action="operation-check"]').hidden = operation?.phase !== "unknown";
-  find('[data-memo-action="operation-retry"]').hidden = operation?.phase !== "unknown" || !operation?.retryReady;
+  const operation2 = s.operation;
+  find("#memo-operation").hidden = !operation2?.error && operation2?.phase !== "unknown";
+  find("#memo-operation-text").textContent = operation2?.error || (operation2?.phase === "saving" ? "正在保存操作…" : "操作结果待核对");
+  find('[data-memo-action="operation-check"]').hidden = operation2?.phase !== "unknown";
+  find('[data-memo-action="operation-retry"]').hidden = operation2?.phase !== "unknown" || !operation2?.retryReady;
   paintLists(root, store);
   paintDrafts(root, store);
   paintDocument(root, store);
 }
 
 // web/core/memos-local.mjs
-var fields3 = ["group_id", "title", "body", "position"];
-var changed = (a, b) => fields3.some((field2) => a[field2] !== b?.[field2]);
+var fields4 = ["group_id", "title", "body", "position"];
+var changed2 = (a, b) => fields4.some((field2) => a[field2] !== b?.[field2]);
 function memoLocalProtocol(context) {
   function reset(item, value) {
     item.localVersion = value.version;
     item.localQueued = false;
     item.localOperation = null;
     item.localConflict = null;
-    item.durable = Object.fromEntries(fields3.map((field2) => [field2, value[field2]]));
+    item.durable = Object.fromEntries(fields4.map((field2) => [field2, value[field2]]));
   }
   function accept(item, value, pending = null) {
     const document2 = documentState(value);
@@ -6927,9 +7677,9 @@ function memoLocalProtocol(context) {
     const local = document2.local, server = document2.server;
     if (local.id !== item.id || !Number.isSafeInteger(local.version) || local.version < 1 || typeof local.body !== "string")
       throw new Error("本机保存记录不完整，原稿已保留。");
-    const preserve = pending ? changed(item, pending.snapshot || pending.body) : item.dirty;
+    const preserve = pending ? changed2(item, pending.snapshot || pending.body) : item.dirty;
     const concurrent = !pending && item.dirty && item.localVersion && item.localVersion !== local.version;
-    if (!preserve) for (const field2 of fields3) item[field2] = local[field2];
+    if (!preserve) for (const field2 of fields4) item[field2] = local[field2];
     if (server && typeof server.body === "string") {
       item.server = { ...server };
       item.version = server.version;
@@ -6941,11 +7691,11 @@ function memoLocalProtocol(context) {
     item.localConflict = document2.conflict;
     item.localCreatedAt = local.created_at || null;
     item.localUpdatedAt = local.updated_at || null;
-    item.durable = Object.fromEntries(fields3.map((field2) => [field2, local[field2]]));
+    item.durable = Object.fromEntries(fields4.map((field2) => [field2, local[field2]]));
     item.deleted_at = local.deleted_at || null;
     item.pending = null;
     item.writeEpoch++;
-    item.dirty = changed(item, local);
+    item.dirty = changed2(item, local);
     item.phase = document2.conflict || concurrent ? "conflict" : item.dirty ? "dirty" : item.localQueued ? "queued" : "saved";
     item.remote = document2.conflict?.remote || (concurrent ? server : null);
     item.error = item.phase === "conflict" ? "两份内容已保留，请核对后处理。" : "";
@@ -6977,7 +7727,7 @@ var memoBytes = (value) => new TextEncoder().encode(value).length;
 var idPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 var cleanTitle = (value) => typeof value === "string" && value.trim() && [...value].length <= 120;
 var noteFields = ["group_id", "title", "body", "position"];
-var changed2 = (item, value) => noteFields.some((field2) => item[field2] !== value[field2]);
+var changed3 = (item, value) => noteFields.some((field2) => item[field2] !== value[field2]);
 var isUncertain = (item) => item.pending || ["unknown", "conflict"].includes(item.phase);
 function checkedNote(value, id) {
   if (!value || value.id !== id || !idPattern.test(value.group_id) || !cleanTitle(value.title) || typeof value.body !== "string" || memoBytes(value.body) > MEMOS_MAX_BYTES || !Number.isSafeInteger(value.version) || value.version < 1 || !Number.isSafeInteger(value.position))
@@ -7026,7 +7776,7 @@ function recoveredDraft(raw) {
 }
 function makeContext(options2) {
   const { request, ownerId = "", storage: storage2, onChange = () => {
-  }, uuid: uuid3 = () => globalThis.crypto.randomUUID(), delay = 700 } = options2;
+  }, uuid: uuid5 = () => globalThis.crypto.randomUUID(), delay = 700 } = options2;
   const state2 = {
     groups: [],
     notes: [],
@@ -7040,8 +7790,8 @@ function makeContext(options2) {
     operation: null,
     storageError: ""
   };
-  const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request, ownerId, storage: storage2, uuid: uuid3, delay, disposed: false, hydrated: false, loadSequence: 0 };
-  context.draftScope = options2.draftScope || uuid3();
+  const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request, ownerId, storage: storage2, uuid: uuid5, delay, disposed: false, hydrated: false, loadSequence: 0 };
+  context.draftScope = options2.draftScope || uuid5();
   context.restoreDraftScope = options2.restoreDraftScope;
   context.storagePersistent = options2.storagePersistent !== false && Boolean(options2.draftScope);
   context.online = options2.online || (() => globalThis.navigator?.onLine !== false);
@@ -7139,7 +7889,7 @@ function persistence(context) {
     }
     const current = context.drafts.get(item.id);
     if (current && (current.dirty || current.pending)) {
-      if (changed2(current, item) || current.version !== item.version || current.pending?.body.save_id !== item.pending?.body.save_id) {
+      if (changed3(current, item) || current.version !== item.version || current.pending?.body.save_id !== item.pending?.body.save_id) {
         context.state.error = "此笔记已有另一份草稿，未覆盖。请先复制预览文字，再处理当前草稿。";
         context.emit();
         return false;
@@ -7155,7 +7905,7 @@ function persistence(context) {
   return { persist, hydrate, recoverDraft, flushDrafts: async () => persist({ verify: true }) };
 }
 function acceptNote(context, item, value, pending) {
-  const preserve = changed2(item, pending.snapshot || pending.body);
+  const preserve = changed3(item, pending.snapshot || pending.body);
   if (!preserve) for (const field2 of noteFields) item[field2] = value[field2];
   item.server = { ...value };
   item.version = value.version;
@@ -7165,7 +7915,7 @@ function acceptNote(context, item, value, pending) {
   item.remote = null;
   item.error = "";
   context.local.reset(item, value);
-  item.dirty = changed2(item, value);
+  item.dirty = changed3(item, value);
   item.phase = item.dirty ? "dirty" : "saved";
   item.writeEpoch++;
   context.upsert("notes", value);
@@ -7191,12 +7941,12 @@ function memoReads2(context) {
       return;
     }
     const reschedule = context.durable && (item.localQueued || Boolean(item.timer));
-    const sequence = ++item.sequence, epoch = item.writeEpoch;
+    const sequence2 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos/notes/" + id) : context.request("/memos/notes/" + id));
-      if (context.disposed || sequence !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
+      if (context.disposed || sequence2 !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
       if (isLocalDocument(raw)) {
         context.local.accept(item, raw);
         return;
@@ -7214,19 +7964,19 @@ function memoReads2(context) {
         item.version = value.version;
         item.deleted_at = value.deleted_at;
         item.updated_at = value.updated_at;
-        item.dirty = changed2(item, value);
+        item.dirty = changed3(item, value);
         item.phase = item.dirty ? "dirty" : "saved";
         item.error = "";
         context.local.reset(item, value);
         context.upsert("notes", value);
       }
     } catch (error) {
-      if (!context.disposed && sequence === item.sequence) {
+      if (!context.disposed && sequence2 === item.sequence) {
         item.error = error.message;
         if (!isUncertain(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence === item.sequence) {
+      if (!context.disposed && sequence2 === item.sequence) {
         item.loading = false;
         context.emit();
         if (reschedule) context.schedule(item);
@@ -7234,13 +7984,13 @@ function memoReads2(context) {
     }
   }
   async function load({ local = false } = {}) {
-    const { state: state2 } = context, sequence = ++context.loadSequence;
+    const { state: state2 } = context, sequence2 = ++context.loadSequence;
     state2.loading = true;
     state2.error = "";
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos") : context.request("/memos"));
-      if (context.disposed || sequence !== context.loadSequence) return;
+      if (context.disposed || sequence2 !== context.loadSequence) return;
       if (!Array.isArray(raw?.groups) || !Array.isArray(raw.notes) || typeof raw.can_edit !== "boolean")
         throw new Error("备忘录列表不完整，请重新读取。");
       const value = context.local.index(raw);
@@ -7261,9 +8011,9 @@ function memoReads2(context) {
       if (!state2.noteId) state2.noteId = state2.notes.find((note) => note.group_id === state2.groupId && (state2.trash || !note.deleted_at))?.id || "";
       if (state2.noteId) await selectNote(state2.noteId, { open: false, local });
     } catch (error) {
-      if (!context.disposed && sequence === context.loadSequence) state2.error = error.message;
+      if (!context.disposed && sequence2 === context.loadSequence) state2.error = error.message;
     } finally {
-      if (!context.disposed && sequence === context.loadSequence) {
+      if (!context.disposed && sequence2 === context.loadSequence) {
         state2.loading = false;
         context.emit();
       }
@@ -7289,7 +8039,7 @@ function editing(context) {
     if (!retainPrivate) item.autosaveHeld = false;
     const baseline = item.localQueued ? item.durable : item.server;
     item[field2] = value;
-    item.dirty = !baseline || changed2(item, baseline);
+    item.dirty = !baseline || changed3(item, baseline);
     context.stop(item);
     if (!isUncertain(item)) {
       item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
@@ -7321,7 +8071,7 @@ function editing(context) {
         return;
       }
       const value = checkedNote(raw, item.id);
-      if (value.version !== pending.body.version + 1 || changed2(value, pending.body)) throw new Error("保存响应需要重新核对。");
+      if (value.version !== pending.body.version + 1 || changed3(value, pending.body)) throw new Error("保存响应需要重新核对。");
       acceptNote(context, item, value, pending);
     } catch (error) {
       if (context.disposed || item.pending !== pending) return;
@@ -7360,13 +8110,13 @@ function editing(context) {
       return;
     }
     const snapshot = Object.fromEntries(noteFields.map((field2) => [field2, item[field2]]));
-    const body = { ...snapshot, title: snapshot.title.trim(), body: snapshot.body.replace(/\r\n?/g, "\n") };
+    const body2 = { ...snapshot, title: snapshot.title.trim(), body: snapshot.body.replace(/\r\n?/g, "\n") };
     return sendNote(item, {
       kind: "notes",
       id,
       path: "/memos/notes/" + id,
       method: "PUT",
-      body: { ...body, version: item.localQueued ? item.localVersion : item.version, save_id: context.uuid() },
+      body: { ...body2, version: item.localQueued ? item.localVersion : item.version, save_id: context.uuid() },
       snapshot
     });
   }
@@ -7409,7 +8159,7 @@ function resolution(context) {
       if (receipt?.found !== true || receipt.kind !== "notes" || receipt.id !== id) throw new Error("保存收据不匹配。");
       const value = checkedNote(await context.request("/memos/notes/" + id), id);
       if (context.disposed || item.pending !== pending) return;
-      if (value.version === receipt.version && !changed2(value, pending.body)) acceptNote(context, item, value, pending);
+      if (value.version === receipt.version && !changed3(value, pending.body)) acceptNote(context, item, value, pending);
       else {
         item.pending = null;
         item.remote = value;
@@ -7457,7 +8207,7 @@ function resolution(context) {
     item.server = item.remote;
     item.version = item.remote.version;
     item.remote = null;
-    item.dirty = changed2(item, item.server);
+    item.dirty = changed3(item, item.server);
     item.phase = item.dirty ? "dirty" : "saved";
     item.error = "";
     context.emit();
@@ -7467,12 +8217,12 @@ function resolution(context) {
 }
 function operations(context) {
   async function sendOperation(pending) {
-    const operation2 = { pending, phase: "saving", error: "", retryReady: false };
-    context.state.operation = operation2;
+    const operation3 = { pending, phase: "saving", error: "", retryReady: false };
+    context.state.operation = operation3;
     context.emit();
     try {
       const raw = await context.request(pending.path, { method: pending.method, body: pending.body });
-      if (context.disposed || context.state.operation !== operation2) return;
+      if (context.disposed || context.state.operation !== operation3) return;
       if (isLocalDocument(raw)) {
         context.upsert(pending.kind, context.local.row(raw));
         context.state.operation = null;
@@ -7486,19 +8236,19 @@ function operations(context) {
       if (pending.kind === "notes") context.drafts.delete(pending.id);
       await context.load();
     } catch (error) {
-      if (context.disposed || context.state.operation !== operation2) return;
-      operation2.error = error.message;
+      if (context.disposed || context.state.operation !== operation3) return;
+      operation3.error = error.message;
       if (error.status >= 400 && error.status < 500) {
-        operation2.phase = "error";
-        operation2.pending = null;
+        operation3.phase = "error";
+        operation3.pending = null;
       } else {
-        operation2.phase = "unknown";
-        operation2.error = "操作结果待核对，请先查询保存收据，暂不重复操作。";
+        operation3.phase = "unknown";
+        operation3.error = "操作结果待核对，请先查询保存收据，暂不重复操作。";
       }
       context.emit();
     }
   }
-  async function operation(kind, id, method, body) {
+  async function operation2(kind, id, method, body2) {
     if (!context.writable() || context.state.operation?.pending) return;
     if (!context.online() && !(context.durable && method === "PUT")) {
       context.state.operation = { phase: "offline", pending: null, error: "当前离线，请联网后重试此操作。" };
@@ -7510,7 +8260,7 @@ function operations(context) {
       id,
       method,
       path: "/memos/" + kind + "/" + id + (method === "POST" ? "/restore" : ""),
-      body: { ...body, save_id: context.uuid() }
+      body: { ...body2, save_id: context.uuid() }
     });
   }
   async function checkOperation() {
@@ -7559,7 +8309,7 @@ function operations(context) {
     context.emit();
     return true;
   }
-  return { operation, checkOperation, retryOperation, recoverOperation };
+  return { operation: operation2, checkOperation, retryOperation, recoverOperation };
 }
 function structure(context) {
   const pendingInGroup = (id) => [...context.drafts.values()].some((item) => item.group_id === id && (item.dirty || item.pending));
@@ -7729,7 +8479,7 @@ function snapshots(storage2, ownerId) {
   return rows.sort((a, b) => b.savedAt.localeCompare(a.savedAt)).slice(0, 100);
 }
 function label2(row, index) {
-  const timestamp3 = Date.parse(row.savedAt), date = Number.isFinite(timestamp3) ? new Date(timestamp3).toLocaleString() : "保存时间未知";
+  const timestamp4 = Date.parse(row.savedAt), date = Number.isFinite(timestamp4) ? new Date(timestamp4).toLocaleString() : "保存时间未知";
   return index + 1 + ". " + (row.raw.title || "未命名笔记") + " · " + date + " · 版本 " + row.raw.version;
 }
 function openMemoRecovery(root, store, ownerId) {
@@ -7792,8 +8542,8 @@ var currentIdentity = () => JSON.stringify([
 var settingsTrash = () => state.page === "settings" && state.settingsTab === "workspace";
 var visible = () => (state.page === "memos" || settingsTrash()) && memoIdentity === currentIdentity();
 function ensureStore() {
-  const identity3 = currentIdentity();
-  if (memoStore && memoIdentity === identity3) return memoStore;
+  const identity4 = currentIdentity();
+  if (memoStore && memoIdentity === identity4) return memoStore;
   memoDeleteWait?.(true);
   memoDeleteWait = null;
   memoDeleting = "";
@@ -7801,11 +8551,11 @@ function ensureStore() {
   memoRefreshPaused = false;
   memoRefreshReady = false;
   memoStore?.dispose();
-  memoIdentity = identity3;
+  memoIdentity = identity4;
   memoDialog = null;
   resetMemoRecovery();
   const active5 = () => {
-    if (currentIdentity() !== identity3) throw new DOMException("登录状态已经改变", "AbortError");
+    if (currentIdentity() !== identity4) throw new DOMException("登录状态已经改变", "AbortError");
   };
   const request = async (path, options2) => {
     active5();
@@ -7828,7 +8578,7 @@ function ensureStore() {
     resolveLocal: (key, choice2) => getOfflineRuntime().resolve(key, choice2),
     ownerId: state.me?.publicBusiness ? "" : String(state.me?.id || ""),
     onChange: () => {
-      if (identity3 === currentIdentity()) {
+      if (identity4 === currentIdentity()) {
         memoDeleteWait?.();
         paintMemosPage();
         refreshDurableMemos();
@@ -7838,7 +8588,7 @@ function ensureStore() {
   return memoStore;
 }
 function refreshDurableMemos() {
-  if (!memoOfflineRefresh || memoOfflineLoading || memoDeleting || memoRefreshPaused || !visible() || !memoStore || [...memoStore.drafts.values()].some((item) => item.composing || item.pending || item.phase === "saving")) return;
+  if (!memoOfflineRefresh || memoOfflineLoading || memoDeleting || memoRefreshPaused || !visible() || !memoStore || memoStore.state.loading || [...memoStore.drafts.values()].some((item) => item.composing || item.pending || item.phase === "saving")) return;
   const store = memoStore;
   memoOfflineRefresh = false;
   memoOfflineLoading = true;
@@ -8109,8 +8859,8 @@ function preserveMemosBeforeRefresh(event) {
   if (typeof event.detail?.waitUntil !== "function" || memoIdentity !== currentIdentity() || !memoStore?.state.canEdit) return;
   const store = memoStore, expected = memoIdentity, resume = store.pauseAutosave(), root = document.querySelector("#memos");
   const controls = [...root?.querySelectorAll("button,input,select") || []].map((control) => [control, control.disabled]);
-  const fields4 = [...root?.querySelectorAll("#memo-title,#memo-body") || []].map((field2) => ({ field: field2, value: field2.value, readOnly: field2.readOnly, composing: field2.dataset.composing === "true" }));
-  const focused = fields4.find((row) => row.field === document.activeElement)?.field;
+  const fields5 = [...root?.querySelectorAll("#memo-title,#memo-body") || []].map((field2) => ({ field: field2, value: field2.value, readOnly: field2.readOnly, composing: field2.dataset.composing === "true" }));
+  const focused = fields5.find((row) => row.field === document.activeElement)?.field;
   const selection = focused ? [focused.selectionStart, focused.selectionEnd, focused.selectionDirection, focused.scrollTop] : null;
   const wasInert = root?.inert;
   memoRefreshPaused = true;
@@ -8122,7 +8872,7 @@ function preserveMemosBeforeRefresh(event) {
     memoRefreshReady = false;
     if (root) root.inert = wasInert;
     for (const [control, disabled] of controls) control.disabled = disabled;
-    for (const { field: field2, readOnly } of fields4) field2.readOnly = readOnly;
+    for (const { field: field2, readOnly } of fields5) field2.readOnly = readOnly;
     paintMemosPage();
     refreshDurableMemos();
     if (focused?.isConnected && !focused.disabled) {
@@ -8132,11 +8882,11 @@ function preserveMemosBeforeRefresh(event) {
     }
   });
   try {
-    const composing = fields4.some((row) => row.composing);
-    for (const { field: field2, value } of fields4) store.edit(field2.id === "memo-title" ? "title" : "body", value, { composing, retainPrivate: true });
+    const composing = fields5.some((row) => row.composing);
+    for (const { field: field2, value } of fields5) store.edit(field2.id === "memo-title" ? "title" : "body", value, { composing, retainPrivate: true });
     if (root) root.inert = true;
     for (const [control] of controls) control.disabled = true;
-    for (const { field: field2 } of fields4) field2.readOnly = true;
+    for (const { field: field2 } of fields5) field2.readOnly = true;
     event.detail.waitUntil(store.flushDrafts().then(() => {
       if (store !== memoStore || expected !== currentIdentity()) throw new Error("REFRESH_IDENTITY_CHANGED");
       memoRefreshReady = true;
@@ -8149,6 +8899,12 @@ function registerEvents() {
   if (memoEvents) return;
   memoEvents = true;
   registerMemoSplitEvents();
+  registerConflictDraftGuard(createMemoConflictDraftGuard({
+    getStore: () => memoStore,
+    getIdentity: currentIdentity,
+    getStorage: () => window.localStorage,
+    getComposing: (id) => memoStore?.state.noteId === id && [...document.querySelectorAll("#memo-title,#memo-body")].some((field2) => field2.dataset.composing === "true")
+  }));
   document.addEventListener("focusin", (event) => {
     if (visible() && ["memo-title", "memo-body"].includes(event.target.id)) memoEditorFocus = event.target;
   });
@@ -8656,8 +9412,8 @@ function paintWorkReminders(data, error = "") {
 var reminderSequence = 0, reminderEvents = false;
 async function loadWorkReminders() {
   registerReminderEvents();
-  const sequence = ++reminderSequence, session = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
-  const current = () => sequence === reminderSequence && session === runtime.sessionEpoch && state.page === "reminders";
+  const sequence2 = ++reminderSequence, session = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
+  const current = () => sequence2 === reminderSequence && session === runtime.sessionEpoch && state.page === "reminders";
   paintWorkReminders({ date, items: [], loading: true });
   try {
     const data = await api("/work-reminders?date=" + encodeURIComponent(date));
@@ -8795,11 +9551,11 @@ function publishedArticleLinks(html) {
   if (state.topPlatform) query.set("platform", state.topPlatform);
   return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
 }
-async function loadArticleOverview(version, context) {
+async function loadArticleOverview(version2, context) {
   const query = new URLSearchParams({ period: state.overviewPeriod, top_n: state.topN, top_platform: state.topPlatform });
   if (state.account) query.set("account_id", state.account);
   const data = await api(`/overview?${query}`, { context });
-  if (version !== runtime.renderVersion) return "";
+  if (version2 !== runtime.renderVersion) return "";
   state.dashboard = data;
   return renderMediaOverview(data);
 }
@@ -8813,7 +9569,7 @@ async function renderPage() {
   }
   stopPageEntry();
   closePopover({ restoreFocus: false });
-  const version = ++runtime.renderVersion, page = state.page;
+  const version2 = ++runtime.renderVersion, page = state.page;
   const context = beginPageRequests();
   const counter = $("#page-count");
   if (counter) counter.hidden = true;
@@ -8837,13 +9593,13 @@ async function renderPage() {
         await loadWorkReminders();
         break;
       case "dashboard":
-        html = await loadArticleOverview(version, context);
+        html = await loadArticleOverview(version2, context);
         break;
       case "articles":
-        html = await renderArticles(version, context);
+        html = await renderArticles(version2, context);
         break;
       case "reviews":
-        html = await renderReviews(version, context);
+        html = await renderReviews(version2, context);
         break;
       case "settings":
         if (state.settingsTab === "workspace") {
@@ -8851,7 +9607,7 @@ async function renderPage() {
           break;
         } else if (state.settingsTab === "accounts") {
           data = await api("/account-profiles", { context });
-          if (version !== runtime.renderVersion) return;
+          if (version2 !== runtime.renderVersion) return;
           state.accountProfiles = data;
           html = renderAccounts();
         } else if (state.settingsTab === "keys") {
@@ -8864,7 +9620,7 @@ async function renderPage() {
         }
         break;
     }
-    if (version === runtime.renderVersion && state.me) {
+    if (version2 === runtime.renderVersion && state.me) {
       setPageBody(html, page);
       if (counter?.isConnected) {
         const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
@@ -8875,18 +9631,18 @@ async function renderPage() {
       }
     }
   } catch (err) {
-    if (!isRequestAbort(err) && !err.staleSession && version === runtime.renderVersion && state.me) setPageBody(`<div class="card error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" data-action="refresh">${icon("refresh")}重新加载</button></div>`, page);
+    if (!isRequestAbort(err) && !err.staleSession && version2 === runtime.renderVersion && state.me) setPageBody(`<div class="card error-panel" role="alert"><span class="empty-icon">${icon("info", 23)}</span><h3>本次数据读取失败</h3><p>${e(err.message)}</p><button class="btn" data-action="refresh">${icon("refresh")}重新加载</button></div>`, page);
   } finally {
-    if (version === runtime.renderVersion) $("#page-content")?.setAttribute("aria-busy", "false");
+    if (version2 === runtime.renderVersion) $("#page-content")?.setAttribute("aria-busy", "false");
   }
 }
 async function reloadFilteredPage(focus = "[data-action=article-filter]") {
   clearTimeout(runtime.searchTimer);
   state.listPage = 1;
   updateRoute();
-  const version = runtime.renderVersion + 1;
+  const version2 = runtime.renderVersion + 1;
   await renderPage();
-  if (version === runtime.renderVersion && !$("#overlay").firstChild && document.activeElement === document.body) $(focus)?.focus();
+  if (version2 === runtime.renderVersion && !$("#overlay").firstChild && document.activeElement === document.body) $(focus)?.focus();
 }
 function applyArticleFilters(form) {
   const draft = articleDraft(form);
@@ -8942,7 +9698,7 @@ function validArticle(value, id) {
 function verificationIntent(index, done) {
   return `第 ${index + 1} 项设为${done ? "已处理" : "待处理"}`;
 }
-function createArticleVerificationStore({ article, load, put, uuid: uuid3 = () => crypto.randomUUID(), onChange = () => {
+function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () => crypto.randomUUID(), onChange = () => {
 }, isCurrent = () => true }) {
   let current = copy(article), phase = "idle", message = "", pending = null, busy = false, retryReady = false;
   const snapshot = () => ({ article: copy(current), phase, message, busy, retryReady });
@@ -9034,7 +9790,7 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid3 = () =
     if (current.verify_items[index].done === done) return;
     const items = copy(current.verify_items);
     items[index].done = done;
-    pending = { index, done, before: copy(current.verify_items), body: { version: current.version, verify_items: items }, key: uuid3() };
+    pending = { index, done, before: copy(current.verify_items), body: { version: current.version, verify_items: items }, key: uuid5() };
     busy = true;
     try {
       await send();
@@ -9074,9 +9830,9 @@ function bindArticleVerification(article, { isCurrent, render }) {
     article,
     isCurrent: () => binding === value && epoch === runtime.sessionEpoch && isCurrent(),
     load: (id) => api(`/articles/${encodeURIComponent(id)}`),
-    put: (id, body, key) => api(`/articles/${encodeURIComponent(id)}`, {
+    put: (id, body2, key) => api(`/articles/${encodeURIComponent(id)}`, {
       method: "PUT",
-      body,
+      body: body2,
       headers: { "Idempotency-Key": key }
     }),
     onChange: (state2) => {
@@ -9334,18 +10090,18 @@ function renderArticleAnalytics(a) {
 }
 async function articleDetail(id) {
   const context = beginModalRequests();
-  const ticket = ++runtime.modalRequestVersion, version = runtime.renderVersion, a = await modalRequest(
+  const ticket = ++runtime.modalRequestVersion, version2 = runtime.renderVersion, a = await modalRequest(
     `/articles/${encodeURIComponent(id)}`,
     ticket,
-    version,
+    version2,
     context
   );
-  if (ticket !== runtime.modalRequestVersion || version !== runtime.renderVersion) return;
+  if (ticket !== runtime.modalRequestVersion || version2 !== runtime.renderVersion) return;
   openModal(a.title, renderArticleDetailBody(a), { drawer: true, context: `<div class="account-title">${platformLogo(a.platform)}${e(
     a.account_name || accountName(a.account_id)
   )} · ${e(articleStatus[a.status] || "未确认")}</div>` });
   const modal = runtime.modalRequestVersion, epoch = runtime.sessionEpoch;
-  const isCurrent = () => modal === runtime.modalRequestVersion && version === runtime.renderVersion && epoch === runtime.sessionEpoch && document.querySelector("#overlay .article-ledger-detail")?.dataset.articleDetail === a.id;
+  const isCurrent = () => modal === runtime.modalRequestVersion && version2 === runtime.renderVersion && epoch === runtime.sessionEpoch && document.querySelector("#overlay .article-ledger-detail")?.dataset.articleDetail === a.id;
   bindArticleVerification(a, { isCurrent, render(view) {
     if (!isCurrent()) return;
     const focused = document.activeElement?.dataset?.articleVerifyIndex;
@@ -9409,9 +10165,9 @@ async function actionArticleFilter({ action }) {
   if (runtime.searchTimer) {
     clearTimeout(runtime.searchTimer);
     runtime.searchTimer = null;
-    const version = runtime.renderVersion + 1;
+    const version2 = runtime.renderVersion + 1;
     await renderPage();
-    if (version !== runtime.renderVersion || state.page !== "articles" || $("#overlay").firstChild) return;
+    if (version2 !== runtime.renderVersion || state.page !== "articles" || $("#overlay").firstChild) return;
   }
   const trigger = $("[data-action=article-filter]");
   if (trigger) popover(trigger, articleFilterPanel(), { label: "文章筛选" });
@@ -9564,9 +10320,9 @@ async function actionReviewTab({ target, action }) {
       return;
     }
     updateRoute(true);
-    const version = runtime.renderVersion + 1;
+    const version2 = runtime.renderVersion + 1;
     await renderPage();
-    if (version === runtime.renderVersion && !$("#overlay").firstChild && document.activeElement === document.body) $(
+    if (version2 === runtime.renderVersion && !$("#overlay").firstChild && document.activeElement === document.body) $(
       "[data-action=review-tab][data-tab=" + state.reviewTab + "]"
     )?.focus();
   }
@@ -9745,18 +10501,18 @@ function articleTime(value, label3, original) {
   if (!raw) return null;
   const parts = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(raw);
   if (!parts) throw new Error(`${label3}请填写有效的北京时间。`);
-  const canonical2 = `${parts[1]}T${parts[2]}:${parts[3] || "00"}.${(parts[4] || "").padEnd(3, "0")}`;
-  const stamp2 = /* @__PURE__ */ new Date(`${canonical2}+08:00`);
-  if (!Number.isFinite(stamp2.getTime()) || new Date(stamp2.getTime() + 8 * 36e5).toISOString().slice(0, 23) !== canonical2) {
+  const canonical4 = `${parts[1]}T${parts[2]}:${parts[3] || "00"}.${(parts[4] || "").padEnd(3, "0")}`;
+  const stamp2 = /* @__PURE__ */ new Date(`${canonical4}+08:00`);
+  if (!Number.isFinite(stamp2.getTime()) || new Date(stamp2.getTime() + 8 * 36e5).toISOString().slice(0, 23) !== canonical4) {
     throw new Error(`${label3}请填写真实日期和时间。`);
   }
   if (original && raw === localDateTime(original)) return new Date(original).toISOString();
   return stamp2.toISOString();
 }
-function mergedObject(original, fields4) {
+function mergedObject(original, fields5) {
   if (original != null && !objectValue(original)) throw new Error("原记录的 JSON 字段无法安全编辑，请重新打开核对。");
   const result = original == null ? {} : structuredClone(original);
-  for (const [key, value] of Object.entries(fields4)) {
+  for (const [key, value] of Object.entries(fields5)) {
     if (value !== null || Object.hasOwn(result, key)) result[key] = value;
   }
   return Object.keys(result).length || original != null ? result : null;
@@ -9775,7 +10531,7 @@ function publicationFields(data, original, status) {
 function buildArticleFormPayload(data, original = {}) {
   const status = choice(data.status, statusLabels, "文章状态");
   if (!status) throw new Error("请明确选择文章状态，未确认的状态不会自动保存为草稿或已发布。");
-  const body = {
+  const body2 = {
     account_id: textValue(data.account_id),
     title: textValue(data.title),
     status,
@@ -9795,20 +10551,20 @@ function buildArticleFormPayload(data, original = {}) {
     subheading_count: nullableNumber(data.subheading_count, "小标题数"),
     image_count: nullableNumber(data.image_count, "图数")
   };
-  if (!body.account_id || !body.title) throw new Error("请填写文章标题并选择所属运营账号。");
-  if (body.published_at && body.started_at && body.started_at > body.published_at) {
+  if (!body2.account_id || !body2.title) throw new Error("请填写文章标题并选择所属运营账号。");
+  if (body2.published_at && body2.started_at && body2.started_at > body2.published_at) {
     throw new Error("流水线开始时间不能晚于发布时间。");
   }
   const editor = textValue(data.draft_editor_url);
   if (editor && !safeLedgerURL(editor)) throw new Error("草稿编辑链接请使用有效的 HTTP/HTTPS 地址。");
-  body.draft_ref = mergedObject(original.draft_ref, {
+  body2.draft_ref = mergedObject(original.draft_ref, {
     pgc_id: textValue(data.draft_pgc_id) || null,
     appmsgid: textValue(data.draft_appmsgid) || null,
     editor_url: editor || null
   });
-  body.timings = mergedObject(original.timings, { finished_at: articleTime(data.finished_at, "流水线结束", original.timings?.finished_at) });
-  if (original.id) body.version = original.version;
-  return body;
+  body2.timings = mergedObject(original.timings, { finished_at: articleTime(data.finished_at, "流水线结束", original.timings?.finished_at) });
+  if (original.id) body2.version = original.version;
+  return body2;
 }
 function equalValue(a, b) {
   if (a === b) return true;
@@ -9836,16 +10592,16 @@ async function reconcileArticleSave(cache, request, isCurrent) {
   if (savedArticle(remote, cache.saveAttempt)) return remote;
   throw uncertainArticleSave(cache, "保存结果与当前记录未能确认一致，当前表单不会再次提交。请重新打开最新记录核对。");
 }
-async function saveArticleForm({ form, data }, { request = api, uuid: uuid3 = () => crypto.randomUUID() } = {}) {
+async function saveArticleForm({ form, data }, { request = api, uuid: uuid5 = () => crypto.randomUUID() } = {}) {
   const cache = articleFormRecord(form), isCurrent = () => articleFormCurrent(form, cache);
   if (cache.saveAttempt) throw new Error("此表单已有保存请求，请关闭后核对文章列表或最新详情，不要重复新建。");
-  const body = buildArticleFormPayload(data, cache.record), id = form.dataset.id || "";
-  cache.saveAttempt = { id, body: structuredClone(body), key: uuid3(), phase: "saving" };
+  const body2 = buildArticleFormPayload(data, cache.record), id = form.dataset.id || "";
+  cache.saveAttempt = { id, body: structuredClone(body2), key: uuid5(), phase: "saving" };
   let value;
   try {
     value = await request(id ? `/articles/${encodeURIComponent(id)}` : "/articles", {
       method: id ? "PUT" : "POST",
-      body,
+      body: body2,
       headers: { "Idempotency-Key": cache.saveAttempt.key }
     });
   } catch (error) {
@@ -9902,15 +10658,15 @@ async function submitReviewForm({ form, data }) {
     if (value !== "" && value != null) m[key] = Number(value);
   }
   if (!Object.keys(m).length) throw new Error("请至少填写一个已取得的指标。");
-  let body, path;
+  let body2, path;
   if (form.dataset.type === "daily") {
     path = "/daily-metrics";
-    body = { account_id: data.account_id, article_id: data.article_id || null, date: data.date, metrics: m, source: data.source.trim() };
+    body2 = { account_id: data.account_id, article_id: data.article_id || null, date: data.date, metrics: m, source: data.source.trim() };
   } else {
     path = "/observations";
-    body = { article_id: data.article_id, kind: data.kind, as_of: iso(data.as_of), collected_at: iso(data.collected_at), metrics: m, source: data.source.trim(), note: data.note };
+    body2 = { article_id: data.article_id, kind: data.kind, as_of: iso(data.as_of), collected_at: iso(data.collected_at), metrics: m, source: data.source.trim(), note: data.note };
   }
-  await api(path, { method: "POST", body });
+  await api(path, { method: "POST", body: body2 });
   closeModal();
   toast("数据已保存，总览会同步更新。");
   await renderPage();
@@ -9919,16 +10675,16 @@ async function submitReviewForm({ form, data }) {
 async function submitAccountForm({ form, data, values }) {
   const id = form.dataset.id, epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
   const profile = String(data.profile_url || "").trim();
-  const body = id ? { name: data.name.trim(), active: values.has("active") } : { platform: data.platform, name: data.name.trim() };
-  if (profile || id && (state.accountProfiles || []).some((row) => row.account_id === id)) body.profile_url = profile;
-  const signature = JSON.stringify(body);
+  const body2 = id ? { name: data.name.trim(), active: values.has("active") } : { platform: data.platform, name: data.name.trim() };
+  if (profile || id && (state.accountProfiles || []).some((row) => row.account_id === id)) body2.profile_url = profile;
+  const signature = JSON.stringify(body2);
   if (form.accountSaveSignature !== signature) {
     form.accountSaveSignature = signature;
     form.accountSaveKey = crypto.randomUUID();
   }
   const saved = await api(id ? `/accounts/${encodeURIComponent(id)}` : "/accounts", {
     method: id ? "PUT" : "POST",
-    body,
+    body: body2,
     headers: { "Idempotency-Key": form.accountSaveKey }
   });
   if (epoch !== runtime.sessionEpoch || ticket !== runtime.modalRequestVersion) return;
@@ -10120,13 +10876,13 @@ function handleInput(event) {
     state.listPage = 1;
     updateRoute();
     clearTimeout(runtime.searchTimer);
-    const query = el.value, version = runtime.renderVersion;
+    const query = el.value, version2 = runtime.renderVersion;
     runtime.searchTimer = setTimeout(async () => {
       runtime.searchTimer = null;
-      if (state.page !== "articles" || state.filters.q !== query || runtime.renderVersion !== version) return;
+      if (state.page !== "articles" || state.filters.q !== query || runtime.renderVersion !== version2) return;
       const start = el.selectionStart;
       await renderPage();
-      if (runtime.renderVersion === version + 1 && !$("#overlay").firstChild) {
+      if (runtime.renderVersion === version2 + 1 && !$("#overlay").firstChild) {
         const next = $("#article-filters input[name=q]");
         if (next) {
           next.focus();
@@ -10283,7 +11039,7 @@ async function startServiceWorker({
 } = {}) {
   if (!browser?.serviceWorker || !page || !document2) return null;
   const serviceWorker = browser.serviceWorker;
-  const version = document2.querySelector('meta[name="haoduoyu-shell-version"]')?.content;
+  const version2 = document2.querySelector('meta[name="haoduoyu-shell-version"]')?.content;
   const cleanups = [];
   let registration, button2, optedIn = false, reloaded = false, destroyed = false;
   function listen(target, type, callback) {
@@ -10291,7 +11047,7 @@ async function startServiceWorker({
     cleanups.push(() => target.removeEventListener(type, callback));
   }
   function announce() {
-    if (VERSION.test(version)) serviceWorker.controller?.postMessage({ type: "HAODUOYU_SHELL_CLIENT_VERSION", version });
+    if (VERSION.test(version2)) serviceWorker.controller?.postMessage({ type: "HAODUOYU_SHELL_CLIENT_VERSION", version: version2 });
   }
   function reload() {
     if (!optedIn || reloaded) return;
@@ -10382,14 +11138,64 @@ function textNode(document2, tag, text, className) {
 }
 function readable(value) {
   if (!value) return "（线上已不存在）";
-  const text = value.text ?? value.body ?? value.title;
+  const text = value.body !== void 0 ? value.title + "\n" + value.body : value.text ?? value.title;
   if (typeof value.completed === "boolean") return `${text || ""}
 日期：${value.date || ""}
 完成：${value.completed ? "是" : "否"}
 版本：${value.version || ""}`;
   return typeof text === "string" ? text : JSON.stringify(value, null, 2);
 }
-function queueRows(document2, queue, runtime2, refresh) {
+var absent = (value) => !value || value.deleted || value.deleted_at;
+var selectedLocal = (row) => Object.hasOwn(row, "review_local") ? row.review_local : row.local;
+var selectedRemote = (row) => Object.hasOwn(row, "review_remote") ? row.review_remote : row.remote;
+function conflictLocalChoiceLabel(conflict) {
+  const local = selectedLocal(conflict), remote = selectedRemote(conflict), type = conflict.operation.entity_type;
+  if (absent(local) && absent(remote)) return "确认删除结果";
+  if (conflict.copy_required || absent(remote) || conflict.reason === "MEMO_GROUP_UNAVAILABLE" || type === "todo" && (local?.date !== remote.date || local?.text !== remote.text) || type === "note_entry" && (local?.date !== remote.date || local?.category !== remote.category) || type === "memo_note" && local?.group_id !== remote.group_id) return "另存本地副本";
+  return "用本地";
+}
+function conflictActions(document2, conflict, runtime2, refresh, requests) {
+  const actions2 = document2.createElement("div");
+  actions2.className = "offline-conflict-actions";
+  const localLabel = conflictLocalChoiceLabel(conflict);
+  for (const [choice2, label3] of [["use-local", localLabel], ["use-server", "用线上"], ["keep-both", "两份都留"]]) {
+    const button2 = textNode(document2, "button", label3, "btn text");
+    button2.type = "button";
+    button2.disabled = requests.busy(conflict.key);
+    button2.addEventListener("click", async () => {
+      const controller = requests.begin(conflict.key);
+      if (!controller) return;
+      for (const control of actions2.children) control.disabled = true;
+      const cancel = textNode(document2, "button", "取消", "btn text");
+      cancel.type = "button";
+      cancel.addEventListener("click", () => controller.abort());
+      actions2.append(cancel);
+      try {
+        const result = await runtime2.resolve(conflict.key, choice2, {
+          signal: controller.signal,
+          expected: conflictDecisionToken(conflict),
+          copyConfirmed: localLabel === "另存本地副本"
+        });
+        requests.message(conflict.key, result.blocked ? result.resolution_message : "");
+      } catch (error) {
+        requests.message(conflict.key, error.name === "AbortError" ? "本次选择已取消，原文仍保留。" : error.message);
+      } finally {
+        requests.end(conflict.key, controller);
+        cancel.remove();
+        await refresh();
+      }
+    });
+    actions2.append(button2);
+  }
+  return actions2;
+}
+function conflictEvidence(document2, conflict) {
+  const history2 = document2.createElement("details");
+  history2.append(textNode(document2, "summary", "先前对比（原文保留）"));
+  for (const row of conflict.remote_history || []) history2.append(textNode(document2, "pre", readable(row)));
+  return history2;
+}
+function queueRows(document2, queue, runtime2, refresh, requests) {
   const root = document2.createDocumentFragment();
   if (!queue.operations.length && !queue.conflicts.length) root.append(textNode(document2, "p", "本机内容已同步。"));
   const labels = {
@@ -10400,14 +11206,14 @@ function queueRows(document2, queue, runtime2, refresh) {
     blocked: "需处理",
     conflict: "有冲突"
   };
-  for (const operation of queue.operations) {
+  for (const operation2 of queue.operations) {
     const item = textNode(
       document2,
       "p",
-      `${operation.needs_upgrade ? "需新版" : labels[operation.status] || "等待同步"} · ${readable(operation.local)}`,
+      `${operation2.needs_upgrade ? "需新版" : labels[operation2.status] || "等待同步"} · ${readable(operation2.local)}`,
       "offline-queue-row"
     );
-    if (operation.error) item.append(textNode(document2, "span", " · " + operation.error));
+    if (operation2.error) item.append(textNode(document2, "span", " · " + operation2.error));
     root.append(item);
   }
   for (const conflict of queue.conflicts) {
@@ -10416,35 +11222,32 @@ function queueRows(document2, queue, runtime2, refresh) {
     item.append(
       textNode(document2, "h3", "两份内容已保留"),
       textNode(document2, "p", "本机内容"),
-      textNode(document2, "pre", readable(conflict.local)),
+      textNode(document2, "pre", readable(selectedLocal(conflict))),
       textNode(document2, "p", "线上内容"),
-      textNode(document2, "pre", readable(conflict.remote))
+      textNode(document2, "pre", readable(selectedRemote(conflict)))
     );
-    if (conflict.needs_followup) item.append(textNode(document2, "p", "选择已记下，两份内容仍保留，等待后续处理。", "offline-followup"));
+    if (conflict.remote_history?.length) item.append(conflictEvidence(document2, conflict));
+    if (conflict.resolution_message) item.append(textNode(document2, "p", conflict.resolution_message));
+    if (requests.message(conflict.key)) item.append(textNode(document2, "p", requests.message(conflict.key)));
     if (conflict.needs_upgrade) {
       item.append(textNode(document2, "p", "此本机操作需新版页面处理，原内容已保留。"));
       root.append(item);
       continue;
     }
-    const actions2 = document2.createElement("div");
-    actions2.className = "offline-conflict-actions";
-    for (const [choice2, label3] of [["use-local", "用本地"], ["use-server", "用线上"], ["keep-both", "两份都留"]]) {
-      const button2 = textNode(document2, "button", label3, "btn text");
-      button2.type = "button";
-      button2.addEventListener("click", async () => {
-        button2.disabled = true;
-        try {
-          await runtime2.resolve(conflict.key, choice2);
-          await refresh();
-        } catch (error) {
-          item.append(textNode(document2, "p", error.message));
-        } finally {
-          button2.disabled = false;
-        }
-      });
-      actions2.append(button2);
+    if (conflict.resolution) {
+      const labels2 = {
+        queued: "选择已存本机，正在核对线上结果。",
+        conflict: "新保存有冲突，请核对下方的新比较内容。",
+        blocked: "新保存暂未完成，原文与选择仍保留。",
+        paused: "需联网核实后继续，原文与选择仍保留。"
+      };
+      item.append(textNode(document2, "p", labels2[conflict.resolution.state] || "正在核对线上结果。"));
+      root.append(item);
+      continue;
     }
-    item.append(actions2);
+    if (conflictLocalChoiceLabel(conflict) === "另存本地副本")
+      item.append(textNode(document2, "p", "副本会使用新记录，原记录保持原状。"));
+    item.append(conflictActions(document2, conflict, runtime2, refresh, requests));
     root.append(item);
   }
   return root;
@@ -10465,16 +11268,35 @@ function pageAnnotation(document2, state2) {
     }
     if (banner.textContent !== label3) banner.textContent = label3;
   } else banner?.remove();
-  const content = document2.querySelector("#page-content");
-  if (content) {
+  const content2 = document2.querySelector("#page-content");
+  if (content2) {
     const unavailable = page === "settings" && !state2.online;
-    content.inert = unavailable;
-    if (unavailable || content.dataset.offlineHidden === "true") content.hidden = unavailable;
-    content.dataset.offlineHidden = String(unavailable);
+    content2.inert = unavailable;
+    if (unavailable || content2.dataset.offlineHidden === "true") content2.hidden = unavailable;
+    content2.dataset.offlineHidden = String(unavailable);
   }
 }
 function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   let state2 = { ...runtime2.state }, expanded = false, rendering = 0;
+  const pending = /* @__PURE__ */ new Map(), messages = /* @__PURE__ */ new Map(), requests = {
+    busy: (key) => pending.has(key),
+    begin(key) {
+      if (pending.has(key)) return null;
+      const controller = new AbortController();
+      pending.set(key, controller);
+      return controller;
+    },
+    end(key, controller) {
+      if (pending.get(key) === controller) pending.delete(key);
+    },
+    message(key, value) {
+      if (value !== void 0) messages.set(key, value);
+      return messages.get(key) || "";
+    },
+    cancel() {
+      for (const controller of pending.values()) controller.abort();
+    }
+  };
   const root = document2.createElement("aside");
   root.className = "offline-indicator";
   root.setAttribute("aria-label", "同步状态");
@@ -10490,9 +11312,9 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   root.append(button2, panel);
   async function refreshQueue() {
     if (!expanded) return;
-    const sequence = ++rendering, queue = await runtime2.queue();
-    if (sequence !== rendering || !expanded) return;
-    panel.replaceChildren(textNode(document2, "h2", "同步队列"), queueRows(document2, queue, runtime2, refreshQueue));
+    const sequence2 = ++rendering, queue = await runtime2.queue();
+    if (sequence2 !== rendering || !expanded) return;
+    panel.replaceChildren(textNode(document2, "h2", "同步队列"), queueRows(document2, queue, runtime2, refreshQueue, requests));
   }
   function mount() {
     if (!root.isConnected && document2.body) document2.body.append(root);
@@ -10506,6 +11328,7 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
     expanded = !expanded;
     panel.hidden = !expanded;
     button2.setAttribute("aria-expanded", String(expanded));
+    if (!expanded) requests.cancel();
     if (expanded) void refreshQueue();
   });
   const unsubscribe = runtime2.subscribe((next) => {
@@ -10519,6 +11342,7 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   const stop = runtime2.start({ window: window2, document: document2 });
   mount();
   return () => {
+    requests.cancel();
     unsubscribe();
     observer.disconnect();
     stop();

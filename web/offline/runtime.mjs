@@ -4,6 +4,7 @@ import {createOutbox} from './outbox.mjs';
 import {createSnapshotSync} from './sync.mjs';
 import {createNoteMutations, noteMutationRoute} from './note-mutations.mjs';
 import {createDraftJournal} from './drafts.mjs';
+import {captureConflictDraftGuard} from './conflict-draft-guards.mjs';
 import {createMemoOfflineAdapter, memoRoute} from './memos.mjs';
 
 export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: true});
@@ -92,7 +93,8 @@ function runtimeContext(options) {
   context.outbox = createOutbox({db, request: send, getScope: () => state.scope, now, uuid, timeout: options.timeout,
     enabledTypes: [...(features.todos ? ['todo', 'template'] : []), ...(features.notes ? ['note_entry'] : []),
       ...(features.memos ? ['memo_note', 'memo_group'] : [])],
-    supportedProtocols: features.memos ? [1, 2] : [1], supportedDependencies: features.memos === true});
+    supportedProtocols: features.memos ? [1, 2, 3] : [1, 3], supportedDependencies: features.memos === true,
+    resolutionReceipts: true});
   context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
   context.memos = createMemoOfflineAdapter({db, cache, outbox: context.outbox, getScope: () => state.scope,
     getGeneration: () => context.generation, now, uuid});
@@ -195,12 +197,23 @@ function stateActions(context) {
     result.conflicts = result.conflicts.map(row => outbox.canDispatch(row.operation) ? row : {...row, needs_upgrade: true});
     return owner === state.scope && generation === context.generation ? result : {operations: [], conflicts: []};
   }
-  async function resolve(key, choice) {
+  async function resolve(key, choice, options = {}) {
     if (!state.scope) throw fail('请先核实身份。', 'OFFLINE_SCOPE_REQUIRED');
     const conflict = (await outbox.conflicts.list(state.scope)).find(row => row.key === key);
     if (conflict && !outbox.canDispatch(conflict.operation)) throw fail('此本机操作需新版页面处理，原内容已保留。', 'OFFLINE_UPGRADE_REQUIRED');
-    const result = await outbox.conflicts.resolve(key, choice, {scope: state.scope});
-    await refresh(); context.broadcast(); return result;
+    const owner = state.scope, generation = context.generation;
+    const checkDraft = captureConflictDraftGuard(conflict?.entity_id);
+    const active = () => {
+      if (options.signal?.aborted) throw new DOMException('请求已取消', 'AbortError');
+      if (owner !== state.scope || generation !== context.generation) throw fail('身份已变化，原文已保留。', 'OFFLINE_SCOPE_CHANGED');
+      checkDraft();
+    };
+    active(); await context.verifyScope(); active();
+    const result = await outbox.resolve(key, choice, {scope: owner, assertActive: active,
+      expected: options.expected, copyConfirmed: options.copyConfirmed});
+    await refresh(); context.broadcast();
+    if (result.resolution?.state === 'queued' && context.online()) context.scheduleRetry();
+    return result;
   }
   return {refresh, queue, resolve};
 }
