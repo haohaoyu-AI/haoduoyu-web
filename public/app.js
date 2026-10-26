@@ -1402,6 +1402,19 @@ var uuidPattern2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 var active2 = (operation) => !["acked", "archived"].includes(operation.status);
 var deleted = (value) => Boolean(value && (value.deleted || value.deleted_at));
 var ordered = (rows) => rows.sort((a, b) => a.seq - b.seq);
+var needsUpgrade = () => Object.assign(new Error("此本机操作需新版页面处理，原内容已保留。"), { code: "OFFLINE_UPGRADE_REQUIRED" });
+function dispatchCapabilities(options2) {
+  const types2 = new Set(options2.enabledTypes || Object.keys(prefixes));
+  const protocols = new Set(options2.supportedProtocols || [1]);
+  const canDispatch = (operation) => {
+    const protocol = operation?.protocol === void 0 ? 1 : operation.protocol;
+    return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types2.has(operation.entity_type) && Number.isSafeInteger(protocol) && protocol === 1 && protocols.has(protocol) && !Object.hasOwn(operation, "depends_on"));
+  };
+  const requireDispatch = (operation) => {
+    if (!canDispatch(operation)) throw needsUpgrade();
+  };
+  return { canDispatch, requireDispatch };
+}
 function identity(input, uuid) {
   const prefix = prefixes[input.entity_type];
   if (!prefix) throw new TypeError("This entity is read-only offline");
@@ -1444,6 +1457,7 @@ function operationFor(input, uuid, time2) {
     entity_type: type,
     entity_id,
     source_id: id,
+    protocol: input.protocol === void 0 ? 1 : input.protocol,
     method,
     path,
     body,
@@ -1459,6 +1473,7 @@ function operationFor(input, uuid, time2) {
     error: null
   };
   operation.key = entityKey(input.scope, "operation:" + operation.id);
+  if (Object.hasOwn(input, "depends_on")) operation.depends_on = structuredClone(input.depends_on);
   assertOfflineData(operation);
   return operation;
 }
@@ -1498,12 +1513,18 @@ function validAcknowledgement(operation, remote) {
 function createContext(options2) {
   const { db, request, getScope, now = Date.now, uuid = () => crypto.randomUUID(), timeout = 2e4 } = options2;
   const owner = uuid(), conflicts = createConflictStore({ db, now });
-  const state2 = { phase: "idle", pending: 0, error: null };
+  const state2 = { phase: "idle", pending: 0, unsupported: 0, error: null };
+  const { canDispatch, requireDispatch } = dispatchCapabilities(options2);
   const leaseKey = (scope) => entityKey(scope, "outbox-lease");
   const checkScope = (scope) => {
     if (getScope() !== scope) throw Object.assign(new Error("Offline identity changed"), { code: "OFFLINE_SCOPE_CHANGED" });
   };
   const list = (scope) => db.transaction(["outbox"], "readonly", async (tx) => ordered((await tx.getAll("outbox")).filter((value) => value.scope === scope && active2(value))));
+  const retryable = async (scope) => {
+    const first = /* @__PURE__ */ new Map();
+    for (const row of await list(scope)) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
+    return [...first.values()].filter((row) => canDispatch(row) && ["queued", "unknown", "sending"].includes(row.status));
+  };
   async function lease(scope) {
     checkScope(scope);
     return db.transaction(["meta"], "readwrite", async (tx) => {
@@ -1533,7 +1554,25 @@ function createContext(options2) {
       clearTimeout(timer);
     }
   }
-  return { db, request, getScope, now, uuid, timeout, owner, conflicts, state: state2, leaseKey, checkScope, list, lease, network };
+  return {
+    db,
+    request,
+    getScope,
+    now,
+    uuid,
+    timeout,
+    owner,
+    conflicts,
+    state: state2,
+    leaseKey,
+    checkScope,
+    list,
+    lease,
+    network,
+    canDispatch,
+    requireDispatch,
+    retryable
+  };
 }
 function storageMethods(context) {
   const { db, checkScope, uuid, now, owner } = context;
@@ -1541,6 +1580,7 @@ function storageMethods(context) {
     input.assertActive?.();
     checkScope(input.scope);
     const operation = operationFor(input, uuid, now());
+    context.requireDispatch(operation);
     return db.transaction(["entities", "outbox", "meta"], "readwrite", async (tx) => {
       checkScope(input.scope);
       input.assertActive?.();
@@ -1582,10 +1622,11 @@ function storageMethods(context) {
     });
   }
   async function update(operation, fields) {
+    if (!context.canDispatch(operation)) return null;
     return db.transaction(["outbox", "meta"], "readwrite", async (tx) => {
       const current = await tx.get("outbox", operation.key);
       const held = await tx.get("meta", context.leaseKey(operation.scope));
-      if (!current || held?.owner !== owner || !["queued", "unknown", "sending"].includes(current.status)) return null;
+      if (!context.canDispatch(current) || held?.owner !== owner || !["queued", "unknown", "sending"].includes(current.status)) return null;
       if (!Object.hasOwn(fields, "claim_owner") && current.claim_owner !== owner) return null;
       const result = { ...current, ...fields };
       await tx.put("outbox", result);
@@ -1593,11 +1634,12 @@ function storageMethods(context) {
     });
   }
   async function acknowledge(operation, remote) {
+    context.requireDispatch(operation);
     checkScope(operation.scope);
     await db.transaction(["entities", "outbox"], "readwrite", async (tx) => {
       checkScope(operation.scope);
       const current = await tx.get("outbox", operation.key);
-      if (!current || current.claim_owner !== owner || !["sending", "unknown"].includes(current.status)) {
+      if (!context.canDispatch(current) || current.claim_owner !== owner || !["sending", "unknown"].includes(current.status)) {
         throw new Error("Offline operation claim changed");
       }
       const key = entityKey(operation.scope, operation.entity_id), entity = await tx.get("entities", key);
@@ -1716,12 +1758,13 @@ function processingMethods(context) {
     });
   }
   async function process(operation) {
+    if (!context.canDispatch(operation)) return;
     try {
       const claimed = await update(operation, { claim_owner: owner });
       if (!claimed) return;
       if (["unknown", "sending"].includes(operation.status)) {
         const checked = await reconcile(claimed);
-        if (checked.result === "ack") return acknowledge(claimed, checked.remote);
+        if (checked.result === "ack") return await acknowledge(claimed, checked.remote);
         if (checked.result === "conflict") return conflicts.record({
           operation: claimed,
           remote: checked.remote,
@@ -1732,7 +1775,7 @@ function processingMethods(context) {
       if (!sending) return;
       const remote = await network(operation.scope, operation.path, { method: operation.method, body: operation.body });
       if (!validAcknowledgement(operation, remote)) throw new Error("Invalid offline write acknowledgement");
-      return acknowledge(sending, remote);
+      return await acknowledge(sending, remote);
     } catch (error) {
       return fail3({ ...operation, claim_owner: owner }, error);
     }
@@ -1740,7 +1783,7 @@ function processingMethods(context) {
   return { reconcile, fail: fail3, process };
 }
 function executionMethods(context) {
-  const { getScope, lease, state: state2, list, checkScope, process, db, leaseKey, owner, now } = context;
+  const { getScope, lease, state: state2, list, checkScope, process, db, leaseKey, owner, now, retryable, canDispatch } = context;
   let running = null;
   async function run2() {
     const scope = getScope();
@@ -1751,15 +1794,14 @@ function executionMethods(context) {
     try {
       for (let count = 0; count < 1e3; count++) {
         checkScope(scope);
-        const rows = await list(scope), first = /* @__PURE__ */ new Map();
-        for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
-        const operation = [...first.values()].find((value) => ["queued", "unknown", "sending"].includes(value.status) && value.next_attempt_at <= now());
+        const operation = (await retryable(scope)).find((value) => value.next_attempt_at <= now());
         if (!operation) break;
         await process(operation);
       }
       const pending = await list(scope);
       state2.pending = pending.length;
-      state2.phase = pending.some((value) => value.status === "conflict") ? "conflict" : pending.length ? "pending" : "synced";
+      state2.unsupported = pending.filter((value) => !canDispatch(value)).length;
+      state2.phase = state2.unsupported ? "upgrade-required" : pending.some((value) => value.status === "conflict") ? "conflict" : pending.length ? "pending" : "synced";
       return { ...state2 };
     } catch (error) {
       state2.phase = "paused";
@@ -1783,7 +1825,7 @@ function executionMethods(context) {
       checkScope(scope);
       let count = 0;
       for (const operation of await tx.getAll("outbox")) {
-        if (operation.scope === scope && operation.status === "paused") {
+        if (operation.scope === scope && canDispatch(operation) && operation.status === "paused") {
           await tx.put("outbox", { ...operation, status: "unknown", next_attempt_at: 0, claim_owner: null });
           count++;
         }
@@ -1800,8 +1842,8 @@ function createOutbox(options2) {
   Object.assign(context, receiptMethods(context));
   Object.assign(context, processingMethods(context));
   Object.assign(context, executionMethods(context));
-  const { enqueue, drain, resume, list, state: state2, conflicts } = context;
-  return { enqueue, drain, resume, list, state: state2, conflicts };
+  const { enqueue, drain, resume, list, state: state2, conflicts, canDispatch, retryable } = context;
+  return { enqueue, drain, resume, list, state: state2, conflicts, canDispatch, retryable };
 }
 
 // web/offline/sync.mjs
@@ -2177,6 +2219,7 @@ function runtimeContext(options2) {
     phase: "idle",
     pending: 0,
     conflicts: 0,
+    unsupported: 0,
     lastSuccess: null,
     cachedAt: null,
     error: null,
@@ -2220,7 +2263,16 @@ function runtimeContext(options2) {
       throw error;
     }
   };
-  context.outbox = createOutbox({ db, request: send, getScope: () => state2.scope, now, uuid, timeout: options2.timeout });
+  context.outbox = createOutbox({
+    db,
+    request: send,
+    getScope: () => state2.scope,
+    now,
+    uuid,
+    timeout: options2.timeout,
+    enabledTypes: features.todos ? ["todo", "template"] : [],
+    supportedProtocols: [1]
+  });
   context.snapshot = createSnapshotSync({ db, request: send, getScope: () => state2.scope, now });
   return context;
 }
@@ -2234,6 +2286,7 @@ function identityActions(context) {
     state2.identity = null;
     state2.pending = 0;
     state2.conflicts = 0;
+    state2.unsupported = 0;
     state2.phase = "paused";
     if (forget) await cache.forgetIdentity();
     emit();
@@ -2331,7 +2384,8 @@ function stateActions(context) {
     state2.pending = pending.length;
     state2.conflicts = conflicts.length;
     state2.online = online() && state2.online;
-    if (state2.phase !== "syncing") state2.phase = conflicts.length ? "conflict" : state2.online ? pending.length ? "pending" : "synced" : "offline";
+    state2.unsupported = pending.filter((row) => !outbox.canDispatch(row)).length;
+    if (state2.phase !== "syncing") state2.phase = state2.unsupported ? "upgrade-required" : conflicts.length ? "conflict" : state2.online ? pending.length ? "pending" : "synced" : "offline";
     emit();
     return { ...state2 };
   }
@@ -2339,10 +2393,14 @@ function stateActions(context) {
     if (!state2.scope) return { operations: [], conflicts: [] };
     const owner = state2.scope, generation = context.generation;
     const result = { operations: await outbox.list(owner), conflicts: await outbox.conflicts.list(owner) };
+    result.operations = result.operations.map((row) => outbox.canDispatch(row) ? row : { ...row, needs_upgrade: true });
+    result.conflicts = result.conflicts.map((row) => outbox.canDispatch(row.operation) ? row : { ...row, needs_upgrade: true });
     return owner === state2.scope && generation === context.generation ? result : { operations: [], conflicts: [] };
   }
   async function resolve(key, choice2) {
     if (!state2.scope) throw fail2("请先核实身份。", "OFFLINE_SCOPE_REQUIRED");
+    const conflict = (await outbox.conflicts.list(state2.scope)).find((row) => row.key === key);
+    if (conflict && !outbox.canDispatch(conflict.operation)) throw fail2("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
     const result = await outbox.conflicts.resolve(key, choice2, { scope: state2.scope });
     await refresh();
     context.broadcast();
@@ -2400,11 +2458,10 @@ function syncActions(context) {
     clearTimeout(context.timer);
     const owner = state2.scope;
     if (!owner) return;
-    outbox.list(owner).then((operations2) => {
+    outbox.retryable(owner).then((operations2) => {
       if (context.stopped || state2.scope !== owner) return;
-      const retryable = operations2.filter((row) => ["queued", "unknown", "sending"].includes(row.status));
-      if (!retryable.length) return;
-      const next = Math.min(...retryable.map((row) => row.next_attempt_at || 0));
+      if (!operations2.length) return;
+      const next = Math.min(...operations2.map((row) => row.next_attempt_at || 0));
       const delay = Math.max(100, next - now(), (context.cooldownUntil || 0) - now());
       clearTimeout(context.timer);
       context.timer = setTimeout(() => {
@@ -8800,6 +8857,7 @@ async function startServiceWorker({
 
 // web/offline/ui.mjs
 function offlineStatusLabel(state2) {
+  if (state2.unsupported) return "需新版";
   if (state2.conflicts) return "有冲突";
   if (!state2.online) return `离线（${state2.pending || 0} 条待同步）`;
   if (state2.phase === "syncing" || state2.pending) return "同步中";
@@ -8835,7 +8893,7 @@ function queueRows(document2, queue, runtime2, refresh) {
     const item = textNode(
       document2,
       "p",
-      `${labels[operation.status] || "等待同步"} · ${readable(operation.local)}`,
+      `${operation.needs_upgrade ? "需新版" : labels[operation.status] || "等待同步"} · ${readable(operation.local)}`,
       "offline-queue-row"
     );
     if (operation.error) item.append(textNode(document2, "span", " · " + operation.error));
@@ -8852,6 +8910,11 @@ function queueRows(document2, queue, runtime2, refresh) {
       textNode(document2, "pre", readable(conflict.remote))
     );
     if (conflict.needs_followup) item.append(textNode(document2, "p", "选择已记下，两份内容仍保留，等待后续处理。", "offline-followup"));
+    if (conflict.needs_upgrade) {
+      item.append(textNode(document2, "p", "此本机操作需新版页面处理，原内容已保留。"));
+      root.append(item);
+      continue;
+    }
     const actions2 = document2.createElement("div");
     actions2.className = "offline-conflict-actions";
     for (const [choice2, label3] of [["use-local", "用本地"], ["use-server", "用线上"], ["keep-both", "两份都留"]]) {

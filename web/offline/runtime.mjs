@@ -62,7 +62,7 @@ function runtimeContext(options) {
   const {db, request, now = Date.now, uuid = () => crypto.randomUUID(), online = () => globalThis.navigator?.onLine !== false,
     onIdentity = () => {}, features = OFFLINE_FEATURES} = options;
   const state = {scope: null, verifiedScope: null, identity: null, online: online(), phase: 'idle', pending: 0,
-    conflicts: 0, lastSuccess: null, cachedAt: null, error: null, ready: true};
+    conflicts: 0, unsupported: 0, lastSuccess: null, cachedAt: null, error: null, ready: true};
   const listeners = new Set();
   const emit = () => { for (const callback of listeners) callback({...state}); };
   const cache = createOfflineCache({db, getScope: () => state.scope, getGeneration: () => context.generation, now});
@@ -82,7 +82,8 @@ function runtimeContext(options) {
       throw error;
     }
   };
-  context.outbox = createOutbox({db, request: send, getScope: () => state.scope, now, uuid, timeout: options.timeout});
+  context.outbox = createOutbox({db, request: send, getScope: () => state.scope, now, uuid, timeout: options.timeout,
+    enabledTypes: features.todos ? ['todo', 'template'] : [], supportedProtocols: [1]});
   context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
   return context;
 }
@@ -91,7 +92,7 @@ function identityActions(context) {
   async function invalidate({forget = false} = {}) {
     context.generation++;
     context.authFlight = null;
-    state.scope = null; state.verifiedScope = null; state.identity = null; state.pending = 0; state.conflicts = 0;
+    state.scope = null; state.verifiedScope = null; state.identity = null; state.pending = 0; state.conflicts = 0; state.unsupported = 0;
     state.phase = 'paused';
     if (forget) await cache.forgetIdentity();
     emit();
@@ -169,7 +170,8 @@ function stateActions(context) {
     const [pending, conflicts] = await Promise.all([outbox.list(owner), outbox.conflicts.list(owner)]);
     if (owner !== state.scope || generation !== context.generation) return {...state};
     state.pending = pending.length; state.conflicts = conflicts.length; state.online = online() && state.online;
-    if (state.phase !== 'syncing') state.phase = conflicts.length ? 'conflict' : state.online ?
+    state.unsupported = pending.filter(row => !outbox.canDispatch(row)).length;
+    if (state.phase !== 'syncing') state.phase = state.unsupported ? 'upgrade-required' : conflicts.length ? 'conflict' : state.online ?
       pending.length ? 'pending' : 'synced' : 'offline';
     emit(); return {...state};
   }
@@ -177,10 +179,14 @@ function stateActions(context) {
     if (!state.scope) return {operations: [], conflicts: []};
     const owner = state.scope, generation = context.generation;
     const result = {operations: await outbox.list(owner), conflicts: await outbox.conflicts.list(owner)};
+    result.operations = result.operations.map(row => outbox.canDispatch(row) ? row : {...row, needs_upgrade: true});
+    result.conflicts = result.conflicts.map(row => outbox.canDispatch(row.operation) ? row : {...row, needs_upgrade: true});
     return owner === state.scope && generation === context.generation ? result : {operations: [], conflicts: []};
   }
   async function resolve(key, choice) {
     if (!state.scope) throw fail('请先核实身份。', 'OFFLINE_SCOPE_REQUIRED');
+    const conflict = (await outbox.conflicts.list(state.scope)).find(row => row.key === key);
+    if (conflict && !outbox.canDispatch(conflict.operation)) throw fail('此本机操作需新版页面处理，原内容已保留。', 'OFFLINE_UPGRADE_REQUIRED');
     const result = await outbox.conflicts.resolve(key, choice, {scope: state.scope});
     await refresh(); context.broadcast(); return result;
   }
@@ -225,11 +231,10 @@ function syncActions(context) {
     clearTimeout(context.timer);
     const owner = state.scope;
     if (!owner) return;
-    outbox.list(owner).then(operations => {
+    outbox.retryable(owner).then(operations => {
       if (context.stopped || state.scope !== owner) return;
-      const retryable = operations.filter(row => ['queued', 'unknown', 'sending'].includes(row.status));
-      if (!retryable.length) return;
-      const next = Math.min(...retryable.map(row => row.next_attempt_at || 0));
+      if (!operations.length) return;
+      const next = Math.min(...operations.map(row => row.next_attempt_at || 0));
       const delay = Math.max(100, next - now(), (context.cooldownUntil || 0) - now());
       clearTimeout(context.timer);
       context.timer = setTimeout(() => { if (!context.stopped) void sync(); }, delay);

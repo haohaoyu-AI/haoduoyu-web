@@ -8,6 +8,18 @@ const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const active = operation => !['acked', 'archived'].includes(operation.status);
 const deleted = value => Boolean(value && (value.deleted || value.deleted_at));
 const ordered = rows => rows.sort((a, b) => a.seq - b.seq);
+const needsUpgrade = () => Object.assign(new Error('此本机操作需新版页面处理，原内容已保留。'), {code: 'OFFLINE_UPGRADE_REQUIRED'});
+function dispatchCapabilities(options) {
+  const types = new Set(options.enabledTypes || Object.keys(prefixes));
+  const protocols = new Set(options.supportedProtocols || [1]);
+  const canDispatch = operation => {
+    const protocol = operation?.protocol === undefined ? 1 : operation.protocol;
+    return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types.has(operation.entity_type) &&
+      Number.isSafeInteger(protocol) && protocol === 1 && protocols.has(protocol) && !Object.hasOwn(operation, 'depends_on'));
+  };
+  const requireDispatch = operation => { if (!canDispatch(operation)) throw needsUpgrade(); };
+  return {canDispatch, requireDispatch};
+}
 
 function identity(input, uuid) {
   const prefix = prefixes[input.entity_type];
@@ -49,10 +61,12 @@ function operationFor(input, uuid, time) {
   if (!['todo', 'template'].includes(type)) body.save_id = saveId.toLowerCase();
   else delete body.save_id;
   const operation = {id: uuid(), scope: input.scope, entity_type: type, entity_id, source_id: id,
+    protocol: input.protocol === undefined ? 1 : input.protocol,
     method, path, body, expected_version: expected, save_id: saveId.toLowerCase(), created_at: time,
     attempts: 0, next_attempt_at: 0, status: 'queued', base: input.base || null,
     local: {...structuredClone(input.local || body), id, version: expected + 1}, claim_owner: null, error: null};
   operation.key = entityKey(input.scope, 'operation:' + operation.id);
+  if (Object.hasOwn(input, 'depends_on')) operation.depends_on = structuredClone(input.depends_on);
   assertOfflineData(operation);
   return operation;
 }
@@ -104,13 +118,19 @@ function validAcknowledgement(operation, remote) {
 function createContext(options) {
   const {db, request, getScope, now = Date.now, uuid = () => crypto.randomUUID(), timeout = 20000} = options;
   const owner = uuid(), conflicts = createConflictStore({db, now});
-  const state = {phase: 'idle', pending: 0, error: null};
+  const state = {phase: 'idle', pending: 0, unsupported: 0, error: null};
+  const {canDispatch, requireDispatch} = dispatchCapabilities(options);
   const leaseKey = scope => entityKey(scope, 'outbox-lease');
   const checkScope = scope => {
     if (getScope() !== scope) throw Object.assign(new Error('Offline identity changed'), {code: 'OFFLINE_SCOPE_CHANGED'});
   };
   const list = scope => db.transaction(['outbox'], 'readonly', async tx =>
     ordered((await tx.getAll('outbox')).filter(value => value.scope === scope && active(value))));
+  const retryable = async scope => {
+    const first = new Map();
+    for (const row of await list(scope)) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
+    return [...first.values()].filter(row => canDispatch(row) && ['queued', 'unknown', 'sending'].includes(row.status));
+  };
 
   async function lease(scope) {
     checkScope(scope);
@@ -141,7 +161,8 @@ function createContext(options) {
     } finally { clearTimeout(timer); }
   }
 
-  return {db, request, getScope, now, uuid, timeout, owner, conflicts, state, leaseKey, checkScope, list, lease, network};
+  return {db, request, getScope, now, uuid, timeout, owner, conflicts, state, leaseKey, checkScope, list, lease, network,
+    canDispatch, requireDispatch, retryable};
 }
 
 function storageMethods(context) {
@@ -150,6 +171,7 @@ function storageMethods(context) {
     input.assertActive?.();
     checkScope(input.scope);
     const operation = operationFor(input, uuid, now());
+    context.requireDispatch(operation);
     return db.transaction(['entities', 'outbox', 'meta'], 'readwrite', async tx => {
       checkScope(input.scope);
       input.assertActive?.();
@@ -182,10 +204,11 @@ function storageMethods(context) {
   }
 
   async function update(operation, fields) {
+    if (!context.canDispatch(operation)) return null;
     return db.transaction(['outbox', 'meta'], 'readwrite', async tx => {
       const current = await tx.get('outbox', operation.key);
       const held = await tx.get('meta', context.leaseKey(operation.scope));
-      if (!current || held?.owner !== owner || !['queued', 'unknown', 'sending'].includes(current.status)) return null;
+      if (!context.canDispatch(current) || held?.owner !== owner || !['queued', 'unknown', 'sending'].includes(current.status)) return null;
       if (!Object.hasOwn(fields, 'claim_owner') && current.claim_owner !== owner) return null;
       const result = {...current, ...fields};
       await tx.put('outbox', result);
@@ -194,11 +217,12 @@ function storageMethods(context) {
   }
 
   async function acknowledge(operation, remote) {
+    context.requireDispatch(operation);
     checkScope(operation.scope);
     await db.transaction(['entities', 'outbox'], 'readwrite', async tx => {
       checkScope(operation.scope);
       const current = await tx.get('outbox', operation.key);
-      if (!current || current.claim_owner !== owner || !['sending', 'unknown'].includes(current.status)) {
+      if (!context.canDispatch(current) || current.claim_owner !== owner || !['sending', 'unknown'].includes(current.status)) {
         throw new Error('Offline operation claim changed');
       }
       const key = entityKey(operation.scope, operation.entity_id), entity = await tx.get('entities', key);
@@ -317,12 +341,13 @@ function processingMethods(context) {
   }
 
   async function process(operation) {
+    if (!context.canDispatch(operation)) return;
     try {
       const claimed = await update(operation, {claim_owner: owner});
       if (!claimed) return;
       if (['unknown', 'sending'].includes(operation.status)) {
         const checked = await reconcile(claimed);
-        if (checked.result === 'ack') return acknowledge(claimed, checked.remote);
+        if (checked.result === 'ack') return await acknowledge(claimed, checked.remote);
         if (checked.result === 'conflict') return conflicts.record({operation: claimed, remote: checked.remote,
           reason: deleted(checked.remote) ? 'deleted' : 'version'});
       }
@@ -330,7 +355,7 @@ function processingMethods(context) {
       if (!sending) return;
       const remote = await network(operation.scope, operation.path, {method: operation.method, body: operation.body});
       if (!validAcknowledgement(operation, remote)) throw new Error('Invalid offline write acknowledgement');
-      return acknowledge(sending, remote);
+      return await acknowledge(sending, remote);
     } catch (error) { return fail({...operation, claim_owner: owner}, error); }
   }
 
@@ -338,7 +363,7 @@ function processingMethods(context) {
 }
 
 function executionMethods(context) {
-  const {getScope, lease, state, list, checkScope, process, db, leaseKey, owner, now} = context;
+  const {getScope, lease, state, list, checkScope, process, db, leaseKey, owner, now, retryable, canDispatch} = context;
   let running = null;
   async function run() {
     const scope = getScope();
@@ -348,16 +373,15 @@ function executionMethods(context) {
     try {
       for (let count = 0; count < 1000; count++) {
         checkScope(scope);
-        const rows = await list(scope), first = new Map();
-        for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
-        const operation = [...first.values()].find(value =>
-          ['queued', 'unknown', 'sending'].includes(value.status) && value.next_attempt_at <= now());
+        const operation = (await retryable(scope)).find(value => value.next_attempt_at <= now());
         if (!operation) break;
         await process(operation);
       }
       const pending = await list(scope);
       state.pending = pending.length;
-      state.phase = pending.some(value => value.status === 'conflict') ? 'conflict' : pending.length ? 'pending' : 'synced';
+      state.unsupported = pending.filter(value => !canDispatch(value)).length;
+      state.phase = state.unsupported ? 'upgrade-required' : pending.some(value => value.status === 'conflict') ?
+        'conflict' : pending.length ? 'pending' : 'synced';
       return {...state};
     } catch (error) {
       state.phase = 'paused'; state.error = error.code || 'OFFLINE_UNKNOWN';
@@ -380,7 +404,7 @@ function executionMethods(context) {
       checkScope(scope);
       let count = 0;
       for (const operation of await tx.getAll('outbox')) {
-        if (operation.scope === scope && operation.status === 'paused') {
+        if (operation.scope === scope && canDispatch(operation) && operation.status === 'paused') {
           await tx.put('outbox', {...operation, status: 'unknown', next_attempt_at: 0, claim_owner: null});
           count++;
         }
@@ -399,6 +423,6 @@ export function createOutbox(options) {
   Object.assign(context, receiptMethods(context));
   Object.assign(context, processingMethods(context));
   Object.assign(context, executionMethods(context));
-  const {enqueue, drain, resume, list, state, conflicts} = context;
-  return {enqueue, drain, resume, list, state, conflicts};
+  const {enqueue, drain, resume, list, state, conflicts, canDispatch, retryable} = context;
+  return {enqueue, drain, resume, list, state, conflicts, canDispatch, retryable};
 }
