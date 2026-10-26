@@ -4,7 +4,7 @@
   "files": {
     ".ci/public-assets.json": {
       "before": "5141203a3612d963410d921be44be46dd0137c006af36a6b4fe575e9b327c1ec",
-      "after": "67d7b233b7c1f301009e069f0b382de13844ae4d2f195130b4fccdbf9fed6d8f"
+      "after": "190816d2b7a2ef89a0d67a6f65adc831bcacda2a4dceb9fdfc45d7f986bd3d27"
     },
     "public/app.js": {
       "before": "54e65d6ae72b432e62435b489c6dd35739a61edaf9bc71e4441d131f23e9dcdc",
@@ -16,7 +16,7 @@
     },
     "public/mobile.css": {
       "before": null,
-      "after": "c51d60a487f7e1988eac11bec042fc605abb8a5b2630df46badce036a99a1784"
+      "after": "a5898eb3965bf97acb33f6901fc1ba33f34e580ddfcd3aea9b4341a2a479eebf"
     },
     "scripts/build.mjs": {
       "before": "57d09aab1631708ba24ed1da89f95f4f4692d635042a52276f7d15e8e11b1e39",

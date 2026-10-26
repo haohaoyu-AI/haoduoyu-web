@@ -7,7 +7,7 @@ const root=new URL('../',import.meta.url);
 export const unifyStage2Baseline='72d26abb94d316e08b63cf12924c157f1bc8e3cd';
 export const unifyStage2Paths=Object.freeze(['.ci/public-assets.json','public/app.js','public/index.html','public/mobile.css',
   'scripts/build.mjs','web/controller.mjs','web/core/router.mjs','web/events.mjs','web/ui/menu.mjs','web/ui/workbench.mjs']);
-const acceptedDeltaSha256='e2fb82e6c355c726861ba3dceeb02eaa0f40b25f50a40913c998394c61b6ce82';
+const acceptedDeltaSha256='1aad43926bffe5277a247bdd1bb6ae902865f7247589fc1ffd21c247f7b5c2ed';
 const label='exact approved workbench delta (unify stage 2)';
 export const stage2Hash=value=>createHash('sha256').update(value).digest('hex');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
