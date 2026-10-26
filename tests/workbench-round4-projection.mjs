@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {projectWorkbenchRound5} from './workbench-round5-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 const hash=value=>createHash('sha256').update(value).digest('hex');
@@ -11,6 +12,7 @@ const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==
 export const round4AddedModules=['web/core/note-entries-state.mjs','web/pages/work-reminders.mjs','web/work-reminders-controller.mjs'];
 
 export function projectWorkbenchRound4(file,source) {
+  source=projectWorkbenchRound5(file,source);
   const delta=manifest(),entry=delta.files[file];if(!entry)return source;
   // Earlier projections may call the chain again with its exact released input.
   // The round-four test independently pins every on-disk file to `after`.

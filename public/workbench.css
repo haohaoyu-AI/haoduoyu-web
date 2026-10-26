@@ -283,3 +283,39 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
   .note-entry-editor { font-size:16px; }
   .workbench-settings #memos .memo-layout { min-height:340px; }
 }
+
+/* Round 5: one media entry, two result pages, inline choices and compact notes. */
+.media-page-tabs { display:flex; flex-wrap:wrap; gap:6px; width:fit-content; max-width:100%; margin-bottom:24px;
+  padding:5px; border:1px solid var(--glass-edge); border-radius:18px; background:rgba(255,255,255,.28); }
+.media-page-tabs .media-page-tab { min-height:44px; border:1px solid transparent; box-shadow:none; background:transparent; color:var(--ink-2); }
+.media-page-tabs .media-page-tab[aria-current="page"] { background:rgba(255,255,255,.88); border-color:#fff; color:var(--accent); font-weight:650; }
+.media-publishing-details { margin-top:24px; }
+.media-publishing-details>summary { min-height:44px; color:var(--ink-2); padding:10px 0; }
+.article-status-stats { grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); }
+.article-writer-details { margin-top:12px; }
+#todo-text:is(:focus,:focus-visible) { outline:none; box-shadow:none; border-color:var(--line); }
+#todo-text:focus-visible { border-bottom-color:rgba(82,116,122,.55); }
+.todo-inline-templates { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 18px; }
+.todo-template-chip { min-height:44px; max-width:100%; display:inline-flex; align-items:center; gap:8px; padding:8px 12px;
+  border:1px solid var(--glass-edge); border-radius:14px; background:rgba(255,255,255,.54); color:var(--ink); text-align:left; }
+.todo-template-chip-text { white-space:normal; overflow-wrap:anywhere; }
+.todo-template-chip-status { font-size:11px; color:var(--ink-2); flex:none; }
+.todo-template-chip.is-added { background:rgba(255,255,255,.3); color:var(--ink-2); opacity:1; }
+.todo-template-inline-status { color:var(--ink-2); font-size:12px; padding:8px 0; }
+.notes-composer { padding:18px; border:1px solid var(--glass-edge); border-radius:20px; background:rgba(255,255,255,.48); margin:16px 0; }
+.notes-composer-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; color:var(--ink-2); font-size:13px; }
+.notes-composer .note-entry-editing,.notes-composer .notes-legacy-card { margin:0; padding:0; border:0; background:transparent; }
+.note-entry-saved { position:relative; padding:12px 16px; border-radius:16px; }
+.note-entry-saved .note-entry-head { min-height:32px; padding-right:50px; margin-bottom:4px; }
+.note-entry-saved .note-entry-reader { margin:0; min-height:0; white-space:pre-wrap; overflow:visible; overflow-wrap:anywhere; }
+.note-entry-saved .note-entry-status[data-phase="saved"] { display:none; }
+.note-entry-saved .note-entry-edit { position:absolute; top:6px; right:10px; min-width:44px; min-height:44px; padding:6px; font-size:12px; }
+.note-entry-draft-label { border-left:2px solid rgba(82,116,122,.4); padding-left:10px; }
+.notes-entry-list { gap:10px; }
+@media (max-width:760px) {
+  .media-page-tabs { width:100%; flex-wrap:nowrap; }
+  .media-page-tabs .media-page-tab { flex:1; text-align:center; justify-content:center; }
+  .notes-composer { padding:14px; }
+  .note-entry-saved { padding:10px 14px; }
+  .todo-template-chip { flex-wrap:wrap; }
+}

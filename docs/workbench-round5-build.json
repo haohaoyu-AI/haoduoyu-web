@@ -1,0 +1,17 @@
+{
+  "baseline": "ae1fafe292755ba01df5a8a639b74245eec72752",
+  "worker": {
+    "bytes": 1269372,
+    "sha256": "61e30101b744f56bfe10418cb536b661e9bac5ca8270041b510f6222434c4149"
+  },
+  "archive": {
+    "name": "haoduoyu-workbench-round5.tar",
+    "bytes": 1669120,
+    "sha256": "e66d8966d0ce250d816b9c3746d53fb8642c2a98ccb965bae9683df31b4b88e3"
+  },
+  "migration": "none; existing 22 tables / 9 migrations unchanged",
+  "runtime_config_changes": false,
+  "backend_api_changes": false,
+  "production_data_writes": false,
+  "deployed": false
+}

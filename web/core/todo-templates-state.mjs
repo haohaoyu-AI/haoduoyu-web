@@ -5,7 +5,7 @@ function templateState() {
   const owner = todoOwner();
   if (todoTemplatesState.owner !== owner) {
     Object.assign(todoTemplatesState, { owner, items: [], loaded: false, loading: false, sequence: 0, revision: 0,
-      draft: "", create: null, adding: false, error: "", editing: null, editDraft: "", pending: new Set() });
+      draft: "", create: null, adding: false, error: "", editing: null, editDraft: "", pending: new Set(), readDate: "", readVersion: -1 });
   }
   return todoTemplatesState;
 }

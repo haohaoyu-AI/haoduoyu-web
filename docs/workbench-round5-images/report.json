@@ -1,0 +1,35 @@
+{
+  "synthetic": true,
+  "baseline": "ae1fafe292755ba01df5a8a639b74245eec72752",
+  "completed": true,
+  "checks": [
+    "single media entry, exactly two pages, complete eighty records, account switch and unknown metrics 1440",
+    "quiet todo focus, immediate inline templates, exact date feedback and duplicate guard 1440",
+    "top editor, compact saved edit-time/full-body records, re-edit, reload and category isolation 1440",
+    "eighty article IDs and all stored article/metric bytes untouched 1440",
+    "single media entry, exactly two pages, complete eighty records, account switch and unknown metrics 375",
+    "quiet todo focus, immediate inline templates, exact date feedback and duplicate guard 375",
+    "top editor, compact saved edit-time/full-body records, re-edit, reload and category isolation 375",
+    "eighty article IDs and all stored article/metric bytes untouched 375",
+    "single media entry, exactly two pages, complete eighty records, account switch and unknown metrics 390",
+    "quiet todo focus, immediate inline templates, exact date feedback and duplicate guard 390",
+    "top editor, compact saved edit-time/full-body records, re-edit, reload and category isolation 390",
+    "eighty article IDs and all stored article/metric bytes untouched 390"
+  ],
+  "pageerrors": [],
+  "http_errors": [],
+  "captures": [
+    "overview-1440.png",
+    "articles-1440.png",
+    "todos-1440.png",
+    "notes-1440.png",
+    "overview-375.png",
+    "articles-375.png",
+    "todos-375.png",
+    "notes-375.png",
+    "overview-390.png",
+    "articles-390.png",
+    "todos-390.png",
+    "notes-390.png"
+  ]
+}

@@ -4,15 +4,47 @@ import { isRequestAbort } from "../core/requests.mjs";
 import { bjtDate } from "../core/format.mjs";
 import { runtime, state } from "../core/state.mjs";
 import { mergeTodoTemplate, templateSessionActive, templateState } from "../core/todo-templates-state.mjs";
-import { todoDay } from "../core/todos-state.mjs";
+import { todoDate, todoDay, todoTemplateAdded } from "../core/todos-state.mjs";
 import { loadTodos, submitTodoTemplate } from "./todos.mjs";
+function templateUnavailable(store, day, id) {
+  return !store.loaded || !day.loaded || day.loading || day.adding || store.pending.has(id) || todoTemplateAdded(day, id) ||
+    [...day.removals.values()].some(ticket => ticket.phase === "restoring" && ticket.item.template_id === id);
+}
+function inlineTodoTemplateContent(store) {
+  const day = todoDay(), label = day.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const status = store.loading && !store.loaded ? '<span class="todo-template-inline-status" role="status">正在读取常用待办…</span>' : "";
+  const error = store.error ? `<p class="form-message" role="alert">${e(store.error)}
+<button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
+  return status + error + store.items.map(item => {
+    const added = todoTemplateAdded(day, item.id);
+    return `<button type="button" class="todo-template-chip${added ? " is-added" : ""}" data-action="todo-template-use" data-id="${e(item.id)}"
+aria-label="${e(added ? item.text + '，' + label : '添加：' + item.text)}" ${templateUnavailable(store, day, item.id) ? "disabled" : ""}>
+<span class="todo-template-chip-text">${e(item.text)}</span>${added ? `<span class="todo-template-chip-status">${label}</span>` : ""}</button>`;
+  }).join("");
+}
+function inlineTodoTemplatesEmpty(store) {
+  return store.loaded && !store.items.length && !store.loading && !store.error;
+}
+function renderInlineTodoTemplates() {
+  const store = templateState();
+  return `<div id="todo-inline-templates" class="todo-inline-templates" role="group" aria-label="常用待办"
+aria-busy="${store.loading}" ${inlineTodoTemplatesEmpty(store) ? "hidden" : ""}>${inlineTodoTemplateContent(store)}</div>`;
+}
+function paintInlineTodoTemplates(store) {
+  const root = $("#todo-inline-templates");
+  if (!root) return;
+  const html = inlineTodoTemplateContent(store);
+  if (root.innerHTML !== html) root.innerHTML = html;
+  root.hidden = inlineTodoTemplatesEmpty(store);
+  root.setAttribute("aria-busy", String(store.loading));
+}
 function todoTemplateRows(store) {
-  const day = todoDay(), adding = day.adding;
-  const added = id => day.items.some(item => item.date === day.date && item.template_id === id && !item.deleted_at);
+  const day = todoDay();
+  const added = id => todoTemplateAdded(day, id);
   const addedLabel = day.date === bjtDate() ? "今日已添加" : "当日已添加";
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="添加：${e(item.text)}" ${adding || store.pending.has(item.id) ? "disabled" : ""}>${e(item.text)}</button>
+aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day, item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
 <p class="todo-template-added" data-template-added ${added(item.id) ? "" : "hidden"}>${addedLabel}</p>
@@ -52,9 +84,12 @@ function syncTemplateForm(root, id, value, pending) {
   }
 }
 function paintTodoTemplates() {
+  if (state.page !== "todos" || !state.me) return;
+  const store = templateState();
+  paintInlineTodoTemplates(store);
   const root = $("#todo-templates");
-  if (!root || state.page !== "todos" || !state.me) return;
-  const store = templateState(), editor = $("#todo-template-editor", root), form = $("#todo-template-edit-form", root);
+  if (!root) return;
+  const editor = $("#todo-template-editor", root), form = $("#todo-template-edit-form", root);
   if (editor && (form?.dataset.id || null) !== (store.editing?.id || null)) editor.innerHTML = todoTemplateEditor(store);
   root.dataset.loaded = String(store.loaded);
   const create = $("#todo-template-form", root);
@@ -67,24 +102,31 @@ function paintTodoTemplates() {
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }
 }
-function templateReadActive(store, owner, sequence, version) {
-  return templateSessionActive(owner) && store.sequence === sequence && version === runtime.renderVersion && state.page === "todos";
+function templateReadActive(store, owner, sequence, version, date) {
+  return templateSessionActive(owner) && store.sequence === sequence && version === runtime.renderVersion &&
+    state.page === "todos" && date === todoDate();
 }
-async function loadTodoTemplates() {
+async function loadTodoTemplates({ ensure = false } = {}) {
   if (state.page !== "todos" || !state.me) return;
-  const store = templateState(), owner = store.owner, sequence = ++store.sequence, revision = store.revision, version = runtime.renderVersion;
+  const store = templateState(), date = todoDate(), version = runtime.renderVersion;
+  if (ensure && (store.loaded && !store.error && !store.loading ||
+    store.loading && store.readDate === date && store.readVersion === version)) return;
+  const owner = store.owner, sequence = ++store.sequence, revision = store.revision;
+  store.readDate = date;
+  store.readVersion = version;
   store.loading = true;
+  store.error = "";
   paintTodoTemplates();
   try {
     const data = await api("/todo-templates");
-    if (!templateReadActive(store, owner, sequence, version)) return;
+    if (!templateReadActive(store, owner, sequence, version, date)) return;
     if (revision !== store.revision) return loadTodoTemplates();
     store.items = data.items;
     store.loaded = true;
   } catch (error) {
-    if (templateReadActive(store, owner, sequence, version) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
+    if (templateReadActive(store, owner, sequence, version, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
   } finally {
-    if (templateReadActive(store, owner, sequence, version)) {
+    if (templateSessionActive(owner) && store.sequence === sequence) {
       store.loading = false;
       paintTodoTemplates();
     }
@@ -198,14 +240,14 @@ async function submitTodoTemplateEdit({ form, data }) {
 }
 async function useTodoTemplate(id) {
   const store = templateState(), item = store.items.find((row) => row.id === id);
-  if (item && !store.pending.has(id)) await submitTodoTemplate(item);
+  if (item && !templateUnavailable(store, todoDay(), id)) await submitTodoTemplate(item);
 }
 function refreshOpenTodoTemplates() {
   const store = templateState();
   store.revision++;
-  if (state.todoPanel === "templates") loadTodoTemplates();
+  if (state.page === "todos") void loadTodoTemplates();
 }
 export {
   cancelTodoTemplateEdit, editTodoTemplate, inputTodoTemplate, loadTodoTemplates, paintTodoTemplates, refreshOpenTodoTemplates,
-  renderTodoTemplates, submitTodoTemplateEdit, submitTodoTemplateForm, useTodoTemplate, writeTodoTemplate
+  renderInlineTodoTemplates, renderTodoTemplates, submitTodoTemplateEdit, submitTodoTemplateForm, useTodoTemplate, writeTodoTemplate
 };

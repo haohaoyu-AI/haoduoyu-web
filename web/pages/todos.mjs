@@ -4,9 +4,9 @@ import { bjtDate } from "../core/format.mjs";
 import { isRequestAbort } from "../core/requests.mjs";
 import { updateRoute } from "../core/router.mjs";
 import { runtime, state } from "../core/state.mjs";
-import { mergeTodo, syncTodoDay, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDate } from "../core/todos-state.mjs";
+import { mergeTodo, syncTodoDay, todoDate, todoDay, todoOwner, todoSessionActive, todoTemplateAdded, validTodoDate } from "../core/todos-state.mjs";
 import { todosState } from "../core/todos-state.mjs";
-import { loadTodoTemplates, paintTodoTemplates, refreshOpenTodoTemplates, renderTodoTemplates } from "./todo-templates.mjs";
+import { loadTodoTemplates, paintTodoTemplates, refreshOpenTodoTemplates, renderInlineTodoTemplates, renderTodoTemplates } from "./todo-templates.mjs";
 import { renderTodoUndo, todoBusy } from "./todo-actions.mjs";
 import {
   paintTodoPreferences, receiveTodoPreferences, renderTodoPreferences, todoCompletedMode, todoPreferences
@@ -98,7 +98,7 @@ function todoHeading(day) {
 <button class="btn text" data-action="todo-panel" data-panel="history" aria-controls="todo-history"
 aria-expanded="${state.todoPanel === "history"}">日历</button>
 <button class="btn text" data-action="todo-panel" data-panel="templates" aria-controls="todo-templates"
-aria-expanded="${state.todoPanel === "templates"}">常用</button></div>`;
+aria-expanded="${state.todoPanel === "templates"}">管理常用</button></div>`;
 }
 function renderTodoHistory(day) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
@@ -162,7 +162,7 @@ function renderTodos() {
   const day = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day)}</div>
-${renderTodoHistory(day)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day)}
+${renderTodoHistory(day)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day)}${renderInlineTodoTemplates()}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}
@@ -213,7 +213,7 @@ function todoReadActive(owner, version, date, day, sequence) {
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
-  if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
+  void loadTodoTemplates({ ensure: true });
   const day = todoDay(), date = day.date, owner = todoOwner(), version = runtime.renderVersion;
   const sequence = ++day.sequence, revision = day.revision;
   day.loading = true;
@@ -313,7 +313,7 @@ async function submitTodo({ form, data }) {
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
   const day = todoDay();
-  if (day.adding) return;
+  if (day.adding || todoTemplateAdded(day, template.id)) return;
   let request = day.templateCreates.get(template.id);
   if (!request || request.text !== template.text) {
     request = { id: crypto.randomUUID(), date: day.date, text: template.text, template_id: template.id };

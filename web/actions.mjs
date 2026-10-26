@@ -1,5 +1,5 @@
 import { cancelModalRequests } from "./core/requests.mjs";
-import { navigate, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
+import { navigate, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell, renderMediaOverview } from "./controller.mjs";
 import { api } from "./core/api.mjs";
 import { defaultColumns, defaultFilters, settingsTabs } from "./core/constants.mjs";
 import { $, e } from "./core/dom.mjs";
@@ -13,7 +13,7 @@ import { refreshArticleVerification, retryArticleVerification } from "./pages/ar
 import { dashboardInfoBody, renderDashboard } from "./pages/dashboard.mjs";
 import { articleDetail } from "./pages/detail.mjs";
 import { renderLogin } from "./pages/login.mjs";
-import { reviewModal } from "./pages/reviews.mjs";
+import { reviewModal, reviewRecordsModal } from "./pages/reviews.mjs";
 import { accountModal, keyModal } from "./pages/settings.mjs";
 import { moveTodoDate, moveTodoMonth, refreshTodos, selectTodoDate, setTodoPanel, retryTodoCreate } from "./pages/todos.mjs";
 import { cancelTodoTemplateEdit, editTodoTemplate, useTodoTemplate, writeTodoTemplate } from "./pages/todo-templates.mjs";
@@ -133,7 +133,8 @@ async function actionTopPlatform({ target, action }) {
 }
 function actionAllTop({ target, event, action }) {
   event.preventDefault();
-  state.filters = { ...defaultFilters(), status: "published", platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
+  state.filters = { ...defaultFilters(), status: action === "all-top" ? "published" : "all",
+    platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
      ...action === "all-top" ? { sort: "reads", order: "desc" } : {} };
   state.account = "";
   state.listPage = 1;
@@ -149,13 +150,15 @@ function actionTrendTab({ target, action }) {
   if (["metrics", "publication"].includes(target.dataset.tab)) {
     state.trendTab = target.dataset.tab;
     state.trendOpen = true;
-    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
+    replacePageContent(renderMediaOverview(state.dashboard));
     $("[data-action=trend-tab][data-tab=" + state.trendTab + "]")?.focus();
   }
   return;
 }
 function actionPageMenu({ target, action }) {
-  popover(target, '<button data-action="refresh" role="menuitem">刷新数据</button><a href="/api/v1/export" download role="menuitem">导出发布记录 CSV\
+  const records = ['dashboard','articles'].includes(state.page) ?
+    '<button data-action="media-records" role="menuitem">查看数据记录</button>' : '';
+  popover(target, '<button data-action="refresh" role="menuitem">刷新数据</button>' + records + '<a href="/api/v1/export" download role="menuitem">导出发布记录 CSV\
 </a><a href="/api-docs" target="_blank" rel="noopener noreferrer" role="menuitem">接入文档 ↗</a>', { menu: true, label: "页面操作" });
   return;
 }
@@ -190,15 +193,15 @@ function actionArticleOverviewMode({ target }) {
   renderShell();
   $("[data-action=article-overview-mode][aria-pressed=true]")?.focus();
 }
-function actionShowDue({}) {
+async function actionShowDue({}) {
   state.reviewTab = "pending";
-  navigate("reviews");
+  await reviewRecordsModal();
   return;
 }
 function actionToggleAttention({}) {
   state.attentionExpanded = !state.attentionExpanded;
   if (state.dashboard) {
-    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
+    replacePageContent(renderMediaOverview(state.dashboard));
   }
   return;
 }
@@ -225,6 +228,7 @@ async function actionNewReview({}) {
 async function actionReviewTab({ target, action }) {
   if (["pending", "observations", "daily"].includes(target.dataset.tab)) {
     state.reviewTab = target.dataset.tab;
+    if ($('#media-records')) { await reviewRecordsModal(); return; }
     updateRoute(true);
     const version = runtime.renderVersion + 1;
     await renderPage();
@@ -246,7 +250,7 @@ function actionNewKey({}) {
   return;
 }
 function actionSelectAccount({ id }) {
-  state.filters = { ...defaultFilters(), status: "published" };
+  state.filters = { ...defaultFilters(), status: "all" };
   state.account = id;
   state.listPage = 1;
   navigate("articles");
@@ -288,9 +292,7 @@ function actionResetFilters({}) {
 }
 const actions = {
   "media-menu": ({event}) => {
-    if (!['dashboard', 'articles', 'reviews'].includes(state.page)) {
-      event.preventDefault(); navigate('dashboard'); document.querySelector('.mobile-media-nav').open = true;
-    }
+    event.preventDefault(); navigate('dashboard');
   },
   "notes-menu": ({event}) => {
     if (state.page !== 'notes') {
@@ -298,6 +300,7 @@ const actions = {
     }
   },
   "article-overview-mode": actionArticleOverviewMode,
+  "media-records": reviewRecordsModal,
   "article-verify-retry": retryArticleVerification,
   "article-verify-refresh": refreshArticleVerification,
   "todo-menu": openTodoMenu,

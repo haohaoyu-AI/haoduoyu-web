@@ -43,4 +43,7 @@ function mergeTodo(day, item) {
   if (index < 0) day.items.push(item);
   else if (day.items[index].version <= item.version) day.items[index] = item;
 }
-export { mergeTodo, resetTodos, syncTodoDay, todoDate, todoDay, todoOwner, todoSessionActive, todosState, validTodoDate };
+function todoTemplateAdded(day, id) {
+  return day.items.some(item => item.date === day.date && item.template_id === id && !item.deleted_at);
+}
+export { mergeTodo, resetTodos, syncTodoDay, todoDate, todoDay, todoOwner, todoSessionActive, todoTemplateAdded, todosState, validTodoDate };

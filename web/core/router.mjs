@@ -5,7 +5,8 @@ import { storage } from "./storage.mjs";
 import { dailyNotesRouteDate, setDailyNotesRouteDate, dailyNotesRouteCategory, setDailyNotesRouteCategory } from "./daily-notes-state.mjs";
 import { validTodoDate } from "./todos-state.mjs";
 function normalizeArticlePipelineFilters(filters) {
-  const allowed = { status: Object.keys(statusLabels), slot: ["", ...Object.keys(slotLabels)], writer: ["", ...Object.keys(writerLabels)],
+  const allowed = { status: ["all", "unknown", ...Object.keys(statusLabels)], slot: ["", ...Object.keys(slotLabels)],
+    writer: ["", ...Object.keys(writerLabels)],
     has_warnings: ["", "true", "false"], has_pending_verify: ["", "true", "false"] };
   for (const [key, choices] of Object.entries(allowed)) {
     if (!choices.includes(filters[key])) filters[key] = defaultFilters()[key];
@@ -28,8 +29,7 @@ function updateRoute(push = false) {
   if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
   else u.searchParams.delete("memo_view");
   u.searchParams.set("period", state.overviewPeriod);
-  if (["published", "reconciliation"].includes(state.articleOverviewMode)) u.searchParams.set("article_scope", state.articleOverviewMode);
-  else u.searchParams.delete("article_scope");
+  u.searchParams.delete("article_scope");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
@@ -60,6 +60,7 @@ function readRoute() {
   const raw = params.get("page");
   const fallback = "todos";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
+  if (state.page === "reviews") state.page = "articles";
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date")); setDailyNotesRouteCategory(params.get("notes_category"));
   }
@@ -73,7 +74,7 @@ function readRoute() {
   if (raw === "memos" && params.get("memo_view") === "trash") state.settingsTab = "workspace";
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
-  state.articleOverviewMode = ["published", "reconciliation"].includes(params.get("article_scope")) ? params.get("article_scope") : "drafts";
+  state.articleOverviewMode = "published";
   const account = params.get("account") || "";
   state.account = state.page !== "dashboard" && state.accounts.some((a) => a.id === account) ? account : "";
   state.filters = defaultFilters();

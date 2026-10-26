@@ -9,19 +9,20 @@ import { runtime, state } from "../core/state.mjs";
 import { accountFilter, accountOptions, empty, field, formEnd } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
 import { platformFilter, segmented } from "../ui/segmented.mjs";
-async function renderReviews(version = runtime.renderVersion, context) {
+async function renderReviews(version = runtime.renderVersion, context, {isCurrent = () => true,compactFilters = false} = {}) {
   const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches = (id) => !state.
   filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
   const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ?
      "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
-  if (version !== runtime.renderVersion) return "";
-  if (generation !== runtime.articleIndexGeneration) return renderReviews(version, context);
+  if (version !== runtime.renderVersion || !isCurrent()) return "";
+  if (generation !== runtime.articleIndexGeneration) return renderReviews(version, context,{isCurrent,compactFilters});
   state.reviewArticles = articles;
   const account = (r) => r.account_id || articles.find((a) => a.id === r.article_id)?.account_id, records = rows.filter((r) => matches(account(
   r))), due = dueRows.filter((r) => matches(r.account_id));
   state.reviewRecords = records;
   const tabs = `${segmented("review-tab", [["pending", `待办 ${num(due.length)}`], ["observations", "文章快照"], ["daily", "每日数据"]],
-  tab, "数据类型", "tab", "page-tabs")}<div class="review-summary">${platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`;
+  tab, "数据类型", "tab", "page-tabs")}${compactFilters ? '' : `<div class="review-summary">${
+    platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`}`;
   const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] :
   [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label]) => [
   key, ["likes", "approvals"].includes(key) ? `${label}（${key}）` : label]), [tab === "observations" ? "as_of" : "source",
@@ -40,6 +41,19 @@ async function renderReviews(version = runtime.renderVersion, context) {
       id)}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
   }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" :
   "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
+}
+async function reviewRecordsModal() {
+  openModal('数据记录','<div id="media-records" role="status">正在读取…</div>',{drawer:true});
+  const ticket = runtime.modalRequestVersion, version = runtime.renderVersion, context = beginModalRequests();
+  const isCurrent = () => ticket === runtime.modalRequestVersion && version === runtime.renderVersion;
+  try {
+    const html = await renderReviews(version,context,{isCurrent,compactFilters:true});
+    const root = document.querySelector('#media-records');
+    if (isCurrent() && root) { root.innerHTML = html; root.removeAttribute('role'); }
+  } catch (error) {
+    const root = document.querySelector('#media-records');
+    if (isCurrent() && root) { root.setAttribute('role','alert'); root.textContent = error.message || '数据记录读取失败，请重试'; }
+  }
 }
 async function reviewModal(articleId = "", kind = "latest", indexRetry = false) {
   const context = beginModalRequests();
@@ -89,5 +103,6 @@ class="form-field full"><label for="field-note">复盘备注</label><textarea cl
 }
 export {
   renderReviews,
-  reviewModal
+  reviewModal,
+  reviewRecordsModal
 };

@@ -1,11 +1,12 @@
 import { beginModalRequests } from "../core/requests.mjs";
 import { api } from "../core/api.mjs";
 import { articleChoices, articleColumns, articleStatuses, defaultFilters, modeLabels, platforms } from "../core/constants.mjs";
-import { statusLabels, slotLabels, writerLabels, illustratorLabels, ledgerCell, ledgerTopic } from "../core/article-ledger.mjs";
+import { statusLabels, slotLabels, writerLabels, illustratorLabels, ledgerCell, ledgerTopic, hasRecordedUnknownMetrics } from "../core/article-ledger.mjs";
 import { e, icon } from "../core/dom.mjs";
 import { accountName, duration, localDateTime, num, safeURL, time } from "../core/format.mjs";
 import { modalRequest } from "../core/modal-request.mjs";
 import { normalizeArticlePipelineFilters } from "../core/router.mjs";
+import { loadArticleCatalog, paginateArticleCatalog } from "../core/article-ledger-data.mjs";
 import { runtime, state } from "../core/state.mjs";
 import { accountOptions, articleSelect, badgeMode, dashboardInfo, dashboardMetric, empty, field, formEnd, platformLogo } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
@@ -19,11 +20,14 @@ const pipelineFilters = ["status", "slot", "writer", "has_warnings", "has_pendin
 const boolChoices = { true: "是", false: "否" };
 const publishedArticle = article => !Object.hasOwn(article, "status") || article.status === "published";
 
-function statusSelect(value = "draft_saved", allowUnknown = false) {
-  const unknown = allowUnknown && !Object.hasOwn(statusLabels, value);
-  if (!unknown && !Object.hasOwn(statusLabels, value)) value = "draft_saved";
+function statusSelect(value = "draft_saved", allowUnknown = false, allowAll = false) {
+  const known = Object.hasOwn(statusLabels, value) || allowAll && ["all", "unknown"].includes(value);
+  const unknown = allowUnknown && !known;
+  if (!unknown && !known) value = allowAll ? "all" : "draft_saved";
   return `<label class="form-field">状态<select name="status" class="input" aria-label="文章状态">
 ${unknown ? '<option value="" selected disabled>未确认，请选择状态</option>' : ""}
+${allowAll ? `<option value="all" ${value === "all" ? "selected" : ""}>全部文章</option>` : ""}
+${allowAll ? `<option value="unknown" ${value === "unknown" ? "selected" : ""}>状态未确认</option>` : ""}
 ${Object.entries(statusLabels).map(([key, label]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(label)}</option>`).join("")}
 </select></label>`;
 }
@@ -49,30 +53,34 @@ function articlePagination(meta) {
 <button class="btn" data-action="list-next" aria-label="下一页" ${meta.has_more ? "" : "disabled"}>›</button></div>`;
 }
 async function renderArticles(version = runtime.renderVersion, context) {
-  const f = { ...state.filters }, params = new URLSearchParams();
-  if (state.account) params.set("account_id", state.account);
+  const f = { ...state.filters }, params = new URLSearchParams(), account = state.account, epoch = runtime.sessionEpoch;
+  const all = !f.status || ["all", "unknown"].includes(f.status);
+  if (account) params.set("account_id", account);
   for (const key of ["q", "mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
     if (f[key]) params.set(key, f[key]);
   }
-  params.set("status", f.status || "draft_saved");
+  if (!all) params.set("status", f.status);
   params.set("page", state.listPage);
   params.set("page_size", state.pageSize);
-  const payload = await api(`/articles?${params}`, { envelope: true, context });
-  if (version !== runtime.renderVersion) return "";
+  const payload = all ? paginateArticleCatalog(await loadArticleCatalog(context, {
+    accountId: account, filters: f, allowedAccountIds: state.accounts.map(row => row.id)
+  }), { page: state.listPage, pageSize: state.pageSize }) : await api(`/articles?${params}`, { envelope: true, context });
+  if (version !== runtime.renderVersion || epoch !== runtime.sessionEpoch || account !== state.account) return "";
   const articles = payload.data, meta = payload.meta || { total: articles.length, unfiltered_total: articles.length, has_more: false };
+  if (all) state.listPage = meta.page;
   state.articles = articles;
   state.articleMeta = meta;
   const content = articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "尚未记录文章",
     "", '<button class="btn" data-action="reset-filters">清空筛选</button>');
   return `<section class="card article-list article-ledger article-ledger-list"><form id="article-filters" class="filters">
 <label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}"
-placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${statusSelect(f.status || "draft_saved")}
+placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${statusSelect(f.status || "all", false, true)}
 ${platformFilter("article-platform", f.platform, "文章平台")}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}
 <button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button>
 </form>${filterChips(f)}${content}${articlePagination(meta)}</section>`;
 }
 function pipelineFilterFields(f) {
-  return `${statusSelect(f.status || "draft_saved")}${articleSelect("slot", "槽位", slotLabels, f.slot)}
+  return `${statusSelect(f.status || "all", false, true)}${articleSelect("slot", "槽位", slotLabels, f.slot)}
 ${articleSelect("writer", "写作者", writerLabels, f.writer)}${articleSelect("has_warnings", "有警告", boolChoices, f.has_warnings)}
 ${articleSelect("has_pending_verify", "有明确待核", boolChoices, f.has_pending_verify)}
 ${field("series_no_min", "系列编号自", "number", f.series_no_min, 'min="1" step="1"')}
@@ -108,7 +116,7 @@ function articleDraft(form) {
     filters[key] = String(values.get(key) || "");
   }
   filters.topic = "";
-  if (!Object.hasOwn(statusLabels, filters.status)) filters.status = "draft_saved";
+  if (!["all", "unknown"].includes(filters.status) && !Object.hasOwn(statusLabels, filters.status)) filters.status = "all";
   if (!Object.values(articleColumns).some(([, sort]) => sort === filters.sort)) filters.sort = "published_at";
   if (!["asc", "desc"].includes(filters.order)) filters.order = "desc";
   return { filters: normalizeArticlePipelineFilters(filters), columns: new Set(values.getAll("columns").filter(c => Object.hasOwn(articleColumns, c))),
@@ -121,7 +129,10 @@ function viewDraft(view) {
 }
 function articleCell(article, key) {
   if (pipelineColumns.has(key)) return ledgerCell(article, key);
-  if (["reads", "likes", "comments", "approvals", "as_of", "published"].includes(key) && !publishedArticle(article)) return "未发布";
+  if (["reads", "likes", "comments", "approvals", "as_of"].includes(key) && !publishedArticle(article) &&
+    !hasRecordedUnknownMetrics(article)) return "未发布";
+  if (key === "published" && !publishedArticle(article)) return hasRecordedUnknownMetrics(article) ?
+    article.published_at ? e(time(article.published_at, true)) : "未取得" : "未发布";
   if (["reads", "likes", "comments", "approvals"].includes(key)) return dashboardMetric(article, key);
   if (key === "as_of") return article.latest_as_of ? e(time(article.latest_as_of, true)) : dashboardMetric(article, "as_of");
   if (key === "mode") return badgeMode(article.production_mode);

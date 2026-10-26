@@ -7,8 +7,8 @@ const writerLabels = { dedao: "得到大脑", gemini_web: "Gemini", human: "本�
 const illustratorLabels = { codex: "Codex", pil: "PIL", human: "本人" };
 const metrics = { reads: "阅读", impressions: "展现", likes: "点赞", comments: "评论", favorites: "收藏", shares: "分享", approvals: "赞同", reading_users: "阅读人数" };
 const nav = [
-  { id: "dashboard", label: "总览", icon: "grid" },
-  { id: "articles", label: "文章", icon: "articles" },
+  { id: "dashboard", label: "数据总览", icon: "grid" },
+  { id: "articles", label: "文章详情", icon: "articles" },
   { id: "reviews", label: "数据", icon: "chart" },
   { id: "todos", label: "每日待办", icon: "check" },
   { id: "notes", label: "碎碎念", icon: "edit" },
@@ -19,7 +19,7 @@ const nav = [
 const settingsTabs = { workspace: "工作台", accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
 const legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
 const defaultFilters = () => ({ q: "", mode: "", from: "", to: "", sort: "published_at", order: "desc", group: "", platform: "", topic: "",
-  data_status: "", status: "draft_saved", slot: "", writer: "", has_warnings: "", has_pending_verify: "", series_no_min: "", series_no_max: "" });
+  data_status: "", status: "all", slot: "", writer: "", has_warnings: "", has_pending_verify: "", series_no_min: "", series_no_max: "" });
 const articleColumns = { reads: ["阅读", "reads"], likes: ["点赞", "likes"], comments: ["评论", "comments"], as_of: ["数据截至", "latest_as_of"],
    approvals: ["赞同", "approvals"], mode: ["生产方式", ""], duration: ["耗时", "duration"], published: ["发布日期",
 "published_at"], account: ["账号", ""], status: ["状态", ""], slot: ["槽位", ""], writer: ["写作者", ""],
@@ -29,7 +29,7 @@ const articleStatuses = { no_snapshot: "未采集", missing_reads: "缺阅读数
    "指标不完整", zero_reads: "真实0阅读", date_unverified: "日期待核实" };
 const articleChoices = { topic: { entertainment: "文娱（推断）", insurance: "保险（推断）", unknown: "未推断" }, mode: modeLabels,
 group: { account: "按账号", mode: "按生产方式" } };
-const defaultColumns = ["status", "slot", "writer", "warnings"];
+const defaultColumns = ["account", "status", "reads", "likes", "comments", "as_of"];
 export {
   articleChoices,
   articleColumns,

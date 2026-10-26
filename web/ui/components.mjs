@@ -48,7 +48,7 @@ function pageHeader() {
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
   state.accounts).length : null;
-  const account = state.page === "settings" && state.settingsTab === "accounts";
+  const account = ['dashboard','articles'].includes(state.page) || state.page === "settings" && state.settingsTab === "accounts";
   return `<div class="heading-left"><h1>${e(nav.find((n) => n.id === state.page)?.label || "总览")}</h1><span id="page-count" \
 class="page-count" ${count == null ? "hidden" : ""}>${count == null ? "" : e(num(count))}</span></div><div class="head-actions">${account ? accountFilter() :
   ""}${headerActions()}<button class="icon-button" data-action="page-menu" aria-label="更多页面操作" aria-haspopup="menu" aria-expanded="false" \

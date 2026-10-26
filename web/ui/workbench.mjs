@@ -14,11 +14,16 @@ class="${mobile ? 'mobile-nav-item' : 'nav-item'}${selected ? ' active' : ''}" a
 ${selected ? 'aria-current="page"' : ''}>${icon(item.icon, 18)}<span class="nav-label">${e(item.label)}</span></a>`;
 }
 export function mediaNavigation(mobile = false) {
-  const active = mediaPages.has(state.page), name = mobile ? 'mobile-media-nav' : 'media-nav';
-  return `<details class="${name}${active ? ' active' : ''}" ${!mobile && active ? 'open' : ''}>
-<summary ${mobile ? 'data-action="media-menu"' : ''} title="好多鱼图文" aria-label="好多鱼图文" aria-expanded="${!mobile && active}">
-${icon('articles', 18)}<span class="nav-label">好多鱼图文</span></summary>
-<div class="media-subnav">${nav.filter(item => mediaPages.has(item.id)).map(item => navigationLink(item)).join('')}</div></details>`;
+  const active = mediaPages.has(state.page), name = mobile ? 'mobile-nav-item' : 'nav-item';
+  return `<a href="?page=dashboard" data-nav="dashboard" class="${name} media-link${active ? ' active' : ''}"
+aria-label="好多鱼图文" ${active ? 'aria-current="page"' : ''}>${icon('articles',18)}<span class="nav-label">好多鱼图文</span></a>`;
+}
+export function renderMediaTabs() {
+  if (!mediaPages.has(state.page)) return '';
+  return '<nav class="media-page-tabs" aria-label="图文页面">' +
+    [['dashboard','数据总览'],['articles','文章详情']].map(([page,label]) =>
+      `<a href="?page=${page}" data-nav="${page}" class="btn media-page-tab${state.page === page ? ' active' : ''}"
+${state.page === page ? 'aria-current="page"' : ''}>${label}</a>`).join('') + '</nav>';
 }
 export function notesNavigation(mobile = false) {
   const active = state.page === 'notes', name = mobile ? 'mobile-notes-nav' : 'notes-nav';
@@ -38,8 +43,11 @@ export function mobileNavigation() {
     .filter(item => !mediaPages.has(item.id)).map(item => item.id === 'notes' ? notesNavigation(true) : navigationLink(item, true)).join('')}</nav>`;
 }
 export function syncWorkbenchNavigation() {
-  const active = mediaPages.has(state.page), side = document.querySelector('.media-nav');
-  if (side) { side.open = active; side.classList.toggle('active', active); syncMediaExpanded(side); }
+  const active = mediaPages.has(state.page);
+  for (const link of document.querySelectorAll('.media-link')) {
+    link.classList.toggle('active',active);
+    if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
+  }
   for (const menu of document.querySelectorAll('.notes-nav,.mobile-notes-nav')) {
     menu.open = state.page === 'notes' && menu.classList.contains('notes-nav');
     menu.classList.toggle('active', state.page === 'notes'); syncMediaExpanded(menu);

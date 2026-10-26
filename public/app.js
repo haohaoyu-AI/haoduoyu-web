@@ -36,8 +36,8 @@ var writerLabels = { dedao: "得到大脑", gemini_web: "Gemini", human: "本人
 var illustratorLabels = { codex: "Codex", pil: "PIL", human: "本人" };
 var metrics = { reads: "阅读", impressions: "展现", likes: "点赞", comments: "评论", favorites: "收藏", shares: "分享", approvals: "赞同", reading_users: "阅读人数" };
 var nav = [
-  { id: "dashboard", label: "总览", icon: "grid" },
-  { id: "articles", label: "文章", icon: "articles" },
+  { id: "dashboard", label: "数据总览", icon: "grid" },
+  { id: "articles", label: "文章详情", icon: "articles" },
   { id: "reviews", label: "数据", icon: "chart" },
   { id: "todos", label: "每日待办", icon: "check" },
   { id: "notes", label: "碎碎念", icon: "edit" },
@@ -58,7 +58,7 @@ var defaultFilters = () => ({
   platform: "",
   topic: "",
   data_status: "",
-  status: "draft_saved",
+  status: "all",
   slot: "",
   writer: "",
   has_warnings: "",
@@ -97,7 +97,7 @@ var articleChoices = {
   mode: modeLabels,
   group: { account: "按账号", mode: "按生产方式" }
 };
-var defaultColumns = ["status", "slot", "writer", "warnings"];
+var defaultColumns = ["account", "status", "reads", "likes", "comments", "as_of"];
 
 // web/core/state.mjs
 var state = {
@@ -114,7 +114,7 @@ var state = {
   reviewTab: "observations",
   reviewArticles: [],
   articles: [],
-  articleOverviewMode: "drafts",
+  articleOverviewMode: "published",
   columns: new Set(defaultColumns),
   filters: defaultFilters(),
   listPage: 1,
@@ -555,7 +555,7 @@ function pageHeader() {
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
     state.accounts
   ).length : null;
-  const account = state.page === "settings" && state.settingsTab === "accounts";
+  const account = ["dashboard", "articles"].includes(state.page) || state.page === "settings" && state.settingsTab === "accounts";
   return `<div class="heading-left"><h1>${e(nav.find((n) => n.id === state.page)?.label || "总览")}</h1><span id="page-count" class="page-count" ${count == null ? "hidden" : ""}>${count == null ? "" : e(num(count))}</span></div><div class="head-actions">${account ? accountFilter() : ""}${headerActions()}<button class="icon-button" data-action="page-menu" aria-label="更多页面操作" aria-haspopup="menu" aria-expanded="false" aria-controls="page-menu">⋯</button></div>`;
 }
 function skeleton() {
@@ -621,6 +621,9 @@ var warningLabels = {
   DRAFT_CREDENTIAL_MISSING: "缺少草稿凭证"
 };
 var isPublished = (row) => !Object.hasOwn(row, "status") || row.status === "published";
+function hasRecordedUnknownMetrics(row) {
+  return !isPublished(row) && !Object.hasOwn(statusLabels, row.status) && (row.latest_metrics != null || Array.isArray(row.observations) && row.observations.length > 0 || Array.isArray(row.timeline) && row.timeline.length > 0);
+}
 function safeLedgerURL(value) {
   if (typeof value !== "string" || !/^https?:\/\//i.test(value) || /[\s\u0000-\u001f\u007f]/u.test(value)) return false;
   try {
@@ -649,7 +652,7 @@ function ledgerTopic(row) {
 }
 function ledgerCell(row, key) {
   if (["reads", "likes", "comments", "approvals", "as_of"].includes(key)) {
-    if (!isPublished(row)) return '<span class="article-ledger-muted">未发布</span>';
+    if (!isPublished(row) && !hasRecordedUnknownMetrics(row)) return '<span class="article-ledger-muted">未发布</span>';
     return key === "as_of" && row.latest_as_of ? e(time(row.latest_as_of, true)) : dashboardMetric(row, key);
   }
   if (key === "status") return e(statusLabels[row.status] || (isPublished(row) ? "已发布" : "未确认"));
@@ -834,6 +837,9 @@ function mergeTodo(day, item) {
   const index = day.items.findIndex((row) => row.id === item.id);
   if (index < 0) day.items.push(item);
   else if (day.items[index].version <= item.version) day.items[index] = item;
+}
+function todoTemplateAdded(day, id) {
+  return day.items.some((item) => item.date === day.date && item.template_id === id && !item.deleted_at);
 }
 
 // web/core/session-index-state.mjs
@@ -1124,7 +1130,7 @@ var storage = { get(key) {
 // web/core/router.mjs
 function normalizeArticlePipelineFilters(filters) {
   const allowed = {
-    status: Object.keys(statusLabels),
+    status: ["all", "unknown", ...Object.keys(statusLabels)],
     slot: ["", ...Object.keys(slotLabels)],
     writer: ["", ...Object.keys(writerLabels)],
     has_warnings: ["", "true", "false"],
@@ -1151,8 +1157,7 @@ function updateRoute(push = false) {
   if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
   else u.searchParams.delete("memo_view");
   u.searchParams.set("period", state.overviewPeriod);
-  if (["published", "reconciliation"].includes(state.articleOverviewMode)) u.searchParams.set("article_scope", state.articleOverviewMode);
-  else u.searchParams.delete("article_scope");
+  u.searchParams.delete("article_scope");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
@@ -1186,6 +1191,7 @@ function readRoute() {
   const raw = params.get("page");
   const fallback = "todos";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
+  if (state.page === "reviews") state.page = "articles";
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date"));
     setDailyNotesRouteCategory(params.get("notes_category"));
@@ -1202,7 +1208,7 @@ function readRoute() {
   if (raw === "memos" && params.get("memo_view") === "trash") state.settingsTab = "workspace";
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
-  state.articleOverviewMode = ["published", "reconciliation"].includes(params.get("article_scope")) ? params.get("article_scope") : "drafts";
+  state.articleOverviewMode = "published";
   const account = params.get("account") || "";
   state.account = state.page !== "dashboard" && state.accounts.some((a) => a.id === account) ? account : "";
   state.filters = defaultFilters();
@@ -1249,6 +1255,345 @@ async function modalRequest(path, ticket, version, context) {
   }
 }
 
+// web/core/article-ledger-data.mjs
+var ledgerStatuses = ["drafting", "illustrated", "draft_saved", "published", "failed"];
+var ledgerWriters = ["dedao", "gemini_web", "human", "other"];
+var ledgerLimits = { pageSize: 200, maxRequests: 20, maxRows: 2e3 };
+function ledgerReadError() {
+  return Object.assign(new Error("文章台账读取未完成，请重新加载。"), { code: "LEDGER_INCOMPLETE" });
+}
+function summarizeArticleLedger(rows) {
+  if (!Array.isArray(rows)) throw ledgerReadError();
+  const counts = Object.fromEntries(ledgerStatuses.map((status) => [status, 0]));
+  const writers = [...ledgerWriters, "unknown"].map((writer) => ({ writer, unpublished: 0, published: 0, total: 0 }));
+  for (const row of rows) {
+    if (!row || !ledgerStatuses.includes(row.status)) throw ledgerReadError();
+    counts[row.status]++;
+    const writer = writers.find((item) => item.writer === (ledgerWriters.includes(row.writer) ? row.writer : "unknown"));
+    writer[row.status === "published" ? "published" : "unpublished"]++;
+    writer.total++;
+  }
+  return {
+    verified: true,
+    total: rows.length,
+    unpublished: rows.length - counts.published,
+    published: counts.published,
+    draft_saved: counts.draft_saved,
+    counts,
+    writers: writers.filter((writer) => writer.total > 0),
+    consistency: "paged_not_atomic"
+  };
+}
+function validateLedgerPage(payload, status, accountId, page, expectedTotal, seen) {
+  const rows = payload?.data, meta = payload?.meta, offset = (page - 1) * ledgerLimits.pageSize;
+  if (!Array.isArray(rows) || !meta || !Number.isSafeInteger(meta.total) || meta.total < 0 || meta.total > ledgerLimits.maxRows || meta.page !== page || meta.page_size !== ledgerLimits.pageSize || meta.offset !== offset || typeof meta.has_more !== "boolean" || expectedTotal !== void 0 && expectedTotal !== meta.total || rows.length > ledgerLimits.pageSize || rows.length !== Math.min(ledgerLimits.pageSize, Math.max(0, meta.total - offset)) || meta.has_more !== offset + rows.length < meta.total) throw ledgerReadError();
+  for (const row of rows) {
+    if (!row || typeof row.id !== "string" || !row.id || row.status !== status || typeof row.account_id !== "string" || accountId && row.account_id !== accountId || seen.has(row.id)) throw ledgerReadError();
+    seen.add(row.id);
+  }
+  return { rows, meta };
+}
+async function loadArticleLedgerSummary(context, { accountId = "", request = api } = {}) {
+  const rows = [], seen = /* @__PURE__ */ new Set();
+  let requests = 0;
+  for (const status of ledgerStatuses) {
+    let total;
+    for (let page = 1; ; page++) {
+      if (++requests > ledgerLimits.maxRequests) throw ledgerReadError();
+      const query = new URLSearchParams({ status, page: String(page), page_size: String(ledgerLimits.pageSize) });
+      if (accountId) query.set("account_id", accountId);
+      const payload = await request(`/articles?${query}`, { envelope: true, context });
+      const result = validateLedgerPage(payload, status, accountId, page, total, seen);
+      if (rows.length + result.rows.length > ledgerLimits.maxRows) throw ledgerReadError();
+      total = result.meta.total;
+      rows.push(...result.rows);
+      if (!result.meta.has_more) break;
+    }
+  }
+  return { ...summarizeArticleLedger(rows), requests };
+}
+var catalogLimits = { maxInventory: 4e3, maxRequests: 100 };
+var catalogCachePrefix = "catalog:", catalogCacheTtl = 1e4, catalogCacheSize = 8;
+function catalogCacheKey(accountId, allowed) {
+  return catalogCachePrefix + JSON.stringify([
+    runtime.sessionEpoch,
+    runtime.articleIndexGeneration,
+    state.me?.id ?? null,
+    allowed === null ? null : [...allowed].sort(),
+    accountId
+  ]);
+}
+function catalogCacheEntries() {
+  return [...articleIndexes].filter(([key, value]) => typeof key === "string" && key.startsWith(catalogCachePrefix) && value?.kind === "article-catalog");
+}
+function sweepCatalogCache(now) {
+  for (const [key, value] of catalogCacheEntries()) if (value.expiresAt <= now) articleIndexes.delete(key);
+}
+function readCatalogCache(key, reader) {
+  reader.active();
+  sweepCatalogCache(Date.now());
+  const entry = articleIndexes.get(key);
+  return entry?.kind === "article-catalog" ? entry.catalog : null;
+}
+function writeCatalogCache(key, catalog, reader) {
+  reader.active();
+  const now = Date.now();
+  sweepCatalogCache(now);
+  articleIndexes.set(key, { kind: "article-catalog", expiresAt: now + catalogCacheTtl, catalog });
+  const entries = catalogCacheEntries();
+  for (let index = 0; index < entries.length - catalogCacheSize; index++) articleIndexes.delete(entries[index][0]);
+}
+function catalogReader(context, request) {
+  const identity = state.me?.id, epoch = runtime.sessionEpoch, generation = runtime.articleIndexGeneration;
+  let requests = 0;
+  function active2() {
+    if (context?.controller?.signal?.aborted || identity !== state.me?.id || epoch !== runtime.sessionEpoch || generation !== runtime.articleIndexGeneration) throw new DOMException("文章目录请求已失效", "AbortError");
+  }
+  return { get requests() {
+    return requests;
+  }, active: active2, async read(path, envelope = false) {
+    active2();
+    if (requests >= catalogLimits.maxRequests) throw ledgerReadError();
+    requests++;
+    let result;
+    try {
+      result = await request(path, { envelope, context });
+    } catch (error) {
+      active2();
+      throw error;
+    }
+    active2();
+    return result;
+  } };
+}
+function catalogSummary(rows) {
+  const counts = Object.fromEntries([...ledgerStatuses, "unknown"].map((status) => [status, 0]));
+  const writers = [...ledgerWriters, "unknown"].map((writer) => ({ writer, unpublished: 0, published: 0, total: 0 }));
+  for (const row of rows) {
+    counts[ledgerStatuses.includes(row.status) ? row.status : "unknown"]++;
+    const writer = writers.find((item) => item.writer === (ledgerWriters.includes(row.writer) ? row.writer : "unknown"));
+    writer[row.status === "published" ? "published" : "unpublished"]++;
+    writer.total++;
+  }
+  return {
+    verified: true,
+    total: rows.length,
+    unpublished: rows.length - counts.published,
+    published: counts.published,
+    draft_saved: counts.draft_saved,
+    counts,
+    writers: writers.filter((writer) => writer.total > 0),
+    consistency: "paged_not_atomic"
+  };
+}
+function catalogScope(accountId, allowedAccountIds) {
+  if (typeof accountId !== "string" || allowedAccountIds !== void 0 && !(Array.isArray(allowedAccountIds) || allowedAccountIds instanceof Set)) throw ledgerReadError();
+  const allowed = allowedAccountIds === void 0 ? null : new Set(allowedAccountIds);
+  if (allowed && ([...allowed].some((id) => typeof id !== "string" || !id) || accountId && !allowed.has(accountId))) {
+    throw ledgerReadError();
+  }
+  return allowed;
+}
+function catalogInventory(value, accountId, allowed) {
+  const rows = value?.rows, seen = /* @__PURE__ */ new Set();
+  if (value?.complete !== true || !Array.isArray(rows) || rows.length > catalogLimits.maxInventory || value.total !== rows.length || !value.counts) throw ledgerReadError();
+  for (const row of rows) {
+    if (!row || typeof row.id !== "string" || !row.id || typeof row.account_id !== "string" || !row.account_id || !Object.hasOwn(row, "status") || row.status !== null && typeof row.status !== "string" || seen.has(row.id) || allowed && !allowed.has(row.account_id)) throw ledgerReadError();
+    seen.add(row.id);
+  }
+  const counts = catalogSummary(rows).counts;
+  if (Object.keys(counts).some((key) => value.counts[key] !== counts[key])) throw ledgerReadError();
+  const scoped = rows.filter((row) => !accountId || row.account_id === accountId);
+  if (scoped.length > ledgerLimits.maxRows) throw ledgerReadError();
+  return scoped;
+}
+async function catalogKnownRows(reader, inventory, accountId) {
+  const expected = new Map(inventory.map((row) => [row.id, row])), rows = [], seen = /* @__PURE__ */ new Set();
+  const counts = catalogSummary(inventory).counts;
+  const pages = ledgerStatuses.reduce((total, status) => total + Math.max(1, Math.ceil(counts[status] / ledgerLimits.pageSize)), 0);
+  if (pages > ledgerLimits.maxRequests || 1 + pages + counts.unknown > catalogLimits.maxRequests) throw ledgerReadError();
+  for (const status of ledgerStatuses) {
+    for (let page = 1; ; page++) {
+      const query = new URLSearchParams({ status, page: String(page), page_size: String(ledgerLimits.pageSize) });
+      if (accountId) query.set("account_id", accountId);
+      const payload = await reader.read(`/articles?${query}`, true);
+      const result = validateLedgerPage(payload, status, accountId, page, counts[status], seen);
+      for (const row of result.rows) {
+        const original = expected.get(row.id);
+        if (!original || original.account_id !== row.account_id || original.status !== row.status) throw ledgerReadError();
+      }
+      rows.push(...result.rows);
+      if (!result.meta.has_more) break;
+    }
+  }
+  return { rows, seen, expected };
+}
+async function catalogCompleteRows(reader, inventory, accountId) {
+  const { rows, seen, expected } = await catalogKnownRows(reader, inventory, accountId);
+  for (const original of inventory.filter((row) => !ledgerStatuses.includes(row.status))) {
+    const row = await reader.read(`/articles/${encodeURIComponent(original.id)}`);
+    if (!row || row.id !== original.id || row.account_id !== original.account_id || row.status !== original.status || seen.has(row.id)) throw ledgerReadError();
+    seen.add(row.id);
+    rows.push(row);
+  }
+  if (seen.size !== expected.size || [...expected.keys()].some((id) => !seen.has(id))) throw ledgerReadError();
+  return rows;
+}
+function catalogReconciliation(rows, counts) {
+  const dates = /* @__PURE__ */ new Map(), numbers = /* @__PURE__ */ new Map(), insurance2 = rows.filter((row) => row.slot === "gzh");
+  for (const row of rows) {
+    const date = row.run_date ?? null, key = date ?? "unknown";
+    dates.set(key, { date, count: (dates.get(key)?.count ?? 0) + 1 });
+  }
+  for (const row of insurance2) if (Number.isSafeInteger(row.series_no) && row.series_no > 0) {
+    const entries = numbers.get(row.series_no) || [];
+    entries.push(row.id);
+    numbers.set(row.series_no, entries);
+  }
+  const ordered = [...numbers.keys()].sort((a, b) => a - b), gap_ranges = [];
+  for (let index = 1; index < ordered.length; index++) if (ordered[index] > ordered[index - 1] + 1) {
+    gap_ranges.push({ from: ordered[index - 1] + 1, to: ordered[index] - 1 });
+  }
+  return {
+    complete: true,
+    total: rows.length,
+    counts,
+    rows,
+    dates: [...dates.values()].sort((a, b) => (a.date ?? "z").localeCompare(b.date ?? "z")),
+    schedule: { configured: false, expected: null, missing: null, overdue: null },
+    insurance: {
+      basis: "explicit_gzh_slot",
+      recorded: insurance2.length,
+      numbered: insurance2.filter((row) => row.series_no != null).length,
+      unique_count: ordered.length,
+      highest: ordered.at(-1) ?? null,
+      lowest: ordered[0] ?? null,
+      duplicate_numbers: ordered.filter((number) => numbers.get(number).length > 1).map((number) => ({ number, article_ids: numbers.get(number) })),
+      observed_gap_ranges: gap_ranges,
+      start: null,
+      target: null,
+      sample_mapping: "unknown",
+      counts: catalogSummary(insurance2).counts
+    }
+  };
+}
+function catalogFilterError() {
+  return Object.assign(new Error("文章筛选条件无效，请重新选择。"), { code: "VALIDATION_ERROR" });
+}
+function catalogDate(value, end = false) {
+  if (typeof value !== "string") throw catalogFilterError();
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(value), date = value.slice(0, 10);
+  const validDay = /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date + "T00:00:00Z")) && (/* @__PURE__ */ new Date(date + "T00:00:00Z")).toISOString().slice(0, 10) === date;
+  const clock = value.match(/T(\d{2}):(\d{2})(?::(\d{2}))?/), offset = value.match(/[+-](\d{2}):(\d{2})$/);
+  if (!validDay || !day && (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || Number(clock?.[1]) > 23 || Number(clock?.[2]) > 59 || Number(clock?.[3] || 0) > 59 || offset && (Number(offset[1]) > 23 || Number(offset[2]) > 59))) throw catalogFilterError();
+  const stamp = Date.parse(day ? value + "T00:00:00+08:00" : value);
+  if (!Number.isFinite(stamp)) throw catalogFilterError();
+  return { value: new Date(stamp + (day && end ? 864e5 : 0)).toISOString(), exclusive: day && end };
+}
+function catalogFilters(filters) {
+  if (!filters || typeof filters !== "object" || Array.isArray(filters)) throw catalogFilterError();
+  const values = filters instanceof URLSearchParams ? Object.fromEntries(filters) : { ...filters };
+  const choices = {
+    status: ["all", "unknown", ...ledgerStatuses],
+    platform: ["toutiao", "zhihu", "wechat", "other"],
+    mode: ["manual", "automatic", "mixed", "unknown"],
+    topic: ["entertainment", "insurance", "unknown"],
+    data_status: ["no_snapshot", "missing_reads", "missing_likes", "missing_comments", "incomplete", "zero_reads", "date_unverified"],
+    slot: ["zh1", "zh2", "tt1", "tt2", "zh3", "tt3", "gzh"],
+    writer: ledgerWriters,
+    sort: ["published_at", "reads", "likes", "comments", "approvals", "latest_as_of", "duration"],
+    order: ["asc", "desc"]
+  };
+  for (const [key, options2] of Object.entries(choices)) if (values[key] && !options2.includes(values[key])) throw catalogFilterError();
+  for (const key of ["has_warnings", "has_pending_verify"]) if (values[key] !== void 0 && values[key] !== "") {
+    if (!["true", "false"].includes(values[key])) throw catalogFilterError();
+  }
+  for (const key of ["series_no_min", "series_no_max"]) if (values[key] !== void 0 && values[key] !== "") {
+    if (!/^\d+$/.test(String(values[key])) || !Number.isSafeInteger(Number(values[key])) || Number(values[key]) < 1) throw catalogFilterError();
+    values[key] = Number(values[key]);
+  }
+  if (values.series_no_min && values.series_no_max && values.series_no_min > values.series_no_max) throw catalogFilterError();
+  if (values.q) {
+    if (typeof values.q !== "string" || values.q.length > 300 || !values.q.trim() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(values.q)) throw catalogFilterError();
+    values.q = values.q.trim().replace(/[A-Z]/g, (letter) => letter.toLowerCase());
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(values.from || "") && /^\d{4}-\d{2}-\d{2}$/.test(values.to || "") && values.from > values.to) throw catalogFilterError();
+  values.from = values.from ? catalogDate(values.from) : null;
+  values.to = values.to ? catalogDate(values.to, true) : null;
+  if (values.from && values.to && values.from.value > values.to.value) throw catalogFilterError();
+  return values;
+}
+function catalogMatches(row, filters) {
+  if (filters.status && filters.status !== "all" && (filters.status === "unknown" ? ledgerStatuses.includes(row.status) : row.status !== filters.status)) return false;
+  for (const [key, field2] of [["platform", "platform"], ["mode", "production_mode"], ["topic", "topic"], ["slot", "slot"], ["writer", "writer"]]) {
+    if (filters[key] && row[field2] !== filters[key]) return false;
+  }
+  if (filters.q && ![row.title, row.url, row.summary, row.notes].some((value) => typeof value === "string" && value.replace(/[A-Z]/g, (letter) => letter.toLowerCase()).includes(filters.q))) return false;
+  if (filters.from && (row.published_at == null || row.published_at < filters.from.value)) return false;
+  if (filters.to && (row.published_at == null || (filters.to.exclusive ? row.published_at >= filters.to.value : row.published_at > filters.to.value))) return false;
+  if (filters.series_no_min && (row.series_no == null || row.series_no < filters.series_no_min) || filters.series_no_max && (row.series_no == null || row.series_no > filters.series_no_max)) return false;
+  if (filters.has_warnings && (Array.isArray(row.warnings) && row.warnings.length > 0) !== (filters.has_warnings === "true")) return false;
+  if (filters.has_pending_verify && row.has_pending_verify !== (filters.has_pending_verify === "true")) return false;
+  return catalogDataStatus(row, filters.data_status);
+}
+function catalogDataStatus(row, status) {
+  if (!status) return true;
+  if (status === "no_snapshot") return row.snapshot_status === "not_collected";
+  if (status === "date_unverified") return row.date_status === "unverified";
+  if (status === "zero_reads") return row.latest_metrics?.reads === 0;
+  const missing = Array.isArray(row.missing_metrics) ? row.missing_metrics : [];
+  return status === "incomplete" ? ["reads", "likes", "comments"].some((key) => missing.includes(key)) : missing.includes(status.slice(8));
+}
+function catalogCompare(filters) {
+  const sort = filters.sort || "published_at", direction = filters.order === "asc" ? 1 : -1;
+  const value = (row) => ["reads", "likes", "comments", "approvals"].includes(sort) ? row.latest_metrics?.[sort] ?? null : sort === "duration" ? row.duration_seconds ?? null : sort === "latest_as_of" ? row.latest_as_of ?? null : row.published_at ?? null;
+  return (a, b) => {
+    const left = value(a), right = value(b), publicationA = a.published_at ?? null, publicationB = b.published_at ?? null;
+    if (left === null && right !== null) return 1;
+    if (right === null && left !== null) return -1;
+    const difference = left === right ? 0 : left > right ? 1 : -1;
+    if (difference) return direction * difference;
+    if (publicationA === null && publicationB !== null) return 1;
+    if (publicationB === null && publicationA !== null) return -1;
+    return String(publicationB ?? "").localeCompare(String(publicationA ?? "")) || a.id.localeCompare(b.id);
+  };
+}
+async function loadArticleCatalog(context, { accountId = "", filters = {}, request = api, allowedAccountIds } = {}) {
+  const allowed = catalogScope(accountId, allowedAccountIds), selected = catalogFilters(filters), reader = catalogReader(context, request);
+  reader.active();
+  const key = request === api ? catalogCacheKey(accountId, allowed) : null;
+  let catalog = key ? readCatalogCache(key, reader) : null;
+  if (!catalog) {
+    const inventory = catalogInventory(await reader.read("/article-reconciliation"), accountId, allowed);
+    const rows = await catalogCompleteRows(reader, inventory, accountId), summary = catalogSummary(rows);
+    reader.active();
+    catalog = {
+      data: rows,
+      meta: { total: rows.length, unfiltered_total: rows.length },
+      complete: true,
+      summary,
+      reconciliation: catalogReconciliation(inventory, summary.counts)
+    };
+    if (key) writeCatalogCache(key, catalog, reader);
+  }
+  const data = catalog.data.filter((row) => catalogMatches(row, selected)).sort(catalogCompare(selected));
+  reader.active();
+  return { ...catalog, data, meta: { ...catalog.meta, total: data.length }, requests: reader.requests };
+}
+function paginateArticleCatalog(catalog, { page = 1, pageSize = 20 } = {}) {
+  if (catalog?.complete !== true || !Array.isArray(catalog.data) || catalog.meta?.total !== catalog.data.length) throw ledgerReadError();
+  if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 200) throw catalogFilterError();
+  const current = Math.min(page, Math.max(1, Math.ceil(catalog.data.length / pageSize))), offset = (current - 1) * pageSize;
+  return { ...catalog, data: catalog.data.slice(offset, offset + pageSize), meta: {
+    ...catalog.meta,
+    page: current,
+    page_size: pageSize,
+    offset,
+    has_more: offset + pageSize < catalog.data.length,
+    pagination: "client"
+  } };
+}
+
 // web/ui/segmented.mjs
 function segmented(action, items, selected, label3, attribute = "tab", classes = "") {
   return `<div class="segmented${classes ? " " + e(classes) : ""}" role="group" aria-label="${e(label3)}">${items.map(([value, text]) => `<button type="button" class="btn" data-action="${e(action)}" data-${e(attribute)}="${e(value)}" aria-pressed="${selected === value}">${e(
@@ -1292,11 +1637,14 @@ var pipelineColumns = /* @__PURE__ */ new Set([
 var pipelineFilters = ["status", "slot", "writer", "has_warnings", "has_pending_verify", "series_no_min", "series_no_max"];
 var boolChoices = { true: "是", false: "否" };
 var publishedArticle = (article) => !Object.hasOwn(article, "status") || article.status === "published";
-function statusSelect(value = "draft_saved", allowUnknown = false) {
-  const unknown = allowUnknown && !Object.hasOwn(statusLabels, value);
-  if (!unknown && !Object.hasOwn(statusLabels, value)) value = "draft_saved";
+function statusSelect(value = "draft_saved", allowUnknown = false, allowAll = false) {
+  const known = Object.hasOwn(statusLabels, value) || allowAll && ["all", "unknown"].includes(value);
+  const unknown = allowUnknown && !known;
+  if (!unknown && !known) value = allowAll ? "all" : "draft_saved";
   return `<label class="form-field">状态<select name="status" class="input" aria-label="文章状态">
 ${unknown ? '<option value="" selected disabled>未确认，请选择状态</option>' : ""}
+${allowAll ? `<option value="all" ${value === "all" ? "selected" : ""}>全部文章</option>` : ""}
+${allowAll ? `<option value="unknown" ${value === "unknown" ? "selected" : ""}>状态未确认</option>` : ""}
 ${Object.entries(statusLabels).map(([key, label3]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(label3)}</option>`).join("")}
 </select></label>`;
 }
@@ -1340,17 +1688,23 @@ function articlePagination(meta) {
 <button class="btn" data-action="list-next" aria-label="下一页" ${meta.has_more ? "" : "disabled"}>›</button></div>`;
 }
 async function renderArticles(version = runtime.renderVersion, context) {
-  const f = { ...state.filters }, params = new URLSearchParams();
-  if (state.account) params.set("account_id", state.account);
+  const f = { ...state.filters }, params = new URLSearchParams(), account = state.account, epoch = runtime.sessionEpoch;
+  const all = !f.status || ["all", "unknown"].includes(f.status);
+  if (account) params.set("account_id", account);
   for (const key of ["q", "mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
     if (f[key]) params.set(key, f[key]);
   }
-  params.set("status", f.status || "draft_saved");
+  if (!all) params.set("status", f.status);
   params.set("page", state.listPage);
   params.set("page_size", state.pageSize);
-  const payload = await api(`/articles?${params}`, { envelope: true, context });
-  if (version !== runtime.renderVersion) return "";
+  const payload = all ? paginateArticleCatalog(await loadArticleCatalog(context, {
+    accountId: account,
+    filters: f,
+    allowedAccountIds: state.accounts.map((row) => row.id)
+  }), { page: state.listPage, pageSize: state.pageSize }) : await api(`/articles?${params}`, { envelope: true, context });
+  if (version !== runtime.renderVersion || epoch !== runtime.sessionEpoch || account !== state.account) return "";
   const articles = payload.data, meta = payload.meta || { total: articles.length, unfiltered_total: articles.length, has_more: false };
+  if (all) state.listPage = meta.page;
   state.articles = articles;
   state.articleMeta = meta;
   const content = articles.length ? articleTable(articles) : empty(
@@ -1360,13 +1714,13 @@ async function renderArticles(version = runtime.renderVersion, context) {
   );
   return `<section class="card article-list article-ledger article-ledger-list"><form id="article-filters" class="filters">
 <label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}"
-placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${statusSelect(f.status || "draft_saved")}
+placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${statusSelect(f.status || "all", false, true)}
 ${platformFilter("article-platform", f.platform, "文章平台")}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}
 <button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button>
 </form>${filterChips(f)}${content}${articlePagination(meta)}</section>`;
 }
 function pipelineFilterFields(f) {
-  return `${statusSelect(f.status || "draft_saved")}${articleSelect("slot", "槽位", slotLabels, f.slot)}
+  return `${statusSelect(f.status || "all", false, true)}${articleSelect("slot", "槽位", slotLabels, f.slot)}
 ${articleSelect("writer", "写作者", writerLabels, f.writer)}${articleSelect("has_warnings", "有警告", boolChoices, f.has_warnings)}
 ${articleSelect("has_pending_verify", "有明确待核", boolChoices, f.has_pending_verify)}
 ${field("series_no_min", "系列编号自", "number", f.series_no_min, 'min="1" step="1"')}
@@ -1399,7 +1753,7 @@ function articleDraft(form) {
     filters[key] = String(values.get(key) || "");
   }
   filters.topic = "";
-  if (!Object.hasOwn(statusLabels, filters.status)) filters.status = "draft_saved";
+  if (!["all", "unknown"].includes(filters.status) && !Object.hasOwn(statusLabels, filters.status)) filters.status = "all";
   if (!Object.values(articleColumns).some(([, sort]) => sort === filters.sort)) filters.sort = "published_at";
   if (!["asc", "desc"].includes(filters.order)) filters.order = "desc";
   return {
@@ -1416,7 +1770,8 @@ function viewDraft(view) {
 }
 function articleCell(article, key) {
   if (pipelineColumns.has(key)) return ledgerCell(article, key);
-  if (["reads", "likes", "comments", "approvals", "as_of", "published"].includes(key) && !publishedArticle(article)) return "未发布";
+  if (["reads", "likes", "comments", "approvals", "as_of"].includes(key) && !publishedArticle(article) && !hasRecordedUnknownMetrics(article)) return "未发布";
+  if (key === "published" && !publishedArticle(article)) return hasRecordedUnknownMetrics(article) ? article.published_at ? e(time(article.published_at, true)) : "未取得" : "未发布";
   if (["reads", "likes", "comments", "approvals"].includes(key)) return dashboardMetric(article, key);
   if (key === "as_of") return article.latest_as_of ? e(time(article.latest_as_of, true)) : dashboardMetric(article, "as_of");
   if (key === "mode") return badgeMode(article.production_mode);
@@ -1501,71 +1856,15 @@ async function articleModal(id = "") {
   runtime.articleFormRecord = { record: article, sessionEpoch: runtime.sessionEpoch, ticket: runtime.modalRequestVersion };
 }
 
-// web/core/article-ledger-data.mjs
-var ledgerStatuses = ["drafting", "illustrated", "draft_saved", "published", "failed"];
-var ledgerWriters = ["dedao", "gemini_web", "human", "other"];
-var ledgerLimits = { pageSize: 200, maxRequests: 20, maxRows: 2e3 };
-function ledgerReadError() {
-  return Object.assign(new Error("文章台账读取未完成，请重新加载。"), { code: "LEDGER_INCOMPLETE" });
-}
-function summarizeArticleLedger(rows) {
-  if (!Array.isArray(rows)) throw ledgerReadError();
-  const counts = Object.fromEntries(ledgerStatuses.map((status) => [status, 0]));
-  const writers = [...ledgerWriters, "unknown"].map((writer) => ({ writer, unpublished: 0, published: 0, total: 0 }));
-  for (const row of rows) {
-    if (!row || !ledgerStatuses.includes(row.status)) throw ledgerReadError();
-    counts[row.status]++;
-    const writer = writers.find((item) => item.writer === (ledgerWriters.includes(row.writer) ? row.writer : "unknown"));
-    writer[row.status === "published" ? "published" : "unpublished"]++;
-    writer.total++;
-  }
-  return {
-    verified: true,
-    total: rows.length,
-    unpublished: rows.length - counts.published,
-    published: counts.published,
-    draft_saved: counts.draft_saved,
-    counts,
-    writers: writers.filter((writer) => writer.total > 0),
-    consistency: "paged_not_atomic"
-  };
-}
-function validateLedgerPage(payload, status, accountId, page, expectedTotal, seen) {
-  const rows = payload?.data, meta = payload?.meta, offset = (page - 1) * ledgerLimits.pageSize;
-  if (!Array.isArray(rows) || !meta || !Number.isSafeInteger(meta.total) || meta.total < 0 || meta.total > ledgerLimits.maxRows || meta.page !== page || meta.page_size !== ledgerLimits.pageSize || meta.offset !== offset || typeof meta.has_more !== "boolean" || expectedTotal !== void 0 && expectedTotal !== meta.total || rows.length > ledgerLimits.pageSize || rows.length !== Math.min(ledgerLimits.pageSize, Math.max(0, meta.total - offset)) || meta.has_more !== offset + rows.length < meta.total) throw ledgerReadError();
-  for (const row of rows) {
-    if (!row || typeof row.id !== "string" || !row.id || row.status !== status || typeof row.account_id !== "string" || accountId && row.account_id !== accountId || seen.has(row.id)) throw ledgerReadError();
-    seen.add(row.id);
-  }
-  return { rows, meta };
-}
-async function loadArticleLedgerSummary(context, { accountId = "", request = api } = {}) {
-  const rows = [], seen = /* @__PURE__ */ new Set();
-  let requests = 0;
-  for (const status of ledgerStatuses) {
-    let total;
-    for (let page = 1; ; page++) {
-      if (++requests > ledgerLimits.maxRequests) throw ledgerReadError();
-      const query = new URLSearchParams({ status, page: String(page), page_size: String(ledgerLimits.pageSize) });
-      if (accountId) query.set("account_id", accountId);
-      const payload = await request(`/articles?${query}`, { envelope: true, context });
-      const result = validateLedgerPage(payload, status, accountId, page, total, seen);
-      if (rows.length + result.rows.length > ledgerLimits.maxRows) throw ledgerReadError();
-      total = result.meta.total;
-      rows.push(...result.rows);
-      if (!result.meta.has_more) break;
-    }
-  }
-  return { ...summarizeArticleLedger(rows), requests };
-}
-
 // web/pages/article-ledger-overview.mjs
 var writerNames = { dedao: "得到大脑", gemini_web: "Gemini", human: "人工", other: "其他", unknown: "未记录" };
 function renderArticleLedgerSummary(data) {
-  if (data?.verified !== true) return '<section class="card article-ledger-overview" role="alert"><h2>文章列表</h2><p>数量未取得，请重新加载。</p></section>';
-  if (data.total === 0) return '<section class="card article-ledger-overview article-ledger-empty"><h2>文章列表</h2><p>尚未记录文章。</p></section>';
-  const stats = [["草稿 / 未发布", data.unpublished], ["已存草稿", data.draft_saved], ["已发布", data.published]];
-  return `<section class="card article-ledger-overview"><div class="section-heading"><h2 title="读取期间记录可能更新；产出计划未配置">文章列表</h2></div><dl class="article-ledger-stats">${stats.map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(num(value))}</dd></div>`).join("")}</dl><h3>按写作者</h3><div class="table-scroll"><table class="data-table article-ledger-writers"><thead><tr><th>写作者</th><th>草稿 / 未发布</th><th>已发布</th></tr></thead><tbody>${data.writers.map((row) => `<tr><td>${e(writerNames[row.writer] || "未记录")}</td><td data-label="草稿 / 未发布">${e(num(row.unpublished))}</td><td data-label="已发布">${e(num(row.published))}</td></tr>`).join("")}</tbody></table></div></section>`;
+  if (data?.verified !== true) return '<section class="card article-ledger-overview" role="alert"><h2>文章状态</h2><p>数量未取得，请重新加载。</p></section>';
+  if (data.total === 0) return '<section class="card article-ledger-overview article-ledger-empty"><h2>文章状态</h2><p>尚未记录文章。</p></section>';
+  const labels = { drafting: "起草中", illustrated: "已配图", draft_saved: "草稿已存", published: "已发布", failed: "受阻" };
+  const stats = [["全部文章", data.total], ...Object.entries(labels).map(([key, label3]) => [label3, data.counts?.[key]])];
+  if (data.counts?.unknown > 0) stats.push(["状态未确认", data.counts.unknown]);
+  return `<section class="card article-ledger-overview"><div class="section-heading"><h2 title="读取期间记录可能更新">文章状态</h2></div><dl class="article-ledger-stats article-status-stats">${stats.map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(num(value))}</dd></div>`).join("")}</dl><details class="article-writer-details"><summary>按写作者查看</summary><div class="table-scroll"><table class="data-table article-ledger-writers"><thead><tr><th>写作者</th><th>草稿 / 未发布</th><th>已发布</th></tr></thead><tbody>${data.writers.map((row) => `<tr><td>${e(writerNames[row.writer] || "未记录")}</td><td data-label="草稿 / 未发布">${e(num(row.unpublished))}</td><td data-label="已发布">${e(num(row.published))}</td></tr>`).join("")}</tbody></table></div></details></section>`;
 }
 
 // web/pages/dashboard.mjs
@@ -1584,9 +1883,9 @@ function periodControls() {
 function renderDashboard(data) {
   return renderDashboardSummary(data);
 }
-function renderDashboardSummary(data) {
+function renderDashboardSummary(data, summary) {
   const daily = dailyDates(data), articles = (data.attention_articles || []).filter((a) => ["up", "down"].includes(a.attention?.kind)), visible2 = state.attentionExpanded ? articles : articles.slice(0, 6);
-  return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible2.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible2)}${articles.length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ? "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">暂无每日新增数据。<button class="btn" data-action="new-daily">录入每日数据</button></div>'}</section>
+  return `${summary ? renderArticleLedgerSummary(summary) : ""}${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible2.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible2)}${articles.length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ? "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">暂无每日新增数据。<button class="btn" data-action="new-daily">录入每日数据</button></div>'}</section>
  ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label3]) => `<option value="${e(
     key
   )}" ${state.trendMetric === key ? "selected" : ""}>${e(label3)}</option>`).join("")}</select></label></div>${renderTrend(
@@ -1631,7 +1930,7 @@ function renderCumulative(data) {
     c
   );
   const interactions = c.totals?.likes == null || c.totals?.comments == null ? null : c.totals.likes + c.totals.comments;
-  const stats = [["已记录文章", num(c.article_count)], ["累计阅读", num(c.totals?.reads)], ["篇均阅读", num(c.mean_reads)], ["互动（赞+评）", num(
+  const stats = [["已发布文章", num(c.article_count)], ["累计阅读", num(c.totals?.reads)], ["篇均阅读", num(c.mean_reads)], ["互动（赞+评）", num(
     interactions
   )], ["数据覆盖", c.coverage == null ? "—" : num(c.coverage * 100) + "%"]];
   return `<div class="overview-status" role="status"><span><i class="fresh-dot ${e(fresh.kind)}"></i>${e(fresh.label)}</span><div>${c.no_snapshot_count ? `<button class="btn text" data-action="missing-list" data-status="no_snapshot">未采集 ${e(num(c.no_snapshot_count))} 篇 →</button>` : ""}${due.length ? `<button class="btn text" data-action="show-due">待复盘 ${e(num(due.length))} 条 →</button>` : ""}</div></div>
@@ -1783,11 +2082,11 @@ async function articleIndex(query = "", context) {
 }
 
 // web/pages/reviews.mjs
-async function renderReviews(version = runtime.renderVersion, context) {
+async function renderReviews(version = runtime.renderVersion, context, { isCurrent = () => true, compactFilters = false } = {}) {
   const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
   const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
-  if (version !== runtime.renderVersion) return "";
-  if (generation !== runtime.articleIndexGeneration) return renderReviews(version, context);
+  if (version !== runtime.renderVersion || !isCurrent()) return "";
+  if (generation !== runtime.articleIndexGeneration) return renderReviews(version, context, { isCurrent, compactFilters });
   state.reviewArticles = articles;
   const account = (r) => r.account_id || articles.find((a) => a.id === r.article_id)?.account_id, records = rows.filter((r) => matches(account(
     r
@@ -1800,7 +2099,7 @@ async function renderReviews(version = runtime.renderVersion, context) {
     "数据类型",
     "tab",
     "page-tabs"
-  )}<div class="review-summary">${platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`;
+  )}${compactFilters ? "" : `<div class="review-summary">${platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`}`;
   const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label3]) => [
     key,
     ["likes", "approvals"].includes(key) ? `${label3}（${key}）` : label3
@@ -1820,6 +2119,25 @@ async function renderReviews(version = runtime.renderVersion, context) {
       id
     )}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
   }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" : "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
+}
+async function reviewRecordsModal() {
+  openModal("数据记录", '<div id="media-records" role="status">正在读取…</div>', { drawer: true });
+  const ticket = runtime.modalRequestVersion, version = runtime.renderVersion, context = beginModalRequests();
+  const isCurrent = () => ticket === runtime.modalRequestVersion && version === runtime.renderVersion;
+  try {
+    const html = await renderReviews(version, context, { isCurrent, compactFilters: true });
+    const root = document.querySelector("#media-records");
+    if (isCurrent() && root) {
+      root.innerHTML = html;
+      root.removeAttribute("role");
+    }
+  } catch (error) {
+    const root = document.querySelector("#media-records");
+    if (isCurrent() && root) {
+      root.setAttribute("role", "alert");
+      root.textContent = error.message || "数据记录读取失败，请重试";
+    }
+  }
 }
 async function reviewModal(articleId = "", kind = "latest", indexRetry = false) {
   const context = beginModalRequests();
@@ -2027,7 +2345,9 @@ function templateState() {
       error: "",
       editing: null,
       editDraft: "",
-      pending: /* @__PURE__ */ new Set()
+      pending: /* @__PURE__ */ new Set(),
+      readDate: "",
+      readVersion: -1
     });
   }
   return todoTemplatesState;
@@ -2042,13 +2362,44 @@ function mergeTodoTemplate(item) {
 }
 
 // web/pages/todo-templates.mjs
+function templateUnavailable(store, day, id) {
+  return !store.loaded || !day.loaded || day.loading || day.adding || store.pending.has(id) || todoTemplateAdded(day, id) || [...day.removals.values()].some((ticket) => ticket.phase === "restoring" && ticket.item.template_id === id);
+}
+function inlineTodoTemplateContent(store) {
+  const day = todoDay(), label3 = day.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const status = store.loading && !store.loaded ? '<span class="todo-template-inline-status" role="status">正在读取常用待办…</span>' : "";
+  const error = store.error ? `<p class="form-message" role="alert">${e(store.error)}
+<button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
+  return status + error + store.items.map((item) => {
+    const added = todoTemplateAdded(day, item.id);
+    return `<button type="button" class="todo-template-chip${added ? " is-added" : ""}" data-action="todo-template-use" data-id="${e(item.id)}"
+aria-label="${e(added ? item.text + "，" + label3 : "添加：" + item.text)}" ${templateUnavailable(store, day, item.id) ? "disabled" : ""}>
+<span class="todo-template-chip-text">${e(item.text)}</span>${added ? `<span class="todo-template-chip-status">${label3}</span>` : ""}</button>`;
+  }).join("");
+}
+function inlineTodoTemplatesEmpty(store) {
+  return store.loaded && !store.items.length && !store.loading && !store.error;
+}
+function renderInlineTodoTemplates() {
+  const store = templateState();
+  return `<div id="todo-inline-templates" class="todo-inline-templates" role="group" aria-label="常用待办"
+aria-busy="${store.loading}" ${inlineTodoTemplatesEmpty(store) ? "hidden" : ""}>${inlineTodoTemplateContent(store)}</div>`;
+}
+function paintInlineTodoTemplates(store) {
+  const root = $("#todo-inline-templates");
+  if (!root) return;
+  const html = inlineTodoTemplateContent(store);
+  if (root.innerHTML !== html) root.innerHTML = html;
+  root.hidden = inlineTodoTemplatesEmpty(store);
+  root.setAttribute("aria-busy", String(store.loading));
+}
 function todoTemplateRows(store) {
-  const day = todoDay(), adding = day.adding;
-  const added = (id) => day.items.some((item) => item.date === day.date && item.template_id === id && !item.deleted_at);
+  const day = todoDay();
+  const added = (id) => todoTemplateAdded(day, id);
   const addedLabel = day.date === bjtDate() ? "今日已添加" : "当日已添加";
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="添加：${e(item.text)}" ${adding || store.pending.has(item.id) ? "disabled" : ""}>${e(item.text)}</button>
+aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day, item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
 <p class="todo-template-added" data-template-added ${added(item.id) ? "" : "hidden"}>${addedLabel}</p>
@@ -2088,9 +2439,12 @@ function syncTemplateForm(root, id, value, pending) {
   }
 }
 function paintTodoTemplates() {
+  if (state.page !== "todos" || !state.me) return;
+  const store = templateState();
+  paintInlineTodoTemplates(store);
   const root = $("#todo-templates");
-  if (!root || state.page !== "todos" || !state.me) return;
-  const store = templateState(), editor = $("#todo-template-editor", root), form = $("#todo-template-edit-form", root);
+  if (!root) return;
+  const editor = $("#todo-template-editor", root), form = $("#todo-template-edit-form", root);
   if (editor && (form?.dataset.id || null) !== (store.editing?.id || null)) editor.innerHTML = todoTemplateEditor(store);
   root.dataset.loaded = String(store.loaded);
   const create = $("#todo-template-form", root);
@@ -2106,24 +2460,29 @@ function paintTodoTemplates() {
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }
 }
-function templateReadActive(store, owner, sequence, version) {
-  return templateSessionActive(owner) && store.sequence === sequence && version === runtime.renderVersion && state.page === "todos";
+function templateReadActive(store, owner, sequence, version, date) {
+  return templateSessionActive(owner) && store.sequence === sequence && version === runtime.renderVersion && state.page === "todos" && date === todoDate();
 }
-async function loadTodoTemplates() {
+async function loadTodoTemplates({ ensure = false } = {}) {
   if (state.page !== "todos" || !state.me) return;
-  const store = templateState(), owner = store.owner, sequence = ++store.sequence, revision = store.revision, version = runtime.renderVersion;
+  const store = templateState(), date = todoDate(), version = runtime.renderVersion;
+  if (ensure && (store.loaded && !store.error && !store.loading || store.loading && store.readDate === date && store.readVersion === version)) return;
+  const owner = store.owner, sequence = ++store.sequence, revision = store.revision;
+  store.readDate = date;
+  store.readVersion = version;
   store.loading = true;
+  store.error = "";
   paintTodoTemplates();
   try {
     const data = await api("/todo-templates");
-    if (!templateReadActive(store, owner, sequence, version)) return;
+    if (!templateReadActive(store, owner, sequence, version, date)) return;
     if (revision !== store.revision) return loadTodoTemplates();
     store.items = data.items;
     store.loaded = true;
   } catch (error) {
-    if (templateReadActive(store, owner, sequence, version) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
+    if (templateReadActive(store, owner, sequence, version, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
   } finally {
-    if (templateReadActive(store, owner, sequence, version)) {
+    if (templateSessionActive(owner) && store.sequence === sequence) {
       store.loading = false;
       paintTodoTemplates();
     }
@@ -2238,12 +2597,12 @@ async function submitTodoTemplateEdit({ form, data }) {
 }
 async function useTodoTemplate(id) {
   const store = templateState(), item = store.items.find((row) => row.id === id);
-  if (item && !store.pending.has(id)) await submitTodoTemplate(item);
+  if (item && !templateUnavailable(store, todoDay(), id)) await submitTodoTemplate(item);
 }
 function refreshOpenTodoTemplates() {
   const store = templateState();
   store.revision++;
-  if (state.todoPanel === "templates") loadTodoTemplates();
+  if (state.page === "todos") void loadTodoTemplates();
 }
 
 // web/pages/todo-actions.mjs
@@ -2569,7 +2928,7 @@ function todoHeading(day) {
 <button class="btn text" data-action="todo-panel" data-panel="history" aria-controls="todo-history"
 aria-expanded="${state.todoPanel === "history"}">日历</button>
 <button class="btn text" data-action="todo-panel" data-panel="templates" aria-controls="todo-templates"
-aria-expanded="${state.todoPanel === "templates"}">常用</button></div>`;
+aria-expanded="${state.todoPanel === "templates"}">管理常用</button></div>`;
 }
 function renderTodoHistory(day) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
@@ -2642,7 +3001,7 @@ function renderTodos() {
   const day = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day)}</div>
-${renderTodoHistory(day)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day)}
+${renderTodoHistory(day)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day)}${renderInlineTodoTemplates()}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}
@@ -2701,7 +3060,7 @@ function todoReadActive(owner, version, date, day, sequence) {
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
-  if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
+  void loadTodoTemplates({ ensure: true });
   const day = todoDay(), date = day.date, owner = todoOwner(), version = runtime.renderVersion;
   const sequence = ++day.sequence, revision = day.revision;
   day.loading = true;
@@ -2804,7 +3163,7 @@ async function submitTodo({ form, data }) {
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
   const day = todoDay();
-  if (day.adding) return;
+  if (day.adding || todoTemplateAdded(day, template.id)) return;
   let request = day.templateCreates.get(template.id);
   if (!request || request.text !== template.text) {
     request = { id: crypto.randomUUID(), date: day.date, text: template.text, template_id: template.id };
@@ -2892,10 +3251,59 @@ function registerTodosClock() {
   scheduleTodoClock();
 }
 
+// web/core/notes-editor-view.mjs
+var attentionPhases = ["unknown", "conflict", "oversize", "error"];
+function noteDraftNeedsAttention(item) {
+  return Boolean(item && (item.dirty || item.pending || attentionPhases.includes(item.phase)));
+}
+function noteEditorCanCollapse(item) {
+  return Boolean(item && item.loaded && !item.loading && !item.composing && !noteDraftNeedsAttention(item) && (item.version > 0 || item.phase === "empty" && !item.draft.trim()));
+}
+function createNotesEditorView() {
+  const views = /* @__PURE__ */ new Map();
+  const page = (category, date) => {
+    const key = category + ":" + date;
+    if (!views.has(key)) views.set(key, { active: "", revision: 0, collapseRequested: false, explicit: false });
+    return views.get(key);
+  };
+  function activate(category, date, key) {
+    const view = page(category, date);
+    view.active = key;
+    view.revision++;
+    view.collapseRequested = false;
+    view.explicit = false;
+    return view;
+  }
+  function requestCollapse(category, date, key, revision, { explicit = false } = {}) {
+    const view = page(category, date);
+    if (view.active !== key || view.revision !== revision) return;
+    view.collapseRequested = true;
+    view.explicit = explicit;
+  }
+  function sync(category, date, items, legacy, { focused = false, composing = false } = {}) {
+    const view = page(category, date), item = view.active === "legacy" ? legacy : items.find((value) => value.id === view.active);
+    if (view.active && !item) activate(category, date, "");
+    else if (view.collapseRequested && noteEditorCanCollapse(item) && !composing && (!focused || view.explicit)) {
+      activate(category, date, "");
+    }
+    if (!view.active) {
+      const draft = items.find(noteDraftNeedsAttention);
+      if (draft) activate(category, date, draft.id);
+      else if (noteDraftNeedsAttention(legacy)) activate(category, date, "legacy");
+    }
+    return view;
+  }
+  const clear = () => views.clear();
+  return { page, activate, requestCollapse, sync, clear };
+}
+
 // web/pages/daily-notes.mjs
+function legacyEditorMarkup() {
+  return '<article id="notes-legacy-card" class="note-entry note-entry-editing notes-legacy-card" hidden><div class="note-entry-head"><span class="note-entry-time">原有记录 <time id="notes-legacy-time" hidden></time></span><span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">原有记录内容</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader"></div><p id="notes-empty" hidden>这条记录没有文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复原有记录</button><button class="btn text" type="button" data-notes-action="delete">删除原有记录</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除原有记录？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div></article>';
+}
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ["life", "work"].map((value) => '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' + (value === "work" ? "工作碎碎念" : "生活碎碎念") + "</button>").join("") + '</div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-card" class="note-entry notes-legacy-card" hidden><div class="note-entry-head"><span class="note-entry-time">原有记录</span><span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">这一天的碎碎念</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader" tabindex="0"></div><p id="notes-empty" class="notes-empty" hidden>这一天还没有留下文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复这一天</button><button class="btn text" type="button" data-notes-action="delete">删除原有记录</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除原有记录？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div></article><aside class="notes-history" aria-label="已有碎碎念的日期"><h2>最近的文字</h2><div id="notes-dates"></div><p id="notes-dates-error" role="status"></p><button class="btn text" type="button" data-notes-action="more" hidden>更早的日期</button></aside></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ["life", "work"].map((value) => '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' + (value === "work" ? "工作碎碎念" : "生活碎碎念") + "</button>").join("") + '</div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><span>正在编辑</span><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><span>原有记录 <time hidden></time></span><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">编辑</button></article></section>';
 }
 var statuses = {
   loading: "正在读取…",
@@ -2906,100 +3314,104 @@ var statuses = {
   error: "暂未保存",
   oversize: "文字过长"
 };
-function paintDailyNotes(root, item, { drafts = [], dates = [], hasMore = false, datesLoading = false, datesError = "", compatibility = false } = {}) {
+function noteEntryTime(value) {
+  if (!value || !Number.isFinite(Date.parse(value))) return "";
+  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value));
+}
+function paintTime(time2, value, fallback = "") {
+  const actual = noteEntryTime(value);
+  time2.textContent = actual ? "修改 " + actual : fallback;
+  time2.hidden = !actual && !fallback;
+  if (actual) {
+    time2.dateTime = value;
+    time2.title = "修改时间（北京时间）：" + new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+  } else {
+    time2.removeAttribute("datetime");
+    time2.removeAttribute("title");
+  }
+}
+function paintEditorValue(editor, text) {
+  if (editor.dataset.composing === "true" || editor.value === text) return;
+  const active2 = typeof document !== "undefined" && document.activeElement === editor, start = editor.selectionStart, end = editor.selectionEnd, direction = editor.selectionDirection, scroll = editor.scrollTop;
+  editor.value = text;
+  if (active2) {
+    editor.setSelectionRange(Math.min(start, text.length), Math.min(end, text.length), direction);
+    editor.scrollTop = scroll;
+  }
+}
+function paintDailyNotes(root, item, { compatibility = false, editing: editing3 = false } = {}) {
   if (!root) return;
-  root.dataset.date = item.date;
-  const find = (selector) => root.querySelector(selector);
-  const date = find("#notes-date"), editor = find("#notes-editor"), reader = find("#notes-reader");
-  if (date.value !== item.date) date.value = item.date;
+  const find = (selector) => root.querySelector(selector), editor = find("#notes-editor"), reader = find("#notes-reader");
   editor.dataset.date = item.date;
-  editor.hidden = !item.loaded || !item.canEdit;
+  editor.dataset.category = root.dataset.category || dailyNotesRouteCategory();
+  editor.hidden = !editing3 || !item.loaded || item.deleted;
+  editor.readOnly = !item.canEdit;
   editor.disabled = ["delete", "restore"].includes(item.pending?.kind);
-  if (editor.dataset.composing !== "true" && editor.value !== item.draft) editor.value = item.draft;
-  reader.hidden = !item.loaded || item.canEdit || !item.serverText;
-  reader.textContent = item.serverText;
+  paintEditorValue(editor, item.draft);
+  reader.hidden = !item.loaded || editing3 && !item.deleted;
+  reader.textContent = item.deleted ? "原有记录已删除。" : item.serverText;
   find("#notes-empty").hidden = !item.loaded || item.canEdit || Boolean(item.serverText);
-  const actual = statuses[item.phase] || (item.canEdit ? "已保存" : "公开只读");
   const status = find(compatibility ? "#notes-legacy-status" : "#notes-status");
-  status.textContent = !item.loaded && item.loading ? "正在读取…" : item.canEdit && ["dirty", "saving", "saved"].includes(item.phase) ? "自动保存" : actual;
-  status.setAttribute("aria-label", actual);
+  status.textContent = statuses[item.phase] || (item.deleted ? "已删除" : item.canEdit ? "已保存" : "公开只读");
   status.dataset.phase = item.phase;
   find("#notes-message").hidden = !item.error;
   find("#notes-message").textContent = item.error;
   find("#notes-detail").textContent = item.canEdit ? dailyNotesBytes(item.draft) + " / 65536 字节 · 自动保存" : "所有访客都能阅读";
-  find("#notes-write-actions").hidden = !item.loaded || !item.canEdit;
-  if (!compatibility) find('[data-notes-action="login"]').hidden = !item.loaded || item.canEdit;
+  find("#notes-write-actions").hidden = !editing3 || !item.loaded || !item.canEdit;
   const blocked2 = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
   find('[data-notes-action="save"]').disabled = blocked2 || !item.dirty;
   find('[data-notes-action="restore"]').hidden = !item.deleted;
   find('[data-notes-action="restore"]').disabled = blocked2 || item.dirty;
   find('[data-notes-action="delete"]').disabled = blocked2 || item.deleted || item.version === 0;
-  find('[data-notes-action="next"]').disabled = item.date >= dailyNotesToday();
-  if (!compatibility) {
-    const draftBox = find("#notes-drafts");
-    const retained = drafts.filter((value) => value.date !== item.date || ["conflict", "unknown", "oversize", "error"].includes(value.phase));
-    draftBox.hidden = !retained.length;
-    draftBox.innerHTML = "<span>本页签保留的未保存草稿：</span>" + retained.map((value) => '<button class="btn text" type="button" data-notes-date="' + e(value.date) + '">' + e(value.date) + "</button>").join("");
-  }
-  find("#notes-resolution").hidden = !["conflict", "unknown"].includes(item.phase) && !(item.phase === "error" && !item.loaded);
+  find("#notes-resolution").hidden = !["conflict", "unknown"].includes(item.phase) && item.phase !== "error";
   find('[data-notes-action="check"]').disabled = item.loading || Boolean(item.pending?.checking);
   find('[data-notes-action="retry"]').hidden = item.phase !== "unknown" || !item.pending?.retryReady || !item.canEdit;
   find("#notes-conflict-actions").hidden = item.phase !== "conflict" || !item.remote;
-  find("#notes-remote").textContent = item.remote?.deleted ? "（这一天已删除）" : item.remote?.text || "（空白）";
+  find("#notes-remote").textContent = item.remote?.deleted ? "（原有记录已删除）" : item.remote?.text || "（空白）";
   find('[data-notes-action="use-draft"]').disabled = item.remote?.can_edit !== true;
-  if (!compatibility) {
-    find("#notes-dates").innerHTML = dates.map((value) => '<button class="btn text notes-day' + (value === item.date ? " notes-day-current" : "") + '" type="button" data-notes-date="' + e(value) + '">' + e(value) + "</button>").join("");
-    const more = find('[data-notes-action="more"]');
-    more.hidden = !hasMore;
-    more.disabled = datesLoading;
-    more.textContent = datesLoading ? "正在读取…" : "更早的日期";
-    find("#notes-dates-error").textContent = datesError || (!datesLoading && !dates.length ? "还没有已保存的文字。可用上方日期选择任意过去的一天。" : "");
-  }
+  if (compatibility) paintTime(find("#notes-legacy-time"), item.updatedAt);
 }
-function noteEntryTime(value) {
-  if (!value || !Number.isFinite(Date.parse(value))) return "";
-  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value));
+function entryControlsMarkup() {
+  return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn text" type="button" data-note-entry-action="save" hidden>重试保存</button><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
 }
-function createEntryElement(item) {
+function createEntryElement(item, editing3) {
   const node = document.createElement("article");
-  node.className = "note-entry";
+  node.className = "note-entry " + (editing3 ? "note-entry-editing" : "note-entry-saved");
   node.dataset.noteEntry = item.id;
-  node.innerHTML = '<div class="note-entry-head"><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div><label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader"></div><p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn text" type="button" data-note-entry-action="save" hidden>重试保存</button><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
+  node.innerHTML = '<div class="note-entry-head"><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node;
 }
-function paintEntry(node, item, confirmId) {
-  const find = (selector) => node.querySelector(selector), editor = find("textarea"), time2 = find("time");
-  const actualTime = noteEntryTime(item.createdAt);
-  time2.textContent = actualTime || "新记录";
-  if (actualTime) {
-    time2.dateTime = item.createdAt;
-    time2.title = "记录时间（北京时间）";
-  } else {
-    time2.removeAttribute("datetime");
-    time2.removeAttribute("title");
-  }
-  const phase = statuses[item.phase] || (item.deleted ? "已删除" : item.version ? "已保存" : "写下后自动保存");
-  const status = find(".note-entry-status");
-  status.textContent = phase;
+function paintEntrySummary(node, item) {
+  paintTime(node.querySelector("time"), item.updatedAt, item.version ? "" : "新记录");
+  const status = node.querySelector(".note-entry-status");
+  status.textContent = statuses[item.phase] || (item.deleted ? "已删除" : item.version ? "已保存" : "写下后自动保存");
   status.dataset.phase = item.phase;
-  editor.dataset.date = item.date;
-  editor.dataset.category = item.category;
-  editor.hidden = !item.canEdit || item.deleted;
-  editor.disabled = ["delete", "restore"].includes(item.pending?.kind);
-  if (editor.dataset.composing !== "true" && editor.value !== item.draft) {
-    const active2 = document.activeElement === editor, start = editor.selectionStart, end = editor.selectionEnd, direction = editor.selectionDirection, scroll = editor.scrollTop;
-    editor.value = item.draft;
-    if (active2) {
-      editor.setSelectionRange(Math.min(start, item.draft.length), Math.min(end, item.draft.length), direction);
-      editor.scrollTop = scroll;
-    }
-  }
-  const reader = find(".note-entry-reader");
-  reader.textContent = item.deleted ? "这条记录已删除。" : item.serverText;
-  reader.hidden = item.canEdit && !item.deleted;
-  const message = find(".note-entry-message");
+  const message = node.querySelector(".note-entry-message");
   message.textContent = item.error;
   message.hidden = !item.error;
+}
+function paintSavedEntry(node, item) {
+  paintEntrySummary(node, item);
+  const draft = noteDraftNeedsAttention(item), body = node.querySelector(".note-entry-reader");
+  body.textContent = item.deleted ? "这条记录已删除。" : draft ? item.draft : item.serverText;
+  body.classList.toggle("note-entry-draft-label", draft);
+  node.dataset.draft = String(draft);
+  const edit = node.querySelector('[data-note-entry-action="edit"]');
+  edit.hidden = !item.canEdit && !draft;
+  edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
+}
+function paintEntryEditor(node, item, confirmId) {
+  paintEntrySummary(node, item);
+  const find = (selector) => node.querySelector(selector), editor = find("textarea");
+  editor.dataset.date = item.date;
+  editor.dataset.category = item.category;
+  editor.hidden = item.deleted;
+  editor.readOnly = !item.canEdit;
+  editor.disabled = ["delete", "restore"].includes(item.pending?.kind);
+  paintEditorValue(editor, item.draft);
+  const reader = find(".note-entry-reader");
+  reader.textContent = item.deleted ? "这条记录已删除。" : item.serverText;
+  reader.hidden = !item.deleted;
   find(".note-entry-actions").hidden = !item.canEdit;
   const busy = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
   const save = find('[data-note-entry-action="save"]');
@@ -3017,14 +3429,43 @@ function paintEntry(node, item, confirmId) {
   find(".note-entry-conflict pre").textContent = item.remote?.deleted ? "（这条记录已删除）" : item.remote?.text || "（空白）";
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
-function paintNoteEntries(root, store, current, legacy, {
-  drafts = [],
-  dates = [],
-  hasMore = false,
-  datesLoading = false,
-  datesError = "",
-  confirmId = ""
-} = {}) {
+var editorNodes = /* @__PURE__ */ new WeakMap();
+function paintActiveEditor(root, store, active2, legacy, confirmId) {
+  const host = root.querySelector("#notes-active-entry");
+  if (!editorNodes.has(root)) editorNodes.set(root, /* @__PURE__ */ new Map());
+  const nodes = editorNodes.get(root), item = store.entry(active2);
+  host.hidden = !item;
+  if (item) {
+    if (!nodes.has(active2)) nodes.set(active2, createEntryElement(item, true));
+    const node = nodes.get(active2);
+    if (host.firstElementChild !== node) host.replaceChildren(node);
+    paintEntryEditor(node, item, confirmId);
+  }
+  root.querySelector("#notes-legacy-card").hidden = active2 !== "legacy";
+  paintDailyNotes(root, legacy, { compatibility: true, editing: active2 === "legacy" });
+}
+function paintLegacySummary(root, legacy, active2) {
+  const node = root.querySelector("#notes-legacy-saved"), draft = noteDraftNeedsAttention(legacy);
+  node.hidden = active2 === "legacy" || !(legacy.version > 0 || draft);
+  paintTime(node.querySelector("time"), legacy.updatedAt);
+  node.querySelector(".note-entry-reader").textContent = legacy.deleted ? "原有记录已删除。" : draft ? legacy.draft : legacy.serverText;
+  node.querySelector(".note-entry-status").textContent = statuses[legacy.phase] || (legacy.deleted ? "已删除" : "已保存");
+  node.querySelector(".note-entry-message").textContent = legacy.error;
+  node.querySelector(".note-entry-message").hidden = !legacy.error;
+  const edit = node.querySelector('[data-notes-action="edit-legacy"]');
+  edit.hidden = !legacy.canEdit && !draft;
+  edit.textContent = draft ? "继续编辑草稿" : legacy.deleted ? "查看" : "编辑";
+}
+function paintRetainedDrafts(root, current, drafts) {
+  const box = root.querySelector("#notes-drafts");
+  const retained = [...new Set(drafts.filter((value) => value.date !== current.date || value.category !== current.category).map((value) => value.category + ":" + value.date))];
+  box.hidden = !retained.length;
+  box.innerHTML = "<span>保留的草稿：</span>" + retained.map((key) => {
+    const [category, date] = key.split(":");
+    return '<button class="btn text" type="button" data-notes-draft-category="' + e(category) + '" data-notes-date="' + e(date) + '">' + (category === "work" ? "工作 " : "生活 ") + e(date) + "</button>";
+  }).join("");
+}
+function paintNoteEntries(root, store, current, legacy, { drafts = [], confirmId = "", active: active2 = "" } = {}) {
   const find = (selector) => root.querySelector(selector), list = find("#notes-entry-list");
   root.dataset.date = current.date;
   const dateInput = find("#notes-date");
@@ -3036,35 +3477,26 @@ function paintNoteEntries(root, store, current, legacy, {
   find("#notes-entry-message").textContent = current.error;
   find("#notes-entry-message").hidden = !current.error;
   const items = current.ids.map((id) => store.entry(id)).filter(Boolean);
-  const nodes = new Map([...list.children].map((node) => [node.dataset.noteEntry, node]));
-  const wanted = new Set(items.map((item) => item.id));
+  const saved = items.filter((item) => item.id !== active2 && (item.version > 0 || noteDraftNeedsAttention(item)));
+  const nodes = new Map([...list.children].map((node) => [node.dataset.noteEntry, node])), wanted = new Set(saved.map((item) => item.id));
   for (const [id, node] of nodes) if (!wanted.has(id)) node.remove();
   let cursor = list.firstElementChild;
-  for (const item of items) {
-    const node = nodes.get(item.id) || createEntryElement(item);
+  for (const item of saved) {
+    const node = nodes.get(item.id) || createEntryElement(item, false);
     if (node === cursor) cursor = cursor.nextElementSibling;
     else list.insertBefore(node, cursor);
-    paintEntry(node, item, confirmId);
+    paintSavedEntry(node, item);
   }
-  const legacyVisible = legacy.version > 0 || legacy.dirty || legacy.pending || ["unknown", "conflict", "error"].includes(legacy.phase);
-  find("#notes-legacy-card").hidden = !legacyVisible;
-  find("#notes-entry-empty").hidden = !current.loaded || items.length > 0 || legacyVisible;
-  const unresolved = items.filter((item) => ["error", "unknown", "conflict", "oversize"].includes(item.phase));
-  const status = find("#notes-status");
-  status.textContent = !current.loaded && current.loading ? "正在读取…" : current.error ? "读取失败" : unresolved.length ? "有草稿待处理" : canEdit ? "自动保存" : current.loaded ? "公开只读" : "正在读取…";
-  const draftBox = find("#notes-drafts");
-  const retained = [...new Set(drafts.filter((value) => value.date !== current.date || value.category !== current.category).map((value) => value.category + ":" + value.date))];
-  draftBox.hidden = !retained.length;
-  draftBox.innerHTML = "<span>保留的草稿：</span>" + retained.map((key) => {
-    const [category, date] = key.split(":");
-    return '<button class="btn text" type="button" data-notes-draft-category="' + e(category) + '" data-notes-date="' + e(date) + '">' + (category === "work" ? "工作 " : "生活 ") + e(date) + "</button>";
-  }).join("");
-  find("#notes-dates").innerHTML = dates.map((date) => '<button class="btn text notes-day' + (date === current.date ? " notes-day-current" : "") + '" type="button" data-notes-date="' + e(date) + '">' + e(date) + "</button>").join("");
-  const more = find('[data-notes-action="more"]');
-  more.hidden = !hasMore;
-  more.disabled = datesLoading;
-  more.textContent = datesLoading ? "正在读取…" : "更早的日期";
-  find("#notes-dates-error").textContent = datesError || (!datesLoading && !dates.length ? "还没有已保存的记录。" : "");
+  paintActiveEditor(root, store, active2, legacy, confirmId);
+  paintLegacySummary(root, legacy, active2);
+  const composer = find("#notes-composer"), activeItem = active2 === "legacy" ? legacy : store.entry(active2);
+  composer.hidden = !activeItem;
+  composer.dataset.active = active2;
+  find('[data-notes-action="collapse"]').disabled = !noteEditorCanCollapse(activeItem);
+  find("#notes-entry-empty").hidden = !current.loaded || Boolean(activeItem) || saved.length > 0 || legacy.version > 0 || noteDraftNeedsAttention(legacy);
+  const unresolved = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy);
+  find("#notes-status").textContent = !current.loaded && current.loading ? "正在读取…" : current.error ? "读取失败" : unresolved ? "有草稿待保存" : canEdit ? "自动保存" : current.loaded ? "公开只读" : "正在读取…";
+  paintRetainedDrafts(root, current, drafts);
 }
 
 // web/core/note-entries-state.mjs
@@ -3527,30 +3959,16 @@ function createNoteEntriesStore(options2) {
 
 // web/daily-notes-controller.mjs
 var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "";
-var notesStores = /* @__PURE__ */ new Map(), entryStores = /* @__PURE__ */ new Map(), notesDateIndices = /* @__PURE__ */ new Map();
-var notesDateIndex;
+var notesStores = /* @__PURE__ */ new Map(), entryStores = /* @__PURE__ */ new Map(), editorViews = createNotesEditorView();
 var notesIdentityNow = () => String(runtime.sessionEpoch) + ":" + String(state.me?.id || "") + ":" + String(state.me?.csrfToken || "");
 var notesVisible = () => state.page === "notes" && notesIdentity === notesIdentityNow();
-function newDateSource() {
-  return { dates: [], hasMore: false, cursor: null, error: "" };
-}
-function newDateIndex() {
-  return {
-    dates: [],
-    hasMore: false,
-    loading: false,
-    error: "",
-    sequence: 0,
-    sources: { legacy: newDateSource(), entries: newDateSource() }
-  };
-}
 function ensureDailyNotesStore() {
   const next = notesIdentityNow(), category = dailyNotesRouteCategory();
   if (notesIdentity !== next) {
     for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
     notesStores.clear();
     entryStores.clear();
-    notesDateIndices.clear();
+    editorViews.clear();
     notesIdentity = next;
     notesConfirmDate = "";
     notesConfirmEntry = "";
@@ -3579,16 +3997,14 @@ function ensureDailyNotesStore() {
     const changed2 = () => {
       if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) paintDailyNotesPage();
     };
-    const saved = () => {
-      if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) void loadNoteDates();
-    };
     const legacy = createDailyNotesStore({
+      delay: 400,
       load: (date) => request("/daily-notes?date=" + encodeURIComponent(date) + suffix("&")),
       put: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + suffix("?"), { method: "PUT", body }),
       restore: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + "/restore" + suffix("?"), { method: "POST", body }),
       remove: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + suffix("?"), { method: "DELETE", body }),
       onChange: changed2,
-      onSaved: saved
+      onSaved: changed2
     });
     const entries = createNoteEntriesStore({
       category,
@@ -3599,15 +4015,13 @@ function ensureDailyNotesStore() {
       remove: (id, body) => request("/note-entries/" + encodeURIComponent(id), { method: "DELETE", body }),
       restore: (id, body) => request("/note-entries/" + encodeURIComponent(id) + "/restore", { method: "POST", body }),
       onChange: changed2,
-      onSaved: saved
+      onSaved: changed2
     });
     notesStores.set(category, legacy);
     entryStores.set(category, entries);
-    notesDateIndices.set(category, newDateIndex());
   }
   notesStore = notesStores.get(category);
   entryStore = entryStores.get(category);
-  notesDateIndex = notesDateIndices.get(category);
   return notesStore;
 }
 function retainedDrafts() {
@@ -3624,47 +4038,18 @@ function paintDailyNotesPage() {
   if (!notesVisible()) return;
   const root = document.querySelector("#daily-notes");
   if (!root || !notesStore || !entryStore) return;
-  const date = dailyNotesRouteDate(), legacy = notesStore.page(date), current = entryStore.page(date);
-  paintDailyNotes(root, legacy, { compatibility: true });
-  paintNoteEntries(root, entryStore, current, legacy, {
-    drafts: retainedDrafts(),
-    dates: notesDateIndex.dates,
-    hasMore: notesDateIndex.hasMore,
-    datesLoading: notesDateIndex.loading,
-    datesError: notesDateIndex.error,
-    confirmId: notesConfirmEntry
-  });
+  const date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy = notesStore.page(date), current = entryStore.page(date);
+  const host = root.querySelector("#notes-composer"), view = editorViews.page(category, date), active2 = view.active;
+  const field2 = active2 === "legacy" ? root.querySelector("#notes-editor") : host.querySelector('[data-note-entry-editor="' + active2 + '"]');
+  const selected = editorViews.sync(
+    category,
+    date,
+    current.ids.map((id) => entryStore.entry(id)).filter(Boolean),
+    legacy,
+    { focused: host.contains(document.activeElement), composing: field2?.dataset.composing === "true" }
+  );
+  paintNoteEntries(root, entryStore, current, legacy, { drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active });
   root.querySelector("#notes-delete-confirm").hidden = notesConfirmDate !== date;
-}
-async function loadNoteDates(more = false) {
-  ensureDailyNotesStore();
-  if (more && (!notesDateIndex.hasMore || notesDateIndex.loading)) return;
-  const expected = notesIdentity, current = notesDateIndex, category = dailyNotesRouteCategory(), sequence = ++current.sequence;
-  current.loading = true;
-  current.error = "";
-  paintDailyNotesPage();
-  await Promise.all(Object.entries(current.sources).map(async ([kind, source]) => {
-    if (more && !source.hasMore) return;
-    const before = more ? source.cursor : null;
-    try {
-      const path = kind === "entries" ? "/note-entries/dates?category=" + category + "&page_size=30" : "/daily-notes/dates?page_size=30" + (category === "work" ? "&category=work" : "");
-      const result = await api(path + (before ? "&before=" + encodeURIComponent(before) : ""));
-      if (expected !== notesIdentityNow() || sequence !== current.sequence) return;
-      if (!Array.isArray(result?.dates) || result.dates.some((value) => !validDailyNotesDate(value)) || typeof result.has_more !== "boolean" || result.has_more && (!validDailyNotesDate(result.next_before) || before && result.next_before >= before)) throw new Error("日期列表不完整，请重新读取。");
-      source.dates = [.../* @__PURE__ */ new Set([...more ? source.dates : [], ...result.dates])].sort().reverse();
-      source.hasMore = result.has_more;
-      source.cursor = result.next_before;
-      source.error = "";
-    } catch (error) {
-      if (expected === notesIdentityNow() && sequence === current.sequence) source.error = error.message;
-    }
-  }));
-  if (expected !== notesIdentityNow() || sequence !== current.sequence) return;
-  current.dates = [...new Set(Object.values(current.sources).flatMap((source) => source.dates))].sort().reverse();
-  current.hasMore = Object.values(current.sources).some((source) => source.hasMore);
-  current.error = [...new Set(Object.values(current.sources).map((source) => source.error).filter(Boolean))].join(" ");
-  current.loading = false;
-  paintDailyNotesPage();
 }
 async function selectDailyNotesDate(value) {
   if (!validDailyNotesDate(value) || value > dailyNotesToday()) return;
@@ -3680,21 +4065,32 @@ async function selectDailyNotesDate(value) {
 function shiftedNotesDate(date, delta) {
   return new Date(Date.parse(date + "T12:00:00Z") + delta * 864e5).toISOString().slice(0, 10);
 }
-function focusEntry(id) {
-  const editor = document.querySelector('[data-note-entry-editor="' + id + '"]');
+function openEditor(key) {
+  editorViews.activate(dailyNotesRouteCategory(), dailyNotesRouteDate(), key);
+  paintDailyNotesPage();
+  const editor = key === "legacy" ? document.querySelector("#notes-editor") : document.querySelector('#notes-active-entry [data-note-entry-editor="' + key + '"]');
   editor?.focus();
-  editor?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  document.querySelector("#notes-composer")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
 }
-function registerDailyNotesEvents() {
-  if (notesEventsRegistered) return;
-  notesEventsRegistered = true;
+function requestEditorCollapse(event) {
+  if (!notesVisible() || !event.target.closest("#notes-composer")) return;
+  const root = document.querySelector("#daily-notes"), host = root?.querySelector("#notes-composer");
+  if (!host || host.contains(event.relatedTarget) || event.relatedTarget?.closest(
+    '[data-note-entry-action="edit"],[data-notes-action="new"],[data-notes-action="edit-legacy"]'
+  )) return;
+  const category = root.dataset.category, date = root.dataset.date, { active: active2, revision } = editorViews.page(category, date);
+  setTimeout(() => {
+    editorViews.requestCollapse(category, date, active2, revision);
+    if (notesVisible() && category === dailyNotesRouteCategory() && date === dailyNotesRouteDate()) paintDailyNotesPage();
+  }, 0);
+}
+function registerNotesInputEvents() {
   document.addEventListener("input", (event) => {
     if (!notesVisible()) return;
     const composing = event.isComposing || event.target.dataset.composing === "true";
-    if (event.target.id === "notes-editor") ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value, { composing });
+    if (event.target.id === "notes-editor") notesStores.get(event.target.dataset.category)?.edit(event.target.dataset.date, event.target.value, { composing });
     else if (event.target.dataset.noteEntryEditor) {
-      const store = entryStores.get(event.target.dataset.category);
-      store?.edit(event.target.dataset.noteEntryEditor, event.target.value, { composing });
+      entryStores.get(event.target.dataset.category)?.edit(event.target.dataset.noteEntryEditor, event.target.value, { composing });
     }
   });
   document.addEventListener("compositionstart", (event) => {
@@ -3704,84 +4100,101 @@ function registerDailyNotesEvents() {
     if (event.target.id !== "notes-editor" && !event.target.dataset.noteEntryEditor) return;
     event.target.dataset.composing = "false";
     if (!notesVisible()) return;
-    if (event.target.id === "notes-editor") ensureDailyNotesStore().edit(event.target.dataset.date, event.target.value);
+    if (event.target.id === "notes-editor") notesStores.get(event.target.dataset.category)?.edit(event.target.dataset.date, event.target.value);
     else entryStores.get(event.target.dataset.category)?.edit(event.target.dataset.noteEntryEditor, event.target.value);
   });
   document.addEventListener("change", (event) => {
     if (notesVisible() && event.target.id === "notes-date") void selectDailyNotesDate(event.target.value);
   });
-  document.addEventListener("click", async (event) => {
-    if (!notesVisible()) return;
-    const root = document.querySelector("#daily-notes");
-    const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action]");
-    if (!target || !root?.contains(target)) return;
-    event.preventDefault();
-    if (target.dataset.notesCategory) {
-      setDailyNotesRouteCategory(target.dataset.notesCategory);
+  document.addEventListener("focusout", requestEditorCollapse);
+}
+async function handleEntryAction(target, entries) {
+  const id = target.closest("[data-note-entry]")?.dataset.noteEntry, item = entries.entry(id);
+  if (!item) return;
+  const action = target.dataset.noteEntryAction;
+  if (action === "edit") openEditor(id);
+  else if (action === "save") await entries.save(id);
+  else if (action === "restore") await entries.restoreEntry(id);
+  else if (action === "delete") {
+    notesConfirmEntry = id;
+    paintDailyNotesPage();
+  } else if (action === "cancel-delete") {
+    notesConfirmEntry = "";
+    paintDailyNotesPage();
+  } else if (action === "confirm-delete") {
+    notesConfirmEntry = "";
+    await entries.deleteEntry(id);
+    paintDailyNotesPage();
+  } else if (action === "check") {
+    if (item.phase === "unknown") await entries.reconcile(id);
+    else await entries.readOne(id);
+  } else if (action === "retry") await entries.retryPending(id);
+  else if (action === "use-server") entries.useServer(id);
+  else if (action === "use-draft") await entries.useDraft(id);
+}
+async function handleNotesClick(event) {
+  if (!notesVisible()) return;
+  const root = document.querySelector("#daily-notes");
+  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action]");
+  if (!target || !root?.contains(target)) return;
+  event.preventDefault();
+  if (target.dataset.notesCategory) {
+    setDailyNotesRouteCategory(target.dataset.notesCategory);
+    updateRoute(true);
+    renderShell();
+    return;
+  }
+  if (target.dataset.notesDate) {
+    if (target.dataset.notesDraftCategory && target.dataset.notesDraftCategory !== dailyNotesRouteCategory()) {
+      setDailyNotesRouteCategory(target.dataset.notesDraftCategory);
+      setDailyNotesRouteDate(target.dataset.notesDate);
       updateRoute(true);
       renderShell();
-      return;
-    }
-    if (target.dataset.notesDate) {
-      if (target.dataset.notesDraftCategory && target.dataset.notesDraftCategory !== dailyNotesRouteCategory()) {
-        setDailyNotesRouteCategory(target.dataset.notesDraftCategory);
-        setDailyNotesRouteDate(target.dataset.notesDate);
-        updateRoute(true);
-        renderShell();
-      } else await selectDailyNotesDate(target.dataset.notesDate);
-      return;
-    }
-    const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate();
-    if (target.dataset.noteEntryAction) {
-      const id = target.closest("[data-note-entry]")?.dataset.noteEntry, item = entries.entry(id);
-      if (!item) return;
-      const action2 = target.dataset.noteEntryAction;
-      if (action2 === "save") await entries.save(id);
-      else if (action2 === "restore") await entries.restoreEntry(id);
-      else if (action2 === "delete") {
-        notesConfirmEntry = id;
-        paintDailyNotesPage();
-      } else if (action2 === "cancel-delete") {
-        notesConfirmEntry = "";
-        paintDailyNotesPage();
-      } else if (action2 === "confirm-delete") {
-        notesConfirmEntry = "";
-        await entries.deleteEntry(id);
-        paintDailyNotesPage();
-      } else if (action2 === "check") {
-        if (item.phase === "unknown") await entries.reconcile(id);
-        else await entries.readOne(id);
-      } else if (action2 === "retry") await entries.retryPending(id);
-      else if (action2 === "use-server") entries.useServer(id);
-      else if (action2 === "use-draft") await entries.useDraft(id);
-      return;
-    }
-    const action = target.dataset.notesAction;
-    if (action === "new") {
-      const item = entries.start(date);
-      if (item) focusEntry(item.id);
-    } else if (action === "previous" || action === "next") await selectDailyNotesDate(shiftedNotesDate(date, action === "previous" ? -1 : 1));
-    else if (action === "login") renderLogin();
-    else if (action === "today") await selectDailyNotesDate(dailyNotesToday());
-    else if (action === "save") await store.save(date);
-    else if (action === "restore") await store.restorePage(date);
-    else if (action === "delete") {
-      notesConfirmDate = date;
-      paintDailyNotesPage();
-    } else if (action === "cancel-delete") {
-      notesConfirmDate = "";
-      paintDailyNotesPage();
-    } else if (action === "confirm-delete") {
-      notesConfirmDate = "";
-      await store.deletePage(date);
-      paintDailyNotesPage();
-    } else if (action === "check") {
-      if (store.page(date).phase === "unknown") await store.reconcile(date);
-      else await store.read(date);
-    } else if (action === "use-server") store.useServer(date);
-    else if (action === "retry") await store.retryPending(date);
-    else if (action === "use-draft") await store.useDraft(date);
-    else if (action === "more") await loadNoteDates(true);
+    } else await selectDailyNotesDate(target.dataset.notesDate);
+    return;
+  }
+  const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate();
+  if (target.dataset.noteEntryAction) {
+    await handleEntryAction(target, entries);
+    return;
+  }
+  const action = target.dataset.notesAction;
+  if (action === "new") {
+    const item = entries.start(date);
+    if (item) openEditor(item.id);
+  } else if (action === "edit-legacy") openEditor("legacy");
+  else if (action === "collapse") {
+    const { active: active2, revision } = editorViews.page(dailyNotesRouteCategory(), date);
+    editorViews.requestCollapse(dailyNotesRouteCategory(), date, active2, revision, { explicit: true });
+    paintDailyNotesPage();
+  } else if (action === "previous" || action === "next") await selectDailyNotesDate(shiftedNotesDate(date, action === "previous" ? -1 : 1));
+  else if (action === "login") renderLogin();
+  else if (action === "today") await selectDailyNotesDate(dailyNotesToday());
+  else if (action === "save") await store.save(date);
+  else if (action === "restore") await store.restorePage(date);
+  else if (action === "delete") {
+    notesConfirmDate = date;
+    paintDailyNotesPage();
+  } else if (action === "cancel-delete") {
+    notesConfirmDate = "";
+    paintDailyNotesPage();
+  } else if (action === "confirm-delete") {
+    notesConfirmDate = "";
+    await store.deletePage(date);
+    paintDailyNotesPage();
+  } else if (action === "check") {
+    if (store.page(date).phase === "unknown") await store.reconcile(date);
+    else await store.read(date);
+  } else if (action === "use-server") store.useServer(date);
+  else if (action === "retry") await store.retryPending(date);
+  else if (action === "use-draft") await store.useDraft(date);
+}
+function registerDailyNotesEvents() {
+  if (notesEventsRegistered) return;
+  notesEventsRegistered = true;
+  registerNotesInputEvents();
+  document.addEventListener("click", (event) => {
+    void handleNotesClick(event);
   });
   window.addEventListener("beforeunload", (event) => {
     if (notesIdentity !== notesIdentityNow() || !notesStore) return;
@@ -3795,7 +4208,7 @@ async function loadDailyNotes() {
   registerDailyNotesEvents();
   setDailyNotesRouteDate(dailyNotesRouteDate());
   const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate();
-  await Promise.all([store.read(date), entries.read(date), loadNoteDates()]);
+  await Promise.all([store.read(date), entries.read(date)]);
   paintDailyNotesPage();
 }
 
@@ -5140,11 +5553,14 @@ class="${mobile ? "mobile-nav-item" : "nav-item"}${selected ? " active" : ""}" a
 ${selected ? 'aria-current="page"' : ""}>${icon(item.icon, 18)}<span class="nav-label">${e(item.label)}</span></a>`;
 }
 function mediaNavigation(mobile = false) {
-  const active2 = mediaPages.has(state.page), name = mobile ? "mobile-media-nav" : "media-nav";
-  return `<details class="${name}${active2 ? " active" : ""}" ${!mobile && active2 ? "open" : ""}>
-<summary ${mobile ? 'data-action="media-menu"' : ""} title="好多鱼图文" aria-label="好多鱼图文" aria-expanded="${!mobile && active2}">
-${icon("articles", 18)}<span class="nav-label">好多鱼图文</span></summary>
-<div class="media-subnav">${nav.filter((item) => mediaPages.has(item.id)).map((item) => navigationLink(item)).join("")}</div></details>`;
+  const active2 = mediaPages.has(state.page), name = mobile ? "mobile-nav-item" : "nav-item";
+  return `<a href="?page=dashboard" data-nav="dashboard" class="${name} media-link${active2 ? " active" : ""}"
+aria-label="好多鱼图文" ${active2 ? 'aria-current="page"' : ""}>${icon("articles", 18)}<span class="nav-label">好多鱼图文</span></a>`;
+}
+function renderMediaTabs() {
+  if (!mediaPages.has(state.page)) return "";
+  return '<nav class="media-page-tabs" aria-label="图文页面">' + [["dashboard", "数据总览"], ["articles", "文章详情"]].map(([page, label3]) => `<a href="?page=${page}" data-nav="${page}" class="btn media-page-tab${state.page === page ? " active" : ""}"
+${state.page === page ? 'aria-current="page"' : ""}>${label3}</a>`).join("") + "</nav>";
 }
 function notesNavigation(mobile = false) {
   const active2 = state.page === "notes", name = mobile ? "mobile-notes-nav" : "notes-nav";
@@ -5164,11 +5580,11 @@ function mobileNavigation() {
   return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${mediaNavigation(true)}${nav.filter((item) => !mediaPages.has(item.id)).map((item) => item.id === "notes" ? notesNavigation(true) : navigationLink(item, true)).join("")}</nav>`;
 }
 function syncWorkbenchNavigation() {
-  const active2 = mediaPages.has(state.page), side = document.querySelector(".media-nav");
-  if (side) {
-    side.open = active2;
-    side.classList.toggle("active", active2);
-    syncMediaExpanded(side);
+  const active2 = mediaPages.has(state.page);
+  for (const link of document.querySelectorAll(".media-link")) {
+    link.classList.toggle("active", active2);
+    if (active2) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
   }
   for (const menu of document.querySelectorAll(".notes-nav,.mobile-notes-nav")) {
     menu.open = state.page === "notes" && menu.classList.contains("notes-nav");
@@ -5377,13 +5793,7 @@ function mainContent() {
     "设置分类",
     "tab",
     "page-tabs"
-  ) : ""}${state.page === "dashboard" ? `<div class="article-ledger-overview article-ledger-scope">${segmented(
-    "article-overview-mode",
-    [["drafts", "文章列表"], ["published", "文章数据"], ["reconciliation", "发布情况"]],
-    state.articleOverviewMode,
-    "总览口径",
-    "mode"
-  )}</div>` : ""}<div id="page-content"></div>`;
+  ) : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -5424,6 +5834,7 @@ function navigateLink(page) {
   navigate(page);
 }
 function navigate(page, tab) {
+  if (page === "reviews") page = "articles";
   if (page === "memos" && tab === "trash") {
     page = "settings";
     tab = "workspace";
@@ -5466,22 +5877,21 @@ function publishedArticleLinks(html) {
   return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
 }
 async function loadArticleOverview(version, context) {
-  if (state.articleOverviewMode === "reconciliation") {
-    const data2 = await loadReconciliation(context);
-    return version === runtime.renderVersion ? renderReconciliation(data2) : "";
-  }
-  if (state.articleOverviewMode !== "published") {
-    state.dashboard = null;
-    const summary = await loadArticleLedgerSummary(context);
-    return version === runtime.renderVersion ? renderArticleLedgerSummary(summary) : "";
-  }
-  const data = await api(
-    `/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`,
-    { context }
-  );
+  const query = new URLSearchParams({ period: state.overviewPeriod, top_n: state.topN, top_platform: state.topPlatform });
+  if (state.account) query.set("account_id", state.account);
+  const [data, catalog] = await Promise.all([
+    api(`/overview?${query}`, { context }),
+    loadArticleCatalog(context, { accountId: state.account, allowedAccountIds: state.accounts.map((account) => account.id) })
+  ]);
   if (version !== runtime.renderVersion) return "";
   state.dashboard = data;
-  return publishedArticleLinks(renderDashboardSummary(data));
+  state.mediaCatalog = catalog;
+  return renderMediaOverview(data);
+}
+function renderMediaOverview(data) {
+  const catalog = state.mediaCatalog;
+  const records = catalog?.reconciliation ? '<details class="media-publishing-details"><summary>发布记录核对</summary>' + renderReconciliation(catalog.reconciliation) + "</details>" : "";
+  return publishedArticleLinks(renderDashboardSummary(data, catalog?.summary)) + records;
 }
 async function renderPage() {
   stopPageEntry();
@@ -5967,9 +6377,10 @@ function articlePipelineFields(a) {
   ];
 }
 function renderArticleDetailBody(a, view = { phase: "idle", busy: false, retryReady: false, message: "" }) {
+  const publication = isPublished2(a) ? displayTime(a.published_at) : hasRecordedUnknownMetrics(a) ? a.published_at ? displayTime(a.published_at) : "未取得" : "未发布";
   const info = [
     ["生产方式", modeLabels[a.production_mode] || "未记录"],
-    ["原始发布时间", isPublished2(a) ? displayTime(a.published_at) : "未发布"],
+    ["原始发布时间", publication],
     ["录入者", a.recorded_by?.label || "未记录"],
     ["修改者", a.last_modified_by?.label || "未记录"],
     ["录入时间", displayTime(a.created_at)],
@@ -5980,18 +6391,20 @@ function renderArticleDetailBody(a, view = { phase: "idle", busy: false, retryRe
   )}</p></section>`).join("")}</div>`;
 }
 function renderArticleAnalytics(a) {
-  if (!isPublished2(a)) return '<section class="detail-section article-unpublished"><h3>阅读与复盘</h3><strong>未发布</strong><p class="cell-sub">发布后再记录阅读指标和复盘节点。</p></section>';
-  const timeline = a.timeline || [], nodes = a.nodes || [];
-  return `${metricSummary(a)}<p class="cell-sub">截至 ${a.latest_metrics == null ? "未采集" : e(displayTime(a.latest_as_of))} · 采集于 ${a.latest_metrics == null ? "未采集" : e(displayTime(a.latest_collected_at))}</p><section class="detail-section"><h3>观察节点</h3><ol class="snapshot-nodes">${nodes.map((n) => {
+  const unconfirmed = hasRecordedUnknownMetrics(a);
+  if (!isPublished2(a) && !unconfirmed) return '<section class="detail-section article-unpublished"><h3>阅读与复盘</h3><strong>未发布</strong><p class="cell-sub">发布后再记录阅读指标和复盘节点。</p></section>';
+  const timeline = a.timeline || a.observations || [], nodes = a.nodes || [], missing = unconfirmed ? "未取得" : "未采集";
+  const summary = unconfirmed && a.latest_metrics == null ? '<p class="cell-sub">最新汇总指标未取得。</p>' : metricSummary(a);
+  return `${unconfirmed ? '<section class="detail-section"><h3>状态未确认</h3><p>以下为已有指标与历史记录。</p></section>' : ""}${summary}<p class="cell-sub">截至 ${a.latest_metrics == null ? missing : e(displayTime(a.latest_as_of))} · 采集于 ${a.latest_metrics == null ? missing : e(displayTime(a.latest_collected_at))}</p><section class="detail-section">${unconfirmed ? "" : `<h3>观察节点</h3><ol class="snapshot-nodes">${nodes.map((n) => {
     const unknown = n.kind !== "latest" && a.date_status === "unverified" && !n.snapshot, status = unknown ? "unknown" : n.status, label3 = unknown ? "日期待核实" : { recorded: "已记录", before_due: "记录早于节点", not_due: "未到期", not_collected: "未采集" }[status] || "状态未知";
     return `<li class="node ${e(status)}"><strong>${e(kindLabels[n.kind] || n.kind)}</strong><span>${e(label3)}</span><small>${e(displayTime(
       n.snapshot?.as_of || n.due_at
     ))}</small></li>`;
-  }).join("")}</ol><h3>快照时间线 ${detailInfo(
+  }).join("")}</ol>`}<h3>快照时间线 ${detailInfo(
     "按截至时间排序；相邻累计快照差值不等同每日新增。节点类型不代表先后。",
     "时间线口径",
     "timeline"
-  )}</h3>${timeline.length < 2 ? `<p class="insufficient">${timeline.length ? "只有一期数据，暂不显示增长。" : "尚未采集快照。"}</p>` : ""}<ol class="snapshot-timeline">${timeline.map((r) => `<li>${renderSnapshot(r)}${r.changes ? `<div class="snapshot-changes">${[
+  )}</h3>${timeline.length < 2 ? `<p class="insufficient">${timeline.length ? "只有一期数据，暂不显示增长。" : unconfirmed ? "没有已记录的历史快照。" : "尚未采集快照。"}</p>` : ""}<ol class="snapshot-timeline">${timeline.map((r) => `<li>${renderSnapshot(r)}${r.changes ? `<div class="snapshot-changes">${[
     "reads",
     "likes",
     "comments",
@@ -6135,7 +6548,7 @@ function actionAllTop({ target, event, action }) {
   event.preventDefault();
   state.filters = {
     ...defaultFilters(),
-    status: "published",
+    status: action === "all-top" ? "published" : "all",
     platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
     ...action === "all-top" ? { sort: "reads", order: "desc" } : {}
   };
@@ -6153,13 +6566,14 @@ function actionTrendTab({ target, action }) {
   if (["metrics", "publication"].includes(target.dataset.tab)) {
     state.trendTab = target.dataset.tab;
     state.trendOpen = true;
-    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
+    replacePageContent(renderMediaOverview(state.dashboard));
     $("[data-action=trend-tab][data-tab=" + state.trendTab + "]")?.focus();
   }
   return;
 }
 function actionPageMenu({ target, action }) {
-  popover(target, '<button data-action="refresh" role="menuitem">刷新数据</button><a href="/api/v1/export" download role="menuitem">导出发布记录 CSV</a><a href="/api-docs" target="_blank" rel="noopener noreferrer" role="menuitem">接入文档 ↗</a>', { menu: true, label: "页面操作" });
+  const records = ["dashboard", "articles"].includes(state.page) ? '<button data-action="media-records" role="menuitem">查看数据记录</button>' : "";
+  popover(target, '<button data-action="refresh" role="menuitem">刷新数据</button>' + records + '<a href="/api/v1/export" download role="menuitem">导出发布记录 CSV</a><a href="/api-docs" target="_blank" rel="noopener noreferrer" role="menuitem">接入文档 ↗</a>', { menu: true, label: "页面操作" });
   return;
 }
 function actionKeyHelp({ target }) {
@@ -6193,15 +6607,15 @@ function actionArticleOverviewMode({ target }) {
   renderShell();
   $("[data-action=article-overview-mode][aria-pressed=true]")?.focus();
 }
-function actionShowDue({}) {
+async function actionShowDue({}) {
   state.reviewTab = "pending";
-  navigate("reviews");
+  await reviewRecordsModal();
   return;
 }
 function actionToggleAttention({}) {
   state.attentionExpanded = !state.attentionExpanded;
   if (state.dashboard) {
-    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
+    replacePageContent(renderMediaOverview(state.dashboard));
   }
   return;
 }
@@ -6228,6 +6642,10 @@ async function actionNewReview({}) {
 async function actionReviewTab({ target, action }) {
   if (["pending", "observations", "daily"].includes(target.dataset.tab)) {
     state.reviewTab = target.dataset.tab;
+    if ($("#media-records")) {
+      await reviewRecordsModal();
+      return;
+    }
     updateRoute(true);
     const version = runtime.renderVersion + 1;
     await renderPage();
@@ -6250,7 +6668,7 @@ function actionNewKey({}) {
   return;
 }
 function actionSelectAccount({ id }) {
-  state.filters = { ...defaultFilters(), status: "published" };
+  state.filters = { ...defaultFilters(), status: "all" };
   state.account = id;
   state.listPage = 1;
   navigate("articles");
@@ -6292,11 +6710,8 @@ function actionResetFilters({}) {
 }
 var actions = {
   "media-menu": ({ event }) => {
-    if (!["dashboard", "articles", "reviews"].includes(state.page)) {
-      event.preventDefault();
-      navigate("dashboard");
-      document.querySelector(".mobile-media-nav").open = true;
-    }
+    event.preventDefault();
+    navigate("dashboard");
   },
   "notes-menu": ({ event }) => {
     if (state.page !== "notes") {
@@ -6306,6 +6721,7 @@ var actions = {
     }
   },
   "article-overview-mode": actionArticleOverviewMode,
+  "media-records": reviewRecordsModal,
   "article-verify-retry": retryArticleVerification,
   "article-verify-refresh": refreshArticleVerification,
   "todo-menu": openTodoMenu,
@@ -6759,11 +7175,11 @@ function handleChange(event) {
   } else if (el.id === "trend-date") {
     state.trendDate = el.value;
     state.trendOpen = true;
-    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
+    replacePageContent(renderMediaOverview(state.dashboard));
   } else if (el.id === "trend-metric") {
     state.trendMetric = el.value;
     state.trendOpen = true;
-    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
+    replacePageContent(renderMediaOverview(state.dashboard));
   } else if (el.closest("#article-filters") && el.name && el.name !== "q") {
     state.filters[el.name] = el.value;
     reloadFilteredPage("[name=" + el.name + "]");

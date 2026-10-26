@@ -14,7 +14,13 @@ const ledgerRows=[
   {id:'drafting',account_id:'account',status:'drafting',writer:'dedao'},
   {id:'saved',account_id:'account',status:'draft_saved',writer:'human'},
   {id:'published',account_id:'account',status:'published',writer:'dedao'},
-];
+].map(row=>({title:row.id,slot:null,run_date:null,series_no:null,sample:null,warnings:[],missing_fields:[],
+  has_pending_verify:null,verify_state:'unknown',...row}));
+const statuses=['drafting','illustrated','draft_saved','published','failed'];
+function inventory(rows=ledgerRows) {
+  return {complete:true,total:rows.length,rows,counts:Object.fromEntries([...statuses,'unknown'].map(status=>
+    [status,rows.filter(row=>(statuses.includes(row.status)?row.status:'unknown')===status).length]))};
+}
 function ledgerPage(path) {
   const query=new URL(path,'http://localhost').searchParams,page=Number(query.get('page')),
     pageSize=Number(query.get('page_size')),offset=(page-1)*pageSize;
@@ -23,6 +29,7 @@ function ledgerPage(path) {
     offset,has_more:offset+pageSize<rows.length}};
 }
 function responseFor(path) {
+  if(path.endsWith('/article-reconciliation'))return Response.json({data:inventory()});
   return Response.json(path.includes('/overview?')?{data:publishedData()}:ledgerPage(path));
 }
 function client({search='',fetch:transport=async path=>responseFor(path)}={}) {
@@ -64,7 +71,7 @@ function client({search='',fetch:transport=async path=>responseFor(path)}={}) {
 
 test('article route round trips exact pipeline filters, false flags and selected ledger columns',()=>{
   const app=client();
-  for(const status of ['drafting','illustrated','draft_saved','published','failed']) {
+  for(const status of ['all','unknown',...statuses]) {
     const filters={status,slot:'tt1',writer:'gemini_web',has_warnings:'false',has_pending_verify:'true',
       series_no_min:'1',series_no_max:'200'};
     app.route('?'+new URLSearchParams({page:'articles',account:'account',...filters,columns:'status,writer,verify,unknown'}));
@@ -72,7 +79,7 @@ test('article route round trips exact pipeline filters, false flags and selected
     assert.deepEqual(plain(app.run('[...state.columns]')),['status','writer','verify']);
     app.run('updateRoute(true)');
     const query=new URL(app.location.href).searchParams;
-    assert.equal(query.get('status'),status==='draft_saved'?null:status);
+    assert.equal(query.get('status'),status==='all'?null:status);
     assert.equal(query.get('has_warnings'),'false');
     assert.equal(query.get('has_pending_verify'),'true');
     app.run("state.filters=defaultFilters();state.account='';readRoute()");
@@ -82,14 +89,14 @@ test('article route round trips exact pipeline filters, false flags and selected
   assert.ok(app.historyCalls.every(call=>call.kind==='push'));
 });
 
-test('invalid pipeline enum, boolean and series range routes cannot broaden the saved-draft cohort',()=>{
+test('invalid pipeline enum, boolean and series range routes normalize to the complete client catalog',()=>{
   const app=client();
   for(const invalid of [
     {status:'',slot:'tt4',writer:'model',has_warnings:'0',has_pending_verify:'1'},
-    {status:'all',slot:'TT1',writer:'Human',has_warnings:'False',has_pending_verify:'TRUE'},
+    {status:'ALL',slot:'TT1',writer:'Human',has_warnings:'False',has_pending_verify:'TRUE'},
   ]) {
     app.route('?'+new URLSearchParams({page:'articles',...invalid}));
-    assert.equal(app.run('state.filters.status'),'draft_saved');
+    assert.equal(app.run('state.filters.status'),'all');
     for(const key of ['slot','writer','has_warnings','has_pending_verify'])assert.equal(app.run(`state.filters.${key}`),'',key);
     app.run('updateRoute()');
     for(const key of Object.keys(invalid))assert.equal(new URL(app.location.href).searchParams.has(key),false,key);
@@ -113,24 +120,32 @@ test('series ranges keep valid one-sided bounds and discard reversed ranges',()=
   }
 });
 
-test('overview scope is bounded without changing todo fallback, notes dates or fresh-login routing',async()=>{
+test('legacy overview scopes canonicalize to two media pages without changing todo, notes or login routes',async()=>{
   const app=client();
-  for(const [search,page,date,scope] of [
-    ['', 'todos',null,'drafts'],['?page=invalid&article_scope=published','todos',null,'published'],
-    ['?page=todos&date=2024-02-29&article_scope=all','todos','2024-02-29','drafts'],
-    ['?page=notes&date=2026-10-24&article_scope=published','notes','2026-10-24','published'],
-    ['?page=dashboard&article_scope=drafts','dashboard',null,'drafts'],
-    ['?page=dashboard&article_scope=Published','dashboard',null,'drafts'],
+  for(const [search,page,date] of [
+    ['', 'todos',null],['?page=invalid&article_scope=published','todos',null],
+    ['?page=todos&date=2024-02-29&article_scope=all','todos','2024-02-29'],
+    ['?page=notes&date=2026-10-24&article_scope=published','notes','2026-10-24'],
+    ['?page=dashboard&article_scope=drafts','dashboard',null],
+    ['?page=dashboard&article_scope=published','dashboard',null],
+    ['?page=dashboard&article_scope=reconciliation','dashboard',null],
+    ['?page=dashboard&article_scope=Published','dashboard',null],
+    ['?page=reviews&tab=daily','articles',null],
   ]) {
     app.route(search);app.run('updateRoute()');
-    assert.equal(app.run('state.page'),page);assert.equal(app.run('state.articleOverviewMode'),scope);
+    assert.equal(app.run('state.page'),page);
     const query=new URL(app.location.href).searchParams;
-    assert.equal(query.get('date'),date);assert.equal(query.get('article_scope'),scope==='published'?'published':null);
+    assert.equal(query.get('date'),date);assert.equal(query.get('article_scope'),null);
     if(page==='notes')assert.equal(app.run('dailyNotesRouteDate()'),date);
     if(page==='todos')assert.equal(app.run('state.todoDate'),date||'');
     const html=app.run('mainContent()');
-    if(page==='dashboard')assert.match(html,/data-action="article-overview-mode"/);
-    else assert.doesNotMatch(html,/article-overview-mode|data-action="new-article"/);
+    assert.doesNotMatch(html,/article-overview-mode|data-nav="reviews"/);
+    if(['dashboard','articles'].includes(page)) {
+      assert.match(html,/media-page-tabs/);
+      assert.deepEqual([...html.matchAll(/<a\b[^>]*class="btn media-page-tab[^>]*>([^<]+)<\/a>/g)].map(row=>row[1]),
+        ['数据总览','文章详情']);
+      assert.equal((html.match(/class="btn media-page-tab/g)||[]).length,2);
+    }else assert.doesNotMatch(html,/media-page-tabs|data-action="new-article"/);
   }
   const calls=[];
   app.route('');app.put('readLogin',async path=>{calls.push(path);return path==='/auth/me'?{id:'synthetic-login'}:[];});
@@ -140,32 +155,42 @@ test('overview scope is bounded without changing todo fallback, notes dates or f
   assert.equal(new URL(app.location.href).searchParams.get('page'),'todos');
 });
 
-test('default dashboard uses all five complete ledger cohorts with one page context and clears published state',async()=>{
+test('default dashboard combines complete lifecycle counts and published metrics with one cancellable page context',async()=>{
   const app=client({search:'?page=dashboard'}),calls=[];
-  app.put('readLedger',async(path,options)=>{calls.push({path,options});return ledgerPage(path);});
+  app.put('readLedger',async(path,options)=>{
+    calls.push({path,options});
+    return path.startsWith('/overview?')?publishedData():path==='/article-reconciliation'?inventory():ledgerPage(path);
+  });
   app.run("api=readLedger;state.dashboard={marker:'obsolete-published'}");
   await app.run('renderPage()');
-  assert.deepEqual(calls.map(call=>new URL(call.path,'http://localhost').searchParams.get('status')),
-    ['drafting','illustrated','draft_saved','published','failed']);
-  assert.ok(calls.every(call=>call.path.startsWith('/articles?')&&call.options.envelope===true));
+  const pages=calls.filter(call=>call.path.startsWith('/articles?'));
+  assert.deepEqual(pages.map(call=>new URL(call.path,'http://localhost').searchParams.get('status')),statuses);
+  assert.ok(pages.every(call=>call.options.envelope===true));
+  assert.equal(calls.filter(call=>call.path==='/article-reconciliation').length,1);
+  assert.equal(calls.filter(call=>call.path.startsWith('/overview?')).length,1);
   assert.ok(calls.every(call=>call.options.context===calls[0].options.context));
-  assert.equal(calls[0].options.context.kind,'page');assert.equal(app.run('state.dashboard'),null);
+  assert.equal(calls[0].options.context.kind,'page');assert.equal(app.run('state.dashboard.cumulative.article_count'),1);
   const content=app.nodes.get('#page-content');
-  assert.match(content.innerHTML,/文章列表/);assert.match(content.innerHTML,/<dt>草稿 \/ 未发布<\/dt><dd>2<\/dd>/);
-  assert.match(content.innerHTML,/<dt>已发布<\/dt><dd>1<\/dd>/);assert.doesNotMatch(content.innerHTML,/dashboard-stats|error-panel/);
+  assert.match(content.innerHTML,/文章状态/);assert.match(content.innerHTML,/<dt>全部文章<\/dt><dd>3<\/dd>/);
+  assert.match(content.innerHTML,/<dt>已发布<\/dt><dd>1<\/dd>/);assert.match(content.innerHTML,/dashboard-stats/);
+  assert.match(content.innerHTML,/<details class="article-writer-details">/);assert.doesNotMatch(content.innerHTML,/error-panel/);
   assert.equal(content.attributes['aria-busy'],'false');
 });
 
-test('explicit published scope retains the overview endpoint, parameters and real zero metrics',async()=>{
-  const calls=[],app=client({search:'?page=dashboard&article_scope=published&period=30d&top_n=12&top_platform=zhihu',
-    fetch:async(path,options)=>{calls.push({path,options});return responseFor(path);}});
-  await app.run('renderPage()');
-  assert.equal(calls.length,1);assert.equal(calls[0].path,'/api/v1/overview?period=30d&top_n=12&top_platform=zhihu');
-  assert.equal(calls[0].options.signal.aborted,false);
-  assert.equal(app.run('state.dashboard.cumulative.totals.reads'),0);
-  const html=app.nodes.get('#page-content').innerHTML;
-  assert.match(html,/dashboard-stats/);assert.match(html,/<dt>累计阅读<\/dt><dd class="">0<\/dd>/);
-  assert.doesNotMatch(html,/article-ledger-stats|error-panel/);
+test('every legacy overview scope preserves published overview parameters, complete counts and real zero metrics',async()=>{
+  for(const scope of ['drafts','published','reconciliation']) {
+    const calls=[],app=client({search:'?page=dashboard&article_scope='+scope+'&period=30d&top_n=12&top_platform=zhihu',
+      fetch:async(path,options)=>{calls.push({path,options});return responseFor(path);}});
+    app.run('updateRoute()');await app.run('renderPage()');
+    const overview=calls.filter(call=>call.path.startsWith('/api/v1/overview?'));
+    assert.equal(overview.length,1);assert.equal(overview[0].path,'/api/v1/overview?period=30d&top_n=12&top_platform=zhihu');
+    assert.equal(overview[0].options.signal.aborted,false);
+    assert.equal(new URL(app.location.href).searchParams.has('article_scope'),false);
+    assert.equal(app.run('state.dashboard.cumulative.totals.reads'),0);
+    const html=app.nodes.get('#page-content').innerHTML;
+    assert.match(html,/dashboard-stats/);assert.match(html,/<dt>累计阅读<\/dt><dd class="">0<\/dd>/);
+    assert.match(html,/article-ledger-stats/);assert.doesNotMatch(html,/error-panel/);
+  }
 });
 
 test('native published Top link preserves its cohort and platform through every dashboard refresh and a fresh route',async()=>{
@@ -197,89 +222,106 @@ test('native published Top link preserves its cohort and platform through every 
   }
 });
 
-test('scope switch click and back navigation restore the pressed control and URL without duplicate history',async()=>{
+test('media page navigation and Back restore active links and canonical URLs without duplicate history',async()=>{
   const app=client({search:'?page=dashboard'}),shells=[];
   app.put('recordShell',html=>shells.push(html));app.run('renderShell=()=>recordShell(mainContent())');
-  await app.click('article-overview-mode',{mode:'published'});
-  assert.equal(app.run('state.articleOverviewMode'),'published');
-  assert.match(shells.at(-1),/data-mode="published" aria-pressed="true"/);
-  assert.equal(new URL(app.location.href).searchParams.get('article_scope'),'published');
+  app.run("navigateLink('articles')");
+  assert.equal(app.run('state.page'),'articles');
+  assert.match(shells.at(-1),/data-nav="articles"[^>]*aria-current="page"/);
+  assert.equal(new URL(app.location.href).searchParams.get('page'),'articles');
   assert.equal(app.historyCalls.length,1);assert.equal(app.historyCalls[0].kind,'push');
-  await app.click('article-overview-mode',{mode:'published'});await app.click('article-overview-mode',{mode:'all'});
+  app.run("navigateLink('articles')");
   assert.equal(app.historyCalls.length,1);assert.equal(shells.length,1);
-  await app.click('article-overview-mode',{mode:'drafts'});
+  app.run("navigateLink('dashboard')");
   assert.equal(new URL(app.location.href).searchParams.has('article_scope'),false);
-  assert.match(shells.at(-1),/data-mode="drafts" aria-pressed="true"/);
+  assert.match(shells.at(-1),/data-nav="dashboard"[^>]*aria-current="page"/);
   await app.popstate('?page=dashboard&article_scope=published');
-  assert.equal(app.run('state.articleOverviewMode'),'published');
-  assert.match(shells.at(-1),/data-mode="published" aria-pressed="true"/);
+  assert.equal(app.run('state.page'),'dashboard');
+  assert.match(shells.at(-1),/data-nav="dashboard"[^>]*aria-current="page"/);
+  assert.equal(new URL(app.location.href).searchParams.has('article_scope'),false);
   assert.equal(app.historyCalls.filter(call=>call.kind==='push').length,2);
 });
 
-test('published metric drilldowns explicitly request published rows and clear incompatible draft filters',async()=>{
+test('account/platform drilldowns use complete catalogs while metric drilldowns retain published API cohorts',async()=>{
   const cases=[
-    ['missing-list',{status:'missing_reads'},{data_status:'missing_reads',platform:'',account:'',sort:'published_at'}],
-    ['all-top',{}, {data_status:'',platform:'wechat',account:'',sort:'reads'}],
-    ['select-platform',{platform:'zhihu'},{data_status:'',platform:'zhihu',account:'',sort:'published_at'}],
-    ['select-account',{id:'account'},{data_status:'',platform:'',account:'account',sort:'published_at'}],
+    ['missing-list',{status:'missing_reads'},{status:'published',data_status:'missing_reads',platform:'',account:'',sort:'published_at'}],
+    ['all-top',{}, {status:'published',data_status:'',platform:'wechat',account:'',sort:'reads'}],
+    ['select-platform',{platform:'zhihu'},{status:'all',data_status:'',platform:'zhihu',account:'',sort:'published_at'}],
+    ['select-account',{id:'account'},{status:'all',data_status:'',platform:'',account:'account',sort:'published_at'}],
   ];
   for(const [action,data,expected] of cases) {
     const app=client({search:'?page=dashboard'}),calls=[];
     app.run("renderShell=()=>{};state.topPlatform='wechat';state.filters={...defaultFilters(),status:'failed',slot:'tt1',writer:'human',has_warnings:'true',series_no_min:'99'};state.account='account';state.listPage=9;");
     const prevented=await app.click(action,data);
-    assert.equal(app.run('state.page'),'articles',action);assert.equal(app.run('state.filters.status'),'published',action);
+    assert.equal(app.run('state.page'),'articles',action);assert.equal(app.run('state.filters.status'),expected.status,action);
     assert.equal(app.run('state.listPage'),1,action);assert.equal(app.run('state.account'),expected.account,action);
-    assert.equal(new URL(app.location.href).searchParams.get('status'),'published',action);
+    assert.equal(new URL(app.location.href).searchParams.get('status'),expected.status==='all'?null:'published',action);
     for(const key of ['slot','writer','has_warnings','series_no_min'])assert.equal(app.run(`state.filters.${key}`),'',action+': '+key);
     for(const key of ['data_status','platform','sort'])assert.equal(app.run(`state.filters.${key}`),expected[key],action+': '+key);
     if(['all-top','select-platform'].includes(action))assert.equal(prevented,true,action);
-    app.put('listRead',async(path,options)=>{calls.push({path,options});return {data:[],meta:{total:0,unfiltered_total:0,has_more:false}};});
+    app.put('listRead',async(path,options)=>{
+      calls.push({path,options});
+      if(path==='/article-reconciliation')return inventory([]);
+      const query=new URL(path,'http://localhost').searchParams,page=Number(query.get('page')),page_size=Number(query.get('page_size'));
+      return {data:[],meta:{total:0,unfiltered_total:0,page,page_size,offset:(page-1)*page_size,has_more:false}};
+    });
     app.run('api=listRead');await app.run('renderArticles()');
-    const query=new URL(calls[0].path,'http://localhost').searchParams;
-    assert.equal(query.get('status'),'published',action);assert.equal(query.get('page'),'1',action);
-    assert.equal(query.get('account_id')||'',expected.account,action);
+    const pages=calls.filter(call=>call.path.startsWith('/articles?'));
+    assert.deepEqual(pages.map(call=>new URL(call.path,'http://localhost').searchParams.get('status')),
+      expected.status==='all'?statuses:['published'],action);
+    for(const page of pages) {
+      const query=new URL(page.path,'http://localhost').searchParams;
+      assert.equal(query.get('page'),'1',action);assert.equal(query.get('account_id')||'',expected.account,action);
+      assert.ok(!['all','unknown'].includes(query.get('status')),action);
+    }
   }
 });
 
-test('switching overview scopes cancels old requests and late transport completion cannot overwrite the current page',async()=>{
-  for(const initial of ['drafts','published']) {
-    const calls=[],holds=[deferred(),deferred()];
-    const app=client({search:'?page=dashboard'+(initial==='published'?'&article_scope=published':''),
-      fetch(path,options){calls.push({path,options});return calls.length<=2?holds[calls.length-1].promise:Promise.resolve(responseFor(path));}});
+test('switching media pages cancels old requests and late transport completion cannot overwrite the current page',async()=>{
+  for(const initial of ['dashboard','articles']) {
+    const calls=[],oldHolds=[],currentHold=deferred();let phase='old',firstCurrent;
+    const app=client({search:'?page='+initial,fetch(path,options) {
+      const call={path,options};calls.push(call);
+      if(phase==='old') {const held=deferred();oldHolds.push({call,held});return held.promise;}
+      if(!firstCurrent) {firstCurrent=call;return currentHold.promise;}
+      return Promise.resolve(responseFor(path));
+    }});
     const old=app.run('renderPage()');
-    app.run(`state.articleOverviewMode=${JSON.stringify(initial==='drafts'?'published':'drafts')}`);
+    app.run(`state.page=${JSON.stringify(initial==='dashboard'?'articles':'dashboard')}`);phase='current';
     const current=app.run('renderPage()');
-    assert.equal(calls.length,2);assert.equal(calls[0].options.signal.aborted,true);
+    assert.ok(oldHolds.length>0);assert.ok(oldHolds.every(({call})=>call.options.signal.aborted));
     await old;
     const content=app.nodes.get('#page-content');
     assert.equal(content.attributes['aria-busy'],'true','obsolete finally must not clear the current loading state');
     assert.doesNotMatch(content.innerHTML,/error-panel/);
-    holds[1].resolve(responseFor(calls[1].path));await current;
+    assert.ok(firstCurrent);currentHold.resolve(responseFor(firstCurrent.path));await current;
     const finished=content.innerHTML;
-    assert.match(finished,initial==='drafts'?/dashboard-stats/:/article-ledger-stats/);
-    holds[0].resolve(responseFor(calls[0].path));await settle();
+    assert.match(finished,initial==='dashboard'?/article-ledger-list/:/dashboard-stats/);
+    for(const {call,held}of oldHolds)held.resolve(responseFor(call.path));await settle();
     assert.equal(content.innerHTML,finished);assert.equal(content.attributes['aria-busy'],'false');
-    if(initial==='published')assert.equal(app.run('state.dashboard'),null);
-    else assert.equal(app.run('state.dashboard.cumulative.article_count'),1);
+    if(initial==='articles')assert.equal(app.run('state.dashboard.cumulative.article_count'),1);
+    else assert.equal(app.run('state.articles.length'),ledgerRows.length);
   }
 });
 
 test('late overview loader results and stale errors cannot render into a newer page even without transport cancellation',async()=>{
-  for(const mode of ['drafts','published']) {
-    const app=client({search:'?page=dashboard&article_scope='+mode}),gate=deferred();
+  for(const page of ['dashboard','articles']) {
+    const app=client({search:'?page='+page}),gate=deferred();
     app.put('deferredLoad',()=>gate.promise);
-    app.run(mode==='drafts'?'loadArticleLedgerSummary=deferredLoad':'api=deferredLoad');
+    app.run('api=deferredLoad');
     const old=app.run('renderPage()');
     app.run("state.page='settings';state.settingsTab='security'");await app.run('renderPage()');
     const current=app.nodes.get('#page-content').innerHTML;
-    gate.resolve(mode==='drafts'?{verified:true,total:0}:publishedData());await old;
+    gate.resolve(publishedData());await old;
     assert.equal(app.nodes.get('#page-content').innerHTML,current);assert.match(current,/password-form/);
     assert.equal(app.run('state.dashboard == null'),true);
   }
   for(const error of [new DOMException('Cancelled','AbortError'),Object.assign(new Error('Stale session'),{staleSession:true})]) {
-    const app=client({search:'?page=dashboard'});
-    app.put('failedLoad',async()=>{throw error;});app.run('loadArticleLedgerSummary=failedLoad');
-    await app.run('renderPage()');assert.doesNotMatch(app.nodes.get('#page-content').innerHTML,/error-panel/);
+    for(const page of ['dashboard','articles']) {
+      const app=client({search:'?page='+page});
+      app.put('failedLoad',async()=>{throw error;});app.run('api=failedLoad');
+      await app.run('renderPage()');assert.doesNotMatch(app.nodes.get('#page-content').innerHTML,/error-panel/);
+    }
   }
 });
 

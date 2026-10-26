@@ -7,6 +7,7 @@ import { runtime } from "../core/state.mjs";
 import { comparisonHTML, detailInfo, metricSummary, platformLogo, renderSnapshot } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
 import { bindArticleVerification } from "./article-verification.mjs";
+import { hasRecordedUnknownMetrics } from "../core/article-ledger.mjs";
 
 const articleStatus = { drafting: "撰写中", illustrated: "已配图", draft_saved: "草稿已存", published: "已发布", failed: "失败" };
 const articleWriter = { dedao: "得到大脑", gemini_web: "Gemini", human: "本人", other: "其他" };
@@ -67,7 +68,9 @@ function articlePipelineFields(a) {
     ["流水线结束", displayTime(a.timings?.finished_at)], ["流水线总耗时", Number.isFinite(seconds) && seconds >= 0 ? duration(seconds) : "未取得"]];
 }
 function renderArticleDetailBody(a, view = { phase: "idle", busy: false, retryReady: false, message: "" }) {
-  const info = [["生产方式", modeLabels[a.production_mode] || "未记录"], ["原始发布时间", isPublished(a) ? displayTime(a.published_at) : "未发布"],
+  const publication = isPublished(a) ? displayTime(a.published_at) : hasRecordedUnknownMetrics(a) ?
+    a.published_at ? displayTime(a.published_at) : "未取得" : "未发布";
+  const info = [["生产方式", modeLabels[a.production_mode] || "未记录"], ["原始发布时间", publication],
     ["录入者", a.recorded_by?.label || "未记录"], ["修改者", a.last_modified_by?.label || "未记录"], ["录入时间", displayTime(a.created_at)],
     ["修改时间", displayTime(a.updated_at)]];
   return `<div class="article-ledger-detail" data-article-detail="${e(a.id)}"><div class="head-actions">${isPublished(a) && safeDetailURL(a.url) ?
@@ -83,20 +86,24 @@ ${info.map(([label, value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></d
       a[key])}</p></section>`).join("")}</div>`;
 }
 function renderArticleAnalytics(a) {
-  if (!isPublished(a)) return '<section class="detail-section article-unpublished"><h3>阅读与复盘</h3><strong>未发布</strong>\
+  const unconfirmed = hasRecordedUnknownMetrics(a);
+  if (!isPublished(a) && !unconfirmed) return '<section class="detail-section article-unpublished"><h3>阅读与复盘</h3><strong>未发布</strong>\
 <p class="cell-sub">发布后再记录阅读指标和复盘节点。</p></section>';
-  const timeline = a.timeline || [], nodes = a.nodes || [];
-  return `${metricSummary(a)}<p class="cell-sub">截至 ${a.latest_metrics == null ? "未采集" : e(displayTime(a.latest_as_of))} · 采集于 ${a.
-  latest_metrics == null ? "未采集" : e(displayTime(a.latest_collected_at))}</p><section class="detail-section"><h3>观察节点</h3><ol \
+  const timeline = a.timeline || a.observations || [], nodes = a.nodes || [], missing = unconfirmed ? "未取得" : "未采集";
+  const summary = unconfirmed && a.latest_metrics == null ? '<p class="cell-sub">最新汇总指标未取得。</p>' : metricSummary(a);
+  return `${unconfirmed ? '<section class="detail-section"><h3>状态未确认</h3><p>以下为已有指标与历史记录。</p></section>' : ""}\
+${summary}<p class="cell-sub">截至 ${a.latest_metrics == null ? missing : e(displayTime(a.latest_as_of))} · 采集于 ${a.
+  latest_metrics == null ? missing : e(displayTime(a.latest_collected_at))}</p><section class="detail-section">${unconfirmed ? "" :
+  `<h3>观察节点</h3><ol \
 class="snapshot-nodes">${nodes.map((n) => {
     const unknown = n.kind !== "latest" && a.date_status === "unverified" && !n.snapshot, status = unknown ? "unknown" : n.status, label = unknown ?
     "日期待核实" : { recorded: "已记录", before_due: "记录早于节点", not_due: "未到期", not_collected: "未采集" }[status] ||
     "状态未知";
     return `<li class="node ${e(status)}"><strong>${e(kindLabels[n.kind] || n.kind)}</strong><span>${e(label)}</span><small>${e(displayTime(
     n.snapshot?.as_of || n.due_at))}</small></li>`;
-  }).join("")}</ol><h3>快照时间线 ${detailInfo("按截至时间排序；相邻累计快照差值不等同每日新增。节点类型不代表先后。",
+  }).join("")}</ol>`}<h3>快照时间线 ${detailInfo("按截至时间排序；相邻累计快照差值不等同每日新增。节点类型不代表先后。",
   "时间线口径", "timeline")}</h3>${timeline.length < 2 ? `<p class="insufficient">${timeline.length ? "只有一期数据，暂不显示增长。" :
-  "尚未采集快照。"}</p>` : ""}<ol class="snapshot-timeline">${timeline.map((r) => `<li>${renderSnapshot(r)}${r.changes ? `<div \
+  unconfirmed ? "没有已记录的历史快照。" : "尚未采集快照。"}</p>` : ""}<ol class="snapshot-timeline">${timeline.map((r) => `<li>${renderSnapshot(r)}${r.changes ? `<div \
 class="snapshot-changes">${["reads", "likes",
     "comments", "approvals"].filter((key) => metricData(r)[key] != null).map((key) => `<span>${e(metrics[key])}${comparisonHTML(
   r.changes[key])}${detailInfo(r.changes[key]?.reason || "指标未取得", metrics[key] + "变化说明", r.id + "-" + key)}</span>`).join(

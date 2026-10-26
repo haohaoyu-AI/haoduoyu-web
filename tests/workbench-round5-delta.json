@@ -1,0 +1,105 @@
+{
+  "baseline": "ae1fafe292755ba01df5a8a639b74245eec72752",
+  "scope": "Round five presentation only: two media pages and one sidebar entry, complete existing all-status account catalogs, inline common todos, compact note editors with full saved bodies. Server/API/DB/schema/backup/snapshot contracts and public API documentation remain byte-identical to the ae1fafe release.",
+  "added_modules": [
+    "web/core/notes-editor-view.mjs"
+  ],
+  "files": {
+    "public/app.js": {
+      "before": "a7e7e6c975f3d0c26f2736545dd93f7122a4687e929727011abf02e423ed3b95",
+      "after": "74ea04486599c98978b58e983ddf5903d905915f0208c4f476f8d77f6afce146"
+    },
+    "public/workbench.css": {
+      "before": "c6b6058194eaae75804869f8a0eb9ab8606cb5ead1f7326b4bcc06a862d2457d",
+      "after": "3500c4a590b550a7380c95e3d4cad540c29ffcff510b2f28f700872fd57eb4ec"
+    },
+    "web/actions.mjs": {
+      "before": "3f9a522ce6a7a6717a72e2adcad820235ef791151bf5cdd858fe79c4819a28c4",
+      "after": "fbe2502f26d430344c8da61885b2b464bf43d97b8fd2271bc04782aece9566e4"
+    },
+    "web/controller.mjs": {
+      "before": "28627e4d37cdb11fd2f159aab6922ce45d4e652a286fe373e1e3b5f01a9d055f",
+      "after": "1e888d980a901771613862bdb3e952fcbdc4f76b4da34396a0fb70952ce6a116"
+    },
+    "web/core/article-ledger-data.mjs": {
+      "before": "386c2adf69a03a6213e0ddf960c24d3b96b97ab1653ff22270e88c1fa80063dc",
+      "after": "be06dbc8ca5bd3814213d785a999ef5b26bafa5be328ef93a7df0a21dd934bfc"
+    },
+    "web/core/article-ledger.mjs": {
+      "before": "d40452f3aea1e71622fb837d9a0b1af93b3d9e480f9b799679f138dfa842a5ee",
+      "after": "e264b4eb498ab7b3bb39c5be8b047c40b5ab700b884b182ea23049f91b61623c"
+    },
+    "web/core/constants.mjs": {
+      "before": "6959c609a2c231592e18df1034c601789de3f25db3d31bfcd4bffa0943b591bb",
+      "after": "52cc2e683761951591e13755ae048cb2adaa90281c8ffea2a4f800d0d9d569dc"
+    },
+    "web/core/notes-editor-view.mjs": {
+      "before": null,
+      "after": "32042df6304682c91fb5364c10c9257ef192c5e6dbd1fdd870c2581cd80b6879"
+    },
+    "web/core/router.mjs": {
+      "before": "a61fd09cf75bb25493d238b537cd0f6e160cabca1391652062a5da4137d21152",
+      "after": "3b3ecaaf5015017a1f7b3ced15285ea5b0f7443f8ba9528b1f15471d6189b965"
+    },
+    "web/core/state.mjs": {
+      "before": "d1979c548879ffbfece26d38f649ba3010c1720270c4bf72538df119d1d68f8c",
+      "after": "72098a1444d018648729e88317d5c7dd7a80c410f4512e740e37794c35547e4d"
+    },
+    "web/core/todo-templates-state.mjs": {
+      "before": "8ed7bb34951e5770c70709bc85dc98b010ff80a9e9f4476b0c2f0e1cb57f9a55",
+      "after": "e0f437fa22732a018ba93305f6e0cfa5d4637cc9051249aee85fa8d0cba5473f"
+    },
+    "web/core/todos-state.mjs": {
+      "before": "56fd42042e760aa33b410d67fa4eaba6323599a37fd3e554f71cbb2dab0adbd2",
+      "after": "e495180f71fa2b4385e1ba519a0c7a1e611123f30fb73c165f6802581e3fec0a"
+    },
+    "web/daily-notes-controller.mjs": {
+      "before": "5606b91623a272869158329a5cde3e8f9a3abffd65953b836fddc33eb4f39ee7",
+      "after": "cb2b9dece63cb9ed77e85c288b71c799c0f65d2cda000359834509aae83a108d"
+    },
+    "web/events.mjs": {
+      "before": "41db1c736120a4c7b0bc5fefdcf0b199303fc218180fab377a91e6e2f3bc4bf8",
+      "after": "5a532deb024dc4b3e591a502ca04114508461ecd5519b3e48faa2ae4f57f40f1"
+    },
+    "web/pages/article-ledger-overview.mjs": {
+      "before": "780d0e45647b8b079e6d8716556e0291be0c5ef3fe580dee89c499ec809740d0",
+      "after": "628bbe52ed84b23f3d76ed7ff8a74bb884103544ffb7c18ccb7ba32e225f6a96"
+    },
+    "web/pages/articles.mjs": {
+      "before": "08a59742774e7fb95719680c6c9eb2288aadd1fc48ddfd65d9eada4019299fe2",
+      "after": "f8573f1041346bfdab88378b6e1c373772c2efdffa89420c91f37e97a7ad49b0"
+    },
+    "web/pages/daily-notes.mjs": {
+      "before": "7480bb4908ff19dc180e40e3c46434f93a1d1523a5fd33e4f754427d061a9d8c",
+      "after": "ca60ca17eaa20aece8853d22ee77606f9d57f0b90f304807b329994f04048830"
+    },
+    "web/pages/dashboard.mjs": {
+      "before": "7ad8a25646d5628b38f3b10b90b826a4693fd1f4d9d94b593f3d405fe009fc69",
+      "after": "96a219aeaab8e21973264316bc1c8fdbbd3093aea8d692b6bbf0cae30cb7b837"
+    },
+    "web/pages/detail.mjs": {
+      "before": "8d48ee7f8398fcfd56ded5a409538a2761467eb5deeff8093ea28843ac077b52",
+      "after": "04197f194fdc0c0ce4b3bb1d83400007b0090c1fa63bd04b541b9332570ac2ab"
+    },
+    "web/pages/reviews.mjs": {
+      "before": "2af492264eb9be102f7d0b56e142cd7ec982fbc3aaa067fc3b1de0400b785361",
+      "after": "36ed534aabcac4bc09149655cf1955baec66f8c117e9d3c240e797f1a3d80495"
+    },
+    "web/pages/todo-templates.mjs": {
+      "before": "55d8fc9f5e95e6ae4f98082a838bbc21a5a89888e19b1ac29f3eb9349d21a736",
+      "after": "7a2e090fd21eaaadc688ea1b551497bdd91b15a5310a4c0906e53dc6fc497b8e"
+    },
+    "web/pages/todos.mjs": {
+      "before": "457a9963d4b6d8f2574a4358bfee57e168264de9b62854df8e3a9da67d80a0c5",
+      "after": "7e663c2060dea965dfe88d7f48a1dc0512048b73b4f8a94a29662ad4c661ca3b"
+    },
+    "web/ui/components.mjs": {
+      "before": "3bd0a2c18a3aeecd1b80e8265f0040d4099946b3cb456c9da23e9314b3a00b1c",
+      "after": "97be98ac4ce74de90022955da8c2b69da1e5d8339e094d83374369ad7f3a11f7"
+    },
+    "web/ui/workbench.mjs": {
+      "before": "69ea3db2eefea8cd700a7dce10a7a996f2d33e7085706b1ecdb130bf18972e43",
+      "after": "80a47ec9a68caab2e0da1c73936ae5b16af5446822715d3a0d7f48600e1ebc2b"
+    }
+  }
+}

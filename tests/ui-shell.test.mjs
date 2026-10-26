@@ -29,7 +29,8 @@ test('legacy settings routes canonicalize while every query and account survives
 test('page and tab history restores filters, review tabs and settings on popstate',()=>{
  const c=client('?page=articles&q=hello&account=a');c.run('readRoute();updateRoute();renderShell=()=>{}');
  c.run("navigate('settings','keys')");assert.equal(c.run('state.settingsTab'),'keys');
- c.run("state.reviewTab='daily';navigate('reviews')");assert.match(c.location.search,/tab=daily/);
+ c.run("state.reviewTab='daily';navigate('reviews')");assert.equal(c.run('state.page'),'articles');assert.match(c.location.search,/page=articles/);
+ assert.equal(c.run('state.reviewTab'),'daily');assert.doesNotMatch(c.location.search,/tab=/);
  c.back();assert.equal(c.run('state.page'),'settings');assert.equal(c.run('state.settingsTab'),'keys');assert.equal(c.run('state.filters.q'),'hello');
  c.back();assert.equal(c.run('state.page'),'articles');assert.equal(c.run('state.account'),'a');
  c.forward();assert.equal(c.run('state.settingsTab'),'keys');

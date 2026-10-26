@@ -13,24 +13,44 @@ function client() {
     requestAnimationFrame(){},setTimeout,clearTimeout});
   new vm.Script(source).runInContext(context);
   const run=code=>vm.runInContext(code,context);
-  context.capture=(path,options)=>{requests.push({path,options});return {data:[],meta:{total:0,unfiltered_total:0,has_more:false}};};
+  context.capture=(path,options)=>{
+    requests.push({path,options});
+    if(path==='/article-reconciliation')return {complete:true,total:0,rows:[],
+      counts:{drafting:0,illustrated:0,draft_saved:0,published:0,failed:0,unknown:0}};
+    const query=new URL(path,'http://localhost').searchParams,page=Number(query.get('page')),page_size=Number(query.get('page_size'));
+    return {data:[],meta:{total:0,unfiltered_total:0,page,page_size,offset:(page-1)*page_size,has_more:false}};
+  };
   run("state.me={id:'synthetic-ledger-ui'};state.accounts=[{id:'account',name:'好多鱼',platform:'toutiao',active:1}];api=capture;");
   return {run,nodes,requests,context};
 }
 
-test('article list uses the explicit saved-draft cohort and forwards every approved scalar/derived filter',async()=>{
-  const app=client();
-  app.run("state.filters={...defaultFilters(),slot:'tt1',writer:'dedao',has_warnings:'false',has_pending_verify:'true',series_no_min:'1',series_no_max:'200'};");
-  const html=await app.run("renderArticles(runtime.renderVersion,{marker:'list-context'})");
-  const query=new URL(app.requests[0].path,'http://localhost').searchParams;
-  assert.equal(query.get('status'),'draft_saved');assert.equal(query.get('slot'),'tt1');assert.equal(query.get('writer'),'dedao');
-  assert.equal(query.get('has_warnings'),'false');assert.equal(query.get('has_pending_verify'),'true');
-  assert.equal(query.get('series_no_min'),'1');assert.equal(query.get('series_no_max'),'200');
-  assert.equal(query.get('page'),'1');assert.equal(query.get('page_size'),'20');
-  assert.equal(app.requests[0].options.context.marker,'list-context');
-  assert.match(html,/尚未记录文章/);assert.doesNotMatch(html,/草稿无需|可先保存草稿/);
-  const select=html.match(/<select name="status"[\s\S]*?<\/select>/)?.[0];
-  assert.ok(select);assert.equal((select.match(/<option\b/g)||[]).length,5);assert.doesNotMatch(select,/value=""|>全部</);
+test('article list loads all lifecycle cohorts by default and preserves explicit-status scalar API filters',async()=>{
+  for(const status of ['all','draft_saved']) {
+    const app=client();
+    app.run("state.filters={...defaultFilters(),slot:'tt1',writer:'dedao',has_warnings:'false',has_pending_verify:'true',series_no_min:'1',series_no_max:'200'};");
+    if(status!=='all')app.run("state.filters.status='draft_saved'");
+    const html=await app.run("renderArticles(runtime.renderVersion,{marker:'list-context'})");
+    const pages=app.requests.filter(call=>call.path.startsWith('/articles?'));
+    if(status==='all') {
+      assert.equal(app.requests[0].path,'/article-reconciliation');
+      assert.deepEqual(pages.map(call=>new URL(call.path,'http://localhost').searchParams.get('status')),
+        ['drafting','illustrated','draft_saved','published','failed']);
+      assert.ok(pages.every(call=>new URL(call.path,'http://localhost').searchParams.get('page_size')==='200'));
+      assert.equal(app.run('state.articleMeta.pagination'),'client');
+    }else {
+      assert.equal(app.requests.length,1);
+      const query=new URL(pages[0].path,'http://localhost').searchParams;
+      for(const [key,value]of Object.entries({status:'draft_saved',slot:'tt1',writer:'dedao',has_warnings:'false',has_pending_verify:'true',
+        series_no_min:'1',series_no_max:'200',page:'1',page_size:'20'}))assert.equal(query.get(key),value,key);
+    }
+    assert.ok(app.requests.every(call=>call.options.context.marker==='list-context'));
+    assert.ok(pages.every(call=>call.options.envelope===true));
+    assert.ok(app.requests.every(call=>!['all','unknown'].includes(new URL(call.path,'http://localhost').searchParams.get('status'))));
+    assert.match(html,/尚未记录文章/);assert.doesNotMatch(html,/草稿无需|可先保存草稿/);
+    const select=html.match(/<select name="status"[\s\S]*?<\/select>/)?.[0];
+    assert.ok(select);assert.equal((select.match(/<option\b/g)||[]).length,7);assert.doesNotMatch(select,/value=""/);
+    assert.match(select,new RegExp('<option value="'+status+'" selected>'));
+  }
 });
 
 test('draft table escapes text, marks all reading values unpublished and derives topic only from an explicit slot',()=>{
@@ -77,7 +97,7 @@ test('new article form is a real draft with nullable publication fields and an a
 });
 
 test('obsolete article response cannot replace a newer page or its loaded rows',async()=>{
-  const app=client();app.run("let finishList;api=()=>new Promise(resolve=>finishList=resolve);state.articles=[{id:'newer'}];let obsolete=renderArticles();runtime.renderVersion++;");
+  const app=client();app.run("state.filters.status='draft_saved';let finishList;api=()=>new Promise(resolve=>finishList=resolve);state.articles=[{id:'newer'}];let obsolete=renderArticles();runtime.renderVersion++;");
   app.run("finishList({data:[{id:'old'}],meta:{total:1}})");
   assert.equal(await app.run('obsolete'),'');assert.equal(app.run('state.articles[0].id'),'newer');
 });

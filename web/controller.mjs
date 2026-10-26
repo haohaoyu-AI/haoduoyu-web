@@ -9,7 +9,7 @@ import { resetSessionIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
 import { articleDraft, renderArticles } from "./pages/articles.mjs";
-import { loadArticleLedgerSummary, renderArticleLedgerSummary } from "./pages/article-ledger-overview.mjs";
+import { loadArticleCatalog } from "./core/article-ledger-data.mjs";
 import { renderDashboardSummary } from "./pages/dashboard.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { renderReviews } from "./pages/reviews.mjs";
@@ -26,17 +26,15 @@ import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { segmented } from "./ui/segmented.mjs";
 import { toast } from "./ui/toast.mjs";
-import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize} from "./ui/workbench.mjs";
+import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize,
+  renderMediaTabs} from "./ui/workbench.mjs";
 import {renderWorkbenchSettings} from "./pages/workbench-settings.mjs";
 import {renderWorkReminders} from "./pages/work-reminders.mjs";
 import {loadWorkReminders} from "./work-reminders-controller.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
     state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts} : settingsTabs), state.settingsTab,
-    "设置分类", "tab", "page-tabs") : ""}${state.page === "dashboard" ?
-    `<div class="article-ledger-overview article-ledger-scope">${segmented("article-overview-mode",
-      [["drafts", "文章列表"], ["published", "文章数据"], ["reconciliation", "发布情况"]],
-      state.articleOverviewMode, "总览口径", "mode")}</div>` : ""}<div id="page-content"></div>`;
+    "设置分类", "tab", "page-tabs") : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -87,6 +85,7 @@ function navigateLink(page) {
   navigate(page);
 }
 function navigate(page, tab) {
+  if (page === "reviews") page = "articles";
   if (page === "memos" && tab === "trash") { page = "settings"; tab = "workspace"; }
   const legacy = Object.hasOwn(legacyPages, page) ? legacyPages[page] : null;
   if (legacy) page = "settings";
@@ -123,20 +122,19 @@ function publishedArticleLinks(html) {
   return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
 }
 async function loadArticleOverview(version, context) {
-  if (state.articleOverviewMode === "reconciliation") {
-    const data = await loadReconciliation(context);
-    return version === runtime.renderVersion ? renderReconciliation(data) : "";
-  }
-  if (state.articleOverviewMode !== "published") {
-    state.dashboard = null;
-    const summary = await loadArticleLedgerSummary(context);
-    return version === runtime.renderVersion ? renderArticleLedgerSummary(summary) : "";
-  }
-  const data = await api(`/overview?period=${state.overviewPeriod}&top_n=${state.topN}&top_platform=${encodeURIComponent(state.topPlatform)}`,
-    { context });
+  const query = new URLSearchParams({period:state.overviewPeriod,top_n:state.topN,top_platform:state.topPlatform});
+  if (state.account) query.set('account_id',state.account);
+  const [data,catalog] = await Promise.all([api(`/overview?${query}`, {context}),
+    loadArticleCatalog(context,{accountId:state.account,allowedAccountIds:state.accounts.map(account=>account.id)})]);
   if (version !== runtime.renderVersion) return "";
-  state.dashboard = data;
-  return publishedArticleLinks(renderDashboardSummary(data));
+  state.dashboard = data; state.mediaCatalog = catalog;
+  return renderMediaOverview(data);
+}
+function renderMediaOverview(data) {
+  const catalog = state.mediaCatalog;
+  const records = catalog?.reconciliation ? '<details class="media-publishing-details"><summary>发布记录核对</summary>' +
+    renderReconciliation(catalog.reconciliation) + '</details>' : '';
+  return publishedArticleLinks(renderDashboardSummary(data,catalog?.summary)) + records;
 }
 async function renderPage() {
   stopPageEntry();
@@ -262,6 +260,7 @@ export {
   navigate,
   navigateLink,
   publishedArticleLinks,
+  renderMediaOverview,
   reloadFilteredPage,
   renderPage,
   renderShell

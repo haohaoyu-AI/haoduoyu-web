@@ -7,6 +7,10 @@ const warningLabels = { TOUTIAO_TITLE_TOO_LONG: "头条标题超过 30 字", CHA
   SUBHEADING_COUNT_OUT_OF_RANGE: "小标题不在 5–7", ENTERTAINMENT_IMAGES_TOO_FEW: "文娱配图不足 25 张",
   DRAFT_CREDENTIAL_MISSING: "缺少草稿凭证" };
 const isPublished = row => !Object.hasOwn(row, "status") || row.status === "published";
+function hasRecordedUnknownMetrics(row) {
+  return !isPublished(row) && !Object.hasOwn(statusLabels, row.status) && (row.latest_metrics != null ||
+    Array.isArray(row.observations) && row.observations.length > 0 || Array.isArray(row.timeline) && row.timeline.length > 0);
+}
 function safeLedgerURL(value) {
   if (typeof value !== "string" || !/^https?:\/\//i.test(value) || /[\s\u0000-\u001f\u007f]/u.test(value)) return false;
   try {
@@ -33,7 +37,7 @@ function ledgerTopic(row) {
 }
 function ledgerCell(row, key) {
   if (["reads", "likes", "comments", "approvals", "as_of"].includes(key)) {
-    if (!isPublished(row)) return '<span class="article-ledger-muted">未发布</span>';
+    if (!isPublished(row) && !hasRecordedUnknownMetrics(row)) return '<span class="article-ledger-muted">未发布</span>';
     return key === "as_of" && row.latest_as_of ? e(time(row.latest_as_of, true)) : dashboardMetric(row, key);
   }
   if (key === "status") return e(statusLabels[row.status] || (isPublished(row) ? "已发布" : "未确认"));
@@ -51,5 +55,5 @@ function ledgerCell(row, key) {
   if (key === "account") return e(row.account_name || "未记录");
   return !isPublished(row) ? "未发布" : row.published_at ? e(time(row.published_at, true)) : "未取得";
 }
-export { illustratorLabels, isPublished, ledgerCell, ledgerTopic, pipelineDuration, safeDraftReference, safeLedgerURL,
+export { illustratorLabels, isPublished, hasRecordedUnknownMetrics, ledgerCell, ledgerTopic, pipelineDuration, safeDraftReference, safeLedgerURL,
   slotLabels, statusLabels, warningLabels, writerLabels };

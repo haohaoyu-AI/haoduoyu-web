@@ -22,6 +22,9 @@ test('anonymous public UI opens business directly and never offers credential/se
   assert.equal(c.run('state.settingsTab'),'workspace');
   const html=c.nodes.get('#app').innerHTML;
   assert.match(html,/data-nav="todos"/);
+  const sidebar=html.match(/<nav class="nav-list"[\s\S]*?<\/nav>/)?.[0];assert.ok(sidebar);
+  assert.equal((sidebar.match(/data-nav="dashboard"/g)||[]).length,1);
+  assert.match(sidebar,/好多鱼图文/);assert.doesNotMatch(sidebar,/media-subnav|data-nav="(?:articles|reviews)"/);
   assert.doesNotMatch(html,/公开编辑|class="user-row"|class="avatar"|class="user-name"/);
   assert.doesNotMatch(html,/data-tab="(?:keys|security|log)"|data-action="logout"|password-form|login-form/);
   const options=JSON.parse(c.run("JSON.stringify(apiOptions({method:'POST',body:{text:'synthetic'}}))"));

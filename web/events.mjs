@@ -1,6 +1,7 @@
 import { changeReconciliationFilters } from "./pages/article-reconciliation.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
-import { applyArticleFilters, navigate, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell } from "./controller.mjs";
+import { applyArticleFilters, navigate, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell,
+  renderMediaOverview } from "./controller.mjs";
 import { $, $$, e } from "./core/dom.mjs";
 import { readRoute, updateRoute } from "./core/router.mjs";
 import { runtime, state } from "./core/state.mjs";
@@ -91,11 +92,11 @@ function handleChange(event) {
   } else if (el.id === "trend-date") {
     state.trendDate = el.value;
     state.trendOpen = true;
-    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
+    replacePageContent(renderMediaOverview(state.dashboard));
   } else if (el.id === "trend-metric") {
     state.trendMetric = el.value;
     state.trendOpen = true;
-    replacePageContent(publishedArticleLinks(renderDashboard(state.dashboard)));
+    replacePageContent(renderMediaOverview(state.dashboard));
   } else if (el.closest("#article-filters") && el.name && el.name !== "q") {
     state.filters[el.name] = el.value;
     reloadFilteredPage("[name=" + el.name + "]");

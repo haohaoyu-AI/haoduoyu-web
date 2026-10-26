@@ -52,6 +52,96 @@ test('common templates use the selected calendar day and only show acknowledged 
   }
 });
 
+test('inline common templates sit directly below the plan input and use the actual selected-day membership',()=>{
+  const c=client();
+  c.run("templateState().loaded=true;templateState().items=[{id:'common',text:'<常用事项>'}];todoDay().loaded=true");
+  const html=c.run('renderTodos()');
+  assert.match(html,/<\/form><div id="todo-inline-templates" class="todo-inline-templates"/);
+  assert.ok(html.indexOf('id="todo-inline-templates"')<html.indexOf('id="todo-feedback"'));
+  assert.match(html,/管理常用/);
+  let chips=c.run('renderInlineTodoTemplates()');
+  assert.match(chips,/class="todo-template-chip"[^>]*data-action="todo-template-use"[^>]*data-id="common"/);
+  assert.match(chips,/&lt;常用事项&gt;/);
+  assert.doesNotMatch(chips,/<button[^>]*disabled|今日已添加/);
+  c.put('linked',item('hidden-completed-template','2026-10-23',{template_id:'common',completed:true}));
+  c.run("todoDay().items=[linked];todoPreferences().mode='hide'");
+  chips=c.run('renderInlineTodoTemplates()');
+  assert.match(chips,/class="todo-template-chip is-added"[^>]*disabled/);
+  assert.match(chips,/>今日已添加</);
+  c.run("state.todoDate='2026-10-24';todoDay().loaded=true;todoDay().items=[linked]");
+  assert.doesNotMatch(c.run('renderInlineTodoTemplates()'),/is-added|已添加/,
+    'another date cannot mark the selected future day as added');
+  c.run("todoDay().items=[{...linked,date:'2026-10-24'}]");
+  assert.match(c.run('renderInlineTodoTemplates()'),/>当日已添加</);
+  c.run("todoDay().items[0].deleted_at='2026-10-23T09:00:00Z'");
+  assert.doesNotMatch(c.run('renderInlineTodoTemplates()'),/is-added|已添加/);
+});
+
+test('the daily page loads common templates immediately and waits for the day before permitting a single click add',async()=>{
+  const c=client();
+  c.run(`paintTodos=()=>{};let reads=[],writes=[],finishTemplates,finishDay,finishAdd;
+    api=(path,options={})=>{
+      if(options.method){writes.push(options.body);return new Promise(resolve=>finishAdd=resolve)}
+      reads.push(path);return new Promise(resolve=>{if(path==='/todo-templates')finishTemplates=resolve;else finishDay=resolve})};
+    let reading=loadTodos()`);
+  assert.deepEqual(JSON.parse(c.run('JSON.stringify(reads)')),['/todo-templates','/todos?date=2026-10-23']);
+  c.run("finishTemplates({items:[{id:'common',text:'常用事项'}]})");
+  await Promise.resolve();
+  await c.run("useTodoTemplate('common')");
+  assert.equal(c.run('writes.length'),0,'membership must be read before a template can be added');
+  assert.match(c.run('renderInlineTodoTemplates()'),/<button[^>]*disabled/);
+  c.run('finishDay({items:[]})');
+  await c.run('reading');
+  c.run("todoDay().draft='正在输入的中文草稿';let adding=useTodoTemplate('common')");
+  await c.run("useTodoTemplate('common')");
+  assert.equal(c.run('writes.length'),1);
+  assert.equal(c.run('writes[0].date'),'2026-10-23');
+  assert.match(c.run('renderInlineTodoTemplates()'),/<button[^>]*disabled/);
+  assert.doesNotMatch(c.run('renderInlineTodoTemplates()'),/今日已添加/,'pending optimistic rows are not acknowledged membership');
+  c.run('finishAdd({...writes[0],completed:false,version:1})');
+  await c.run('adding');
+  await c.run("useTodoTemplate('common')");
+  assert.equal(c.run('writes.length'),1,'an acknowledged template cannot be added again to the same day');
+  assert.match(c.run('renderInlineTodoTemplates()'),/is-added[^>]*disabled/);
+  assert.equal(c.run('todoDay().draft'),'正在输入的中文草稿');
+});
+
+test('failed inline template adds keep one request identity and retries on the selected future date',async()=>{
+  const c=client();
+  c.run(`paintTodos=()=>{};state.todoDate='2026-10-24';todoDay().loaded=true;templateState().loaded=true;
+    templateState().items=[{id:'common',text:'未来日常用事项'}];let requests=[],rejectAdd;
+    api=(_path,options)=>{requests.push(options.body);return new Promise((_,reject)=>rejectAdd=reject)};
+    let adding=useTodoTemplate('common')`);
+  c.run("rejectAdd(new Error('离线暂未添加'))");
+  await c.run('adding');
+  assert.doesNotMatch(c.run('renderInlineTodoTemplates()'),/is-added|当日已添加|<button[^>]*disabled/);
+  const first=c.run('JSON.stringify(requests[0])');
+  c.run("api=async(_path,options)=>{requests.push(options.body);return {...options.body,completed:false,version:1}}");
+  await c.run("useTodoTemplate('common')");
+  assert.equal(c.run('JSON.stringify(requests[1])'),first);
+  assert.equal(c.run('requests[1].date'),'2026-10-24');
+  assert.match(c.run('renderInlineTodoTemplates()'),/>当日已添加</);
+  c.run("state.todoDate='';todoDay().loaded=true");
+  assert.doesNotMatch(c.run('renderInlineTodoTemplates()'),/is-added|已添加/);
+});
+
+test('template reads from an earlier selected date cannot replace the current inline list',async()=>{
+  const c=client();
+  c.run(`paintTodos=()=>{};let templateReads=[];
+    api=path=>path==='/todo-templates'?new Promise(resolve=>templateReads.push(resolve)):Promise.resolve({items:[]});
+    let firstRead=loadTodos();state.todoDate='2026-10-24';let secondRead=loadTodos()`);
+  assert.equal(c.run('templateReads.length'),2);
+  c.run("templateReads[1]({items:[{id:'current',text:'当前选定日期可用'}]})");
+  await c.run('secondRead');
+  await Promise.resolve();
+  c.run("templateReads[0]({items:[{id:'obsolete',text:'旧请求不得覆盖'}]})");
+  await c.run('firstRead');
+  await Promise.resolve();
+  assert.match(c.run('renderInlineTodoTemplates()'),/当前选定日期可用/);
+  assert.doesNotMatch(c.run('renderInlineTodoTemplates()'),/旧请求不得覆盖/);
+  assert.equal(c.run('templateState().loading'),false);
+});
+
 function client({search = '', now = '2026-10-23T08:00:00Z', mobile = false} = {}) {
   let currentTime = Date.parse(now), uuid = 0, timerId = 0, index = 0;
   const timers = new Map(), events = new Map(), windowEvents = new Map(), nodes = new Map();
@@ -139,17 +229,20 @@ test('future calendar plans save and reload on the chosen date and returning tod
 
 test('a selected calendar date stays pinned across Beijing midnight and template badges follow the actual day',async()=>{
   const c=client({now:'2026-10-23T15:59:59Z'});
-  c.run("paintTodos=()=>{};api=async()=>({items:[]});state.todoPanel='history';selectTodoDate('2026-10-23');templateState().items=[{id:'common',text:'常用'}]");
+  c.run("paintTodos=()=>{};api=async()=>({items:[]});templateState().loaded=true;templateState().items=[{id:'common',text:'常用'}];state.todoPanel='history';selectTodoDate('2026-10-23')");
   c.put('linked',item('selected-today-linked','2026-10-23',{template_id:'common'}));
   c.run('todoDay().items=[linked]');
   assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added >今日已添加/);
+  assert.match(c.run('renderInlineTodoTemplates()'),/>今日已添加</);
   c.setNow('2026-10-23T16:00:00Z');
   c.run('syncTodoDay()');
   assert.equal(c.run('todoDate()'),'2026-10-23');
   assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added >当日已添加/);
+  assert.match(c.run('renderInlineTodoTemplates()'),/>当日已添加</);
   await c.run("setTodoPanel('')");
   assert.equal(c.run('todoDate()'),'2026-10-24');
   assert.match(c.run('todoTemplateRows(templateState())'),/data-template-added hidden>今日已添加/);
+  assert.doesNotMatch(c.run('renderInlineTodoTemplates()'),/is-added|已添加/);
   assert.equal(c.run("todoDay('2026-10-23').items[0].date"),'2026-10-23');
 });
 
@@ -332,6 +425,7 @@ test('a stale pre-write read is refreshed before replacing the successfully adde
   prepareForm(c);
   c.run(`let getCount=0,finishRead,created;
     api=(path,options={})=>{
+      if(path==='/todo-templates')return Promise.resolve({items:[]});
       if(options.method==='POST'){created={...options.body,completed:false,version:1};return Promise.resolve(created)}
       if(++getCount===1)return new Promise(resolve=>finishRead=resolve);
       return Promise.resolve({date:'2026-10-23',today:'2026-10-23',items:[created]})};
@@ -469,10 +563,20 @@ test('daily plans and explicit statistics overview render and request independen
     api=async path=>{reads.push(path);return {date:'2026-10-23',today:'2026-10-23',items:[]}}`);
   await c.run('renderPage()');
   assert.match(c.nodes.get('#page-content').innerHTML, /id="todo-form"/);
-  assert.deepEqual(JSON.parse(c.run('JSON.stringify(reads)')), ['/todos?date=2026-10-23']);
-  c.run(`state.page='dashboard';state.articleOverviewMode='published';reads=[];renderDashboardSummary=()=>'<section>Independent statistics</section>'`);
+  assert.deepEqual(JSON.parse(c.run('JSON.stringify(reads)')), ['/todo-templates','/todos?date=2026-10-23']);
+  c.run(`state.page='dashboard';state.articleOverviewMode='published';reads=[];renderDashboardSummary=()=>'<section>Independent statistics</section>';
+    api=async path=>{reads.push(path);
+      if(path==='/article-reconciliation')return {complete:true,total:0,rows:[],
+        counts:{drafting:0,illustrated:0,draft_saved:0,published:0,failed:0,unknown:0}};
+      if(path.startsWith('/articles?')){const query=new URL(path,'http://localhost').searchParams;
+        return {data:[],meta:{total:0,page:Number(query.get('page')),page_size:Number(query.get('page_size')),offset:0,has_more:false}}}
+      if(path.startsWith('/overview?'))return {items:[]};
+      throw new Error('Unexpected statistics read: '+path)}`);
   await c.run('renderPage()');
-  assert.equal(c.run('reads.length'), 1);
+  assert.deepEqual(JSON.parse(c.run("JSON.stringify(reads.map(path=>new URL(path,'http://localhost').pathname))")),
+    ['/overview','/article-reconciliation','/articles','/articles','/articles','/articles','/articles']);
+  assert.deepEqual(JSON.parse(c.run("JSON.stringify(reads.filter(path=>path.startsWith('/articles?')).map(path=>new URL(path,'http://localhost').searchParams.get('status')))")),
+    ['drafting','illustrated','draft_saved','published','failed']);
   assert.match(c.run('reads[0]'), /^\/overview\?/);
   assert.match(c.nodes.get('#page-content').innerHTML, /Independent statistics/);
   assert.doesNotMatch(c.nodes.get('#page-content').innerHTML, /todo-form|daily-todos/);
@@ -491,7 +595,7 @@ test('midnight timer and returning-tab events switch today automatically without
     await Promise.resolve();
     await Promise.resolve();
     assert.equal(c.run('todoDate()'), '2026-10-24', trigger);
-    assert.equal(c.run('reads[0]'), '/todos?date=2026-10-24', trigger);
+    assert.equal(c.run("reads.find(path=>path.startsWith('/todos?'))"), '/todos?date=2026-10-24', trigger);
     assert.equal(c.run('todoDay().items.length'), 0, trigger);
     assert.equal(c.run("todoDay('2026-10-23').items[0].id"), 'yesterday', trigger);
   }
@@ -545,8 +649,8 @@ test('saving a task does not recreate an active history date control', () => {
   assert.match(slots.get('#todo-items').innerHTML, /is-complete/, 'row still updates without replacing the date control');
 });
 
-test('repeated navigation keeps the current page and history while explicit actions still refresh it', () => {
-  for (const page of ['dashboard', 'todos', 'articles', 'reviews', 'settings']) {
+test('repeated canonical navigation retains history, legacy reviews resolves to articles, and explicit actions refresh', () => {
+  for (const page of ['dashboard', 'todos', 'articles', 'settings']) {
     const c = client({search: `?page=${page}&tab=workspace`, mobile: true});
     c.run('readRoute();updateRoute();let rendered=0;renderShell=()=>{rendered++}');
     const length = c.historyLength;
@@ -561,6 +665,19 @@ test('repeated navigation keeps the current page and history while explicit acti
       assert.equal(c.historyLength, length + 1);
     }
   }
+  const legacy=client({search:'?page=reviews',mobile:true});
+  legacy.run('readRoute();updateRoute();let rendered=0;renderShell=()=>{rendered++}');
+  assert.equal(legacy.run('state.page'),'articles');
+  assert.equal(new URL(legacy.location.href).searchParams.get('page'),'articles');
+  const length=legacy.historyLength;
+  legacy.run("navigateLink('articles')");
+  assert.equal(legacy.historyLength,length);
+  assert.equal(legacy.run('rendered'),0);
+  legacy.run("navigate('reviews')");
+  assert.equal(legacy.run('state.page'),'articles');
+  assert.equal(new URL(legacy.location.href).searchParams.get('page'),'articles');
+  assert.equal(legacy.historyLength,length+1);
+  assert.equal(legacy.run('rendered'),1);
 });
 
 test('daily-plan navigation returns historical dates to today and settings navigation returns to workspace', () => {
@@ -728,7 +845,7 @@ test('adding a common template from a row retains its request identity after fai
   const request=c.run('JSON.stringify(calls[0].options.body)');
   c.run("rejectLink(new Error('Synthetic template link failed'))");
   await c.run('promotion');
-  c.run(`api=async(path,options)=>{calls.push({path,options});return {
+  c.run(`api=async(path,options)=>{if(path==='/todo-templates')return {items:templateState().items};calls.push({path,options});return {
     todo:{...original,version:2,template_id:options.body.template_id,template_active:true,template_version:1},
     template:{id:options.body.template_id,text:original.text,version:1}}}`);
   await c.run('changeTodoTemplate({id:original.id,date:original.date})');

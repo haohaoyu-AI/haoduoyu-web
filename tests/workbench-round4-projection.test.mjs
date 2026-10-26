@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {projectWorkbenchRound4,round4AddedModules,round4DocumentSpec,round4DocumentDocs} from './workbench-round4-projection.mjs';
+import {projectWorkbenchRound5} from './workbench-round5-projection.mjs';
 
 const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -15,15 +16,24 @@ test('round-four production files and three new frontend modules are pinned; unr
   const newFrontend=Object.entries(delta.files).filter(([file,entry])=>file.startsWith('web/')&&entry.before===null).map(([file])=>file).sort();
   assert.deepEqual(newFrontend,[...round4AddedModules].sort());
   for(const [file,entry]of Object.entries(delta.files)) {
-    const source=await read(file);
+    const current=await read(file),source=projectWorkbenchRound5(file,current);
     assert.equal(hash(source),entry.after,'on-disk round-four source stays exact: '+file);
     assert.equal(projectWorkbenchRound4(file,source),entry.before===null?'':before(file),file);
-    assert.throws(()=>projectWorkbenchRound4(file,source+'\n/* unauthorized change */\n'),/approved workbench delta/);
+    assert.throws(()=>projectWorkbenchRound4(file,current+'\n/* unauthorized change */\n'),/approved workbench delta/);
   }
   const roots=['db','drizzle','public','scripts','src','web'];
   const changed=execFileSync('git',['diff','--name-only',delta.baseline,'--',...roots],{cwd:root,encoding:'utf8'});
   const added=execFileSync('git',['ls-files','--others','--exclude-standard','--',...roots],{cwd:root,encoding:'utf8'});
-  const inventory=[...new Set((changed+'\n'+added).trim().split('\n').filter(Boolean))].sort();
+  const round5=JSON.parse(await read('tests/workbench-round5-delta.json'));
+  const inventory=[];
+  for(const file of new Set((changed+'\n'+added).trim().split('\n').filter(Boolean))) {
+    if(round5.files[file]&&!delta.files[file]) {
+      let prior='';
+      try {prior=before(file);}catch(error) {assert.equal(error.status,128,'only files absent from the earlier baseline may project empty');}
+      assert.equal(projectWorkbenchRound5(file,await read(file)),prior,'round-five-only additions preserve the earlier production inventory: '+file);
+    }else inventory.push(file);
+  }
+  inventory.sort();
   assert.deepEqual(inventory,Object.keys(delta.files).sort(),'only explicitly pinned production changes are accepted');
 });
 

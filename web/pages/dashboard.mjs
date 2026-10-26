@@ -4,6 +4,7 @@ import { accountLabel, accountName, compact, duration, num, time } from "../core
 import { state } from "../core/state.mjs";
 import { comparisonHTML, dashboardInfo, dashboardMetric, freshness, metricCoverageHTML, platformColor, platformLogo } from "../ui/components.mjs";
 import { segmented } from "../ui/segmented.mjs";
+import { renderArticleLedgerSummary } from "./article-ledger-overview.mjs";
 function dailyDates(data) {
   return (data.trend || []).filter((d) => (d.accounts || []).some((a) => Object.values(a.metrics || {}).some((v) => v != null)));
 }
@@ -14,10 +15,11 @@ function periodControls() {
 function renderDashboard(data) {
   return renderDashboardSummary(data);
 }
-function renderDashboardSummary(data) {
+function renderDashboardSummary(data, summary) {
   const daily = dailyDates(data), articles = (data.attention_articles || []).filter((a) => ["up", "down"].includes(a.attention?.kind)), visible = state.
   attentionExpanded ? articles : articles.slice(0, 6);
-  return `${renderCumulative(data)}<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${
+  return `${summary ? renderArticleLedgerSummary(summary) : ""}${renderCumulative(data)}\
+<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${
     daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible)}${articles.
   length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ?
   "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">暂无每日新增数据。<button \
@@ -60,7 +62,7 @@ function renderCumulative(data) {
   const c = data.cumulative || {}, series = data.series || {}, rows = data.top_articles || [], due = data.due_reviews || [], fresh = freshness(
   c);
   const interactions = c.totals?.likes == null || c.totals?.comments == null ? null : c.totals.likes + c.totals.comments;
-  const stats = [["已记录文章", num(c.article_count)], ["累计阅读", num(c.totals?.reads)], ["篇均阅读", num(c.mean_reads)], ["互动（赞+评）", num(
+  const stats = [["已发布文章", num(c.article_count)], ["累计阅读", num(c.totals?.reads)], ["篇均阅读", num(c.mean_reads)], ["互动（赞+评）", num(
     interactions)], ["数据覆盖", c.coverage == null ? "—" : num(c.coverage * 100) + "%"]];
   return `<div class="overview-status" role="status"><span><i class="fresh-dot ${e(fresh.kind)}"></i>${e(fresh.label)}</span><div>${c.no_snapshot_count ?
   `<button class="btn text" data-action="missing-list" data-status="no_snapshot">未采集 ${e(num(c.no_snapshot_count))} 篇 →</button>` :
