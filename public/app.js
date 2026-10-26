@@ -7838,7 +7838,7 @@ function ensureStore() {
   return memoStore;
 }
 function refreshDurableMemos() {
-  if (!memoOfflineRefresh || memoOfflineLoading || memoDeleting || memoRefreshPaused || !visible() || !memoStore || [...memoStore.drafts.values()].some((item) => item.composing || item.pending || item.phase === "saving")) return;
+  if (!memoOfflineRefresh || memoOfflineLoading || memoDeleting || memoRefreshPaused || !visible() || !memoStore || memoStore.state.loading || [...memoStore.drafts.values()].some((item) => item.composing || item.pending || item.phase === "saving")) return;
   const store = memoStore;
   memoOfflineRefresh = false;
   memoOfflineLoading = true;
