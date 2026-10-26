@@ -4,6 +4,7 @@ import {readFile,readdir} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {projectWorkbenchRound6,round6AddedModules} from './workbench-round6-projection.mjs';
+import {projectWorkbenchRound6Badge,round6BadgePaths} from './workbench-round6-badge-projection.mjs';
 
 const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -19,7 +20,8 @@ test('round-six pins only the nine reviewed presentation paths and adds no front
     assert.ok(approved.includes(file),'only approved presentation files: '+file);
     assert.match(entry.before,/^[a-f0-9]{64}$/,'no newly added files: '+file);
     const source=await read(file);
-    assert.equal(hash(source),entry.after,'on-disk round-six source stays exact: '+file);
+    const reviewed=round6BadgePaths.includes(file)?projectWorkbenchRound6Badge(file,source):source;
+    assert.equal(hash(reviewed),entry.after,'on-disk round-six source stays exact after the narrow badge inverse: '+file);
     assert.equal(projectWorkbenchRound6(file,source),git('show',delta.baseline+':'+file));
     assert.throws(()=>projectWorkbenchRound6(file,source+'\n/* unauthorized change */\n'),/approved workbench delta/);
   }

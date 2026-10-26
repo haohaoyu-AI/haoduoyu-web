@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {releases,repository,validateRequest,verifyCI,verifyWorker} from '../.github/scripts/release-policy.mjs';
+import {approvedSourceCommits,buildApprovedWorker,currentSourceCommit} from './helpers/release-worker-fixtures.mjs';
 const commit='947bc782ea70e7808f6e7de523e5977818b292df';
 const env=()=>({GITHUB_REPOSITORY:repository,GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',
   TARGET_COMMIT:commit,LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:'83512373-c500-47c3-a451-7dde59d2174b'});
 test('manual release accepts only exact tested candidate and retained rollback, main and stopped local route',()=>{
+  assert.deepEqual(Object.keys(releases),approvedSourceCommits);
   assert.equal(validateRequest(env()),releases[commit]);
   const rollback=Object.keys(releases)[1];assert.equal(validateRequest({...env(),TARGET_COMMIT:rollback}),releases[rollback]);
   for(const [key,value] of Object.entries({GITHUB_REPOSITORY:'other/repo',GITHUB_REF:'refs/heads/opt/test',GITHUB_EVENT_NAME:'push',
@@ -23,11 +26,38 @@ test('prior CI must be the successful approved workflow/run/commit/repository; l
   }
   await assert.rejects(verifyCI(commit,{request:async()=>new Response('',{status:403})}));
 });
-test('Worker artifact verification refuses changed/truncated bytes or arbitrary commits',async()=>{
+test('both real approved Worker artifacts pass while changed/truncated bytes and arbitrary commits fail',async()=>{
+  for(const sourceCommit of approvedSourceCommits) {
+    const data=await buildApprovedWorker(sourceCommit);
+    assert.equal(verifyWorker(data,sourceCommit),releases[sourceCommit]);
+    assert.throws(()=>verifyWorker(data.subarray(1),sourceCommit));
+    const changed=Buffer.from(data);changed[0]^=1;
+    assert.throws(()=>verifyWorker(changed,sourceCommit));
+    assert.throws(()=>verifyWorker(data,'main'));assert.throws(()=>verifyWorker(data,'f'.repeat(40)));
+    for(const other of approvedSourceCommits.filter(value=>value!==sourceCommit))assert.throws(()=>verifyWorker(data,other));
+  }
+});
+test('the current reviewed badge Worker remains outside the unchanged release allowlist',async()=>{
+  const manifest=JSON.parse(await readFile(new URL('./workbench-round6-badge-delta.json',import.meta.url),'utf8'));
+  const reviewed={bytes:1244076,sha256:'737f212f71725556f19dba0e451fee44e322370f6304cf405c6681a92fbe7fe3'};
+  assert.equal(manifest.baseline,commit);
+  assert.equal(manifest.patch_commit,'3a87479d30ac4cf2b9bc484a51106713fa4c510f');
+  assert.deepEqual(manifest.worker,reviewed);
+  assert.deepEqual(manifest.base_worker,{bytes:releases[commit].bytes,sha256:releases[commit].sha256});
   const data=await readFile(new URL('../dist/server/index.js',import.meta.url));
-  assert.equal(verifyWorker(data,commit),releases[commit]);
-  assert.throws(()=>verifyWorker(data.subarray(1),commit));const changed=Buffer.from(data);changed[0]^=1;
-  assert.throws(()=>verifyWorker(changed,commit));assert.throws(()=>verifyWorker(data,'main'));
+  const actual={bytes:data.byteLength,sha256:createHash('sha256').update(data).digest('hex')};
+  const sourceCommit=await currentSourceCommit();
+  if(approvedSourceCommits.includes(sourceCommit)) {
+    // An explicit historical checkout must still match its own exact approved
+    // bytes. A similar hash or a newer commit cannot enter this branch.
+    assert.deepEqual(actual,{bytes:releases[sourceCommit].bytes,sha256:releases[sourceCommit].sha256});
+    assert.equal(verifyWorker(data,sourceCommit),releases[sourceCommit]);
+    for(const other of approvedSourceCommits.filter(value=>value!==sourceCommit))assert.throws(()=>verifyWorker(data,other));
+  }else {
+    assert.deepEqual(actual,reviewed,'Current dist must be the exact reviewed badge patch');
+    for(const oldCommit of approvedSourceCommits)assert.throws(()=>verifyWorker(data,oldCommit));
+  }
+  assert.throws(()=>validateRequest({...env(),TARGET_COMMIT:manifest.patch_commit}));
 });
 test('deployment workflow is manual, protected, non-cancelling, pinned and contains no database or credential writes',async()=>{
   const yaml=await readFile(new URL('../.github/workflows/cloudflare-manual-release.yml',import.meta.url),'utf8');

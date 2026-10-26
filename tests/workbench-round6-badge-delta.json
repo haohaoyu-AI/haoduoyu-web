@@ -1,0 +1,27 @@
+{
+  "baseline": "947bc782ea70e7808f6e7de523e5977818b292df",
+  "patch_commit": "3a87479d30ac4cf2b9bc484a51106713fa4c510f",
+  "scope": "Exact legacy-summary data-phase line only, its generated frontend bundle and matching public-assets digest; inverse projection restores the released round-six bytes without changing the historical round-six manifest.",
+  "files": {
+    "web/pages/daily-notes.mjs": {
+      "before": "5f6920dc156973875f0641481767309864a3c8adcb0253824e6ebe5f8523cc45",
+      "after": "1431048a23162dc499daf2ce9d59ecc202debabf43ed8d0732cd6c4184ac2240"
+    },
+    "public/app.js": {
+      "before": "bf741ecb1e6b49ac68e7eb3db2264f2a0b26bd62dcc507b7c7dc2090023ab2f6",
+      "after": "54e65d6ae72b432e62435b489c6dd35739a61edaf9bc71e4441d131f23e9dcdc"
+    },
+    ".ci/public-assets.json": {
+      "before": "268078964c26254de902af899a4d7785866cf221ec4304f5875e32c8ccba434c",
+      "after": "130af4950d2251ae8b09ee31ef46503176d56d5b2854638789c0609ef7f74d54"
+    }
+  },
+  "base_worker": {
+    "bytes": 1244002,
+    "sha256": "3c106a1a3bbd570d72f3784970a09af09caec653ffa9869550649d1144e43de0"
+  },
+  "worker": {
+    "bytes": 1244076,
+    "sha256": "737f212f71725556f19dba0e451fee44e322370f6304cf405c6681a92fbe7fe3"
+  }
+}
