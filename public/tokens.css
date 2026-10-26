@@ -1,0 +1,301 @@
+@charset "UTF-8";
+
+/* Shared visual values, extracted without changing the released appearance.
+ * Base and glass aliases remain in their original stylesheets so cascade order
+ * stays intact. Intermediate sizes and legacy memo colors are deliberate.
+ * Media/support queries, structural dimensions and negative offsets stay local.
+ */
+:root {
+  /* Palette and translucent layers */
+  --color-base-background:#f6f6f4;
+  --color-base-surface:#ffffff;
+  --color-base-surface-muted:#fafaf9;
+  --color-base-text:#1d201e;
+  --color-base-text-secondary:#5c605b;
+  --color-base-text-muted:#8d908a;
+  --color-base-divider:#e8e8e4;
+  --color-base-divider-strong:#d5d6d0;
+  --color-base-primary:#0b6b61;
+  --color-base-primary-hover:#08564e;
+  --color-base-primary-muted:#e7f2f0;
+  --color-base-success:#1f7a4d;
+  --color-base-success-muted:#e8f4ed;
+  --color-base-warning:#8a5a00;
+  --color-base-warning-muted:#fbf3dc;
+  --color-base-danger:#a7322e;
+  --color-base-danger-muted:#fdecec;
+  --color-platform-toutiao:#c8402f;
+  --color-platform-toutiao-muted:#fdeeec;
+  --color-platform-zhihu:#1a66b3;
+  --color-platform-zhihu-muted:#e8f1fb;
+  --color-platform-wechat:#2e8540;
+  --color-platform-wechat-muted:#e9f5ec;
+  --color-platform-other:#6b6e68;
+  --color-platform-other-muted:#efefec;
+  --color-base-backdrop:rgba(20,22,20,.32);
+  --color-shadow-base:rgba(0,0,0,.12);
+  --color-memo-base-divider:#e3e8ed;
+  --color-memo-base-text:#263840;
+  --color-memo-base-primary:#087b79;
+  --color-memo-base-status:#52676d;
+  --color-white:#fff;
+  --color-memo-base-group:#f6f8fa;
+  --color-memo-base-note:#fbfcfd;
+  --color-memo-base-secondary:#64777e;
+  --color-memo-base-hover:#edf4f4;
+  --color-memo-base-selected:#e5f3f1;
+  --color-memo-base-selected-border:#c5e1de;
+  --color-memo-base-selected-text:#096661;
+  --color-memo-base-rule:#edf0f3;
+  --color-memo-base-title:#233e43;
+  --color-memo-base-placeholder:#6e7f85;
+  --color-memo-base-empty:#7c8a91;
+  --color-memo-base-warning:#7b4c20;
+  --color-memo-base-warning-muted:#fff7e9;
+  --color-memo-base-recovery:#f3f7fa;
+  --color-memo-base-draft:#f4faf9;
+  --color-memo-base-remote:#f7fbfa;
+  --color-memo-base-recovery-border:#dbe8e5;
+  --color-background:#eee7e2;
+  --color-surface:#fffaf7;
+  --color-surface-muted:#f3efec;
+  --color-text:#24323f;
+  --color-text-secondary:#62646b;
+  --color-text-muted:#737079;
+  --color-divider:rgba(81,73,68,.12);
+  --color-divider-strong:#b9afa9;
+  --color-primary:#a44e38;
+  --color-primary-hover:#853e2b;
+  --color-primary-muted:#f7e2d7;
+  --color-success:#366b59;
+  --color-success-muted:#e5f0e9;
+  --color-warning:#80551e;
+  --color-warning-muted:#fff0d9;
+  --color-danger:#a03638;
+  --color-danger-muted:#fce8e5;
+  --color-white-a-57:rgba(255,255,255,.57);
+  --color-glass-solid:rgba(255,252,250,.94);
+  --color-white-a-85:rgba(255,255,255,.85);
+  --color-shadow-shell:rgba(73,47,38,.3);
+  --color-backdrop-peach-glow:rgba(242,158,115,.84);
+  --color-backdrop-blue-glow:rgba(166,184,187,.55);
+  --color-backdrop-rose-glow:rgba(228,152,139,.42);
+  --color-backdrop-peach:#efc5af;
+  --color-backdrop-neutral:#e5e3e2;
+  --color-backdrop-blue:#d8dfe0;
+  --color-focus:#86503d;
+  --color-selection:#e9b39c;
+  --color-shell:rgba(249,247,245,.44);
+  --color-white-a-58:rgba(255,255,255,.58);
+  --color-sidebar:rgba(255,247,238,.2);
+  --color-white-a-9:rgba(255,255,255,.9);
+  --color-brand-start:#dba078;
+  --color-brand-end:#a66045;
+  --color-shadow-brand:rgba(113,67,43,.12);
+  --color-nav-text:#67626a;
+  --color-nav-icon:#8b7668;
+  --color-white-a-4:rgba(255,255,255,.4);
+  --color-white-a-66:rgba(255,255,255,.66);
+  --color-nav-active-end:rgba(255,243,233,.32);
+  --color-shadow-nav:rgba(93,68,53,.035);
+  --color-white-a-6:rgba(255,255,255,.6);
+  --color-white-a-67:rgba(255,255,255,.67);
+  --color-white-a-55:rgba(255,255,255,.55);
+  --color-shadow-panel:rgba(73,47,38,.24);
+  --color-white-a-94:rgba(255,255,255,.94);
+  --color-shadow-button:rgba(73,47,38,.035);
+  --color-control-hover-border:#d3b9a9;
+  --color-button-primary-start:#ae5c42;
+  --color-button-primary-end:#974532;
+  --color-shadow-primary:rgba(146,70,46,.14);
+  --color-white-a-62:rgba(255,255,255,.62);
+  --color-white-a-78:rgba(255,255,255,.78);
+  --color-input-border:rgba(120,98,86,.24);
+  --color-white-a-74:rgba(255,255,255,.74);
+  --color-input-hover-border:#a78b7a;
+  --color-input-focus:#fffcfa;
+  --color-segmented:rgba(209,198,190,.25);
+  --color-white-a-88:rgba(255,255,255,.88);
+  --color-shadow-segment:rgba(70,54,43,.06);
+  --color-badge:rgba(235,232,229,.85);
+  --color-table-heading-surface:rgba(241,235,230,.64);
+  --color-table-heading:#62616a;
+  --color-white-a-5:rgba(255,255,255,.5);
+  --color-white-a-82:rgba(255,255,255,.82);
+  --color-empty-icon:#a67359;
+  --color-white-a-64:rgba(255,255,255,.64);
+  --color-modal-backdrop:rgba(46,49,53,.3);
+  --color-shadow-modal:rgba(57,46,41,.34);
+  --color-modal-heading:rgba(245,232,222,.45);
+  --color-shadow-toast:rgba(70,49,38,.12);
+  --color-white-a-45:rgba(255,255,255,.45);
+  --color-white-a-97:rgba(255,255,255,.97);
+  --color-metric-peach:#bd9279;
+  --color-shadow-metric:rgba(70,49,38,.035);
+  --color-metric-rose:#c88779;
+  --color-metric-teal:#829b9d;
+  --color-chart-start:#b48b9f;
+  --color-chart-end:#efa36a;
+  --color-white-a-54:rgba(255,255,255,.54);
+  --color-todo-divider:rgba(107,86,73,.13);
+  --color-checkbox-border:#aa9486;
+  --color-white-a-86:rgba(255,255,255,.86);
+  --color-white-a-35:rgba(255,255,255,.35);
+  --color-white-a-69:rgba(255,255,255,.69);
+  --color-white-a-44:rgba(255,255,255,.44);
+  --color-white-a-38:rgba(255,255,255,.38);
+  --color-memo-group-surface:rgba(241,226,215,.43);
+  --color-white-a-24:rgba(255,255,255,.24);
+  --color-shell-solid:rgba(246,240,235,.94);
+  --color-nav-solid:#fbf5f0;
+  --color-shell-mobile:rgba(249,247,245,.33);
+  --color-sidebar-mobile:#f4e6db;
+  --color-menu-backdrop:rgba(36,50,63,.3);
+  --color-white-a-26:rgba(255,255,255,.26);
+  --color-white-a-65:rgba(255,255,255,.65);
+  --color-mobile-nav:rgba(255,250,245,.92);
+  --color-shadow-mobile-nav:rgba(79,57,45,.14);
+  --color-memo-library:rgba(241,226,215,.35);
+  --color-memo-fullscreen-backdrop:rgba(30,40,49,.35);
+  --color-focus-line:rgba(82,116,122,.42);
+  --color-focus-line-strong:rgba(82,116,122,.65);
+  --color-shadow-template:rgba(111,72,55,.08);
+  --color-editor-focus:rgba(82,116,122,.45);
+  --color-white-a-28:rgba(255,255,255,.28);
+  --color-memo-resizer-hover:rgba(82,116,122,.55);
+  --color-white-a-3:rgba(255,255,255,.3);
+  --color-white-a-48:rgba(255,255,255,.48);
+  --color-draft-marker:rgba(82,116,122,.4);
+
+  /* Type families */
+  --font-family-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --font-family-mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+
+  /* Complete existing type scale */
+  --font-size-10:10px;
+  --font-size-11:11px;
+  --font-size-12:12px;
+  --font-size-13:13px;
+  --font-size-14:14px;
+  --font-size-15:15px;
+  --font-size-16:16px;
+  --font-size-18:18px;
+  --font-size-20:20px;
+  --font-size-21:21px;
+  --font-size-22:22px;
+  --font-size-23:23px;
+  --font-size-24:24px;
+  --font-size-26:26px;
+  --font-size-28:28px;
+  --font-size-30:30px;
+  --font-size-32:32px;
+
+  /* Type weights */
+  --font-weight-semibold:600;
+  --font-weight-medium:500;
+  --font-weight-heading:650;
+
+  /* Existing text rhythms */
+  --line-height-body:1.6;
+  --line-height-heading:1.35;
+  --line-height-compact:1.2;
+  --line-height-notes-base:1.9;
+  --line-height-prose:1.8;
+  --line-height-comfortable:1.7;
+  --line-height-notes:2;
+  --line-height-todo:1.75;
+
+  /* Existing spacing scale */
+  --space-2:2px;
+  --space-3:3px;
+  --space-4:4px;
+  --space-5:5px;
+  --space-6:6px;
+  --space-7:7px;
+  --space-8:8px;
+  --space-9:9px;
+  --space-10:10px;
+  --space-12:12px;
+  --space-14:14px;
+  --space-15:15px;
+  --space-16:16px;
+  --space-17:17px;
+  --space-18:18px;
+  --space-20:20px;
+  --space-22:22px;
+  --space-24:24px;
+  --space-26:26px;
+  --space-28:28px;
+  --space-30:30px;
+  --space-32:32px;
+  --space-34:34px;
+  --space-36:36px;
+  --space-38:38px;
+  --space-40:40px;
+  --space-42:42px;
+  --space-44:44px;
+  --space-48:48px;
+  --space-50:50px;
+  --space-52:52px;
+  --space-72:72px;
+  --space-74:74px;
+  --space-80:80px;
+  --space-88:88px;
+  --space-104:104px;
+
+  /* Corners */
+  --radius-6:6px;
+  --radius-7:7px;
+  --radius-8:8px;
+  --radius-9:9px;
+  --radius-10:10px;
+  --radius-12:12px;
+  --radius-14:14px;
+  --radius-16:16px;
+  --radius-18:18px;
+  --radius-20:20px;
+  --radius-22:22px;
+  --radius-24:24px;
+  --radius-28:28px;
+  --radius-pill:999px;
+  --radius-circle:50%;
+
+  /* Elevation */
+  --shadow-base-popover:0 12px 40px var(--color-shadow-base);
+  --shadow-shell:0 20px 70px -36px var(--color-shadow-shell);
+  --shadow-brand:0 4px 12px var(--color-shadow-brand);
+  --shadow-navigation:0 4px 14px var(--color-shadow-nav);
+  --shadow-panel:0 8px 30px -24px var(--color-shadow-panel);
+  --shadow-button:0 3px 10px var(--color-shadow-button);
+  --shadow-button-primary:0 5px 14px var(--color-shadow-primary);
+  --shadow-segmented:0 2px 8px var(--color-shadow-segment);
+  --shadow-modal:0 18px 70px -22px var(--color-shadow-modal);
+  --shadow-toast:0 8px 28px var(--color-shadow-toast);
+  --shadow-metric:0 2px 10px var(--color-shadow-metric);
+  --shadow-mobile-nav:0 8px 32px var(--color-shadow-mobile-nav);
+  --shadow-focus-line:0 2px 0 var(--color-focus-line);
+  --shadow-template:0 3px 10px var(--color-shadow-template);
+
+  /* Frosted surfaces */
+  --glass-blur-16:16px;
+  --glass-blur-12:12px;
+
+  /* Motion */
+  --duration-160:160ms;
+  --duration-180:180ms;
+  --duration-0:0ms;
+
+  /* Shared shell and control measures */
+  --size-control-base:34px;
+  --size-control-small-base:28px;
+  --size-sidebar-base:216px;
+  --size-content-max:1280px;
+  --size-control:44px;
+  --size-sidebar:232px;
+  --size-page-inset:28px;
+  --size-sidebar-compact:88px;
+  --size-page-inset-compact:18px;
+  --size-page-inset-mobile:0px;
+  --size-sidebar-mobile:272px;
+
+}

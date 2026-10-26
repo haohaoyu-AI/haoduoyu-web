@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {releases,repository,validateRequest,verifyCI,verifyWorker} from '../.github/scripts/release-policy.mjs';
-import {approvedSourceCommits,buildApprovedWorker,currentSourceCommit} from './helpers/release-worker-fixtures.mjs';
+import {approvedSourceCommits,buildApprovedWorker,buildReviewedBadgeWorker,reviewedBadgeSourceCommit,currentSourceCommit} from './helpers/release-worker-fixtures.mjs';
 const commit='947bc782ea70e7808f6e7de523e5977818b292df';
 const env=()=>({GITHUB_REPOSITORY:repository,GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',
   TARGET_COMMIT:commit,LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:'83512373-c500-47c3-a451-7dde59d2174b'});
@@ -37,13 +37,18 @@ test('both real approved Worker artifacts pass while changed/truncated bytes and
     for(const other of approvedSourceCommits.filter(value=>value!==sourceCommit))assert.throws(()=>verifyWorker(data,other));
   }
 });
-test('the current reviewed badge Worker remains outside the unchanged release allowlist',async()=>{
+test('the exact historical badge Worker and current candidate remain outside the unchanged release allowlist',async()=>{
   const manifest=JSON.parse(await readFile(new URL('./workbench-round6-badge-delta.json',import.meta.url),'utf8'));
   const reviewed={bytes:1244076,sha256:'737f212f71725556f19dba0e451fee44e322370f6304cf405c6681a92fbe7fe3'};
   assert.equal(manifest.baseline,commit);
   assert.equal(manifest.patch_commit,'3a87479d30ac4cf2b9bc484a51106713fa4c510f');
   assert.deepEqual(manifest.worker,reviewed);
   assert.deepEqual(manifest.base_worker,{bytes:releases[commit].bytes,sha256:releases[commit].sha256});
+  assert.equal(manifest.patch_commit,reviewedBadgeSourceCommit);
+  const badge=await buildReviewedBadgeWorker();
+  assert.deepEqual({bytes:badge.byteLength,sha256:createHash('sha256').update(badge).digest('hex')},reviewed,
+    'the actual fixed badge source still builds its original reviewed artifact');
+  for(const oldCommit of approvedSourceCommits)assert.throws(()=>verifyWorker(badge,oldCommit));
   const data=await readFile(new URL('../dist/server/index.js',import.meta.url));
   const actual={bytes:data.byteLength,sha256:createHash('sha256').update(data).digest('hex')};
   const sourceCommit=await currentSourceCommit();
@@ -54,7 +59,8 @@ test('the current reviewed badge Worker remains outside the unchanged release al
     assert.equal(verifyWorker(data,sourceCommit),releases[sourceCommit]);
     for(const other of approvedSourceCommits.filter(value=>value!==sourceCommit))assert.throws(()=>verifyWorker(data,other));
   }else {
-    assert.deepEqual(actual,reviewed,'Current dist must be the exact reviewed badge patch');
+    // New presentation artifacts are checked by their own stage tests. They do
+    // not inherit approval from any historical Worker or matching source name.
     for(const oldCommit of approvedSourceCommits)assert.throws(()=>verifyWorker(data,oldCommit));
   }
   assert.throws(()=>validateRequest({...env(),TARGET_COMMIT:manifest.patch_commit}));

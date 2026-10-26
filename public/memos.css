@@ -1,54 +1,54 @@
-#memos { --memo-border: #e3e8ed; --memo-ink: #263840; --memo-accent: #087b79; color: var(--memo-ink); }
+#memos { --memo-border: var(--color-memo-base-divider); --memo-ink: var(--color-memo-base-text); --memo-accent: var(--color-memo-base-primary); color: var(--memo-ink); }
 #memos [hidden] { display: none !important; }
 #memos .memo-toolbar, #memos .memo-toolbar-actions, #memos .memo-panel-head,
-#memos .memo-document-footer, #memos .memo-dialog-actions { display: flex; align-items: center; gap: 10px; }
-#memos .memo-toolbar { justify-content: space-between; flex-wrap: wrap; margin-bottom: 14px; }
-#memos #memo-status { font-size: 13px; color: #52676d; }
+#memos .memo-document-footer, #memos .memo-dialog-actions { display: flex; align-items: center; gap: var(--space-10); }
+#memos .memo-toolbar { justify-content: space-between; flex-wrap: wrap; margin-bottom: var(--space-14); }
+#memos #memo-status { font-size: var(--font-size-13); color: var(--color-memo-base-status); }
 #memos .memo-toolbar .btn, #memos .memo-group-actions .btn, #memos .memo-document-footer .btn { min-height: 36px; }
 #memos .memo-layout { display: grid; grid-template-columns: minmax(130px, .75fr) minmax(170px, 1fr) minmax(0, 2.6fr);
-  min-height: 65vh; border: 1px solid var(--memo-border); border-radius: 12px; overflow: hidden; background: #fff; }
-#memos .memo-groups { background: #f6f8fa; }
-#memos .memo-notes { background: #fbfcfd; }
+  min-height: 65vh; border: 1px solid var(--memo-border); border-radius: var(--radius-12); overflow: hidden; background: var(--color-white); }
+#memos .memo-groups { background: var(--color-memo-base-group); }
+#memos .memo-notes { background: var(--color-memo-base-note); }
 #memos .memo-groups, #memos .memo-notes { min-width: 0; border-right: 1px solid var(--memo-border); }
-#memos .memo-panel-head { justify-content: space-between; padding: 16px 12px; align-items: flex-start; flex-wrap: wrap; }
-#memos .memo-panel-head h2 { margin: 4px 0 0; font-size: 15px; overflow-wrap: anywhere; }
-#memos .memo-panel-head .btn { padding: 5px 8px; min-height: 32px; font-size: 12px; }
-#memos .memo-list { padding: 0 8px 12px; max-height: 66vh; overflow: auto; }
-#memos .memo-list-item { width: 100%; text-align: left; border: 1px solid transparent; border-radius: 7px; background: transparent;
-  padding: 12px 10px; color: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 5px; font: inherit; }
-#memos .memo-list-item span { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
-#memos .memo-list-item small { color: #64777e; font-size: 11px; }
-#memos .memo-list-item:hover { background: #edf4f4; }
-#memos .memo-list-item.is-selected { background: #e5f3f1; border-color: #c5e1de; color: #096661; }
+#memos .memo-panel-head { justify-content: space-between; padding: var(--space-16) var(--space-12); align-items: flex-start; flex-wrap: wrap; }
+#memos .memo-panel-head h2 { margin: var(--space-4) 0 0; font-size: var(--font-size-15); overflow-wrap: anywhere; }
+#memos .memo-panel-head .btn { padding: var(--space-5) var(--space-8); min-height: 32px; font-size: var(--font-size-12); }
+#memos .memo-list { padding: 0 var(--space-8) var(--space-12); max-height: 66vh; overflow: auto; }
+#memos .memo-list-item { width: 100%; text-align: left; border: 1px solid transparent; border-radius: var(--radius-7); background: transparent;
+  padding: var(--space-12) var(--space-10); color: inherit; cursor: pointer; display: flex; flex-direction: column; gap: var(--space-5); font: inherit; }
+#memos .memo-list-item span { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--font-size-14); }
+#memos .memo-list-item small { color: var(--color-memo-base-secondary); font-size: var(--font-size-11); }
+#memos .memo-list-item:hover { background: var(--color-memo-base-hover); }
+#memos .memo-list-item.is-selected { background: var(--color-memo-base-selected); border-color: var(--color-memo-base-selected-border); color: var(--color-memo-base-selected-text); }
 #memos .memo-list-item:focus-visible, #memos .memo-title:focus-visible, #memos .memo-body:focus-visible,
 #memos .memo-read-body:focus-visible { outline: 2px solid var(--memo-accent); outline-offset: -2px; }
-#memos .memo-group-actions { padding: 0 12px 12px; display: flex; gap: 4px; flex-wrap: wrap; }
-#memos .memo-group-actions .btn { font-size: 11px; padding: 4px 5px; min-height: 30px; }
-#memos .memo-editor { min-width: 0; padding: 22px 24px; }
-#memos .memo-title { box-sizing: border-box; width: 100%; padding: 6px 0 16px; border: 0; border-bottom: 1px solid #edf0f3;
-  border-radius: 0; outline: none; font-size: 23px; font-weight: 600; color: #233e43; background: #fff; }
-#memos .memo-body { display: block; box-sizing: border-box; width: 100%; min-height: 47vh; padding: 20px 0; resize: vertical;
-  border: 0; outline: none; border-radius: 0; color: var(--memo-ink); font: inherit; line-height: 1.9; background: #fff; }
-#memos .memo-read-title { margin: 4px 0 18px; font-size: 23px; overflow-wrap: anywhere; }
-#memos .memo-read-body { min-height: 47vh; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.9; }
-#memos .memo-document-footer { border-top: 1px solid #edf0f3; padding-top: 12px; justify-content: space-between; flex-wrap: wrap; }
-#memos #memo-detail { font-size: 11px; color: #6e7f85; }
-#memos .memo-empty { font-size: 13px; line-height: 1.8; color: #7c8a91; padding: 12px; }
-#memos .memo-editor > .memo-empty { padding: 6vh 10px; text-align: center; }
-#memos .memo-message { font-size: 13px; color: #7b4c20; background: #fff7e9; border-radius: 8px; padding: 12px 14px; line-height: 1.7; }
-#memos .memo-message p { margin: 0 0 8px; }
-#memos .memo-drafts { padding: 10px 12px; margin-bottom: 12px; background: #f3f7fa; border-radius: 8px; font-size: 12px; }
-#memos .memo-drafts .btn { font-size: 12px; }
-#memos .memo-dialog { padding: 18px; border: 1px solid #c5e1de; border-radius: 10px; background: #f4faf9; margin-bottom: 14px; }
-#memos .memo-dialog h3 { margin: 0 0 10px; font-size: 16px; }
-#memos .memo-dialog p { margin: 0 0 12px; line-height: 1.7; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
-#memos .memo-dialog label { display: block; margin-bottom: 6px; font-size: 13px; }
+#memos .memo-group-actions { padding: 0 var(--space-12) var(--space-12); display: flex; gap: var(--space-4); flex-wrap: wrap; }
+#memos .memo-group-actions .btn { font-size: var(--font-size-11); padding: var(--space-4) var(--space-5); min-height: 30px; }
+#memos .memo-editor { min-width: 0; padding: var(--space-22) var(--space-24); }
+#memos .memo-title { box-sizing: border-box; width: 100%; padding: var(--space-6) 0 var(--space-16); border: 0; border-bottom: 1px solid var(--color-memo-base-rule);
+  border-radius: 0; outline: none; font-size: var(--font-size-23); font-weight: var(--font-weight-semibold); color: var(--color-memo-base-title); background: var(--color-white); }
+#memos .memo-body { display: block; box-sizing: border-box; width: 100%; min-height: 47vh; padding: var(--space-20) 0; resize: vertical;
+  border: 0; outline: none; border-radius: 0; color: var(--memo-ink); font: inherit; line-height: var(--line-height-notes-base); background: var(--color-white); }
+#memos .memo-read-title { margin: var(--space-4) 0 var(--space-18); font-size: var(--font-size-23); overflow-wrap: anywhere; }
+#memos .memo-read-body { min-height: 47vh; white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--line-height-notes-base); }
+#memos .memo-document-footer { border-top: 1px solid var(--color-memo-base-rule); padding-top: var(--space-12); justify-content: space-between; flex-wrap: wrap; }
+#memos #memo-detail { font-size: var(--font-size-11); color: var(--color-memo-base-placeholder); }
+#memos .memo-empty { font-size: var(--font-size-13); line-height: var(--line-height-prose); color: var(--color-memo-base-empty); padding: var(--space-12); }
+#memos .memo-editor > .memo-empty { padding: 6vh var(--space-10); text-align: center; }
+#memos .memo-message { font-size: var(--font-size-13); color: var(--color-memo-base-warning); background: var(--color-memo-base-warning-muted); border-radius: var(--radius-8); padding: var(--space-12) var(--space-14); line-height: var(--line-height-comfortable); }
+#memos .memo-message p { margin: 0 0 var(--space-8); }
+#memos .memo-drafts { padding: var(--space-10) var(--space-12); margin-bottom: var(--space-12); background: var(--color-memo-base-recovery); border-radius: var(--radius-8); font-size: var(--font-size-12); }
+#memos .memo-drafts .btn { font-size: var(--font-size-12); }
+#memos .memo-dialog { padding: var(--space-18); border: 1px solid var(--color-memo-base-selected-border); border-radius: var(--radius-10); background: var(--color-memo-base-draft); margin-bottom: var(--space-14); }
+#memos .memo-dialog h3 { margin: 0 0 var(--space-10); font-size: var(--font-size-16); }
+#memos .memo-dialog p { margin: 0 0 var(--space-12); line-height: var(--line-height-comfortable); font-size: var(--font-size-13); white-space: pre-wrap; overflow-wrap: anywhere; }
+#memos .memo-dialog label { display: block; margin-bottom: var(--space-6); font-size: var(--font-size-13); }
 #memos .memo-dialog input { width: 100%; max-width: 420px; box-sizing: border-box; }
-#memos .memo-dialog-actions { margin-top: 12px; justify-content: flex-end; }
-#memos .memo-resolution { padding: 12px 0; font-size: 13px; }
-#memos .memo-resolution h3 { font-size: 14px; margin: 16px 0 8px; }
-#memos #memo-remote { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; padding: 12px;
-  background: #f6f8fa; font: inherit; line-height: 1.7; border-radius: 8px; }
+#memos .memo-dialog-actions { margin-top: var(--space-12); justify-content: flex-end; }
+#memos .memo-resolution { padding: var(--space-12) 0; font-size: var(--font-size-13); }
+#memos .memo-resolution h3 { font-size: var(--font-size-14); margin: var(--space-16) 0 var(--space-8); }
+#memos #memo-remote { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; padding: var(--space-12);
+  background: var(--color-memo-base-group); font: inherit; line-height: var(--line-height-comfortable); border-radius: var(--radius-8); }
 #memos .memo-mobile-back { display: none; }
 @media (max-width: 760px) {
   #memos .memo-layout { display: block; min-height: 60vh; }
@@ -56,27 +56,27 @@
   #memos[data-pane="groups"] .memo-notes, #memos[data-pane="groups"] .memo-editor,
   #memos[data-pane="notes"] .memo-groups, #memos[data-pane="notes"] .memo-editor,
   #memos[data-pane="editor"] .memo-groups, #memos[data-pane="editor"] .memo-notes { display: none; }
-  #memos .memo-mobile-back { display: flex; gap: 4px; }
-  #memos .memo-toolbar { gap: 10px 4px; }
-  #memos .memo-toolbar-actions { gap: 4px; margin-left: auto; }
-  #memos .memo-toolbar .btn { padding: 6px 8px; font-size: 12px; }
-  #memos .memo-panel-head { padding: 18px 16px; }
-  #memos .memo-list { max-height: none; padding: 0 10px 18px; }
-  #memos .memo-list-item { padding: 15px 12px; min-height: 48px; }
-  #memos .memo-editor { padding: 18px; }
-  #memos .memo-title, #memos .memo-read-title { font-size: 21px; }
-  #memos .memo-body { min-height: 45vh; font-size: 16px; }
+  #memos .memo-mobile-back { display: flex; gap: var(--space-4); }
+  #memos .memo-toolbar { gap: var(--space-10) var(--space-4); }
+  #memos .memo-toolbar-actions { gap: var(--space-4); margin-left: auto; }
+  #memos .memo-toolbar .btn { padding: var(--space-6) var(--space-8); font-size: var(--font-size-12); }
+  #memos .memo-panel-head { padding: var(--space-18) var(--space-16); }
+  #memos .memo-list { max-height: none; padding: 0 var(--space-10) var(--space-18); }
+  #memos .memo-list-item { padding: var(--space-15) var(--space-12); min-height: 48px; }
+  #memos .memo-editor { padding: var(--space-18); }
+  #memos .memo-title, #memos .memo-read-title { font-size: var(--font-size-21); }
+  #memos .memo-body { min-height: 45vh; font-size: var(--font-size-16); }
   #memos .memo-read-body { min-height: 45vh; }
   #memos .memo-document-footer { align-items: flex-start; }
-  #memos #memo-note-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  #memos #memo-note-actions { display: flex; flex-wrap: wrap; gap: var(--space-4); }
   #memos .memo-dialog-actions .btn { min-height: 42px; }
   .mobile-nav.memos-navigation { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 }
-#memos .memo-recovery { border: 1px solid #c5e1de; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; background: #f7fbfa; }
+#memos .memo-recovery { border: 1px solid var(--color-memo-base-selected-border); border-radius: var(--radius-10); padding: var(--space-12) var(--space-16); margin-bottom: var(--space-14); background: var(--color-memo-base-remote); }
 #memos .memo-recovery .memo-panel-head { padding: 0; }
-#memos .memo-recovery p, #memos .memo-recovery label { font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
-#memos #memo-recovery-list { display: grid; gap: 6px; max-height: 180px; overflow: auto; }
-#memos .memo-recovery-item { border: 1px solid #dbe8e5; border-radius: 6px; padding: 10px; background: #fff; color: inherit;
-  text-align: left; font: inherit; font-size: 12px; cursor: pointer; overflow-wrap: anywhere; }
-#memos #memo-recovery-copy { display: block; box-sizing: border-box; width: 100%; min-height: 140px; margin: 8px 0 12px;
-  border: 1px solid #dbe8e5; border-radius: 6px; padding: 12px; background: #fff; font: inherit; line-height: 1.7; resize: vertical; }
+#memos .memo-recovery p, #memos .memo-recovery label { font-size: var(--font-size-12); line-height: var(--line-height-comfortable); overflow-wrap: anywhere; }
+#memos #memo-recovery-list { display: grid; gap: var(--space-6); max-height: 180px; overflow: auto; }
+#memos .memo-recovery-item { border: 1px solid var(--color-memo-base-recovery-border); border-radius: var(--radius-6); padding: var(--space-10); background: var(--color-white); color: inherit;
+  text-align: left; font: inherit; font-size: var(--font-size-12); cursor: pointer; overflow-wrap: anywhere; }
+#memos #memo-recovery-copy { display: block; box-sizing: border-box; width: 100%; min-height: 140px; margin: var(--space-8) 0 var(--space-12);
+  border: 1px solid var(--color-memo-base-recovery-border); border-radius: var(--radius-6); padding: var(--space-12); background: var(--color-white); font: inherit; line-height: var(--line-height-comfortable); resize: vertical; }

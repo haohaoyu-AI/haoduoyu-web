@@ -5,6 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {projectWorkbenchRound6Badge,round6BadgePaths,validateWorkbenchRound6BadgeDelta} from './workbench-round6-badge-projection.mjs';
 import {projectWorkbenchRound6} from './workbench-round6-projection.mjs';
+import {projectUnifyStage1} from './unify-stage1-projection.mjs';
 
 const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
@@ -32,7 +33,8 @@ test('badge inverse accepts only released 947 or reviewed patch bytes and restor
     assert.equal(hash(original),delta.files[file].before);assert.equal(hash(patched),delta.files[file].after);
     assert.equal(projectWorkbenchRound6Badge(file,original),original,file);
     assert.equal(projectWorkbenchRound6Badge(file,patched),original,file);
-    assert.equal(projectWorkbenchRound6Badge(file,current),original,'on-disk badge scope stays exact: '+file);
+    assert.equal(projectWorkbenchRound6Badge(file,projectUnifyStage1(file,current)),original,
+      'on-disk badge scope stays exact after the independently verified stage-one inverse: '+file);
     assert.throws(()=>projectWorkbenchRound6Badge(file,patched+'\n'),/approved workbench delta/,file+' extra newline');
     assert.throws(()=>projectWorkbenchRound6Badge(file,original+'\n/* unreviewed */\n'),/approved workbench delta/,file+' base mutation');
   }
