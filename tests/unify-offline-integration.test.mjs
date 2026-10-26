@@ -155,16 +155,20 @@ test('a cold first todo list retries once after a real snapshot commits while it
   const app = createOfflineRuntime({db: f.db, now: () => Date.parse(stamp), request: async (path, opts) => {
     const value = await f.request(path, opts);
     if (path.startsWith('/todos?') && ++reads === 1) { entered(); await gate; }
+    else if (path.startsWith('/todos?')) {
+      const backgroundCache = createOfflineCache({db: f.db, getScope: () => scope});
+      await backgroundCache.write(path, value);
+    }
     return value;
   }}); t.after(() => app.stop());
   await app.call('/auth/me');
   assert.deepEqual(await f.db.transaction(['entities'], 'readonly', tx => tx.getAll('entities')), []);
   const pending = app.call(path); pending.catch(() => {}); await blocked;
-  for (const id of ids) f.remote.set(id, {...f.remote.get(id), text: '快照已确认新事项', version: 2, completed: true});
+  for (const id of ids) f.remote.set(id, {...f.remote.get(id), text: '快照已确认新事项', version: 2, completed: id === ids[2]});
   const todos = [...f.remote.values()].map(row => {
     const content = {entity_id: 'todo:' + row.id, entity_type: 'todo', source: 'todo', source_id: row.id,
       date, version: row.version, change_seq: 2, created_at: stamp, updated_at: stamp, deleted_at: null,
-      text: row.text, completed: 1};
+      text: row.text, completed: Number(row.completed)};
     const content_hash = createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.entries(content).sort()))).digest('hex');
     return {...content, content_hash};
   }).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
@@ -173,10 +177,25 @@ test('a cold first todo list retries once after a real snapshot commits while it
   assert.equal((await sync.pull({date})).status, 'synced');
   release();
   const visible = await pending; assert.equal(reads, 2, 'the rejected first response triggers exactly one fresh GET');
-  assert.equal(visible.items.length, 3); assert.ok(visible.items.every(row => row.version === 2 && row.completed === true));
+  assert.equal(visible.items.length, 3); assert.ok(visible.items.every(row => row.version === 2 && row.completed === (row.id === ids[2])));
   const cache = createOfflineCache({db: f.db, getScope: () => scope});
   assert.ok((await cache.read(path)).data.items.every(row => row.version === 2 && row.text === '快照已确认新事项'));
   assert.equal(app.state.error, null); assert.equal((await app.queue()).conflicts.length, 0);
+});
+test('canonical todo fences still reject actual version, text, deletion and template-link changes', async t => {
+  for (const field of ['version', 'text', 'deleted_at', 'template_version']) await t.test(field, async () => {
+    const db = createMemoryDB(), id = randomUUID(), path = '/todos?date=' + date;
+    const cache = createOfflineCache({db, getScope: () => scope});
+    const row = {id, date, text: '不可被旧读取覆盖', version: 1, completed: false,
+      created_at: stamp, updated_at: stamp, deleted_at: null, template_id: randomUUID(), template_version: 1, template_active: true};
+    await cache.write(path, {items: [row]}); const baseline = await cache.fence(path);
+    const changes = {version: 2, text: '已确认的新正文', deleted_at: stamp, template_version: 2};
+    const current = {...row, [field]: changes[field]};
+    await db.transaction(['entities'], 'readwrite', tx => tx.put('entities',
+      {key: entityKey(scope, 'todo:' + id), scope, entity_id: 'todo:' + id, server: current, dirty: false}));
+    await assert.rejects(cache.write(path, {items: [row]}, {baseline}), error => error.code === 'OFFLINE_CACHE_CHANGED');
+    assert.deepEqual((await cache.entity('todo:' + id)).server, current);
+  });
 });
 test('foreground cache-fence recovery stops after one retry and preserves the latest confirmed entity', async t => {
   const f = fixture(t), id = randomUUID(), path = '/todos?date=' + date; let reads = 0;
