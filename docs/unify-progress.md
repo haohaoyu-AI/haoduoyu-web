@@ -38,10 +38,10 @@
 | 3A SW 外壳 | 完整 CI 通过，未部署 | `opt/unify-web-shell` / `1f7ea4699fe46dcf062fa2cac486493f3a0f9339`，CI [40368020168](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40368020168) 于 17:36:16 UTC success：925/925，0 fail/cancel/skip，secret、16 资产、前端构建和两种预览全过。真实 Chromium 生命周期和 14 图通过，桌面差 0%；Worker 1,297,715 bytes / `9ec2e67ddab8b70aa4fad79be2f6df3243b52a52ef87482b1b5a3d911df3f85f`。API 不缓存，更新须点击 |
 | 3B 待办离线 | 完整 CI 通过，未部署 | `opt/unify-web-offline-todos` / `8b53d937921cec2e54fcc7a1d846082be591d6d1`，CI [40379266398](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40379266398) 于 18:50:36 UTC success：1039/1039，0 fail/cancel/skip，secret、17 资产、前端与双预览全过。源 `81d76a7`，163 定向测试、6 业务浏览器场景、14 必需截图 +7 张 375 图通过。真实冷启动截图发现的快照/API缓存竞态已实际复现并修复：仅 1 次受保护重读、仅 todo 规范业务字段比较，版本/正文/墓碑/常用关联的变化仍拒绝。桌面原始差 0.217%，同步图标矩形外 0%；375/390 无溢出、小字输入或过小点击区。Worker 1,396,279 bytes / `70765264460b32495080d279d3f8306112c87c315c2e029335323e4c3f4d3cff`。旧 739 CI 因新提交被取消，不能算通过 |
 | 3C 新碎碎念离线 | 完整 CI 通过，未部署 | `opt/unify-web-offline-notes` / `1ee0acd4be792b1f26a4febe6b2018716522c288`，CI [40379273571](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40379273571) 于 18:53:40 UTC success：1112/1112，0 fail/cancel/skip，secret、17 资产、前端与双预览全过。源 `0d3de57`，164 个行为/协议测试、66 兼容契约、8 Chromium 场景及 14+7 图通过；含已验证的 B 公共缓存修复。旧逐日只读、IME 草稿分 owner、原 save_id 收据、更新前持久化屏障均保留；不伪造 server hash/version。Worker 1,451,324 bytes / `d938ef04ce3c4977a8421025c9b4136e4a11e663ee163155264ec29fea8038ec` |
-| 3D 备忘录离线 | 已知组合竞态已修正，最新完整 CI 运行中 | 最新 `opt/unify-web-offline-memos` / `ec96f40c464dbb985f8d3f6d0f321335cb9ecda5`，CI [40385351515](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40385351515)。旧 be257bd / 1133 完整通过后，E 连续操作发现 foreground load 被 readonly background snapshot 抢占；已最小增加 loading guard，实际 bundle 新回归修前失败/修后 33/33、历史契约 51 通过。新源 `2dc4e05`，D11/2 范围与 C/B pins 未变。新 Worker 1,478,162 bytes / `457b33dc8a139beb9147c42eefc0bb1c38a4f1f15dd707c0b0765cafb1d03de9`；旧 be 包已明确 superseded，不能用于发布 |
-| 3E 三种冲突选择 | 功能/截图验收完成，最终完整 CI 运行中 | `opt/unify-web-offline-complete` / `b242cd573ab05c2fae2d5af779d7275ca45c20ad`，CI [40386362366](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40386362366)。固定产品源 `73e5315`，15 路径/5 模块；57 契约、157 实际 bundle VM、149 定向 +5 收据、7 真实 Worker/D1、6 完整 Chromium、6 原 D 消费者通过。新选择实际 fresh CAS/新 UUID 副本/采用线上，旧操作/双方正文保留；protocol3 防旧页发送或归档，真实 ACK 才完成，远端变化/新 IME 输入需重新比较。14+7 图无错误/横溢，桌面新增图标之外 0% 差。Worker 1,526,368 bytes / `f93c991a137a8f5c3b66360b9c5447a8c618ba23c2165fe68488423b9169e375`。尚不得把以上定向验证当成最终 CI 通过 |
+| 3D 备忘录离线 | 最新修正完整 CI 通过，未部署 | `opt/unify-web-offline-memos` / `ec96f40c464dbb985f8d3f6d0f321335cb9ecda5`，CI [40385351515](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40385351515) 于 19:31:58 UTC success：1135/1135，0 fail/cancel/skip，secret/17资产/前端/双预览全过。新源 `2dc4e05` 最小修复 readonly snapshot 抢占 foreground load，实际 bundle 新回归修前失败/修后 33 定向 +51 契约通过；原 D11/2 与 C/B pins 未变。Worker 1,478,162 bytes / `457b33dc8a139beb9147c42eefc0bb1c38a4f1f15dd707c0b0765cafb1d03de9`；旧 be 包已 superseded 不交付 |
+| 3E 三种冲突选择 | 最终完整 CI 通过，未部署 | `opt/unify-web-offline-complete` / `b242cd573ab05c2fae2d5af779d7275ca45c20ad`，CI [40386362366](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40386362366) 于 19:39:27 UTC success：1302/1302，0 fail/cancel/skip，secret/17资产/前端/双预览全过。固定产品 `73e5315`，15路径/5模块；57 契约、157 实际 bundle VM、149 定向 +5 收据、7真实Worker/D1、6完整Chromium、6原D消费者通过。真实 fresh CAS/新UUID副本/采用线上，旧请求与双方正文保留；protocol3 防旧页误发送或归档，真实 ACK 才完成。14+7图无错误/横溢，桌面新增图标外0%差。Worker 1,526,368 bytes / `f93c991a137a8f5c3b66360b9c5447a8c618ba23c2165fe68488423b9169e375` |
 | 4 App 3.0.0 | 云端完整 CI 通过，正式签名/实机未验收 | `android/unified-v3` / `0d1268428e9ce860fae83b999e7dc1932a4f3a61`，CI [40372760071](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40372760071) 于 17:55:28 UTC success：新 117 JVM +21 Node；固定旧版 d5 另跑 80 JVM +16 Node，0 fail/error/skip，两边 lint/build 通过。覆盖旧任务恢复入口先无损保存 Bundle 草稿再进入网页、旧库原样保全、未同意内容不上传。unsigned release 85,128 bytes / `5af0bb9cff980a17cca576d5bb20cbc8671e00bde9382096971b0a3c79f50f0a`，仅参考不可覆盖安装；未接触原签名密钥，正式 APK 等家机签名 |
-| 5 最终验收与报告 | 待前述阶段 | 按实际日期记录，不因窗口目标降低验收 |
+| 5 云端验收与报告 | 必要 CI 与合成截图完成，交付收尾 | 各阶段固定包/完整成功CI已保留；报告与合成前后图整理中。生产验收/正式签名仍受下述门槛约束 |
 
 ## 发布门槛与阻塞
 
@@ -92,3 +92,10 @@ D 完整 CI success：be257bd / 40380208270，1133/1133，18:55:59 UTC，Worker 
 - 剩余只读跟完 D 修正候选 40385351515 和 E 最终组合 40386362366；失败须定位修复，不能削减检查。E 提交前 18 个受影响 VM 用例文件发现 2 个 `let deletion` 与新 bundle 函数同名的 fixture 冲突，只更名测试局部变量，原断言未变，157/157 通过，产品 hash 不变。
 - 新鲜 v9 全备份仍 401（H4），生产实际 0/14 图、正式 App 原签名/实机仍未验收。今晚不部署，即使最终 CI 全过。
 - 最终合成前后图已选定；报告、各阶段固定 Worker 包、校验清单将一次交付。旧 be257bd memo 包与阶段 1 的旧 72d 草稿不得混进最终包。
+
+## 2026-10-26 19:42 UTC 最终结论
+
+- 阶段 1/2/3A/B/C/D/E 各自完整 CI 最终均成功；最后 E1302/1302，修正 D1135/1135。不再重复已通过的测试或修改功能。
+- 最后固定候选 `b242cd5` 与产品源 `73e5315` 的生产文件逐字相同；额外提交只有测试替身和本报告。代码与阶段包都在独立分支，不合 main、不建 PR。
+- **H4 原样生效：当晚不部署。** 没有有效 v9 备份、没有生产 14 图、没有生产发布/回滚冒烟。原 App 密钥未读/未搬云，正式 APK 未签名/未实机验收。
+- 本地验证了显式外壳版本切换、旧标签资源保持和队列跨代保全；不能把本地测试等同于实际生产客户端更新/回退验收。
