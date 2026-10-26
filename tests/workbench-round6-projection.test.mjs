@@ -32,7 +32,7 @@ test('round-six pins only the nine reviewed presentation paths and adds no front
   assert.deepEqual(projectedChangedFiles(delta.baseline,roots),Object.keys(delta.files).sort());
   const released=git('ls-tree','-r','--name-only',delta.baseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
   const modules=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
-  assert.equal(modules.length,57);assert.deepEqual(projectUnifySwModules(modules),released,
+  assert.equal(modules.length,64);assert.deepEqual(projectUnifySwModules(modules),released,
     'complete released module inventory stays exact after the pinned later SW client projects to absence');
 });
 
