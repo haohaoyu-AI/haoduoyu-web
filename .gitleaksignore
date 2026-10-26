@@ -1,4 +1,6 @@
 # Exact reviewed historical false-positive fingerprints only.
+# Unified stage-one tokens.css content SHA256 only; independently recomputed proof in docs/unify-stage1-secret-evidence.json.
+c4844eff758458e7174427b62c891ee55c78a743:.ci/public-assets.json:generic-api-key:16
 # See docs/security/secret-scan-exceptions.md; never ignore a whole test directory.
 # Recomputed public api-docs.html/openapi.json SHA256 asset pins; not credentials.
 a0393d03c2d342406984fa57e663a5d2d2239385:.ci/public-assets.json:generic-api-key:5
