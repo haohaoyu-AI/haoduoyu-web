@@ -92,6 +92,12 @@ public final class OfflineRuntime {
     }
 
     private void performSync() {
+        if (!LegacyMigrationCoordinator.OWNER.tryAcquire()) { scheduleRecovery(30000); return; }
+        try { performOwnedSync(); }
+        finally { LegacyMigrationCoordinator.OWNER.release(); }
+    }
+
+    private void performOwnedSync() {
         try {
             JSONObject state = repository.snapshot();
             JSONObject status = state.optJSONObject("status");

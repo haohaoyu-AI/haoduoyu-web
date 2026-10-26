@@ -25,7 +25,7 @@ public final class LegacyArchive {
     public final String payloadHash;
 
     private LegacyArchive(String id, byte[] bytes) throws Exception {
-        archiveId = id; payload = bytes.clone(); payloadHash = sha256(bytes);
+        archiveId = id; payload = bytes; payloadHash = sha256(bytes);
     }
 
     public static byte[] encode(byte[] raw) throws Exception {

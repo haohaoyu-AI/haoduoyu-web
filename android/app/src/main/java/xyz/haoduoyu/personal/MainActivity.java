@@ -8,6 +8,8 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
@@ -25,6 +27,7 @@ import android.webkit.GeolocationPermissions;
 import android.webkit.PermissionRequest;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.SslErrorHandler;
+import android.webkit.ServiceWorkerController;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -49,6 +52,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.ArrayList;
 import java.util.List;
+import xyz.haoduoyu.personal.offline.LegacyRecoveryRuntime;
+import xyz.haoduoyu.personal.offline.LegacyMigrationCoordinator;
 
 public final class MainActivity extends Activity {
     private int nextFileRequest = 1000;
@@ -75,12 +80,21 @@ public final class MainActivity extends Activity {
     private long lastBack;
     private String retryUrl = UrlPolicy.HOME;
     private android.window.OnBackInvokedCallback backCallback;
+    private LegacyRecoveryRuntime legacy;
+    private Button legacyNotice;
+    private final Runnable legacyListener = this::refreshLegacy;
+    private ConnectivityManager connectivity;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private boolean foreground, observedNetwork;
 
     @Override public void onCreate(Bundle savedState) {
         super.onCreate(savedState);
         buildLayout();
         backScript = readBackScript();
         createWebView();
+        legacy = LegacyRecoveryRuntime.get(this);
+        refreshLegacy();
+        registerNativeNetwork();
         if (Build.VERSION.SDK_INT >= 33) {
             backCallback = this::handleBack;
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
@@ -133,6 +147,11 @@ public final class MainActivity extends Activity {
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         root.addView(progress, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)));
+        legacyNotice = new Button(this);
+        legacyNotice.setText("旧版本机记录（只读查看 / 导出）");
+        legacyNotice.setMinHeight(dp(44)); legacyNotice.setVisibility(View.GONE);
+        legacyNotice.setOnClickListener(view -> startActivity(new Intent(this, LegacyRecoveryActivity.class)));
+        root.addView(legacyNotice, new LinearLayout.LayoutParams(-1, -2));
         webFrame = new FrameLayout(this);
         root.addView(webFrame, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
@@ -183,6 +202,11 @@ public final class MainActivity extends Activity {
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        // IndexedDB/Service Workers use the same persistent first-party WebView profile, not a second native store.
+        ServiceWorkerController.getInstance().getServiceWorkerWebSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
+        ServiceWorkerController.getInstance().getServiceWorkerWebSettings().setAllowFileAccess(false);
+        ServiceWorkerController.getInstance().getServiceWorkerWebSettings().setAllowContentAccess(false);
+        ServiceWorkerController.getInstance().getServiceWorkerWebSettings().setBlockNetworkLoads(false);
         WebView.setWebContentsDebuggingEnabled(false);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
@@ -206,16 +230,18 @@ public final class MainActivity extends Activity {
         menu.getMenu().add(0, 2, 1, "重新加载当前页面");
         menu.getMenu().add(0, 3, 2, "在浏览器打开");
         menu.getMenu().add(0, 4, 3, "关于自用版");
+        menu.getMenu().add(0, 5, 4, "旧版本机记录（只读）");
         menu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == 1) confirmReload(UrlPolicy.HOME);
             if (item.getItemId() == 2) confirmReload(currentUrl());
             if (item.getItemId() == 3) openExternal(currentUrl());
             if (item.getItemId() == 4) new AlertDialog.Builder(this).setTitle("好多鱼自用版")
                     .setMessage("版本 " + BuildConfig.VERSION_NAME
-                            + "\n共用 haoduoyu.xyz 的网站与数据。需要联网；网页中的每日工作提醒仍是网页功能。"
-                            + "\n离线读写请使用应用本地首页；这里保留网页版入口。没有系统定时通知。下载文件请使用浏览器。"
+                            + "\n共用 haoduoyu.xyz 同一前端；离线范围与网站当前实际版本一致。没有独立原生业务页面或新同步队列。"
+                            + "\n旧库保留；未获原有上传同意的本机记录仅本地查看、复制或导出。下载文件交系统浏览器。"
                             + (BuildConfig.DEBUG ? "\n这是调试签名预览包，不是正式发布包。" : ""))
                     .setPositiveButton("知道了", null).show();
+            if (item.getItemId() == 5) startActivity(new Intent(this, LegacyRecoveryActivity.class));
             return true;
         });
         menu.show();
@@ -224,6 +250,34 @@ public final class MainActivity extends Activity {
     private String currentUrl() {
         String url = web == null ? null : web.getUrl();
         return UrlPolicy.isTrustedWebsite(url) ? url : retryUrl;
+    }
+
+    private void registerNativeNetwork() {
+        connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (connectivity == null) return;
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override public void onAvailable(Network network) {
+                handler.post(() -> {
+                    observedNetwork = true;
+                    if (foreground) { emitNative(NativeBridgeScripts.online()); if (legacy != null) legacy.request(); }
+                });
+            }
+        };
+        try { connectivity.registerDefaultNetworkCallback(networkCallback); }
+        catch (SecurityException unavailable) { networkCallback = null; }
+    }
+    private void emitNative(String script) {
+        if (web != null && !isDestroyed() && NativeBridgeScripts.allowedDocument(web.getUrl())) web.evaluateJavascript(script, null);
+    }
+    private void refreshLegacy() {
+        if (legacy == null || isDestroyed()) return;
+        legacyNotice.setVisibility(legacy.hasLegacyDatabase() ? View.VISIBLE : View.GONE);
+        LegacyMigrationCoordinator.Result state = legacy.result();
+        if (state == null) return;
+        legacyNotice.setText(state.pending + state.conflicts + state.drafts > 0 ?
+                "旧版保留：" + state.pending + " 条待同步 / " + state.conflicts + " 处冲突 / " + state.drafts + " 份草稿（只读查看）" :
+                "旧版本机记录（只读查看 / 导出）");
+        emitNative(NativeBridgeScripts.legacy(state.pending, state.conflicts, state.needsConsent));
     }
 
     private void confirmReload(String target) {
@@ -302,6 +356,8 @@ public final class MainActivity extends Activity {
             final int ticket = ++loadGeneration;
             progress.setVisibility(View.GONE);
             errorPanel.setVisibility(View.GONE);
+            refreshLegacy();
+            if (observedNetwork && foreground) emitNative(NativeBridgeScripts.online());
             handler.postDelayed(() -> {
                 if (web != view || ticket != loadGeneration || failed) return;
                 view.evaluateJavascript("Boolean(document.querySelector('#app .initial-loading'))", result -> {
@@ -551,6 +607,8 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onPause() {
+        foreground = false;
+        if (legacy != null) legacy.unlisten(legacyListener);
         if (web != null) web.onPause();
         CookieManager.getInstance().flush();
         super.onPause();
@@ -558,11 +616,19 @@ public final class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        foreground = true;
         if (web != null) web.onResume();
+        if (legacy != null) { legacy.listen(legacyListener); legacy.request(); refreshLegacy(); }
+        if (observedNetwork) emitNative(NativeBridgeScripts.online());
     }
 
     @Override protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        if (legacy != null) legacy.unlisten(legacyListener);
+        if (connectivity != null && networkCallback != null) {
+            try { connectivity.unregisterNetworkCallback(networkCallback); }
+            catch (IllegalArgumentException unavailable) { /* Registration already ended; no extra bridge owner. */ }
+        }
         cancelFileChooser();
         fileChecks.shutdownNow();
         if (Build.VERSION.SDK_INT >= 33 && backCallback != null) {

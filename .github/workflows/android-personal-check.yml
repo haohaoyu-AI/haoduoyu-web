@@ -1,7 +1,7 @@
-name: Android personal offline check
+name: Android unified thin-shell check
 on:
   push:
-    branches: ['android/personal-v1', 'android/unified-v3']
+    branches: ['android/unified-v3']
     paths: ['android/**', '.github/workflows/android-personal-check.yml']
 permissions:
   contents: read
@@ -12,7 +12,7 @@ jobs:
   build:
     if: github.event.repository.private == false
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -21,6 +21,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
@@ -45,6 +46,31 @@ jobs:
           printf '%s  %s\n' d725d707bfabd4dfdc958c624003b3c80accc03f7037b5122c4b1d0ef15cecab \
             "$RUNNER_TEMP/gradle-8.9-bin.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/gradle-8.9-bin.zip" -d "$RUNNER_TEMP"
+      - name: Rebuild fixed 2.0.1 source and run its original contracts unchanged
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          export GRADLE_USER_HOME="$RUNNER_TEMP/haoduoyu-gradle"
+          LEGACY_FIXTURE="$RUNNER_TEMP/haoduoyu-v201"
+          git worktree add --detach "$LEGACY_FIXTURE" d5e417384fc66870e810cd14626f770a1be88d0e
+          test "$(git -C "$LEGACY_FIXTURE" rev-parse HEAD:android)" = 23fcf5cfe9429072b6519faff9d4bee178013995
+          cd "$LEGACY_FIXTURE/android"
+          node --test tests/back-script.test.mjs tests/offline-contract.test.mjs
+          "$RUNNER_TEMP/gradle-8.9/bin/gradle" --no-daemon :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleRelease
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging app/build/outputs/apk/release/app-release-unsigned.apk > "$RUNNER_TEMP/legacy-badging.txt"
+          python3 - <<'PYTEST'
+          import json, os, pathlib, xml.etree.ElementTree as ET
+          suites = [ET.parse(path).getroot() for path in pathlib.Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml')]
+          counts = {key: sum(int(suite.attrib.get(key, 0)) for suite in suites) for key in ['tests', 'failures', 'errors', 'skipped']}
+          assert counts['tests'] >= 80 and counts['failures'] == counts['errors'] == counts['skipped'] == 0
+          badging = (pathlib.Path(os.environ['RUNNER_TEMP']) / 'legacy-badging.txt').read_text()
+          for expected in ["name='xyz.haoduoyu.personal'", "versionName='2.0.1'", "versionCode='3'", "sdkVersion:'26'", "launchable-activity: name='xyz.haoduoyu.personal.OfflineActivity'"]:
+              assert expected in badging, expected
+          record = {'source_commit': 'd5e417384fc66870e810cd14626f770a1be88d0e', 'android_tree': '23fcf5cfe9429072b6519faff9d4bee178013995', 'jvm_tests': counts, 'node_contracts': 16, 'signing': 'unsigned fixture; original release key untouched'}
+          (pathlib.Path(os.environ['RUNNER_TEMP']) / 'legacy-v201-check.json').write_text(json.dumps(record, indent=2) + '\n')
+          print(json.dumps(record, indent=2))
+          PYTEST
       - name: Compile, unit test, lint and inspect debug APK
         working-directory: android
         run: |
@@ -52,15 +78,19 @@ jobs:
           export JAVA_HOME="$JAVA_HOME_17_X64"
           export PATH="$JAVA_HOME/bin:$PATH"
           export GRADLE_USER_HOME="$RUNNER_TEMP/haoduoyu-gradle"
-          node --test tests/back-script.test.mjs tests/offline-contract.test.mjs
+          node --test tests/back-script.test.mjs tests/offline-contract.test.mjs tests/unified-bridge.test.mjs
           "$RUNNER_TEMP/gradle-8.9/bin/gradle" --version
           "$RUNNER_TEMP/gradle-8.9/bin/gradle" --no-daemon \
             :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease
           APK=app/build/outputs/apk/debug/app-debug.apk
           DELIVERY="$GITHUB_WORKSPACE/android-offline-delivery"
           mkdir -p "$DELIVERY"
-          cp "$APK" "$DELIVERY/haoduoyu-personal-offline-v2-debug-preview.apk"
-          cp app/build/outputs/apk/release/app-release-unsigned.apk "$DELIVERY/haoduoyu-personal-offline-v2-release-unsigned.apk"
+          cp "$APK" "$DELIVERY/haoduoyu-unified-v3-debug-reference-do-not-upgrade.apk"
+          cp app/build/outputs/apk/release/app-release-unsigned.apk "$DELIVERY/haoduoyu-unified-v3-release-unsigned.apk"
+          if "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify app/build/outputs/apk/release/app-release-unsigned.apk >/dev/null 2>&1; then
+            echo 'Release must remain unsigned; no hosted replacement release key is permitted.' >&2
+            exit 1
+          fi
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 app/build/outputs/apk/release/app-release-unsigned.apk
           mkdir -p "$DELIVERY/signing-tool"
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" "$DELIVERY/signing-tool/apksigner.jar"
@@ -75,7 +105,7 @@ jobs:
           python3 - <<'PY'
           import hashlib, json, os, pathlib, re, xml.etree.ElementTree as ET
           directory = pathlib.Path(os.environ['GITHUB_WORKSPACE']) / 'android-offline-delivery'
-          apk = directory / 'haoduoyu-personal-offline-v2-debug-preview.apk'
+          apk = directory / 'haoduoyu-unified-v3-debug-reference-do-not-upgrade.apk'
           badging = (directory / 'apk-badging.txt').read_text()
           signature = (directory / 'signature-verification.txt').read_text()
           release_badging = (directory / 'release-apk-badging.txt').read_text()
@@ -83,10 +113,10 @@ jobs:
           assert "sdkVersion:'26'" in badging
           assert 'Verified using v2 scheme (APK Signature Scheme v2): true' in signature
           assert "name='xyz.haoduoyu.personal'" in release_badging
-          assert "versionName='2.0.1'" in release_badging
-          assert "versionCode='3'" in release_badging
+          assert "versionName='3.0.0'" in release_badging
+          assert "versionCode='4'" in release_badging
           assert "sdkVersion:'26'" in release_badging
-          assert "launchable-activity: name='xyz.haoduoyu.personal.OfflineActivity'" in release_badging
+          assert "launchable-activity: name='xyz.haoduoyu.personal.MainActivity'" in release_badging
           assert 'application-debuggable' not in release_badging
           certificate = re.search(r'Signer #1 certificate SHA-256 digest: ([a-fA-F0-9]+)', signature).group(1).lower()
           record = {
@@ -102,25 +132,27 @@ jobs:
               'minimum_android': '8.0',
               'build_type': 'debug preview',
               'device_acceptance': 'not performed',
-              'offline_acceptance': 'automated checks only; physical-device and production sync acceptance pending',
+              'offline_acceptance': 'synthetic migration/web-bridge checks only; actual website readiness and physical-device acceptance remain separate gates',
               'signing': 'ephemeral hosted-runner debug key; not a stable release signing identity',
           }
           suites = [ET.parse(path).getroot() for path in pathlib.Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml')]
           record['jvm_tests'] = {key: sum(int(suite.attrib.get(key, 0)) for suite in suites) for key in ['tests', 'failures', 'errors', 'skipped']}
-          assert record['jvm_tests']['tests'] >= 80
+          assert record['jvm_tests']['tests'] >= 105
           assert record['jvm_tests']['failures'] == record['jvm_tests']['errors'] == record['jvm_tests']['skipped'] == 0
-          unsigned = directory / 'haoduoyu-personal-offline-v2-release-unsigned.apk'
-          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'application_id': 'xyz.haoduoyu.personal', 'version_name': '2.0.1', 'version_code': 3, 'min_sdk': 26, 'debuggable': False, 'launcher': 'xyz.haoduoyu.personal.OfflineActivity', 'installable': False, 'local_signature': 'pending'}
+          unsigned = directory / 'haoduoyu-unified-v3-release-unsigned.apk'
+          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'application_id': 'xyz.haoduoyu.personal', 'version_name': '3.0.0', 'version_code': 4, 'min_sdk': 26, 'debuggable': False, 'launcher': 'xyz.haoduoyu.personal.MainActivity', 'installable': False, 'local_signature': 'pending'}
+          record['fixed_v201'] = json.loads((pathlib.Path(os.environ['RUNNER_TEMP']) / 'legacy-v201-check.json').read_text())
+          record['node_contracts'] = 20
           (directory / 'delivery.json').write_text(json.dumps(record, indent=2) + '\n')
           (directory / 'SHA256SUMS.txt').write_text(record['sha256'] + '  ' + apk.name + '\n')
           print(json.dumps(record, indent=2))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('Debug preview and unsigned release candidate retained for one day for delivery. Public anonymous API and 2.0 upgrade checks use synthetic data. Local stable release signing and Library transfer are separate verified steps; physical-device acceptance remains pending.\n')
+              summary.write('3.0 debug reference cannot replace the original signed app. Release remains unsigned and cannot be installed until the original signing machine signs it. Fixed 2.0.1 contracts and synthetic migration checks are retained. Web readiness and physical-device acceptance remain pending.\n')
           PY
       - name: Retain verified debug preview for Library delivery
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: haoduoyu-personal-offline-v2-candidate
+          name: haoduoyu-unified-v3-unsigned-reference
           path: android-offline-delivery/
           if-no-files-found: error
           retention-days: 1

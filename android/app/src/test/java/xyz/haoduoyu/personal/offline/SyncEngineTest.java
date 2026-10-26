@@ -59,7 +59,7 @@ public final class SyncEngineTest {
         return row.put("content_hash", SyncEngine.hash(row));
     }
 
-    private static final class Server implements ApiClient.Transport {
+    static final class Server implements ApiClient.Transport {
         final Map<String, JSONObject> rows = new LinkedHashMap<>();
         final Map<String, JSONObject> receipts = new HashMap<>();
         final List<JSONObject> bodies = new ArrayList<>();
