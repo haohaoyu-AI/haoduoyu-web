@@ -1,6 +1,7 @@
 import {onOfflineRuntime} from './runtime.mjs';
 
 export function offlineStatusLabel(state) {
+  if (state.unsupported) return '需新版';
   if (state.conflicts) return '有冲突';
   if (!state.online) return `离线（${state.pending || 0} 条待同步）`;
   if (state.phase === 'syncing' || state.pending) return '同步中';
@@ -24,7 +25,7 @@ function queueRows(document, queue, runtime, refresh) {
   const labels = {queued: '等待同步', sending: '同步中', unknown: '结果待核对', paused: '需联网核实身份',
     blocked: '需处理', conflict: '有冲突'};
   for (const operation of queue.operations) {
-    const item = textNode(document, 'p', `${labels[operation.status] || '等待同步'} · ${readable(operation.local)}`,
+    const item = textNode(document, 'p', `${operation.needs_upgrade ? '需新版' : labels[operation.status] || '等待同步'} · ${readable(operation.local)}`,
       'offline-queue-row');
     if (operation.error) item.append(textNode(document, 'span', ' · ' + operation.error));
     root.append(item);
@@ -35,6 +36,9 @@ function queueRows(document, queue, runtime, refresh) {
       textNode(document, 'pre', readable(conflict.local)), textNode(document, 'p', '线上内容'),
       textNode(document, 'pre', readable(conflict.remote)));
     if (conflict.needs_followup) item.append(textNode(document, 'p', '选择已记下，两份内容仍保留，等待后续处理。', 'offline-followup'));
+    if (conflict.needs_upgrade) {
+      item.append(textNode(document, 'p', '此本机操作需新版页面处理，原内容已保留。'));root.append(item);continue;
+    }
     const actions = document.createElement('div'); actions.className = 'offline-conflict-actions';
     for (const [choice, label] of [['use-local', '用本地'], ['use-server', '用线上'], ['keep-both', '两份都留']]) {
       const button = textNode(document, 'button', label, 'btn text'); button.type = 'button';

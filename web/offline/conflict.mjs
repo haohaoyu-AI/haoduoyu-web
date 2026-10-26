@@ -1,10 +1,11 @@
 import {entityKey} from './db.mjs';
 
-export function createConflictStore({db, now = Date.now}) {
+export function createConflictStore({db, now = Date.now, canDispatch = () => true}) {
   async function record({operation, remote = null, reason = 'version'}) {
     return db.transaction(['entities', 'outbox', 'conflicts'], 'readwrite', async tx => {
       const current = await tx.get('outbox', operation.key);
       if (!current || current.scope !== operation.scope) throw new Error('Offline operation is no longer current');
+      if (!canDispatch(operation) || !canDispatch(current)) return null;
       if (current.claim_owner !== operation.claim_owner || ['archived', 'conflict'].includes(current.status)) {
         throw new Error('Offline conflict claim changed');
       }

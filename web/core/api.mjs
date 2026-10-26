@@ -76,9 +76,14 @@ async function apiNetwork(path, options = {}) {
   return envelope ? payload : payload.data;
 }
 function api(path, options = {}) {
+  const epoch = runtime.sessionEpoch, identity = state.me?.id ?? null;
+  const active = () => {
+    if (epoch !== runtime.sessionEpoch || identity !== (state.me?.id ?? null) || options.signal?.aborted ||
+        options.context?.controller.signal.aborted) throw new DOMException('请求已取消', 'AbortError');
+  };
   return offlineRequest(path, options, apiNetwork, me => {
     if (state.me && state.me.id === me.id) state.me = me;
-  });
+  }, active);
 }
 export {
   api, apiNetwork
