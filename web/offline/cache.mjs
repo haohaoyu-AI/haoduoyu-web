@@ -1,4 +1,6 @@
 import {entityKey, offlineValue} from './db.mjs';
+import {createNotesCache, noteReadRoute} from './notes.mjs';
+import {readOnlyRoute, readOnlySnapshot} from './read-only.mjs';
 
 const dayPattern = /^(?!0000)\d{4}-\d{2}-\d{2}$/;
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -9,18 +11,19 @@ export function offlineReadRoute(path) {
   const url = new URL(path, 'https://offline.invalid');
   if (url.origin !== 'https://offline.invalid' || url.hash) return null;
   const route = url.pathname, query = url.searchParams;
+  if (['/work-reminders', '/note-entries/dates', '/daily-notes/dates'].includes(route)) return readOnlyRoute(path);
   if (route === '/todos' && [...query.keys()].every(key => key === 'date') &&
       query.getAll('date').length === 1 && dayPattern.test(query.get('date'))) return {kind: 'todo', date: query.get('date')};
   if (route === '/todo-templates' && !url.search) return {kind: 'template'};
   if (route === '/accounts' && !url.search) return {kind: 'accounts'};
   if (route === '/overview') return {kind: 'overview'};
-  if (route === '/daily-notes' && query.has('date')) return {kind: 'legacy'};
-  if (route === '/note-entries' && query.has('date') && ['life', 'work'].includes(query.get('category')))
-    return {kind: 'note_entries', date: query.get('date'), category: query.get('category')};
-  if (/^\/note-entries\/[a-f0-9-]{36}$/i.test(route)) return {kind: 'note_entry'};
+  if (route === '/daily-notes' && query.getAll('date').length === 1 && dayPattern.test(query.get('date')) &&
+      [...query.keys()].every(key => ['date', 'category'].includes(key)) && query.getAll('category').length <= 1 &&
+      (!query.has('category') || ['life', 'work'].includes(query.get('category'))))
+    return {kind: 'legacy', date: query.get('date'), category: query.get('category') || 'life'};
+  if (route === '/note-entries' || route.startsWith('/note-entries/')) return noteReadRoute(path);
   if (route === '/memos' && !url.search) return {kind: 'memos'};
   if (/^\/memos\/notes\/[a-f0-9-]{36}$/i.test(route)) return {kind: 'memo_note'};
-  if (route === '/work-reminders' && query.has('date')) return {kind: 'reminders'};
   return null;
 }
 
@@ -80,7 +83,21 @@ function identityMethods(db, now) {
     forgetIdentity: () => db.transaction(['meta'], 'readwrite', tx => tx.delete('meta', key)),
   };
 }
+async function legacySnapshot(db, owner, route) {
+  return db.transaction(['entities', 'meta'], 'readonly', async tx => {
+    const snapshot = await tx.get('meta', entityKey(owner, 'snapshot'));
+    if (snapshot?.value?.index?.complete !== true || snapshot.value.index.scope_id !== owner) throw missing();
+    const entity = await tx.get('entities', entityKey(owner, 'legacy-' + route.category + ':' + route.date));
+    const row = !entity?.remote_missing && entity?.server;
+    if (!row && snapshot.value.index.entities?.some(value => value.entity_id === 'legacy-' + route.category + ':' + route.date)) throw missing();
+    if (row && (!Number.isSafeInteger(row.version) || row.version < 1 || !row.deleted_at && typeof row.text !== 'string')) throw missing();
+    const data = {date: route.date, text: row?.text || '', version: row?.version || 0, updated_at: row?.updated_at || null,
+      deleted: Boolean(row?.deleted_at), can_edit: false, snapshot_complete: true};
+    return {data, saved_at: snapshot.value.verified_at || null};
+  });
+}
 export function createOfflineCache({db, getScope, now = Date.now, getGeneration = () => 0}) {
+  const notes = createNotesCache({db, getScope, now, getGeneration});
   const scope = () => {
     const value = getScope();
     if (!value) throw Object.assign(new Error('请先联网核实当前身份，本机内容已保留。'), {code: 'OFFLINE_SCOPE_REQUIRED'});
@@ -89,6 +106,7 @@ export function createOfflineCache({db, getScope, now = Date.now, getGeneration 
   async function write(path, value, {baseline} = {}) {
     const route = offlineReadRoute(path);
     if (!route) return value;
+    if (['note_entries', 'note_entry'].includes(route.kind)) return notes.write(path, route, value, {baseline});
     const owner = scope(), generation = getGeneration(), data = checkedResponse(route, value), key = entityKey(owner, 'get:' + path);
     const active = () => {
       if (scope() !== owner || getGeneration() !== generation)
@@ -123,9 +141,19 @@ export function createOfflineCache({db, getScope, now = Date.now, getGeneration 
   async function read(path) {
     const route = offlineReadRoute(path);
     if (!route) throw missing();
+    if (['note_entries', 'note_entry'].includes(route.kind)) return notes.read(path, route);
     const owner = scope(), generation = getGeneration();
     const cached = await db.transaction(['meta'], 'readonly', tx => tx.get('meta', entityKey(owner, 'get:' + path)));
+    if (['reminders', 'dates'].includes(route.kind)) {
+      try { return await readOnlySnapshot({db, scope: owner, route, getScope, getGeneration}); }
+      catch (error) { if (error.code !== 'OFFLINE_CACHE_MISS' || !cached) throw error; }
+    }
     if (!cached || cached.data === undefined) {
+      if (route.kind === 'legacy') {
+        const result = await legacySnapshot(db, owner, route);
+        if (scope() !== owner || getGeneration() !== generation) throw missing();
+        return result;
+      }
       const local = route.kind === 'todo' ? (await entities(owner)).filter(row => row.dirty && belongs(row, route)) : [];
       if (!local.length) throw missing();
       const data = {date: route.date, today: new Date(now() + 8 * 3600000).toISOString().slice(0, 10),
@@ -133,11 +161,17 @@ export function createOfflineCache({db, getScope, now = Date.now, getGeneration 
       if (scope() !== owner || getGeneration() !== generation) throw missing();
       return {data: overlay(data, route, local, false), saved_at: null};
     }
-    const result = overlay(clone(cached.data), route, await entities(owner), false);
+    const result = route.kind === 'legacy' ? {...clone(cached.data), can_edit: false} :
+      overlay(clone(cached.data), route, await entities(owner), false);
     if (scope() !== owner || getGeneration() !== generation) throw missing();
     return {data: result, saved_at: cached.saved_at};
   }
   const entity = id => db.transaction(['entities'], 'readonly', tx => tx.get('entities', entityKey(scope(), id)));
-  const fence = async path => serverFence(await entities(scope()), offlineReadRoute(path), scope());
-  return {read, write, entity, fence, entities: () => entities(scope()), ...identityMethods(db, now)};
+  const fence = async path => {
+    const route = offlineReadRoute(path);
+    return ['note_entries', 'note_entry'].includes(route?.kind) ? notes.fence(route) :
+      serverFence(await entities(scope()), route, scope());
+  };
+  return {read, write, entity, fence, entities: () => entities(scope()), noteCapability: notes.capability,
+    captureDocuments: notes.captureAcknowledged, ...identityMethods(db, now)};
 }

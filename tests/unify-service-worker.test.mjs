@@ -188,17 +188,85 @@ function browserFixture() {
   page.location={reload:()=>{reloads++;}};page.CustomEvent=CustomEvent;
   return {navigator:{serviceWorker},window:page,document,registration,waiting,children,messages,get reloads(){return reloads;}};
 }
+function deferred() {
+  let resolve,reject;
+  const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
+  return {promise,resolve,reject};
+}
+const nextTurn=()=>new Promise(resolve=>setImmediate(resolve));
 
 test('the page offers an update but reloads only the clicked page, exactly once after activation',async()=>{
   const browser=browserFixture(),handle=await startServiceWorker(browser);
   assert.equal(browser.children.length,1);assert.equal(browser.children[0].textContent,'有新版本');
   assert.ok(!browser.messages.some(item=>item.message.type==='HAODUOYU_SHELL_ACTIVATE'));
   browser.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));assert.equal(browser.reloads,0);
-  browser.children[0].dispatchEvent(new Event('click'));
+  browser.children[0].dispatchEvent(new Event('click'));await nextTurn();
   assert.equal(browser.messages.filter(item=>item.message.type==='HAODUOYU_SHELL_ACTIVATE').length,1);
   browser.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
   browser.waiting.state='activated';browser.waiting.dispatchEvent(new Event('statechange'));
   assert.equal(browser.reloads,1);handle.destroy();assert.equal(browser.children[0].removed,true);
+});
+
+test('the explicit update waits for every refresh listener before opting in or activating',async()=>{
+  const browser=browserFixture(),first=deferred(),second=deferred();let refreshes=0,failures=0;
+  browser.window.addEventListener('haoduoyu:before-refresh',event=>{
+    refreshes++;event.detail.waitUntil(first.promise);event.detail.onFailure(()=>{failures++;});
+  });
+  browser.window.addEventListener('haoduoyu:before-refresh',event=>event.detail.waitUntil(second.promise));
+  const handle=await startServiceWorker(browser),button=browser.children[0];
+  assert.equal(refreshes,0);button.dispatchEvent(new Event('click'));button.dispatchEvent(new Event('click'));
+  assert.equal(refreshes,1);assert.equal(button.disabled,true);
+  browser.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+  assert.equal(browser.reloads,0);assert.equal(browser.messages.filter(item=>item.target==='waiting').length,0);
+  first.resolve();await nextTurn();
+  assert.equal(browser.messages.filter(item=>item.target==='waiting').length,0);assert.equal(button.disabled,true);
+  second.resolve();await nextTurn();
+  assert.equal(browser.messages.filter(item=>item.message.type==='HAODUOYU_SHELL_ACTIVATE').length,1);
+  assert.equal(failures,0);assert.equal(browser.reloads,0);
+  browser.waiting.state='activated';browser.waiting.dispatchEvent(new Event('statechange'));
+  browser.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+  assert.equal(browser.reloads,1);handle.destroy();
+});
+
+test('a failed journal keeps the old page and permits a fresh save-and-update attempt after all writes settle',async()=>{
+  const browser=browserFixture(),failed=deferred(),otherWrite=deferred();let attempts=0;
+  const cleanup=[];
+  browser.window.addEventListener('haoduoyu:before-refresh',event=>{
+    attempts++;
+    event.detail.onFailure(()=>{cleanup.push('resume');throw Error('synthetic cleanup failure');});
+    event.detail.onFailure(()=>{cleanup.push('other listener');});
+    event.detail.waitUntil(attempts===1?failed.promise:Promise.resolve());
+  });
+  browser.window.addEventListener('haoduoyu:before-refresh',event=>{
+    event.detail.waitUntil(attempts===1?otherWrite.promise:Promise.resolve());
+  });
+  const handle=await startServiceWorker(browser),button=browser.children[0];
+  button.dispatchEvent(new Event('click'));failed.reject(Error('synthetic private draft content'));await nextTurn();
+  assert.deepEqual(cleanup,[]);assert.equal(button.disabled,true);
+  otherWrite.resolve();await nextTurn();
+  assert.deepEqual(cleanup,['resume','other listener']);assert.equal(button.disabled,false);
+  assert.equal(button.textContent,'草稿保存失败，点此重试');assert.ok(!button.textContent.includes('private'));
+  browser.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+  assert.equal(browser.reloads,0);assert.equal(browser.messages.filter(item=>item.target==='waiting').length,0);
+  button.dispatchEvent(new Event('click'));
+  assert.equal(attempts,2);assert.equal(button.disabled,true);
+  assert.equal(browser.messages.filter(item=>item.target==='waiting').length,0);
+  await nextTurn();
+  assert.equal(browser.messages.filter(item=>item.message.type==='HAODUOYU_SHELL_ACTIVATE').length,1);
+  assert.deepEqual(cleanup,['resume','other listener']);
+  browser.waiting.state='activated';browser.waiting.dispatchEvent(new Event('statechange'));
+  assert.equal(browser.reloads,1);handle.destroy();
+});
+
+test('destroying the client during draft persistence does not activate or refresh the detached page',async()=>{
+  const browser=browserFixture(),write=deferred();let resumed=0;
+  browser.window.addEventListener('haoduoyu:before-refresh',event=>{
+    event.detail.waitUntil(write.promise);event.detail.onFailure(()=>{resumed++;});
+  });
+  const handle=await startServiceWorker(browser);
+  browser.children[0].dispatchEvent(new Event('click'));handle.destroy();write.resolve();await nextTurn();
+  assert.equal(resumed,1);assert.equal(browser.reloads,0);
+  assert.equal(browser.messages.filter(item=>item.target==='waiting').length,0);
 });
 
 test('only the protocol-one native bridge forwards a sync request; old events and unsupported registration are harmless',async()=>{

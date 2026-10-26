@@ -4,7 +4,7 @@ export function noteDraftNeedsAttention(item) {
 }
 export function noteEditorCanCollapse(item) {
   return Boolean(item && item.loaded && !item.loading && !item.composing && !noteDraftNeedsAttention(item) &&
-    (item.version > 0 || item.phase === 'empty' && !item.draft.trim()));
+    (item.version > 0 || item.localBacked && item.localVersion > 0 || item.phase === 'empty' && !item.draft.trim()));
 }
 
 // Presentation state only. Drafts, writes, versions and retry receipts stay in the existing stores.

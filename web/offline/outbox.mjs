@@ -43,6 +43,10 @@ function identity(input, uuid) {
 }
 
 function operationFor(input, uuid, time) {
+  const initialStatus = input.initial_status || 'queued';
+  if (!['queued', 'unknown'].includes(initialStatus)) throw new TypeError('Invalid initial offline operation status');
+  if (initialStatus === 'unknown' && (!uuidPattern.test(input.body?.save_id) || !input.entity_id))
+    throw new TypeError('Unknown operation import requires its original save_id and entity identity');
   const {id, entity_id} = identity(input, uuid), type = input.entity_type;
   const method = input.method?.toUpperCase();
   const base = type === 'todo' ? '/todos' : type === 'template' ? '/todo-templates' :
@@ -75,7 +79,7 @@ function operationFor(input, uuid, time) {
   const operation = {id: uuid(), scope: input.scope, entity_type: type, entity_id, source_id: id,
     protocol: input.protocol === undefined ? 1 : input.protocol,
     method, path, body, expected_version: expected, save_id: saveId.toLowerCase(), created_at: time,
-    attempts: 0, next_attempt_at: 0, status: 'queued', base: input.base || null,
+    attempts: 0, next_attempt_at: 0, status: initialStatus, base: input.base || null,
     local: {...structuredClone(input.local || body), id, version: expected + 1}, claim_owner: null, error: null};
   operation.key = entityKey(input.scope, 'operation:' + operation.id);
   if (Object.hasOwn(input, 'depends_on')) operation.depends_on = structuredClone(input.depends_on);
@@ -115,8 +119,17 @@ function expectedFields(operation, remote) {
   const fields = operation.entity_type === 'todo' ? (deleted(remote) ? ['date'] : ['date', 'text']) : [];
   return fields.every(key => base[key] === undefined || remote[key] === base[key]);
 }
+function completeNoteRow(remote) {
+  const time = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
+  return remote && uuidPattern.test(remote.id) && ['life', 'work'].includes(remote.category) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(remote.date) && typeof remote.text === 'string' && typeof remote.deleted === 'boolean' &&
+    remote.can_edit === true && /^[a-f0-9]{64}$/.test(remote.content_hash) &&
+    Number.isSafeInteger(remote.change_seq) && remote.change_seq >= 0 && time(remote.created_at) && time(remote.updated_at) &&
+    (remote.deleted_at === null || time(remote.deleted_at)) && remote.deleted === (remote.deleted_at !== null);
+}
 
 function validAcknowledgement(operation, remote) {
+  if (operation.entity_type === 'note_entry' && !completeNoteRow(remote)) return false;
   if (operation.entity_type === 'template' && operation.method === 'DELETE') {
     return remote?.id === operation.source_id && remote.deleted === true;
   }
@@ -178,6 +191,31 @@ function createContext(options) {
     canDispatch, requireDispatch, retryable};
 }
 
+async function replayOperation(tx, operation, input, all) {
+  const replay = all.find(value => value.save_id === operation.save_id);
+  if (!replay) return null;
+  if (replay.entity_id !== operation.entity_id || replay.path !== operation.path || replay.method !== operation.method ||
+      JSON.stringify(replay.body) !== JSON.stringify(operation.body)) throw new Error('Offline save_id cannot change its original request');
+  const entity = await tx.get('entities', entityKey(input.scope, replay.entity_id));
+  if (!entity) throw new Error('Offline operation entity is missing');
+  if (input.initial_status === 'unknown' && replay.status === 'queued') {
+    await tx.put('outbox', {...replay, status: 'unknown'});
+    return {operation: {...replay, status: 'unknown'}, entity};
+  }
+  return {operation: replay, entity};
+}
+async function noteCapacity(tx, operation, old) {
+  if (operation.entity_type !== 'note_entry' || operation.expected_version !== 0 || operation.status === 'unknown' || old) return;
+  let count = 0;
+  for (const entity of await tx.getAll('entities')) {
+    const row = entity.dirty ? entity.local : entity.server;
+    if (entity.scope === operation.scope && entity.entity_id.startsWith('note-entry:') &&
+        (entity.dirty || !entity.remote_missing) && row?.category === operation.body.category &&
+        row?.date === operation.body.date && !deleted(row)) count++;
+  }
+  if (count >= 200) throw Object.assign(new Error('本机当日记录已达 200 条，草稿已保留。'), {code: 'OFFLINE_CACHE_LIMIT'});
+}
+
 function storageMethods(context) {
   const {db, checkScope, uuid, now, owner} = context;
   async function enqueue(input) {
@@ -188,7 +226,10 @@ function storageMethods(context) {
     return db.transaction(['entities', 'outbox', 'meta'], 'readwrite', async tx => {
       checkScope(input.scope);
       input.assertActive?.();
-      const rows = (await tx.getAll('outbox')).filter(value => value.scope === input.scope && active(value));
+      const all = (await tx.getAll('outbox')).filter(value => value.scope === input.scope);
+      const replay = await replayOperation(tx, operation, input, all);
+      if (replay) { input.assertActive?.(); return replay; }
+      const rows = all.filter(active);
       if (rows.length >= 1000) throw new Error('Offline queue is full; this edit was not saved');
       const previous = ordered(rows.filter(value => value.entity_id === operation.entity_id)).at(-1);
       const conflict = rows.some(value => value.entity_id === operation.entity_id && value.status === 'conflict');
@@ -199,6 +240,7 @@ function storageMethods(context) {
       const sequence = (await tx.get('meta', sequenceKey))?.value || 0;
       operation.seq = sequence + 1;
       const key = entityKey(input.scope, operation.entity_id), old = await tx.get('entities', key);
+      await noteCapacity(tx, operation, old);
       const visible = old?.dirty ? old.local : old?.server || operation.base;
       operation.base = operation.base || old?.server || null;
       operation.local = {...visible, ...operation.local,
@@ -231,6 +273,7 @@ function storageMethods(context) {
 
   async function acknowledge(operation, remote) {
     context.requireDispatch(operation);
+    if (operation.entity_type === 'note_entry' && !completeNoteRow(remote)) throw new Error('Incomplete note acknowledgement');
     checkScope(operation.scope);
     await db.transaction(['entities', 'outbox'], 'readwrite', async tx => {
       checkScope(operation.scope);

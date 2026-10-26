@@ -1,5 +1,5 @@
 import {e} from '../core/dom.mjs';
-import {dailyNotesBytes, dailyNotesToday, dailyNotesRouteCategory} from '../core/daily-notes-state.mjs';
+import {dailyNotesToday, dailyNotesRouteCategory} from '../core/daily-notes-state.mjs';
 import {noteDraftNeedsAttention, noteEditorCanCollapse} from '../core/notes-editor-view.mjs';
 
 function legacyEditorMarkup() {
@@ -8,9 +8,10 @@ function legacyEditorMarkup() {
     '<span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div>' +
     '<p id="notes-message" class="notes-message" role="alert" hidden></p>' +
     '<div class="notes-sheet"><label for="notes-editor" class="sr-only">原有记录内容</label>' +
-    '<textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea>' +
+    '<textarea id="notes-editor" class="notes-editor" aria-label="原有记录或保留草稿，只读" readonly hidden></textarea>' +
     '<div id="notes-reader" class="notes-reader"></div><p id="notes-empty" hidden>这条记录没有文字。</p></div>' +
     '<div class="notes-footer"><span id="notes-detail" class="notes-detail"></span>' +
+    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button>' +
     '<div id="notes-write-actions" class="notes-write-actions" hidden>' +
     '<button class="btn" type="button" data-notes-action="save">立即保存</button>' +
     '<button class="btn" type="button" data-notes-action="restore" hidden>恢复原有记录</button>' +
@@ -51,11 +52,19 @@ export function renderDailyNotes() {
     '<article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden>' +
     '<div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div>' +
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
-    '<button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">编辑</button></article></section>';
+    '<button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button>' +
+    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></section>';
 }
 
 const statuses = {loading: '正在读取…', dirty: '等待保存', saving: '正在保存…', conflict: '草稿有冲突',
-  unknown: '保存结果待核对', error: '暂未保存', oversize: '文字过长'};
+  unknown: '保存结果待核对', error: '暂未保存', oversize: '文字过长', queued: '已存本机，待同步', cached: '本机缓存'};
+function retainedLegacy(item) {
+  return Boolean(item.dirty || item.pending || ['unknown', 'conflict', 'oversize', 'error'].includes(item.phase));
+}
+function displayedText(item) {
+  if (item.dirty || item.phase !== 'queued' && noteDraftNeedsAttention(item)) return item.draft;
+  return item.localBacked || item.localQueued || item.phase === 'queued' ? item.durableText ?? item.draft : item.serverText;
+}
 export function noteEntryTime(value) {
   if (!value || !Number.isFinite(Date.parse(value))) return '';
   return new Intl.DateTimeFormat('zh-CN', {timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(new Date(value));
@@ -76,29 +85,29 @@ function paintEditorValue(editor, text) {
 export function paintDailyNotes(root, item, {compatibility = false, editing = false} = {}) {
   if (!root) return;
   const find = selector => root.querySelector(selector), editor = find('#notes-editor'), reader = find('#notes-reader');
+  const retained = retainedLegacy(item);
   editor.dataset.date = item.date; editor.dataset.category = root.dataset.category || dailyNotesRouteCategory();
-  editor.hidden = !editing || !item.loaded || item.deleted;
-  editor.readOnly = !item.canEdit; editor.disabled = ['delete', 'restore'].includes(item.pending?.kind);
+  editor.hidden = !editing || !item.loaded || item.deleted && !retained;
+  editor.readOnly = true; editor.disabled = false;
   paintEditorValue(editor, item.draft);
-  reader.hidden = !item.loaded || editing && !item.deleted; reader.textContent = item.deleted ? '原有记录已删除。' : item.serverText;
-  find('#notes-empty').hidden = !item.loaded || item.canEdit || Boolean(item.serverText);
+  reader.hidden = !item.loaded || editing && (!item.deleted || retained);
+  reader.textContent = retained ? item.draft : item.deleted ? '原有记录已删除。' : item.serverText;
+  find('#notes-empty').hidden = !item.loaded || Boolean(item.serverText || retained && item.draft);
   const status = find(compatibility ? '#notes-legacy-status' : '#notes-status');
-  status.textContent = statuses[item.phase] || (item.deleted ? '已删除' : item.canEdit ? '已保存' : '公开只读');
+  status.textContent = retained ? statuses[item.phase] || '保留的原有草稿' : item.deleted ? '原有记录已删除' : '原有记录 · 只读';
   status.dataset.phase = item.phase;
   find('#notes-message').hidden = !item.error; find('#notes-message').textContent = item.error;
-  find('#notes-detail').textContent = item.canEdit ? dailyNotesBytes(item.draft) + ' / 65536 字节 · 自动保存' : '所有访客都能阅读';
-  find('#notes-write-actions').hidden = !editing || !item.loaded || !item.canEdit;
-  const blocked = Boolean(item.pending) || ['conflict', 'unknown'].includes(item.phase);
-  find('[data-notes-action="save"]').disabled = blocked || !item.dirty;
-  find('[data-notes-action="restore"]').hidden = !item.deleted;
-  find('[data-notes-action="restore"]').disabled = blocked || item.dirty;
-  find('[data-notes-action="delete"]').disabled = blocked || item.deleted || item.version === 0;
-  find('#notes-resolution').hidden = !['conflict', 'unknown'].includes(item.phase) && item.phase !== 'error';
+  find('#notes-detail').textContent = retained ? '原有草稿已保留，仅供查看与导出，不会自动上传。' : '原有逐日记录，只读保留。';
+  find('#notes-write-actions').hidden = true;
+  for (const action of ['save', 'restore', 'delete', 'retry', 'use-server', 'use-draft', 'confirm-delete']) {
+    const button = find('[data-notes-action="' + action + '"]'); button.hidden = true; button.disabled = true;
+  }
+  find('#notes-legacy-card [data-notes-action="export-legacy"]').hidden = !retained;
+  find('#notes-delete-confirm').hidden = true;
+  find('#notes-resolution').hidden = true;
   find('[data-notes-action="check"]').disabled = item.loading || Boolean(item.pending?.checking);
-  find('[data-notes-action="retry"]').hidden = item.phase !== 'unknown' || !item.pending?.retryReady || !item.canEdit;
-  find('#notes-conflict-actions').hidden = item.phase !== 'conflict' || !item.remote;
+  find('#notes-conflict-actions').hidden = true;
   find('#notes-remote').textContent = item.remote?.deleted ? '（原有记录已删除）' : item.remote?.text || '（空白）';
-  find('[data-notes-action="use-draft"]').disabled = item.remote?.can_edit !== true;
   if (compatibility) paintTime(find('#notes-legacy-time'), item.updatedAt);
 }
 function entryControlsMarkup() {
@@ -137,7 +146,7 @@ function paintEntrySummary(node, item) {
 function paintSavedEntry(node, item) {
   paintEntrySummary(node, item);
   const draft = noteDraftNeedsAttention(item), body = node.querySelector('.note-entry-reader');
-  body.textContent = item.deleted ? '这条记录已删除。' : draft ? item.draft : item.serverText;
+  body.textContent = item.deleted ? '这条记录已删除。' : displayedText(item);
   body.classList.toggle('note-entry-draft-label', draft); node.dataset.draft = String(draft);
   const edit = node.querySelector('[data-note-entry-action="edit"]'); edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? '继续编辑草稿' : item.deleted ? '查看' : '编辑';
@@ -182,16 +191,17 @@ function paintActiveEditor(root, store, active, legacy, confirmId) {
   paintDailyNotes(root, legacy, {compatibility: true, editing: active === 'legacy'});
 }
 function paintLegacySummary(root, legacy, active) {
-  const node = root.querySelector('#notes-legacy-saved'), draft = noteDraftNeedsAttention(legacy);
+  const node = root.querySelector('#notes-legacy-saved'), draft = retainedLegacy(legacy);
   node.hidden = active === 'legacy' || !(legacy.version > 0 || draft);
   paintTime(node.querySelector('time'), legacy.updatedAt);
-  node.querySelector('.note-entry-reader').textContent = legacy.deleted ? '原有记录已删除。' : draft ? legacy.draft : legacy.serverText;
-  node.querySelector('.note-entry-status').textContent = statuses[legacy.phase] || (legacy.deleted ? '已删除' : '已保存');
+  node.querySelector('.note-entry-reader').textContent = draft ? legacy.draft : legacy.deleted ? '原有记录已删除。' : legacy.serverText;
+  node.querySelector('.note-entry-status').textContent = draft ? statuses[legacy.phase] || '保留的原有草稿' : '原有记录 · 只读';
   node.querySelector('.note-entry-status').dataset.phase = legacy.phase;
   node.querySelector('.note-entry-message').textContent = legacy.error;
   node.querySelector('.note-entry-message').hidden = !legacy.error;
-  const edit = node.querySelector('[data-notes-action="edit-legacy"]'); edit.hidden = !legacy.canEdit && !draft;
-  edit.textContent = draft ? '继续编辑草稿' : legacy.deleted ? '查看' : '编辑';
+  const edit = node.querySelector('[data-notes-action="edit-legacy"]'); edit.hidden = false;
+  edit.textContent = draft ? '查看保留的原有草稿' : '查看原有记录';
+  node.querySelector('[data-notes-action="export-legacy"]').hidden = !draft;
 }
 function paintRetainedDrafts(root, current, drafts) {
   const box = root.querySelector('#notes-drafts');
@@ -216,7 +226,7 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
   find('[data-notes-action="login"]').hidden = !current.loaded || current.canEdit;
   find('#notes-entry-message').textContent = current.error; find('#notes-entry-message').hidden = !current.error;
   const items = current.ids.map(id => store.entry(id)).filter(Boolean);
-  const saved = items.filter(item => item.id !== active && (item.version > 0 || noteDraftNeedsAttention(item)));
+  const saved = items.filter(item => item.id !== active && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const nodes = new Map([...list.children].map(node => [node.dataset.noteEntry, node])), wanted = new Set(saved.map(item => item.id));
   for (const [id, node] of nodes) if (!wanted.has(id)) node.remove();
   let cursor = list.firstElementChild;

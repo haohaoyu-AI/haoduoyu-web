@@ -56,7 +56,7 @@ test('an unsupported unknown-result operation cannot be mistaken for a verified 
 });
 test('unsupported runtime queue remains visible as needing an update and never starts a fast retry cycle',async t=>{
   const db=createMemoryDB();await newerRows(db);const calls=[];
-  const runtime=createOfflineRuntime({db,request:async(path,options={})=>{
+  const runtime=createOfflineRuntime({db,features:{todos:true,notes:false,memos:false},request:async(path,options={})=>{
     calls.push({path,method:options.method||'GET'});
     if(path==='/auth/me')return {id:'synthetic-owner',username:'Synthetic owner',publicBusiness:true};
     if(path.startsWith('/workbench-snapshot'))return snapshot(path.includes('?')?date:null);
@@ -143,7 +143,8 @@ test('an unsupported peer conflict remains readable and an old page cannot archi
   const db=createMemoryDB(),values=await newerRows(db),writer=peer(db);
   const conflict=await writer.conflicts.record({operation:values[0].operation,remote:null,reason:'version'});
   const before=await all(db,'outbox');
-  const runtime=createOfflineRuntime({db,online:()=>false,request:()=>assert.fail('no unsupported conflict transport')});
+  const runtime=createOfflineRuntime({db,features:{todos:true,notes:false,memos:false},online:()=>false,
+    request:()=>assert.fail('no unsupported conflict transport')});
   t.after(()=>runtime.stop());Object.assign(runtime.state,{scope,identity:{id:'synthetic-owner',username:'Synthetic owner'}});
   const queue=await runtime.queue();assert.equal(queue.conflicts.length,1);assert.equal(queue.conflicts[0].needs_upgrade,true);
   await assert.rejects(runtime.resolve(conflict.key,'use-server'),error=>error.code==='OFFLINE_UPGRADE_REQUIRED');

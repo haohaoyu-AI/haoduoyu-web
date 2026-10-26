@@ -244,12 +244,12 @@ function createDailyNotesContext({
   },
   onSaved = () => {
   },
-  uuid = () => crypto.randomUUID(),
+  uuid: uuid2 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   delay = 700
 }) {
-  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid } };
+  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid: uuid2 } };
   const pages = context.pages;
   const emit = () => {
     if (!context.disposed) onChange();
@@ -300,7 +300,7 @@ function createDailyNotesContext({
       }, delay);
     }
   }
-  const matches = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted === true : operation.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation.text);
+  const matches2 = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted === true : operation.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation.text);
   function accepted(item, value, operation) {
     const keep = operation.kind === "put" && item.draft !== operation.text;
     item.writeEpoch++;
@@ -317,7 +317,7 @@ function createDailyNotesContext({
     context.disposed = true;
     for (const item of pages.values()) stopTimer(item);
   }
-  Object.assign(context, { page, emit, stopTimer, adopt, schedule, matches, accepted, dispose });
+  Object.assign(context, { page, emit, stopTimer, adopt, schedule, matches: matches2, accepted, dispose });
   return context;
 }
 function createReadingActions(context) {
@@ -377,8 +377,8 @@ function createReadingActions(context) {
   return { read, edit };
 }
 function createWritingActions(context) {
-  const { page, emit, stopTimer, matches, accepted } = context;
-  const { put, remove, restore, uuid } = context.options;
+  const { page, emit, stopTimer, matches: matches2, accepted } = context;
+  const { put, remove, restore, uuid: uuid2 } = context.options;
   async function send(item, operation) {
     stopTimer(item);
     item.pending = operation;
@@ -396,7 +396,7 @@ function createWritingActions(context) {
       }) : put(item.date, { text: operation.text, version: operation.version, save_id: operation.saveId }));
       if (context.disposed || item.pending !== operation) return;
       const value = checkedPage(raw, item.date);
-      if (!matches(value, operation)) throw new Error("保存响应需要重新核对。");
+      if (!matches2(value, operation)) throw new Error("保存响应需要重新核对。");
       accepted(item, value, operation);
     } catch (error) {
       if (context.disposed || item.pending !== operation) return;
@@ -431,12 +431,12 @@ function createWritingActions(context) {
       emit();
       return;
     }
-    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid() });
+    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid2() });
   }
   async function deletePage(date) {
     const item = page(date);
     if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
-    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid() });
+    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid2() });
   }
   async function retryPending(date) {
     const item = page(date), operation = item.pending;
@@ -447,12 +447,12 @@ function createWritingActions(context) {
   async function restorePage(date) {
     const item = page(date);
     if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
-    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid() });
+    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid2() });
   }
   return { save, deletePage, restorePage, retryPending };
 }
 function createResolutionActions(context) {
-  const { page, emit, stopTimer, adopt, matches, accepted } = context;
+  const { page, emit, stopTimer, adopt, matches: matches2, accepted } = context;
   const { load } = context.options;
   async function reconcile(date) {
     const item = page(date), operation = item.pending;
@@ -464,7 +464,7 @@ function createResolutionActions(context) {
       const value = checkedPage(await load(date), date);
       if (context.disposed || item.pending !== operation) return;
       item.canEdit = value.can_edit;
-      if (matches(value, operation)) accepted(item, value, operation);
+      if (matches2(value, operation)) accepted(item, value, operation);
       else if (value.version > operation.version) {
         item.remote = value;
         item.pending = null;
@@ -833,13 +833,13 @@ function syncTodoDay(now = Date.now()) {
 function todoSessionActive(owner) {
   return Boolean(state.me) && owner === todoOwner() && owner === todosState.owner;
 }
-function mergeTodo(day2, item) {
-  const index = day2.items.findIndex((row) => row.id === item.id);
-  if (index < 0) day2.items.push(item);
-  else if (day2.items[index].version <= item.version) day2.items[index] = item;
+function mergeTodo(day3, item) {
+  const index = day3.items.findIndex((row) => row.id === item.id);
+  if (index < 0) day3.items.push(item);
+  else if (day3.items[index].version <= item.version) day3.items[index] = item;
 }
-function todoTemplateAdded(day2, id) {
-  return day2.items.some((item) => item.date === day2.date && item.template_id === id && !item.deleted_at);
+function todoTemplateAdded(day3, id) {
+  return day3.items.some((item) => item.date === day3.date && item.template_id === id && !item.deleted_at);
 }
 
 // web/core/session-index-state.mjs
@@ -1171,27 +1171,310 @@ function createMemoryDB() {
   } };
 }
 
+// web/offline/document.mjs
+var localMarker = /* @__PURE__ */ Symbol("haoduoyu-local-durable-document");
+var documents = /* @__PURE__ */ new WeakMap();
+function localDocument({ local, server = null, operation = null, conflict = null }) {
+  const { content_hash, change_seq, ...value } = structuredClone(local);
+  const document2 = Object.freeze({ ...value, [localMarker]: true });
+  documents.set(document2, {
+    local: value,
+    server: structuredClone(server),
+    operation: structuredClone(operation),
+    conflict: structuredClone(conflict)
+  });
+  return document2;
+}
+var isLocalDocument = (value) => Boolean(value && documents.has(value));
+var documentValue = (value) => documents.get(value)?.local || value;
+var documentState = (value) => documents.get(value) || null;
+
+// web/offline/notes.mjs
+var uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var hashPattern = /^[a-f0-9]{64}$/;
+var isObject = (value) => value && typeof value === "object" && !Array.isArray(value);
+var fail = (message, code) => Object.assign(new Error(message), { code });
+var missing = () => fail("此记录尚未完整保存在本机，请联网读取一次。", "OFFLINE_CACHE_MISS");
+var validDay = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
+var timestamp = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
+var noteEntity = (row) => row?.entity_id?.startsWith("note-entry:");
+var removed = (row) => Boolean(row && (row.deleted || row.deleted_at));
+var liveOperation = (row) => !["acked", "archived"].includes(row.status);
+function noteReadRoute(path) {
+  const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
+  if (url.origin !== "https://offline.invalid" || url.hash) return null;
+  if (url.pathname === "/note-entries" && [...query.keys()].every((key) => ["category", "date"].includes(key)) && query.getAll("category").length === 1 && query.getAll("date").length === 1 && ["life", "work"].includes(query.get("category")) && validDay(query.get("date")))
+    return { kind: "note_entries", date: query.get("date"), category: query.get("category") };
+  const match = /^\/note-entries\/([^/]+)$/.exec(url.pathname);
+  return match && !url.search && uuidPattern.test(match[1]) ? { kind: "note_entry", id: match[1].toLowerCase() } : null;
+}
+function isNoteApiRow(row) {
+  return Boolean(isObject(row) && !Object.hasOwn(row, "entity_type") && uuidPattern.test(row.id) && ["life", "work"].includes(row.category) && validDay(row.date) && typeof row.text === "string" && new TextEncoder().encode(row.text).byteLength <= 65536 && Number.isSafeInteger(row.version) && row.version >= 1 && typeof row.deleted === "boolean" && typeof row.can_edit === "boolean" && timestamp(row.created_at) && timestamp(row.updated_at) && (row.deleted_at === null || timestamp(row.deleted_at)) && row.deleted === (row.deleted_at !== null) && Number.isSafeInteger(row.change_seq) && row.change_seq >= 0 && hashPattern.test(row.content_hash));
+}
+function checkedResponse(route, value) {
+  const invalid = () => fail("碎碎念读取结果不完整，未覆盖本机内容。", "OFFLINE_RESPONSE_INVALID");
+  if (route.kind === "note_entry") {
+    if (!isNoteApiRow(value) || value.id !== route.id) throw invalid();
+    return structuredClone(value);
+  }
+  if (!isObject(value) || value.category !== route.category || value.date !== route.date || typeof value.can_edit !== "boolean" || !Array.isArray(value.entries) || value.entries.length > 200) throw invalid();
+  const ids = /* @__PURE__ */ new Set();
+  for (const row of value.entries) {
+    if (!isNoteApiRow(row) || row.category !== route.category || row.date !== route.date || row.deleted || row.can_edit !== value.can_edit || ids.has(row.id)) throw invalid();
+    ids.add(row.id);
+  }
+  return structuredClone(value);
+}
+function inRoute(entity, route) {
+  if (!noteEntity(entity)) return false;
+  if (route.kind === "note_entry") return entity.entity_id === "note-entry:" + route.id;
+  const row = entity.dirty ? entity.local : entity.server || entity.api_server;
+  return row?.category === route.category && row?.date === route.date;
+}
+function serverFence(rows, route, owner) {
+  return JSON.stringify(rows.filter((row) => row.scope === owner && inRoute(row, route)).map((row) => [row.entity_id, row.server || null, row.api_server || null, row.remote_missing === true]).sort((a, b) => a[0].localeCompare(b[0])));
+}
+function localValue(entity, capability) {
+  const row = entity.dirty ? entity.local : entity.server;
+  if (!row || !uuidPattern.test(row.id || row.source_id) || !["life", "work"].includes(row.category) || !validDay(row.date) || !Number.isSafeInteger(row.version) || row.version < 1) throw missing();
+  if (!removed(row) && typeof row.text !== "string") throw missing();
+  return {
+    id: row.id || row.source_id,
+    category: row.category,
+    date: row.date,
+    text: typeof row.text === "string" ? row.text : entity.local?.text ?? entity.api_server?.text ?? "",
+    version: row.version,
+    deleted: removed(row),
+    can_edit: capability === true,
+    created_at: row.created_at || null,
+    updated_at: row.updated_at || null
+  };
+}
+function realServer(entity) {
+  if (isNoteApiRow(entity.server)) return entity.server;
+  return isNoteApiRow(entity.api_server) ? entity.api_server : null;
+}
+function projectEntity(entity, capability, operations2, conflicts) {
+  const local = localValue(entity, capability), server = realServer(entity);
+  if (!entity.dirty && server?.version === local.version && server.deleted === local.deleted && (server.deleted || server.text === local.text)) return { ...structuredClone(server), can_edit: capability === true };
+  const pending = operations2.filter((row) => row.entity_id === entity.entity_id && liveOperation(row)).sort((a, b) => a.seq - b.seq).at(-1);
+  const conflict = conflicts.find((row) => row.key === entity.conflict && row.resolved_at === null) || conflicts.filter((row) => row.entity_id === entity.entity_id && row.resolved_at === null).at(-1) || null;
+  return localDocument({
+    local,
+    server: entity.dirty ? server : null,
+    operation: entity.dirty ? pending || null : null,
+    conflict: entity.dirty ? conflict : null
+  });
+}
+function notesContext({ db, getScope, getGeneration = () => 0, now = Date.now }) {
+  const capture = () => {
+    const scope = getScope();
+    if (!scope) throw fail("请先联网核实身份，本机内容已保留。", "OFFLINE_SCOPE_REQUIRED");
+    const generation = getGeneration();
+    return { scope, active() {
+      if (getScope() !== scope || getGeneration() !== generation)
+        throw fail("身份范围已变化，本机内容未覆盖。", "OFFLINE_SCOPE_CHANGED");
+    } };
+  };
+  const load = (tx, scope) => Promise.all(["entities", "outbox", "conflicts"].map((store) => tx.getAll(store))).then((rows) => Object.fromEntries(["entities", "outbox", "conflicts"].map((name, index) => [name, rows[index].filter((row) => row.scope === scope)])));
+  const capabilityKey = (scope) => entityKey(scope, "capability:note-entry");
+  return { db, capture, load, capabilityKey, now };
+}
+function readingMethods(context) {
+  const { db, capture, load, capabilityKey } = context;
+  async function capability() {
+    const owner = capture();
+    const record = await db.transaction(["meta"], "readonly", (tx) => tx.get("meta", capabilityKey(owner.scope)));
+    owner.active();
+    return record?.scope === owner.scope && typeof record.can_edit === "boolean" ? record.can_edit : null;
+  }
+  async function read(path, route = noteReadRoute(path)) {
+    if (!route) throw missing();
+    const owner = capture();
+    const result = await db.transaction(["entities", "outbox", "conflicts", "meta"], "readonly", async (tx) => {
+      owner.active();
+      const rows = await load(tx, owner.scope), cap = await tx.get("meta", capabilityKey(owner.scope));
+      const capability2 = cap?.scope === owner.scope ? cap.can_edit : null;
+      const cached = await tx.get("meta", entityKey(owner.scope, "get:" + path));
+      const snapshot = await tx.get("meta", entityKey(owner.scope, "snapshot"));
+      const complete = snapshot?.value?.index?.complete === true && snapshot.value.index.scope_id === owner.scope;
+      const entities = rows.entities.filter((row) => inRoute(row, route) && (row.dirty || !row.remote_missing && row.server));
+      if (route.kind === "note_entry") {
+        if (!entities.length) throw missing();
+        owner.active();
+        return {
+          data: projectEntity(entities[0], capability2, rows.outbox, rows.conflicts),
+          saved_at: cached?.saved_at || snapshot?.value?.verified_at || null
+        };
+      }
+      if (!cached && !complete && !entities.some((row) => row.dirty)) throw missing();
+      if (complete && Array.isArray(snapshot.value.index.entities)) {
+        const present = new Set(entities.map((row) => row.entity_id));
+        if (snapshot.value.index.entities.some((row) => row.entity_id?.startsWith("note-entry:") && row.date === route.date && row.entity_type === route.category + "_note" && !row.deleted_at && !present.has(row.entity_id)))
+          throw missing();
+      }
+      const entries = entities.filter((row) => !removed(row.dirty ? row.local : row.server)).map((row) => projectEntity(row, capability2, rows.outbox, rows.conflicts));
+      if (entries.length > 200) throw fail("本机当日记录较多，原文已保留，请联网核对。", "OFFLINE_CACHE_LIMIT");
+      entries.sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")) || a.id.localeCompare(b.id));
+      owner.active();
+      return {
+        data: {
+          category: route.category,
+          date: route.date,
+          can_edit: capability2 === true,
+          entries,
+          ...!cached && !complete ? { offline_partial: true } : {}
+        },
+        saved_at: cached?.saved_at || snapshot?.value?.verified_at || null
+      };
+    });
+    owner.active();
+    return result;
+  }
+  async function fence(pathOrRoute) {
+    const route = typeof pathOrRoute === "string" ? noteReadRoute(pathOrRoute) : pathOrRoute, owner = capture();
+    if (!route) throw missing();
+    const result = await db.transaction(["entities"], "readonly", async (tx) => serverFence(await tx.getAll("entities"), route, owner.scope));
+    owner.active();
+    return result;
+  }
+  return { read, capability, fence };
+}
+function writingMethods(context) {
+  const { db, capture, capabilityKey, now } = context;
+  async function write(path, route, value, { baseline } = {}) {
+    route ||= noteReadRoute(path);
+    if (!route) throw missing();
+    const owner = capture(), data = checkedResponse(route, value);
+    const incoming = route.kind === "note_entry" ? [data] : data.entries;
+    await db.transaction(["entities", "meta"], "readwrite", async (tx) => {
+      owner.active();
+      const rows = await tx.getAll("entities");
+      if (baseline !== void 0 && baseline !== serverFence(rows, route, owner.scope))
+        throw fail("本机刚确认了新版本，请重新读取完整记录。", "OFFLINE_CACHE_CHANGED");
+      const found = new Set(incoming.map((row) => "note-entry:" + row.id));
+      if (route.kind === "note_entries") for (const old of rows) {
+        if (old.scope === owner.scope && inRoute(old, route) && !found.has(old.entity_id))
+          await tx.put("entities", { ...old, remote_missing: true });
+      }
+      for (const row of incoming) {
+        const entity_id = "note-entry:" + row.id, key = entityKey(owner.scope, entity_id);
+        const old = await tx.get("entities", key);
+        if (Math.max(old?.server?.version || 0, old?.api_server?.version || 0) > row.version)
+          throw fail("读取结果早于本机已确认版本，原文已保留。", "OFFLINE_CACHE_CHANGED");
+        await tx.put("entities", { ...old, key, scope: owner.scope, entity_id, server: row, api_server: row, remote_missing: false });
+      }
+      await tx.put("meta", { key: entityKey(owner.scope, "get:" + path), scope: owner.scope, path, data, saved_at: now() });
+      await tx.put("meta", { key: capabilityKey(owner.scope), scope: owner.scope, can_edit: data.can_edit, verified_at: now() });
+      owner.active();
+    });
+    owner.active();
+    const result = await context.read(path, route);
+    owner.active();
+    return result.data;
+  }
+  async function captureAcknowledged() {
+    const owner = capture();
+    const count = await db.transaction(["entities"], "readwrite", async (tx) => {
+      owner.active();
+      let count2 = 0;
+      for (const entity of await tx.getAll("entities")) {
+        if (entity.scope !== owner.scope || !noteEntity(entity) || !isNoteApiRow(entity.server) || entity.api_server?.version > entity.server.version) continue;
+        await tx.put("entities", { ...entity, api_server: structuredClone(entity.server) });
+        count2++;
+      }
+      owner.active();
+      return count2;
+    });
+    owner.active();
+    return count;
+  }
+  return { write, captureAcknowledged };
+}
+function createNotesCache(options2) {
+  const context = notesContext(options2);
+  const reading = readingMethods(context);
+  Object.assign(context, reading);
+  return { ...reading, ...writingMethods(context) };
+}
+
+// web/offline/read-only.mjs
+var day = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
+var missing2 = () => Object.assign(new Error("此内容尚未完整缓存在本机，请联网读取。"), { code: "OFFLINE_CACHE_MISS" });
+function readOnlyRoute(path) {
+  const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
+  if (url.origin !== "https://offline.invalid" || url.hash) return null;
+  if (url.pathname === "/work-reminders" && [...query.keys()].every((key) => key === "date") && query.getAll("date").length === 1 && day(query.get("date"))) return { kind: "reminders", date: query.get("date") };
+  if (!["/note-entries/dates", "/daily-notes/dates"].includes(url.pathname) || [...query.keys()].some((key) => !["category", "before", "page_size"].includes(key) || query.getAll(key).length !== 1) || query.has("category") && !["life", "work"].includes(query.get("category")) || query.has("before") && !day(query.get("before"))) return null;
+  const size = query.get("page_size") || "30";
+  if (!/^[1-9]\d*$/.test(size) || Number(size) > 100) return null;
+  return {
+    kind: "dates",
+    source: url.pathname.startsWith("/daily-notes") ? "legacy" : "note_entry",
+    category: query.get("category") || "life",
+    before: query.get("before"),
+    size: Number(size)
+  };
+}
+function matches(entity, route) {
+  if (route.kind === "reminders") return entity.entity_id.startsWith("work-reminder:");
+  return route.source === "legacy" ? entity.entity_id.startsWith("legacy-" + route.category + ":") : entity.entity_id.startsWith("note-entry:");
+}
+async function readOnlySnapshot({ db, scope, route, getScope, getGeneration }) {
+  const generation = getGeneration();
+  const result = await db.transaction(["entities", "meta"], "readonly", async (tx) => {
+    const snapshot = await tx.get("meta", entityKey(scope, "snapshot")), index = snapshot?.value?.index;
+    if (index?.complete !== true || index.scope_id !== scope) throw missing2();
+    const rows = (await tx.getAll("entities")).filter((row) => row.scope === scope && matches(row, route));
+    for (const expected of index.entities.filter((row) => matches(row, route) && !row.deleted_at)) {
+      if (!rows.some((row) => row.entity_id === expected.entity_id && row.server)) throw missing2();
+    }
+    const active4 = rows.filter((row) => row.dirty || !row.remote_missing).map((row) => route.source === "note_entry" && row.dirty ? row.local : row.server).filter((row) => row && !row.deleted && !row.deleted_at);
+    let data;
+    if (route.kind === "reminders") {
+      const items = active4.filter((row) => row.date === route.date).map((row) => {
+        if (typeof row.summary !== "string" || !Number.isFinite(Date.parse(row.updated_at))) throw missing2();
+        return {
+          id: row.id || row.source_id,
+          date: row.date,
+          summary: row.summary,
+          source_key: row.source_key,
+          version: row.version,
+          updated_at: row.updated_at
+        };
+      });
+      data = { date: route.date, can_edit: false, items, snapshot_complete: true };
+    } else {
+      const dates = [...new Set(active4.filter((row) => row.category === route.category && day(row.date) && (route.source !== "legacy" || typeof row.text === "string" && row.text !== "") && (!route.before || row.date < route.before)).map((row) => row.date))].sort().reverse();
+      const selected = dates.slice(0, route.size), has_more = dates.length > route.size;
+      data = { dates: selected, has_more, next_before: has_more ? selected.at(-1) : null, snapshot_complete: true };
+    }
+    return { data, saved_at: snapshot.value.verified_at || null };
+  });
+  if (scope !== getScope() || generation !== getGeneration()) throw missing2();
+  return result;
+}
+
 // web/offline/cache.mjs
 var dayPattern = /^(?!0000)\d{4}-\d{2}-\d{2}$/;
-var uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var uuidPattern2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 var clone = (value) => structuredClone(value);
-var missing = () => Object.assign(new Error("此内容尚未保存在本机，请联网读取一次。"), { code: "OFFLINE_CACHE_MISS" });
+var missing3 = () => Object.assign(new Error("此内容尚未保存在本机，请联网读取一次。"), { code: "OFFLINE_CACHE_MISS" });
 var active = (row) => row && !row.deleted && !row.deleted_at;
 function offlineReadRoute(path) {
   const url = new URL(path, "https://offline.invalid");
   if (url.origin !== "https://offline.invalid" || url.hash) return null;
   const route = url.pathname, query = url.searchParams;
+  if (["/work-reminders", "/note-entries/dates", "/daily-notes/dates"].includes(route)) return readOnlyRoute(path);
   if (route === "/todos" && [...query.keys()].every((key) => key === "date") && query.getAll("date").length === 1 && dayPattern.test(query.get("date"))) return { kind: "todo", date: query.get("date") };
   if (route === "/todo-templates" && !url.search) return { kind: "template" };
   if (route === "/accounts" && !url.search) return { kind: "accounts" };
   if (route === "/overview") return { kind: "overview" };
-  if (route === "/daily-notes" && query.has("date")) return { kind: "legacy" };
-  if (route === "/note-entries" && query.has("date") && ["life", "work"].includes(query.get("category")))
-    return { kind: "note_entries", date: query.get("date"), category: query.get("category") };
-  if (/^\/note-entries\/[a-f0-9-]{36}$/i.test(route)) return { kind: "note_entry" };
+  if (route === "/daily-notes" && query.getAll("date").length === 1 && dayPattern.test(query.get("date")) && [...query.keys()].every((key) => ["date", "category"].includes(key)) && query.getAll("category").length <= 1 && (!query.has("category") || ["life", "work"].includes(query.get("category"))))
+    return { kind: "legacy", date: query.get("date"), category: query.get("category") || "life" };
+  if (route === "/note-entries" || route.startsWith("/note-entries/")) return noteReadRoute(path);
   if (route === "/memos" && !url.search) return { kind: "memos" };
   if (/^\/memos\/notes\/[a-f0-9-]{36}$/i.test(route)) return { kind: "memo_note" };
-  if (route === "/work-reminders" && query.has("date")) return { kind: "reminders" };
   return null;
 }
 function safeIdentity(value) {
@@ -1203,13 +1486,13 @@ var identityFingerprint = (value) => JSON.stringify([value.id, value.publicBusin
 function safeAccounts(value) {
   if (!Array.isArray(value)) throw new Error("账户读取不完整。");
   if (value.some((row) => !row || ![0, 1].includes(row.active))) throw new Error("账户状态读取不完整。");
-  const fields = ["id", "name", "platform", "active", "account_name", "position", "created_at", "updated_at"];
-  return value.map((row) => Object.fromEntries(fields.filter((key) => row[key] !== void 0).map((key) => [key, row[key]])));
+  const fields2 = ["id", "name", "platform", "active", "account_name", "position", "created_at", "updated_at"];
+  return value.map((row) => Object.fromEntries(fields2.filter((key) => row[key] !== void 0).map((key) => [key, row[key]])));
 }
-function checkedResponse(route, value) {
+function checkedResponse2(route, value) {
   const invalid = () => Object.assign(new Error("读取结果不完整，未覆盖本机数据。"), { code: "OFFLINE_RESPONSE_INVALID" });
   if (value === void 0 || value === null) throw invalid();
-  if (["todo", "template"].includes(route.kind) && (!Array.isArray(value.items) || value.items.some((row) => !row || !uuidPattern.test(row.id) || !Number.isSafeInteger(row.version) || row.version < 1 || typeof row.text !== "string" || !row.text.trim() || row.text.length > 500 || !Number.isFinite(Date.parse(row.created_at)) || !Number.isFinite(Date.parse(row.updated_at)) || route.kind === "todo" && (row.date !== route.date || typeof row.completed !== "boolean" || row.deleted_at !== null))))
+  if (["todo", "template"].includes(route.kind) && (!Array.isArray(value.items) || value.items.some((row) => !row || !uuidPattern2.test(row.id) || !Number.isSafeInteger(row.version) || row.version < 1 || typeof row.text !== "string" || !row.text.trim() || row.text.length > 500 || !Number.isFinite(Date.parse(row.created_at)) || !Number.isFinite(Date.parse(row.updated_at)) || route.kind === "todo" && (row.date !== route.date || typeof row.completed !== "boolean" || row.deleted_at !== null))))
     throw invalid();
   return route.kind === "accounts" ? safeAccounts(value) : clone(value);
 }
@@ -1217,7 +1500,7 @@ function belongs(row, route) {
   const value = offlineValue(row);
   return row.entity_id.startsWith(route.kind + ":") && value && (route.kind !== "todo" || value.date === route.date);
 }
-function serverFence(rows, route, owner) {
+function serverFence2(rows, route, owner) {
   if (!["todo", "template"].includes(route.kind)) return null;
   return JSON.stringify(rows.filter((row) => row.scope === owner && belongs(row, route)).map((row) => [row.entity_id, row.server || null, row.remote_missing === true]).sort((a, b) => a[0].localeCompare(b[0])));
 }
@@ -1244,7 +1527,28 @@ function identityMethods(db, now) {
     forgetIdentity: () => db.transaction(["meta"], "readwrite", (tx) => tx.delete("meta", key))
   };
 }
+async function legacySnapshot(db, owner, route) {
+  return db.transaction(["entities", "meta"], "readonly", async (tx) => {
+    const snapshot = await tx.get("meta", entityKey(owner, "snapshot"));
+    if (snapshot?.value?.index?.complete !== true || snapshot.value.index.scope_id !== owner) throw missing3();
+    const entity = await tx.get("entities", entityKey(owner, "legacy-" + route.category + ":" + route.date));
+    const row = !entity?.remote_missing && entity?.server;
+    if (!row && snapshot.value.index.entities?.some((value) => value.entity_id === "legacy-" + route.category + ":" + route.date)) throw missing3();
+    if (row && (!Number.isSafeInteger(row.version) || row.version < 1 || !row.deleted_at && typeof row.text !== "string")) throw missing3();
+    const data = {
+      date: route.date,
+      text: row?.text || "",
+      version: row?.version || 0,
+      updated_at: row?.updated_at || null,
+      deleted: Boolean(row?.deleted_at),
+      can_edit: false,
+      snapshot_complete: true
+    };
+    return { data, saved_at: snapshot.value.verified_at || null };
+  });
+}
 function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () => 0 }) {
+  const notes = createNotesCache({ db, getScope, now, getGeneration });
   const scope = () => {
     const value = getScope();
     if (!value) throw Object.assign(new Error("请先联网核实当前身份，本机内容已保留。"), { code: "OFFLINE_SCOPE_REQUIRED" });
@@ -1253,7 +1557,8 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
   async function write(path, value, { baseline } = {}) {
     const route = offlineReadRoute(path);
     if (!route) return value;
-    const owner = scope(), generation = getGeneration(), data = checkedResponse(route, value), key = entityKey(owner, "get:" + path);
+    if (["note_entries", "note_entry"].includes(route.kind)) return notes.write(path, route, value, { baseline });
+    const owner = scope(), generation = getGeneration(), data = checkedResponse2(route, value), key = entityKey(owner, "get:" + path);
     const active4 = () => {
       if (scope() !== owner || getGeneration() !== generation)
         throw Object.assign(new Error("身份范围已变化，本次读取未保存。"), { code: "OFFLINE_SCOPE_CHANGED" });
@@ -1261,7 +1566,7 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
     await db.transaction(["meta", "entities"], "readwrite", async (tx) => {
       active4();
       const rows = await tx.getAll("entities");
-      if (baseline !== void 0 && baseline !== serverFence(rows, route, owner))
+      if (baseline !== void 0 && baseline !== serverFence2(rows, route, owner))
         throw Object.assign(new Error("本机刚同步了新版本，请重新读取完整列表。"), { code: "OFFLINE_CACHE_CHANGED" });
       await tx.put("meta", { key, scope: owner, path, data, saved_at: now() });
       if (!["todo", "template"].includes(route.kind)) {
@@ -1297,12 +1602,25 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
   const entities = (owner) => db.transaction(["entities"], "readonly", async (tx) => (await tx.getAll("entities")).filter((row) => row.scope === owner));
   async function read(path) {
     const route = offlineReadRoute(path);
-    if (!route) throw missing();
+    if (!route) throw missing3();
+    if (["note_entries", "note_entry"].includes(route.kind)) return notes.read(path, route);
     const owner = scope(), generation = getGeneration();
     const cached = await db.transaction(["meta"], "readonly", (tx) => tx.get("meta", entityKey(owner, "get:" + path)));
+    if (["reminders", "dates"].includes(route.kind)) {
+      try {
+        return await readOnlySnapshot({ db, scope: owner, route, getScope, getGeneration });
+      } catch (error) {
+        if (error.code !== "OFFLINE_CACHE_MISS" || !cached) throw error;
+      }
+    }
     if (!cached || cached.data === void 0) {
+      if (route.kind === "legacy") {
+        const result2 = await legacySnapshot(db, owner, route);
+        if (scope() !== owner || getGeneration() !== generation) throw missing3();
+        return result2;
+      }
       const local = route.kind === "todo" ? (await entities(owner)).filter((row) => row.dirty && belongs(row, route)) : [];
-      if (!local.length) throw missing();
+      if (!local.length) throw missing3();
       const data = {
         date: route.date,
         today: new Date(now() + 8 * 36e5).toISOString().slice(0, 10),
@@ -1311,16 +1629,28 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
         items: [],
         offline_partial: true
       };
-      if (scope() !== owner || getGeneration() !== generation) throw missing();
+      if (scope() !== owner || getGeneration() !== generation) throw missing3();
       return { data: overlay(data, route, local, false), saved_at: null };
     }
-    const result = overlay(clone(cached.data), route, await entities(owner), false);
-    if (scope() !== owner || getGeneration() !== generation) throw missing();
+    const result = route.kind === "legacy" ? { ...clone(cached.data), can_edit: false } : overlay(clone(cached.data), route, await entities(owner), false);
+    if (scope() !== owner || getGeneration() !== generation) throw missing3();
     return { data: result, saved_at: cached.saved_at };
   }
   const entity = (id) => db.transaction(["entities"], "readonly", (tx) => tx.get("entities", entityKey(scope(), id)));
-  const fence = async (path) => serverFence(await entities(scope()), offlineReadRoute(path), scope());
-  return { read, write, entity, fence, entities: () => entities(scope()), ...identityMethods(db, now) };
+  const fence = async (path) => {
+    const route = offlineReadRoute(path);
+    return ["note_entries", "note_entry"].includes(route?.kind) ? notes.fence(route) : serverFence2(await entities(scope()), route, scope());
+  };
+  return {
+    read,
+    write,
+    entity,
+    fence,
+    entities: () => entities(scope()),
+    noteCapability: notes.capability,
+    captureDocuments: notes.captureAcknowledged,
+    ...identityMethods(db, now)
+  };
 }
 
 // web/offline/conflict.mjs
@@ -1399,14 +1729,14 @@ var prefixes = {
   memo_note: "memo-note:",
   memo_group: "memo-group:"
 };
-var uuidPattern2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var uuidPattern3 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 var active2 = (operation) => !["acked", "archived"].includes(operation.status);
 var deleted = (value) => Boolean(value && (value.deleted || value.deleted_at));
 var ordered = (rows) => rows.sort((a, b) => a.seq - b.seq);
 var needsUpgrade = () => Object.assign(new Error("此本机操作需新版页面处理，原内容已保留。"), { code: "OFFLINE_UPGRADE_REQUIRED" });
 function canonicalRoute(operation) {
   const { entity_type: type, source_id: id, entity_id, method, path } = operation;
-  if (!uuidPattern2.test(id) || entity_id !== prefixes[type] + id) return false;
+  if (!uuidPattern3.test(id) || entity_id !== prefixes[type] + id) return false;
   const base = type === "todo" ? "/todos" : type === "template" ? "/todo-templates" : type === "note_entry" ? "/note-entries" : "/memos/" + (type === "memo_note" ? "notes" : "groups");
   if (["todo", "template"].includes(type)) {
     if (method === "POST") return path === base || type === "todo" && path === base + "/" + id + "/restore";
@@ -1426,16 +1756,20 @@ function dispatchCapabilities(options2) {
   };
   return { canDispatch, requireDispatch };
 }
-function identity(input, uuid) {
+function identity(input, uuid2) {
   const prefix = prefixes[input.entity_type];
   if (!prefix) throw new TypeError("This entity is read-only offline");
-  const raw = input.entity_id || input.body?.id || uuid();
+  const raw = input.entity_id || input.body?.id || uuid2();
   const id = raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
-  if (!uuidPattern2.test(id)) throw new TypeError("Offline entity requires a stable UUID");
+  if (!uuidPattern3.test(id)) throw new TypeError("Offline entity requires a stable UUID");
   return { id: id.toLowerCase(), entity_id: prefix + id.toLowerCase() };
 }
-function operationFor(input, uuid, time2) {
-  const { id, entity_id } = identity(input, uuid), type = input.entity_type;
+function operationFor(input, uuid2, time2) {
+  const initialStatus = input.initial_status || "queued";
+  if (!["queued", "unknown"].includes(initialStatus)) throw new TypeError("Invalid initial offline operation status");
+  if (initialStatus === "unknown" && (!uuidPattern3.test(input.body?.save_id) || !input.entity_id))
+    throw new TypeError("Unknown operation import requires its original save_id and entity identity");
+  const { id, entity_id } = identity(input, uuid2), type = input.entity_type;
   const method = input.method?.toUpperCase();
   const base = type === "todo" ? "/todos" : type === "template" ? "/todo-templates" : type === "note_entry" ? "/note-entries" : "/memos/" + (type === "memo_note" ? "notes" : "groups");
   const restore = type === "todo" && method === "POST" && input.path === base + "/" + id + "/restore";
@@ -1458,12 +1792,12 @@ function operationFor(input, uuid, time2) {
   if (!Number.isSafeInteger(expected) || expected < 0 || expected >= Number.MAX_SAFE_INTEGER) {
     throw new TypeError("Offline mutation requires an expected version");
   }
-  const saveId = body.save_id || uuid();
-  if (!uuidPattern2.test(saveId)) throw new TypeError("Offline save_id requires a UUID");
+  const saveId = body.save_id || uuid2();
+  if (!uuidPattern3.test(saveId)) throw new TypeError("Offline save_id requires a UUID");
   if (!["todo", "template"].includes(type)) body.save_id = saveId.toLowerCase();
   else delete body.save_id;
   const operation = {
-    id: uuid(),
+    id: uuid2(),
     scope: input.scope,
     entity_type: type,
     entity_id,
@@ -1477,7 +1811,7 @@ function operationFor(input, uuid, time2) {
     created_at: time2,
     attempts: 0,
     next_attempt_at: 0,
-    status: "queued",
+    status: initialStatus,
     base: input.base || null,
     local: { ...structuredClone(input.local || body), id, version: expected + 1 },
     claim_owner: null,
@@ -1495,9 +1829,9 @@ async function digest(value) {
   return [...new Uint8Array(hash)].map((value2) => value2.toString(16).padStart(2, "0")).join("");
 }
 async function memoHash(row, kind) {
-  const fields = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at"];
-  if (kind === "memo_note") fields.push("group_id", "body");
-  return digest(Object.fromEntries(fields.map((field2) => [field2, row[field2]])));
+  const fields2 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at"];
+  if (kind === "memo_note") fields2.push("group_id", "body");
+  return digest(Object.fromEntries(fields2.map((field2) => [field2, row[field2]])));
 }
 function desired(operation, remote) {
   if (!remote || remote.id !== operation.source_id) return false;
@@ -1509,10 +1843,15 @@ function desired(operation, remote) {
 function expectedFields(operation, remote) {
   const base = operation.base;
   if (!base) return true;
-  const fields = operation.entity_type === "todo" ? deleted(remote) ? ["date"] : ["date", "text"] : [];
-  return fields.every((key) => base[key] === void 0 || remote[key] === base[key]);
+  const fields2 = operation.entity_type === "todo" ? deleted(remote) ? ["date"] : ["date", "text"] : [];
+  return fields2.every((key) => base[key] === void 0 || remote[key] === base[key]);
+}
+function completeNoteRow(remote) {
+  const time2 = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+  return remote && uuidPattern3.test(remote.id) && ["life", "work"].includes(remote.category) && /^\d{4}-\d{2}-\d{2}$/.test(remote.date) && typeof remote.text === "string" && typeof remote.deleted === "boolean" && remote.can_edit === true && /^[a-f0-9]{64}$/.test(remote.content_hash) && Number.isSafeInteger(remote.change_seq) && remote.change_seq >= 0 && time2(remote.created_at) && time2(remote.updated_at) && (remote.deleted_at === null || time2(remote.deleted_at)) && remote.deleted === (remote.deleted_at !== null);
 }
 function validAcknowledgement(operation, remote) {
+  if (operation.entity_type === "note_entry" && !completeNoteRow(remote)) return false;
   if (operation.entity_type === "template" && operation.method === "DELETE") {
     return remote?.id === operation.source_id && remote.deleted === true;
   }
@@ -1522,8 +1861,8 @@ function validAcknowledgement(operation, remote) {
   return Number.isSafeInteger(remote?.version) && remote.version === operation.expected_version + 1 && desired(operation, remote) && expectedFields(operation, remote);
 }
 function createContext(options2) {
-  const { db, request, getScope, now = Date.now, uuid = () => crypto.randomUUID(), timeout = 2e4 } = options2;
-  const owner = uuid();
+  const { db, request, getScope, now = Date.now, uuid: uuid2 = () => crypto.randomUUID(), timeout = 2e4 } = options2;
+  const owner = uuid2();
   const state2 = { phase: "idle", pending: 0, unsupported: 0, error: null };
   const { canDispatch, requireDispatch } = dispatchCapabilities(options2);
   const conflicts = createConflictStore({ db, now, canDispatch });
@@ -1571,7 +1910,7 @@ function createContext(options2) {
     request,
     getScope,
     now,
-    uuid,
+    uuid: uuid2,
     timeout,
     owner,
     conflicts,
@@ -1586,17 +1925,44 @@ function createContext(options2) {
     retryable
   };
 }
+async function replayOperation(tx, operation, input, all) {
+  const replay = all.find((value) => value.save_id === operation.save_id);
+  if (!replay) return null;
+  if (replay.entity_id !== operation.entity_id || replay.path !== operation.path || replay.method !== operation.method || JSON.stringify(replay.body) !== JSON.stringify(operation.body)) throw new Error("Offline save_id cannot change its original request");
+  const entity = await tx.get("entities", entityKey(input.scope, replay.entity_id));
+  if (!entity) throw new Error("Offline operation entity is missing");
+  if (input.initial_status === "unknown" && replay.status === "queued") {
+    await tx.put("outbox", { ...replay, status: "unknown" });
+    return { operation: { ...replay, status: "unknown" }, entity };
+  }
+  return { operation: replay, entity };
+}
+async function noteCapacity(tx, operation, old) {
+  if (operation.entity_type !== "note_entry" || operation.expected_version !== 0 || operation.status === "unknown" || old) return;
+  let count = 0;
+  for (const entity of await tx.getAll("entities")) {
+    const row = entity.dirty ? entity.local : entity.server;
+    if (entity.scope === operation.scope && entity.entity_id.startsWith("note-entry:") && (entity.dirty || !entity.remote_missing) && row?.category === operation.body.category && row?.date === operation.body.date && !deleted(row)) count++;
+  }
+  if (count >= 200) throw Object.assign(new Error("本机当日记录已达 200 条，草稿已保留。"), { code: "OFFLINE_CACHE_LIMIT" });
+}
 function storageMethods(context) {
-  const { db, checkScope, uuid, now, owner } = context;
+  const { db, checkScope, uuid: uuid2, now, owner } = context;
   async function enqueue(input) {
     input.assertActive?.();
     checkScope(input.scope);
-    const operation = operationFor(input, uuid, now());
+    const operation = operationFor(input, uuid2, now());
     context.requireDispatch(operation);
     return db.transaction(["entities", "outbox", "meta"], "readwrite", async (tx) => {
       checkScope(input.scope);
       input.assertActive?.();
-      const rows = (await tx.getAll("outbox")).filter((value) => value.scope === input.scope && active2(value));
+      const all = (await tx.getAll("outbox")).filter((value) => value.scope === input.scope);
+      const replay = await replayOperation(tx, operation, input, all);
+      if (replay) {
+        input.assertActive?.();
+        return replay;
+      }
+      const rows = all.filter(active2);
       if (rows.length >= 1e3) throw new Error("Offline queue is full; this edit was not saved");
       const previous = ordered(rows.filter((value) => value.entity_id === operation.entity_id)).at(-1);
       const conflict = rows.some((value) => value.entity_id === operation.entity_id && value.status === "conflict");
@@ -1607,6 +1973,7 @@ function storageMethods(context) {
       const sequence = (await tx.get("meta", sequenceKey))?.value || 0;
       operation.seq = sequence + 1;
       const key = entityKey(input.scope, operation.entity_id), old = await tx.get("entities", key);
+      await noteCapacity(tx, operation, old);
       const visible2 = old?.dirty ? old.local : old?.server || operation.base;
       operation.base = operation.base || old?.server || null;
       operation.local = {
@@ -1633,20 +2000,21 @@ function storageMethods(context) {
       return { operation, entity };
     });
   }
-  async function update(operation, fields) {
+  async function update(operation, fields2) {
     if (!context.canDispatch(operation)) return null;
     return db.transaction(["outbox", "meta"], "readwrite", async (tx) => {
       const current = await tx.get("outbox", operation.key);
       const held = await tx.get("meta", context.leaseKey(operation.scope));
       if (!context.canDispatch(current) || held?.owner !== owner || !["queued", "unknown", "sending"].includes(current.status)) return null;
-      if (!Object.hasOwn(fields, "claim_owner") && current.claim_owner !== owner) return null;
-      const result = { ...current, ...fields };
+      if (!Object.hasOwn(fields2, "claim_owner") && current.claim_owner !== owner) return null;
+      const result = { ...current, ...fields2 };
       await tx.put("outbox", result);
       return result;
     });
   }
   async function acknowledge(operation, remote) {
     context.requireDispatch(operation);
+    if (operation.entity_type === "note_entry" && !completeNoteRow(remote)) throw new Error("Incomplete note acknowledgement");
     checkScope(operation.scope);
     await db.transaction(["entities", "outbox"], "readwrite", async (tx) => {
       checkScope(operation.scope);
@@ -1692,8 +2060,8 @@ function remoteMethods(context) {
     if (!Array.isArray(index?.items)) throw new Error("Incomplete offline entity index");
     const row = index.items.find((value) => value.id === operation.source_id);
     if (row || type === "template") return row || null;
-    const day2 = operation.body.date || operation.base?.date || operation.local.date;
-    const snapshot = await network(scope, "/workbench-snapshot?date=" + day2);
+    const day3 = operation.body.date || operation.base?.date || operation.local.date;
+    const snapshot = await network(scope, "/workbench-snapshot?date=" + day3);
     if (snapshot?.complete !== true || snapshot.scope_id !== scope || !Array.isArray(snapshot.data?.todos)) {
       throw new Error("Todo absence could not be verified completely");
     }
@@ -1750,7 +2118,7 @@ function processingMethods(context) {
     }
     return { result: "conflict", remote };
   }
-  async function fail3(operation, error) {
+  async function fail4(operation, error) {
     if ([409, 410, 404].includes(error.status)) {
       const current = await context.db.transaction(["outbox"], "readonly", (tx) => tx.get("outbox", operation.key));
       if (!context.canDispatch(current)) return;
@@ -1777,12 +2145,12 @@ function processingMethods(context) {
       const claimed = await update(operation, { claim_owner: owner });
       if (!claimed) return;
       if (["unknown", "sending"].includes(operation.status)) {
-        const checked = await reconcile(claimed);
-        if (checked.result === "ack") return await acknowledge(claimed, checked.remote);
-        if (checked.result === "conflict") return conflicts.record({
+        const checked2 = await reconcile(claimed);
+        if (checked2.result === "ack") return await acknowledge(claimed, checked2.remote);
+        if (checked2.result === "conflict") return conflicts.record({
           operation: claimed,
-          remote: checked.remote,
-          reason: deleted(checked.remote) ? "deleted" : "version"
+          remote: checked2.remote,
+          reason: deleted(checked2.remote) ? "deleted" : "version"
         });
       }
       const sending = await update(claimed, { status: "sending" });
@@ -1791,10 +2159,10 @@ function processingMethods(context) {
       if (!validAcknowledgement(operation, remote)) throw new Error("Invalid offline write acknowledgement");
       return await acknowledge(sending, remote);
     } catch (error) {
-      return fail3({ ...operation, claim_owner: owner }, error);
+      return fail4({ ...operation, claim_owner: owner }, error);
     }
   }
-  return { reconcile, fail: fail3, process };
+  return { reconcile, fail: fail4, process };
 }
 function executionMethods(context) {
   const { getScope, lease, state: state2, list, checkScope, process, db, leaseKey, owner, now, retryable, canDispatch } = context;
@@ -1886,7 +2254,7 @@ var recordKeys = /* @__PURE__ */ new Set([
   "body",
   "group_id"
 ]);
-var hashPattern = /^[a-f0-9]{64}$/;
+var hashPattern2 = /^[a-f0-9]{64}$/;
 var datePattern = /^(?!0000)\d{4}-\d{2}-\d{2}$/;
 var supportedId = /^(?:todo|legacy-life|legacy-work|note-entry|work-reminder|memo-group|memo-note):/;
 var SNAPSHOT_PULL_LIMITS = Object.freeze({
@@ -1901,13 +2269,13 @@ var stable = (value) => Array.isArray(value) ? value.map(stable) : value && type
 var canonical = (value) => JSON.stringify(stable(value));
 var equal = (a, b) => canonical(a) === canonical(b);
 var object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
-function fail(code, message, status) {
+function fail2(code, message, status) {
   throw Object.assign(new Error(message), { code, ...status ? { status } : {} });
 }
 function requireValue(condition, message = "工作台快照内容不完整，未覆盖本地数据。") {
-  if (!condition) fail("OFFLINE_SNAPSHOT_INVALID", message);
+  if (!condition) fail2("OFFLINE_SNAPSHOT_INVALID", message);
 }
-function day(value) {
+function day2(value) {
   requireValue(typeof value === "string" && datePattern.test(value));
   const parsed = /* @__PURE__ */ new Date(value + "T00:00:00Z");
   requireValue(Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value);
@@ -1917,10 +2285,10 @@ function stamp(value, nullable = false) {
   if (value === null && nullable) return;
   const parts = typeof value === "string" && /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   requireValue(parts && Number(parts[2]) < 24 && Number(parts[3]) < 60 && Number(parts[4]) < 60 && Number.isFinite(Date.parse(value)) && (parts[5] === "Z" || Number(parts[5].slice(1, 3)) < 24 && Number(parts[5].slice(4)) < 60));
-  day(parts[1]);
+  day2(parts[1]);
 }
 function identity2(scope, getScope) {
-  if (getScope() !== scope) fail("OFFLINE_SCOPE_CHANGED", "当前身份范围已变化，请重新核实；原本地内容已保留。");
+  if (getScope() !== scope) fail2("OFFLINE_SCOPE_CHANGED", "当前身份范围已变化，请重新核实；原本地内容已保留。");
 }
 function budget(limits, crypto2) {
   let bytes = 0, hashBytes = 0, requests = 0;
@@ -1931,21 +2299,21 @@ function budget(limits, crypto2) {
       try {
         text = JSON.stringify(value);
       } catch {
-        fail("OFFLINE_SNAPSHOT_INVALID", "工作台快照无法解析。");
+        fail2("OFFLINE_SNAPSHOT_INVALID", "工作台快照无法解析。");
       }
       requireValue(typeof text === "string");
       const size = encoder.encode(text).byteLength;
       bytes += size;
-      if (size > limits.maxResponseBytes || bytes > limits.maxBatchBytes) fail("OFFLINE_SNAPSHOT_LIMIT", "本次完整快照超过本机读取预算，未覆盖本地数据。", 413);
+      if (size > limits.maxResponseBytes || bytes > limits.maxBatchBytes) fail2("OFFLINE_SNAPSHOT_LIMIT", "本次完整快照超过本机读取预算，未覆盖本地数据。", 413);
     },
     request() {
-      if (++requests > limits.maxRequests) fail("OFFLINE_SNAPSHOT_LIMIT", "本次完整快照请求数超过预算，未覆盖本地数据。", 413);
+      if (++requests > limits.maxRequests) fail2("OFFLINE_SNAPSHOT_LIMIT", "本次完整快照请求数超过预算，未覆盖本地数据。", 413);
     },
     async hash(value) {
       const input = encoder.encode(canonical(value));
       hashBytes += input.byteLength;
-      if (hashBytes > limits.maxHashBytes) fail("OFFLINE_SNAPSHOT_LIMIT", "本次完整快照哈希预算不足，未覆盖本地数据。", 413);
-      if (!crypto2?.subtle) fail("OFFLINE_CRYPTO_UNAVAILABLE", "无法核实快照哈希，未覆盖本地数据。");
+      if (hashBytes > limits.maxHashBytes) fail2("OFFLINE_SNAPSHOT_LIMIT", "本次完整快照哈希预算不足，未覆盖本地数据。", 413);
+      if (!crypto2?.subtle) fail2("OFFLINE_CRYPTO_UNAVAILABLE", "无法核实快照哈希，未覆盖本地数据。");
       const digest2 = await crypto2.subtle.digest("SHA-256", input);
       return [...new Uint8Array(digest2)].map((value2) => value2.toString(16).padStart(2, "0")).join("");
     }
@@ -1962,14 +2330,14 @@ function metadata(row) {
   };
 }
 function envelope(value, scope, limits) {
-  if (object(value) && value.scope_id !== scope) fail("OFFLINE_SCOPE_CHANGED", "快照身份范围与已核实范围不同，原本地内容已保留。");
-  requireValue(object(value) && value.snapshot_format === FORMAT && value.projection === "current" && value.complete === true && value.scope_id === scope && value.timezone === "Asia/Shanghai" && hashPattern.test(value.manifest_hash) && hashPattern.test(value.global_content_hash) && Array.isArray(value.entities) && value.entities.length <= limits.maxEntities);
+  if (object(value) && value.scope_id !== scope) fail2("OFFLINE_SCOPE_CHANGED", "快照身份范围与已核实范围不同，原本地内容已保留。");
+  requireValue(object(value) && value.snapshot_format === FORMAT && value.projection === "current" && value.complete === true && value.scope_id === scope && value.timezone === "Asia/Shanghai" && hashPattern2.test(value.manifest_hash) && hashPattern2.test(value.global_content_hash) && Array.isArray(value.entities) && value.entities.length <= limits.maxEntities);
   stamp(value.generated_at);
   const seen = /* @__PURE__ */ new Set();
   let previous = "";
   for (const row of value.entities) {
-    requireValue(object(row) && Object.keys(row).sort().join(",") === "content_hash,date,deleted_at,entity_id,entity_type,updated_at" && typeof row.entity_id === "string" && row.entity_id.length > 0 && row.entity_id.length <= 256 && !seen.has(row.entity_id) && row.entity_id > previous && types.has(row.entity_type) && hashPattern.test(row.content_hash));
-    if (row.date !== null) day(row.date);
+    requireValue(object(row) && Object.keys(row).sort().join(",") === "content_hash,date,deleted_at,entity_id,entity_type,updated_at" && typeof row.entity_id === "string" && row.entity_id.length > 0 && row.entity_id.length <= 256 && !seen.has(row.entity_id) && row.entity_id > previous && types.has(row.entity_type) && hashPattern2.test(row.content_hash));
+    if (row.date !== null) day2(row.date);
     stamp(row.updated_at);
     stamp(row.deleted_at, true);
     seen.add(row.entity_id);
@@ -1983,7 +2351,7 @@ async function indexFor(value, scope, limits, readBudget) {
   const represented = new Set(value.entities.filter((row) => row.date !== null).map((row) => row.date));
   let previous = "";
   for (const row of value.dates) {
-    requireValue(object(row) && Object.keys(row).sort().join(",") === "content_hash,date" && day(row.date) > previous && hashPattern.test(row.content_hash) && represented.has(row.date));
+    requireValue(object(row) && Object.keys(row).sort().join(",") === "content_hash,date" && day2(row.date) > previous && hashPattern2.test(row.content_hash) && represented.has(row.date));
     previous = row.date;
     represented.delete(row.date);
     requireValue(row.content_hash === await readBudget.hash({ scope_id: scope, entities: value.entities.filter((entity) => entity.date === row.date) }));
@@ -1998,7 +2366,7 @@ function sameIndex(a, b) {
 }
 async function detailFor(value, date, index, limits, readBudget) {
   envelope(value, index.scope_id, limits);
-  requireValue(value.date === date && value.manifest_hash === index.manifest_hash && value.global_content_hash === index.global_content_hash && equal(value.entities, index.entities) && object(value.data) && Object.keys(value.data).sort().join(",") === [...collections].sort().join(",") && hashPattern.test(value.content_hash) && hashPattern.test(value.date_content_hash));
+  requireValue(value.date === date && value.manifest_hash === index.manifest_hash && value.global_content_hash === index.global_content_hash && equal(value.entities, index.entities) && object(value.data) && Object.keys(value.data).sort().join(",") === [...collections].sort().join(",") && hashPattern2.test(value.content_hash) && hashPattern2.test(value.date_content_hash));
   const expected = new Map(index.entities.filter((row) => row.date === null || row.date === date).map((row) => [row.entity_id, row])), records = [];
   for (const name of collections) {
     const rows = value.data[name];
@@ -2025,11 +2393,11 @@ async function applySnapshot({ db, getScope, scope, key, index, initial, cached,
   await db.transaction(["entities", "meta"], "readwrite", async (tx) => {
     identity2(scope, getScope);
     const current = await tx.get("meta", key);
-    if (!equal(current ?? null, initial.meta ?? null)) fail("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新本地快照，请重新核对。");
+    if (!equal(current ?? null, initial.meta ?? null)) fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新本地快照，请重新核对。");
     const all = (await tx.getAll("entities")).filter((row) => row.scope === scope), manifest = new Set(index.entities.map((row) => row.entity_id));
     for (const record of records.values()) {
       const storageKey = entityKey(scope, record.entity_id), old = await tx.get("entities", storageKey);
-      if (old?.server?.version > record.version) fail("OFFLINE_SNAPSHOT_CHANGED", "本地已确认较新版本，未覆盖该版本。");
+      if (old?.server?.version > record.version) fail2("OFFLINE_SNAPSHOT_CHANGED", "本地已确认较新版本，未覆盖该版本。");
       const server = { ...record, id: record.source_id }, sameVersion = old?.server?.version === record.version;
       if (record.entity_type === "todo" && sameVersion) {
         for (const field2 of ["template_id", "template_version", "template_active"]) {
@@ -2050,7 +2418,7 @@ async function applySnapshot({ db, getScope, scope, key, index, initial, cached,
     }
     for (const row of all) if (row.server && supportedId.test(row.entity_id) && !manifest.has(row.entity_id)) {
       if (!equal(row.server, cached.get(row.entity_id)?.server ?? null))
-        fail("OFFLINE_SNAPSHOT_CHANGED", "其他页面刚确认了记录，未把它判为线上缺失。");
+        fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面刚确认了记录，未把它判为线上缺失。");
       await tx.put("entities", { ...row, server: null, snapshot_hash: null, remote_missing: true, synced_at: now() });
     }
     identity2(scope, getScope);
@@ -2068,7 +2436,7 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
   let inFlight = null;
   async function run2({ date: probeDate } = {}) {
     const scope = getScope();
-    if (typeof scope !== "string" || !hashPattern.test(scope)) fail("OFFLINE_SCOPE_REQUIRED", "请先联网核实当前身份范围。");
+    if (typeof scope !== "string" || !hashPattern2.test(scope)) fail2("OFFLINE_SCOPE_REQUIRED", "请先联网核实当前身份范围。");
     const key = JSON.stringify([scope, "snapshot"]), readBudget = budget(limits, crypto2);
     const initial = await db.transaction(["entities", "meta"], "readonly", async (tx) => ({
       meta: await tx.get("meta", key),
@@ -2098,8 +2466,8 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
       }
     }
     if (!changed2.size && needGlobal && index.entities.some((row) => row.date === null))
-      changed2.add(probeDate === void 0 ? new Date(now() + 8 * 36e5).toISOString().slice(0, 10) : day(probeDate));
-    if (changed2.size + 2 > limits.maxRequests) fail("OFFLINE_SNAPSHOT_LIMIT", "变化日期过多，未返回部分同步结果。", 413);
+      changed2.add(probeDate === void 0 ? new Date(now() + 8 * 36e5).toISOString().slice(0, 10) : day2(probeDate));
+    if (changed2.size + 2 > limits.maxRequests) fail2("OFFLINE_SNAPSHOT_LIMIT", "变化日期过多，未返回部分同步结果。", 413);
     const records = /* @__PURE__ */ new Map();
     for (const date of [...changed2].sort()) {
       const rows = await detailFor(await get("/workbench-snapshot?date=" + encodeURIComponent(date)), date, index, limits, readBudget);
@@ -2109,7 +2477,7 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
       }
     }
     const verified = await indexFor(await get("/workbench-snapshot/index"), scope, limits, readBudget);
-    if (!sameIndex(index, verified)) fail("OFFLINE_SNAPSHOT_CHANGED", "读取期间线上内容已变化，请稍后重新核对；本地内容已保留。");
+    if (!sameIndex(index, verified)) fail2("OFFLINE_SNAPSHOT_CHANGED", "读取期间线上内容已变化，请稍后重新核对；本地内容已保留。");
     identity2(scope, getScope);
     await applySnapshot({ db, getScope, scope, key, index, initial, cached, records, now });
     state2.last_success = now();
@@ -2158,14 +2526,165 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
   return { pull, state: state2, start, stop: () => stopTriggers() };
 }
 
+// web/offline/note-mutations.mjs
+var uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var failure = (message, code = "OFFLINE_INVALID_MUTATION") => Object.assign(new Error(message), { code, localNotSaved: true });
+function noteMutationRoute(path, options2, features) {
+  const match = /^\/note-entries\/([a-f0-9-]{36})$/i.exec(path), method = (options2.method || "GET").toUpperCase();
+  return features.notes && match && uuid.test(match[1]) && ["PUT", "DELETE"].includes(method) ? { type: "note_entry", id: match[1].toLowerCase(), method } : null;
+}
+function checked(body, method) {
+  const fields2 = method === "PUT" ? ["category", "date", "text", "version", "save_id"] : ["version", "save_id"];
+  if (!body || Object.keys(body).sort().join(",") !== fields2.sort().join(",") || !uuid.test(body.save_id) || !Number.isSafeInteger(body.version) || body.version < (method === "PUT" ? 0 : 1) || body.version >= Number.MAX_SAFE_INTEGER)
+    throw failure("保存字段或原保存标识不完整，本次修改未保存。");
+  if (method === "PUT") {
+    const day3 = /* @__PURE__ */ new Date(body.date + "T00:00:00Z");
+    if (!["life", "work"].includes(body.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body.date) || !Number.isFinite(day3.getTime()) || day3.toISOString().slice(0, 10) !== body.date || typeof body.text !== "string" || !body.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body.text) || new TextEncoder().encode(body.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
+      throw failure("分类、日期或正文无效，草稿已保留。");
+  }
+  return structuredClone(body);
+}
+function createNoteMutations(context) {
+  async function mutate(path, options2, route, guard) {
+    const { state: state2, cache, outbox, now } = context, owner = state2.scope, generation = context.generation;
+    const active4 = () => {
+      guard();
+      if (!owner || owner !== state2.scope || generation !== context.generation)
+        throw failure("身份范围已变化，本次修改未保存。", "OFFLINE_SCOPE_CHANGED");
+    };
+    active4();
+    const body = checked(options2.body, route.method);
+    if (!await cache.noteCapability()) throw failure("请先联网核实碎碎念编辑能力。", "OFFLINE_SCOPE_REQUIRED");
+    active4();
+    const stored = await cache.entity("note-entry:" + route.id), visible2 = offlineValue(stored);
+    active4();
+    if (route.method === "PUT" && body.version === 0 && !visible2) {
+      const existing = await cache.entities();
+      active4();
+      if (existing.filter((row) => row.entity_id.startsWith("note-entry:") && (row.dirty ? row.local : row.server)?.category === body.category && (row.dirty ? row.local : row.server)?.date === body.date && !(row.dirty ? row.local : row.server)?.deleted && !(row.dirty ? row.local : row.server)?.deleted_at && (row.dirty || !row.remote_missing)).length >= 200)
+        throw failure("本机该日记录已达 200 条，草稿已保留。", "OFFLINE_CACHE_LIMIT");
+    }
+    if (!options2.offlineUnknown && body.version !== (visible2?.version || 0))
+      throw failure("本机已有更新，请重新读取后保存，草稿已保留。", "OFFLINE_CACHE_CHANGED");
+    if (route.method === "DELETE" && !visible2) throw failure("此记录尚未保存在本机。", "OFFLINE_CACHE_MISS");
+    if (visible2 && route.method === "PUT" && (visible2.category !== body.category || visible2.date !== body.date))
+      throw failure("记录的分类和日期不可更改。");
+    const stamp2 = new Date(now()).toISOString();
+    const local = {
+      ...visible2,
+      ...body,
+      id: route.id,
+      can_edit: true,
+      deleted: route.method === "DELETE",
+      created_at: visible2?.created_at || stamp2,
+      updated_at: stamp2,
+      deleted_at: route.method === "DELETE" ? stamp2 : null
+    };
+    let result;
+    try {
+      result = await outbox.enqueue({
+        scope: owner,
+        entity_type: "note_entry",
+        entity_id: route.id,
+        method: route.method,
+        path,
+        body,
+        base: stored?.server || null,
+        local,
+        initial_status: options2.offlineUnknown ? "unknown" : "queued",
+        assertActive: active4
+      });
+    } catch (error) {
+      error.localNotSaved = true;
+      if (!error.code) error.code = "OFFLINE_STORAGE_UNAVAILABLE";
+      throw error;
+    }
+    active4();
+    if (["acked", "archived"].includes(result.operation.status) && result.entity.server?.can_edit !== void 0)
+      return result.entity.server;
+    await context.refresh();
+    context.broadcast();
+    if (context.online()) context.scheduleRetry();
+    return localDocument({ local: result.entity.local, server: stored?.api_server || (stored?.server?.can_edit !== void 0 ? stored.server : null), operation: result.operation });
+  }
+  return { mutate };
+}
+
+// web/offline/drafts.mjs
+var fields = [
+  "kind",
+  "id",
+  "category",
+  "date",
+  "draft",
+  "version",
+  "serverText",
+  "contentHash",
+  "createdAt",
+  "updatedAt",
+  "dirty",
+  "phase",
+  "pending",
+  "remote",
+  "localVersion",
+  "durableText",
+  "localBacked",
+  "localQueued",
+  "recoveredBaseline"
+];
+var unresolved = (row) => row.dirty || row.pending || ["unknown", "conflict", "error", "oversize"].includes(row.phase);
+function safeDraft(row) {
+  if (!row || !["legacy", "note_entry"].includes(row.kind) || !["life", "work"].includes(row.category) || !/^\d{4}-\d{2}-\d{2}$/.test(row.date) || typeof row.draft !== "string" || row.draft.length > 262144 || row.kind === "note_entry" && !/^[a-f0-9-]{36}$/i.test(row.id)) throw new Error("本机草稿字段无效。");
+  return Object.fromEntries(fields.filter((key) => row[key] !== void 0).map((key) => [key, structuredClone(row[key])]));
+}
+function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.now, draftOwner = crypto.randomUUID() }) {
+  const pending = /* @__PURE__ */ new Set();
+  async function write(rows) {
+    const owner = getScope(), generation = getGeneration();
+    if (!owner) return;
+    const clean = rows.map(safeDraft);
+    const active4 = () => {
+      if (owner !== getScope() || generation !== getGeneration())
+        throw Object.assign(new Error("身份范围已变化，旧草稿保持原范围。"), { code: "OFFLINE_SCOPE_CHANGED" });
+    };
+    await db.transaction(["meta"], "readwrite", async (tx) => {
+      active4();
+      for (const row of clean) {
+        const identity3 = row.kind === "legacy" ? row.category + ":" + row.date : row.id;
+        const key = entityKey(owner, "draft:" + row.kind + ":" + identity3 + ":" + draftOwner);
+        if (unresolved(row)) await tx.put("meta", { key, scope: owner, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now() });
+        else if (row.kind === "note_entry") {
+          await tx.delete("meta", key);
+          for (const old of await tx.getAll("meta")) if (old.scope === owner && old.draft_kind === "note_entry" && old.data.id === row.id && old.data.draft === row.draft && !old.data.pending) await tx.delete("meta", old.key);
+        }
+      }
+      active4();
+    });
+  }
+  function capture(rows) {
+    const work = write(rows);
+    pending.add(work);
+    work.finally(() => pending.delete(work)).catch(() => {
+    });
+    return work;
+  }
+  async function list(kind) {
+    const owner = getScope(), generation = getGeneration();
+    if (!owner) return [];
+    const rows = await db.transaction(["meta"], "readonly", async (tx) => (await tx.getAll("meta")).filter((row) => row.scope === owner && row.draft_kind === kind).sort((a, b) => b.saved_at - a.saved_at).map((row) => row.data));
+    return owner === getScope() && generation === getGeneration() ? rows : [];
+  }
+  return { capture, list, flush: () => Promise.all([...pending]) };
+}
+
 // web/offline/runtime.mjs
-var OFFLINE_FEATURES = Object.freeze({ todos: true, notes: false, memos: false });
+var OFFLINE_FEATURES = Object.freeze({ todos: true, notes: true, memos: false });
 var scopePattern = /^[a-f0-9]{64}$/;
-var uuidPattern3 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var uuidPattern4 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 var networkFailure = (error) => error?.code === "NETWORK_UNAVAILABLE" || error?.code === "OFFLINE_NETWORK";
-var fail2 = (message, code) => Object.assign(new Error(message), { code });
+var fail3 = (message, code) => Object.assign(new Error(message), { code });
 var today = (now) => new Date(now() + 8 * 36e5).toISOString().slice(0, 10);
-var offlineError = () => fail2("当前离线，此操作需联网；输入内容已保留。", "OFFLINE_NETWORK");
+var offlineError = () => fail3("当前离线，此操作需联网；输入内容已保留。", "OFFLINE_NETWORK");
 async function identityProbe(context, path, options2 = {}) {
   const controller = new AbortController(), external = options2.signal;
   const abort = () => controller.abort(external.reason);
@@ -2175,7 +2694,7 @@ async function identityProbe(context, path, options2 = {}) {
   try {
     const expired = new Promise((_, reject) => {
       timer = setTimeout(() => {
-        reject(fail2("身份范围核实暂未完成，本机内容已保留。", "OFFLINE_NETWORK"));
+        reject(fail3("身份范围核实暂未完成，本机内容已保留。", "OFFLINE_NETWORK"));
         controller.abort();
       }, 1e4);
     });
@@ -2191,27 +2710,27 @@ function writableRoute(path, options2, features) {
   if (["/todos", "/todo-templates"].includes(path) && method === "POST")
     return { type: path === "/todos" ? "todo" : "template", create: true };
   const match = /^\/(todos|todo-templates)\/([a-f0-9-]{36})(\/restore)?$/i.exec(path);
-  if (!match || !uuidPattern3.test(match[2])) return null;
+  if (!match || !uuidPattern4.test(match[2])) return null;
   if (match[3] && (method !== "POST" || match[1] !== "todos") || !match[3] && !["PATCH", "DELETE"].includes(method)) return null;
   return { type: match[1] === "todos" ? "todo" : "template", id: match[2].toLowerCase(), restore: Boolean(match[3]) };
 }
-function checkedBody(route, options2, uuid) {
+function checkedBody(route, options2, uuid2) {
   const body = structuredClone(options2.body || {}), method = (options2.method || "GET").toUpperCase();
   const required = route.create ? route.type === "todo" ? ["id", "date", "text"] : ["id", "text"] : route.type === "todo" ? route.restore || method === "DELETE" ? ["date", "version"] : ["completed", "version"] : method === "DELETE" ? ["version"] : ["text", "version"];
-  if (route.create && !body.id) body.id = uuid();
+  if (route.create && !body.id) body.id = uuid2();
   const allowed = [...required, ...route.create && route.type === "todo" ? ["template_id"] : []];
   if (required.some((key) => !Object.hasOwn(body, key)) || Object.keys(body).some((key) => !allowed.includes(key)))
-    throw fail2("请求字段不完整，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
-  if (body.id && !uuidPattern3.test(body.id) || body.template_id && !uuidPattern3.test(body.template_id))
-    throw fail2("事项标识无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
+    throw fail3("请求字段不完整，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
+  if (body.id && !uuidPattern4.test(body.id) || body.template_id && !uuidPattern4.test(body.template_id))
+    throw fail3("事项标识无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
   if (body.date && (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body.date) || !Number.isFinite(Date.parse(body.date + "T00:00:00Z")) || (/* @__PURE__ */ new Date(body.date + "T00:00:00Z")).toISOString().slice(0, 10) !== body.date))
-    throw fail2("请选择有效日期。", "OFFLINE_INVALID_MUTATION");
+    throw fail3("请选择有效日期。", "OFFLINE_INVALID_MUTATION");
   if (Object.hasOwn(body, "text") && (typeof body.text !== "string" || !body.text.trim() || body.text.length > 500 || body.text.includes("\0")))
-    throw fail2("请填写 1–500 字的内容。", "OFFLINE_INVALID_MUTATION");
+    throw fail3("请填写 1–500 字的内容。", "OFFLINE_INVALID_MUTATION");
   if (Object.hasOwn(body, "completed") && typeof body.completed !== "boolean")
-    throw fail2("完成状态无效。", "OFFLINE_INVALID_MUTATION");
+    throw fail3("完成状态无效。", "OFFLINE_INVALID_MUTATION");
   if (!route.create && (!Number.isSafeInteger(body.version) || body.version < 1 || body.version >= Number.MAX_SAFE_INTEGER))
-    throw fail2("版本无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
+    throw fail3("版本无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
   return body;
 }
 function runtimeContext(options2) {
@@ -2219,7 +2738,7 @@ function runtimeContext(options2) {
     db,
     request,
     now = Date.now,
-    uuid = () => crypto.randomUUID(),
+    uuid: uuid2 = () => crypto.randomUUID(),
     online = () => globalThis.navigator?.onLine !== false,
     onIdentity = () => {
     },
@@ -2248,7 +2767,7 @@ function runtimeContext(options2) {
     db,
     request,
     now,
-    uuid,
+    uuid: uuid2,
     online,
     onIdentity,
     features,
@@ -2264,15 +2783,15 @@ function runtimeContext(options2) {
     stopped: false
   };
   const send = async (path, opts) => {
-    if (opts?.method && !["GET", "HEAD"].includes(opts.method.toUpperCase()) && !writableRoute(path, opts, features))
-      throw fail2("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
+    if (opts?.method && !["GET", "HEAD"].includes(opts.method.toUpperCase()) && !writableRoute(path, opts, features) && !noteMutationRoute(path, opts, features))
+      throw fail3("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
     if (!online() || !state2.verifiedScope || state2.verifiedScope !== state2.scope) throw offlineError();
     const owner = state2.scope, generation = context.generation;
     try {
       if (opts?.method && !["GET", "HEAD"].includes(opts.method.toUpperCase())) await context.verifyScope();
       if (!state2.verifiedScope || owner !== state2.scope || generation !== context.generation) throw offlineError();
       const result = await request(path, opts);
-      if (owner !== state2.scope || generation !== context.generation) throw fail2("身份范围已变化。", "OFFLINE_SCOPE_CHANGED");
+      if (owner !== state2.scope || generation !== context.generation) throw fail3("身份范围已变化。", "OFFLINE_SCOPE_CHANGED");
       return result;
     } catch (error) {
       if ([401, 403].includes(error.status) && generation === context.generation) await context.invalidate({ forget: true });
@@ -2284,9 +2803,9 @@ function runtimeContext(options2) {
     request: send,
     getScope: () => state2.scope,
     now,
-    uuid,
+    uuid: uuid2,
     timeout: options2.timeout,
-    enabledTypes: features.todos ? ["todo", "template"] : [],
+    enabledTypes: [...features.todos ? ["todo", "template"] : [], ...features.notes ? ["note_entry"] : []],
     supportedProtocols: [1]
   });
   context.snapshot = createSnapshotSync({ db, request: send, getScope: () => state2.scope, now });
@@ -2309,17 +2828,17 @@ function identityActions(context) {
   }
   async function adopt(me, index, generation) {
     const identity3 = safeIdentity(me);
-    if (generation !== context.generation) throw fail2("身份读取已过期。", "OFFLINE_SCOPE_CHANGED");
+    if (generation !== context.generation) throw fail3("身份读取已过期。", "OFFLINE_SCOPE_CHANGED");
     if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== "current")
-      throw fail2("身份范围读取不完整，请联网重试。", "OFFLINE_SCOPE_REQUIRED");
+      throw fail3("身份范围读取不完整，请联网重试。", "OFFLINE_SCOPE_REQUIRED");
     if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity3))) {
       await invalidate({ forget: true });
-      throw fail2("当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。", "OFFLINE_SCOPE_CHANGED");
+      throw fail3("当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。", "OFFLINE_SCOPE_CHANGED");
     }
     await cache.saveIdentity(identity3, index.scope_id);
     if (generation !== context.generation || state2.scope && state2.scope !== index.scope_id) {
       await invalidate({ forget: true });
-      throw fail2("身份核实已过期，原本机数据已保留。", "OFFLINE_SCOPE_CHANGED");
+      throw fail3("身份核实已过期，原本机数据已保留。", "OFFLINE_SCOPE_CHANGED");
     }
     state2.scope = index.scope_id;
     state2.verifiedScope = index.scope_id;
@@ -2339,7 +2858,7 @@ function identityActions(context) {
       const index = await identityProbe(context, "/workbench-snapshot/index");
       return await adopt(me, index, generation);
     } catch (error) {
-      if (generation !== context.generation) throw fail2("身份核实已过期。", "OFFLINE_SCOPE_CHANGED");
+      if (generation !== context.generation) throw fail3("身份核实已过期。", "OFFLINE_SCOPE_CHANGED");
       state2.verifiedScope = null;
       if ([401, 403].includes(error.status)) {
         await invalidate({ forget: true });
@@ -2350,7 +2869,7 @@ function identityActions(context) {
       if (generation !== context.generation || !cached?.identity || !scopePattern.test(cached.scope)) throw error;
       if (liveIdentity && identityFingerprint(liveIdentity) !== identityFingerprint(cached.identity)) {
         await invalidate({ forget: true });
-        throw fail2("当前身份已变化，请联网核实后重新打开。", "OFFLINE_SCOPE_CHANGED");
+        throw fail3("当前身份已变化，请联网核实后重新打开。", "OFFLINE_SCOPE_CHANGED");
       }
       state2.scope = cached.scope;
       state2.identity = safeIdentity(cached.identity);
@@ -2376,7 +2895,7 @@ function identityActions(context) {
       const index = await identityProbe(context, "/workbench-snapshot/index");
       if (generation !== context.generation || state2.scope !== owner || index?.scope_id !== owner || index.complete !== true || index.projection !== "current") {
         await invalidate({ forget: true });
-        throw fail2("身份范围已变化，本机内容与队列已保留。", "OFFLINE_SCOPE_CHANGED");
+        throw fail3("身份范围已变化，本机内容与队列已保留。", "OFFLINE_SCOPE_CHANGED");
       }
       return state2.identity;
     } catch (error) {
@@ -2390,13 +2909,14 @@ function identityActions(context) {
 function stateActions(context) {
   const { state: state2, outbox, emit, online } = context;
   async function refresh() {
+    const sequence = context.refreshSequence = (context.refreshSequence || 0) + 1;
     if (!state2.scope) {
       emit();
       return { ...state2 };
     }
     const owner = state2.scope, generation = context.generation;
     const [pending, conflicts] = await Promise.all([outbox.list(owner), outbox.conflicts.list(owner)]);
-    if (owner !== state2.scope || generation !== context.generation) return { ...state2 };
+    if (sequence !== context.refreshSequence || owner !== state2.scope || generation !== context.generation) return { ...state2 };
     state2.pending = pending.length;
     state2.conflicts = conflicts.length;
     state2.online = online() && state2.online;
@@ -2414,9 +2934,9 @@ function stateActions(context) {
     return owner === state2.scope && generation === context.generation ? result : { operations: [], conflicts: [] };
   }
   async function resolve(key, choice2) {
-    if (!state2.scope) throw fail2("请先核实身份。", "OFFLINE_SCOPE_REQUIRED");
+    if (!state2.scope) throw fail3("请先核实身份。", "OFFLINE_SCOPE_REQUIRED");
     const conflict = (await outbox.conflicts.list(state2.scope)).find((row) => row.key === key);
-    if (conflict && !outbox.canDispatch(conflict.operation)) throw fail2("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
+    if (conflict && !outbox.canDispatch(conflict.operation)) throw fail3("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
     const result = await outbox.conflicts.resolve(key, choice2, { scope: state2.scope });
     await refresh();
     context.broadcast();
@@ -2442,6 +2962,7 @@ function syncActions(context) {
       emit();
       await outbox.resume(state2.scope);
       await outbox.drain();
+      if (state2.verifiedScope) await context.cache.captureDocuments();
       if (state2.verifiedScope) {
         await snapshot.pull({ date: today(now) });
         if (context.lastTodoPath) {
@@ -2501,20 +3022,20 @@ async function unmanaged(context, path, options2, guard) {
   }
 }
 function mutationActions(context) {
-  const { state: state2, cache, now, uuid, outbox, features } = context;
+  const { state: state2, cache, now, uuid: uuid2, outbox, features } = context;
   async function mutate(path, options2, route, guard) {
     guard();
-    if (!state2.scope || !state2.identity) throw fail2("请先联网读取此工作台，再保存离线内容。", "OFFLINE_SCOPE_REQUIRED");
+    if (!state2.scope || !state2.identity) throw fail3("请先联网读取此工作台，再保存离线内容。", "OFFLINE_SCOPE_REQUIRED");
     const owner = state2.scope, generation = context.generation;
     const active4 = () => {
       guard();
       if (owner !== state2.scope || generation !== context.generation)
-        throw fail2("身份范围已变化，本次修改未保存，输入已保留。", "OFFLINE_SCOPE_CHANGED");
+        throw fail3("身份范围已变化，本次修改未保存，输入已保留。", "OFFLINE_SCOPE_CHANGED");
     };
-    const body = checkedBody(route, options2, uuid), id = route.id || body.id;
+    const body = checkedBody(route, options2, uuid2), id = route.id || body.id;
     const old = await cache.entity(route.type + ":" + id), base = old?.server || null, visible2 = offlineValue(old);
     active4();
-    if (!route.create && !visible2) throw fail2("此事项尚未保存在本机，请联网读取后再操作。", "OFFLINE_CACHE_MISS");
+    if (!route.create && !visible2) throw fail3("此事项尚未保存在本机，请联网读取后再操作。", "OFFLINE_CACHE_MISS");
     const stamp2 = new Date(now()).toISOString(), method = options2.method.toUpperCase();
     const local = {
       ...visible2,
@@ -2529,7 +3050,7 @@ function mutationActions(context) {
     if (body.template_id) {
       const template = offlineValue(await cache.entity("template:" + body.template_id));
       active4();
-      if (!template || template.deleted) throw fail2("常用待办尚未保存在本机，请联网读取。", "OFFLINE_CACHE_MISS");
+      if (!template || template.deleted) throw fail3("常用待办尚未保存在本机，请联网读取。", "OFFLINE_CACHE_MISS");
       local.template_version = template.version;
       local.template_active = true;
     }
@@ -2556,6 +3077,8 @@ function mutationActions(context) {
     }, ...options2 } = input;
     guard();
     const method = (options2.method || "GET").toUpperCase(), route = writableRoute(path, options2, features);
+    const noteRoute = noteMutationRoute(path, options2, features);
+    if (noteRoute) return context.noteMutations.mutate(path, options2, noteRoute, guard);
     if (path === "/auth/me" && method === "GET") return options2.context || options2.signal ? context.authenticate(options2) : context.verify();
     if (["/auth/login", "/auth/logout"].includes(path) && method === "POST") {
       const value = await context.request(path, options2);
@@ -2572,7 +3095,7 @@ function mutationActions(context) {
       const baseline = owner ? await cache.fence(path) : void 0;
       guard();
       const value = await context.request(path, options2);
-      if (owner !== state2.scope || generation !== context.generation) throw fail2("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
+      if (owner !== state2.scope || generation !== context.generation) throw fail3("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
       if (offlineReadRoute(path).kind === "todo") state2.partial = false;
       if (!state2.scope) return value;
       try {
@@ -2595,7 +3118,7 @@ function mutationActions(context) {
       const kind = offlineReadRoute(path).kind;
       if (kind === "overview") state2.cachedAt = cached.saved_at;
       if (kind === "todo") state2.partial = cached.data.offline_partial === true;
-      const data = ["legacy", "note_entries", "note_entry", "memos", "memo_note"].includes(kind) ? { ...cached.data, can_edit: false, ...Array.isArray(cached.data.entries) ? { entries: cached.data.entries.map((entry) => ({ ...entry, can_edit: false })) } : {} } : cached.data;
+      const data = ["legacy", ...!features.notes ? ["note_entries", "note_entry"] : [], "memos", "memo_note"].includes(kind) ? { ...cached.data, can_edit: false, ...Array.isArray(cached.data.entries) ? { entries: cached.data.entries.map((entry) => ({ ...entry, can_edit: false })) } : {} } : cached.data;
       await context.refresh();
       return data;
     }
@@ -2650,6 +3173,8 @@ function createOfflineRuntime(options2) {
   const context = runtimeContext(options2);
   Object.assign(context, identityActions(context), stateActions(context), syncActions(context), lifecycleActions(context));
   Object.assign(context, mutationActions(context));
+  context.noteMutations = createNoteMutations(context);
+  const drafts = createDraftJournal({ db: context.db, getScope: () => context.state.scope, getGeneration: () => context.generation, now: context.now });
   return {
     call: context.call,
     sync: context.sync,
@@ -2660,6 +3185,10 @@ function createOfflineRuntime(options2) {
     resolve: context.resolve,
     invalidate: context.invalidate,
     state: context.state,
+    localRead: async (path) => (await context.cache.read(path)).data,
+    retainDrafts: drafts.capture,
+    retainedDrafts: drafts.list,
+    flushDrafts: drafts.flush,
     subscribe(callback) {
       context.listeners.add(callback);
       callback({ ...context.state });
@@ -2689,12 +3218,12 @@ async function offlineRequest(path, options2, request, onIdentity, assertActive 
     runtime2 = await initialization;
   } catch {
     assertActive();
-    if (writableRoute(path, options2, OFFLINE_FEATURES))
-      throw fail2("浏览器无法保存本机数据，本次修改未保存；输入已保留。", "OFFLINE_STORAGE_UNAVAILABLE");
+    if (writableRoute(path, options2, OFFLINE_FEATURES) || noteMutationRoute(path, options2, OFFLINE_FEATURES))
+      throw fail3("浏览器无法保存本机数据，本次修改未保存；输入已保留。", "OFFLINE_STORAGE_UNAVAILABLE");
     return request(path, options2);
   }
   assertActive();
-  const managed = offlineReadRoute(path) || writableRoute(path, options2, OFFLINE_FEATURES) || ["/auth/me", "/auth/login", "/auth/logout"].includes(path);
+  const managed = offlineReadRoute(path) || writableRoute(path, options2, OFFLINE_FEATURES) || noteMutationRoute(path, options2, OFFLINE_FEATURES) || ["/auth/me", "/auth/login", "/auth/logout"].includes(path);
   if (!managed) return runtime2.call(path, { ...options2, offlineGuard: assertActive });
   const { envelope: envelope2 = false, ...opts } = options2;
   const value = await runtime2.call(path, { ...opts, offlineGuard: assertActive });
@@ -3380,7 +3909,7 @@ function dashboardInfoBody(kind, id) {
   if (kind === "publication") return `<p>${e(d.publication_note)}</p>`;
   if (kind === "trend") return `<p>只用真实每日新增，不以累计快照补零或插值。</p>${(d.accounts || []).map((a) => `<p>${e(
     accountLabel(a)
-  )}：${e(num((d.trend || []).filter((day2) => day2.accounts.some((r) => r.account_id === a.id && r.metrics?.[state.trendMetric] != null)).length))}/${e(num((d.trend || []).length))}天有该指标；缺日处断开。</p>`).join("")}`;
+  )}：${e(num((d.trend || []).filter((day3) => day3.accounts.some((r) => r.account_id === a.id && r.metrics?.[state.trendMetric] != null)).length))}/${e(num((d.trend || []).length))}天有该指标；缺日处断开。</p>`).join("")}`;
   return `<p>${e(c.metric_note || "likes为点赞，approvals为赞同，分别记录；未采集、未取得和真实0分开。")}</p><p>周期仅使用真实每日新增，不补零、不插值。累计快照不补每日数据。</p>`;
 }
 function renderPublicationTrend(data) {
@@ -3467,14 +3996,14 @@ async function articleIndex(query = "", context) {
 
 // web/pages/reviews.mjs
 async function renderReviews(version = runtime.renderVersion, context, { isCurrent = () => true, compactFilters = false } = {}) {
-  const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
+  const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches2 = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
   const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
   if (version !== runtime.renderVersion || !isCurrent()) return "";
   if (generation !== runtime.articleIndexGeneration) return renderReviews(version, context, { isCurrent, compactFilters });
   state.reviewArticles = articles;
-  const account = (r) => r.account_id || articles.find((a) => a.id === r.article_id)?.account_id, records = rows.filter((r) => matches(account(
+  const account = (r) => r.account_id || articles.find((a) => a.id === r.article_id)?.account_id, records = rows.filter((r) => matches2(account(
     r
-  ))), due = dueRows.filter((r) => matches(r.account_id));
+  ))), due = dueRows.filter((r) => matches2(r.account_id));
   state.reviewRecords = records;
   const tabs = `${segmented(
     "review-tab",
@@ -3676,10 +4205,10 @@ function renderAudit(audit, keys = []) {
     if (last && day22 !== "日期未知" && last.day === day22 && last.actor === row.actor && last.label === label3) last.rows.push(row);
     else groups.push({ day: day22, actor: row.actor, label: label3, rows: [row] });
   }
-  let day2 = "";
+  let day3 = "";
   return `<section class="card panel"><h2>最近操作</h2><div class="audit-list">${groups.map((g) => {
-    const heading = day2 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
-    day2 = g.day;
+    const heading = day3 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
+    day3 = g.day;
     return `${heading}<details class="audit-item"><summary><div><strong>${e(g.label)} ×${e(num(g.rows.length))}</strong><div class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, true))}${g.rows.length > 1 ? " — " + e(time(g.rows[0].created_at, true)) : ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
       const article = r.entity_id && typeof r.entity_label === "string" && r.entity_label ? r : null;
       return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.created_at))}</time>${article ? `<br><button class="article-link" data-action="article-detail" data-id="${e(article.entity_id)}">${e(article.entity_label)}</button>` : ""}</li>`;
@@ -3746,18 +4275,18 @@ function mergeTodoTemplate(item) {
 }
 
 // web/pages/todo-templates.mjs
-function templateUnavailable(store, day2, id) {
-  return !store.loaded || !day2.loaded || day2.loading || day2.adding || store.pending.has(id) || todoTemplateAdded(day2, id) || [...day2.removals.values()].some((ticket) => ticket.phase === "restoring" && ticket.item.template_id === id);
+function templateUnavailable(store, day3, id) {
+  return !store.loaded || !day3.loaded || day3.loading || day3.adding || store.pending.has(id) || todoTemplateAdded(day3, id) || [...day3.removals.values()].some((ticket) => ticket.phase === "restoring" && ticket.item.template_id === id);
 }
 function inlineTodoTemplateContent(store) {
-  const day2 = todoDay(), label3 = day2.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day3 = todoDay(), label3 = day3.date === bjtDate() ? "今日已添加" : "当日已添加";
   const status = store.loading && !store.loaded ? '<span class="todo-template-inline-status" role="status">正在读取常用待办…</span>' : "";
   const error = store.error ? `<p class="form-message" role="alert">${e(store.error)}
 <button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
   return status + error + store.items.map((item) => {
-    const added = todoTemplateAdded(day2, item.id);
+    const added = todoTemplateAdded(day3, item.id);
     return `<button type="button" class="todo-template-chip${added ? " is-added" : ""}" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="${e(added ? item.text + "，" + label3 : "添加：" + item.text)}" ${templateUnavailable(store, day2, item.id) ? "disabled" : ""}>
+aria-label="${e(added ? item.text + "，" + label3 : "添加：" + item.text)}" ${templateUnavailable(store, day3, item.id) ? "disabled" : ""}>
 <span class="todo-template-chip-text">${e(item.text)}</span>${added ? `<span class="todo-template-chip-status">${label3}</span>` : ""}</button>`;
   }).join("");
 }
@@ -3778,12 +4307,12 @@ function paintInlineTodoTemplates(store) {
   root.setAttribute("aria-busy", String(store.loading));
 }
 function todoTemplateRows(store) {
-  const day2 = todoDay();
-  const added = (id) => todoTemplateAdded(day2, id);
-  const addedLabel = day2.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day3 = todoDay();
+  const added = (id) => todoTemplateAdded(day3, id);
+  const addedLabel = day3.date === bjtDate() ? "今日已添加" : "当日已添加";
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day2, item.id) ? "disabled" : ""}>${e(item.text)}</button>
+aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day3, item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
 <p class="todo-template-added" data-template-added ${added(item.id) ? "" : "hidden"}>${addedLabel}</p>
@@ -3990,13 +4519,13 @@ function refreshOpenTodoTemplates() {
 }
 
 // web/pages/todo-actions.mjs
-function todoBusy(day2, id) {
-  return day2.updates.has(id) || day2.removals.has(id) || day2.templateWrites.has(id);
+function todoBusy(day3, id) {
+  return day3.updates.has(id) || day3.removals.has(id) || day3.templateWrites.has(id);
 }
 function todoActionContext({ id, date, owner = todoOwner() }) {
   if (!state.me || state.page !== "todos" || !validTodoDate(date) || date !== todoDate() || !todoSessionActive(owner)) return null;
-  const day2 = todoDay(date), item = day2.items.find((row) => row.id === id);
-  return item ? { day: day2, item, owner } : null;
+  const day3 = todoDay(date), item = day3.items.find((row) => row.id === id);
+  return item ? { day: day3, item, owner } : null;
 }
 function canOpenTodoMenu({ id, date, anchor }) {
   const context = todoActionContext({ id, date });
@@ -4015,69 +4544,69 @@ function openTodoMenu({ target, id, date, anchor }) {
   popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
-function renderTodoUndo(day2) {
-  return [...day2.removals.entries()].map(([id, ticket]) => {
+function renderTodoUndo(day3) {
+  return [...day3.removals.entries()].map(([id, ticket]) => {
     const label3 = ticket.phase === "deleting" ? "删除中…" : ticket.phase === "restoring" ? "恢复中…" : "已删除";
     return `<div class="todo-undo-entry"><span>${label3}：${e(ticket.item.text)}</span>
-<button class="btn text small" data-action="todo-restore" data-id="${e(id)}" data-date="${e(day2.date)}"
+<button class="btn text small" data-action="todo-restore" data-id="${e(id)}" data-date="${e(day3.date)}"
 data-owner="${e(todoOwner())}" ${ticket.phase === "ready" ? "" : "disabled"}>撤销</button></div>`;
   }).join("");
 }
-function expireTodoUndo(day2, id, ticket, owner) {
+function expireTodoUndo(day3, id, ticket, owner) {
   clearTimeout(ticket.timer);
   ticket.timer = setTimeout(() => {
-    if (!todoSessionActive(owner) || day2.removals.get(id) !== ticket || ticket.phase !== "ready") return;
-    day2.removals.delete(id);
+    if (!todoSessionActive(owner) || day3.removals.get(id) !== ticket || ticket.phase !== "ready") return;
+    day3.removals.delete(id);
     paintTodos();
   }, 8e3);
   ticket.timer?.unref?.();
 }
-async function todoActionFailure(day2, error, owner) {
+async function todoActionFailure(day3, error, owner) {
   if (!todoSessionActive(owner) || isRequestAbort(error) || error.staleSession) return;
-  day2.error = error.message;
-  if ([404, 409].includes(error.status) && day2.date === todoDate()) {
-    day2.error = "这项计划已更新，请核对最新内容后再操作。";
+  day3.error = error.message;
+  if ([404, 409].includes(error.status) && day3.date === todoDate()) {
+    day3.error = "这项计划已更新，请核对最新内容后再操作。";
     await loadTodos();
   }
 }
 async function deleteTodo(options2) {
   const context = todoActionContext(options2);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day2, item, owner } = context, ticket = { item, phase: "deleting", timer: null };
-  day2.removals.set(item.id, ticket);
-  day2.error = "";
-  day2.notice = "";
-  day2.revision++;
+  const { day: day3, item, owner } = context, ticket = { item, phase: "deleting", timer: null };
+  day3.removals.set(item.id, ticket);
+  day3.error = "";
+  day3.notice = "";
+  day3.revision++;
   paintTodos();
   try {
-    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day2.date, version: item.version } });
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day3.date, version: item.version } });
     if (!todoSessionActive(owner)) return;
-    mergeTodo(day2, saved);
+    mergeTodo(day3, saved);
     ticket.item = saved;
     ticket.phase = "ready";
-    expireTodoUndo(day2, item.id, ticket, owner);
+    expireTodoUndo(day3, item.id, ticket, owner);
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error) {
     if (!todoSessionActive(owner)) return;
-    day2.removals.delete(item.id);
-    await todoActionFailure(day2, error, owner);
+    day3.removals.delete(item.id);
+    await todoActionFailure(day3, error, owner);
     if (todoSessionActive(owner) && item.template_id && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner)) {
-      day2.revision++;
+      day3.revision++;
       paintTodos();
     }
   }
 }
 async function restoreTodo({ id, date, owner = todoOwner() }) {
   if (!state.me || state.page !== "todos" || date !== todoDate() || !todoSessionActive(owner)) return;
-  const day2 = todoDay(date), ticket = day2.removals.get(id);
+  const day3 = todoDay(date), ticket = day3.removals.get(id);
   if (!ticket || ticket.phase !== "ready") return;
   clearTimeout(ticket.timer);
   ticket.phase = "restoring";
-  mergeTodo(day2, ticket.item);
-  day2.error = "";
-  day2.revision++;
+  mergeTodo(day3, ticket.item);
+  day3.error = "";
+  day3.revision++;
   paintTodos();
   try {
     const saved = await api(`/todos/${encodeURIComponent(id)}/restore`, {
@@ -4085,73 +4614,73 @@ async function restoreTodo({ id, date, owner = todoOwner() }) {
       body: { date, version: ticket.item.version }
     });
     if (!todoSessionActive(owner)) return;
-    mergeTodo(day2, saved);
-    day2.removals.delete(id);
-    setTodoNotice(day2, "已恢复");
+    mergeTodo(day3, saved);
+    day3.removals.delete(id);
+    setTodoNotice(day3, "已恢复");
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error) {
     if (!todoSessionActive(owner)) return;
-    if (error.status === 409) day2.removals.delete(id);
+    if (error.status === 409) day3.removals.delete(id);
     else {
       ticket.phase = "ready";
-      expireTodoUndo(day2, id, ticket, owner);
+      expireTodoUndo(day3, id, ticket, owner);
     }
-    await todoActionFailure(day2, error, owner);
+    await todoActionFailure(day3, error, owner);
     if (todoSessionActive(owner) && ticket.item.template_id && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner)) {
-      day2.revision++;
+      day3.revision++;
       paintTodos();
     }
   }
 }
-function todoTemplateRequest(day2, item) {
-  let request = day2.templateLinks.get(item.id);
+function todoTemplateRequest(day3, item) {
+  let request = day3.templateLinks.get(item.id);
   if (!request || request.version !== item.version || request.template_version !== (item.template_version || 0)) {
     request = {
-      date: day2.date,
+      date: day3.date,
       version: item.version,
       template_id: item.template_id || crypto.randomUUID(),
       template_version: item.template_version || 0
     };
-    day2.templateLinks.set(item.id, request);
+    day3.templateLinks.set(item.id, request);
   }
   return request;
 }
 async function changeTodoTemplate(options2, remove = false) {
   const context = todoActionContext(options2);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day2, item, owner } = context;
+  const { day: day3, item, owner } = context;
   if (remove !== Boolean(item.template_active) || templateState().pending.has(item.template_id)) return;
-  day2.templateWrites.add(item.id);
-  day2.error = "";
-  day2.notice = "";
-  day2.revision++;
+  day3.templateWrites.add(item.id);
+  day3.error = "";
+  day3.notice = "";
+  day3.revision++;
   paintTodos();
   try {
     const saved = await api(remove ? `/todo-templates/${encodeURIComponent(item.template_id)}` : `/todos/${encodeURIComponent(item.id)}/template`, {
       method: remove ? "DELETE" : "POST",
-      body: remove ? { version: item.template_version } : todoTemplateRequest(day2, item)
+      body: remove ? { version: item.template_version } : todoTemplateRequest(day3, item)
     });
     if (!todoSessionActive(owner)) return;
     if (remove) templateState().items = templateState().items.filter((row) => row.id !== item.template_id);
     else {
-      mergeTodo(day2, saved.todo);
+      mergeTodo(day3, saved.todo);
       mergeTodoTemplate(saved.template);
     }
-    day2.templateLinks.delete(item.id);
-    setTodoNotice(day2, remove ? "已取消常用，事项已保留" : "已添加为常用");
+    day3.templateLinks.delete(item.id);
+    setTodoNotice(day3, remove ? "已取消常用，事项已保留" : "已添加为常用");
     refreshOpenTodoTemplates();
-    if (remove && day2.date === todoDate()) await loadTodos();
+    if (remove && day3.date === todoDate()) await loadTodos();
   } catch (error) {
     if (todoSessionActive(owner)) {
-      await todoActionFailure(day2, error, owner);
+      await todoActionFailure(day3, error, owner);
       if (todoSessionActive(owner) && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner)) {
-      day2.templateWrites.delete(item.id);
-      day2.revision++;
+      day3.templateWrites.delete(item.id);
+      day3.revision++;
       paintTodos();
     }
   }
@@ -4252,20 +4781,20 @@ aria-label="上一月" ${month === "0001-01" ? "disabled" : ""}>‹</button>
 <button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一月"
 ${month === "9999-12" ? "disabled" : ""}>›</button></div>
 <div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
-${["一", "二", "三", "四", "五", "六", "日"].map((day2) => `<span class="todo-calendar-weekday" aria-hidden="true">${day2}</span>`).join("")}
-${'<span aria-hidden="true"></span>'.repeat(blanks)}${days.map((day2) => todoCalendarDay(day2, date)).join("")}</div>`;
+${["一", "二", "三", "四", "五", "六", "日"].map((day3) => `<span class="todo-calendar-weekday" aria-hidden="true">${day3}</span>`).join("")}
+${'<span aria-hidden="true"></span>'.repeat(blanks)}${days.map((day3) => todoCalendarDay(day3, date)).join("")}</div>`;
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
-  const day2 = todoDay(), date = /* @__PURE__ */ new Date(`${todoCalendarMonth(day2.date)}-01T00:00:00Z`);
+  const day3 = todoDay(), date = /* @__PURE__ */ new Date(`${todoCalendarMonth(day3.date)}-01T00:00:00Z`);
   date.setUTCMonth(date.getUTCMonth() + offset);
   const month = date.toISOString().slice(0, 7);
   if (!validTodoDate(`${month}-01`)) return;
   todosState.calendarMonth = month;
   const calendar = $("#todo-calendar"), action = document.activeElement?.dataset?.action;
   if (!calendar) return;
-  paintTodoCalendar(day2.date);
+  paintTodoCalendar(day3.date);
   if (["todo-calendar-prev", "todo-calendar-next"].includes(action)) $(`[data-action="${action}"]`, calendar)?.focus();
 }
 function paintTodoCalendar(date) {
@@ -4283,42 +4812,42 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
-function todoRow(item, day2) {
-  const pending = todoBusy(day2, item.id);
-  const completed = day2.updates.has(item.id) ? day2.updates.get(item.id) : item.completed;
-  const removal = day2.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
+function todoRow(item, day3) {
+  const pending = todoBusy(day3, item.id);
+  const completed = day3.updates.has(item.id) ? day3.updates.get(item.id) : item.completed;
+  const removal = day3.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
   if (deleted2 || completed && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
-  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day2.date)}">
-<label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day2.date)}" ${completed ? "checked" : ""}
+  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day3.date)}">
+<label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day3.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
 
-<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day2.date)}"
+<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day3.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
-function todoForm(day2) {
-  const label3 = day2.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
-  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day2.date)}" aria-label="添加 ${e(day2.date)} 的计划">
+function todoForm(day3) {
+  const label3 = day3.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
+  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day3.date)}" aria-label="添加 ${e(day3.date)} 的计划">
 <label for="todo-text" class="sr-only">${label3}</label><input id="todo-text" class="input" name="text" maxlength="500" required
-autocomplete="off" placeholder="${label3}" value="${e(day2.draft)}" >
-<button class="btn primary" type="submit" ${day2.adding ? "disabled" : ""}>添加</button></form>`;
+autocomplete="off" placeholder="${label3}" value="${e(day3.draft)}" >
+<button class="btn primary" type="submit" ${day3.adding ? "disabled" : ""}>添加</button></form>`;
 }
-function todoCaption(day2) {
-  const today2 = day2.date === bjtDate();
-  return `<time datetime="${e(day2.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day2.date)}</time>`;
+function todoCaption(day3) {
+  const today2 = day3.date === bjtDate();
+  return `<time datetime="${e(day3.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day3.date)}</time>`;
 }
-function todoHeading(day2) {
-  return `<span id="todo-caption">${todoCaption(day2)}</span><div class="todo-view-links">
+function todoHeading(day3) {
+  return `<span id="todo-caption">${todoCaption(day3)}</span><div class="todo-view-links">
 <button id="todo-return-today" class="btn text" data-action="todo-panel-close" ${state.todoDate && !state.todoPanel ? "" : "hidden"}>返回今日待办</button>
 <button class="btn text" data-action="todo-panel" data-panel="history" aria-controls="todo-history"
 aria-expanded="${state.todoPanel === "history"}">日历</button>
 <button class="btn text" data-action="todo-panel" data-panel="templates" aria-controls="todo-templates"
 aria-expanded="${state.todoPanel === "templates"}">管理常用</button></div>`;
 }
-function renderTodoHistory(day2) {
+function renderTodoHistory(day3) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
 <div class="todo-view-head"><h2>待办日历</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
-<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day2.date)}" data-today="${bjtDate()}">
-${todoCalendar(day2.date)}</div>${todoDateControls(day2.date)}</section>`;
+<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day3.date)}" data-today="${bjtDate()}">
+${todoCalendar(day3.date)}</div>${todoDateControls(day3.date)}</section>`;
 }
 function paintTodoPanels(root) {
   const panel = state.todoPanel || "";
@@ -4346,51 +4875,51 @@ async function setTodoPanel(panel) {
   const selector = state.todoPanel ? "#todo-" + state.todoPanel + ' [data-action="todo-panel-close"]' : "#todo-text";
   $(selector)?.focus();
 }
-function todoPending(day2) {
-  return Boolean(day2.adding || day2.updates.size || day2.templateWrites.size || [...day2.removals.values()].some((ticket) => ticket.phase !== "ready") || todoPreferences().pending);
+function todoPending(day3) {
+  return Boolean(day3.adding || day3.updates.size || day3.templateWrites.size || [...day3.removals.values()].some((ticket) => ticket.phase !== "ready") || todoPreferences().pending);
 }
-function todoStatus(day2) {
-  if (todoPending(day2) || day2.error || todoPreferences().error) return "";
-  return day2.loading && !day2.loaded ? "正在读取…" : day2.notice;
+function todoStatus(day3) {
+  if (todoPending(day3) || day3.error || todoPreferences().error) return "";
+  return day3.loading && !day3.loaded ? "正在读取…" : day3.notice;
 }
-function paintTodoSaving(root, day2) {
-  const busy = todoPending(day2);
+function paintTodoSaving(root, day3) {
+  const busy = todoPending(day3);
   root.setAttribute("aria-busy", String(busy));
   if (!busy) {
-    clearTimeout(savingTimers.get(day2));
-    savingTimers.delete(day2);
-    savingTimes.delete(day2);
+    clearTimeout(savingTimers.get(day3));
+    savingTimers.delete(day3);
+    savingTimes.delete(day3);
     return;
   }
-  if (!savingTimes.has(day2)) {
-    savingTimes.set(day2, Date.now());
-    savingTimers.set(day2, setTimeout(() => {
-      if (todosVisible() && todoDay() === day2) paintTodos();
+  if (!savingTimes.has(day3)) {
+    savingTimes.set(day3, Date.now());
+    savingTimers.set(day3, setTimeout(() => {
+      if (todosVisible() && todoDay() === day3) paintTodos();
     }, 900));
-  } else if (Date.now() - savingTimes.get(day2) >= 900) $("#todo-status", root).textContent = "正在同步…";
+  } else if (Date.now() - savingTimes.get(day3) >= 900) $("#todo-status", root).textContent = "正在同步…";
 }
-function pendingTodo(day2) {
-  return day2.adding && day2.submitting ? `<li class="todo-pending-row" aria-label="待添加">
-<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day2.submitting.text)}</span></li>` : "";
+function pendingTodo(day3) {
+  return day3.adding && day3.submitting ? `<li class="todo-pending-row" aria-label="待添加">
+<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day3.submitting.text)}</span></li>` : "";
 }
-function todoFeedback(day2) {
-  const error = [day2.error, todoPreferences().error].filter(Boolean).join(" ");
-  return error ? `${e(error)} ${day2.failedCreate ? `<span>「${e(day2.failedCreate.text)}」</span>
+function todoFeedback(day3) {
+  const error = [day3.error, todoPreferences().error].filter(Boolean).join(" ");
+  return error ? `${e(error)} ${day3.failedCreate ? `<span>「${e(day3.failedCreate.text)}」</span>
 <button class="btn text small" data-action="todo-retry-add">重试添加</button>` : ""} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
-function todoHistoryEmpty(day2) {
-  return state.todoPanel === "history" && day2.loaded && !day2.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
+function todoHistoryEmpty(day3) {
+  return state.todoPanel === "history" && day3.loaded && !day3.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
 }
 function renderTodos() {
-  const day2 = todoDay();
-  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day2.date)}" aria-label="每日计划">
-<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day2)}</div>
-${renderTodoHistory(day2)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day2)}${renderInlineTodoTemplates()}
-<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day2)}</div>
-<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day2)}</p>
-<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day2)}</div>${renderTodoPreferences()}
-<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day2)}</p>
-<ul id="todo-items" class="daily-todo-items">${day2.items.map((item) => todoRow(item, day2)).join("")}${pendingTodo(day2)}</ul></div>
+  const day3 = todoDay();
+  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day3.date)}" aria-label="每日计划">
+<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day3)}</div>
+${renderTodoHistory(day3)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day3)}${renderInlineTodoTemplates()}
+<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day3)}</div>
+<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day3)}</p>
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day3)}</div>${renderTodoPreferences()}
+<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day3)}</p>
+<ul id="todo-items" class="daily-todo-items">${day3.items.map((item) => todoRow(item, day3)).join("")}${pendingTodo(day3)}</ul></div>
 ${renderTodoTemplates()}</section>`;
 }
 function todosVisible() {
@@ -4399,70 +4928,70 @@ function todosVisible() {
 function paintTodos() {
   const root = $("#daily-todos");
   if (!root || !todosVisible()) return;
-  const day2 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const day3 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
   const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
-  if (root.dataset.date !== day2.date) {
+  if (root.dataset.date !== day3.date) {
     root.outerHTML = renderTodos();
     paintTodoTemplates();
     return;
   }
   const parts = {
-    "todo-caption": todoCaption(day2),
-    "todo-status": todoStatus(day2),
-    "todo-undo": renderTodoUndo(day2),
-    "todo-items": day2.items.map((item) => todoRow(item, day2)).join("") + pendingTodo(day2),
-    "todo-feedback": todoFeedback(day2),
-    "todo-history-empty": todoHistoryEmpty(day2)
+    "todo-caption": todoCaption(day3),
+    "todo-status": todoStatus(day3),
+    "todo-undo": renderTodoUndo(day3),
+    "todo-items": day3.items.map((item) => todoRow(item, day3)).join("") + pendingTodo(day3),
+    "todo-feedback": todoFeedback(day3),
+    "todo-history-empty": todoHistoryEmpty(day3)
   };
   for (const [id, html] of Object.entries(parts)) {
     const node = $("#" + id, root);
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }
-  paintTodoCalendar(day2.date);
+  paintTodoCalendar(day3.date);
   const input = $("#todo-text", root), button2 = $("#todo-form button[type=submit]", root);
-  const prompt = day2.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label3 = $('label[for="todo-text"]', root);
-  if (input && input.value !== day2.draft) input.value = day2.draft;
+  const prompt = day3.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label3 = $('label[for="todo-text"]', root);
+  if (input && input.value !== day3.draft) input.value = day3.draft;
   if (input) {
     input.readOnly = false;
     input.placeholder = prompt;
   }
   if (label3) label3.textContent = prompt;
   if (button2) {
-    button2.disabled = day2.adding;
+    button2.disabled = day3.adding;
     button2.textContent = "添加";
-    button2.setAttribute("aria-busy", String(day2.adding));
+    button2.setAttribute("aria-busy", String(day3.adding));
   }
-  paintTodoSaving(root, day2);
+  paintTodoSaving(root, day3);
   paintTodoPanels(root);
   paintTodoPreferences();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-completed-mode", root))?.focus();
   paintTodoTemplates();
 }
-function todoReadActive(owner, version, date, day2, sequence) {
-  return todoSessionActive(owner) && version === runtime.renderVersion && todoDate() === date && day2.sequence === sequence && todosVisible();
+function todoReadActive(owner, version, date, day3, sequence) {
+  return todoSessionActive(owner) && version === runtime.renderVersion && todoDate() === date && day3.sequence === sequence && todosVisible();
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
   void loadTodoTemplates({ ensure: true });
-  const day2 = todoDay(), date = day2.date, owner = todoOwner(), version = runtime.renderVersion;
-  const sequence = ++day2.sequence, revision = day2.revision;
-  day2.loading = true;
-  day2.error = "";
+  const day3 = todoDay(), date = day3.date, owner = todoOwner(), version = runtime.renderVersion;
+  const sequence = ++day3.sequence, revision = day3.revision;
+  day3.loading = true;
+  day3.error = "";
   paintTodos();
   try {
     const data = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
-    if (!todoReadActive(owner, version, date, day2, sequence)) return;
-    if (day2.revision !== revision) return loadTodos(context);
+    if (!todoReadActive(owner, version, date, day3, sequence)) return;
+    if (day3.revision !== revision) return loadTodos(context);
     receiveTodoPreferences(data.completed_mode, data.preferences_version);
-    day2.items = data.items;
-    day2.loaded = true;
+    day3.items = data.items;
+    day3.loaded = true;
     if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error) {
-    if (todoReadActive(owner, version, date, day2, sequence) && !isRequestAbort(error) && !error.staleSession) day2.error = error.message;
+    if (todoReadActive(owner, version, date, day3, sequence) && !isRequestAbort(error) && !error.staleSession) day3.error = error.message;
   } finally {
-    if (todoReadActive(owner, version, date, day2, sequence)) {
-      day2.loading = false;
+    if (todoReadActive(owner, version, date, day3, sequence)) {
+      day3.loading = false;
       paintTodos();
     }
   }
@@ -4471,125 +5000,125 @@ function inputTodo(target) {
   const date = target.form?.dataset.date;
   if (target.id === "todo-text" && validTodoDate(date)) todoDay(date).draft = target.value;
 }
-function showTodoFailure(day2, error) {
-  if (!isRequestAbort(error) && !error.staleSession) day2.error = error.message;
+function showTodoFailure(day3, error) {
+  if (!isRequestAbort(error) && !error.staleSession) day3.error = error.message;
 }
-function setTodoNotice(day2, text) {
-  const owner = todoOwner(), version = ++day2.noticeVersion;
-  day2.notice = text;
+function setTodoNotice(day3, text) {
+  const owner = todoOwner(), version = ++day3.noticeVersion;
+  day3.notice = text;
   const timer = setTimeout(() => {
-    if (!todoSessionActive(owner) || day2.noticeVersion !== version) return;
-    day2.notice = "";
-    if (day2.date === todoDate()) paintTodos();
+    if (!todoSessionActive(owner) || day3.noticeVersion !== version) return;
+    day3.notice = "";
+    if (day3.date === todoDate()) paintTodos();
   }, 2500);
   timer?.unref?.();
 }
-async function saveTodo(day2, request, templateId = "") {
-  const owner = todoOwner(), submittedDraft = day2.draft;
-  day2.adding = true;
-  day2.submitting = request;
-  day2.failedCreate = null;
-  day2.error = "";
-  day2.notice = "";
-  day2.revision++;
+async function saveTodo(day3, request, templateId = "") {
+  const owner = todoOwner(), submittedDraft = day3.draft;
+  day3.adding = true;
+  day3.submitting = request;
+  day3.failedCreate = null;
+  day3.error = "";
+  day3.notice = "";
+  day3.revision++;
   paintTodos();
   try {
     const item = await api("/todos", { method: "POST", body: request });
     if (!todoSessionActive(owner)) return;
-    mergeTodo(day2, item);
-    if (templateId) day2.templateCreates.delete(templateId);
+    mergeTodo(day3, item);
+    if (templateId) day3.templateCreates.delete(templateId);
     else {
-      if (day2.draft === submittedDraft && submittedDraft.trim() === request.text) day2.draft = "";
-      day2.create = null;
+      if (day3.draft === submittedDraft && submittedDraft.trim() === request.text) day3.draft = "";
+      day3.create = null;
     }
-    setTodoNotice(day2, "已添加");
+    setTodoNotice(day3, "已添加");
   } catch (error) {
     if (todoSessionActive(owner)) {
-      day2.failedCreate = request;
-      showTodoFailure(day2, error);
+      day3.failedCreate = request;
+      showTodoFailure(day3, error);
       if (error.status === 410) {
-        if (templateId) day2.templateCreates.delete(templateId);
-        else day2.create = null;
-        day2.error = "原事项已被删除，输入已保留，可再次添加。";
+        if (templateId) day3.templateCreates.delete(templateId);
+        else day3.create = null;
+        day3.error = "原事项已被删除，输入已保留，可再次添加。";
       }
     }
   } finally {
     if (todoSessionActive(owner)) {
-      day2.adding = false;
-      day2.submitting = null;
-      day2.revision++;
+      day3.adding = false;
+      day3.submitting = null;
+      day3.revision++;
       paintTodos();
     }
   }
 }
 async function retryTodoCreate() {
-  const day2 = todoDay();
-  if (todosVisible() && day2.failedCreate && !day2.adding)
-    await saveTodo(day2, day2.failedCreate, day2.failedCreate.template_id || "");
+  const day3 = todoDay();
+  if (todosVisible() && day3.failedCreate && !day3.adding)
+    await saveTodo(day3, day3.failedCreate, day3.failedCreate.template_id || "");
 }
 async function submitTodo({ form, data }) {
   if (!todosVisible() || !validTodoDate(form.dataset.date)) return;
-  const day2 = todoDay(form.dataset.date), text = String(data.text || "").trim();
-  if (day2.adding) return;
-  day2.draft = String(data.text || "");
-  if (day2.date !== todoDate()) {
+  const day3 = todoDay(form.dataset.date), text = String(data.text || "").trim();
+  if (day3.adding) return;
+  day3.draft = String(data.text || "");
+  if (day3.date !== todoDate()) {
     paintTodos();
     return;
   }
   if (!text || text.length > 500) {
-    day2.error = "请填写 1–500 字的计划。";
+    day3.error = "请填写 1–500 字的计划。";
     paintTodos();
     return;
   }
-  if (!day2.create || day2.create.text !== text) day2.create = { id: crypto.randomUUID(), date: day2.date, text };
-  await saveTodo(day2, day2.create);
+  if (!day3.create || day3.create.text !== text) day3.create = { id: crypto.randomUUID(), date: day3.date, text };
+  await saveTodo(day3, day3.create);
 }
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
-  const day2 = todoDay();
-  if (day2.adding || todoTemplateAdded(day2, template.id)) return;
-  let request = day2.templateCreates.get(template.id);
+  const day3 = todoDay();
+  if (day3.adding || todoTemplateAdded(day3, template.id)) return;
+  let request = day3.templateCreates.get(template.id);
   if (!request || request.text !== template.text) {
-    request = { id: crypto.randomUUID(), date: day2.date, text: template.text, template_id: template.id };
-    day2.templateCreates.set(template.id, request);
+    request = { id: crypto.randomUUID(), date: day3.date, text: template.text, template_id: template.id };
+    day3.templateCreates.set(template.id, request);
   }
-  await saveTodo(day2, request, template.id);
+  await saveTodo(day3, request, template.id);
 }
 async function toggleTodo(target) {
   if (!todosVisible()) return;
-  const day2 = todoDay(target.dataset.date), owner = todoOwner();
-  const item = day2.items.find((row) => row.id === target.dataset.todoId);
-  if (!item || item.deleted_at || day2.date !== todoDate()) return;
-  if (todoBusy(day2, item.id)) {
-    target.checked = day2.updates.has(item.id) ? day2.updates.get(item.id) : item.completed;
+  const day3 = todoDay(target.dataset.date), owner = todoOwner();
+  const item = day3.items.find((row) => row.id === target.dataset.todoId);
+  if (!item || item.deleted_at || day3.date !== todoDate()) return;
+  if (todoBusy(day3, item.id)) {
+    target.checked = day3.updates.has(item.id) ? day3.updates.get(item.id) : item.completed;
     return;
   }
   const completed = target.checked;
-  day2.updates.set(item.id, completed);
-  day2.error = "";
-  day2.notice = "";
-  day2.revision++;
+  day3.updates.set(item.id, completed);
+  day3.error = "";
+  day3.notice = "";
+  day3.revision++;
   paintTodos();
   try {
     const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
     if (todoSessionActive(owner)) {
-      mergeTodo(day2, updated);
-      setTodoNotice(day2, "已保存");
+      mergeTodo(day3, updated);
+      setTodoNotice(day3, "已保存");
       if (updated.template_id) refreshOpenTodoTemplates();
     }
   } catch (error) {
     if (!todoSessionActive(owner)) return;
-    day2.updates.set(item.id, item.completed);
-    showTodoFailure(day2, error);
-    if (error.status === 409 && day2.date === todoDate()) {
-      day2.error = "这项计划已更新，已重新读取，请核对后再操作。";
+    day3.updates.set(item.id, item.completed);
+    showTodoFailure(day3, error);
+    if (error.status === 409 && day3.date === todoDate()) {
+      day3.error = "这项计划已更新，已重新读取，请核对后再操作。";
       await loadTodos();
       if (todoSessionActive(owner) && item.template_id) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner)) {
-      day2.updates.delete(item.id);
-      day2.revision++;
+      day3.updates.delete(item.id);
+      day3.revision++;
       paintTodos();
     }
   }
@@ -4641,7 +5170,7 @@ function noteDraftNeedsAttention(item) {
   return Boolean(item && (item.dirty || item.pending || attentionPhases.includes(item.phase)));
 }
 function noteEditorCanCollapse(item) {
-  return Boolean(item && item.loaded && !item.loading && !item.composing && !noteDraftNeedsAttention(item) && (item.version > 0 || item.phase === "empty" && !item.draft.trim()));
+  return Boolean(item && item.loaded && !item.loading && !item.composing && !noteDraftNeedsAttention(item) && (item.version > 0 || item.localBacked && item.localVersion > 0 || item.phase === "empty" && !item.draft.trim()));
 }
 function createNotesEditorView() {
   const views = /* @__PURE__ */ new Map();
@@ -4683,11 +5212,11 @@ function createNotesEditorView() {
 
 // web/pages/daily-notes.mjs
 function legacyEditorMarkup() {
-  return '<article id="notes-legacy-card" class="note-entry note-entry-editing notes-legacy-card" hidden><div class="note-entry-head"><time id="notes-legacy-time" class="note-entry-time" hidden></time><span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">原有记录内容</label><textarea id="notes-editor" class="notes-editor" placeholder="写下一点想说的话…" hidden></textarea><div id="notes-reader" class="notes-reader"></div><p id="notes-empty" hidden>这条记录没有文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复原有记录</button><button class="btn text" type="button" data-notes-action="delete">删除原有记录</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除原有记录？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div></article>';
+  return '<article id="notes-legacy-card" class="note-entry note-entry-editing notes-legacy-card" hidden><div class="note-entry-head"><time id="notes-legacy-time" class="note-entry-time" hidden></time><span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">原有记录内容</label><textarea id="notes-editor" class="notes-editor" aria-label="原有记录或保留草稿，只读" readonly hidden></textarea><div id="notes-reader" class="notes-reader"></div><p id="notes-empty" hidden>这条记录没有文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复原有记录</button><button class="btn text" type="button" data-notes-action="delete">删除原有记录</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除原有记录？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div></article>';
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ["life", "work"].map((value) => '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' + (value === "work" ? "工作碎碎念" : "生活碎碎念") + "</button>").join("") + '</div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><span>正在编辑</span><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">编辑</button></article></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ["life", "work"].map((value) => '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' + (value === "work" ? "工作碎碎念" : "生活碎碎念") + "</button>").join("") + '</div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><span>正在编辑</span><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></section>';
 }
 var statuses = {
   loading: "正在读取…",
@@ -4696,8 +5225,17 @@ var statuses = {
   conflict: "草稿有冲突",
   unknown: "保存结果待核对",
   error: "暂未保存",
-  oversize: "文字过长"
+  oversize: "文字过长",
+  queued: "已存本机，待同步",
+  cached: "本机缓存"
 };
+function retainedLegacy(item) {
+  return Boolean(item.dirty || item.pending || ["unknown", "conflict", "oversize", "error"].includes(item.phase));
+}
+function displayedText(item) {
+  if (item.dirty || item.phase !== "queued" && noteDraftNeedsAttention(item)) return item.draft;
+  return item.localBacked || item.localQueued || item.phase === "queued" ? item.durableText ?? item.draft : item.serverText;
+}
 function noteEntryTime(value) {
   if (!value || !Number.isFinite(Date.parse(value))) return "";
   return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value));
@@ -4726,33 +5264,34 @@ function paintEditorValue(editor, text) {
 function paintDailyNotes(root, item, { compatibility = false, editing: editing3 = false } = {}) {
   if (!root) return;
   const find = (selector) => root.querySelector(selector), editor = find("#notes-editor"), reader = find("#notes-reader");
+  const retained = retainedLegacy(item);
   editor.dataset.date = item.date;
   editor.dataset.category = root.dataset.category || dailyNotesRouteCategory();
-  editor.hidden = !editing3 || !item.loaded || item.deleted;
-  editor.readOnly = !item.canEdit;
-  editor.disabled = ["delete", "restore"].includes(item.pending?.kind);
+  editor.hidden = !editing3 || !item.loaded || item.deleted && !retained;
+  editor.readOnly = true;
+  editor.disabled = false;
   paintEditorValue(editor, item.draft);
-  reader.hidden = !item.loaded || editing3 && !item.deleted;
-  reader.textContent = item.deleted ? "原有记录已删除。" : item.serverText;
-  find("#notes-empty").hidden = !item.loaded || item.canEdit || Boolean(item.serverText);
+  reader.hidden = !item.loaded || editing3 && (!item.deleted || retained);
+  reader.textContent = retained ? item.draft : item.deleted ? "原有记录已删除。" : item.serverText;
+  find("#notes-empty").hidden = !item.loaded || Boolean(item.serverText || retained && item.draft);
   const status = find(compatibility ? "#notes-legacy-status" : "#notes-status");
-  status.textContent = statuses[item.phase] || (item.deleted ? "已删除" : item.canEdit ? "已保存" : "公开只读");
+  status.textContent = retained ? statuses[item.phase] || "保留的原有草稿" : item.deleted ? "原有记录已删除" : "原有记录 · 只读";
   status.dataset.phase = item.phase;
   find("#notes-message").hidden = !item.error;
   find("#notes-message").textContent = item.error;
-  find("#notes-detail").textContent = item.canEdit ? dailyNotesBytes(item.draft) + " / 65536 字节 · 自动保存" : "所有访客都能阅读";
-  find("#notes-write-actions").hidden = !editing3 || !item.loaded || !item.canEdit;
-  const blocked2 = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
-  find('[data-notes-action="save"]').disabled = blocked2 || !item.dirty;
-  find('[data-notes-action="restore"]').hidden = !item.deleted;
-  find('[data-notes-action="restore"]').disabled = blocked2 || item.dirty;
-  find('[data-notes-action="delete"]').disabled = blocked2 || item.deleted || item.version === 0;
-  find("#notes-resolution").hidden = !["conflict", "unknown"].includes(item.phase) && item.phase !== "error";
+  find("#notes-detail").textContent = retained ? "原有草稿已保留，仅供查看与导出，不会自动上传。" : "原有逐日记录，只读保留。";
+  find("#notes-write-actions").hidden = true;
+  for (const action of ["save", "restore", "delete", "retry", "use-server", "use-draft", "confirm-delete"]) {
+    const button2 = find('[data-notes-action="' + action + '"]');
+    button2.hidden = true;
+    button2.disabled = true;
+  }
+  find('#notes-legacy-card [data-notes-action="export-legacy"]').hidden = !retained;
+  find("#notes-delete-confirm").hidden = true;
+  find("#notes-resolution").hidden = true;
   find('[data-notes-action="check"]').disabled = item.loading || Boolean(item.pending?.checking);
-  find('[data-notes-action="retry"]').hidden = item.phase !== "unknown" || !item.pending?.retryReady || !item.canEdit;
-  find("#notes-conflict-actions").hidden = item.phase !== "conflict" || !item.remote;
+  find("#notes-conflict-actions").hidden = true;
   find("#notes-remote").textContent = item.remote?.deleted ? "（原有记录已删除）" : item.remote?.text || "（空白）";
-  find('[data-notes-action="use-draft"]').disabled = item.remote?.can_edit !== true;
   if (compatibility) paintTime(find("#notes-legacy-time"), item.updatedAt);
 }
 function entryControlsMarkup() {
@@ -4777,7 +5316,7 @@ function paintEntrySummary(node, item) {
 function paintSavedEntry(node, item) {
   paintEntrySummary(node, item);
   const draft = noteDraftNeedsAttention(item), body = node.querySelector(".note-entry-reader");
-  body.textContent = item.deleted ? "这条记录已删除。" : draft ? item.draft : item.serverText;
+  body.textContent = item.deleted ? "这条记录已删除。" : displayedText(item);
   body.classList.toggle("note-entry-draft-label", draft);
   node.dataset.draft = String(draft);
   const edit = node.querySelector('[data-note-entry-action="edit"]');
@@ -4829,17 +5368,18 @@ function paintActiveEditor(root, store, active4, legacy, confirmId) {
   paintDailyNotes(root, legacy, { compatibility: true, editing: active4 === "legacy" });
 }
 function paintLegacySummary(root, legacy, active4) {
-  const node = root.querySelector("#notes-legacy-saved"), draft = noteDraftNeedsAttention(legacy);
+  const node = root.querySelector("#notes-legacy-saved"), draft = retainedLegacy(legacy);
   node.hidden = active4 === "legacy" || !(legacy.version > 0 || draft);
   paintTime(node.querySelector("time"), legacy.updatedAt);
-  node.querySelector(".note-entry-reader").textContent = legacy.deleted ? "原有记录已删除。" : draft ? legacy.draft : legacy.serverText;
-  node.querySelector(".note-entry-status").textContent = statuses[legacy.phase] || (legacy.deleted ? "已删除" : "已保存");
+  node.querySelector(".note-entry-reader").textContent = draft ? legacy.draft : legacy.deleted ? "原有记录已删除。" : legacy.serverText;
+  node.querySelector(".note-entry-status").textContent = draft ? statuses[legacy.phase] || "保留的原有草稿" : "原有记录 · 只读";
   node.querySelector(".note-entry-status").dataset.phase = legacy.phase;
   node.querySelector(".note-entry-message").textContent = legacy.error;
   node.querySelector(".note-entry-message").hidden = !legacy.error;
   const edit = node.querySelector('[data-notes-action="edit-legacy"]');
-  edit.hidden = !legacy.canEdit && !draft;
-  edit.textContent = draft ? "继续编辑草稿" : legacy.deleted ? "查看" : "编辑";
+  edit.hidden = false;
+  edit.textContent = draft ? "查看保留的原有草稿" : "查看原有记录";
+  node.querySelector('[data-notes-action="export-legacy"]').hidden = !draft;
 }
 function paintRetainedDrafts(root, current, drafts) {
   const box = root.querySelector("#notes-drafts");
@@ -4862,7 +5402,7 @@ function paintNoteEntries(root, store, current, legacy, { drafts = [], confirmId
   find("#notes-entry-message").textContent = current.error;
   find("#notes-entry-message").hidden = !current.error;
   const items = current.ids.map((id) => store.entry(id)).filter(Boolean);
-  const saved = items.filter((item) => item.id !== active4 && (item.version > 0 || noteDraftNeedsAttention(item)));
+  const saved = items.filter((item) => item.id !== active4 && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const nodes = new Map([...list.children].map((node) => [node.dataset.noteEntry, node])), wanted = new Set(saved.map((item) => item.id));
   for (const [id, node] of nodes) if (!wanted.has(id)) node.remove();
   let cursor = list.firstElementChild;
@@ -4879,19 +5419,31 @@ function paintNoteEntries(root, store, current, legacy, { drafts = [], confirmId
   composer.dataset.active = active4;
   find('[data-notes-action="collapse"]').disabled = !noteEditorCanCollapse(activeItem);
   find("#notes-entry-empty").hidden = !current.loaded || Boolean(activeItem) || saved.length > 0 || legacy.version > 0 || noteDraftNeedsAttention(legacy);
-  const unresolved = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy);
+  const unresolved2 = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy);
   const status = find("#notes-status");
-  status.textContent = !current.loaded && current.loading ? "正在读取…" : current.error ? "读取失败" : unresolved ? "有草稿待保存" : canEdit ? "自动保存" : current.loaded ? "公开只读" : "正在读取…";
-  status.hidden = canEdit && !current.error && !unresolved;
+  status.textContent = !current.loaded && current.loading ? "正在读取…" : current.error ? "读取失败" : unresolved2 ? "有草稿待保存" : canEdit ? "自动保存" : current.loaded ? "公开只读" : "正在读取…";
+  status.hidden = canEdit && !current.error && !unresolved2;
   paintRetainedDrafts(root, current, drafts);
 }
 
 // web/core/note-entries-state.mjs
-var uuidPattern4 = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+var uuidPattern5 = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var blocked = (item) => ["conflict", "unknown"].includes(item.phase);
-var timestamp = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+var timestamp2 = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+var noteValue = (value) => isLocalDocument(value) ? documentValue(value) : value;
+var persistedVersion = (item) => item.localBacked ? item.localVersion : item.version;
+var savedText = (item) => item.localBacked ? item.durableText : item.serverText;
+var savedPhase = (item) => item.localBacked ? item.localQueued ? "queued" : "cached" : item.version ? "saved" : "empty";
+var localFailure = (error) => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || "");
+function checkedLocalDocument(value, category, date, id) {
+  const { local, server } = documentState(value);
+  if (!local || !uuidPattern5.test(local.id) || id && local.id !== id || local.category !== category || local.date !== date || typeof local.text !== "string" || dailyNotesBytes(local.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(local.version) || local.version < 1 || typeof local.deleted !== "boolean" || typeof local.can_edit !== "boolean") throw new Error("本机记录读取不完整，草稿已保留。");
+  if (server) checkedEntry(server, category, date, local.id);
+  return value;
+}
 function checkedEntry(value, category, date, id) {
-  if (!value || !uuidPattern4.test(value.id) || id && value.id !== id || value.category !== category || value.date !== date || typeof value.text !== "string" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || !timestamp(value.created_at) || !timestamp(value.updated_at) || typeof value.content_hash !== "string" || !value.content_hash) {
+  if (isLocalDocument(value)) return checkedLocalDocument(value, category, date, id);
+  if (!value || !uuidPattern5.test(value.id) || id && value.id !== id || value.category !== category || value.date !== date || typeof value.text !== "string" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || !timestamp2(value.created_at) || !timestamp2(value.updated_at) || typeof value.content_hash !== "string" || !value.content_hash) {
     throw new Error("记录读取不完整，请重新核对。");
   }
   return value;
@@ -4899,8 +5451,9 @@ function checkedEntry(value, category, date, id) {
 function checkedCollection(value, category, date) {
   if (!value || value.category !== category || value.date !== date || !Array.isArray(value.entries) || value.entries.length > 200 || typeof value.can_edit !== "boolean") throw new Error("记录列表不完整，请重新读取。");
   const ids = /* @__PURE__ */ new Set();
-  for (const entry of value.entries) {
-    checkedEntry(entry, category, date);
+  for (const raw of value.entries) {
+    checkedEntry(raw, category, date);
+    const entry = noteValue(raw);
     if (entry.deleted || ids.has(entry.id)) throw new Error("记录列表不完整，请重新读取。");
     ids.add(entry.id);
   }
@@ -4918,7 +5471,7 @@ function createEntriesContext({
   },
   onSaved = () => {
   },
-  uuid = () => crypto.randomUUID(),
+  uuid: uuid2 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   delay = 400
@@ -4930,7 +5483,7 @@ function createEntriesContext({
     pages,
     entries,
     disposed: false,
-    options: { load, loadEntry, loadOperation, put, remove, restore, onSaved, uuid }
+    options: { load, loadEntry, loadOperation, put, remove, restore, onSaved, uuid: uuid2 }
   };
   const emit = () => {
     if (!context.disposed) onChange();
@@ -4978,10 +5531,19 @@ function createEntriesContext({
       timer: null,
       sequence: 0,
       writeEpoch: 0,
-      composing: false
+      composing: false,
+      localVersion: 0,
+      durableText: "",
+      localBacked: false,
+      localQueued: false,
+      localOperation: null,
+      localConflict: null,
+      localCreatedAt: null,
+      localUpdatedAt: null
     };
   }
   function adopt(item, value, preserve = false) {
+    if (isLocalDocument(value)) return context.adoptLocal(item, value, preserve);
     item.canEdit = value.can_edit;
     item.serverText = value.deleted ? "" : value.text;
     item.version = value.version;
@@ -4989,13 +5551,21 @@ function createEntriesContext({
     item.updatedAt = value.updated_at;
     item.contentHash = value.content_hash;
     item.deleted = value.deleted;
+    item.localVersion = value.version;
+    item.durableText = item.serverText;
+    item.localBacked = false;
+    item.localQueued = false;
+    item.localOperation = null;
+    item.localConflict = null;
+    item.localCreatedAt = null;
+    item.localUpdatedAt = null;
     if (!preserve) item.draft = item.serverText;
     item.dirty = item.draft !== item.serverText;
     item.loaded = true;
   }
   function schedule(item) {
     stopTimer(item);
-    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !blocked(item) && !["error", "oversize"].includes(item.phase) && (item.version > 0 || item.draft.trim())) {
+    if (!context.disposed && !context.autosavePaused && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !blocked(item) && !["error", "oversize"].includes(item.phase) && (persistedVersion(item) > 0 || item.draft.trim())) {
       item.timer = setTimer(() => {
         item.timer = null;
         void context.save(item.id);
@@ -5003,6 +5573,21 @@ function createEntriesContext({
     }
   }
   function merge(item, value) {
+    if (isLocalDocument(value)) return context.mergeLocal(item, value);
+    if (item.localBacked && !item.localConflict && value.version < item.localVersion) return;
+    if (item.localQueued && !item.localConflict && (value.deleted !== item.deleted || !value.deleted && value.text !== item.durableText)) {
+      item.remote = value;
+      return;
+    }
+    if (item.localBacked && (!blocked(item) || item.localConflict)) {
+      const retainedConflictDraft = Boolean(item.localConflict && item.dirty);
+      item.writeEpoch++;
+      adopt(item, value, item.dirty);
+      item.remote = null;
+      item.phase = retainedConflictDraft ? "error" : item.dirty ? "dirty" : "saved";
+      item.error = retainedConflictDraft ? "已采用线上版本，后续未提交草稿仍保留；请核对后手动保存。" : "";
+      return;
+    }
     if (value.version < Math.max(item.version, item.remote?.version || 0)) return;
     item.writeEpoch++;
     item.canEdit = value.can_edit;
@@ -5025,37 +5610,84 @@ function createEntriesContext({
   Object.assign(context, { page, entry, emit, stopTimer, adopt, schedule, merge, makeEntry, dispose });
   return context;
 }
+function createEntryLocalActions(context) {
+  const { adopt, stopTimer } = context;
+  function adoptLocal(item, value, preserve = false) {
+    const { local, server, operation, conflict } = documentState(value), draft = item.draft;
+    if (server && server.version >= item.version) adopt(item, server, true);
+    item.localVersion = local.version;
+    item.durableText = local.deleted ? "" : local.text;
+    item.localBacked = true;
+    item.localQueued = Boolean(operation);
+    item.localOperation = operation;
+    item.localConflict = conflict;
+    item.localCreatedAt = local.created_at || null;
+    item.localUpdatedAt = local.updated_at || null;
+    item.canEdit = local.can_edit;
+    item.deleted = local.deleted;
+    item.loaded = true;
+    item.draft = preserve ? draft : item.durableText;
+    item.dirty = item.draft !== item.durableText;
+    if (conflict) {
+      let remote = null;
+      try {
+        if (conflict.remote) remote = checkedEntry(conflict.remote, item.category, item.date, item.id);
+      } catch {
+      }
+      item.remote = remote;
+      item.phase = "conflict";
+      item.error = "本机与线上内容均已保留，请从顶部同步状态处理冲突。";
+      stopTimer(item);
+    } else {
+      item.remote = null;
+      item.phase = item.dirty ? "dirty" : savedPhase(item);
+      item.error = "";
+    }
+  }
+  function mergeLocal(item, value) {
+    const { local, operation, conflict, server } = documentState(value);
+    if (local.version < persistedVersion(item) || item.pending) return;
+    if (item.localQueued && !operation && !conflict) {
+      if (server) context.merge(item, server);
+      return;
+    }
+    item.writeEpoch++;
+    adoptLocal(item, value, item.dirty || item.composing);
+  }
+  return { adoptLocal, mergeLocal };
+}
 function createEntryReadingActions(context) {
   const { category, page, entry, entries, emit, adopt, merge, schedule, makeEntry } = context;
   const { load, loadEntry } = context.options;
-  async function read(date) {
+  async function read(date, options2 = {}) {
     const current = page(date), sequence = ++current.sequence;
     const epochs = new Map(current.ids.map((id) => [id, entry(id)?.writeEpoch]));
     current.loading = true;
     current.error = "";
     emit();
     try {
-      const value = checkedCollection(await load(date), category, date);
+      const value = checkedCollection(await load(date, options2), category, date);
       if (context.disposed || sequence !== current.sequence) return;
       current.canEdit = value.can_edit;
       const found = /* @__PURE__ */ new Set();
       for (const raw of value.entries) {
-        found.add(raw.id);
-        let item = entry(raw.id);
+        const visible2 = noteValue(raw);
+        found.add(visible2.id);
+        let item = entry(visible2.id);
         if (!item) {
-          item = makeEntry(raw.id, date, raw.can_edit);
-          entries.set(raw.id, item);
+          item = makeEntry(visible2.id, date, visible2.can_edit);
+          entries.set(visible2.id, item);
           adopt(item, raw);
-          item.phase = "saved";
+          if (!isLocalDocument(raw)) item.phase = "saved";
         } else if (!item.pending && item.writeEpoch === epochs.get(item.id)) merge(item, raw);
       }
       const retained = current.ids.filter((id) => {
         const item = entry(id);
-        return found.has(id) || item.version === 0 || item.dirty || item.pending || item.deleted || blocked(item) || item.writeEpoch !== epochs.get(id);
+        return found.has(id) || item.version === 0 || item.dirty || item.pending || item.deleted || item.localBacked || blocked(item) || item.writeEpoch !== epochs.get(id);
       });
-      current.ids = [.../* @__PURE__ */ new Set([...retained, ...value.entries.map((item) => item.id)])];
+      current.ids = [.../* @__PURE__ */ new Set([...retained, ...value.entries.map((raw) => noteValue(raw).id)])];
       current.loaded = true;
-      await Promise.all(current.ids.filter((id) => !found.has(id) && entry(id).version > 0 && entry(id).dirty && !entry(id).pending && !entry(id).deleted).map((id) => readOne(id)));
+      await Promise.all(current.ids.filter((id) => !found.has(id) && persistedVersion(entry(id)) > 0 && (entry(id).dirty || entry(id).localBacked) && !entry(id).pending).map((id) => readOne(id, options2)));
     } catch (error) {
       if (!context.disposed && sequence === current.sequence) current.error = error.message;
     } finally {
@@ -5066,14 +5698,14 @@ function createEntryReadingActions(context) {
       }
     }
   }
-  async function readOne(id) {
+  async function readOne(id, options2 = {}) {
     const item = entry(id);
     if (!item || context.disposed) return;
     const sequence = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
-      const value = checkedEntry(await loadEntry(id), category, item.date, id);
+      const value = checkedEntry(await loadEntry(id, options2), category, item.date, id);
       if (!context.disposed && sequence === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
     } catch (error) {
       if (!context.disposed && sequence === item.sequence) {
@@ -5092,14 +5724,14 @@ function createEntryReadingActions(context) {
 }
 function createEntryEditingActions(context) {
   const { page, entry, entries, emit, stopTimer, schedule, makeEntry } = context;
-  const { uuid } = context.options;
+  const { uuid: uuid2 } = context.options;
   function start(date) {
     const current = page(date);
     if (context.disposed || !current.loaded || !current.canEdit) return;
     const existing = entry(current.composerId);
-    if (existing && existing.version === 0 && !existing.deleted) return existing;
-    const id = uuid();
-    if (!uuidPattern4.test(id) || entries.has(id)) throw new Error("暂时无法新建记录，请重试。");
+    if (existing && persistedVersion(existing) === 0 && !existing.deleted) return existing;
+    const id = uuid2();
+    if (!uuidPattern5.test(id) || entries.has(id)) throw new Error("暂时无法新建记录，请重试。");
     const item = makeEntry(id, date, current.canEdit);
     entries.set(id, item);
     current.ids.push(id);
@@ -5112,13 +5744,13 @@ function createEntryEditingActions(context) {
     if (!item || context.disposed || !item.canEdit || item.deleted || ["delete", "restore"].includes(item.pending?.kind)) return;
     item.draft = text;
     item.composing = composing;
-    item.dirty = text !== item.serverText;
+    item.dirty = text !== savedText(item);
     stopTimer(item);
     if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
       if (!blocked(item)) item.phase = "oversize";
       item.error = "文字超过 64 KiB，草稿已保留，请缩短后再保存。";
     } else if (!blocked(item)) {
-      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : item.version ? "saved" : "empty";
+      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : savedPhase(item);
       item.error = "";
     }
     emit();
@@ -5126,10 +5758,60 @@ function createEntryEditingActions(context) {
   }
   return { start, edit };
 }
+function createEntryRecoveryActions(context) {
+  const { category, page, entry, entries, makeEntry, stopTimer, emit } = context;
+  function restoreDraft(raw) {
+    if (!raw || raw.category !== category || !validDailyNotesDate(raw.date) || !uuidPattern5.test(raw.id) || typeof raw.draft !== "string" || raw.draft.length > 262144 || context.disposed) return;
+    const current = page(raw.date);
+    let item = entry(raw.id);
+    if (item && (item.pending || item.composing || item.dirty)) return item;
+    const pendingDurable = item && raw.pending?.saveId && raw.pending.saveId === item.localOperation?.save_id;
+    if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.pending || pendingDurable)) return item;
+    if (!item) {
+      item = makeEntry(raw.id, raw.date, current.canEdit);
+      entries.set(item.id, item);
+    }
+    if (!current.ids.includes(item.id)) current.ids.push(item.id);
+    stopTimer(item);
+    item.writeEpoch++;
+    item.draft = raw.draft;
+    item.dirty = item.draft !== savedText(item);
+    item.recoveredBaseline = raw.recoveredBaseline || {
+      version: raw.version ?? null,
+      serverText: raw.serverText ?? null,
+      contentHash: raw.contentHash ?? null,
+      createdAt: raw.createdAt ?? null,
+      updatedAt: raw.updatedAt ?? null,
+      localVersion: raw.localVersion ?? null,
+      durableText: raw.durableText ?? null
+    };
+    if (raw.pending && !pendingDurable) {
+      const operation = raw.pending;
+      const valid = ["put", "delete", "restore"].includes(operation.kind) && uuidPattern5.test(operation.saveId) && Number.isSafeInteger(operation.version) && operation.version >= 0 && (operation.kind !== "put" || typeof operation.text === "string" && dailyNotesBytes(operation.text) <= DAILY_NOTES_MAX_BYTES);
+      item.pending = valid ? {
+        kind: operation.kind,
+        version: operation.version,
+        saveId: operation.saveId,
+        ...operation.kind === "put" ? { text: operation.text } : {},
+        uncertain: true,
+        checking: false,
+        retryReady: false
+      } : { kind: "recovery-blocked", uncertain: true, invalid: true, checking: false, retryReady: false };
+      item.phase = "unknown";
+      item.error = valid ? "已找回未确认的原保存，请手动核对结果；不会自动重发。" : "旧保存凭据不完整，草稿已保留供查看或导出。";
+    } else {
+      item.phase = dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES ? "oversize" : "error";
+      item.error = "已找回未提交草稿，请核对后手动保存；不会自动上传。";
+    }
+    emit();
+    return item;
+  }
+  return { restoreDraft };
+}
 function createEntryWritingActions(context) {
   const { category, page, entry, entries, emit, stopTimer, adopt, schedule } = context;
-  const { put, remove, restore, uuid, onSaved } = context.options;
-  const matches = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted : operation.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation.text);
+  const { put, remove, restore, uuid: uuid2, onSaved } = context.options;
+  const matches2 = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted : operation.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation.text);
   function accepted(item, value, operation) {
     const preserve = operation.kind === "put" && item.draft !== operation.text;
     item.writeEpoch++;
@@ -5138,6 +5820,17 @@ function createEntryWritingActions(context) {
     item.pending = null;
     item.phase = item.dirty ? "dirty" : "saved";
     item.error = "";
+    emit();
+    onSaved(item.date);
+    schedule(item);
+  }
+  function acceptedLocal(item, value, operation) {
+    const local = documentValue(value);
+    if (!matches2(local, operation)) throw new Error("本机保存结果需要重新核对。");
+    const preserve = operation.kind === "put" && item.draft !== operation.text;
+    item.writeEpoch++;
+    adopt(item, value, preserve);
+    item.pending = null;
     emit();
     onSaved(item.date);
     schedule(item);
@@ -5151,14 +5844,24 @@ function createEntryWritingActions(context) {
     emit();
     try {
       const body = { version: operation.version, save_id: operation.saveId };
-      const raw = operation.kind === "delete" ? await remove(item.id, body) : operation.kind === "restore" ? await restore(item.id, body) : await put(item.id, { ...body, category: item.category, date: item.date, text: operation.text });
+      const options2 = operation.uncertain ? { offlineUnknown: true } : void 0;
+      const raw = operation.kind === "delete" ? await remove(item.id, body, options2) : operation.kind === "restore" ? await restore(item.id, body, options2) : await put(item.id, { ...body, category: item.category, date: item.date, text: operation.text }, options2);
       if (context.disposed || item.pending !== operation) return;
       const value = checkedEntry(raw, category, item.date, item.id);
-      if (!matches(value, operation)) throw new Error("保存响应需要重新核对。");
+      if (isLocalDocument(value)) {
+        acceptedLocal(item, value, operation);
+        return;
+      }
+      if (!matches2(value, operation)) throw new Error("保存响应需要重新核对。");
       accepted(item, value, operation);
     } catch (error) {
       if (context.disposed || item.pending !== operation) return;
-      if (error.status === 409 && (!error.code || ["VERSION_CONFLICT", "NOTE_ENTRY_DELETED"].includes(error.code))) {
+      if (localFailure(error)) {
+        item.pending = operation.uncertain ? operation : null;
+        item.phase = operation.uncertain ? "unknown" : "error";
+        item.error = operation.uncertain ? "原保存仍待核对，本机接管未完成：" + error.message : error.message;
+        emit();
+      } else if (error.status === 409 && (!error.code || ["VERSION_CONFLICT", "NOTE_ENTRY_DELETED"].includes(error.code))) {
         item.pending = null;
         item.phase = "conflict";
         item.error = error.message || "这条记录已有新版本，草稿已保留。";
@@ -5171,6 +5874,7 @@ function createEntryWritingActions(context) {
         if ([401, 403].includes(error.status)) item.canEdit = false;
         emit();
       } else {
+        operation.uncertain = true;
         item.phase = "unknown";
         item.error = "正在核对保存结果，草稿已保留。";
         emit();
@@ -5183,19 +5887,19 @@ function createEntryWritingActions(context) {
     if (!item) return;
     stopTimer(item);
     if (context.disposed || !item.canEdit || item.deleted || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
-    if (!item.version && !item.draft.trim()) return;
+    if (!persistedVersion(item) && !item.draft.trim()) return;
     if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
       item.phase = "oversize";
       item.error = "文字超过 64 KiB，草稿已保留。";
       emit();
       return;
     }
-    return send(item, { kind: "put", version: item.version, text: item.draft, saveId: uuid() });
+    return send(item, { kind: "put", version: persistedVersion(item), text: item.draft, saveId: uuid2() });
   }
   async function deleteEntry(id) {
     const item = entry(id);
     if (!item || context.disposed || !item.canEdit || item.pending || blocked(item) || item.deleted) return;
-    if (!item.version) {
+    if (!persistedVersion(item)) {
       stopTimer(item);
       const current = page(item.date);
       current.ids = current.ids.filter((value) => value !== id);
@@ -5204,17 +5908,17 @@ function createEntryWritingActions(context) {
       emit();
       return;
     }
-    return send(item, { kind: "delete", version: item.version, saveId: uuid() });
+    return send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid2() });
   }
   async function restoreEntry(id) {
     const item = entry(id);
     if (!item || context.disposed || !item.canEdit || !item.deleted || item.pending || blocked(item)) return;
-    return send(item, { kind: "restore", version: item.version, saveId: uuid() });
+    return send(item, { kind: "restore", version: persistedVersion(item), saveId: uuid2() });
   }
-  return { matches, accepted, send, save, deleteEntry, restoreEntry };
+  return { matches: matches2, accepted, acceptedLocal, send, save, deleteEntry, restoreEntry };
 }
 function createEntryResolutionActions(context) {
-  const { category, entry, emit, stopTimer, adopt, matches, accepted } = context;
+  const { category, entry, emit, stopTimer, adopt, matches: matches2, accepted, acceptedLocal } = context;
   const { load, loadEntry, loadOperation } = context.options;
   async function reconcile(id) {
     const item = entry(id), operation = item?.pending;
@@ -5234,7 +5938,8 @@ function createEntryResolutionActions(context) {
       } catch (error) {
         if (error.status !== 404 || receipt.found || operation.version !== 0 || operation.kind !== "put") throw error;
         const collection = checkedCollection(await load(item.date), category, item.date);
-        value = collection.entries.find((raw) => raw.id === id);
+        value = collection.entries.find((raw) => noteValue(raw).id === id);
+        if (isLocalDocument(value)) throw new Error("原保存结果仍由同步队列核实，本机内容已保留。");
         if (!value) {
           if (context.disposed || item.pending !== operation) return;
           item.canEdit = collection.can_edit;
@@ -5244,8 +5949,12 @@ function createEntryResolutionActions(context) {
         }
       }
       if (context.disposed || item.pending !== operation) return;
+      if (isLocalDocument(value)) {
+        if (documentState(value).operation?.save_id === operation.saveId) return acceptedLocal(item, value, operation);
+        throw new Error("保存结果仍由同步队列核实，本机内容已保留。");
+      }
       item.canEdit = value.can_edit;
-      if (receipt.found && receipt.content_hash === value.content_hash && receipt.version === value.version && matches(value, operation)) {
+      if (receipt.found && receipt.content_hash === value.content_hash && receipt.version === value.version && matches2(value, operation)) {
         accepted(item, value, operation);
       } else if (value.version > operation.version) {
         item.remote = value;
@@ -5275,6 +5984,11 @@ function createEntryResolutionActions(context) {
   }
   function useServer(id) {
     const item = entry(id);
+    if (item?.localConflict) {
+      item.error = "请从顶部同步状态选择线上版本，本机原文会保留。";
+      emit();
+      return;
+    }
     if (!item?.remote || item.pending || item.phase !== "conflict") return;
     stopTimer(item);
     adopt(item, item.remote);
@@ -5285,6 +5999,11 @@ function createEntryResolutionActions(context) {
   }
   async function useDraft(id) {
     const item = entry(id);
+    if (item?.localConflict) {
+      item.error = "冲突的两份内容已保留，请从顶部同步状态处理。";
+      emit();
+      return;
+    }
     if (!item?.remote || item.pending || item.phase !== "conflict" || !item.remote.can_edit || item.remote.deleted) return;
     adopt(item, item.remote, true);
     item.remote = null;
@@ -5297,11 +6016,13 @@ function createEntryResolutionActions(context) {
 }
 function createNoteEntriesStore(options2) {
   const context = createEntriesContext(options2);
+  Object.assign(context, createEntryLocalActions(context));
   Object.assign(
     context,
     createEntryReadingActions(context),
     createEntryEditingActions(context),
-    createEntryWritingActions(context)
+    createEntryWritingActions(context),
+    createEntryRecoveryActions(context)
   );
   Object.assign(context, createEntryResolutionActions(context));
   const {
@@ -5321,8 +6042,16 @@ function createNoteEntriesStore(options2) {
     retryPending,
     useServer,
     useDraft,
+    restoreDraft,
     dispose
   } = context;
+  const pauseAutosave = () => {
+    context.autosavePaused = true;
+    for (const item of entries.values()) context.stopTimer(item);
+    return () => {
+      context.autosavePaused = false;
+    };
+  };
   return {
     category,
     pages,
@@ -5340,15 +6069,154 @@ function createNoteEntriesStore(options2) {
     retryPending,
     useServer,
     useDraft,
+    restoreDraft,
+    pauseAutosave,
     dispose
   };
 }
 
 // web/daily-notes-controller.mjs
-var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "";
+var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "", notesRefreshPaused = false;
 var notesStores = /* @__PURE__ */ new Map(), entryStores = /* @__PURE__ */ new Map(), editorViews = createNotesEditorView();
-var notesIdentityNow = () => String(runtime.sessionEpoch) + ":" + String(state.me?.id || "") + ":" + String(state.me?.csrfToken || "");
+var notesIdentityNow = () => JSON.stringify([
+  runtime.sessionEpoch,
+  state.me?.id || "",
+  state.me?.publicBusiness === true,
+  getOfflineRuntime()?.state.scope || ""
+]);
 var notesVisible = () => state.page === "notes" && notesIdentity === notesIdentityNow();
+var draftFields = [
+  "id",
+  "date",
+  "draft",
+  "version",
+  "serverText",
+  "contentHash",
+  "createdAt",
+  "updatedAt",
+  "dirty",
+  "phase",
+  "pending",
+  "remote",
+  "localVersion",
+  "durableText",
+  "localBacked",
+  "localQueued",
+  "recoveredBaseline"
+];
+var hydratedDrafts = /* @__PURE__ */ new WeakMap();
+var hydrationReady = /* @__PURE__ */ new WeakSet();
+var entryIdentities = /* @__PURE__ */ new WeakMap();
+function captureNotesDrafts(legacy, entries, category) {
+  const offline = getOfflineRuntime();
+  if (!offline || !hydrationReady.has(entries) || entryIdentities.get(entries) !== notesIdentityNow()) return;
+  const rows = [];
+  for (const [kind, values] of [["legacy", legacy.pages.values()], ["note_entry", entries.entries.values()]]) for (const item of values)
+    rows.push({ kind, category, ...Object.fromEntries(draftFields.filter((key) => item[key] !== void 0).map((key) => [key, item[key]])) });
+  return offline.retainDrafts(rows);
+}
+async function hydrateNotesDrafts(legacy, entries, category) {
+  const offline = getOfflineRuntime(), expected = entryIdentities.get(entries);
+  const active4 = () => expected === notesIdentityNow();
+  if (!offline || !active4()) return;
+  const seen = hydratedDrafts.get(entries) || /* @__PURE__ */ new Set();
+  hydratedDrafts.set(entries, seen);
+  const entryDrafts = await offline.retainedDrafts("note_entry");
+  if (!active4()) return;
+  for (const raw of entryDrafts) {
+    if (raw.category !== category || seen.has(raw.id)) continue;
+    entries.restoreDraft(raw);
+    seen.add(raw.id);
+  }
+  const legacyDrafts = await offline.retainedDrafts("legacy");
+  if (!active4()) return;
+  for (const raw of legacyDrafts) {
+    const key = "legacy:" + raw.date;
+    if (raw.category !== category || seen.has(key)) continue;
+    const item = legacy.page(raw.date);
+    Object.assign(item, {
+      draft: raw.draft,
+      dirty: true,
+      canEdit: false,
+      phase: raw.phase || "error",
+      pending: raw.pending || null,
+      remote: raw.remote || null,
+      error: "保留的原有草稿只读，可导出；不会自动上传。"
+    });
+    seen.add(key);
+  }
+  hydrationReady.add(entries);
+  await captureNotesDrafts(legacy, entries, category);
+  await showRetainedArchive();
+}
+async function archivedDrafts() {
+  const offline = getOfflineRuntime();
+  return offline ? [...await offline.retainedDrafts("legacy"), ...await offline.retainedDrafts("note_entry")] : [];
+}
+async function showRetainedArchive() {
+  const expected = notesIdentityNow(), rows = await archivedDrafts(), root = document.querySelector("#daily-notes");
+  if (!root || !notesVisible() || expected !== notesIdentityNow() || !rows.length) return;
+  let box = root.querySelector("#notes-retained-archive");
+  if (!box) {
+    box = document.createElement("details");
+    box.id = "notes-retained-archive";
+    box.className = "notes-drafts";
+    const summary = document.createElement("summary");
+    box.append(summary);
+    const button2 = document.createElement("button");
+    button2.className = "btn text";
+    button2.type = "button";
+    button2.dataset.notesAction = "export-drafts";
+    button2.textContent = "导出本机保留草稿";
+    box.append(button2);
+    const body = document.createElement("div");
+    body.className = "notes-retained-texts";
+    box.append(body);
+    box.addEventListener("toggle", async () => {
+      if (!box.open || expected !== notesIdentityNow()) return;
+      const current = await archivedDrafts();
+      if (expected !== notesIdentityNow()) return;
+      body.replaceChildren(...current.map((row) => {
+        const pre = document.createElement("pre");
+        pre.textContent = `${row.kind === "legacy" ? "原有记录" : "条目"} · ${row.category === "work" ? "工作" : "生活"} · ${row.date}
+${row.draft}`;
+        return pre;
+      }));
+    });
+    root.querySelector("#notes-drafts").after(box);
+  }
+  box.querySelector("summary").textContent = `本机保留草稿（${rows.length} 份，只读）`;
+}
+async function exportDraftArchive() {
+  const expected = notesIdentityNow(), rows = await archivedDrafts();
+  if (expected !== notesIdentityNow()) return;
+  const text = JSON.stringify({ format: "haoduoyu-retained-drafts-v1", drafts: rows }, null, 2);
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "好多鱼本机保留草稿.json";
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1e3);
+}
+function exportLegacyDraft(item, category) {
+  const text = [
+    "好多鱼原有记录草稿（只读保留）",
+    "分类：" + (category === "work" ? "工作" : "生活"),
+    "日期：" + item.date,
+    "状态：" + item.phase,
+    "原保存标识：" + (item.pending?.saveId || "无"),
+    "",
+    "当前草稿：",
+    item.draft,
+    ...item.pending?.text !== void 0 ? ["", "原未确认提交：", item.pending.text] : []
+  ].join("\n");
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "原有碎碎念草稿-" + category + "-" + item.date + ".txt";
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1e3);
+}
 function ensureDailyNotesStore() {
   const next = notesIdentityNow(), category = dailyNotesRouteCategory();
   if (notesIdentity !== next) {
@@ -5359,6 +6227,7 @@ function ensureDailyNotesStore() {
     notesIdentity = next;
     notesConfirmDate = "";
     notesConfirmEntry = "";
+    notesRefreshPaused = false;
   }
   if (notesActiveCategory !== category) {
     notesActiveCategory = category;
@@ -5382,28 +6251,35 @@ function ensureDailyNotesStore() {
     };
     const suffix = (separator) => category === "work" ? separator + "category=work" : "";
     const changed2 = () => {
-      if (expected === notesIdentityNow() && category === dailyNotesRouteCategory()) paintDailyNotesPage();
+      if (expected !== notesIdentityNow()) return;
+      void captureNotesDrafts(legacy, entries, category)?.catch(() => {
+      });
+      if (category === dailyNotesRouteCategory()) paintDailyNotesPage();
+    };
+    const readOnly = async () => {
+      throw Object.assign(new Error("原有逐日记录只读，草稿可导出。"), { code: "LEGACY_READ_ONLY" });
     };
     const legacy = createDailyNotesStore({
       delay: 400,
-      load: (date) => request("/daily-notes?date=" + encodeURIComponent(date) + suffix("&")),
-      put: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + suffix("?"), { method: "PUT", body }),
-      restore: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + "/restore" + suffix("?"), { method: "POST", body }),
-      remove: (date, body) => request("/daily-notes/" + encodeURIComponent(date) + suffix("?"), { method: "DELETE", body }),
+      load: async (date) => ({ ...await request("/daily-notes?date=" + encodeURIComponent(date) + suffix("&")), can_edit: false }),
+      put: readOnly,
+      restore: readOnly,
+      remove: readOnly,
       onChange: changed2,
       onSaved: changed2
     });
     const entries = createNoteEntriesStore({
       category,
-      load: (date) => request("/note-entries?category=" + category + "&date=" + encodeURIComponent(date)),
-      loadEntry: (id) => request("/note-entries/" + encodeURIComponent(id)),
+      load: (date, options2) => options2?.localOnly ? getOfflineRuntime().localRead("/note-entries?category=" + category + "&date=" + date) : request("/note-entries?category=" + category + "&date=" + encodeURIComponent(date)),
+      loadEntry: (id, options2) => options2?.localOnly ? getOfflineRuntime().localRead("/note-entries/" + id) : request("/note-entries/" + encodeURIComponent(id)),
       loadOperation: (id) => request("/note-entries/operations/" + encodeURIComponent(id)),
-      put: (id, body) => request("/note-entries/" + encodeURIComponent(id), { method: "PUT", body }),
-      remove: (id, body) => request("/note-entries/" + encodeURIComponent(id), { method: "DELETE", body }),
-      restore: (id, body) => request("/note-entries/" + encodeURIComponent(id) + "/restore", { method: "POST", body }),
+      put: (id, body, options2) => request("/note-entries/" + encodeURIComponent(id), { ...options2, method: "PUT", body }),
+      remove: (id, body, options2) => request("/note-entries/" + encodeURIComponent(id), { ...options2, method: "DELETE", body }),
+      restore: (id, body, options2) => request("/note-entries/" + encodeURIComponent(id) + "/restore", { ...options2, method: "POST", body }),
       onChange: changed2,
       onSaved: changed2
     });
+    entryIdentities.set(entries, expected);
     notesStores.set(category, legacy);
     entryStores.set(category, entries);
   }
@@ -5422,7 +6298,7 @@ function retainedDrafts() {
   return result;
 }
 function paintDailyNotesPage() {
-  if (!notesVisible()) return;
+  if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector("#daily-notes");
   if (!root || !notesStore || !entryStore) return;
   const date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy = notesStore.page(date), current = entryStore.page(date);
@@ -5436,7 +6312,7 @@ function paintDailyNotesPage() {
     { focused: host.contains(document.activeElement), composing: field2?.dataset.composing === "true" }
   );
   paintNoteEntries(root, entryStore, current, legacy, { drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active });
-  root.querySelector("#notes-delete-confirm").hidden = notesConfirmDate !== date;
+  root.querySelector("#notes-delete-confirm").hidden = true;
 }
 async function selectDailyNotesDate(value) {
   if (!validDailyNotesDate(value) || value > dailyNotesToday()) return;
@@ -5445,9 +6321,12 @@ async function selectDailyNotesDate(value) {
   notesConfirmEntry = "";
   setDailyNotesRouteDate(value);
   updateRoute(true);
-  const legacy = notesStore, entries = entryStore;
+  const legacy = notesStore, entries = entryStore, category = dailyNotesRouteCategory(), expected = notesIdentityNow();
   paintDailyNotesPage();
   await Promise.all([legacy.read(value), entries.read(value)]);
+  if (expected !== notesIdentityNow()) return;
+  await hydrateNotesDrafts(legacy, entries, category);
+  paintDailyNotesPage();
 }
 function shiftedNotesDate(date, delta) {
   return new Date(Date.parse(date + "T12:00:00Z") + delta * 864e5).toISOString().slice(0, 10);
@@ -5460,7 +6339,7 @@ function openEditor(key) {
   document.querySelector("#notes-composer")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
 }
 function requestEditorCollapse(event) {
-  if (!notesVisible() || !event.target.closest("#notes-composer")) return;
+  if (!notesVisible() || notesRefreshPaused || !event.target.closest("#notes-composer")) return;
   const root = document.querySelector("#daily-notes"), host = root?.querySelector("#notes-composer");
   if (!host || host.contains(event.relatedTarget) || event.relatedTarget?.closest(
     '[data-note-entry-action="edit"],[data-notes-action="new"],[data-notes-action="edit-legacy"]'
@@ -5520,7 +6399,7 @@ async function handleEntryAction(target, entries) {
   else if (action === "use-draft") await entries.useDraft(id);
 }
 async function handleNotesClick(event) {
-  if (!notesVisible()) return;
+  if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector("#daily-notes");
   const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action]");
   if (!target || !root?.contains(target)) return;
@@ -5557,29 +6436,61 @@ async function handleNotesClick(event) {
   } else if (action === "previous" || action === "next") await selectDailyNotesDate(shiftedNotesDate(date, action === "previous" ? -1 : 1));
   else if (action === "login") renderLogin();
   else if (action === "today") await selectDailyNotesDate(dailyNotesToday());
-  else if (action === "save") await store.save(date);
-  else if (action === "restore") await store.restorePage(date);
-  else if (action === "delete") {
-    notesConfirmDate = date;
-    paintDailyNotesPage();
-  } else if (action === "cancel-delete") {
-    notesConfirmDate = "";
-    paintDailyNotesPage();
-  } else if (action === "confirm-delete") {
-    notesConfirmDate = "";
-    await store.deletePage(date);
-    paintDailyNotesPage();
-  } else if (action === "check") {
-    if (store.page(date).phase === "unknown") await store.reconcile(date);
-    else await store.read(date);
-  } else if (action === "use-server") store.useServer(date);
-  else if (action === "retry") await store.retryPending(date);
-  else if (action === "use-draft") await store.useDraft(date);
+  else if (action === "export-legacy") exportLegacyDraft(store.page(date), dailyNotesRouteCategory());
+  else if (action === "export-drafts") await exportDraftArchive();
 }
 function registerDailyNotesEvents() {
   if (notesEventsRegistered) return;
   notesEventsRegistered = true;
   registerNotesInputEvents();
+  window.addEventListener("haoduoyu:before-refresh", (event) => {
+    if (typeof event.detail?.waitUntil !== "function" || notesIdentity !== notesIdentityNow()) return;
+    const resumes = [], expected = notesIdentityNow(), root = document.querySelector("#daily-notes");
+    const controls = [...root?.querySelectorAll("button,input,select") || []].map((control) => [control, control.disabled]);
+    const field2 = root?.querySelector("#notes-active-entry textarea"), readOnly = field2?.readOnly;
+    const wasInert = root?.inert;
+    notesRefreshPaused = true;
+    if (root) root.inert = true;
+    for (const [control] of controls) control.disabled = true;
+    if (field2) field2.readOnly = true;
+    event.detail.onFailure?.(() => {
+      for (const resume of resumes) resume();
+      if (expected !== notesIdentityNow()) return;
+      notesRefreshPaused = false;
+      if (root) root.inert = wasInert;
+      for (const [control, disabled] of controls) control.disabled = disabled;
+      if (field2) field2.readOnly = readOnly;
+      paintDailyNotesPage();
+    });
+    try {
+      for (const store of entryStores.values()) resumes.push(store.pauseAutosave());
+      if (field2) entryStores.get(field2.dataset.category)?.edit(
+        field2.dataset.noteEntryEditor,
+        field2.value,
+        { composing: field2.dataset.composing === "true" }
+      );
+      const offline = getOfflineRuntime();
+      const writes = [...notesStores.keys()].map((category) => captureNotesDrafts(notesStores.get(category), entryStores.get(category), category));
+      event.detail.waitUntil(Promise.allSettled(writes).then((results) => {
+        const failed = results.find((result) => result.status === "rejected");
+        if (failed) throw failed.reason;
+        return offline?.flushDrafts();
+      }).then(() => {
+        if (expected !== notesIdentityNow()) throw new Error("REFRESH_IDENTITY_CHANGED");
+      }));
+    } catch (error) {
+      event.detail.waitUntil(Promise.reject(error));
+    }
+  });
+  onOfflineRuntime((offline) => {
+    let signature = "";
+    offline.subscribe((value) => {
+      const next = JSON.stringify([value.pending, value.conflicts, value.lastSuccess, value.phase]);
+      if (next === signature || value.phase === "syncing") return;
+      signature = next;
+      if (notesVisible() && entryStore && hydrationReady.has(entryStore)) void entryStore.read(dailyNotesRouteDate(), { localOnly: true });
+    });
+  });
   document.addEventListener("click", (event) => {
     void handleNotesClick(event);
   });
@@ -5594,8 +6505,10 @@ function registerDailyNotesEvents() {
 async function loadDailyNotes() {
   registerDailyNotesEvents();
   setDailyNotesRouteDate(dailyNotesRouteDate());
-  const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate();
+  const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), expected = notesIdentityNow();
   await Promise.all([store.read(date), entries.read(date)]);
+  if (expected !== notesIdentityNow()) return;
+  await hydrateNotesDrafts(store, entries, category);
   paintDailyNotesPage();
 }
 
@@ -5622,8 +6535,8 @@ function flatNoteRow(note, store) {
   const s = store.state, group = s.groups.find((row) => row.id === note.group_id);
   const deleted2 = Boolean(note.deleted_at || group?.deleted_at), extra = ' data-memo-target="' + e(note.id) + '"';
   const control = !s.canEdit ? "" : s.trash ? button("restore-note", "恢复", extra) : button("delete-note", "×", extra + ' aria-label="删除' + e(note.title) + '" title="移至回收站"');
-  const removed = note.deleted_at || group?.deleted_at;
-  const days = removed ? Math.max(0, 30 - Math.floor((Date.now() - Date.parse(removed)) / 864e5)) : 0;
+  const removed2 = note.deleted_at || group?.deleted_at;
+  const days = removed2 ? Math.max(0, 30 - Math.floor((Date.now() - Date.parse(removed2)) / 864e5)) : 0;
   const retention = s.trash ? '<small class="memo-retention">' + (days ? "30天恢复期 · 剩余" + days + "天" : "已归档 · 可恢复") + "</small>" : "";
   return '<div class="memo-flat-row">' + listButton("note", note, s.noteId) + control + retention + "</div>";
 }
@@ -5753,7 +6666,7 @@ function recoveredDraft(raw) {
 }
 function makeContext(options2) {
   const { request, ownerId = "", storage: storage2, onChange = () => {
-  }, uuid = () => globalThis.crypto.randomUUID(), delay = 700 } = options2;
+  }, uuid: uuid2 = () => globalThis.crypto.randomUUID(), delay = 700 } = options2;
   const state2 = {
     groups: [],
     notes: [],
@@ -5767,8 +6680,8 @@ function makeContext(options2) {
     operation: null,
     storageError: ""
   };
-  const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request, ownerId, storage: storage2, uuid, delay, disposed: false, hydrated: false, loadSequence: 0 };
-  context.draftScope = options2.draftScope || uuid();
+  const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request, ownerId, storage: storage2, uuid: uuid2, delay, disposed: false, hydrated: false, loadSequence: 0 };
+  context.draftScope = options2.draftScope || uuid2();
   context.restoreDraftScope = options2.restoreDraftScope;
   context.storagePersistent = options2.storagePersistent !== false && Boolean(options2.draftScope);
   context.online = options2.online || (() => globalThis.navigator?.onLine !== false);
@@ -6384,7 +7297,7 @@ function snapshots(storage2, ownerId) {
   return rows.sort((a, b) => b.savedAt.localeCompare(a.savedAt)).slice(0, 100);
 }
 function label2(row, index) {
-  const timestamp2 = Date.parse(row.savedAt), date = Number.isFinite(timestamp2) ? new Date(timestamp2).toLocaleString() : "保存时间未知";
+  const timestamp3 = Date.parse(row.savedAt), date = Number.isFinite(timestamp3) ? new Date(timestamp3).toLocaleString() : "保存时间未知";
   return index + 1 + ". " + (row.raw.title || "未命名笔记") + " · " + date + " · 版本 " + row.raw.version;
 }
 function openMemoRecovery(root, store, ownerId) {
@@ -7505,7 +8418,7 @@ function validArticle(value, id) {
 function verificationIntent(index, done) {
   return `第 ${index + 1} 项设为${done ? "已处理" : "待处理"}`;
 }
-function createArticleVerificationStore({ article, load, put, uuid = () => crypto.randomUUID(), onChange = () => {
+function createArticleVerificationStore({ article, load, put, uuid: uuid2 = () => crypto.randomUUID(), onChange = () => {
 }, isCurrent = () => true }) {
   let current = copy(article), phase = "idle", message = "", pending = null, busy = false, retryReady = false;
   const snapshot = () => ({ article: copy(current), phase, message, busy, retryReady });
@@ -7581,9 +8494,9 @@ function createArticleVerificationStore({ article, load, put, uuid = () => crypt
     try {
       const remote = await load(current.id);
       if (validArticle(remote, current.id) && remote.version >= current.version) {
-        const matches = same(remote.verify_items, current.verify_items);
+        const matches2 = same(remote.verify_items, current.verify_items);
         received(remote);
-        if (!matches) {
+        if (!matches2) {
           phase = "conflict";
           message = "保存后记录又有更新，已显示最新内容。";
         }
@@ -7597,7 +8510,7 @@ function createArticleVerificationStore({ article, load, put, uuid = () => crypt
     if (current.verify_items[index].done === done) return;
     const items = copy(current.verify_items);
     items[index].done = done;
-    pending = { index, done, before: copy(current.verify_items), body: { version: current.version, verify_items: items }, key: uuid() };
+    pending = { index, done, before: copy(current.verify_items), body: { version: current.version, verify_items: items }, key: uuid2() };
     busy = true;
     try {
       await send();
@@ -7873,9 +8786,9 @@ function renderArticleDetailBody(a, view = { phase: "idle", busy: false, retryRe
 function renderArticleAnalytics(a) {
   const unconfirmed = hasRecordedUnknownMetrics(a);
   if (!isPublished2(a) && !unconfirmed) return '<section class="detail-section article-unpublished"><h3>阅读与复盘</h3><strong>未发布</strong><p class="cell-sub">发布后再记录阅读指标和复盘节点。</p></section>';
-  const timeline = a.timeline || a.observations || [], nodes = a.nodes || [], missing2 = unconfirmed ? "未取得" : "未采集";
+  const timeline = a.timeline || a.observations || [], nodes = a.nodes || [], missing4 = unconfirmed ? "未取得" : "未采集";
   const summary = unconfirmed && a.latest_metrics == null ? '<p class="cell-sub">最新汇总指标未取得。</p>' : metricSummary(a);
-  return `${unconfirmed ? '<section class="detail-section"><h3>状态未确认</h3><p>以下为已有指标与历史记录。</p></section>' : ""}${summary}<p class="cell-sub">截至 ${a.latest_metrics == null ? missing2 : e(displayTime(a.latest_as_of))} · 采集于 ${a.latest_metrics == null ? missing2 : e(displayTime(a.latest_collected_at))}</p><section class="detail-section">${unconfirmed ? "" : `<h3>观察节点</h3><ol class="snapshot-nodes">${nodes.map((n) => {
+  return `${unconfirmed ? '<section class="detail-section"><h3>状态未确认</h3><p>以下为已有指标与历史记录。</p></section>' : ""}${summary}<p class="cell-sub">截至 ${a.latest_metrics == null ? missing4 : e(displayTime(a.latest_as_of))} · 采集于 ${a.latest_metrics == null ? missing4 : e(displayTime(a.latest_collected_at))}</p><section class="detail-section">${unconfirmed ? "" : `<h3>观察节点</h3><ol class="snapshot-nodes">${nodes.map((n) => {
     const unknown = n.kind !== "latest" && a.date_status === "unverified" && !n.snapshot, status = unknown ? "unknown" : n.status, label3 = unknown ? "日期待核实" : { recorded: "已记录", before_due: "记录早于节点", not_due: "未到期", not_collected: "未采集" }[status] || "状态未知";
     return `<li class="node ${e(status)}"><strong>${e(kindLabels[n.kind] || n.kind)}</strong><span>${e(label3)}</span><small>${e(displayTime(
       n.snapshot?.as_of || n.due_at
@@ -8316,10 +9229,10 @@ function articleTime(value, label3, original) {
   if (original && raw === localDateTime(original)) return new Date(original).toISOString();
   return stamp2.toISOString();
 }
-function mergedObject(original, fields) {
+function mergedObject(original, fields2) {
   if (original != null && !objectValue(original)) throw new Error("原记录的 JSON 字段无法安全编辑，请重新打开核对。");
   const result = original == null ? {} : structuredClone(original);
-  for (const [key, value] of Object.entries(fields)) {
+  for (const [key, value] of Object.entries(fields2)) {
     if (value !== null || Object.hasOwn(result, key)) result[key] = value;
   }
   return Object.keys(result).length || original != null ? result : null;
@@ -8399,11 +9312,11 @@ async function reconcileArticleSave(cache, request, isCurrent) {
   if (savedArticle(remote, cache.saveAttempt)) return remote;
   throw uncertainArticleSave(cache, "保存结果与当前记录未能确认一致，当前表单不会再次提交。请重新打开最新记录核对。");
 }
-async function saveArticleForm({ form, data }, { request = api, uuid = () => crypto.randomUUID() } = {}) {
+async function saveArticleForm({ form, data }, { request = api, uuid: uuid2 = () => crypto.randomUUID() } = {}) {
   const cache = articleFormRecord(form), isCurrent = () => articleFormCurrent(form, cache);
   if (cache.saveAttempt) throw new Error("此表单已有保存请求，请关闭后核对文章列表或最新详情，不要重复新建。");
   const body = buildArticleFormPayload(data, cache.record), id = form.dataset.id || "";
-  cache.saveAttempt = { id, body: structuredClone(body), key: uuid(), phase: "saving" };
+  cache.saveAttempt = { id, body: structuredClone(body), key: uuid2(), phase: "saving" };
   let value;
   try {
     value = await request(id ? `/articles/${encodeURIComponent(id)}` : "/articles", {
@@ -8788,6 +9701,56 @@ function registerEvents2() {
 
 // web/offline/sw-client.mjs
 var VERSION = /^[a-f0-9]{64}$/;
+async function beforeRefresh(page) {
+  const pending = [], failures = [];
+  let collecting = true, dispatchError;
+  const detail = Object.freeze({
+    waitUntil(promise) {
+      if (!collecting) throw new Error("REFRESH_WAIT_CLOSED");
+      pending.push(Promise.resolve(promise));
+    },
+    onFailure(callback) {
+      if (!collecting || typeof callback !== "function") throw new Error("REFRESH_FAILURE_CALLBACK_INVALID");
+      failures.push(callback);
+    }
+  });
+  const fail4 = (error) => Promise.allSettled(failures.map((callback) => Promise.resolve().then(() => callback(error))));
+  try {
+    page.dispatchEvent(new page.CustomEvent("haoduoyu:before-refresh", { detail }));
+  } catch (error) {
+    dispatchError = error;
+  }
+  collecting = false;
+  const results = await Promise.allSettled(pending);
+  const rejected = results.find((result) => result.status === "rejected");
+  if (dispatchError || rejected) {
+    const error = dispatchError || rejected.reason;
+    await fail4(error);
+    throw error;
+  }
+  return fail4;
+}
+function updateAction(page, button2, activate) {
+  let preparing = false, activated = false;
+  return async () => {
+    if (preparing || activated) return;
+    preparing = true;
+    button2.disabled = true;
+    let onFailure;
+    try {
+      onFailure = await beforeRefresh(page);
+      activated = activate();
+      if (!activated) throw new Error("REFRESH_ACTIVATION_UNAVAILABLE");
+    } catch (error) {
+      if (onFailure) await onFailure(error);
+      button2.textContent = onFailure ? "更新失败，点此重试" : "草稿保存失败，点此重试";
+      button2.setAttribute("aria-label", button2.textContent);
+    } finally {
+      preparing = false;
+      if (!activated) button2.disabled = false;
+    }
+  };
+}
 async function startServiceWorker({
   navigator: browser = globalThis.navigator,
   window: page = globalThis.window,
@@ -8798,7 +9761,7 @@ async function startServiceWorker({
   const serviceWorker = browser.serviceWorker;
   const version = document2.querySelector('meta[name="haoduoyu-shell-version"]')?.content;
   const cleanups = [];
-  let registration, button2, optedIn = false, reloaded = false;
+  let registration, button2, optedIn = false, reloaded = false, destroyed = false;
   function listen(target, type, callback) {
     target.addEventListener(type, callback);
     cleanups.push(() => target.removeEventListener(type, callback));
@@ -8819,16 +9782,23 @@ async function startServiceWorker({
     button2.className = "sw-update-notice";
     button2.textContent = "有新版本";
     button2.setAttribute("aria-label", "有新版本，点此更新");
-    listen(button2, "click", () => {
-      if (optedIn || !registration.waiting) return;
+    button2.setAttribute("aria-live", "polite");
+    listen(button2, "click", updateAction(page, button2, () => {
+      const update = registration.waiting || (waiting.state === "activated" ? waiting : null);
+      if (destroyed || !update || update.state === "redundant") return false;
       optedIn = true;
-      button2.disabled = true;
-      const update = registration.waiting;
       listen(update, "statechange", () => {
         if (update.state === "activated") reload();
       });
-      update.postMessage({ type: "HAODUOYU_SHELL_ACTIVATE" });
-    });
+      try {
+        update.postMessage({ type: "HAODUOYU_SHELL_ACTIVATE" });
+      } catch (error) {
+        optedIn = false;
+        throw error;
+      }
+      if (update.state === "activated") reload();
+      return true;
+    }));
     document2.body.append(button2);
   }
   function watchInstall() {
@@ -8862,6 +9832,7 @@ async function startServiceWorker({
       });
     });
     return { registration, destroy() {
+      destroyed = true;
       for (const remove of cleanups) remove();
       button2?.remove();
     } };

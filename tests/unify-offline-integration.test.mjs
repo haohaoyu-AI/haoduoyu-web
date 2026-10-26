@@ -26,6 +26,8 @@ function fixture(t) {
     if (path.startsWith('/todos?')) return {date, today: '2026-10-26', completed_mode: 'strike', preferences_version: 0,
       items: [...remote.values()].filter(row => !row.deleted_at)};
     if (path === '/todo-templates' && !opts.method) return {items: [...templates.values()].filter(row => !row.deleted)};
+    if (path.startsWith('/note-entries?')) return {category: new URL('https://fixture.invalid' + path).searchParams.get('category'),
+      date: new URL('https://fixture.invalid' + path).searchParams.get('date'), can_edit: true, entries: []};
     const type = path.startsWith('/todo-templates') ? 'template' : 'todo', rows = type === 'todo' ? remote : templates;
     const id = opts.body?.id || path.split('/')[2], old = rows.get(id), body = opts.body;
     if (opts.method === 'POST' && ['/todos', '/todo-templates'].includes(path)) {
@@ -40,7 +42,8 @@ function fixture(t) {
     }
     return {can_edit: true, date, text: '合成只读内容', entries: [], groups: [], notes: []};
   }
-  const app = createOfflineRuntime({db, request, now: () => Date.parse(stamp), online: () => source.online});
+  const app = createOfflineRuntime({db, request, now: () => Date.parse(stamp), online: () => source.online,
+    features: {todos: true, notes: false, memos: false}});
   t.after(() => app.stop());
   return {app, db, calls, source, remote, templates, request};
 }
@@ -177,6 +180,37 @@ test('entity lookup racing an identity switch cannot enqueue old entity data und
   await assert.rejects(result, error => error.code === 'OFFLINE_SCOPE_CHANGED');
   assert.equal((await app.queue()).operations.length, 0);
 });
+test('B2 per-call cancellation after an awaited entity lookup prevents durable local writes', async t => {
+  const f = fixture(t); await initialize(f);
+  let cancelled = false, holding = false, release, entered;
+  const blocked = new Promise(resolve => { entered = resolve; }), gate = new Promise(resolve => { release = resolve; });
+  const db = {transaction: async (names, mode, callback) => {
+    const result = await f.db.transaction(names, mode, callback);
+    if (holding && mode === 'readonly' && names.includes('entities')) { entered(); await gate; }
+    return result;
+  }};
+  const app = createOfflineRuntime({db, request: f.request}); await app.call('/auth/me'); holding = true;
+  const result = app.call('/todos', {method: 'POST', body: {id: randomUUID(), date, text: '旧调用不得落盘'},
+    offlineGuard: () => { if (cancelled) throw new DOMException('cancelled', 'AbortError'); }});
+  result.catch(() => {}); await blocked; cancelled = true; release();
+  await assert.rejects(result, error => error.name === 'AbortError');
+  assert.equal((await app.queue()).operations.length, 0);
+});
+test('a late status refresh cannot replace a newer durable queue count with an earlier read', async t => {
+  const f = fixture(t); await initialize(f); f.source.online = false;
+  await f.app.call('/todos', {method: 'POST', body: {id: randomUUID(), date, text: '第一条'}});
+  let hold = false, release, entered;
+  const gate = new Promise(resolve => { release = resolve; }), blocked = new Promise(resolve => { entered = resolve; });
+  const db = {transaction: async (names, mode, callback) => {
+    const result = await f.db.transaction(names, mode, callback);
+    if (hold && mode === 'readonly' && names.includes('outbox')) { hold = false; entered(); await gate; }
+    return result;
+  }};
+  const app = createOfflineRuntime({db, request: f.request, online: () => false}); await app.call('/auth/me'); hold = true;
+  const old = app.refresh(); await blocked;
+  await app.call('/todos', {method: 'POST', body: {id: randomUUID(), date, text: '第二条'}});
+  assert.equal(app.state.pending, 2); release(); await old; assert.equal(app.state.pending, 2);
+});
 test('template additions keep today-added linkage and deleted templates do not reappear offline', async t => {
   const f = fixture(t); await initialize(f); f.source.online = false;
   const templateId = randomUUID();
@@ -244,8 +278,8 @@ test('conflict choices retain both bodies until an actual supported resolution',
   const id = randomUUID(), key = entityKey(scope, 'conflict:synthetic'), local = {id, text: '本地全文'}, remote = {id, text: '线上全文'};
   await f.db.transaction(['entities', 'outbox', 'conflicts'], 'readwrite', async tx => {
     await tx.put('entities', {key: entityKey(scope, 'todo:' + id), scope, entity_id: 'todo:' + id, local, server: remote, dirty: true, conflict: key});
-    await tx.put('conflicts', {key, scope, entity_id: 'todo:' + id, operation: {entity_type: 'todo', protocol: 1,
-      source_id: id, entity_id: 'todo:' + id, method: 'POST', path: '/todos'}, local, remote, resolved_at: null});
+    await tx.put('conflicts', {key, scope, entity_id: 'todo:' + id, local, remote, resolved_at: null,
+      operation: {entity_type: 'todo', protocol: 1, source_id: id, entity_id: 'todo:' + id, method: 'POST', path: '/todos'}});
   });
   for (const choice of ['use-local', 'keep-both']) {
     assert.equal((await f.app.resolve(key, choice)).needs_followup, true);

@@ -13,14 +13,73 @@ function setup(request, options = {}) {
 }
 const get = (db, store, key) => db.transaction([store], 'readonly', tx => tx.get(store, key));
 const all = (db, store) => db.transaction([store], 'readonly', tx => tx.getAll(store));
+test('B2 per-call cancellation during a durable transaction rolls back both entity and operation', async () => {
+  const app = setup(async () => assert.fail('cancelled operation must never send'));
+  let checkpoints = 0;
+  await assert.rejects(app.outbox.enqueue({...note(), assertActive() {
+    if (++checkpoints === 4) throw new DOMException('cancelled', 'AbortError');
+  }}), error => error.name === 'AbortError');
+  assert.equal(checkpoints, 4);
+  assert.deepEqual(await all(app.db, 'entities'), []);
+  assert.deepEqual(await all(app.db, 'outbox'), []);
+});
+test('importing an uncertain note atomically starts unknown and checks its original receipt before any write', async () => {
+  const calls = [], id = randomUUID(), save_id = randomUUID(); let operation;
+  const app = setup(async (path, opts = {}) => {
+    calls.push({path, method: opts.method || 'GET'});
+    if (path.includes('/operations/')) return {found: true, id, version: 1, content_hash: 'c'.repeat(64)};
+    if (opts.method) assert.fail('receipt-confirmed uncertain import must not be rewritten');
+    return noteResponse(operation);
+  });
+  const input = {...note('原未确认正文', 0, id), initial_status: 'unknown'}; input.body.save_id = save_id;
+  const saved = await app.outbox.enqueue(input); operation = saved.operation;
+  assert.equal((await all(app.db, 'outbox'))[0].status, 'unknown');
+  assert.deepEqual(operation.body, input.body);
+  const again = await app.outbox.enqueue(input);
+  assert.equal(again.operation.id, operation.id); assert.equal((await all(app.db, 'outbox')).length, 1);
+  await app.outbox.drain(); assert.equal(calls[0].path, '/note-entries/operations/' + save_id);
+  assert.equal(calls.filter(row => row.method !== 'GET').length, 0);
+});
+test('uncertain imports require the existing save id and cannot change its body or release later FIFO edits early', async () => {
+  const app = setup(async () => { throw new Error('receipt unavailable'); });
+  await assert.rejects(app.outbox.enqueue({...note(), initial_status: 'unknown'}), /original save_id/);
+  const input = {...note('原内容'), initial_status: 'unknown'}; input.body.save_id = randomUUID();
+  const first = await app.outbox.enqueue(input);
+  await assert.rejects(app.outbox.enqueue({...input, body: {...input.body, text: '偷换内容'}}), /cannot change/);
+  await app.outbox.enqueue({...note('后续内容', 1, first.operation.source_id), body:
+    {...note('后续内容', 1).body, save_id: randomUUID()}});
+  await app.outbox.drain();
+  const rows = await app.outbox.list(scope); assert.equal(rows[0].status, 'unknown'); assert.equal(rows[1].status, 'queued');
+});
 function note(text = '本机正文', version = 0, id = randomUUID()) {
   return {scope, entity_type: 'note_entry', entity_id: id, method: 'PUT',
     body: {category: 'life', date, text, version}, local: {category: 'life', date, text}};
 }
 function noteResponse(operation) {
   return {...operation.body, id: operation.source_id, version: operation.expected_version + 1,
-    can_edit: true, deleted_at: null, content_hash: 'c'.repeat(64)};
+    can_edit: true, deleted: false, deleted_at: null, content_hash: 'c'.repeat(64), change_seq: 1,
+    created_at: '2026-10-26T01:00:00Z', updated_at: '2026-10-26T01:00:00Z'};
 }
+test('a note HTTP success without complete server hash, sequence and timestamps cannot acknowledge a durable operation', async () => {
+  let operation;
+  const app = setup(async () => ({...noteResponse(operation), content_hash: undefined, change_seq: undefined}));
+  operation = (await app.outbox.enqueue(note())).operation;
+  assert.equal((await app.outbox.drain()).phase, 'pending');
+  const [pending] = await app.outbox.list(scope); assert.equal(pending.status, 'unknown');
+  assert.equal((await get(app.db, 'entities', entityKey(scope, operation.entity_id))).dirty, true);
+});
+test('the daily note capacity is checked inside the entity/outbox transaction before acknowledging another local create', async () => {
+  const app = setup(async () => assert.fail('offline capacity must not send'));
+  await app.db.transaction(['entities'], 'readwrite', async tx => {
+    for (let n = 0; n < 200; n++) {
+      const id = randomUUID(), entity_id = 'note-entry:' + id;
+      await tx.put('entities', {key: entityKey(scope, entity_id), scope, entity_id,
+        server: {id, category: 'life', date, text: '合成容量项', version: 1, deleted: false}});
+    }
+  });
+  await assert.rejects(app.outbox.enqueue(note()), error => error.code === 'OFFLINE_CACHE_LIMIT');
+  assert.equal((await all(app.db, 'entities')).length, 200); assert.deepEqual(await all(app.db, 'outbox'), []);
+});
 
 test('enqueue commits entity and outbox together before returning, and never claims network success offline', async () => {
   let calls = 0;
@@ -107,7 +166,7 @@ test('three changes of an entity are sent in durable sequence and later edits wa
   const app = setup(async (path, opts) => {
     versions.push(opts.body.version);
     if (versions.length === 1) await gate;
-    return {...opts.body, id, version: opts.body.version + 1, can_edit: true, deleted_at: null};
+    return noteResponse({body: opts.body, source_id: id, expected_version: opts.body.version});
   });
   await app.outbox.enqueue(note('one', 1, id)); await app.outbox.enqueue(note('two', 2, id));
   await app.outbox.enqueue(note('three', 3, id));
@@ -123,7 +182,7 @@ test('two tabs share the atomic lease and do not concurrently send one operation
   const db = createMemoryDB(), calls = []; let release;
   const gate = new Promise(resolve => { release = resolve; });
   const request = async (path, opts) => { calls.push(path); await gate;
-    return {...opts.body, id: path.split('/').at(-1), version: 1, deleted_at: null, can_edit: true}; };
+    return noteResponse({body: opts.body, source_id: path.split('/').at(-1), expected_version: 0}); };
   const one = setup(request, {db}), two = setup(request, {db});
   await one.outbox.enqueue(note()); const running = one.outbox.drain();
   while (!calls.length) await new Promise(resolve => setImmediate(resolve));

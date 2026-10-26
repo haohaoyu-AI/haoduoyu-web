@@ -2,8 +2,10 @@ import {openOfflineDB, offlineValue} from './db.mjs';
 import {createOfflineCache, identityFingerprint, offlineReadRoute, safeIdentity} from './cache.mjs';
 import {createOutbox} from './outbox.mjs';
 import {createSnapshotSync} from './sync.mjs';
+import {createNoteMutations, noteMutationRoute} from './note-mutations.mjs';
+import {createDraftJournal} from './drafts.mjs';
 
-export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: false, memos: false});
+export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: false});
 const scopePattern = /^[a-f0-9]{64}$/;
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const networkFailure = error => error?.code === 'NETWORK_UNAVAILABLE' || error?.code === 'OFFLINE_NETWORK';
@@ -69,7 +71,8 @@ function runtimeContext(options) {
   const context = {db, request, now, uuid, online, onIdentity, features, state, cache, emit, listeners,
     generation: 0, authFlight: null, syncFlight: null, timer: null, channel: null, stopped: false};
   const send = async (path, opts) => {
-    if (opts?.method && !['GET', 'HEAD'].includes(opts.method.toUpperCase()) && !writableRoute(path, opts, features))
+    if (opts?.method && !['GET', 'HEAD'].includes(opts.method.toUpperCase()) &&
+        !writableRoute(path, opts, features) && !noteMutationRoute(path, opts, features))
       throw fail('此本机操作需新版页面处理，原内容已保留。', 'OFFLINE_UPGRADE_REQUIRED');
     if (!online() || !state.verifiedScope || state.verifiedScope !== state.scope) throw offlineError();
     const owner = state.scope, generation = context.generation;
@@ -85,7 +88,7 @@ function runtimeContext(options) {
     }
   };
   context.outbox = createOutbox({db, request: send, getScope: () => state.scope, now, uuid, timeout: options.timeout,
-    enabledTypes: features.todos ? ['todo', 'template'] : [], supportedProtocols: [1]});
+    enabledTypes: [...(features.todos ? ['todo', 'template'] : []), ...(features.notes ? ['note_entry'] : [])], supportedProtocols: [1]});
   context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
   return context;
 }
@@ -167,10 +170,11 @@ function identityActions(context) {
 function stateActions(context) {
   const {state, outbox, emit, online} = context;
   async function refresh() {
+    const sequence = context.refreshSequence = (context.refreshSequence || 0) + 1;
     if (!state.scope) { emit(); return {...state}; }
     const owner = state.scope, generation = context.generation;
     const [pending, conflicts] = await Promise.all([outbox.list(owner), outbox.conflicts.list(owner)]);
-    if (owner !== state.scope || generation !== context.generation) return {...state};
+    if (sequence !== context.refreshSequence || owner !== state.scope || generation !== context.generation) return {...state};
     state.pending = pending.length; state.conflicts = conflicts.length; state.online = online() && state.online;
     state.unsupported = pending.filter(row => !outbox.canDispatch(row)).length;
     if (state.phase !== 'syncing') state.phase = state.unsupported ? 'upgrade-required' : conflicts.length ? 'conflict' : state.online ?
@@ -205,6 +209,7 @@ function syncActions(context) {
       state.phase = 'syncing'; emit();
       await outbox.resume(state.scope);
       await outbox.drain();
+      if (state.verifiedScope) await context.cache.captureDocuments();
       if (state.verifiedScope) {
         await snapshot.pull({date: today(now)});
         if (context.lastTodoPath) {
@@ -290,6 +295,8 @@ function mutationActions(context) {
     const {offlineGuard: guard = () => {}, ...options} = input;
     guard();
     const method = (options.method || 'GET').toUpperCase(), route = writableRoute(path, options, features);
+    const noteRoute = noteMutationRoute(path, options, features);
+    if (noteRoute) return context.noteMutations.mutate(path, options, noteRoute, guard);
     if (path === '/auth/me' && method === 'GET') return options.context || options.signal ? context.authenticate(options) : context.verify();
     if (['/auth/login', '/auth/logout'].includes(path) && method === 'POST') {
       const value = await context.request(path, options); await context.invalidate({forget: true}); return value;
@@ -320,7 +327,7 @@ function mutationActions(context) {
       const kind = offlineReadRoute(path).kind;
       if (kind === 'overview') state.cachedAt = cached.saved_at;
       if (kind === 'todo') state.partial = cached.data.offline_partial === true;
-      const data = ['legacy', 'note_entries', 'note_entry', 'memos', 'memo_note'].includes(kind) ?
+      const data = ['legacy', ...(!features.notes ? ['note_entries', 'note_entry'] : []), 'memos', 'memo_note'].includes(kind) ?
         {...cached.data, can_edit: false, ...(Array.isArray(cached.data.entries) ?
           {entries: cached.data.entries.map(entry => ({...entry, can_edit: false}))} : {})} : cached.data;
       await context.refresh(); return data;
@@ -359,8 +366,12 @@ export function createOfflineRuntime(options) {
   const context = runtimeContext(options);
   Object.assign(context, identityActions(context), stateActions(context), syncActions(context), lifecycleActions(context));
   Object.assign(context, mutationActions(context));
+  context.noteMutations = createNoteMutations(context);
+  const drafts = createDraftJournal({db: context.db, getScope: () => context.state.scope, getGeneration: () => context.generation, now: context.now});
   return {call: context.call, sync: context.sync, start: context.start, stop: context.stop, refresh: context.refresh,
     queue: context.queue, resolve: context.resolve, invalidate: context.invalidate, state: context.state,
+    localRead: async path => (await context.cache.read(path)).data,
+    retainDrafts: drafts.capture, retainedDrafts: drafts.list, flushDrafts: drafts.flush,
     subscribe(callback) { context.listeners.add(callback); callback({...context.state}); return () => context.listeners.delete(callback); }};
 }
 
@@ -381,12 +392,12 @@ export async function offlineRequest(path, options, request, onIdentity, assertA
   try { runtime = await initialization; }
   catch {
     assertActive();
-    if (writableRoute(path, options, OFFLINE_FEATURES))
+    if (writableRoute(path, options, OFFLINE_FEATURES) || noteMutationRoute(path, options, OFFLINE_FEATURES))
       throw fail('浏览器无法保存本机数据，本次修改未保存；输入已保留。', 'OFFLINE_STORAGE_UNAVAILABLE');
     return request(path, options);
   }
   assertActive();
-  const managed = offlineReadRoute(path) || writableRoute(path, options, OFFLINE_FEATURES) ||
+  const managed = offlineReadRoute(path) || writableRoute(path, options, OFFLINE_FEATURES) || noteMutationRoute(path, options, OFFLINE_FEATURES) ||
     ['/auth/me', '/auth/login', '/auth/logout'].includes(path);
   if (!managed) return runtime.call(path, {...options, offlineGuard: assertActive});
   const {envelope = false, ...opts} = options;
