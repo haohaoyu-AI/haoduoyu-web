@@ -49,6 +49,7 @@ jobs:
           export JAVA_HOME="$JAVA_HOME_17_X64"
           export PATH="$JAVA_HOME/bin:$PATH"
           export GRADLE_USER_HOME="$RUNNER_TEMP/haoduoyu-gradle"
+          node --test tests/back-script.test.mjs
           "$RUNNER_TEMP/gradle-8.9/bin/gradle" --version
           "$RUNNER_TEMP/gradle-8.9/bin/gradle" --no-daemon \
             :app:testDebugUnitTest :app:lintDebug :app:assembleDebug

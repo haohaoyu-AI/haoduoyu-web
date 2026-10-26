@@ -41,14 +41,23 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class MainActivity extends Activity {
-    private static final int FILE_REQUEST = 41;
+    private int nextFileRequest = 1000;
+    private int activeFileRequest;
     private static final int PAPER = Color.rgb(247, 239, 231);
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final List<WebView> popups = new ArrayList<>();
+    private final ExecutorService fileChecks = Executors.newSingleThreadExecutor();
+    private String backScript;
     private WebView web;
     private FrameLayout webFrame;
     private LinearLayout errorPanel;
@@ -70,6 +79,7 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle savedState) {
         super.onCreate(savedState);
         buildLayout();
+        backScript = readBackScript();
         createWebView();
         if (Build.VERSION.SDK_INT >= 33) {
             backCallback = this::handleBack;
@@ -111,6 +121,7 @@ public final class MainActivity extends Activity {
         TextView title = new TextView(this);
         title.setText(BuildConfig.DEBUG ? "好多鱼 · 调试自用版" : "好多鱼");
         title.setTextSize(16);
+        title.setGravity(Gravity.CENTER_VERTICAL);
         title.setTextColor(Color.rgb(76, 48, 34));
         toolbar.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1));
         Button more = new Button(this);
@@ -355,10 +366,12 @@ public final class MainActivity extends Activity {
             fileCallback = callback;
             fileDocumentUrl = view.getUrl();
             fileGeneration = documentGeneration;
+            activeFileRequest = nextFileRequest++;
+            if (nextFileRequest > 65000) nextFileRequest = 1000;
             Intent picker = params.createIntent();
             picker.addCategory(Intent.CATEGORY_OPENABLE);
             picker.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE);
-            try { startActivityForResult(picker, FILE_REQUEST); }
+            try { startActivityForResult(picker, activeFileRequest); }
             catch (ActivityNotFoundException | SecurityException error) {
                 cancelFileChooser();
                 showMessage("无法打开系统文件选择器。");
@@ -369,32 +382,56 @@ public final class MainActivity extends Activity {
         @Override public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message message) {
             if (!isUserGesture || !UrlPolicy.isTrustedWebsite(view.getUrl())) return false;
             WebView popup = new WebView(MainActivity.this);
+            popup.getSettings().setAllowFileAccess(false);
+            popup.getSettings().setAllowContentAccess(false);
             popups.add(popup);
+            final long expires = SystemClock.elapsedRealtime() + 4000;
+            final boolean[] consumed = {false};
+            Runnable cleanup = () -> destroyPopup(popup);
+            handler.postDelayed(cleanup, 4000);
             popup.setWebViewClient(new WebViewClient() {
                 @Override public boolean shouldOverrideUrlLoading(WebView child, WebResourceRequest request) {
+                    if (!request.isForMainFrame()) return true;
+                    if (consumed[0] || SystemClock.elapsedRealtime() >= expires) {
+                        handler.post(cleanup);
+                        return true;
+                    }
                     String url = request.getUrl().toString();
                     if ("about:blank".equals(url)) return false;
+                    consumed[0] = true;
                     if (UrlPolicy.isTrustedWebsite(url)) {
                         if (web != null) web.loadUrl(url);
                     } else {
-                        // This transport is created only by a verified user gesture. Never parse intent://.
+                        // Only the first main-frame target of this short-lived, user-created transport.
                         openExternal(url);
                     }
-                    popups.remove(child);
-                    child.post(child::destroy);
+                    handler.post(cleanup);
+                    return true;
+                }
+                @Override public void onPageStarted(WebView child, String url, android.graphics.Bitmap icon) {
+                    if (!"about:blank".equals(url)) {
+                        // POST and other navigations can bypass shouldOverrideUrlLoading. Never forward them.
+                        consumed[0] = true;
+                        child.stopLoading();
+                        handler.post(cleanup);
+                    }
+                }
+                @Override public boolean onRenderProcessGone(WebView child, RenderProcessGoneDetail detail) {
+                    destroyPopup(child);
                     return true;
                 }
             });
             popup.setWebChromeClient(new WebChromeClient() {
-                @Override public void onCloseWindow(WebView child) {
-                    popups.remove(child);
-                    child.destroy();
-                }
+                @Override public void onCloseWindow(WebView child) { handler.post(cleanup); }
             });
             ((WebView.WebViewTransport) message.obj).setWebView(popup);
             message.sendToTarget();
             return true;
         }
+    }
+
+    private void destroyPopup(WebView popup) {
+        if (popups.remove(popup)) popup.destroy();
     }
 
     private void cancelFileChooser() {
@@ -406,24 +443,49 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if (request != FILE_REQUEST || fileCallback == null) return;
-        ValueCallback<Uri[]> pending = fileCallback;
-        String originUrl = fileDocumentUrl;
-        fileCallback = null;
-        fileDocumentUrl = null;
-        Uri[] chosen = null;
-        if (result == RESULT_OK && web != null && fileGeneration == documentGeneration
-                && UrlPolicy.isTrustedWebsite(web.getUrl()) && originUrl != null && originUrl.equals(web.getUrl())) {
-            Uri[] candidates = WebChromeClient.FileChooserParams.parseResult(result, data);
-            if (candidates != null && candidates.length <= 16) {
-                boolean valid = true;
-                for (Uri uri : candidates) {
-                    if (uri == null || !"content".equals(uri.getScheme())) valid = false;
-                }
-                if (valid) chosen = candidates;
-            }
+        if (request != activeFileRequest || fileCallback == null) return;
+        if (result != RESULT_OK) { cancelFileChooser(); return; }
+        final ValueCallback<Uri[]> pending = fileCallback;
+        final String originUrl = fileDocumentUrl;
+        final int originGeneration = fileGeneration;
+        final Uri[] candidates = WebChromeClient.FileChooserParams.parseResult(result, data);
+        if (candidates == null || candidates.length == 0 || candidates.length > 16) {
+            cancelFileChooser();
+            return;
         }
-        pending.onReceiveValue(chosen);
+        // A document provider can be slow. Validate only explicitly selected read-only URIs off the UI thread.
+        fileChecks.execute(() -> {
+            boolean readable = true;
+            for (Uri uri : candidates) {
+                if (uri == null || !"content".equals(uri.getScheme())) { readable = false; break; }
+                try (android.content.res.AssetFileDescriptor fd = getContentResolver().openAssetFileDescriptor(uri, "r")) {
+                    if (fd == null) { readable = false; break; }
+                } catch (IOException | RuntimeException error) { readable = false; break; }
+            }
+            final boolean valid = readable;
+            handler.post(() -> {
+                if (fileCallback != pending) return; // Navigation/cancel/destroy already completed this callback.
+                boolean sameDocument = web != null && originGeneration == documentGeneration
+                        && UrlPolicy.isTrustedWebsite(web.getUrl())
+                        && originUrl != null && originUrl.equals(web.getUrl());
+                fileCallback = null;
+                fileDocumentUrl = null;
+                pending.onReceiveValue(valid && sameDocument ? candidates : null);
+                if (!valid && !isDestroyed()) showMessage("无法读取所选文件，请重新选择。");
+            });
+        });
+    }
+
+    private String readBackScript() {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                getAssets().open("android-back.js"), StandardCharsets.UTF_8))) {
+            StringBuilder script = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) script.append(line).append('\n');
+            return script.toString();
+        } catch (IOException error) {
+            return "(function(){return false;})()";
+        }
     }
 
     private boolean hideKeyboard() {
@@ -457,12 +519,7 @@ public final class MainActivity extends Activity {
         backPending = true;
         final int ticket = ++backGeneration;
         // Reuse the website's own Escape handler instead of mutating its DOM or bypassing draft guards.
-        String script = "(function(){var nodes=document.querySelectorAll('.popover,#overlay .modal,.shell.menu-open,"
-                + ".mobile-notes-nav[open],.mobile-media-nav[open],#todo-history:not([hidden]),#todo-templates:not([hidden])');"
-                + "var open=Array.from(nodes).some(function(n){return n.getClientRects().length>0;});"
-                + "if(open){document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));}"
-                + "return open;})()";
-        current.evaluateJavascript(script, result -> {
+        current.evaluateJavascript(backScript, result -> {
             if (ticket != backGeneration || web != current) return;
             backPending = false;
             if ("true".equals(result)) lastBack = 0;
@@ -507,6 +564,7 @@ public final class MainActivity extends Activity {
     @Override protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
         cancelFileChooser();
+        fileChecks.shutdownNow();
         if (Build.VERSION.SDK_INT >= 33 && backCallback != null) {
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
         }
