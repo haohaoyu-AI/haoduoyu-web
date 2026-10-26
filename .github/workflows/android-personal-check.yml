@@ -137,7 +137,7 @@ jobs:
           }
           suites = [ET.parse(path).getroot() for path in pathlib.Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml')]
           record['jvm_tests'] = {key: sum(int(suite.attrib.get(key, 0)) for suite in suites) for key in ['tests', 'failures', 'errors', 'skipped']}
-          assert record['jvm_tests']['tests'] >= 105
+          assert record['jvm_tests']['tests'] >= 106
           assert record['jvm_tests']['failures'] == record['jvm_tests']['errors'] == record['jvm_tests']['skipped'] == 0
           unsigned = directory / 'haoduoyu-unified-v3-release-unsigned.apk'
           record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'application_id': 'xyz.haoduoyu.personal', 'version_name': '3.0.0', 'version_code': 4, 'min_sdk': 26, 'debuggable': False, 'launcher': 'xyz.haoduoyu.personal.MainActivity', 'installable': False, 'local_signature': 'pending'}
@@ -148,6 +148,17 @@ jobs:
           print(json.dumps(record, indent=2))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
               summary.write('3.0 debug reference cannot replace the original signed app. Release remains unsigned and cannot be installed until the original signing machine signs it. Fixed 2.0.1 contracts and synthetic migration checks are retained. Web readiness and physical-device acceptance remain pending.\n')
+          PY
+      - name: Print synthetic test failures for diagnosis
+        if: ${{ failure() }}
+        working-directory: android
+        run: |
+          python3 - <<'PY'
+          import pathlib, xml.etree.ElementTree as ET
+          for path in pathlib.Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml'):
+              for case in ET.parse(path).getroot().iter('testcase'):
+                  for problem in list(case.findall('failure')) + list(case.findall('error')):
+                      print(path.name, case.attrib.get('name'), problem.text or problem.attrib)
           PY
       - name: Retain verified debug preview for Library delivery
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -34,6 +34,8 @@ public final class LegacyRecoveryActivity extends Activity {
     private LinearLayout listing;
     private Snapshot snapshot;
     private String recordExport = "";
+    private int pendingExport;
+    private String exportArchiveId;
     private int shown;
     private static final class Entry {
         final String section, key; final int index;
@@ -132,7 +134,11 @@ public final class LegacyRecoveryActivity extends Activity {
         Intent picker = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
                 .setType(kind == ORIGINAL ? "application/zip" : kind == JSON ? "application/json" : "text/plain")
                 .putExtra(Intent.EXTRA_TITLE, "haoduoyu-legacy-retained" + suffix);
-        try { startActivityForResult(picker, kind); }
+        try {
+            startActivityForResult(picker, kind);
+            pendingExport = kind;
+            exportArchiveId = snapshot == null ? null : snapshot.archive.archiveId;
+        }
         catch (android.content.ActivityNotFoundException | SecurityException unavailable) { status.setText("没有可用的系统文件保存位置；旧库保留。"); }
     }
     @Override protected void onActivityResult(int request, int result, Intent intent) {
@@ -152,6 +158,11 @@ public final class LegacyRecoveryActivity extends Activity {
                 if (failure != null) status.setText(failure.getMessage()); else display(value, "历史备份（只读；未导入队列）");
             });
         } else if (request == JSON || request == TEXT || request == ORIGINAL || request == RECORD) {
+            if (request != pendingExport || (request != ORIGINAL && (snapshot == null
+                    || !snapshot.archive.archiveId.equals(exportArchiveId))) || (request == RECORD && recordExport.isEmpty())) {
+                status.setText("导出选择已失效，请重新选择当前内容和保存位置；旧库未更改。"); return;
+            }
+            pendingExport = 0;
             Snapshot selected = snapshot; String selectedRecord = recordExport;
             runtime.submit(() -> {
                 try (OutputStream output = getContentResolver().openOutputStream(destination, "w")) {

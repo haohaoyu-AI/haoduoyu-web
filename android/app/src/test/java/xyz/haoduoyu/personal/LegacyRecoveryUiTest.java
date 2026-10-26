@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
@@ -66,7 +67,7 @@ public final class LegacyRecoveryUiTest {
         View empty=find(root,"drafts · empty");assertNotNull(empty);empty.performClick();settle();
         AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();assertNotNull(dialog);
         assertEquals("复制这条",dialog.getButton(AlertDialog.BUTTON_POSITIVE).getText().toString());
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();settle();
         ClipboardManager clipboard=(ClipboardManager)controller.get().getSystemService(Context.CLIPBOARD_SERVICE);
         assertEquals("\"\"",clipboard.getPrimaryClip().getItemAt(0).getText().toString());
         assertArrayEquals(original,store.readRawPayload());assertNull(find(root,"允许公开同步"));
@@ -75,10 +76,20 @@ public final class LegacyRecoveryUiTest {
         seed(true);byte[] original=store.readRawPayload();controller=Robolectric.buildActivity(LegacyRecoveryActivity.class).setup();settle();
         View raw=find(controller.get().findViewById(android.R.id.content),"完整原始状态（包括未知字段）");assertNotNull(raw);raw.performClick();settle();
         AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();assertEquals("导出这条",dialog.getButton(AlertDialog.BUTTON_POSITIVE).getText().toString());
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();settle();
         Intent picker=Shadows.shadowOf(controller.get()).getNextStartedActivityForResult().intent;
         assertEquals(Intent.ACTION_CREATE_DOCUMENT,picker.getAction());assertEquals("text/plain",picker.getType());
         assertArrayEquals(original,store.readRawPayload());
+    }
+    @Test public void staleExportAndNonProviderDestinationsAreRejectedBeforeWriting()throws Exception{
+        seed(false);byte[] original=store.readRawPayload();
+        controller=Robolectric.buildActivity(LegacyRecoveryActivity.class).setup();settle();
+        LegacyRecoveryActivity activity=controller.get();
+        activity.onActivityResult(11,android.app.Activity.RESULT_OK,new Intent().setData(Uri.parse("file:///unselected/old.db")));
+        assertTrue(((TextView)field(LegacyRecoveryActivity.class,"status").get(activity)).getText().toString().contains("仅接受系统文件提供方"));
+        activity.onActivityResult(11,android.app.Activity.RESULT_OK,new Intent().setData(Uri.parse("content://synthetic/stale-result")));
+        assertTrue(((TextView)field(LegacyRecoveryActivity.class,"status").get(activity)).getText().toString().contains("导出选择已失效"));
+        settle();assertArrayEquals(original,store.readRawPayload());
     }
     private static View find(View view,String text){
         if(view instanceof TextView&&text.contentEquals(((TextView)view).getText()))return view;

@@ -42,10 +42,14 @@ public final class SyncEngineTest {
     }
 
     private static JSONObject note(String id, String date, String text, int version) throws Exception {
+        return note(id, date, text, version, "life");
+    }
+    private static JSONObject note(String id, String date, String text, int version, String category) throws Exception {
         JSONObject row = new JSONObject().put("entity_id", "note-entry:" + id).put("entity_type", "life_note")
-                .put("source", "note_entry").put("source_id", id).put("category", "life").put("date", date)
+                .put("source", "note_entry").put("source_id", id).put("category", category).put("date", date)
                 .put("text", text).put("version", version).put("change_seq", version)
                 .put("created_at", STAMP).put("updated_at", STAMP).put("deleted_at", JSONObject.NULL);
+        if ("work".equals(category)) row.put("entity_type", "work_note");
         return hashed(row);
     }
     private static JSONObject todo(String id, String text, int version, boolean complete) throws Exception {
@@ -95,13 +99,13 @@ public final class SyncEngineTest {
                 JSONObject old = rows.get(key);
                 int version = old == null ? 0 : old.getInt("version");
                 if (body.getInt("version") != version) return error(409, "VERSION_CONFLICT");
-                JSONObject row = note(id, body.getString("date"), body.getString("text"), version + 1);
+                JSONObject row = note(id, body.getString("date"), body.getString("text"), version + 1, body.getString("category"));
                 rows.put(key, row);
                 receipts.put(body.getString("save_id"), new JSONObject().put("id", id).put("version", version + 1)
                         .put("deleted_at", JSONObject.NULL).put("change_seq", version + 1).put("content_hash", "raw-row-hash"));
                 if (lostReply) {
                     lostReply = false;
-                    if (laterWebEdit) rows.put(key, note(id, body.getString("date"), "newer web text", version + 2));
+                    if (laterWebEdit) rows.put(key, note(id, body.getString("date"), "newer web text", version + 2, body.getString("category")));
                     throw new IOException("reply lost after commit");
                 }
                 return ok(new JSONObject().put("id", id).put("version", version + 1));
@@ -198,7 +202,8 @@ public final class SyncEngineTest {
             for (String key : keys) {
                 JSONObject row = rows.get(key);
                 if (!row.isNull("date") && !date.equals(row.getString("date"))) continue;
-                String collection = "todo".equals(row.getString("source")) ? "todos" : "life_notes";
+                String collection = "todo".equals(row.getString("source")) ? "todos" :
+                        "work".equals(row.optString("category")) ? "work_notes" : "life_notes";
                 payload.getJSONArray(collection).put(cloneObject(row));
             }
             for (int i = 0; i < descriptors.length(); i++) if (date.equals(descriptors.getJSONObject(i).optString("date"))) selected.put(descriptors.getJSONObject(i));
