@@ -7,6 +7,11 @@ const source=await frontendSource();
 const plain=value=>JSON.parse(JSON.stringify(value));
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
+async function waitForTransport(started) {
+  const deadline=performance.now()+1000;
+  while(!started()&&performance.now()<deadline)await new Promise(resolve=>setTimeout(resolve,0));
+  assert.ok(started(),'the actual API transport must start after offline storage initialization');
+}
 const publishedData=()=>({cumulative:{article_count:1,data_article_count:1,mean_reads:0,coverage:1,
   no_snapshot_count:0,totals:{reads:0,likes:0,comments:0}},accounts:[],platform_comparison:[],
   top_articles:[],trend:[],due_reviews:[]});
@@ -284,13 +289,17 @@ test('switching media pages cancels old requests and late transport completion c
       return Promise.resolve(responseFor(path));
     }});
     const old=app.run('renderPage()');
+    old.catch(()=>{});
+    await waitForTransport(()=>oldHolds.length>0);
     app.run(`state.page=${JSON.stringify(initial==='dashboard'?'articles':'dashboard')}`);phase='current';
     const current=app.run('renderPage()');
+    current.catch(()=>{});
     assert.ok(oldHolds.length>0);assert.ok(oldHolds.every(({call})=>call.options.signal.aborted));
     await old;
     const content=app.nodes.get('#page-content');
     assert.equal(content.attributes['aria-busy'],'true','obsolete finally must not clear the current loading state');
     assert.doesNotMatch(content.innerHTML,/error-panel/);
+    await waitForTransport(()=>Boolean(firstCurrent));
     assert.ok(firstCurrent);currentHold.resolve(responseFor(firstCurrent.path));await current;
     const finished=content.innerHTML;
     assert.match(finished,initial==='dashboard'?/article-ledger-list/:/dashboard-stats/);
