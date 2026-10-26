@@ -41,8 +41,11 @@ public final class LegacyRecoveryRuntime {
     private LegacyRecoveryRuntime(Context supplied) {
         context = supplied.getApplicationContext(); cancelOldJobs(context);
         archives = new LegacyArchiveFiles(new File(context.getNoBackupFilesDir(), "legacy-recovery"), directory -> {
-            FileDescriptor descriptor = Os.open(directory.getAbsolutePath(), OsConstants.O_RDONLY | OsConstants.O_DIRECTORY, 0);
-            try { Os.fsync(descriptor); } finally { Os.close(descriptor); }
+            FileDescriptor descriptor = Os.open(directory.getAbsolutePath(), OsConstants.O_RDONLY, 0);
+            try {
+                if (!OsConstants.S_ISDIR(Os.fstat(descriptor).st_mode)) throw new IOException("备份目录已改变，未确认持久保存");
+                Os.fsync(descriptor);
+            } finally { Os.close(descriptor); }
         });
     }
     public static synchronized LegacyRecoveryRuntime get(Context context) {
