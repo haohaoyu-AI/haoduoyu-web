@@ -68,6 +68,7 @@ jobs:
           sha256sum "$DELIVERY/signing-tool/apksigner.jar" > "$DELIVERY/signing-tool/SHA256SUMS.txt"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" | tee "$DELIVERY/signature-verification.txt"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee "$DELIVERY/apk-badging.txt"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging app/build/outputs/apk/release/app-release-unsigned.apk | tee "$DELIVERY/release-apk-badging.txt"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 "$APK"
           test "$(stat --format='%s' "$APK")" -lt 1048576
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
@@ -77,9 +78,15 @@ jobs:
           apk = directory / 'haoduoyu-personal-offline-v2-debug-preview.apk'
           badging = (directory / 'apk-badging.txt').read_text()
           signature = (directory / 'signature-verification.txt').read_text()
+          release_badging = (directory / 'release-apk-badging.txt').read_text()
           assert "name='xyz.haoduoyu.personal.debug'" in badging
           assert "sdkVersion:'26'" in badging
           assert 'Verified using v2 scheme (APK Signature Scheme v2): true' in signature
+          assert "name='xyz.haoduoyu.personal'" in release_badging
+          assert "versionName='2.0.0'" in release_badging
+          assert "sdkVersion:'26'" in release_badging
+          assert "launchable-activity: name='xyz.haoduoyu.personal.OfflineActivity'" in release_badging
+          assert 'application-debuggable' not in release_badging
           certificate = re.search(r'Signer #1 certificate SHA-256 digest: ([a-fA-F0-9]+)', signature).group(1).lower()
           record = {
               'filename': apk.name,
@@ -102,7 +109,7 @@ jobs:
           assert record['jvm_tests']['tests'] >= 40
           assert record['jvm_tests']['failures'] == record['jvm_tests']['errors'] == 0
           unsigned = directory / 'haoduoyu-personal-offline-v2-release-unsigned.apk'
-          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'installable': False, 'local_signature': 'pending'}
+          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'application_id': 'xyz.haoduoyu.personal', 'version_name': '2.0.0', 'version_code': 2, 'min_sdk': 26, 'debuggable': False, 'launcher': 'xyz.haoduoyu.personal.OfflineActivity', 'installable': False, 'local_signature': 'pending'}
           (directory / 'delivery.json').write_text(json.dumps(record, indent=2) + '\n')
           (directory / 'SHA256SUMS.txt').write_text(record['sha256'] + '  ' + apk.name + '\n')
           print(json.dumps(record, indent=2))
