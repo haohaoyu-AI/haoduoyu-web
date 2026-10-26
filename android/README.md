@@ -2,7 +2,7 @@
 
 当前工程版本：`2.0.0`，`versionCode 2`。默认进入原生本地工作台，待办、备忘录和生活/工作碎碎念通过本地数据层读写，与 `https://haoduoyu.xyz` 的既有 API 共享线上数据。原 WebView 保留为低频功能入口。
 
-状态：离线候选版，debug 暂供测试；release 默认未签名。新增自动化检查待对应提交 CI 实际验证，尚未实机验收。正式交付仍需长期发布签名的针对性批准和实际文件校验。
+状态：2.0.0 原生离线 release 安装包已使用本机专用持久密钥签名，经官方验签、独立 v2 内容摘要和上传后文件校验后交付 Library。实现提交为 `3ed833287675450941e9d870beee956c833f57c6`，CI `40324804635` 的 58 项 JVM/SQLite/原生界面测试及 13 项返回/API 契约测试通过，debug/release lint 与编译通过。尚未实机验收。
 
 ## 本版范围
 
@@ -48,7 +48,7 @@ node --test tests/back-script.test.mjs tests/offline-contract.test.mjs
 gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease
 ~~~
 
-检查包含核心状态/队列、Robolectric SQLite 适配、协议、源 API 契约和原返回回归。新增检查待对应提交 CI 确认；自动化不能替代手机实机验收。
+检查包含核心状态与队列、Robolectric 真实 SQLite 适配和原生界面、协议、源 API 契约及原返回回归。本版本已完成上述自动化验证；自动化不能替代手机实机验收。
 
 - debug：`app/build/outputs/apk/debug/app-debug.apk`
 - release：`app/build/outputs/apk/release/app-release-unsigned.apk`，待签名，不能直接作为可安装正式版交付
@@ -65,7 +65,7 @@ zipalign -c 4 app/build/outputs/apk/debug/app-debug.apk
 
 正式 applicationId 为 `xyz.haoduoyu.personal`；debug 为 `xyz.haoduoyu.personal.debug`，版本名追加 `-debug`。临时调试签名不能冒充稳定发布签名。
 
-当前没有长期发布签名配置。默认不生成私钥、不保存密码、不上传 keystore；创建密钥、保护位置、备份和持续访问须先获针对性批准。同包名覆盖升级必须保持兼容签名；密钥丢失可能导致无法正常覆盖升级。临时 debug 包不能保证后续覆盖升级。
+本版本已在获准的本机用户文档专用私有目录创建加密 PKCS12 发布密钥，密码仅存 Windows 凭据管理器；未将密钥或密码放入仓库、聊天或 Library。后续同包名覆盖升级必须沿用同一签名。独立离线加密备份仍待用户指定受控位置；不得擅自上传秘密。临时 debug 签名不能替代正式签名。
 
 本人收到经核验且已签名的 APK 后，在自己的 Android 8.0+ 手机下载并打开安装。安全或管理策略阻止时停止，不降低安全设置、关闭扫描或绕过限制，不远程安装。
 
