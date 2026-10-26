@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {projectUnifyCIBudget} from './unify-ci-budget-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifyStage2Baseline='72d26abb94d316e08b63cf12924c157f1bc8e3cd';
@@ -37,6 +38,7 @@ export function unifyStage2Manifest() {
 // Behavioral tests exercise the real current modules; this inverse only supplies
 // old presentation bytes to the independent historical contracts.
 export function projectUnifyStage2(file,source) {
+  source=projectUnifyCIBudget(file,source);
   if(!unifyStage2Paths.includes(file))return source;
   const before=unifyStage2Before(file),entry=unifyStage2Manifest().files[file];
   if(source===before)return source;
@@ -74,6 +76,7 @@ function historicalHashes(file) {
   return historicalDigests.get(file);
 }
 export function projectUnifyStage2History(file,source) {
+  source=projectUnifyCIBudget(file,source);
   if(!unifyStage2Paths.includes(file))return source;
   const entry=unifyStage2Manifest().files[file],digest=stage2Hash(source);
   if(digest===entry.after||source===unifyStage2Before(file))return projectUnifyStage2(file,source);
