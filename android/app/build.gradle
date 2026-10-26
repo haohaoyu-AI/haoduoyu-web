@@ -1,0 +1,32 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'xyz.haoduoyu.personal'
+    compileSdk 35
+    buildToolsVersion '35.0.0'
+    defaultConfig {
+        applicationId 'xyz.haoduoyu.personal'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0-preview1'
+    }
+    buildFeatures { buildConfig true }
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+            resValue 'string', 'app_name', '好多鱼自用·调试'
+        }
+        release {
+            minifyEnabled false
+            // Deliberately unsigned. A stable private signing key must stay outside the repository.
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    lint { abortOnError true }
+}
+dependencies { testImplementation 'junit:junit:4.13.2' }

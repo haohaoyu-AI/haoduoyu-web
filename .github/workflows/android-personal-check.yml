@@ -1,0 +1,60 @@
+name: Android personal preview check
+on:
+  push:
+    branches: ['android/personal-v1']
+    paths: ['android/**', '.github/workflows/android-personal-check.yml']
+permissions:
+  contents: read
+concurrency:
+  group: android-personal-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check hosted toolchain and install only missing SDK packages on disposable runner
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          java -version
+          test -n "$ANDROID_HOME"
+          SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDK_MANAGER" --version
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" </dev/null
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/apksigner"
+      - name: Verify pinned Gradle distribution
+        run: |
+          set -euo pipefail
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 2 \
+            https://services.gradle.org/distributions/gradle-8.9-bin.zip \
+            --output "$RUNNER_TEMP/gradle-8.9-bin.zip"
+          printf '%s  %s\n' d725d707bfabd4dfdc958c624003b3c80accc03f7037b5122c4b1d0ef15cecab \
+            "$RUNNER_TEMP/gradle-8.9-bin.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/gradle-8.9-bin.zip" -d "$RUNNER_TEMP"
+      - name: Compile, unit test, lint and inspect debug APK
+        working-directory: android
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          export GRADLE_USER_HOME="$RUNNER_TEMP/haoduoyu-gradle"
+          "$RUNNER_TEMP/gradle-8.9/bin/gradle" --version
+          "$RUNNER_TEMP/gradle-8.9/bin/gradle" --no-daemon \
+            :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
+          sha256sum "$APK"
+          stat --format='APK bytes: %s' "$APK"
+          printf '%s\n' 'Build verified only. No APK artifact, cache, release, deployment or private key is uploaded.' >> "$GITHUB_STEP_SUMMARY"
