@@ -34,6 +34,22 @@ Cloudflare 版本继承以 latest uploaded 版本为来源，不保证是当前�
 
 首次手动发布 [40334078613](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40334078613) 于 2026-10-26 13:50:32 UTC 失败。第六轮 Worker 长度与 SHA-256 验证成功，发布步骤在首个 POST 前报告 `blocked / UNSUPPORTED_CONFIGURATION`。该次没有上传新版本或切换流量；需取得具体校验位置和实际响应形状后修复，不能据此扩大令牌权限或忽略未知配置。
 
+### 仅 GET 的诊断与响应兼容
+
+同一手动工作流增加 `diagnostics_only`（默认 false）。设为 true 时仍核验 main、精确源码、既有 CI、Worker 哈希和输入，然后只读取既有六类 API，不调用上传或部署。成功读取标记为 `diagnosed`，绝不标记为 `deployed`。输出仅有固定白名单字段的类型、未知字段数量和首个失败的固定 `check`；不输出字段值、任意实际字段名、绑定名、数据库 ID、邮箱、用户 JSON、标签或 secret。读取失败仍停止，不重试写请求。
+
+| 原同码位置 | 接受的响应 | 继续拒绝 |
+| --- | --- | --- |
+| `binding.d1.fields` | 官方 `id` 或 `database_id` UUID 别名；双字段须完全一致 | 不同 ID、null/无 ID、`raw`、`internalEnv` 或其他额外配置 |
+| `runtime.compatibility_date` | 合法日历日期或同日精确 `T00:00:00Z`，统一比较与上传为该日期 | 时区偏移、非零时、无效日期、缺省日期或真正改变日期 |
+| `script.fields` / `script.*` | 明确单一 fetch、空 named handlers、既有 smart placement | null handlers、命名处理器、新处理器、未知 placement |
+| `runtime.*` | 已审查 flags/usage、合法 CPU 限额或 `{}`、default Worker export、空 migration tag | 未审查 null、DO/containers、非空迁移、其他导出或限额 |
+| `version.*` / `script_settings.fields` / `combined_settings.*` | 已有白名单形状与完全相同的支持配置 | 未知字段、绑定/配置变化及不能证明保留的功能 |
+
+前两项只归一官方已说明的等价表示，不猜测本次真实根因，也不修改数据库绑定或兼容日期。依据：[D1 改名类型](https://github.com/cloudflare/cloudflare-typescript/blob/main/src/resources/workers/scripts/script-and-version-settings.ts)、[版本 GET 的 UTC 零时示例](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/versions/methods/get/)、[兼容日期配置](https://developers.cloudflare.com/workers/configuration/compatibility-dates/)。其余检查继续拒绝，必须由真实只读诊断证明具体形状后另作窄修复。
+
+触发仍只有官方 GitHub Actions 的 **Run workflow**，勾选 `diagnostics_only`，保留既有目标提交与互斥输入。当前连接器没有新建 workflow_dispatch 工具；不能以重跑旧 SHA、添加 push 部署触发器、复制凭据或扩大 token 代替。诊断运行读完后，再按其精确结果修复；即使 `PREFLIGHT_VALID`，也需另一次明确发布运行，诊断本身不会切流量。
+
 ## 本次发布与回退
 
 父线程于 **2026-10-26 11:27:39 UTC** 回读：部署 `33fbea88-b27c-49c0-b695-7798bc400dd8`，版本 `83512373-c500-47c3-a451-7dde59d2174b`，100%。这是当时证据，不能跳过执行前的新回读。

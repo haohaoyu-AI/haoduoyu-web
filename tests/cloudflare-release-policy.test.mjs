@@ -37,4 +37,6 @@ test('deployment workflow is manual, protected, non-cancelling, pinned and conta
   assert.equal((yaml.match(/persist-credentials: false/g)||[]).length,2);
   assert.doesNotMatch(yaml,/wrangler (?:login|secret|d1)|migrations apply|secret put|contents: write/);
   assert.ok(yaml.indexOf('Verify accepted Worker bytes')<yaml.indexOf('CLOUDFLARE_API_TOKEN:'));
+  assert.match(yaml,/diagnostics_only:[\s\S]*?type: boolean/);
+  assert.match(yaml,/RELEASE_OPERATION: \$\{\{ inputs\.diagnostics_only && 'inspect' \|\| 'publish' \}\}/);
 });

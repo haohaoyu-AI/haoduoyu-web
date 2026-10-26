@@ -35,7 +35,7 @@ function stringList(value) {return Array.isArray(value)&&value.every(item=>typeo
 
 function bindingsSnapshot(bindings) {
   check(Array.isArray(bindings)&&bindings.length<=256,'UNSUPPORTED_BINDINGS');
-  const names=new Set();
+  const names=new Set(),normalized=[];
   for(const binding of bindings) {
     check(object(binding)&&typeof binding.name==='string'&&/^[A-Za-z_$][\w$]{0,127}$/.test(binding.name),
       'UNSUPPORTED_BINDINGS');
@@ -49,14 +49,28 @@ function bindingsSnapshot(bindings) {
       // never replace a redacted secret with an empty or dashboard-visible value.
       keys(binding,['name','type'],'binding.secret_text.fields');
     }else if(binding.type==='d1') {
-      keys(binding,['name','type','id'],'binding.d1.fields');check(identifier(binding.id),'UNSUPPORTED_BINDINGS');
+      // Stable API renamed id to database_id; Wrangler still uses id. These
+      // are the same existing database, never a request to provision/rebind it.
+      // https://github.com/cloudflare/cloudflare-typescript/blob/main/src/resources/workers/scripts/script-and-version-settings.ts
+      keys(binding,['name','type','id','database_id'],'binding.d1.fields');
+      check((own(binding,'id')||own(binding,'database_id'))&&
+        (!own(binding,'id')||identifier(binding.id))&&
+        (!own(binding,'database_id')||identifier(binding.database_id))&&
+        (!own(binding,'id')||!own(binding,'database_id')||binding.id===binding.database_id),
+        'UNSUPPORTED_BINDINGS','binding.d1.identity');
+      normalized.push({name:binding.name,type:'d1',id:binding.id??binding.database_id});continue;
     }else throw new PublishFailure('UNSUPPORTED_BINDINGS');
+    normalized.push(binding);
   }
-  return [...bindings].sort((a,b)=>a.name.localeCompare(b.name));
+  return normalized.sort((a,b)=>a.name.localeCompare(b.name));
 }
 function runtimeSnapshot(runtime) {
   keys(runtime,['compatibility_date','compatibility_flags','usage_model','limits','exports','migration_tag'],'runtime.fields');
-  check(typeof runtime.compatibility_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(runtime.compatibility_date),
+  // GET version also documents midnight UTC ISO, while upload uses a date.
+  // Normalize only that exact representation; never infer dates or timezones.
+  const date=runtime.compatibility_date;
+  check(typeof date==='string'&&/^\d{4}-\d{2}-\d{2}(?:T00:00:00Z)?$/.test(date)&&
+    Number.isFinite(Date.parse(date.slice(0,10)))&&new Date(date.slice(0,10)).toISOString().slice(0,10)===date.slice(0,10),
     'UNSUPPORTED_CONFIGURATION','runtime.compatibility_date');
   if(own(runtime,'compatibility_flags'))check(stringList(runtime.compatibility_flags),'UNSUPPORTED_CONFIGURATION','runtime.compatibility_flags');
   if(own(runtime,'usage_model'))check(['bundled','unbound','standard'].includes(runtime.usage_model),
@@ -80,7 +94,7 @@ function runtimeSnapshot(runtime) {
       }
     }
   }
-  return runtime;
+  return {...runtime,compatibility_date:date.slice(0,10)};
 }
 export function versionSnapshot(version,expectedId) {
   keys(version,['id','number','metadata','resources','annotations','startup_time_ms'],'version.fields');
@@ -113,13 +127,13 @@ function combinedSnapshot(settings,snapshot,nonversioned) {
   keys(settings,['annotations','bindings','compatibility_date','compatibility_flags','usage_model','limits','exports',
     'placement','logpush','observability','tags','tail_consumers','streaming_tail_consumers'],'combined_settings.fields');
   same(bindingsSnapshot(settings.bindings),snapshot.bindings);
-  for(const key of ['compatibility_date','compatibility_flags','usage_model','limits','exports']) {
+  const runtimeKeys=['compatibility_date','compatibility_flags','usage_model','limits','exports'];
+  const runtime=runtimeSnapshot({...snapshot.runtime,...Object.fromEntries(
+    runtimeKeys.filter(key=>own(settings,key)).map(key=>[key,settings[key]]))});
+  for(const key of runtimeKeys) {
     if(!own(settings,key))continue;
-    if(own(snapshot.runtime,key))same(settings[key],snapshot.runtime[key]);
+    if(own(snapshot.runtime,key))same(runtime[key],snapshot.runtime[key]);
   }
-  runtimeSnapshot({...snapshot.runtime,...Object.fromEntries(
-    ['compatibility_date','compatibility_flags','usage_model','limits','exports'].filter(key=>own(settings,key))
-      .map(key=>[key,settings[key]]))});
   if(own(settings,'placement')) {
     keys(settings.placement,['mode'],'combined_settings.placement.fields');
     check(settings.placement.mode==='smart','UNSUPPORTED_CONFIGURATION','combined_settings.placement.mode');
@@ -127,7 +141,8 @@ function combinedSnapshot(settings,snapshot,nonversioned) {
   }else check(!snapshot.script.placement_mode,'CONFIGURATION_CHANGED');
   for(const key of ['logpush','observability','tags','tail_consumers','streaming_tail_consumers'])
     if(own(settings,key)&&own(nonversioned,key))same(settings[key],nonversioned[key]);
-  const invariant={...settings,bindings:bindingsSnapshot(settings.bindings)};
+  const invariant={...settings,...Object.fromEntries(runtimeKeys.filter(key=>own(settings,key))
+    .map(key=>[key,runtime[key]])),bindings:bindingsSnapshot(settings.bindings)};
   delete invariant.annotations;return invariant;
 }
 function activeDeployment(result) {
@@ -175,11 +190,14 @@ function client(config,request,timeoutMs) {
     }finally {clearTimeout(timer);}
   };
 }
-async function state(api,versionId) {
+async function readState(api,versionId) {
   const [deployments,versions,version,settings,combined,scripts]=await Promise.all([
     api('/deployments?per_page=1'),api('/versions?page=1&per_page=1'),api(`/versions/${versionId}`),
     api('/script-settings'),api('/settings'),api('')
   ]);
+  return {deployments,versions,version,settings,combined,scripts};
+}
+function stateSnapshot({deployments,versions,version,settings,combined,scripts},versionId) {
   // Native assets need not have an ASSETS binding. Without a positive absence
   // proof, a code-only upload could detach them. Do not guess from repo files.
   // https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/list/
@@ -189,6 +207,59 @@ async function state(api,versionId) {
   const snapshot=versionSnapshot(version,versionId),nonversioned=settingsSnapshot(settings);
   return {active:activeDeployment(deployments),latest:latestVersion(versions),
     version:snapshot,settings:nonversioned,combined:combinedSnapshot(combined,snapshot,nonversioned)};
+}
+async function state(api,versionId) {return stateSnapshot(await readState(api,versionId),versionId);}
+
+// Diagnostic schemas are fixed field names only. Do not traverse user JSON,
+// binding names, export names, annotations, tags, emails or server error bodies.
+const runtimeShape={compatibility_date:true,compatibility_flags:[true],usage_model:true,
+  limits:{cpu_ms:true,subrequests:true,memory_mb:true},migration_tag:true,
+  exports:{default:{type:true,state:true,cache:{enabled:true}}},containers:true};
+const bindingShape={name:true,type:true,id:true,database_id:true,text:true,json:true};
+const settingsShape={logpush:true,observability:true,tags:true,tail_consumers:true,streaming_tail_consumers:true};
+function fieldShape(value,schema=true) {
+  const type=value===undefined?'missing':value===null?'null':Array.isArray(value)?'array':typeof value;
+  const result={type};
+  if(Array.isArray(schema)&&Array.isArray(value)) {
+    result.items=value.slice(0,256).map(item=>fieldShape(item,schema[0]));
+    result.truncated=value.length>256;
+  }else if(object(schema)&&object(value)) {
+    for(const [key,nested] of Object.entries(schema))result[key]=fieldShape(value[key],nested);
+    result.unrecognized_field_count=Object.keys(value).filter(key=>!own(schema,key)).length;
+  }
+  return result;
+}
+function diagnosticShapes(raw) {
+  return {
+    version:fieldShape(raw.version,{id:true,number:true,metadata:true,annotations:true,startup_time_ms:true,
+      resources:{bindings:[bindingShape],script:{etag:true,handlers:[true],named_handlers:true,
+        last_deployed_from:true,placement_mode:true},script_runtime:runtimeShape}}),
+    script_settings:fieldShape(raw.settings,settingsShape),
+    combined_settings:fieldShape(raw.combined,{annotations:true,bindings:[bindingShape],...runtimeShape,
+      placement:{mode:true},...settingsShape})
+  };
+}
+export async function diagnoseExistingWorker(config,{request=fetch,timeoutMs=30000}={}) {
+  const report={status:'blocked',code:'PREFLIGHT_FAILED'};
+  try {
+    validateConfig(config);
+    check(Number.isSafeInteger(timeoutMs)&&timeoutMs>0&&timeoutMs<=60000,'INVALID_TIMEOUT');
+    const api=client(config,request,timeoutMs),raw=await readState(api,config.expectedCurrentVersion);
+    report.shapes=diagnosticShapes(raw);
+    // Successful GET inspection is not a successful publish. The publisher is
+    // never called in this mode, even when every preflight check passes.
+    report.status='diagnosed';
+    try {
+      const snapshot=stateSnapshot(raw,config.expectedCurrentVersion);
+      check(snapshot.active.versionId===config.expectedCurrentVersion&&snapshot.latest===config.expectedCurrentVersion,
+        'CURRENT_VERSION_MISMATCH');
+      report.code='PREFLIGHT_VALID';
+    }catch(error) {
+      report.code=error instanceof PublishFailure?error.code:'PREFLIGHT_FAILED';
+      if(error instanceof PublishFailure&&error.location)report.check=error.location;
+    }
+  }catch(error) {report.code=error instanceof PublishFailure?error.code:'PREFLIGHT_FAILED';}
+  return report;
 }
 function same(actual,expected,code='CONFIGURATION_CHANGED') {check(canonical(actual)===canonical(expected),code);}
 function confirmBeforeWrite(observed,baseline,expectedLatest) {
@@ -272,9 +343,12 @@ export async function main(env=process.env,{request=fetch,read=readFile,output=c
   let report;
   try {
     validateRequest(env);
+    const operation=env.RELEASE_OPERATION??'publish';
+    check(operation==='publish'||operation==='inspect','INVALID_OPERATION');
     check(env.WORKER_PATH==='source/dist/server/index.js','INVALID_WORKER_PATH');
     const workerBytes=await read(env.WORKER_PATH);verifyWorker(workerBytes,env.TARGET_COMMIT);
-    report=await publishExistingWorker({accountId:env.CLOUDFLARE_ACCOUNT_ID,workerName:env.CLOUDFLARE_WORKER_NAME,
+    const execute=operation==='inspect'?diagnoseExistingWorker:publishExistingWorker;
+    report=await execute({accountId:env.CLOUDFLARE_ACCOUNT_ID,workerName:env.CLOUDFLARE_WORKER_NAME,
       expectedCurrentVersion:env.EXPECTED_CURRENT_VERSION,token:env.CLOUDFLARE_API_TOKEN,workerBytes,
       expectedWorkerSha256:env.EXPECTED_WORKER_SHA256,expectedWorkerBytes:Number(env.EXPECTED_WORKER_BYTES),
       targetCommit:env.TARGET_COMMIT},{request});
@@ -282,6 +356,6 @@ export async function main(env=process.env,{request=fetch,read=readFile,output=c
   output(JSON.stringify(report));return report;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)
-  main().then(report=>{if(report.status!=='deployed')process.exitCode=1;}).catch(()=>{
+  main().then(report=>{if(!['deployed','diagnosed'].includes(report.status))process.exitCode=1;}).catch(()=>{
     console.error('{"status":"blocked","code":"PUBLISH_FAILED"}');process.exitCode=1;
   });

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {publishExistingWorker,versionSnapshot,main} from '../.github/scripts/cloudflare-publish.mjs';
+import {publishExistingWorker,diagnoseExistingWorker,versionSnapshot,main} from '../.github/scripts/cloudflare-publish.mjs';
 
 // Fixtures follow Cloudflare's stable version GET API and official SDK types:
 // https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/versions/methods/get/
@@ -116,6 +116,44 @@ test('documented optional usage_model is neither invented nor required',async()=
   assert.ok(!Object.hasOwn(mock.metadata,'usage_model'));
 });
 
+test('documented D1 id and database_id forms preserve the same existing database through deployment',async()=>{
+  for(const variant of ['database_id','both']) {
+    const mock=mockCloudflare(),binding=mock.state.versions.get(NEW).resources.bindings[0];
+    binding.database_id=binding.id;if(variant==='database_id')delete binding.id;
+    const report=await run(mock);assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
+    assert.deepEqual(mock.metadata.bindings.find(item=>item.name==='DB'),{name:'DB',type:'inherit'});
+    assert.ok(!JSON.stringify(mock.metadata).includes(binding.database_id));privateFree(report);
+  }
+});
+
+test('D1 aliases cannot conceal a different, missing or malformed database identity',async()=>{
+  for(const patch of [{database_id:OTHER},{database_id:null},{id:null,database_id:OLD},
+    {id:undefined,database_id:undefined}]) {
+    const mock=mockCloudflare();Object.assign(mock.state.versions.get(OLD).resources.bindings[0],patch);
+    const report=await run(mock);assert.equal(report.status,'blocked');assert.equal(report.code,'UNSUPPORTED_BINDINGS');
+    assert.equal(writes(mock).length,0);privateFree(report);
+  }
+});
+
+test('a documented midnight UTC compatibility date is the same runtime date, not a configuration change',async()=>{
+  const mock=mockCloudflare();mock.state.versions.get(OLD).resources.script_runtime.compatibility_date+='T00:00:00Z';
+  const report=await run(mock);assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
+  assert.equal(mock.metadata.compatibility_date,'2026-07-30');privateFree(report);
+});
+
+test('date normalization rejects offsets, non-midnight times, invalid dates and real date changes',async()=>{
+  for(const date of ['2026-07-30T00:00:01Z','2026-07-30T00:00:00+00:00','2026-02-30',
+    '2026-13-01','2026-07-30T00:00:00.000Z']) {
+    const mock=mockCloudflare();mock.state.versions.get(OLD).resources.script_runtime.compatibility_date=date;
+    const report=await run(mock);assert.equal(report.status,'blocked');assert.equal(writes(mock).length,0);privateFree(report);
+  }
+  const mock=mockCloudflare(({path,state})=>path==='/settings'?Response.json({success:true,result:{
+    bindings:version().resources.bindings,...version().resources.script_runtime,
+    compatibility_date:'2026-07-31T00:00:00Z',placement:{mode:'smart'},...state.settings}}):undefined);
+  const report=await run(mock);assert.equal(report.status,'blocked');assert.equal(report.code,'CONFIGURATION_CHANGED');
+  assert.equal(writes(mock).length,0);privateFree(report);
+});
+
 test('native assets without a binding, or missing assets metadata, prevent a code-only upload',async()=>{
   for(const flag of [true,undefined]) {
     const mock=mockCloudflare();mock.state.hasAssets=flag;const report=await run(mock);
@@ -196,6 +234,58 @@ test('preflight reports only fixed validation locations, never API field names o
     assert.equal(report.status,'blocked');assert.equal(report.code,'UNSUPPORTED_CONFIGURATION');
     assert.equal(report.check,location);assert.equal(writes(mock).length,0);privateFree(report);
   }
+});
+
+test('diagnostics inspect a valid production shape using GET only and never publish',async()=>{
+  const mock=mockCloudflare(),report=await diagnoseExistingWorker(config,{request:mock.request});
+  assert.equal(report.status,'diagnosed');assert.equal(report.code,'PREFLIGHT_VALID');
+  assert.equal(report.shapes.version.resources.bindings.items[0].id.type,'string');
+  assert.equal(report.shapes.version.resources.bindings.items[0].database_id.type,'missing');
+  assert.equal(report.shapes.version.resources.script_runtime.limits.type,'object');
+  assert.equal(mock.calls.length,6);assert.ok(mock.calls.every(call=>call.method==='GET'));
+  assert.equal(writes(mock).length,0);assert.equal(mock.state.active,OLD);assert.equal(mock.state.latest,OLD);
+  privateFree(report);
+});
+
+test('diagnostics expose documented-field types and the exact failed check, without API names or values',async()=>{
+  const mock=mockCloudflare(),old=mock.state.versions.get(OLD);
+  old[SENTINEL]=SENTINEL;
+  old.resources.bindings[0].database_id=OLD;
+  old.resources.bindings[0].name=SENTINEL;
+  old.resources.script_runtime.compatibility_date=SENTINEL;
+  old.resources.script_runtime.limits=null;
+  old.resources.script_runtime.exports[SENTINEL]={type:SENTINEL};
+  mock.state.settings.tags=[SENTINEL];
+  const report=await diagnoseExistingWorker(config,{request:mock.request});
+  assert.equal(report.status,'diagnosed');assert.equal(report.code,'UNSUPPORTED_CONFIGURATION');
+  assert.equal(report.check,'version.fields');assert.equal(report.shapes.version.unrecognized_field_count,1);
+  assert.equal(report.shapes.version.resources.bindings.items[0].database_id.type,'string');
+  assert.equal(report.shapes.version.resources.script_runtime.compatibility_date.type,'string');
+  assert.equal(report.shapes.version.resources.script_runtime.limits.type,'null');
+  assert.equal(report.shapes.version.resources.script_runtime.exports.unrecognized_field_count,1);
+  assert.equal(report.shapes.script_settings.tags.type,'array');
+  assert.ok(!Object.hasOwn(report.shapes.script_settings.tags,'items'));
+  assert.ok(mock.calls.every(call=>call.method==='GET'));assert.equal(writes(mock).length,0);privateFree(report);
+});
+
+test('diagnostic HTTP and input failures never disclose responses or authorize a write',async()=>{
+  const mock=mockCloudflare(()=>Response.json({success:false,errors:[{message:SENTINEL}]},{status:403}));
+  const report=await diagnoseExistingWorker(config,{request:mock.request});
+  assert.equal(report.status,'blocked');assert.equal(report.code,'API_HTTP_403');
+  assert.ok(mock.calls.every(call=>call.method==='GET'));assert.equal(writes(mock).length,0);privateFree(report);
+  let contacted=false;
+  const invalid=await diagnoseExistingWorker({...config,expectedWorkerSha256:'0'.repeat(64)},
+    {request:()=>{contacted=true;assert.fail('Invalid input must not contact Cloudflare');}});
+  assert.equal(invalid.status,'blocked');assert.equal(contacted,false);privateFree(invalid);
+});
+
+test('an unknown diagnostic operation is rejected before file or network access',async()=>{
+  let contacted=false,read=false;
+  const report=await main({GITHUB_REPOSITORY:'haohaoyu-AI/haoduoyu-web',GITHUB_REF:'refs/heads/main',
+    GITHUB_EVENT_NAME:'workflow_dispatch',TARGET_COMMIT:'947bc782ea70e7808f6e7de523e5977818b292df',
+    LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:OLD,RELEASE_OPERATION:SENTINEL},
+    {read:()=>{read=true;},request:()=>{contacted=true;},output:()=>{}});
+  assert.equal(report.status,'blocked');assert.equal(read,false);assert.equal(contacted,false);privateFree(report);
 });
 
 for(const field of ['latest','active','deploymentId','settings','sourceBinding'])
