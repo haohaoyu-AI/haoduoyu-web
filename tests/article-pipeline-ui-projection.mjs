@@ -1,5 +1,6 @@
 import {reconciliationModules,projectReconciliation} from './reconciliation-ui-projection.mjs';
 import {projectUnifyStage1} from './unify-stage1-projection.mjs';
+import {projectUnifySwModules} from './unify-sw-projection.mjs';
 import {workbenchAddedModules} from './workbench-ui-projection.mjs';
 import {round4AddedModules,projectWorkbenchRound4} from './workbench-round4-projection.mjs';
 import {round5AddedModules,projectWorkbenchRound5} from './workbench-round5-projection.mjs';
@@ -104,7 +105,7 @@ export async function verifyPhase7FrontendBoundary() {
   for(const file of reconciliationModules)assert.equal(projectReconciliation(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
   for(const file of round4AddedModules)assert.equal(projectWorkbenchRound4(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
   for(const file of round5AddedModules)assert.equal(projectWorkbenchRound5(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  const files=all.filter(file=>![...reconciliationModules,...round4AddedModules,...round5AddedModules].includes(file));
+  const files=projectUnifySwModules(all).filter(file=>![...reconciliationModules,...round4AddedModules,...round5AddedModules].includes(file));
   assert.deepEqual(files,[...delta.modules,...memoAddedModules,...workbenchAddedModules].sort(),'the complete article and memo module inventory is explicit');
   for(const file of files) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
