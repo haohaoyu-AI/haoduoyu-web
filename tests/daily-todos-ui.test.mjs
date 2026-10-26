@@ -695,9 +695,16 @@ test('navigation reuses the shell within one session and rebuilds it after the u
       classList: {toggle(_name, current) {this.current = current;}},
       setAttribute(name, value) {this[name] = value;}, removeAttribute(name) {delete this[name];},
     }));
+    const shellClasses = new Set(['menu-open']);
     const shell = {
       dataset: {session: '0', user: 'synthetic-todo-user'},
-      classList: {toggle() {}}, querySelectorAll: () => links,
+      classList: {
+        contains(name) {return shellClasses.has(name);},
+        toggle(name, force = !shellClasses.has(name)) {
+          if (force) shellClasses.add(name);else shellClasses.delete(name);
+          return force;
+        },
+      }, querySelectorAll: () => links,
     };
     const main = {innerHTML: ''};
     c.nodes.set('.shell', shell);
@@ -708,6 +715,7 @@ test('navigation reuses the shell within one session and rebuilds it after the u
     });
     c.run("state.page='todos';let renders=0;renderPage=()=>{renders++};renderShell()");
     assert.equal(appWrites, 0, change);
+    assert.equal(shell.classList.contains('menu-open'), false, 'shell reuse also closes the real navigation menu state');
     assert.match(main.innerHTML, /每日待办/);
     assert.equal(links[0].classList.current, false);
     assert.equal(links[1].classList.current, true);
