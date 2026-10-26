@@ -1,0 +1,76 @@
+name: Manual Cloudflare production release
+on:
+  workflow_dispatch:
+    inputs:
+      target_commit:
+        description: Exact accepted source commit (round6 or round5 rollback)
+        required: true
+        type: choice
+        default: 947bc782ea70e7808f6e7de523e5977818b292df
+        options:
+          - 947bc782ea70e7808f6e7de523e5977818b292df
+          - 16ff80ef2d857676d81b7c219110c820de5af72b
+      expected_current_version:
+        description: Re-read current 100% production version UUID before dispatch
+        required: true
+        type: string
+      local_upload_stopped:
+        description: Local uploads stopped and every uncertain result reconciled
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: haoduoyu-cloudflare-production
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: cloudflare-production
+    env:
+      TARGET_COMMIT: ${{ inputs.target_commit }}
+      EXPECTED_CURRENT_VERSION: ${{ inputs.expected_current_version }}
+      LOCAL_UPLOAD_STOPPED: ${{ inputs.local_upload_stopped }}
+    steps:
+      - name: Checkout release controls
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Verify exact release and prior CI
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node control/.github/scripts/release-policy.mjs verify
+      - name: Checkout accepted source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ steps.release.outputs.target_commit }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Install locked build dependencies
+        working-directory: source
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build accepted Worker without migrations or deployment
+        working-directory: source
+        run: npm run build
+      - name: Verify accepted Worker bytes
+        run: node control/.github/scripts/release-policy.mjs artifact
+      - name: Publish existing Worker with inherited bindings
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
+          WORKER_PATH: source/dist/server/index.js
+          EXPECTED_WORKER_SHA256: ${{ steps.release.outputs.worker_sha256 }}
+          EXPECTED_WORKER_BYTES: ${{ steps.release.outputs.worker_bytes }}
+        run: node control/.github/scripts/cloudflare-publish.mjs
