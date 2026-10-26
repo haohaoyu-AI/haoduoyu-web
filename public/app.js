@@ -1149,7 +1149,20 @@ function normalizeArticlePipelineFilters(filters) {
   }
   return filters;
 }
+function isMobileLayout() {
+  if (typeof window === "undefined") return false;
+  if (typeof window.matchMedia === "function") return window.matchMedia("(max-width: 767px)").matches;
+  return Number.isFinite(window.innerWidth) && window.innerWidth < 768;
+}
+function mobilePage(page) {
+  return isMobileLayout() && ["articles", "reviews"].includes(page) ? "dashboard" : page;
+}
 function updateRoute(push = false) {
+  const page = mobilePage(state.page), redirected = page !== state.page;
+  if (redirected) {
+    state.page = page;
+    state.account = "";
+  }
   state.filters.status = "published";
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
@@ -1184,7 +1197,7 @@ function updateRoute(push = false) {
   }
   if ([...state.columns].join(",") !== defaultColumns.join(",")) u.searchParams.set("columns", [...state.columns].join(","));
   else u.searchParams.delete("columns");
-  history[push ? "pushState" : "replaceState"]({}, "", u);
+  history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
   storage.set("haoduoyu.account", state.account);
 }
 function readRoute() {
@@ -1193,6 +1206,7 @@ function readRoute() {
   const fallback = "todos";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
   if (state.page === "reviews") state.page = "articles";
+  state.page = mobilePage(state.page);
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date"));
     setDailyNotesRouteCategory(params.get("notes_category"));
@@ -5170,8 +5184,19 @@ function registerMemoSplitEvents() {
 
 // web/ui/menu.mjs
 function syncMenu() {
-  const side = $(".sidebar");
-  if (side) side.inert = Boolean(window.matchMedia?.("(max-width:760px)").matches && !$(".shell")?.classList.contains("menu-open"));
+  const phone = isMobileLayout(), open = Boolean($(".shell")?.classList.contains("menu-open")), side = $(".sidebar");
+  if (side) side.inert = phone;
+  const panel = $("#mobile-settings-menu");
+  if (panel) {
+    panel.hidden = !phone || !open;
+    panel.inert = !phone || !open;
+  }
+  const trigger = $(".mobile-settings-trigger");
+  if (trigger) {
+    trigger.classList.toggle("active", state.page === "settings");
+    if (state.page === "settings") trigger.setAttribute("aria-current", "page");
+    else trigger.removeAttribute("aria-current");
+  }
 }
 function setMenu(open) {
   const shell = $(".shell");
@@ -5182,11 +5207,29 @@ function setMenu(open) {
   syncMenu();
   if (open) {
     runtime.menuFocus = document.activeElement;
-    $(".sidebar .brand")?.focus();
+    $(isMobileLayout() ? "#mobile-settings-menu a[href]" : ".sidebar .brand")?.focus();
   } else if (runtime.menuFocus?.isConnected) {
     runtime.menuFocus.focus();
     runtime.menuFocus = null;
   }
+}
+function closeMobileMenuOutside(target) {
+  if (!isMobileLayout() || !$(".shell")?.classList.contains("menu-open")) return;
+  if (!target?.closest?.('#mobile-settings-menu,[data-action="menu"]')) setMenu(false);
+}
+function trapMobileMenuFocus(event) {
+  if (event.key !== "Tab" || !isMobileLayout() || !$(".shell")?.classList.contains("menu-open")) return false;
+  const panel = $("#mobile-settings-menu");
+  if (!panel) return false;
+  const nodes = $$("a[href],button:not(:disabled)", panel);
+  if (!nodes.length) return false;
+  const first = nodes[0], last = nodes.at(-1), outside = !panel.contains(document.activeElement);
+  if (outside || event.shiftKey && document.activeElement === first || !event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+    return true;
+  }
+  return false;
 }
 
 // web/ui/workbench.mjs
@@ -5202,7 +5245,7 @@ ${selected ? 'aria-current="page"' : ""}>${icon(item.icon, 18)}<span class="nav-
 function mediaNavigation(mobile = false) {
   const active2 = mediaPages.has(state.page), name = mobile ? "mobile-nav-item" : "nav-item";
   return `<a href="?page=dashboard" data-nav="dashboard" class="${name} media-link${active2 ? " active" : ""}"
-aria-label="好多鱼图文" ${active2 ? 'aria-current="page"' : ""}>${icon("articles", 18)}<span class="nav-label">好多鱼图文</span></a>`;
+aria-label="好多鱼图文" ${active2 ? 'aria-current="page"' : ""}>${icon("articles", 18)}<span class="nav-label">${mobile ? "图文" : "好多鱼图文"}</span></a>`;
 }
 function renderMediaTabs() {
   if (!mediaPages.has(state.page)) return "";
@@ -5224,10 +5267,20 @@ function settingsNavigation() {
   return navigationLink(nav.find((item) => item.id === "settings"));
 }
 function mobileNavigation() {
-  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${mediaNavigation(true)}${nav.filter((item) => !mediaPages.has(item.id)).map((item) => item.id === "notes" ? notesNavigation(true) : navigationLink(item, true)).join("")}</nav>`;
+  const items = [["todos", "待办"], ["notes", "碎碎念"], ["memos", "备忘录"], ["reminders", "提醒"]];
+  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id, label3]) => navigationLink({ ...nav.find((item) => item.id === id), label: label3, ...id === "notes" ? { category: dailyNotesRouteCategory() } : {} }, true)).join("")}${mediaNavigation(true)}</nav>`;
+}
+function mobileSettingsMenu() {
+  return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
+${settingsNavigation()}${state.me?.publicBusiness ? "" : `<button class="btn text" data-action="logout">${icon("logout", 18)}退出登录</button>`}</nav>`;
 }
 function syncWorkbenchNavigation() {
   const active2 = mediaPages.has(state.page);
+  const notes = document.querySelector('.mobile-nav [data-nav="notes"]');
+  if (notes) {
+    notes.dataset.notesCategory = dailyNotesRouteCategory();
+    notes.setAttribute("href", "?page=notes&notes_category=" + dailyNotesRouteCategory());
+  }
   for (const link of document.querySelectorAll(".media-link")) {
     link.classList.toggle("active", active2);
     if (active2) link.setAttribute("aria-current", "page");
@@ -5271,9 +5324,9 @@ function readSidebarWidth() {
   return sidebarPreference;
 }
 function sidebarWidthLimits(viewport, shellWidth) {
-  if (viewport <= 760) return null;
-  const min = viewport <= 1100 ? 88 : 200;
-  return { min, max: Math.max(min, Math.min(420, Math.floor(shellWidth - (viewport <= 1100 ? 420 : 540)))) };
+  if (viewport < 768) return null;
+  const min = viewport < 1200 ? 88 : 200;
+  return { min, max: Math.max(min, Math.min(420, Math.floor(shellWidth - (viewport < 1200 ? 420 : 540)))) };
 }
 function renderSidebarResizer() {
   return '<div id="sidebar-resizer" class="sidebar-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整导航宽度" aria-controls="site-nav main" aria-valuemin="200" aria-valuemax="420" aria-valuenow="232" title="拖动调整导航宽度；方向键微调，Home / End 调到最小 / 最大"></div>';
@@ -5288,7 +5341,7 @@ function applySidebarWidth(value = readSidebarWidth(), persist = false) {
     delete shell.dataset.sidebarExpanded;
     return null;
   }
-  const fallback = window.innerWidth <= 1100 ? 88 : 232;
+  const fallback = window.innerWidth < 1200 ? 88 : 232;
   const width = Math.round(Math.max(limits.min, Math.min(limits.max, value ?? fallback)));
   shell.style.setProperty("--sidebar-w", width + "px");
   shell.dataset.sidebarExpanded = String(width >= 200);
@@ -5314,7 +5367,7 @@ function finishSidebarDrag(cancel = false) {
 }
 function startSidebarDrag(event) {
   const handle = event.target.closest?.("#sidebar-resizer");
-  if (!handle || event.button !== 0 || event.isPrimary === false || window.innerWidth <= 760) return;
+  if (!handle || event.button !== 0 || event.isPrimary === false || window.innerWidth < 768) return;
   event.preventDefault();
   finishSidebarDrag();
   const shell = handle.closest(".shell");
@@ -5372,7 +5425,45 @@ function setupSidebarResize() {
   window.addEventListener("resize", () => {
     finishSidebarDrag(true);
     applySidebarWidth();
+    syncMobileViewport();
   });
+}
+var mobileViewportEvents = false;
+function keepMobileInputVisible() {
+  const field2 = document.activeElement, viewport = window.visualViewport;
+  if (!isMobileLayout() || !viewport || !field2?.matches?.('input,textarea,select,[contenteditable="true"]')) return;
+  requestAnimationFrame(() => {
+    if (document.activeElement !== field2 || !field2.isConnected) return;
+    const rect = field2.getBoundingClientRect(), top = viewport.offsetTop || 0;
+    if (rect.bottom > top + viewport.height - 16 || rect.top < top + 12) field2.scrollIntoView?.({ block: "nearest" });
+  });
+}
+function syncMobileViewport() {
+  const root = document.documentElement;
+  if (!root?.style?.setProperty) return;
+  if (!isMobileLayout()) {
+    for (const key of ["height", "top", "keyboard"]) root.style.removeProperty("--mobile-viewport-" + key);
+    delete root.dataset.mobileKeyboard;
+    return;
+  }
+  const viewport = window.visualViewport, height = viewport?.height || window.innerHeight, top = viewport?.offsetTop || 0;
+  if (!Number.isFinite(height) || height <= 0) return;
+  const editing3 = document.activeElement?.matches?.('input,textarea,select,[contenteditable="true"]');
+  const keyboard = editing3 ? Math.max(0, (window.innerHeight || height) - height - top) : 0;
+  root.style.setProperty("--mobile-viewport-height", Math.round(height) + "px");
+  root.style.setProperty("--mobile-viewport-top", Math.round(top) + "px");
+  root.style.setProperty("--mobile-viewport-keyboard", Math.round(keyboard) + "px");
+  root.dataset.mobileKeyboard = String(keyboard > 80);
+  keepMobileInputVisible();
+}
+function setupMobileViewport() {
+  syncMobileViewport();
+  if (mobileViewportEvents) return;
+  mobileViewportEvents = true;
+  window.visualViewport?.addEventListener("resize", syncMobileViewport);
+  window.visualViewport?.addEventListener("scroll", syncMobileViewport);
+  document.addEventListener("focusin", syncMobileViewport);
+  document.addEventListener("focusout", () => requestAnimationFrame(syncMobileViewport));
 }
 
 // web/pages/workbench-settings.mjs
@@ -5457,6 +5548,7 @@ function reuseShell() {
   return true;
 }
 function renderShell() {
+  redirectMobileArticlePage();
   if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts"].includes(state.settingsTab))
     state.settingsTab = "workspace";
   stopPageEntry();
@@ -5467,13 +5559,30 @@ function renderShell() {
   }
   $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
     "close"
-  )}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div></aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
+  )}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div></aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><span>好多鱼工作台</span><button class="icon-button mobile-settings-trigger" data-action="menu" aria-label="设置菜单" aria-expanded="false" aria-controls="mobile-settings-menu">${icon("settings", 20)}</button>${mobileSettingsMenu()}</header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
   setupSidebarResize();
+  setupMobileViewport();
   renderPage();
 }
+function redirectMobileArticlePage() {
+  const page = mobilePage(state.page);
+  if (page === state.page) return false;
+  state.page = page;
+  state.account = "";
+  updateRoute();
+  return true;
+}
+function handleResponsiveLayout() {
+  syncMobileViewport();
+  syncMenu();
+  const redirected = redirectMobileArticlePage();
+  if (redirected && state.me) renderShell();
+  return redirected;
+}
 function navigateLink(page) {
-  const same2 = page === state.page && (page !== "memos" || !state.memoView) && (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
+  const target = mobilePage(page);
+  const same2 = target === state.page && (target !== "memos" || !state.memoView) && (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same2 && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
     return;
@@ -5496,7 +5605,7 @@ function navigate(page, tab) {
     state.todoPanel = "";
   }
   if (page === "settings") state.settingsTab = legacy || tab || "workspace";
-  if (page === "dashboard") state.account = "";
+  if (mobilePage(page) === "dashboard") state.account = "";
   updateRoute(true);
   closeModal();
   renderShell();
@@ -5535,6 +5644,10 @@ function renderMediaOverview(data) {
   return publishedArticleLinks(renderDashboardSummary(data));
 }
 async function renderPage() {
+  if (redirectMobileArticlePage()) {
+    renderShell();
+    return;
+  }
   stopPageEntry();
   closePopover({ restoreFocus: false });
   const version = ++runtime.renderVersion, page = state.page;
@@ -6745,6 +6858,7 @@ async function handleFormSubmit(event) {
 
 // web/events.mjs
 async function handleClick(event) {
+  closeMobileMenuOutside(event.target);
   closeMediaNavigation(event.target);
   if (runtime.activePopover?.node.contains(event.target) && event.target.closest("[role=menuitem]")) closePopover();
   if (runtime.activePopover && !runtime.activePopover.node.contains(event.target) && !runtime.activePopover.trigger.contains(event.target)) {
@@ -6866,6 +6980,7 @@ function handleFilterSubmit(event) {
   }
 }
 function handleKeydown(event) {
+  if (trapMobileMenuFocus(event)) return;
   if (event.key === "Escape") closeMediaNavigation();
   if (runtime.activePopover) {
     if (event.key === "Tab") {
@@ -6918,6 +7033,7 @@ function handleKeydown(event) {
   }
 }
 function handleResize() {
+  handleResponsiveLayout();
   closePopover();
   if ($(".shell")?.classList.contains("menu-open")) setMenu(false);
   else syncMenu();

@@ -10,15 +10,17 @@ import worker from '../dist/server/index.js';
 import {assets} from '../src/assets.generated.mjs';
 import {unifyStage1Baseline,unifyStage1Paths,unifyStage1Styles,unifyStage1Before,unifyStage1Manifest,
   validateUnifyStage1Delta,projectUnifyStage1,projectUnifyStage1History,projectedChangedFiles,expandStage1Css,stage1Hash} from './unify-stage1-projection.mjs';
+import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const read=file=>readFileSync(join(root,file),'utf8');
+const stage1Read=file=>projectUnifyStage2(file,read(file));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
 const delta=unifyStage1Manifest();
 
 test('stage one pins only constant extraction and its asset wiring over the fixed released source',()=>{
   for(const file of unifyStage1Paths) {
-    const source=read(file);
+    const source=stage1Read(file);
     assert.equal(stage1Hash(source),delta.files[file].after,'current source must be the reviewed after bytes: '+file);
     assert.equal(projectUnifyStage1(file,source),unifyStage1Before(file),file);
     assert.equal(projectUnifyStage1(file,unifyStage1Before(file)),unifyStage1Before(file),'exact released input remains valid');
@@ -27,7 +29,8 @@ test('stage one pins only constant extraction and its asset wiring over the fixe
   const roots=['public','web','src','shared','db','drizzle','scripts','.ci','.github','runtime.json','package.json','package-lock.json'];
   assert.deepEqual(projectedChangedFiles(unifyStage1Baseline,roots),[],
     'no application, API, store, schema, policy, deployment or extra asset change is concealed');
-  assert.equal(read('public/app.js'),git('show',unifyStage1Baseline+':public/app.js'),'generated JavaScript stays byte-identical');
+  assert.equal(stage1Read('public/app.js'),git('show',unifyStage1Baseline+':public/app.js'),
+    'the reviewed stage-two inverse restores the unchanged stage-one JavaScript');
 });
 
 test('stage-one manifest cannot authorize a new path, token, digest or baseline',()=>{
@@ -43,16 +46,16 @@ test('stage-one manifest cannot authorize a new path, token, digest or baseline'
 });
 
 test('strict current inverse rejects extra CSS, changed tokens, duplicate links and expanded asset wiring',()=>{
-  for(const file of unifyStage1Paths)assert.throws(()=>projectUnifyStage1(file,read(file)+'\n'),/approved workbench delta/,file);
+  for(const file of unifyStage1Paths)assert.throws(()=>projectUnifyStage1(file,stage1Read(file)+'\n'),/approved workbench delta/,file);
   const mutations=[
     ['public/style.css',read('public/style.css').replace('var(--color-base-background)','var(--color-primary)')],
     ['public/tokens.css',read('public/tokens.css').replace('--color-primary:#a44e38','--color-primary:#000000')],
-    ['public/index.html',read('public/index.html').replace('href="/tokens.css">','href="/tokens.css">\n    <link rel="stylesheet" href="/tokens.css">')],
-    ['scripts/build.mjs',read('scripts/build.mjs').replace("'tokens.css'","'tokens.css','unapproved.css'")],
-    ['.ci/public-assets.json',read('.ci/public-assets.json').replace('legacy-source-pins-and-worker-embedding','unapproved-mode')]
+    ['public/index.html',stage1Read('public/index.html').replace('href="/tokens.css">','href="/tokens.css">\n    <link rel="stylesheet" href="/tokens.css">')],
+    ['scripts/build.mjs',stage1Read('scripts/build.mjs').replace("'tokens.css'","'tokens.css','unapproved.css'")],
+    ['.ci/public-assets.json',stage1Read('.ci/public-assets.json').replace('legacy-source-pins-and-worker-embedding','unapproved-mode')]
   ];
   for(const [file,source]of mutations) {
-    assert.notEqual(source,read(file),'negative fixture changes source: '+file);
+    assert.notEqual(source,stage1Read(file),'negative fixture changes source: '+file);
     assert.throws(()=>projectUnifyStage1(file,source),/approved workbench delta/);
   }
   const unrelated=read('src/worker.mjs')+'\n/* unapproved */\n';
@@ -88,7 +91,7 @@ test('new token asset uses the existing static GET and HEAD path without changin
   assert.equal(rejected.status,404);
 });
 
-test('current stage-one Worker matches a fresh isolated deterministic build of the reviewed source',async t=>{
+test('current reviewed Worker matches a fresh isolated deterministic build independently of old stage artifacts',async t=>{
   const copy=await mkdtemp(join(tmpdir(),'haoduoyu-stage1-build-'));
   t.after(()=>rm(copy,{recursive:true,force:true}));
   for(const path of ['scripts','src','shared','public','web','drizzle','.openai','runtime.json','package.json'])
@@ -97,5 +100,5 @@ test('current stage-one Worker matches a fresh isolated deterministic build of t
   execFileSync(process.execPath,['scripts/build.mjs'],{cwd:copy,timeout:60000,env:{PATH:process.env.PATH},stdio:'pipe'});
   assert.deepEqual(await readFile(join(copy,'dist/server/index.js')),await readFile(join(root,'dist/server/index.js')),
     'the current artifact is checked independently from all historical release pins');
-  assert.equal(await readFile(join(copy,'public/app.js'),'utf8'),read('public/app.js'),'independent build preserves the unchanged JavaScript bundle');
+  assert.equal(await readFile(join(copy,'public/app.js'),'utf8'),read('public/app.js'),'independent build matches the actual reviewed JavaScript bundle');
 });

@@ -1,0 +1,46 @@
+{
+  "baseline": "72d26abb94d316e08b63cf12924c157f1bc8e3cd",
+  "scope": "Exact reviewed responsive UI, phone navigation, article route canonicalization, menu focus and viewport handling in five existing modules; one mobile stylesheet with viewport metadata, generated bundle, embedding and corresponding asset pins. No new web modules, business stores, Worker source, schemas, offline synchronization or release policy changes.",
+  "files": {
+    ".ci/public-assets.json": {
+      "before": "5141203a3612d963410d921be44be46dd0137c006af36a6b4fe575e9b327c1ec",
+      "after": "f8f0ccf6323a07d7ee35c104a6d09f4a5c65f9a03da348bb992a744e680f9320"
+    },
+    "public/app.js": {
+      "before": "54e65d6ae72b432e62435b489c6dd35739a61edaf9bc71e4441d131f23e9dcdc",
+      "after": "344668731398961869bdc5ca3ddf744151d5f228ad006d8fde6968f6c3a91e1a"
+    },
+    "public/index.html": {
+      "before": "8300ff15de68d88b878c7d387ad80957bc71c380f44cced2328940c7f4c8a7ba",
+      "after": "fbdc4a29d6bb0bc9f1918bc2ed65fb1ec537ff6fe4c8a80465a333cebb2fe4b4"
+    },
+    "public/mobile.css": {
+      "before": null,
+      "after": "d25508c7e1a831fa89c2a44f78e54d13ec895683040c260bc72010742f24c92c"
+    },
+    "scripts/build.mjs": {
+      "before": "57d09aab1631708ba24ed1da89f95f4f4692d635042a52276f7d15e8e11b1e39",
+      "after": "6cb044a07b9f0ea6887c35ebc20468106f83d7061784668d3bc6d47b4ce92ea5"
+    },
+    "web/controller.mjs": {
+      "before": "44c9018109d4e84e5f320c8ee715b400e40c621f27689016e60d7901bc5bc4f2",
+      "after": "d69ac02017e5ce725f81c1ae3fdc30d31cf03874af0e93329a0206619a131cb5"
+    },
+    "web/core/router.mjs": {
+      "before": "7a7d90cf725d8d03e4a2adf87ecafe05e209cfff389901f71cd16fdd52c46ee9",
+      "after": "7cbdf1170e815c79dd7eed544700410b8086d7d1cc091b462e8995f297c5eed3"
+    },
+    "web/events.mjs": {
+      "before": "5a532deb024dc4b3e591a502ca04114508461ecd5519b3e48faa2ae4f57f40f1",
+      "after": "076b0260fedc8cdfd7c03b152075068775f09a79630e7eecc95ca2b75c344546"
+    },
+    "web/ui/menu.mjs": {
+      "before": "89ba946f5dfcecdaed301ef3db215d2d44b08a75f492e9fb0103ccfbaa2e2184",
+      "after": "dad23bc31f9e4fe528cd6cead4570c2d96eada90990a36e08e08507c93a7d763"
+    },
+    "web/ui/workbench.mjs": {
+      "before": "80a47ec9a68caab2e0da1c73936ae5b16af5446822715d3a0d7f48600e1ebc2b",
+      "after": "951aa8ace3c4757a8c0a1d6afc1a35e6c573cddd13aacee8870964416190333c"
+    }
+  }
+}

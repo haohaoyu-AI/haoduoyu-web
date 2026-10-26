@@ -21,7 +21,17 @@ function normalizeArticlePipelineFilters(filters) {
   }
   return filters;
 }
+function isMobileLayout() {
+  if (typeof window === "undefined") return false;
+  if (typeof window.matchMedia === "function") return window.matchMedia("(max-width: 767px)").matches;
+  return Number.isFinite(window.innerWidth) && window.innerWidth < 768;
+}
+function mobilePage(page) {
+  return isMobileLayout() && ["articles", "reviews"].includes(page) ? "dashboard" : page;
+}
 function updateRoute(push = false) {
+  const page = mobilePage(state.page), redirected = page !== state.page;
+  if (redirected) { state.page = page; state.account = ""; }
   state.filters.status = "published";
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
@@ -53,7 +63,7 @@ function updateRoute(push = false) {
   }
   if ([...state.columns].join(",") !== defaultColumns.join(",")) u.searchParams.set("columns", [...state.columns].join(","));
   else u.searchParams.delete("columns");
-  history[push ? "pushState" : "replaceState"]({}, "", u);
+  history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
   storage.set("haoduoyu.account", state.account);
 }
 function readRoute() {
@@ -62,6 +72,7 @@ function readRoute() {
   const fallback = "todos";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
   if (state.page === "reviews") state.page = "articles";
+  state.page = mobilePage(state.page);
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date")); setDailyNotesRouteCategory(params.get("notes_category"));
   }
@@ -95,6 +106,8 @@ function readRoute() {
   state.columns = new Set(params.has("columns") ? params.get("columns").split(",").filter((c) => Object.hasOwn(articleColumns, c)) : defaultColumns);
 }
 export {
+  isMobileLayout,
+  mobilePage,
   normalizeArticlePipelineFilters,
   readRoute,
   updateRoute

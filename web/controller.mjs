@@ -3,7 +3,7 @@ import { api } from "./core/api.mjs";
 import { legacyPages, nav, settingsTabs } from "./core/constants.mjs";
 import { $, $$, e, icon } from "./core/dom.mjs";
 import { num, rowsForAccount } from "./core/format.mjs";
-import { readRoute, updateRoute } from "./core/router.mjs";
+import { readRoute, updateRoute, mobilePage } from "./core/router.mjs";
 import { resetSessionIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
@@ -25,7 +25,7 @@ import { closePopover } from "./ui/popover.mjs";
 import { segmented } from "./ui/segmented.mjs";
 import { toast } from "./ui/toast.mjs";
 import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize,
-  renderMediaTabs} from "./ui/workbench.mjs";
+  renderMediaTabs, mobileSettingsMenu, syncMobileViewport, setupMobileViewport} from "./ui/workbench.mjs";
 import {renderWorkbenchSettings} from "./pages/workbench-settings.mjs";
 import {renderWorkReminders} from "./pages/work-reminders.mjs";
 import {loadWorkReminders} from "./work-reminders-controller.mjs";
@@ -49,6 +49,7 @@ function reuseShell() {
   return true;
 }
 function renderShell() {
+  redirectMobileArticlePage();
   if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts"].includes(state.settingsTab))
     state.settingsTab = "workspace";
   stopPageEntry();
@@ -66,15 +67,32 @@ class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `
 class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.
   me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" \
 aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div>\
-</aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><button class="icon-button" data-action="menu" aria-label="打开导航" \
-aria-expanded="false" aria-controls="site-nav">${icon("menu", 20)}</button><span>好多鱼工作台</span></header><main id="main" class="content" \
+</aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><span>好多鱼工作台</span>\
+<button class="icon-button mobile-settings-trigger" data-action="menu" aria-label="设置菜单" \
+aria-expanded="false" aria-controls="mobile-settings-menu">${icon("settings", 20)}</button>${mobileSettingsMenu()}</header>\
+<main id="main" class="content" \
 tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
   setupSidebarResize();
+  setupMobileViewport();
   renderPage();
 }
+function redirectMobileArticlePage() {
+  const page = mobilePage(state.page);
+  if (page === state.page) return false;
+  state.page = page; state.account = ""; updateRoute();
+  return true;
+}
+function handleResponsiveLayout() {
+  syncMobileViewport();
+  syncMenu();
+  const redirected = redirectMobileArticlePage();
+  if (redirected && state.me) renderShell();
+  return redirected;
+}
 function navigateLink(page) {
-  const same = page === state.page && (page !== "memos" || !state.memoView) &&
+  const target = mobilePage(page);
+  const same = target === state.page && (target !== "memos" || !state.memoView) &&
     (page !== "settings" || state.settingsTab === "workspace") && (page !== "todos" || !state.todoDate && !state.todoPanel);
   if (same && !$("#overlay")?.firstChild && !runtime.activePopover) {
     setMenu(false);
@@ -92,7 +110,7 @@ function navigate(page, tab) {
   if (page === "memos") state.memoView = tab === "trash" ? "trash" : "";
   if (page === "todos") { state.todoDate = ""; state.todoPanel = ""; }
   if (page === "settings") state.settingsTab = legacy || tab || "workspace";
-  if (page === "dashboard") state.account = "";
+  if (mobilePage(page) === "dashboard") state.account = "";
   updateRoute(true);
   closeModal();
   renderShell();
@@ -131,6 +149,7 @@ function renderMediaOverview(data) {
   return publishedArticleLinks(renderDashboardSummary(data));
 }
 async function renderPage() {
+  if (redirectMobileArticlePage()) { renderShell(); return; }
   stopPageEntry();
   closePopover({ restoreFocus: false });
   const version = ++runtime.renderVersion, page = state.page;
@@ -251,6 +270,7 @@ async function init({ freshLogin = false } = {}) {
 export {
   applyArticleFilters,
   init,
+  handleResponsiveLayout,
   navigate,
   navigateLink,
   publishedArticleLinks,

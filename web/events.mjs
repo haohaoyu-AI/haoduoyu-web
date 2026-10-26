@@ -1,6 +1,6 @@
 import { changeReconciliationFilters } from "./pages/article-reconciliation.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
-import { applyArticleFilters, navigate, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell,
+import { applyArticleFilters, handleResponsiveLayout, navigate, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell,
   renderMediaOverview } from "./controller.mjs";
 import { $, $$, e } from "./core/dom.mjs";
 import { readRoute, updateRoute } from "./core/router.mjs";
@@ -14,7 +14,7 @@ import { canOpenTodoMenu, openTodoMenu } from "./pages/todo-actions.mjs";
 import { changeTodoCompletedMode } from "./pages/todo-preferences.mjs";
 import { registerTodoGestures } from "./ui/todo-gestures.mjs";
 import { replacePageContent } from "./ui/entry.mjs";
-import { setMenu, syncMenu } from "./ui/menu.mjs";
+import { closeMobileMenuOutside, setMenu, syncMenu, trapMobileMenuFocus } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { toast } from "./ui/toast.mjs";
@@ -23,6 +23,7 @@ import { handleFormSubmit } from "./forms.mjs";
 import {setDailyNotesRouteCategory} from "./core/daily-notes-state.mjs";
 import {closeMediaNavigation} from "./ui/workbench.mjs";
 async function handleClick(event) {
+  closeMobileMenuOutside(event.target);
   closeMediaNavigation(event.target);
   if (runtime.activePopover?.node.contains(event.target) && event.target.closest("[role=menuitem]")) closePopover();
   if (runtime.activePopover && !runtime.activePopover.node.contains(event.target) && !runtime.activePopover.trigger.contains(event.target)) {
@@ -143,6 +144,7 @@ function handleFilterSubmit(event) {
   }
 }
 function handleKeydown(event) {
+  if (trapMobileMenuFocus(event)) return;
   if (event.key === "Escape") closeMediaNavigation();
   if (runtime.activePopover) {
     if (event.key === "Tab") {
@@ -193,6 +195,7 @@ function handleKeydown(event) {
   }
 }
 function handleResize() {
+  handleResponsiveLayout();
   closePopover();
   if ($(".shell")?.classList.contains("menu-open")) setMenu(false);
   else syncMenu();

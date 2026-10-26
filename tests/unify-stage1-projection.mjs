@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {projectUnifyStage2History} from './unify-stage2-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifyStage1Baseline='6e2e445e8a3e9f7a4af055f4cf75046cf6e5cd6c';
@@ -59,6 +60,7 @@ export function expandStage1Css(source,tokenSource=read('public/tokens.css')) {
 
 // Strict entry for current source: an unreviewed digest is never normalized.
 export function projectUnifyStage1(file,source) {
+  source=projectUnifyStage2History(file,source);
   if(!unifyStage1Paths.includes(file))return source;
   const entry=unifyStage1Manifest().files[file],before=unifyStage1Before(file);
   if(source===before)return source;
@@ -101,6 +103,7 @@ function historicalHashes(file) {
   return historicalDigests.get(file);
 }
 export function projectUnifyStage1History(file,source) {
+  source=projectUnifyStage2History(file,source);
   if(!unifyStage1Paths.includes(file))return source;
   const entry=unifyStage1Manifest().files[file],digest=stage1Hash(source);
   if(digest===entry.after||source===unifyStage1Before(file))return projectUnifyStage1(file,source);
