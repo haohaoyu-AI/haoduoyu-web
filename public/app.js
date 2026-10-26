@@ -1538,10 +1538,12 @@ function createContext(options2) {
 function storageMethods(context) {
   const { db, checkScope, uuid, now, owner } = context;
   async function enqueue(input) {
+    input.assertActive?.();
     checkScope(input.scope);
     const operation = operationFor(input, uuid, now());
     return db.transaction(["entities", "outbox", "meta"], "readwrite", async (tx) => {
       checkScope(input.scope);
+      input.assertActive?.();
       const rows = (await tx.getAll("outbox")).filter((value) => value.scope === input.scope && active2(value));
       if (rows.length >= 1e3) throw new Error("Offline queue is full; this edit was not saved");
       const previous = ordered(rows.filter((value) => value.entity_id === operation.entity_id)).at(-1);
@@ -1571,9 +1573,11 @@ function storageMethods(context) {
         local: operation.local,
         dirty: true
       };
+      input.assertActive?.();
       await tx.put("entities", entity);
       await tx.put("outbox", operation);
       await tx.put("meta", { key: sequenceKey, value: operation.seq });
+      input.assertActive?.();
       return { operation, entity };
     });
   }
@@ -2414,20 +2418,23 @@ function syncActions(context) {
   }
   return { sync, scheduleRetry };
 }
+async function unmanaged(context, path, options2, guard) {
+  try {
+    guard();
+    return await context.request(path, options2);
+  } catch (error) {
+    if ([401, 403].includes(error.status)) await context.invalidate({ forget: true });
+    throw error;
+  }
+}
 function mutationActions(context) {
   const { state: state2, cache, now, uuid, outbox, features } = context;
-  async function unmanaged(path, options2) {
-    try {
-      return await context.request(path, options2);
-    } catch (error) {
-      if ([401, 403].includes(error.status)) await context.invalidate({ forget: true });
-      throw error;
-    }
-  }
-  async function mutate(path, options2, route) {
+  async function mutate(path, options2, route, guard) {
+    guard();
     if (!state2.scope || !state2.identity) throw fail2("请先联网读取此工作台，再保存离线内容。", "OFFLINE_SCOPE_REQUIRED");
     const owner = state2.scope, generation = context.generation;
     const active4 = () => {
+      guard();
       if (owner !== state2.scope || generation !== context.generation)
         throw fail2("身份范围已变化，本次修改未保存，输入已保留。", "OFFLINE_SCOPE_CHANGED");
     };
@@ -2462,7 +2469,8 @@ function mutationActions(context) {
       path,
       body,
       base,
-      local
+      local,
+      assertActive: active4
     });
     active4();
     await context.refresh();
@@ -2470,7 +2478,10 @@ function mutationActions(context) {
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
-  async function call(path, options2 = {}) {
+  async function call(path, input = {}) {
+    const { offlineGuard: guard = () => {
+    }, ...options2 } = input;
+    guard();
     const method = (options2.method || "GET").toUpperCase(), route = writableRoute(path, options2, features);
     if (path === "/auth/me" && method === "GET") return options2.context || options2.signal ? context.authenticate(options2) : context.verify();
     if (["/auth/login", "/auth/logout"].includes(path) && method === "POST") {
@@ -2478,13 +2489,15 @@ function mutationActions(context) {
       await context.invalidate({ forget: true });
       return value;
     }
-    if (route) return mutate(path, options2, route);
-    if (method !== "GET" || !offlineReadRoute(path)) return unmanaged(path, options2);
+    if (route) return mutate(path, options2, route, guard);
+    if (method !== "GET" || !offlineReadRoute(path)) return unmanaged(context, path, options2, guard);
     if (offlineReadRoute(path).kind === "todo") context.lastTodoPath = path;
     try {
       if (context.online() && state2.identity) await context.verifyScope();
+      guard();
       const owner = state2.scope, generation = context.generation;
       const baseline = owner ? await cache.fence(path) : void 0;
+      guard();
       const value = await context.request(path, options2);
       if (owner !== state2.scope || generation !== context.generation) throw fail2("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
       if (offlineReadRoute(path).kind === "todo") state2.partial = false;
@@ -2591,7 +2604,8 @@ function onOfflineRuntime(callback) {
   if (singleton) callback(singleton);
   return () => readyListeners.delete(callback);
 }
-async function offlineRequest(path, options2, request, onIdentity) {
+async function offlineRequest(path, options2, request, onIdentity, assertActive = () => {
+}) {
   if (!initialization) initialization = openOfflineDB().then((db) => {
     singleton = createOfflineRuntime({ db, request, onIdentity });
     for (const callback of readyListeners) callback(singleton);
@@ -2601,14 +2615,16 @@ async function offlineRequest(path, options2, request, onIdentity) {
   try {
     runtime2 = await initialization;
   } catch {
+    assertActive();
     if (writableRoute(path, options2, OFFLINE_FEATURES))
       throw fail2("浏览器无法保存本机数据，本次修改未保存；输入已保留。", "OFFLINE_STORAGE_UNAVAILABLE");
     return request(path, options2);
   }
+  assertActive();
   const managed = offlineReadRoute(path) || writableRoute(path, options2, OFFLINE_FEATURES) || ["/auth/me", "/auth/login", "/auth/logout"].includes(path);
-  if (!managed) return runtime2.call(path, options2);
+  if (!managed) return runtime2.call(path, { ...options2, offlineGuard: assertActive });
   const { envelope: envelope2 = false, ...opts } = options2;
-  const value = await runtime2.call(path, opts);
+  const value = await runtime2.call(path, { ...opts, offlineGuard: assertActive });
   return envelope2 ? { data: value } : value;
 }
 
@@ -2685,9 +2701,13 @@ async function apiNetwork(path, options2 = {}) {
   return envelope2 ? payload : payload.data;
 }
 function api(path, options2 = {}) {
+  const epoch = runtime.sessionEpoch, identity3 = state.me?.id ?? null;
+  const active4 = () => {
+    if (epoch !== runtime.sessionEpoch || identity3 !== (state.me?.id ?? null) || options2.signal?.aborted || options2.context?.controller.signal.aborted) throw new DOMException("请求已取消", "AbortError");
+  };
   return offlineRequest(path, options2, apiNetwork, (me) => {
     if (state.me && state.me.id === me.id) state.me = me;
-  });
+  }, active4);
 }
 
 // web/pages/article-reconciliation.mjs

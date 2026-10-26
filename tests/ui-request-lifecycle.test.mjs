@@ -1,9 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import {randomUUID} from 'node:crypto';
+import {createMemoryDB} from '../web/offline/db.mjs';
+import {createOfflineRuntime} from '../web/offline/runtime.mjs';
+import {createOutbox} from '../web/offline/outbox.mjs';
 import {frontendSource} from './frontend-client.mjs';
 const source = await frontendSource();
 const ok = data => Response.json({data});
+async function waitForTransport(started) {
+  const deadline = Date.now() + 1000;
+  while (!started() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 0));
+  assert.ok(started(), 'the actual API transport must start after offline storage initialization');
+}
 function client(fetch) {
   const nodes = new Map();
   for (const id of ['#app', '#overlay', '#page-content']) nodes.set(id, {
@@ -33,20 +42,86 @@ function delayed() {
 test('same-cycle equivalent pending GETs share one actual transport and independent decoded results', async () => {
   const d = delayed(), c = client(d.fetch);
   const a = c.run("api('/accounts')"), b = c.run("api('/accounts')");
+  await waitForTransport(() => d.calls.length > 0);
   const count = d.calls.length;d.finish([{name: 'Synthetic'}]);
   const [x, y] = await Promise.all([a, b]);
   assert.equal(count, 1, 'baseline sends two equivalent transports');
   x[0].name = 'changed';assert.equal(y[0].name, 'Synthetic', 'consumers cannot mutate each other');
 });
+test('preflight cancellation prevents the real API from starting a transport while storage initializes', async t => {
+  for (const kind of ['page-context', 'explicit-signal']) await t.test(kind, async () => {
+    const calls = [], c = client((path, options) => { calls.push({path, options}); return Promise.resolve(ok([])); });
+    c.run('let preflightContext=beginPageRequests(),preflightSignal=new AbortController()');
+    const pending = c.run(kind === 'page-context' ? "api('/accounts',{context:preflightContext})" :
+      "api('/accounts',{signal:preflightSignal.signal})").then(() => null, error => error);
+    assert.equal(calls.length, 0, 'storage initialization is still before the actual network transport');
+    c.run(kind === 'page-context' ? 'beginPageRequests()' : 'preflightSignal.abort()');
+    assert.equal((await pending)?.name, 'AbortError');assert.equal(calls.length, 0);
+  });
+});
+test('a preflight API mutation never adopts a changed session or identity before its first transport', async t => {
+  for (const change of ['epoch', 'identity']) await t.test(change, async () => {
+    const calls = [], c = client((path, options) => {
+      calls.push({path, adoptedNewIdentity: options.headers['X-CSRF-Token'] === 'synthetic-new-session-csrf'});
+      return Promise.resolve(ok({saved: true}));
+    });
+    const pending = c.run("api('/articles',{method:'POST',body:{title:'Synthetic original-session write'}})")
+      .then(value => ({value}), error => ({error}));
+    assert.equal(calls.length, 0, 'storage initialization is still before the actual network transport');
+    c.run(change === 'epoch' ? 'runtime.sessionEpoch++' :
+      "state.me={id:'synthetic-other-user',username:'Synthetic other user',csrfToken:'synthetic-new-session-csrf'}");
+    const result = await pending;
+    t.diagnostic(JSON.stringify({change,transports:calls.length,adoptedNewIdentity:calls.some(call=>call.adoptedNewIdentity)}));
+    assert.equal(calls.length, 0, 'an original-session mutation must be rejected before using a later session transport');
+    assert.ok(result.error, 'the caller must receive a cancellation or stale-session error');
+  });
+});
+test('a managed local mutation cannot persist after cancellation or a scope change during its entity lookup', async t => {
+  for (const change of ['cancel', 'scope']) await t.test(change, async t => {
+    const storage = createMemoryDB(), scope = 'a'.repeat(64);
+    let cancelled = false, release, entered;
+    const blocked = new Promise(resolve => { entered = resolve; }), gate = new Promise(resolve => { release = resolve; });
+    const db = {transaction: async (names, mode, callback) => {
+      const result = await storage.transaction(names, mode, callback);
+      if (mode === 'readonly' && names.includes('entities')) { entered(); await gate; }
+      return result;
+    }};
+    const app = createOfflineRuntime({db, online: () => false, request: () => assert.fail('cancelled local edit must not send')});
+    t.after(() => app.stop());
+    Object.assign(app.state, {scope, identity: {id: 'synthetic-original-owner', username: 'Synthetic owner'}});
+    const pending = app.call('/todos', {method: 'POST', body: {id: randomUUID(), date: '2026-10-27', text: 'Synthetic original-scope edit'},
+      offlineGuard: () => { if (cancelled) throw new DOMException('cancelled', 'AbortError'); }});
+    pending.catch(() => {});await blocked;
+    if (change === 'cancel') cancelled = true;
+    else Object.assign(app.state, {scope: 'b'.repeat(64), identity: {id: 'synthetic-other-owner', username: 'Synthetic other owner'}});
+    release();await assert.rejects(pending, error => change === 'cancel' ? error.name === 'AbortError' : error.code === 'OFFLINE_SCOPE_CHANGED');
+    for (const store of ['entities', 'outbox'])
+      assert.deepEqual(await storage.transaction([store], 'readonly', tx => tx.getAll(store)), [], store+' stays empty in every scope');
+  });
+});
+test('cancellation at the final durable checkpoint rolls back the local entity, operation and sequence together', async () => {
+  const db = createMemoryDB(), scope = 'a'.repeat(64), id = randomUUID();let checkpoints = 0;
+  const outbox = createOutbox({db, getScope: () => scope, request: () => assert.fail('cancelled transaction must not send')});
+  await assert.rejects(outbox.enqueue({scope, entity_type: 'todo', entity_id: id, method: 'POST',
+    body: {id, date: '2026-10-27', text: 'Synthetic transaction rollback'}, assertActive() {
+      if (++checkpoints === 4) throw new DOMException('cancelled', 'AbortError');
+    }}), error => error.name === 'AbortError');
+  assert.equal(checkpoints, 4);
+  for (const store of ['entities', 'outbox', 'meta'])
+    assert.deepEqual(await db.transaction([store], 'readonly', tx => tx.getAll(store)), [], store+' rolls back atomically');
+});
 test('request options, render cycles and successful writes prevent joining an older pending GET', async () => {
   const d = delayed(), c = client((path, options) => options.method === 'POST' ? Promise.resolve(ok({saved: true})) : d.fetch(path, options));
   const promises = [c.run("api('/accounts',{headers:{'X-Synthetic':'a'}})"),
     c.run("api('/accounts',{headers:{'X-Synthetic':'b'}})")];
+  await waitForTransport(() => d.calls.length >= 2);
   assert.equal(d.calls.length, 2);
   c.run('runtime.renderVersion++');promises.push(c.run("api('/accounts',{headers:{'X-Synthetic':'a'}})"));
+  await waitForTransport(() => d.calls.length >= 3);
   assert.equal(d.calls.length, 3);
   await c.run("api('/articles',{method:'POST',body:{title:'Synthetic write'}})");
   promises.push(c.run("api('/accounts',{headers:{'X-Synthetic':'a'}})"));
+  await waitForTransport(() => d.calls.length >= 4);
   assert.equal(d.calls.length, 4);d.finish([]);await Promise.all(promises);
 });
 test('one cancelled GET consumer does not cancel a second consumer of the shared transport', async () => {
@@ -54,6 +129,7 @@ test('one cancelled GET consumer does not cancel a second consumer of the shared
   c.run('let left=new AbortController(),right=new AbortController()');
   const a = c.run("api('/accounts',{signal:left.signal})").then(() => null, error => error);
   const b = c.run("api('/accounts',{signal:right.signal})");
+  await waitForTransport(() => d.calls.length > 0);
   c.run('left.abort()');const error = await a;
   const transports = d.calls.length, live = !d.calls.at(-1).options.signal?.aborted;
   d.finish([{name: 'Synthetic survivor'}]);assert.equal((await b)[0].name, 'Synthetic survivor');
@@ -62,6 +138,7 @@ test('one cancelled GET consumer does not cancel a second consumer of the shared
 test('a fast page change aborts the previous page GET without replacing the new page or showing an error', async () => {
   const d = delayed(), c = client(d.fetch);
   c.run("state.page='dashboard'");const old = c.run('renderPage()');
+  await waitForTransport(() => d.calls.length > 0);
   c.run("state.page='settings';state.settingsTab='security'");await c.run('renderPage()');
   const aborted = d.calls[0].options.signal?.aborted === true;
   d.finish({});await old;
@@ -88,7 +165,8 @@ test('refresh starts a new GET; late old results cannot fill the new render', as
     });
   });
   c.run("state.page='dashboard';renderDashboardSummary=data=>data.marker");
-  const old = c.run('renderPage()');await c.run('renderPage()');finish();await old;
+  const old = c.run('renderPage()');await waitForTransport(() => reads > 0);
+  await c.run('renderPage()');finish();await old;
   assert.equal(reads, 2);assert.equal(todoReads, 0);assert.equal(signal?.aborted, true);
   assert.match(c.nodes.get('#page-content').innerHTML,/^fresh/);
   assert.doesNotMatch(c.nodes.get('#page-content').innerHTML,/obsolete|error-panel/);
@@ -104,6 +182,7 @@ test('non-abort failures still reject and POST mutations are neither merged nor 
   });
   await assert.rejects(c.run("api('/accounts')"), error => error.status === 503 && error.message === 'Synthetic real failure');
   const write = c.run("api('/articles',{method:'POST',body:{title:'Synthetic'}})");
+  await waitForTransport(() => writes > 0);
   c.run("state.page='settings';state.settingsTab='security'");await c.run('renderPage()');
   finish();assert.equal((await write).saved, true);assert.equal(writes, 1);
 });
@@ -113,6 +192,7 @@ test('page, dialog and background consumers have independent cancellation owners
   const page = c.run("api('/accounts',{context:pageScope})").then(() => null, error => error);
   const dialog = c.run("api('/accounts',{context:dialogScope})");
   const background = c.run("api('/accounts')");
+  await waitForTransport(() => d.calls.length >= 3);
   c.run('beginPageRequests()');
   assert.equal((await page).name, 'AbortError');assert.equal(d.calls.length, 3);
   assert.equal(d.calls[0].options.signal.aborted, true);
@@ -124,6 +204,7 @@ test('identical concurrent writes remain two transports and survive page cancell
   const d = delayed(), c = client(d.fetch);
   const a = c.run("api('/articles',{method:'POST',body:{title:'Synthetic same'}})");
   const b = c.run("api('/articles',{method:'POST',body:{title:'Synthetic same'}})");
+  await waitForTransport(() => d.calls.length >= 2);
   c.run('beginPageRequests();beginPageRequests()');
   assert.equal(d.calls.length, 2);assert.equal(d.calls.every(row=>!row.options.signal), true);
   d.finish({saved:true});assert.equal((await a).saved,true);assert.equal((await b).saved,true);
@@ -132,7 +213,9 @@ test('an aborted page index cannot delete or refill the next page index entry', 
   const d = delayed(), c = client(d.fetch);
   c.run('let firstScope=beginPageRequests()');
   const old = c.run("articleIndex('',firstScope)").then(() => null,error => error);
+  await waitForTransport(() => d.calls.length > 0);
   c.run('let nextScope=beginPageRequests()');const next=c.run("articleIndex('',nextScope)");
+  await waitForTransport(() => d.calls.length >= 2);
   d.pending[1].resolve(ok([{id:'fresh',title:'Synthetic fresh'}]));
   assert.equal((await next)[0].id,'fresh');assert.equal((await old).name,'AbortError');
   assert.equal(c.run('articleIndexes.size'),1);
@@ -163,7 +246,7 @@ test('a cancelled body consumer leaves its surviving consumer active until the r
   c.run('let bodyLeft=new AbortController()');
   const left=c.run("api('/accounts',{signal:bodyLeft.signal})").then(()=>null,error=>error);
   const right=c.run("api('/accounts')");
-  await Promise.resolve();await Promise.resolve();c.run('bodyLeft.abort()');
+  await waitForTransport(() => typeof finish === 'function');c.run('bodyLeft.abort()');
   assert.equal((await left).name,'AbortError');assert.equal(signal.aborted,false);
   finish();assert.equal((await right)[0],'body survivor');
 });

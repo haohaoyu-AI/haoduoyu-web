@@ -238,19 +238,21 @@ function syncActions(context) {
   }
   return {sync, scheduleRetry};
 }
+async function unmanaged(context, path, options, guard) {
+  try { guard(); return await context.request(path, options); }
+  catch (error) {
+    if ([401, 403].includes(error.status)) await context.invalidate({forget: true});
+    throw error;
+  }
+}
 function mutationActions(context) {
   const {state, cache, now, uuid, outbox, features} = context;
-  async function unmanaged(path, options) {
-    try { return await context.request(path, options); }
-    catch (error) {
-      if ([401, 403].includes(error.status)) await context.invalidate({forget: true});
-      throw error;
-    }
-  }
-  async function mutate(path, options, route) {
+  async function mutate(path, options, route, guard) {
+    guard();
     if (!state.scope || !state.identity) throw fail('请先联网读取此工作台，再保存离线内容。', 'OFFLINE_SCOPE_REQUIRED');
     const owner = state.scope, generation = context.generation;
     const active = () => {
+      guard();
       if (owner !== state.scope || generation !== context.generation)
         throw fail('身份范围已变化，本次修改未保存，输入已保留。', 'OFFLINE_SCOPE_CHANGED');
     };
@@ -271,25 +273,29 @@ function mutationActions(context) {
     }
     active();
     const {entity} = await outbox.enqueue({scope: owner, entity_type: route.type, entity_id: id,
-      method, path, body, base, local});
+      method, path, body, base, local, assertActive: active});
     active();
     await context.refresh(); context.broadcast();
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
-  async function call(path, options = {}) {
+  async function call(path, input = {}) {
+    const {offlineGuard: guard = () => {}, ...options} = input;
+    guard();
     const method = (options.method || 'GET').toUpperCase(), route = writableRoute(path, options, features);
     if (path === '/auth/me' && method === 'GET') return options.context || options.signal ? context.authenticate(options) : context.verify();
     if (['/auth/login', '/auth/logout'].includes(path) && method === 'POST') {
       const value = await context.request(path, options); await context.invalidate({forget: true}); return value;
     }
-    if (route) return mutate(path, options, route);
-    if (method !== 'GET' || !offlineReadRoute(path)) return unmanaged(path, options);
+    if (route) return mutate(path, options, route, guard);
+    if (method !== 'GET' || !offlineReadRoute(path)) return unmanaged(context, path, options, guard);
     if (offlineReadRoute(path).kind === 'todo') context.lastTodoPath = path;
     try {
       if (context.online() && state.identity) await context.verifyScope();
+      guard();
       const owner = state.scope, generation = context.generation;
       const baseline = owner ? await cache.fence(path) : undefined;
+      guard();
       const value = await context.request(path, options);
       if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化，本次读取已取消。', 'OFFLINE_SCOPE_CHANGED');
       if (offlineReadRoute(path).kind === 'todo') state.partial = false;
@@ -358,7 +364,7 @@ export function onOfflineRuntime(callback) {
   readyListeners.add(callback); if (singleton) callback(singleton);
   return () => readyListeners.delete(callback);
 }
-export async function offlineRequest(path, options, request, onIdentity) {
+export async function offlineRequest(path, options, request, onIdentity, assertActive = () => {}) {
   if (!initialization) initialization = openOfflineDB().then(db => {
     singleton = createOfflineRuntime({db, request, onIdentity});
     for (const callback of readyListeners) callback(singleton);
@@ -367,14 +373,16 @@ export async function offlineRequest(path, options, request, onIdentity) {
   let runtime;
   try { runtime = await initialization; }
   catch {
+    assertActive();
     if (writableRoute(path, options, OFFLINE_FEATURES))
       throw fail('浏览器无法保存本机数据，本次修改未保存；输入已保留。', 'OFFLINE_STORAGE_UNAVAILABLE');
     return request(path, options);
   }
+  assertActive();
   const managed = offlineReadRoute(path) || writableRoute(path, options, OFFLINE_FEATURES) ||
     ['/auth/me', '/auth/login', '/auth/logout'].includes(path);
-  if (!managed) return runtime.call(path, options);
+  if (!managed) return runtime.call(path, {...options, offlineGuard: assertActive});
   const {envelope = false, ...opts} = options;
-  const value = await runtime.call(path, opts);
+  const value = await runtime.call(path, {...opts, offlineGuard: assertActive});
   return envelope ? {data: value} : value;
 }

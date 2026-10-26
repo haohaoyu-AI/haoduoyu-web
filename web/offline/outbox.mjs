@@ -147,10 +147,12 @@ function createContext(options) {
 function storageMethods(context) {
   const {db, checkScope, uuid, now, owner} = context;
   async function enqueue(input) {
+    input.assertActive?.();
     checkScope(input.scope);
     const operation = operationFor(input, uuid, now());
     return db.transaction(['entities', 'outbox', 'meta'], 'readwrite', async tx => {
       checkScope(input.scope);
+      input.assertActive?.();
       const rows = (await tx.getAll('outbox')).filter(value => value.scope === input.scope && active(value));
       if (rows.length >= 1000) throw new Error('Offline queue is full; this edit was not saved');
       const previous = ordered(rows.filter(value => value.entity_id === operation.entity_id)).at(-1);
@@ -170,9 +172,11 @@ function storageMethods(context) {
         ...(operation.method === 'DELETE' ? {deleted: true} : {})};
       const entity = {...old, key, scope: input.scope, entity_id: operation.entity_id,
         server: old?.server || operation.base, local: operation.local, dirty: true};
+      input.assertActive?.();
       await tx.put('entities', entity);
       await tx.put('outbox', operation);
       await tx.put('meta', {key: sequenceKey, value: operation.seq});
+      input.assertActive?.();
       return {operation, entity};
     });
   }
