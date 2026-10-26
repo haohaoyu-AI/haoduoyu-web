@@ -7060,6 +7060,92 @@ function registerEvents2() {
   window.addEventListener("popstate", handlePopstate);
 }
 
+// web/offline/sw-client.mjs
+var VERSION = /^[a-f0-9]{64}$/;
+async function startServiceWorker({
+  navigator: browser = globalThis.navigator,
+  window: page = globalThis.window,
+  document: document2 = globalThis.document,
+  onSyncRequest
+} = {}) {
+  if (!browser?.serviceWorker || !page || !document2) return null;
+  const serviceWorker = browser.serviceWorker;
+  const version = document2.querySelector('meta[name="haoduoyu-shell-version"]')?.content;
+  const cleanups = [];
+  let registration, button2, optedIn = false, reloaded = false;
+  function listen(target, type, callback) {
+    target.addEventListener(type, callback);
+    cleanups.push(() => target.removeEventListener(type, callback));
+  }
+  function announce() {
+    if (VERSION.test(version)) serviceWorker.controller?.postMessage({ type: "HAODUOYU_SHELL_CLIENT_VERSION", version });
+  }
+  function reload() {
+    if (!optedIn || reloaded) return;
+    reloaded = true;
+    page.location.reload();
+  }
+  function notice() {
+    const waiting = registration?.waiting;
+    if (!waiting || !registration.active || button2) return;
+    button2 = document2.createElement("button");
+    button2.type = "button";
+    button2.className = "sw-update-notice";
+    button2.textContent = "有新版本";
+    button2.setAttribute("aria-label", "有新版本，点此更新");
+    listen(button2, "click", () => {
+      if (optedIn || !registration.waiting) return;
+      optedIn = true;
+      button2.disabled = true;
+      const update = registration.waiting;
+      listen(update, "statechange", () => {
+        if (update.state === "activated") reload();
+      });
+      update.postMessage({ type: "HAODUOYU_SHELL_ACTIVATE" });
+    });
+    document2.body.append(button2);
+  }
+  function watchInstall() {
+    const installing = registration.installing;
+    if (!installing) return;
+    listen(installing, "statechange", () => {
+      if (installing.state === "installed") notice();
+    });
+  }
+  listen(serviceWorker, "controllerchange", () => {
+    if (optedIn) reload();
+    else announce();
+  });
+  listen(page, "haoduoyu:native-online", (event) => {
+    if (event.detail?.protocol !== 1 || event.detail?.reason !== "network-restored") return;
+    if (onSyncRequest) onSyncRequest({ source: "native-online" });
+    else page.dispatchEvent(new page.CustomEvent("haoduoyu:sync-request", { detail: { source: "native-online" } }));
+  });
+  try {
+    registration = await serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
+    announce();
+    notice();
+    watchInstall();
+    listen(registration, "updatefound", watchInstall);
+    listen(page, "online", () => {
+      registration.update().catch(() => {
+      });
+    });
+    listen(document2, "visibilitychange", () => {
+      if (document2.visibilityState === "visible") registration.update().catch(() => {
+      });
+    });
+    return { registration, destroy() {
+      for (const remove of cleanups) remove();
+      button2?.remove();
+    } };
+  } catch {
+    for (const remove of cleanups) remove();
+    return null;
+  }
+}
+
 // web/main.mjs
 registerEvents2();
+startServiceWorker();
 init();

@@ -29,7 +29,7 @@ import {handleWorkbenchSnapshot} from './workbench-snapshot.mjs';
 import {handleWorkReminders} from './work-reminders.mjs';
 
 const prefix='/api/v1';
-const revalidatedStatic=new Set(['/app.js','/style.css','/memos.css','/favicon.svg','/openapi.json']);
+const revalidatedStatic=new Set(['/app.js','/style.css','/memos.css','/favicon.svg','/openapi.json','/sw.js']);
 const writing=new Set(['POST','PUT','PATCH','DELETE']);
 const articleWriting=(method,route)=>(method==='POST'||method==='PATCH')&&route==='/articles'||method==='PUT'&&/^\/articles\/[^/]+$/.test(route);
 const dummyHash='scrypt$32768$8$1$00112233445566778899aabbccddeeff$'+'00'.repeat(64);
@@ -304,10 +304,12 @@ async function handle(request,env,trace) {
   const name=decoded==='/'?'index.html':decoded.slice(1),asset=Object.hasOwn(assets,name)?assets[name]:null;
   if(!asset) throw fail(404,'NOT_FOUND','文件不存在');
   const headers={'Content-Type':asset.type};
+  if(path==='/sw.js')headers['Service-Worker-Allowed']='/';
   if(revalidatedStatic.has(path)) {
     headers['Cache-Control']='no-cache';headers.ETag=asset.etag;
     if(matchesIfNoneMatch(request.headers.get('If-None-Match'),asset.etag))
-      return new Response(null,{status:304,headers:{'Cache-Control':'no-cache',ETag:asset.etag}});
+      return new Response(null,{status:304,headers:{'Cache-Control':'no-cache',ETag:asset.etag,
+        ...(path==='/sw.js'?{'Service-Worker-Allowed':'/'}:{})}});
     headers['Content-Length']=String(asset.length);
   }
   const content=name==='api-docs'&&env.PUBLIC_BUSINESS_MODE==='1'?publicBusinessDocs(asset.content):asset.content;

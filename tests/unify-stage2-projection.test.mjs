@@ -9,6 +9,7 @@ import {frontendBundle} from '../scripts/frontend-build.mjs';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {unifyStage2Baseline,unifyStage2Paths,unifyStage2Before,unifyStage2Manifest,validateUnifyStage2Delta,
   projectUnifyStage2,projectUnifyStage2History,stage2Hash} from './unify-stage2-projection.mjs';
+import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
@@ -16,7 +17,7 @@ const delta=unifyStage2Manifest();
 
 test('stage two pins exactly ten mobile presentation paths without adding any application modules',async()=>{
   for(const file of unifyStage2Paths) {
-    const current=read(file),before=unifyStage2Before(file);
+    const current=projectUnifySw(file,read(file)),before=unifyStage2Before(file);
     assert.equal(stage2Hash(current),delta.files[file].after,'current source remains exact: '+file);
     assert.equal(projectUnifyStage2(file,current),before,file);
     assert.equal(projectUnifyStage2(file,before),before,'exact stage-one input: '+file);
@@ -26,7 +27,8 @@ test('stage two pins exactly ten mobile presentation paths without adding any ap
     'business stores, APIs, schemas, backups, sync and deployment files are unchanged');
   const released=git('ls-tree','-r','--name-only',unifyStage2Baseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
   const current=readdirSync(new URL('../web/',import.meta.url),{recursive:true}).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
-  assert.equal(current.length,56);assert.deepEqual(current,released,'complete frontend module inventory stays fixed');
+  assert.equal(current.length,57);assert.deepEqual(projectUnifySwModules(current),released,
+    'complete mobile module inventory stays fixed after the exact later SW client projects to absence');
   assert.equal(Buffer.from(await frontendBundle(fileURLToPath(root))).toString('utf8'),read('public/app.js'),
     'the pinned bundle is generated from the real current modules exercised by mobile behavior tests');
 });

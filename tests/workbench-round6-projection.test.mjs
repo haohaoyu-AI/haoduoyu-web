@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {projectWorkbenchRound6,round6AddedModules} from './workbench-round6-projection.mjs';
 import {projectWorkbenchRound6Badge,round6BadgePaths} from './workbench-round6-badge-projection.mjs';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
+import {projectUnifySwModules} from './unify-sw-projection.mjs';
 
 const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -31,7 +32,8 @@ test('round-six pins only the nine reviewed presentation paths and adds no front
   assert.deepEqual(projectedChangedFiles(delta.baseline,roots),Object.keys(delta.files).sort());
   const released=git('ls-tree','-r','--name-only',delta.baseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
   const modules=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
-  assert.equal(modules.length,56);assert.deepEqual(modules,released,'complete released module inventory stays exact');
+  assert.equal(modules.length,57);assert.deepEqual(projectUnifySwModules(modules),released,
+    'complete released module inventory stays exact after the pinned later SW client projects to absence');
 });
 
 test('round-six preserves every backend, contract and business store including complete all-status catalog support',()=>{

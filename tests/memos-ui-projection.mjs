@@ -4,6 +4,7 @@ import {workbenchAddedModules} from './workbench-ui-projection.mjs';
 import {round4AddedModules,projectWorkbenchRound4} from './workbench-round4-projection.mjs';
 import {round5AddedModules,projectWorkbenchRound5} from './workbench-round5-projection.mjs';
 import {projectPublicNoteFrontend} from './public-note-ui-projection.mjs';
+import {projectUnifySwModules} from './unify-sw-projection.mjs';
 import {execFileSync} from 'node:child_process';
 import {readFile, readdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -107,7 +108,7 @@ export async function verifyMemoFrontendBoundary() {
   for(const file of reconciliationModules)assert.equal(projectReconciliation(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
   for(const file of round4AddedModules)assert.equal(projectWorkbenchRound4(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
   for(const file of round5AddedModules)assert.equal(projectWorkbenchRound5(file,await readFile(new URL('../'+file,import.meta.url),'utf8')),'');
-  const existing=files.filter(file=>![...reconciliationModules,...round4AddedModules,...round5AddedModules].includes(file));
+  const existing=projectUnifySwModules(files).filter(file=>![...reconciliationModules,...round4AddedModules,...round5AddedModules].includes(file));
   assert.deepEqual(existing,[...production,...memoAddedModules,...workbenchAddedModules].sort(),'released modules plus reviewed memo and workbench modules');
   for(const file of existing) {
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');

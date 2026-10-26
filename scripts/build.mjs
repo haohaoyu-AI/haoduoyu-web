@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { frontendBundle } from './frontend-build.mjs';
 import { cloudflareConfig } from './cloudflare-config.mjs';
 import {articleMigrationTag,validateMigrationSource} from './migration-contract.mjs';
+import {buildServiceWorkerAssets} from './service-worker-build.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const publicRoot=resolve(root,'public'),dist=resolve(root,'dist');
@@ -17,12 +18,19 @@ const target=args[0]?.slice('--target='.length)||'platform';
 const runtime=JSON.parse(await readFile(resolve(root,'runtime.json'),'utf8'));
 const standalone=target==='cloudflare'?cloudflareConfig(runtime,process.env):null;
 await writeFile(resolve(publicRoot,'app.js'),await frontendBundle(root));
-const types={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',json:'application/json; charset=utf-8',svg:'image/svg+xml',txt:'text/plain; charset=utf-8'};
+const types={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',json:'application/json; charset=utf-8',svg:'image/svg+xml',txt:'text/plain; charset=utf-8',webmanifest:'application/manifest+json; charset=utf-8'};
 const assets={};
-for(const name of ['index.html','app.js','tokens.css','style.css','memos.css','glass.css','workbench.css','mobile.css','openapi.json','favicon.svg','robots.txt','llms.txt']) {
+for(const name of ['index.html','app.js','tokens.css','style.css','memos.css','glass.css','workbench.css','mobile.css','sw-update.css','manifest.webmanifest','openapi.json','favicon.svg','robots.txt','llms.txt']) {
   assets[name]={type:types[name.split('.').at(-1)],content:await readFile(resolve(publicRoot,name),'utf8')};
 }
 assets['api-docs']={type:types.html,content:await readFile(resolve(publicRoot,'api-docs.html'),'utf8')};
+const shell=buildServiceWorkerAssets({indexHtml:assets['index.html'].content,
+  swSource:await readFile(resolve(publicRoot,'sw.js'),'utf8'),
+  assets:Object.fromEntries(Object.entries(assets).filter(([name])=>name.endsWith('.css')||
+    ['app.js','favicon.svg','manifest.webmanifest'].includes(name)).map(([name,asset])=>['/'+name,asset.content]))});
+assets['index.html'].content=shell.indexHtml;assets['sw.js']={type:types.js,content:shell.swSource};
+await writeFile(resolve(publicRoot,'index.html'),shell.indexHtml);
+await writeFile(resolve(publicRoot,'sw.js'),shell.swSource);
 for(const asset of Object.values(assets)) {
   const bytes=Buffer.from(asset.content,'utf8');
   asset.etag='\"'+createHash('sha256').update(bytes).digest('hex')+'\"';

@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {projectWorkbenchRound5,round5AddedModules} from './workbench-round5-projection.mjs';
 import {projectWorkbenchRound6} from './workbench-round6-projection.mjs';
 import {projectedChangedFiles} from './unify-stage1-projection.mjs';
+import {projectUnifySwModules} from './unify-sw-projection.mjs';
 
 const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -29,7 +30,8 @@ test('round-five presentation files and explicit new module are pinned over the 
   assert.deepEqual(inventory,Object.keys(delta.files).sort(),'only explicitly pinned presentation changes are accepted');
   const released=git('ls-tree','-r','--name-only',delta.baseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs'));
   const modules=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
-  assert.deepEqual(modules,[...released,...round5AddedModules].sort(),'complete released module inventory plus exact new view helper');
+  assert.deepEqual(projectUnifySwModules(modules),[...released,...round5AddedModules].sort(),
+    'complete released module inventory plus exact new view helper; only the pinned later SW client projects to absence');
 });
 
 test('round-five leaves every backend, schema, snapshot, backup and public API documentation byte unchanged',()=>{

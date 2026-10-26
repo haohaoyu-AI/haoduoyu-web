@@ -59,7 +59,10 @@ test('strict current inverse rejects extra CSS, changed tokens, duplicate links 
     assert.throws(()=>projectUnifyStage1(file,source),/approved workbench delta/);
   }
   const unrelated=read('src/worker.mjs')+'\n/* unapproved */\n';
-  assert.equal(projectUnifyStage1('src/worker.mjs',unrelated),unrelated,'unapproved business edits remain visible to inventory checks');
+  assert.throws(()=>projectUnifyStage1('src/worker.mjs',unrelated),/approved workbench delta/,
+    'the later narrow SW inverse rejects any unreviewed Worker bytes before historical projection');
+  const business=read('src/records.mjs')+'\n/* unapproved */\n';
+  assert.equal(projectUnifyStage1('src/records.mjs',business),business,'unapproved business edits remain visible to inventory checks');
   assert.equal(projectUnifyStage1('public/../public/style.css','unapproved'),'unapproved','aliases never receive a normalization');
 });
 

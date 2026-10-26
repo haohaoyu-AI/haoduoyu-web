@@ -89,7 +89,9 @@ test('build hashes are reproducible and change only with their own content in an
   await writeFile(join(copy, 'public/style.css'), first['style.css'].content + '\n/* Synthetic build variant */\n');
   const third = await build();
   assert.notEqual(third['style.css'].etag, first['style.css'].etag);
-  for (const name of Object.keys(first).filter(name => name !== 'style.css')) assert.deepEqual(third[name], first[name]);
+  for (const name of ['index.html','sw.js'])assert.notEqual(third[name].etag,first[name].etag,'dependent shell generation: '+name);
+  for (const name of Object.keys(first).filter(name => !['style.css','index.html','sw.js'].includes(name)))
+    assert.deepEqual(third[name], first[name]);
 });
 
 test('real loopback curl GET and HEAD revalidation transmits zero response-body bytes on a hit', async t => {
