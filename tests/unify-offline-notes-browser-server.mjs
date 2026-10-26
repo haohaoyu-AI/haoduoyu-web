@@ -14,12 +14,16 @@ for (const path of paths) assets[path] = path === '/app.js' ? await frontendBund
   await readFile(new URL('public' + path, root), 'utf8');
 const shell = buildServiceWorkerAssets({indexHtml: await readFile(new URL('public/index.html', root), 'utf8'),
   swSource: await readFile(new URL('public/sw.js', root), 'utf8'), assets});
-let app, environment;
+let app, environment, syntheticSession;
 const calls = [];
 let dropNextPut = false;
 const server = createServer(async (incoming, outgoing) => {
   try {
     const url = new URL(incoming.url, 'http://localhost');
+    if (url.pathname === '/__offline-test/session') {
+      outgoing.writeHead(200, {'Content-Type': 'application/json', 'Set-Cookie': syntheticSession.cookie + '; Path=/; HttpOnly; SameSite=Lax'});
+      outgoing.end(JSON.stringify({csrfToken: syntheticSession.csrfToken})); return;
+    }
     if (url.pathname === '/__offline-test/calls') {
       outgoing.writeHead(200, {'Content-Type': 'application/json'}); outgoing.end(JSON.stringify(calls)); return;
     }
@@ -60,6 +64,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = 'http://127.0.0.1:' + server.address().port;
 app = await fixture(null, {persist: false, origin});
 const session = await app.login(), owner = (await app.request('/api/v1/auth/me', {session})).data.id;
+syntheticSession = session;
 environment = {DB: app.db, SITE_ORIGIN: origin, DAILY_NOTES_OWNER_ID: owner, MEMOS_OWNER_ID: owner,
   PUBLIC_BUSINESS_MODE: '1', PUBLIC_BUSINESS_USER_ID: owner, PUBLIC_BUSINESS_ACCOUNT_IDS: '[]'};
 const day = beijingDay(Date.now()), previous = new Date(Date.parse(day + 'T12:00:00Z') - 86400000).toISOString().slice(0, 10);

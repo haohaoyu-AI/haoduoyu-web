@@ -344,18 +344,19 @@ test('unavailable durable database rejects offline mutation instead of reporting
     async () => { requests++; }), error => error.code === 'OFFLINE_STORAGE_UNAVAILABLE');
   assert.equal(requests, 0);
 });
-test('conflict choices retain both bodies until an actual supported resolution', async t => {
+test('a fresh server choice archives a real durable branch while retaining both evidence bodies', async t => {
   const f = fixture(t); await initialize(f);
-  const id = randomUUID(), key = entityKey(scope, 'conflict:synthetic'), local = {id, text: '本地全文'}, remote = {id, text: '线上全文'};
+  const id = randomUUID(), key = entityKey(scope, 'conflict:synthetic');
+  f.source.online = false; await f.app.call('/todos', {method: 'POST', body: {id, date, text: '本地全文'}});
+  const [operation] = await f.db.transaction(['outbox'], 'readonly', tx => tx.getAll('outbox'));
+  const entity = await f.db.transaction(['entities'], 'readonly', tx => tx.get('entities', entityKey(scope, 'todo:' + id)));
+  const local = entity.local, remote = {...local, text: '线上全文', version: 2};
+  f.remote.set(id, remote); f.source.online = true;
   await f.db.transaction(['entities', 'outbox', 'conflicts'], 'readwrite', async tx => {
-    await tx.put('entities', {key: entityKey(scope, 'todo:' + id), scope, entity_id: 'todo:' + id, local, server: remote, dirty: true, conflict: key});
-    await tx.put('conflicts', {key, scope, entity_id: 'todo:' + id, local, remote, resolved_at: null,
-      operation: {entity_type: 'todo', protocol: 1, source_id: id, entity_id: 'todo:' + id, method: 'POST', path: '/todos'}});
+    await tx.put('entities', {...entity, server: remote, conflict: key});
+    await tx.put('outbox', {...operation, status: 'conflict'});
+    await tx.put('conflicts', {key, scope, entity_id: 'todo:' + id, local, remote, resolved_at: null, operation});
   });
-  for (const choice of ['use-local', 'keep-both']) {
-    assert.equal((await f.app.resolve(key, choice)).needs_followup, true);
-    assert.equal((await f.app.queue()).conflicts.length, 1);
-  }
   await f.app.resolve(key, 'use-server'); assert.equal((await f.app.queue()).conflicts.length, 0);
   const saved = await f.db.transaction(['conflicts'], 'readonly', tx => tx.get('conflicts', key));
   assert.equal(saved.local.text, '本地全文'); assert.equal(saved.remote.text, '线上全文');

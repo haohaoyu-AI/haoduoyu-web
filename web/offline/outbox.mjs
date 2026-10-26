@@ -1,5 +1,8 @@
 import {assertOfflineData, entityKey} from './db.mjs';
 import {createConflictStore} from './conflict.mjs';
+import {createConflictDecisions} from './conflict-decisions.mjs';
+import {createConflictPreparation} from './conflict-transport.mjs';
+import {recordResolutionAck, recordResolutionFailure} from './resolution-ledger.mjs';
 
 export const RETRY_DELAYS = Object.freeze([5000, 15000, 60000, 300000]);
 const prefixes = {todo: 'todo:', template: 'template:', note_entry: 'note-entry:',
@@ -22,15 +25,23 @@ function canonicalRoute(operation) {
 }
 function dispatchCapabilities(options) {
   const types = new Set(options.enabledTypes || Object.keys(prefixes));
-  const protocols = new Set(options.supportedProtocols || [1]);
+  const protocols = new Set(options.supportedProtocols || [1, 2, 3]);
   const memoDependencies = operation => options.supportedDependencies === true && operation.entity_type === 'memo_note' &&
     operation.method === 'PUT' && uuidPattern.test(operation.body?.group_id) && Array.isArray(operation.depends_on) &&
     operation.depends_on.length === 1 && operation.depends_on[0] === 'memo-group:' + operation.body.group_id;
+  const decision = operation => {
+    let origin;
+    try { origin = JSON.parse(operation.origin_conflict); } catch { return false; }
+    return options.resolutionReceipts !== false && uuidPattern.test(operation.resolution_id) && operation.resolution_receipt === 1 &&
+      Array.isArray(origin) && origin.length === 2 && origin[0] === operation.scope && typeof origin[1] === 'string' &&
+      origin[1].startsWith('conflict:') && (!Object.hasOwn(operation, 'depends_on') || memoDependencies(operation));
+  };
   const canDispatch = operation => {
     const protocol = operation?.protocol === undefined ? 1 : operation.protocol;
     return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types.has(operation.entity_type) &&
       Number.isSafeInteger(protocol) && protocols.has(protocol) && canonicalRoute(operation) &&
-      (protocol === 1 && !Object.hasOwn(operation, 'depends_on') || protocol === 2 && memoDependencies(operation)));
+      (protocol === 1 && !Object.hasOwn(operation, 'depends_on') || protocol === 2 && memoDependencies(operation) ||
+        protocol === 3 && decision(operation)));
   };
   const requireDispatch = operation => { if (!canDispatch(operation)) throw needsUpgrade(); };
   return {canDispatch, requireDispatch};
@@ -86,6 +97,8 @@ function operationFor(input, uuid, time) {
     local: {...structuredClone(input.local || body), id, version: expected + 1}, claim_owner: null, error: null};
   operation.key = entityKey(input.scope, 'operation:' + operation.id);
   if (Object.hasOwn(input, 'depends_on')) operation.depends_on = structuredClone(input.depends_on);
+  for (const field of ['resolution_id', 'resolution_receipt', 'origin_conflict'])
+    if (Object.hasOwn(input, field)) operation[field] = input[field];
   assertOfflineData(operation);
   return operation;
 }
@@ -176,9 +189,9 @@ function createContext(options) {
     });
   }
 
-  async function network(scope, path, opts = {}) {
+  async function network(scope, path, opts = {}, claim = true) {
     checkScope(scope);
-    if (!await lease(scope)) throw new Error('Offline sync lease changed');
+    if (claim && !await lease(scope)) throw new Error('Offline sync lease changed');
     checkScope(scope);
     const controller = new AbortController();
     let timer;
@@ -194,9 +207,13 @@ function createContext(options) {
       return result;
     } finally { clearTimeout(timer); }
   }
+  const readNetwork = (scope, path, opts = {}) => {
+    if (!['GET', 'HEAD'].includes((opts.method || 'GET').toUpperCase())) throw new TypeError('Conflict preparation is read-only');
+    return network(scope, path, opts, false);
+  };
 
   return {db, request, getScope, now, uuid, timeout, owner, conflicts, state, leaseKey, checkScope, list, lease, network,
-    canDispatch, requireDispatch, retryable};
+    readNetwork, canDispatch, requireDispatch, retryable};
 }
 
 async function replayOperation(tx, operation, input, all) {
@@ -226,64 +243,64 @@ async function noteCapacity(tx, operation, old) {
 
 function storageMethods(context) {
   const {db, checkScope, uuid, now, owner} = context;
-  async function enqueue(input) {
+  async function enqueueInTransaction(tx, input) {
     input.assertActive?.();
     checkScope(input.scope);
     const operation = operationFor(input, uuid, now());
     context.requireDispatch(operation);
-    return db.transaction(['entities', 'outbox', 'meta'], 'readwrite', async tx => {
-      checkScope(input.scope);
-      input.assertActive?.();
-      const all = (await tx.getAll('outbox')).filter(value => value.scope === input.scope);
-      const replay = await replayOperation(tx, operation, input, all);
-      if (replay) { input.assertActive?.(); return replay; }
-      const rows = all.filter(active);
-      if (rows.length >= 1000) throw new Error('Offline queue is full; this edit was not saved');
-      const previous = ordered(rows.filter(value => value.entity_id === operation.entity_id)).at(-1);
-      const conflict = rows.some(value => value.entity_id === operation.entity_id && value.status === 'conflict');
-      if (conflict || previous && operation.expected_version !== previous.expected_version + 1) {
-        throw new Error('Offline edits must use the preceding local version');
-      }
-      const sequenceKey = entityKey(input.scope, 'outbox-sequence');
-      const sequence = (await tx.get('meta', sequenceKey))?.value || 0;
-      operation.seq = sequence + 1;
-      const key = entityKey(input.scope, operation.entity_id), old = await tx.get('entities', key);
-      await noteCapacity(tx, operation, old);
-      const visible = old?.dirty ? old.local : old?.server || operation.base;
-      operation.base = operation.base || old?.server || null;
-      operation.local = {...visible, ...operation.local,
-        ...(operation.entity_type === 'todo' && operation.path === '/todos' ? {completed: false} : {}),
-        ...(operation.path.endsWith('/restore') ? {deleted: false, deleted_at: null} : {}),
-        ...(operation.method === 'DELETE' ? {deleted: true} : {})};
-      const entity = {...old, key, scope: input.scope, entity_id: operation.entity_id,
-        server: old?.server || operation.base, local: operation.local, dirty: true};
-      input.assertActive?.();
-      await tx.put('entities', entity);
-      await tx.put('outbox', operation);
-      await tx.put('meta', {key: sequenceKey, value: operation.seq});
-      input.assertActive?.();
-      return {operation, entity};
-    });
+    checkScope(input.scope);
+    input.assertActive?.();
+    const all = (await tx.getAll('outbox')).filter(value => value.scope === input.scope);
+    const replay = await replayOperation(tx, operation, input, all);
+    if (replay) { input.assertActive?.(); return replay; }
+    const rows = all.filter(active);
+    if (rows.length >= 1000) throw new Error('Offline queue is full; this edit was not saved');
+    const previous = ordered(rows.filter(value => value.entity_id === operation.entity_id)).at(-1);
+    const conflict = rows.some(value => value.entity_id === operation.entity_id && value.status === 'conflict');
+    if (conflict || previous && operation.expected_version !== previous.expected_version + 1) {
+      throw new Error('Offline edits must use the preceding local version');
+    }
+    const sequenceKey = entityKey(input.scope, 'outbox-sequence');
+    const sequence = (await tx.get('meta', sequenceKey))?.value || 0;
+    operation.seq = sequence + 1;
+    const key = entityKey(input.scope, operation.entity_id), old = await tx.get('entities', key);
+    await noteCapacity(tx, operation, old);
+    const visible = old?.dirty ? old.local : old?.server || operation.base;
+    operation.base = operation.base || old?.server || null;
+    operation.local = {...visible, ...operation.local,
+      ...(operation.entity_type === 'todo' && operation.path === '/todos' ? {completed: false} : {}),
+      ...(operation.path.endsWith('/restore') ? {deleted: false, deleted_at: null} : {}),
+      ...(operation.method === 'DELETE' ? {deleted: true} : {})};
+    const entity = {...old, key, scope: input.scope, entity_id: operation.entity_id,
+      server: old?.server || operation.base, local: operation.local, dirty: true};
+    input.assertActive?.();
+    await tx.put('entities', entity);
+    await tx.put('outbox', operation);
+    await tx.put('meta', {key: sequenceKey, value: operation.seq});
+    input.assertActive?.();
+    return {operation, entity};
   }
-
+  async function enqueue(input) {
+    return db.transaction(['entities', 'outbox', 'meta'], 'readwrite', tx => enqueueInTransaction(tx, input));
+  }
   async function update(operation, fields) {
     if (!context.canDispatch(operation)) return null;
-    return db.transaction(['outbox', 'meta'], 'readwrite', async tx => {
+    return db.transaction(['outbox', 'meta', 'conflicts'], 'readwrite', async tx => {
       const current = await tx.get('outbox', operation.key);
       const held = await tx.get('meta', context.leaseKey(operation.scope));
       if (!context.canDispatch(current) || held?.owner !== owner || !['queued', 'unknown', 'sending'].includes(current.status)) return null;
       if (!Object.hasOwn(fields, 'claim_owner') && current.claim_owner !== owner) return null;
       const result = {...current, ...fields};
       await tx.put('outbox', result);
+      if (fields.status) await recordResolutionFailure(tx, result, fields);
       return result;
     });
   }
-
   async function acknowledge(operation, remote) {
     context.requireDispatch(operation);
     if (operation.entity_type === 'note_entry' && !completeNoteRow(remote)) throw new Error('Incomplete note acknowledgement');
     checkScope(operation.scope);
-    await db.transaction(['entities', 'outbox'], 'readwrite', async tx => {
+    await db.transaction(['entities', 'outbox', 'conflicts'], 'readwrite', async tx => {
       checkScope(operation.scope);
       const current = await tx.get('outbox', operation.key);
       if (!context.canDispatch(current) || current.claim_owner !== owner || !['sending', 'unknown'].includes(current.status)) {
@@ -297,10 +314,11 @@ function storageMethods(context) {
         value.entity_id === operation.entity_id && active(value));
       await tx.put('entities', {...entity, server: confirmed, local: remaining ? entity.local : confirmed,
         dirty: remaining, conflict: null});
+      await recordResolutionAck(tx, current, confirmed, now());
     });
   }
 
-  return {enqueue, update, acknowledge};
+  return {enqueue, enqueueInTransaction, update, acknowledge};
 }
 
 function remoteMethods(context) {
@@ -411,6 +429,12 @@ function processingMethods(context) {
     try {
       const claimed = await update(operation, {claim_owner: owner});
       if (!claimed) return;
+      if (claimed.protocol === 3) {
+        const origin = await context.db.transaction(['conflicts'], 'readonly', tx => tx.get('conflicts', claimed.origin_conflict));
+        if (!origin || origin.scope !== claimed.scope || origin.resolved_at !== null ||
+            origin.resolution?.id !== claimed.resolution_id || !origin.resolution.operation_keys.includes(claimed.key))
+          throw Object.assign(new Error('本机选择凭据不完整，原请求已保留。'), {status: 422, code: 'OFFLINE_DECISION_EVIDENCE_MISSING'});
+      }
       if (['unknown', 'sending'].includes(operation.status)) {
         const checked = await reconcile(claimed);
         if (checked.result === 'ack') return await acknowledge(claimed, checked.remote);
@@ -431,11 +455,15 @@ function processingMethods(context) {
 async function dependencyState(context, operation, rows) {
   if (!operation.depends_on?.length) return 'ready';
   if (operation.depends_on.some(id => rows.some(row => row.entity_id === id && active(row)))) return 'pending';
-  return context.db.transaction(['entities'], 'readonly', async tx => {
+  return context.db.transaction(['entities', 'outbox'], 'readonly', async tx => {
     for (const id of operation.depends_on) {
       const parent = await tx.get('entities', entityKey(operation.scope, id));
       if (deleted(parent?.server)) return 'deleted';
-      if (!parent?.server || parent.remote_missing || parent.server.version < 1) return 'unknown';
+      if (!parent?.server || parent.remote_missing || parent.server.version < 1) {
+        const abandoned = operation.protocol === 3 && (await tx.getAll('outbox')).some(row => row.scope === operation.scope &&
+          row.entity_id === id && row.resolution_id === operation.resolution_id && row.status === 'archived');
+        return abandoned ? 'deleted' : 'unknown';
+      }
     }
     return 'ready';
   });
@@ -520,6 +548,25 @@ export function createOutbox(options) {
   Object.assign(context, receiptMethods(context));
   Object.assign(context, processingMethods(context));
   Object.assign(context, executionMethods(context));
+  const preparationReads = remoteMethods({...context, network: context.readNetwork});
+  const prepare = createConflictPreparation({readRemote: preparationReads.readRemote, network: context.readNetwork});
+  const decisions = createConflictDecisions({db: context.db, getScope: context.getScope, now: context.now,
+    uuid: context.uuid, canDispatch: context.canDispatch, prepare, append: async (tx, inputs, {assertActive}) => {
+      const result = [];
+      for (const input of inputs) result.push(await context.enqueueInTransaction(tx, {...input, assertActive}));
+      return result;
+    }});
+  async function resolve(...args) {
+    const scope = context.getScope();
+    try { return await decisions.resolve(...args); }
+    finally {
+      if (scope && context.state.phase !== 'syncing') await context.db.transaction(['meta'], 'readwrite', async tx => {
+        const key = context.leaseKey(scope), held = await tx.get('meta', key);
+        if (held?.owner === context.owner) await tx.delete('meta', key);
+      }).catch(() => {});
+    }
+  }
+  context.conflicts.resolve = resolve;
   const {enqueue, drain, resume, list, state, conflicts, canDispatch, retryable} = context;
-  return {enqueue, drain, resume, list, state, conflicts, canDispatch, retryable};
+  return {enqueue, drain, resume, list, state, conflicts, canDispatch, retryable, resolve};
 }

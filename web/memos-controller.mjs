@@ -4,6 +4,7 @@ import {storage} from './core/storage.mjs';
 import {runtime, state} from './core/state.mjs';
 import {createMemosStore} from './core/memos-state.mjs';
 import {getOfflineRuntime} from './offline/runtime.mjs';
+import {registerConflictDraftGuard, createMemoConflictDraftGuard} from './offline/conflict-draft-guards.mjs';
 import {paintMemos} from './pages/memos.mjs';
 import {renderLogin} from './pages/login.mjs';
 import {openMemoRecovery, resetMemoRecovery, selectMemoRecovery, restoreMemoRecovery} from './memos-recovery.mjs';
@@ -49,7 +50,8 @@ function ensureStore() {
   return memoStore;
 }
 function refreshDurableMemos() {
-  if (!memoOfflineRefresh || memoOfflineLoading || memoDeleting || memoRefreshPaused || !visible() || !memoStore || memoStore.state.loading ||
+  if (!memoOfflineRefresh || memoOfflineLoading || memoDeleting || memoRefreshPaused || !visible() || !memoStore ||
+      memoStore.state.loading ||
       [...memoStore.drafts.values()].some(item => item.composing || item.pending || item.phase === 'saving')) return;
   const store = memoStore; memoOfflineRefresh = false; memoOfflineLoading = true;
   memoOfflineFlight = Promise.resolve().then(() => store.load({local: true})).finally(() => {
@@ -282,6 +284,9 @@ function preserveMemosBeforeRefresh(event) {
 function registerEvents() {
   if (memoEvents) return;
   memoEvents = true; registerMemoSplitEvents();
+  registerConflictDraftGuard(createMemoConflictDraftGuard({getStore: () => memoStore, getIdentity: currentIdentity,
+    getStorage: () => window.localStorage, getComposing: id => memoStore?.state.noteId === id &&
+      [...document.querySelectorAll('#memo-title,#memo-body')].some(field => field.dataset.composing === 'true')}));
   document.addEventListener('focusin', event => {
     if (visible() && ['memo-title', 'memo-body'].includes(event.target.id)) memoEditorFocus = event.target;
   });

@@ -9,6 +9,7 @@ import {createNotesEditorView} from './core/notes-editor-view.mjs';
 import {paintNoteEntries} from './pages/daily-notes.mjs';
 import {renderLogin} from './pages/login.mjs';
 import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
+import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offline/conflict-draft-guards.mjs';
 
 let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false;
@@ -264,6 +265,8 @@ async function handleNotesClick(event) {
 function registerDailyNotesEvents() {
   if (notesEventsRegistered) return;
   notesEventsRegistered = true; registerNotesInputEvents();
+  registerConflictDraftGuard(createNoteConflictDraftGuard({getStores: () => entryStores, getIdentity: notesIdentityNow,
+    getComposing: id => document.querySelector('[data-note-entry-editor="' + id + '"]')?.dataset.composing === 'true'}));
   window.addEventListener('haoduoyu:before-refresh', event => {
     if (typeof event.detail?.waitUntil !== 'function' || notesIdentity !== notesIdentityNow()) return;
     const resumes = [], expected = notesIdentityNow(), root = document.querySelector('#daily-notes');
