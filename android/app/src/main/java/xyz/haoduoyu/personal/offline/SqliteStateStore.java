@@ -23,7 +23,7 @@ import java.util.Arrays;
  * identity together. Each cursor row is at most 256 KiB: a large state document
  * must never depend on Android's limited CursorWindow fitting one giant TEXT.
  */
-public final class SqliteStateStore extends SQLiteOpenHelper implements LocalRepository.Store {
+public final class SqliteStateStore extends SQLiteOpenHelper implements LegacyMigrationCoordinator.Source {
     private static final int CHUNK_BYTES = 256 * 1024;
     private static final int MAX_BYTES = 32 * 1024 * 1024;
     private static final int MAX_CHUNKS = MAX_BYTES / CHUNK_BYTES;
@@ -71,6 +71,12 @@ public final class SqliteStateStore extends SQLiteOpenHelper implements LocalRep
     }
 
     @Override public synchronized JSONObject read() throws Exception {
+        byte[] payload = readRawPayload();
+        return payload == null ? null : new JSONObject(strictUtf8(payload));
+    }
+
+    /** The verified original chunk bytes, without JSON parse/stringify normalization. */
+    public synchronized byte[] readRawPayload() throws Exception {
         SQLiteDatabase database = getReadableDatabase();
         // A cursor may refill its window using another query. Keep the manifest
         // and every small chunk in one database snapshot, even across helpers.
@@ -116,12 +122,16 @@ public final class SqliteStateStore extends SQLiteOpenHelper implements LocalRep
                     || !MessageDigest.isEqual(expectedHash.getBytes(StandardCharsets.US_ASCII),
                     hex(digest.digest()).getBytes(StandardCharsets.US_ASCII)))
                 throw invalid("分块数量或文件摘要不一致");
-            String decoded = StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(output.toByteArray())).toString();
-            JSONObject result = new JSONObject(decoded);
+            byte[] result = output.toByteArray();
+            new JSONObject(strictUtf8(result));
             database.setTransactionSuccessful();
             return result;
         } finally { database.endTransaction(); }
+    }
+
+    private static String strictUtf8(byte[] payload) throws Exception {
+        return StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(payload)).toString();
     }
 
     @Override public synchronized void write(JSONObject document) throws Exception {

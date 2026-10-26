@@ -178,6 +178,22 @@ public final class SqliteStateStoreTest {
         assertArrayEquals(malformed, firstChunk());
     }
 
+    @Test public void recoveryReadsOriginalVerifiedChunkBytesWithoutJsonNormalization() throws Exception {
+        byte[] raw = " \n{\"schema\":1, \"unknown\":null, \"drafts\":{\"empty\":\"\",\"text\":\"中文🐟\"}}\n "
+                .getBytes(StandardCharsets.UTF_8);
+        SQLiteDatabase database = store.getWritableDatabase();
+        ContentValues chunk = new ContentValues(); chunk.put("chunk_index", 0); chunk.put("payload", raw);
+        database.insertOrThrow("offline_chunks", null, chunk);
+        ContentValues manifest = new ContentValues(); manifest.put("id", 1); manifest.put("length_bytes", raw.length);
+        manifest.put("chunk_count", 1); manifest.put("sha256", hex(MessageDigest.getInstance("SHA-256").digest(raw)));
+        database.insertOrThrow("offline_manifest", null, manifest);
+        String hash = manifestHash();
+        assertArrayEquals(raw, store.readRawPayload());
+        assertArrayEquals(raw, LegacyArchive.decode(LegacyArchive.encode(store.readRawPayload())).rawPayload());
+        assertArrayEquals(raw, firstChunk()); assertEquals(hash, manifestHash());
+        assertEquals("", store.read().getJSONObject("drafts").getString("empty"));
+    }
+
     @Test public void midWriteSqlAbortRollsBackDeletedChunksAndManifestTogether() throws Exception {
         JSONObject committed = new JSONObject().put("draft", "committed before failure")
                 .put("op_id", "must survive a failed replacement");
