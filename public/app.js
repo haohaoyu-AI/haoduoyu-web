@@ -2551,7 +2551,7 @@ function mutationActions(context) {
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
-  async function call(path, input = {}) {
+  async function call(path, input = {}, readRetried = false) {
     const { offlineGuard: guard = () => {
     }, ...options2 } = input;
     guard();
@@ -2588,6 +2588,7 @@ function mutationActions(context) {
         await context.invalidate({ forget: true });
         throw error;
       }
+      if (error.code === "OFFLINE_CACHE_CHANGED" && !readRetried) return call(path, input, true);
       if (!networkFailure(error)) throw error;
       state2.verifiedScope = null;
       state2.online = false;
