@@ -23,6 +23,9 @@ import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
@@ -67,6 +70,13 @@ public final class SqliteStateStoreTest {
         }
     }
 
+    private String journalMode() {
+        try (Cursor result = store.getReadableDatabase().rawQuery("PRAGMA journal_mode", null)) {
+            assertTrue(result.moveToFirst());
+            return result.getString(0);
+        }
+    }
+
     private byte[] firstChunk() {
         try (Cursor result = store.getReadableDatabase().rawQuery("SELECT payload FROM offline_chunks WHERE chunk_index=0", null)) {
             assertTrue(result.moveToFirst());
@@ -88,15 +98,34 @@ public final class SqliteStateStoreTest {
         assertEquals(length, scalar("SELECT length_bytes FROM offline_manifest WHERE id=1"));
         assertEquals((length + CHUNK_BYTES - 1) / CHUNK_BYTES, scalar("SELECT count(*) FROM offline_chunks"));
         assertTrue(scalar("SELECT max(length(payload)) FROM offline_chunks") <= CHUNK_BYTES);
-        assertEquals(2, scalar("PRAGMA synchronous")); // FULL, including the WAL commit path.
+        assertEquals(2, scalar("PRAGMA synchronous")); // FULL on the single durable connection.
+        assertEquals("delete", journalMode());
+        assertFalse(store.getReadableDatabase().isWriteAheadLoggingEnabled());
         reopen();
         JSONObject actual = store.read();
+        assertEquals(2, scalar("PRAGMA synchronous"));
+        assertEquals("delete", journalMode());
         assertEquals(expected.getString("payload"), actual.getString("payload"));
         assertEquals("synthetic-owner", actual.getString("account_id"));
         JSONObject operation = actual.getJSONArray("operations").getJSONObject(0);
         assertEquals("stable-operation", operation.getString("op_id"));
         assertEquals("original request", operation.getJSONObject("wire").getString("text"));
         assertEquals(7, operation.getJSONObject("wire").getInt("version"));
+    }
+
+    @Test public void fullSynchronizationIsNotLimitedToTheThreadThatOpenedTheDatabase() throws Exception {
+        store.write(new JSONObject().put("draft", "must remain durable across executor changes"));
+        ExecutorService reader = Executors.newSingleThreadExecutor();
+        try {
+            assertEquals(Long.valueOf(2), reader.submit(() -> { return scalar("PRAGMA synchronous"); }).get(10, TimeUnit.SECONDS));
+            assertEquals("delete", reader.submit(() -> { return journalMode(); }).get(10, TimeUnit.SECONDS));
+            assertEquals("must remain durable across executor changes",
+                    reader.submit(() -> { return store.read().getString("draft"); }).get(10, TimeUnit.SECONDS));
+        } finally { reader.shutdownNow(); }
+        reopen();
+        store.write(new JSONObject().put("draft", "second durable commit"));
+        assertEquals(2, scalar("PRAGMA synchronous"));
+        assertEquals("second durable commit", store.read().getString("draft"));
     }
 
     @Test public void missingChunkIsRejectedOnRestartAndNeverReinitialized() throws Exception {

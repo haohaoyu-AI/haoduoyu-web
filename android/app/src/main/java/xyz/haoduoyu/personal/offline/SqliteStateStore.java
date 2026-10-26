@@ -5,6 +5,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabaseCorruptException;
+import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 
 import org.json.JSONObject;
@@ -33,12 +34,27 @@ public final class SqliteStateStore extends SQLiteOpenHelper implements LocalRep
         super(context.getApplicationContext(), "haoduoyu-offline.db", null, 1, database -> {
             throw new SQLiteDatabaseCorruptException("本机数据库无法安全读取；原 DB/WAL/SHM 文件保留，未清空或重新初始化");
         });
-        setWriteAheadLoggingEnabled(true);
+        // This store already serializes whole-state reads and writes. A WAL
+        // connection pool would add no concurrency benefit, and a one-off
+        // synchronous PRAGMA would configure only one of its connections.
+        setWriteAheadLoggingEnabled(false);
     }
 
     @Override public void onConfigure(SQLiteDatabase database) {
+        database.disableWriteAheadLogging();
         database.setForeignKeyConstraintsEnabled(true);
+        // Use one rollback-journal connection on every supported Android API,
+        // including API 26 which has no public OpenParams synchronous setting.
+        // Never report a successful local save under an OEM's NORMAL/OFF mode.
+        try (Cursor mode = database.rawQuery("PRAGMA journal_mode=DELETE", null)) {
+            if (!mode.moveToFirst() || !"delete".equalsIgnoreCase(mode.getString(0)))
+                throw new SQLiteException("Durable local journal mode could not be configured; existing data preserved");
+        }
         database.execSQL("PRAGMA synchronous=FULL");
+        try (Cursor mode = database.rawQuery("PRAGMA synchronous", null)) {
+            if (!mode.moveToFirst() || mode.getInt(0) != 2)
+                throw new SQLiteException("FULL local synchronization could not be configured; existing data preserved");
+        }
     }
 
     @Override public void onCreate(SQLiteDatabase database) {
