@@ -3,6 +3,7 @@ package xyz.haoduoyu.personal;
 import android.app.job.JobScheduler;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Looper;
 import android.view.View;
@@ -123,6 +124,21 @@ public final class NativeOfflineUiTest {
         drainWorkers(runtime);
         assertTrue("Injected offline transport must not open a physical connection", attemptedNetwork.isEmpty());
         assertEquals(0, webViews(activity.getWindow().getDecorView()));
+    }
+
+    @Test public void explicitLegacyHistoryIntentAndSavedBundleStillReachTheNativeEditorBeforeTheCompatibilityFix() throws Exception {
+        Context context=RuntimeEnvironment.getApplication();
+        Intent history=new Intent(context,OfflineActivity.class).setAction(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER).addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY);
+        Bundle restored=new Bundle();restored.putString("tab","memo");restored.putString("date","2026-10-26");
+        restored.putString("draft","Synthetic old task restoration probe");
+        controller=Robolectric.buildActivity(OfflineActivity.class,history);
+        controller.create(restored).start().restoreInstanceState(restored).resume().visible();
+        OfflineActivity activity=controller.get();OfflineRuntime runtime=awaitReady(activity);
+        assertNotNull(runtime);assertFalse(activity.isFinishing());
+        assertEquals("Synthetic old task restoration probe",field(activity,"composer",EditText.class).getText().toString());
+        assertEquals(0,webViews(activity.getWindow().getDecorView()));
+        assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
     }
 
     @Test public void actualAddAndRoundCompletionClicksCommitToSQLiteWithoutAnAccount() throws Exception {
