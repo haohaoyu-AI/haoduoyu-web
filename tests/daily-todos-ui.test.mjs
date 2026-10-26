@@ -791,13 +791,13 @@ test('soft deletion is optimistic and single-submit, failure restores the row, a
   c.put('original', item('recover-me', '2026-10-23', {completed:true}));
   c.run(`paintTodos=()=>{};todoDay().items=[original];todoDay().loaded=true;receiveTodoPreferences('strike',0);
     let calls=[],rejectDelete;api=(path,options)=>{calls.push({path,options});return new Promise((_,reject)=>rejectDelete=reject)};
-    let deletion=deleteTodo({id:original.id,date:original.date})`);
+    let __todoFixtureDeletion=deleteTodo({id:original.id,date:original.date})`);
   await c.run('deleteTodo({id:original.id,date:original.date})');
   assert.doesNotMatch(c.run('renderTodos()'), /data-todo-id="recover-me"/);
   assert.match(c.run('renderTodos()'), /删除中/);
   assert.equal(c.run('calls.length'), 1);
   c.run("rejectDelete(new Error('Synthetic delete failed'))");
-  await c.run('deletion');
+  await c.run('__todoFixtureDeletion');
   assert.match(c.run('renderTodos()'), /data-todo-id="recover-me"/);
   assert.match(c.run('renderTodos()'), /Synthetic delete failed/);
   c.run(`api=async(path,options)=>{calls.push({path,options});return {...original,deleted_at:'2026-10-23T09:00:00Z',version:2}}`);
@@ -825,10 +825,10 @@ test('late delete results and failures cannot leak into another owner or a diffe
     c.put('original', item('private-removal', '2026-10-23'));
     c.run(`paintTodos=()=>{};todoDay().items=[original];let finish,reject;
       api=()=>new Promise((resolve,failed)=>{finish=resolve;reject=failed});
-      let deletion=deleteTodo({id:original.id,date:original.date});
+      let __todoFixtureDeletion=deleteTodo({id:original.id,date:original.date});
       resetSessionIndexes();state.me={id:'new-delete-owner'};state.todoDate='2026-10-24';todoDay().draft='Keep new draft'`);
     c.run(fail?"reject(new Error('old private deletion error'))":"finish({...original,deleted_at:'2026-10-23T09:00:00Z',version:2})");
-    await c.run('deletion');
+    await c.run('__todoFixtureDeletion');
     assert.equal(c.run('todoDay().items.length'),0);
     assert.equal(c.run('todoDay().removals.size'),0);
     assert.equal(c.run('todoDay().error'),'');
