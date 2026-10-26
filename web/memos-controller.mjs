@@ -3,6 +3,7 @@ import {navigate} from './controller.mjs';
 import {storage} from './core/storage.mjs';
 import {runtime, state} from './core/state.mjs';
 import {createMemosStore} from './core/memos-state.mjs';
+import {getOfflineRuntime} from './offline/runtime.mjs';
 import {paintMemos} from './pages/memos.mjs';
 import {renderLogin} from './pages/login.mjs';
 import {openMemoRecovery, resetMemoRecovery, selectMemoRecovery, restoreMemoRecovery} from './memos-recovery.mjs';
@@ -10,6 +11,8 @@ export {renderMemos} from './pages/memos.mjs';
 
 let memoStore, memoIdentity = '', memoEvents = false, memoDialog = null, memoDraftScope, memoCreating = false, memoTool = '';
 let memoEditorFocus = null, memoDeleting = '', memoDeleteWait = null;
+let memoOfflineRefresh = false, memoOfflineLoading = false, memoOfflineFlight = null, memoPendingCount = 0, memoConflictCount = 0;
+let memoRefreshPaused = false, memoRefreshReady = false;
 export function requestMemoTool(tool) { memoTool = ['trash', 'recovery'].includes(tool) ? tool : ''; }
 function draftStorageScope() {
   if (memoDraftScope) return memoDraftScope;
@@ -22,13 +25,15 @@ function draftStorageScope() {
   } catch { memoDraftScope = {draftScope: generated, storagePersistent: false}; }
   return memoDraftScope;
 }
-const currentIdentity = () => String(runtime.sessionEpoch) + ':' + String(state.me?.id || '') + ':' + String(state.me?.csrfToken || '');
+const currentIdentity = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '', state.me?.publicBusiness === true,
+  getOfflineRuntime()?.state.scope || '']);
 const settingsTrash = () => state.page === 'settings' && state.settingsTab === 'workspace';
 const visible = () => (state.page === 'memos' || settingsTrash()) && memoIdentity === currentIdentity();
 function ensureStore() {
   const identity = currentIdentity();
   if (memoStore && memoIdentity === identity) return memoStore;
   memoDeleteWait?.(true); memoDeleteWait = null; memoDeleting = ''; memoEditorFocus = null;
+  memoRefreshPaused = false; memoRefreshReady = false;
   memoStore?.dispose(); memoIdentity = identity; memoDialog = null; resetMemoRecovery();
   const active = () => {
     if (currentIdentity() !== identity) throw new DOMException('登录状态已经改变', 'AbortError');
@@ -36,10 +41,21 @@ function ensureStore() {
   const request = async (path, options) => { active(); const value = await api(path, options); active(); return value; };
   let local;
   try { local = window.localStorage; } catch { local = null; }
-  memoStore = createMemosStore({request, storage: local, ...draftStorageScope(),
+  memoStore = createMemosStore({request, storage: local, ...draftStorageScope(), durable: true,
+    readLocal: path => getOfflineRuntime()?.readMemo(path) || request(path),
+    resolveLocal: (key, choice) => getOfflineRuntime().resolve(key, choice),
     ownerId: state.me?.publicBusiness ? '' : String(state.me?.id || ''),
-    onChange: () => { if (identity === currentIdentity()) { memoDeleteWait?.(); paintMemosPage(); } }});
+    onChange: () => { if (identity === currentIdentity()) { memoDeleteWait?.(); paintMemosPage(); refreshDurableMemos(); } }});
   return memoStore;
+}
+function refreshDurableMemos() {
+  if (!memoOfflineRefresh || memoOfflineLoading || memoDeleting || memoRefreshPaused || !visible() || !memoStore ||
+      [...memoStore.drafts.values()].some(item => item.composing || item.pending || item.phase === 'saving')) return;
+  const store = memoStore; memoOfflineRefresh = false; memoOfflineLoading = true;
+  memoOfflineFlight = Promise.resolve().then(() => store.load({local: true})).finally(() => {
+    memoOfflineLoading = false; memoOfflineFlight = null;
+    if (store === memoStore) { paintMemosPage(); refreshDurableMemos(); }
+  });
 }
 function paintDialog(root) {
   const find = query => root.querySelector(query), dialog = memoDialog;
@@ -57,6 +73,11 @@ export function paintMemosPage() {
   const root = document.querySelector('#memos');
   if (!root) return;
   paintMemos(root, memoStore); paintDialog(root); setupMemoSplit(root);
+  if (memoRefreshPaused) {
+    root.inert = true;
+    root.querySelectorAll('button,input,select').forEach(control => { control.disabled = true; });
+    root.querySelectorAll('#memo-title,#memo-body').forEach(field => { field.readOnly = true; });
+  }
   if (memoDeleting) root.querySelectorAll('[data-memo-action="delete-note"]')
     .forEach(button => { if (button.dataset.memoTarget === memoDeleting) button.disabled = true; });
   if (memoCreating) root.querySelectorAll('[data-memo-action="new-group"],[data-memo-action="new-note"]')
@@ -144,18 +165,22 @@ async function removeMemo(id) {
   if (memoDeleting || !store.state.canEdit) return;
   memoDeleting = id; store.state.error = ''; paintMemosPage();
   try {
-    if (item?.pending && item.phase === 'saving') await new Promise(resolve => {
-      memoDeleteWait = force => { if (force || item.phase !== 'saving') resolve(); };
+    await memoOfflineFlight;
+    if (item?.loading || item?.pending && item.phase === 'saving') await new Promise(resolve => {
+      memoDeleteWait = force => { if (force || !item.loading && (!item.pending || item.phase !== 'saving')) resolve(); };
     });
     if (store !== memoStore || memoIdentity !== currentIdentity()) return;
     memoDeleteWait = null;
     if (item?.dirty && !item.pending) await store.saveNote(id);
-    if (item?.dirty || item?.pending) {
-      store.state.error = '笔记尚未确认保存，未删除。请先核对保留的草稿。'; return;
+    if (item?.localQueued && navigator.onLine !== false) {
+      await getOfflineRuntime()?.sync(); await store.selectNote(id, {open: false, select: false, local: true});
+    }
+    if (item?.dirty || item?.pending || item?.localQueued) {
+      store.state.error = '本机正文已保留，删除需联网完成同步后再确认。'; return;
     }
     await store.removeNote(id); await selectVisibleMemo(store);
   } finally {
-    if (store === memoStore) { memoDeleting = ''; memoDeleteWait = null; paintMemosPage(); }
+    if (store === memoStore) { memoDeleting = ''; memoDeleteWait = null; paintMemosPage(); refreshDurableMemos(); }
   }
 }
 async function restoreMemo(id) {
@@ -214,11 +239,45 @@ function run(action) {
   });
 }
 function editing(event, composing) {
-  if (!visible() || !['memo-title', 'memo-body'].includes(event.target.id)) return;
+  if (memoRefreshPaused || !visible() || !['memo-title', 'memo-body'].includes(event.target.id)) return;
   const root = document.querySelector('#memos');
   if (!root?.contains(event.target)) return;
   memoStore.edit(event.target.id === 'memo-title' ? 'title' : 'body', event.target.value,
     {composing: composing || event.target.dataset.composing === 'true'});
+}
+function preserveMemosBeforeRefresh(event) {
+  if (typeof event.detail?.waitUntil !== 'function' || memoIdentity !== currentIdentity() || !memoStore?.state.canEdit) return;
+  const store = memoStore, expected = memoIdentity, resume = store.pauseAutosave(), root = document.querySelector('#memos');
+  const controls = [...root?.querySelectorAll('button,input,select') || []].map(control => [control, control.disabled]);
+  const fields = [...root?.querySelectorAll('#memo-title,#memo-body') || []].map(field =>
+    ({field, value: field.value, readOnly: field.readOnly, composing: field.dataset.composing === 'true'}));
+  const focused = fields.find(row => row.field === document.activeElement)?.field;
+  const selection = focused ? [focused.selectionStart, focused.selectionEnd, focused.selectionDirection, focused.scrollTop] : null;
+  const wasInert = root?.inert;
+  memoRefreshPaused = true; memoRefreshReady = false;
+  event.detail.onFailure?.(() => {
+    resume();
+    if (store !== memoStore || expected !== currentIdentity()) return;
+    memoRefreshPaused = false; memoRefreshReady = false;
+    if (root) root.inert = wasInert;
+    for (const [control, disabled] of controls) control.disabled = disabled;
+    for (const {field, readOnly} of fields) field.readOnly = readOnly;
+    paintMemosPage(); refreshDurableMemos();
+    if (focused?.isConnected && !focused.disabled) {
+      focused.focus({preventScroll: true}); focused.setSelectionRange(...selection.slice(0, 3)); focused.scrollTop = selection[3];
+    }
+  });
+  try {
+    const composing = fields.some(row => row.composing);
+    for (const {field, value} of fields) store.edit(field.id === 'memo-title' ? 'title' : 'body', value, {composing, retainPrivate: true});
+    if (root) root.inert = true;
+    for (const [control] of controls) control.disabled = true;
+    for (const {field} of fields) field.readOnly = true;
+    event.detail.waitUntil(store.flushDrafts().then(() => {
+      if (store !== memoStore || expected !== currentIdentity()) throw new Error('REFRESH_IDENTITY_CHANGED');
+      memoRefreshReady = true;
+    }));
+  } catch (error) { event.detail.waitUntil(Promise.reject(error)); }
 }
 function registerEvents() {
   if (memoEvents) return;
@@ -231,9 +290,10 @@ function registerEvents() {
   }, true);
   document.addEventListener('input', event => editing(event, event.isComposing));
   document.addEventListener('compositionstart', event => {
-    if (visible() && ['memo-title', 'memo-body'].includes(event.target.id)) event.target.dataset.composing = 'true';
+    if (!memoRefreshPaused && visible() && ['memo-title', 'memo-body'].includes(event.target.id)) event.target.dataset.composing = 'true';
   });
   document.addEventListener('compositionend', event => {
+    if (memoRefreshPaused) return;
     if (['memo-title', 'memo-body'].includes(event.target.id)) event.target.dataset.composing = 'false';
     editing(event, false);
   });
@@ -259,13 +319,21 @@ function registerEvents() {
     if (event.key === 'Enter' && event.target.id === 'memo-dialog-title') { event.preventDefault(); run(confirmDialog); }
   });
   window.addEventListener('beforeunload', event => {
+    if (memoRefreshPaused && memoRefreshReady) return;
     if (memoIdentity !== currentIdentity() || !memoStore?.state.canEdit) return;
     if (memoStore.state.operation?.pending || [...memoStore.drafts.values()].some(item => item.dirty || item.pending)) {
       event.preventDefault(); event.returnValue = '';
     }
   });
+  window.addEventListener('haoduoyu:before-refresh', preserveMemosBeforeRefresh);
   window.addEventListener('online', () => { if (visible()) paintMemosPage(); });
   window.addEventListener('offline', () => { if (visible()) paintMemosPage(); });
+  window.addEventListener('haoduoyu-offline-status', event => {
+    const pending = event.detail?.pending || 0, conflicts = event.detail?.conflicts || 0;
+    if (pending < memoPendingCount || conflicts !== memoConflictCount) memoOfflineRefresh = true;
+    memoPendingCount = pending; memoConflictCount = conflicts;
+    refreshDurableMemos();
+  });
 }
 export async function loadMemos() {
   registerEvents(); const store = ensureStore();

@@ -23,11 +23,14 @@ function canonicalRoute(operation) {
 function dispatchCapabilities(options) {
   const types = new Set(options.enabledTypes || Object.keys(prefixes));
   const protocols = new Set(options.supportedProtocols || [1]);
+  const memoDependencies = operation => options.supportedDependencies === true && operation.entity_type === 'memo_note' &&
+    operation.method === 'PUT' && uuidPattern.test(operation.body?.group_id) && Array.isArray(operation.depends_on) &&
+    operation.depends_on.length === 1 && operation.depends_on[0] === 'memo-group:' + operation.body.group_id;
   const canDispatch = operation => {
     const protocol = operation?.protocol === undefined ? 1 : operation.protocol;
     return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types.has(operation.entity_type) &&
-      Number.isSafeInteger(protocol) && protocol === 1 && protocols.has(protocol) &&
-      !Object.hasOwn(operation, 'depends_on') && canonicalRoute(operation));
+      Number.isSafeInteger(protocol) && protocols.has(protocol) && canonicalRoute(operation) &&
+      (protocol === 1 && !Object.hasOwn(operation, 'depends_on') || protocol === 2 && memoDependencies(operation)));
   };
   const requireDispatch = operation => { if (!canDispatch(operation)) throw needsUpgrade(); };
   return {canDispatch, requireDispatch};
@@ -153,9 +156,14 @@ function createContext(options) {
   const list = scope => db.transaction(['outbox'], 'readonly', async tx =>
     ordered((await tx.getAll('outbox')).filter(value => value.scope === scope && active(value))));
   const retryable = async scope => {
-    const first = new Map();
-    for (const row of await list(scope)) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
-    return [...first.values()].filter(row => canDispatch(row) && ['queued', 'unknown', 'sending'].includes(row.status));
+    const rows = await list(scope), first = new Map(), ready = [];
+    for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
+    for (const row of first.values()) {
+      if (!canDispatch(row) || !['queued', 'unknown', 'sending'].includes(row.status)) continue;
+      const dependency = await dependencyState({db}, row, rows);
+      if (['ready', 'deleted'].includes(dependency)) ready.push(row);
+    }
+    return ready;
   };
 
   async function lease(scope) {
@@ -420,6 +428,31 @@ function processingMethods(context) {
   return {reconcile, fail, process};
 }
 
+async function dependencyState(context, operation, rows) {
+  if (!operation.depends_on?.length) return 'ready';
+  if (operation.depends_on.some(id => rows.some(row => row.entity_id === id && active(row)))) return 'pending';
+  return context.db.transaction(['entities'], 'readonly', async tx => {
+    for (const id of operation.depends_on) {
+      const parent = await tx.get('entities', entityKey(operation.scope, id));
+      if (deleted(parent?.server)) return 'deleted';
+      if (!parent?.server || parent.remote_missing || parent.server.version < 1) return 'unknown';
+    }
+    return 'ready';
+  });
+}
+async function dependenciesReady(context, operation, rows) {
+  const state = await dependencyState(context, operation, rows);
+  if (state === 'deleted') {
+    const claimed = await context.update(operation, {claim_owner: context.owner});
+    if (claimed) {
+      const entity = await context.db.transaction(['entities'], 'readonly', tx =>
+        tx.get('entities', entityKey(operation.scope, operation.entity_id)));
+      await context.conflicts.record({operation: claimed, remote: entity?.server || null, reason: 'MEMO_GROUP_UNAVAILABLE'});
+    }
+  }
+  return state === 'ready';
+}
+
 function executionMethods(context) {
   const {getScope, lease, state, list, checkScope, process, db, leaseKey, owner, now, retryable, canDispatch} = context;
   let running = null;
@@ -431,7 +464,13 @@ function executionMethods(context) {
     try {
       for (let count = 0; count < 1000; count++) {
         checkScope(scope);
-        const operation = (await retryable(scope)).find(value => value.next_attempt_at <= now());
+        const rows = await list(scope);
+        let operation;
+        for (const candidate of await retryable(scope)) {
+          if (candidate.next_attempt_at <= now() && await dependenciesReady(context, candidate, rows)) {
+            operation = candidate; break;
+          }
+        }
         if (!operation) break;
         await process(operation);
       }
