@@ -64,6 +64,22 @@ test('memo-offline rejects changed current and old bytes and leaves every unauth
     /approved workbench delta/,'an added core module cannot disappear without its exact D digest');
 });
 
+test('memo-offline requires repaired current bytes and retains only the exact superseded D historical inverse',()=>{
+  const superseded='cc98a9786576d17b2eb33f8a1f94d78e36ae7b4b';
+  const repaired=git('diff','--name-only',superseded,unifyMemosOfflinePatch,'--',...roots).trim().split('\n');
+  assert.deepEqual(repaired,['.ci/public-assets.json','public/app.js','public/index.html','public/sw.js','web/memos-controller.mjs'],
+    'only the foreground-load repair and its complete corresponding shell may change');
+  for(const file of repaired) {
+    const source=git('show',superseded+':'+file),before=unifyMemosOfflineBefore(file);
+    assert.notEqual(memosOfflineHash(source),delta.files[file].after,'the repaired source needs a fresh pin: '+file);
+    assert.throws(()=>projectUnifyMemosOffline(file,source),/approved workbench delta/,'superseded bytes cannot impersonate current D: '+file);
+    assert.equal(projectUnifyMemosOfflineHistory(file,source),before,'the exact frozen D checkpoint retains its historical inverse: '+file);
+    assert.throws(()=>projectUnifyMemosOfflineHistory(file,source+'\n/* unauthorized */\n'),/approved workbench delta/,file+' forged history');
+    for(const project of [projectUnifySw,projectUnifyStage2,projectUnifyStage1])
+      assert.equal(project(file,source),project(file,before),'the fixed old D checkpoint still composes: '+file);
+  }
+});
+
 test('memo-offline manifest rejects moved commits, changed digests, extra modules and self-authorized scope',()=>{
   const variants=[];
   for(const field of ['baseline','patch_commit']) {

@@ -1,6 +1,6 @@
 {
   "baseline": "3193568bb7275ad7b8cdf752ea0a6ef197d8a6a8",
-  "patch_commit": "cc98a9786576d17b2eb33f8a1f94d78e36ae7b4b",
+  "patch_commit": "2dc4e054c37151947faac8b544aad3cfe432740c",
   "scope": "Exact fixed D memo local state, durable create/edit operations, explicit parent dependencies, full-body cache, queue integration, memo page/controller and explicit refresh persistence barrier. Only the complete corresponding generated shell and asset pins change. No backend, API route, server permission, schema, runtime binding, release allowlist, production configuration, grouping UI, or alteration of the fixed C note/cache/SW-client and B API/preflight source.",
   "added_modules": [
     "web/core/memos-local.mjs",
@@ -9,19 +9,19 @@
   "files": {
     ".ci/public-assets.json": {
       "before": "1c1a6006c84d9be72c8e8138b6cb73eb67a007682ae859e4eabd9d5d73f160fc",
-      "after": "0cd621fa9e405a8b86acb899818e23c687a3a210ec24c24cca0e950a623f2fcb"
+      "after": "b4bdcf3f3737ce8771b1f81a0d7ac3b81a16a5b006a8e173e249feaeea70236f"
     },
     "public/app.js": {
       "before": "10913edeb93b7c0b8faf5c29738a1a02c804b9d88b20ba6d57bf2cbf9b8086f0",
-      "after": "b71cac2a61f4bb5bd2f7bcf431354b3ec99c98a6f856274d0662e95ac03af9fd"
+      "after": "5a0290b727d61c8b49e88bb17e13bc4d239b5eedef07a1ac7a0f4b49a9e00251"
     },
     "public/index.html": {
       "before": "7c13385c6b36485644efae10e9ace5793d5705c8d9491d3e939665d315448c2b",
-      "after": "c43b794605fab0d89aa5ffbcadd4edde5b40738bfe7c61a5d3f74be53b5d4213"
+      "after": "16e92047273c854b715b46e2920c1e7727cc382b1276104834635087d0e20f3d"
     },
     "public/sw.js": {
       "before": "6c7e59b594a5b3b88d59d509e2618d96bdce32a805c7a717e6df98d3ce264731",
-      "after": "1e52719e814f34222310b43f5838526e91766972adeed6f970bb35133cc1b3b3"
+      "after": "d13de9305a2cccdf320b5e9e2f34cb8d0cd0ff8b6abcf8418908a794b9130b1d"
     },
     "web/core/memos-local.mjs": {
       "before": null,
@@ -33,7 +33,7 @@
     },
     "web/memos-controller.mjs": {
       "before": "e8bbb83503a4493cc502175ed006b6a41c019475fe85ada062e4b2428d67dd09",
-      "after": "622d1b56b8b8b59ed59bee2a0ef83992d13315ff61ff02fea7d9978835bd09fc"
+      "after": "ac4aa17b13fd40be14eca1952dedd5097f9aba70fb973ab556555bf6ccc0aa5f"
     },
     "web/offline/memos.mjs": {
       "before": null,

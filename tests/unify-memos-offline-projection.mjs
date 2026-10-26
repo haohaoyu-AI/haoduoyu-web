@@ -5,13 +5,13 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 export const unifyMemosOfflineBaseline='3193568bb7275ad7b8cdf752ea0a6ef197d8a6a8';
-export const unifyMemosOfflinePatch='cc98a9786576d17b2eb33f8a1f94d78e36ae7b4b';
+export const unifyMemosOfflinePatch='2dc4e054c37151947faac8b544aad3cfe432740c';
 export const unifyMemosOfflinePaths=Object.freeze(['.ci/public-assets.json','public/app.js','public/index.html','public/sw.js',
   'web/core/memos-local.mjs','web/core/memos-state.mjs','web/memos-controller.mjs','web/offline/memos.mjs',
   'web/offline/outbox.mjs','web/offline/runtime.mjs','web/pages/memos.mjs']);
 export const unifyMemosOfflineAddedModules=Object.freeze(['web/core/memos-local.mjs','web/offline/memos.mjs']);
 const added=new Set(unifyMemosOfflineAddedModules);
-const acceptedDeltaSha256='c3030d65a16f2a395cb6f664be5d48fd615e9429f83bd21904b19595eb4a78d1';
+const acceptedDeltaSha256='c8a159c0a15964e2411f33199bb13e9a0269d3e348423e03d9152728a2239cee';
 const label='exact approved workbench delta (unify memos offline)';
 export const memosOfflineHash=value=>createHash('sha256').update(value).digest('hex');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
@@ -60,6 +60,12 @@ const historicalManifests=['article-pipeline-ui-delta.json','public-note-ui-delt
   'workbench-round5-delta.json','workbench-round6-delta.json','workbench-round6-badge-delta.json',
   'unify-stage1-delta.json','unify-stage2-delta.json','unify-sw-delta.json','unify-todos-offline-delta.json',
   'unify-notes-offline-delta.json'];
+const supersededMemosOfflinePatch='cc98a9786576d17b2eb33f8a1f94d78e36ae7b4b';
+const supersededDigests=new Map();
+function supersededMemosOfflineHash(file) {
+  if(!supersededDigests.has(file))supersededDigests.set(file,memosOfflineHash(git('show',supersededMemosOfflinePatch+':'+file)));
+  return supersededDigests.get(file);
+}
 let historicalCommits;
 const historicalDigests=new Map();
 function historicalHashes(file) {
@@ -81,6 +87,9 @@ export function projectUnifyMemosOfflineHistory(file,source) {
   if(!unifyMemosOfflinePaths.includes(file))return source;
   const entry=unifyMemosOfflineManifest().files[file],digest=memosOfflineHash(source);
   if(digest===entry.after||source===unifyMemosOfflineBefore(file))return projectUnifyMemosOffline(file,source);
+  // The previous reviewed D source remains a fixed historical inverse only;
+  // its repaired bytes cannot pass the strict current-source entry above.
+  if(digest===supersededMemosOfflineHash(file))return unifyMemosOfflineBefore(file);
   assert.ok(historicalHashes(file).has(digest),label+' exact historical input: '+file);
   return source;
 }
