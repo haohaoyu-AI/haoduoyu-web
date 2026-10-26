@@ -4,7 +4,7 @@ import {noteDraftNeedsAttention, noteEditorCanCollapse} from '../core/notes-edit
 
 function legacyEditorMarkup() {
   return '<article id="notes-legacy-card" class="note-entry note-entry-editing notes-legacy-card" hidden>' +
-    '<div class="note-entry-head"><span class="note-entry-time">原有记录 <time id="notes-legacy-time" hidden></time></span>' +
+    '<div class="note-entry-head"><time id="notes-legacy-time" class="note-entry-time" hidden></time>' +
     '<span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div>' +
     '<p id="notes-message" class="notes-message" role="alert" hidden></p>' +
     '<div class="notes-sheet"><label for="notes-editor" class="sr-only">原有记录内容</label>' +
@@ -49,7 +49,7 @@ export function renderDailyNotes() {
     '<p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p>' +
     '<div id="notes-entry-list" class="notes-entry-list"></div>' +
     '<article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden>' +
-    '<div class="note-entry-head"><span>原有记录 <time hidden></time></span><span class="note-entry-status"></span></div>' +
+    '<div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div>' +
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">编辑</button></article></section>';
 }
@@ -60,9 +60,9 @@ export function noteEntryTime(value) {
   if (!value || !Number.isFinite(Date.parse(value))) return '';
   return new Intl.DateTimeFormat('zh-CN', {timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(new Date(value));
 }
-function paintTime(time, value, fallback = '') {
+function paintTime(time, value) {
   const actual = noteEntryTime(value);
-  time.textContent = actual ? '修改 ' + actual : fallback; time.hidden = !actual && !fallback;
+  time.textContent = actual; time.hidden = !actual;
   if (actual) { time.dateTime = value; time.title = '修改时间（北京时间）：' + new Date(value).toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'}); }
   else { time.removeAttribute('datetime'); time.removeAttribute('title'); }
 }
@@ -128,7 +128,7 @@ function createEntryElement(item, editing) {
   return node;
 }
 function paintEntrySummary(node, item) {
-  paintTime(node.querySelector('time'), item.updatedAt, item.version ? '' : '新记录');
+  paintTime(node.querySelector('time'), item.updatedAt);
   const status = node.querySelector('.note-entry-status');
   status.textContent = statuses[item.phase] || (item.deleted ? '已删除' : item.version ? '已保存' : '写下后自动保存');
   status.dataset.phase = item.phase;
@@ -231,7 +231,9 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
   find('[data-notes-action="collapse"]').disabled = !noteEditorCanCollapse(activeItem);
   find('#notes-entry-empty').hidden = !current.loaded || Boolean(activeItem) || saved.length > 0 || legacy.version > 0 || noteDraftNeedsAttention(legacy);
   const unresolved = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy);
-  find('#notes-status').textContent = !current.loaded && current.loading ? '正在读取…' : current.error ? '读取失败' :
+  const status = find('#notes-status');
+  status.textContent = !current.loaded && current.loading ? '正在读取…' : current.error ? '读取失败' :
     unresolved ? '有草稿待保存' : canEdit ? '自动保存' : current.loaded ? '公开只读' : '正在读取…';
+  status.hidden = canEdit && !current.error && !unresolved;
   paintRetainedDrafts(root, current, drafts);
 }

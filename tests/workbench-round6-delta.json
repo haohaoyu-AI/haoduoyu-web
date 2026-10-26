@@ -1,0 +1,43 @@
+{
+  "baseline": "16ff80ef2d857676d81b7c219110c820de5af72b",
+  "scope": "Round six presentation only: overview removes status/writers, pending card and period panel while preserving actual trends; article list fixes published and removes status selectors; note badges hide normal autosave and use HH:mm. No new modules; backend, API, schema, backup, snapshot, catalog and business stores are byte-identical to 16ff80e.",
+  "added_modules": [],
+  "files": {
+    "public/app.js": {
+      "before": "74ea04486599c98978b58e983ddf5903d905915f0208c4f476f8d77f6afce146",
+      "after": "bf741ecb1e6b49ac68e7eb3db2264f2a0b26bd62dcc507b7c7dc2090023ab2f6"
+    },
+    "public/workbench.css": {
+      "before": "3500c4a590b550a7380c95e3d4cad540c29ffcff510b2f28f700872fd57eb4ec",
+      "after": "d7811be8249bad255f111d3a8f4726ef714124e204dfcd34e38500ea58604fd9"
+    },
+    "web/actions.mjs": {
+      "before": "fbe2502f26d430344c8da61885b2b464bf43d97b8fd2271bc04782aece9566e4",
+      "after": "9354fe3e9cd5b7284ac7549ff674bf9eec43d235c2dd0f37256693dfa7b4e72b"
+    },
+    "web/controller.mjs": {
+      "before": "1e888d980a901771613862bdb3e952fcbdc4f76b4da34396a0fb70952ce6a116",
+      "after": "44c9018109d4e84e5f320c8ee715b400e40c621f27689016e60d7901bc5bc4f2"
+    },
+    "web/core/constants.mjs": {
+      "before": "52cc2e683761951591e13755ae048cb2adaa90281c8ffea2a4f800d0d9d569dc",
+      "after": "d579a30f018d1bf05937faed0a9d68624491915c2e27ebf2a21eb39f769b20df"
+    },
+    "web/core/router.mjs": {
+      "before": "3b3ecaaf5015017a1f7b3ced15285ea5b0f7443f8ba9528b1f15471d6189b965",
+      "after": "7a7d90cf725d8d03e4a2adf87ecafe05e209cfff389901f71cd16fdd52c46ee9"
+    },
+    "web/pages/articles.mjs": {
+      "before": "f8573f1041346bfdab88378b6e1c373772c2efdffa89420c91f37e97a7ad49b0",
+      "after": "e1b01038fc2d9a6a50c4c11e16459f24b1270e85ddb09ec574710907324fda9c"
+    },
+    "web/pages/dashboard.mjs": {
+      "before": "96a219aeaab8e21973264316bc1c8fdbbd3093aea8d692b6bbf0cae30cb7b837",
+      "after": "78d14e0a38c9fc2ee51f62c3e062d81f3a41c6bde418b31f82db78be80fc7b8c"
+    },
+    "web/pages/daily-notes.mjs": {
+      "before": "ca60ca17eaa20aece8853d22ee77606f9d57f0b90f304807b329994f04048830",
+      "after": "5f6920dc156973875f0641481767309864a3c8adcb0253824e6ebe5f8523cc45"
+    }
+  }
+}

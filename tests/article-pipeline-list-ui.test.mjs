@@ -24,32 +24,22 @@ function client() {
   return {run,nodes,requests,context};
 }
 
-test('article list loads all lifecycle cohorts by default and preserves explicit-status scalar API filters',async()=>{
-  for(const status of ['all','draft_saved']) {
+test('article list fixes legacy lifecycle state to published and preserves every other scalar API filter',async()=>{
+  for(const status of ['all','unknown','draft_saved','published']) {
     const app=client();
     app.run("state.filters={...defaultFilters(),slot:'tt1',writer:'dedao',has_warnings:'false',has_pending_verify:'true',series_no_min:'1',series_no_max:'200'};");
-    if(status!=='all')app.run("state.filters.status='draft_saved'");
+    app.run('state.filters.status='+JSON.stringify(status));
     const html=await app.run("renderArticles(runtime.renderVersion,{marker:'list-context'})");
     const pages=app.requests.filter(call=>call.path.startsWith('/articles?'));
-    if(status==='all') {
-      assert.equal(app.requests[0].path,'/article-reconciliation');
-      assert.deepEqual(pages.map(call=>new URL(call.path,'http://localhost').searchParams.get('status')),
-        ['drafting','illustrated','draft_saved','published','failed']);
-      assert.ok(pages.every(call=>new URL(call.path,'http://localhost').searchParams.get('page_size')==='200'));
-      assert.equal(app.run('state.articleMeta.pagination'),'client');
-    }else {
-      assert.equal(app.requests.length,1);
-      const query=new URL(pages[0].path,'http://localhost').searchParams;
-      for(const [key,value]of Object.entries({status:'draft_saved',slot:'tt1',writer:'dedao',has_warnings:'false',has_pending_verify:'true',
-        series_no_min:'1',series_no_max:'200',page:'1',page_size:'20'}))assert.equal(query.get(key),value,key);
-    }
+    assert.equal(app.requests.length,1);assert.equal(pages.length,1);
+    const query=new URL(pages[0].path,'http://localhost').searchParams;
+    for(const [key,value]of Object.entries({status:'published',slot:'tt1',writer:'dedao',has_warnings:'false',has_pending_verify:'true',
+      series_no_min:'1',series_no_max:'200',page:'1',page_size:'20'}))assert.equal(query.get(key),value,key);
+    assert.equal(app.run('state.filters.status'),'published');
     assert.ok(app.requests.every(call=>call.options.context.marker==='list-context'));
     assert.ok(pages.every(call=>call.options.envelope===true));
     assert.ok(app.requests.every(call=>!['all','unknown'].includes(new URL(call.path,'http://localhost').searchParams.get('status'))));
-    assert.match(html,/尚未记录文章/);assert.doesNotMatch(html,/草稿无需|可先保存草稿/);
-    const select=html.match(/<select name="status"[\s\S]*?<\/select>/)?.[0];
-    assert.ok(select);assert.equal((select.match(/<option\b/g)||[]).length,7);assert.doesNotMatch(select,/value=""/);
-    assert.match(select,new RegExp('<option value="'+status+'" selected>'));
+    assert.match(html,/暂无已发布文章/);assert.doesNotMatch(html,/草稿无需|可先保存草稿|<select[^>]*name="status"/);
   }
 });
 
@@ -73,11 +63,11 @@ test('published and legacy article metrics retain actual zeros while missing val
 
 test('filter panel exposes exact status and metadata choices without an inferred topic or unsupported metadata sort',()=>{
   const app=client(),html=app.run('articleFilterPanel()');
-  for(const field of ['status','slot','writer','has_warnings','has_pending_verify','series_no_min','series_no_max'])
+  for(const field of ['slot','writer','has_warnings','has_pending_verify','series_no_min','series_no_max'])
     assert.ok(html.includes('name="'+field+'"'),field);
   for(const column of ['status','slot','writer','char_count','subheading_count','image_count','draft_ref','total_duration','warnings','verify'])
     assert.ok(html.includes('value="'+column+'"'),column);
-  assert.doesNotMatch(html,/<select name="topic"|data-sort="(?:status|writer|slot|char_count|image_count)"/);
+  assert.doesNotMatch(html,/<select name="(?:status|topic)"|data-sort="(?:status|writer|slot|char_count|image_count)"/);
   const legacy=app.run("[...viewDraft({version:2,filters:{status:'published',writer:'human'},columns:['reads']}).columns].join(',')");
   assert.equal(legacy,'reads');assert.equal(app.run("viewDraft({version:2,filters:{status:'published'},columns:['status']}).filters.status"),'published');
 });

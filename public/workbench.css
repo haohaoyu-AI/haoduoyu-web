@@ -319,3 +319,6 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
   .note-entry-saved { padding:10px 14px; }
   .todo-template-chip { flex-wrap:wrap; }
 }
+
+/* Round six: account results fill the space released by the retired sidebar. */
+.dashboard-grid.dashboard-results{grid-template-columns:minmax(0,1fr)}

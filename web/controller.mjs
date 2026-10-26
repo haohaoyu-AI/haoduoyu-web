@@ -1,4 +1,3 @@
-import { loadReconciliation, renderReconciliation } from "./pages/article-reconciliation.mjs";
 import { beginPageRequests, isRequestAbort } from "./core/requests.mjs";
 import { api } from "./core/api.mjs";
 import { legacyPages, nav, settingsTabs } from "./core/constants.mjs";
@@ -9,7 +8,6 @@ import { resetSessionIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
 import { articleDraft, renderArticles } from "./pages/articles.mjs";
-import { loadArticleCatalog } from "./core/article-ledger-data.mjs";
 import { renderDashboardSummary } from "./pages/dashboard.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { renderReviews } from "./pages/reviews.mjs";
@@ -124,17 +122,13 @@ function publishedArticleLinks(html) {
 async function loadArticleOverview(version, context) {
   const query = new URLSearchParams({period:state.overviewPeriod,top_n:state.topN,top_platform:state.topPlatform});
   if (state.account) query.set('account_id',state.account);
-  const [data,catalog] = await Promise.all([api(`/overview?${query}`, {context}),
-    loadArticleCatalog(context,{accountId:state.account,allowedAccountIds:state.accounts.map(account=>account.id)})]);
+  const data = await api(`/overview?${query}`, {context});
   if (version !== runtime.renderVersion) return "";
-  state.dashboard = data; state.mediaCatalog = catalog;
+  state.dashboard = data;
   return renderMediaOverview(data);
 }
 function renderMediaOverview(data) {
-  const catalog = state.mediaCatalog;
-  const records = catalog?.reconciliation ? '<details class="media-publishing-details"><summary>发布记录核对</summary>' +
-    renderReconciliation(catalog.reconciliation) + '</details>' : '';
-  return publishedArticleLinks(renderDashboardSummary(data,catalog?.summary)) + records;
+  return publishedArticleLinks(renderDashboardSummary(data));
 }
 async function renderPage() {
   stopPageEntry();

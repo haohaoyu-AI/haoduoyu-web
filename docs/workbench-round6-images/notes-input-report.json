@@ -1,0 +1,19 @@
+{
+  "synthetic": true,
+  "checks": [
+    "compact legacy record, explicit top edit, actual updated time and removed recent module 375",
+    "IME, fast serial autosave, actual updated time and stable focused field/selection 375",
+    "blur waits for acknowledgement; saved full body has no textarea/truncation; explicit re-edit reuses field 375",
+    "unsaved draft recovery, one editor, exact unknown retry, continued input and explicit conflict resolution 375",
+    "category/date isolation, delayed acknowledgement, compact reload and responsive layout 375",
+    "server-authorized read-only rendering 375",
+    "compact legacy record, explicit top edit, actual updated time and removed recent module 1440",
+    "IME, fast serial autosave, actual updated time and stable focused field/selection 1440",
+    "blur waits for acknowledgement; saved full body has no textarea/truncation; explicit re-edit reuses field 1440",
+    "unsaved draft recovery, one editor, exact unknown retry, continued input and explicit conflict resolution 1440",
+    "category/date isolation, delayed acknowledgement, compact reload and responsive layout 1440",
+    "server-authorized read-only rendering 1440"
+  ],
+  "pageerrors": [],
+  "external_requests": []
+}

@@ -43,44 +43,45 @@ function setup(t,rows=makeRows()) {
   return mock;
 }
 
-test('all articles view retains all eighty rows including unknown lifecycle and real zero/missing readings',async t=>{
+test('published articles view excludes draft and unknown rows while retaining real zero/missing readings',async t=>{
   const mock=setup(t),html=await renderArticles(runtime.renderVersion);
-  assert.equal(state.articleMeta.total,80);assert.equal(state.articles.length,80);
-  assert.equal(new Set(state.articles.map(row=>row.id)).size,80);
-  assert.ok(state.articles.some(row=>row.status===null));
-  assert.match(html,/<option value="all" selected>全部文章/);assert.match(html,/状态未确认/);
+  assert.equal(state.articleMeta.total,15);assert.equal(state.articles.length,15);
+  assert.equal(new Set(state.articles.map(row=>row.id)).size,15);
+  assert.ok(state.articles.every(row=>row.status==='published'));
+  assert.doesNotMatch(html,/<select[^>]*name="status"|状态未确认/);
   assert.match(html,/>0<\/strong>/);assert.match(html,/未采集/);
-  assert.ok(mock.calls.every(url=>!['all','unknown'].includes(url.searchParams.get('status'))));
+  assert.equal(mock.calls.length,1);assert.equal(mock.calls[0].pathname,'/api/v1/articles');
+  assert.ok(mock.calls.every(url=>url.searchParams.get('status')==='published'));
   assert.doesNotMatch(html,/data-action="new-article"/);
 });
 
-test('unknown lifecycle filter and single-account selection retain identity and never send unsupported status',async t=>{
+test('legacy unknown lifecycle state retains single-account identity while requesting only published articles',async t=>{
   const mock=setup(t);state.account='account-a';state.filters.status='unknown';
   const html=await renderArticles(runtime.renderVersion);
-  assert.equal(state.articleMeta.total,3);
-  assert.ok(state.articles.every(row=>row.account_id==='account-a'&&row.status===null));
-  assert.match(html,/<option value="unknown" selected>状态未确认/);
-  assert.ok(mock.calls.every(url=>!['all','unknown'].includes(url.searchParams.get('status'))));
+  assert.equal(state.articleMeta.total,8);
+  assert.ok(state.articles.every(row=>row.account_id==='account-a'&&row.status==='published'));
+  assert.equal(state.filters.status,'published');assert.doesNotMatch(html,/<select[^>]*name="status"/);
+  assert.equal(mock.calls.length,1);assert.equal(mock.calls[0].searchParams.get('account_id'),'account-a');
+  assert.ok(mock.calls.every(url=>url.searchParams.get('status')==='published'));
 });
 
-test('overview shows all lifecycle counts beside published-only genuine metrics and folds writer detail',()=>{
+test('overview retains genuine published metrics and ignores legacy lifecycle/writer summary data',()=>{
   const counts={drafting:15,illustrated:15,draft_saved:15,published:15,failed:15,unknown:5};
   const summary={verified:true,total:80,counts,writers:[{writer:'human',unpublished:65,published:15,total:80}]};
   const overview={cumulative:{article_count:15,totals:{reads:0,likes:null,comments:0},coverage:null},accounts:[],top_articles:[],
     platform_comparison:[],trend:[],due_reviews:[],series:{}};
   const html=renderDashboardSummary(overview,summary);
-  assert.match(html,/全部文章<\/dt><dd>80<\/dd>/);assert.match(html,/状态未确认<\/dt><dd>5<\/dd>/);
+  assert.doesNotMatch(html,/article-ledger-stats|article-writer-details|全部文章|状态未确认/);
   assert.match(html,/已发布文章<\/dt><dd class="">15<\/dd>/);
   assert.match(html,/累计阅读<\/dt><dd class="">0<\/dd>/);
   assert.match(html,/互动（赞\+评）<\/dt><dd class="missing-value">—/);
-  assert.match(html,/<details class="article-writer-details"><summary>按写作者查看/);
-  assert.doesNotMatch(html,/data-action="article-overview-mode"|data-action="new-article"/);
+  assert.doesNotMatch(html,/todo-panel|cycle-panel|data-action="article-overview-mode"|data-action="new-article"/);
   assert.match(renderArticleLedgerSummary(),/数量未取得/);
 });
 
-test('all status filter leaves every pipeline field available through the existing field selector',t=>{
+test('published-only filters retain every existing optional article field without a lifecycle selector',t=>{
   setup(t);const html=articleFilterPanel();
-  assert.match(html,/<option value="all" selected>全部文章/);
+  assert.doesNotMatch(html,/<select[^>]*name="status"|<option value="all"/);
   for(const name of ['draft_ref','slot','writer','warnings','verify','char_count','image_count','total_duration'])
     assert.match(html,new RegExp('name="columns"\\s+value="'+name+'"'));
 });

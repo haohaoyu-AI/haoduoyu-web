@@ -564,19 +564,13 @@ test('daily plans and explicit statistics overview render and request independen
   await c.run('renderPage()');
   assert.match(c.nodes.get('#page-content').innerHTML, /id="todo-form"/);
   assert.deepEqual(JSON.parse(c.run('JSON.stringify(reads)')), ['/todo-templates','/todos?date=2026-10-23']);
-  c.run(`state.page='dashboard';state.articleOverviewMode='published';reads=[];renderDashboardSummary=()=>'<section>Independent statistics</section>';
+  c.run(`state.page='dashboard';reads=[];renderDashboardSummary=()=>'<section>Independent statistics</section>';
     api=async path=>{reads.push(path);
-      if(path==='/article-reconciliation')return {complete:true,total:0,rows:[],
-        counts:{drafting:0,illustrated:0,draft_saved:0,published:0,failed:0,unknown:0}};
-      if(path.startsWith('/articles?')){const query=new URL(path,'http://localhost').searchParams;
-        return {data:[],meta:{total:0,page:Number(query.get('page')),page_size:Number(query.get('page_size')),offset:0,has_more:false}}}
       if(path.startsWith('/overview?'))return {items:[]};
       throw new Error('Unexpected statistics read: '+path)}`);
   await c.run('renderPage()');
   assert.deepEqual(JSON.parse(c.run("JSON.stringify(reads.map(path=>new URL(path,'http://localhost').pathname))")),
-    ['/overview','/article-reconciliation','/articles','/articles','/articles','/articles','/articles']);
-  assert.deepEqual(JSON.parse(c.run("JSON.stringify(reads.filter(path=>path.startsWith('/articles?')).map(path=>new URL(path,'http://localhost').searchParams.get('status')))")),
-    ['drafting','illustrated','draft_saved','published','failed']);
+    ['/overview']);
   assert.match(c.run('reads[0]'), /^\/overview\?/);
   assert.match(c.nodes.get('#page-content').innerHTML, /Independent statistics/);
   assert.doesNotMatch(c.nodes.get('#page-content').innerHTML, /todo-form|daily-todos/);

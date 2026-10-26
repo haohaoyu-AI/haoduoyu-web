@@ -4,6 +4,7 @@ import {readFile,readdir} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {projectWorkbenchRound5,round5AddedModules} from './workbench-round5-projection.mjs';
+import {projectWorkbenchRound6} from './workbench-round6-projection.mjs';
 
 const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -17,14 +18,21 @@ test('round-five presentation files and explicit new module are pinned over the 
   assert.deepEqual(added,[...round5AddedModules].sort());
   for(const [file,entry]of Object.entries(delta.files)) {
     assert.ok(file.startsWith('web/')||['public/app.js','public/workbench.css'].includes(file),'frontend-only pin: '+file);
-    const source=await read(file);
+    const current=await read(file),source=projectWorkbenchRound6(file,current);
     assert.equal(hash(source),entry.after,'on-disk round-five source stays exact: '+file);
     assert.equal(projectWorkbenchRound5(file,source),entry.before===null?'':git('show',delta.baseline+':'+file));
-    assert.throws(()=>projectWorkbenchRound5(file,source+'\n/* unauthorized change */\n'),/approved workbench delta/);
+    assert.throws(()=>projectWorkbenchRound5(file,current+'\n/* unauthorized change */\n'),/approved workbench delta/);
   }
   const roots=['web','public','src','shared','db','drizzle','scripts'];
   const changed=git('diff','--name-only',delta.baseline,'--',...roots),untracked=git('ls-files','--others','--exclude-standard','--',...roots);
-  const inventory=[...new Set((changed+'\n'+untracked).trim().split('\n').filter(Boolean))].sort();
+  const round6=JSON.parse(await read('tests/workbench-round6-delta.json'));
+  const releasedFiles=new Set(git('ls-tree','-r','--name-only',delta.baseline,'--',...roots).trim().split('\n').filter(Boolean));
+  const inventory=[];
+  for(const file of new Set([...((changed+'\n'+untracked).trim().split('\n').filter(Boolean)),...Object.keys(round6.files)])) {
+    const previous=releasedFiles.has(file)?git('show',delta.baseline+':'+file):'';
+    if(projectWorkbenchRound6(file,await read(file))!==previous)inventory.push(file);
+  }
+  inventory.sort();
   assert.deepEqual(inventory,Object.keys(delta.files).sort(),'only explicitly pinned presentation changes are accepted');
   const released=git('ls-tree','-r','--name-only',delta.baseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs'));
   const modules=(await readdir(new URL('../web/',import.meta.url),{recursive:true})).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();

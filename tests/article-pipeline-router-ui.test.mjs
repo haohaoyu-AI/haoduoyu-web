@@ -69,17 +69,17 @@ function client({search='',fetch:transport=async path=>responseFor(path)}={}) {
   };
 }
 
-test('article route round trips exact pipeline filters, false flags and selected ledger columns',()=>{
+test('article route fixes lifecycle to published while round-tripping metadata, false flags and selected columns',()=>{
   const app=client();
   for(const status of ['all','unknown',...statuses]) {
-    const filters={status,slot:'tt1',writer:'gemini_web',has_warnings:'false',has_pending_verify:'true',
+    const filters={status:'published',slot:'tt1',writer:'gemini_web',has_warnings:'false',has_pending_verify:'true',
       series_no_min:'1',series_no_max:'200'};
-    app.route('?'+new URLSearchParams({page:'articles',account:'account',...filters,columns:'status,writer,verify,unknown'}));
+    app.route('?'+new URLSearchParams({page:'articles',account:'account',...filters,status,columns:'status,writer,verify,unknown'}));
     for(const [key,value] of Object.entries(filters))assert.equal(app.run(`state.filters.${key}`),value,key);
     assert.deepEqual(plain(app.run('[...state.columns]')),['status','writer','verify']);
     app.run('updateRoute(true)');
     const query=new URL(app.location.href).searchParams;
-    assert.equal(query.get('status'),status==='all'?null:status);
+    assert.equal(query.get('status'),null);
     assert.equal(query.get('has_warnings'),'false');
     assert.equal(query.get('has_pending_verify'),'true');
     app.run("state.filters=defaultFilters();state.account='';readRoute()");
@@ -89,14 +89,14 @@ test('article route round trips exact pipeline filters, false flags and selected
   assert.ok(app.historyCalls.every(call=>call.kind==='push'));
 });
 
-test('invalid pipeline enum, boolean and series range routes normalize to the complete client catalog',()=>{
+test('invalid lifecycle, metadata, boolean and series range routes normalize to published-only filters',()=>{
   const app=client();
   for(const invalid of [
     {status:'',slot:'tt4',writer:'model',has_warnings:'0',has_pending_verify:'1'},
     {status:'ALL',slot:'TT1',writer:'Human',has_warnings:'False',has_pending_verify:'TRUE'},
   ]) {
     app.route('?'+new URLSearchParams({page:'articles',...invalid}));
-    assert.equal(app.run('state.filters.status'),'all');
+    assert.equal(app.run('state.filters.status'),'published');
     for(const key of ['slot','writer','has_warnings','has_pending_verify'])assert.equal(app.run(`state.filters.${key}`),'',key);
     app.run('updateRoute()');
     for(const key of Object.keys(invalid))assert.equal(new URL(app.location.href).searchParams.has(key),false,key);
@@ -155,7 +155,7 @@ test('legacy overview scopes canonicalize to two media pages without changing to
   assert.equal(new URL(app.location.href).searchParams.get('page'),'todos');
 });
 
-test('default dashboard combines complete lifecycle counts and published metrics with one cancellable page context',async()=>{
+test('default dashboard reads published metrics once without loading removed lifecycle or reconciliation cards',async()=>{
   const app=client({search:'?page=dashboard'}),calls=[];
   app.put('readLedger',async(path,options)=>{
     calls.push({path,options});
@@ -163,33 +163,29 @@ test('default dashboard combines complete lifecycle counts and published metrics
   });
   app.run("api=readLedger;state.dashboard={marker:'obsolete-published'}");
   await app.run('renderPage()');
-  const pages=calls.filter(call=>call.path.startsWith('/articles?'));
-  assert.deepEqual(pages.map(call=>new URL(call.path,'http://localhost').searchParams.get('status')),statuses);
-  assert.ok(pages.every(call=>call.options.envelope===true));
-  assert.equal(calls.filter(call=>call.path==='/article-reconciliation').length,1);
-  assert.equal(calls.filter(call=>call.path.startsWith('/overview?')).length,1);
+  assert.equal(calls.length,1);assert.ok(calls[0].path.startsWith('/overview?'));
   assert.ok(calls.every(call=>call.options.context===calls[0].options.context));
   assert.equal(calls[0].options.context.kind,'page');assert.equal(app.run('state.dashboard.cumulative.article_count'),1);
   const content=app.nodes.get('#page-content');
-  assert.match(content.innerHTML,/文章状态/);assert.match(content.innerHTML,/<dt>全部文章<\/dt><dd>3<\/dd>/);
-  assert.match(content.innerHTML,/<dt>已发布<\/dt><dd>1<\/dd>/);assert.match(content.innerHTML,/dashboard-stats/);
-  assert.match(content.innerHTML,/<details class="article-writer-details">/);assert.doesNotMatch(content.innerHTML,/error-panel/);
+  assert.match(content.innerHTML,/<dt>已发布文章<\/dt><dd class="">1<\/dd>/);assert.match(content.innerHTML,/dashboard-stats/);
+  assert.doesNotMatch(content.innerHTML,/article-ledger-stats|article-writer-details|todo-panel|cycle-panel|media-publishing-details|error-panel/);
   assert.equal(content.attributes['aria-busy'],'false');
 });
 
-test('every legacy overview scope preserves published overview parameters, complete counts and real zero metrics',async()=>{
+test('every legacy overview scope preserves one published overview read, parameters and real zero metrics',async()=>{
   for(const scope of ['drafts','published','reconciliation']) {
     const calls=[],app=client({search:'?page=dashboard&article_scope='+scope+'&period=30d&top_n=12&top_platform=zhihu',
       fetch:async(path,options)=>{calls.push({path,options});return responseFor(path);}});
     app.run('updateRoute()');await app.run('renderPage()');
     const overview=calls.filter(call=>call.path.startsWith('/api/v1/overview?'));
+    assert.equal(calls.length,1);
     assert.equal(overview.length,1);assert.equal(overview[0].path,'/api/v1/overview?period=30d&top_n=12&top_platform=zhihu');
     assert.equal(overview[0].options.signal.aborted,false);
     assert.equal(new URL(app.location.href).searchParams.has('article_scope'),false);
     assert.equal(app.run('state.dashboard.cumulative.totals.reads'),0);
     const html=app.nodes.get('#page-content').innerHTML;
     assert.match(html,/dashboard-stats/);assert.match(html,/<dt>累计阅读<\/dt><dd class="">0<\/dd>/);
-    assert.match(html,/article-ledger-stats/);assert.doesNotMatch(html,/error-panel/);
+    assert.doesNotMatch(html,/article-ledger-stats|article-writer-details|todo-panel|cycle-panel|media-publishing-details|error-panel/);
   }
 });
 
@@ -242,12 +238,12 @@ test('media page navigation and Back restore active links and canonical URLs wit
   assert.equal(app.historyCalls.filter(call=>call.kind==='push').length,2);
 });
 
-test('account/platform drilldowns use complete catalogs while metric drilldowns retain published API cohorts',async()=>{
+test('account, platform and metric drilldowns preserve filters while requesting only published articles',async()=>{
   const cases=[
     ['missing-list',{status:'missing_reads'},{status:'published',data_status:'missing_reads',platform:'',account:'',sort:'published_at'}],
     ['all-top',{}, {status:'published',data_status:'',platform:'wechat',account:'',sort:'reads'}],
-    ['select-platform',{platform:'zhihu'},{status:'all',data_status:'',platform:'zhihu',account:'',sort:'published_at'}],
-    ['select-account',{id:'account'},{status:'all',data_status:'',platform:'',account:'account',sort:'published_at'}],
+    ['select-platform',{platform:'zhihu'},{status:'published',data_status:'',platform:'zhihu',account:'',sort:'published_at'}],
+    ['select-account',{id:'account'},{status:'published',data_status:'',platform:'',account:'account',sort:'published_at'}],
   ];
   for(const [action,data,expected] of cases) {
     const app=client({search:'?page=dashboard'}),calls=[];
@@ -255,7 +251,7 @@ test('account/platform drilldowns use complete catalogs while metric drilldowns 
     const prevented=await app.click(action,data);
     assert.equal(app.run('state.page'),'articles',action);assert.equal(app.run('state.filters.status'),expected.status,action);
     assert.equal(app.run('state.listPage'),1,action);assert.equal(app.run('state.account'),expected.account,action);
-    assert.equal(new URL(app.location.href).searchParams.get('status'),expected.status==='all'?null:'published',action);
+    assert.equal(new URL(app.location.href).searchParams.get('status'),null,action);
     for(const key of ['slot','writer','has_warnings','series_no_min'])assert.equal(app.run(`state.filters.${key}`),'',action+': '+key);
     for(const key of ['data_status','platform','sort'])assert.equal(app.run(`state.filters.${key}`),expected[key],action+': '+key);
     if(['all-top','select-platform'].includes(action))assert.equal(prevented,true,action);
@@ -267,8 +263,9 @@ test('account/platform drilldowns use complete catalogs while metric drilldowns 
     });
     app.run('api=listRead');await app.run('renderArticles()');
     const pages=calls.filter(call=>call.path.startsWith('/articles?'));
+    assert.equal(calls.length,1,action);
     assert.deepEqual(pages.map(call=>new URL(call.path,'http://localhost').searchParams.get('status')),
-      expected.status==='all'?statuses:['published'],action);
+      ['published'],action);
     for(const page of pages) {
       const query=new URL(page.path,'http://localhost').searchParams;
       assert.equal(query.get('page'),'1',action);assert.equal(query.get('account_id')||'',expected.account,action);
@@ -300,7 +297,7 @@ test('switching media pages cancels old requests and late transport completion c
     for(const {call,held}of oldHolds)held.resolve(responseFor(call.path));await settle();
     assert.equal(content.innerHTML,finished);assert.equal(content.attributes['aria-busy'],'false');
     if(initial==='articles')assert.equal(app.run('state.dashboard.cumulative.article_count'),1);
-    else assert.equal(app.run('state.articles.length'),ledgerRows.length);
+    else assert.equal(app.run('state.articles.length'),ledgerRows.filter(row=>row.status==='published').length);
   }
 });
 

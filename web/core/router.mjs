@@ -1,11 +1,11 @@
 import { articleColumns, defaultColumns, defaultFilters, legacyPages, modeLabels, nav, settingsTabs,
-  slotLabels, statusLabels, writerLabels } from "./constants.mjs";
+  slotLabels, writerLabels } from "./constants.mjs";
 import { state } from "./state.mjs";
 import { storage } from "./storage.mjs";
 import { dailyNotesRouteDate, setDailyNotesRouteDate, dailyNotesRouteCategory, setDailyNotesRouteCategory } from "./daily-notes-state.mjs";
 import { validTodoDate } from "./todos-state.mjs";
 function normalizeArticlePipelineFilters(filters) {
-  const allowed = { status: ["all", "unknown", ...Object.keys(statusLabels)], slot: ["", ...Object.keys(slotLabels)],
+  const allowed = { status: ["published"], slot: ["", ...Object.keys(slotLabels)],
     writer: ["", ...Object.keys(writerLabels)],
     has_warnings: ["", "true", "false"], has_pending_verify: ["", "true", "false"] };
   for (const [key, choices] of Object.entries(allowed)) {
@@ -22,6 +22,7 @@ function normalizeArticlePipelineFilters(filters) {
   return filters;
 }
 function updateRoute(push = false) {
+  state.filters.status = "published";
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
   if (state.page === "notes" && dailyNotesRouteCategory() === "work") u.searchParams.set("notes_category", "work");

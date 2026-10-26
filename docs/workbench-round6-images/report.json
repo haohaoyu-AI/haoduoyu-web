@@ -1,0 +1,32 @@
+{
+  "synthetic": true,
+  "baseline": "16ff80ef2d857676d81b7c219110c820de5af72b",
+  "completed": true,
+  "checks": [
+    "three retired overview areas absent, account card fills width, published counts 15/all and 5/account 1440",
+    "published-only old URL, all/single account, server pagination, search excludes drafts and no status dropdown 1440",
+    "life/work normal autosave badge hidden and saved record times are HH:mm only 1440",
+    "eighty original synthetic article/observation rows unchanged; every article read explicitly published 1440",
+    "three retired overview areas absent, account card fills width, published counts 15/all and 5/account 375",
+    "published-only old URL, all/single account, server pagination, search excludes drafts and no status dropdown 375",
+    "life/work normal autosave badge hidden and saved record times are HH:mm only 375",
+    "eighty original synthetic article/observation rows unchanged; every article read explicitly published 375",
+    "three retired overview areas absent, account card fills width, published counts 15/all and 5/account 390",
+    "published-only old URL, all/single account, server pagination, search excludes drafts and no status dropdown 390",
+    "life/work normal autosave badge hidden and saved record times are HH:mm only 390",
+    "eighty original synthetic article/observation rows unchanged; every article read explicitly published 390"
+  ],
+  "pageerrors": [],
+  "http_errors": [],
+  "captures": [
+    "overview-1440.png",
+    "articles-1440.png",
+    "notes-1440.png",
+    "overview-375.png",
+    "articles-375.png",
+    "notes-375.png",
+    "overview-390.png",
+    "articles-390.png",
+    "notes-390.png"
+  ]
+}

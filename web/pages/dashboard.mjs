@@ -4,7 +4,6 @@ import { accountLabel, accountName, compact, duration, num, time } from "../core
 import { state } from "../core/state.mjs";
 import { comparisonHTML, dashboardInfo, dashboardMetric, freshness, metricCoverageHTML, platformColor, platformLogo } from "../ui/components.mjs";
 import { segmented } from "../ui/segmented.mjs";
-import { renderArticleLedgerSummary } from "./article-ledger-overview.mjs";
 function dailyDates(data) {
   return (data.trend || []).filter((d) => (d.accounts || []).some((a) => Object.values(a.metrics || {}).some((v) => v != null)));
 }
@@ -15,15 +14,9 @@ function periodControls() {
 function renderDashboard(data) {
   return renderDashboardSummary(data);
 }
-function renderDashboardSummary(data, summary) {
-  const daily = dailyDates(data), articles = (data.attention_articles || []).filter((a) => ["up", "down"].includes(a.attention?.kind)), visible = state.
-  attentionExpanded ? articles : articles.slice(0, 6);
-  return `${summary ? renderArticleLedgerSummary(summary) : ""}${renderCumulative(data)}\
-<section class="card cycle-panel"><div class="section-heading"><h2>周期变化</h2>${periodControls()}</div>${
-    daily.length ? `${renderPeriodAccounts(data.accounts || [])}${visible.length ? `<h3>表现异动</h3>${renderAttentionArticles(visible)}${articles.
-  length > 6 ? `<button class="btn text" data-action="toggle-attention" aria-expanded="${state.attentionExpanded}">${state.attentionExpanded ?
-  "收起" : "展开其余"}（${e(num(articles.length))}篇）</button>` : ""}` : ""}` : '<div class="empty inline-empty">暂无每日新增数据。<button \
-class="btn" data-action="new-daily">录入每日数据</button></div>'}</section>
+function renderDashboardSummary(data) {
+  const daily = dailyDates(data);
+  return `${renderCumulative(data)}
  ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量\
 </summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标\
 </span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label]) => `<option value="${e(
@@ -59,26 +52,17 @@ class="cell-sub">${e(platform && a.account_name ? `${platforms[platform] || plat
   }).join("")}</tbody></table></div>`;
 }
 function renderCumulative(data) {
-  const c = data.cumulative || {}, series = data.series || {}, rows = data.top_articles || [], due = data.due_reviews || [], fresh = freshness(
-  c);
+  const c = data.cumulative || {}, rows = data.top_articles || [], fresh = freshness(c);
   const interactions = c.totals?.likes == null || c.totals?.comments == null ? null : c.totals.likes + c.totals.comments;
   const stats = [["已发布文章", num(c.article_count)], ["累计阅读", num(c.totals?.reads)], ["篇均阅读", num(c.mean_reads)], ["互动（赞+评）", num(
     interactions)], ["数据覆盖", c.coverage == null ? "—" : num(c.coverage * 100) + "%"]];
   return `<div class="overview-status" role="status"><span><i class="fresh-dot ${e(fresh.kind)}"></i>${e(fresh.label)}</span><div>${c.no_snapshot_count ?
   `<button class="btn text" data-action="missing-list" data-status="no_snapshot">未采集 ${e(num(c.no_snapshot_count))} 篇 →</button>` :
-  ""}${due.length ? `<button class="btn text" data-action="show-due">待复盘 ${e(num(due.length))} 条 →</button>` : ""}</div></div>
+  ""}</div></div>
  <dl class="dashboard-stats">${stats.map(([label, value], i) => `<div class="stat"><dt>${e(label)}${i === 4 ? dashboardInfo("coverage",
     "数据覆盖与统计口径") : ""}</dt><dd class="${value === "—" ? "missing-value" : ""}">${e(value)}</dd></div>`).join("")}</dl>
- <div class="dashboard-grid"><section class="card"><div class="section-heading"><h2>账号表现</h2></div>${renderPlatformTable(data.platform_comparison ||
-  [])}</section><aside class="card todo-panel"><div class="section-heading"><h2>待处理</h2></div><div class="form-field todo-list">${c.no_snapshot_count ?
-  `<button class="btn text" data-action="missing-list" data-status="no_snapshot">${e(num(c.no_snapshot_count))} 篇文章未采集数据 →</button>` :
-  ""}${due.length ? `<button class="btn text" data-action="show-due">${e(num(due.length))} 条到期复盘 →</button>` : ""}<span>${e(fresh.
-  label)}</span>${due.length ? `<span>1天 ${e(num(due.filter((d) => d.due_kind === "d1").length))} · 3天 ${e(num(due.filter((d) => d.due_kind ===
-  "d3").length))} · 7天 ${e(num(due.filter((d) => d.due_kind === "d7").length))}</span>` : ""}</div><div class="form-field detail-section \
-series-progress"><h3>保险200篇 ${dashboardInfo("series", "保险系列进度口径")}</h3><span>${series.highest_recorded == null ? "尚未记录系列文章" : `第 ${e(num(
-  series.highest_recorded))} / ${e(num(series.planned))} 篇`}</span><progress max="${e(series.planned || 200)}" value="${e(series.
-    highest_recorded || 0)}" aria-label="保险系列编号进度"></progress><span>本站收录 ${e(num(series.recorded_count))} 篇</span></div>\
-</aside></div>
+ <div class="dashboard-grid dashboard-results"><section class="card"><div class="section-heading"><h2>账号表现</h2></div>${
+  renderPlatformTable(data.platform_comparison || [])}</section></div>
  <section class="card cumulative-top"><div class="section-heading"><h2 id="top-heading">阅读 Top 5</h2>${segmented("top-platform", [["",
     "全部"], ...Object.entries(platforms).filter(([key]) => key !== "other" || state.topPlatform === "other" || state.accounts.some((a) => a.platform ===
   "other"))], state.topPlatform, "Top榜平台", "platform")}</div>${rows.length ? `${renderTopTable(rows.slice(0, 5))}${rows.length > 5 ? `<details \

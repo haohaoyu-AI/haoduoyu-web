@@ -6,7 +6,6 @@ import { e, icon } from "../core/dom.mjs";
 import { accountName, duration, localDateTime, num, safeURL, time } from "../core/format.mjs";
 import { modalRequest } from "../core/modal-request.mjs";
 import { normalizeArticlePipelineFilters } from "../core/router.mjs";
-import { loadArticleCatalog, paginateArticleCatalog } from "../core/article-ledger-data.mjs";
 import { runtime, state } from "../core/state.mjs";
 import { accountOptions, articleSelect, badgeMode, dashboardInfo, dashboardMetric, empty, field, formEnd, platformLogo } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
@@ -16,18 +15,16 @@ import { toast } from "../ui/toast.mjs";
 
 const pipelineColumns = new Set(["status", "slot", "writer", "char_count", "subheading_count", "image_count",
   "draft_ref", "total_duration", "warnings", "verify", "topic"]);
-const pipelineFilters = ["status", "slot", "writer", "has_warnings", "has_pending_verify", "series_no_min", "series_no_max"];
+const pipelineFilters = ["slot", "writer", "has_warnings", "has_pending_verify", "series_no_min", "series_no_max"];
 const boolChoices = { true: "是", false: "否" };
 const publishedArticle = article => !Object.hasOwn(article, "status") || article.status === "published";
 
-function statusSelect(value = "draft_saved", allowUnknown = false, allowAll = false) {
-  const known = Object.hasOwn(statusLabels, value) || allowAll && ["all", "unknown"].includes(value);
+function statusSelect(value = "draft_saved", allowUnknown = false) {
+  const known = Object.hasOwn(statusLabels, value);
   const unknown = allowUnknown && !known;
-  if (!unknown && !known) value = allowAll ? "all" : "draft_saved";
+  if (!unknown && !known) value = "draft_saved";
   return `<label class="form-field">状态<select name="status" class="input" aria-label="文章状态">
 ${unknown ? '<option value="" selected disabled>未确认，请选择状态</option>' : ""}
-${allowAll ? `<option value="all" ${value === "all" ? "selected" : ""}>全部文章</option>` : ""}
-${allowAll ? `<option value="unknown" ${value === "unknown" ? "selected" : ""}>状态未确认</option>` : ""}
 ${Object.entries(statusLabels).map(([key, label]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(label)}</option>`).join("")}
 </select></label>`;
 }
@@ -53,34 +50,36 @@ function articlePagination(meta) {
 <button class="btn" data-action="list-next" aria-label="下一页" ${meta.has_more ? "" : "disabled"}>›</button></div>`;
 }
 async function renderArticles(version = runtime.renderVersion, context) {
+  state.filters.status = "published";
   const f = { ...state.filters }, params = new URLSearchParams(), account = state.account, epoch = runtime.sessionEpoch;
-  const all = !f.status || ["all", "unknown"].includes(f.status);
   if (account) params.set("account_id", account);
   for (const key of ["q", "mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
     if (f[key]) params.set(key, f[key]);
   }
-  if (!all) params.set("status", f.status);
+  params.set("status", "published");
   params.set("page", state.listPage);
   params.set("page_size", state.pageSize);
-  const payload = all ? paginateArticleCatalog(await loadArticleCatalog(context, {
-    accountId: account, filters: f, allowedAccountIds: state.accounts.map(row => row.id)
-  }), { page: state.listPage, pageSize: state.pageSize }) : await api(`/articles?${params}`, { envelope: true, context });
+  const payload = await api(`/articles?${params}`, { envelope: true, context });
   if (version !== runtime.renderVersion || epoch !== runtime.sessionEpoch || account !== state.account) return "";
+  const allowed = new Set(state.accounts.map(row => row.id));
+  if (!Array.isArray(payload.data) || payload.data.some(row => row?.status !== "published" || !allowed.has(row.account_id) ||
+    account && row.account_id !== account)) {
+    throw Object.assign(new Error("已发布文章读取未完成，请重新加载。"), { code: "ARTICLE_PAGE_INCOMPLETE" });
+  }
   const articles = payload.data, meta = payload.meta || { total: articles.length, unfiltered_total: articles.length, has_more: false };
-  if (all) state.listPage = meta.page;
   state.articles = articles;
   state.articleMeta = meta;
-  const content = articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "尚未记录文章",
+  const content = articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "暂无已发布文章",
     "", '<button class="btn" data-action="reset-filters">清空筛选</button>');
-  return `<section class="card article-list article-ledger article-ledger-list"><form id="article-filters" class="filters">
+  return `<section class="card article-list article-ledger article-ledger-list" aria-label="已发布文章详情"><form id="article-filters" class="filters">
 <label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}"
-placeholder="搜索标题或链接…" aria-label="搜索文章"></label>${statusSelect(f.status || "all", false, true)}
+placeholder="搜索标题或链接…" aria-label="搜索文章"></label>
 ${platformFilter("article-platform", f.platform, "文章平台")}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}
 <button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button>
 </form>${filterChips(f)}${content}${articlePagination(meta)}</section>`;
 }
 function pipelineFilterFields(f) {
-  return `${statusSelect(f.status || "all", false, true)}${articleSelect("slot", "槽位", slotLabels, f.slot)}
+  return `${articleSelect("slot", "槽位", slotLabels, f.slot)}
 ${articleSelect("writer", "写作者", writerLabels, f.writer)}${articleSelect("has_warnings", "有警告", boolChoices, f.has_warnings)}
 ${articleSelect("has_pending_verify", "有明确待核", boolChoices, f.has_pending_verify)}
 ${field("series_no_min", "系列编号自", "number", f.series_no_min, 'min="1" step="1"')}
@@ -116,7 +115,7 @@ function articleDraft(form) {
     filters[key] = String(values.get(key) || "");
   }
   filters.topic = "";
-  if (!["all", "unknown"].includes(filters.status) && !Object.hasOwn(statusLabels, filters.status)) filters.status = "all";
+  filters.status = "published";
   if (!Object.values(articleColumns).some(([, sort]) => sort === filters.sort)) filters.sort = "published_at";
   if (!["asc", "desc"].includes(filters.order)) filters.order = "desc";
   return { filters: normalizeArticlePipelineFilters(filters), columns: new Set(values.getAll("columns").filter(c => Object.hasOwn(articleColumns, c))),

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDailyNotesStore, dailyNotesBytes, validDailyNotesDate} from '../web/core/daily-notes-state.mjs';
-import {renderDailyNotes, paintDailyNotes} from '../web/pages/daily-notes.mjs';
+import {renderDailyNotes, paintDailyNotes, paintNoteEntries} from '../web/pages/daily-notes.mjs';
 
 const date = '2026-10-24', other = '2026-10-23';
 const value = (day = date, extra = {}) => ({date: day, text: '', version: 0, updated_at: null,
@@ -201,4 +201,47 @@ test('notes view puts business text only into value/textContent and offers respo
   assert.match(renderDailyNotes(), /碎碎念/); assert.doesNotMatch(renderDailyNotes(), /contenteditable/);
   assert.doesNotMatch(renderDailyNotes(), /最近的文字|notes-history|notes-dates|data-notes-action="more"/);
   assert.match(renderDailyNotes(), /notes-composer/);
+});
+
+function emptyNotesView() {
+  const node = () => {
+    const children = new Map();
+    return {dataset: {}, children: [], value: '', textContent: '', innerHTML: '', firstElementChild: null,
+      querySelector(selector) { if (!children.has(selector)) children.set(selector, node()); return children.get(selector); },
+      removeAttribute(name) { delete this[name]; }};
+  };
+  const root = node(); root.dataset.category = 'life';
+  const current = {date, category: 'life', loaded: true, loading: false, canEdit: true, ids: [], error: ''};
+  const legacy = {date, loaded: true, loading: false, canEdit: true, serverText: '', draft: '', version: 0,
+    deleted: false, dirty: false, phase: 'saved', error: '', pending: null, updatedAt: null};
+  const paint = () => paintNoteEntries(root, {entry: () => undefined}, current, legacy);
+  return {root, current, legacy, paint};
+}
+
+test('notes hide the normal autosave badge while real loading, failed and pending states remain visible', () => {
+  const view = emptyNotesView(), status = view.root.querySelector('#notes-status');
+  view.paint(); assert.equal(status.textContent, '自动保存'); assert.equal(status.hidden, true);
+  view.current.error = '合成读取错误'; view.paint();
+  assert.equal(status.hidden, false); assert.equal(status.textContent, '读取失败');
+  assert.equal(view.root.querySelector('#notes-entry-message').textContent, '合成读取错误');
+  view.current.error = ''; view.current.loaded = false; view.current.loading = true; view.paint();
+  assert.equal(status.hidden, false); assert.equal(status.textContent, '正在读取…');
+  view.current.loaded = true; view.current.loading = false;
+  for (const phase of ['dirty', 'saving', 'unknown', 'conflict', 'oversize', 'error']) {
+    view.legacy.phase = phase; view.legacy.dirty = true; view.legacy.error = '需要处理的合成草稿'; view.paint();
+    assert.equal(status.hidden, false, phase); assert.equal(status.textContent, '有草稿待保存', phase);
+    assert.equal(view.root.querySelector('#notes-message').textContent, '需要处理的合成草稿', phase);
+  }
+});
+
+test('legacy time displays only actual Shanghai HH:mm and hides missing timestamps', () => {
+  const view = emptyNotesView(), editorTime = view.root.querySelector('#notes-legacy-time'),
+    savedTime = view.root.querySelector('#notes-legacy-saved').querySelector('time');
+  view.legacy.updatedAt = '2026-10-24T16:03:00Z'; view.paint();
+  for (const time of [editorTime, savedTime]) {
+    assert.equal(time.textContent, '00:03'); assert.equal(time.hidden, false); assert.equal(time.dateTime, view.legacy.updatedAt);
+  }
+  view.legacy.updatedAt = null; view.paint();
+  for (const time of [editorTime, savedTime]) { assert.equal(time.textContent, ''); assert.equal(time.hidden, true); }
+  assert.doesNotMatch(renderDailyNotes(), /原有记录 <time|>原有记录 <time/);
 });

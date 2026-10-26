@@ -88,13 +88,16 @@ try:
             expect(page.locator('#page-content')).to_have_attribute('aria-busy', 'false')
             expect(page.locator('#notes-legacy-saved')).to_be_visible()
             expect(page.locator('#notes-legacy-saved .note-entry-reader')).to_have_text('合成原有记录')
-            expect(page.locator('#notes-legacy-saved time')).to_have_text('修改 16:42')
+            expect(page.locator('#notes-legacy-saved time')).to_have_text('16:42')
+            assert '原有记录' not in page.locator('#notes-legacy-saved .note-entry-head').inner_text()
+            expect(page.locator('#notes-status')).to_be_hidden()
             expect(page.locator('#notes-composer')).to_be_hidden()
             assert page.locator('.notes-history').count() == 0 and '最近的文字' not in page.locator('#daily-notes').inner_text()
             page.locator('[data-notes-action=edit-legacy]').click(); old = page.locator('#notes-editor')
             expect(old).to_have_value('合成原有记录'); old.fill('修改后的原有记录')
             expect(page.locator('#notes-legacy-status')).to_have_attribute('data-phase', 'saved')
-            expect(old).to_be_focused(); expect(page.locator('#notes-legacy-time')).to_have_text('修改 17:04')
+            expect(old).to_be_focused(); expect(page.locator('#notes-legacy-time')).to_have_text('17:04')
+            assert '原有记录' not in page.locator('#notes-legacy-card .note-entry-head').inner_text()
             assert fixture['legacy_writes'][-1]['version'] == 1
             page.locator('[data-notes-action=collapse]').click(); expect(page.locator('#notes-composer')).to_be_hidden()
             expect(page.locator('#notes-legacy-saved .note-entry-reader')).to_have_text('修改后的原有记录')
@@ -106,7 +109,7 @@ try:
             first.evaluate("e=>{e.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));e.value='拼音草稿';e.dispatchEvent(new InputEvent('input',{bubbles:true,isComposing:true}))}")
             page.wait_for_timeout(550); assert not fixture['writes']
             first.evaluate("e=>e.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true}))")
-            expect(tile.locator('.note-entry-status')).to_have_text('已保存'); expect(tile.locator('time')).to_have_text('修改 16:43')
+            expect(tile.locator('.note-entry-status')).to_have_text('已保存'); expect(tile.locator('time')).to_have_text('16:43')
             assert fixture['data'][identifier]['created_at'] != fixture['data'][identifier]['updated_at']
             first.evaluate("e=>{e.dataset.testIdentity='stable';e.focus();e.setSelectionRange(1,2)}")
             fixture['mode'] = 'hold'; first.fill('等待响应的第一稿'); until(page, lambda: len(fixture['held']) == 1)
@@ -148,6 +151,7 @@ try:
             second_tile = page.locator('#notes-active-entry [data-note-entry="' + second_id + '"]')
             fixture['mode'] = 'unknown_before'; second.fill('原来要保存的文字')
             expect(second_tile.locator('[data-note-entry-action=retry]')).to_be_visible(); writes_before = len(fixture['writes'])
+            expect(page.locator('#notes-status')).to_be_visible(); expect(page.locator('#notes-status')).to_have_text('有草稿待保存')
             original = fixture['writes'][-1]
             first_saved.locator('[data-note-entry-action=edit]').click()
             expect(first).to_be_visible(); second_saved = page.locator('#notes-entry-list [data-note-entry="' + second_id + '"]')

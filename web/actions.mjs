@@ -133,7 +133,7 @@ async function actionTopPlatform({ target, action }) {
 }
 function actionAllTop({ target, event, action }) {
   event.preventDefault();
-  state.filters = { ...defaultFilters(), status: action === "all-top" ? "published" : "all",
+  state.filters = { ...defaultFilters(), status: "published",
     platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
      ...action === "all-top" ? { sort: "reads", order: "desc" } : {} };
   state.account = "";
@@ -250,7 +250,7 @@ function actionNewKey({}) {
   return;
 }
 function actionSelectAccount({ id }) {
-  state.filters = { ...defaultFilters(), status: "all" };
+  state.filters = { ...defaultFilters(), status: "published" };
   state.account = id;
   state.listPage = 1;
   navigate("articles");

@@ -66,7 +66,9 @@ test('a fast page change aborts the previous page GET without replacing the new 
   const aborted = d.calls[0].options.signal?.aborted === true;
   d.finish({});await old;
   assert.equal(aborted, true, 'baseline leaves the old page fetch running');
-  assert.equal(d.calls.every(call=>call.options.signal?.aborted),true,'overview and catalog reads share page cancellation');
+  assert.equal(d.calls.length,1,'overview performs one read without loading a lifecycle catalog');
+  assert.match(d.calls[0].path,/^\/api\/v1\/overview\?/);
+  assert.equal(d.calls.every(call=>call.options.signal?.aborted),true,'overview read shares page cancellation');
   assert.match(c.nodes.get('#page-content').innerHTML, /password-form/);
   assert.doesNotMatch(c.nodes.get('#page-content').innerHTML, /error-panel/);
 });
@@ -78,16 +80,6 @@ test('refresh starts a new GET; late old results cannot fill the new render', as
       const date = new URL(path, 'http://localhost').searchParams.get('date');
       return Promise.resolve(ok({date, today: date, items: []}));
     }
-    if(path.startsWith('/api/v1/articles?')) {
-      const query=new URL(path,'http://localhost').searchParams;
-      assert.ok(['drafting','illustrated','draft_saved','published','failed'].includes(query.get('status')));
-      const page=Number(query.get('page')),pageSize=Number(query.get('page_size'));
-      return Promise.resolve(Response.json({data:[],meta:{total:0,unfiltered_total:0,page,page_size:pageSize,
-        offset:(page-1)*pageSize,has_more:false}}));
-    }
-    if(path.startsWith('/api/v1/article-reconciliation'))return Promise.resolve(ok({complete:true,total:0,rows:[],
-      counts:{drafting:0,illustrated:0,draft_saved:0,published:0,failed:0,unknown:0},
-      insurance:{recorded:0,unique_count:0,highest:null,counts:{},duplicate_numbers:[],observed_gap_ranges:[]}}));
     assert.match(path, /^\/api\/v1\/overview\?/);
     if (++reads > 1) return Promise.resolve(ok({marker: 'fresh'}));
     signal = options.signal;return new Promise((resolve, reject) => {
