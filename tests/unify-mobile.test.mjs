@@ -160,6 +160,8 @@ test('mobile-only stylesheet covers safe area, touch inputs, bottom drawers and 
   assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
   assert.match(css,/\.media-page-tabs \{ display:none; \}/);
   assert.match(css,/env\(safe-area-inset-bottom\)/);assert.match(css,/min-height:44px/);
+  assert.match(css,/\.icon-button\.inline-info\s*\{\s*width:44px; min-width:44px; height:44px; min-height:44px/);
+  assert.match(css,/\.todo-calendar-day \{ min-width:44px; min-height:44px; \}/);
   assert.match(css,/font-size:var\(--font-size-16,16px\)!important/);
   assert.match(css,/align-items:flex-end/);assert.match(css,/var\(--mobile-viewport-height,100dvh\)/);
   assert.doesNotMatch(css,/@media[^\{]*min-width:1200px/);
