@@ -3094,6 +3094,7 @@ function paintLegacySummary(root, legacy, active2) {
   paintTime(node.querySelector("time"), legacy.updatedAt);
   node.querySelector(".note-entry-reader").textContent = legacy.deleted ? "原有记录已删除。" : draft ? legacy.draft : legacy.serverText;
   node.querySelector(".note-entry-status").textContent = statuses[legacy.phase] || (legacy.deleted ? "已删除" : "已保存");
+  node.querySelector(".note-entry-status").dataset.phase = legacy.phase;
   node.querySelector(".note-entry-message").textContent = legacy.error;
   node.querySelector(".note-entry-message").hidden = !legacy.error;
   const edit = node.querySelector('[data-notes-action="edit-legacy"]');
