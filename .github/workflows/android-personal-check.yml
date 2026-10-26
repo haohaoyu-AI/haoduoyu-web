@@ -102,7 +102,7 @@ jobs:
           assert record['jvm_tests']['tests'] >= 40
           assert record['jvm_tests']['failures'] == record['jvm_tests']['errors'] == 0
           unsigned = directory / 'haoduoyu-personal-offline-v2-release-unsigned.apk'
-          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'installable': False, 'signing_approval': 'pending'}
+          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'installable': False, 'local_signature': 'pending'}
           (directory / 'delivery.json').write_text(json.dumps(record, indent=2) + '\n')
           (directory / 'SHA256SUMS.txt').write_text(record['sha256'] + '  ' + apk.name + '\n')
           print(json.dumps(record, indent=2))
@@ -118,3 +118,25 @@ jobs:
           retention-days: 1
           compression-level: 0
           include-hidden-files: false
+      - name: Acquire verified official Windows Java 17 signing runtime
+        id: signing_runtime
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p signing-runtime-delivery
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jre_x64_windows_hotspot_17.0.20.1_1.zip' \
+            --output signing-runtime-delivery/OpenJDK17U-jre_x64_windows_hotspot_17.0.20.1_1.zip
+          printf '%s  %s\n' bc21a93923103cdaac93ee337b0ae4365e739fde36df823dd456bc67c8a9d352 \
+            signing-runtime-delivery/OpenJDK17U-jre_x64_windows_hotspot_17.0.20.1_1.zip | sha256sum --check
+          test "$(stat --format='%s' signing-runtime-delivery/OpenJDK17U-jre_x64_windows_hotspot_17.0.20.1_1.zip)" = 43780109
+          printf '%s\n' 'Official Eclipse Adoptium Temurin Java 17.0.20.1+1 Windows x64 JRE; SHA256 verified before retention. Build compilation still uses hosted JDK17. This runtime is only for local official apksigner; no private key or password is transferred.' > signing-runtime-delivery/PROVENANCE.txt
+      - name: Retain verified public signing runtime
+        if: ${{ always() && steps.signing_runtime.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-java17-signing-runtime
+          path: signing-runtime-delivery/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
