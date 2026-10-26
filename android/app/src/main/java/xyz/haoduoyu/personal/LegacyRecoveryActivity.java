@@ -25,6 +25,7 @@ import java.util.List;
 
 import xyz.haoduoyu.personal.offline.LegacyArchive;
 import xyz.haoduoyu.personal.offline.LegacyRecoveryRuntime;
+import xyz.haoduoyu.personal.offline.LegacyRestoredDraft;
 
 /** Local recovery is deliberately separate from the shared web application and has no editing/upload action. */
 public final class LegacyRecoveryActivity extends Activity {
@@ -32,10 +33,12 @@ public final class LegacyRecoveryActivity extends Activity {
     private LegacyRecoveryRuntime runtime;
     private TextView status;
     private LinearLayout listing;
+    private LinearLayout restoredListing;
     private Snapshot snapshot;
     private String recordExport = "";
     private int pendingExport;
     private String exportArchiveId;
+    private String exportRecord = "";
     private int shown;
     private static final class Entry {
         final String section, key; final int index;
@@ -69,8 +72,22 @@ public final class LegacyRecoveryActivity extends Activity {
         LinearLayout exports = row(root); button(exports, "导出完整 JSON", () -> export(JSON)); button(exports, "导出完整文本", () -> export(TEXT));
         LinearLayout raw = row(root); button(raw, "导出原始库文件", () -> export(ORIGINAL));
         status = new TextView(this); status.setText("正在读取本机保留状态…"); status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); root.addView(status);
-        ScrollView scroll = new ScrollView(this); listing = new LinearLayout(this); listing.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(listing); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        ScrollView scroll = new ScrollView(this); LinearLayout contents = new LinearLayout(this); contents.setOrientation(LinearLayout.VERTICAL);
+        restoredListing = new LinearLayout(this); restoredListing.setOrientation(LinearLayout.VERTICAL); contents.addView(restoredListing);
+        listing = new LinearLayout(this); listing.setOrientation(LinearLayout.VERTICAL); contents.addView(listing);
+        scroll.addView(contents); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        runtime.submit(runtime::restoredDrafts, (values, failure) -> {
+            if (!live()) return;
+            if (failure != null) {
+                TextView problem = new TextView(this); problem.setText("恢复草稿暂时无法读取；私有文件仍保留。" + failure.getMessage());
+                restoredListing.addView(problem); return;
+            }
+            for (LegacyRestoredDraft value : values) {
+                Button item = new Button(this); item.setText("恢复的启动草稿 · 恢复时间 " + value.recoveredAt);
+                item.setOnClickListener(view -> inspectRestored(value)); restoredListing.addView(item);
+            }
+        });
+        if (!runtime.hasLegacyDatabase()) { status.setText("没有旧数据库；恢复的启动草稿仍可在上方只读查看或导出。"); return; }
         runtime.submit(() -> new Snapshot(runtime.currentArchive()), (value, failure) -> {
             if (!live()) return;
             if (failure != null) { status.setText(failure.getMessage() + "。可保留或导出原始库文件。"); return; }
@@ -123,6 +140,23 @@ public final class LegacyRecoveryActivity extends Activity {
                     }).setNegativeButton("关闭", null).show();
         });
     }
+    private void inspectRestored(LegacyRestoredDraft value) {
+        runtime.submit(value::textExport, (text, failure) -> {
+        if (!live()) return;
+        if (failure != null) { status.setText("恢复草稿暂时无法显示，私有文件仍保留。" + failure.getMessage()); return; }
+        ScrollView scroll = new ScrollView(this); TextView content = new TextView(this); content.setTextIsSelectable(true);
+        content.setPadding(16, 16, 16, 16); content.setText(LegacyViewerPolicy.preview(text)); scroll.addView(content);
+        boolean small = LegacyViewerPolicy.clipboardAllowed(text);
+        new AlertDialog.Builder(this).setTitle("恢复草稿 · 只读").setView(scroll)
+                .setPositiveButton(small ? "复制恢复内容" : "导出恢复内容", (dialog, which) -> {
+                    if (small) {
+                        ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                        if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("恢复的启动草稿", text));
+                    } else { recordExport = text; export(RECORD); }
+                }).setNeutralButton("导出完整内容", (dialog, which) -> { recordExport = text; export(RECORD); })
+                .setNegativeButton("关闭", null).show();
+        });
+    }
     private void openBackup() {
         Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json");
         try { startActivityForResult(picker, OPEN); }
@@ -138,6 +172,7 @@ public final class LegacyRecoveryActivity extends Activity {
             startActivityForResult(picker, kind);
             pendingExport = kind;
             exportArchiveId = snapshot == null ? null : snapshot.archive.archiveId;
+            exportRecord = kind == RECORD ? recordExport : "";
         }
         catch (android.content.ActivityNotFoundException | SecurityException unavailable) { status.setText("没有可用的系统文件保存位置；旧库保留。"); }
     }
@@ -158,12 +193,12 @@ public final class LegacyRecoveryActivity extends Activity {
                 if (failure != null) status.setText(failure.getMessage()); else display(value, "历史备份（只读；未导入队列）");
             });
         } else if (request == JSON || request == TEXT || request == ORIGINAL || request == RECORD) {
-            if (request != pendingExport || (request != ORIGINAL && (snapshot == null
-                    || !snapshot.archive.archiveId.equals(exportArchiveId))) || (request == RECORD && recordExport.isEmpty())) {
+            if (request != pendingExport || ((request == JSON || request == TEXT) && (snapshot == null
+                    || !snapshot.archive.archiveId.equals(exportArchiveId))) || (request == RECORD && exportRecord.isEmpty())) {
                 status.setText("导出选择已失效，请重新选择当前内容和保存位置；旧库未更改。"); return;
             }
             pendingExport = 0;
-            Snapshot selected = snapshot; String selectedRecord = recordExport;
+            Snapshot selected = snapshot; String selectedRecord = exportRecord;
             runtime.submit(() -> {
                 try (OutputStream output = getContentResolver().openOutputStream(destination, "w")) {
                     if (output == null) throw new java.io.IOException("无法写入所选位置");

@@ -89,6 +89,8 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle savedState) {
         super.onCreate(savedState);
+        if (savedState != null && savedState.containsKey("legacyRecoveryPending"))
+            getIntent().putExtra("legacyRecoveryPending", savedState.getBoolean("legacyRecoveryPending"));
         buildLayout();
         backScript = readBackScript();
         createWebView();
@@ -150,7 +152,10 @@ public final class MainActivity extends Activity {
         legacyNotice = new Button(this);
         legacyNotice.setText("旧版本机记录（只读查看 / 导出）");
         legacyNotice.setMinHeight(dp(44)); legacyNotice.setVisibility(View.GONE);
-        legacyNotice.setOnClickListener(view -> startActivity(new Intent(this, LegacyRecoveryActivity.class)));
+        legacyNotice.setOnClickListener(view -> {
+            if (getIntent().getBooleanExtra("legacyRecoveryPending", false)) returnToRecovery();
+            else startActivity(new Intent(this, LegacyRecoveryActivity.class));
+        });
         root.addView(legacyNotice, new LinearLayout.LayoutParams(-1, -2));
         webFrame = new FrameLayout(this);
         root.addView(webFrame, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
@@ -231,6 +236,7 @@ public final class MainActivity extends Activity {
         menu.getMenu().add(0, 3, 2, "在浏览器打开");
         menu.getMenu().add(0, 4, 3, "关于自用版");
         menu.getMenu().add(0, 5, 4, "旧版本机记录（只读）");
+        if (getIntent().getBooleanExtra("legacyRecoveryPending", false)) menu.getMenu().add(0, 6, 5, "返回未保全恢复页");
         menu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == 1) confirmReload(UrlPolicy.HOME);
             if (item.getItemId() == 2) confirmReload(currentUrl());
@@ -242,6 +248,7 @@ public final class MainActivity extends Activity {
                             + (BuildConfig.DEBUG ? "\n这是调试签名预览包，不是正式发布包。" : ""))
                     .setPositiveButton("知道了", null).show();
             if (item.getItemId() == 5) startActivity(new Intent(this, LegacyRecoveryActivity.class));
+            if (item.getItemId() == 6) returnToRecovery();
             return true;
         });
         menu.show();
@@ -271,13 +278,23 @@ public final class MainActivity extends Activity {
     }
     private void refreshLegacy() {
         if (legacy == null || isDestroyed()) return;
-        legacyNotice.setVisibility(legacy.hasLegacyDatabase() ? View.VISIBLE : View.GONE);
+        boolean pending = getIntent().getBooleanExtra("legacyRecoveryPending", false);
+        legacyNotice.setVisibility(pending || legacy.hasLegacyRecords() ? View.VISIBLE : View.GONE);
+        if (pending) legacyNotice.setText("恢复草稿尚未保全（返回查看 / 导出）");
+        else legacyNotice.setText("旧版本机记录（只读查看 / 导出）");
         LegacyMigrationCoordinator.Result state = legacy.result();
         if (state == null) return;
-        legacyNotice.setText(state.pending + state.conflicts + state.drafts > 0 ?
+        if (!pending) legacyNotice.setText(state.pending + state.conflicts + state.drafts > 0 ?
                 "旧版保留：" + state.pending + " 条待同步 / " + state.conflicts + " 处冲突 / " + state.drafts + " 份草稿（只读查看）" :
                 "旧版本机记录（只读查看 / 导出）");
         emitNative(NativeBridgeScripts.legacy(state.pending, state.conflicts, state.needsConsent));
+    }
+    private void returnToRecovery() {
+        getIntent().removeExtra("legacyRecoveryPending");
+        startActivity(new Intent(this, OfflineActivity.class).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+    }
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent); setIntent(intent); refreshLegacy();
     }
 
     private void confirmReload(String target) {
@@ -597,6 +614,7 @@ public final class MainActivity extends Activity {
     @Override public void onBackPressed() { handleBack(); }
 
     @Override protected void onSaveInstanceState(Bundle state) {
+        state.putBoolean("legacyRecoveryPending", getIntent().getBooleanExtra("legacyRecoveryPending", false));
         if (web != null && UrlPolicy.isTrustedWebsite(web.getUrl())) {
             Bundle browserState = new Bundle();
             web.saveState(browserState);

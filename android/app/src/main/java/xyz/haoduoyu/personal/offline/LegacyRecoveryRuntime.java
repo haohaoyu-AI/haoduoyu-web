@@ -15,6 +15,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Set;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
@@ -34,19 +35,23 @@ public final class LegacyRecoveryRuntime {
     private final Set<Runnable> listeners = new CopyOnWriteArraySet<>();
     private final AtomicBoolean running = new AtomicBoolean(), again = new AtomicBoolean();
     private final LegacyArchiveFiles archives;
+    private final LegacyRestoredDraftFiles restoredDrafts;
     private SqliteStateStore source;
     private volatile LegacyMigrationCoordinator.Result result;
     public interface Callback<T> { void finished(T value, Exception failure); }
 
     private LegacyRecoveryRuntime(Context supplied) {
         context = supplied.getApplicationContext(); cancelOldJobs(context);
-        archives = new LegacyArchiveFiles(new File(context.getNoBackupFilesDir(), "legacy-recovery"), directory -> {
-            FileDescriptor descriptor = Os.open(directory.getAbsolutePath(), OsConstants.O_RDONLY, 0);
-            try {
-                if (!OsConstants.S_ISDIR(Os.fstat(descriptor).st_mode)) throw new IOException("备份目录已改变，未确认持久保存");
-                Os.fsync(descriptor);
-            } finally { Os.close(descriptor); }
-        });
+        File retained = new File(context.getNoBackupFilesDir(), "legacy-recovery");
+        archives = new LegacyArchiveFiles(retained, LegacyRecoveryRuntime::syncDirectory);
+        restoredDrafts = new LegacyRestoredDraftFiles(new File(retained, "restored-drafts"), LegacyRecoveryRuntime::syncDirectory);
+    }
+    private static void syncDirectory(File directory) throws Exception {
+        FileDescriptor descriptor = Os.open(directory.getAbsolutePath(), OsConstants.O_RDONLY, 0);
+        try {
+            if (!OsConstants.S_ISDIR(Os.fstat(descriptor).st_mode)) throw new IOException("备份目录已改变，未确认持久保存");
+            Os.fsync(descriptor);
+        } finally { Os.close(descriptor); }
     }
     public static synchronized LegacyRecoveryRuntime get(Context context) {
         if (instance == null) instance = new LegacyRecoveryRuntime(context);
@@ -57,6 +62,15 @@ public final class LegacyRecoveryRuntime {
         if (scheduler != null) { scheduler.cancel(27260); scheduler.cancel(27261); }
     }
     public boolean hasLegacyDatabase() { return context.getDatabasePath("haoduoyu-offline.db").isFile(); }
+    public boolean hasLegacyRecords() {
+        return hasLegacyDatabase() || new File(context.getNoBackupFilesDir(), "legacy-recovery/restored-drafts").exists();
+    }
+    public LegacyRestoredDraft retainRestoredDraft(LegacyRestoredDraft value) throws Exception {
+        LegacyRestoredDraft saved = restoredDrafts.save(value);
+        for (Runnable listener : listeners) main.post(listener);
+        return saved;
+    }
+    public List<LegacyRestoredDraft> restoredDrafts() throws Exception { return restoredDrafts.list(); }
     public LegacyMigrationCoordinator.Result result() { return result; }
     public void listen(Runnable listener) { listeners.add(listener); }
     public void unlisten(Runnable listener) { listeners.remove(listener); }

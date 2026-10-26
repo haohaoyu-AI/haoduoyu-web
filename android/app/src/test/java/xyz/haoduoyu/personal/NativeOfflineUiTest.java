@@ -3,7 +3,6 @@ package xyz.haoduoyu.personal;
 import android.app.job.JobScheduler;
 import android.app.AlertDialog;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
 import android.os.Looper;
 import android.view.View;
@@ -69,7 +68,7 @@ import static org.junit.Assert.*;
 @LooperMode(LooperMode.Mode.PAUSED)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 public final class NativeOfflineUiTest {
-    private ActivityController<OfflineActivity> controller;
+    private ActivityController<LegacyOfflineActivityFixture> controller;
     private ProxySelector previousProxy;
     private Object previousTransportFactory;
     private final List<URI> attemptedNetwork = new CopyOnWriteArrayList<>();
@@ -108,7 +107,7 @@ public final class NativeOfflineUiTest {
     }
 
     @Test public void firstScreenAcceptsNativeTextWithoutLoadingARemoteWebDocument() throws Exception {
-        OfflineActivity activity = launch(null);
+        LegacyOfflineActivityFixture activity = launch(null);
         EditText composer = field(activity, "composer", EditText.class);
         assertTrue(composer.isEnabled());
         assertEquals(0, webViews(activity.getWindow().getDecorView()));
@@ -126,23 +125,8 @@ public final class NativeOfflineUiTest {
         assertEquals(0, webViews(activity.getWindow().getDecorView()));
     }
 
-    @Test public void explicitLegacyHistoryIntentAndSavedBundleStillReachTheNativeEditorBeforeTheCompatibilityFix() throws Exception {
-        Context context=RuntimeEnvironment.getApplication();
-        Intent history=new Intent(context,OfflineActivity.class).setAction(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_LAUNCHER).addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY);
-        Bundle restored=new Bundle();restored.putString("tab","memo");restored.putString("date","2026-10-26");
-        restored.putString("draft","Synthetic old task restoration probe");
-        controller=Robolectric.buildActivity(OfflineActivity.class,history);
-        controller.create(restored).start().restoreInstanceState(restored).resume().visible();
-        OfflineActivity activity=controller.get();OfflineRuntime runtime=awaitReady(activity);
-        assertNotNull(runtime);assertFalse(activity.isFinishing());
-        assertEquals("Synthetic old task restoration probe",field(activity,"composer",EditText.class).getText().toString());
-        assertEquals(0,webViews(activity.getWindow().getDecorView()));
-        assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
-    }
-
     @Test public void actualAddAndRoundCompletionClicksCommitToSQLiteWithoutAnAccount() throws Exception {
-        OfflineActivity activity = launch(null);
+        LegacyOfflineActivityFixture activity = launch(null);
         OfflineRuntime runtime = awaitReady(activity);
         EditText composer = field(activity, "composer", EditText.class);
         Button save = field(activity, "save", Button.class);
@@ -173,7 +157,7 @@ public final class NativeOfflineUiTest {
     }
 
     @Test public void draftRecreationAndSaveInFlightBundleDoNotDuplicateACommittedTodo() throws Exception {
-        OfflineActivity first = launch(null);
+        LegacyOfflineActivityFixture first = launch(null);
         OfflineRuntime runtime = awaitReady(first);
         String draft = "Keep this native draft through recreation";
         field(first, "composer", EditText.class).setText(draft);
@@ -181,7 +165,7 @@ public final class NativeOfflineUiTest {
         await("A draft must reach local SQLite", () -> draft.equals(runtime.repository.draft(slot)));
         Bundle ordinary = new Bundle();
         destroyCurrent(ordinary);
-        OfflineActivity restored = launch(ordinary);
+        LegacyOfflineActivityFixture restored = launch(ordinary);
         awaitReady(restored);
         assertEquals(draft, field(restored, "composer", EditText.class).getText().toString());
         assertEquals(0, todoCount(runtime.repository.snapshot()));
@@ -206,7 +190,7 @@ public final class NativeOfflineUiTest {
         drainWorkers(runtime);
         assertEquals(1, todoCount(readDisk()));
 
-        OfflineActivity afterSave = launch(savingState);
+        LegacyOfflineActivityFixture afterSave = launch(savingState);
         awaitReady(afterSave);
         assertEquals("", field(afterSave, "composer", EditText.class).getText().toString());
         assertEquals(1, todoCount(runtime.repository.snapshot()));
@@ -233,7 +217,7 @@ public final class NativeOfflineUiTest {
 
         PublicFixtureTransport server = new PublicFixtureTransport();
         setTransportFactory(() -> server);
-        OfflineActivity activity = launch(null);
+        LegacyOfflineActivityFixture activity = launch(null);
         OfflineRuntime runtime = awaitReady(activity);
         await("Anonymous discovery must finish a verified pull without a login", () ->
                 "public_consent_required".equals(runtime.repository.snapshot().getJSONObject("status").optString("code")));
@@ -393,15 +377,15 @@ public final class NativeOfflineUiTest {
     }
     private static void setTransportFactory(Supplier<ApiClient.Transport> factory) throws Exception { transportFactoryField().set(null, factory); }
 
-    private OfflineActivity launch(Bundle state) {
-        controller = Robolectric.buildActivity(OfflineActivity.class);
+    private LegacyOfflineActivityFixture launch(Bundle state) {
+        controller = Robolectric.buildActivity(LegacyOfflineActivityFixture.class);
         if (state == null) controller.create().start().resume().visible();
         else controller.create(state).start().restoreInstanceState(state).resume().visible();
         return controller.get();
     }
 
     private void destroyCurrent(Bundle state) throws Exception {
-        OfflineActivity activity = controller.get();
+        LegacyOfflineActivityFixture activity = controller.get();
         controller.pause();
         if (state != null) controller.saveInstanceState(state);
         controller.stop().destroy(); controller = null;
@@ -409,7 +393,7 @@ public final class NativeOfflineUiTest {
         assertTrue("Activity-owned startup worker must stop", startup.awaitTermination(5, TimeUnit.SECONDS));
     }
 
-    private static OfflineRuntime awaitReady(OfflineActivity activity) throws Exception {
+    private static OfflineRuntime awaitReady(LegacyOfflineActivityFixture activity) throws Exception {
         await("Native local workspace did not finish bounded startup", () ->
                 field(activity, "runtime", OfflineRuntime.class) != null && field(activity, "save", Button.class).isEnabled());
         return field(activity, "runtime", OfflineRuntime.class);

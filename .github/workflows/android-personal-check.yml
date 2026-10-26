@@ -78,7 +78,7 @@ jobs:
           export JAVA_HOME="$JAVA_HOME_17_X64"
           export PATH="$JAVA_HOME/bin:$PATH"
           export GRADLE_USER_HOME="$RUNNER_TEMP/haoduoyu-gradle"
-          node --test tests/back-script.test.mjs tests/offline-contract.test.mjs tests/unified-bridge.test.mjs
+          node --test tests/back-script.test.mjs tests/offline-contract.test.mjs tests/unified-bridge.test.mjs tests/legacy-entry-compat.test.mjs
           "$RUNNER_TEMP/gradle-8.9/bin/gradle" --version
           "$RUNNER_TEMP/gradle-8.9/bin/gradle" --no-daemon \
             :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease
@@ -137,12 +137,12 @@ jobs:
           }
           suites = [ET.parse(path).getroot() for path in pathlib.Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml')]
           record['jvm_tests'] = {key: sum(int(suite.attrib.get(key, 0)) for suite in suites) for key in ['tests', 'failures', 'errors', 'skipped']}
-          assert record['jvm_tests']['tests'] >= 106
+          assert record['jvm_tests']['tests'] >= 117
           assert record['jvm_tests']['failures'] == record['jvm_tests']['errors'] == record['jvm_tests']['skipped'] == 0
           unsigned = directory / 'haoduoyu-unified-v3-release-unsigned.apk'
           record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'application_id': 'xyz.haoduoyu.personal', 'version_name': '3.0.0', 'version_code': 4, 'min_sdk': 26, 'debuggable': False, 'launcher': 'xyz.haoduoyu.personal.MainActivity', 'installable': False, 'local_signature': 'pending'}
           record['fixed_v201'] = json.loads((pathlib.Path(os.environ['RUNNER_TEMP']) / 'legacy-v201-check.json').read_text())
-          record['node_contracts'] = 20
+          record['node_contracts'] = 21
           (directory / 'delivery.json').write_text(json.dumps(record, indent=2) + '\n')
           (directory / 'SHA256SUMS.txt').write_text(record['sha256'] + '  ' + apk.name + '\n')
           print(json.dumps(record, indent=2))
