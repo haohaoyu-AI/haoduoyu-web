@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {randomUUID} from 'node:crypto';
+import {createHash, randomUUID} from 'node:crypto';
 import {createMemoryDB, entityKey} from '../web/offline/db.mjs';
 import {createOfflineCache, offlineReadRoute} from '../web/offline/cache.mjs';
 import {createOfflineRuntime, offlineRequest} from '../web/offline/runtime.mjs';
 import {offlineStatusLabel} from '../web/offline/ui.mjs';
+import {createSnapshotSync} from '../web/offline/sync.mjs';
 import {projectWorkbenchSnapshot} from '../src/workbench-snapshot.mjs';
 import {snapshotBudget} from '../src/snapshot-budget.mjs';
 
@@ -147,6 +148,76 @@ test('an older list racing a newly acknowledged server row cannot hide or downgr
   await assert.rejects(cache.write(path, {items: []}, {baseline}), error => error.code === 'OFFLINE_CACHE_CHANGED');
   assert.equal((await cache.read(path)).data.items[0].version, 2);
   await assert.rejects(cache.write(path, {items: [{...row, version: 1}]}), error => error.code === 'OFFLINE_CACHE_CHANGED');
+});
+test('a cold first todo list retries once after a real snapshot commits while its GET is delayed', async t => {
+  const f = fixture(t), ids = Array.from({length: 3}, () => randomUUID()), path = '/todos?date=' + date;
+  for (const id of ids) f.remote.set(id,
+    {id, date, text: '合成冷启动事项', version: 1, completed: false, created_at: stamp, updated_at: stamp, deleted_at: null});
+  let entered, release, reads = 0;
+  const blocked = new Promise(resolve => { entered = resolve; }), gate = new Promise(resolve => { release = resolve; });
+  const app = createOfflineRuntime({db: f.db, now: () => Date.parse(stamp), request: async (path, opts) => {
+    const value = await f.request(path, opts);
+    if (path.startsWith('/todos?') && ++reads === 1) { entered(); await gate; }
+    else if (path.startsWith('/todos?')) {
+      const backgroundCache = createOfflineCache({db: f.db, getScope: () => scope});
+      await backgroundCache.write(path, value);
+    }
+    return value;
+  }}); t.after(() => app.stop());
+  await app.call('/auth/me');
+  assert.deepEqual(await f.db.transaction(['entities'], 'readonly', tx => tx.getAll('entities')), []);
+  const pending = app.call(path); pending.catch(() => {}); await blocked;
+  for (const id of ids) f.remote.set(id, {...f.remote.get(id), text: '快照已确认新事项', version: 2, completed: id === ids[2]});
+  const todos = [...f.remote.values()].map(row => {
+    const content = {entity_id: 'todo:' + row.id, entity_type: 'todo', source: 'todo', source_id: row.id,
+      date, version: row.version, change_seq: 2, created_at: stamp, updated_at: stamp, deleted_at: null,
+      text: row.text, completed: Number(row.completed)};
+    const content_hash = createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.entries(content).sort()))).digest('hex');
+    return {...content, content_hash};
+  }).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+  const sync = createSnapshotSync({db: f.db, getScope: () => scope, now: () => Date.parse(stamp), request: async path =>
+    projectWorkbenchSnapshot({...empty(), todos}, {scope_id: scope, generated_at: stamp, date: path.includes('?') ? date : null}, snapshotBudget())});
+  assert.equal((await sync.pull({date})).status, 'synced');
+  release();
+  const visible = await pending; assert.equal(reads, 2, 'the rejected first response triggers exactly one fresh GET');
+  assert.equal(visible.items.length, 3); assert.ok(visible.items.every(row => row.version === 2 && row.completed === (row.id === ids[2])));
+  const cache = createOfflineCache({db: f.db, getScope: () => scope});
+  assert.ok((await cache.read(path)).data.items.every(row => row.version === 2 && row.text === '快照已确认新事项'));
+  assert.equal(app.state.error, null); assert.equal((await app.queue()).conflicts.length, 0);
+});
+test('canonical todo fences still reject actual version, text, deletion and template-link changes', async t => {
+  for (const field of ['version', 'text', 'deleted_at', 'template_version']) await t.test(field, async () => {
+    const db = createMemoryDB(), id = randomUUID(), path = '/todos?date=' + date;
+    const cache = createOfflineCache({db, getScope: () => scope});
+    const row = {id, date, text: '不可被旧读取覆盖', version: 1, completed: false,
+      created_at: stamp, updated_at: stamp, deleted_at: null, template_id: randomUUID(), template_version: 1, template_active: true};
+    await cache.write(path, {items: [row]}); const baseline = await cache.fence(path);
+    const changes = {version: 2, text: '已确认的新正文', deleted_at: stamp, template_version: 2};
+    const current = {...row, [field]: changes[field]};
+    await db.transaction(['entities'], 'readwrite', tx => tx.put('entities',
+      {key: entityKey(scope, 'todo:' + id), scope, entity_id: 'todo:' + id, server: current, dirty: false}));
+    await assert.rejects(cache.write(path, {items: [row]}, {baseline}), error => error.code === 'OFFLINE_CACHE_CHANGED');
+    assert.deepEqual((await cache.entity('todo:' + id)).server, current);
+  });
+});
+test('foreground cache-fence recovery stops after one retry and preserves the latest confirmed entity', async t => {
+  const f = fixture(t), id = randomUUID(), path = '/todos?date=' + date; let reads = 0;
+  f.remote.set(id, {id, date, text: '合成重试上限', version: 1, completed: false,
+    created_at: stamp, updated_at: stamp, deleted_at: null});
+  const app = createOfflineRuntime({db: f.db, request: async (path, opts) => {
+    const value = await f.request(path, opts);
+    if (path.startsWith('/todos?')) {
+      const row = {...f.remote.get(id), version: ++reads + 1};
+      await f.db.transaction(['entities'], 'readwrite', tx => tx.put('entities',
+        {key: entityKey(scope, 'todo:' + id), scope, entity_id: 'todo:' + id, server: row, dirty: false}));
+    }
+    return value;
+  }}); t.after(() => app.stop());
+  await app.call('/auth/me');
+  await assert.rejects(app.call(path), error => error.code === 'OFFLINE_CACHE_CHANGED');
+  assert.equal(reads, 2);
+  const entity = await f.db.transaction(['entities'], 'readonly', tx => tx.get('entities', entityKey(scope, 'todo:' + id)));
+  assert.equal(entity.server.version, 3, 'both stale responses leave the newer entity intact');
 });
 test('a GET response started in an old identity cannot be cached into a newly adopted scope', async t => {
   const f = fixture(t); await initialize(f);

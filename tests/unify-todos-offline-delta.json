@@ -1,6 +1,6 @@
 {
   "baseline": "f952ad75de6c9a7fc3d832859998da75213d7f27",
-  "patch_commit": "5b03836c8c1fea3f9d84918c2f8f8fb358b8f56a",
+  "patch_commit": "81d76a71b77403ae3b3afed80569b08d576f3a35",
   "scope": "Exact fixed B todo-offline IndexedDB stores, durable scoped queue, conflict decisions, sync/cache/runtime/UI modules, narrow frontend API and entrypoint integration, offline stylesheet, complete shell generation and corresponding pins. No backend, API route, server permission, database schema, runtime binding, release allowlist, production configuration or later editor integration changes.",
   "added_modules": [
     "web/offline/cache.mjs",
@@ -14,15 +14,15 @@
   "files": {
     ".ci/public-assets.json": {
       "before": "c5c2a68ad7386dfd6a5c8af270830e971319abc8f0b860a9dead4385d905dc84",
-      "after": "c0073dbbca466ffee8403bb99fa02f8c713f842bc23962246a99cee17de3c13f"
+      "after": "f7988730883e0f04cb682a674c32b42e03cfa3688f019f6d55cfd7144b36805f"
     },
     "public/app.js": {
       "before": "6b3355c87ea23d95f16839f45bbabe226b900cae34295e9b200d64063d0c690f",
-      "after": "e3ddc322b2e587f12d2cf5776ab602108a7f48bb8a6086ff171b903de0026144"
+      "after": "0c3ed60faea9491ccf7c5a388830a1bbd070df3d5cbccf71d88bba3dc7317ccc"
     },
     "public/index.html": {
       "before": "96e77a51da2fa9dabebc1cc6d43687bc5f659f737722e4a4cb52135d054b6592",
-      "after": "c503850c07280e5410e51ba17905e632e19f26a6ce896cb71dcadb1c522a816f"
+      "after": "2a07112838c5b2a4457c16a659d49b81e322e31da9fb2d6f88a13f4c7dac0248"
     },
     "public/offline.css": {
       "before": null,
@@ -30,7 +30,7 @@
     },
     "public/sw.js": {
       "before": "e57a9c1f366e65775772bd4d8f67bef12c7261e60ec8f60b54d01abae17e3204",
-      "after": "788a075ba22c6b0cd1c8d2cd1834f92c2097884668806e7e34f832955adb543c"
+      "after": "d2bf8686b508af31aa7f3c2d66795865b80cf87522828510855a99e851135ae3"
     },
     "scripts/build.mjs": {
       "before": "e13599c809e251388facaaa3a67abc1b498528327fe3041e2fbb109086eb7b6b",
@@ -46,7 +46,7 @@
     },
     "web/offline/cache.mjs": {
       "before": null,
-      "after": "72b5a7b9baecd2580cfdd28dd43db502494f6742fc51d96adfe07b4c9caa1e4e"
+      "after": "5daf4d804e13efb63d172c76227b1929d15cddf160d8a417185bb1890109a29d"
     },
     "web/offline/conflict.mjs": {
       "before": null,
@@ -62,7 +62,7 @@
     },
     "web/offline/runtime.mjs": {
       "before": null,
-      "after": "e708dd6bd6b00961972ed72163a5896b3b0760a7c9fd326516072941315ccebb"
+      "after": "ff12d6b98f3c83a5b38b4d247000e74b4c68fcb22753a2a4491f22c1f30b930c"
     },
     "web/offline/sync.mjs": {
       "before": null,

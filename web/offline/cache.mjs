@@ -54,10 +54,17 @@ function belongs(row, route) {
   const value = offlineValue(row);
   return row.entity_id.startsWith(route.kind + ':') && value && (route.kind !== 'todo' || value.date === route.date);
 }
+function todoFence(value) {
+  if (!value) return null;
+  return [value.id || value.source_id, value.date, value.text ?? null, value.completed === true || value.completed === 1,
+    value.version, value.created_at, value.updated_at, value.deleted_at ?? null, Boolean(value.deleted || value.deleted_at),
+    value.template_id ?? null, value.template_version ?? null, value.template_active ?? null];
+}
 function serverFence(rows, route, owner) {
   if (!['todo', 'template'].includes(route.kind)) return null;
   return JSON.stringify(rows.filter(row => row.scope === owner && belongs(row, route)).map(row =>
-    [row.entity_id, row.server || null, row.remote_missing === true]).sort((a, b) => a[0].localeCompare(b[0])));
+    [row.entity_id, route.kind === 'todo' ? todoFence(row.server) : row.server || null, row.remote_missing === true])
+    .sort((a, b) => a[0].localeCompare(b[0])));
 }
 function overlay(value, route, entities, dirtyOnly) {
   if (!['todo', 'template'].includes(route.kind)) return value;

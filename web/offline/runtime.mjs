@@ -291,7 +291,7 @@ function mutationActions(context) {
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
-  async function call(path, input = {}) {
+  async function call(path, input = {}, readRetried = false) {
     const {offlineGuard: guard = () => {}, ...options} = input;
     guard();
     const method = (options.method || 'GET').toUpperCase(), route = writableRoute(path, options, features);
@@ -321,6 +321,7 @@ function mutationActions(context) {
       }
     } catch (error) {
       if ([401, 403].includes(error.status)) { await context.invalidate({forget: true}); throw error; }
+      if (error.code === 'OFFLINE_CACHE_CHANGED' && !readRetried) return call(path, input, true);
       if (!networkFailure(error)) throw error;
       state.verifiedScope = null; state.online = false;
       const cached = await cache.read(path);
