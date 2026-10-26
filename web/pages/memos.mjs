@@ -49,6 +49,7 @@ export function renderMemos() {
     button('use-draft', '用此草稿保存到新版本') + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
 }
 const phases = {dirty: '等待自动保存', saving: '正在保存…', unknown: '保存结果待核对', conflict: '版本冲突 · 草稿已保留',
+  queued: '已保存到本机 · 等待同步',
   offline: '离线 · 草稿保留在本机', error: '暂未保存 · 草稿已保留', oversize: '正文超过 64 KiB', loading: '正在读取…'};
 const active = (rows, trash) => rows.filter(row => Boolean(row.deleted_at) === trash);
 function listButton(kind, row, current, subtitle = '') {

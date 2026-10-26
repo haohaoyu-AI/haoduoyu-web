@@ -4,8 +4,9 @@ import {createOutbox} from './outbox.mjs';
 import {createSnapshotSync} from './sync.mjs';
 import {createNoteMutations, noteMutationRoute} from './note-mutations.mjs';
 import {createDraftJournal} from './drafts.mjs';
+import {createMemoOfflineAdapter, memoRoute} from './memos.mjs';
 
-export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: false});
+export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: true});
 const scopePattern = /^[a-f0-9]{64}$/;
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const networkFailure = error => error?.code === 'NETWORK_UNAVAILABLE' || error?.code === 'OFFLINE_NETWORK';
@@ -72,7 +73,8 @@ function runtimeContext(options) {
     generation: 0, authFlight: null, syncFlight: null, timer: null, channel: null, stopped: false};
   const send = async (path, opts) => {
     if (opts?.method && !['GET', 'HEAD'].includes(opts.method.toUpperCase()) &&
-        !writableRoute(path, opts, features) && !noteMutationRoute(path, opts, features))
+        !writableRoute(path, opts, features) && !noteMutationRoute(path, opts, features) &&
+        !(features.memos && memoRoute(path) && opts.method.toUpperCase() === 'PUT'))
       throw fail('此本机操作需新版页面处理，原内容已保留。', 'OFFLINE_UPGRADE_REQUIRED');
     if (!online() || !state.verifiedScope || state.verifiedScope !== state.scope) throw offlineError();
     const owner = state.scope, generation = context.generation;
@@ -88,8 +90,12 @@ function runtimeContext(options) {
     }
   };
   context.outbox = createOutbox({db, request: send, getScope: () => state.scope, now, uuid, timeout: options.timeout,
-    enabledTypes: [...(features.todos ? ['todo', 'template'] : []), ...(features.notes ? ['note_entry'] : [])], supportedProtocols: [1]});
+    enabledTypes: [...(features.todos ? ['todo', 'template'] : []), ...(features.notes ? ['note_entry'] : []),
+      ...(features.memos ? ['memo_note', 'memo_group'] : [])],
+    supportedProtocols: features.memos ? [1, 2] : [1], supportedDependencies: features.memos === true});
   context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
+  context.memos = createMemoOfflineAdapter({db, cache, outbox: context.outbox, getScope: () => state.scope,
+    getGeneration: () => context.generation, now, uuid});
   return context;
 }
 function identityActions(context) {
@@ -257,6 +263,20 @@ async function unmanaged(context, path, options, guard) {
     throw error;
   }
 }
+async function mutateMemo(context, path, options, guard) {
+  const value = await context.memos.mutate(path, options, guard);
+  guard(); await context.refresh(); context.broadcast();
+  if (context.online()) context.scheduleRetry();
+  return value;
+}
+async function rememberRead(context, path, value, baseline, memo) {
+  if (memo) return context.memos.remember(path, value, {baseline});
+  try { return await context.cache.write(path, value, {baseline}); }
+  catch (error) {
+    if (['OFFLINE_RESPONSE_INVALID', 'OFFLINE_SCOPE_CHANGED', 'OFFLINE_CACHE_CHANGED'].includes(error.code)) throw error;
+    context.state.error = error.message; context.emit(); return value;
+  }
+}
 function mutationActions(context) {
   const {state, cache, now, uuid, outbox, features} = context;
   async function mutate(path, options, route, guard) {
@@ -295,6 +315,7 @@ function mutationActions(context) {
     const {offlineGuard: guard = () => {}, ...options} = input;
     guard();
     const method = (options.method || 'GET').toUpperCase(), route = writableRoute(path, options, features);
+    const memo = features.memos && memoRoute(path);
     const noteRoute = noteMutationRoute(path, options, features);
     if (noteRoute) return context.noteMutations.mutate(path, options, noteRoute, guard);
     if (path === '/auth/me' && method === 'GET') return options.context || options.signal ? context.authenticate(options) : context.verify();
@@ -302,28 +323,27 @@ function mutationActions(context) {
       const value = await context.request(path, options); await context.invalidate({forget: true}); return value;
     }
     if (route) return mutate(path, options, route, guard);
+    if (memo && method === 'PUT') return mutateMemo(context, path, options, guard);
     if (method !== 'GET' || !offlineReadRoute(path)) return unmanaged(context, path, options, guard);
     if (offlineReadRoute(path).kind === 'todo') context.lastTodoPath = path;
     try {
       if (context.online() && state.identity) await context.verifyScope();
       guard();
       const owner = state.scope, generation = context.generation;
-      const baseline = owner ? await cache.fence(path) : undefined;
+      const baseline = owner ? await (memo ? context.memos.fence(path) : cache.fence(path)) : undefined;
       guard();
       const value = await context.request(path, options);
+      guard();
       if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化，本次读取已取消。', 'OFFLINE_SCOPE_CHANGED');
       if (offlineReadRoute(path).kind === 'todo') state.partial = false;
       if (!state.scope) return value;
-      try { return await cache.write(path, value, {baseline}); }
-      catch (error) {
-        if (['OFFLINE_RESPONSE_INVALID', 'OFFLINE_SCOPE_CHANGED', 'OFFLINE_CACHE_CHANGED'].includes(error.code)) throw error;
-        state.error = error.message; context.emit(); return value;
-      }
+      return await rememberRead(context, path, value, baseline, memo);
     } catch (error) {
       if ([401, 403].includes(error.status)) { await context.invalidate({forget: true}); throw error; }
       if (error.code === 'OFFLINE_CACHE_CHANGED' && !readRetried) return call(path, input, true);
       if (!networkFailure(error)) throw error;
       state.verifiedScope = null; state.online = false;
+      if (memo) { const value = await context.memos.project(path); guard(); await context.refresh(); return value; }
       const cached = await cache.read(path);
       const kind = offlineReadRoute(path).kind;
       if (kind === 'overview') state.cachedAt = cached.saved_at;
@@ -370,6 +390,7 @@ export function createOfflineRuntime(options) {
   context.noteMutations = createNoteMutations(context);
   const drafts = createDraftJournal({db: context.db, getScope: () => context.state.scope, getGeneration: () => context.generation, now: context.now});
   return {call: context.call, sync: context.sync, start: context.start, stop: context.stop, refresh: context.refresh,
+    readMemo: path => context.memos.project(path),
     queue: context.queue, resolve: context.resolve, invalidate: context.invalidate, state: context.state,
     localRead: async path => (await context.cache.read(path)).data,
     retainDrafts: drafts.capture, retainedDrafts: drafts.list, flushDrafts: drafts.flush,
@@ -393,7 +414,8 @@ export async function offlineRequest(path, options, request, onIdentity, assertA
   try { runtime = await initialization; }
   catch {
     assertActive();
-    if (writableRoute(path, options, OFFLINE_FEATURES) || noteMutationRoute(path, options, OFFLINE_FEATURES))
+    if (writableRoute(path, options, OFFLINE_FEATURES) || noteMutationRoute(path, options, OFFLINE_FEATURES) ||
+        OFFLINE_FEATURES.memos && memoRoute(path) && options.method?.toUpperCase() === 'PUT')
       throw fail('浏览器无法保存本机数据，本次修改未保存；输入已保留。', 'OFFLINE_STORAGE_UNAVAILABLE');
     return request(path, options);
   }

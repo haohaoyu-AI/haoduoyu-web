@@ -131,9 +131,9 @@ test('an unsupported entity head also prevents fast retries of a compatible late
   await new Promise(resolve=>setTimeout(resolve,350));assert.equal(reads,count);
   assert.equal((await all(db,'outbox')).length,2);
 });
-test('outbox capabilities do not block the existing ordinary online memo API',async t=>{
+test('outbox capabilities do not block the ordinary online memo API when its offline feature is disabled',async t=>{
   const db=createMemoryDB(),id=randomUUID(),calls=[];
-  const runtime=createOfflineRuntime({db,request:async(path,options)=>{
+  const runtime=createOfflineRuntime({db,features:{todos:true,notes:false,memos:false},request:async(path,options)=>{
     calls.push({path,options});assert.equal(Object.hasOwn(options,'offlineGuard'),false);return {saved:true};
   }});t.after(()=>runtime.stop());
   assert.deepEqual(await runtime.call('/memos/notes/'+id,{method:'PUT',body:{title:'Synthetic online memo',body:'Synthetic text',version:0}}),{saved:true});
