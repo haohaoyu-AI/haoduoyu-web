@@ -36,9 +36,10 @@
 | 1 设计变量 | 完整 CI 通过，未部署 | `cff158bd02693d81ef1be4c186ac9e25ff34a1dd` / CI 40363472024：17:04:43 UTC success，892/892、0 fail/skip；secret/12 资产/预览全过。14 图差均 0%；Worker 1,265,642 bytes / `52e4c7b7901ea8019370492eac20565a7284559a1e866b6ed975c75fc45620cc`。仅完整串行 CI 时限由 15→30 分钟，全部检查保留 |
 | 2 手机统一布局 | 完整 CI 通过，未部署 | `opt/unify-web-stage2` / `53c0752d8b6484358021f7df08fa2ef63e3e2760`，CI [40368001817](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40368001817) 于 17:36:28 UTC success：905/905，0 fail/cancel/skip，secret、13 资产、前端构建和两种预览全过。4 宽 28 页/10 交互、375/390 点击 ≥44、输入 ≥16，7 桌面图差 0%。Worker 1,280,513 bytes / `f9e34238880f01789712f016e00966c16b4f10fa6b70924c63aae581801a93a4`。真机未验收 |
 | 3A SW 外壳 | 完整 CI 通过，未部署 | `opt/unify-web-shell` / `1f7ea4699fe46dcf062fa2cac486493f3a0f9339`，CI [40368020168](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40368020168) 于 17:36:16 UTC success：925/925，0 fail/cancel/skip，secret、16 资产、前端构建和两种预览全过。真实 Chromium 生命周期和 14 图通过，桌面差 0%；Worker 1,297,715 bytes / `9ec2e67ddab8b70aa4fad79be2f6df3243b52a52ef87482b1b5a3d911df3f85f`。API 不缓存，更新须点击 |
-| 3B 待办离线 | 实际边界修复中，未完成完整 CI | 原源 `f578437`，身份 preflight 修复 `0e614ea`，旧消费者保留新协议队列修复 `2138904`；实际 bundle/存储测试复现后固定修正。当前正补 persisted type/path 不一致及 inflight 冲突回写期间协议升级两个已定位边界，最终 source/hash 未冻结，不把旧草稿测试等同于验收 |
-| 3C 新碎碎念离线 | 合成验收中 | 显式本机持久化分支，不能伪造服务器 hash/version/change_seq；旧逐日记录只读，原草稿保留。50 个定向测试通过，真实 Worker/D1 与 Chromium 正复验；更新前本机草稿持久化屏障纳入本步 |
-| 3D 备忘录离线 | 独立工作树合成验收中 | 新增/编辑、正文全量读取、显式父记录依赖、未知收据与冲突两稿保留；不恢复分组 UI。实际在线删除与队列刷新竞态已定位修正，最终增量待 C 基线固定后接入 |
+| 3B 待办离线 | 合成验收通过，最终完整 CI 运行中 | `opt/unify-web-offline-todos` / `77513b0823030dc2e8af53e9d76d23fd5b3fa14e`，CI [40376332960](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40376332960)。源 `81d76a7`，163 定向测试、6 业务浏览器场景、14 必需截图 +7 张 375 图通过。真实冷启动截图发现的快照/API缓存竞态已实际复现并修复：仅 1 次受保护重读、仅 todo 规范业务字段比较，版本/正文/墓碑/常用关联的变化仍拒绝。桌面原始差 0.217%，同步图标矩形外 0%；375/390 无溢出、小字输入或过小点击区。Worker 1,396,279 bytes / `70765264460b32495080d279d3f8306112c87c315c2e029335323e4c3f4d3cff`。旧 739 CI 因新提交被取消，不能算通过 |
+| 3C 新碎碎念离线 | 合成验收通过，完整 CI 运行中 | `opt/unify-web-offline-notes` / `3193568bb7275ad7b8cdf752ea0a6ef197d8a6a8`，CI [40376856308](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40376856308)。源 `0d3de57`，164 个行为/协议测试、66 兼容契约、8 Chromium 场景及 14+7 图通过；含已验证的 B 公共缓存修复。旧逐日只读、IME 草稿分 owner、原 save_id 收据、更新前持久化屏障均保留；不伪造 server hash/version。Worker 1,451,324 bytes / `d938ef04ce3c4977a8421025c9b4136e4a11e663ee163155264ec29fea8038ec` |
+| 3D 备忘录离线 | 独立工作树收尾中 | 私有源 `54445fd` 已验证依赖父记录真实收据、连续编辑、冲突双稿、平铺 UI、IME/拖宽/全屏/手机/在线软删恢复；尚在补 memo 更新前草稿持久化屏障，当前不是最终候选。离线 X 删除明确需联网，不自动恢复线上墓碑 |
+| 3E 冲突选择完成 | 独立补齐中 | 已有“用线上”处理与两稿保全；原“用本地／两份都留”只记选择的限制已明确，正在独立增量实现真正的 fresh CAS／新 UUID 副本决策。未完成功能不伪称已发布，旧操作和两个版本继续保留 |
 | 4 App 3.0.0 | 云端完整 CI 通过，正式签名/实机未验收 | `android/unified-v3` / `0d1268428e9ce860fae83b999e7dc1932a4f3a61`，CI [40372760071](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/40372760071) 于 17:55:28 UTC success：新 117 JVM +21 Node；固定旧版 d5 另跑 80 JVM +16 Node，0 fail/error/skip，两边 lint/build 通过。覆盖旧任务恢复入口先无损保存 Bundle 草稿再进入网页、旧库原样保全、未同意内容不上传。unsigned release 85,128 bytes / `5af0bb9cff980a17cca576d5bb20cbc8671e00bde9382096971b0a3c79f50f0a`，仅参考不可覆盖安装；未接触原签名密钥，正式 APK 等家机签名 |
 | 5 最终验收与报告 | 待前述阶段 | 按实际日期记录，不因窗口目标降低验收 |
 
@@ -52,10 +53,16 @@
 
 ## 下一步
 
-阶段 1、2、3A 分别保留已成功的固定候选；旧失败 run 不重跑，也不借前阶段结果替代后阶段。继续固定 3B，再分别固定 3C、3D；缺少新鲜生产备份或实际浏览器验收时只保留分支，不部署。扫描中 tokens.css 的公开文件 SHA256 被规则误判，已重算匹配，仅记录原提交精确 fingerprint，证据见 `unify-stage1-secret-evidence.json`。
+阶段 1、2、3A 分别保留已成功的固定候选；旧失败 run 不重跑，也不借前阶段结果替代后阶段。3B、3C 已分别固定并运行完整 CI，继续固定 3D 与冲突选择的必要完成增量；缺少新鲜生产备份或实际浏览器验收时只保留分支，不部署。扫描中 tokens.css 的公开文件 SHA256 被规则误判，已重算匹配，仅记录原提交精确 fingerprint，证据见 `unify-stage1-secret-evidence.json`。
 
 ## 已失败运行与后续实际覆盖
 
 - 阶段 2：`4ef338a` / 40364071076 的 905 项中 1 项旧假 DOM 缺 `classList.contains`；修正测试替身真实状态并保留/增强原断言，`53c0752` 的新完整 CI 905/905 成功。
 - 阶段 3A：`f952ad7` / 40364736728 同一假 DOM 问题；`1f7ea46` 新完整 CI 925/925 成功，产品字节未变化。
 - Android：`a46b8b8` / 40366714715 的公开 SDK 常量兼容问题、`2387d3a` / 40367333725 的真实 SDK 测试替身问题，已由后续 `ca9e2a5`、`c24cd91` 成功覆盖；又针对旧任务入口实际复现并增加草稿保全修复，最终 `0d12684` CI 40372760071 成功。未删除/跳过失败用例。
+
+## 2026-10-26 18:20 UTC 断点
+
+- 网页公共源已保存 `work-unify-notes-source` / `0d3de57`；最终候选分别在上表分支，不能用开发源未完成的守卫 CI 替代候选结果。
+- B 冷启动阻塞证据与修正后真实 14+7 图均在仓库外；未使用预热、刷新或宽容断言掩盖空列表。
+- C 当前完整 CI 必须等终态；D 正式组合不得覆盖 C/B 版本，Android 保留独立分支不整分支覆盖 web。
