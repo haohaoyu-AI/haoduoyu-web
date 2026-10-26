@@ -18,7 +18,12 @@ test('the committed shell reproduces its exact built version, complete styleshee
   const result=buildServiceWorkerAssets({indexHtml:index,swSource:sw,assets:shellAssets});
   assert.equal(result.indexHtml,index);assert.equal(result.swSource,sw);
   assert.ok(result.config.assets.every(asset=>!asset.url.startsWith('/api/')&&asset.url!=='/sw.js'));
-  assert.ok(!result.config.assets.some(asset=>asset.url==='/offline.css'));
+  assert.equal(result.config.assets.filter(asset=>asset.url==='/offline.css').length,1);
+  const linked=[...index.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)]
+    .map(match=>new URL(match[1].replaceAll('&amp;','&'),'http://localhost').pathname);
+  assert.equal(linked.at(-1),'/offline.css','todo offline UI stylesheet is last in the cascade');
+  assert.deepEqual([...linked].sort(),Object.keys(shellAssets).filter(path=>path.endsWith('.css')).sort(),
+    'every linked stylesheet is in the same complete shell generation');
   for(const path of shellAssetPaths)assert.ok(result.config.assets.some(asset=>asset.url===path));
   for(const entry of result.config.assets) {
     const response=await request(entry.url+'?__shell='+result.version);
@@ -40,7 +45,7 @@ test('only the SW adds its root scope header and exact no-cache GET/HEAD/304 beh
     assert.deepEqual(Buffer.from(await response.arrayBuffer()),method==='HEAD'||conditional?Buffer.alloc(0):bytes);
     for(const header of security)assert.equal(response.headers.get(header),control.headers.get(header));
   }
-  for(const path of ['/app.js','/mobile.css','/sw-update.css','/manifest.webmanifest','/%73w.js','/health','/api/v1/auth/me']) {
+  for(const path of ['/app.js','/mobile.css','/sw-update.css','/offline.css','/manifest.webmanifest','/%73w.js','/health','/api/v1/auth/me']) {
     const response=await request(path);assert.equal(response.headers.has('Service-Worker-Allowed'),false,path);
     if(path!=='/app.js')assert.equal(response.headers.get('Cache-Control'),'no-store',path);
     await response.text();

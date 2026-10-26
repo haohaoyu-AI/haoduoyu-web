@@ -20,7 +20,7 @@ const standalone=target==='cloudflare'?cloudflareConfig(runtime,process.env):nul
 await writeFile(resolve(publicRoot,'app.js'),await frontendBundle(root));
 const types={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',json:'application/json; charset=utf-8',svg:'image/svg+xml',txt:'text/plain; charset=utf-8',webmanifest:'application/manifest+json; charset=utf-8'};
 const assets={};
-for(const name of ['index.html','app.js','tokens.css','style.css','memos.css','glass.css','workbench.css','mobile.css','sw-update.css','manifest.webmanifest','openapi.json','favicon.svg','robots.txt','llms.txt']) {
+for(const name of ['index.html','app.js','tokens.css','style.css','memos.css','glass.css','workbench.css','mobile.css','sw-update.css','offline.css','manifest.webmanifest','openapi.json','favicon.svg','robots.txt','llms.txt']) {
   assets[name]={type:types[name.split('.').at(-1)],content:await readFile(resolve(publicRoot,name),'utf8')};
 }
 assets['api-docs']={type:types.html,content:await readFile(resolve(publicRoot,'api-docs.html'),'utf8')};

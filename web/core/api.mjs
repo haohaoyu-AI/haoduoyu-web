@@ -3,6 +3,7 @@ import { runtime, state } from "./state.mjs";
 import { renderLogin } from "../pages/login.mjs";
 import { closeModal } from "../ui/modal.mjs";
 import { assertRequestActive, backgroundRequests, isRequestAbort, pendingGet } from "./requests.mjs";
+import { offlineRequest } from "../offline/runtime.mjs";
 function apiOptions(options) {
   const opts = { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...options.headers || {} } };
   if (opts.body !== undefined) {
@@ -23,7 +24,7 @@ async function apiTransport(path, opts) {
     response = await fetch(`/api/v1${path}`, opts);
   } catch (error) {
     if (isRequestAbort(error)) throw error;
-    throw new Error("暂时无法连接网站，请检查网络后重试。");
+    throw Object.assign(new Error("暂时无法连接网站，请检查网络后重试。"), {code: "NETWORK_UNAVAILABLE"});
   }
   if (response.ok && !["GET", "HEAD"].includes((opts.method || "GET").toUpperCase())) {
     if (["/auth/login", "/auth/logout", "/auth/password"].includes(path)) resetSessionIndexes();
@@ -34,7 +35,7 @@ async function apiTransport(path, opts) {
     text = await response.text();
   } catch (error) {
     if (isRequestAbort(error)) throw error;
-    throw new Error("服务暂时不可用，请稍后重试。");
+    throw Object.assign(new Error("服务暂时不可用，请稍后重试。"), {code: "NETWORK_UNAVAILABLE"});
   }
   return { ok: response.ok, status: response.status, text };
 }
@@ -52,7 +53,7 @@ function apiFailure(path, response, payload, epoch, identity) {
   if (response.status === 401 && !current) error.staleSession = true;
   return error;
 }
-async function api(path, options = {}) {
+async function apiNetwork(path, options = {}) {
   const epoch = runtime.sessionEpoch, identity = state.me?.id ?? null;
   const { envelope = false, context, ...requestOptions } = options;
   const opts = apiOptions(requestOptions), method = (opts.method || "GET").toUpperCase();
@@ -74,6 +75,11 @@ async function api(path, options = {}) {
   if (!response.ok) throw apiFailure(path, response, payload, epoch, identity);
   return envelope ? payload : payload.data;
 }
+function api(path, options = {}) {
+  return offlineRequest(path, options, apiNetwork, me => {
+    if (state.me && state.me.id === me.id) state.me = me;
+  });
+}
 export {
-  api
+  api, apiNetwork
 };
