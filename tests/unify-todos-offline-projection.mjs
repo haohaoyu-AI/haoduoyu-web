@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 export const unifyTodosOfflineBaseline='f952ad75de6c9a7fc3d832859998da75213d7f27';
-export const unifyTodosOfflinePatch='5b03836c8c1fea3f9d84918c2f8f8fb358b8f56a';
+export const unifyTodosOfflinePatch='81d76a71b77403ae3b3afed80569b08d576f3a35';
 export const unifyTodosOfflinePaths=Object.freeze(['.ci/public-assets.json','public/app.js','public/index.html',
   'public/offline.css','public/sw.js','scripts/build.mjs','web/core/api.mjs','web/main.mjs',
   'web/offline/cache.mjs','web/offline/conflict.mjs','web/offline/db.mjs','web/offline/outbox.mjs',
@@ -13,7 +13,7 @@ export const unifyTodosOfflinePaths=Object.freeze(['.ci/public-assets.json','pub
 export const unifyTodosOfflineAddedModules=Object.freeze(['web/offline/cache.mjs','web/offline/conflict.mjs',
   'web/offline/db.mjs','web/offline/outbox.mjs','web/offline/runtime.mjs','web/offline/sync.mjs','web/offline/ui.mjs']);
 const added=new Set(['public/offline.css',...unifyTodosOfflineAddedModules]);
-const acceptedDeltaSha256='9cf6016401b0e3517475b824fdc4a92adccedf6d9afc2ed5e040d62ab7ef94d7';
+const acceptedDeltaSha256='b0fbe15e977691ea71faff68c5845011228211fb0939a286edcb4690dda57810';
 const label='exact approved workbench delta (unify todos offline)';
 export const todosOfflineHash=value=>createHash('sha256').update(value).digest('hex');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});

@@ -60,18 +60,22 @@ test('todo-offline rejects changed current and historical bytes and never hides 
 test('the fixed compatibility repairs cannot reuse any superseded B source hash set',()=>{
   for(const [superseded,expected]of [
     ['f5784375b94e398a24875cb2b86678dbd963533a',['.ci/public-assets.json','public/app.js','public/index.html','public/sw.js',
-      'web/core/api.mjs','web/offline/conflict.mjs','web/offline/outbox.mjs','web/offline/runtime.mjs','web/offline/ui.mjs']],
+      'web/core/api.mjs','web/offline/cache.mjs','web/offline/conflict.mjs','web/offline/outbox.mjs','web/offline/runtime.mjs','web/offline/ui.mjs']],
     ['0e614ea1d08d250189c5711e972a0e5208f4f66b',['.ci/public-assets.json','public/app.js','public/index.html','public/sw.js',
-      'web/offline/conflict.mjs','web/offline/outbox.mjs','web/offline/runtime.mjs','web/offline/ui.mjs']],
+      'web/offline/cache.mjs','web/offline/conflict.mjs','web/offline/outbox.mjs','web/offline/runtime.mjs','web/offline/ui.mjs']],
     ['21389041755439cf80b42458ec7d938b63565816',['.ci/public-assets.json','public/app.js','public/index.html','public/sw.js',
-      'web/offline/conflict.mjs','web/offline/outbox.mjs','web/offline/runtime.mjs']]
+      'web/offline/cache.mjs','web/offline/conflict.mjs','web/offline/outbox.mjs','web/offline/runtime.mjs']],
+    ['5b03836c8c1fea3f9d84918c2f8f8fb358b8f56a',['.ci/public-assets.json','public/app.js','public/index.html','public/sw.js',
+      'web/offline/cache.mjs','web/offline/runtime.mjs']],
+    ['918b43b442efa83886fd59ce6993884f4cc212c6',['.ci/public-assets.json','public/app.js','public/index.html','public/sw.js',
+      'web/offline/cache.mjs']]
   ]) {
     const repaired=git('diff','--name-only',superseded,unifyTodosOfflinePatch,'--',...roots).trim().split('\n');
     assert.deepEqual(repaired,expected,'only the exact preflight and cross-generation repairs are authorized');
     for(const file of repaired) {
       const old=git('show',superseded+':'+file);
       assert.notEqual(todosOfflineHash(old),delta.files[file].after,'the repaired bytes must have a fresh after hash: '+file);
-      assert.throws(()=>projectUnifyTodosOffline(file,old),/approved workbench delta/,'an unsafe earlier source cannot impersonate B4: '+file);
+      assert.throws(()=>projectUnifyTodosOffline(file,old),/approved workbench delta/,'an unsafe earlier source cannot impersonate final B: '+file);
     }
   }
 });
