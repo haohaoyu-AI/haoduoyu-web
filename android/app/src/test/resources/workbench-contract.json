@@ -1,0 +1,107 @@
+{
+  "index": {
+    "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+    "projection": "current",
+    "complete": true,
+    "scope_id": "1486b482349b38e25df80fc9749f48eb19ec665409bf8c9ff8ca91ac80b9e098",
+    "timezone": "Asia/Shanghai",
+    "generated_at": "2026-10-26T11:13:40.867Z",
+    "manifest_hash": "a508156b24250a989f7e61535a357798a9df5758ada8b713cd0853b99d08ee69",
+    "global_content_hash": "48dec6bdcf5daa0b3f604d2439b4bbbedc3d66de37934d368734de03dc50cb42",
+    "entities": [
+      {
+        "entity_id": "legacy-life:2026-10-24",
+        "entity_type": "life_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T11:13:40.865Z",
+        "deleted_at": null,
+        "content_hash": "152c37ced1c205027c62d82641b37210dd5d99cf7ceb3ea86b4e32c7e3c9d589"
+      },
+      {
+        "entity_id": "note-entry:23cc50de-21b7-467a-b4d2-b8f7499ca930",
+        "entity_type": "life_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T11:13:40.867Z",
+        "deleted_at": null,
+        "content_hash": "9b563af992f01bfcd52a22493ebeb762cfccbdb31c60b3fa2d23e4dadb14ebee"
+      }
+    ],
+    "dates": [
+      {
+        "date": "2026-10-24",
+        "content_hash": "ca371f52f4b1e13db9d3e0cf1aec1c02c350b5a9927d7c62f3f825a1f825f7b2"
+      }
+    ],
+    "index_hash": "a508156b24250a989f7e61535a357798a9df5758ada8b713cd0853b99d08ee69"
+  },
+  "daily": {
+    "snapshot_format": "haoduoyu-workbench-snapshot-v1",
+    "projection": "current",
+    "complete": true,
+    "scope_id": "1486b482349b38e25df80fc9749f48eb19ec665409bf8c9ff8ca91ac80b9e098",
+    "timezone": "Asia/Shanghai",
+    "generated_at": "2026-10-26T11:13:40.869Z",
+    "manifest_hash": "a508156b24250a989f7e61535a357798a9df5758ada8b713cd0853b99d08ee69",
+    "global_content_hash": "48dec6bdcf5daa0b3f604d2439b4bbbedc3d66de37934d368734de03dc50cb42",
+    "entities": [
+      {
+        "entity_id": "legacy-life:2026-10-24",
+        "entity_type": "life_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T11:13:40.865Z",
+        "deleted_at": null,
+        "content_hash": "152c37ced1c205027c62d82641b37210dd5d99cf7ceb3ea86b4e32c7e3c9d589"
+      },
+      {
+        "entity_id": "note-entry:23cc50de-21b7-467a-b4d2-b8f7499ca930",
+        "entity_type": "life_note",
+        "date": "2026-10-24",
+        "updated_at": "2026-10-26T11:13:40.867Z",
+        "deleted_at": null,
+        "content_hash": "9b563af992f01bfcd52a22493ebeb762cfccbdb31c60b3fa2d23e4dadb14ebee"
+      }
+    ],
+    "date": "2026-10-24",
+    "date_content_hash": "ca371f52f4b1e13db9d3e0cf1aec1c02c350b5a9927d7c62f3f825a1f825f7b2",
+    "data": {
+      "todos": [],
+      "life_notes": [
+        {
+          "entity_id": "legacy-life:2026-10-24",
+          "entity_type": "life_note",
+          "source": "legacy_daily_note",
+          "source_id": "2026-10-24",
+          "date": "2026-10-24",
+          "category": "life",
+          "version": 1,
+          "change_seq": 1,
+          "created_at": "2026-10-26T11:13:40.865Z",
+          "updated_at": "2026-10-26T11:13:40.865Z",
+          "deleted_at": null,
+          "text": "legacy entry",
+          "content_hash": "152c37ced1c205027c62d82641b37210dd5d99cf7ceb3ea86b4e32c7e3c9d589"
+        },
+        {
+          "entity_id": "note-entry:23cc50de-21b7-467a-b4d2-b8f7499ca930",
+          "entity_type": "life_note",
+          "source": "note_entry",
+          "source_id": "23cc50de-21b7-467a-b4d2-b8f7499ca930",
+          "date": "2026-10-24",
+          "category": "life",
+          "version": 1,
+          "change_seq": 2,
+          "created_at": "2026-10-26T11:13:40.867Z",
+          "updated_at": "2026-10-26T11:13:40.867Z",
+          "deleted_at": null,
+          "text": "same day / Unicode 中文 🐟   next\nline",
+          "content_hash": "9b563af992f01bfcd52a22493ebeb762cfccbdb31c60b3fa2d23e4dadb14ebee"
+        }
+      ],
+      "work_notes": [],
+      "work_reminders": [],
+      "memo_groups": [],
+      "memos": []
+    },
+    "content_hash": "258b49cbd7296a25e47601e9b22fa93c735efcf7b85baf220e8c978ef055822c"
+  }
+}

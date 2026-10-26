@@ -213,7 +213,7 @@ public final class MainActivity extends Activity {
             if (item.getItemId() == 4) new AlertDialog.Builder(this).setTitle("好多鱼自用版")
                     .setMessage("版本 " + BuildConfig.VERSION_NAME
                             + "\n共用 haoduoyu.xyz 的网站与数据。需要联网；网页中的每日工作提醒仍是网页功能。"
-                            + "\n尚无离线同步或系统定时通知。下载文件请使用浏览器。"
+                            + "\n离线读写请使用应用本地首页；这里保留网页版入口。没有系统定时通知。下载文件请使用浏览器。"
                             + (BuildConfig.DEBUG ? "\n这是调试签名预览包，不是正式发布包。" : ""))
                     .setPositiveButton("知道了", null).show();
             return true;

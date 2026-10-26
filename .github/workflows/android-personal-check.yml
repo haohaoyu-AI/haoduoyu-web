@@ -19,9 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          # Build the accepted Android implementation exactly; this workflow commit only adds delivery.
-          ref: 4f145f9a63538596f483be67a0fc240b267248b4
+          ref: ${{ github.sha }}
           persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
       - name: Check hosted toolchain and install only missing SDK packages on disposable runner
         run: |
           set -euo pipefail
@@ -50,23 +52,29 @@ jobs:
           export JAVA_HOME="$JAVA_HOME_17_X64"
           export PATH="$JAVA_HOME/bin:$PATH"
           export GRADLE_USER_HOME="$RUNNER_TEMP/haoduoyu-gradle"
-          node --test tests/back-script.test.mjs
+          node --test tests/back-script.test.mjs tests/offline-contract.test.mjs
           "$RUNNER_TEMP/gradle-8.9/bin/gradle" --version
           "$RUNNER_TEMP/gradle-8.9/bin/gradle" --no-daemon \
-            :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+            :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease
           APK=app/build/outputs/apk/debug/app-debug.apk
-          DELIVERY="$GITHUB_WORKSPACE/android-preview-delivery"
+          DELIVERY="$GITHUB_WORKSPACE/android-offline-delivery"
           mkdir -p "$DELIVERY"
-          cp "$APK" "$DELIVERY/haoduoyu-personal-v1-4f145f9-debug-preview.apk"
+          cp "$APK" "$DELIVERY/haoduoyu-personal-offline-v2-debug-preview.apk"
+          cp app/build/outputs/apk/release/app-release-unsigned.apk "$DELIVERY/haoduoyu-personal-offline-v2-release-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 app/build/outputs/apk/release/app-release-unsigned.apk
+          mkdir -p "$DELIVERY/signing-tool"
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" "$DELIVERY/signing-tool/apksigner.jar"
+          cp "$ANDROID_HOME/build-tools/35.0.0/source.properties" "$DELIVERY/signing-tool/source.properties"
+          sha256sum "$DELIVERY/signing-tool/apksigner.jar" > "$DELIVERY/signing-tool/SHA256SUMS.txt"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" | tee "$DELIVERY/signature-verification.txt"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee "$DELIVERY/apk-badging.txt"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 "$APK"
           test "$(stat --format='%s' "$APK")" -lt 1048576
-          test "$(git rev-parse HEAD)" = 4f145f9a63538596f483be67a0fc240b267248b4
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           python3 - <<'PY'
-          import hashlib, json, os, pathlib, re
-          directory = pathlib.Path(os.environ['GITHUB_WORKSPACE']) / 'android-preview-delivery'
-          apk = directory / 'haoduoyu-personal-v1-4f145f9-debug-preview.apk'
+          import hashlib, json, os, pathlib, re, xml.etree.ElementTree as ET
+          directory = pathlib.Path(os.environ['GITHUB_WORKSPACE']) / 'android-offline-delivery'
+          apk = directory / 'haoduoyu-personal-offline-v2-debug-preview.apk'
           badging = (directory / 'apk-badging.txt').read_text()
           signature = (directory / 'signature-verification.txt').read_text()
           assert "name='xyz.haoduoyu.personal.debug'" in badging
@@ -78,7 +86,7 @@ jobs:
               'bytes': apk.stat().st_size,
               'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
               'signer_certificate_sha256': certificate,
-              'source_commit': '4f145f9a63538596f483be67a0fc240b267248b4',
+              'source_commit': os.environ['GITHUB_SHA'],
               'workflow_commit': os.environ['GITHUB_SHA'],
               'run_id': os.environ['GITHUB_RUN_ID'],
               'application_id': 'xyz.haoduoyu.personal.debug',
@@ -86,19 +94,26 @@ jobs:
               'minimum_android': '8.0',
               'build_type': 'debug preview',
               'device_acceptance': 'not performed',
+              'offline_acceptance': 'automated checks only; physical-device and production sync acceptance pending',
               'signing': 'ephemeral hosted-runner debug key; not a stable release signing identity',
           }
+          suites = [ET.parse(path).getroot() for path in pathlib.Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml')]
+          record['jvm_tests'] = {key: sum(int(suite.attrib.get(key, 0)) for suite in suites) for key in ['tests', 'failures', 'errors', 'skipped']}
+          assert record['jvm_tests']['tests'] >= 40
+          assert record['jvm_tests']['failures'] == record['jvm_tests']['errors'] == 0
+          unsigned = directory / 'haoduoyu-personal-offline-v2-release-unsigned.apk'
+          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'installable': False, 'signing_approval': 'pending'}
           (directory / 'delivery.json').write_text(json.dumps(record, indent=2) + '\n')
           (directory / 'SHA256SUMS.txt').write_text(record['sha256'] + '  ' + apk.name + '\n')
           print(json.dumps(record, indent=2))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('Debug preview APK retained for one day for Library delivery. No private key, cache, release or deployment is uploaded. Physical-device acceptance remains pending.\n')
+              summary.write('Debug preview and unsigned release candidate retained for one day for delivery. No private key, cache, signed release or deployment is uploaded. Signing approval and physical-device acceptance remain pending.\n')
           PY
       - name: Retain verified debug preview for Library delivery
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: haoduoyu-personal-v1-4f145f9-debug-preview
-          path: android-preview-delivery/
+          name: haoduoyu-personal-offline-v2-candidate
+          path: android-offline-delivery/
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
