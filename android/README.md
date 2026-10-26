@@ -6,10 +6,11 @@
 
 - 网站只读参考基线：16ff80ef2d857676d81b7c219110c820de5af72b。
 - 独立工作分支：android/personal-v1；仅新增 android/ 与专用构建检查 workflow，不修改网站文件，不更新 main 或 opt/workbench-ui-round6，不部署。
-- 启动任务时 Windows 执行环境转为 unavailable。本机 JDK、SDK、Gradle、ADB 尚无法核验，本地祖先 AGENTS.md 与 .agents/skills 也无法读取；远端基线完整目录没有 AGENTS.md 或 .agents/。没有在公司电脑安装工具。
+- 原任务启动时 Windows 执行环境 unavailable，未在公司电脑安装工具。接续交付已核实家里主机 DESKTOP-SEHBTON：工作目录及祖先、仓库均无 AGENTS.md；本机无 JDK、SDK、Gradle 或 ADB，保留现有环境并复用托管 CI。
 - 此文档是实现与交接说明，不是已生成、已签名、已安装或已实机验收 APK 的证明。精确提交的 Actions 运行结果才是编译证据。
-- 专用 workflow 只在公共仓库的标准 ubuntu-24.04 runner 编译、单测、lint 和校验签名，不上传 Actions artifact、不建 cache、不发布 release、不引用 secrets。这样不引入有可能超额计费的二进制存储。runner 的临时 APK 会随 job 清理，不能据此宣称交付安装包。
-- 本机恢复后，应取同一独立分支进行本地编译，校验 APK 与签名，再通过受支持 Library 上传并核对字节。没有 Library ID 之前不算完成安装包交付。
+- 原 CI 40296009533 成功但未保留 APK。接续交付的专用 workflow 仍只使用公共仓库的标准 ubuntu-24.04 runner，并固定 checkout 4f145f9a63538596f483be67a0fc240b267248b4；不改变已验收的应用代码。
+- 专用 workflow 在单测、lint、编译、签名与对齐校验通过后，仅保留小于 1 MiB 的 debug APK 和校验记录一天，用于下载并上传 Library；不建 cache、不发布 release、不部署、不引用 secrets、不上传 keystore、不建立稳定签名凭据。仓库必须保持公开才运行，不修改付费或权限设置。
+- 下载后应再次核对文件字节和 SHA-256，并通过受支持 Library 上传；没有真实 Library ID 之前不算完成安装包交付。CI 成功不等于实体手机验收。
 
 ## 编译
 
