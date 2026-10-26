@@ -10,6 +10,7 @@ import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projectio
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {unifySwBaseline,unifySwPaths,unifySwAddedModules,unifySwBefore,unifySwManifest,
   validateUnifySwDelta,projectUnifySw,projectUnifySwHistory,projectUnifySwModules,swHash} from './unify-sw-projection.mjs';
+import {projectUnifyTodosOffline,projectUnifyTodosOfflineModules} from './unify-todos-offline-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
@@ -18,14 +19,14 @@ const delta=unifySwManifest();
 test('SW shell pins eleven exact paths and one new module over the fixed final mobile baseline',async()=>{
   assert.equal(unifySwPaths.length,11);assert.deepEqual(unifySwAddedModules,['web/offline/sw-client.mjs']);
   for(const file of unifySwPaths) {
-    const source=read(file),before=unifySwBefore(file);
+    const source=projectUnifyTodosOffline(file,read(file)),before=unifySwBefore(file);
     assert.equal(swHash(source),delta.files[file].after,'current source remains exact: '+file);
     assert.equal(projectUnifySw(file,source),before,file);
     assert.equal(projectUnifySw(file,before),before,'exact stage-two bytes remain accepted: '+file);
   }
   const released=git('ls-tree','-r','--name-only',unifySwBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
   const current=readdirSync(new URL('../web/',import.meta.url),{recursive:true}).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
-  assert.equal(current.length,57);assert.deepEqual(current,[...released,...unifySwAddedModules].sort());
+  assert.equal(current.length,64);assert.deepEqual(projectUnifyTodosOfflineModules(current),[...released,...unifySwAddedModules].sort());
   assert.deepEqual(projectUnifySwModules(current),released,'only the exact reviewed SW client projects to absence');
   assert.equal(Buffer.from(await frontendBundle(fileURLToPath(root))).toString('utf8'),read('public/app.js'),
     'the actual current frontend, including registration, reproduces the pinned bundle');
@@ -36,11 +37,13 @@ test('SW inverse rejects changed after or before bytes and preserves all unappro
     assert.throws(()=>projectUnifySw(file,read(file)+'\n/* unauthorized */\n'),/approved workbench delta/,file);
     assert.throws(()=>projectUnifySw(file,unifySwBefore(file)+'\n/* unauthorized */\n'),/approved workbench delta/,file+' old input');
   }
-  for(const file of ['web/offline/runtime.mjs','web/offline/core.mjs','public/offline.css','src/permissions.mjs'])
+  for(const file of ['web/offline/core.mjs','src/permissions.mjs'])
     assert.equal(projectUnifySw(file,'unapproved bytes'),'unapproved bytes',file+' remains visible');
+  for(const file of ['web/offline/runtime.mjs','public/offline.css'])
+    assert.throws(()=>projectUnifySw(file,'unapproved bytes'),/approved workbench delta/,file+' cannot hide unreviewed later bytes');
   assert.equal(projectUnifySw('web/offline/../offline/sw-client.mjs','unapproved'),'unapproved');
-  assert.deepEqual(projectUnifySwModules(['web/main.mjs',...unifySwAddedModules,'web/offline/runtime.mjs']),
-    ['web/main.mjs','web/offline/runtime.mjs']);
+  assert.deepEqual(projectUnifySwModules(['web/main.mjs',...unifySwAddedModules,'web/offline/core.mjs']),
+    ['web/main.mjs','web/offline/core.mjs']);
   assert.throws(()=>projectUnifySwModules([...unifySwAddedModules],file=>read(file)+'\n'),/approved workbench delta/);
   assert.throws(()=>projectUnifySwModules([...unifySwAddedModules],()=>''),/approved workbench delta/,
     'an empty replacement file cannot masquerade as a reviewed new module');
@@ -83,8 +86,9 @@ test('SW projection preserves API, permissions, configuration, schema and every 
 });
 
 test('the exact SW build is deterministic and its complete shell generation excludes all API and auth URLs',()=>{
-  const indexHtml=read('public/index.html'),swSource=read('public/sw.js');
-  const assets=Object.fromEntries(shellAssetPaths.filter(path=>path!=='/').map(path=>[path,read('public'+path)]));
+  const indexHtml=projectUnifyTodosOffline('public/index.html',read('public/index.html'));
+  const swSource=projectUnifyTodosOffline('public/sw.js',read('public/sw.js'));
+  const assets=Object.fromEntries(shellAssetPaths.filter(path=>path!=='/').map(path=>[path,projectUnifyTodosOffline('public'+path,read('public'+path))]));
   const first=buildServiceWorkerAssets({indexHtml,swSource,assets});
   const again=buildServiceWorkerAssets({indexHtml:first.indexHtml,swSource:first.swSource,assets});
   assert.equal(first.indexHtml,indexHtml);assert.equal(first.swSource,swSource);assert.deepEqual(again,first);

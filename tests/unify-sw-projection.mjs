@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {projectUnifyCIBudget} from './unify-ci-budget-projection.mjs';
+import {projectUnifyTodosOfflineHistory,projectUnifyTodosOfflineModules} from './unify-todos-offline-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifySwBaseline='d8c0f272ca4576d23142b40a775c0b2252f4c180';
@@ -42,6 +43,7 @@ export function unifySwManifest() {
 // Restoring a fixed old blob is permitted only after the complete current blob
 // matches its independently pinned reviewed digest. Unknown inputs never vanish.
 export function projectUnifySw(file,source) {
+  source=projectUnifyTodosOfflineHistory(file,source);
   source=projectUnifyCIBudget(file,source);
   if(!unifySwPaths.includes(file))return source;
   const before=unifySwBefore(file),entry=unifySwManifest().files[file];
@@ -80,6 +82,7 @@ function historicalHashes(file) {
   return historicalDigests.get(file);
 }
 export function projectUnifySwHistory(file,source) {
+  source=projectUnifyTodosOfflineHistory(file,source);
   source=projectUnifyCIBudget(file,source);
   if(!unifySwPaths.includes(file))return source;
   const entry=unifySwManifest().files[file],digest=swHash(source);
@@ -91,6 +94,7 @@ export function projectUnifySwHistory(file,source) {
 // Old inventories retain every old module and every unauthorized addition. Only
 // this exact new module can project to absence, after the source hash is checked.
 export function projectUnifySwModules(files,readSource=read) {
+  files=projectUnifyTodosOfflineModules(files,readSource);
   for(const file of files.filter(file=>unifySwAddedModules.includes(file))) {
     const source=readSource(file);
     assert.equal(swHash(source),unifySwManifest().files[file].after,label+' exact current added module: '+file);

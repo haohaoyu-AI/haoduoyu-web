@@ -1,0 +1,76 @@
+{
+  "baseline": "f952ad75de6c9a7fc3d832859998da75213d7f27",
+  "patch_commit": "f5784375b94e398a24875cb2b86678dbd963533a",
+  "scope": "Exact fixed B todo-offline IndexedDB stores, durable scoped queue, conflict decisions, sync/cache/runtime/UI modules, narrow frontend API and entrypoint integration, offline stylesheet, complete shell generation and corresponding pins. No backend, API route, server permission, database schema, runtime binding, release allowlist, production configuration or later editor integration changes.",
+  "added_modules": [
+    "web/offline/cache.mjs",
+    "web/offline/conflict.mjs",
+    "web/offline/db.mjs",
+    "web/offline/outbox.mjs",
+    "web/offline/runtime.mjs",
+    "web/offline/sync.mjs",
+    "web/offline/ui.mjs"
+  ],
+  "files": {
+    ".ci/public-assets.json": {
+      "before": "c5c2a68ad7386dfd6a5c8af270830e971319abc8f0b860a9dead4385d905dc84",
+      "after": "670bdf00021fc006014604f8b6306762ef83e801df8a264b8aa92c5d726d9b2d"
+    },
+    "public/app.js": {
+      "before": "6b3355c87ea23d95f16839f45bbabe226b900cae34295e9b200d64063d0c690f",
+      "after": "145a7e4d8279468ed6e4659f552d9436908d3fcde4ca34a5a44cb42dddc23bb4"
+    },
+    "public/index.html": {
+      "before": "96e77a51da2fa9dabebc1cc6d43687bc5f659f737722e4a4cb52135d054b6592",
+      "after": "b392b6baaeb78ad49f93cad14c1da61cc3ffa55eb0f9dad1dd7853446c670453"
+    },
+    "public/offline.css": {
+      "before": null,
+      "after": "7a75109e846875601d31a5a861a73427937bca52af7026471c19842d979c05b6"
+    },
+    "public/sw.js": {
+      "before": "e57a9c1f366e65775772bd4d8f67bef12c7261e60ec8f60b54d01abae17e3204",
+      "after": "1f92b1d53722c297b42d9d7cfdd633bd15993f7816090592969dcd4a6453f2db"
+    },
+    "scripts/build.mjs": {
+      "before": "e13599c809e251388facaaa3a67abc1b498528327fe3041e2fbb109086eb7b6b",
+      "after": "883e3d0f3b5282726c4240a36cfada08bda9e86338d4aa2bb31d660c7c088b0a"
+    },
+    "web/core/api.mjs": {
+      "before": "a9a6394bd95a2d34dd4439b1c78482a5c4d6f56625a94d0e54667bff9a420484",
+      "after": "666781dfe0f0905d5fedb6f31240b8d45a345c59236c62116d7f80fb5b15b528"
+    },
+    "web/main.mjs": {
+      "before": "db5cf1e4ede23a4a885b22ba493fd7d056936234a26220daa1b2d9f9a8e0fc8a",
+      "after": "301a4bb2cd247c523b9602aef41f3f3e873ca4e414f547ed0a5b63666e2f69e6"
+    },
+    "web/offline/cache.mjs": {
+      "before": null,
+      "after": "72b5a7b9baecd2580cfdd28dd43db502494f6742fc51d96adfe07b4c9caa1e4e"
+    },
+    "web/offline/conflict.mjs": {
+      "before": null,
+      "after": "db789530241130bf048a83f2d583c17784f1701f264db9254331516e1b9908ec"
+    },
+    "web/offline/db.mjs": {
+      "before": null,
+      "after": "cf3c9271a67a3ec30886ac3fde92cd4a9a6516f7067b967939f34e755e4582fb"
+    },
+    "web/offline/outbox.mjs": {
+      "before": null,
+      "after": "bd624a7b1cc8d126135691cbfe0beaa83fe46237202b3102542ab085de2a8c75"
+    },
+    "web/offline/runtime.mjs": {
+      "before": null,
+      "after": "f0e09960f70d60fc9494d844b6412a173385c4845682d73857a0732d1f632a23"
+    },
+    "web/offline/sync.mjs": {
+      "before": null,
+      "after": "4d0cf977110351b8adb25f56b5ad89a7e24ec3f1ddd7cef0cc797e572fd57183"
+    },
+    "web/offline/ui.mjs": {
+      "before": null,
+      "after": "fc2f293390dde33dd6ba5c4aae2ecfe3193dec9fe948649f6177b5307ad1e499"
+    }
+  }
+}
