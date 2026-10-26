@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {projectUnifyNotesOfflineHistory,projectUnifyNotesOfflineModules} from './unify-notes-offline-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifyTodosOfflineBaseline='f952ad75de6c9a7fc3d832859998da75213d7f27';
@@ -79,6 +80,7 @@ function historicalHashes(file) {
   return historicalDigests.get(file);
 }
 export function projectUnifyTodosOfflineHistory(file,source) {
+  source=projectUnifyNotesOfflineHistory(file,source);
   if(!unifyTodosOfflinePaths.includes(file))return source;
   const entry=unifyTodosOfflineManifest().files[file],digest=todosOfflineHash(source);
   if(digest===entry.after||source===unifyTodosOfflineBefore(file))return projectUnifyTodosOffline(file,source);
@@ -87,8 +89,9 @@ export function projectUnifyTodosOfflineHistory(file,source) {
 }
 
 export function projectUnifyTodosOfflineModules(files,readSource=read) {
+  files=projectUnifyNotesOfflineModules(files,readSource);
   for(const file of files.filter(file=>unifyTodosOfflineAddedModules.includes(file))) {
-    const source=readSource(file);
+    const source=projectUnifyNotesOfflineHistory(file,readSource(file));
     assert.equal(todosOfflineHash(source),unifyTodosOfflineManifest().files[file].after,label+' exact current added module: '+file);
     assert.equal(projectUnifyTodosOffline(file,source),'',label+' added module projects to absence: '+file);
   }

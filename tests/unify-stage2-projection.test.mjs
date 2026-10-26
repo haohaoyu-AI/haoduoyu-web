@@ -10,6 +10,7 @@ import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projectio
 import {unifyStage2Baseline,unifyStage2Paths,unifyStage2Before,unifyStage2Manifest,validateUnifyStage2Delta,
   projectUnifyStage2,projectUnifyStage2History,stage2Hash} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
+import {projectUnifyNotesOfflineModules} from './unify-notes-offline-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
@@ -26,7 +27,8 @@ test('stage two pins exactly ten mobile presentation paths without adding any ap
   assert.deepEqual(projectedChangedFiles(unifyStage2Baseline,roots,projectUnifyStage2),[],
     'business stores, APIs, schemas, backups, sync and deployment files are unchanged');
   const released=git('ls-tree','-r','--name-only',unifyStage2Baseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
-  const current=readdirSync(new URL('../web/',import.meta.url),{recursive:true}).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
+  const current=projectUnifyNotesOfflineModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
+    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort());
   assert.equal(current.length,64);assert.deepEqual(projectUnifySwModules(current),released,
     'complete mobile module inventory stays fixed after the exact later SW client projects to absence');
   assert.equal(Buffer.from(await frontendBundle(fileURLToPath(root))).toString('utf8'),read('public/app.js'),

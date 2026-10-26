@@ -96,7 +96,7 @@ export function projectUnifySwHistory(file,source) {
 export function projectUnifySwModules(files,readSource=read) {
   files=projectUnifyTodosOfflineModules(files,readSource);
   for(const file of files.filter(file=>unifySwAddedModules.includes(file))) {
-    const source=readSource(file);
+    const source=projectUnifyTodosOfflineHistory(file,readSource(file));
     assert.equal(swHash(source),unifySwManifest().files[file].after,label+' exact current added module: '+file);
     assert.equal(projectUnifySw(file,source),'',label+' added module projects to absence: '+file);
   }

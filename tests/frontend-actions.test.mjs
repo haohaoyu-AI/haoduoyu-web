@@ -4,6 +4,7 @@ import {round4AddedModules} from './workbench-round4-projection.mjs';
 import {round5AddedModules} from './workbench-round5-projection.mjs';
 import {unifySwAddedModules,projectUnifySwModules} from './unify-sw-projection.mjs';
 import {unifyTodosOfflineAddedModules} from './unify-todos-offline-projection.mjs';
+import {unifyNotesOfflineAddedModules} from './unify-notes-offline-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -258,9 +259,9 @@ test('event bindings retain all nine original positions and capture options',asy
 });
 test('web style checks every function type and rejects long fixture lines/functions',async()=>{
   const report=await webStyle();assert.deepEqual(report.violations,[]);
-  assert.deepEqual(projectUnifySwModules([...unifySwAddedModules,...unifyTodosOfflineAddedModules]),[],
-    'every exact SW and todo-offline module hash is checked before counting it');
-  assert.equal(report.files,40+(await phase7Manifest()).added_modules.length+memoAddedModules.length+workbenchAddedModules.length+reconciliationModules.length+round4AddedModules.length+round5AddedModules.length+unifySwAddedModules.length+unifyTodosOfflineAddedModules.length);
+  assert.deepEqual(projectUnifySwModules([...unifySwAddedModules,...unifyTodosOfflineAddedModules,...unifyNotesOfflineAddedModules]),[],
+    'every exact SW, todo-offline and note-offline module hash is checked before counting it');
+  assert.equal(report.files,40+(await phase7Manifest()).added_modules.length+memoAddedModules.length+workbenchAddedModules.length+reconciliationModules.length+round4AddedModules.length+round5AddedModules.length+unifySwAddedModules.length+unifyTodosOfflineAddedModules.length+unifyNotesOfflineAddedModules.length);
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));

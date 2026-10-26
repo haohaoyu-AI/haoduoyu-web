@@ -1,0 +1,82 @@
+{
+  "baseline": "77513b0823030dc2e8af53e9d76d23fd5b3fa14e",
+  "patch_commit": "0d3de57578b8c26c1b38e0cc5d2f2de6f3be1d48",
+  "scope": "Exact fixed C new-note offline cache, local draft persistence, durable note mutations, read-only legacy notes/reminders, editor integration and explicit service-worker update barrier. Only the complete corresponding generated shell and asset pins change. No backend, API route, server permission, database schema, runtime binding, release allowlist, production configuration, later memo integration, or alteration of the frozen B API/preflight source.",
+  "added_modules": [
+    "web/offline/document.mjs",
+    "web/offline/drafts.mjs",
+    "web/offline/note-mutations.mjs",
+    "web/offline/notes.mjs",
+    "web/offline/read-only.mjs"
+  ],
+  "files": {
+    ".ci/public-assets.json": {
+      "before": "f7988730883e0f04cb682a674c32b42e03cfa3688f019f6d55cfd7144b36805f",
+      "after": "1c1a6006c84d9be72c8e8138b6cb73eb67a007682ae859e4eabd9d5d73f160fc"
+    },
+    "public/app.js": {
+      "before": "0c3ed60faea9491ccf7c5a388830a1bbd070df3d5cbccf71d88bba3dc7317ccc",
+      "after": "10913edeb93b7c0b8faf5c29738a1a02c804b9d88b20ba6d57bf2cbf9b8086f0"
+    },
+    "public/index.html": {
+      "before": "2a07112838c5b2a4457c16a659d49b81e322e31da9fb2d6f88a13f4c7dac0248",
+      "after": "7c13385c6b36485644efae10e9ace5793d5705c8d9491d3e939665d315448c2b"
+    },
+    "public/sw.js": {
+      "before": "d2bf8686b508af31aa7f3c2d66795865b80cf87522828510855a99e851135ae3",
+      "after": "6c7e59b594a5b3b88d59d509e2618d96bdce32a805c7a717e6df98d3ce264731"
+    },
+    "web/core/note-entries-state.mjs": {
+      "before": "0ae3fc13869ed7b40777ac6834ac8ebf80969b8aeb74a8e94380919d87d28662",
+      "after": "57723bf1afa4df8f2a42c38b00033e1da765414d677ff0c76be98e9876f012e4"
+    },
+    "web/core/notes-editor-view.mjs": {
+      "before": "32042df6304682c91fb5364c10c9257ef192c5e6dbd1fdd870c2581cd80b6879",
+      "after": "7a224a6f337f253bb19166260ceb84dc46d8540cfa98f71d99288b8d75f1d6a9"
+    },
+    "web/daily-notes-controller.mjs": {
+      "before": "cb2b9dece63cb9ed77e85c288b71c799c0f65d2cda000359834509aae83a108d",
+      "after": "fdb2c3c9df005951c89fcffc0037832c2b548b4eeb7c413afc5c3a02b5998585"
+    },
+    "web/offline/cache.mjs": {
+      "before": "5daf4d804e13efb63d172c76227b1929d15cddf160d8a417185bb1890109a29d",
+      "after": "77d6d9fb9cbe1055f9ce954b52b9c0864cd499d4f98e098f6d07632b25627dfc"
+    },
+    "web/offline/document.mjs": {
+      "before": null,
+      "after": "413dd7566a95ad32e94a684efb747b5f04010abf58152f7071b589de0ac39e7b"
+    },
+    "web/offline/drafts.mjs": {
+      "before": null,
+      "after": "1a7847491cbc40ad15e558bd8cf34f48742eeca634178e429882c93722ba92a1"
+    },
+    "web/offline/note-mutations.mjs": {
+      "before": null,
+      "after": "3bd95c01df78698826e0ad3ca473a0092a327003d148f491be877d465e19b074"
+    },
+    "web/offline/notes.mjs": {
+      "before": null,
+      "after": "4038b9b7c3db8755e596a280ccb4f1ea764c3975624ded3bcddf4412ad841d7e"
+    },
+    "web/offline/outbox.mjs": {
+      "before": "a7785277e240f0e197fd3077a203f229a664e5d1fe6477a05932345dea19be26",
+      "after": "7d676ea108255e1c736f25caa1ae5d847feece91ffb3d277cc28e4c2e920f609"
+    },
+    "web/offline/read-only.mjs": {
+      "before": null,
+      "after": "6ead87681dcbf56fdab8202d4d40507995494be2fbed29cb53616b38d66e0d36"
+    },
+    "web/offline/runtime.mjs": {
+      "before": "ff12d6b98f3c83a5b38b4d247000e74b4c68fcb22753a2a4491f22c1f30b930c",
+      "after": "7bbfbdee155779f2653bf91f70e134340e42bdbe3cc4a2e9ef0aa533555c39ca"
+    },
+    "web/offline/sw-client.mjs": {
+      "before": "0c45f8a56781b2a90ca01fca394975d0d1c2f9dde7a41fc4ba3e4ea9a110ac7f",
+      "after": "7193e2662b6211c1bbbd4da4c4cd7ca6d45b9c5e4c024a1e0b04415d7bcc2bee"
+    },
+    "web/pages/daily-notes.mjs": {
+      "before": "1431048a23162dc499daf2ce9d59ecc202debabf43ed8d0732cd6c4184ac2240",
+      "after": "0b4bfa4dae5c60ee15957157d0a46e871ef815607d4453f7409de592611e39d7"
+    }
+  }
+}

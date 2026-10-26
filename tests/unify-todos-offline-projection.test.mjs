@@ -8,6 +8,7 @@ import {buildServiceWorkerAssets} from '../scripts/service-worker-build.mjs';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
+import {projectUnifyNotesOffline,projectUnifyNotesOfflineModules} from './unify-notes-offline-projection.mjs';
 import {unifyTodosOfflineBaseline,unifyTodosOfflinePatch,unifyTodosOfflinePaths,unifyTodosOfflineAddedModules,
   unifyTodosOfflineBefore,unifyTodosOfflineManifest,validateUnifyTodosOfflineDelta,projectUnifyTodosOffline,
   projectUnifyTodosOfflineHistory,projectUnifyTodosOfflineModules,todosOfflineHash} from './unify-todos-offline-projection.mjs';
@@ -22,7 +23,7 @@ test('todo-offline pins the fixed source and patch with exactly fifteen producti
   assert.deepEqual(git('diff','--name-only',unifyTodosOfflineBaseline,unifyTodosOfflinePatch,'--',...roots).trim().split('\n'),
     [...unifyTodosOfflinePaths],'the reviewed commit itself cannot contain an extra production path');
   for(const file of unifyTodosOfflinePaths) {
-    const source=read(file),before=unifyTodosOfflineBefore(file);
+    const source=projectUnifyNotesOffline(file,read(file)),before=unifyTodosOfflineBefore(file);
     assert.equal(source,git('show',unifyTodosOfflinePatch+':'+file),'exact frozen patch bytes: '+file);
     assert.equal(todosOfflineHash(source),delta.files[file].after,'exact current source hash: '+file);
     assert.equal(projectUnifyTodosOffline(file,source),before,file);
@@ -34,7 +35,8 @@ test('todo-offline pins the fixed source and patch with exactly fifteen producti
 
 test('todo-offline keeps the complete 57-module baseline and authorizes exactly seven reviewed additions',()=>{
   const released=git('ls-tree','-r','--name-only',unifyTodosOfflineBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
-  const current=readdirSync(new URL('../web/',import.meta.url),{recursive:true}).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
+  const current=projectUnifyNotesOfflineModules(readdirSync(new URL('../web/',import.meta.url),{recursive:true})
+    .filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort());
   assert.equal(released.length,57);assert.equal(current.length,64);
   assert.deepEqual(current,[...released,...unifyTodosOfflineAddedModules].sort());
   assert.deepEqual(projectUnifyTodosOfflineModules(current),released,'every original module remains in the inventory');
@@ -110,7 +112,8 @@ test('todo-offline composes through every fixed earlier layer without changing h
 });
 
 test('todo-offline leaves backend, API routes, permissions, schema, runtime and release configuration unchanged',()=>{
-  assert.deepEqual(projectedChangedFiles(unifyTodosOfflineBaseline,roots,projectUnifyTodosOffline),[],
+  assert.deepEqual(projectedChangedFiles(unifyTodosOfflineBaseline,roots,
+    (file,source)=>projectUnifyTodosOffline(file,projectUnifyNotesOffline(file,source))),[],
     'all extra production edits, untracked files and deletions remain visible');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','public/openapi.json','public/api-docs.html','public/llms.txt','src/worker.mjs'])
