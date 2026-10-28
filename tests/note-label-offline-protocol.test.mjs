@@ -4,6 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {createMemoryDB} from '../web/offline/db.mjs';
 import {createOfflineRuntime} from '../web/offline/runtime.mjs';
 import {createOutbox} from '../web/offline/outbox.mjs';
+import {createOfflineRuntime as oldRuntime} from './fixtures/b242-offline-runtime.mjs';
 import {projectWorkbenchSnapshot} from '../src/workbench-snapshot.mjs';
 import {snapshotBudget} from '../src/snapshot-budget.mjs';
 const scope='a'.repeat(64),date='2026-10-28',stamp='2026-10-28T01:00:00.000Z';
@@ -93,4 +94,14 @@ test('a labeled conflict keeps both texts and copies with protocol 5 and a fresh
   const archived=await f.db.transaction(['outbox'],'readonly',tx=>tx.get('outbox',original.operation.key));
   assert.equal(archived.status,'archived');assert.equal(archived.body.text,'本机原文');
   await f.app.sync();assert.equal(f.remote.get(id).text,'线上原文');assert.equal(f.remote.get(copy.source_id).label,'兴趣');
+});
+
+test('actual frozen b242 runtime cannot send or remove a newer labeled queue',async t=>{
+  const f=fixture(t);await initialize(f);f.offline();const id=randomUUID(),save_id=randomUUID();
+  await f.app.call('/note-entries/'+id,{method:'PUT',body:{category:'life',date,text:'新版本本机内容',version:0,save_id,label:'兴趣'}});
+  const before=(await f.app.queue()).operations;f.online();
+  const old=oldRuntime({db:f.db,request:f.request,online:()=>true});t.after(()=>old.stop());
+  await old.call('/auth/me');await old.sync();
+  const after=(await f.app.queue()).operations;assert.deepEqual(after,before);
+  assert.equal(f.calls.filter(c=>c.path==='/note-entries/'+id&&c.method==='PUT').length,0);
 });
