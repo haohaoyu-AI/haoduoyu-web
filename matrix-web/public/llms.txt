@@ -1,0 +1,9 @@
+# 好多鱼图文
+
+Private self-media account matrix. Humans sign in with username/password. Authorized AI integrations use scoped Bearer credentials issued by the administrator.
+
+Public documentation: /api-docs
+OpenAPI: /openapi.json
+API base: /api/v1
+
+Only successfully published articles are recorded. Cumulative observations and daily period metrics are separate. Read the OpenAPI schema, use Idempotency-Key for writes, and verify saved records by ID. Never invent missing metrics. Do not request an administrator password for API access.
