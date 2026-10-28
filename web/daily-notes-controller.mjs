@@ -119,11 +119,11 @@ function ensureDailyNotesStore() {
     const changed = () => {
       if (expected !== notesIdentityNow()) return;
       const revision = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
-      if (!getOfflineRuntime() && [...entries.entries.values()].some(item => item.dirty)) {
+      if (!getOfflineRuntime()?.state.scope && [...entries.entries.values()].some(item => item.dirty)) {
         notesDraftError = '本机草稿保存不可用，请保持页面打开或发送后再离开。';
       }
       if (saved) void saved.then(() => {
-        if (expected !== notesIdentityNow() || revision !== notesDraftRevision || !notesDraftError) return;
+        if (expected !== notesIdentityNow() || revision !== notesDraftRevision || !notesDraftError || !getOfflineRuntime()?.state.scope) return;
         notesDraftError = ''; paintDailyNotesPage();
       }).catch(() => {
         if (expected !== notesIdentityNow() || revision !== notesDraftRevision) return;
