@@ -122,6 +122,16 @@ test('documented optional usage_model is neither invented nor required',async()=
   const report=await run(mock);assert.equal(report.status,'deployed');
   assert.ok(!Object.hasOwn(mock.metadata,'usage_model'));
 });
+test('empty placement metadata preserves an existing worker without smart placement',async()=>{
+  const mock=mockCloudflare(({path,method,state})=>{
+    if(method!=='GET'||path!=='/settings')return;
+    const current=state.versions.get(state.active).resources;
+    return Response.json({success:true,result:{bindings:current.bindings,...current.script_runtime,placement:{},...state.settings}});
+  });
+  for(const item of mock.state.versions.values())delete item.resources.script.placement_mode;
+  const report=await run(mock);assert.equal(report.status,'deployed');
+  assert.ok(!Object.hasOwn(mock.metadata,'placement'));
+});
 
 test('native assets without a binding, or missing assets metadata, prevent a code-only upload',async()=>{
   for(const flag of [true,undefined]) {

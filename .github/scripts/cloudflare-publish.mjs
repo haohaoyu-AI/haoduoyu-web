@@ -122,12 +122,17 @@ function combinedSnapshot(settings,snapshot,nonversioned) {
     ['compatibility_date','compatibility_flags','usage_model','limits','exports'].filter(key=>own(settings,key))
       .map(key=>[key,settings[key]]))});
   if(own(settings,'placement')) {
-    keys(settings.placement,['mode']);check(settings.placement.mode==='smart','UNSUPPORTED_CONFIGURATION');
-    check(snapshot.script.placement_mode==='smart','CONFIGURATION_CHANGED');
+    keys(settings.placement,['mode']);
+    if(Object.keys(settings.placement).length===0)check(!snapshot.script.placement_mode,'CONFIGURATION_CHANGED');
+    else {
+      check(settings.placement.mode==='smart','UNSUPPORTED_CONFIGURATION');
+      check(snapshot.script.placement_mode==='smart','CONFIGURATION_CHANGED');
+    }
   }else check(!snapshot.script.placement_mode,'CONFIGURATION_CHANGED');
   for(const key of ['logpush','observability','tags','tail_consumers','streaming_tail_consumers'])
     if(own(settings,key)&&own(nonversioned,key))same(settings[key],nonversioned[key]);
   const invariant={...settings,bindings:bindingsSnapshot(settings.bindings)};
+  if(object(invariant.placement)&&Object.keys(invariant.placement).length===0)delete invariant.placement;
   delete invariant.annotations;return invariant;
 }
 function activeDeployment(result) {
