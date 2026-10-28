@@ -119,7 +119,8 @@ async function detailFor(value,date,index,limits,readBudget,version) {
   requireValue(expected.size===0);
   const dateEntities=index.entities.filter(row=>row.date===date);
   requireValue(value.date_content_hash===await readBudget.hash({scope_id:index.scope_id,entities:dateEntities}));
-  requireValue(value.content_hash===await readBudget.hash({snapshot_format:version===2?FORMAT2:FORMAT,scope_id:index.scope_id,date,timezone:'Asia/Shanghai',data:value.data}));
+  requireValue(value.content_hash===await readBudget.hash({snapshot_format:version===2?FORMAT2:FORMAT,
+    scope_id:index.scope_id,date,timezone:'Asia/Shanghai',data:value.data}));
   return records;
 }
 
@@ -195,7 +196,8 @@ export function createSnapshotSync({db,request,getScope,now=Date.now,crypto=glob
     if(changed.size+2>limits.maxRequests)fail('OFFLINE_SNAPSHOT_LIMIT','变化日期过多，未返回部分同步结果。',413);
     const records=new Map();
     for(const date of [...changed].sort()) {
-      const rows=await detailFor(await get('/workbench-snapshot?date='+encodeURIComponent(date)+(version===2?'&version=2':'')),date,index,limits,readBudget,version);
+      const path='/workbench-snapshot?date='+encodeURIComponent(date)+(version===2?'&version=2':'');
+      const rows=await detailFor(await get(path),date,index,limits,readBudget,version);
       for(const row of rows) {
         if(records.has(row.entity_id))requireValue(equal(records.get(row.entity_id),row));
         records.set(row.entity_id,row);

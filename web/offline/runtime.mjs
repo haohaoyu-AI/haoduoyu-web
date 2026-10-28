@@ -37,7 +37,8 @@ function writableRoute(path, options, features) {
   if (!match || !uuidPattern.test(match[2])) return null;
   if (match[3] && (method !== 'POST' || !['todos', 'unscheduled-todos'].includes(match[1])) ||
       !match[3] && !['PATCH', 'DELETE'].includes(method)) return null;
-  return {type: match[1] === 'todos' ? 'todo' : match[1] === 'unscheduled-todos' ? 'unscheduled_todo' : 'template', id: match[2].toLowerCase(), restore: Boolean(match[3])};
+  return {type: match[1] === 'todos' ? 'todo' : match[1] === 'unscheduled-todos' ? 'unscheduled_todo' : 'template',
+    id: match[2].toLowerCase(), restore: Boolean(match[3])};
 }
 function checkedBody(route, options, uuid) {
   const body = structuredClone(options.body || {}), method = (options.method || 'GET').toUpperCase();

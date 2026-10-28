@@ -22,14 +22,16 @@ export function renderUnscheduledTodos() {
 export function paintUnscheduledTodos() {
   const v=current(),root=$('#todo-future');if(!root)return;
   root.hidden=!visible();
-  const input=$('#todo-future-text',root),button=$('#todo-future-form button',root),status=$('#todo-future-status',root),error=$('#todo-future-error',root),list=$('#todo-future-items',root);
+  const input=$('#todo-future-text',root),button=$('#todo-future-form button',root),status=$('#todo-future-status',root),
+    error=$('#todo-future-error',root),list=$('#todo-future-items',root);
   if(input&&document.activeElement!==input&&input.value!==v.draft)input.value=v.draft;
   if(button)button.disabled=v.pending;
   if(status)status.textContent=v.loading&&!v.loaded?'正在读取…':v.loaded&&v.items.length===0?'还没有未来待办。':'';
   if(error)error.textContent=v.error;
   if(list)list.innerHTML=v.items.filter(x=>!x.deleted_at&&!x.deleted).map(x=>`<li class="daily-todo-row${x.completed?' is-complete':''}">
 <label><input type="checkbox" data-future-todo-id="${e(x.id)}" ${x.completed?'checked':''} ${v.pending?'disabled':''}>
-<span class="daily-todo-text">${e(x.text)}</span></label><button class="icon-button" type="button" data-action="todo-future-delete" data-id="${e(x.id)}" aria-label="删除 ${e(x.text)}" ${v.pending?'disabled':''}>×</button></li>`).join('');
+<span class="daily-todo-text">${e(x.text)}</span></label><button class="icon-button" type="button"
+ data-action="todo-future-delete" data-id="${e(x.id)}" aria-label="删除 ${e(x.text)}" ${v.pending?'disabled':''}>×</button></li>`).join('');
 }
 export async function loadUnscheduledTodos() {
   if(!visible())return;

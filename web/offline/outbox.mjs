@@ -40,7 +40,8 @@ function dispatchCapabilities(options) {
     const protocol = operation?.protocol === undefined ? 1 : operation.protocol;
     return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types.has(operation.entity_type) &&
       Number.isSafeInteger(protocol) && protocols.has(protocol) && canonicalRoute(operation) &&
-      (protocol === 1 && operation.entity_type !== 'unscheduled_todo' && !Object.hasOwn(operation, 'depends_on') || protocol === 2 && memoDependencies(operation) ||
+      (protocol === 1 && operation.entity_type !== 'unscheduled_todo' && !Object.hasOwn(operation, 'depends_on') ||
+        protocol === 2 && memoDependencies(operation) ||
         protocol === 3 && decision(operation) || protocol === 4 && operation.entity_type === 'unscheduled_todo' && !Object.hasOwn(operation, 'depends_on')));
   };
   const requireDispatch = operation => { if (!canDispatch(operation)) throw needsUpgrade(); };
@@ -132,7 +133,8 @@ function desired(operation, remote) {
 function expectedFields(operation, remote) {
   const base = operation.base;
   if (!base) return true;
-  const fields = operation.entity_type === 'todo' ? (deleted(remote) ? ['date'] : ['date', 'text']) : operation.entity_type === 'unscheduled_todo' ? ['text'] : [];
+  const fields = operation.entity_type === 'todo' ? (deleted(remote) ? ['date'] : ['date', 'text']) :
+    operation.entity_type === 'unscheduled_todo' ? ['text'] : [];
   return fields.every(key => base[key] === undefined || remote[key] === base[key]);
 }
 function completeNoteRow(remote) {
