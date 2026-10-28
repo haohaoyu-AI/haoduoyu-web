@@ -260,6 +260,11 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 .notes-entry-toolbar { margin:var(--space-16) 0; }
 .notes-entry-list { display:grid; gap:var(--space-16); }
 .note-entry { min-width:0; padding:var(--space-20); border:1px solid var(--glass-edge); border-radius:var(--radius-20); background:var(--glass-panel); }
+@media (hover:hover) {
+  #daily-notes .note-entry-saved:hover { background:var(--color-white-a-54); }
+  #daily-notes button:not(:disabled):hover { filter:brightness(.97); }
+}
+#daily-notes :is(button,select):focus-visible { outline:2px solid var(--color-editor-focus); outline-offset:2px; }
 .note-entry-head { justify-content:space-between; margin-bottom:var(--space-8); }
 .note-entry-time { font-size:var(--font-size-13); font-weight:var(--font-weight-semibold); color:var(--ink-2); }
 .note-entry-status { font-size:var(--font-size-12); color:var(--ink-2); }
