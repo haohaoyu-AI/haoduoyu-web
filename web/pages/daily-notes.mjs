@@ -29,6 +29,14 @@ function legacyEditorMarkup() {
 export function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
   return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '">' +
+    '<div class="segmented" role="group" aria-label="碎碎念视图">' +
+    '<button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button>' +
+    '<button type="button" data-notes-view="history" aria-pressed="false">历史</button></div>' +
+    '<section id="notes-history" hidden aria-label="碎碎念历史">' +
+    '<div class="notes-toolbar"><label>日期 <select id="notes-history-date" class="input"></select></label>' +
+    '<label>标签 <select id="notes-history-label" class="input"><option value="">全部</option></select></label></div>' +
+    '<p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></section>' +
+    '<div id="notes-today">' +
     '<div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ['life', 'work'].map(value =>
       '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' +
       (value === 'work' ? '工作碎碎念' : '生活碎碎念') + '</button>').join('') + '</div>' +
@@ -53,7 +61,7 @@ export function renderDailyNotes() {
     '<div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div>' +
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button>' +
-    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></section>';
+    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div></section>';
 }
 
 const statuses = {loading: '正在读取…', dirty: '未发送', saving: '发送中…', conflict: '草稿有冲突',

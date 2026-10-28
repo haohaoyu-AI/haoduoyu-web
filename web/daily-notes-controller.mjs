@@ -1,10 +1,11 @@
-import {api} from './core/api.mjs';
+import {api, apiNetwork} from './core/api.mjs';
 import {state, runtime} from './core/state.mjs';
 import {updateRoute} from './core/router.mjs';
 import {renderShell} from './controller.mjs';
 import {createDailyNotesStore, dailyNotesRouteDate, dailyNotesToday,
   setDailyNotesRouteDate, validDailyNotesDate, dailyNotesRouteCategory, setDailyNotesRouteCategory} from './core/daily-notes-state.mjs';
 import {createNoteEntriesStore} from './core/note-entries-state.mjs';
+import {loadNoteDay, loadNoteHistoryDates, filterNoteDay} from './core/notes-history.mjs';
 import {createNotesEditorView} from './core/notes-editor-view.mjs';
 import {paintNoteEntries} from './pages/daily-notes.mjs';
 import {renderLogin} from './pages/login.mjs';
@@ -14,6 +15,7 @@ import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offlin
 let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
   notesDraftError = '', notesDraftRevision = 0;
+let notesView = 'today', historyRows = [], historySequence = 0;
 const notesStores = new Map(), entryStores = new Map(), editorViews = createNotesEditorView();
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
   state.me?.publicBusiness === true, getOfflineRuntime()?.state.scope || '']);
@@ -105,6 +107,7 @@ function ensureDailyNotesStore() {
     for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
     notesStores.clear(); entryStores.clear(); editorViews.clear(); notesIdentity = next;
     notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false; notesDraftError = ''; notesDraftRevision++;
+    notesView = 'today'; historyRows = []; historySequence++;
   }
   if (notesActiveCategory !== category) { notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = ''; }
   if (!notesStores.has(category)) {
@@ -168,6 +171,10 @@ export function paintDailyNotesPage() {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
   if (!root || !notesStore || !entryStore) return;
+  root.querySelector('#notes-today').hidden = notesView !== 'today';
+  root.querySelector('#notes-history').hidden = notesView !== 'history';
+  for (const button of root.querySelectorAll('[data-notes-view]'))
+    button.setAttribute('aria-pressed', String(button.dataset.notesView === notesView));
   const date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy = notesStore.page(date), current = entryStore.page(date);
   const host = root.querySelector('#notes-composer'), view = editorViews.page(category, date), active = view.active;
   const field = active === 'legacy' ? root.querySelector('#notes-editor') : host.querySelector('[data-note-entry-editor="' + active + '"]');
@@ -179,6 +186,44 @@ export function paintDailyNotesPage() {
     message.textContent = notesDraftError; message.hidden = false;
   }
   root.querySelector('#notes-delete-confirm').hidden = true;
+}
+function paintHistoryRows(root) {
+  const list = root.querySelector('#notes-history-list'), label = root.querySelector('#notes-history-label').value;
+  const rows = filterNoteDay(historyRows, label);
+  list.replaceChildren(...rows.map(row => {
+    const article = document.createElement('article'); article.className = 'note-entry note-entry-saved';
+    const heading = document.createElement('div'); heading.className = 'note-entry-head';
+    const meta = document.createElement('span');
+    const time = row.time && Number.isFinite(Date.parse(row.time)) ?
+      new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(row.time)) : '';
+    meta.textContent = [row.label, time].filter(Boolean).join(' · '); heading.append(meta);
+    const text = document.createElement('div'); text.className = 'note-entry-reader'; text.textContent = row.entry.text;
+    article.append(heading, text); return article;
+  }));
+  root.querySelector('#notes-history-status').textContent = rows.length ? '仅展示已同步记录；待同步内容请在原日期查看。' : '这一天没有符合条件的已同步记录。';
+}
+async function loadHistory(date = '') {
+  const root = document.querySelector('#daily-notes'), sequence = ++historySequence, expected = notesIdentityNow();
+  if (!root) return;
+  const active = () => notesVisible() && notesView === 'history' && sequence === historySequence && expected === notesIdentityNow();
+  const status = root.querySelector('#notes-history-status'), picker = root.querySelector('#notes-history-date');
+  status.textContent = '正在读取历史…'; root.querySelector('#notes-history-list').replaceChildren();
+  try {
+    // History uses a direct network read: old offline projections may lack a custom label.
+    const dates = await loadNoteHistoryDates(apiNetwork); if (!active()) return;
+    const selected = dates.includes(date) ? date : dates.includes(picker.value) ? picker.value : dates[0] || '';
+    picker.replaceChildren(...dates.map(value => { const option=document.createElement('option'); option.value=value; option.textContent=value; return option; }));
+    picker.value = selected; historyRows = [];
+    if (!selected) { status.textContent = '暂无历史记录。'; return; }
+    historyRows = await loadNoteDay(apiNetwork, selected); if (!active()) return;
+    const labels = root.querySelector('#notes-history-label'), previous = labels.value;
+    const values = ['', ...new Set(['生活','工作', ...historyRows.map(row => row.label)])];
+    labels.replaceChildren(...values.map(value => { const option=document.createElement('option'); option.value=value; option.textContent=value || '全部'; return option; }));
+    labels.value = values.includes(previous) ? previous : ''; paintHistoryRows(root);
+  } catch (error) {
+    if (!active()) return;
+    historyRows = []; status.textContent = '历史读取失败，标签未核实：' + (error.message || '请联网重试。');
+  }
 }
 async function selectDailyNotesDate(value) {
   if (!validDailyNotesDate(value) || value > dailyNotesToday()) return;
@@ -229,6 +274,8 @@ function registerNotesInputEvents() {
   });
   document.addEventListener('change', event => {
     if (notesVisible() && event.target.id === 'notes-date') void selectDailyNotesDate(event.target.value);
+    else if (notesVisible() && event.target.id === 'notes-history-date') void loadHistory(event.target.value);
+    else if (notesVisible() && event.target.id === 'notes-history-label') paintHistoryRows(event.target.closest('#daily-notes'));
   });
   document.addEventListener('focusout', requestEditorCollapse);
 }
@@ -250,9 +297,13 @@ async function handleEntryAction(target, entries) {
 async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
-  const target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action]');
+  const target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view]');
   if (!target || !root?.contains(target)) return;
   event.preventDefault();
+  if (target.dataset.notesView) {
+    notesView = target.dataset.notesView === 'history' ? 'history' : 'today'; historySequence++;
+    paintDailyNotesPage(); if (notesView === 'history') await loadHistory(); return;
+  }
   if (target.dataset.notesCategory) {
     setDailyNotesRouteCategory(target.dataset.notesCategory); updateRoute(true); renderShell(); return;
   }
