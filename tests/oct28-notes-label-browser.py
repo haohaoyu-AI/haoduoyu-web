@@ -15,6 +15,13 @@ try:
   page.locator('#notes-new-label').fill('兴趣');page.locator('[data-notes-action=create-label]').click()
   expect(page.locator('#notes-compose-label')).to_have_value('兴趣',timeout=10000)
   page.locator('[data-notes-action=new]').click(); page.locator('[data-note-entry-editor]').fill('离线标签合成正文')
+  send=page.get_by_role('button',name='发送',exact=True)
+  expect(send).to_be_visible()
+  page.mouse.move(0,0)
+  visual=send.evaluate("""el=>{const s=getComputedStyle(el), arrow=getComputedStyle(el,'::before'), r=el.getBoundingClientRect();return {width:r.width,height:r.height,radius:s.borderRadius,background:s.backgroundColor,color:arrow.color,content:arrow.content}}""")
+  assert visual['width']>=44 and visual['height']>=44,visual
+  assert visual['radius']=='50%' and visual['background']=='rgb(18, 102, 214)',visual
+  assert visual['color']=='rgb(255, 255, 255)' and '↑' in visual['content'],visual
   page.wait_for_timeout(500); page.reload()
   expect(page.locator('#notes-compose-label option[value=兴趣]')).to_have_count(1,timeout=15000)
   page.locator('#notes-compose-label').select_option('兴趣')
