@@ -32,7 +32,7 @@ async function finishParents(tx, conflict, time) {
 export async function recordResolutionAck(tx, operation, remote, time) {
   if (!operation.resolution_id) return;
   const conflict = resolutionParent(await tx.getAll('conflicts'), operation);
-  if (operation.protocol === 3 && (!conflict || conflict.key !== operation.origin_conflict || conflict.resolved_at !== null ||
+  if ((operation.protocol === 3 || operation.protocol === 5) && (!conflict || conflict.key !== operation.origin_conflict || conflict.resolved_at !== null ||
       !conflict.resolution.operation_keys.includes(operation.key)))
     throw Object.assign(new Error('本机选择凭据不完整，未确认此次保存。'), {code: 'OFFLINE_DECISION_EVIDENCE_MISSING'});
   if (!conflict || conflict.resolved_at !== null || !conflict.resolution.operation_keys.includes(operation.key)) return;

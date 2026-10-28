@@ -7,7 +7,7 @@ import {createDraftJournal} from './drafts.mjs';
 import {captureConflictDraftGuard} from './conflict-draft-guards.mjs';
 import {createMemoOfflineAdapter, memoRoute} from './memos.mjs';
 
-export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: true, snapshotV2: true});
+export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: true, snapshotV2: true, labelsV1: true});
 const scopePattern = /^[a-f0-9]{64}$/;
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const networkFailure = error => error?.code === 'NETWORK_UNAVAILABLE' || error?.code === 'OFFLINE_NETWORK';
@@ -71,7 +71,8 @@ function runtimeContext(options) {
     conflicts: 0, unsupported: 0, lastSuccess: null, cachedAt: null, error: null, ready: true};
   const listeners = new Set();
   const emit = () => { for (const callback of listeners) callback({...state}); };
-  const cache = createOfflineCache({db, getScope: () => state.scope, getGeneration: () => context.generation, now});
+  const cache = createOfflineCache({db, getScope: () => state.scope, getGeneration: () => context.generation, now,
+    labelsV1: features.labelsV1 === true});
   const context = {db, request, now, uuid, online, onIdentity, features, state, cache, emit, listeners,
     generation: 0, authFlight: null, syncFlight: null, timer: null, channel: null, stopped: false};
   const send = async (path, opts) => {
@@ -84,7 +85,9 @@ function runtimeContext(options) {
     try {
       if (opts?.method && !['GET', 'HEAD'].includes(opts.method.toUpperCase())) await context.verifyScope();
       if (!state.verifiedScope || owner !== state.scope || generation !== context.generation) throw offlineError();
-      const result = await request(path, opts);
+      const labelOpts = features.labelsV1 && path.startsWith('/note-entries') ?
+        {...opts, headers: {...opts?.headers, 'X-Note-Labels-Version': '1'}} : opts;
+      const result = await request(path, labelOpts);
       if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化。', 'OFFLINE_SCOPE_CHANGED');
       return result;
     } catch (error) {
@@ -95,7 +98,7 @@ function runtimeContext(options) {
   context.outbox = createOutbox({db, request: send, getScope: () => state.scope, now, uuid, timeout: options.timeout,
     enabledTypes: [...(features.todos ? ['todo', 'template', 'unscheduled_todo'] : []), ...(features.notes ? ['note_entry'] : []),
       ...(features.memos ? ['memo_note', 'memo_group'] : [])],
-    supportedProtocols: features.memos ? [1, 2, 3, 4] : [1, 3, 4], supportedDependencies: features.memos === true,
+    supportedProtocols: features.memos ? [1, 2, 3, 4, 5] : [1, 3, 4, 5], supportedDependencies: features.memos === true,
     resolutionReceipts: true});
   context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
   context.snapshotV2 = features.snapshotV2 === true ? createSnapshotSync({db, request: send, getScope: () => state.scope, now, version: 2}) : null;
@@ -294,6 +297,10 @@ async function rememberRead(context, path, value, baseline, memo) {
     context.state.error = error.message; context.emit(); return value;
   }
 }
+function labelRequestOptions(path, options, features) {
+  return features.labelsV1 && path.startsWith('/note-entries') ?
+    {...options, headers: {...options.headers, 'X-Note-Labels-Version': '1'}} : options;
+}
 function mutationActions(context) {
   const {state, cache, now, uuid, outbox, features} = context;
   async function mutate(path, options, route, guard) {
@@ -337,7 +344,7 @@ function mutationActions(context) {
     if (noteRoute) return context.noteMutations.mutate(path, options, noteRoute, guard);
     if (path === '/auth/me' && method === 'GET') return options.context || options.signal ? context.authenticate(options) : context.verify();
     if (['/auth/login', '/auth/logout'].includes(path) && method === 'POST') {
-      const value = await context.request(path, options); await context.invalidate({forget: true}); return value;
+      const value = await context.request(path, labelRequestOptions(path, options, features)); await context.invalidate({forget: true}); return value;
     }
     if (route) return mutate(path, options, route, guard);
     if (memo && method === 'PUT') return mutateMemo(context, path, options, guard);
@@ -349,7 +356,7 @@ function mutationActions(context) {
       const owner = state.scope, generation = context.generation;
       const baseline = owner ? await (memo ? context.memos.fence(path) : cache.fence(path)) : undefined;
       guard();
-      const value = await context.request(path, options);
+      const value = await context.request(path, labelRequestOptions(path, options, features));
       guard();
       if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化，本次读取已取消。', 'OFFLINE_SCOPE_CHANGED');
       if (offlineReadRoute(path).kind === 'todo') state.partial = false;

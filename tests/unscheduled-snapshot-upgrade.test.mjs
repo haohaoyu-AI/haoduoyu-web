@@ -43,3 +43,32 @@ test('upgrade and concurrent old/new snapshot readers preserve old queues and dr
   await old.pull({date});
   assert.equal((await db.transaction(['entities'],'readonly',tx=>tx.get('entities',entityKey(scope,'unscheduled_todo:'+undatedId)))).server.text,'未排期');
 });
+
+test('a later v1 snapshot cannot erase version-matched v2 note label evidence',async()=>{
+  const {createNotesCache}=await import('../web/offline/notes.mjs');
+  const db=createMemoryDB(),id=randomUUID();
+  let v1row={entity_id:'note-entry:'+id,entity_type:'life_note',source:'note_entry',source_id:id,date,category:'life',
+    version:1,change_seq:1,created_at:stamp,updated_at:stamp,deleted_at:null,text:'合成内容'};
+  v1row={...v1row,content_hash:hash(v1row)};
+  let v2row={...v1row,label:'兴趣'};delete v2row.content_hash;v2row={...v2row,content_hash:hash(v2row)};
+  const metadata=row=>({entity_id:row.entity_id,entity_type:row.entity_type,date:row.date,updated_at:row.updated_at,
+    deleted_at:row.deleted_at,content_hash:row.content_hash});
+  function snapshotV2(day) {
+    const entities=[metadata(v2row)],fmt='haoduoyu-workbench-snapshot-v2';
+    const manifest=hash({snapshot_format:fmt,scope_id:scope,entities}),byday=hash({scope_id:scope,entities});
+    const base={snapshot_format:fmt,projection:'current',complete:true,scope_id:scope,timezone:'Asia/Shanghai',generated_at:stamp,
+      manifest_hash:manifest,global_content_hash:hash({scope_id:scope,entities:[]}),entities};
+    if(!day)return {...base,dates:[{date,content_hash:byday}],index_hash:manifest};
+    const data=Object.fromEntries([...collections,'unscheduled_todos','note_labels'].map(k=>[k,k==='life_notes'?[v2row]:[]]));
+    return {...base,date,date_content_hash:byday,data,content_hash:hash({snapshot_format:fmt,scope_id:scope,date,timezone:'Asia/Shanghai',data})};
+  }
+  const oldData=Object.fromEntries(collections.map(k=>[k,k==='life_notes'?[v1row]:[]]));
+  const request=async path=>{const query=new URL(path,'https://example.invalid').searchParams,day=query.get('date');
+    return query.get('version')==='2'?snapshotV2(day):projectWorkbenchSnapshot(oldData,{scope_id:scope,generated_at:stamp,date:day},snapshotBudget());};
+  const next=createSnapshotSync({db,getScope:()=>scope,request,version:2});await next.pull({date});
+  const old=createSnapshotSync({db,getScope:()=>scope,request});await old.pull({date});
+  const entity=await db.transaction(['entities'],'readonly',tx=>tx.get('entities',entityKey(scope,'note-entry:'+id)));
+  assert.equal(entity.server.label,undefined);assert.equal(entity.label_evidence.label,'兴趣');
+  const cache=createNotesCache({db,getScope:()=>scope}),result=await cache.read('/note-entries?category=life&date='+date);
+  assert.equal(result.data.entries[0].label,'兴趣');assert.equal(result.data.entries[0].labels_version,1);
+});

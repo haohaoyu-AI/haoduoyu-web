@@ -49,7 +49,8 @@ function content(local, type) {
   if (type === 'template') return {text: shortText(local.text)};
   if (type === 'note_entry') {
     if (!['life', 'work'].includes(local.category)) invalid();
-    return {category: local.category, date: checkedDay(local.date), text: longText(local.text)};
+    return {category: local.category, date: checkedDay(local.date), text: longText(local.text),
+      ...(local.labels_version === 1 && local.label !== null ? {label: local.label} : {})};
   }
   return memoContent(local, type);
 }
@@ -120,9 +121,10 @@ function templatePlan(context, value) {
 }
 function notePlan(context, value) {
   const {id, remote, local, choice, fresh} = context;
-  if (choice === 'use-local' && remote && !removed(remote) && remote.category === value.category && remote.date === value.date) {
+  if (choice === 'use-local' && remote && !removed(remote) && remote.category === value.category && remote.date === value.date &&
+      (local.labels_version !== 1 || remote.labels_version === 1 && remote.label === (value.label ?? null))) {
     const method = removed(local) ? 'DELETE' : 'PUT', body = {version: remote.version, save_id: fresh()};
-    if (method === 'PUT') Object.assign(body, value);
+    if (method === 'PUT') {const {label, ...fields} = value;Object.assign(body, fields);}
     return {mode: 'replace', target_id: id, operations: [
       operation(context, id, method, '/note-entries/' + id, body, value, remote, method === 'DELETE')]};
   }
@@ -175,6 +177,8 @@ export function planConflictResolution({conflict, remote = null, choice, groups 
     return {mode: 'server', target_id: context.id, operations: [], explanation: '线上已删除，确认删除结果；删除前原文仍保留。'};
   if (!Array.isArray(groups)) invalid();
   context.reserve(groups.map(group => group?.id));
+  if (context.type === 'note_entry' && context.local?.labels_version !== 1 && remote?.labels_version === 1 && remote.label !== null)
+    throw new TypeError('标签尚未核实，请联网读取后重新核对；原文已保留。');
   const value = content(context.local, context.type);
   if (context.type === 'todo') return todoPlan(context, value);
   if (context.type === 'unscheduled_todo') return undatedPlan(context, value);

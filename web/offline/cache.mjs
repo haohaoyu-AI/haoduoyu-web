@@ -107,8 +107,8 @@ async function legacySnapshot(db, owner, route) {
     return {data, saved_at: snapshot.value.verified_at || null};
   });
 }
-export function createOfflineCache({db, getScope, now = Date.now, getGeneration = () => 0}) {
-  const notes = createNotesCache({db, getScope, now, getGeneration});
+export function createOfflineCache({db, getScope, now = Date.now, getGeneration = () => 0, labelsV1 = false}) {
+  const notes = createNotesCache({db, getScope, now, getGeneration, labelsV1});
   const scope = () => {
     const value = getScope();
     if (!value) throw Object.assign(new Error('请先联网核实当前身份，本机内容已保留。'), {code: 'OFFLINE_SCOPE_REQUIRED'});

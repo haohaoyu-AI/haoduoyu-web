@@ -134,6 +134,12 @@ async function applySnapshot({db,getScope,scope,key,index,initial,cached,records
       const storageKey=entityKey(scope,record.entity_id),old=await tx.get('entities',storageKey);
       if(old?.server?.version>record.version)fail('OFFLINE_SNAPSHOT_CHANGED','本地已确认较新版本，未覆盖该版本。');
       const server={...record,id:record.source_id},sameVersion=old?.server?.version===record.version;
+      let labelEvidence=old?.label_evidence;
+      if(version===2 && record.source==='note_entry' && record.deleted_at===null) {
+        labelEvidence={version:record.version,category:record.category,date:record.date,
+          created_at:record.created_at,label:record.label??null};
+        server.labels_version=1;server.label=labelEvidence.label;
+      }
       if(record.entity_type==='unscheduled_todo') {delete server.date;if(server.completed!==undefined)server.completed=Boolean(server.completed);}
       if(record.entity_type==='todo'&&sameVersion) {
         for(const field of ['template_id','template_version','template_active']) {
@@ -141,7 +147,8 @@ async function applySnapshot({db,getScope,scope,key,index,initial,cached,records
         }
       }
       await tx.put('entities',{...old,key:storageKey,scope,entity_id:record.entity_id,
-        server,snapshot_hash:record.content_hash,remote_missing:false,synced_at:now(),
+        server,...(labelEvidence ? {label_evidence:labelEvidence} : {}),
+        snapshot_hash:record.content_hash,remote_missing:false,synced_at:now(),
         ...(record.entity_type==='todo'?{needs_api_refresh:!sameVersion||old?.needs_api_refresh===true}:{})});
     }
     for(const row of all)if(row.server&&(version===2?supportedId2:supportedId).test(row.entity_id)&&!manifest.has(row.entity_id)) {

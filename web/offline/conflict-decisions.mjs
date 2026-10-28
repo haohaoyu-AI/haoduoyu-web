@@ -18,7 +18,7 @@ export function conflictDecisionToken(conflict) {
 function remoteEvidence(value, type) {
   if (!value) return null;
   const fields = type === 'todo' ? ['date', 'text', 'completed'] : type === 'unscheduled_todo' ? ['text', 'completed'] : type === 'template' ? ['text'] :
-    type === 'note_entry' ? ['category', 'date', 'text'] : type === 'memo_note' ? ['group_id', 'title', 'body', 'position'] :
+    type === 'note_entry' ? ['category', 'date', 'text', 'labels_version', 'label'] : type === 'memo_note' ? ['group_id', 'title', 'body', 'position'] :
       ['title', 'position'];
   return {id: value.id || value.source_id, version: value.version, deleted: Boolean(value.deleted || value.deleted_at),
     ...Object.fromEntries(fields.filter(key => own(value, key)).map(key => [key, value[key]]))};
@@ -79,13 +79,16 @@ export function createConflictDecisions({db, getScope, prepare, append, canDispa
       await tx.put('entities', entity);
       await rememberParents(tx, scope, prepared.groups || [], plan.operations);
       const stamp = new Date(now()).toISOString();
-      const inputs = plan.operations.map(input => ({...input, protocol: 3, resolution_id: resolutionId,
+      const decisionProtocol = conflict.operation.protocol === 5 ||
+        conflict.operation.entity_type === 'note_entry' && currentLocal(conflict)?.labels_version === 1 ? 5 : 3;
+      const inputs = plan.operations.map(input => ({...input, protocol: decisionProtocol, resolution_id: resolutionId,
         origin_conflict: conflict.key, resolution_receipt: 1,
-        local: {...input.local, created_at: input.base?.created_at || stamp, updated_at: stamp}}));
+        local: {...input.local, ...(decisionProtocol === 5 ? {labels_version: 1, label: input.local.label ?? null} : {}),
+          created_at: input.base?.created_at || stamp, updated_at: stamp}}));
       const saved = await append(tx, inputs, {assertActive: active});
       const resolution = {id: resolutionId, mode: plan.mode, target_id: plan.target_id,
         operation_keys: saved.map(row => row.operation.key), state: saved.length ? 'queued' : 'accepted-server'};
-      const operation = saved.length ? {...conflict.operation, protocol: 3, resolution_id: resolutionId,
+      const operation = saved.length ? {...conflict.operation, protocol: decisionProtocol, resolution_id: resolutionId,
         origin_conflict: conflict.key, resolution_receipt: 1} : conflict.operation;
       const result = {...conflict, choice, needs_recompare: false, needs_followup: false, resolved_at: saved.length ? null : now(),
         original_operation: conflict.original_operation || conflict.operation, operation,

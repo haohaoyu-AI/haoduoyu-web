@@ -107,7 +107,11 @@ export function createConflictPreparation({readRemote, network}) {
       return {remote: memoDetail(row, id, index), groups: index.groups};
     }
     const remote = await guarded(() => readRemote(operation), assertActive);
-    if (remote !== null) return {remote: type === 'note_entry' ? noteRemote(remote, id) : basicRemote(remote, id, type), groups: []};
+    if (remote !== null) {
+      if (type === 'note_entry' && operation.protocol === 5 &&
+          (remote.labels_version !== 1 || !own(remote, 'label'))) invalid();
+      return {remote: type === 'note_entry' ? noteRemote(remote, id) : basicRemote(remote, id, type), groups: []};
+    }
     if (type === 'note_entry') {
       const local = own(conflict, 'review_local') ? conflict.review_local : conflict.local;
       if (!object(local) || !['life', 'work'].includes(local.category) || !day(local.date)) invalid();

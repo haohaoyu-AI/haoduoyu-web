@@ -37,12 +37,16 @@ function dispatchCapabilities(options) {
       origin[1].startsWith('conflict:') && (!Object.hasOwn(operation, 'depends_on') || memoDependencies(operation));
   };
   const canDispatch = operation => {
+    const legacySafe = operation?.entity_type !== 'note_entry' || !Object.hasOwn(operation?.body || {}, 'label');
     const protocol = operation?.protocol === undefined ? 1 : operation.protocol;
     return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types.has(operation.entity_type) &&
       Number.isSafeInteger(protocol) && protocols.has(protocol) && canonicalRoute(operation) &&
-      (protocol === 1 && operation.entity_type !== 'unscheduled_todo' && !Object.hasOwn(operation, 'depends_on') ||
+      (protocol === 1 && legacySafe && operation.entity_type !== 'unscheduled_todo' && !Object.hasOwn(operation, 'depends_on') ||
         protocol === 2 && memoDependencies(operation) ||
-        protocol === 3 && decision(operation) || protocol === 4 && operation.entity_type === 'unscheduled_todo' && !Object.hasOwn(operation, 'depends_on')));
+        protocol === 3 && legacySafe && decision(operation) ||
+        protocol === 4 && operation.entity_type === 'unscheduled_todo' && !Object.hasOwn(operation, 'depends_on') ||
+        protocol === 5 && operation.entity_type === 'note_entry' && !Object.hasOwn(operation, 'depends_on') &&
+          (!operation.resolution_id || decision(operation))));
   };
   const requireDispatch = operation => { if (!canDispatch(operation)) throw needsUpgrade(); };
   return {canDispatch, requireDispatch};
@@ -147,7 +151,8 @@ function completeNoteRow(remote) {
 }
 
 function validAcknowledgement(operation, remote) {
-  if (operation.entity_type === 'note_entry' && !completeNoteRow(remote)) return false;
+  if (operation.entity_type === 'note_entry' && (!completeNoteRow(remote) || operation.protocol === 5 &&
+      (remote.labels_version !== 1 || !Object.hasOwn(remote, 'label') || remote.label !== operation.local?.label))) return false;
   if (operation.entity_type === 'template' && operation.method === 'DELETE') {
     return remote?.id === operation.source_id && remote.deleted === true;
   }
@@ -362,13 +367,16 @@ function receiptMethods(context) {
     const note = operation.entity_type === 'note_entry', scope = operation.scope;
     const receiptPath = (note ? '/note-entries' : '/memos') + '/operations/' + operation.save_id;
     const receipt = await network(scope, receiptPath);
-    if (!receipt || typeof receipt.found !== 'boolean') throw new Error('Invalid offline save receipt');
+    if (!receipt || typeof receipt.found !== 'boolean' || note && operation.protocol === 5 && receipt.labels_version !== 1)
+      throw new Error('Invalid offline save receipt');
     const remote = await readRemote(operation);
     if (receipt.found) {
       const hash = note ? remote?.content_hash : remote && await memoHash(remote, operation.entity_type);
       const expectedHash = note ? receipt.content_hash : receipt.entity_hash;
       const kind = operation.entity_type === 'memo_note' ? 'notes' : 'groups';
       if (receipt.id === operation.source_id && receipt.version === operation.expected_version + 1 &&
+          (operation.protocol !== 5 || Object.hasOwn(receipt, 'label') && receipt.label === operation.local?.label &&
+            remote?.labels_version === 1 && remote.label === receipt.label) &&
           (note || receipt.kind === kind) && remote?.can_edit === true &&
           remote.version === receipt.version && hash === expectedHash && desired(operation, remote)) {
         return {result: 'ack', remote};
@@ -432,7 +440,7 @@ function processingMethods(context) {
     try {
       const claimed = await update(operation, {claim_owner: owner});
       if (!claimed) return;
-      if (claimed.protocol === 3) {
+      if (claimed.protocol === 3 || claimed.protocol === 5 && claimed.resolution_id) {
         const origin = await context.db.transaction(['conflicts'], 'readonly', tx => tx.get('conflicts', claimed.origin_conflict));
         if (!origin || origin.scope !== claimed.scope || origin.resolved_at !== null ||
             origin.resolution?.id !== claimed.resolution_id || !origin.resolution.operation_keys.includes(claimed.key))
