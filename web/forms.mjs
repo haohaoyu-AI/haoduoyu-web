@@ -1,3 +1,4 @@
+import {submitUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
 import { init, renderPage, renderShell } from "./controller.mjs";
 import { api } from "./core/api.mjs";
@@ -129,6 +130,11 @@ async function handleFormSubmit(event) {
     event.preventDefault();
     const handler = form.id === "todo-template-form" ? submitTodoTemplateForm : submitTodoTemplateEdit;
     await handler({ form, data: Object.fromEntries(new FormData(form)) });
+    return;
+  }
+  if (form.id === "todo-future-form") {
+    event.preventDefault();
+    await submitUnscheduledTodo({data: Object.fromEntries(new FormData(form))});
     return;
   }
   if (form.id === "todo-form") {

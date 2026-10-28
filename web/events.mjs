@@ -1,3 +1,4 @@
+import {inputUnscheduledTodo,toggleUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
 import { changeReconciliationFilters } from "./pages/article-reconciliation.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
 import { applyArticleFilters, handleResponsiveLayout, navigate, navigateLink, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell,
@@ -63,6 +64,10 @@ function handleChange(event) {
     changeTodoCompletedMode(el.value);
     return;
   }
+  if (el.dataset?.futureTodoId) {
+    toggleUnscheduledTodo(el);
+    return;
+  }
   if (el.dataset?.todoId) {
     toggleTodo(el);
     return;
@@ -114,6 +119,7 @@ function handleToggle(event) {
 }
 function handleInput(event) {
   const el = event.target;
+  inputUnscheduledTodo(el);
   inputTodo(el);
   inputTodoTemplate(el);
   if (el.name === "q" && el.closest("#article-filters")) {

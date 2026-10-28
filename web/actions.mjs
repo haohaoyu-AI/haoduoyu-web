@@ -1,3 +1,4 @@
+import {deleteUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
 import { cancelModalRequests } from "./core/requests.mjs";
 import { navigate, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell, renderMediaOverview } from "./controller.mjs";
 import { api } from "./core/api.mjs";
@@ -316,6 +317,7 @@ const actions = {
     else { requestMemoTool(target.dataset.tool); navigate("memos"); }
   },
   "todo-panel": ({target}) => setTodoPanel(target.dataset.panel),
+  "todo-future-delete": ({id}) => deleteUnscheduledTodo(id),
   "todo-retry-add": retryTodoCreate,
   "todo-panel-close": () => setTodoPanel(""),
   "todo-template-cancel": cancelTodoTemplateEdit,

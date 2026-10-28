@@ -333,3 +333,8 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 
 /* Round six: account results fill the space released by the retired sidebar. */
 .dashboard-grid.dashboard-results{grid-template-columns:minmax(0,1fr)}
+
+.todo-page-tabs { display:flex; flex-wrap:wrap; gap:var(--space-6); width:fit-content; max-width:100%; margin-bottom:var(--space-24); padding:var(--space-5); border:1px solid var(--glass-edge); border-radius:var(--radius-18); background:var(--color-white-a-28); }
+.todo-page-tabs .todo-page-tab { min-height:44px; border:1px solid transparent; box-shadow:none; background:transparent; color:var(--ink-2); }
+.todo-page-tabs .todo-page-tab[aria-current="page"] { background:var(--color-white-a-88); border-color:var(--color-white); color:var(--accent); font-weight:var(--font-weight-heading); }
+@media (max-width:767px) { .todo-page-tabs { width:100%; flex-wrap:nowrap; overflow-x:auto; } .todo-page-tabs .todo-page-tab { flex:1 0 auto; } }

@@ -1,3 +1,4 @@
+import { loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos } from "./unscheduled-todos.mjs";
 import { api } from "../core/api.mjs";
 import { $, e } from "../core/dom.mjs";
 import { bjtDate } from "../core/format.mjs";
@@ -93,12 +94,11 @@ function todoCaption(day) {
   return `<time datetime="${e(day.date)}" title="北京时间">${today ? "今天 · " : ""}${e(day.date)}</time>`;
 }
 function todoHeading(day) {
-  return `<span id="todo-caption">${todoCaption(day)}</span><div class="todo-view-links">
-<button id="todo-return-today" class="btn text" data-action="todo-panel-close" ${state.todoDate && !state.todoPanel ? "" : "hidden"}>返回今日待办</button>
-<button class="btn text" data-action="todo-panel" data-panel="history" aria-controls="todo-history"
-aria-expanded="${state.todoPanel === "history"}">日历</button>
-<button class="btn text" data-action="todo-panel" data-panel="templates" aria-controls="todo-templates"
-aria-expanded="${state.todoPanel === "templates"}">管理常用</button></div>`;
+  const selected=state.todoPanel||"today";
+  return `<span id="todo-caption">${todoCaption(day)}</span><nav class="todo-page-tabs" aria-label="待办页面">
+${[["today","今日"],["future","未来待办"],["history","历史"],["templates","常用"]].map(([panel,label])=>
+  `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel==='today'?'':panel}"
+  aria-current="${selected===panel?'page':'false'}" ${panel==='templates'?'aria-label="管理常用"':''}>${label}</button>`).join("")}</nav>`;
 }
 function renderTodoHistory(day) {
   return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
@@ -108,23 +108,24 @@ ${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</section>`;
 }
 function paintTodoPanels(root) {
   const panel = state.todoPanel || "";
-  for (const [id, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"]]) {
-    const node = $("#" + id, root); if (node) node.hidden = id === "todo-main" ? panel === "templates" : panel !== value;
+  for (const [id, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"], ["todo-future", "future"]]) {
+    const node = $("#" + id, root); if (node) node.hidden = id === "todo-main" ? ["templates", "future"].includes(panel) : panel !== value;
   }
   root?.querySelectorAll(".todo-list-options").forEach(node => { node.hidden = panel === "history"; });
   const back = $("#todo-return-today", root); if (back) back.hidden = !state.todoDate || Boolean(panel);
   root?.querySelectorAll('[data-action="todo-panel"]').forEach(button => {
-    button.setAttribute("aria-expanded", String(button.dataset.panel === panel));
+    button.setAttribute("aria-current", button.dataset.panel === panel ? "page" : "false");
   });
 }
 async function setTodoPanel(panel) {
   if (!todosVisible()) return;
-  state.todoPanel = ["history", "templates"].includes(panel) ? panel : "";
+  state.todoPanel = ["history", "templates", "future"].includes(panel) ? panel : "";
   if (!state.todoPanel) state.todoDate = "";
   updateRoute(true); paintTodos();
-  if (state.todoPanel === "templates") await loadTodos();
+  if (state.todoPanel === "future") await loadUnscheduledTodos();
+  else if (state.todoPanel === "templates") await loadTodos();
   else if (!state.todoPanel) await loadTodos();
-  const selector = state.todoPanel ? '#todo-' + state.todoPanel + ' [data-action="todo-panel-close"]' : '#todo-text';
+  const selector = state.todoPanel === 'future' ? '#todo-future-text' : state.todoPanel ? '#todo-' + state.todoPanel + ' [data-action="todo-panel-close"]' : '#todo-text';
   $(selector)?.focus();
 }
 function todoPending(day) {
@@ -168,7 +169,7 @@ ${renderTodoHistory(day)}<div id="todo-main" ${state.todoPanel === "templates" ?
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day)}</p>
 <ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul></div>
-${renderTodoTemplates()}</section>`;
+${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
@@ -203,6 +204,7 @@ function paintTodos() {
   }
   paintTodoSaving(root, day);
   paintTodoPanels(root);
+  paintUnscheduledTodos();
   paintTodoPreferences();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
   if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-completed-mode", root))?.focus();
@@ -213,6 +215,7 @@ function todoReadActive(owner, version, date, day, sequence) {
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
+  if (state.todoPanel === "future") { await loadUnscheduledTodos(); return; }
   void loadTodoTemplates({ ensure: true });
   const day = todoDay(), date = day.date, owner = todoOwner(), version = runtime.renderVersion;
   const sequence = ++day.sequence, revision = day.revision;
