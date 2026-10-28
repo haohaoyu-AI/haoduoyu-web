@@ -239,6 +239,17 @@ export function paintDailyNotesPage() {
   const field = active === 'legacy' ? root.querySelector('#notes-editor') : host.querySelector('[data-note-entry-editor="' + active + '"]');
   const selected = editorViews.sync(category, date, mixed.ids.map(id => mixedStore.entry(id)).filter(Boolean), legacy,
     {focused: host.contains(document.activeElement), composing: field?.dataset.composing === 'true'});
+  const selectedItem = selected.active === 'legacy' ? legacy : mixedStore.entry(selected.active);
+  if (selectedItem && selected.active !== 'legacy') {
+    const currentLabel = selectedItem.category === 'work' ? '工作' : selectedItem.label || '生活';
+    if (![...labelSelect.options].some(option => option.value === currentLabel)) {
+      const option = document.createElement('option'); option.value = currentLabel; option.textContent = currentLabel; labelSelect.append(option);
+    }
+    notesSelectedLabel = currentLabel; labelSelect.value = currentLabel;
+  }
+  labelSelect.disabled = Boolean(selected.active && (selected.active === 'legacy' || !selectedItem || selectedItem.pending ||
+    selectedItem.version > 0 || selectedItem.localVersion > 0));
+  labelSelect.title = labelSelect.disabled ? '已发布记录的标签不可更改' : '';
   paintNoteEntries(root, mixedStore, mixed, legacy,
     {drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory});
   if (notesDraftError) {
@@ -401,7 +412,7 @@ function registerNotesInputEvents() {
     if (event.target.id === 'notes-editor') notesStores.get(event.target.dataset.category)?.edit(event.target.dataset.date, event.target.value);
     else entryStores.get(event.target.dataset.category)?.edit(event.target.dataset.noteEntryEditor, event.target.value);
   });
-  document.addEventListener('change', event => {
+  document.addEventListener('change', async event => {
     if (notesVisible() && event.target.id === 'notes-date') void selectDailyNotesDate(event.target.value);
     else if (notesVisible() && event.target.id === 'notes-history-date') {
       const root = event.target.closest('#daily-notes'), week = root.querySelector('#notes-history-week');
@@ -415,9 +426,44 @@ function registerNotesInputEvents() {
     } else if (notesVisible() && event.target.id === 'notes-history-label') paintHistoryRows(event.target.closest('#daily-notes'));
     else if (notesVisible() && event.target.id === 'notes-history-month' && validNoteMonth(event.target.value)) void loadHistory(event.target.value);
     else if (notesVisible() && event.target.id === 'notes-compose-label') {
-      notesSelectedLabel = event.target.value;
-      const category = notesSelectedLabel === '工作' ? 'work' : 'life';
-      if (category !== dailyNotesRouteCategory()) { setDailyNotesRouteCategory(category); updateRoute(true); renderShell(); }
+      const value = event.target.value, date = dailyNotesRouteDate(), oldCategory = dailyNotesRouteCategory();
+      const active = editorViews.page(oldCategory, date).active;
+      const source = [...entryStores.values()].find(store => store.entry(active)), item = source?.entry(active);
+      const category = value === '工作' ? 'work' : 'life', label = ['生活','工作'].includes(value) ? '' : value;
+      if (active && (!item || item.pending || item.version > 0 || item.localVersion > 0 || item.composing)) {
+        notesLabelMessage = '已发布或正在发送的记录不能更改标签'; paintDailyNotesPage(); return;
+      }
+      if (item && source.category === category) {
+        notesSelectedLabel = value;
+        if (!source.relabelDraft(item.id, label)) notesLabelMessage = '标签未更改，草稿仍保留';
+        else notesLabelMessage = '';
+        paintDailyNotesPage(); return;
+      }
+      if (item) {
+        const target = entryStores.get(category), targetLegacy = notesStores.get(category), page = target?.page(date);
+        const existing = page?.composerId && target.entry(page.composerId);
+        if (item.draft && !getOfflineRuntime()?.state.scope) {
+          notesLabelMessage = '本地草稿保存不可用，原草稿已保留'; paintDailyNotesPage(); return;
+        }
+        if (!target || !page?.loaded || !page.canEdit || existing && (existing.dirty || existing.pending || existing.draft)) {
+          notesLabelMessage = '目标标签下有未发送草稿或尚未读取，原草稿已保留'; paintDailyNotesPage(); return;
+        }
+        const originalText = item.draft, expectedIdentity = notesIdentityNow();
+        const copy = target.start(date, {label});
+        if (!copy) { notesLabelMessage = '无法切换标签，原草稿已保留'; paintDailyNotesPage(); return; }
+        target.edit(copy.id, originalText);
+        const saved = captureNotesDrafts(targetLegacy, target, category);
+        if (item.draft && !saved) { notesLabelMessage = '本地草稿保存不可用，原草稿已保留'; paintDailyNotesPage(); return; }
+        try { if (saved) await saved; } catch { notesLabelMessage = '草稿未能保存，原草稿已保留'; paintDailyNotesPage(); return; }
+        if (expectedIdentity !== notesIdentityNow() || source.entry(item.id) !== item || item.pending || item.version > 0 ||
+            item.localVersion > 0 || item.composing || item.draft !== originalText) {
+          notesLabelMessage = '草稿状态已变化，原内容已保留，请核对'; paintDailyNotesPage(); return;
+        }
+        await source.deleteEntry(item.id);
+        editorViews.activate(category, date, copy.id);
+      }
+      notesSelectedLabel = value; notesLabelMessage = '';
+      if (category !== oldCategory) { setDailyNotesRouteCategory(category); updateRoute(true); renderShell(); }
       else paintDailyNotesPage();
     }
   });

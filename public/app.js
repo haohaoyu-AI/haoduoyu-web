@@ -6103,12 +6103,13 @@ function todoCalendar(date) {
   const visible3 = todosState.calendarView === "week" ? cells.slice(Math.floor(index / 7) * 7, Math.floor(index / 7) * 7 + 7) : cells;
   const all = [...monthSnapshot.days.values()].flat().filter((item) => !item.deleted_at), done = all.filter((item) => item.completed).length;
   const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === todoOwner();
-  const stats = !currentSnapshot || monthSnapshot.loading ? "" : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : monthSnapshot.days.size ? `<div class="todo-calendar-stats"><span>本月 ${all.length}</span><span>已完成 ${done}</span><span>未完成 ${all.length - done}</span></div>` : "";
-  return `${stats}<div class="todo-calendar-head"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button><button class="icon-button" type="button" data-action="todo-calendar-prev"
+  const activeDays = [...monthSnapshot.days.values()].filter((items) => items.some((item) => !item.deleted_at)).length;
+  const stats = !currentSnapshot || monthSnapshot.loading ? "" : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : monthSnapshot.days.size ? `<div class="todo-calendar-stats"><span>本月 ${all.length}</span><span>已完成 ${done}</span><span>未完成 ${all.length - done}</span><span>有任务 ${activeDays} 天</span><span>完成率 ${all.length ? Math.round(done / all.length * 100) : 0}%</span></div>` : "";
+  return `<div class="todo-calendar-head"><input type="month" class="input" data-todo-calendar-month value="${e(month)}" aria-label="选择月份"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button><button class="icon-button" type="button" data-action="todo-calendar-prev"
 aria-label="上一月" ${month === "0001-01" ? "disabled" : ""}>‹</button>
 <span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span>
 <button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一月"
-${month === "9999-12" ? "disabled" : ""}>›</button></div>
+${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button><button class="btn primary" type="button" data-action="todo-panel-close">新建任务</button></div>${stats}
 <div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
 ${["一", "二", "三", "四", "五", "六", "日"].map((day4) => `<span class="todo-calendar-weekday" aria-hidden="true">${day4}</span>`).join("")}
 ${visible3.map((day4) => day4 ? todoCalendarDay(day4, date) : '<span aria-hidden="true"></span>').join("")}</div>`;
@@ -6137,6 +6138,15 @@ function paintTodoCalendar(date) {
       todosState.calendarView = button2.dataset.todoCalendarView;
       calendar.dataset.month = "";
       paintTodoCalendar(todoDay().date);
+    });
+    calendar.addEventListener("change", (event) => {
+      if (!event.target.matches("[data-todo-calendar-month]")) return;
+      const month2 = event.target.value;
+      if (!validTodoDate(`${month2}-01`)) return;
+      todosState.calendarMonth = month2;
+      calendar.dataset.month = "";
+      paintTodoCalendar(todoDay().date);
+      void loadTodoMonth(month2);
     });
     calendar.dataset.viewBound = "true";
   }
@@ -6934,7 +6944,15 @@ function createEntryEditingActions(context) {
     emit();
     if (!composing) schedule(item);
   }
-  return { start, edit };
+  function relabelDraft(id, label3 = "") {
+    const item = entry(id);
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.pending || persistedVersion(item) !== 0 || label3 && (context.category !== "life" || !validCustomNoteLabel(label3))) return false;
+    item.label = label3;
+    item.labelKnown = true;
+    emit();
+    return true;
+  }
+  return { start, edit, relabelDraft };
 }
 function createEntryRecoveryActions(context) {
   const { category, page, entry, entries, makeEntry, stopTimer, emit } = context;
@@ -7234,6 +7252,7 @@ function createNoteEntriesStore(options2) {
     read,
     readOne,
     edit,
+    relabelDraft,
     save,
     deleteEntry,
     restoreEntry,
@@ -7261,6 +7280,7 @@ function createNoteEntriesStore(options2) {
     read,
     readOne,
     edit,
+    relabelDraft,
     save,
     deleteEntry,
     restoreEntry,
@@ -8047,6 +8067,20 @@ function paintDailyNotesPage() {
     legacy,
     { focused: host.contains(document.activeElement), composing: field2?.dataset.composing === "true" }
   );
+  const selectedItem = selected.active === "legacy" ? legacy : mixedStore.entry(selected.active);
+  if (selectedItem && selected.active !== "legacy") {
+    const currentLabel = selectedItem.category === "work" ? "工作" : selectedItem.label || "生活";
+    if (![...labelSelect.options].some((option) => option.value === currentLabel)) {
+      const option = document.createElement("option");
+      option.value = currentLabel;
+      option.textContent = currentLabel;
+      labelSelect.append(option);
+    }
+    notesSelectedLabel = currentLabel;
+    labelSelect.value = currentLabel;
+  }
+  labelSelect.disabled = Boolean(selected.active && (selected.active === "legacy" || !selectedItem || selectedItem.pending || selectedItem.version > 0 || selectedItem.localVersion > 0));
+  labelSelect.title = labelSelect.disabled ? "已发布记录的标签不可更改" : "";
   paintNoteEntries(
     root,
     mixedStore,
@@ -8263,7 +8297,7 @@ function registerNotesInputEvents() {
     if (event.target.id === "notes-editor") notesStores.get(event.target.dataset.category)?.edit(event.target.dataset.date, event.target.value);
     else entryStores.get(event.target.dataset.category)?.edit(event.target.dataset.noteEntryEditor, event.target.value);
   });
-  document.addEventListener("change", (event) => {
+  document.addEventListener("change", async (event) => {
     if (notesVisible() && event.target.id === "notes-date") void selectDailyNotesDate(event.target.value);
     else if (notesVisible() && event.target.id === "notes-history-date") {
       const root = event.target.closest("#daily-notes"), week = root.querySelector("#notes-history-week");
@@ -8277,9 +8311,67 @@ function registerNotesInputEvents() {
     } else if (notesVisible() && event.target.id === "notes-history-label") paintHistoryRows(event.target.closest("#daily-notes"));
     else if (notesVisible() && event.target.id === "notes-history-month" && validNoteMonth(event.target.value)) void loadHistory(event.target.value);
     else if (notesVisible() && event.target.id === "notes-compose-label") {
-      notesSelectedLabel = event.target.value;
-      const category = notesSelectedLabel === "工作" ? "work" : "life";
-      if (category !== dailyNotesRouteCategory()) {
+      const value = event.target.value, date = dailyNotesRouteDate(), oldCategory = dailyNotesRouteCategory();
+      const active5 = editorViews.page(oldCategory, date).active;
+      const source = [...entryStores.values()].find((store) => store.entry(active5)), item = source?.entry(active5);
+      const category = value === "工作" ? "work" : "life", label3 = ["生活", "工作"].includes(value) ? "" : value;
+      if (active5 && (!item || item.pending || item.version > 0 || item.localVersion > 0 || item.composing)) {
+        notesLabelMessage = "已发布或正在发送的记录不能更改标签";
+        paintDailyNotesPage();
+        return;
+      }
+      if (item && source.category === category) {
+        notesSelectedLabel = value;
+        if (!source.relabelDraft(item.id, label3)) notesLabelMessage = "标签未更改，草稿仍保留";
+        else notesLabelMessage = "";
+        paintDailyNotesPage();
+        return;
+      }
+      if (item) {
+        const target = entryStores.get(category), targetLegacy = notesStores.get(category), page = target?.page(date);
+        const existing = page?.composerId && target.entry(page.composerId);
+        if (item.draft && !getOfflineRuntime()?.state.scope) {
+          notesLabelMessage = "本地草稿保存不可用，原草稿已保留";
+          paintDailyNotesPage();
+          return;
+        }
+        if (!target || !page?.loaded || !page.canEdit || existing && (existing.dirty || existing.pending || existing.draft)) {
+          notesLabelMessage = "目标标签下有未发送草稿或尚未读取，原草稿已保留";
+          paintDailyNotesPage();
+          return;
+        }
+        const originalText = item.draft, expectedIdentity = notesIdentityNow();
+        const copy2 = target.start(date, { label: label3 });
+        if (!copy2) {
+          notesLabelMessage = "无法切换标签，原草稿已保留";
+          paintDailyNotesPage();
+          return;
+        }
+        target.edit(copy2.id, originalText);
+        const saved = captureNotesDrafts(targetLegacy, target, category);
+        if (item.draft && !saved) {
+          notesLabelMessage = "本地草稿保存不可用，原草稿已保留";
+          paintDailyNotesPage();
+          return;
+        }
+        try {
+          if (saved) await saved;
+        } catch {
+          notesLabelMessage = "草稿未能保存，原草稿已保留";
+          paintDailyNotesPage();
+          return;
+        }
+        if (expectedIdentity !== notesIdentityNow() || source.entry(item.id) !== item || item.pending || item.version > 0 || item.localVersion > 0 || item.composing || item.draft !== originalText) {
+          notesLabelMessage = "草稿状态已变化，原内容已保留，请核对";
+          paintDailyNotesPage();
+          return;
+        }
+        await source.deleteEntry(item.id);
+        editorViews.activate(category, date, copy2.id);
+      }
+      notesSelectedLabel = value;
+      notesLabelMessage = "";
+      if (category !== oldCategory) {
         setDailyNotesRouteCategory(category);
         updateRoute(true);
         renderShell();

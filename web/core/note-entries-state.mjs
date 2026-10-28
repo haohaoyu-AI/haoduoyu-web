@@ -242,7 +242,13 @@ function createEntryEditingActions(context) {
     }
     emit(); if (!composing) schedule(item);
   }
-  return {start, edit};
+  function relabelDraft(id, label = '') {
+    const item = entry(id);
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.pending || persistedVersion(item) !== 0 ||
+        (label && (context.category !== 'life' || !validCustomNoteLabel(label)))) return false;
+    item.label = label; item.labelKnown = true; emit(); return true;
+  }
+  return {start, edit, relabelDraft};
 }
 
 function createEntryRecoveryActions(context) {
@@ -439,12 +445,12 @@ export function createNoteEntriesStore(options) {
   Object.assign(context, createEntryReadingActions(context), createEntryEditingActions(context),
     createEntryWritingActions(context), createEntryRecoveryActions(context));
   Object.assign(context, createEntryResolutionActions(context));
-  const {category, pages, entries, page, entry, start, read, readOne, edit, save, deleteEntry, restoreEntry,
+  const {category, pages, entries, page, entry, start, read, readOne, edit, relabelDraft, save, deleteEntry, restoreEntry,
     reconcile, retryPending, useServer, useDraft, restoreDraft, dispose} = context;
   const pauseAutosave = () => {
     context.autosavePaused = true; for (const item of entries.values()) context.stopTimer(item);
     return () => { context.autosavePaused = false; };
   };
-  return {category, pages, entries, page, entry, start, read, readOne, edit, save, deleteEntry, restoreEntry,
+  return {category, pages, entries, page, entry, start, read, readOne, edit, relabelDraft, save, deleteEntry, restoreEntry,
     reconcile, retryPending, useServer, useDraft, restoreDraft, pauseAutosave, dispose};
 }
