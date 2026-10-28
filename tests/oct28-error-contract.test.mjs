@@ -11,6 +11,9 @@ const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:16*1024*1024});
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const snapshotSha='13e143ea7b2d51cf3d7e74b0fc52469a22bca740ca13c3482dd455c6a96a3f8a';
+// The later product candidate only changes notes UI and extracted CSS tokens;
+// retain the original server-error catalogue and prove server bytes did not move.
+const errorCatalogueProduct='0fa66b9de623886d76c150f70b98f0cf398dd2a0';
 const files=Object.freeze(['src/account-profiles.mjs','src/backup.mjs','src/note-entries.mjs',
   'src/note-entry-validation.mjs','src/note-labels.mjs','src/note-month.mjs','src/public-business.mjs',
   'src/unscheduled-todos.mjs','src/workbench-snapshot.mjs','src/worker.mjs']);
@@ -41,7 +44,8 @@ function difference(before,after) {
 }
 function validateSnapshot(data) {
   assert.equal(data.baseline,oct28Baseline);
-  assert.equal(data.product,oct28Product);
+  assert.equal(data.product,errorCatalogueProduct);
+  assert.equal(git('diff','--name-only',errorCatalogueProduct,oct28Product,'--','src').trim(),'');
   assert.deepEqual(Object.keys(data.files).sort(),[...files]);
   assert.equal(hash(JSON.stringify(data)),snapshotSha,'new error catalogue has an independently pinned digest');
   return data;

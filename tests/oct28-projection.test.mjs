@@ -16,9 +16,9 @@ const roots=['public','web','src','shared','db','drizzle','migration-candidates'
   '.gitattributes','.gitignore','.gitleaks.toml','.gitleaksignore','drizzle.config.ts','runtime.json','package.json','package-lock.json'];
 const old=file=>git('ls-tree','--name-only',oct28Baseline,'--',file).trim()?git('show',oct28Baseline+':'+file):'';
 
-test('October candidate is exactly the reviewed 51-path change over the fixed production baseline',()=>{
+test('October candidate is exactly the reviewed 52-path change over the fixed production baseline',()=>{
   const delta=reviewedOct28Manifest();
-  assert.equal(approvedPaths.length,51);
+  assert.equal(approvedPaths.length,52);
   assert.deepEqual(git('diff','--name-only',oct28Baseline,oct28Product,'--',...roots).trim().split('\n'),[...approvedPaths]);
   for(const file of approvedPaths) {
     const source=read(file);

@@ -6,9 +6,9 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 export const oct28Baseline='b242cd573ab05c2fae2d5af779d7275ca45c20ad';
-export const oct28Product='0fa66b9de623886d76c150f70b98f0cf398dd2a0';
+export const oct28Product='5f354ad52d76c3aff429f917a887c9f9cd14595b';
 const baseline=oct28Baseline,product=oct28Product;
-const approvedManifestSha256='029b4901659f763d405472680c68164a80eff43800879b25fe243c4678fafd42';
+const approvedManifestSha256='f3ab401fb7a2881ba34a7cae2306042268cd38e0a2bc0494d3388cf4eff916af';
 export const approvedPaths=Object.freeze([
   ".ci/public-assets.json",
   "db/schema.ts",
@@ -20,6 +20,7 @@ export const approvedPaths=Object.freeze([
   "public/app.js",
   "public/index.html",
   "public/sw.js",
+  "public/tokens.css",
   "public/workbench.css",
   "scripts/build.mjs",
   "scripts/migration-contract.mjs",
