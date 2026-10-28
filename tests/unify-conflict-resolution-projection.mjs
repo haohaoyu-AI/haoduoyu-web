@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {projectOct28History,projectOct28Modules} from './oct28-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifyConflictResolutionBaseline='ec96f40c464dbb985f8d3f6d0f321335cb9ecda5';
@@ -82,6 +83,7 @@ function historicalHashes(file) {
   return historicalDigests.get(file);
 }
 export function projectUnifyConflictResolutionHistory(file,source) {
+  source=projectOct28History(file,source);
   if(!unifyConflictResolutionPaths.includes(file))return source;
   const entry=unifyConflictResolutionManifest().files[file],digest=conflictResolutionHash(source);
   if(digest===entry.after||source===unifyConflictResolutionBefore(file))return projectUnifyConflictResolution(file,source);
@@ -90,8 +92,9 @@ export function projectUnifyConflictResolutionHistory(file,source) {
 }
 
 export function projectUnifyConflictResolutionModules(files,readSource=read) {
+  files=projectOct28Modules(files,readSource);
   for(const file of files.filter(file=>unifyConflictResolutionAddedModules.includes(file))) {
-    const source=readSource(file);
+    const source=projectOct28History(file,readSource(file));
     assert.equal(conflictResolutionHash(source),unifyConflictResolutionManifest().files[file].after,label+' exact current added module: '+file);
     assert.equal(projectUnifyConflictResolution(file,source),'',label+' added module projects to absence: '+file);
   }

@@ -10,12 +10,15 @@ import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
 import {projectUnifyNotesOffline,projectUnifyNotesOfflineModules} from './unify-notes-offline-projection.mjs';
 import {projectUnifyMemosOffline} from './unify-memos-offline-projection.mjs';
-import {projectUnifyConflictResolution} from './unify-conflict-resolution-projection.mjs';
+import {projectUnifyConflictResolution as projectPriorE} from './unify-conflict-resolution-projection.mjs';
 import {unifyTodosOfflineBaseline,unifyTodosOfflinePatch,unifyTodosOfflinePaths,unifyTodosOfflineAddedModules,
   unifyTodosOfflineBefore,unifyTodosOfflineManifest,validateUnifyTodosOfflineDelta,projectUnifyTodosOffline,
   projectUnifyTodosOfflineHistory,projectUnifyTodosOfflineModules,todosOfflineHash} from './unify-todos-offline-projection.mjs';
 
+import {projectOct28History} from './oct28-projection.mjs';
+
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const projectUnifyConflictResolution=(file,source)=>projectPriorE(file,projectOct28History(file,source));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
 const delta=unifyTodosOfflineManifest();
 const roots=['public','web','src','shared','db','drizzle','scripts','.ci','.github','runtime.json','package.json','package-lock.json'];
@@ -119,7 +122,7 @@ test('todo-offline leaves backend, API routes, permissions, schema, runtime and 
     'all extra production edits, untracked files and deletions remain visible');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','public/openapi.json','public/api-docs.html','public/llms.txt','src/worker.mjs'])
-    assert.equal(read(path),git('show',unifyTodosOfflineBaseline+':'+path),path+' remains unchanged');
+    assert.equal(projectOct28History(path,read(path)),git('show',unifyTodosOfflineBaseline+':'+path),path+' remains unchanged');
 });
 
 test('the actual B shell remains deterministic, includes offline CSS exactly once and contains no API response cache',()=>{

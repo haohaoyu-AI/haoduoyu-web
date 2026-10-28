@@ -11,6 +11,7 @@ import {assets} from '../src/assets.generated.mjs';
 import {unifyStage1Baseline,unifyStage1Paths,unifyStage1Styles,unifyStage1Before,unifyStage1Manifest,
   validateUnifyStage1Delta,projectUnifyStage1,projectUnifyStage1History,projectedChangedFiles,expandStage1Css,stage1Hash} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
+import {projectOct28History} from './oct28-projection.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const read=file=>readFileSync(join(root,file),'utf8');
@@ -25,7 +26,7 @@ test('stage one pins only constant extraction and its asset wiring over the fixe
     assert.equal(projectUnifyStage1(file,source),unifyStage1Before(file),file);
     assert.equal(projectUnifyStage1(file,unifyStage1Before(file)),unifyStage1Before(file),'exact released input remains valid');
   }
-  for(const file of unifyStage1Styles)assert.equal(expandStage1Css(read(file)),unifyStage1Before(file),file+' complete CSS bytes');
+  for(const file of unifyStage1Styles)assert.equal(expandStage1Css(projectOct28History(file,read(file))),unifyStage1Before(file),file+' complete CSS bytes');
   const roots=['public','web','src','shared','db','drizzle','scripts','.ci','.github','runtime.json','package.json','package-lock.json'];
   assert.deepEqual(projectedChangedFiles(unifyStage1Baseline,roots),[],
     'no application, API, store, schema, policy, deployment or extra asset change is concealed');

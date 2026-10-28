@@ -13,9 +13,12 @@ import {unifySwBaseline,unifySwPaths,unifySwAddedModules,unifySwBefore,unifySwMa
 import {projectUnifyTodosOffline,projectUnifyTodosOfflineModules} from './unify-todos-offline-projection.mjs';
 import {projectUnifyNotesOffline,projectUnifyNotesOfflineModules} from './unify-notes-offline-projection.mjs';
 import {projectUnifyMemosOffline} from './unify-memos-offline-projection.mjs';
-import {projectUnifyConflictResolution} from './unify-conflict-resolution-projection.mjs';
+import {projectUnifyConflictResolution as projectPriorE} from './unify-conflict-resolution-projection.mjs';
+
+import {projectOct28History} from './oct28-projection.mjs';
 
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const projectUnifyConflictResolution=(file,source)=>projectPriorE(file,projectOct28History(file,source));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
 const delta=unifySwManifest();
 
@@ -86,7 +89,7 @@ test('SW projection preserves API, permissions, configuration, schema and every 
     'only exact SW shell bytes and the independently reviewed CI timeout are normalized');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     'public/openapi.json','public/api-docs.html','public/llms.txt'])
-    assert.equal(read(path),git('show',unifySwBaseline+':'+path),path+' remains unchanged');
+    assert.equal(projectOct28History(path,read(path)),git('show',unifySwBaseline+':'+path),path+' remains unchanged');
 });
 
 test('the exact SW build is deterministic and its complete shell generation excludes all API and auth URLs',()=>{

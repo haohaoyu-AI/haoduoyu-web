@@ -7,6 +7,7 @@ import {unifyTodosOfflineAddedModules} from './unify-todos-offline-projection.mj
 import {unifyNotesOfflineAddedModules} from './unify-notes-offline-projection.mjs';
 import {unifyMemosOfflineAddedModules} from './unify-memos-offline-projection.mjs';
 import {unifyConflictResolutionAddedModules} from './unify-conflict-resolution-projection.mjs';
+import {addedModules as oct28AddedModules} from './oct28-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -263,7 +264,7 @@ test('web style checks every function type and rejects long fixture lines/functi
   const report=await webStyle();assert.deepEqual(report.violations,[]);
   assert.deepEqual(projectUnifySwModules([...unifySwAddedModules,...unifyTodosOfflineAddedModules,...unifyNotesOfflineAddedModules,...unifyMemosOfflineAddedModules,...unifyConflictResolutionAddedModules]),[],
     'every exact SW, todo-offline, note-offline, memo-offline and resolution module hash is checked before counting it');
-  assert.equal(report.files,40+(await phase7Manifest()).added_modules.length+memoAddedModules.length+workbenchAddedModules.length+reconciliationModules.length+round4AddedModules.length+round5AddedModules.length+unifySwAddedModules.length+unifyTodosOfflineAddedModules.length+unifyNotesOfflineAddedModules.length+unifyMemosOfflineAddedModules.length+unifyConflictResolutionAddedModules.length);
+  assert.equal(report.files,40+(await phase7Manifest()).added_modules.length+memoAddedModules.length+workbenchAddedModules.length+reconciliationModules.length+round4AddedModules.length+round5AddedModules.length+unifySwAddedModules.length+unifyTodosOfflineAddedModules.length+unifyNotesOfflineAddedModules.length+unifyMemosOfflineAddedModules.length+unifyConflictResolutionAddedModules.length+oct28AddedModules.length);
   const directory=await mkdtemp(join(tmpdir(),'synthetic-web-style-'));
   try {
     await mkdir(join(directory,'nested'));

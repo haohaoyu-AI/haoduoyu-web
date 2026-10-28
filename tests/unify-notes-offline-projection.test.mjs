@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {projectUnifyMemosOffline,projectUnifyMemosOfflineModules} from './unify-memos-offline-projection.mjs';
-import {projectUnifyConflictResolution} from './unify-conflict-resolution-projection.mjs';
+import {projectUnifyConflictResolution as projectPriorE} from './unify-conflict-resolution-projection.mjs';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
@@ -12,7 +12,10 @@ import {unifyNotesOfflineBaseline,unifyNotesOfflinePatch,unifyNotesOfflinePaths,
   unifyNotesOfflineBefore,unifyNotesOfflineManifest,validateUnifyNotesOfflineDelta,projectUnifyNotesOffline,
   projectUnifyNotesOfflineHistory,projectUnifyNotesOfflineModules,notesOfflineHash} from './unify-notes-offline-projection.mjs';
 
+import {projectOct28History} from './oct28-projection.mjs';
+
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const projectUnifyConflictResolution=(file,source)=>projectPriorE(file,projectOct28History(file,source));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
 const delta=unifyNotesOfflineManifest();
 const roots=['public','web','src','shared','db','drizzle','migration-candidates','scripts','.ci','.github','.openai',
@@ -104,5 +107,5 @@ test('note-offline leaves backend, API routes, schema, permissions, runtime and 
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','.github/workflows/cloudflare-manual-release.yml','.github/scripts/cloudflare-publish.mjs',
     '.openai/hosting.json','drizzle.config.ts','public/openapi.json','public/api-docs.html','public/llms.txt','src/worker.mjs','web/core/api.mjs'])
-    assert.equal(read(path),git('show',unifyNotesOfflineBaseline+':'+path),path+' remains unchanged');
+    assert.equal(projectOct28History(path,read(path)),git('show',unifyNotesOfflineBaseline+':'+path),path+' remains unchanged');
 });
