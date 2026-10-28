@@ -7671,8 +7671,11 @@ function ensureDailyNotesStore() {
     notesLabelIntent = null;
     notesLabelBusy = false;
     notesLabelMessage = "";
+    notesActiveCategory = "";
   }
   if (notesActiveCategory !== category) {
+    if (category === "work") notesSelectedLabel = "工作";
+    else if (notesSelectedLabel === "工作") notesSelectedLabel = "生活";
     notesActiveCategory = category;
     notesConfirmDate = "";
     notesConfirmEntry = "";
