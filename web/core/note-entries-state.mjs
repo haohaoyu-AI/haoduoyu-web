@@ -10,7 +10,7 @@ const savedText = item => item.localBacked ? item.durableText : item.serverText;
 const savedPhase = item => item.localBacked ? item.localQueued ? 'queued' : 'cached' : item.version ? 'saved' : 'empty';
 const localFailure = error => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || '');
 export function validCustomNoteLabel(value) {
-  return typeof value === 'string' && value === value.trim().normalize('NFC') &&
+  return typeof value === 'string' && value.isWellFormed() && value === value.trim().normalize('NFC') &&
     [...value].length >= 1 && [...value].length <= 32 && !/[\u0000-\u001f\u007f]/.test(value) &&
     !['生活', '工作'].includes(value);
 }
@@ -97,7 +97,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
     if (isLocalDocument(value)) return context.mergeLocal(item, value);
     if (item.localBacked && !item.localConflict && value.version < item.localVersion) return;
     if (item.localQueued && !item.localConflict &&
-        (value.deleted !== item.deleted || !value.deleted && value.text !== item.durableText)) {
+        (value.deleted !== item.deleted || !value.deleted && (value.text !== item.durableText || (value.label || '') !== item.label))) {
       item.remote = value; return;
     }
     if (item.localBacked && (!blocked(item) || item.localConflict)) {
@@ -268,9 +268,11 @@ function createEntryRecoveryActions(context) {
       const valid = ['put', 'delete', 'restore'].includes(operation.kind) && uuidPattern.test(operation.saveId) &&
         Number.isSafeInteger(operation.version) && operation.version >= 0 &&
         (operation.kind !== 'put' || typeof operation.text === 'string' && dailyNotesBytes(operation.text) <= DAILY_NOTES_MAX_BYTES &&
-          (!operation.label || category === 'life' && validCustomNoteLabel(operation.label)));
+          (!operation.label || category === 'life' && validCustomNoteLabel(operation.label)) &&
+          (!operation.expectedLabel || category === 'life' && validCustomNoteLabel(operation.expectedLabel)));
       item.pending = valid ? {kind: operation.kind, version: operation.version, saveId: operation.saveId,
-        ...(operation.kind === 'put' ? {text: operation.text, ...(operation.label ? {label: operation.label} : {})} : {}), uncertain: true, checking: false, retryReady: false} :
+        ...(operation.kind === 'put' ? {text: operation.text, ...(operation.label ? {label: operation.label} : {}),
+          ...(operation.expectedLabel ? {expectedLabel: operation.expectedLabel} : {})} : {}), uncertain: true, checking: false, retryReady: false} :
         {kind: 'recovery-blocked', uncertain: true, invalid: true, checking: false, retryReady: false};
       item.phase = 'unknown';
       item.error = valid ? '已找回未确认的原保存，请手动核对结果；不会自动重发。' : '旧保存凭据不完整，草稿已保留供查看或导出。';
@@ -288,7 +290,8 @@ function createEntryWritingActions(context) {
   const {put, remove, restore, uuid, onSaved} = context.options;
   const matches = (value, operation) => value.version === operation.version + 1 &&
     (operation.kind === 'delete' ? value.deleted : operation.kind === 'restore' ? !value.deleted :
-      !value.deleted && value.text === operation.text && (!operation.label || value.label === operation.label));
+      !value.deleted && value.text === operation.text && (!operation.label || value.label === operation.label) &&
+      (!operation.expectedLabel || value.label === operation.expectedLabel));
   function accepted(item, value, operation) {
     const preserve = operation.kind === 'put' && item.draft !== operation.text;
     item.writeEpoch++; adopt(item, value, preserve); item.remote = null; item.pending = null;
@@ -340,7 +343,8 @@ function createEntryWritingActions(context) {
       item.phase = 'oversize'; item.error = '文字超过 64 KiB，草稿已保留。'; emit(); return;
     }
     return send(item, {kind: 'put', version: persistedVersion(item), text: item.draft, saveId: uuid(),
-      ...(!persistedVersion(item) && item.label ? {label: item.label} : {})});
+      ...(!persistedVersion(item) && item.label ? {label: item.label} : {}),
+      ...(item.label ? {expectedLabel: item.label} : {})});
   }
   async function deleteEntry(id) {
     const item = entry(id);

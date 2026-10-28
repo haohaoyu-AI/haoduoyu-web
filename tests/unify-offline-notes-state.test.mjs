@@ -292,3 +292,14 @@ test('explicit custom label remains bound to a draft and its first durable opera
   const bad = client({manualSave: true}); await bad.store.read(day);
   assert.throws(() => bad.store.start(day, {label:'工作'}), /标签无效/);
 });
+
+test('a mislabeled acknowledgement cannot mark an explicit label send complete', async () => {
+  const c = client({manualSave:true, writeImpl: async ({id, body}) => {
+    const {label, ...withoutLabel} = body;
+    return localDocument({local:{...withoutLabel,id,version:1,can_edit:true,deleted:false,created_at:stamp,updated_at:stamp}});
+  }});
+  await c.store.read(day); const item = c.store.start(day,{label:'兴趣'});
+  c.store.edit(item.id,'正文'); await c.store.save(item.id);
+  assert.notEqual(item.phase,'queued'); assert.notEqual(item.phase,'saved');
+  assert.equal(item.draft,'正文'); assert.equal(item.label,'兴趣'); assert.equal(item.pending.label,'兴趣');
+});
