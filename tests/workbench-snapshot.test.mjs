@@ -66,6 +66,37 @@ function fixture(t) {
 const error=(status,code)=>value=>value.status===status&&(!code||value.code===code);
 const entity=(value,id)=>value.entities.find(row=>row.entity_id===id);
 
+test('v2 opt-in includes undated todos and label catalog without changing the v1 projection',async t=>{
+  const f=fixture(t);f.todo('today');f.entry('tagged');f.entry('plain');
+  const old=(await f.request()).value;
+  f.insert('note_labels',{user_id:NOTES,name:'合成标签',created_at:STAMP});
+  f.insert('note_labels',{user_id:NOTES,name:'空标签',created_at:STAMP});
+  f.insert('note_entry_labels',{user_id:NOTES,entry_id:'tagged',label:'合成标签'});
+  f.insert('unscheduled_todos',{user_id:OWNER,id:'undated',text:'未来事项',completed:0,version:1,created_at:STAMP,updated_at:STAMP});
+  const legacy=(await f.request()).value;
+  assert.equal(legacy.manifest_hash,old.manifest_hash,'default v1 excludes additions and keeps prior hashes');
+  assert.deepEqual(legacy.data,old.data);
+  const index=(await f.request('/workbench-snapshot/index?version=2')).value;
+  const daily=(await f.request('/workbench-snapshot?date='+DATE+'&version=2')).value;
+  assert.equal(daily.snapshot_format,'haoduoyu-workbench-snapshot-v2');
+  assert.notEqual(daily.scope_id,legacy.scope_id);
+  assert.equal(index.manifest_hash,daily.manifest_hash);
+  assert.equal(entity(index,'unscheduled_todo:undated').date,null);
+  assert.equal(daily.data.unscheduled_todos[0].text,'未来事项');
+  assert.deepEqual(daily.data.note_labels.map(row=>row.name).sort(),['合成标签','空标签']);
+  assert.equal(daily.data.life_notes.find(row=>row.source_id==='tagged').label,'合成标签');
+  assert.equal(Object.hasOwn(daily.data.life_notes.find(row=>row.source_id==='plain'),'label'),false);
+  assert.notEqual(entity(index,'note-entry:tagged').content_hash,entity(legacy,'note-entry:tagged').content_hash);
+  assert.equal(entity(index,'note-entry:plain').content_hash,entity(legacy,'note-entry:plain').content_hash);
+  f.db.prepare('UPDATE matrix_unscheduled_todos SET deleted_at=?,updated_at=?,version=2 WHERE id=?').run(LATER,LATER,'undated');
+  const removed=(await f.request('/workbench-snapshot?date='+DATE+'&version=2')).value;
+  assert.equal(removed.data.unscheduled_todos[0].deleted_at,LATER);
+  assert.equal(Object.hasOwn(removed.data.unscheduled_todos[0],'text'),false);
+  assert.notEqual(removed.global_content_hash,daily.global_content_hash);
+  for(const path of ['/workbench-snapshot/index?version=1','/workbench-snapshot/index?version=2&version=2',
+    '/workbench-snapshot?date='+DATE+'&version=3'])await assert.rejects(f.request(path),error(400,'VALIDATION_ERROR'));
+});
+
 test('workbench projects complete selected-date records and independently scoped undated memos',async t=>{
   const f=fixture(t);
   f.todo('current');f.todo('old','2023-01-02');f.todo('other',DATE,{user_id:OTHER,text:'OTHER-TODO-CANARY'});
