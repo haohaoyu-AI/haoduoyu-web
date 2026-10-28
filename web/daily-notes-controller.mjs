@@ -5,7 +5,7 @@ import {renderShell} from './controller.mjs';
 import {createDailyNotesStore, dailyNotesRouteDate, dailyNotesToday,
   setDailyNotesRouteDate, validDailyNotesDate, dailyNotesRouteCategory, setDailyNotesRouteCategory} from './core/daily-notes-state.mjs';
 import {createNoteEntriesStore, validCustomNoteLabel} from './core/note-entries-state.mjs';
-import {loadNoteDay, loadNoteHistoryDates, filterNoteDay} from './core/notes-history.mjs';
+import {checkedNoteMonth, noteMonthWeeks, shiftNoteMonth, validNoteMonth} from './core/notes-month.mjs';
 import {createNotesEditorView} from './core/notes-editor-view.mjs';
 import {paintNoteEntries} from './pages/daily-notes.mjs';
 import {renderLogin} from './pages/login.mjs';
@@ -15,7 +15,7 @@ import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offlin
 let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
   notesDraftError = '', notesDraftRevision = 0;
-let notesView = 'today', historyRows = [], historySequence = 0;
+let notesView = 'today', historyMonth = '', historyDays = new Map(), historySequence = 0;
 let notesSelectedLabel = '生活', notesLabels = [], notesLabelIntent = null, notesLabelBusy = false, notesLabelMessage = '';
 const notesStores = new Map(), entryStores = new Map(), editorViews = createNotesEditorView();
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
@@ -121,7 +121,7 @@ function ensureDailyNotesStore() {
     for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
     notesStores.clear(); entryStores.clear(); editorViews.clear(); notesIdentity = next;
     notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false; notesDraftError = ''; notesDraftRevision++;
-    notesView = 'today'; historyRows = []; historySequence++;
+    notesView = 'today'; historyMonth = ''; historyDays = new Map(); historySequence++;
     notesSelectedLabel = '生活'; notesLabels = []; notesLabelIntent = null; notesLabelBusy = false; notesLabelMessage = '';
   }
   if (notesActiveCategory !== category) { notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = ''; }
@@ -255,48 +255,79 @@ async function createNoteLabel(root) {
     if (expected === notesIdentityNow()) notesLabelMessage = '添加失败，输入已保留，可重试：' + (error.message || '请联网后重试。');
   } finally { notesLabelBusy = false; if (expected === notesIdentityNow()) paintDailyNotesPage(); }
 }
+function monthTime(value) {
+  return value && Number.isFinite(Date.parse(value)) ?
+    new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value)) : '';
+}
+function monthOptions(select, values, current, allLabel) {
+  select.replaceChildren(...values.map(value => {
+    const option=document.createElement('option'); option.value=value; option.textContent=value || allLabel; return option;
+  }));
+  select.value = values.includes(current) ? current : '';
+}
+function makeMonthCard(date, items, selected) {
+  const button = document.createElement('button'); button.type = 'button'; button.className = 'notes-calendar-day';
+  if (!date) { button.disabled = true; button.classList.add('is-empty'); return button; }
+  button.dataset.notesHistoryDay = date; button.setAttribute('aria-pressed', String(date === selected));
+  button.setAttribute('aria-label', date + '，' + items.length + ' 条记录');
+  const heading = document.createElement('span'); heading.className = 'notes-calendar-day-heading';
+  heading.textContent = String(Number(date.slice(8))) + ' · ' + items.length + ' 条'; button.append(heading);
+  for (const item of items.slice(0, 3)) {
+    const preview = document.createElement('span'); preview.className = 'notes-calendar-preview';
+    preview.textContent = [monthTime(item.updated_at), item.text].filter(Boolean).join(' '); button.append(preview);
+  }
+  if (items.length > 3) { const more=document.createElement('span'); more.textContent='还有 ' + (items.length - 3) + ' 条'; button.append(more); }
+  return button;
+}
 function paintHistoryRows(root) {
-  const list = root.querySelector('#notes-history-list'), label = root.querySelector('#notes-history-label').value;
-  const rows = filterNoteDay(historyRows, label);
+  const label = root.querySelector('#notes-history-label').value, weekValue = root.querySelector('#notes-history-week').value;
+  const weeks = noteMonthWeeks(historyMonth), selected = root.querySelector('#notes-history-date').value;
+  const grid = root.querySelector('#notes-history-grid'), list = root.querySelector('#notes-history-list');
+  const shown = item => !label || item.displayLabel === label;
+  const visibleWeeks = weeks.filter((_, index) => !weekValue || Number(weekValue) === index + 1);
+  grid.replaceChildren(...visibleWeeks.flatMap(week => week.map(date =>
+    makeMonthCard(date, (historyDays.get(date) || []).filter(shown), selected))));
+  const rows = (historyDays.get(selected) || []).filter(shown);
   list.replaceChildren(...rows.map(row => {
     const article = document.createElement('article'); article.className = 'note-entry note-entry-saved';
     const heading = document.createElement('div'); heading.className = 'note-entry-head';
-    const meta = document.createElement('span');
-    const time = row.time && Number.isFinite(Date.parse(row.time)) ?
-      new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(row.time)) : '';
-    meta.textContent = [row.label, time].filter(Boolean).join(' · '); heading.append(meta);
-    const text = document.createElement('div'); text.className = 'note-entry-reader'; text.textContent = row.entry.text;
+    heading.textContent = [row.displayLabel, monthTime(row.updated_at)].filter(Boolean).join(' · ');
+    const text = document.createElement('div'); text.className = 'note-entry-reader'; text.textContent = row.text;
     article.append(heading, text); return article;
   }));
-  root.querySelector('#notes-history-status').textContent = rows.length ?
-    '仅展示已同步记录；待同步内容请在原日期查看。' : '这一天没有符合条件的已同步记录。';
+  const total = [...historyDays.values()].flat().filter(shown).length;
+  root.querySelector('#notes-history-summary').textContent = historyMonth + ' · ' + total + ' 条已同步记录';
+  root.querySelector('#notes-history-status').textContent = rows.length ? '仅展示已同步记录；待同步内容请在原日期查看。' :
+    !total && !label ? '本月没有已同步记录。' : '所选日期没有符合条件的已同步记录。';
 }
-async function loadHistory(date = '') {
+function applyHistoryMonth(root, month, days, chosenDate) {
+  const weeks = noteMonthWeeks(month), dates = weeks.flat().filter(Boolean);
+  const dateSelect = root.querySelector('#notes-history-date'), labelSelect = root.querySelector('#notes-history-label');
+  const oldLabel = labelSelect.value, oldDate = dateSelect.value;
+  const selected = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
+  historyMonth = month; historyDays = days;
+  root.querySelector('#notes-history-month').value = month;
+  monthOptions(dateSelect, dates, selected, '');
+  monthOptions(root.querySelector('#notes-history-week'), ['', ...weeks.map((_, index) => String(index + 1))], '', '全部周次');
+  const labels = ['', ...new Set(['生活','工作', ...[...days.values()].flat().map(row => row.displayLabel)])];
+  monthOptions(labelSelect, labels, oldLabel, '全部标签');
+  paintHistoryRows(root);
+}
+async function loadHistory(month = '', chosenDate = '') {
   const root = document.querySelector('#daily-notes'), sequence = ++historySequence, expected = notesIdentityNow();
   if (!root) return;
+  const target = month || historyMonth || dailyNotesToday().slice(0, 7);
   const active = () => notesVisible() && notesView === 'history' && sequence === historySequence && expected === notesIdentityNow();
-  const status = root.querySelector('#notes-history-status'), picker = root.querySelector('#notes-history-date');
-  status.textContent = '正在读取历史…'; root.querySelector('#notes-history-list').replaceChildren();
+  const status = root.querySelector('#notes-history-status'); status.textContent = '正在读取月记录…';
   try {
-    // History uses a direct network read: old offline projections may lack a custom label.
-    const network = path => apiNetwork(path, {headers:{'X-Note-Labels-Version':'1'}});
-    const dates = await loadNoteHistoryDates(network); if (!active()) return;
-    const selected = dates.includes(date) ? date : dates.includes(picker.value) ? picker.value : dates[0] || '';
-    picker.replaceChildren(...dates.map(value => {
-      const option = document.createElement('option'); option.value = value; option.textContent = value; return option;
-    }));
-    picker.value = selected; historyRows = [];
-    if (!selected) { status.textContent = '暂无历史记录。'; return; }
-    historyRows = await loadNoteDay(network, selected); if (!active()) return;
-    const labels = root.querySelector('#notes-history-label'), previous = labels.value;
-    const values = ['', ...new Set(['生活','工作', ...historyRows.map(row => row.label)])];
-    labels.replaceChildren(...values.map(value => {
-      const option = document.createElement('option'); option.value = value; option.textContent = value || '全部'; return option;
-    }));
-    labels.value = values.includes(previous) ? previous : ''; paintHistoryRows(root);
+    const value = await apiNetwork('/note-entries/month?month=' + encodeURIComponent(target),
+      {headers:{'X-Note-Labels-Version':'1'}});
+    const days = checkedNoteMonth(value, target); if (!active()) return;
+    applyHistoryMonth(root, target, days, chosenDate || dailyNotesRouteDate());
   } catch (error) {
     if (!active()) return;
-    historyRows = []; status.textContent = '历史读取失败，标签未核实：' + (error.message || '请联网重试。');
+    status.textContent = '月记录读取失败，保留当前内容：' + (error.message || '请联网重试。');
+    if (historyMonth) root.querySelector('#notes-history-month').value = historyMonth;
   }
 }
 async function selectDailyNotesDate(value) {
@@ -348,8 +379,17 @@ function registerNotesInputEvents() {
   });
   document.addEventListener('change', event => {
     if (notesVisible() && event.target.id === 'notes-date') void selectDailyNotesDate(event.target.value);
-    else if (notesVisible() && event.target.id === 'notes-history-date') void loadHistory(event.target.value);
-    else if (notesVisible() && event.target.id === 'notes-history-label') paintHistoryRows(event.target.closest('#daily-notes'));
+    else if (notesVisible() && event.target.id === 'notes-history-date') {
+      const root = event.target.closest('#daily-notes'), week = root.querySelector('#notes-history-week');
+      if (week.value && !noteMonthWeeks(historyMonth)[Number(week.value) - 1]?.includes(event.target.value)) week.value = '';
+      paintHistoryRows(root);
+    } else if (notesVisible() && event.target.id === 'notes-history-week') {
+      const root = event.target.closest('#daily-notes'), week = Number(event.target.value);
+      const date = root.querySelector('#notes-history-date'), dates = noteMonthWeeks(historyMonth)[week - 1];
+      if (dates && !dates.includes(date.value)) date.value = dates.find(Boolean);
+      paintHistoryRows(root);
+    } else if (notesVisible() && event.target.id === 'notes-history-label') paintHistoryRows(event.target.closest('#daily-notes'));
+    else if (notesVisible() && event.target.id === 'notes-history-month' && validNoteMonth(event.target.value)) void loadHistory(event.target.value);
     else if (notesVisible() && event.target.id === 'notes-compose-label') {
       notesSelectedLabel = event.target.value;
       const category = notesSelectedLabel === '工作' ? 'work' : 'life';
@@ -380,9 +420,17 @@ async function handleEntryAction(target, entries) {
 async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
-  const target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view]');
+  const target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category],' +
+    '[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day]');
   if (!target || !root?.contains(target)) return;
   event.preventDefault();
+  if (target.dataset.notesMonth) {
+    const month = historyMonth || dailyNotesToday().slice(0, 7);
+    await loadHistory(shiftNoteMonth(month, target.dataset.notesMonth === 'prev' ? -1 : 1)); return;
+  }
+  if (target.dataset.notesHistoryDay) {
+    root.querySelector('#notes-history-date').value = target.dataset.notesHistoryDay; paintHistoryRows(root); return;
+  }
   if (target.dataset.notesView) {
     notesView = target.dataset.notesView === 'history' ? 'history' : 'today'; historySequence++;
     paintDailyNotesPage(); if (notesView === 'history') await loadHistory(); return;

@@ -33,9 +33,19 @@ export function renderDailyNotes() {
     '<button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button>' +
     '<button type="button" data-notes-view="history" aria-pressed="false">历史</button></div>' +
     '<section id="notes-history" hidden aria-label="碎碎念历史">' +
-    '<div class="notes-toolbar"><label>日期 <select id="notes-history-date" class="input"></select></label>' +
-    '<label>标签 <select id="notes-history-label" class="input"><option value="">全部</option></select></label></div>' +
-    '<p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></section>' +
+    '<div class="notes-calendar-layout"><aside class="notes-calendar-filters">' +
+    '<label>月份 <input type="month" id="notes-history-month" class="input"></label>' +
+    '<div class="notes-calendar-month-actions"><button type="button" class="btn" data-notes-month="prev">上个月</button>' +
+    '<button type="button" class="btn" data-notes-month="next">下个月</button></div>' +
+    '<label>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label>' +
+    '<label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label>' +
+    '<label>日期 <select id="notes-history-date" class="input"></select></label></aside>' +
+    '<div class="notes-calendar-main"><p id="notes-history-summary" class="notes-calendar-summary"></p>' +
+    '<p id="notes-history-status" role="status" aria-live="polite"></p>' +
+    '<div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span>' +
+    '<span>四</span><span>五</span><span>六</span><span>日</span></div>' +
+    '<div id="notes-history-grid" class="notes-calendar-grid"></div>' +
+    '<div id="notes-history-list" class="notes-entry-list"></div></div></div></section>' +
     '<div id="notes-today">' +
     '<div class="notes-categories"><label>标签 <select id="notes-compose-label" class="input">' +
       '<option value="生活">生活</option><option value="工作">工作</option></select></label>' +
