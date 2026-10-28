@@ -126,7 +126,7 @@ function ensureDailyNotesStore() {
       put: readOnly, restore: readOnly, remove: readOnly,
       onChange: changed, onSaved: changed
     });
-    const entries = createNoteEntriesStore({category,
+    const entries = createNoteEntriesStore({category, manualSave: true,
       load: (date, options) => options?.localOnly ? getOfflineRuntime().localRead('/note-entries?category=' + category + '&date=' + date) :
         request('/note-entries?category=' + category + '&date=' + encodeURIComponent(date)),
       loadEntry: (id, options) => options?.localOnly ? getOfflineRuntime().localRead('/note-entries/' + id) :
@@ -222,7 +222,7 @@ async function handleEntryAction(target, entries) {
   if (!item) return;
   const action = target.dataset.noteEntryAction;
   if (action === 'edit') openEditor(id);
-  else if (action === 'save') await entries.save(id);
+  else if (action === 'save') { item.manualSubmitted = true; await entries.save(id); paintDailyNotesPage(); }
   else if (action === 'restore') await entries.restoreEntry(id);
   else if (action === 'delete') { notesConfirmEntry = id; paintDailyNotesPage(); }
   else if (action === 'cancel-delete') { notesConfirmEntry = ''; paintDailyNotesPage(); }
