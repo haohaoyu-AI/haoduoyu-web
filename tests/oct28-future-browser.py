@@ -1,4 +1,4 @@
-import os,subprocess,time,json
+import os,subprocess,time,json,uuid
 from pathlib import Path
 from playwright.sync_api import sync_playwright,expect
 root=Path(__file__).resolve().parents[1]
@@ -36,6 +36,20 @@ try:
    for key,section in [('future','#todo-future'),('history','#todo-history'),('templates','#todo-templates'),('','#todo-main')]:
     page.locator('[data-action=todo-panel][data-panel="'+key+'"]').click();expect(page.locator(section)).to_be_visible()
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'),('overflow',width,key)
+  dated='2027-01-01'
+  seed=probe.post('/api/v1/todos',headers={'Origin':origin},
+                  data={'id':str(uuid.uuid4()),'date':dated,'text':'指定日期合成计划'})
+  assert seed.status in (200,201),(seed.status,seed.text())
+  isolated=browser.new_context(viewport={'width':390,'height':850},timezone_id='Asia/Shanghai')
+  isolated.route('**/*',lambda route: route.continue_() if route.request.url.startswith(origin + '/') else route.abort())
+  deep=isolated.new_page(); deep.on('pageerror',lambda e:errors.append(str(e)))
+  deep.goto(origin+'/?page=todos&date='+dated+'&todo_panel=future')
+  expect(deep.locator('#todo-future-text')).to_be_visible(timeout=15000)
+  deep.locator('[data-action=todo-panel][data-panel=history]').click()
+  expect(deep.locator('#todo-history')).to_be_visible()
+  expect(deep.locator('#todo-main')).to_contain_text('指定日期合成计划',timeout=15000)
+  deep.go_back();expect(deep.locator('#todo-future')).to_be_visible()
+  isolated.close()
   assert not errors,errors
   print(json.dumps({'synthetic':True,'error_feedback':'ok','offline_visible':True,'server_before_sync':0,'server_after_sync':1,'unscheduled':True,'history_common_today_back':'ok','viewport':[1440,375,390],'pageerrors':errors},ensure_ascii=False))
   browser.close()
