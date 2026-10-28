@@ -130,6 +130,17 @@
 #memos .memo-flat-row>.btn { flex:none; min-width:var(--size-control); min-height:var(--size-control); padding:var(--space-6); margin-top:var(--space-3); }
 #memos .memo-flat-row>[data-memo-action="delete-note"] { font-size:var(--font-size-22); background:transparent; border-color:transparent; box-shadow:none; }
 #memos .memo-document-heading { display:flex; align-items:flex-start; gap:var(--space-12); }
+#memos .memo-edited-at { display:block; margin-top:var(--space-6); color:var(--ink-2); font-size:var(--font-size-12); }
+#memos .memo-editor { padding:var(--space-18); }
+#memos .memo-body, #memos .memo-read-body { min-height:64vh; }
+@media (hover:hover) and (pointer:fine) {
+  #memos .memo-flat-row>.btn:hover, #memos .memo-panel-head .btn:hover,
+  #memos .memo-document-menu>summary:hover, #memos [data-memo-action="fullscreen"]:hover,
+  #memos .memo-recovery-item:hover { background:var(--color-white-a-82); }
+}
+@media (max-width:760px) {
+  #memos .memo-body, #memos .memo-read-body { min-height:58vh; }
+}
 #memos .memo-heading-title { flex:1; min-width:0; }
 #memos [data-memo-action="fullscreen"] { width:var(--size-control); height:var(--size-control); min-height:var(--size-control); padding:var(--space-10); flex:none; }
 #memos #memo-fullscreen {

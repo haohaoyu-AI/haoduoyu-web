@@ -32,7 +32,8 @@ export function renderMemos() {
     '<div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title">' +
     '<label for="memo-title" class="sr-only">笔记标题</label>' +
     '<input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off">' +
-    '<h2 id="memo-read-title" class="memo-read-title" hidden></h2></div>' +
+    '<h2 id="memo-read-title" class="memo-read-title" hidden></h2>' +
+    '<time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' +
     button('fullscreen', '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true">' +
     '<path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" stroke-width="1.6"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div>' +
     '<label for="memo-body" class="sr-only">笔记正文</label>' +
@@ -52,6 +53,16 @@ const phases = {dirty: '等待自动保存', saving: '正在保存…', unknown:
   queued: '已保存到本机 · 等待同步',
   offline: '离线 · 草稿保留在本机', error: '暂未保存 · 草稿已保留', oversize: '正文超过 64 KiB', loading: '正在读取…'};
 const active = (rows, trash) => rows.filter(row => Boolean(row.deleted_at) === trash);
+function paintEditedTime(node, item) {
+  const local = item.localQueued && item.localUpdatedAt;
+  const value = local || item.updated_at;
+  const timestamp = value && Date.parse(value);
+  node.hidden = !Number.isFinite(timestamp);
+  node.dateTime = node.hidden ? '' : value;
+  node.textContent = node.hidden ? '' : (local ? '本机编辑于 ' : '编辑于 ') +
+    new Intl.DateTimeFormat('zh-CN', {year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false}).format(timestamp);
+}
 function listButton(kind, row, current, subtitle = '') {
   return '<button type="button" class="memo-list-item' + (row.id === current ? ' is-selected' : '') + '" data-memo-' + kind +
     '="' + e(row.id) + '" aria-pressed="' + (row.id === current) + '"><span>' + e(row.title) + '</span>' +
@@ -111,8 +122,8 @@ function paintDocument(root, store) {
     find('#memo-read-' + field).hidden = editable;
     find('#memo-read-' + field).textContent = item[field] || (field === 'body' ? '这篇笔记还没有正文。' : '未命名笔记');
   }
-  find('#memo-detail').textContent = deleted ? '已删除 · 可恢复' : s.canEdit ?
-    new TextEncoder().encode(item.body || '').length + ' / 65536 字节 · 自动保存' : '公开只读';
+  paintEditedTime(find('#memo-edited-at'), item);
+  find('#memo-detail').textContent = deleted ? '已删除 · 可恢复' : s.canEdit ? '' : '公开只读';
   find('#memo-note-actions').hidden = !s.canEdit;
   find('[data-memo-action="save"]').hidden = deleted;
   find('[data-memo-action="save"]').disabled = !item.dirty || Boolean(item.pending) || item.phase === 'conflict';
@@ -138,7 +149,7 @@ export function paintMemos(root, store) {
   root.dataset.pane = s.pane;
   const actual = phases[item?.phase] || '已保存', routine = ['dirty', 'saving', 'saved'].includes(item?.phase) || !item;
   find('#memo-status').textContent = s.loading ? '正在读取…' : !s.canEdit ? '公开只读' : routine ? '自动保存' : actual;
-  find('#memo-status').hidden = s.trash && !s.loading;
+  find('#memo-status').hidden = s.trash && !s.loading || s.canEdit && routine && !s.loading;
   find('#memo-status').setAttribute('aria-label', actual);
   find('#memo-status').dataset.phase = item?.phase || 'saved';
   find('#memo-error').hidden = !s.error && !s.storageError;
