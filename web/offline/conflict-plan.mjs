@@ -1,4 +1,4 @@
-const prefixes = {todo: 'todo:', template: 'template:', note_entry: 'note-entry:',
+const prefixes = {unscheduled_todo: 'unscheduled_todo:', todo: 'todo:', template: 'template:', note_entry: 'note-entry:',
   memo_note: 'memo-note:', memo_group: 'memo-group:'};
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const clientIdPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -38,6 +38,10 @@ function content(local, type) {
   if (!local || typeof local !== 'object' || Array.isArray(local)) invalid();
   if (local.version !== undefined && (!Number.isSafeInteger(local.version) || local.version < 0 ||
       local.version >= Number.MAX_SAFE_INTEGER)) invalid();
+  if (type === 'unscheduled_todo') {
+    if (typeof local.completed !== 'boolean') invalid();
+    return {text: shortText(local.text), completed: local.completed};
+  }
   if (type === 'todo') {
     if (typeof local.completed !== 'boolean') invalid();
     return {date: checkedDay(local.date), text: shortText(local.text), completed: local.completed};
@@ -52,7 +56,7 @@ function content(local, type) {
 function contextFor({conflict, remote, choice, uuid}) {
   const type = conflict?.operation?.entity_type, scope = conflict?.scope, prefix = prefixes[type];
   if (!prefix || !['use-server', 'use-local', 'keep-both'].includes(choice) || typeof scope !== 'string' || !scope) invalid();
-  const entity = conflict.entity_id, pattern = ['todo', 'template'].includes(type) ? clientIdPattern : uuidPattern;
+  const entity = conflict.entity_id, pattern = ['todo', 'template', 'unscheduled_todo'].includes(type) ? clientIdPattern : uuidPattern;
   if (typeof entity !== 'string' || !entity.startsWith(prefix) || !pattern.test(entity.slice(prefix.length)) ||
       conflict.operation.scope !== undefined && conflict.operation.scope !== scope ||
       conflict.operation.entity_id !== undefined && conflict.operation.entity_id !== entity) invalid();
@@ -89,6 +93,18 @@ function todoPlan(context, value) {
   const target = fresh(), created = {...value, completed: false};
   const operations = [operation(context, target, 'POST', '/todos', {id: target, date: value.date, text: value.text}, created)];
   if (value.completed) operations.push(operation(context, target, 'PATCH', '/todos/' + target, {completed: true, version: 1}, value));
+  return copyResult(context, target, operations);
+}
+function undatedPlan(context, value) {
+  const {id, remote, local, choice, fresh} = context, path = '/unscheduled-todos/' + id;
+  if (choice === 'use-local' && remote && !removed(remote) && remote.text === value.text) {
+    const method = removed(local) ? 'DELETE' : 'PATCH';
+    const body = method === 'DELETE' ? {version: remote.version} : {completed: value.completed, version: remote.version};
+    return {mode: 'replace', target_id: id, operations: [operation(context, id, method, path, body, value, remote, method === 'DELETE')]};
+  }
+  const target = fresh(), created = {...value, completed: false};
+  const operations = [operation(context, target, 'POST', '/unscheduled-todos', {id: target, text: value.text}, created)];
+  if (value.completed) operations.push(operation(context, target, 'PATCH', '/unscheduled-todos/' + target, {completed: true, version: 1}, value));
   return copyResult(context, target, operations);
 }
 function templatePlan(context, value) {
@@ -161,6 +177,7 @@ export function planConflictResolution({conflict, remote = null, choice, groups 
   context.reserve(groups.map(group => group?.id));
   const value = content(context.local, context.type);
   if (context.type === 'todo') return todoPlan(context, value);
+  if (context.type === 'unscheduled_todo') return undatedPlan(context, value);
   if (context.type === 'template') return templatePlan(context, value);
   if (context.type === 'note_entry') return notePlan(context, value);
   return memoPlan(context, value, groups);

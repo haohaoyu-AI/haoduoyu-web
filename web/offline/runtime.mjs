@@ -31,18 +31,19 @@ async function identityProbe(context, path, options = {}) {
 function writableRoute(path, options, features) {
   if (!features.todos) return null;
   const method = (options.method || 'GET').toUpperCase();
-  if (['/todos', '/todo-templates'].includes(path) && method === 'POST')
-    return {type: path === '/todos' ? 'todo' : 'template', create: true};
-  const match = /^\/(todos|todo-templates)\/([a-f0-9-]{36})(\/restore)?$/i.exec(path);
+  if (['/todos', '/todo-templates', '/unscheduled-todos'].includes(path) && method === 'POST')
+    return {type: path === '/todos' ? 'todo' : path === '/unscheduled-todos' ? 'unscheduled_todo' : 'template', create: true};
+  const match = /^\/(todos|todo-templates|unscheduled-todos)\/([a-f0-9-]{36})(\/restore)?$/i.exec(path);
   if (!match || !uuidPattern.test(match[2])) return null;
-  if (match[3] && (method !== 'POST' || match[1] !== 'todos') ||
+  if (match[3] && (method !== 'POST' || !['todos', 'unscheduled-todos'].includes(match[1])) ||
       !match[3] && !['PATCH', 'DELETE'].includes(method)) return null;
-  return {type: match[1] === 'todos' ? 'todo' : 'template', id: match[2].toLowerCase(), restore: Boolean(match[3])};
+  return {type: match[1] === 'todos' ? 'todo' : match[1] === 'unscheduled-todos' ? 'unscheduled_todo' : 'template', id: match[2].toLowerCase(), restore: Boolean(match[3])};
 }
 function checkedBody(route, options, uuid) {
   const body = structuredClone(options.body || {}), method = (options.method || 'GET').toUpperCase();
   const required = route.create ? (route.type === 'todo' ? ['id', 'date', 'text'] : ['id', 'text']) :
     route.type === 'todo' ? (route.restore || method === 'DELETE' ? ['date', 'version'] : ['completed', 'version']) :
+      route.type === 'unscheduled_todo' ? (route.restore || method === 'DELETE' ? ['version'] : ['completed', 'version']) :
       method === 'DELETE' ? ['version'] : ['text', 'version'];
   if (route.create && !body.id) body.id = uuid();
   const allowed = [...required, ...(route.create && route.type === 'todo' ? ['template_id'] : [])];
@@ -91,9 +92,9 @@ function runtimeContext(options) {
     }
   };
   context.outbox = createOutbox({db, request: send, getScope: () => state.scope, now, uuid, timeout: options.timeout,
-    enabledTypes: [...(features.todos ? ['todo', 'template'] : []), ...(features.notes ? ['note_entry'] : []),
+    enabledTypes: [...(features.todos ? ['todo', 'template', 'unscheduled_todo'] : []), ...(features.notes ? ['note_entry'] : []),
       ...(features.memos ? ['memo_note', 'memo_group'] : [])],
-    supportedProtocols: features.memos ? [1, 2, 3] : [1, 3], supportedDependencies: features.memos === true,
+    supportedProtocols: features.memos ? [1, 2, 3, 4] : [1, 3, 4], supportedDependencies: features.memos === true,
     resolutionReceipts: true});
   context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
   context.memos = createMemoOfflineAdapter({db, cache, outbox: context.outbox, getScope: () => state.scope,
@@ -318,7 +319,7 @@ function mutationActions(context) {
     }
     active();
     const {entity} = await outbox.enqueue({scope: owner, entity_type: route.type, entity_id: id,
-      method, path, body, base, local, assertActive: active});
+      method, path, body, base, local, ...(route.type === 'unscheduled_todo' ? {protocol: 4} : {}), assertActive: active});
     active();
     await context.refresh(); context.broadcast();
     if (context.online()) context.scheduleRetry();
