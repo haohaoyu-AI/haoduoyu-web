@@ -6540,7 +6540,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-toolbar"><label>日期 <select id="notes-history-date" class="input"></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部</option></select></label></div><p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></section><div id="notes-today"><div class="notes-categories"><label>标签 <select id="notes-compose-label" class="input"><option value="生活">生活</option><option value="工作">工作</option></select></label><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button><span id="notes-label-status" role="status" aria-live="polite"></span></div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><span>正在编辑</span><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="btn" data-notes-month="prev">上个月</button><button type="button" class="btn" data-notes-month="next">下个月</button></div><label>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><div id="notes-today"><div class="notes-categories"><label>标签 <select id="notes-compose-label" class="input"><option value="生活">生活</option><option value="工作">工作</option></select></label><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button><span id="notes-label-status" role="status" aria-live="polite"></span></div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><span>正在编辑</span><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div></section>';
 }
 var statuses = {
   loading: "正在读取…",
@@ -6625,7 +6625,7 @@ function createEntryElement(item, editing3) {
   const node = document.createElement("article");
   node.className = "note-entry " + (editing3 ? "note-entry-editing" : "note-entry-saved");
   node.dataset.noteEntry = item.id;
-  node.innerHTML = '<div class="note-entry-head"><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
+  node.innerHTML = '<div class="note-entry-head"><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node;
 }
 function paintEntrySummary(node, item) {
@@ -6639,6 +6639,7 @@ function paintEntrySummary(node, item) {
 }
 function paintSavedEntry(node, item) {
   paintEntrySummary(node, item);
+  node.querySelector(".note-entry-send-feedback").textContent = item.manualSubmitted && !item.dirty && item.phase === "saved" ? "发送成功" : "";
   const draft = noteDraftNeedsAttention(item), body2 = node.querySelector(".note-entry-reader");
   body2.textContent = item.deleted ? "这条记录已删除。" : displayedText(item);
   body2.classList.toggle("note-entry-draft-label", draft);
@@ -7436,73 +7437,59 @@ function createNoteEntriesStore(options2) {
   };
 }
 
-// web/core/notes-history.mjs
-async function loadNoteDay(request, date) {
-  if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
-  const paths = ["life", "work"].flatMap((category) => [
-    "/note-entries?category=" + category + "&date=" + date,
-    "/daily-notes?date=" + date + "&category=" + category
-  ]);
-  const [lifeEntries, lifeLegacy, workEntries, workLegacy] = await Promise.all(paths.map((path) => request(path)));
-  return aggregateNoteDay(date, { lifeEntries, lifeLegacy, workEntries, workLegacy });
+// web/core/notes-month.mjs
+function validNoteMonth(month) {
+  return typeof month === "string" && /^\d{4}-\d{2}$/.test(month) && validDailyNotesDate(month + "-01");
 }
-function aggregateNoteDay(date, { lifeEntries, lifeLegacy, workEntries, workLegacy }) {
-  if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
-  const result = [], ids = /* @__PURE__ */ new Set();
-  for (const [category, collection, legacy] of [["life", lifeEntries, lifeLegacy], ["work", workEntries, workLegacy]]) {
-    if (!collection || collection.date !== date || collection.category !== category || !Array.isArray(collection.entries) || collection.entries.length > 200 || !legacy || legacy.date !== date || !Number.isSafeInteger(legacy.version) || typeof legacy.text !== "string" || typeof legacy.deleted !== "boolean") throw new Error("碎碎念读取不完整，请重试。");
-    for (const entry of collection.entries) {
-      if (!entry || typeof entry.id !== "string" || !entry.id || entry.category !== category || entry.date !== date || typeof entry.text !== "string" || entry.deleted !== false || ids.has(entry.id) || entry.label != null && (category !== "life" || !validCustomNoteLabel(entry.label)))
-        throw new Error("碎碎念读取不完整，请重试。");
-      ids.add(entry.id);
-      result.push({
-        key: "note-entry:" + entry.id,
-        kind: "entry",
-        category,
-        label: entry.labels_version === 1 && Object.hasOwn(entry, "label") ? entry.label || (category === "work" ? "工作" : "生活") : category === "work" ? "工作" : "标签待核实",
-        date,
-        time: entry.updated_at || null,
-        entry
-      });
-    }
-    if (legacy.version > 0 && !legacy.deleted && legacy.text) result.push({
-      key: "legacy-" + category + ":" + date,
-      kind: "legacy",
-      category,
-      label: category === "work" ? "工作" : "生活",
-      date,
-      time: legacy.updated_at || null,
-      entry: legacy
+function coalesceNoteMonthFlight(current2, next) {
+  if (!current2 || current2.root !== next.root || current2.target !== next.target || current2.expected !== next.expected || current2.sequence !== next.sequence) return false;
+  if (next.chosenDate) current2.chosenDate = next.chosenDate;
+  return true;
+}
+function shiftNoteMonth(month, delta) {
+  if (!validNoteMonth(month) || !Number.isInteger(delta)) throw new Error("请选择有效月份。");
+  const date = /* @__PURE__ */ new Date(month + "-01T12:00:00Z");
+  date.setUTCMonth(date.getUTCMonth() + delta);
+  const value = date.toISOString().slice(0, 7);
+  if (!validNoteMonth(value)) throw new Error("请选择有效月份。");
+  return value;
+}
+function noteMonthWeeks(month) {
+  if (!validNoteMonth(month)) throw new Error("请选择有效月份。");
+  const first = /* @__PURE__ */ new Date(month + "-01T12:00:00Z"), offset = (first.getUTCDay() + 6) % 7;
+  const last = new Date(first);
+  last.setUTCMonth(last.getUTCMonth() + 1);
+  last.setUTCDate(0);
+  const weeks = Array.from({ length: Math.ceil((offset + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
+  for (let day4 = 1; day4 <= last.getUTCDate(); day4++)
+    weeks[Math.floor((offset + day4 - 1) / 7)][(offset + day4 - 1) % 7] = month + "-" + String(day4).padStart(2, "0");
+  return weeks;
+}
+function checkedNoteMonth(data, month) {
+  const fail5 = () => {
+    throw new Error("月记录不完整，请联网重试。");
+  };
+  if (!validNoteMonth(month) || !data || data.month !== month || data.complete !== true || data.labels_version !== 1 || !Array.isArray(data.days) || data.days.length > 31) fail5();
+  const result = /* @__PURE__ */ new Map(), ids = /* @__PURE__ */ new Set();
+  let total = 0;
+  for (const day4 of data.days) {
+    if (!day4 || !validDailyNotesDate(day4.date) || !day4.date.startsWith(month + "-") || result.has(day4.date) || !Array.isArray(day4.items)) fail5();
+    const items = day4.items.map((item) => {
+      if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || !Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label)) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail5();
+      ids.add(item.entity_id);
+      total++;
+      return { ...item, displayLabel: item.label || (item.category === "work" ? "工作" : "生活") };
     });
+    result.set(day4.date, items);
   }
-  result.sort((a, b) => String(b.time || "").localeCompare(String(a.time || "")) || a.key.localeCompare(b.key));
+  if (total > 2e3) fail5();
   return result;
-}
-function filterNoteDay(rows, label3 = "") {
-  return label3 ? rows.filter((row) => row.label === label3) : [...rows];
-}
-async function loadNoteHistoryDates(request, { maxPagesPerSource = 20 } = {}) {
-  if (!Number.isInteger(maxPagesPerSource) || maxPagesPerSource < 1) throw new Error("日期读取范围无效。");
-  const sources = ["note-entries", "daily-notes"].flatMap((type) => ["life", "work"].map((category) => ({ type, category })));
-  const pages = await Promise.all(sources.map(async ({ type, category }) => {
-    const dates = [];
-    let before = null;
-    for (let page = 0; page < maxPagesPerSource; page++) {
-      const path = "/" + type + "/dates?category=" + category + "&page_size=100" + (before ? "&before=" + before : "");
-      const result = await request(path);
-      if (!result || !Array.isArray(result.dates) || result.dates.length > 100 || typeof result.has_more !== "boolean" || result.dates.some((date, i) => !validDailyNotesDate(date) || before && date >= before || i && date >= result.dates[i - 1]) || result.has_more && (!result.dates.length || result.next_before !== result.dates.at(-1)) || !result.has_more && result.next_before !== null) throw new Error("日期列表不完整，请重试。");
-      dates.push(...result.dates);
-      if (!result.has_more) return dates;
-      before = result.next_before;
-    }
-    throw new Error("历史日期过多，无法完整读取，请缩小范围。");
-  }));
-  return [...new Set(pages.flat())].sort().reverse();
 }
 
 // web/daily-notes-controller.mjs
 var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "", notesRefreshPaused = false, notesDraftError = "", notesDraftRevision = 0;
-var notesView = "today", historyRows = [], historySequence = 0;
+var notesView = "today", historyMonth = "", historyDate = "", historyDays = /* @__PURE__ */ new Map(), historySequence = 0;
+var historyActiveLoad = null;
 var notesSelectedLabel = "生活", notesLabels = [], notesLabelIntent = null, notesLabelBusy = false, notesLabelMessage = "";
 var notesStores = /* @__PURE__ */ new Map(), entryStores = /* @__PURE__ */ new Map(), editorViews = createNotesEditorView();
 var notesIdentityNow = () => JSON.stringify([
@@ -7536,6 +7523,20 @@ var draftFields = [
 var hydratedDrafts = /* @__PURE__ */ new WeakMap();
 var hydrationReady = /* @__PURE__ */ new WeakSet();
 var entryIdentities = /* @__PURE__ */ new WeakMap();
+var sendFeedbackTimers = /* @__PURE__ */ new WeakMap();
+function scheduleSendFeedback(entries, expected) {
+  for (const item of entries.entries.values()) {
+    if (!item.manualSubmitted || item.phase !== "saved" || item.dirty || item.pending || sendFeedbackTimers.has(item)) continue;
+    const attempt = item.manualSubmitted;
+    const timer = setTimeout(() => {
+      sendFeedbackTimers.delete(item);
+      if (expected !== notesIdentityNow() || item.manualSubmitted !== attempt) return;
+      item.manualSubmitted = null;
+      paintDailyNotesPage();
+    }, 2500);
+    sendFeedbackTimers.set(item, timer);
+  }
+}
 function captureNotesDrafts(legacy, entries, category) {
   const offline = getOfflineRuntime();
   if (!offline || !hydrationReady.has(entries) || entryIdentities.get(entries) !== notesIdentityNow()) return;
@@ -7660,8 +7661,11 @@ function ensureDailyNotesStore() {
     notesDraftError = "";
     notesDraftRevision++;
     notesView = "today";
-    historyRows = [];
+    historyMonth = "";
+    historyDate = "";
+    historyDays = /* @__PURE__ */ new Map();
     historySequence++;
+    historyActiveLoad = null;
     notesSelectedLabel = "生活";
     notesLabels = [];
     notesLabelIntent = null;
@@ -7695,6 +7699,7 @@ function ensureDailyNotesStore() {
     const suffix = (separator) => category === "work" ? separator + "category=work" : "";
     const changed4 = () => {
       if (expected !== notesIdentityNow()) return;
+      scheduleSendFeedback(entries, expected);
       const revision2 = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
       if (!getOfflineRuntime()?.state.scope && [...entries.entries.values()].some((item) => item.dirty)) {
         notesDraftError = "本机草稿保存不可用，请保持页面打开或发送后再离开。";
@@ -7855,66 +7860,111 @@ async function createNoteLabel(root) {
     if (expected === notesIdentityNow()) paintDailyNotesPage();
   }
 }
+function monthTime(value) {
+  return value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value)) : "";
+}
+function monthOptions(select, values, current2, allLabel) {
+  select.replaceChildren(...values.map((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value || allLabel;
+    return option;
+  }));
+  select.value = values.includes(current2) ? current2 : "";
+}
+function makeMonthCard(date, items, selected) {
+  const button2 = document.createElement("button");
+  button2.type = "button";
+  button2.className = "notes-calendar-day";
+  if (!date) {
+    button2.disabled = true;
+    button2.classList.add("is-empty");
+    return button2;
+  }
+  button2.dataset.notesHistoryDay = date;
+  button2.setAttribute("aria-pressed", String(date === selected));
+  button2.setAttribute("aria-label", date + "，" + items.length + " 条记录");
+  const heading = document.createElement("span");
+  heading.className = "notes-calendar-day-heading";
+  heading.textContent = String(Number(date.slice(8))) + " · " + items.length + " 条";
+  button2.append(heading);
+  for (const item of items.slice(0, 3)) {
+    const preview = document.createElement("span");
+    preview.className = "notes-calendar-preview";
+    preview.textContent = [monthTime(item.updated_at), item.text].filter(Boolean).join(" ");
+    button2.append(preview);
+  }
+  if (items.length > 3) {
+    const more = document.createElement("span");
+    more.textContent = "还有 " + (items.length - 3) + " 条";
+    button2.append(more);
+  }
+  return button2;
+}
 function paintHistoryRows(root) {
-  const list = root.querySelector("#notes-history-list"), label3 = root.querySelector("#notes-history-label").value;
-  const rows = filterNoteDay(historyRows, label3);
+  const label3 = root.querySelector("#notes-history-label").value, weekValue = root.querySelector("#notes-history-week").value;
+  const weeks = noteMonthWeeks(historyMonth), selected = root.querySelector("#notes-history-date").value;
+  historyDate = selected;
+  const grid = root.querySelector("#notes-history-grid"), list = root.querySelector("#notes-history-list");
+  const shown = (item) => !label3 || item.displayLabel === label3;
+  const visibleWeeks = weeks.filter((_, index) => !weekValue || Number(weekValue) === index + 1);
+  grid.replaceChildren(...visibleWeeks.flatMap((week) => week.map((date) => makeMonthCard(date, (historyDays.get(date) || []).filter(shown), selected))));
+  const rows = (historyDays.get(selected) || []).filter(shown);
   list.replaceChildren(...rows.map((row) => {
     const article = document.createElement("article");
     article.className = "note-entry note-entry-saved";
     const heading = document.createElement("div");
     heading.className = "note-entry-head";
-    const meta = document.createElement("span");
-    const time2 = row.time && Number.isFinite(Date.parse(row.time)) ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(row.time)) : "";
-    meta.textContent = [row.label, time2].filter(Boolean).join(" · ");
-    heading.append(meta);
+    heading.textContent = [row.displayLabel, monthTime(row.updated_at)].filter(Boolean).join(" · ");
     const text = document.createElement("div");
     text.className = "note-entry-reader";
-    text.textContent = row.entry.text;
+    text.textContent = row.text;
     article.append(heading, text);
     return article;
   }));
-  root.querySelector("#notes-history-status").textContent = rows.length ? "仅展示已同步记录；待同步内容请在原日期查看。" : "这一天没有符合条件的已同步记录。";
+  const total = [...historyDays.values()].flat().filter(shown).length;
+  root.querySelector("#notes-history-summary").textContent = historyMonth + " · " + total + " 条已同步记录";
+  root.querySelector("#notes-history-status").textContent = rows.length ? "仅展示已同步记录；待同步内容请在原日期查看。" : !total && !label3 ? "本月没有已同步记录。" : "所选日期没有符合条件的已同步记录。";
 }
-async function loadHistory(date = "") {
-  const root = document.querySelector("#daily-notes"), sequence2 = ++historySequence, expected = notesIdentityNow();
+function applyHistoryMonth(root, month, days, chosenDate) {
+  const weeks = noteMonthWeeks(month), dates = weeks.flat().filter(Boolean);
+  const dateSelect = root.querySelector("#notes-history-date"), labelSelect = root.querySelector("#notes-history-label");
+  const oldLabel = labelSelect.value, oldDate = dateSelect.value;
+  const selected = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
+  historyMonth = month;
+  historyDays = days;
+  root.dataset.historyLoadedMonth = month;
+  root.querySelector("#notes-history-month").value = month;
+  monthOptions(dateSelect, dates, selected, "");
+  monthOptions(root.querySelector("#notes-history-week"), ["", ...weeks.map((_, index) => String(index + 1))], "", "全部周次");
+  const labels = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().map((row) => row.displayLabel)])];
+  monthOptions(labelSelect, labels, oldLabel, "全部标签");
+  paintHistoryRows(root);
+}
+async function loadHistory(month = "", chosenDate = "") {
+  const root = document.querySelector("#daily-notes"), expected = notesIdentityNow();
   if (!root) return;
+  const target = month || historyMonth || dailyNotesToday().slice(0, 7);
+  if (coalesceNoteMonthFlight(historyActiveLoad, { root, target, expected, sequence: historySequence, chosenDate })) return;
+  const sequence2 = ++historySequence;
+  historyActiveLoad = { root, target, expected, sequence: sequence2, chosenDate };
   const active5 = () => notesVisible() && notesView === "history" && sequence2 === historySequence && expected === notesIdentityNow();
-  const status = root.querySelector("#notes-history-status"), picker = root.querySelector("#notes-history-date");
-  status.textContent = "正在读取历史…";
-  root.querySelector("#notes-history-list").replaceChildren();
+  const status = root.querySelector("#notes-history-status");
+  status.textContent = "正在读取月记录…";
   try {
-    const network = (path) => apiNetwork(path, { headers: { "X-Note-Labels-Version": "1" } });
-    const dates = await loadNoteHistoryDates(network);
+    const value = await apiNetwork(
+      "/note-entries/month?month=" + encodeURIComponent(target),
+      { headers: { "X-Note-Labels-Version": "1" } }
+    );
+    const days = checkedNoteMonth(value, target);
     if (!active5()) return;
-    const selected = dates.includes(date) ? date : dates.includes(picker.value) ? picker.value : dates[0] || "";
-    picker.replaceChildren(...dates.map((value) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = value;
-      return option;
-    }));
-    picker.value = selected;
-    historyRows = [];
-    if (!selected) {
-      status.textContent = "暂无历史记录。";
-      return;
-    }
-    historyRows = await loadNoteDay(network, selected);
-    if (!active5()) return;
-    const labels = root.querySelector("#notes-history-label"), previous = labels.value;
-    const values = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...historyRows.map((row) => row.label)])];
-    labels.replaceChildren(...values.map((value) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = value || "全部";
-      return option;
-    }));
-    labels.value = values.includes(previous) ? previous : "";
-    paintHistoryRows(root);
+    applyHistoryMonth(root, target, days, historyActiveLoad.chosenDate || historyDate || dailyNotesRouteDate());
   } catch (error) {
     if (!active5()) return;
-    historyRows = [];
-    status.textContent = "历史读取失败，标签未核实：" + (error.message || "请联网重试。");
+    status.textContent = "月记录读取失败，保留当前内容：" + (error.message || "请联网重试。");
+    if (historyMonth) root.querySelector("#notes-history-month").value = historyMonth;
+  } finally {
+    if (historyActiveLoad?.sequence === sequence2) historyActiveLoad = null;
   }
 }
 async function selectDailyNotesDate(value) {
@@ -7974,8 +8024,17 @@ function registerNotesInputEvents() {
   });
   document.addEventListener("change", (event) => {
     if (notesVisible() && event.target.id === "notes-date") void selectDailyNotesDate(event.target.value);
-    else if (notesVisible() && event.target.id === "notes-history-date") void loadHistory(event.target.value);
-    else if (notesVisible() && event.target.id === "notes-history-label") paintHistoryRows(event.target.closest("#daily-notes"));
+    else if (notesVisible() && event.target.id === "notes-history-date") {
+      const root = event.target.closest("#daily-notes"), week = root.querySelector("#notes-history-week");
+      if (week.value && !noteMonthWeeks(historyMonth)[Number(week.value) - 1]?.includes(event.target.value)) week.value = "";
+      paintHistoryRows(root);
+    } else if (notesVisible() && event.target.id === "notes-history-week") {
+      const root = event.target.closest("#daily-notes"), week = Number(event.target.value);
+      const date = root.querySelector("#notes-history-date"), dates = noteMonthWeeks(historyMonth)[week - 1];
+      if (dates && !dates.includes(date.value)) date.value = dates.find(Boolean);
+      paintHistoryRows(root);
+    } else if (notesVisible() && event.target.id === "notes-history-label") paintHistoryRows(event.target.closest("#daily-notes"));
+    else if (notesVisible() && event.target.id === "notes-history-month" && validNoteMonth(event.target.value)) void loadHistory(event.target.value);
     else if (notesVisible() && event.target.id === "notes-compose-label") {
       notesSelectedLabel = event.target.value;
       const category = notesSelectedLabel === "工作" ? "work" : "life";
@@ -7994,7 +8053,8 @@ async function handleEntryAction(target, entries) {
   const action = target.dataset.noteEntryAction;
   if (action === "edit") openEditor(id);
   else if (action === "save") {
-    item.manualSubmitted = true;
+    const attempt = /* @__PURE__ */ Symbol("note-send");
+    item.manualSubmitted = attempt;
     await entries.save(id);
     paintDailyNotesPage();
   } else if (action === "restore") await entries.restoreEntry(id);
@@ -8018,9 +8078,19 @@ async function handleEntryAction(target, entries) {
 async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector("#daily-notes");
-  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view]");
+  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day]");
   if (!target || !root?.contains(target)) return;
   event.preventDefault();
+  if (target.dataset.notesMonth) {
+    const month = historyMonth || dailyNotesToday().slice(0, 7);
+    await loadHistory(shiftNoteMonth(month, target.dataset.notesMonth === "prev" ? -1 : 1));
+    return;
+  }
+  if (target.dataset.notesHistoryDay) {
+    root.querySelector("#notes-history-date").value = target.dataset.notesHistoryDay;
+    paintHistoryRows(root);
+    return;
+  }
   if (target.dataset.notesView) {
     notesView = target.dataset.notesView === "history" ? "history" : "today";
     historySequence++;
@@ -8144,12 +8214,15 @@ async function loadDailyNotes() {
   await hydrateNotesDrafts(store, entries, category);
   paintDailyNotesPage();
   void readNoteLabels();
+  const historyRoot = document.querySelector("#daily-notes");
+  if (notesView === "history" && (!historyMonth || historyRoot?.dataset.historyLoadedMonth !== historyMonth))
+    void loadHistory(historyMonth, historyDate);
 }
 
 // web/pages/memos.mjs
 var button = (action, label3, extra = "") => '<button type="button" class="btn" data-memo-action="' + action + '" ' + extra + ">" + label3 + "</button>";
 function renderMemos() {
-  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", "＋", 'hidden aria-label="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="280" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" stroke-width="1.6"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
+  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", "＋", 'hidden aria-label="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" stroke-width="1.6"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
 }
 var phases = {
   dirty: "等待自动保存",
@@ -9631,7 +9704,7 @@ function applyMemoSplit(width = null, persist = false) {
   const max = Math.max(min, Math.floor(Math.min(480, area - 200, area * 0.65)));
   if (memoSplitRatio === void 0) {
     const saved = Number(storage.get(memoSplitStorage));
-    memoSplitRatio = Number.isFinite(saved) && saved >= 0.1 && saved <= 0.8 ? saved : 0.3;
+    memoSplitRatio = Number.isFinite(saved) && saved >= 0.1 && saved <= 0.8 ? saved : 0.24;
   }
   const value = Math.round(Math.max(min, Math.min(max, width ?? area * memoSplitRatio)));
   root.style.setProperty("--memo-list-w", value + "px");
