@@ -15,7 +15,7 @@ import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offlin
 let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
   notesDraftError = '', notesDraftRevision = 0;
-let notesView = 'today', historyMonth = '', historyDays = new Map(), historySequence = 0;
+let notesView = 'today', historyMonth = '', historyDate = '', historyDays = new Map(), historySequence = 0;
 let notesSelectedLabel = '生活', notesLabels = [], notesLabelIntent = null, notesLabelBusy = false, notesLabelMessage = '';
 const notesStores = new Map(), entryStores = new Map(), editorViews = createNotesEditorView();
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
@@ -121,7 +121,7 @@ function ensureDailyNotesStore() {
     for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
     notesStores.clear(); entryStores.clear(); editorViews.clear(); notesIdentity = next;
     notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false; notesDraftError = ''; notesDraftRevision++;
-    notesView = 'today'; historyMonth = ''; historyDays = new Map(); historySequence++;
+    notesView = 'today'; historyMonth = ''; historyDate = ''; historyDays = new Map(); historySequence++;
     notesSelectedLabel = '生活'; notesLabels = []; notesLabelIntent = null; notesLabelBusy = false; notesLabelMessage = '';
   }
   if (notesActiveCategory !== category) { notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = ''; }
@@ -282,6 +282,7 @@ function makeMonthCard(date, items, selected) {
 function paintHistoryRows(root) {
   const label = root.querySelector('#notes-history-label').value, weekValue = root.querySelector('#notes-history-week').value;
   const weeks = noteMonthWeeks(historyMonth), selected = root.querySelector('#notes-history-date').value;
+  historyDate = selected;
   const grid = root.querySelector('#notes-history-grid'), list = root.querySelector('#notes-history-list');
   const shown = item => !label || item.displayLabel === label;
   const visibleWeeks = weeks.filter((_, index) => !weekValue || Number(weekValue) === index + 1);
@@ -323,7 +324,7 @@ async function loadHistory(month = '', chosenDate = '') {
     const value = await apiNetwork('/note-entries/month?month=' + encodeURIComponent(target),
       {headers:{'X-Note-Labels-Version':'1'}});
     const days = checkedNoteMonth(value, target); if (!active()) return;
-    applyHistoryMonth(root, target, days, chosenDate || dailyNotesRouteDate());
+    applyHistoryMonth(root, target, days, chosenDate || historyDate || dailyNotesRouteDate());
   } catch (error) {
     if (!active()) return;
     status.textContent = '月记录读取失败，保留当前内容：' + (error.message || '请联网重试。');
@@ -526,4 +527,5 @@ export async function loadDailyNotes() {
   await Promise.all([store.read(date), entries.read(date)]);
   if (expected !== notesIdentityNow()) return;
   await hydrateNotesDrafts(store, entries, category); paintDailyNotesPage(); void readNoteLabels();
+  if (notesView === 'history') void loadHistory(historyMonth, historyDate);
 }
