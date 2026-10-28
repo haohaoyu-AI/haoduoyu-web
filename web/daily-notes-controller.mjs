@@ -183,7 +183,9 @@ export function paintDailyNotesPage() {
   const labelSelect = root.querySelector('#notes-compose-label'), labelValues = ['生活','工作', ...notesLabels];
   if (!labelValues.includes(notesSelectedLabel)) labelValues.push(notesSelectedLabel);
   if (JSON.stringify([...labelSelect.options].map(option => option.value)) !== JSON.stringify(labelValues)) {
-    labelSelect.replaceChildren(...labelValues.map(value => { const option=document.createElement('option'); option.value=value; option.textContent=value; return option; }));
+    labelSelect.replaceChildren(...labelValues.map(value => {
+      const option = document.createElement('option'); option.value = value; option.textContent = value; return option;
+    }));
   }
   labelSelect.value = notesSelectedLabel;
   root.querySelector('#notes-label-status').textContent = notesLabelMessage;
@@ -252,7 +254,8 @@ function paintHistoryRows(root) {
     const text = document.createElement('div'); text.className = 'note-entry-reader'; text.textContent = row.entry.text;
     article.append(heading, text); return article;
   }));
-  root.querySelector('#notes-history-status').textContent = rows.length ? '仅展示已同步记录；待同步内容请在原日期查看。' : '这一天没有符合条件的已同步记录。';
+  root.querySelector('#notes-history-status').textContent = rows.length ?
+    '仅展示已同步记录；待同步内容请在原日期查看。' : '这一天没有符合条件的已同步记录。';
 }
 async function loadHistory(date = '') {
   const root = document.querySelector('#daily-notes'), sequence = ++historySequence, expected = notesIdentityNow();
@@ -265,13 +268,17 @@ async function loadHistory(date = '') {
     const network = path => apiNetwork(path, {headers:{'X-Note-Labels-Version':'1'}});
     const dates = await loadNoteHistoryDates(network); if (!active()) return;
     const selected = dates.includes(date) ? date : dates.includes(picker.value) ? picker.value : dates[0] || '';
-    picker.replaceChildren(...dates.map(value => { const option=document.createElement('option'); option.value=value; option.textContent=value; return option; }));
+    picker.replaceChildren(...dates.map(value => {
+      const option = document.createElement('option'); option.value = value; option.textContent = value; return option;
+    }));
     picker.value = selected; historyRows = [];
     if (!selected) { status.textContent = '暂无历史记录。'; return; }
     historyRows = await loadNoteDay(network, selected); if (!active()) return;
     const labels = root.querySelector('#notes-history-label'), previous = labels.value;
     const values = ['', ...new Set(['生活','工作', ...historyRows.map(row => row.label)])];
-    labels.replaceChildren(...values.map(value => { const option=document.createElement('option'); option.value=value; option.textContent=value || '全部'; return option; }));
+    labels.replaceChildren(...values.map(value => {
+      const option = document.createElement('option'); option.value = value; option.textContent = value || '全部'; return option;
+    }));
     labels.value = values.includes(previous) ? previous : ''; paintHistoryRows(root);
   } catch (error) {
     if (!active()) return;

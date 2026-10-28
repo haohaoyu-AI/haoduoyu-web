@@ -122,7 +122,8 @@ export function paintDailyNotes(root, item, {compatibility = false, editing = fa
 }
 function entryControlsMarkup() {
   return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions">' +
-    '<button class="btn" type="button" data-note-entry-action="save">发送</button><span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
+    '<button class="btn" type="button" data-note-entry-action="save">发送</button>' +
+    '<span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
     '<button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button>' +
     '<button class="btn text" type="button" data-note-entry-action="delete">删除</button></div>' +
     '<div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p>' +
