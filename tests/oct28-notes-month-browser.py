@@ -13,7 +13,8 @@ try:
   context=browser.new_context(viewport={'width':1440,'height':900},timezone_id='Asia/Shanghai')
   context.route('**/*',lambda route:route.continue_() if route.request.url.startswith(origin + '/') else route.abort())
   request=p.request.new_context(base_url=origin,extra_http_headers={'Origin':origin,'X-Public-Business':'1','X-Note-Labels-Version':'1'})
-  for date,category,label,text in [('2026-09-01','life','兴趣','兴趣月历合成'),('2026-09-08','work',None,'工作月历合成')]:
+  for date,category,label,text in [('2026-09-01','life','兴趣','兴趣月历合成<img src=x onerror=alert(1)>'),
+                                    ('2026-09-08','work',None,'工作月历合成')]:
    body={'category':category,'date':date,'text':text,'version':0,'save_id':str(uuid.uuid4())}
    if label:body['label']=label
    response=request.put('/api/v1/note-entries/'+str(uuid.uuid4()),data=body)
@@ -26,12 +27,15 @@ try:
   cells=page.locator('#notes-history-grid button');assert cells.nth(0).is_disabled()
   assert cells.nth(1).get_attribute('data-notes-history-day')=='2026-09-01'
   expect(page.locator('[data-notes-history-day="2026-09-01"]')).to_contain_text('兴趣月历合成')
+  assert page.locator('#notes-history-grid img').count()==0
   expect(page.locator('[data-notes-history-day="2026-09-08"]')).to_contain_text('工作月历合成')
   page.locator('#notes-history-label').select_option('兴趣')
   expect(page.locator('[data-notes-history-day="2026-09-01"]')).to_contain_text('1 条')
   expect(page.locator('[data-notes-history-day="2026-09-08"]')).to_contain_text('0 条')
   page.locator('[data-notes-history-day="2026-09-01"]').click()
   expect(page.locator('#notes-history-list')).to_contain_text('兴趣月历合成')
+  assert page.locator('#notes-history-list img').count()==0
+  expect(page.locator('#notes-history-list')).to_contain_text('<img src=x onerror=alert(1)>')
   page.locator('#notes-history-week').select_option('2')
   assert page.locator('#notes-history-date').input_value()=='2026-09-07'
   page.locator('#notes-history-date').select_option('2026-09-01')

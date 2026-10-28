@@ -199,7 +199,9 @@ test('notes view puts business text only into value/textContent and offers respo
   assert.equal(nodes.get('#notes-editor').value, attack);
   assert.equal(nodes.get('#notes-editor').hidden, true);
   assert.match(renderDailyNotes(), /碎碎念/); assert.doesNotMatch(renderDailyNotes(), /contenteditable/);
-  assert.doesNotMatch(renderDailyNotes(), /最近的文字|notes-history|notes-dates|data-notes-action="more"/);
+  assert.doesNotMatch(renderDailyNotes(), /最近的文字|notes-dates|data-notes-action="more"/);
+  assert.match(renderDailyNotes(), /id="notes-history-grid"/);
+  assert.match(renderDailyNotes(), /data-notes-view="history"/);
   assert.match(renderDailyNotes(), /notes-composer/);
 });
 
@@ -220,7 +222,7 @@ function emptyNotesView() {
 
 test('notes hide the normal autosave badge while real loading, failed and pending states remain visible', () => {
   const view = emptyNotesView(), status = view.root.querySelector('#notes-status');
-  view.paint(); assert.equal(status.textContent, '自动保存'); assert.equal(status.hidden, true);
+  view.paint(); assert.equal(status.textContent, ''); assert.equal(status.hidden, true);
   view.current.error = '合成读取错误'; view.paint();
   assert.equal(status.hidden, false); assert.equal(status.textContent, '读取失败');
   assert.equal(view.root.querySelector('#notes-entry-message').textContent, '合成读取错误');
@@ -229,9 +231,11 @@ test('notes hide the normal autosave badge while real loading, failed and pendin
   view.current.loaded = true; view.current.loading = false;
   for (const phase of ['dirty', 'saving', 'unknown', 'conflict', 'oversize', 'error']) {
     view.legacy.phase = phase; view.legacy.dirty = true; view.legacy.error = '需要处理的合成草稿'; view.paint();
-    assert.equal(status.hidden, false, phase); assert.equal(status.textContent, '有草稿待保存', phase);
+    assert.equal(status.hidden, false, phase); assert.equal(status.textContent, '有未发送内容', phase);
     assert.equal(view.root.querySelector('#notes-message').textContent, '需要处理的合成草稿', phase);
   }
+  view.legacy.phase = 'queued'; view.legacy.dirty = true; view.paint();
+  assert.equal(view.root.querySelector('#notes-legacy-status').textContent, '已存本机，待同步');
 });
 
 test('legacy time displays only actual Shanghai HH:mm and hides missing timestamps', () => {
