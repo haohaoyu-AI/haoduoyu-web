@@ -28,12 +28,7 @@ export function renderMediaTabs() {
 ${state.page === page ? 'aria-current="page"' : ''}>${label}</a>`).join('') + '</nav>';
 }
 export function notesNavigation(mobile = false) {
-  const active = state.page === 'notes', name = mobile ? 'mobile-notes-nav' : 'notes-nav';
-  return `<details class="${name}${active ? ' active' : ''}" ${!mobile && active ? 'open' : ''}>
-<summary ${mobile ? 'data-action="notes-menu"' : ''} title="碎碎念" aria-label="碎碎念" aria-expanded="${!mobile && active}">
-${icon('edit', 18)}<span class="nav-label">碎碎念</span></summary><div class="notes-subnav">
-${['life', 'work'].map(category => navigationLink({id:'notes',category,icon:'edit',label:category === 'work' ? '工作碎碎念' : '生活碎碎念'})).join('')}
-</div></details>`;
+  return navigationLink({id:'notes',icon:'edit',label:'碎碎念'}, mobile);
 }
 export function sidebarNavigation() {
   return mediaNavigation() + nav.filter(item => !mediaPages.has(item.id) && item.id !== 'settings')
@@ -43,7 +38,7 @@ export function settingsNavigation() { return navigationLink(nav.find(item => it
 export function mobileNavigation() {
   const items = [['todos','待办'],['notes','碎碎念'],['memos','备忘录'],['reminders','提醒']];
   return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id,label]) =>
-    navigationLink({...nav.find(item => item.id === id),label,...(id === 'notes' ? {category:dailyNotesRouteCategory()} : {})},true))
+    navigationLink({...nav.find(item => item.id === id),label},true))
     .join('')}${mediaNavigation(true)}</nav>`;
 }
 export function mobileSettingsMenu() {
@@ -52,11 +47,6 @@ ${settingsNavigation()}${state.me?.publicBusiness ? '' : `<button class="btn tex
 }
 export function syncWorkbenchNavigation() {
   const active = mediaPages.has(state.page);
-  const notes = document.querySelector('.mobile-nav [data-nav="notes"]');
-  if (notes) {
-    notes.dataset.notesCategory = dailyNotesRouteCategory();
-    notes.setAttribute('href','?page=notes&notes_category=' + dailyNotesRouteCategory());
-  }
   for (const link of document.querySelectorAll('.media-link')) {
     link.classList.toggle('active',active);
     if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
