@@ -56,3 +56,13 @@ test('flush waits for the actual in-flight local transaction and propagates a fa
   const failed = broken.capture([draft()]); failed.catch(() => {});
   await assert.rejects(broken.flush(), /quota/);
 });
+
+test('unsubmitted custom label and original uncertain request survive journal restoration', async () => {
+  const db = createMemoryDB(), row = {...draft(), category:'life', label:'兴趣', phase:'unknown',
+    pending:{kind:'put',version:0,text:'原内容',label:'兴趣',saveId:randomUUID(),uncertain:true}};
+  const journal = () => createDraftJournal({db, getScope: () => scope});
+  await journal().capture([row]); const restored = (await journal().list('note_entry'))[0];
+  assert.equal(restored.label,'兴趣'); assert.equal(restored.pending.label,'兴趣');
+  assert.equal(restored.pending.saveId,row.pending.saveId);
+  assert.deepEqual(await db.transaction(['outbox'],'readonly',tx=>tx.getAll('outbox')),[]);
+});

@@ -1,4 +1,5 @@
 import {validDailyNotesDate} from './daily-notes-state.mjs';
+import {validCustomNoteLabel} from './note-entries-state.mjs';
 
 // Load both stores completely: failures must not masquerade as an empty day.
 export async function loadNoteDay(request, date) {
@@ -21,7 +22,7 @@ export function aggregateNoteDay(date, {lifeEntries, lifeLegacy, workEntries, wo
     for (const entry of collection.entries) {
       if (!entry || typeof entry.id !== 'string' || !entry.id || entry.category !== category || entry.date !== date ||
           typeof entry.text !== 'string' || entry.deleted !== false || ids.has(entry.id) ||
-          entry.label !== undefined && (category !== 'life' || typeof entry.label !== 'string' || !entry.label))
+          entry.label !== undefined && (category !== 'life' || !validCustomNoteLabel(entry.label)))
         throw new Error('碎碎念读取不完整，请重试。');
       ids.add(entry.id);
       result.push({key: 'note-entry:' + entry.id, kind: 'entry', category, label: entry.label || (category === 'work' ? '工作' : '生活'),
