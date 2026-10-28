@@ -166,11 +166,17 @@ public final class LegacyEntryCompatibilityTest {
         Shadows.shadowOf(Looper.getMainLooper()).idle();
         assertFalse("Continue dismisses the initial prompt",prompt.isShowing());
         WebView existing=(WebView)field(MainActivity.class,"web").get(web.get());
-        existing.clearHistory();existing.loadUrl(UrlPolicy.HOME);existing.loadUrl("https://haoduoyu.xyz/?page=memos");
-        assertTrue("A visited website page remains available to navigate back",existing.canGoBack());
+        // Robolectric 4.14.1 commits synthetic navigations via pushEntryToHistory.
+        org.robolectric.shadows.ShadowWebView shadowWeb=Shadows.shadowOf(existing);
+        existing.clearHistory();
+        shadowWeb.pushEntryToHistory(UrlPolicy.HOME);
+        shadowWeb.pushEntryToHistory("https://haoduoyu.xyz/?page=memos");
+        assertTrue("A committed WebView history can navigate back",existing.canGoBack());
+        int previousBackCalls=shadowWeb.getGoBackInvocations();
         java.lang.reflect.Method back=MainActivity.class.getDeclaredMethod("backOrMinimize");back.setAccessible(true);back.invoke(web.get());
-        assertFalse("Website history is handled before the recovery prompt",existing.canGoBack());
+        assertEquals("Website history is handled before the recovery prompt",previousBackCalls+1,shadowWeb.getGoBackInvocations());
         assertNull(Shadows.shadowOf(web.get()).getNextStartedActivity());
+        assertFalse("After navigating back the WebView is at the root",existing.canGoBack());
         back.invoke(web.get());
         AlertDialog nextPrompt=ShadowAlertDialog.getLatestAlertDialog();assertNotNull(nextPrompt);
         assertNotSame("At the root a new recovery dialog is shown",prompt,nextPrompt);
