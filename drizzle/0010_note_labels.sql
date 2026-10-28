@@ -4,7 +4,7 @@ CREATE TABLE `matrix_note_labels` (
   `created_at` text NOT NULL,
   PRIMARY KEY (`user_id`, `name`),
   FOREIGN KEY (`user_id`) REFERENCES `matrix_users` (`id`) ON DELETE CASCADE,
-  CHECK (length(`name`) BETWEEN 1 AND 32)
+  CONSTRAINT "matrix_note_label_name" CHECK (length(`name`) BETWEEN 1 AND 32)
 );
 --> statement-breakpoint
 CREATE TABLE `matrix_note_entry_labels` (
