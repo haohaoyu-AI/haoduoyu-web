@@ -131,10 +131,10 @@
 #memos .memo-flat-row>[data-memo-action="delete-note"] { font-size:var(--font-size-22); background:transparent; border-color:transparent; box-shadow:none; }
 #memos .memo-document-heading { display:flex; align-items:flex-start; gap:var(--space-12); }
 #memos .memo-edited-at { display:block; margin-top:var(--space-6); color:var(--ink-2); font-size:var(--font-size-12); }
-#memos .memo-editor { padding:var(--space-18); background:#fffdfb; border-radius:0 var(--radius-20) var(--radius-20) 0; }
+#memos .memo-editor { padding:var(--space-18); background:var(--color-memo-canvas); border-radius:0 var(--radius-20) var(--radius-20) 0; }
 #memos .memo-title, #memos .memo-read-title {
   box-sizing:border-box; width:100%; margin:0; padding:var(--space-6) 0 var(--space-12);
-  border:0; border-bottom:1px solid var(--line); color:#54565a;
+  border:0; border-bottom:1px solid var(--line); color:var(--color-memo-title);
   font-size:var(--font-size-30); font-weight:var(--font-weight-semibold); line-height:1.3;
 }
 #memos .memo-title { background:transparent; }
@@ -356,24 +356,24 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 /* Monthly notes: readable cards retain the shared warm glass language. */
 .notes-calendar-layout { display:grid; grid-template-columns:minmax(155px,190px) minmax(0,1fr); gap:20px; margin-top:20px; }
 .notes-calendar-filters { display:flex; flex-direction:column; gap:14px; min-width:0; padding:18px;
-  border:1px solid rgba(255,255,255,.8); border-radius:18px; background:rgba(255,255,255,.55); }
+  border:1px solid var(--color-calendar-edge); border-radius:var(--radius-18); background:var(--color-white-a-55); }
 .notes-calendar-filters label { display:grid; gap:6px; min-width:0; }
 .notes-calendar-filters .input { width:100%; min-width:0; }
 .notes-calendar-month-actions { display:flex; flex-wrap:wrap; gap:6px; }
-.notes-calendar-main { min-width:0; padding:18px; border:1px solid rgba(255,255,255,.8); border-radius:18px;
-  background:rgba(244,239,236,.7); }
+.notes-calendar-main { min-width:0; padding:18px; border:1px solid var(--color-calendar-edge); border-radius:var(--radius-18);
+  background:var(--color-calendar-surface); }
 .notes-calendar-summary { margin:0 0 8px; font-weight:600; }
 .notes-calendar-weekdays,.notes-calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; }
 .notes-calendar-weekdays { margin:14px 0 8px; text-align:center; }
 .notes-calendar-day { display:flex; flex-direction:column; align-items:stretch; gap:6px; min-width:0; min-height:110px;
-  padding:10px; text-align:left; border:1px solid rgba(255,255,255,.9); border-radius:14px; background:rgba(255,255,255,.83);
+  padding:10px; text-align:left; border:1px solid var(--color-white-a-9); border-radius:var(--radius-14); background:var(--color-calendar-card);
   color:var(--color-base-text); cursor:pointer; overflow-wrap:anywhere; }
-.notes-calendar-day[aria-pressed="true"] { border-color:var(--color-editor-focus); box-shadow:0 0 0 2px rgba(205,128,101,.16); }
+.notes-calendar-day[aria-pressed="true"] { border-color:var(--color-editor-focus); box-shadow:var(--shadow-calendar-selected); }
 .notes-calendar-day.is-empty { visibility:hidden; }
 .notes-calendar-day-heading { font-weight:600; }
 .notes-calendar-preview { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 #notes-history-list { margin-top:16px; }
-@media (hover:hover) { .notes-calendar-day:not(:disabled):hover { background:#fff; box-shadow:0 6px 18px rgba(77,57,53,.1); } }
+@media (hover:hover) { .notes-calendar-day:not(:disabled):hover { background:var(--color-white); box-shadow:var(--shadow-calendar-hover); } }
 @media (max-width:700px) {
   .notes-calendar-layout { grid-template-columns:minmax(0,1fr); gap:12px; }
   .notes-calendar-filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }

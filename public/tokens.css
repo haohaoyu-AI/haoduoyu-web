@@ -275,6 +275,15 @@
   --shadow-mobile-nav:0 8px 32px var(--color-shadow-mobile-nav);
   --shadow-focus-line:0 2px 0 var(--color-focus-line);
   --shadow-template:0 3px 10px var(--color-shadow-template);
+  --color-memo-canvas:#fffdfb;
+  --color-memo-title:#54565a;
+  --color-calendar-edge:rgba(255,255,255,.8);
+  --color-calendar-surface:rgba(244,239,236,.7);
+  --color-calendar-card:rgba(255,255,255,.83);
+  --color-calendar-selected:rgba(205,128,101,.16);
+  --color-calendar-hover-shadow:rgba(77,57,53,.1);
+  --shadow-calendar-selected:0 0 0 2px var(--color-calendar-selected);
+  --shadow-calendar-hover:0 6px 18px var(--color-calendar-hover-shadow);
 
   /* Frosted surfaces */
   --glass-blur-16:16px;
