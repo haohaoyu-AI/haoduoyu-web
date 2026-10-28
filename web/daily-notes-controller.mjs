@@ -308,6 +308,7 @@ function applyHistoryMonth(root, month, days, chosenDate) {
   const oldLabel = labelSelect.value, oldDate = dateSelect.value;
   const selected = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
   historyMonth = month; historyDays = days;
+  root.dataset.historyLoadedMonth = month;
   root.querySelector('#notes-history-month').value = month;
   monthOptions(dateSelect, dates, selected, '');
   monthOptions(root.querySelector('#notes-history-week'), ['', ...weeks.map((_, index) => String(index + 1))], '', '全部周次');
@@ -530,5 +531,7 @@ export async function loadDailyNotes() {
   await Promise.all([store.read(date), entries.read(date)]);
   if (expected !== notesIdentityNow()) return;
   await hydrateNotesDrafts(store, entries, category); paintDailyNotesPage(); void readNoteLabels();
-  if (notesView === 'history') void loadHistory(historyMonth, historyDate);
+  const historyRoot = document.querySelector('#daily-notes');
+  if (notesView === 'history' && (!historyMonth || historyRoot?.dataset.historyLoadedMonth !== historyMonth))
+    void loadHistory(historyMonth, historyDate);
 }
