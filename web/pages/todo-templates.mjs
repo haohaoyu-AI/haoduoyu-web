@@ -12,7 +12,7 @@ function templateUnavailable(store, day, id) {
 }
 function inlineTodoTemplateContent(store) {
   const day = todoDay(), label = day.date === bjtDate() ? "今日已添加" : "当日已添加";
-  const status = store.loading && !store.loaded ? '<span class="todo-template-inline-status" role="status">正在读取常用待办…</span>' : "";
+  const status = "";
   const error = store.error ? `<p class="form-message" role="alert">${e(store.error)}
 <button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
   return status + error + store.items.map(item => {
@@ -68,7 +68,7 @@ function renderTodoTemplates() {
 <input id="todo-template-text" class="input" name="text" maxlength="500" required placeholder="新建常用待办" value="${e(store.draft)}">
 <button class="btn" type="submit">保存</button></form><div id="todo-template-editor">${todoTemplateEditor(store)}</div>
 <p id="todo-template-feedback" class="form-message" role="alert">${e(store.error)}</p>
-<p id="todo-template-status" class="daily-todo-status" role="status">${store.loading ? "正在读取…" : ""}</p>
+<p id="todo-template-status" class="daily-todo-status" role="status"></p>
 <ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul></div></section>`;
 }
 function syncTemplateForm(root, id, value, pending) {
@@ -97,7 +97,7 @@ function paintTodoTemplates() {
   syncTemplateForm(root, "#todo-template-text", store.draft, store.adding);
   syncTemplateForm(root, "#todo-template-edit-text", store.editDraft, store.pending.has(store.editing?.id));
   for (const [id, html] of Object.entries({ "todo-template-items": todoTemplateRows(store),
-    "todo-template-feedback": e(store.error), "todo-template-status": store.loading ? "正在读取…" : "" })) {
+    "todo-template-feedback": e(store.error), "todo-template-status": "" })) {
     const node = $("#" + id, root);
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }

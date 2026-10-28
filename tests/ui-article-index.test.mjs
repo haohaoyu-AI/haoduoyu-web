@@ -90,9 +90,9 @@ test('an ordinary write does not advance session epoch or suppress a genuine cur
     if(path==='/api/v1/accounts')return new Promise(resolve=>{finish=()=>resolve(Response.json({error:{message:'Synthetic current session expired'}},{status:401}));});
     return options.method==='POST'?ok({saved:true}):ok([row('current')]);
   });
-  await c.run('articleIndex()');c.run("let current=api('/accounts');let epochBefore=sessionEpoch");
+  await c.run('articleIndex()');c.run("let oct28CurrentSessionRequest=api('/accounts');let epochBefore=sessionEpoch");
   await c.run("api('/articles',{method:'POST',body:{title:'Synthetic ordinary write'}})");
   assert.equal(c.run('sessionEpoch===epochBefore'),true);
-  finish();await assert.rejects(c.run('current'),error=>error.status===401&&!error.staleSession);
+  finish();await assert.rejects(c.run('oct28CurrentSessionRequest'),error=>error.status===401&&!error.staleSession);
   assert.equal(c.run('state.me'),null);assert.equal(c.run('articleIndexes.size'),0);
 });

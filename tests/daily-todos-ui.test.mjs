@@ -24,6 +24,20 @@ test('calendar presents selected-day plans and completed rows without changing t
   assert.doesNotMatch(c.run('renderTodos()'),/data-todo-id="history-completed"/);
 });
 
+test('a direct future view starts without showing the dated todo editor',()=>{
+  const c=client({search:'?page=todos&todo_panel=future'});c.run('readRoute()');
+  assert.equal(c.run('state.todoPanel'),'future');const html=c.run('renderTodos()');
+  assert.match(html, /id="todo-main" hidden/);assert.match(html, /id="todo-future"[^>]*>/);
+  assert.doesNotMatch(html, /id="todo-future"[^>]*hidden/);
+});
+
+test('opening history from a direct future link reads the selected date',async()=>{
+  const c=client({search:'?page=todos&date=2027-01-01&todo_panel=future'});
+  c.run("readRoute();paintTodos=()=>{};let todoLoads=0;loadTodos=async()=>{todoLoads++}");
+  await c.run("setTodoPanel('history')");
+  assert.equal(c.run('todoLoads'),1);assert.equal(c.run('state.todoDate'),'2027-01-01');
+});
+
 test('today-added is based on acknowledged linked items and clears after actual soft deletion',()=>{
   const c=client();
   c.run("templateState().items=[{id:'common',text:'常用'}];todoDay().adding=true;todoDay().submitting={template_id:'common'}");
@@ -457,7 +471,7 @@ test('pending completion requests cannot be duplicated and can be undone after s
   assert.equal(c.run('calls[1].options.body.version'), 2);
   assert.equal(c.run('calls[1].options.body.completed'), false);
   assert.equal(c.run('todoDay().items[0].completed'), false);
-  assert.match(c.run('renderTodos()'), /已保存/, 'successful completion change has visible confirmation');
+  assert.doesNotMatch(c.run('todoStatus(todoDay())'), /已保存/, 'routine completion does not add a save banner');
 });
 
 test('completion and undo respond before the network and roll back to saved state after a failure', async () => {

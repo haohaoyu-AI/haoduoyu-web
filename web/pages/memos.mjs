@@ -5,7 +5,7 @@ const button = (action, label, extra = '') => '<button type="button" class="btn"
 export function renderMemos() {
   return '<section id="memos" data-pane="groups" aria-label="长期备忘录">' +
     '<div class="memo-toolbar"><div class="memo-mobile-back">' + button('back-notes', '‹ 返回笔记') +
-    '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span>' +
+    '</div><span id="memo-status" role="status" aria-live="polite"></span>' +
     '<div class="memo-toolbar-actions">' + button('exit-trash', '‹ 返回工作台设置', 'hidden') + button('login', '所有者登录', 'hidden') + '</div></div>' +
     '<p id="memo-error" class="memo-message" role="alert" hidden></p>' +
     '<div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' +
@@ -51,7 +51,7 @@ export function renderMemos() {
 }
 const phases = {dirty: '等待自动保存', saving: '正在保存…', unknown: '保存结果待核对', conflict: '版本冲突 · 草稿已保留',
   queued: '已保存到本机 · 等待同步',
-  offline: '离线 · 草稿保留在本机', error: '暂未保存 · 草稿已保留', oversize: '正文超过 64 KiB', loading: '正在读取…'};
+  offline: '离线 · 草稿保留在本机', error: '暂未保存 · 草稿已保留', oversize: '正文超过 64 KiB', loading: ''};
 const active = (rows, trash) => rows.filter(row => Boolean(row.deleted_at) === trash);
 function paintEditedTime(node, item) {
   const local = item.localQueued && item.localUpdatedAt;
@@ -147,9 +147,9 @@ export function paintMemos(root, store) {
   if (!root) return;
   const s = store.state, item = store.drafts.get(s.noteId), find = q => root.querySelector(q);
   root.dataset.pane = s.pane;
-  const actual = phases[item?.phase] || '已保存', routine = ['dirty', 'saving', 'saved'].includes(item?.phase) || !item;
-  find('#memo-status').textContent = s.loading ? '正在读取…' : !s.canEdit ? '公开只读' : routine ? '自动保存' : actual;
-  find('#memo-status').hidden = s.trash && !s.loading || s.canEdit && routine && !s.loading;
+  const actual = phases[item?.phase] || '已保存', routine = ['dirty', 'saving', 'saved', 'loading'].includes(item?.phase) || !item;
+  find('#memo-status').textContent = s.loading ? '' : !s.canEdit ? '公开只读' : routine ? '自动保存' : actual;
+  find('#memo-status').hidden = s.loading || s.trash || s.canEdit && routine;
   find('#memo-status').setAttribute('aria-label', actual);
   find('#memo-status').dataset.phase = item?.phase || 'saved';
   find('#memo-error').hidden = !s.error && !s.storageError;

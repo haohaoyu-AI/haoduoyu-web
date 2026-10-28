@@ -80,7 +80,7 @@ function readRoute() {
   if (state.memoView === "trash") { state.page = "settings"; state.memoView = ""; }
   state.reminderDate = state.page === "reminders" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
-  state.todoPanel = state.page === "todos" && ["history", "templates"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
+  state.todoPanel = state.page === "todos" && ["history", "templates", "future"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.
   get("tab") : raw === "settings" && !params.has("tab") ? "workspace" : "accounts");
   if (raw === "memos" && params.get("memo_view") === "trash") state.settingsTab = "workspace";

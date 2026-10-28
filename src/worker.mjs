@@ -11,6 +11,7 @@ import { overviewCache } from './overview-cache.mjs';
 import { requestTrace,traceRoute,withRequestId,logServerFailure } from './lib/request-trace.mjs';
 import {loginRetryAfter} from './lib/login-backoff.mjs';
 import {handleTodos} from './todos.mjs';
+import {handleUnscheduledTodos} from './unscheduled-todos.mjs';
 import {handleTodoTemplates} from './todo-templates.mjs';
 import {handleTodoPreferences} from './todo-preferences.mjs';
 import {publicBusinessAccess,publicArticle,requirePublicAccount,publicBusinessResult} from './public-business.mjs';
@@ -281,6 +282,7 @@ async function handle(request,env,trace) {
       request=access.request;
       if(route==='/auth/me') return json({id:'public-business',username:'公开编辑',publicBusiness:true});
       if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
+      if(route==='/unscheduled-todos'||route.startsWith('/unscheduled-todos/')) return handleUnscheduledTodos(db,request,route,origin,state.revision);
       if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
       if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
       if(method==='DELETE') return deletePublicBusiness(db,request,route,access.actor);
@@ -289,6 +291,7 @@ async function handle(request,env,trace) {
     }
     if(route==='/auth/login'&&method==='POST') return login(db,request,env,origin);
     if(route==='/todos'||route.startsWith('/todos/')) return handleTodos(db,request,route,origin,state.revision);
+    if(route==='/unscheduled-todos'||route.startsWith('/unscheduled-todos/')) return handleUnscheduledTodos(db,request,route,origin,state.revision);
     if(route==='/todo-templates'||route.startsWith('/todo-templates/')) return handleTodoTemplates(db,request,route,origin,state.revision);
     if(route==='/todo-preferences') return handleTodoPreferences(db,request,origin,state.revision);
     if(method==='GET') {

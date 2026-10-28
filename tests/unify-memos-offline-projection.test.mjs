@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
-import {projectUnifyConflictResolution,projectUnifyConflictResolutionModules} from './unify-conflict-resolution-projection.mjs';
+import {projectUnifyConflictResolution as projectPriorE,projectUnifyConflictResolutionModules} from './unify-conflict-resolution-projection.mjs';
 import {projectUnifyStage1,projectedChangedFiles} from './unify-stage1-projection.mjs';
 import {projectUnifyStage2} from './unify-stage2-projection.mjs';
 import {projectUnifySw,projectUnifySwModules} from './unify-sw-projection.mjs';
@@ -12,7 +12,10 @@ import {unifyMemosOfflineBaseline,unifyMemosOfflinePatch,unifyMemosOfflinePaths,
   unifyMemosOfflineBefore,unifyMemosOfflineManifest,validateUnifyMemosOfflineDelta,projectUnifyMemosOffline,
   projectUnifyMemosOfflineHistory,projectUnifyMemosOfflineModules,memosOfflineHash} from './unify-memos-offline-projection.mjs';
 
+import {projectOct28History} from './oct28-projection.mjs';
+
 const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const projectUnifyConflictResolution=(file,source)=>projectPriorE(file,projectOct28History(file,source));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
 const delta=unifyMemosOfflineManifest();
 const roots=['public','web','src','shared','db','drizzle','migration-candidates','scripts','.ci','.github','.openai',
@@ -122,5 +125,5 @@ test('memo-offline leaves backend, API routes, schema, permissions, runtime and 
     '.github/workflows/ci.yml','.github/workflows/cloudflare-manual-release.yml','.github/scripts/cloudflare-publish.mjs',
     '.openai/hosting.json','drizzle.config.ts','public/openapi.json','public/api-docs.html','public/llms.txt','src/worker.mjs',
     'web/core/api.mjs','web/offline/cache.mjs','web/offline/sw-client.mjs'])
-    assert.equal(read(path),git('show',unifyMemosOfflineBaseline+':'+path),path+' remains unchanged');
+    assert.equal(projectOct28History(path,read(path)),git('show',unifyMemosOfflineBaseline+':'+path),path+' remains unchanged');
 });

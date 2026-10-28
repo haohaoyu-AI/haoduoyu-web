@@ -78,6 +78,9 @@ async function seed(db,{pipeline=true}={}) {
 }
 function historical(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<10)for(const name of ['unscheduled_todos','note_labels','note_entry_labels']) {
+    assert.deepEqual(data.tables[name],[],'historical fixture cannot hide new data: '+name);delete data.tables[name];
+  }
   if(version<9)for(const name of ['note_entries','work_reminders','account_profiles']) {
     assert.deepEqual(data.tables[name],[],'historical fixture cannot hide workbench data: '+name);delete data.tables[name];
   }
@@ -97,7 +100,7 @@ function historical(input,version) {
 
 test('v7 round-trips all pipeline fields, raw JSON, NULL status and existing related data',async t=>{
   const source=await database(t),{owner,articles}=await seed(source),before=await exportBackup(source);
-  assert.equal(before.data.format,'haoduoyu-matrix-d1-v9');
+  assert.equal(before.data.format,'haoduoyu-matrix-d1-v10');
   assert.equal(Object.keys(before.data.tables.articles[0]).length,oldArticleFields.length+17);
   const scoped=await exportBackup(source,{todoUserId:owner});
   assert.equal(scoped.data.tables.daily_notes.length,1);

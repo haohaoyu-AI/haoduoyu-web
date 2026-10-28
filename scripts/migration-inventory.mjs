@@ -9,10 +9,12 @@ const v6RestoredTables = Object.freeze([
 ]);
 const v7RestoredTables = Object.freeze([...v6RestoredTables, 'memo_groups', 'memo_notes']);
 const v8RestoredTables = Object.freeze([...v7RestoredTables, 'daily_work_notes']);
-export const restoredTables = Object.freeze([...v8RestoredTables, 'note_entries', 'work_reminders', 'account_profiles']);
+const v9RestoredTables = Object.freeze([...v8RestoredTables, 'note_entries', 'work_reminders', 'account_profiles']);
+export const restoredTables = Object.freeze([...v9RestoredTables, 'unscheduled_todos', 'note_labels', 'note_entry_labels']);
 export const resetTables = Object.freeze(['sessions', 'login_attempts', 'control']);
 const tableSets = new Map([['haoduoyu-matrix-d1-v6', v6RestoredTables], ['haoduoyu-matrix-d1-v7', v7RestoredTables],
-  ['haoduoyu-matrix-d1-v8', v8RestoredTables], ['haoduoyu-matrix-d1-v9', restoredTables]]);
+  ['haoduoyu-matrix-d1-v8', v8RestoredTables], ['haoduoyu-matrix-d1-v9', v9RestoredTables],
+  ['haoduoyu-matrix-d1-v10', restoredTables]]);
 const checksum = rows => digest(JSON.stringify(rows.map(row => JSON.stringify(stable(row))).sort()));
 const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 
@@ -21,7 +23,8 @@ const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 export async function createSourceInventory(db) {
   return consistentRead(db, async (store, sourceRevision) => {
     const schema = (await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'matrix_%'").all()).results;
-    const restored = schema.some(row => row.name === 'matrix_note_entries') ? restoredTables :
+    const restored = schema.some(row => row.name === 'matrix_unscheduled_todos') ? restoredTables :
+      schema.some(row => row.name === 'matrix_note_entries') ? v9RestoredTables :
       schema.some(row => row.name === 'matrix_daily_work_notes') ? v8RestoredTables :
       schema.some(row => row.name === 'matrix_memo_groups') ? v7RestoredTables : v6RestoredTables;
     const tables = [...restored, ...resetTables];

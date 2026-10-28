@@ -41,6 +41,9 @@ export const matrixUsers=sqliteTable('matrix_users',{
 export const matrixTodos=sqliteTable('matrix_todos',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),date:text('date').notNull(),text:text('text').notNull(),completed:integer('completed').notNull().default(0),version:integer('version').notNull().default(1),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
 },t=>[primaryKey({columns:[t.user_id,t.id]}),index('matrix_todo_user_date').on(t.user_id,t.date,t.created_at),check('matrix_todo_completed',sql`${t.completed} IN (0,1)`),check('matrix_todo_text',sql`length(${t.text}) BETWEEN 1 AND 500`),check('matrix_todo_version',sql`${t.version} >= 1`)]);
+export const matrixUnscheduledTodos=sqliteTable('matrix_unscheduled_todos',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),text:text('text').notNull(),completed:integer('completed').notNull().default(0),version:integer('version').notNull().default(1),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),index('matrix_unscheduled_todo_user_created').on(t.user_id,t.created_at,t.id),check('matrix_unscheduled_todo_completed',sql`${t.completed} IN (0,1)`),check('matrix_unscheduled_todo_text',sql`length(${t.text}) BETWEEN 1 AND 500`),check('matrix_unscheduled_todo_version',sql`${t.version} >= 1`)]);
 export const matrixTodoTemplates=sqliteTable('matrix_todo_templates',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),text:text('text').notNull(),version:integer('version').notNull().default(1),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
 },t=>[primaryKey({columns:[t.user_id,t.id]}),index('matrix_todo_template_user').on(t.user_id,t.deleted_at,t.created_at),check('matrix_todo_template_text',sql`length(${t.text}) BETWEEN 1 AND 500`),check('matrix_todo_template_version',sql`${t.version} >= 1`)]);
@@ -65,6 +68,15 @@ export const matrixNoteEntries=sqliteTable('matrix_note_entries',{
   index('matrix_note_entry_day').on(t.user_id,t.category,t.date,t.created_at,t.id),
   check('matrix_note_entry_category',sql`${t.category} IN ('life','work')`),
   check('matrix_note_entry_version',sql`${t.version} >= 1`),check('matrix_note_entry_changes',sql`${t.change_seq} >= 1`)]);
+export const matrixNoteLabels=sqliteTable('matrix_note_labels',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),name:text('name').notNull(),created_at:text('created_at').notNull(),
+},t=>[primaryKey({columns:[t.user_id,t.name]}),check('matrix_note_label_name',sql`length(${t.name}) BETWEEN 1 AND 32`)]);
+export const matrixNoteEntryLabels=sqliteTable('matrix_note_entry_labels',{
+  user_id:text('user_id').notNull(),entry_id:text('entry_id').notNull(),label:text('label').notNull(),
+},t=>[primaryKey({columns:[t.user_id,t.entry_id]}),
+  foreignKey({columns:[t.user_id,t.entry_id],foreignColumns:[matrixNoteEntries.user_id,matrixNoteEntries.id]}).onDelete('cascade'),
+  foreignKey({columns:[t.user_id,t.label],foreignColumns:[matrixNoteLabels.user_id,matrixNoteLabels.name]}),
+  index('matrix_note_entry_label_lookup').on(t.user_id,t.label,t.entry_id)]);
 export const matrixWorkReminders=sqliteTable('matrix_work_reminders',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
   date:text('date').notNull(),source_key:text('source_key').notNull(),summary:text('summary').notNull(),

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
+import {projectOct28History} from './oct28-projection.mjs';
 
 const root=new URL('../',import.meta.url),baseline='6e2e445e8a3e9f7a4af055f4cf75046cf6e5cd6c';
 const files=['style.css','memos.css','glass.css','workbench.css'];
@@ -31,7 +32,8 @@ test('shared design tokens are root-only constants with complete, acyclic refere
 test('expanding only extracted constants restores all four released stylesheets byte for byte',()=>{
   for(const file of files) {
     const original=execFileSync('git',['show',baseline+':public/'+file],{cwd:root,encoding:'utf8',maxBuffer:2*1024*1024});
-    assert.equal(expand(read(file)),original,'no changed declarations, selectors, cascade positions or responsive rules: '+file);
+    const released=projectOct28History('public/'+file,read(file));
+    assert.equal(expand(released),original,'no changed declarations, selectors, cascade positions or responsive rules: '+file);
     assert.ok(references(read(file)).some(name=>tokens.has(name)),'stylesheet consumes centralized values: '+file);
   }
 });

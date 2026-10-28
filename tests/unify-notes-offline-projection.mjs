@@ -92,7 +92,7 @@ export function projectUnifyNotesOfflineHistory(file,source) {
 export function projectUnifyNotesOfflineModules(files,readSource=read) {
   files=projectUnifyMemosOfflineModules(files,readSource);
   for(const file of files.filter(file=>unifyNotesOfflineAddedModules.includes(file))) {
-    const source=readSource(file);
+    const source=projectUnifyMemosOfflineHistory(file,readSource(file));
     assert.equal(notesOfflineHash(source),unifyNotesOfflineManifest().files[file].after,label+' exact current added module: '+file);
     assert.equal(projectUnifyNotesOffline(file,source),'',label+' added module projects to absence: '+file);
   }

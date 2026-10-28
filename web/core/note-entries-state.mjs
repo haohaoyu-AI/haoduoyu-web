@@ -9,12 +9,18 @@ const persistedVersion = item => item.localBacked ? item.localVersion : item.ver
 const savedText = item => item.localBacked ? item.durableText : item.serverText;
 const savedPhase = item => item.localBacked ? item.localQueued ? 'queued' : 'cached' : item.version ? 'saved' : 'empty';
 const localFailure = error => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || '');
+export function validCustomNoteLabel(value) {
+  return typeof value === 'string' && value.isWellFormed() && value === value.trim().normalize('NFC') &&
+    [...value].length >= 1 && [...value].length <= 32 && !/[\u0000-\u001f\u007f]/.test(value) &&
+    !['生活', '工作'].includes(value);
+}
 function checkedLocalDocument(value, category, date, id) {
   const {local, server} = documentState(value);
   if (!local || !uuidPattern.test(local.id) || id && local.id !== id || local.category !== category || local.date !== date ||
       typeof local.text !== 'string' || dailyNotesBytes(local.text) > DAILY_NOTES_MAX_BYTES ||
       !Number.isSafeInteger(local.version) || local.version < 1 || typeof local.deleted !== 'boolean' ||
-      typeof local.can_edit !== 'boolean') throw new Error('本机记录读取不完整，草稿已保留。');
+      typeof local.can_edit !== 'boolean' || local.label != null &&
+      (category !== 'life' || !validCustomNoteLabel(local.label))) throw new Error('本机记录读取不完整，草稿已保留。');
   if (server) checkedEntry(server, category, date, local.id);
   return value;
 }
@@ -24,7 +30,8 @@ function checkedEntry(value, category, date, id) {
       value.date !== date || typeof value.text !== 'string' || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES ||
       !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== 'boolean' ||
       typeof value.can_edit !== 'boolean' || !timestamp(value.created_at) || !timestamp(value.updated_at) ||
-      typeof value.content_hash !== 'string' || !value.content_hash) {
+      typeof value.content_hash !== 'string' || !value.content_hash || value.label != null &&
+      (category !== 'life' || !validCustomNoteLabel(value.label))) {
     throw new Error('记录读取不完整，请重新核对。');
   }
   return value;
@@ -62,7 +69,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
   const stopTimer = item => { if (item.timer !== null) clearTimer(item.timer); item.timer = null; };
   function makeEntry(id, date, canEdit) {
     return {id, category, date, loaded: true, loading: false, canEdit, serverText: '', draft: '',
-      version: 0, createdAt: null, updatedAt: null, contentHash: '', deleted: false, dirty: false,
+      version: 0, createdAt: null, updatedAt: null, contentHash: '', label: '', labelKnown: false, deleted: false, dirty: false,
       phase: 'empty', error: '', remote: null, pending: null, timer: null, sequence: 0,
       writeEpoch: 0, composing: false, localVersion: 0, durableText: '', localBacked: false, localQueued: false,
       localOperation: null, localConflict: null, localCreatedAt: null, localUpdatedAt: null};
@@ -72,6 +79,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
     item.canEdit = value.can_edit;
     item.serverText = value.deleted ? '' : value.text;
     item.version = value.version; item.createdAt = value.created_at; item.updatedAt = value.updated_at;
+    item.label = value.label || ''; item.labelKnown = category === 'work' || value.labels_version === 1 && Object.hasOwn(value, 'label');
     item.contentHash = value.content_hash; item.deleted = value.deleted;
     item.localVersion = value.version; item.durableText = item.serverText; item.localBacked = false; item.localQueued = false;
     item.localOperation = null; item.localConflict = null; item.localCreatedAt = null; item.localUpdatedAt = null;
@@ -89,7 +97,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
     if (isLocalDocument(value)) return context.mergeLocal(item, value);
     if (item.localBacked && !item.localConflict && value.version < item.localVersion) return;
     if (item.localQueued && !item.localConflict &&
-        (value.deleted !== item.deleted || !value.deleted && value.text !== item.durableText)) {
+        (value.deleted !== item.deleted || !value.deleted && (value.text !== item.durableText || (value.label || '') !== item.label))) {
       item.remote = value; return;
     }
     if (item.localBacked && (!blocked(item) || item.localConflict)) {
@@ -120,6 +128,7 @@ function createEntryLocalActions(context) {
     const {local, server, operation, conflict} = documentState(value), draft = item.draft;
     if (server && server.version >= item.version) adopt(item, server, true);
     item.localVersion = local.version; item.durableText = local.deleted ? '' : local.text;
+    item.label = local.label || ''; item.labelKnown = item.category === 'work' || local.labels_version === 1 && Object.hasOwn(local, 'label');
     item.localBacked = true; item.localQueued = Boolean(operation); item.localOperation = operation; item.localConflict = conflict;
     item.localCreatedAt = local.created_at || null; item.localUpdatedAt = local.updated_at || null;
     item.canEdit = local.can_edit; item.deleted = local.deleted; item.loaded = true;
@@ -209,14 +218,16 @@ function createEntryReadingActions(context) {
 function createEntryEditingActions(context) {
   const {page, entry, entries, emit, stopTimer, schedule, makeEntry} = context;
   const {uuid} = context.options;
-  function start(date) {
+  function start(date, {label = ''} = {}) {
     const current = page(date);
+    if (label && (context.category !== 'life' || !validCustomNoteLabel(label))) throw new Error('标签无效。');
     if (context.disposed || !current.loaded || !current.canEdit) return;
     const existing = entry(current.composerId);
-    if (existing && persistedVersion(existing) === 0 && !existing.deleted) return existing;
+    if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label) return existing;
     const id = uuid();
     if (!uuidPattern.test(id) || entries.has(id)) throw new Error('暂时无法新建记录，请重试。');
     const item = makeEntry(id, date, current.canEdit);
+    item.label = label; item.labelKnown = true;
     entries.set(id, item); current.ids.push(id); current.composerId = id; emit(); return item;
   }
   function edit(id, text, {composing = false} = {}) {
@@ -238,6 +249,7 @@ function createEntryRecoveryActions(context) {
   const {category, page, entry, entries, makeEntry, stopTimer, emit} = context;
   function restoreDraft(raw) {
     if (!raw || raw.category !== category || !validDailyNotesDate(raw.date) || !uuidPattern.test(raw.id) ||
+        raw.label && (category !== 'life' || !validCustomNoteLabel(raw.label)) ||
         typeof raw.draft !== 'string' || raw.draft.length > 262144 || context.disposed) return;
     const current = page(raw.date);
     let item = entry(raw.id);
@@ -245,6 +257,7 @@ function createEntryRecoveryActions(context) {
     const pendingDurable = item && raw.pending?.saveId && raw.pending.saveId === item.localOperation?.save_id;
     if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.pending || pendingDurable)) return item;
     if (!item) { item = makeEntry(raw.id, raw.date, current.canEdit); entries.set(item.id, item); }
+    if (!persistedVersion(item)) { item.label = raw.label || ''; item.labelKnown = raw.labelKnown === true; }
     if (!current.ids.includes(item.id)) current.ids.push(item.id);
     stopTimer(item); item.writeEpoch++; item.draft = raw.draft; item.dirty = item.draft !== savedText(item);
     item.recoveredBaseline = raw.recoveredBaseline || {version: raw.version ?? null, serverText: raw.serverText ?? null,
@@ -254,9 +267,12 @@ function createEntryRecoveryActions(context) {
       const operation = raw.pending;
       const valid = ['put', 'delete', 'restore'].includes(operation.kind) && uuidPattern.test(operation.saveId) &&
         Number.isSafeInteger(operation.version) && operation.version >= 0 &&
-        (operation.kind !== 'put' || typeof operation.text === 'string' && dailyNotesBytes(operation.text) <= DAILY_NOTES_MAX_BYTES);
+        (operation.kind !== 'put' || typeof operation.text === 'string' && dailyNotesBytes(operation.text) <= DAILY_NOTES_MAX_BYTES &&
+          (!operation.label || category === 'life' && validCustomNoteLabel(operation.label)) &&
+          (!operation.expectedLabel || category === 'life' && validCustomNoteLabel(operation.expectedLabel)));
       item.pending = valid ? {kind: operation.kind, version: operation.version, saveId: operation.saveId,
-        ...(operation.kind === 'put' ? {text: operation.text} : {}), uncertain: true, checking: false, retryReady: false} :
+        ...(operation.kind === 'put' ? {text: operation.text, ...(operation.label ? {label: operation.label} : {}),
+          ...(operation.expectedLabel ? {expectedLabel: operation.expectedLabel} : {})} : {}), uncertain: true, checking: false, retryReady: false} :
         {kind: 'recovery-blocked', uncertain: true, invalid: true, checking: false, retryReady: false};
       item.phase = 'unknown';
       item.error = valid ? '已找回未确认的原保存，请手动核对结果；不会自动重发。' : '旧保存凭据不完整，草稿已保留供查看或导出。';
@@ -274,7 +290,8 @@ function createEntryWritingActions(context) {
   const {put, remove, restore, uuid, onSaved} = context.options;
   const matches = (value, operation) => value.version === operation.version + 1 &&
     (operation.kind === 'delete' ? value.deleted : operation.kind === 'restore' ? !value.deleted :
-      !value.deleted && value.text === operation.text);
+      !value.deleted && value.text === operation.text && (!operation.label || value.labels_version === 1 && value.label === operation.label) &&
+      (!operation.expectedLabel || value.labels_version === 1 && value.label === operation.expectedLabel));
   function accepted(item, value, operation) {
     const preserve = operation.kind === 'put' && item.draft !== operation.text;
     item.writeEpoch++; adopt(item, value, preserve); item.remote = null; item.pending = null;
@@ -293,7 +310,8 @@ function createEntryWritingActions(context) {
       const body = {version: operation.version, save_id: operation.saveId};
       const options = operation.uncertain ? {offlineUnknown: true} : undefined;
       const raw = operation.kind === 'delete' ? await remove(item.id, body, options) : operation.kind === 'restore' ?
-        await restore(item.id, body, options) : await put(item.id, {...body, category: item.category, date: item.date, text: operation.text}, options);
+        await restore(item.id, body, options) : await put(item.id, {...body, category: item.category, date: item.date, text: operation.text,
+          ...(operation.label ? {label: operation.label} : {})}, options);
       if (context.disposed || item.pending !== operation) return;
       const value = checkedEntry(raw, category, item.date, item.id);
       if (isLocalDocument(value)) { acceptedLocal(item, value, operation); return; }
@@ -324,7 +342,9 @@ function createEntryWritingActions(context) {
     if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
       item.phase = 'oversize'; item.error = '文字超过 64 KiB，草稿已保留。'; emit(); return;
     }
-    return send(item, {kind: 'put', version: persistedVersion(item), text: item.draft, saveId: uuid()});
+    return send(item, {kind: 'put', version: persistedVersion(item), text: item.draft, saveId: uuid(),
+      ...(!persistedVersion(item) && item.label ? {label: item.label} : {}),
+      ...(item.label ? {expectedLabel: item.label} : {})});
   }
   async function deleteEntry(id) {
     const item = entry(id);

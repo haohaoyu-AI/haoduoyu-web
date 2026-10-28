@@ -99,7 +99,7 @@ export function projectUnifyMemosOfflineHistory(file,source) {
 export function projectUnifyMemosOfflineModules(files,readSource=read) {
   files=projectUnifyConflictResolutionModules(files,readSource);
   for(const file of files.filter(file=>unifyMemosOfflineAddedModules.includes(file))) {
-    const source=readSource(file);
+    const source=projectUnifyConflictResolutionHistory(file,readSource(file));
     assert.equal(memosOfflineHash(source),unifyMemosOfflineManifest().files[file].after,label+' exact current added module: '+file);
     assert.equal(projectUnifyMemosOffline(file,source),'',label+' added module projects to absence: '+file);
   }

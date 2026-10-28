@@ -5,7 +5,7 @@ import {createConflictPreparation} from './conflict-transport.mjs';
 import {recordResolutionAck, recordResolutionFailure} from './resolution-ledger.mjs';
 
 export const RETRY_DELAYS = Object.freeze([5000, 15000, 60000, 300000]);
-const prefixes = {todo: 'todo:', template: 'template:', note_entry: 'note-entry:',
+const prefixes = {unscheduled_todo: 'unscheduled_todo:', todo: 'todo:', template: 'template:', note_entry: 'note-entry:',
   memo_note: 'memo-note:', memo_group: 'memo-group:'};
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const active = operation => !['acked', 'archived'].includes(operation.status);
@@ -16,9 +16,9 @@ function canonicalRoute(operation) {
   const {entity_type: type, source_id: id, entity_id, method, path} = operation;
   if (!uuidPattern.test(id) || entity_id !== prefixes[type] + id) return false;
   const base = type === 'todo' ? '/todos' : type === 'template' ? '/todo-templates' :
-    type === 'note_entry' ? '/note-entries' : '/memos/' + (type === 'memo_note' ? 'notes' : 'groups');
-  if (['todo', 'template'].includes(type)) {
-    if (method === 'POST') return path === base || type === 'todo' && path === base + '/' + id + '/restore';
+    type === 'note_entry' ? '/note-entries' : type === 'unscheduled_todo' ? '/unscheduled-todos' : '/memos/' + (type === 'memo_note' ? 'notes' : 'groups');
+  if (['todo', 'template', 'unscheduled_todo'].includes(type)) {
+    if (method === 'POST') return path === base || ['todo', 'unscheduled_todo'].includes(type) && path === base + '/' + id + '/restore';
     return ['PATCH', 'DELETE'].includes(method) && path === base + '/' + id;
   }
   return (method === 'PUT' || type === 'note_entry' && method === 'DELETE') && path === base + '/' + id;
@@ -37,11 +37,16 @@ function dispatchCapabilities(options) {
       origin[1].startsWith('conflict:') && (!Object.hasOwn(operation, 'depends_on') || memoDependencies(operation));
   };
   const canDispatch = operation => {
+    const legacySafe = operation?.entity_type !== 'note_entry' || !Object.hasOwn(operation?.body || {}, 'label');
     const protocol = operation?.protocol === undefined ? 1 : operation.protocol;
     return Boolean(operation && Object.hasOwn(prefixes, operation.entity_type) && types.has(operation.entity_type) &&
       Number.isSafeInteger(protocol) && protocols.has(protocol) && canonicalRoute(operation) &&
-      (protocol === 1 && !Object.hasOwn(operation, 'depends_on') || protocol === 2 && memoDependencies(operation) ||
-        protocol === 3 && decision(operation)));
+      (protocol === 1 && legacySafe && operation.entity_type !== 'unscheduled_todo' && !Object.hasOwn(operation, 'depends_on') ||
+        protocol === 2 && memoDependencies(operation) ||
+        protocol === 3 && legacySafe && decision(operation) ||
+        protocol === 4 && operation.entity_type === 'unscheduled_todo' && !Object.hasOwn(operation, 'depends_on') ||
+        protocol === 5 && operation.entity_type === 'note_entry' && !Object.hasOwn(operation, 'depends_on') &&
+          (!operation.resolution_id || decision(operation))));
   };
   const requireDispatch = operation => { if (!canDispatch(operation)) throw needsUpgrade(); };
   return {canDispatch, requireDispatch};
@@ -64,17 +69,17 @@ function operationFor(input, uuid, time) {
   const {id, entity_id} = identity(input, uuid), type = input.entity_type;
   const method = input.method?.toUpperCase();
   const base = type === 'todo' ? '/todos' : type === 'template' ? '/todo-templates' :
-    type === 'note_entry' ? '/note-entries' : '/memos/' + (type === 'memo_note' ? 'notes' : 'groups');
-  const restore = type === 'todo' && method === 'POST' && input.path === base + '/' + id + '/restore';
-  const create = ['todo', 'template'].includes(type) && method === 'POST' && !restore;
-  const allowed = type === 'todo' ? ['POST', 'PATCH', 'DELETE'] : type === 'template' ? ['POST', 'PATCH', 'DELETE'] :
+    type === 'note_entry' ? '/note-entries' : type === 'unscheduled_todo' ? '/unscheduled-todos' : '/memos/' + (type === 'memo_note' ? 'notes' : 'groups');
+  const restore = ['todo', 'unscheduled_todo'].includes(type) && method === 'POST' && input.path === base + '/' + id + '/restore';
+  const create = ['todo', 'template', 'unscheduled_todo'].includes(type) && method === 'POST' && !restore;
+  const allowed = ['todo', 'unscheduled_todo'].includes(type) ? ['POST', 'PATCH', 'DELETE'] : type === 'template' ? ['POST', 'PATCH', 'DELETE'] :
     type === 'note_entry' ? ['PUT', 'DELETE'] : ['PUT'];
   if (!allowed.includes(method)) throw new TypeError('Unsupported offline mutation');
   const path = create ? base : base + '/' + id + (restore ? '/restore' : '');
   if (input.path && input.path !== path) throw new TypeError('Offline mutation path does not match its entity');
   const body = structuredClone(input.body || {});
   if (typeof body.text === 'string') {
-    body.text = ['todo', 'template'].includes(type) ? body.text.trim() : body.text.replace(/\r\n?/g, '\n');
+    body.text = ['todo', 'template', 'unscheduled_todo'].includes(type) ? body.text.trim() : body.text.replace(/\r\n?/g, '\n');
   }
   if (typeof body.title === 'string') body.title = body.title.trim();
   if (typeof body.body === 'string') body.body = body.body.replace(/\r\n?/g, '\n');
@@ -88,7 +93,7 @@ function operationFor(input, uuid, time) {
   }
   const saveId = body.save_id || uuid();
   if (!uuidPattern.test(saveId)) throw new TypeError('Offline save_id requires a UUID');
-  if (!['todo', 'template'].includes(type)) body.save_id = saveId.toLowerCase();
+  if (!['todo', 'template', 'unscheduled_todo'].includes(type)) body.save_id = saveId.toLowerCase();
   else delete body.save_id;
   const operation = {id: uuid(), scope: input.scope, entity_type: type, entity_id, source_id: id,
     protocol: input.protocol === undefined ? 1 : input.protocol,
@@ -132,7 +137,8 @@ function desired(operation, remote) {
 function expectedFields(operation, remote) {
   const base = operation.base;
   if (!base) return true;
-  const fields = operation.entity_type === 'todo' ? (deleted(remote) ? ['date'] : ['date', 'text']) : [];
+  const fields = operation.entity_type === 'todo' ? (deleted(remote) ? ['date'] : ['date', 'text']) :
+    operation.entity_type === 'unscheduled_todo' ? ['text'] : [];
   return fields.every(key => base[key] === undefined || remote[key] === base[key]);
 }
 function completeNoteRow(remote) {
@@ -145,7 +151,8 @@ function completeNoteRow(remote) {
 }
 
 function validAcknowledgement(operation, remote) {
-  if (operation.entity_type === 'note_entry' && !completeNoteRow(remote)) return false;
+  if (operation.entity_type === 'note_entry' && (!completeNoteRow(remote) || operation.protocol === 5 &&
+      (remote.labels_version !== 1 || !Object.hasOwn(remote, 'label') || remote.label !== operation.local?.label))) return false;
   if (operation.entity_type === 'template' && operation.method === 'DELETE') {
     return remote?.id === operation.source_id && remote.deleted === true;
   }
@@ -154,6 +161,16 @@ function validAcknowledgement(operation, remote) {
   }
   return Number.isSafeInteger(remote?.version) && remote.version === operation.expected_version + 1 &&
     desired(operation, remote) && expectedFields(operation, remote);
+}
+
+function acceptedLabelEvidence(operation, confirmed, entity) {
+  if (operation.entity_type !== 'note_entry' || operation.protocol !== 5) return null;
+  const proof = {version: confirmed.version, category: confirmed.category, date: confirmed.date,
+    created_at: confirmed.created_at, label: confirmed.label};
+  if (entity?.label_evidence && (entity.label_evidence.version > proof.version ||
+      entity.label_evidence.version === proof.version && JSON.stringify(entity.label_evidence) !== JSON.stringify(proof)))
+    throw new Error('标签证据已变化，原请求已保留。');
+  return proof;
 }
 
 function createContext(options) {
@@ -312,8 +329,9 @@ function storageMethods(context) {
       await tx.delete('outbox', operation.key);
       const remaining = (await tx.getAll('outbox')).some(value => value.scope === operation.scope &&
         value.entity_id === operation.entity_id && active(value));
+      const proof = acceptedLabelEvidence(operation, confirmed, entity);
       await tx.put('entities', {...entity, server: confirmed, local: remaining ? entity.local : confirmed,
-        dirty: remaining, conflict: null});
+        ...(proof ? {label_evidence: proof} : {}), dirty: remaining, conflict: null});
       await recordResolutionAck(tx, current, confirmed, now());
     });
   }
@@ -325,8 +343,9 @@ function remoteMethods(context) {
   const {network} = context;
   async function readRemote(operation) {
     const scope = operation.scope, type = operation.entity_type;
-    if (type === 'note_entry' || type === 'memo_note') {
-      try { return await network(scope, operation.path); }
+    if (type === 'note_entry' || type === 'memo_note' || type === 'unscheduled_todo') {
+      const path = type === 'unscheduled_todo' ? '/unscheduled-todos/' + operation.source_id : operation.path;
+      try { return await network(scope, path); }
       catch (error) { if (error.status === 404) return null; throw error; }
     }
     if (type === 'memo_group') {
@@ -359,13 +378,16 @@ function receiptMethods(context) {
     const note = operation.entity_type === 'note_entry', scope = operation.scope;
     const receiptPath = (note ? '/note-entries' : '/memos') + '/operations/' + operation.save_id;
     const receipt = await network(scope, receiptPath);
-    if (!receipt || typeof receipt.found !== 'boolean') throw new Error('Invalid offline save receipt');
+    if (!receipt || typeof receipt.found !== 'boolean' || note && operation.protocol === 5 && receipt.labels_version !== 1)
+      throw new Error('Invalid offline save receipt');
     const remote = await readRemote(operation);
     if (receipt.found) {
       const hash = note ? remote?.content_hash : remote && await memoHash(remote, operation.entity_type);
       const expectedHash = note ? receipt.content_hash : receipt.entity_hash;
       const kind = operation.entity_type === 'memo_note' ? 'notes' : 'groups';
       if (receipt.id === operation.source_id && receipt.version === operation.expected_version + 1 &&
+          (operation.protocol !== 5 || Object.hasOwn(receipt, 'label') && receipt.label === operation.local?.label &&
+            remote?.labels_version === 1 && remote.label === receipt.label) &&
           (note || receipt.kind === kind) && remote?.can_edit === true &&
           remote.version === receipt.version && hash === expectedHash && desired(operation, remote)) {
         return {result: 'ack', remote};
@@ -394,7 +416,7 @@ function receiptMethods(context) {
 function processingMethods(context) {
   const {receiptRead, readRemote, acknowledge, update, network, conflicts, now, owner} = context;
   async function reconcile(operation) {
-    if (!['todo', 'template'].includes(operation.entity_type)) return receiptRead(operation);
+    if (!['todo', 'template', 'unscheduled_todo'].includes(operation.entity_type)) return receiptRead(operation);
     const remote = await readRemote(operation);
     if (remote && remote.version === operation.expected_version + 1 && desired(operation, remote) &&
         expectedFields(operation, remote)) return {result: 'ack', remote};
@@ -429,7 +451,7 @@ function processingMethods(context) {
     try {
       const claimed = await update(operation, {claim_owner: owner});
       if (!claimed) return;
-      if (claimed.protocol === 3) {
+      if (claimed.protocol === 3 || claimed.protocol === 5 && claimed.resolution_id) {
         const origin = await context.db.transaction(['conflicts'], 'readonly', tx => tx.get('conflicts', claimed.origin_conflict));
         if (!origin || origin.scope !== claimed.scope || origin.resolved_at !== null ||
             origin.resolution?.id !== claimed.resolution_id || !origin.resolution.operation_keys.includes(claimed.key))

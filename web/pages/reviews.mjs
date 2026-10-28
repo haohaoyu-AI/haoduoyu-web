@@ -43,7 +43,7 @@ async function renderReviews(version = runtime.renderVersion, context, {isCurren
   "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
 }
 async function reviewRecordsModal() {
-  openModal('数据记录','<div id="media-records" role="status">正在读取…</div>',{drawer:true});
+  openModal('数据记录','<div id="media-records" role="status"></div>',{drawer:true});
   const ticket = runtime.modalRequestVersion, version = runtime.renderVersion, context = beginModalRequests();
   const isCurrent = () => ticket === runtime.modalRequestVersion && version === runtime.renderVersion;
   try {

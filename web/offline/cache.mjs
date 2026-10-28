@@ -14,6 +14,7 @@ export function offlineReadRoute(path) {
   if (['/work-reminders', '/note-entries/dates', '/daily-notes/dates'].includes(route)) return readOnlyRoute(path);
   if (route === '/todos' && [...query.keys()].every(key => key === 'date') &&
       query.getAll('date').length === 1 && dayPattern.test(query.get('date'))) return {kind: 'todo', date: query.get('date')};
+  if (route === '/unscheduled-todos' && !url.search) return {kind: 'unscheduled_todo'};
   if (route === '/todo-templates' && !url.search) return {kind: 'template'};
   if (route === '/accounts' && !url.search) return {kind: 'accounts'};
   if (route === '/overview') return {kind: 'overview'};
@@ -42,11 +43,12 @@ function safeAccounts(value) {
 function checkedResponse(route, value) {
   const invalid = () => Object.assign(new Error('读取结果不完整，未覆盖本机数据。'), {code: 'OFFLINE_RESPONSE_INVALID'});
   if (value === undefined || value === null) throw invalid();
-  if (['todo', 'template'].includes(route.kind) && (!Array.isArray(value.items) ||
+  if (['todo', 'template', 'unscheduled_todo'].includes(route.kind) && (!Array.isArray(value.items) ||
       value.items.some(row => !row || !uuidPattern.test(row.id) || !Number.isSafeInteger(row.version) || row.version < 1 ||
         typeof row.text !== 'string' || !row.text.trim() || row.text.length > 500 ||
         !Number.isFinite(Date.parse(row.created_at)) || !Number.isFinite(Date.parse(row.updated_at)) ||
-        route.kind === 'todo' && (row.date !== route.date || typeof row.completed !== 'boolean' || row.deleted_at !== null))))
+        route.kind === 'todo' && (row.date !== route.date || typeof row.completed !== 'boolean' || row.deleted_at !== null) ||
+        route.kind === 'unscheduled_todo' && (typeof row.completed !== 'boolean' || row.deleted_at !== null || Object.hasOwn(row, 'date')))))
     throw invalid();
   return route.kind === 'accounts' ? safeAccounts(value) : clone(value);
 }
@@ -61,13 +63,13 @@ function todoFence(value) {
     value.template_id ?? null, value.template_version ?? null, value.template_active ?? null];
 }
 function serverFence(rows, route, owner) {
-  if (!['todo', 'template'].includes(route.kind)) return null;
+  if (!['todo', 'template', 'unscheduled_todo'].includes(route.kind)) return null;
   return JSON.stringify(rows.filter(row => row.scope === owner && belongs(row, route)).map(row =>
     [row.entity_id, route.kind === 'todo' ? todoFence(row.server) : row.server || null, row.remote_missing === true])
     .sort((a, b) => a[0].localeCompare(b[0])));
 }
 function overlay(value, route, entities, dirtyOnly) {
-  if (!['todo', 'template'].includes(route.kind)) return value;
+  if (!['todo', 'template', 'unscheduled_todo'].includes(route.kind)) return value;
   const items = new Map(value.items.map(row => [row.id, row]));
   for (const entity of entities) {
     if (!belongs(entity, route) || dirtyOnly && !entity.dirty) continue;
@@ -92,7 +94,9 @@ function identityMethods(db, now) {
 }
 async function legacySnapshot(db, owner, route) {
   return db.transaction(['entities', 'meta'], 'readonly', async tx => {
-    const snapshot = await tx.get('meta', entityKey(owner, 'snapshot'));
+    const v1 = await tx.get('meta', entityKey(owner, 'snapshot'));
+    const v2 = await tx.get('meta', entityKey(owner, 'snapshot-v2'));
+    const snapshot = (v2?.value?.verified_at || 0) >= (v1?.value?.verified_at || 0) ? v2 || v1 : v1;
     if (snapshot?.value?.index?.complete !== true || snapshot.value.index.scope_id !== owner) throw missing();
     const entity = await tx.get('entities', entityKey(owner, 'legacy-' + route.category + ':' + route.date));
     const row = !entity?.remote_missing && entity?.server;
@@ -103,8 +107,8 @@ async function legacySnapshot(db, owner, route) {
     return {data, saved_at: snapshot.value.verified_at || null};
   });
 }
-export function createOfflineCache({db, getScope, now = Date.now, getGeneration = () => 0}) {
-  const notes = createNotesCache({db, getScope, now, getGeneration});
+export function createOfflineCache({db, getScope, now = Date.now, getGeneration = () => 0, labelsV1 = false}) {
+  const notes = createNotesCache({db, getScope, now, getGeneration, labelsV1});
   const scope = () => {
     const value = getScope();
     if (!value) throw Object.assign(new Error('请先联网核实当前身份，本机内容已保留。'), {code: 'OFFLINE_SCOPE_REQUIRED'});
@@ -125,7 +129,7 @@ export function createOfflineCache({db, getScope, now = Date.now, getGeneration 
       if (baseline !== undefined && baseline !== serverFence(rows, route, owner))
         throw Object.assign(new Error('本机刚同步了新版本，请重新读取完整列表。'), {code: 'OFFLINE_CACHE_CHANGED'});
       await tx.put('meta', {key, scope: owner, path, data, saved_at: now()});
-      if (!['todo', 'template'].includes(route.kind)) { active(); return; }
+      if (!['todo', 'template', 'unscheduled_todo'].includes(route.kind)) { active(); return; }
       const found = new Set(data.items.map(row => row.id));
       for (const old of rows) {
         if (old.scope === owner && belongs(old, route) && !found.has(offlineValue(old).id))
@@ -161,10 +165,10 @@ export function createOfflineCache({db, getScope, now = Date.now, getGeneration 
         if (scope() !== owner || getGeneration() !== generation) throw missing();
         return result;
       }
-      const local = route.kind === 'todo' ? (await entities(owner)).filter(row => row.dirty && belongs(row, route)) : [];
+      const local = ['todo', 'unscheduled_todo'].includes(route.kind) ? (await entities(owner)).filter(row => row.dirty && belongs(row, route)) : [];
       if (!local.length) throw missing();
-      const data = {date: route.date, today: new Date(now() + 8 * 3600000).toISOString().slice(0, 10),
-        completed_mode: 'strike', preferences_version: 0, items: [], offline_partial: true};
+      const data = route.kind === 'todo' ? {date: route.date, today: new Date(now() + 8 * 3600000).toISOString().slice(0, 10),
+        completed_mode: 'strike', preferences_version: 0, items: [], offline_partial: true} : {items: [], offline_partial: true};
       if (scope() !== owner || getGeneration() !== generation) throw missing();
       return {data: overlay(data, route, local, false), saved_at: null};
     }

@@ -37,8 +37,9 @@ test('0007 only adds work storage and preserves all eighteen existing tables and
   assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_daily_work_notes').first()).n,0);
   assert.deepEqual((await app.call('/daily-notes?date='+DAY)).data,old.data);
   const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url)));
-  assert.equal(journal.entries.length,9);assert.equal(journal.entries[7].tag,'0007_work_daily_notes');
+  assert.equal(journal.entries.length,11);assert.equal(journal.entries[7].tag,'0007_work_daily_notes');
   assert.equal(journal.entries[8].tag,'0008_workbench_updates');
+  assert.equal(journal.entries[9].tag,'0009_unscheduled_todos');assert.equal(journal.entries[10].tag,'0010_note_labels');
   const previous=JSON.parse(await readFile(new URL('../drizzle/meta/0006_snapshot.json',import.meta.url)));
   const current=JSON.parse(await readFile(new URL('../drizzle/meta/0007_snapshot.json',import.meta.url)));
   assert.equal(current.prevId,previous.id);assert.equal(Object.keys(current.tables).length,19);
@@ -98,11 +99,14 @@ test('v8 backups preserve work and tombstones, accept old v7 into empty targets 
   assert.equal(scoped.data.tables.daily_work_notes.length,1);assert.equal(scoped.data.tables.daily_work_notes[0].user_id,app.owner);
   const hidden=await app.call('/daily-notes?date='+DAY+'&category=work');
   assert.equal(hidden.data.text,'');assert.equal(hidden.data.deleted,true);
-  const backup=await exportBackup(app.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v9');
+  const backup=await exportBackup(app.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v10');
   assert.equal(backup.data.tables.daily_work_notes.length,2);assert.ok(backup.data.tables.daily_work_notes.every(row=>row.deleted_at));
   const empty=await fixture(t,{bootstrap:false});await restoreIntoEmptyDatabase(empty.db,backup,{allowEmptyRestore:true});
   assert.deepEqual((await empty.db.prepare('SELECT * FROM matrix_daily_work_notes').all()).results,backup.data.tables.daily_work_notes);
   const data=structuredClone(backup.data);data.format='haoduoyu-matrix-d1-v7';delete data.tables.daily_work_notes;
+  for(const name of ['unscheduled_todos','note_labels','note_entry_labels']) {
+    assert.deepEqual(data.tables[name],[],'historical fixture cannot hide new data: '+name);delete data.tables[name];
+  }
   for(const name of ['note_entries','work_reminders','account_profiles']) {
     assert.deepEqual(data.tables[name],[],'historical fixture cannot hide workbench data: '+name);delete data.tables[name];
   }

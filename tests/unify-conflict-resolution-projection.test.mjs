@@ -11,8 +11,9 @@ import {unifyMemosOfflinePaths,projectUnifyMemosOffline,projectUnifyMemosOffline
 import {unifyConflictResolutionBaseline,unifyConflictResolutionPatch,unifyConflictResolutionPaths,unifyConflictResolutionAddedModules,
   unifyConflictResolutionBefore,unifyConflictResolutionManifest,validateUnifyConflictResolutionDelta,projectUnifyConflictResolution,
   projectUnifyConflictResolutionHistory,projectUnifyConflictResolutionModules,conflictResolutionHash} from './unify-conflict-resolution-projection.mjs';
+import {projectOct28History,projectOct28Modules} from './oct28-projection.mjs';
 
-const root=new URL('../',import.meta.url),read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const root=new URL('../',import.meta.url),read=file=>projectOct28History(file,readFileSync(new URL('../'+file,import.meta.url),'utf8'));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
 const delta=unifyConflictResolutionManifest();
 const roots=['public','web','src','shared','db','drizzle','migration-candidates','scripts','.ci','.github','.openai',
@@ -35,7 +36,7 @@ test('conflict-resolution pins final D and the fixed E source with exactly fifte
 
 test('conflict-resolution preserves every one of the 71 D modules and adds exactly five reviewed modules',()=>{
   const released=git('ls-tree','-r','--name-only',unifyConflictResolutionBaseline,'web').trim().split('\n').filter(file=>file.endsWith('.mjs')).sort();
-  const current=readdirSync(new URL('../web/',import.meta.url),{recursive:true}).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort();
+  const current=projectOct28Modules(readdirSync(new URL('../web/',import.meta.url),{recursive:true}).filter(file=>file.endsWith('.mjs')).map(file=>'web/'+file).sort());
   assert.equal(released.length,71);assert.equal(current.length,76);
   assert.deepEqual(current,[...released,...unifyConflictResolutionAddedModules].sort());
   assert.deepEqual(projectUnifyConflictResolutionModules(current),released,'all original module paths remain exact');
@@ -98,7 +99,8 @@ test('conflict-resolution composes through fixed earlier layers while retaining 
 });
 
 test('conflict-resolution leaves backend, API routes, schema, permissions, runtime and release configuration unchanged',()=>{
-  assert.deepEqual(projectedChangedFiles(unifyConflictResolutionBaseline,roots,projectUnifyConflictResolution),[],
+  assert.deepEqual(projectedChangedFiles(unifyConflictResolutionBaseline,roots,
+    (file,source)=>projectUnifyConflictResolution(file,projectOct28History(file,source))),[],
     'all extra production edits, untracked paths and deletions remain visible');
   for(const path of ['runtime.json','package.json','package-lock.json','.github/scripts/release-policy.mjs',
     '.github/workflows/ci.yml','.github/workflows/cloudflare-manual-release.yml','.github/scripts/cloudflare-publish.mjs',

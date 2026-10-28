@@ -64,6 +64,20 @@
       "when": 1792948348746,
       "tag": "0008_workbench_updates",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793171400000,
+      "tag": "0009_unscheduled_todos",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793171400001,
+      "tag": "0010_note_labels",
+      "breakpoints": true
     }
   ]
 }

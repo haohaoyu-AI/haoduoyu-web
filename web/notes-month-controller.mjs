@@ -55,7 +55,7 @@ export function mountNotesMonth(root,{request,selectDate,identity}) {
     const current=++sequence,target=month;loaded='';days=new Map();
     find('#notes-month-grid').replaceChildren();find('#notes-month-history').replaceChildren();
     find('#notes-month-day-title').textContent='';
-    find('#notes-month-status').textContent='正在读取月记录…';
+    find('#notes-month-status').textContent='';
     try {
       const data=await request('/note-entries/month?month='+target);
       if(!active()||current!==sequence||target!==month)return;

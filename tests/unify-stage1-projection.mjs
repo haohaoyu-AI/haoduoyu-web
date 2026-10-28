@@ -4,6 +4,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {projectUnifyStage2History} from './unify-stage2-projection.mjs';
 import {projectUnifyCIBudget} from './unify-ci-budget-projection.mjs';
+import {projectOct28History} from './oct28-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const unifyStage1Baseline='6e2e445e8a3e9f7a4af055f4cf75046cf6e5cd6c';
@@ -38,6 +39,7 @@ export function unifyStage1Manifest() {
 }
 
 export function stage1Tokens(source) {
+  source=projectOct28History('public/tokens.css',source);
   assert.equal(stage1Hash(source),unifyStage1Manifest().files['public/tokens.css'].after,label+' token definitions');
   const clean=source.replace(/\/\*[\s\S]*?\*\//g,'').replace(/^@charset "UTF-8";\s*/,'').trim();
   assert.match(clean,/^:root\s*\{[^{}]*\}$/s,label+' declarations-only token sheet');

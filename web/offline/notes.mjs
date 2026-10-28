@@ -30,17 +30,23 @@ export function isNoteApiRow(row) {
     (row.deleted_at === null || timestamp(row.deleted_at)) && row.deleted === (row.deleted_at !== null) &&
     Number.isSafeInteger(row.change_seq) && row.change_seq >= 0 && hashPattern.test(row.content_hash));
 }
-function checkedResponse(route, value) {
+function awareLabel(row) {
+  return row?.labels_version === 1 && Object.hasOwn(row, 'label') && (row.label === null ||
+    typeof row.label === 'string' && row.label.isWellFormed() && row.category === 'life' &&
+    row.label === row.label.trim().normalize('NFC') && row.label.length > 0 && [...row.label].length <= 32 &&
+    !['生活', '工作'].includes(row.label) && !/[\u0000-\u001f\u007f]/.test(row.label));
+}
+function checkedResponse(route, value, labelsV1) {
   const invalid = () => fail('碎碎念读取结果不完整，未覆盖本机内容。', 'OFFLINE_RESPONSE_INVALID');
   if (route.kind === 'note_entry') {
-    if (!isNoteApiRow(value) || value.id !== route.id) throw invalid();
+    if (!isNoteApiRow(value) || value.id !== route.id || labelsV1 && !awareLabel(value)) throw invalid();
     return structuredClone(value);
   }
-  if (!isObject(value) || value.category !== route.category || value.date !== route.date ||
+  if (!isObject(value) || labelsV1 && value.labels_version !== 1 || value.category !== route.category || value.date !== route.date ||
       typeof value.can_edit !== 'boolean' || !Array.isArray(value.entries) || value.entries.length > 200) throw invalid();
   const ids = new Set();
   for (const row of value.entries) {
-    if (!isNoteApiRow(row) || row.category !== route.category || row.date !== route.date || row.deleted ||
+    if (!isNoteApiRow(row) || labelsV1 && !awareLabel(row) || row.category !== route.category || row.date !== route.date || row.deleted ||
         row.can_edit !== value.can_edit || ids.has(row.id)) throw invalid();
     ids.add(row.id);
   }
@@ -61,7 +67,11 @@ function localValue(entity, capability) {
   if (!row || !uuidPattern.test(row.id || row.source_id) || !['life', 'work'].includes(row.category) ||
       !validDay(row.date) || !Number.isSafeInteger(row.version) || row.version < 1) throw missing();
   if (!removed(row) && typeof row.text !== 'string') throw missing();
+  const evidence = entity.label_evidence;
+  const matches = evidence && evidence.version === row.version && evidence.category === row.category &&
+    evidence.date === row.date && evidence.created_at === row.created_at;
   return {id: row.id || row.source_id, category: row.category, date: row.date,
+    ...(awareLabel(row) ? {labels_version: 1, label: row.label} : matches ? {labels_version: 1, label: evidence.label} : {}),
     text: typeof row.text === 'string' ? row.text : entity.local?.text ?? entity.api_server?.text ?? '',
     version: row.version, deleted: removed(row), can_edit: capability === true,
     created_at: row.created_at || null, updated_at: row.updated_at || null};
@@ -73,14 +83,19 @@ function realServer(entity) {
 function projectEntity(entity, capability, operations, conflicts) {
   const local = localValue(entity, capability), server = realServer(entity);
   if (!entity.dirty && server?.version === local.version && server.deleted === local.deleted &&
-      (server.deleted || server.text === local.text)) return {...structuredClone(server), can_edit: capability === true};
+      (server.deleted || server.text === local.text)) {
+    if (awareLabel(server) && local.labels_version === 1 && server.label !== local.label)
+      throw fail('标签记录发生变化，请联网核对。', 'OFFLINE_CACHE_CHANGED');
+    return {...structuredClone(server), ...(local.labels_version === 1 ? {labels_version: 1, label: local.label} : {}),
+      can_edit: capability === true};
+  }
   const pending = operations.filter(row => row.entity_id === entity.entity_id && liveOperation(row)).sort((a, b) => a.seq - b.seq).at(-1);
   const conflict = conflicts.find(row => row.key === entity.conflict && row.resolved_at === null) ||
     conflicts.filter(row => row.entity_id === entity.entity_id && row.resolved_at === null).at(-1) || null;
   return localDocument({local, server: entity.dirty ? server : null, operation: entity.dirty ? pending || null : null,
     conflict: entity.dirty ? conflict : null});
 }
-function notesContext({db, getScope, getGeneration = () => 0, now = Date.now}) {
+function notesContext({db, getScope, getGeneration = () => 0, now = Date.now, labelsV1 = false}) {
   const capture = () => {
     const scope = getScope();
     if (!scope) throw fail('请先联网核实身份，本机内容已保留。', 'OFFLINE_SCOPE_REQUIRED');
@@ -93,7 +108,7 @@ function notesContext({db, getScope, getGeneration = () => 0, now = Date.now}) {
   const load = (tx, scope) => Promise.all(['entities', 'outbox', 'conflicts'].map(store => tx.getAll(store))).then(rows =>
     Object.fromEntries(['entities', 'outbox', 'conflicts'].map((name, index) => [name, rows[index].filter(row => row.scope === scope)])));
   const capabilityKey = scope => entityKey(scope, 'capability:note-entry');
-  return {db, capture, load, capabilityKey, now};
+  return {db, capture, load, capabilityKey, now, labelsV1};
 }
 function readingMethods(context) {
   const {db, capture, load, capabilityKey} = context;
@@ -150,7 +165,7 @@ function writingMethods(context) {
   async function write(path, route, value, {baseline} = {}) {
     route ||= noteReadRoute(path);
     if (!route) throw missing();
-    const owner = capture(), data = checkedResponse(route, value);
+    const owner = capture(), data = checkedResponse(route, value, context.labelsV1);
     const incoming = route.kind === 'note_entry' ? [data] : data.entries;
     await db.transaction(['entities', 'meta'], 'readwrite', async tx => {
       owner.active();
@@ -167,7 +182,13 @@ function writingMethods(context) {
         const old = await tx.get('entities', key);
         if (Math.max(old?.server?.version || 0, old?.api_server?.version || 0) > row.version)
           throw fail('读取结果早于本机已确认版本，原文已保留。', 'OFFLINE_CACHE_CHANGED');
-        await tx.put('entities', {...old, key, scope: owner.scope, entity_id, server: row, api_server: row, remote_missing: false});
+        const proof = awareLabel(row) ? {version: row.version, category: row.category, date: row.date,
+          created_at: row.created_at, label: row.label} : null;
+        if (proof && old?.label_evidence && (old.label_evidence.version > proof.version ||
+            old.label_evidence.version === proof.version && JSON.stringify(old.label_evidence) !== JSON.stringify(proof)))
+          throw fail('标签证据已变化，请联网核对。', 'OFFLINE_CACHE_CHANGED');
+        await tx.put('entities', {...old, key, scope: owner.scope, entity_id, server: row, api_server: row,
+          ...(proof ? {label_evidence: proof} : {}), remote_missing: false});
       }
       await tx.put('meta', {key: entityKey(owner.scope, 'get:' + path), scope: owner.scope, path, data, saved_at: now()});
       await tx.put('meta', {key: capabilityKey(owner.scope), scope: owner.scope, can_edit: data.can_edit, verified_at: now()});

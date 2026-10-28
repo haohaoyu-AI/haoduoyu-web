@@ -29,6 +29,33 @@ test('profile normalization identifies only known public homepage paths and stri
   assert.equal(wechat.profile_url, 'https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=MzAxMDAwMDAwMA%3D%3D');
 });
 
+test('Toutiao padded public profile tokens normalize literal and encoded padding to one identity', () => {
+  const plain = normalizeAccountProfile('https://www.toutiao.com/c/user/token/SYNTHETIC_token-123=/?');
+  const encoded = normalizeAccountProfile('https://m.toutiao.com/c/user/token/SYNTHETIC_token-123%3d/?source=synthetic');
+  assert.deepEqual(plain, encoded);
+  assert.equal(plain.profile_url, 'https://www.toutiao.com/c/user/token/SYNTHETIC_token-123=/');
+  assert.equal(plain.platform_identity, 'toutiao:token:SYNTHETIC_token-123=');
+  assert.equal(normalizeAccountProfile('https://www.toutiao.com/c/user/token/SYNTHETIC_token-123%3D%3d/').platform_identity,
+    'toutiao:token:SYNTHETIC_token-123==');
+  for (const token of ['SYNTHETIC=token', 'SYNTHETIC===', 'SYNTHETIC%2ftoken', 'SYNTHETIC%3Ftoken']) {
+    assert.throws(() => normalizeAccountProfile('https://www.toutiao.com/c/user/token/' + token + '/'),
+      error => error.status === 400 && error.code === 'VALIDATION_ERROR');
+  }
+});
+
+test('creating a padded Toutiao profile reuses the same account for encoded padding', async t => {
+  const app = await setup(t), original = await count(app, 'accounts');
+  const base = 'https://www.toutiao.com/c/user/token/SYNTHETIC_token-123';
+  const created = await post(app, {name: '合成头条主页', profile_url: base + '=/'});
+  assert.equal(created.status, 201, created.text);
+  const duplicate = await post(app, {name: '不重复创建', profile_url: base + '%3D/?source=synthetic'});
+  assert.equal(duplicate.status, 200, duplicate.text);
+  assert.equal(duplicate.data.profile_reused, true);
+  assert.equal(duplicate.data.id, created.data.id);
+  assert.equal(await count(app, 'accounts'), original + 1);
+  assert.equal(await count(app, 'account_profiles'), 1);
+});
+
 test('profile validation rejects unsafe URLs, hostname tricks, articles, dashboard URLs and platform mismatch', () => {
   for (const input of [null, 1, {}, '', 'javascript:alert(1)', 'data:text/html,profile', 'file:///tmp/profile',
     '//www.zhihu.com/people/a', 'https://user:pass@www.zhihu.com/people/a', 'https://www.zhihu.com:444/people/a',

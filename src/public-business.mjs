@@ -6,12 +6,12 @@ const buckets=new Map();
 const reads=new Set(['/auth/me','/accounts','/account-profiles','/articles','/observations','/daily-metrics','/dashboard','/overview','/due-reviews',
   '/article-reconciliation','/todos','/todo-templates','/todo-preferences','/export']);
 export function publicBusinessRoute(route,method) {
-  if(method==='GET') return reads.has(route)||/^\/articles\/[^/]+$/.test(route);
+  if(method==='GET') return reads.has(route)||/^\/articles\/[^/]+$/.test(route)||/^\/unscheduled-todos(?:\/[^/]+)?$/.test(route);
   if(method==='POST') return ['/accounts','/articles','/observations','/daily-metrics','/todos','/todo-templates'].includes(route)||
-    /^\/todos\/[^/]+\/(restore|template)$/.test(route);
+    /^\/todos\/[^/]+\/(restore|template)$/.test(route)||route==='/unscheduled-todos'||/^\/unscheduled-todos\/[^/]+\/restore$/.test(route);
   if(method==='PUT') return /^\/(accounts|articles)\/[^/]+$/.test(route);
-  if(method==='PATCH') return route==='/articles'||route==='/todo-preferences'||/^\/(todos|todo-templates)\/[^/]+$/.test(route);
-  return method==='DELETE'&&/^\/(todos|todo-templates|accounts|articles|observations|daily-metrics)\/[^/]+$/.test(route);
+  if(method==='PATCH') return route==='/articles'||route==='/todo-preferences'||/^\/(todos|todo-templates|unscheduled-todos)\/[^/]+$/.test(route);
+  return method==='DELETE'&&/^\/(todos|todo-templates|unscheduled-todos|accounts|articles|observations|daily-metrics)\/[^/]+$/.test(route);
 }
 
 // Bounded, best-effort per-isolate protection before any D1 access. Cloudflare's

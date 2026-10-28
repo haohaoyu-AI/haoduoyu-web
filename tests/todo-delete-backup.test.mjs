@@ -12,6 +12,9 @@ const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
 function olderData(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  if(version<10)for(const name of ['unscheduled_todos','note_labels','note_entry_labels']) {
+    assert.deepEqual(data.tables[name],[],'historical fixture cannot hide new data: '+name);delete data.tables[name];
+  }
   if(version<9)for(const name of ['note_entries','work_reminders','account_profiles']) {
     assert.deepEqual(data.tables[name],[],'historical fixture cannot hide workbench data: '+name);delete data.tables[name];
   }
@@ -54,7 +57,7 @@ test('v7 backup scopes preferences to the session and preserves deleted todos th
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v9');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v10');
   assert.equal(http.data.tables.todo_preferences.length,1);
   assert.equal(http.data.tables.todo_preferences[0].user_id,source.owner);
   assert.equal(http.data.tables.todo_preferences[0].completed_mode,'hide');

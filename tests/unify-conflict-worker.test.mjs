@@ -21,9 +21,9 @@ async function setup(t) {
     PUBLIC_BUSINESS_ACCOUNT_IDS: '[]', DAILY_NOTES_OWNER_ID: owner, MEMOS_OWNER_ID: owner};
   const db = createMemoryDB(), calls = [], clock = {value: Date.now()}, source = {online: true, afterResponse: null}, runtimes = [];
   t.after(() => { source.online = false; for (const runtime of runtimes) runtime.stop(); });
-  async function live(path, {method = 'GET', body, signal} = {}) {
+  async function live(path, {method = 'GET', body, signal, headers: extraHeaders = {}} = {}) {
     const call = {path, method, body: body === undefined ? null : structuredClone(body)}; calls.push(call);
-    const headers = {Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken, Origin: app.origin};
+    const headers = {Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken, Origin: app.origin, ...extraHeaders};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     const response = await worker.fetch(new Request(app.origin + '/api/v1' + path, {method, headers, signal,
       ...(body === undefined ? {} : {body: JSON.stringify(body)})}), env);
@@ -43,12 +43,28 @@ async function setup(t) {
   }
   return {db, calls, clock, source, live, runtime, date: beijingDay(clock.value)};
 }
+// The synthetic clock is frozen: an overlapping sync may legitimately record an
+// unknown network result while the fixture switches offline. Advance only to the
+// persisted retry deadline and require the same durable operation to be reconciled.
+async function syncUntil(f, runtime, predicate) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await runtime.sync();
+    const queue = await runtime.queue();
+    if (await predicate(queue)) return;
+    const retry = queue.operations.filter(row => row.status === 'unknown' || row.status === 'retry');
+    if (retry.length) {
+      assert.ok(retry.every(row => Number.isFinite(row.next_attempt_at) && row.next_attempt_at > 0));
+      f.clock.value = Math.max(f.clock.value, ...retry.map(row => row.next_attempt_at));
+    }
+  }
+  assert.fail('the durable operation did not reach the expected conflict or server acknowledgement');
+}
 async function clash(f, runtime, path, method, local, remote) {
   f.source.online = false; await runtime.call(path, {method, body: local});
   const operation = (await runtime.queue()).operations.find(row => row.path === path);
   assert.ok(operation, 'the original local request must be durable');
   await f.live(path, {method, body: remote});
-  f.source.online = true; await runtime.sync();
+  f.source.online = true; await syncUntil(f, runtime, queue => queue.conflicts.some(row => row.entity_id === operation.entity_id));
   const conflict = (await runtime.queue()).conflicts.find(row => row.entity_id === operation.entity_id);
   assert.ok(conflict, 'the real Worker version conflict must retain both bodies');
   return {conflict, operation};
@@ -58,11 +74,11 @@ async function choose(f, runtime, conflict, choice, options = {}) {
   assert.ok(result.resolution, result.resolution_message || 'a real decision must be queued');
   assert.equal(result.resolution.state, 'queued'); assert.equal(result.resolved_at, null);
   const operations = (await runtime.queue()).operations.filter(row => row.resolution_id === result.resolution.id);
-  assert.ok(operations.length); assert.ok(operations.every(row => row.protocol === 3 && row.resolution_receipt === 1));
+  assert.ok(operations.length); assert.ok(operations.every(row => row.protocol === (conflict.operation.protocol === 5 ? 5 : 3) && row.resolution_receipt === 1));
   return {result, operations};
 }
 async function complete(f, runtime, key) {
-  f.source.online = true; await runtime.sync();
+  f.source.online = true; await syncUntil(f, runtime, async () => (await read(f.db, 'conflicts', key))?.resolution?.state === 'synced');
   const conflict = await read(f.db, 'conflicts', key);
   assert.equal(conflict.resolution.state, 'synced'); assert.equal(conflict.resolved_at, f.clock.value);
   assert.ok(conflict.resolution.acknowledgements.length); return conflict;

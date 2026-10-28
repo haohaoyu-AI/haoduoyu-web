@@ -7,7 +7,7 @@ import {createDraftJournal} from './drafts.mjs';
 import {captureConflictDraftGuard} from './conflict-draft-guards.mjs';
 import {createMemoOfflineAdapter, memoRoute} from './memos.mjs';
 
-export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: true});
+export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: true, snapshotV2: true, labelsV1: true});
 const scopePattern = /^[a-f0-9]{64}$/;
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const networkFailure = error => error?.code === 'NETWORK_UNAVAILABLE' || error?.code === 'OFFLINE_NETWORK';
@@ -31,18 +31,20 @@ async function identityProbe(context, path, options = {}) {
 function writableRoute(path, options, features) {
   if (!features.todos) return null;
   const method = (options.method || 'GET').toUpperCase();
-  if (['/todos', '/todo-templates'].includes(path) && method === 'POST')
-    return {type: path === '/todos' ? 'todo' : 'template', create: true};
-  const match = /^\/(todos|todo-templates)\/([a-f0-9-]{36})(\/restore)?$/i.exec(path);
+  if (['/todos', '/todo-templates', '/unscheduled-todos'].includes(path) && method === 'POST')
+    return {type: path === '/todos' ? 'todo' : path === '/unscheduled-todos' ? 'unscheduled_todo' : 'template', create: true};
+  const match = /^\/(todos|todo-templates|unscheduled-todos)\/([a-f0-9-]{36})(\/restore)?$/i.exec(path);
   if (!match || !uuidPattern.test(match[2])) return null;
-  if (match[3] && (method !== 'POST' || match[1] !== 'todos') ||
+  if (match[3] && (method !== 'POST' || !['todos', 'unscheduled-todos'].includes(match[1])) ||
       !match[3] && !['PATCH', 'DELETE'].includes(method)) return null;
-  return {type: match[1] === 'todos' ? 'todo' : 'template', id: match[2].toLowerCase(), restore: Boolean(match[3])};
+  return {type: match[1] === 'todos' ? 'todo' : match[1] === 'unscheduled-todos' ? 'unscheduled_todo' : 'template',
+    id: match[2].toLowerCase(), restore: Boolean(match[3])};
 }
 function checkedBody(route, options, uuid) {
   const body = structuredClone(options.body || {}), method = (options.method || 'GET').toUpperCase();
   const required = route.create ? (route.type === 'todo' ? ['id', 'date', 'text'] : ['id', 'text']) :
     route.type === 'todo' ? (route.restore || method === 'DELETE' ? ['date', 'version'] : ['completed', 'version']) :
+      route.type === 'unscheduled_todo' ? (route.restore || method === 'DELETE' ? ['version'] : ['completed', 'version']) :
       method === 'DELETE' ? ['version'] : ['text', 'version'];
   if (route.create && !body.id) body.id = uuid();
   const allowed = [...required, ...(route.create && route.type === 'todo' ? ['template_id'] : [])];
@@ -69,7 +71,8 @@ function runtimeContext(options) {
     conflicts: 0, unsupported: 0, lastSuccess: null, cachedAt: null, error: null, ready: true};
   const listeners = new Set();
   const emit = () => { for (const callback of listeners) callback({...state}); };
-  const cache = createOfflineCache({db, getScope: () => state.scope, getGeneration: () => context.generation, now});
+  const cache = createOfflineCache({db, getScope: () => state.scope, getGeneration: () => context.generation, now,
+    labelsV1: features.labelsV1 === true});
   const context = {db, request, now, uuid, online, onIdentity, features, state, cache, emit, listeners,
     generation: 0, authFlight: null, syncFlight: null, timer: null, channel: null, stopped: false};
   const send = async (path, opts) => {
@@ -82,7 +85,9 @@ function runtimeContext(options) {
     try {
       if (opts?.method && !['GET', 'HEAD'].includes(opts.method.toUpperCase())) await context.verifyScope();
       if (!state.verifiedScope || owner !== state.scope || generation !== context.generation) throw offlineError();
-      const result = await request(path, opts);
+      const labelOpts = features.labelsV1 && path.startsWith('/note-entries') ?
+        {...opts, headers: {...opts?.headers, 'X-Note-Labels-Version': '1'}} : opts;
+      const result = await request(path, labelOpts);
       if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化。', 'OFFLINE_SCOPE_CHANGED');
       return result;
     } catch (error) {
@@ -91,11 +96,12 @@ function runtimeContext(options) {
     }
   };
   context.outbox = createOutbox({db, request: send, getScope: () => state.scope, now, uuid, timeout: options.timeout,
-    enabledTypes: [...(features.todos ? ['todo', 'template'] : []), ...(features.notes ? ['note_entry'] : []),
+    enabledTypes: [...(features.todos ? ['todo', 'template', 'unscheduled_todo'] : []), ...(features.notes ? ['note_entry'] : []),
       ...(features.memos ? ['memo_note', 'memo_group'] : [])],
-    supportedProtocols: features.memos ? [1, 2, 3] : [1, 3], supportedDependencies: features.memos === true,
+    supportedProtocols: features.memos ? [1, 2, 3, 4, 5] : [1, 3, 4, 5], supportedDependencies: features.memos === true,
     resolutionReceipts: true});
   context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
+  context.snapshotV2 = features.snapshotV2 === true ? createSnapshotSync({db, request: send, getScope: () => state.scope, now, version: 2}) : null;
   context.memos = createMemoOfflineAdapter({db, cache, outbox: context.outbox, getScope: () => state.scope,
     getGeneration: () => context.generation, now, uuid});
   return context;
@@ -231,6 +237,7 @@ function syncActions(context) {
       if (state.verifiedScope) await context.cache.captureDocuments();
       if (state.verifiedScope) {
         await snapshot.pull({date: today(now)});
+        if (context.snapshotV2) await context.snapshotV2.pull({date: today(now)});
         if (context.lastTodoPath) {
           const date = offlineReadRoute(context.lastTodoPath).date;
           if ((await context.cache.entities()).some(row => row.needs_api_refresh && row.server?.date === date))
@@ -250,7 +257,15 @@ function syncActions(context) {
     return {...state};
   }
   function sync() {
-    if (!context.syncFlight) context.syncFlight = run().finally(() => { context.syncFlight = null; });
+    if (context.syncFlight) {
+      if (online()) context.syncAgain = true;
+      return context.syncFlight;
+    }
+    context.syncFlight = run().finally(() => {
+      context.syncFlight = null;
+      const again = context.syncAgain; context.syncAgain = false;
+      if (again && !context.stopped) queueMicrotask(() => { if (!context.stopped && online()) void sync(); });
+    });
     return context.syncFlight;
   }
   function scheduleRetry() {
@@ -290,6 +305,10 @@ async function rememberRead(context, path, value, baseline, memo) {
     context.state.error = error.message; context.emit(); return value;
   }
 }
+function labelRequestOptions(path, options, features) {
+  return features.labelsV1 && path.startsWith('/note-entries') ?
+    {...options, headers: {...options.headers, 'X-Note-Labels-Version': '1'}} : options;
+}
 function mutationActions(context) {
   const {state, cache, now, uuid, outbox, features} = context;
   async function mutate(path, options, route, guard) {
@@ -318,7 +337,7 @@ function mutationActions(context) {
     }
     active();
     const {entity} = await outbox.enqueue({scope: owner, entity_type: route.type, entity_id: id,
-      method, path, body, base, local, assertActive: active});
+      method, path, body, base, local, ...(route.type === 'unscheduled_todo' ? {protocol: 4} : {}), assertActive: active});
     active();
     await context.refresh(); context.broadcast();
     if (context.online()) context.scheduleRetry();
@@ -333,7 +352,7 @@ function mutationActions(context) {
     if (noteRoute) return context.noteMutations.mutate(path, options, noteRoute, guard);
     if (path === '/auth/me' && method === 'GET') return options.context || options.signal ? context.authenticate(options) : context.verify();
     if (['/auth/login', '/auth/logout'].includes(path) && method === 'POST') {
-      const value = await context.request(path, options); await context.invalidate({forget: true}); return value;
+      const value = await context.request(path, labelRequestOptions(path, options, features)); await context.invalidate({forget: true}); return value;
     }
     if (route) return mutate(path, options, route, guard);
     if (memo && method === 'PUT') return mutateMemo(context, path, options, guard);
@@ -345,7 +364,7 @@ function mutationActions(context) {
       const owner = state.scope, generation = context.generation;
       const baseline = owner ? await (memo ? context.memos.fence(path) : cache.fence(path)) : undefined;
       guard();
-      const value = await context.request(path, options);
+      const value = await context.request(path, labelRequestOptions(path, options, features));
       guard();
       if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化，本次读取已取消。', 'OFFLINE_SCOPE_CHANGED');
       if (offlineReadRoute(path).kind === 'todo') state.partial = false;

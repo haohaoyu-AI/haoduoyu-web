@@ -15,9 +15,9 @@ export function paintWorkReminders(data, error = '') {
   const message = root.querySelector('#reminder-error');
   message.hidden = !error; message.textContent = error;
   const rows = data?.items || [];
-  root.querySelector('#reminder-list').innerHTML = data?.loading ? '<p role="status">正在读取…</p>' : rows.length ? rows.map(row =>
+  root.querySelector('#reminder-list').innerHTML = rows.length ? rows.map(row =>
     '<article class="card reminder-card"><time datetime="' + e(row.updated_at) + '">' +
     e(new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false})
-      .format(new Date(row.updated_at))) + '</time><p>' + e(row.summary) + '</p></article>').join('') :
+      .format(new Date(row.updated_at))) + '</time><p>' + e(row.summary) + '</p></article>').join('') : data?.loading ? '' :
     '<div class="card reminder-empty">暂无工作提醒</div>';
 }

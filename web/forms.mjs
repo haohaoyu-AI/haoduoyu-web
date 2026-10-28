@@ -1,3 +1,4 @@
+import {submitUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
 import { isRequestAbort } from "./core/requests.mjs";
 import { init, renderPage, renderShell } from "./controller.mjs";
 import { api } from "./core/api.mjs";
@@ -18,7 +19,6 @@ async function submitSaveViewForm({ data }) {
   state.savedViews = state.savedViews.filter((v) => v.name !== saved.name).concat(saved).slice(-20);
   storage.set("haoduoyu.views", JSON.stringify(state.savedViews));
   closeModal();
-  toast("常用视图已保存在此浏览器。");
   await renderPage();
   return;
 }
@@ -32,7 +32,6 @@ async function submitArticleForm({ form, data }) {
   if (!saved) return;
   closeModal();
   const epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
-  toast(form.dataset.id ? "文章已更新。" : "文章已保存。");
   try { await renderPage(); } catch {
     if (epoch === runtime.sessionEpoch && ticket === runtime.modalRequestVersion) {
       toast("文章已保存，但列表暂时无法刷新，请稍后刷新页面。", true);
@@ -58,7 +57,6 @@ async function submitReviewForm({ form, data }) {
   }
   await api(path, { method: "POST", body });
   closeModal();
-  toast("数据已保存，总览会同步更新。");
   await renderPage();
   return;
 }
@@ -82,7 +80,7 @@ async function submitAccountForm({ form, data, values }) {
   state.accounts = accounts.sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - ["toutiao", "zhihu",
   "wechat", "other"].indexOf(b.platform));
   closeModal();
-  toast(saved.profile_reused ? `该主页已关联「${saved.name}」，已使用现有账号。` : "运营账号已保存。");
+  if (saved.profile_reused) toast(`该主页已关联「${saved.name}」，已使用现有账号。`);
   renderShell();
   return;
 }
@@ -129,6 +127,11 @@ async function handleFormSubmit(event) {
     event.preventDefault();
     const handler = form.id === "todo-template-form" ? submitTodoTemplateForm : submitTodoTemplateEdit;
     await handler({ form, data: Object.fromEntries(new FormData(form)) });
+    return;
+  }
+  if (form.id === "todo-future-form") {
+    event.preventDefault();
+    await submitUnscheduledTodo({data: Object.fromEntries(new FormData(form))});
     return;
   }
   if (form.id === "todo-form") {

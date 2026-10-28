@@ -54,7 +54,7 @@ test('migrated account/security/log templates retain controls and escape busines
 test('late modal failures are ignored while current failures still reach the caller',async()=>{
  for(const call of ["articleDetail('a')","articleModal('a')","reviewModal()"]){
   const c=client();c.run("let rejectOld;api=()=>new Promise((_,reject)=>rejectOld=reject)");c.run('let pending='+call);c.run("closeModal();rejectOld(new Error('old failure'))");await c.run('pending');assert.equal(c.nodes.get('#overlay').innerHTML,'');
-  c.run("let rejectCurrent;api=()=>new Promise((_,reject)=>rejectCurrent=reject)");c.run('let current='+call);c.run("rejectCurrent(new Error('current failure'))");await assert.rejects(c.run('current'),/current failure/);
+  c.run("let rejectCurrent;api=()=>new Promise((_,reject)=>rejectCurrent=reject)");c.run('let oct28CurrentModalRequest='+call);c.run("rejectCurrent(new Error('current failure'))");await assert.rejects(c.run('oct28CurrentModalRequest'),/current failure/);
  }
 });
 

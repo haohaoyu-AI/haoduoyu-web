@@ -1,6 +1,6 @@
 import {isNoteApiRow} from './notes.mjs';
 
-const prefixes = {todo: 'todo:', template: 'template:', note_entry: 'note-entry:',
+const prefixes = {unscheduled_todo: 'unscheduled_todo:', todo: 'todo:', template: 'template:', note_entry: 'note-entry:',
   memo_note: 'memo-note:', memo_group: 'memo-group:'};
 const uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 const object = value => Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -35,6 +35,7 @@ function deletion(row) {
 function basicRemote(row, id, type) {
   if (!identity(row, id, type) || !version(row.version) || !deletion(row)) invalid();
   if (type === 'todo' && (!day(row.date) || !removed(row) && (!shortText(row.text) || typeof row.completed !== 'boolean'))) invalid();
+  if (type === 'unscheduled_todo' && (!removed(row) && (!shortText(row.text) || typeof row.completed !== 'boolean') || own(row, 'date'))) invalid();
   if (type === 'template' && !removed(row) && !shortText(row.text)) invalid();
   return structuredClone(row);
 }
@@ -106,7 +107,11 @@ export function createConflictPreparation({readRemote, network}) {
       return {remote: memoDetail(row, id, index), groups: index.groups};
     }
     const remote = await guarded(() => readRemote(operation), assertActive);
-    if (remote !== null) return {remote: type === 'note_entry' ? noteRemote(remote, id) : basicRemote(remote, id, type), groups: []};
+    if (remote !== null) {
+      if (type === 'note_entry' && operation.protocol === 5 &&
+          (remote.labels_version !== 1 || !own(remote, 'label'))) invalid();
+      return {remote: type === 'note_entry' ? noteRemote(remote, id) : basicRemote(remote, id, type), groups: []};
+    }
     if (type === 'note_entry') {
       const local = own(conflict, 'review_local') ? conflict.review_local : conflict.local;
       if (!object(local) || !['life', 'work'].includes(local.category) || !day(local.date)) invalid();

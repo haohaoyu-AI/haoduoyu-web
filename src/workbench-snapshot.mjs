@@ -9,6 +9,7 @@ const format='haoduoyu-workbench-snapshot-v1',timezone='Asia/Shanghai';
 const invalid=()=>fail(503,'SNAPSHOT_DATA','工作台数据无法完整投影，未返回部分内容');
 const compare=(a,b)=>a.entity_id<b.entity_id?-1:a.entity_id>b.entity_id?1:0;
 const collections=['todos','life_notes','work_notes','work_reminders','memo_groups','memos'];
+const v2Collections=[...collections,'unscheduled_todos','note_labels'];
 
 function day(value) {
   try {return snapshotDate(value);}catch {invalid();}
@@ -44,7 +45,7 @@ function record(row,{prefix,type,source,category=null,date=row.date??null,delete
 // Every source is loaded completely even for a selected date. This permits an
 // identical full manifest on both endpoints, including old edits, date moves,
 // and tombstones. A budget failure is an error, never a partial success.
-export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memosOwnerId},budget) {
+export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memosOwnerId},budget,{version=1}={}) {
   async function all(sql,args,order='id') {
     const rows=[];
     for(let offset=0;;offset+=200) {
@@ -62,7 +63,15 @@ export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memo
   const memoFields='id,title,position,version,change_seq,created_at,updated_at,deleted_at';
   const groups=await all('SELECT '+memoFields+' FROM matrix_memo_groups WHERE user_id=?',[memosOwnerId]);
   const memos=await all('SELECT '+memoFields+',group_id,body FROM matrix_memo_notes WHERE user_id=?',[memosOwnerId]);
-  const data=Object.fromEntries(collections.map(key=>[key,[]]));
+  const undated=version===2?await all('SELECT id,text,completed,version,created_at,updated_at,deleted_at FROM matrix_unscheduled_todos WHERE user_id=?',[ownerId]):[];
+  const labels=version===2?await all('SELECT name,created_at FROM matrix_note_labels WHERE user_id=?',[notesOwnerId],'name'):[];
+  const links=version===2?await all('SELECT entry_id,label FROM matrix_note_entry_labels WHERE user_id=?',[notesOwnerId],'entry_id'):[];
+  const labelNames=new Set(labels.map(row=>row.name)),entryLabels=new Map();
+  for(const row of links) {
+    if(typeof row.entry_id!=='string'||!labelNames.has(row.label)||entryLabels.has(row.entry_id))invalid();
+    entryLabels.set(row.entry_id,row.label);
+  }
+  const data=Object.fromEntries((version===2?v2Collections:collections).map(key=>[key,[]]));
   for(const row of todos) {
     if(row.completed!==0&&row.completed!==1||typeof row.text!=='string')invalid();
     data.todos.push(record(row,{prefix:'todo',type:'todo',source:'todo',content:{text:row.text,completed:row.completed}},budget));
@@ -74,8 +83,24 @@ export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memo
   }
   for(const row of entries) {
     if(!['life','work'].includes(row.category)||typeof row.text!=='string')invalid();
+    const label=entryLabels.get(row.id);
+    if(label!==undefined&&row.category!=='life')invalid();
+    entryLabels.delete(row.id);
     data[row.category+'_notes'].push(record(row,{prefix:'note-entry',type:row.category+'_note',source:'note_entry',
-      category:row.category,content:{text:row.text}},budget));
+      category:row.category,content:{text:row.text,...(label===undefined?{}:{label})}},budget));
+  }
+  if(entryLabels.size)invalid();
+  for(const row of undated) {
+    if(row.completed!==0&&row.completed!==1||typeof row.text!=='string')invalid();
+    data.unscheduled_todos.push(record(row,{prefix:'unscheduled_todo',type:'unscheduled_todo',source:'unscheduled_todo',date:null,
+      content:{text:row.text,completed:row.completed}},budget));
+  }
+  for(const row of labels) {
+    if(typeof row.name!=='string'||!row.name.isWellFormed()||!row.name||[...row.name].length>32||
+      /[\u0000-\u001f\u007f]/.test(row.name)||['生活','工作'].includes(row.name)||
+      row.name!==row.name.trim().normalize('NFC'))invalid();
+    data.note_labels.push(record({id:encodeURIComponent(row.name),version:1,created_at:row.created_at,updated_at:row.created_at,deleted_at:null},
+      {prefix:'note-label',type:'note_label',source:'note_label',date:null,content:{name:row.name}},budget));
   }
   for(const row of reminders) {
     if(typeof row.summary!=='string'||typeof row.source_key!=='string')invalid();
@@ -107,8 +132,9 @@ export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memo
   return data;
 }
 
-export function projectWorkbenchSnapshot(data,{scope_id,generated_at,date=null},budget) {
-  const all=collections.flatMap(name=>data[name]).sort(compare),ids=new Set();
+export function projectWorkbenchSnapshot(data,{scope_id,generated_at,date=null,version=1},budget) {
+  const selected=version===2?v2Collections:collections,snapshotFormat=version===2?'haoduoyu-workbench-snapshot-v2':format;
+  const all=selected.flatMap(name=>data[name]).sort(compare),ids=new Set();
   const entities=all.map(row=>{
     if(ids.has(row.entity_id))invalid();ids.add(row.entity_id);
     return {entity_id:row.entity_id,entity_type:row.entity_type,date:row.date,
@@ -124,8 +150,8 @@ export function projectWorkbenchSnapshot(data,{scope_id,generated_at,date=null},
   }
   if(byDate.size>budget.limits.maxDates)fail(413,'SNAPSHOT_LIMIT','工作台日期超过完整读取预算，未返回部分内容');
   const global_content_hash=budget.hash({scope_id,entities:global});
-  const manifest_hash=budget.hash({snapshot_format:format,scope_id,entities});
-  const value={snapshot_format:format,projection:'current',complete:true,scope_id,timezone,generated_at,
+  const manifest_hash=budget.hash({snapshot_format:snapshotFormat,scope_id,entities});
+  const value={snapshot_format:snapshotFormat,projection:'current',complete:true,scope_id,timezone,generated_at,
     manifest_hash,global_content_hash,entities};
   if(date===null) {
     value.dates=[...byDate.keys()].sort().map(date=>({date,content_hash:budget.hash({scope_id,entities:byDate.get(date)})}));
@@ -133,8 +159,8 @@ export function projectWorkbenchSnapshot(data,{scope_id,generated_at,date=null},
   }else {
     day(date);value.date=date;
     value.date_content_hash=budget.hash({scope_id,entities:byDate.get(date)??[]});
-    value.data=Object.fromEntries(collections.map(name=>[name,data[name].filter(row=>row.date===null||row.date===date)]));
-    value.content_hash=budget.hash({snapshot_format:format,scope_id,date,timezone,data:value.data});
+    value.data=Object.fromEntries(selected.map(name=>[name,data[name].filter(row=>row.date===null||row.date===date)]));
+    value.content_hash=budget.hash({snapshot_format:snapshotFormat,scope_id,date,timezone,data:value.data});
   }
   return value;
 }
@@ -146,7 +172,9 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={}}={
   if(!['/workbench-snapshot','/workbench-snapshot/index'].includes(route)||request.method!=='GET')
     fail(404,'NOT_FOUND','工作台快照只提供明确的只读接口');
   const query=new URL(request.url).searchParams,index=route==='/workbench-snapshot/index';
-  if(index?[...query].length!==0:query.size!==1||query.getAll('date').length!==1)
+  const versionValues=query.getAll('version'),version=versionValues.length===0?1:versionValues.length===1&&versionValues[0]==='2'?2:0;
+  if(!version||[...query.keys()].some(key=>!['date','version'].includes(key))||
+    (index?query.has('date'):query.getAll('date').length!==1))
     fail(400,'VALIDATION_ERROR','工作台快照只接受一个明确日期，完整索引不接受查询参数');
   const date=index?null:snapshotDate(query.get('date'));
   const access=snapshotAccess(request,env),memosOwnerId=memosOwner(env);
@@ -157,9 +185,11 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={}}={
     const scope=await access.resolve(store);
     if(!await store.get('SELECT id FROM matrix_users WHERE id=?',memosOwnerId))
       fail(503,'SNAPSHOT_CONFIG','备忘录数据归属无法核实');
+    // Scope is an identity boundary shared with durable queues and drafts;
+    // upgrading projection formats must never move existing local data.
     const scope_id=budget.hash(['haoduoyu-workbench-scope-v1',scope.scope_id,memosOwnerId]);
-    const data=await readWorkbenchSnapshotData(store,{...scope,memosOwnerId},budget);
-    const value=projectWorkbenchSnapshot(data,{scope_id,generated_at,date},budget);
+    const data=await readWorkbenchSnapshotData(store,{...scope,memosOwnerId},budget,{version});
+    const value=projectWorkbenchSnapshot(data,{scope_id,generated_at,date,version},budget);
     const serialized=budget.serialize(value);
     await access.recheck(store);
     return serialized;

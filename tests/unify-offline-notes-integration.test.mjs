@@ -26,9 +26,9 @@ async function setup(t) {
     PUBLIC_BUSINESS_ACCOUNT_IDS: '[]', DAILY_NOTES_OWNER_ID: owner, MEMOS_OWNER_ID: owner};
   const db = createMemoryDB(), calls = [], clock = {value: Date.now()}, date = beijingDay(clock.value);
   const yesterday = new Date(Date.parse(date + 'T12:00:00Z') - 86400000).toISOString().slice(0, 10);
-  async function live(path, {method = 'GET', body, signal} = {}) {
+  async function live(path, {method = 'GET', body, signal, headers: extraHeaders = {}} = {}) {
     calls.push({path, method, body: body === undefined ? null : structuredClone(body)});
-    const headers = {Cookie: source.session.cookie, 'X-CSRF-Token': source.session.csrfToken, Origin: app.origin};
+    const headers = {Cookie: source.session.cookie, 'X-CSRF-Token': source.session.csrfToken, Origin: app.origin, ...extraHeaders};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     const response = await worker.fetch(new Request(app.origin + '/api/v1' + path, {method, headers, signal,
       body: body === undefined ? undefined : JSON.stringify(body)}), env);

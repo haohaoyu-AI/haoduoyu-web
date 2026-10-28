@@ -22,6 +22,7 @@ function client({category = 'life', writeImpl, records = new Map(), manualSave =
     const local = {...visible, ...body, id, category: visible?.category || body.category || category,
       date: visible?.date || body.date, text: kind === 'put' ? body.text : visible.text,
       version: body.version + 1, deleted: kind === 'delete', can_edit: true, created_at: stamp, updated_at: stamp};
+    if (body.label) local.labels_version = 1;
     delete local.save_id; delete local.content_hash; delete local.change_seq;
     const record = {local, server: old?.server || null, operation: {save_id: body.save_id, status: 'queued'}, conflict: null};
     records.set(id, record); return localDocument(record);
@@ -279,4 +280,27 @@ test('a recovered pending save already owned by the outbox cannot create a secon
   assert.equal(item.localQueued, true); assert.equal(item.localOperation.save_id, saveId);
   assert.equal(item.draft, 'API 返回前继续输入的草稿');
   await reopened.fire(); assert.equal(reopened.writes.length, 0); assert.equal(reopened.receiptReads, 0);
+});
+
+test('explicit custom label remains bound to a draft and its first durable operation', async () => {
+  const c = client({manualSave: true}); await c.store.read(day);
+  const item = c.store.start(day, {label:'兴趣'}); c.store.edit(item.id, '一条记录');
+  await c.fire(); assert.equal(c.writes.length, 0);
+  await c.store.save(item.id);
+  assert.equal(c.writes[0].body.label, '兴趣'); assert.equal(item.label, '兴趣');
+  const reloaded = client({manualSave: true, records:c.records}); await reloaded.store.read(day);
+  assert.equal(reloaded.store.entry(item.id).label, '兴趣');
+  const bad = client({manualSave: true}); await bad.store.read(day);
+  assert.throws(() => bad.store.start(day, {label:'工作'}), /标签无效/);
+});
+
+test('a mislabeled acknowledgement cannot mark an explicit label send complete', async () => {
+  const c = client({manualSave:true, writeImpl: async ({id, body}) => {
+    const {label, ...withoutLabel} = body;
+    return localDocument({local:{...withoutLabel,id,version:1,can_edit:true,deleted:false,created_at:stamp,updated_at:stamp}});
+  }});
+  await c.store.read(day); const item = c.store.start(day,{label:'兴趣'});
+  c.store.edit(item.id,'正文'); await c.store.save(item.id);
+  assert.notEqual(item.phase,'queued'); assert.notEqual(item.phase,'saved');
+  assert.equal(item.draft,'正文'); assert.equal(item.label,'兴趣'); assert.equal(item.pending.label,'兴趣');
 });

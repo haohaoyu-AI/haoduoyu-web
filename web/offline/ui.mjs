@@ -8,7 +8,7 @@ export function offlineStatusLabel(state) {
   if (state.error) return '同步失败，等待重试';
   if (state.phase === 'syncing') return '';
   if (state.pending) return `待同步（${state.pending} 条）`;
-  return '已同步';
+  return '';
 }
 function textNode(document, tag, text, className) {
   const node = document.createElement(tag); node.textContent = text;
@@ -18,7 +18,7 @@ function textNode(document, tag, text, className) {
 function readable(value) {
   if (!value) return '（线上已不存在）';
   const text = value.body !== undefined ? value.title + '\n' + value.body : value.text ?? value.title;
-  if (typeof value.completed === 'boolean') return `${text || ''}\n日期：${value.date || ''}` +
+  if (typeof value.completed === 'boolean') return `${text || ''}${value.date ? '\n日期：' + value.date : ''}` +
     `\n完成：${value.completed ? '是' : '否'}\n版本：${value.version || ''}`;
   return typeof text === 'string' ? text : JSON.stringify(value, null, 2);
 }
@@ -30,6 +30,7 @@ export function conflictLocalChoiceLabel(conflict) {
   if (absent(local) && absent(remote)) return '确认删除结果';
   if (conflict.copy_required || absent(remote) || conflict.reason === 'MEMO_GROUP_UNAVAILABLE' ||
       type === 'todo' && (local?.date !== remote.date || local?.text !== remote.text) ||
+      type === 'unscheduled_todo' && local?.text !== remote.text ||
       type === 'note_entry' && (local?.date !== remote.date || local?.category !== remote.category) ||
       type === 'memo_note' && local?.group_id !== remote.group_id) return '另存本地副本';
   return '用本地';
@@ -66,8 +67,8 @@ function conflictEvidence(document, conflict) {
 }
 function queueRows(document, queue, runtime, refresh, requests) {
   const root = document.createDocumentFragment();
-  if (!queue.operations.length && !queue.conflicts.length) root.append(textNode(document, 'p', '本机内容已同步。'));
-  const labels = {queued: '等待同步', sending: '同步中', unknown: '结果待核对', paused: '需联网核实身份',
+  if (!queue.operations.length && !queue.conflicts.length) root.append(textNode(document, 'p', '暂无待处理内容。'));
+  const labels = {queued: '等待同步', sending: '待同步', unknown: '结果待核对', paused: '需联网核实身份',
     blocked: '需处理', conflict: '有冲突'};
   for (const operation of queue.operations) {
     const item = textNode(document, 'p', `${operation.needs_upgrade ? '需新版' : labels[operation.status] || '等待同步'} · ${readable(operation.local)}`,

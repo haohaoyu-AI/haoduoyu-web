@@ -3,7 +3,7 @@ import { $ } from "../core/dom.mjs";
 import { isRequestAbort } from "../core/requests.mjs";
 import { state } from "../core/state.mjs";
 import { todoDay, todoOwner, todoSessionActive, todosState } from "../core/todos-state.mjs";
-import { paintTodos, setTodoNotice } from "./todos.mjs";
+import { paintTodos } from "./todos.mjs";
 function todoPreferences() {
   todoDay();
   return todosState.preferences;
@@ -47,7 +47,6 @@ async function changeTodoCompletedMode(mode) {
     if (!todoSessionActive(owner)) return;
     prefs.mode = saved.completed_mode;
     prefs.version = saved.version;
-    setTodoNotice(todoDay(), "已保存");
   } catch (error) {
     if (!todoSessionActive(owner) || isRequestAbort(error) || error.staleSession) return;
     prefs.error = error.message;
