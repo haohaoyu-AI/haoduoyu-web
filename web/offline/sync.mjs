@@ -138,6 +138,9 @@ async function applySnapshot({db,getScope,scope,key,index,initial,cached,records
       if(version===2 && record.source==='note_entry' && record.deleted_at===null) {
         labelEvidence={version:record.version,category:record.category,date:record.date,
           created_at:record.created_at,label:record.label??null};
+        if(old?.label_evidence&&(old.label_evidence.version>labelEvidence.version||
+          old.label_evidence.version===labelEvidence.version&&!equal(old.label_evidence,labelEvidence)))
+          fail('OFFLINE_SNAPSHOT_CHANGED','标签证据已变化，原本地数据已保留。');
         server.labels_version=1;server.label=labelEvidence.label;
       }
       if(record.entity_type==='unscheduled_todo') {delete server.date;if(server.completed!==undefined)server.completed=Boolean(server.completed);}

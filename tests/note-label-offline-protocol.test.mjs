@@ -49,6 +49,8 @@ test('custom label is durably queued with protocol 5 and old b242 capabilities n
     supportedProtocols:[1,2,3],supportedDependencies:true,request:()=>assert.fail('old page must not send')});
   await old.drain();assert.deepEqual((await f.app.queue()).operations,before.operations);
   f.online();await f.app.sync();assert.equal(f.remote.get(id).label,'兴趣');assert.equal((await f.app.queue()).operations.length,0);
+  const saved=await f.db.transaction(['entities'],'readonly',tx=>tx.getAll('entities'));
+  assert.equal(saved.find(row=>row.entity_id==='note-entry:'+id).label_evidence.label,'兴趣');
 });
 test('unknown outcome verifies receipt, label and original save id before acknowledgement',async t=>{
   const f=fixture(t);await initialize(f);const id=randomUUID(),save_id=randomUUID();f.lost();

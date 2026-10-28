@@ -163,6 +163,16 @@ function validAcknowledgement(operation, remote) {
     desired(operation, remote) && expectedFields(operation, remote);
 }
 
+function acceptedLabelEvidence(operation, confirmed, entity) {
+  if (operation.entity_type !== 'note_entry' || operation.protocol !== 5) return null;
+  const proof = {version: confirmed.version, category: confirmed.category, date: confirmed.date,
+    created_at: confirmed.created_at, label: confirmed.label};
+  if (entity?.label_evidence && (entity.label_evidence.version > proof.version ||
+      entity.label_evidence.version === proof.version && JSON.stringify(entity.label_evidence) !== JSON.stringify(proof)))
+    throw new Error('标签证据已变化，原请求已保留。');
+  return proof;
+}
+
 function createContext(options) {
   const {db, request, getScope, now = Date.now, uuid = () => crypto.randomUUID(), timeout = 20000} = options;
   const owner = uuid();
@@ -319,8 +329,9 @@ function storageMethods(context) {
       await tx.delete('outbox', operation.key);
       const remaining = (await tx.getAll('outbox')).some(value => value.scope === operation.scope &&
         value.entity_id === operation.entity_id && active(value));
+      const proof = acceptedLabelEvidence(operation, confirmed, entity);
       await tx.put('entities', {...entity, server: confirmed, local: remaining ? entity.local : confirmed,
-        dirty: remaining, conflict: null});
+        ...(proof ? {label_evidence: proof} : {}), dirty: remaining, conflict: null});
       await recordResolutionAck(tx, current, confirmed, now());
     });
   }

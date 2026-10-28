@@ -32,8 +32,9 @@ export function isNoteApiRow(row) {
 }
 function awareLabel(row) {
   return row?.labels_version === 1 && Object.hasOwn(row, 'label') && (row.label === null ||
-    typeof row.label === 'string' && row.category === 'life' && row.label === row.label.trim().normalize('NFC') &&
-    row.label.length > 0 && [...row.label].length <= 32 && !/[\u0000-\u001f\u007f]/.test(row.label));
+    typeof row.label === 'string' && row.label.isWellFormed() && row.category === 'life' &&
+    row.label === row.label.trim().normalize('NFC') && row.label.length > 0 && [...row.label].length <= 32 &&
+    !['生活', '工作'].includes(row.label) && !/[\u0000-\u001f\u007f]/.test(row.label));
 }
 function checkedResponse(route, value, labelsV1) {
   const invalid = () => fail('碎碎念读取结果不完整，未覆盖本机内容。', 'OFFLINE_RESPONSE_INVALID');
@@ -181,7 +182,13 @@ function writingMethods(context) {
         const old = await tx.get('entities', key);
         if (Math.max(old?.server?.version || 0, old?.api_server?.version || 0) > row.version)
           throw fail('读取结果早于本机已确认版本，原文已保留。', 'OFFLINE_CACHE_CHANGED');
-        await tx.put('entities', {...old, key, scope: owner.scope, entity_id, server: row, api_server: row, remote_missing: false});
+        const proof = awareLabel(row) ? {version: row.version, category: row.category, date: row.date,
+          created_at: row.created_at, label: row.label} : null;
+        if (proof && old?.label_evidence && (old.label_evidence.version > proof.version ||
+            old.label_evidence.version === proof.version && JSON.stringify(old.label_evidence) !== JSON.stringify(proof)))
+          throw fail('标签证据已变化，请联网核对。', 'OFFLINE_CACHE_CHANGED');
+        await tx.put('entities', {...old, key, scope: owner.scope, entity_id, server: row, api_server: row,
+          ...(proof ? {label_evidence: proof} : {}), remote_missing: false});
       }
       await tx.put('meta', {key: entityKey(owner.scope, 'get:' + path), scope: owner.scope, path, data, saved_at: now()});
       await tx.put('meta', {key: capabilityKey(owner.scope), scope: owner.scope, can_edit: data.can_edit, verified_at: now()});
