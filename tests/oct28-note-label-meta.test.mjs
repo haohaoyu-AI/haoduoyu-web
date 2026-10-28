@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {createMemoryDB, entityKey} from '../web/offline/db.mjs';
 import {createNoteLabelMeta} from '../web/offline/note-label-meta.mjs';
-import {createOfflineRuntime} from '../web/offline/runtime.mjs';
+import {createOfflineRuntime} from './fixtures/b242-offline-runtime.mjs';
 
 const scope = 'a'.repeat(64), otherScope = 'b'.repeat(64), date = '2026-10-28';
 const note = () => ({id:randomUUID(),category:'life',date,text:'合成内容',version:1,change_seq:1,
