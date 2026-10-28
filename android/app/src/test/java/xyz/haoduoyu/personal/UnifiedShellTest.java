@@ -82,7 +82,7 @@ public final class UnifiedShellTest {
         assertFalse(context.getDatabasePath("haoduoyu-offline.db").exists());
         JobScheduler jobs=(JobScheduler)context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         assertNull(jobs.getPendingJob(27260));assertNull(jobs.getPendingJob(27261));
-        assertEquals("3.0.1-debug",BuildConfig.VERSION_NAME);assertEquals(5,BuildConfig.VERSION_CODE);
+        assertEquals("3.0.2-debug",BuildConfig.VERSION_NAME);assertEquals(6,BuildConfig.VERSION_CODE);
     }
     @Test public void fixedNativeEventsAreNotEvaluatedWhenTheCurrentTopLevelDocumentIsForeign() throws Exception {
         controller=Robolectric.buildActivity(MainActivity.class).setup();MainActivity activity=controller.get();

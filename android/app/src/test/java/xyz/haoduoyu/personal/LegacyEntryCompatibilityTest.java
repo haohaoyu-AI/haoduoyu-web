@@ -11,7 +11,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.EditText;
-import android.widget.PopupMenu;
 import android.widget.TextView;
 import org.junit.After;
 import org.junit.Before;
@@ -22,7 +21,6 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.shadows.ShadowAlertDialog;
-import org.robolectric.shadows.ShadowPopupMenu;
 import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.LooperMode;
@@ -103,7 +101,7 @@ public final class LegacyEntryCompatibilityTest {
         WebView view = (WebView) field(MainActivity.class, "web").get(web.get());
         assertEquals(UrlPolicy.HOME, Shadows.shadowOf(view).getLastLoadedUrl());
         ViewGroup root = (ViewGroup) ((View) view.getParent()).getParent();
-        assertEquals("No legacy notice consumes a native content row", 3, root.getChildCount());
+        assertEquals("Web content has no native toolbar or extra content row", 1, root.getChildCount());
         assertNull(field(OfflineRuntime.class, "instance").get(null)); assertEquals(0, requests.get());
     }
     @Test public void explicitOldHistoryComponentWithoutADraftGoesToTheSharedWebShellWithoutOpeningAnOldStore() throws Exception {
@@ -135,7 +133,8 @@ public final class LegacyEntryCompatibilityTest {
         assertEquals(2, values.size()); boolean empty = false, nullValue = false;
         for (LegacyRestoredDraft value : values) { empty |= "".equals(value.draft()); nullValue |= value.draft() == null; }
         assertTrue(empty); assertTrue(nullValue); assertTrue(LegacyRecoveryRuntime.get(second).hasLegacyRecords());
-        startWeb(target); openSettingsAndSelect(0);
+        startWeb(target); assertLegacyShortcut();
+        web.get().startActivity(new Intent(web.get(), LegacyRecoveryActivity.class));
         Intent recovery=Shadows.shadowOf(web.get()).getNextStartedActivity();
         assertEquals(LegacyRecoveryActivity.class.getName(),recovery.getComponent().getClassName());
         viewer=Robolectric.buildActivity(LegacyRecoveryActivity.class).setup();settle();
@@ -161,7 +160,12 @@ public final class LegacyEntryCompatibilityTest {
         Intent target = Shadows.shadowOf(activity).getNextStartedActivity(); assertEquals(MainActivity.class.getName(), target.getComponent().getClassName());
         assertEquals(0, target.getFlags() & Intent.FLAG_ACTIVITY_CLEAR_TOP); assertFalse(activity.isFinishing());
         assertTrue(target.getBooleanExtra("legacyRecoveryPending",false));startWeb(target);assertFalse(activity.isFinishing());
-        openSettingsAndSelect(1);
+        AlertDialog prompt=ShadowAlertDialog.getLatestAlertDialog();assertNotNull(prompt);
+        assertEquals("返回恢复页",prompt.getButton(AlertDialog.BUTTON_POSITIVE).getText().toString());
+        prompt.getButton(AlertDialog.BUTTON_NEGATIVE).performClick();
+        java.lang.reflect.Method back=MainActivity.class.getDeclaredMethod("backOrMinimize");back.setAccessible(true);back.invoke(web.get());
+        prompt=ShadowAlertDialog.getLatestAlertDialog();assertNotNull(prompt);
+        prompt.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
         Intent returnIntent=Shadows.shadowOf(web.get()).getNextStartedActivity();
         assertEquals(OfflineActivity.class.getName(),returnIntent.getComponent().getClassName());
         assertEquals(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,returnIntent.getFlags() & Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
@@ -172,23 +176,27 @@ public final class LegacyEntryCompatibilityTest {
         Intent confirmed=Shadows.shadowOf(activity).getNextStartedActivity();assertNotNull(confirmed);
         assertFalse(confirmed.getBooleanExtra("legacyRecoveryPending",true));web.get().onNewIntent(confirmed);
         assertEquals("https://haoduoyu.xyz/?page=memos",Shadows.shadowOf(existing).getLastLoadedUrl());
-        openSettings();
-        assertEquals(1, ShadowAlertDialog.getLatestAlertDialog().getListView().getCount());
+        assertFalse(web.get().getIntent().getBooleanExtra("legacyRecoveryPending",true));
         assertFalse(RuntimeEnvironment.getApplication().getDatabasePath("haoduoyu-offline.db").exists()); assertEquals(0, requests.get());
     }
-    private void openSettings() {
-        View more=find(web.get().getWindow().getDecorView(), "更多", false);
-        assertNotNull(more); assertTrue(more.performClick());
-        PopupMenu menu=ShadowPopupMenu.getLatestPopupMenu(); assertNotNull(menu);
-        assertEquals("设置",menu.getMenu().findItem(5).getTitle().toString());
-        assertTrue(menu.getMenu().performIdentifierAction(5,0));
-        assertNotNull(ShadowAlertDialog.getLatestAlertDialog());
-    }
-    private void openSettingsAndSelect(int index) {
-        openSettings(); AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();
-        android.widget.ListView list=dialog.getListView();
-        assertTrue(index < list.getCount());
-        list.performItemClick(list.getAdapter().getView(index,null,list),index,list.getAdapter().getItemId(index));
+    private void assertLegacyShortcut() throws Exception {
+        android.content.pm.PackageManager pm=web.get().getPackageManager();
+        android.content.pm.ActivityInfo main=pm.getActivityInfo(new android.content.ComponentName(web.get(),MainActivity.class),android.content.pm.PackageManager.GET_META_DATA);
+        assertEquals(R.xml.shortcuts,main.metaData.getInt("android.app.shortcuts"));
+        assertFalse(pm.getActivityInfo(new android.content.ComponentName(web.get(),LegacyRecoveryActivity.class),0).exported);
+        try (android.content.res.XmlResourceParser xml=web.get().getResources().getXml(R.xml.shortcuts)) {
+            int event; boolean found=false;
+            while ((event=xml.next())!=org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                if (event==org.xmlpull.v1.XmlPullParser.START_TAG && "intent".equals(xml.getName())) {
+                    String ns="http://schemas.android.com/apk/res/android";
+                    assertEquals("android.intent.action.VIEW",xml.getAttributeValue(ns,"action"));
+                    assertEquals(BuildConfig.APPLICATION_ID,xml.getAttributeValue(ns,"targetPackage"));
+                    assertEquals(LegacyRecoveryActivity.class.getName(),xml.getAttributeValue(ns,"targetClass"));
+                    found=true;
+                }
+            }
+            assertTrue("Legacy launcher shortcut intent is configured",found);
+        }
     }
     private static View find(View view, String text, boolean prefix) {
         if (view instanceof TextView) { String value = ((TextView) view).getText().toString(); if (prefix ? value.startsWith(text) : value.equals(text)) return view; }

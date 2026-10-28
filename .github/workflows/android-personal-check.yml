@@ -1,7 +1,7 @@
 name: Android unified thin-shell check
 on:
   push:
-    branches: ['android/hide-legacy-entry']
+    branches: ['android/remove-native-toolbar']
     paths: ['android/**', '.github/workflows/android-personal-check.yml']
 permissions:
   contents: read
@@ -88,8 +88,8 @@ jobs:
           assert "sdkVersion:'26'" in badging
           assert 'Verified using v2 scheme (APK Signature Scheme v2): true' in signature
           assert "name='xyz.haoduoyu.personal'" in release_badging
-          assert "versionName='3.0.1'" in release_badging
-          assert "versionCode='5'" in release_badging
+          assert "versionName='3.0.2'" in release_badging
+          assert "versionCode='6'" in release_badging
           assert "sdkVersion:'26'" in release_badging
           assert "launchable-activity: name='xyz.haoduoyu.personal.MainActivity'" in release_badging
           assert 'application-debuggable' not in release_badging
@@ -115,7 +115,7 @@ jobs:
           assert record['jvm_tests']['tests'] >= 1
           assert record['jvm_tests']['failures'] == record['jvm_tests']['errors'] == record['jvm_tests']['skipped'] == 0
           unsigned = directory / 'haoduoyu-unified-v3-release-unsigned.apk'
-          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'application_id': 'xyz.haoduoyu.personal', 'version_name': '3.0.1', 'version_code': 5, 'min_sdk': 26, 'debuggable': False, 'launcher': 'xyz.haoduoyu.personal.MainActivity', 'installable': False, 'local_signature': 'pending'}
+          record['unsigned_release'] = {'filename': unsigned.name, 'bytes': unsigned.stat().st_size, 'sha256': hashlib.sha256(unsigned.read_bytes()).hexdigest(), 'application_id': 'xyz.haoduoyu.personal', 'version_name': '3.0.2', 'version_code': 6, 'min_sdk': 26, 'debuggable': False, 'launcher': 'xyz.haoduoyu.personal.MainActivity', 'installable': False, 'local_signature': 'pending'}
           record['node_contracts'] = 'targeted bridge and legacy entry checks; see CI logs'
           (directory / 'delivery.json').write_text(json.dumps(record, indent=2) + '\n')
           (directory / 'SHA256SUMS.txt').write_text(record['sha256'] + '  ' + apk.name + '\n')

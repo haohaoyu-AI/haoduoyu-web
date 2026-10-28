@@ -39,7 +39,6 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -85,11 +84,13 @@ public final class MainActivity extends Activity {
     private ConnectivityManager connectivity;
     private ConnectivityManager.NetworkCallback networkCallback;
     private boolean foreground, observedNetwork;
+    private boolean recoveryPromptShown;
 
     @Override public void onCreate(Bundle savedState) {
         super.onCreate(savedState);
         if (savedState != null && savedState.containsKey("legacyRecoveryPending"))
             getIntent().putExtra("legacyRecoveryPending", savedState.getBoolean("legacyRecoveryPending"));
+        recoveryPromptShown = savedState != null && savedState.getBoolean("recoveryPromptShown", false);
         buildLayout();
         backScript = readBackScript();
         createWebView();
@@ -108,6 +109,7 @@ public final class MainActivity extends Activity {
         if (browserState == null || !UrlPolicy.isTrustedWebsite(savedUrl) || web.restoreState(browserState) == null) {
             web.loadUrl(UrlPolicy.HOME);
         }
+        handler.post(this::showPendingRecoveryIfNeeded);
     }
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
@@ -130,26 +132,12 @@ public final class MainActivity extends Activity {
         } else {
             root.setFitsSystemWindows(true);
         }
-        LinearLayout toolbar = new LinearLayout(this);
-        toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(16), 0, dp(6), 0);
-        TextView title = new TextView(this);
-        title.setText(BuildConfig.DEBUG ? "好多鱼 · 调试自用版" : "好多鱼");
-        title.setTextSize(16);
-        title.setGravity(Gravity.CENTER_VERTICAL);
-        title.setTextColor(Color.rgb(76, 48, 34));
-        toolbar.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1));
-        Button more = new Button(this);
-        more.setText("更多");
-        more.setContentDescription("好多鱼应用菜单");
-        toolbar.addView(more, new LinearLayout.LayoutParams(dp(76), dp(48)));
-        more.setOnClickListener(v -> showMenu(more));
-        root.addView(toolbar);
-        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        progress.setMax(100);
-        root.addView(progress, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)));
         webFrame = new FrameLayout(this);
         root.addView(webFrame, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progress.setMax(100);
+        progress.setVisibility(View.GONE);
+        webFrame.addView(progress, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3), Gravity.TOP));
 
         errorPanel = new LinearLayout(this);
         errorPanel.setOrientation(LinearLayout.VERTICAL);
@@ -210,7 +198,7 @@ public final class MainActivity extends Activity {
         web.setWebChromeClient(new ChromeClient());
         web.setDownloadListener((url, userAgent, disposition, mime, length) -> {
             if (UrlPolicy.externalScheme(url).isEmpty()) {
-                showMessage("此类网页下载暂不支持，请从应用菜单选择“在浏览器打开”。");
+                showMessage("此类网页下载暂不支持，请在手机浏览器打开该网页。");
                 return;
             }
             new AlertDialog.Builder(this).setTitle("在浏览器下载")
@@ -218,40 +206,6 @@ public final class MainActivity extends Activity {
                     .setPositiveButton("打开", (dialog, which) -> openExternal(url))
                     .setNegativeButton("取消", null).show();
         });
-    }
-
-    private void showMenu(View anchor) {
-        PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add(0, 1, 0, "每日待办");
-        menu.getMenu().add(0, 2, 1, "重新加载当前页面");
-        menu.getMenu().add(0, 3, 2, "在浏览器打开");
-        menu.getMenu().add(0, 4, 3, "关于自用版");
-        menu.getMenu().add(0, 5, 4, "设置");
-        menu.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == 1) confirmReload(UrlPolicy.HOME);
-            if (item.getItemId() == 2) confirmReload(currentUrl());
-            if (item.getItemId() == 3) openExternal(currentUrl());
-            if (item.getItemId() == 4) new AlertDialog.Builder(this).setTitle("好多鱼自用版")
-                    .setMessage("版本 " + BuildConfig.VERSION_NAME
-                            + "\n共用 haoduoyu.xyz 同一前端；离线范围与网站当前实际版本一致。没有独立原生业务页面或新同步队列。"
-                            + "\n旧库保留；未获原有上传同意的本机记录仅本地查看、复制或导出。下载文件交系统浏览器。"
-                            + (BuildConfig.DEBUG ? "\n这是调试签名预览包，不是正式发布包。" : ""))
-                    .setPositiveButton("知道了", null).show();
-            if (item.getItemId() == 5) showAppSettings();
-            return true;
-        });
-        menu.show();
-    }
-
-    private void showAppSettings() {
-        boolean pending = getIntent().getBooleanExtra("legacyRecoveryPending", false);
-        String[] choices = pending
-                ? new String[]{"旧版本机记录（查看 / 导出）", "返回未保全恢复页"}
-                : new String[]{"旧版本机记录（查看 / 导出）"};
-        new AlertDialog.Builder(this).setTitle("设置").setItems(choices, (dialog, index) -> {
-            if (index == 0) startActivity(new Intent(this, LegacyRecoveryActivity.class));
-            else if (pending && index == 1) returnToRecovery();
-        }).setNegativeButton("关闭", null).show();
     }
 
     private String currentUrl() {
@@ -286,8 +240,20 @@ public final class MainActivity extends Activity {
         getIntent().removeExtra("legacyRecoveryPending");
         startActivity(new Intent(this, OfflineActivity.class).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
     }
+    private void showPendingRecoveryIfNeeded() {
+        if (isFinishing() || isDestroyed() || recoveryPromptShown
+                || !getIntent().getBooleanExtra("legacyRecoveryPending", false)) return;
+        recoveryPromptShown = true;
+        new AlertDialog.Builder(this).setTitle("旧草稿尚未保全")
+                .setMessage("旧草稿仍在恢复页，可以返回复制、导出或重试；继续浏览不会自动上传。")
+                .setPositiveButton("返回恢复页", (dialog, which) -> returnToRecovery())
+                .setNegativeButton("继续浏览", null).setCancelable(false).show();
+    }
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent); setIntent(intent); refreshLegacy();
+        if (intent.getBooleanExtra("legacyRecoveryPending", false)) {
+            recoveryPromptShown = false; handler.post(this::showPendingRecoveryIfNeeded);
+        }
     }
 
     private void confirmReload(String target) {
@@ -303,7 +269,7 @@ public final class MainActivity extends Activity {
     private boolean route(String url, boolean userGesture) {
         if (UrlPolicy.isTrustedWebsite(url)) return false;
         if (userGesture && !UrlPolicy.externalScheme(url).isEmpty()) openExternal(url);
-        else showMessage("此链接未在应用内打开，可从菜单使用浏览器。");
+        else showMessage("此链接未在应用内打开。");
         return true;
     }
 
@@ -598,6 +564,9 @@ public final class MainActivity extends Activity {
 
     private void backOrMinimize() {
         if (web != null && web.canGoBack()) { lastBack = 0; web.goBack(); return; }
+        if (getIntent().getBooleanExtra("legacyRecoveryPending", false)) {
+            recoveryPromptShown = false; showPendingRecoveryIfNeeded(); return;
+        }
         long now = SystemClock.elapsedRealtime();
         if (now - lastBack < 2200) { moveTaskToBack(true); lastBack = 0; }
         else { lastBack = now; showMessage("再次返回收起好多鱼"); }
@@ -608,6 +577,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putBoolean("legacyRecoveryPending", getIntent().getBooleanExtra("legacyRecoveryPending", false));
+        state.putBoolean("recoveryPromptShown", recoveryPromptShown);
         if (web != null && UrlPolicy.isTrustedWebsite(web.getUrl())) {
             Bundle browserState = new Bundle();
             web.saveState(browserState);
