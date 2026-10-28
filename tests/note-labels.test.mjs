@@ -61,7 +61,7 @@ test('additive migration preserves existing note rows and labels cannot referenc
 });
 
 test('opt-in label version distinguishes unknown old responses from confirmed null without changing CAS or receipts',async t=>{
-  const app=await fixture(t),session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
+  const app=await fixture(t,{migrationCount:10}),session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const sql=await readFile(new URL('../drizzle/0010_note_labels.sql',import.meta.url),'utf8');
   await app.db.batch(sql.split('--> statement-breakpoint').filter(x=>x.trim()).map(x=>app.db.prepare(x)));
   const env={DB:app.db,SITE_ORIGIN:app.origin,DAILY_NOTES_OWNER_ID:owner,PUBLIC_BUSINESS_MODE:'1',PUBLIC_BUSINESS_USER_ID:owner,
