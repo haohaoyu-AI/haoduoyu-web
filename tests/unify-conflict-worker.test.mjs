@@ -21,9 +21,9 @@ async function setup(t) {
     PUBLIC_BUSINESS_ACCOUNT_IDS: '[]', DAILY_NOTES_OWNER_ID: owner, MEMOS_OWNER_ID: owner};
   const db = createMemoryDB(), calls = [], clock = {value: Date.now()}, source = {online: true, afterResponse: null}, runtimes = [];
   t.after(() => { source.online = false; for (const runtime of runtimes) runtime.stop(); });
-  async function live(path, {method = 'GET', body, signal} = {}) {
+  async function live(path, {method = 'GET', body, signal, headers: extraHeaders = {}} = {}) {
     const call = {path, method, body: body === undefined ? null : structuredClone(body)}; calls.push(call);
-    const headers = {Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken, Origin: app.origin};
+    const headers = {Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken, Origin: app.origin, ...extraHeaders};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     const response = await worker.fetch(new Request(app.origin + '/api/v1' + path, {method, headers, signal,
       ...(body === undefined ? {} : {body: JSON.stringify(body)})}), env);
@@ -58,7 +58,7 @@ async function choose(f, runtime, conflict, choice, options = {}) {
   assert.ok(result.resolution, result.resolution_message || 'a real decision must be queued');
   assert.equal(result.resolution.state, 'queued'); assert.equal(result.resolved_at, null);
   const operations = (await runtime.queue()).operations.filter(row => row.resolution_id === result.resolution.id);
-  assert.ok(operations.length); assert.ok(operations.every(row => row.protocol === 3 && row.resolution_receipt === 1));
+  assert.ok(operations.length); assert.ok(operations.every(row => row.protocol === (conflict.operation.protocol === 5 ? 5 : 3) && row.resolution_receipt === 1));
   return {result, operations};
 }
 async function complete(f, runtime, key) {
