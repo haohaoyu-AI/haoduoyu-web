@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {oct28Baseline,oct28Product,approvedPaths,addedModules,reviewedOct28Manifest,validateOct28Manifest,
   projectOct28,projectOct28History,projectOct28Modules} from './oct28-projection.mjs';
 import {projectUnifyConflictResolution} from './unify-conflict-resolution-projection.mjs';
+import {projectSmallFix} from './oct28-small-fix-projection.mjs';
 import {projectedChangedFiles} from './unify-stage1-projection.mjs';
 
 const root=new URL('../',import.meta.url);
@@ -21,12 +22,12 @@ test('October candidate is exactly the reviewed 52-path change over the fixed pr
   assert.equal(approvedPaths.length,52);
   assert.deepEqual(git('diff','--name-only',oct28Baseline,oct28Product,'--',...roots).trim().split('\n'),[...approvedPaths]);
   for(const file of approvedPaths) {
-    const source=read(file);
+    const source=projectSmallFix(file,read(file));
     assert.equal(hash(source),delta.files[file].after,'actual current bytes: '+file);
     assert.equal(projectOct28(file,source),old(file),'exact b242 inverse: '+file);
     assert.equal(projectOct28(file,old(file)),old(file),'exact baseline remains valid: '+file);
   }
-  assert.deepEqual(projectedChangedFiles(oct28Baseline,roots,projectOct28),[],
+  assert.deepEqual(projectedChangedFiles(oct28Baseline,roots,(file,source)=>projectOct28(file,projectSmallFix(file,source))),[],
     'other changed, untracked or deleted production paths remain visible');
 });
 

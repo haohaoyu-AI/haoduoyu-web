@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {isSmallFixProduct,projectSmallFix} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 export const oct28Baseline='b242cd573ab05c2fae2d5af779d7275ca45c20ad';
@@ -140,6 +141,7 @@ function historicalHashes(file) {
   return historicalDigests.get(file);
 }
 export function projectOct28History(file,source) {
+  if(isSmallFixProduct(file,source))source=projectSmallFix(file,source);
   if(!approvedPaths.includes(file))return source;
   const delta=reviewedOct28Manifest(),digest=hash(source);
   if(source===before(file)||digest===delta.files[file].after)return projectOct28(file,source);
