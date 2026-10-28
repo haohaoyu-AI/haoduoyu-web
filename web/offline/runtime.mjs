@@ -7,7 +7,7 @@ import {createDraftJournal} from './drafts.mjs';
 import {captureConflictDraftGuard} from './conflict-draft-guards.mjs';
 import {createMemoOfflineAdapter, memoRoute} from './memos.mjs';
 
-export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: true});
+export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: true, snapshotV2: true});
 const scopePattern = /^[a-f0-9]{64}$/;
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const networkFailure = error => error?.code === 'NETWORK_UNAVAILABLE' || error?.code === 'OFFLINE_NETWORK';
@@ -96,7 +96,7 @@ function runtimeContext(options) {
       ...(features.memos ? ['memo_note', 'memo_group'] : [])],
     supportedProtocols: features.memos ? [1, 2, 3, 4] : [1, 3, 4], supportedDependencies: features.memos === true,
     resolutionReceipts: true});
-  context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
+  context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now, version: features.snapshotV2 === true ? 2 : 1});
   context.memos = createMemoOfflineAdapter({db, cache, outbox: context.outbox, getScope: () => state.scope,
     getGeneration: () => context.generation, now, uuid});
   return context;

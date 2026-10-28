@@ -16,7 +16,7 @@ function textNode(document, tag, text, className) {
 function readable(value) {
   if (!value) return '（线上已不存在）';
   const text = value.body !== undefined ? value.title + '\n' + value.body : value.text ?? value.title;
-  if (typeof value.completed === 'boolean') return `${text || ''}\n日期：${value.date || ''}` +
+  if (typeof value.completed === 'boolean') return `${text || ''}${value.date ? '\n日期：' + value.date : ''}` +
     `\n完成：${value.completed ? '是' : '否'}\n版本：${value.version || ''}`;
   return typeof text === 'string' ? text : JSON.stringify(value, null, 2);
 }
@@ -28,6 +28,7 @@ export function conflictLocalChoiceLabel(conflict) {
   if (absent(local) && absent(remote)) return '确认删除结果';
   if (conflict.copy_required || absent(remote) || conflict.reason === 'MEMO_GROUP_UNAVAILABLE' ||
       type === 'todo' && (local?.date !== remote.date || local?.text !== remote.text) ||
+      type === 'unscheduled_todo' && local?.text !== remote.text ||
       type === 'note_entry' && (local?.date !== remote.date || local?.category !== remote.category) ||
       type === 'memo_note' && local?.group_id !== remote.group_id) return '另存本地副本';
   return '用本地';

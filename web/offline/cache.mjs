@@ -94,7 +94,9 @@ function identityMethods(db, now) {
 }
 async function legacySnapshot(db, owner, route) {
   return db.transaction(['entities', 'meta'], 'readonly', async tx => {
-    const snapshot = await tx.get('meta', entityKey(owner, 'snapshot'));
+    const v1 = await tx.get('meta', entityKey(owner, 'snapshot'));
+    const v2 = await tx.get('meta', entityKey(owner, 'snapshot-v2'));
+    const snapshot = (v2?.value?.verified_at || 0) >= (v1?.value?.verified_at || 0) ? v2 || v1 : v1;
     if (snapshot?.value?.index?.complete !== true || snapshot.value.index.scope_id !== owner) throw missing();
     const entity = await tx.get('entities', entityKey(owner, 'legacy-' + route.category + ':' + route.date));
     const row = !entity?.remote_missing && entity?.server;

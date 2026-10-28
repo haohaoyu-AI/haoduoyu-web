@@ -17,7 +17,7 @@ export function conflictDecisionToken(conflict) {
 }
 function remoteEvidence(value, type) {
   if (!value) return null;
-  const fields = type === 'todo' ? ['date', 'text', 'completed'] : type === 'template' ? ['text'] :
+  const fields = type === 'todo' ? ['date', 'text', 'completed'] : type === 'unscheduled_todo' ? ['text', 'completed'] : type === 'template' ? ['text'] :
     type === 'note_entry' ? ['category', 'date', 'text'] : type === 'memo_note' ? ['group_id', 'title', 'body', 'position'] :
       ['title', 'position'];
   return {id: value.id || value.source_id, version: value.version, deleted: Boolean(value.deleted || value.deleted_at),
