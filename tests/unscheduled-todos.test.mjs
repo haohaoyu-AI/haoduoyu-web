@@ -6,7 +6,7 @@ import {fixture} from './harness.mjs';
 import {handleUnscheduledTodos} from '../src/unscheduled-todos.mjs';
 
 async function setup(t) {
-  const app=await fixture(t),session=await app.login();
+  const app=await fixture(t,{migrationCount:9}),session=await app.login();
   const migration=await readFile(new URL('../drizzle/0009_unscheduled_todos.sql',import.meta.url),'utf8');
   await app.db.batch(migration.split('--> statement-breakpoint').map(sql=>app.db.prepare(sql.trim())));
   async function call(route,{method='GET',body,headers={}}={}) {

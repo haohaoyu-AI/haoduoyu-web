@@ -6,7 +6,7 @@ import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
 
 test('custom labels persist, preserve legacy edits, tombstones and idempotent receipts',async t=>{
-  const app=await fixture(t),session=await app.login();
+  const app=await fixture(t,{migrationCount:10}),session=await app.login();
   const owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const migration=await readFile(new URL('../drizzle/0010_note_labels.sql',import.meta.url),'utf8');
   await app.db.batch(migration.split('--> statement-breakpoint').filter(x=>x.trim()).map(sql=>app.db.prepare(sql)));
@@ -48,7 +48,7 @@ test('custom labels persist, preserve legacy edits, tombstones and idempotent re
 });
 
 test('additive migration preserves existing note rows and labels cannot reference another owner',async t=>{
-  const app=await fixture(t),session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
+  const app=await fixture(t,{migrationCount:10}),session=await app.login(),owner=(await app.request('/api/v1/auth/me',{session})).data.id;
   const id=randomUUID(),time='2026-10-25T08:00:00.000Z';
   await app.db.prepare('INSERT INTO matrix_note_entries(user_id,id,category,date,text,version,change_seq,created_at,updated_at,deleted_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
     .bind(owner,id,'work','2026-10-25','旧记录',1,1,time,time,null).run();
