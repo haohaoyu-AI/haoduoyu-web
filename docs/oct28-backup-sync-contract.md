@@ -9,7 +9,7 @@
 - 索引：`GET /api/v1/workbench-snapshot/index?version=2`。
 - 指定日期：`GET /api/v1/workbench-snapshot?date=YYYY-MM-DD&version=2`。
 
-v2 使用独立 `scope_id`，切换协议须建立新基线，不能把 v1 旧基线的实体缺席视作删除。范围、鉴权、只读、分页预算及超过预算报错的规则保持；索引与详情须对照 `manifest_hash`、`global_content_hash`，跨请求变化时重读。
+v2 保持原 `scope_id`，避免把现有本地草稿、队列与冲突移到不可见分区；消费者须按 `snapshot_format` 分开保存 v1/v2 索引基线，不能把 v1 旧基线的实体缺席视作删除。范围、鉴权、只读、分页预算及超过预算报错的规则保持；索引与详情须对照 `manifest_hash`、`global_content_hash`，跨请求变化时重读。
 
 `unscheduled_todo:<UUID>` 代表无日期未来待办，`date:null`，记录原创建/更新时间、版本、完成状态和墓碑。它属于全局内容，不代表计划在所选日期发生；指定日期详情包含全局集合，消费端须按照稳定实体 ID 去重，不要把它复制进每日待办。`note-label:<URL 编码的 NFC 标签>` 是自建标签目录项，也属于全局内容，包括尚未关联记录的空标签。拥有自定义标签的生活底层碎碎念条目含 `label`；无标签的原记录不增该字段、其内容哈希保持稳定。删除条目时不公开已删除正文和标签，完整备份仍保留关联。生活/工作的旧逐日记录与现有单条记录保持原 ID、日期和真实时间，不按正文去重或猜测分类。
 

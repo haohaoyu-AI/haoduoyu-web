@@ -185,7 +185,9 @@ export async function handleWorkbenchSnapshot(db,request,route,env,{limits={}}={
     const scope=await access.resolve(store);
     if(!await store.get('SELECT id FROM matrix_users WHERE id=?',memosOwnerId))
       fail(503,'SNAPSHOT_CONFIG','备忘录数据归属无法核实');
-    const scope_id=budget.hash(['haoduoyu-workbench-scope-v'+version,scope.scope_id,memosOwnerId]);
+    // Scope is an identity boundary shared with durable queues and drafts;
+    // upgrading projection formats must never move existing local data.
+    const scope_id=budget.hash(['haoduoyu-workbench-scope-v1',scope.scope_id,memosOwnerId]);
     const data=await readWorkbenchSnapshotData(store,{...scope,memosOwnerId},budget,{version});
     const value=projectWorkbenchSnapshot(data,{scope_id,generated_at,date,version},budget);
     const serialized=budget.serialize(value);

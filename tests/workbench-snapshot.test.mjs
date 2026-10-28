@@ -79,7 +79,7 @@ test('v2 opt-in includes undated todos and label catalog without changing the v1
   const index=(await f.request('/workbench-snapshot/index?version=2')).value;
   const daily=(await f.request('/workbench-snapshot?date='+DATE+'&version=2')).value;
   assert.equal(daily.snapshot_format,'haoduoyu-workbench-snapshot-v2');
-  assert.notEqual(daily.scope_id,legacy.scope_id);
+  assert.equal(daily.scope_id,legacy.scope_id,'format upgrade preserves the durable identity partition');
   assert.equal(index.manifest_hash,daily.manifest_hash);
   assert.equal(entity(index,'unscheduled_todo:undated').date,null);
   assert.equal(daily.data.unscheduled_todos[0].text,'未来事项');
