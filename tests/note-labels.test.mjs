@@ -35,6 +35,16 @@ test('custom labels persist, preserve legacy edits, tombstones and idempotent re
   assert.deepEqual((await call('/note-entries/labels')).data.labels.map(row=>row.name),['兴趣','阅读']);
   assert.equal((await call('/note-entries/labels','POST',{name:'工作',save_id:randomUUID()})).status,400);
   assert.equal((await call('/note-entries/labels','POST',{name:'其他',save_id:empty.save_id})).status,409);
+  const sampleTime='2026-10-28T08:00:00.000Z',statements=[];
+  for(let i=0;i<55;i++) {
+    const entryId=randomUUID();
+    statements.push(app.db.prepare('INSERT INTO matrix_note_entries(user_id,id,category,date,text,version,change_seq,created_at,updated_at) VALUES(?,?,?,?,?,1,1,?,?)')
+      .bind(owner,entryId,'life',body.date,'批量样例',sampleTime,sampleTime));
+    statements.push(app.db.prepare('INSERT INTO matrix_note_entry_labels(user_id,entry_id,label) VALUES(?,?,?)').bind(owner,entryId,'兴趣'));
+  }
+  await app.db.batch(statements);
+  const page=await call('/note-entries?category=life&date=2026-10-28');
+  assert.equal(page.status,200);assert.equal(page.data.entries.length,56);assert.ok(page.data.entries.every(row=>row.label==='兴趣'));
 });
 
 test('additive migration preserves existing note rows and labels cannot reference another owner',async t=>{

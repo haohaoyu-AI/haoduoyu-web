@@ -16,9 +16,13 @@ function view(row,canEdit,label=null) {
   return {...row,...(label?{label}:{}),deleted:row.deleted_at!==null,can_edit:canEdit,content_hash:entityHash(row)};
 }
 async function labelsFor(store,owner,rows) {
-  if(!rows.length)return new Map();
-  const labels=await store.all('SELECT entry_id,label FROM matrix_note_entry_labels WHERE user_id=? AND entry_id IN ('+rows.map(()=>'?').join(',')+')',owner,...rows.map(row=>row.id));
-  return new Map(labels.map(row=>[row.entry_id,row.label]));
+  const result=new Map();
+  for(let offset=0;offset<rows.length;offset+=50) {
+    const batch=rows.slice(offset,offset+50);
+    const labels=await store.all('SELECT entry_id,label FROM matrix_note_entry_labels WHERE user_id=? AND entry_id IN ('+batch.map(()=>'?').join(',')+')',owner,...batch.map(row=>row.id));
+    for(const row of labels)result.set(row.entry_id,row.label);
+  }
+  return result;
 }
 async function ownerExists(store,owner) {
   if(!await store.get('SELECT id FROM users WHERE id=?',owner))throw fail(503,'NOTES_CONFIG','碎碎念归属尚未核实');
