@@ -18,7 +18,8 @@ try:
    if label:body['label']=label
    response=request.put('/api/v1/note-entries/'+str(uuid.uuid4()),data=body)
    assert response.status==200,(response.status,response.text())
-  page=context.new_page();errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
+  page=context.new_page();errors=[];month_urls=[];page.on('pageerror',lambda error:errors.append(str(error)))
+  page.on('request',lambda req:month_urls.append(req.url) if '/api/v1/note-entries/month?' in req.url else None)
   page.goto(origin+'/?page=notes');expect(page.locator('[data-notes-view=history]')).to_be_visible(timeout=15000)
   page.locator('[data-notes-view=history]').click();expect(page.locator('#notes-history-month')).not_to_have_value('')
   page.locator('#notes-history-month').fill('2026-09');expect(page.locator('#notes-history-summary')).to_contain_text('2026-09')
@@ -44,12 +45,25 @@ try:
   expect(page.locator('#notes-history-status')).to_contain_text('读取失败')
   assert page.locator('#notes-history-month').input_value()=='2026-09'
   expect(page.locator('[data-notes-history-day="2026-09-01"]')).to_contain_text('兴趣月历合成')
+  page.unroute('**/api/v1/note-entries/month?month=2026-07')
+  page.locator('#notes-history-month').fill('2026-07')
+  expect(page.locator('#notes-history-summary')).to_contain_text('2026-07')
+  page.locator('#notes-history-month').fill('2026-09')
+  expect(page.locator('#notes-history-summary')).to_contain_text('2026-09')
+  page.locator('#notes-history-date').select_option('2026-09-01')
+  page.locator('aside [data-nav=todos]').first.click()
+  expect(page.locator('#todo-main')).to_be_visible()
+  page.locator('aside [data-nav=notes]').first.click()
+  expect(page.locator('#notes-history')).to_be_visible()
+  expect(page.locator('#notes-history-summary')).to_contain_text('2026-09')
+  assert page.locator('#notes-history-date').input_value()=='2026-09-01'
+  expect(page.locator('#notes-history-list')).to_contain_text('兴趣月历合成')
   for width in (1440,375,390):
    page.set_viewport_size({'width':width,'height':900});page.wait_for_timeout(150)
    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'),('overflow',width)
   assert not errors,errors
   calls=request.get('/__offline-test/calls').json();months=[call for call in calls if call['path']=='/api/v1/note-entries/month']
-  assert len(months)<=4,len(months)
+  assert len(months)==7, (len(months),month_urls)
   print(json.dumps({'synthetic':True,'real_worker':True,'monday_first':True,'month_filter_day_week':True,
     'empty_and_error':True,'month_requests':len(months),'widths':[1440,375,390],'pageerrors':errors},ensure_ascii=False))
   browser.close()
