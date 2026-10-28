@@ -4,6 +4,12 @@ import {validCustomNoteLabel} from './note-entries-state.mjs';
 export function validNoteMonth(month) {
   return typeof month === 'string' && /^\d{4}-\d{2}$/.test(month) && validDailyNotesDate(month + '-01');
 }
+export function coalesceNoteMonthFlight(current, next) {
+  if (!current || current.root !== next.root || current.target !== next.target || current.expected !== next.expected ||
+      current.sequence !== next.sequence) return false;
+  if (next.chosenDate) current.chosenDate = next.chosenDate;
+  return true;
+}
 export function shiftNoteMonth(month, delta) {
   if (!validNoteMonth(month) || !Number.isInteger(delta)) throw new Error('请选择有效月份。');
   const date = new Date(month + '-01T12:00:00Z'); date.setUTCMonth(date.getUTCMonth() + delta);

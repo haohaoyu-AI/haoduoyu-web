@@ -5,7 +5,7 @@ import {renderShell} from './controller.mjs';
 import {createDailyNotesStore, dailyNotesRouteDate, dailyNotesToday,
   setDailyNotesRouteDate, validDailyNotesDate, dailyNotesRouteCategory, setDailyNotesRouteCategory} from './core/daily-notes-state.mjs';
 import {createNoteEntriesStore, validCustomNoteLabel} from './core/note-entries-state.mjs';
-import {checkedNoteMonth, noteMonthWeeks, shiftNoteMonth, validNoteMonth} from './core/notes-month.mjs';
+import {checkedNoteMonth, coalesceNoteMonthFlight, noteMonthWeeks, shiftNoteMonth, validNoteMonth} from './core/notes-month.mjs';
 import {createNotesEditorView} from './core/notes-editor-view.mjs';
 import {paintNoteEntries} from './pages/daily-notes.mjs';
 import {renderLogin} from './pages/login.mjs';
@@ -16,6 +16,7 @@ let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
   notesDraftError = '', notesDraftRevision = 0;
 let notesView = 'today', historyMonth = '', historyDate = '', historyDays = new Map(), historySequence = 0;
+let historyActiveLoad = null;
 let notesSelectedLabel = '生活', notesLabels = [], notesLabelIntent = null, notesLabelBusy = false, notesLabelMessage = '';
 const notesStores = new Map(), entryStores = new Map(), editorViews = createNotesEditorView();
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
@@ -121,7 +122,7 @@ function ensureDailyNotesStore() {
     for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
     notesStores.clear(); entryStores.clear(); editorViews.clear(); notesIdentity = next;
     notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false; notesDraftError = ''; notesDraftRevision++;
-    notesView = 'today'; historyMonth = ''; historyDate = ''; historyDays = new Map(); historySequence++;
+    notesView = 'today'; historyMonth = ''; historyDate = ''; historyDays = new Map(); historySequence++; historyActiveLoad = null;
     notesSelectedLabel = '生活'; notesLabels = []; notesLabelIntent = null; notesLabelBusy = false; notesLabelMessage = '';
   }
   if (notesActiveCategory !== category) { notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = ''; }
@@ -315,21 +316,23 @@ function applyHistoryMonth(root, month, days, chosenDate) {
   paintHistoryRows(root);
 }
 async function loadHistory(month = '', chosenDate = '') {
-  const root = document.querySelector('#daily-notes'), sequence = ++historySequence, expected = notesIdentityNow();
+  const root = document.querySelector('#daily-notes'), expected = notesIdentityNow();
   if (!root) return;
   const target = month || historyMonth || dailyNotesToday().slice(0, 7);
+  if (coalesceNoteMonthFlight(historyActiveLoad, {root, target, expected, sequence:historySequence, chosenDate})) return;
+  const sequence = ++historySequence; historyActiveLoad = {root, target, expected, sequence, chosenDate};
   const active = () => notesVisible() && notesView === 'history' && sequence === historySequence && expected === notesIdentityNow();
   const status = root.querySelector('#notes-history-status'); status.textContent = '正在读取月记录…';
   try {
     const value = await apiNetwork('/note-entries/month?month=' + encodeURIComponent(target),
       {headers:{'X-Note-Labels-Version':'1'}});
     const days = checkedNoteMonth(value, target); if (!active()) return;
-    applyHistoryMonth(root, target, days, chosenDate || historyDate || dailyNotesRouteDate());
+    applyHistoryMonth(root, target, days, historyActiveLoad.chosenDate || historyDate || dailyNotesRouteDate());
   } catch (error) {
     if (!active()) return;
     status.textContent = '月记录读取失败，保留当前内容：' + (error.message || '请联网重试。');
     if (historyMonth) root.querySelector('#notes-history-month').value = historyMonth;
-  }
+  } finally { if (historyActiveLoad?.sequence === sequence) historyActiveLoad = null; }
 }
 async function selectDailyNotesDate(value) {
   if (!validDailyNotesDate(value) || value > dailyNotesToday()) return;
