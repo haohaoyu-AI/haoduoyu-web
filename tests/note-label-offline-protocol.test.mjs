@@ -107,3 +107,22 @@ test('actual frozen b242 runtime cannot send or remove a newer labeled queue',as
   const after=(await f.app.queue()).operations;assert.deepEqual(after,before);
   assert.equal(f.calls.filter(c=>c.path==='/note-entries/'+id&&c.method==='PUT').length,0);
 });
+
+test('an online retry requested during a failing in-flight sync is not lost',async t=>{
+  const f=fixture(t);await initialize(f);f.offline();const id=randomUUID();
+  await f.app.call('/note-entries/'+id,{method:'PUT',body:{category:'life',date,text:'断网后恢复',version:0,save_id:randomUUID(),label:'兴趣'}});
+  f.app.stop();f.online();let hold=false,rejectHeld,markStarted;
+  const started=new Promise(resolve=>{markStarted=resolve;});
+  const request=async(path,opts)=>{
+    if(hold&&path==='/auth/me')return new Promise((_,reject)=>{rejectHeld=reject;markStarted();});
+    return f.request(path,opts);
+  };
+  const newer=createOfflineRuntime({db:f.db,request,online:()=>true,features:{todos:true,notes:true,memos:false,labelsV1:true}});
+  t.after(()=>newer.stop());await newer.call('/auth/me');hold=true;
+  const first=newer.sync();await started;const overlapped=newer.sync();hold=false;
+  rejectHeld(Object.assign(new Error('previous connection failed'),{code:'NETWORK_UNAVAILABLE'}));
+  await Promise.all([first,overlapped]);
+  await new Promise(resolve=>setTimeout(resolve,300));
+  assert.equal((await newer.queue()).operations.length,0,'reconnect must trigger a fresh sync after the stale failure');
+  assert.equal(f.remote.get(id).label,'兴趣');
+});

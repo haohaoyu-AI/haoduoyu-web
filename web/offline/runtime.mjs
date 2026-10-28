@@ -257,7 +257,15 @@ function syncActions(context) {
     return {...state};
   }
   function sync() {
-    if (!context.syncFlight) context.syncFlight = run().finally(() => { context.syncFlight = null; });
+    if (context.syncFlight) {
+      if (online()) context.syncAgain = true;
+      return context.syncFlight;
+    }
+    context.syncFlight = run().finally(() => {
+      context.syncFlight = null;
+      const again = context.syncAgain; context.syncAgain = false;
+      if (again && !context.stopped) queueMicrotask(() => { if (!context.stopped && online()) void sync(); });
+    });
     return context.syncFlight;
   }
   function scheduleRetry() {
