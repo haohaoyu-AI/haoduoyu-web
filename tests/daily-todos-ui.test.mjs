@@ -31,6 +31,13 @@ test('a direct future view starts without showing the dated todo editor',()=>{
   assert.doesNotMatch(html, /id="todo-future"[^>]*hidden/);
 });
 
+test('opening history from a direct future link reads the selected date',async()=>{
+  const c=client({search:'?page=todos&date=2027-01-01&todo_panel=future'});
+  c.run("readRoute();paintTodos=()=>{};let todoLoads=0;loadTodos=async()=>{todoLoads++}");
+  await c.run("setTodoPanel('history')");
+  assert.equal(c.run('todoLoads'),1);assert.equal(c.run('state.todoDate'),'2027-01-01');
+});
+
 test('today-added is based on acknowledged linked items and clears after actual soft deletion',()=>{
   const c=client();
   c.run("templateState().items=[{id:'common',text:'常用'}];todoDay().adding=true;todoDay().submitting={template_id:'common'}");

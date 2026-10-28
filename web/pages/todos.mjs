@@ -123,8 +123,7 @@ async function setTodoPanel(panel) {
   if (!state.todoPanel) state.todoDate = "";
   updateRoute(true); paintTodos();
   if (state.todoPanel === "future") await loadUnscheduledTodos();
-  else if (state.todoPanel === "templates") await loadTodos();
-  else if (!state.todoPanel) await loadTodos();
+  else await loadTodos();
   const selector = state.todoPanel === 'future' ? '#todo-future-text' : state.todoPanel ?
     '#todo-' + state.todoPanel + ' [data-action="todo-panel-close"]' : '#todo-text';
   $(selector)?.focus();
