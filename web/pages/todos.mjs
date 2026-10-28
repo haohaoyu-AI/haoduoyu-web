@@ -164,7 +164,7 @@ function renderTodos() {
   const day = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day)}</div>
-${renderTodoHistory(day)}<div id="todo-main" ${state.todoPanel === "templates" ? "hidden" : ""}>${todoForm(day)}${renderInlineTodoTemplates()}
+${renderTodoHistory(day)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoForm(day)}${renderInlineTodoTemplates()}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}

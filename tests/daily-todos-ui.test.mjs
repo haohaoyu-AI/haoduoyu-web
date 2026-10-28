@@ -24,6 +24,13 @@ test('calendar presents selected-day plans and completed rows without changing t
   assert.doesNotMatch(c.run('renderTodos()'),/data-todo-id="history-completed"/);
 });
 
+test('a direct future view starts without showing the dated todo editor',()=>{
+  const c=client({search:'?page=todos&todo_panel=future'});c.run('readRoute()');
+  assert.equal(c.run('state.todoPanel'),'future');const html=c.run('renderTodos()');
+  assert.match(html, /id="todo-main" hidden/);assert.match(html, /id="todo-future"[^>]*>/);
+  assert.doesNotMatch(html, /id="todo-future"[^>]*hidden/);
+});
+
 test('today-added is based on acknowledged linked items and clears after actual soft deletion',()=>{
   const c=client();
   c.run("templateState().items=[{id:'common',text:'常用'}];todoDay().adding=true;todoDay().submitting={template_id:'common'}");
