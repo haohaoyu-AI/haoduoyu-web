@@ -364,10 +364,12 @@ async function handleNotesClick(event) {
     paintDailyNotesPage(); if (notesView === 'history') await loadHistory(); return;
   }
   if (target.dataset.notesCategory) {
+    notesSelectedLabel = target.dataset.notesCategory === 'work' ? '工作' : '生活';
     setDailyNotesRouteCategory(target.dataset.notesCategory); updateRoute(true); renderShell(); return;
   }
   if (target.dataset.notesDate) {
     if (target.dataset.notesDraftCategory && target.dataset.notesDraftCategory !== dailyNotesRouteCategory()) {
+      notesSelectedLabel = target.dataset.notesDraftCategory === 'work' ? '工作' : '生活';
       setDailyNotesRouteCategory(target.dataset.notesDraftCategory); setDailyNotesRouteDate(target.dataset.notesDate);
       updateRoute(true); renderShell();
     } else await selectDailyNotesDate(target.dataset.notesDate);
