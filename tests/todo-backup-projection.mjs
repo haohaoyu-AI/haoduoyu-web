@@ -7,9 +7,16 @@ import {ARTICLE_PIPELINE_FIELDS,LEGACY_ARTICLE_PIPELINE_DEFAULTS} from '../src/a
 // and the exact empty private tables on these historical paired fixtures.
 export function legacyBackupEnvelope(value) {
   const result=structuredClone(value),backup=result.data;
-  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9'].includes(backup?.data?.format)) return result;
+  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10'].includes(backup?.data?.format)) return result;
   const checksum=data=>createHash('sha256').update(JSON.stringify(stable(data))).digest('hex');
   assert.equal(backup.sha256,checksum(backup.data));
+  if(backup.data.format==='haoduoyu-matrix-d1-v10') {
+    for(const name of ['unscheduled_todos','note_labels','note_entry_labels']) {
+      assert.deepEqual(backup.data.tables[name],[], 'legacy projection cannot hide new data: '+name);
+      delete backup.data.tables[name];
+    }
+    backup.data.format='haoduoyu-matrix-d1-v9';
+  }
   if(backup.data.format==='haoduoyu-matrix-d1-v9') {
     for(const name of ['note_entries','work_reminders','account_profiles']) {
       assert.deepEqual(backup.data.tables[name],[], 'legacy projection cannot hide workbench data: '+name);
