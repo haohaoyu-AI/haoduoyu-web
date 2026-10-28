@@ -23,7 +23,11 @@ function fields() {
 }
 async function setup(t) {
   const journal=JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
-  assert.equal(journal.entries.length,9,'The active journal retains the reviewed article migration and additive workbench migration');
+  assert.deepEqual(journal.entries.map(entry=>entry.tag),[
+    '0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes',
+    '0005_article_pipeline','0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates',
+    '0009_unscheduled_todos','0010_note_labels',
+  ],'The journal preserves every reviewed migration and appends only the two reviewed additions');
   assert.equal(journal.entries[5].tag,'0005_article_pipeline');
   assert.equal(journal.entries[8].tag,'0008_workbench_updates');
   const app=await fixture(t),session=await app.login();
