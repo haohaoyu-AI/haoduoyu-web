@@ -26,6 +26,19 @@ async function publicApp(t) {
 const article=()=>({account_id:'toutiao-haoduoyu',title:'合成公开文章',url:'https://example.invalid/'+randomUUID(),
   published_at:'2026-10-23T00:00:00.000Z',notes:'合成业务备注'});
 
+test('public account creation accepts a padded Toutiao homepage and safely reuses its identity',async t=>{
+  const app=await publicApp(t),read=app.publicRequest;
+  const base='https://www.toutiao.com/c/user/token/SYNTHETIC_public-123';
+  const created=await read('/accounts',{method:'POST',body:{name:'合成公开账号',profile_url:base+'=/'}});
+  assert.equal(created.status,201,created.text);
+  const duplicate=await read('/accounts',{method:'POST',body:{name:'不重复创建',profile_url:base+'%3d/'}});
+  assert.equal(duplicate.status,200,duplicate.text);
+  assert.equal(duplicate.data.id,created.data.id);assert.equal(duplicate.data.profile_reused,true);
+  assert.equal((await read('/accounts')).data.filter(item=>item.id===created.data.id).length,1);
+  assert.equal((await read('/accounts',{method:'POST',headers:{Origin:'https://foreign.invalid'},
+    body:{name:'拒绝跨站',profile_url:base+'=/'}})).status,403);
+});
+
 test('public mode is explicit, owner-bound, credential-free and reversible',async t=>{
   const app=await publicApp(t),read=app.publicRequest;
   const me=await read('/auth/me');
