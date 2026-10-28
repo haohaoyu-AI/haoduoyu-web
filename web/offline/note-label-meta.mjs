@@ -11,7 +11,7 @@ const identity = row => {
       !Number.isFinite(Date.parse(row.created_at)) || !Number.isSafeInteger(row.version) || row.version < 1) throw invalid();
   return {id:row.id.toLowerCase(), category:row.category, created_at:row.created_at, version:row.version};
 };
-const serverEvidence = row => Boolean(row && /^\d{4}-\d{2}-\d{2}$/.test(row.date || '') &&
+const serverEvidence = row => Boolean(row && row.labels_version === 1 && /^\d{4}-\d{2}-\d{2}$/.test(row.date || '') &&
   Number.isFinite(Date.parse(row.date + 'T00:00:00Z')) && new Date(row.date + 'T00:00:00Z').toISOString().slice(0,10) === row.date &&
   typeof row.text === 'string' && new TextEncoder().encode(row.text).byteLength <= 65536 &&
   Number.isSafeInteger(row.change_seq) && row.change_seq >= 0 && typeof row.can_edit === 'boolean' &&
