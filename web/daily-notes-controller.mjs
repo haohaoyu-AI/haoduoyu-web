@@ -12,7 +12,8 @@ import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
 import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offline/conflict-draft-guards.mjs';
 
 let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
-  notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false;
+  notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
+  notesDraftError = '', notesDraftRevision = 0;
 const notesStores = new Map(), entryStores = new Map(), editorViews = createNotesEditorView();
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
   state.me?.publicBusiness === true, getOfflineRuntime()?.state.scope || '']);
@@ -103,7 +104,7 @@ function ensureDailyNotesStore() {
   if (notesIdentity !== next) {
     for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
     notesStores.clear(); entryStores.clear(); editorViews.clear(); notesIdentity = next;
-    notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false;
+    notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false; notesDraftError = ''; notesDraftRevision++;
   }
   if (notesActiveCategory !== category) { notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = ''; }
   if (!notesStores.has(category)) {
@@ -117,7 +118,17 @@ function ensureDailyNotesStore() {
     const suffix = separator => category === 'work' ? separator + 'category=work' : '';
     const changed = () => {
       if (expected !== notesIdentityNow()) return;
-      void captureNotesDrafts(legacy, entries, category)?.catch(() => {});
+      const revision = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
+      if (!getOfflineRuntime() && [...entries.entries.values()].some(item => item.dirty)) {
+        notesDraftError = '本机草稿保存不可用，请保持页面打开或发送后再离开。';
+      }
+      if (saved) void saved.then(() => {
+        if (expected !== notesIdentityNow() || revision !== notesDraftRevision || !notesDraftError) return;
+        notesDraftError = ''; paintDailyNotesPage();
+      }).catch(() => {
+        if (expected !== notesIdentityNow() || revision !== notesDraftRevision) return;
+        notesDraftError = '草稿未能保存在本机，请保持页面打开并检查存储空间。'; paintDailyNotesPage();
+      });
       if (category === dailyNotesRouteCategory()) paintDailyNotesPage();
     };
     const readOnly = async () => { throw Object.assign(new Error('原有逐日记录只读，草稿可导出。'), {code: 'LEGACY_READ_ONLY'}); };
@@ -163,6 +174,10 @@ export function paintDailyNotesPage() {
   const selected = editorViews.sync(category, date, current.ids.map(id => entryStore.entry(id)).filter(Boolean), legacy,
     {focused: host.contains(document.activeElement), composing: field?.dataset.composing === 'true'});
   paintNoteEntries(root, entryStore, current, legacy, {drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active});
+  if (notesDraftError) {
+    const message = root.querySelector('#notes-entry-message');
+    message.textContent = notesDraftError; message.hidden = false;
+  }
   root.querySelector('#notes-delete-confirm').hidden = true;
 }
 async function selectDailyNotesDate(value) {
