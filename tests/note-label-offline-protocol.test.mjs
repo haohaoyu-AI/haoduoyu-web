@@ -126,3 +126,16 @@ test('an online retry requested during a failing in-flight sync is not lost',asy
   assert.equal((await newer.queue()).operations.length,0,'reconnect must trigger a fresh sync after the stale failure');
   assert.equal(f.remote.get(id).label,'兴趣');
 });
+
+test('real b242 runtime cannot resolve or archive a newer labeled conflict',async t=>{
+  const f=fixture(t),id=randomUUID();
+  f.remote.set(id,{id,category:'life',date,text:'原文',version:1,change_seq:1,created_at:stamp,updated_at:stamp,
+    deleted_at:null,deleted:false,can_edit:true,content_hash:'b'.repeat(64),labels_version:1,label:'兴趣'});
+  await initialize(f);f.offline();
+  await f.app.call('/note-entries/'+id,{method:'PUT',body:{category:'life',date,text:'本机内容',version:1,save_id:randomUUID()}});
+  f.remote.set(id,{...f.remote.get(id),text:'线上内容',version:2,change_seq:2});f.online();await f.app.sync();
+  const before=await f.app.queue(),conflict=before.conflicts[0];assert.ok(conflict);
+  const old=oldRuntime({db:f.db,request:f.request,online:()=>true});t.after(()=>old.stop());await old.call('/auth/me');
+  await assert.rejects(old.resolve(conflict.key,'use-server'),e=>e.code==='OFFLINE_UPGRADE_REQUIRED');
+  assert.deepEqual(await f.app.queue(),before);
+});
