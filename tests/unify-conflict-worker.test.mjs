@@ -43,12 +43,28 @@ async function setup(t) {
   }
   return {db, calls, clock, source, live, runtime, date: beijingDay(clock.value)};
 }
+// The synthetic clock is frozen: an overlapping sync may legitimately record an
+// unknown network result while the fixture switches offline. Advance only to the
+// persisted retry deadline and require the same durable operation to be reconciled.
+async function syncUntil(f, runtime, predicate) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await runtime.sync();
+    const queue = await runtime.queue();
+    if (await predicate(queue)) return;
+    const retry = queue.operations.filter(row => row.status === 'unknown' || row.status === 'retry');
+    if (retry.length) {
+      assert.ok(retry.every(row => Number.isFinite(row.next_attempt_at) && row.next_attempt_at > 0));
+      f.clock.value = Math.max(f.clock.value, ...retry.map(row => row.next_attempt_at));
+    }
+  }
+  assert.fail('the durable operation did not reach the expected conflict or server acknowledgement');
+}
 async function clash(f, runtime, path, method, local, remote) {
   f.source.online = false; await runtime.call(path, {method, body: local});
   const operation = (await runtime.queue()).operations.find(row => row.path === path);
   assert.ok(operation, 'the original local request must be durable');
   await f.live(path, {method, body: remote});
-  f.source.online = true; await runtime.sync();
+  f.source.online = true; await syncUntil(f, runtime, queue => queue.conflicts.some(row => row.entity_id === operation.entity_id));
   const conflict = (await runtime.queue()).conflicts.find(row => row.entity_id === operation.entity_id);
   assert.ok(conflict, 'the real Worker version conflict must retain both bodies');
   return {conflict, operation};
@@ -62,7 +78,7 @@ async function choose(f, runtime, conflict, choice, options = {}) {
   return {result, operations};
 }
 async function complete(f, runtime, key) {
-  f.source.online = true; await runtime.sync();
+  f.source.online = true; await syncUntil(f, runtime, async () => (await read(f.db, 'conflicts', key))?.resolution?.state === 'synced');
   const conflict = await read(f.db, 'conflicts', key);
   assert.equal(conflict.resolution.state, 'synced'); assert.equal(conflict.resolved_at, f.clock.value);
   assert.ok(conflict.resolution.acknowledgements.length); return conflict;
