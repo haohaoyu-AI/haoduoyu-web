@@ -104,8 +104,9 @@ export function versionSnapshot(version,expectedId) {
 function settingsSnapshot(settings) {
   // These settings are non-versioned and are NEVER sent in either write.
   keys(settings,['logpush','observability','tags','tail_consumers','streaming_tail_consumers']);
-  return settings;
+  return Object.fromEntries(Object.entries(settings).map(([key,value])=>[key,emptySettingList(key,value)]));
 }
+const emptySettingList=(key,value)=>value===null&&['tags','tail_consumers','streaming_tail_consumers'].includes(key)?[]:value;
 function combinedSnapshot(settings,snapshot,nonversioned) {
   // /settings includes additional version options not promised by GET version.
   // https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/script_and_version_settings/methods/get/
@@ -130,8 +131,10 @@ function combinedSnapshot(settings,snapshot,nonversioned) {
     }
   }else check(!snapshot.script.placement_mode,'CONFIGURATION_CHANGED');
   for(const key of ['logpush','observability','tags','tail_consumers','streaming_tail_consumers'])
-    if(own(settings,key)&&own(nonversioned,key))same(settings[key],nonversioned[key]);
+    if(own(settings,key)&&own(nonversioned,key))same(emptySettingList(key,settings[key]),nonversioned[key]);
   const invariant={...settings,bindings:bindingsSnapshot(settings.bindings)};
+  for(const key of ['tags','tail_consumers','streaming_tail_consumers'])
+    if(own(invariant,key))invariant[key]=emptySettingList(key,invariant[key]);
   if(object(invariant.placement)&&Object.keys(invariant.placement).length===0)delete invariant.placement;
   delete invariant.annotations;return invariant;
 }

@@ -122,6 +122,15 @@ test('documented optional usage_model is neither invented nor required',async()=
   const report=await run(mock);assert.equal(report.status,'deployed');
   assert.ok(!Object.hasOwn(mock.metadata,'usage_model'));
 });
+test('null and empty nonversioned lists are equivalent without writing settings',async()=>{
+  const mock=mockCloudflare(({path,method,state})=>{
+    if(method==='GET'&&path==='/script-settings')return Response.json({success:true,result:{...state.settings,
+      tags:null,tail_consumers:null,streaming_tail_consumers:null}});
+  });
+  mock.state.settings.tags=[];
+  const report=await run(mock);assert.equal(report.status,'deployed');
+  for(const key of ['tags','tail_consumers','streaming_tail_consumers'])assert.ok(!Object.hasOwn(mock.metadata,key));
+});
 test('empty placement metadata preserves an existing worker without smart placement',async()=>{
   const mock=mockCloudflare(({path,method,state})=>{
     if(method!=='GET'||path!=='/settings')return;
