@@ -1,6 +1,7 @@
 package xyz.haoduoyu.personal;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
@@ -10,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.EditText;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import org.junit.After;
 import org.junit.Before;
@@ -19,6 +21,8 @@ import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
+import org.robolectric.shadows.ShadowAlertDialog;
+import org.robolectric.shadows.ShadowPopupMenu;
 import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.LooperMode;
@@ -98,6 +102,8 @@ public final class LegacyEntryCompatibilityTest {
         web = Robolectric.buildActivity(MainActivity.class, target).setup(); settle();
         WebView view = (WebView) field(MainActivity.class, "web").get(web.get());
         assertEquals(UrlPolicy.HOME, Shadows.shadowOf(view).getLastLoadedUrl());
+        ViewGroup root = (ViewGroup) ((View) view.getParent()).getParent();
+        assertEquals("No legacy notice consumes a native content row", 3, root.getChildCount());
         assertNull(field(OfflineRuntime.class, "instance").get(null)); assertEquals(0, requests.get());
     }
     @Test public void explicitOldHistoryComponentWithoutADraftGoesToTheSharedWebShellWithoutOpeningAnOldStore() throws Exception {
@@ -129,7 +135,9 @@ public final class LegacyEntryCompatibilityTest {
         assertEquals(2, values.size()); boolean empty = false, nullValue = false;
         for (LegacyRestoredDraft value : values) { empty |= "".equals(value.draft()); nullValue |= value.draft() == null; }
         assertTrue(empty); assertTrue(nullValue); assertTrue(LegacyRecoveryRuntime.get(second).hasLegacyRecords());
-        startWeb(target);assertEquals(View.VISIBLE,((View)field(MainActivity.class,"legacyNotice").get(web.get())).getVisibility());
+        startWeb(target); openSettingsAndSelect(0);
+        Intent recovery=Shadows.shadowOf(web.get()).getNextStartedActivity();
+        assertEquals(LegacyRecoveryActivity.class.getName(),recovery.getComponent().getClassName());
         viewer=Robolectric.buildActivity(LegacyRecoveryActivity.class).setup();settle();
         assertNotNull(find(viewer.get().getWindow().getDecorView(),"恢复的启动草稿 · 恢复时间",true));
         assertFalse(RuntimeEnvironment.getApplication().getDatabasePath("haoduoyu-offline.db").exists()); assertEquals(0, requests.get());
@@ -153,7 +161,7 @@ public final class LegacyEntryCompatibilityTest {
         Intent target = Shadows.shadowOf(activity).getNextStartedActivity(); assertEquals(MainActivity.class.getName(), target.getComponent().getClassName());
         assertEquals(0, target.getFlags() & Intent.FLAG_ACTIVITY_CLEAR_TOP); assertFalse(activity.isFinishing());
         assertTrue(target.getBooleanExtra("legacyRecoveryPending",false));startWeb(target);assertFalse(activity.isFinishing());
-        View notice=(View)field(MainActivity.class,"legacyNotice").get(web.get());assertEquals(View.VISIBLE,notice.getVisibility());notice.performClick();
+        openSettingsAndSelect(1);
         Intent returnIntent=Shadows.shadowOf(web.get()).getNextStartedActivity();
         assertEquals(OfflineActivity.class.getName(),returnIntent.getComponent().getClassName());
         assertEquals(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,returnIntent.getFlags() & Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
@@ -164,8 +172,23 @@ public final class LegacyEntryCompatibilityTest {
         Intent confirmed=Shadows.shadowOf(activity).getNextStartedActivity();assertNotNull(confirmed);
         assertFalse(confirmed.getBooleanExtra("legacyRecoveryPending",true));web.get().onNewIntent(confirmed);
         assertEquals("https://haoduoyu.xyz/?page=memos",Shadows.shadowOf(existing).getLastLoadedUrl());
-        assertFalse(((TextView)notice).getText().toString().contains("尚未保全"));
+        openSettings();
+        assertEquals(1, ShadowAlertDialog.getLatestAlertDialog().getListView().getCount());
         assertFalse(RuntimeEnvironment.getApplication().getDatabasePath("haoduoyu-offline.db").exists()); assertEquals(0, requests.get());
+    }
+    private void openSettings() {
+        View more=find(web.get().getWindow().getDecorView(), "更多", false);
+        assertNotNull(more); assertTrue(more.performClick());
+        PopupMenu menu=ShadowPopupMenu.getLatestPopupMenu(); assertNotNull(menu);
+        assertEquals("设置",menu.getMenu().findItem(5).getTitle().toString());
+        assertTrue(menu.getMenu().performIdentifierAction(5,0));
+        assertNotNull(ShadowAlertDialog.getLatestAlertDialog());
+    }
+    private void openSettingsAndSelect(int index) {
+        openSettings(); AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();
+        android.widget.ListView list=dialog.getListView();
+        assertTrue(index < list.getCount());
+        list.performItemClick(list.getAdapter().getView(index,null,list),index,list.getAdapter().getItemId(index));
     }
     private static View find(View view, String text, boolean prefix) {
         if (view instanceof TextView) { String value = ((TextView) view).getText().toString(); if (prefix ? value.startsWith(text) : value.equals(text)) return view; }

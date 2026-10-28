@@ -81,7 +81,6 @@ public final class MainActivity extends Activity {
     private String retryUrl = UrlPolicy.HOME;
     private android.window.OnBackInvokedCallback backCallback;
     private LegacyRecoveryRuntime legacy;
-    private Button legacyNotice;
     private final Runnable legacyListener = this::refreshLegacy;
     private ConnectivityManager connectivity;
     private ConnectivityManager.NetworkCallback networkCallback;
@@ -149,14 +148,6 @@ public final class MainActivity extends Activity {
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         root.addView(progress, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)));
-        legacyNotice = new Button(this);
-        legacyNotice.setText("旧版本机记录（只读查看 / 导出）");
-        legacyNotice.setMinHeight(dp(44)); legacyNotice.setVisibility(View.GONE);
-        legacyNotice.setOnClickListener(view -> {
-            if (getIntent().getBooleanExtra("legacyRecoveryPending", false)) returnToRecovery();
-            else startActivity(new Intent(this, LegacyRecoveryActivity.class));
-        });
-        root.addView(legacyNotice, new LinearLayout.LayoutParams(-1, -2));
         webFrame = new FrameLayout(this);
         root.addView(webFrame, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
@@ -235,8 +226,7 @@ public final class MainActivity extends Activity {
         menu.getMenu().add(0, 2, 1, "重新加载当前页面");
         menu.getMenu().add(0, 3, 2, "在浏览器打开");
         menu.getMenu().add(0, 4, 3, "关于自用版");
-        menu.getMenu().add(0, 5, 4, "旧版本机记录（只读）");
-        if (getIntent().getBooleanExtra("legacyRecoveryPending", false)) menu.getMenu().add(0, 6, 5, "返回未保全恢复页");
+        menu.getMenu().add(0, 5, 4, "设置");
         menu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == 1) confirmReload(UrlPolicy.HOME);
             if (item.getItemId() == 2) confirmReload(currentUrl());
@@ -247,11 +237,21 @@ public final class MainActivity extends Activity {
                             + "\n旧库保留；未获原有上传同意的本机记录仅本地查看、复制或导出。下载文件交系统浏览器。"
                             + (BuildConfig.DEBUG ? "\n这是调试签名预览包，不是正式发布包。" : ""))
                     .setPositiveButton("知道了", null).show();
-            if (item.getItemId() == 5) startActivity(new Intent(this, LegacyRecoveryActivity.class));
-            if (item.getItemId() == 6) returnToRecovery();
+            if (item.getItemId() == 5) showAppSettings();
             return true;
         });
         menu.show();
+    }
+
+    private void showAppSettings() {
+        boolean pending = getIntent().getBooleanExtra("legacyRecoveryPending", false);
+        String[] choices = pending
+                ? new String[]{"旧版本机记录（查看 / 导出）", "返回未保全恢复页"}
+                : new String[]{"旧版本机记录（查看 / 导出）"};
+        new AlertDialog.Builder(this).setTitle("设置").setItems(choices, (dialog, index) -> {
+            if (index == 0) startActivity(new Intent(this, LegacyRecoveryActivity.class));
+            else if (pending && index == 1) returnToRecovery();
+        }).setNegativeButton("关闭", null).show();
     }
 
     private String currentUrl() {
@@ -278,15 +278,8 @@ public final class MainActivity extends Activity {
     }
     private void refreshLegacy() {
         if (legacy == null || isDestroyed()) return;
-        boolean pending = getIntent().getBooleanExtra("legacyRecoveryPending", false);
-        legacyNotice.setVisibility(pending || legacy.hasLegacyRecords() ? View.VISIBLE : View.GONE);
-        if (pending) legacyNotice.setText("恢复草稿尚未保全（返回查看 / 导出）");
-        else legacyNotice.setText("旧版本机记录（只读查看 / 导出）");
         LegacyMigrationCoordinator.Result state = legacy.result();
         if (state == null) return;
-        if (!pending) legacyNotice.setText(state.pending + state.conflicts + state.drafts > 0 ?
-                "旧版保留：" + state.pending + " 条待同步 / " + state.conflicts + " 处冲突 / " + state.drafts + " 份草稿（只读查看）" :
-                "旧版本机记录（只读查看 / 导出）");
         emitNative(NativeBridgeScripts.legacy(state.pending, state.conflicts, state.needsConsent));
     }
     private void returnToRecovery() {
