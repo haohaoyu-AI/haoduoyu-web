@@ -96,7 +96,8 @@ function runtimeContext(options) {
       ...(features.memos ? ['memo_note', 'memo_group'] : [])],
     supportedProtocols: features.memos ? [1, 2, 3, 4] : [1, 3, 4], supportedDependencies: features.memos === true,
     resolutionReceipts: true});
-  context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now, version: features.snapshotV2 === true ? 2 : 1});
+  context.snapshot = createSnapshotSync({db, request: send, getScope: () => state.scope, now});
+  context.snapshotV2 = features.snapshotV2 === true ? createSnapshotSync({db, request: send, getScope: () => state.scope, now, version: 2}) : null;
   context.memos = createMemoOfflineAdapter({db, cache, outbox: context.outbox, getScope: () => state.scope,
     getGeneration: () => context.generation, now, uuid});
   return context;
@@ -232,6 +233,7 @@ function syncActions(context) {
       if (state.verifiedScope) await context.cache.captureDocuments();
       if (state.verifiedScope) {
         await snapshot.pull({date: today(now)});
+        if (context.snapshotV2) await context.snapshotV2.pull({date: today(now)});
         if (context.lastTodoPath) {
           const date = offlineReadRoute(context.lastTodoPath).date;
           if ((await context.cache.entities()).some(row => row.needs_api_refresh && row.server?.date === date))
