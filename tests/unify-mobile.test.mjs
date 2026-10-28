@@ -127,13 +127,21 @@ test('settings menu manages focus, outside closing, and the settings active mark
   app.window.innerWidth=768;app.run('syncMenu()');assert.equal(app.side.inert,false);assert.equal(app.panel.hidden,true);
 });
 
-test('existing life/work controls stay at the top and bottom notes navigation remembers the selected category',()=>{
+test('unified notes navigation keeps a labelled category selector and accessible active state',()=>{
   const app=browser({search:'?page=notes&notes_category=work'});app.run('readRoute()');
   const html=app.run('renderDailyNotes()');
-  assert.equal((html.match(/data-notes-category=/g)||[]).length,2);
-  assert.match(html,/data-notes-category="work" aria-pressed="true"/);
-  assert.match(app.run('mobileNavigation()'),/data-nav="notes" data-notes-category="work"/);
+  assert.match(html,/data-category="work"/);
+  assert.match(html,/<label>标签 <select id="notes-compose-label"/);
+  assert.match(html,/<option value="生活">生活<\/option><option value="工作">工作<\/option>/);
+  assert.match(html,/id="notes-new-label"/);
+  const mobile=app.run('mobileNavigation()'), sidebar=app.run('sidebarNavigation()');
+  assert.equal((mobile.match(/data-nav="notes"/g)||[]).length,1);
+  assert.equal((sidebar.match(/data-nav="notes"/g)||[]).length,1);
+  assert.match(mobile,/data-nav="notes"[^>]*aria-label="碎碎念"[^>]*aria-current="page"/);
+  assert.doesNotMatch(sidebar,/data-notes-category=/);
   assert.ok(html.indexOf('notes-categories')<html.indexOf('notes-toolbar'));
+  const fresh=browser({search:'?page=notes'});fresh.run('readRoute()');
+  assert.match(fresh.run('renderDailyNotes()'),/data-category="life"/);
 });
 
 test('visual viewport keyboard bounds fit the drawer and clean up on desktop without changing input text',()=>{

@@ -124,8 +124,13 @@ function ensureDailyNotesStore() {
     notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false; notesDraftError = ''; notesDraftRevision++;
     notesView = 'today'; historyMonth = ''; historyDate = ''; historyDays = new Map(); historySequence++; historyActiveLoad = null;
     notesSelectedLabel = '生活'; notesLabels = []; notesLabelIntent = null; notesLabelBusy = false; notesLabelMessage = '';
+    notesActiveCategory = '';
   }
-  if (notesActiveCategory !== category) { notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = ''; }
+  if (notesActiveCategory !== category) {
+    if (category === 'work') notesSelectedLabel = '工作';
+    else if (notesSelectedLabel === '工作') notesSelectedLabel = '生活';
+    notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = '';
+  }
   if (!notesStores.has(category)) {
     const expected = next;
     const active = () => {
