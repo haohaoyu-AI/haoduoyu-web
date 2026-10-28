@@ -22,6 +22,7 @@ function client({category = 'life', writeImpl, records = new Map(), manualSave =
     const local = {...visible, ...body, id, category: visible?.category || body.category || category,
       date: visible?.date || body.date, text: kind === 'put' ? body.text : visible.text,
       version: body.version + 1, deleted: kind === 'delete', can_edit: true, created_at: stamp, updated_at: stamp};
+    if (body.label) local.labels_version = 1;
     delete local.save_id; delete local.content_hash; delete local.change_seq;
     const record = {local, server: old?.server || null, operation: {save_id: body.save_id, status: 'queued'}, conflict: null};
     records.set(id, record); return localDocument(record);

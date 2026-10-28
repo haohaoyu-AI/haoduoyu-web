@@ -19,7 +19,7 @@ function checkedLocalDocument(value, category, date, id) {
   if (!local || !uuidPattern.test(local.id) || id && local.id !== id || local.category !== category || local.date !== date ||
       typeof local.text !== 'string' || dailyNotesBytes(local.text) > DAILY_NOTES_MAX_BYTES ||
       !Number.isSafeInteger(local.version) || local.version < 1 || typeof local.deleted !== 'boolean' ||
-      typeof local.can_edit !== 'boolean' || local.label !== undefined &&
+      typeof local.can_edit !== 'boolean' || local.label != null &&
       (category !== 'life' || !validCustomNoteLabel(local.label))) throw new Error('本机记录读取不完整，草稿已保留。');
   if (server) checkedEntry(server, category, date, local.id);
   return value;
@@ -30,7 +30,7 @@ function checkedEntry(value, category, date, id) {
       value.date !== date || typeof value.text !== 'string' || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES ||
       !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== 'boolean' ||
       typeof value.can_edit !== 'boolean' || !timestamp(value.created_at) || !timestamp(value.updated_at) ||
-      typeof value.content_hash !== 'string' || !value.content_hash || value.label !== undefined &&
+      typeof value.content_hash !== 'string' || !value.content_hash || value.label != null &&
       (category !== 'life' || !validCustomNoteLabel(value.label))) {
     throw new Error('记录读取不完整，请重新核对。');
   }
@@ -69,7 +69,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
   const stopTimer = item => { if (item.timer !== null) clearTimer(item.timer); item.timer = null; };
   function makeEntry(id, date, canEdit) {
     return {id, category, date, loaded: true, loading: false, canEdit, serverText: '', draft: '',
-      version: 0, createdAt: null, updatedAt: null, contentHash: '', label: '', deleted: false, dirty: false,
+      version: 0, createdAt: null, updatedAt: null, contentHash: '', label: '', labelKnown: false, deleted: false, dirty: false,
       phase: 'empty', error: '', remote: null, pending: null, timer: null, sequence: 0,
       writeEpoch: 0, composing: false, localVersion: 0, durableText: '', localBacked: false, localQueued: false,
       localOperation: null, localConflict: null, localCreatedAt: null, localUpdatedAt: null};
@@ -79,7 +79,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
     item.canEdit = value.can_edit;
     item.serverText = value.deleted ? '' : value.text;
     item.version = value.version; item.createdAt = value.created_at; item.updatedAt = value.updated_at;
-    item.label = value.label || '';
+    item.label = value.label || ''; item.labelKnown = category === 'work' || value.labels_version === 1 && Object.hasOwn(value, 'label');
     item.contentHash = value.content_hash; item.deleted = value.deleted;
     item.localVersion = value.version; item.durableText = item.serverText; item.localBacked = false; item.localQueued = false;
     item.localOperation = null; item.localConflict = null; item.localCreatedAt = null; item.localUpdatedAt = null;
@@ -128,7 +128,7 @@ function createEntryLocalActions(context) {
     const {local, server, operation, conflict} = documentState(value), draft = item.draft;
     if (server && server.version >= item.version) adopt(item, server, true);
     item.localVersion = local.version; item.durableText = local.deleted ? '' : local.text;
-    item.label = local.label || '';
+    item.label = local.label || ''; item.labelKnown = item.category === 'work' || local.labels_version === 1 && Object.hasOwn(local, 'label');
     item.localBacked = true; item.localQueued = Boolean(operation); item.localOperation = operation; item.localConflict = conflict;
     item.localCreatedAt = local.created_at || null; item.localUpdatedAt = local.updated_at || null;
     item.canEdit = local.can_edit; item.deleted = local.deleted; item.loaded = true;
@@ -227,7 +227,7 @@ function createEntryEditingActions(context) {
     const id = uuid();
     if (!uuidPattern.test(id) || entries.has(id)) throw new Error('暂时无法新建记录，请重试。');
     const item = makeEntry(id, date, current.canEdit);
-    item.label = label;
+    item.label = label; item.labelKnown = true;
     entries.set(id, item); current.ids.push(id); current.composerId = id; emit(); return item;
   }
   function edit(id, text, {composing = false} = {}) {
@@ -257,7 +257,7 @@ function createEntryRecoveryActions(context) {
     const pendingDurable = item && raw.pending?.saveId && raw.pending.saveId === item.localOperation?.save_id;
     if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.pending || pendingDurable)) return item;
     if (!item) { item = makeEntry(raw.id, raw.date, current.canEdit); entries.set(item.id, item); }
-    if (!persistedVersion(item)) item.label = raw.label || '';
+    if (!persistedVersion(item)) { item.label = raw.label || ''; item.labelKnown = raw.labelKnown === true; }
     if (!current.ids.includes(item.id)) current.ids.push(item.id);
     stopTimer(item); item.writeEpoch++; item.draft = raw.draft; item.dirty = item.draft !== savedText(item);
     item.recoveredBaseline = raw.recoveredBaseline || {version: raw.version ?? null, serverText: raw.serverText ?? null,
@@ -290,8 +290,8 @@ function createEntryWritingActions(context) {
   const {put, remove, restore, uuid, onSaved} = context.options;
   const matches = (value, operation) => value.version === operation.version + 1 &&
     (operation.kind === 'delete' ? value.deleted : operation.kind === 'restore' ? !value.deleted :
-      !value.deleted && value.text === operation.text && (!operation.label || value.label === operation.label) &&
-      (!operation.expectedLabel || value.label === operation.expectedLabel));
+      !value.deleted && value.text === operation.text && (!operation.label || value.labels_version === 1 && value.label === operation.label) &&
+      (!operation.expectedLabel || value.labels_version === 1 && value.label === operation.expectedLabel));
   function accepted(item, value, operation) {
     const preserve = operation.kind === 'put' && item.draft !== operation.text;
     item.writeEpoch++; adopt(item, value, preserve); item.remote = null; item.pending = null;

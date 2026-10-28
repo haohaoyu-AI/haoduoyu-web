@@ -22,10 +22,12 @@ export function aggregateNoteDay(date, {lifeEntries, lifeLegacy, workEntries, wo
     for (const entry of collection.entries) {
       if (!entry || typeof entry.id !== 'string' || !entry.id || entry.category !== category || entry.date !== date ||
           typeof entry.text !== 'string' || entry.deleted !== false || ids.has(entry.id) ||
-          entry.label !== undefined && (category !== 'life' || !validCustomNoteLabel(entry.label)))
+          entry.label != null && (category !== 'life' || !validCustomNoteLabel(entry.label)))
         throw new Error('碎碎念读取不完整，请重试。');
       ids.add(entry.id);
-      result.push({key: 'note-entry:' + entry.id, kind: 'entry', category, label: entry.label || (category === 'work' ? '工作' : '生活'),
+      result.push({key: 'note-entry:' + entry.id, kind: 'entry', category,
+        label: entry.labels_version === 1 && Object.hasOwn(entry, 'label') ? entry.label || (category === 'work' ? '工作' : '生活') :
+          category === 'work' ? '工作' : '标签待核实',
         date, time: entry.updated_at || null, entry});
     }
     if (legacy.version > 0 && !legacy.deleted && legacy.text) result.push({key: 'legacy-' + category + ':' + date,

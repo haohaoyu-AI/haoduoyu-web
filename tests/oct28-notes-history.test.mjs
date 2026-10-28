@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {aggregateNoteDay, filterNoteDay, loadNoteDay} from '../web/core/notes-history.mjs';
 const date = '2026-10-27';
-const row = (id, category, text, label, time) => ({id, category, date, text, label, deleted:false, updated_at:time});
+const row = (id, category, text, label, time) => ({id, category, date, text, label:label ?? null, labels_version:1, deleted:false, updated_at:time});
 const collection = (category, entries=[]) => ({category, date, entries});
 const legacy = (text='', updated_at=null) => ({date,text,version:text?1:0,deleted:false,updated_at});
 const input = () => ({lifeEntries:collection('life',[
@@ -37,4 +37,11 @@ test('date index combines all categories and legacy sources without silently tru
   });
   assert.deepEqual(result,['2026-10-27','2026-10-26','2026-10-25']);
   await assert.rejects(loadNoteHistoryDates(async ()=>({dates:['2026-10-27'],has_more:true,next_before:'2026-10-27'}),{maxPagesPerSource:1}),/无法完整读取/);
+});
+
+test('old unversioned responses never assert a missing life label',()=>{
+  const data=input(); delete data.lifeEntries.entries[1].label; delete data.lifeEntries.entries[1].labels_version;
+  const rows=aggregateNoteDay(date,data);
+  assert.equal(rows.find(row=>row.key==='note-entry:2').label,'标签待核实');
+  assert.equal(filterNoteDay(rows,'生活').some(row=>row.key==='note-entry:2'),false);
 });

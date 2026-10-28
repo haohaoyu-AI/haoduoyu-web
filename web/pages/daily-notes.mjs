@@ -37,9 +37,11 @@ export function renderDailyNotes() {
     '<label>标签 <select id="notes-history-label" class="input"><option value="">全部</option></select></label></div>' +
     '<p id="notes-history-status" role="status" aria-live="polite"></p><div id="notes-history-list" class="notes-entry-list"></div></section>' +
     '<div id="notes-today">' +
-    '<div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ['life', 'work'].map(value =>
-      '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' +
-      (value === 'work' ? '工作碎碎念' : '生活碎碎念') + '</button>').join('') + '</div>' +
+    '<div class="notes-categories"><label>标签 <select id="notes-compose-label" class="input">' +
+      '<option value="生活">生活</option><option value="工作">工作</option></select></label>' +
+      '<label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label>' +
+      '<button class="btn text" type="button" data-notes-action="create-label">添加标签</button>' +
+      '<span id="notes-label-status" role="status" aria-live="polite"></span></div>' +
     '<div class="notes-toolbar"><div class="notes-date-controls">' +
     '<button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button>' +
     '<label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span>' +

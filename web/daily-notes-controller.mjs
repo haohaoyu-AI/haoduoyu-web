@@ -4,7 +4,7 @@ import {updateRoute} from './core/router.mjs';
 import {renderShell} from './controller.mjs';
 import {createDailyNotesStore, dailyNotesRouteDate, dailyNotesToday,
   setDailyNotesRouteDate, validDailyNotesDate, dailyNotesRouteCategory, setDailyNotesRouteCategory} from './core/daily-notes-state.mjs';
-import {createNoteEntriesStore} from './core/note-entries-state.mjs';
+import {createNoteEntriesStore, validCustomNoteLabel} from './core/note-entries-state.mjs';
 import {loadNoteDay, loadNoteHistoryDates, filterNoteDay} from './core/notes-history.mjs';
 import {createNotesEditorView} from './core/notes-editor-view.mjs';
 import {paintNoteEntries} from './pages/daily-notes.mjs';
@@ -16,11 +16,12 @@ let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
   notesDraftError = '', notesDraftRevision = 0;
 let notesView = 'today', historyRows = [], historySequence = 0;
+let notesSelectedLabel = '生活', notesLabels = [], notesLabelIntent = null, notesLabelBusy = false, notesLabelMessage = '';
 const notesStores = new Map(), entryStores = new Map(), editorViews = createNotesEditorView();
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
   state.me?.publicBusiness === true, getOfflineRuntime()?.state.scope || '']);
 const notesVisible = () => state.page === 'notes' && notesIdentity === notesIdentityNow();
-const draftFields = ['id', 'date', 'draft', 'version', 'serverText', 'contentHash', 'label', 'createdAt', 'updatedAt', 'dirty',
+const draftFields = ['id', 'date', 'draft', 'version', 'serverText', 'contentHash', 'label', 'labelKnown', 'createdAt', 'updatedAt', 'dirty',
   'phase', 'pending', 'remote', 'localVersion', 'durableText', 'localBacked', 'localQueued', 'recoveredBaseline'];
 const hydratedDrafts = new WeakMap();
 const hydrationReady = new WeakSet();
@@ -108,6 +109,7 @@ function ensureDailyNotesStore() {
     notesStores.clear(); entryStores.clear(); editorViews.clear(); notesIdentity = next;
     notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false; notesDraftError = ''; notesDraftRevision++;
     notesView = 'today'; historyRows = []; historySequence++;
+    notesSelectedLabel = '生活'; notesLabels = []; notesLabelIntent = null; notesLabelBusy = false; notesLabelMessage = '';
   }
   if (notesActiveCategory !== category) { notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = ''; }
   if (!notesStores.has(category)) {
@@ -118,6 +120,8 @@ function ensureDailyNotesStore() {
       }
     };
     const request = async (path, options) => { active(); const value = await api(path, options); active(); return value; };
+    const noteRequest = (path, options = {}) => request(path, {...options,
+      headers: {...options.headers, 'X-Note-Labels-Version':'1'}});
     const suffix = separator => category === 'work' ? separator + 'category=work' : '';
     const changed = () => {
       if (expected !== notesIdentityNow()) return;
@@ -142,13 +146,13 @@ function ensureDailyNotesStore() {
     });
     const entries = createNoteEntriesStore({category, manualSave: true,
       load: (date, options) => options?.localOnly ? getOfflineRuntime().localRead('/note-entries?category=' + category + '&date=' + date) :
-        request('/note-entries?category=' + category + '&date=' + encodeURIComponent(date)),
+        noteRequest('/note-entries?category=' + category + '&date=' + encodeURIComponent(date)),
       loadEntry: (id, options) => options?.localOnly ? getOfflineRuntime().localRead('/note-entries/' + id) :
-        request('/note-entries/' + encodeURIComponent(id)),
-      loadOperation: id => request('/note-entries/operations/' + encodeURIComponent(id)),
-      put: (id, body, options) => request('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body}),
-      remove: (id, body, options) => request('/note-entries/' + encodeURIComponent(id), {...options, method: 'DELETE', body}),
-      restore: (id, body, options) => request('/note-entries/' + encodeURIComponent(id) + '/restore', {...options, method: 'POST', body}),
+        noteRequest('/note-entries/' + encodeURIComponent(id)),
+      loadOperation: id => noteRequest('/note-entries/operations/' + encodeURIComponent(id)),
+      put: (id, body, options) => noteRequest('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body}),
+      remove: (id, body, options) => noteRequest('/note-entries/' + encodeURIComponent(id), {...options, method: 'DELETE', body}),
+      restore: (id, body, options) => noteRequest('/note-entries/' + encodeURIComponent(id) + '/restore', {...options, method: 'POST', body}),
       onChange: changed, onSaved: changed
     });
     entryIdentities.set(entries, expected);
@@ -176,16 +180,64 @@ export function paintDailyNotesPage() {
   for (const button of root.querySelectorAll('[data-notes-view]'))
     button.setAttribute('aria-pressed', String(button.dataset.notesView === notesView));
   const date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy = notesStore.page(date), current = entryStore.page(date);
+  const labelSelect = root.querySelector('#notes-compose-label'), labelValues = ['生活','工作', ...notesLabels];
+  if (!labelValues.includes(notesSelectedLabel)) labelValues.push(notesSelectedLabel);
+  if (JSON.stringify([...labelSelect.options].map(option => option.value)) !== JSON.stringify(labelValues)) {
+    labelSelect.replaceChildren(...labelValues.map(value => { const option=document.createElement('option'); option.value=value; option.textContent=value; return option; }));
+  }
+  labelSelect.value = notesSelectedLabel;
+  root.querySelector('#notes-label-status').textContent = notesLabelMessage;
+  root.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy;
+  const custom = !['生活','工作'].includes(notesSelectedLabel) ? notesSelectedLabel : '';
+  const filtered = {...current, ids: current.ids.filter(id => {
+    const item = entryStore.entry(id); return item && (category === 'work' || item.labelKnown && (item.label || '') === custom);
+  })};
   const host = root.querySelector('#notes-composer'), view = editorViews.page(category, date), active = view.active;
   const field = active === 'legacy' ? root.querySelector('#notes-editor') : host.querySelector('[data-note-entry-editor="' + active + '"]');
-  const selected = editorViews.sync(category, date, current.ids.map(id => entryStore.entry(id)).filter(Boolean), legacy,
+  const visibleLegacy = custom ? {...legacy, version: 0, dirty: false, pending: null, phase: 'empty', serverText: '', draft: ''} : legacy;
+  const selected = editorViews.sync(category, date, filtered.ids.map(id => entryStore.entry(id)).filter(Boolean), visibleLegacy,
     {focused: host.contains(document.activeElement), composing: field?.dataset.composing === 'true'});
-  paintNoteEntries(root, entryStore, current, legacy, {drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active});
+  paintNoteEntries(root, entryStore, filtered, visibleLegacy,
+    {drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active});
   if (notesDraftError) {
     const message = root.querySelector('#notes-entry-message');
     message.textContent = notesDraftError; message.hidden = false;
   }
+  if (category === 'life' && current.ids.some(id => !entryStore.entry(id)?.labelKnown)) {
+    const message = root.querySelector('#notes-entry-message');
+    if (message.hidden) { message.textContent = '部分记录标签尚未核实，请联网读取后查看。'; message.hidden = false; }
+  }
   root.querySelector('#notes-delete-confirm').hidden = true;
+}
+async function readNoteLabels() {
+  const expected = notesIdentityNow();
+  try {
+    const data = await apiNetwork('/note-entries/labels', {headers:{'X-Note-Labels-Version':'1'}});
+    if (expected !== notesIdentityNow() || data?.labels_version !== 1 || !Array.isArray(data?.labels) ||
+        data.labels.some(row => !validCustomNoteLabel(row?.name))) throw new Error('标签列表未核实。');
+    notesLabels = [...new Set(data.labels.map(row => row.name))]; notesLabelMessage = '';
+  } catch (error) {
+    if (expected !== notesIdentityNow()) return;
+    notesLabelMessage = '标签需联网核实：' + (error.message || '请稍后重试。');
+  }
+  paintDailyNotesPage();
+}
+async function createNoteLabel(root) {
+  if (notesLabelBusy) return;
+  const input = root.querySelector('#notes-new-label'), label = input.value.trim().normalize('NFC');
+  if (!validCustomNoteLabel(label)) { notesLabelMessage = '标签须为 1–32 个字符，且不能叫生活或工作。'; paintDailyNotesPage(); return; }
+  if (!notesLabelIntent || notesLabelIntent.name !== label) notesLabelIntent = {name:label, save_id:crypto.randomUUID()};
+  const expected = notesIdentityNow(), intent = notesLabelIntent; notesLabelBusy = true; notesLabelMessage = '正在添加标签…'; paintDailyNotesPage();
+  try {
+    const saved = await apiNetwork('/note-entries/labels', {method:'POST', body:intent, headers:{'X-Note-Labels-Version':'1'}});
+    if (expected !== notesIdentityNow()) return;
+    if (saved?.labels_version !== 1 || saved.name !== label) throw new Error('标签保存结果尚未核实，请重试原请求。');
+    notesLabels = [...new Set([...notesLabels, label])]; notesSelectedLabel = label; notesLabelIntent = null;
+    notesLabelMessage = '标签已添加'; input.value = '';
+    setDailyNotesRouteCategory('life'); updateRoute(true); renderShell();
+  } catch (error) {
+    if (expected === notesIdentityNow()) notesLabelMessage = '添加失败，输入已保留，可重试：' + (error.message || '请联网后重试。');
+  } finally { notesLabelBusy = false; if (expected === notesIdentityNow()) paintDailyNotesPage(); }
 }
 function paintHistoryRows(root) {
   const list = root.querySelector('#notes-history-list'), label = root.querySelector('#notes-history-label').value;
@@ -210,12 +262,13 @@ async function loadHistory(date = '') {
   status.textContent = '正在读取历史…'; root.querySelector('#notes-history-list').replaceChildren();
   try {
     // History uses a direct network read: old offline projections may lack a custom label.
-    const dates = await loadNoteHistoryDates(apiNetwork); if (!active()) return;
+    const network = path => apiNetwork(path, {headers:{'X-Note-Labels-Version':'1'}});
+    const dates = await loadNoteHistoryDates(network); if (!active()) return;
     const selected = dates.includes(date) ? date : dates.includes(picker.value) ? picker.value : dates[0] || '';
     picker.replaceChildren(...dates.map(value => { const option=document.createElement('option'); option.value=value; option.textContent=value; return option; }));
     picker.value = selected; historyRows = [];
     if (!selected) { status.textContent = '暂无历史记录。'; return; }
-    historyRows = await loadNoteDay(apiNetwork, selected); if (!active()) return;
+    historyRows = await loadNoteDay(network, selected); if (!active()) return;
     const labels = root.querySelector('#notes-history-label'), previous = labels.value;
     const values = ['', ...new Set(['生活','工作', ...historyRows.map(row => row.label)])];
     labels.replaceChildren(...values.map(value => { const option=document.createElement('option'); option.value=value; option.textContent=value || '全部'; return option; }));
@@ -276,6 +329,12 @@ function registerNotesInputEvents() {
     if (notesVisible() && event.target.id === 'notes-date') void selectDailyNotesDate(event.target.value);
     else if (notesVisible() && event.target.id === 'notes-history-date') void loadHistory(event.target.value);
     else if (notesVisible() && event.target.id === 'notes-history-label') paintHistoryRows(event.target.closest('#daily-notes'));
+    else if (notesVisible() && event.target.id === 'notes-compose-label') {
+      notesSelectedLabel = event.target.value;
+      const category = notesSelectedLabel === '工作' ? 'work' : 'life';
+      if (category !== dailyNotesRouteCategory()) { setDailyNotesRouteCategory(category); updateRoute(true); renderShell(); }
+      else paintDailyNotesPage();
+    }
   });
   document.addEventListener('focusout', requestEditorCollapse);
 }
@@ -317,7 +376,9 @@ async function handleNotesClick(event) {
   const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate();
   if (target.dataset.noteEntryAction) { await handleEntryAction(target, entries); return; }
   const action = target.dataset.notesAction;
-  if (action === 'new') { const item = entries.start(date); if (item) openEditor(item.id); }
+  if (action === 'new') { const label = ['生活','工作'].includes(notesSelectedLabel) ? '' : notesSelectedLabel;
+    const item = entries.start(date, {label}); if (item) openEditor(item.id); }
+  else if (action === 'create-label') await createNoteLabel(root);
   else if (action === 'edit-legacy') openEditor('legacy');
   else if (action === 'collapse') {
     const {active, revision} = editorViews.page(dailyNotesRouteCategory(), date);
@@ -390,5 +451,5 @@ export async function loadDailyNotes() {
     category = dailyNotesRouteCategory(), expected = notesIdentityNow();
   await Promise.all([store.read(date), entries.read(date)]);
   if (expected !== notesIdentityNow()) return;
-  await hydrateNotesDrafts(store, entries, category); paintDailyNotesPage();
+  await hydrateNotesDrafts(store, entries, category); paintDailyNotesPage(); void readNoteLabels();
 }
