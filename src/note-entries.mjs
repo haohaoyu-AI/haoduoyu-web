@@ -12,9 +12,10 @@ const fields='id,category,date,text,version,change_seq,created_at,updated_at,del
 function entityHash(row) {
   return digest(JSON.stringify(stable(Object.fromEntries(fields.split(',').map(field=>[field,row[field]])))));
 }
-function view(row,canEdit,label=null) {
-  return {...row,...(label?{label}:{}),deleted:row.deleted_at!==null,can_edit:canEdit,content_hash:entityHash(row)};
+function view(row,canEdit,label=null,labelAware=false) {
+  return {...row,...(labelAware?{labels_version:1,label:label??null}:label?{label}:{}),deleted:row.deleted_at!==null,can_edit:canEdit,content_hash:entityHash(row)};
 }
+const labelAware=request=>request.headers.get('X-Note-Labels-Version')==='1';
 async function labelsFor(store,owner,rows) {
   const result=new Map();
   for(let offset=0;offset<rows.length;offset+=50) {
@@ -36,6 +37,7 @@ async function ensureDaySpace(store,owner,category,date) {
 }
 async function readEntries(db,request,route,owner,env,origin,initialRevision) {
   const query=new URL(request.url).searchParams;
+  const aware=labelAware(request);
   return consistentRead(db,async store=>{
     await ownerExists(store,owner);
     if(route==='/note-entries/dates') {
@@ -57,7 +59,7 @@ async function readEntries(db,request,route,owner,env,origin,initialRevision) {
         owner,category,date,NOTE_ENTRY_LIMITS.per_day+1);
       if(rows.length>NOTE_ENTRY_LIMITS.per_day)throw fail(503,'NOTES_LIMIT','该日记录超过完整读取上限，请保留草稿后核对');
       const labels=await labelsFor(store,owner,rows);
-      return json({category,date,entries:rows.map(row=>view(row,canEdit,labels.get(row.id))),can_edit:canEdit});
+      return json({category,date,...(aware?{labels_version:1}:{}),entries:rows.map(row=>view(row,canEdit,labels.get(row.id),aware)),can_edit:canEdit});
     }
     noteEntryQuery(query,[]);
     const operation=/^\/note-entries\/operations\/([^/]+)$/.exec(route);
@@ -65,14 +67,20 @@ async function readEntries(db,request,route,owner,env,origin,initialRevision) {
       const saveId=noteEntryId(operation[1]),actor=await noteEditor(store,request,owner,env,'notes',origin);
       if(!actor)throw fail(request.headers.has('cookie')||request.headers.has('authorization')?403:401,'FORBIDDEN','当前身份无权读取此工作区保存状态');
       const saved=await store.get('SELECT response_json FROM idempotency WHERE actor=? AND key=?',actor.actor,'note-entry:'+saveId);
-      return json(saved?{found:true,...JSON.parse(saved.response_json)}:{found:false});
+      if(!saved)return json({found:false,...(aware?{labels_version:1}:{})});
+      const receipt=JSON.parse(saved.response_json);
+      if(!aware)return json({found:true,...receipt});
+      const row=await rowFor(store,owner,receipt.id);
+      if(!row)throw fail(503,'NOTES_RECEIPT','保存收据对应记录无法核对，请保留草稿');
+      const labels=await labelsFor(store,owner,[row]);
+      return json({found:true,...receipt,labels_version:1,label:labels.get(row.id)??null});
     }
     const detail=/^\/note-entries\/([^/]+)$/.exec(route);
     if(!detail)throw fail(404,'NOT_FOUND','碎碎念接口不存在');
     const id=noteEntryId(detail[1]),canEdit=Boolean(await noteEditor(store,request,owner,env,'notes',origin)),row=await rowFor(store,owner,id);
     if(!row||!canEdit&&row.deleted_at!==null)throw fail(404,'NOT_FOUND','该条记录不存在');
     const labels=await labelsFor(store,owner,[row]);
-    return json(view(row,canEdit,labels.get(row.id)));
+    return json(view(row,canEdit,labels.get(row.id),aware));
   },initialRevision);
 }
 async function writeEntry(db,request,route,owner,env,origin) {
@@ -95,7 +103,7 @@ async function writeEntry(db,request,route,owner,env,origin) {
       const receipt=JSON.parse(saved.response_json);
       if(!row||row.version!==receipt.version||entityHash(row)!==receipt.content_hash)
         throw fail(409,'VERSION_CONFLICT','该条记录已有更新，请先核对保存收据');
-      return {replayed:true,response:json(view(row,true,label))};
+      return {replayed:true,response:json(view(row,true,label,labelAware(request)))};
     }
     if((row?.version||0)!==input.version)throw fail(409,'VERSION_CONFLICT','该条记录已在其他位置更新，请保留草稿');
     if(method!=='PUT'&&!row)throw fail(404,'NOT_FOUND','该条记录不存在');
@@ -129,7 +137,7 @@ async function writeEntry(db,request,route,owner,env,origin) {
     const receipt={id,version:value.version,deleted_at:value.deleted_at,change_seq:changeSeq,content_hash:entityHash(value)};
     store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,200,?)',
       actor.actor,key,hash,JSON.stringify(receipt),time);
-    return {actor,response:json(view(value,true,label))};
+    return {actor,response:json(view(value,true,label,labelAware(request)))};
   })).response;
 }
 export async function handleNoteEntries(db,request,route,env,origin,initialRevision) {
