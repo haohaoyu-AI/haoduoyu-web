@@ -1,6 +1,6 @@
 import {entityKey} from './db.mjs';
 
-const fields = ['kind', 'id', 'category', 'date', 'draft', 'version', 'serverText', 'contentHash', 'createdAt', 'updatedAt',
+const fields = ['kind', 'id', 'category', 'date', 'draft', 'version', 'serverText', 'contentHash', 'label', 'createdAt', 'updatedAt',
   'dirty', 'phase', 'pending', 'remote', 'localVersion', 'durableText', 'localBacked', 'localQueued', 'recoveredBaseline'];
 const unresolved = row => row.dirty || row.pending || ['unknown', 'conflict', 'error', 'oversize'].includes(row.phase);
 function safeDraft(row) {

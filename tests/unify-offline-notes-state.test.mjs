@@ -280,3 +280,15 @@ test('a recovered pending save already owned by the outbox cannot create a secon
   assert.equal(item.draft, 'API 返回前继续输入的草稿');
   await reopened.fire(); assert.equal(reopened.writes.length, 0); assert.equal(reopened.receiptReads, 0);
 });
+
+test('explicit custom label remains bound to a draft and its first durable operation', async () => {
+  const c = client({manualSave: true}); await c.store.read(day);
+  const item = c.store.start(day, {label:'兴趣'}); c.store.edit(item.id, '一条记录');
+  await c.fire(); assert.equal(c.writes.length, 0);
+  await c.store.save(item.id);
+  assert.equal(c.writes[0].body.label, '兴趣'); assert.equal(item.label, '兴趣');
+  const reloaded = client({manualSave: true, records:c.records}); await reloaded.store.read(day);
+  assert.equal(reloaded.store.entry(item.id).label, '兴趣');
+  const bad = client({manualSave: true}); await bad.store.read(day);
+  assert.throws(() => bad.store.start(day, {label:'工作'}), /标签无效/);
+});

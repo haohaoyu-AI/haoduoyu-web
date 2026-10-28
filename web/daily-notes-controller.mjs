@@ -18,7 +18,7 @@ const notesStores = new Map(), entryStores = new Map(), editorViews = createNote
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
   state.me?.publicBusiness === true, getOfflineRuntime()?.state.scope || '']);
 const notesVisible = () => state.page === 'notes' && notesIdentity === notesIdentityNow();
-const draftFields = ['id', 'date', 'draft', 'version', 'serverText', 'contentHash', 'createdAt', 'updatedAt', 'dirty',
+const draftFields = ['id', 'date', 'draft', 'version', 'serverText', 'contentHash', 'label', 'createdAt', 'updatedAt', 'dirty',
   'phase', 'pending', 'remote', 'localVersion', 'durableText', 'localBacked', 'localQueued', 'recoveredBaseline'];
 const hydratedDrafts = new WeakMap();
 const hydrationReady = new WeakSet();
