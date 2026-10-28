@@ -46,6 +46,12 @@ try:
   for width in (375,390):
    page.set_viewport_size({'width':width,'height':850}); page.wait_for_timeout(150)
    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), ('overflow',width)
+  page.locator('[data-notes-view=today]').click()
+  page.locator('#notes-compose-label').select_option('兴趣')
+  page.locator('[data-notes-action=new]').click()
+  page.locator('[data-note-entry-editor]').fill('在线发送反馈合成记录')
+  page.locator('[data-note-entry-action=save]').click()
+  expect(page.locator('#daily-notes')).to_contain_text('发送成功',timeout=10000)
   assert not errors,errors
   print(json.dumps({'synthetic':True,'unsent_server_count':0,'offline_feedback':'待同步','synchronized_count':len(rows),'label':rows[0]['label'],'pageerrors':errors},ensure_ascii=False))
   browser.close()

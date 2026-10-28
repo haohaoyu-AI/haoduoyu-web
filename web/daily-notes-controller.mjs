@@ -26,6 +26,19 @@ const draftFields = ['id', 'date', 'draft', 'version', 'serverText', 'contentHas
 const hydratedDrafts = new WeakMap();
 const hydrationReady = new WeakSet();
 const entryIdentities = new WeakMap();
+const sendFeedbackTimers = new WeakMap();
+function scheduleSendFeedback(entries, expected) {
+  for (const item of entries.entries.values()) {
+    if (!item.manualSubmitted || item.phase !== 'saved' || item.dirty || item.pending || sendFeedbackTimers.has(item)) continue;
+    const attempt = item.manualSubmitted;
+    const timer = setTimeout(() => {
+      sendFeedbackTimers.delete(item);
+      if (expected !== notesIdentityNow() || item.manualSubmitted !== attempt) return;
+      item.manualSubmitted = null; paintDailyNotesPage();
+    }, 2500);
+    sendFeedbackTimers.set(item, timer);
+  }
+}
 function captureNotesDrafts(legacy, entries, category) {
   const offline = getOfflineRuntime();
   if (!offline || !hydrationReady.has(entries) || entryIdentities.get(entries) !== notesIdentityNow()) return;
@@ -125,6 +138,7 @@ function ensureDailyNotesStore() {
     const suffix = separator => category === 'work' ? separator + 'category=work' : '';
     const changed = () => {
       if (expected !== notesIdentityNow()) return;
+      scheduleSendFeedback(entries, expected);
       const revision = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
       if (!getOfflineRuntime()?.state.scope && [...entries.entries.values()].some(item => item.dirty)) {
         notesDraftError = '本机草稿保存不可用，请保持页面打开或发送后再离开。';
@@ -350,7 +364,10 @@ async function handleEntryAction(target, entries) {
   if (!item) return;
   const action = target.dataset.noteEntryAction;
   if (action === 'edit') openEditor(id);
-  else if (action === 'save') { item.manualSubmitted = true; await entries.save(id); paintDailyNotesPage(); }
+  else if (action === 'save') {
+    const attempt = Symbol('note-send'); item.manualSubmitted = attempt;
+    await entries.save(id); paintDailyNotesPage();
+  }
   else if (action === 'restore') await entries.restoreEntry(id);
   else if (action === 'delete') { notesConfirmEntry = id; paintDailyNotesPage(); }
   else if (action === 'cancel-delete') { notesConfirmEntry = ''; paintDailyNotesPage(); }

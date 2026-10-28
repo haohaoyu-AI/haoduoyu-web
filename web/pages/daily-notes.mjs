@@ -144,6 +144,7 @@ function createEntryElement(item, editing) {
     '<textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) +
     '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() :
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
+    '<span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
     '<button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node;
 }
@@ -156,6 +157,8 @@ function paintEntrySummary(node, item) {
 }
 function paintSavedEntry(node, item) {
   paintEntrySummary(node, item);
+  node.querySelector('.note-entry-send-feedback').textContent =
+    item.manualSubmitted && !item.dirty && item.phase === 'saved' ? '发送成功' : '';
   const draft = noteDraftNeedsAttention(item), body = node.querySelector('.note-entry-reader');
   body.textContent = item.deleted ? '这条记录已删除。' : displayedText(item);
   body.classList.toggle('note-entry-draft-label', draft); node.dataset.draft = String(draft);
