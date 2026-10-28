@@ -26,7 +26,7 @@ export function renderMemos() {
     button('new-note', '＋', 'hidden aria-label="新建笔记"') + '</div>' +
     '<div id="memo-group-list" class="memo-list"></div></aside>' +
     '<div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" ' +
-    'aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="280" ' +
+    'aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" ' +
     'title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div>' +
     '<article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p>' +
     '<div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title">' +
