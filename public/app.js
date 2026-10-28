@@ -6427,7 +6427,6 @@ async function toggleTodo(target) {
     const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
     if (todoSessionActive(owner2)) {
       mergeTodo(day4, updated);
-      setTodoNotice(day4, "已保存");
       if (updated.template_id) refreshOpenTodoTemplates();
     }
   } catch (error) {
@@ -6619,7 +6618,7 @@ function paintDailyNotes(root, item, { compatibility = false, editing: editing3 
   if (compatibility) paintTime(find("#notes-legacy-time"), item.updatedAt);
 }
 function entryControlsMarkup() {
-  return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn" type="button" data-note-entry-action="save">发送</button><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
+  return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送">发送</button><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
 }
 function createEntryElement(item, editing3) {
   const node = document.createElement("article");
@@ -6665,9 +6664,10 @@ function paintEntryEditor(node, item, confirmId) {
   const save = find('[data-note-entry-action="save"]');
   save.hidden = item.deleted || !item.canEdit;
   save.textContent = item.pending ? "发送中…" : item.phase === "error" ? "重试发送" : "发送";
+  save.setAttribute("aria-label", save.textContent);
   save.disabled = busy || !item.dirty || item.composing || item.phase === "oversize";
   const feedback = find(".note-entry-send-feedback");
-  feedback.textContent = !item.manualSubmitted || item.dirty || item.pending ? "" : item.phase === "queued" ? "已存本机，待同步" : item.phase === "saved" ? "发送成功" : "";
+  feedback.textContent = item.pending ? "发送中…" : !item.manualSubmitted || item.dirty ? "" : item.phase === "queued" ? "已存本机，待同步" : item.phase === "saved" ? "发送成功" : "";
   find('[data-note-entry-action="delete"]').hidden = item.deleted;
   find('[data-note-entry-action="delete"]').disabled = busy;
   find('[data-note-entry-action="restore"]').hidden = !item.deleted;

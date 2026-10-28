@@ -471,7 +471,7 @@ test('pending completion requests cannot be duplicated and can be undone after s
   assert.equal(c.run('calls[1].options.body.version'), 2);
   assert.equal(c.run('calls[1].options.body.completed'), false);
   assert.equal(c.run('todoDay().items[0].completed'), false);
-  assert.match(c.run('renderTodos()'), /已保存/, 'successful completion change has visible confirmation');
+  assert.doesNotMatch(c.run('todoStatus(todoDay())'), /已保存/, 'routine completion does not add a save banner');
 });
 
 test('completion and undo respond before the network and roll back to saved state after a failure', async () => {

@@ -284,6 +284,13 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 #daily-notes :is(.notes-editor,.note-entry-editor):focus-visible { border-bottom:1px solid var(--color-editor-focus); }
 .note-entry-actions { margin-top:var(--space-8); }
 .note-entry-actions .btn { min-height:var(--size-control); }
+#daily-notes .note-entry-send {
+  width:var(--size-control); min-width:var(--size-control); height:var(--size-control); padding:0;
+  display:inline-grid; place-items:center; border:3px solid var(--color-white-a-94); border-radius:var(--radius-circle);
+  background:var(--color-note-send); color:var(--color-white); font-size:0; box-shadow:var(--shadow-button);
+}
+#daily-notes .note-entry-send::before { content:'↑'; font-size:var(--font-size-24); font-weight:700; line-height:1; }
+#daily-notes .note-entry-send:not(:disabled):hover { background:var(--color-note-send); filter:brightness(.9); }
 .note-entry-message,.note-entry-resolution,.note-entry-confirm { margin-top:var(--space-12); }
 .notes-legacy-card { margin-top:var(--space-20); }
 .daily-notes .notes-legacy-card .notes-sheet { padding:0; border:0; min-height:96px; background:transparent; }
