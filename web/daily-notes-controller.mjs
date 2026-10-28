@@ -297,12 +297,7 @@ function makeMonthCard(date, items, selected) {
   button.dataset.notesHistoryDay = date; button.setAttribute('aria-pressed', String(date === selected));
   button.setAttribute('aria-label', date + '，' + items.length + ' 条记录');
   const heading = document.createElement('span'); heading.className = 'notes-calendar-day-heading';
-  heading.textContent = String(Number(date.slice(8))) + ' · ' + items.length + ' 条'; button.append(heading);
-  for (const item of items.slice(0, 3)) {
-    const preview = document.createElement('span'); preview.className = 'notes-calendar-preview';
-    preview.textContent = [monthTime(item.updated_at), item.text].filter(Boolean).join(' '); button.append(preview);
-  }
-  if (items.length > 3) { const more=document.createElement('span'); more.textContent='还有 ' + (items.length - 3) + ' 条'; button.append(more); }
+  heading.textContent = String(Number(date.slice(8))); button.append(heading);
   return button;
 }
 function paintHistoryRows(root) {
@@ -314,11 +309,13 @@ function paintHistoryRows(root) {
   const visibleWeeks = weeks.filter((_, index) => !weekValue || Number(weekValue) === index + 1);
   grid.replaceChildren(...visibleWeeks.flatMap(week => week.map(date =>
     makeMonthCard(date, (historyDays.get(date) || []).filter(shown), selected))));
-  const rows = (historyDays.get(selected) || []).filter(shown);
+  const timeline = root.dataset.historyDisplay === 'timeline';
+  root.querySelector('.notes-calendar-weekdays').hidden = timeline; grid.hidden = timeline;
+  const rows = timeline ? [...historyDays.entries()].sort(([a],[b]) => b.localeCompare(a)).flatMap(([date, items]) => items.filter(shown).map(item => ({...item, timelineDate:date}))) : (historyDays.get(selected) || []).filter(shown);
   list.replaceChildren(...rows.map(row => {
     const article = document.createElement('article'); article.className = 'note-entry note-entry-saved';
     const heading = document.createElement('div'); heading.className = 'note-entry-head';
-    heading.textContent = [row.displayLabel, monthTime(row.updated_at)].filter(Boolean).join(' · ');
+    heading.textContent = [row.timelineDate, row.displayLabel, monthTime(row.updated_at)].filter(Boolean).join(' · ');
     const text = document.createElement('div'); text.className = 'note-entry-reader'; text.textContent = row.text;
     article.append(heading, text); return article;
   }));
@@ -448,9 +445,14 @@ async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector('#daily-notes');
   const target = event.target.closest('[data-notes-action],[data-notes-date],[data-notes-category],' +
-    '[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day]');
+    '[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display]');
   if (!target || !root?.contains(target)) return;
   event.preventDefault();
+  if (target.dataset.historyDisplay) {
+    root.dataset.historyDisplay = target.dataset.historyDisplay;
+    for (const button of root.querySelectorAll('[data-history-display]')) button.setAttribute('aria-pressed', String(button === target));
+    if (historyMonth) paintHistoryRows(root); return;
+  }
   if (target.dataset.notesMonth) {
     const month = historyMonth || dailyNotesToday().slice(0, 7);
     await loadHistory(shiftNoteMonth(month, target.dataset.notesMonth === 'prev' ? -1 : 1)); return;

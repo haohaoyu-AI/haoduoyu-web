@@ -378,6 +378,28 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 .todo-page-tabs { display:flex; flex-wrap:wrap; gap:var(--space-6); width:fit-content; max-width:100%; margin-bottom:var(--space-24); padding:var(--space-5); border:1px solid var(--glass-edge); border-radius:var(--radius-18); background:var(--color-white-a-28); }
 .todo-page-tabs .todo-page-tab { min-height:44px; border:1px solid transparent; box-shadow:none; background:transparent; color:var(--ink-2); }
 .todo-page-tabs .todo-page-tab[aria-current="page"] { background:var(--color-white-a-88); border-color:var(--color-white); color:var(--accent); font-weight:var(--font-weight-heading); }
+/* Keep section navigation aligned with the existing media tabs. */
+.daily-notes > .segmented, .notes-history-views { display:flex; flex-wrap:nowrap; gap:var(--space-6); width:fit-content; max-width:100%; padding:var(--space-5); overflow-x:auto; border:1px solid var(--glass-edge); border-radius:var(--radius-18); background:var(--color-white-a-28); }
+.daily-notes > .segmented > button, .notes-history-views > button { min-height:44px; flex:none; padding:0 18px; border:1px solid transparent; border-radius:var(--radius-18); background:transparent; color:var(--ink-2); cursor:pointer; }
+.daily-notes > .segmented > button[aria-pressed="true"], .notes-history-views > button[aria-pressed="true"] { background:var(--color-white-a-88); border-color:var(--color-white); color:var(--accent); font-weight:var(--font-weight-heading); }
+.notes-calendar-weekdays[hidden], .notes-calendar-grid[hidden] { display:none; }
+.notes-published { margin-top:var(--space-16); }
+.notes-published > summary { cursor:pointer; color:var(--ink-2); padding:var(--space-10) 0; }
+.notes-categories { display:flex; align-items:end; flex-wrap:wrap; gap:var(--space-8); margin:var(--space-12) 0; }
+.notes-categories label { display:flex; align-items:center; gap:var(--space-8); }
+.notes-categories .input { min-height:44px; }
+.daily-todo-calendar .todo-calendar-grid { gap:8px; }
+.daily-todo-calendar .todo-calendar-day { min-width:0; min-height:96px; padding:10px; display:flex; flex-direction:column; align-items:stretch; gap:6px; text-align:left; border:1px solid var(--glass-edge); border-radius:14px; background:var(--color-white-a-88); }
+.daily-todo-calendar .todo-calendar-day.is-today { background:#eaf4ff; }
+.todo-calendar-day-head { display:flex; justify-content:space-between; align-items:center; }
+.todo-calendar-day-head small { color:var(--ink-2); }
+.todo-calendar-task { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; color:var(--ink-2); }
+.todo-calendar-task.is-complete { color:#458266; text-decoration:line-through; }
+.todo-calendar-stats { display:flex; gap:8px; margin-bottom:12px; }
+.todo-calendar-stats span { flex:1; padding:12px; border:1px solid var(--glass-edge); border-radius:12px; background:var(--color-white-a-55); }
+@media (max-width:767px) { .daily-todo-calendar { overflow-x:auto; } .daily-todo-calendar .todo-calendar-grid { min-width:650px; } }
+#main:has(#memos) #page-header .heading-left, #main:has(#daily-notes) #page-header .heading-left, #main:has(#daily-todos) #page-header .heading-left, #main:has(#work-reminders) #page-header .heading-left { display:none; }
+#main:has(#memos) #page-header, #main:has(#daily-notes) #page-header, #main:has(#daily-todos) #page-header, #main:has(#work-reminders) #page-header { min-height:0; margin-bottom:0; }
 @media (max-width:767px) { .todo-page-tabs { width:100%; flex-wrap:nowrap; overflow-x:auto; } .todo-page-tabs .todo-page-tab { flex:1 0 auto; } }
 
 /* Monthly notes: readable cards retain the shared warm glass language. */
@@ -410,3 +432,8 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
   .notes-calendar-day { min-height:76px; }
   .notes-calendar-day.is-empty { display:none; }
 }
+/* Notes history uses a compact date selector; selected-day text remains below. */
+.notes-calendar-weekdays, .notes-calendar-grid { max-width:420px; grid-template-columns:repeat(7,minmax(0,1fr)); }
+.notes-calendar-day { min-height:42px; align-items:center; justify-content:center; padding:6px; }
+.notes-calendar-day.is-empty { display:flex; visibility:hidden; }
+@media (max-width:700px) { .notes-calendar-weekdays:not([hidden]) { display:grid; } }

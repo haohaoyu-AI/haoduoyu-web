@@ -38,10 +38,10 @@ export function renderDailyNotes() {
     '<label>月份 <input type="month" id="notes-history-month" class="input"></label>' +
     '<div class="notes-calendar-month-actions"><button type="button" class="btn" data-notes-month="prev">上个月</button>' +
     '<button type="button" class="btn" data-notes-month="next">下个月</button></div>' +
-    '<label>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label>' +
+    '<label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label>' +
     '<label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label>' +
-    '<label>日期 <select id="notes-history-date" class="input"></select></label></aside>' +
-    '<div class="notes-calendar-main"><p id="notes-history-summary" class="notes-calendar-summary"></p>' +
+    '<label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside>' +
+    '<div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p>' +
     '<p id="notes-history-status" role="status" aria-live="polite"></p>' +
     '<div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span>' +
     '<span>四</span><span>五</span><span>六</span><span>日</span></div>' +
@@ -65,16 +65,15 @@ export function renderDailyNotes() {
     '<div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button>' +
     '<button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div>' +
     '<section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden>' +
-    '<div class="notes-composer-heading"><span>正在编辑</span>' +
-    '<button class="btn text" type="button" data-notes-action="collapse">收起</button></div>' +
+    '<div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div>' +
     '<div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section>' +
     '<p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p>' +
-    '<div id="notes-entry-list" class="notes-entry-list"></div>' +
+    '<div id="notes-unpublished" class="notes-entry-list"></div><details class="notes-published"><summary>已发布记录</summary><div id="notes-entry-list" class="notes-entry-list"></div>' +
     '<article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden>' +
     '<div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div>' +
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button>' +
-    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div></section>';
+    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></details></div></section>';
 }
 
 const statuses = {loading: '', dirty: '未发送', saving: '发送中…', conflict: '草稿有冲突',
@@ -290,18 +289,18 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
   find('#notes-entry-message').textContent = current.error; find('#notes-entry-message').hidden = !current.error;
   const items = current.ids.map(id => store.entry(id)).filter(Boolean);
   const saved = items.filter(item => item.id !== active && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
-  const nodes = new Map([...list.children].filter(node => node.dataset.noteEntry).map(node => [node.dataset.noteEntry, node])), wanted = new Set(saved.map(item => item.id));
+  const unpublished = find('#notes-unpublished');
+  const nodes = new Map([...list.children, ...unpublished.children].filter(node => node.dataset.noteEntry).map(node => [node.dataset.noteEntry, node])), wanted = new Set(saved.map(item => item.id));
   for (const [id, node] of nodes) if (!wanted.has(id)) node.remove();
-  let cursor = list.firstElementChild;
   for (const item of saved) {
     const node = nodes.get(item.id) || createEntryElement(item, false);
-    if (node === cursor) cursor = cursor.nextElementSibling;
-    else list.insertBefore(node, cursor);
+    (noteDraftNeedsAttention(item) ? unpublished : list).append(node);
     paintSavedEntry(node, item);
   }
   paintActiveEditor(root, store, active, legacy, confirmId); paintLegacySummary(root, legacy, active);
-  list.append(root.querySelector('#notes-legacy-saved'));
+  (retainedLegacy(legacy) ? unpublished : list).append(root.querySelector('#notes-legacy-saved'));
   paintOtherLegacy(root, list, otherLegacy, otherCategory);
+  if (otherLegacy && retainedLegacy(otherLegacy)) unpublished.append(root.querySelector('#notes-legacy-other'));
   const composer = find('#notes-composer'), activeItem = active === 'legacy' ? legacy : store.entry(active);
   composer.hidden = !activeItem; composer.dataset.active = active;
   find('[data-notes-action="collapse"]').disabled = !noteEditorCanCollapse(activeItem);
