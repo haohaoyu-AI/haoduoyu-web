@@ -11,7 +11,7 @@ function serverRow({id = randomUUID(), text = '线上原文', version = 1, delet
   return {id, category, date, text, version, deleted, can_edit: true, created_at: stamp, updated_at: stamp,
     content_hash: 'actual-confirmed-server-hash-' + version + ':' + text, change_seq: version};
 }
-function client({category = 'life', writeImpl, records = new Map()} = {}) {
+function client({category = 'life', writeImpl, records = new Map(), manualSave = false} = {}) {
   const timers = new Map(), writes = []; let timerId = 0, receiptReads = 0;
   const document = record => record.local ? localDocument(record) : structuredClone(record.server);
   const load = date => ({category, date, can_edit: true, entries: [...records.values()]
@@ -30,7 +30,7 @@ function client({category = 'life', writeImpl, records = new Map()} = {}) {
     writes.push({kind, id, body: structuredClone(body), options});
     return writeImpl ? writeImpl({kind, id, body, options, commit}) : commit(kind, id, body);
   };
-  const store = createNoteEntriesStore({category, load: async date => load(date),
+  const store = createNoteEntriesStore({category, manualSave, load: async date => load(date),
     loadEntry: async id => {
       if (!records.has(id)) throw Object.assign(new Error('not found'), {status: 404});
       return document(records.get(id));
@@ -41,6 +41,19 @@ function client({category = 'life', writeImpl, records = new Map()} = {}) {
   return {store, records, writes, timers, commit, get receiptReads() { return receiptReads; },
     async fire() { const callbacks = [...timers.values()]; timers.clear(); for (const fn of callbacks) fn(); await settled(); }};
 }
+
+test('manual drafts never write on input or reread; explicit send queues once and preserves later input', async () => {
+  let release; const gate = new Promise(resolve => { release = resolve; });
+  const c = client({manualSave: true, writeImpl: async ({kind, id, body, commit}) => { await gate; return commit(kind, id, body); }});
+  await c.store.read(day); const item = c.store.start(day);
+  c.store.edit(item.id, '未发送的私有输入'); await c.fire(); await c.store.read(day); await c.fire();
+  assert.equal(c.writes.length, 0); assert.equal(item.draft, '未发送的私有输入');
+  const sending = c.store.save(item.id); await c.store.save(item.id);
+  assert.equal(c.writes.length, 1);
+  c.store.edit(item.id, '发送后继续输入'); release(); await sending; await c.fire();
+  assert.equal(c.writes.length, 1); assert.equal(item.phase, 'dirty'); assert.equal(item.localQueued, true);
+  assert.equal(item.draft, '发送后继续输入'); assert.equal(item.dirty, true);
+});
 
 test('three local durable saves keep server text/version/hash separate and use ordered local CAS versions', async () => {
   const c = client(); await c.store.read(day); const item = c.store.start(day);

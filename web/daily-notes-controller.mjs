@@ -10,9 +10,11 @@ import {paintNoteEntries} from './pages/daily-notes.mjs';
 import {renderLogin} from './pages/login.mjs';
 import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
 import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offline/conflict-draft-guards.mjs';
+import {mountNotesMonth} from './notes-month-controller.mjs';
 
 let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
-  notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false;
+  notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
+  notesDraftError = '', notesDraftRevision = 0;
 const notesStores = new Map(), entryStores = new Map(), editorViews = createNotesEditorView();
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
   state.me?.publicBusiness === true, getOfflineRuntime()?.state.scope || '']);
@@ -22,6 +24,20 @@ const draftFields = ['id', 'date', 'draft', 'version', 'serverText', 'contentHas
 const hydratedDrafts = new WeakMap();
 const hydrationReady = new WeakSet();
 const entryIdentities = new WeakMap();
+const sendFeedbackTimers = new WeakMap();
+let stopNotesMonth;
+function scheduleSendFeedback(entries, expected) {
+  for (const item of entries.entries.values()) {
+    if (!item.manualSubmitted || item.phase !== 'saved' || item.dirty || item.pending || sendFeedbackTimers.has(item)) continue;
+    const attempt = item.manualSubmitted;
+    const timer = setTimeout(() => {
+      sendFeedbackTimers.delete(item);
+      if (expected !== notesIdentityNow() || item.manualSubmitted !== attempt) return;
+      item.manualSubmitted = null; paintDailyNotesPage();
+    }, 2500);
+    sendFeedbackTimers.set(item, timer);
+  }
+}
 function captureNotesDrafts(legacy, entries, category) {
   const offline = getOfflineRuntime();
   if (!offline || !hydrationReady.has(entries) || entryIdentities.get(entries) !== notesIdentityNow()) return;
@@ -101,9 +117,10 @@ function exportLegacyDraft(item, category) {
 function ensureDailyNotesStore() {
   const next = notesIdentityNow(), category = dailyNotesRouteCategory();
   if (notesIdentity !== next) {
+    stopNotesMonth?.(); stopNotesMonth = null;
     for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
     notesStores.clear(); entryStores.clear(); editorViews.clear(); notesIdentity = next;
-    notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false;
+    notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false; notesDraftError = ''; notesDraftRevision++;
   }
   if (notesActiveCategory !== category) { notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = ''; }
   if (!notesStores.has(category)) {
@@ -117,7 +134,18 @@ function ensureDailyNotesStore() {
     const suffix = separator => category === 'work' ? separator + 'category=work' : '';
     const changed = () => {
       if (expected !== notesIdentityNow()) return;
-      void captureNotesDrafts(legacy, entries, category)?.catch(() => {});
+      scheduleSendFeedback(entries, expected);
+      const revision = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
+      if (!getOfflineRuntime()?.state.scope && [...entries.entries.values()].some(item => item.dirty)) {
+        notesDraftError = '本机草稿保存不可用，请保持页面打开或发送后再离开。';
+      }
+      if (saved) void saved.then(() => {
+        if (expected !== notesIdentityNow() || revision !== notesDraftRevision || !notesDraftError || !getOfflineRuntime()?.state.scope) return;
+        notesDraftError = ''; paintDailyNotesPage();
+      }).catch(() => {
+        if (expected !== notesIdentityNow() || revision !== notesDraftRevision) return;
+        notesDraftError = '草稿未能保存在本机，请保持页面打开并检查存储空间。'; paintDailyNotesPage();
+      });
       if (category === dailyNotesRouteCategory()) paintDailyNotesPage();
     };
     const readOnly = async () => { throw Object.assign(new Error('原有逐日记录只读，草稿可导出。'), {code: 'LEGACY_READ_ONLY'}); };
@@ -126,7 +154,7 @@ function ensureDailyNotesStore() {
       put: readOnly, restore: readOnly, remove: readOnly,
       onChange: changed, onSaved: changed
     });
-    const entries = createNoteEntriesStore({category,
+    const entries = createNoteEntriesStore({category, manualSave: true,
       load: (date, options) => options?.localOnly ? getOfflineRuntime().localRead('/note-entries?category=' + category + '&date=' + date) :
         request('/note-entries?category=' + category + '&date=' + encodeURIComponent(date)),
       loadEntry: (id, options) => options?.localOnly ? getOfflineRuntime().localRead('/note-entries/' + id) :
@@ -163,6 +191,10 @@ export function paintDailyNotesPage() {
   const selected = editorViews.sync(category, date, current.ids.map(id => entryStore.entry(id)).filter(Boolean), legacy,
     {focused: host.contains(document.activeElement), composing: field?.dataset.composing === 'true'});
   paintNoteEntries(root, entryStore, current, legacy, {drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active});
+  if (notesDraftError) {
+    const message = root.querySelector('#notes-entry-message');
+    message.textContent = notesDraftError; message.hidden = false;
+  }
   root.querySelector('#notes-delete-confirm').hidden = true;
 }
 async function selectDailyNotesDate(value) {
@@ -222,7 +254,9 @@ async function handleEntryAction(target, entries) {
   if (!item) return;
   const action = target.dataset.noteEntryAction;
   if (action === 'edit') openEditor(id);
-  else if (action === 'save') await entries.save(id);
+  else if (action === 'save') {
+    item.manualSubmitted = Symbol('note-send'); await entries.save(id); paintDailyNotesPage();
+  }
   else if (action === 'restore') await entries.restoreEntry(id);
   else if (action === 'delete') { notesConfirmEntry = id; paintDailyNotesPage(); }
   else if (action === 'cancel-delete') { notesConfirmEntry = ''; paintDailyNotesPage(); }
@@ -319,10 +353,18 @@ function registerDailyNotesEvents() {
   });
 }
 export async function loadDailyNotes() {
+  stopNotesMonth?.(); stopNotesMonth = null;
   registerDailyNotesEvents(); setDailyNotesRouteDate(dailyNotesRouteDate());
   const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate(),
     category = dailyNotesRouteCategory(), expected = notesIdentityNow();
   await Promise.all([store.read(date), entries.read(date)]);
   if (expected !== notesIdentityNow()) return;
   await hydrateNotesDrafts(store, entries, category); paintDailyNotesPage();
+  const root = document.querySelector('#daily-notes');
+  if (root && notesVisible()) stopNotesMonth = mountNotesMonth(root, {request: api, identity: notesIdentityNow,
+    selectDate: async (value, nextCategory) => {
+      if (nextCategory !== dailyNotesRouteCategory()) {
+        setDailyNotesRouteCategory(nextCategory); setDailyNotesRouteDate(value); updateRoute(true); renderShell();
+      } else await selectDailyNotesDate(value);
+    }});
 }

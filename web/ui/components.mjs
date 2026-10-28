@@ -2,7 +2,6 @@ import { kindLabels, metrics, modeLabels, nav } from "../core/constants.mjs";
 import { e, icon } from "../core/dom.mjs";
 import { accountLabel, bjtDate, displayTime, metricData, num, rowsForAccount, time } from "../core/format.mjs";
 import { state } from "../core/state.mjs";
-import {dailyNotesRouteCategory} from "../core/daily-notes-state.mjs";
 const platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "zhihu", "wechat"].includes(p) ? p : "other")}">${e({
    toutiao: "头", zhihu: "知", wechat: "微" }[p] || "文")}</span>`;
 function detailInfo(reason, label, id) {
@@ -43,8 +42,7 @@ function pageHeader() {
   if (state.page === "reminders") return '<div class="heading-left"><h1>每日工作提醒</h1></div>';
   if (state.page === "memos") return '<div class="heading-left"><h1>' +
     (state.memoView === "trash" ? "备忘录回收站" : "备忘录") + '</h1></div>';
-  if (state.page === "notes") return '<div class="heading-left"><h1>' +
-    (dailyNotesRouteCategory() === "work" ? "工作碎碎念" : "生活碎碎念") + '</h1></div>';
+  if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
   state.accounts).length : null;

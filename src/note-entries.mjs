@@ -5,6 +5,7 @@ import {snapshotDate} from './business-snapshot.mjs';
 import {noteEditor,limitNoteWrites} from './public-note-access.mjs';
 import {beijingDay} from './lib/time.mjs';
 import {NOTE_ENTRY_LIMITS,noteEntryId,noteEntryCategory,noteEntryQuery,noteEntryInput} from './note-entry-validation.mjs';
+import {handleNoteMonth} from './note-month.mjs';
 
 const json=value=>Response.json({data:value});
 const fields='id,category,date,text,version,change_seq,created_at,updated_at,deleted_at';
@@ -111,6 +112,7 @@ async function writeEntry(db,request,route,owner,env,origin) {
 }
 export async function handleNoteEntries(db,request,route,env,origin,initialRevision) {
   const owner=dailyNotesOwner(env);
+  if(route==='/note-entries/month')return handleNoteMonth(db,request,owner,initialRevision);
   if(request.method==='GET')return readEntries(db,request,route,owner,env,origin,initialRevision);
   return writeEntry(db,request,route,owner,env,origin);
 }

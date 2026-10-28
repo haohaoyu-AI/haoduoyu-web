@@ -201,317 +201,6 @@ function safeURL(value) {
   }
 }
 
-// web/core/daily-notes-state.mjs
-var DAILY_NOTES_MAX_BYTES = 65536;
-function validDailyNotesDate(value) {
-  if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = /* @__PURE__ */ new Date(value + "T00:00:00Z");
-  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-function dailyNotesToday() {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(/* @__PURE__ */ new Date()).map((part) => [part.type, part.value]));
-  return parts.year + "-" + parts.month + "-" + parts.day;
-}
-var routeDate = "", routeCategory = "life";
-var dailyNotesRouteCategory = () => routeCategory;
-function setDailyNotesRouteCategory(value) {
-  routeCategory = value === "work" ? "work" : "life";
-}
-function dailyNotesRouteDate() {
-  return routeDate || dailyNotesToday();
-}
-function setDailyNotesRouteDate(value) {
-  routeDate = validDailyNotesDate(value) ? value : "";
-}
-function dailyNotesBytes(text) {
-  return new TextEncoder().encode(text).length;
-}
-function checkedPage(value, date) {
-  if (!value || value.date !== date || typeof value.text !== "string" || !Number.isSafeInteger(value.version) || value.version < 0 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES) throw new Error("碎碎念读取结果不完整，请重新核对。");
-  return value;
-}
-function createDailyNotesContext({
-  load,
-  put,
-  remove,
-  restore,
-  onChange = () => {
-  },
-  onSaved = () => {
-  },
-  uuid: uuid5 = () => crypto.randomUUID(),
-  setTimer = setTimeout,
-  clearTimer = clearTimeout,
-  delay = 700
-}) {
-  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid: uuid5 } };
-  const pages = context.pages;
-  const emit = () => {
-    if (!context.disposed) onChange();
-  };
-  const page = (date) => {
-    if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
-    if (!pages.has(date)) pages.set(date, {
-      date,
-      loaded: false,
-      loading: false,
-      canEdit: false,
-      serverText: "",
-      draft: "",
-      version: 0,
-      updatedAt: null,
-      deleted: false,
-      dirty: false,
-      phase: "loading",
-      error: "",
-      remote: null,
-      pending: null,
-      timer: null,
-      sequence: 0,
-      writeEpoch: 0
-    });
-    return pages.get(date);
-  };
-  const stopTimer = (item) => {
-    if (item.timer !== null) clearTimer(item.timer);
-    item.timer = null;
-  };
-  const adopt = (item, value, preserve = false) => {
-    item.canEdit = value.can_edit;
-    item.serverText = value.deleted ? "" : value.text;
-    item.version = value.version;
-    item.updatedAt = value.updated_at;
-    item.deleted = value.deleted;
-    if (!preserve) item.draft = item.serverText;
-    item.dirty = item.draft !== item.serverText;
-    item.loaded = true;
-  };
-  function schedule(item) {
-    stopTimer(item);
-    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !["conflict", "unknown", "error", "oversize"].includes(item.phase)) {
-      item.timer = setTimer(() => {
-        item.timer = null;
-        void context.save(item.date);
-      }, delay);
-    }
-  }
-  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted === true : operation2.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation2.text);
-  function accepted(item, value, operation2) {
-    const keep = operation2.kind === "put" && item.draft !== operation2.text;
-    item.writeEpoch++;
-    adopt(item, value, keep);
-    item.remote = null;
-    item.pending = null;
-    item.phase = item.dirty ? "dirty" : "saved";
-    item.error = "";
-    emit();
-    onSaved(item.date);
-    schedule(item);
-  }
-  function dispose() {
-    context.disposed = true;
-    for (const item of pages.values()) stopTimer(item);
-  }
-  Object.assign(context, { page, emit, stopTimer, adopt, schedule, matches: matches2, accepted, dispose });
-  return context;
-}
-function createReadingActions(context) {
-  const { page, emit, stopTimer, adopt, schedule } = context;
-  const { load } = context.options;
-  async function read(date) {
-    const item = page(date), sequence2 = ++item.sequence, writeEpoch = item.writeEpoch;
-    item.loading = true;
-    emit();
-    try {
-      const value = checkedPage(await load(date), date);
-      if (context.disposed || sequence2 !== item.sequence) return;
-      if (item.pending || writeEpoch !== item.writeEpoch) return;
-      if (["conflict", "unknown"].includes(item.phase)) {
-        item.remote = value;
-        item.canEdit = value.can_edit;
-      } else if (item.dirty && value.version !== item.version) {
-        item.remote = value;
-        item.canEdit = value.can_edit;
-        item.phase = "conflict";
-        item.error = "服务器已有新版本，草稿已保留，请核对后选择。";
-      } else {
-        adopt(item, value, item.dirty);
-        item.phase = item.dirty ? "dirty" : "saved";
-        item.error = "";
-      }
-    } catch (error) {
-      if (!context.disposed && sequence2 === item.sequence) {
-        item.error = error.message;
-        if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
-      }
-    } finally {
-      if (!context.disposed && sequence2 === item.sequence) {
-        item.loading = false;
-        emit();
-        schedule(item);
-      }
-    }
-  }
-  function edit(date, text, { composing = false } = {}) {
-    const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || ["delete", "restore"].includes(item.pending?.kind)) return;
-    item.composing = composing;
-    item.draft = text;
-    item.dirty = text !== item.serverText;
-    stopTimer(item);
-    if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
-      if (!["conflict", "unknown"].includes(item.phase)) item.phase = "oversize";
-      item.error = "文字超过 64 KiB，草稿已保留，请缩短后再保存。";
-    } else if (!["conflict", "unknown"].includes(item.phase)) {
-      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
-      item.error = "";
-    }
-    emit();
-    if (!composing) schedule(item);
-  }
-  return { read, edit };
-}
-function createWritingActions(context) {
-  const { page, emit, stopTimer, matches: matches2, accepted } = context;
-  const { put, remove, restore, uuid: uuid5 } = context.options;
-  async function send(item, operation2) {
-    stopTimer(item);
-    item.pending = operation2;
-    item.phase = "saving";
-    item.error = "";
-    item.writeEpoch++;
-    emit();
-    try {
-      const raw = await (operation2.kind === "restore" ? restore(item.date, {
-        version: operation2.version,
-        save_id: operation2.saveId
-      }) : operation2.kind === "delete" ? remove(item.date, {
-        version: operation2.version,
-        save_id: operation2.saveId
-      }) : put(item.date, { text: operation2.text, version: operation2.version, save_id: operation2.saveId }));
-      if (context.disposed || item.pending !== operation2) return;
-      const value = checkedPage(raw, item.date);
-      if (!matches2(value, operation2)) throw new Error("保存响应需要重新核对。");
-      accepted(item, value, operation2);
-    } catch (error) {
-      if (context.disposed || item.pending !== operation2) return;
-      if (error.status === 409) {
-        item.pending = null;
-        item.phase = "conflict";
-        item.dirty = true;
-        item.error = "服务器已有新版本，草稿已保留，不会自动覆盖。";
-        emit();
-        await context.read(item.date);
-      } else if (error.status >= 400 && error.status < 500) {
-        item.pending = null;
-        item.phase = "error";
-        item.error = error.message;
-        if ([401, 403].includes(error.status)) item.canEdit = false;
-        emit();
-      } else {
-        item.phase = "unknown";
-        item.error = "正在核对保存结果，草稿已保留。";
-        emit();
-        await context.reconcile(item.date);
-      }
-    }
-  }
-  async function save(date) {
-    const item = page(date);
-    stopTimer(item);
-    if (context.disposed || !item.canEdit || !item.loaded || item.loading || item.pending || ["conflict", "unknown"].includes(item.phase) || !item.dirty) return;
-    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
-      item.phase = "oversize";
-      item.error = "文字超过 64 KiB，草稿已保留。";
-      emit();
-      return;
-    }
-    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid5() });
-  }
-  async function deletePage(date) {
-    const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
-    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid5() });
-  }
-  async function retryPending(date) {
-    const item = page(date), operation2 = item.pending;
-    if (context.disposed || item.phase !== "unknown" || !operation2?.retryReady || operation2.checking || !item.canEdit) return;
-    operation2.retryReady = false;
-    return send(item, operation2);
-  }
-  async function restorePage(date) {
-    const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
-    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid5() });
-  }
-  return { save, deletePage, restorePage, retryPending };
-}
-function createResolutionActions(context) {
-  const { page, emit, stopTimer, adopt, matches: matches2, accepted } = context;
-  const { load } = context.options;
-  async function reconcile(date) {
-    const item = page(date), operation2 = item.pending;
-    if (context.disposed || item.phase !== "unknown" || !operation2 || operation2.checking) return;
-    operation2.checking = true;
-    operation2.retryReady = false;
-    emit();
-    try {
-      const value = checkedPage(await load(date), date);
-      if (context.disposed || item.pending !== operation2) return;
-      item.canEdit = value.can_edit;
-      if (matches2(value, operation2)) accepted(item, value, operation2);
-      else if (value.version > operation2.version) {
-        item.remote = value;
-        item.pending = null;
-        item.phase = "conflict";
-        item.dirty = true;
-        item.error = "服务器已有不同的新版本，草稿已保留，不会自动覆盖。";
-      } else {
-        item.remote = value;
-        operation2.retryReady = value.can_edit && value.version === operation2.version;
-        item.error = operation2.retryReady ? "已核对服务器尚无新版本。可手动重试原保存，后续草稿仍会保留。" : "保存结果尚未确认，草稿已保留。请再次核对，暂不重复发送。";
-      }
-    } catch (error) {
-      if (!context.disposed && item.pending === operation2) item.error = "核对失败，草稿已保留：" + error.message;
-    } finally {
-      operation2.checking = false;
-      emit();
-    }
-  }
-  function useServer(date) {
-    const item = page(date);
-    if (!item.remote || item.pending || item.phase !== "conflict") return;
-    stopTimer(item);
-    adopt(item, item.remote);
-    item.remote = null;
-    item.phase = "saved";
-    item.error = "";
-    emit();
-  }
-  async function useDraft(date) {
-    const item = page(date);
-    if (!item.remote || item.pending || item.phase !== "conflict" || !item.remote.can_edit) return;
-    adopt(item, item.remote, true);
-    item.remote = null;
-    item.phase = item.dirty ? "dirty" : "saved";
-    item.error = "";
-    emit();
-    return context.save(date);
-  }
-  return { reconcile, useServer, useDraft };
-}
-function createDailyNotesStore(options2) {
-  const context = createDailyNotesContext(options2);
-  Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
-  const { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
-  return { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
-}
-
 // web/ui/components.mjs
 var platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "zhihu", "wechat"].includes(p) ? p : "other")}">${e({
   toutiao: "头",
@@ -550,7 +239,7 @@ function accountFilter() {
 function pageHeader() {
   if (state.page === "reminders") return '<div class="heading-left"><h1>每日工作提醒</h1></div>';
   if (state.page === "memos") return '<div class="heading-left"><h1>' + (state.memoView === "trash" ? "备忘录回收站" : "备忘录") + "</h1></div>";
-  if (state.page === "notes") return '<div class="heading-left"><h1>' + (dailyNotesRouteCategory() === "work" ? "工作碎碎念" : "生活碎碎念") + "</h1></div>";
+  if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
   const count = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
     state.accounts
@@ -4412,6 +4101,317 @@ var storage = { get(key) {
   }
 } };
 
+// web/core/daily-notes-state.mjs
+var DAILY_NOTES_MAX_BYTES = 65536;
+function validDailyNotesDate(value) {
+  if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = /* @__PURE__ */ new Date(value + "T00:00:00Z");
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+function dailyNotesToday() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(/* @__PURE__ */ new Date()).map((part) => [part.type, part.value]));
+  return parts.year + "-" + parts.month + "-" + parts.day;
+}
+var routeDate = "", routeCategory = "life";
+var dailyNotesRouteCategory = () => routeCategory;
+function setDailyNotesRouteCategory(value) {
+  routeCategory = value === "work" ? "work" : "life";
+}
+function dailyNotesRouteDate() {
+  return routeDate || dailyNotesToday();
+}
+function setDailyNotesRouteDate(value) {
+  routeDate = validDailyNotesDate(value) ? value : "";
+}
+function dailyNotesBytes(text) {
+  return new TextEncoder().encode(text).length;
+}
+function checkedPage(value, date) {
+  if (!value || value.date !== date || typeof value.text !== "string" || !Number.isSafeInteger(value.version) || value.version < 0 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES) throw new Error("碎碎念读取结果不完整，请重新核对。");
+  return value;
+}
+function createDailyNotesContext({
+  load,
+  put,
+  remove,
+  restore,
+  onChange = () => {
+  },
+  onSaved = () => {
+  },
+  uuid: uuid5 = () => crypto.randomUUID(),
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+  delay = 700
+}) {
+  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid: uuid5 } };
+  const pages = context.pages;
+  const emit = () => {
+    if (!context.disposed) onChange();
+  };
+  const page = (date) => {
+    if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
+    if (!pages.has(date)) pages.set(date, {
+      date,
+      loaded: false,
+      loading: false,
+      canEdit: false,
+      serverText: "",
+      draft: "",
+      version: 0,
+      updatedAt: null,
+      deleted: false,
+      dirty: false,
+      phase: "loading",
+      error: "",
+      remote: null,
+      pending: null,
+      timer: null,
+      sequence: 0,
+      writeEpoch: 0
+    });
+    return pages.get(date);
+  };
+  const stopTimer = (item) => {
+    if (item.timer !== null) clearTimer(item.timer);
+    item.timer = null;
+  };
+  const adopt = (item, value, preserve = false) => {
+    item.canEdit = value.can_edit;
+    item.serverText = value.deleted ? "" : value.text;
+    item.version = value.version;
+    item.updatedAt = value.updated_at;
+    item.deleted = value.deleted;
+    if (!preserve) item.draft = item.serverText;
+    item.dirty = item.draft !== item.serverText;
+    item.loaded = true;
+  };
+  function schedule(item) {
+    stopTimer(item);
+    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !["conflict", "unknown", "error", "oversize"].includes(item.phase)) {
+      item.timer = setTimer(() => {
+        item.timer = null;
+        void context.save(item.date);
+      }, delay);
+    }
+  }
+  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted === true : operation2.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation2.text);
+  function accepted(item, value, operation2) {
+    const keep = operation2.kind === "put" && item.draft !== operation2.text;
+    item.writeEpoch++;
+    adopt(item, value, keep);
+    item.remote = null;
+    item.pending = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    onSaved(item.date);
+    schedule(item);
+  }
+  function dispose() {
+    context.disposed = true;
+    for (const item of pages.values()) stopTimer(item);
+  }
+  Object.assign(context, { page, emit, stopTimer, adopt, schedule, matches: matches2, accepted, dispose });
+  return context;
+}
+function createReadingActions(context) {
+  const { page, emit, stopTimer, adopt, schedule } = context;
+  const { load } = context.options;
+  async function read(date) {
+    const item = page(date), sequence2 = ++item.sequence, writeEpoch = item.writeEpoch;
+    item.loading = true;
+    emit();
+    try {
+      const value = checkedPage(await load(date), date);
+      if (context.disposed || sequence2 !== item.sequence) return;
+      if (item.pending || writeEpoch !== item.writeEpoch) return;
+      if (["conflict", "unknown"].includes(item.phase)) {
+        item.remote = value;
+        item.canEdit = value.can_edit;
+      } else if (item.dirty && value.version !== item.version) {
+        item.remote = value;
+        item.canEdit = value.can_edit;
+        item.phase = "conflict";
+        item.error = "服务器已有新版本，草稿已保留，请核对后选择。";
+      } else {
+        adopt(item, value, item.dirty);
+        item.phase = item.dirty ? "dirty" : "saved";
+        item.error = "";
+      }
+    } catch (error) {
+      if (!context.disposed && sequence2 === item.sequence) {
+        item.error = error.message;
+        if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
+      }
+    } finally {
+      if (!context.disposed && sequence2 === item.sequence) {
+        item.loading = false;
+        emit();
+        schedule(item);
+      }
+    }
+  }
+  function edit(date, text, { composing = false } = {}) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || ["delete", "restore"].includes(item.pending?.kind)) return;
+    item.composing = composing;
+    item.draft = text;
+    item.dirty = text !== item.serverText;
+    stopTimer(item);
+    if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
+      if (!["conflict", "unknown"].includes(item.phase)) item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留，请缩短后再保存。";
+    } else if (!["conflict", "unknown"].includes(item.phase)) {
+      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
+      item.error = "";
+    }
+    emit();
+    if (!composing) schedule(item);
+  }
+  return { read, edit };
+}
+function createWritingActions(context) {
+  const { page, emit, stopTimer, matches: matches2, accepted } = context;
+  const { put, remove, restore, uuid: uuid5 } = context.options;
+  async function send(item, operation2) {
+    stopTimer(item);
+    item.pending = operation2;
+    item.phase = "saving";
+    item.error = "";
+    item.writeEpoch++;
+    emit();
+    try {
+      const raw = await (operation2.kind === "restore" ? restore(item.date, {
+        version: operation2.version,
+        save_id: operation2.saveId
+      }) : operation2.kind === "delete" ? remove(item.date, {
+        version: operation2.version,
+        save_id: operation2.saveId
+      }) : put(item.date, { text: operation2.text, version: operation2.version, save_id: operation2.saveId }));
+      if (context.disposed || item.pending !== operation2) return;
+      const value = checkedPage(raw, item.date);
+      if (!matches2(value, operation2)) throw new Error("保存响应需要重新核对。");
+      accepted(item, value, operation2);
+    } catch (error) {
+      if (context.disposed || item.pending !== operation2) return;
+      if (error.status === 409) {
+        item.pending = null;
+        item.phase = "conflict";
+        item.dirty = true;
+        item.error = "服务器已有新版本，草稿已保留，不会自动覆盖。";
+        emit();
+        await context.read(item.date);
+      } else if (error.status >= 400 && error.status < 500) {
+        item.pending = null;
+        item.phase = "error";
+        item.error = error.message;
+        if ([401, 403].includes(error.status)) item.canEdit = false;
+        emit();
+      } else {
+        item.phase = "unknown";
+        item.error = "正在核对保存结果，草稿已保留。";
+        emit();
+        await context.reconcile(item.date);
+      }
+    }
+  }
+  async function save(date) {
+    const item = page(date);
+    stopTimer(item);
+    if (context.disposed || !item.canEdit || !item.loaded || item.loading || item.pending || ["conflict", "unknown"].includes(item.phase) || !item.dirty) return;
+    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
+      item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留。";
+      emit();
+      return;
+    }
+    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid5() });
+  }
+  async function deletePage(date) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
+    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid5() });
+  }
+  async function retryPending(date) {
+    const item = page(date), operation2 = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation2?.retryReady || operation2.checking || !item.canEdit) return;
+    operation2.retryReady = false;
+    return send(item, operation2);
+  }
+  async function restorePage(date) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
+    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid5() });
+  }
+  return { save, deletePage, restorePage, retryPending };
+}
+function createResolutionActions(context) {
+  const { page, emit, stopTimer, adopt, matches: matches2, accepted } = context;
+  const { load } = context.options;
+  async function reconcile(date) {
+    const item = page(date), operation2 = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation2 || operation2.checking) return;
+    operation2.checking = true;
+    operation2.retryReady = false;
+    emit();
+    try {
+      const value = checkedPage(await load(date), date);
+      if (context.disposed || item.pending !== operation2) return;
+      item.canEdit = value.can_edit;
+      if (matches2(value, operation2)) accepted(item, value, operation2);
+      else if (value.version > operation2.version) {
+        item.remote = value;
+        item.pending = null;
+        item.phase = "conflict";
+        item.dirty = true;
+        item.error = "服务器已有不同的新版本，草稿已保留，不会自动覆盖。";
+      } else {
+        item.remote = value;
+        operation2.retryReady = value.can_edit && value.version === operation2.version;
+        item.error = operation2.retryReady ? "已核对服务器尚无新版本。可手动重试原保存，后续草稿仍会保留。" : "保存结果尚未确认，草稿已保留。请再次核对，暂不重复发送。";
+      }
+    } catch (error) {
+      if (!context.disposed && item.pending === operation2) item.error = "核对失败，草稿已保留：" + error.message;
+    } finally {
+      operation2.checking = false;
+      emit();
+    }
+  }
+  function useServer(date) {
+    const item = page(date);
+    if (!item.remote || item.pending || item.phase !== "conflict") return;
+    stopTimer(item);
+    adopt(item, item.remote);
+    item.remote = null;
+    item.phase = "saved";
+    item.error = "";
+    emit();
+  }
+  async function useDraft(date) {
+    const item = page(date);
+    if (!item.remote || item.pending || item.phase !== "conflict" || !item.remote.can_edit) return;
+    adopt(item, item.remote, true);
+    item.remote = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    return context.save(date);
+  }
+  return { reconcile, useServer, useDraft };
+}
+function createDailyNotesStore(options2) {
+  const context = createDailyNotesContext(options2);
+  Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
+  const { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
+  return { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
+}
+
 // web/core/router.mjs
 function normalizeArticlePipelineFilters(filters) {
   const allowed = {
@@ -6133,7 +6133,6 @@ async function toggleTodo(target) {
     const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
     if (todoSessionActive(owner)) {
       mergeTodo(day4, updated);
-      setTodoNotice(day4, "已保存");
       if (updated.template_id) refreshOpenTodoTemplates();
     }
   } catch (error) {
@@ -6240,18 +6239,190 @@ function createNotesEditorView() {
   return { page, activate, requestCollapse, sync, clear };
 }
 
+// web/core/notes-month.mjs
+function validNoteMonth(month) {
+  return typeof month === "string" && /^\d{4}-\d{2}$/.test(month) && validDailyNotesDate(month + "-01");
+}
+function shiftNoteMonth(month, delta) {
+  if (!validNoteMonth(month) || !Number.isInteger(delta)) throw new Error("请选择有效月份。");
+  const date = /* @__PURE__ */ new Date(month + "-01T12:00:00Z");
+  date.setUTCMonth(date.getUTCMonth() + delta);
+  const result = date.toISOString().slice(0, 7);
+  if (!validNoteMonth(result)) throw new Error("请选择有效月份。");
+  return result;
+}
+function noteMonthWeeks(month) {
+  if (!validNoteMonth(month)) throw new Error("请选择有效月份。");
+  const first = /* @__PURE__ */ new Date(month + "-01T12:00:00Z"), offset = (first.getUTCDay() + 6) % 7;
+  const last = new Date(first);
+  last.setUTCMonth(last.getUTCMonth() + 1);
+  last.setUTCDate(0);
+  const weeks = Array.from({ length: Math.ceil((offset + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
+  for (let day4 = 1; day4 <= last.getUTCDate(); day4++)
+    weeks[Math.floor((offset + day4 - 1) / 7)][(offset + day4 - 1) % 7] = month + "-" + String(day4).padStart(2, "0");
+  return weeks;
+}
+function checkedNoteMonth(data, month) {
+  const fail5 = () => {
+    throw new Error("月记录不完整，请联网重试。");
+  };
+  if (!validNoteMonth(month) || data?.format !== "haoduoyu-note-month-v1" || data.month !== month || data.complete !== true || data.labels_version !== 0 || !Array.isArray(data.days) || data.days.length > 31) fail5();
+  const result = /* @__PURE__ */ new Map(), ids = /* @__PURE__ */ new Set();
+  let total = 0;
+  for (const day4 of data.days) {
+    if (!day4 || !validDailyNotesDate(day4.date) || !day4.date.startsWith(month + "-") || result.has(day4.date) || !Array.isArray(day4.items)) fail5();
+    const items = day4.items.map((item) => {
+      if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || item.label !== null || typeof item.text !== "string" || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail5();
+      ids.add(item.entity_id);
+      total++;
+      return { ...item, displayLabel: item.category === "work" ? "工作" : "生活" };
+    });
+    result.set(day4.date, items);
+  }
+  if (total > 2e3) fail5();
+  return result;
+}
+
+// web/notes-month-controller.mjs
+function renderNotesMonthMarkup() {
+  return '<details id="notes-month-panel" class="notes-month-panel"><summary>月历与历史</summary><div class="notes-month-controls"><button class="btn" type="button" data-notes-month-step="-1" aria-label="上个月">‹</button><label>月份 <input id="notes-month-input" class="input" type="month"></label><button class="btn" type="button" data-notes-month-step="1" aria-label="下个月">›</button><label>分类 <select id="notes-month-category" class="input"><option value="">全部</option><option value="life">生活</option><option value="work">工作</option></select></label><button class="btn text" type="button" data-notes-month-refresh>刷新</button></div><p id="notes-month-status" role="status" aria-live="polite"></p><div class="notes-month-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-month-grid" class="notes-month-grid"></div><h3 id="notes-month-day-title"></h3><div id="notes-month-history" class="notes-entry-list"></div></details>';
+}
+function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
+  const panel = root.querySelector("#notes-month-panel");
+  if (!panel) return () => {
+  };
+  const find = (selector) => panel.querySelector(selector), doc = root.ownerDocument;
+  const identityNow = typeof identity4 === "function" ? identity4 : () => identity4, expected = identityNow();
+  let disposed = false, sequence2 = 0, days = /* @__PURE__ */ new Map(), loaded = "", selected = dailyNotesToday(), month = selected.slice(0, 7), category = "";
+  const active5 = () => !disposed && root.isConnected && identityNow() === expected;
+  const visibleRows = (date) => (days.get(date) || []).filter((item) => !category || item.category === category);
+  find("#notes-month-input").value = month;
+  function node(tag, text, className = "") {
+    const result = doc.createElement(tag);
+    result.textContent = text;
+    if (className) result.className = className;
+    return result;
+  }
+  function paintHistory() {
+    const rows = visibleRows(selected), list = find("#notes-month-history");
+    list.replaceChildren();
+    find("#notes-month-day-title").textContent = selected + " · " + rows.length + " 条记录";
+    for (const item of rows) {
+      const card = node("article", "", "note-entry note-entry-saved"), head = node("div", "", "note-entry-head");
+      head.append(node("span", item.displayLabel + (item.source === "legacy_daily_note" ? " · 原有记录" : "")));
+      const time2 = node("time", new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.updated_at)));
+      time2.dateTime = item.updated_at;
+      head.append(time2);
+      card.append(head, node("div", item.text || "这条记录没有文字。", "note-entry-reader"));
+      const open = node("button", "查看当天", "btn text");
+      open.type = "button";
+      open.addEventListener("click", () => {
+        if (active5()) void selectDate(selected, item.category);
+      });
+      card.append(open);
+      list.append(card);
+    }
+    if (!rows.length) list.append(node("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
+  }
+  function paint() {
+    const grid = find("#notes-month-grid");
+    grid.replaceChildren();
+    for (const date of noteMonthWeeks(month).flat()) {
+      if (!date) {
+        grid.append(node("span", ""));
+        continue;
+      }
+      const count = visibleRows(date).length, button2 = node("button", String(Number(date.slice(-2))) + (count ? " · " + count : ""), "btn");
+      button2.type = "button";
+      button2.dataset.notesMonthDate = date;
+      button2.setAttribute("aria-label", date + "，" + count + " 条记录");
+      button2.setAttribute("aria-pressed", String(date === selected));
+      button2.classList.toggle("has-records", count > 0);
+      grid.append(button2);
+    }
+    paintHistory();
+  }
+  async function load(force = false) {
+    if (!active5() || !panel.open || !validNoteMonth(month) || !force && loaded === month) return;
+    const current = ++sequence2, target = month;
+    loaded = "";
+    days = /* @__PURE__ */ new Map();
+    find("#notes-month-grid").replaceChildren();
+    find("#notes-month-history").replaceChildren();
+    find("#notes-month-day-title").textContent = "";
+    find("#notes-month-status").textContent = "正在读取月记录…";
+    try {
+      const data = await request("/note-entries/month?month=" + target);
+      if (!active5() || current !== sequence2 || target !== month) return;
+      days = checkedNoteMonth(data, target);
+      loaded = target;
+      if (!selected.startsWith(target + "-")) selected = [...days.keys()][0] || target + "-01";
+      find("#notes-month-status").textContent = "仅展示已同步记录；待同步草稿请在原日期查看。";
+      paint();
+    } catch (error) {
+      if (!active5() || current !== sequence2) return;
+      find("#notes-month-status").textContent = error.message || "月记录读取失败，请重试。";
+    }
+  }
+  function toggle() {
+    if (panel.open) void load();
+  }
+  function change(event) {
+    if (!active5()) return;
+    if (event.target.id === "notes-month-input") {
+      if (!validNoteMonth(event.target.value)) {
+        find("#notes-month-status").textContent = "请选择有效月份。";
+        return;
+      }
+      month = event.target.value;
+      void load();
+    } else if (event.target.id === "notes-month-category") {
+      category = event.target.value;
+      if (loaded === month) paint();
+    }
+  }
+  function click(event) {
+    if (!active5()) return;
+    const target = event.target.closest("[data-notes-month-step],[data-notes-month-date],[data-notes-month-refresh]");
+    if (!target || !panel.contains(target)) return;
+    event.preventDefault();
+    if (target.dataset.notesMonthStep) {
+      try {
+        month = shiftNoteMonth(month, Number(target.dataset.notesMonthStep));
+        find("#notes-month-input").value = month;
+        void load();
+      } catch (error) {
+        find("#notes-month-status").textContent = error.message;
+      }
+    } else if (target.dataset.notesMonthDate) {
+      selected = target.dataset.notesMonthDate;
+      paint();
+    } else void load(true);
+  }
+  panel.addEventListener("toggle", toggle);
+  panel.addEventListener("change", change);
+  panel.addEventListener("click", click);
+  return () => {
+    disposed = true;
+    sequence2++;
+    panel.removeEventListener("toggle", toggle);
+    panel.removeEventListener("change", change);
+    panel.removeEventListener("click", click);
+  };
+}
+
 // web/pages/daily-notes.mjs
 function legacyEditorMarkup() {
   return '<article id="notes-legacy-card" class="note-entry note-entry-editing notes-legacy-card" hidden><div class="note-entry-head"><time id="notes-legacy-time" class="note-entry-time" hidden></time><span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">原有记录内容</label><textarea id="notes-editor" class="notes-editor" aria-label="原有记录或保留草稿，只读" readonly hidden></textarea><div id="notes-reader" class="notes-reader"></div><p id="notes-empty" hidden>这条记录没有文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复原有记录</button><button class="btn text" type="button" data-notes-action="delete">删除原有记录</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除原有记录？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div></article>';
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ["life", "work"].map((value) => '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' + (value === "work" ? "工作碎碎念" : "生活碎碎念") + "</button>").join("") + '</div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><span>正在编辑</span><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="notes-categories segmented" role="group" aria-label="碎碎念分类">' + ["life", "work"].map((value) => '<button type="button" data-notes-category="' + value + '" aria-pressed="' + (value === category) + '">' + (value === "work" ? "工作碎碎念" : "生活碎碎念") + "</button>").join("") + '</div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite">正在读取…</span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><span>正在编辑</span><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article>' + renderNotesMonthMarkup() + "</section>";
 }
 var statuses = {
   loading: "正在读取…",
-  dirty: "等待保存",
-  saving: "正在保存…",
+  dirty: "未发送",
+  saving: "发送中…",
   conflict: "草稿有冲突",
   unknown: "保存结果待核对",
   error: "暂未保存",
@@ -6325,19 +6496,19 @@ function paintDailyNotes(root, item, { compatibility = false, editing: editing3 
   if (compatibility) paintTime(find("#notes-legacy-time"), item.updatedAt);
 }
 function entryControlsMarkup() {
-  return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn text" type="button" data-note-entry-action="save" hidden>重试保存</button><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
+  return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送">发送</button><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
 }
 function createEntryElement(item, editing3) {
   const node = document.createElement("article");
   node.className = "note-entry " + (editing3 ? "note-entry-editing" : "note-entry-saved");
   node.dataset.noteEntry = item.id;
-  node.innerHTML = '<div class="note-entry-head"><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
+  node.innerHTML = '<div class="note-entry-head"><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node;
 }
 function paintEntrySummary(node, item) {
   paintTime(node.querySelector("time"), item.updatedAt);
   const status = node.querySelector(".note-entry-status");
-  status.textContent = statuses[item.phase] || (item.deleted ? "已删除" : item.version ? "已保存" : "写下后自动保存");
+  status.textContent = statuses[item.phase] || (item.deleted ? "已删除" : item.version ? "已保存" : "未发送");
   status.dataset.phase = item.phase;
   const message = node.querySelector(".note-entry-message");
   message.textContent = item.error;
@@ -6345,6 +6516,7 @@ function paintEntrySummary(node, item) {
 }
 function paintSavedEntry(node, item) {
   paintEntrySummary(node, item);
+  node.querySelector(".note-entry-send-feedback").textContent = item.manualSubmitted && !item.dirty && item.phase === "saved" ? "发送成功" : "";
   const draft = noteDraftNeedsAttention(item), body2 = node.querySelector(".note-entry-reader");
   body2.textContent = item.deleted ? "这条记录已删除。" : displayedText(item);
   body2.classList.toggle("note-entry-draft-label", draft);
@@ -6368,8 +6540,12 @@ function paintEntryEditor(node, item, confirmId) {
   find(".note-entry-actions").hidden = !item.canEdit;
   const busy = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
   const save = find('[data-note-entry-action="save"]');
-  save.hidden = !["error", "oversize"].includes(item.phase);
-  save.disabled = busy || !item.dirty || item.phase === "oversize";
+  save.hidden = item.deleted || !item.canEdit;
+  save.textContent = item.pending ? "发送中…" : item.phase === "error" ? "重试发送" : "发送";
+  save.setAttribute("aria-label", save.textContent);
+  save.disabled = busy || !item.dirty || item.composing || item.phase === "oversize";
+  const feedback = find(".note-entry-send-feedback");
+  feedback.textContent = item.pending ? "发送中…" : !item.manualSubmitted || item.dirty ? "" : item.phase === "queued" ? "已存本机，待同步" : item.phase === "saved" ? "发送成功" : "";
   find('[data-note-entry-action="delete"]').hidden = item.deleted;
   find('[data-note-entry-action="delete"]').disabled = busy;
   find('[data-note-entry-action="restore"]').hidden = !item.deleted;
@@ -6451,7 +6627,7 @@ function paintNoteEntries(root, store, current, legacy, { drafts = [], confirmId
   find("#notes-entry-empty").hidden = !current.loaded || Boolean(activeItem) || saved.length > 0 || legacy.version > 0 || noteDraftNeedsAttention(legacy);
   const unresolved2 = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy);
   const status = find("#notes-status");
-  status.textContent = !current.loaded && current.loading ? "正在读取…" : current.error ? "读取失败" : unresolved2 ? "有草稿待保存" : canEdit ? "自动保存" : current.loaded ? "公开只读" : "正在读取…";
+  status.textContent = !current.loaded && current.loading ? "正在读取…" : current.error ? "读取失败" : unresolved2 ? "有未发送内容" : canEdit ? "" : current.loaded ? "公开只读" : "正在读取…";
   status.hidden = canEdit && !current.error && !unresolved2;
   paintRetainedDrafts(root, current, drafts);
 }
@@ -6504,7 +6680,8 @@ function createEntriesContext({
   uuid: uuid5 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
-  delay = 400
+  delay = 400,
+  manualSave = false
 }) {
   if (!["life", "work"].includes(category)) throw new Error("请选择有效分类。");
   const pages = /* @__PURE__ */ new Map(), entries = /* @__PURE__ */ new Map();
@@ -6595,7 +6772,7 @@ function createEntriesContext({
   }
   function schedule(item) {
     stopTimer(item);
-    if (!context.disposed && !context.autosavePaused && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !blocked(item) && !["error", "oversize"].includes(item.phase) && (persistedVersion(item) > 0 || item.draft.trim())) {
+    if (!manualSave && !context.disposed && !context.autosavePaused && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !blocked(item) && !["error", "oversize"].includes(item.phase) && (persistedVersion(item) > 0 || item.draft.trim())) {
       item.timer = setTimer(() => {
         item.timer = null;
         void context.save(item.id);
@@ -7106,7 +7283,7 @@ function createNoteEntriesStore(options2) {
 }
 
 // web/daily-notes-controller.mjs
-var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "", notesRefreshPaused = false;
+var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "", notesRefreshPaused = false, notesDraftError = "", notesDraftRevision = 0;
 var notesStores = /* @__PURE__ */ new Map(), entryStores = /* @__PURE__ */ new Map(), editorViews = createNotesEditorView();
 var notesIdentityNow = () => JSON.stringify([
   runtime.sessionEpoch,
@@ -7137,6 +7314,21 @@ var draftFields = [
 var hydratedDrafts = /* @__PURE__ */ new WeakMap();
 var hydrationReady = /* @__PURE__ */ new WeakSet();
 var entryIdentities = /* @__PURE__ */ new WeakMap();
+var sendFeedbackTimers = /* @__PURE__ */ new WeakMap();
+var stopNotesMonth;
+function scheduleSendFeedback(entries, expected) {
+  for (const item of entries.entries.values()) {
+    if (!item.manualSubmitted || item.phase !== "saved" || item.dirty || item.pending || sendFeedbackTimers.has(item)) continue;
+    const attempt = item.manualSubmitted;
+    const timer = setTimeout(() => {
+      sendFeedbackTimers.delete(item);
+      if (expected !== notesIdentityNow() || item.manualSubmitted !== attempt) return;
+      item.manualSubmitted = null;
+      paintDailyNotesPage();
+    }, 2500);
+    sendFeedbackTimers.set(item, timer);
+  }
+}
 function captureNotesDrafts(legacy, entries, category) {
   const offline = getOfflineRuntime();
   if (!offline || !hydrationReady.has(entries) || entryIdentities.get(entries) !== notesIdentityNow()) return;
@@ -7250,6 +7442,8 @@ function exportLegacyDraft(item, category) {
 function ensureDailyNotesStore() {
   const next = notesIdentityNow(), category = dailyNotesRouteCategory();
   if (notesIdentity !== next) {
+    stopNotesMonth?.();
+    stopNotesMonth = null;
     for (const store of [...notesStores.values(), ...entryStores.values()]) store.dispose();
     notesStores.clear();
     entryStores.clear();
@@ -7258,6 +7452,8 @@ function ensureDailyNotesStore() {
     notesConfirmDate = "";
     notesConfirmEntry = "";
     notesRefreshPaused = false;
+    notesDraftError = "";
+    notesDraftRevision++;
   }
   if (notesActiveCategory !== category) {
     notesActiveCategory = category;
@@ -7282,7 +7478,19 @@ function ensureDailyNotesStore() {
     const suffix = (separator) => category === "work" ? separator + "category=work" : "";
     const changed4 = () => {
       if (expected !== notesIdentityNow()) return;
-      void captureNotesDrafts(legacy, entries, category)?.catch(() => {
+      scheduleSendFeedback(entries, expected);
+      const revision2 = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
+      if (!getOfflineRuntime()?.state.scope && [...entries.entries.values()].some((item) => item.dirty)) {
+        notesDraftError = "本机草稿保存不可用，请保持页面打开或发送后再离开。";
+      }
+      if (saved) void saved.then(() => {
+        if (expected !== notesIdentityNow() || revision2 !== notesDraftRevision || !notesDraftError || !getOfflineRuntime()?.state.scope) return;
+        notesDraftError = "";
+        paintDailyNotesPage();
+      }).catch(() => {
+        if (expected !== notesIdentityNow() || revision2 !== notesDraftRevision) return;
+        notesDraftError = "草稿未能保存在本机，请保持页面打开并检查存储空间。";
+        paintDailyNotesPage();
       });
       if (category === dailyNotesRouteCategory()) paintDailyNotesPage();
     };
@@ -7300,6 +7508,7 @@ function ensureDailyNotesStore() {
     });
     const entries = createNoteEntriesStore({
       category,
+      manualSave: true,
       load: (date, options2) => options2?.localOnly ? getOfflineRuntime().localRead("/note-entries?category=" + category + "&date=" + date) : request("/note-entries?category=" + category + "&date=" + encodeURIComponent(date)),
       loadEntry: (id, options2) => options2?.localOnly ? getOfflineRuntime().localRead("/note-entries/" + id) : request("/note-entries/" + encodeURIComponent(id)),
       loadOperation: (id) => request("/note-entries/operations/" + encodeURIComponent(id)),
@@ -7342,6 +7551,11 @@ function paintDailyNotesPage() {
     { focused: host.contains(document.activeElement), composing: field2?.dataset.composing === "true" }
   );
   paintNoteEntries(root, entryStore, current, legacy, { drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active });
+  if (notesDraftError) {
+    const message = root.querySelector("#notes-entry-message");
+    message.textContent = notesDraftError;
+    message.hidden = false;
+  }
   root.querySelector("#notes-delete-confirm").hidden = true;
 }
 async function selectDailyNotesDate(value) {
@@ -7409,8 +7623,11 @@ async function handleEntryAction(target, entries) {
   if (!item) return;
   const action = target.dataset.noteEntryAction;
   if (action === "edit") openEditor(id);
-  else if (action === "save") await entries.save(id);
-  else if (action === "restore") await entries.restoreEntry(id);
+  else if (action === "save") {
+    item.manualSubmitted = /* @__PURE__ */ Symbol("note-send");
+    await entries.save(id);
+    paintDailyNotesPage();
+  } else if (action === "restore") await entries.restoreEntry(id);
   else if (action === "delete") {
     notesConfirmEntry = id;
     paintDailyNotesPage();
@@ -7538,6 +7755,8 @@ function registerDailyNotesEvents() {
   });
 }
 async function loadDailyNotes() {
+  stopNotesMonth?.();
+  stopNotesMonth = null;
   registerDailyNotesEvents();
   setDailyNotesRouteDate(dailyNotesRouteDate());
   const store = ensureDailyNotesStore(), entries = entryStore, date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), expected = notesIdentityNow();
@@ -7545,12 +7764,25 @@ async function loadDailyNotes() {
   if (expected !== notesIdentityNow()) return;
   await hydrateNotesDrafts(store, entries, category);
   paintDailyNotesPage();
+  const root = document.querySelector("#daily-notes");
+  if (root && notesVisible()) stopNotesMonth = mountNotesMonth(root, {
+    request: api,
+    identity: notesIdentityNow,
+    selectDate: async (value, nextCategory) => {
+      if (nextCategory !== dailyNotesRouteCategory()) {
+        setDailyNotesRouteCategory(nextCategory);
+        setDailyNotesRouteDate(value);
+        updateRoute(true);
+        renderShell();
+      } else await selectDailyNotesDate(value);
+    }
+  });
 }
 
 // web/pages/memos.mjs
 var button = (action, label3, extra = "") => '<button type="button" class="btn" data-memo-action="' + action + '" ' + extra + ">" + label3 + "</button>";
 function renderMemos() {
-  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", "＋", 'hidden aria-label="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="280" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" stroke-width="1.6"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
+  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><span id="memo-status" role="status" aria-live="polite">正在读取…</span><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", "＋", 'hidden aria-label="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" stroke-width="1.6"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
 }
 var phases = {
   dirty: "等待自动保存",
@@ -7564,6 +7796,21 @@ var phases = {
   loading: "正在读取…"
 };
 var active4 = (rows, trash) => rows.filter((row) => Boolean(row.deleted_at) === trash);
+function paintEditedTime(node, item) {
+  const local = item.localQueued && item.localUpdatedAt;
+  const value = local || item.updated_at;
+  const timestamp4 = value && Date.parse(value);
+  node.hidden = !Number.isFinite(timestamp4);
+  node.dateTime = node.hidden ? "" : value;
+  node.textContent = node.hidden ? "" : (local ? "本机编辑于 " : "编辑于 ") + new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(timestamp4);
+}
 function listButton(kind, row, current, subtitle = "") {
   return '<button type="button" class="memo-list-item' + (row.id === current ? " is-selected" : "") + '" data-memo-' + kind + '="' + e(row.id) + '" aria-pressed="' + (row.id === current) + '"><span>' + e(row.title) + "</span>" + (subtitle ? "<small>" + e(subtitle) + "</small>" : "") + "</button>";
 }
@@ -7615,7 +7862,8 @@ function paintDocument(root, store) {
     find("#memo-read-" + field2).hidden = editable;
     find("#memo-read-" + field2).textContent = item[field2] || (field2 === "body" ? "这篇笔记还没有正文。" : "未命名笔记");
   }
-  find("#memo-detail").textContent = deleted2 ? "已删除 · 可恢复" : s.canEdit ? new TextEncoder().encode(item.body || "").length + " / 65536 字节 · 自动保存" : "公开只读";
+  paintEditedTime(find("#memo-edited-at"), item);
+  find("#memo-detail").textContent = deleted2 ? "已删除 · 可恢复" : s.canEdit ? "" : "公开只读";
   find("#memo-note-actions").hidden = !s.canEdit;
   find('[data-memo-action="save"]').hidden = deleted2;
   find('[data-memo-action="save"]').disabled = !item.dirty || Boolean(item.pending) || item.phase === "conflict";
@@ -7641,7 +7889,7 @@ function paintMemos(root, store) {
   root.dataset.pane = s.pane;
   const actual = phases[item?.phase] || "已保存", routine = ["dirty", "saving", "saved"].includes(item?.phase) || !item;
   find("#memo-status").textContent = s.loading ? "正在读取…" : !s.canEdit ? "公开只读" : routine ? "自动保存" : actual;
-  find("#memo-status").hidden = s.trash && !s.loading;
+  find("#memo-status").hidden = s.trash && !s.loading || s.canEdit && routine && !s.loading;
   find("#memo-status").setAttribute("aria-label", actual);
   find("#memo-status").dataset.phase = item?.phase || "saved";
   find("#memo-error").hidden = !s.error && !s.storageError;
@@ -9016,7 +9264,7 @@ function applyMemoSplit(width = null, persist = false) {
   const max = Math.max(min, Math.floor(Math.min(480, area - 200, area * 0.65)));
   if (memoSplitRatio === void 0) {
     const saved = Number(storage.get(memoSplitStorage));
-    memoSplitRatio = Number.isFinite(saved) && saved >= 0.1 && saved <= 0.8 ? saved : 0.3;
+    memoSplitRatio = Number.isFinite(saved) && saved >= 0.1 && saved <= 0.8 ? saved : 0.24;
   }
   const value = Math.round(Math.max(min, Math.min(max, width ?? area * memoSplitRatio)));
   root.style.setProperty("--memo-list-w", value + "px");
@@ -9172,12 +9420,7 @@ function renderMediaTabs() {
 ${state.page === page ? 'aria-current="page"' : ""}>${label3}</a>`).join("") + "</nav>";
 }
 function notesNavigation(mobile = false) {
-  const active5 = state.page === "notes", name = mobile ? "mobile-notes-nav" : "notes-nav";
-  return `<details class="${name}${active5 ? " active" : ""}" ${!mobile && active5 ? "open" : ""}>
-<summary ${mobile ? 'data-action="notes-menu"' : ""} title="碎碎念" aria-label="碎碎念" aria-expanded="${!mobile && active5}">
-${icon("edit", 18)}<span class="nav-label">碎碎念</span></summary><div class="notes-subnav">
-${["life", "work"].map((category) => navigationLink({ id: "notes", category, icon: "edit", label: category === "work" ? "工作碎碎念" : "生活碎碎念" })).join("")}
-</div></details>`;
+  return navigationLink({ id: "notes", icon: "edit", label: "碎碎念" }, mobile);
 }
 function sidebarNavigation() {
   return mediaNavigation() + nav.filter((item) => !mediaPages.has(item.id) && item.id !== "settings").map((item) => item.id === "notes" ? notesNavigation() : navigationLink(item)).join("");
@@ -9187,7 +9430,7 @@ function settingsNavigation() {
 }
 function mobileNavigation() {
   const items = [["todos", "待办"], ["notes", "碎碎念"], ["memos", "备忘录"], ["reminders", "提醒"]];
-  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id, label3]) => navigationLink({ ...nav.find((item) => item.id === id), label: label3, ...id === "notes" ? { category: dailyNotesRouteCategory() } : {} }, true)).join("")}${mediaNavigation(true)}</nav>`;
+  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id, label3]) => navigationLink({ ...nav.find((item) => item.id === id), label: label3 }, true)).join("")}${mediaNavigation(true)}</nav>`;
 }
 function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
@@ -9195,11 +9438,6 @@ ${settingsNavigation()}${state.me?.publicBusiness ? "" : `<button class="btn tex
 }
 function syncWorkbenchNavigation() {
   const active5 = mediaPages.has(state.page);
-  const notes = document.querySelector('.mobile-nav [data-nav="notes"]');
-  if (notes) {
-    notes.dataset.notesCategory = dailyNotesRouteCategory();
-    notes.setAttribute("href", "?page=notes&notes_category=" + dailyNotesRouteCategory());
-  }
   for (const link of document.querySelectorAll(".media-link")) {
     link.classList.toggle("active", active5);
     if (active5) link.setAttribute("aria-current", "page");
@@ -11127,7 +11365,9 @@ function offlineStatusLabel(state2) {
   if (state2.unsupported) return "需新版";
   if (state2.conflicts) return "有冲突";
   if (!state2.online) return `离线（${state2.pending || 0} 条待同步）`;
-  if (state2.phase === "syncing" || state2.pending) return "同步中";
+  if (state2.error) return "同步失败，等待重试";
+  if (state2.phase === "syncing") return "";
+  if (state2.pending) return `待同步（${state2.pending} 条）`;
   return "已同步";
 }
 function textNode(document2, tag, text, className) {
@@ -11318,8 +11558,8 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   }
   function mount() {
     if (!root.isConnected && document2.body) document2.body.append(root);
-    root.hidden = !state2.identity;
     const label3 = offlineStatusLabel(state2);
+    root.hidden = !state2.identity || !label3;
     if (button2.textContent !== label3) button2.textContent = label3;
     root.dataset.phase = state2.conflicts ? "conflict" : state2.phase;
     pageAnnotation(document2, state2);

@@ -1,6 +1,7 @@
 import {e} from '../core/dom.mjs';
 import {dailyNotesToday, dailyNotesRouteCategory} from '../core/daily-notes-state.mjs';
 import {noteDraftNeedsAttention, noteEditorCanCollapse} from '../core/notes-editor-view.mjs';
+import {renderNotesMonthMarkup} from '../notes-month-controller.mjs';
 
 function legacyEditorMarkup() {
   return '<article id="notes-legacy-card" class="note-entry note-entry-editing notes-legacy-card" hidden>' +
@@ -53,10 +54,11 @@ export function renderDailyNotes() {
     '<div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div>' +
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button>' +
-    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></section>';
+    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article>' +
+    renderNotesMonthMarkup() + '</section>';
 }
 
-const statuses = {loading: '正在读取…', dirty: '等待保存', saving: '正在保存…', conflict: '草稿有冲突',
+const statuses = {loading: '正在读取…', dirty: '未发送', saving: '发送中…', conflict: '草稿有冲突',
   unknown: '保存结果待核对', error: '暂未保存', oversize: '文字过长', queued: '已存本机，待同步', cached: '本机缓存'};
 function retainedLegacy(item) {
   return Boolean(item.dirty || item.pending || ['unknown', 'conflict', 'oversize', 'error'].includes(item.phase));
@@ -112,7 +114,8 @@ export function paintDailyNotes(root, item, {compatibility = false, editing = fa
 }
 function entryControlsMarkup() {
   return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions">' +
-    '<button class="btn text" type="button" data-note-entry-action="save" hidden>重试保存</button>' +
+    '<button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送">发送</button>' +
+    '<span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
     '<button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button>' +
     '<button class="btn text" type="button" data-note-entry-action="delete">删除</button></div>' +
     '<div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p>' +
@@ -133,18 +136,21 @@ function createEntryElement(item, editing) {
     '<textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) +
     '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() :
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
+    '<span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
     '<button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node;
 }
 function paintEntrySummary(node, item) {
   paintTime(node.querySelector('time'), item.updatedAt);
   const status = node.querySelector('.note-entry-status');
-  status.textContent = statuses[item.phase] || (item.deleted ? '已删除' : item.version ? '已保存' : '写下后自动保存');
+  status.textContent = statuses[item.phase] || (item.deleted ? '已删除' : item.version ? '已保存' : '未发送');
   status.dataset.phase = item.phase;
   const message = node.querySelector('.note-entry-message'); message.textContent = item.error; message.hidden = !item.error;
 }
 function paintSavedEntry(node, item) {
   paintEntrySummary(node, item);
+  node.querySelector('.note-entry-send-feedback').textContent =
+    item.manualSubmitted && !item.dirty && item.phase === 'saved' ? '发送成功' : '';
   const draft = noteDraftNeedsAttention(item), body = node.querySelector('.note-entry-reader');
   body.textContent = item.deleted ? '这条记录已删除。' : displayedText(item);
   body.classList.toggle('note-entry-draft-label', draft); node.dataset.draft = String(draft);
@@ -161,8 +167,13 @@ function paintEntryEditor(node, item, confirmId) {
   reader.hidden = !item.deleted;
   find('.note-entry-actions').hidden = !item.canEdit;
   const busy = Boolean(item.pending) || ['conflict', 'unknown'].includes(item.phase);
-  const save = find('[data-note-entry-action="save"]'); save.hidden = !['error', 'oversize'].includes(item.phase);
-  save.disabled = busy || !item.dirty || item.phase === 'oversize';
+  const save = find('[data-note-entry-action="save"]'); save.hidden = item.deleted || !item.canEdit;
+  save.textContent = item.pending ? '发送中…' : item.phase === 'error' ? '重试发送' : '发送';
+  save.setAttribute('aria-label', save.textContent);
+  save.disabled = busy || !item.dirty || item.composing || item.phase === 'oversize';
+  const feedback = find('.note-entry-send-feedback');
+  feedback.textContent = item.pending ? '发送中…' : !item.manualSubmitted || item.dirty ? '' :
+    item.phase === 'queued' ? '已存本机，待同步' : item.phase === 'saved' ? '发送成功' : '';
   find('[data-note-entry-action="delete"]').hidden = item.deleted;
   find('[data-note-entry-action="delete"]').disabled = busy;
   find('[data-note-entry-action="restore"]').hidden = !item.deleted;
@@ -244,7 +255,7 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
   const unresolved = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy);
   const status = find('#notes-status');
   status.textContent = !current.loaded && current.loading ? '正在读取…' : current.error ? '读取失败' :
-    unresolved ? '有草稿待保存' : canEdit ? '自动保存' : current.loaded ? '公开只读' : '正在读取…';
+    unresolved ? '有未发送内容' : canEdit ? '' : current.loaded ? '公开只读' : '正在读取…';
   status.hidden = canEdit && !current.error && !unresolved;
   paintRetainedDrafts(root, current, drafts);
 }

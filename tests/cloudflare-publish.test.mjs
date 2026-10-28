@@ -29,6 +29,13 @@ function version(id=OLD) {
     script_runtime:{compatibility_date:'2026-07-30',compatibility_flags:['nodejs_compat'],usage_model:'standard',
       limits:{cpu_ms:50},exports:{default:{type:'worker',state:'created',cache:{enabled:false}}}}}};
 }
+test('D1 database_id alias must match the retained database id',()=>{
+  const original=version(),aliased=clone(original);
+  aliased.resources.bindings[0].database_id=aliased.resources.bindings[0].id;
+  assert.deepEqual(versionSnapshot(aliased,OLD),versionSnapshot(original,OLD));
+  aliased.resources.bindings[0].database_id=OTHER;
+  assert.throws(()=>versionSnapshot(aliased,OLD));
+});
 function mockCloudflare(hook=()=>{}) {
   const old=version(),candidate=version(NEW),calls=[];
   const state={latest:OLD,active:OLD,deploymentId:DEPLOYMENT,hasAssets:false,versions:new Map([[OLD,old],[NEW,candidate]]),

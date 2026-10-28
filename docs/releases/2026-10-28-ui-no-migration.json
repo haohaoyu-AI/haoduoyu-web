@@ -1,0 +1,29 @@
+{
+  "baseline_commit": "b242cd573ab05c2fae2d5af779d7275ca45c20ad",
+  "source_branch": "codex/ui-no-migration-20261028",
+  "rollback_worker_version": "5d6c02d7-60de-409a-b125-14316bb57f60",
+  "scope": [
+    "Unified notes navigation with life/work categories",
+    "Explicit note send button and temporary confirmed-send feedback",
+    "Local draft persistence failure feedback",
+    "Monthly calendar and combined legacy/current history on existing tables",
+    "Expanded memo editor, title hierarchy and actual edit time",
+    "Quiet routine memo/todo save feedback and routine background sync indicator"
+  ],
+  "deferred": ["Undated future todos", "Custom note labels"],
+  "database_migration": false,
+  "production_database_writes_by_release": false,
+  "schema": "Unchanged production baseline: 22 matrix tables and 9 existing migration files",
+  "verification": {
+    "build": "passed",
+    "web_source_limits": "passed",
+    "embedded_assets": "passed",
+    "targeted_tests": "24 passed",
+    "publisher_tests": "39 passed, including equal D1 id alias and mismatched alias rejection",
+    "isolated_http": "notes and memos shell, script, stylesheet and month endpoint returned 200",
+    "browser_interaction": "not completed: prior background browser task space no longer exists",
+    "full_tests": "not run per latest user instruction",
+    "historical_projections": "not run per latest user instruction",
+    "restore_rehearsal": "not repeated per latest user instruction"
+  }
+}

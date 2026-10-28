@@ -46,7 +46,7 @@ function checkedCollection(value, category, date) {
 // neither navigation nor midnight can change the destination of an in-flight write.
 function createEntriesContext({category, load, loadEntry, loadOperation, put, remove, restore,
   onChange = () => {}, onSaved = () => {}, uuid = () => crypto.randomUUID(),
-  setTimer = setTimeout, clearTimer = clearTimeout, delay = 400}) {
+  setTimer = setTimeout, clearTimer = clearTimeout, delay = 400, manualSave = false}) {
   if (!['life', 'work'].includes(category)) throw new Error('请选择有效分类。');
   const pages = new Map(), entries = new Map();
   const context = {category, pages, entries, disposed: false,
@@ -80,7 +80,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
   }
   function schedule(item) {
     stopTimer(item);
-    if (!context.disposed && !context.autosavePaused && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing &&
+    if (!manualSave && !context.disposed && !context.autosavePaused && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing &&
         !blocked(item) && !['error', 'oversize'].includes(item.phase) && (persistedVersion(item) > 0 || item.draft.trim())) {
       item.timer = setTimer(() => { item.timer = null; void context.save(item.id); }, delay);
     }

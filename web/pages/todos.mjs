@@ -340,7 +340,6 @@ async function toggleTodo(target) {
     const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
     if (todoSessionActive(owner)) {
       mergeTodo(day, updated);
-      setTodoNotice(day, "已保存");
       if (updated.template_id) refreshOpenTodoTemplates();
     }
   } catch (error) {

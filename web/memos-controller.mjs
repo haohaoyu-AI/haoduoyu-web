@@ -367,7 +367,7 @@ function applyMemoSplit(width = null, persist = false) {
   const max = Math.max(min, Math.floor(Math.min(480, area - 200, area * .65)));
   if (memoSplitRatio === undefined) {
     const saved = Number(storage.get(memoSplitStorage));
-    memoSplitRatio = Number.isFinite(saved) && saved >= .1 && saved <= .8 ? saved : .3;
+    memoSplitRatio = Number.isFinite(saved) && saved >= .1 && saved <= .8 ? saved : .24;
   }
   const value = Math.round(Math.max(min, Math.min(max, width ?? area * memoSplitRatio)));
   root.style.setProperty('--memo-list-w', value + 'px');

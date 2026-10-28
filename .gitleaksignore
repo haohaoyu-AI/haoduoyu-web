@@ -225,3 +225,8 @@ d8e00419d8f1667c2eb50861ddc3adf4647d194d:.ci/public-assets.json:generic-api-key:
 
 # Same reviewed SYNTHETIC identity echoed in original proof only; exact historical evidence.
 f51c30f4f2ca1dc20ba97eaf3b66ddc4b1d6459c:docs/workbench-round4-secret-evidence.json:generic-api-key:36
+
+# Approved exact historical public tokens.css checksum findings, 2026-10-28.
+5f354ad52d76c3aff429f917a887c9f9cd14595b:.ci/public-assets.json:generic-api-key:16
+bcb0dc48ae67797023b5c53162e3d4bbf44ac2d2:.ci/public-assets.json:generic-api-key:16
+46dabbf8f62fa7c2ee3965d0f059ab41b62986fd:tests/oct28-small-fix-projection.mjs:generic-api-key:13

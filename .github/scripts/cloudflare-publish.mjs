@@ -47,10 +47,14 @@ function bindingsSnapshot(bindings) {
       // never replace a redacted secret with an empty or dashboard-visible value.
       keys(binding,['name','type']);
     }else if(binding.type==='d1') {
-      keys(binding,['name','type','id']);check(identifier(binding.id),'UNSUPPORTED_BINDINGS');
+      keys(binding,['name','type','id','database_id']);check(identifier(binding.id),'UNSUPPORTED_BINDINGS');
+      if(own(binding,'database_id'))check(binding.database_id===binding.id,'UNSUPPORTED_BINDINGS');
     }else throw new PublishFailure('UNSUPPORTED_BINDINGS');
   }
-  return [...bindings].sort((a,b)=>a.name.localeCompare(b.name));
+  return bindings.map(binding=>{
+    if(binding.type!=='d1'||!own(binding,'database_id'))return binding;
+    const {database_id,...canonical}=binding;return canonical;
+  }).sort((a,b)=>a.name.localeCompare(b.name));
 }
 function runtimeSnapshot(runtime) {
   keys(runtime,['compatibility_date','compatibility_flags','usage_model','limits','exports','migration_tag']);

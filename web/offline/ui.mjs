@@ -5,7 +5,9 @@ export function offlineStatusLabel(state) {
   if (state.unsupported) return '需新版';
   if (state.conflicts) return '有冲突';
   if (!state.online) return `离线（${state.pending || 0} 条待同步）`;
-  if (state.phase === 'syncing' || state.pending) return '同步中';
+  if (state.error) return '同步失败，等待重试';
+  if (state.phase === 'syncing') return '';
+  if (state.pending) return `待同步（${state.pending} 条）`;
   return '已同步';
 }
 function textNode(document, tag, text, className) {
@@ -140,8 +142,8 @@ function mountRuntimeUI(runtime, {document, window}) {
   }
   function mount() {
     if (!root.isConnected && document.body) document.body.append(root);
-    root.hidden = !state.identity;
     const label = offlineStatusLabel(state);
+    root.hidden = !state.identity || !label;
     if (button.textContent !== label) button.textContent = label;
     root.dataset.phase = state.conflicts ? 'conflict' : state.phase;
     pageAnnotation(document, state);
