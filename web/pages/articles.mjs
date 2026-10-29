@@ -2,7 +2,7 @@ import { beginModalRequests } from "../core/requests.mjs";
 import { api } from "../core/api.mjs";
 import { articleChoices, articleColumns, articleStatuses, defaultFilters, modeLabels, platforms } from "../core/constants.mjs";
 import { statusLabels, slotLabels, writerLabels, illustratorLabels, ledgerCell, ledgerTopic, hasRecordedUnknownMetrics } from "../core/article-ledger.mjs";
-import { e, icon } from "../core/dom.mjs";
+import { e } from "../core/dom.mjs";
 import { accountName, duration, localDateTime, num, safeURL, time } from "../core/format.mjs";
 import { modalRequest } from "../core/modal-request.mjs";
 import { normalizeArticlePipelineFilters } from "../core/router.mjs";
@@ -29,7 +29,7 @@ ${Object.entries(statusLabels).map(([key, label]) => `<option value="${e(key)}" 
 </select></label>`;
 }
 function filterChips(f) {
-  const labels = { q: "搜索", platform: "平台", data_status: "数据状态", from: "发布自", to: "发布至", mode: "生产方式", topic: "旧题材筛选",
+  const labels = { platform: "平台", data_status: "数据状态", from: "发布自", to: "发布至", mode: "生产方式", topic: "旧题材筛选",
     group: "分组", slot: "槽位", writer: "写作者", has_warnings: "有警告", has_pending_verify: "待核", series_no_min: "系列自", series_no_max: "系列至" };
   const choices = { platform: platforms, data_status: articleStatuses, slot: slotLabels, writer: writerLabels,
     has_warnings: boolChoices, has_pending_verify: boolChoices, ...articleChoices };
@@ -53,7 +53,7 @@ async function renderArticles(version = runtime.renderVersion, context) {
   state.filters.status = "published";
   const f = { ...state.filters }, params = new URLSearchParams(), account = state.account, epoch = runtime.sessionEpoch;
   if (account) params.set("account_id", account);
-  for (const key of ["q", "mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
+  for (const key of ["mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
     if (f[key]) params.set(key, f[key]);
   }
   params.set("status", "published");
@@ -72,8 +72,6 @@ async function renderArticles(version = runtime.renderVersion, context) {
   const content = articles.length ? articleTable(articles) : empty(meta.unfiltered_total ? "筛选无结果" : "暂无已发布文章",
     "", '<button class="btn" data-action="reset-filters">清空筛选</button>');
   return `<section class="card article-list article-ledger article-ledger-list" aria-label="已发布文章详情"><form id="article-filters" class="filters">
-<label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}"
-placeholder="搜索标题或链接…" aria-label="搜索文章"></label>
 ${platformFilter("article-platform", f.platform, "文章平台")}
 </form>${filterChips(f)}${content}${articlePagination(meta)}</section>`;
 }
@@ -85,7 +83,7 @@ ${field("series_no_min", "系列编号自", "number", f.series_no_min, 'min="1" 
 ${field("series_no_max", "系列编号至", "number", f.series_no_max, 'min="1" step="1"')}`;
 }
 function articleFilterPanel({ filters: f = state.filters, columns: c = state.columns, account = state.account } = {}) {
-  return `<form id="filter-panel">${["q", "platform", "data_status"].map(key =>
+  return `<form id="filter-panel">${["platform", "data_status"].map(key =>
     `<input type="hidden" name="${e(key)}" value="${e(f[key])}">`).join("")}
 <h2>文章筛选 <span class="badge">应用后生效</span></h2><div class="form-grid"><label class="form-field full">运营账号
 <select name="account" class="input" aria-label="运营账号">${accountOptions(account)}</select></label>${pipelineFilterFields(f)}
@@ -110,7 +108,7 @@ data-sort="${e(sort)}" aria-pressed="${f.sort === sort}">${e(label)} ${f.sort ==
 }
 function articleDraft(form) {
   const values = new FormData(form), filters = { ...state.filters };
-  for (const key of ["q", "platform", "data_status", "from", "to", "mode", "group", "sort", "order", ...pipelineFilters]) {
+  for (const key of ["platform", "data_status", "from", "to", "mode", "group", "sort", "order", ...pipelineFilters]) {
     filters[key] = String(values.get(key) || "");
   }
   filters.topic = "";

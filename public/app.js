@@ -20,7 +20,6 @@ var nav = [
 var settingsTabs = { workspace: "工作台", accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
 var legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
 var defaultFilters = () => ({
-  q: "",
   mode: "",
   from: "",
   to: "",
@@ -99,7 +98,6 @@ var state = {
 var runtime = {
   renderVersion: 0,
   lastFocus: null,
-  searchTimer: null,
   activePopover: null,
   popoverId: 0,
   modalRequestVersion: 0,
@@ -4749,6 +4747,7 @@ function updateRoute(push = false) {
   else u.searchParams.delete("memo_view");
   u.searchParams.set("period", state.overviewPeriod);
   u.searchParams.delete("article_scope");
+  u.searchParams.delete("q");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
@@ -4901,7 +4900,6 @@ ${Object.entries(statusLabels).map(([key, label3]) => `<option value="${e(key)}"
 }
 function filterChips(f) {
   const labels = {
-    q: "搜索",
     platform: "平台",
     data_status: "数据状态",
     from: "发布自",
@@ -4942,7 +4940,7 @@ async function renderArticles(version2 = runtime.renderVersion, context) {
   state.filters.status = "published";
   const f = { ...state.filters }, params = new URLSearchParams(), account = state.account, epoch = runtime.sessionEpoch;
   if (account) params.set("account_id", account);
-  for (const key of ["q", "mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
+  for (const key of ["mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
     if (f[key]) params.set(key, f[key]);
   }
   params.set("status", "published");
@@ -4963,8 +4961,6 @@ async function renderArticles(version2 = runtime.renderVersion, context) {
     '<button class="btn" data-action="reset-filters">清空筛选</button>'
   );
   return `<section class="card article-list article-ledger article-ledger-list" aria-label="已发布文章详情"><form id="article-filters" class="filters">
-<label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}"
-placeholder="搜索标题或链接…" aria-label="搜索文章"></label>
 ${platformFilter("article-platform", f.platform, "文章平台")}
 </form>${filterChips(f)}${content2}${articlePagination(meta)}</section>`;
 }
@@ -4976,7 +4972,7 @@ ${field("series_no_min", "系列编号自", "number", f.series_no_min, 'min="1" 
 ${field("series_no_max", "系列编号至", "number", f.series_no_max, 'min="1" step="1"')}`;
 }
 function articleFilterPanel({ filters: f = state.filters, columns: c = state.columns, account = state.account } = {}) {
-  return `<form id="filter-panel">${["q", "platform", "data_status"].map((key) => `<input type="hidden" name="${e(key)}" value="${e(f[key])}">`).join("")}
+  return `<form id="filter-panel">${["platform", "data_status"].map((key) => `<input type="hidden" name="${e(key)}" value="${e(f[key])}">`).join("")}
 <h2>文章筛选 <span class="badge">应用后生效</span></h2><div class="form-grid"><label class="form-field full">运营账号
 <select name="account" class="input" aria-label="运营账号">${accountOptions(account)}</select></label>${pipelineFilterFields(f)}
 ${field("from", "发布自", "date", f.from)}${field("to", "发布至", "date", f.to)}
@@ -4998,7 +4994,7 @@ data-sort="${e(sort)}" aria-pressed="${f.sort === sort}">${e(label3)} ${f.sort =
 }
 function articleDraft(form) {
   const values = new FormData(form), filters = { ...state.filters };
-  for (const key of ["q", "platform", "data_status", "from", "to", "mode", "group", "sort", "order", ...pipelineFilters]) {
+  for (const key of ["platform", "data_status", "from", "to", "mode", "group", "sort", "order", ...pipelineFilters]) {
     filters[key] = String(values.get(key) || "");
   }
   filters.topic = "";
@@ -6028,16 +6024,32 @@ function renderTodoPreferences() {
   return `<div class="todo-list-options"><label for="todo-completed-mode">完成后</label>
 <select id="todo-completed-mode" class="input" ${prefs.pending || !prefs.loaded ? "disabled" : ""}>
 <option value="strike" ${mode === "strike" ? "selected" : ""}>划线显示</option>
-<option value="hide" ${mode === "hide" ? "selected" : ""}>隐藏已完成</option></select></div>`;
+<option value="hide" ${mode === "hide" ? "selected" : ""}>隐藏已完成</option></select>
+<p id="todo-preferences-error" class="form-message" role="alert">${e(prefs.error)}</p></div>`;
 }
 function paintTodoPreferences() {
   const input = $("#todo-completed-mode"), prefs = todoPreferences();
   if (!input) return;
   input.value = todoCompletedMode();
   input.disabled = Boolean(prefs.pending) || !prefs.loaded;
+  const error = $("#todo-preferences-error");
+  if (error) error.textContent = prefs.error;
+}
+async function loadTodoPreferences(context) {
+  const prefs = todoPreferences(), owner2 = todoOwner();
+  try {
+    const saved = await api("/todo-preferences", { context });
+    if (!todoSessionActive(owner2)) return;
+    receiveTodoPreferences(saved.completed_mode, saved.version);
+    prefs.error = "";
+  } catch (error) {
+    if (todoSessionActive(owner2) && !isRequestAbort(error) && !error.staleSession) prefs.error = error.message;
+  } finally {
+    if (todoSessionActive(owner2)) paintTodoPreferences();
+  }
 }
 async function changeTodoCompletedMode(mode) {
-  if (!state.me || state.page !== "todos" || !["strike", "hide"].includes(mode)) return;
+  if (!state.me || !(state.page === "todos" || state.page === "settings" && state.settingsTab === "workspace") || !["strike", "hide"].includes(mode)) return;
   const prefs = todoPreferences(), owner2 = todoOwner();
   if (prefs.pending || !prefs.loaded || mode === prefs.mode) {
     paintTodoPreferences();
@@ -6046,6 +6058,7 @@ async function changeTodoCompletedMode(mode) {
   prefs.pending = mode;
   prefs.error = "";
   paintTodos();
+  paintTodoPreferences();
   try {
     const saved = await api("/todo-preferences", { method: "PATCH", body: { completed_mode: mode, version: prefs.version } });
     if (!todoSessionActive(owner2)) return;
@@ -6069,6 +6082,7 @@ async function changeTodoCompletedMode(mode) {
     if (todoSessionActive(owner2)) {
       prefs.pending = null;
       paintTodos();
+      paintTodoPreferences();
     }
   }
 }
@@ -6256,9 +6270,6 @@ function paintTodoPanels(root) {
     const node = $("#" + id, root);
     if (node) node.hidden = id === "todo-main" ? ["templates", "future"].includes(panel) : panel !== value;
   }
-  root?.querySelectorAll(".todo-list-options").forEach((node) => {
-    node.hidden = panel === "history";
-  });
   const back = $("#todo-return-today", root);
   if (back) back.hidden = !state.todoDate || Boolean(panel);
   root?.querySelectorAll('[data-action="todo-panel"]').forEach((button2) => {
@@ -6321,7 +6332,7 @@ function renderTodos() {
 ${renderTodoHistory(day4)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoForm(day4)}${renderInlineTodoTemplates()}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day4)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day4)}</p>
-<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day4)}</div>${renderTodoPreferences()}
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day4)}</div>
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day4)}</p>
 <ul id="todo-items" class="daily-todo-items">${day4.items.map((item) => todoRow(item, day4)).join("")}${pendingTodo(day4)}</ul></div>
 ${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
@@ -6368,9 +6379,8 @@ function paintTodos() {
   paintTodoSaving(root, day4);
   paintTodoPanels(root);
   paintUnscheduledTodos();
-  paintTodoPreferences();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
-  if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-completed-mode", root))?.focus();
+  if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-text", root))?.focus();
   paintTodoTemplates();
 }
 function todoReadActive(owner2, version2, date, day4, sequence2) {
@@ -10481,7 +10491,8 @@ function setupMobileViewport() {
 function renderWorkbenchSettings() {
   return `<section class="workbench-settings"><div class="section-heading"><h2>回收站</h2>
 <button class="btn text" data-action="memo-tools" data-tool="recovery">${icon("refresh")}找回未保存内容</button></div>
-<p class="trash-policy">删除后30天内可恢复；超过30天归档保留，仍可恢复。</p>${renderMemos()}</section>`;
+<p class="trash-policy">删除后30天内可恢复；超过30天归档保留，仍可恢复。</p>${renderMemos()}
+<section class="card panel todo-settings"><h2>今日待办</h2>${renderTodoPreferences()}</section></section>`;
 }
 
 // web/pages/work-reminders.mjs
@@ -10695,7 +10706,7 @@ async function renderPage() {
         break;
       case "settings":
         if (state.settingsTab === "workspace") {
-          await loadMemos();
+          await Promise.all([loadMemos(), loadTodoPreferences(context)]);
           break;
         } else if (state.settingsTab === "accounts") {
           data = await api("/account-profiles", { context });
@@ -10729,7 +10740,6 @@ async function renderPage() {
   }
 }
 async function reloadFilteredPage(focus = "[data-action=article-filter]") {
-  clearTimeout(runtime.searchTimer);
   state.listPage = 1;
   updateRoute();
   const version2 = runtime.renderVersion + 1;
@@ -11254,13 +11264,6 @@ function actionSettingsTab({ target, action }) {
 async function actionArticleFilter({ action }) {
   cancelModalRequests();
   runtime.modalRequestVersion++;
-  if (runtime.searchTimer) {
-    clearTimeout(runtime.searchTimer);
-    runtime.searchTimer = null;
-    const version2 = runtime.renderVersion + 1;
-    await renderPage();
-    if (version2 !== runtime.renderVersion || state.page !== "articles" || $("#overlay").firstChild) return;
-  }
   const trigger = $("[data-action=article-filter]");
   if (trigger) popover(trigger, articleFilterPanel(), { label: "文章筛选" });
   return;
@@ -11953,7 +11956,7 @@ function handleChange(event) {
     state.trendMetric = el.value;
     state.trendOpen = true;
     replacePageContent(renderMediaOverview(state.dashboard));
-  } else if (el.closest("#article-filters") && el.name && el.name !== "q") {
+  } else if (el.closest("#article-filters") && el.name) {
     state.filters[el.name] = el.value;
     reloadFilteredPage("[name=" + el.name + "]");
   } else if (el.id === "review-account") {
@@ -11971,26 +11974,6 @@ function handleInput(event) {
   inputUnscheduledTodo(el);
   inputTodo(el);
   inputTodoTemplate(el);
-  if (el.name === "q" && el.closest("#article-filters")) {
-    state.filters.q = el.value;
-    state.listPage = 1;
-    updateRoute();
-    clearTimeout(runtime.searchTimer);
-    const query = el.value, version2 = runtime.renderVersion;
-    runtime.searchTimer = setTimeout(async () => {
-      runtime.searchTimer = null;
-      if (state.page !== "articles" || state.filters.q !== query || runtime.renderVersion !== version2) return;
-      const start = el.selectionStart;
-      await renderPage();
-      if (runtime.renderVersion === version2 + 1 && !$("#overlay").firstChild) {
-        const next = $("#article-filters input[name=q]");
-        if (next) {
-          next.focus();
-          next.setSelectionRange(start, start);
-        }
-      }
-    }, 350);
-  }
 }
 function handleFilterSubmit(event) {
   if (event.target.id === "filter-panel") {

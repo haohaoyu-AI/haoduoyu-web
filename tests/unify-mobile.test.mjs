@@ -83,7 +83,7 @@ test('767px article entry is replaced with overview while 768px and desktop keep
     app.run('readRoute();updateRoute()');
     assert.equal(app.run('state.page'),width<768?'dashboard':'articles');
     assert.equal(new URL(app.location.href).searchParams.get('page'),width<768?'dashboard':'articles');
-    assert.equal(app.run('state.filters.q'),'literal');assert.equal(app.run('state.listPage'),3);
+    assert.equal(app.run('Object.hasOwn(state.filters, "q")'),false);assert.equal(app.run('state.listPage'),3);
     assert.equal(app.changes.push,0);assert.equal(app.changes.replace,1);
     assert.equal(app.run('state.account'),width<768?'':'a');
   }

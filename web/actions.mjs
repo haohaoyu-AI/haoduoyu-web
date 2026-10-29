@@ -77,13 +77,6 @@ function actionSettingsTab({ target, action }) {
 async function actionArticleFilter({ action }) {
   cancelModalRequests();
   runtime.modalRequestVersion++;
-  if (runtime.searchTimer) {
-    clearTimeout(runtime.searchTimer);
-    runtime.searchTimer = null;
-    const version = runtime.renderVersion + 1;
-    await renderPage();
-    if (version !== runtime.renderVersion || state.page !== "articles" || $("#overlay").firstChild) return;
-  }
   const trigger = $("[data-action=article-filter]");
   if (trigger) popover(trigger, articleFilterPanel(), { label: "文章筛选" });
   return;

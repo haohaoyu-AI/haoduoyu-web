@@ -10,7 +10,7 @@ import { todosState } from "../core/todos-state.mjs";
 import { loadTodoTemplates, paintTodoTemplates, refreshOpenTodoTemplates, renderInlineTodoTemplates, renderTodoTemplates } from "./todo-templates.mjs";
 import { renderTodoUndo, todoBusy } from "./todo-actions.mjs";
 import {
-  paintTodoPreferences, receiveTodoPreferences, renderTodoPreferences, todoCompletedMode, todoPreferences
+  receiveTodoPreferences, todoCompletedMode, todoPreferences
 } from "./todo-preferences.mjs";
 let todoClock = null;
 let monthSnapshot = {month:"", owner:"", days:new Map(), loading:false, error:""};
@@ -166,7 +166,6 @@ function paintTodoPanels(root) {
   for (const [id, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"], ["todo-future", "future"]]) {
     const node = $("#" + id, root); if (node) node.hidden = id === "todo-main" ? ["templates", "future"].includes(panel) : panel !== value;
   }
-  root?.querySelectorAll(".todo-list-options").forEach(node => { node.hidden = panel === "history"; });
   const back = $("#todo-return-today", root); if (back) back.hidden = !state.todoDate || Boolean(panel);
   root?.querySelectorAll('[data-action="todo-panel"]').forEach(button => {
     button.setAttribute("aria-current", button.dataset.panel === panel ? "page" : "false");
@@ -221,7 +220,7 @@ function renderTodos() {
 ${renderTodoHistory(day)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoForm(day)}${renderInlineTodoTemplates()}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
-<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>${renderTodoPreferences()}
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day)}</p>
 <ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul></div>
 ${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
@@ -260,9 +259,8 @@ function paintTodos() {
   paintTodoSaving(root, day);
   paintTodoPanels(root);
   paintUnscheduledTodos();
-  paintTodoPreferences();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
-  if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-completed-mode", root))?.focus();
+  if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-text", root))?.focus();
   paintTodoTemplates();
 }
 function todoReadActive(owner, version, date, day, sequence) {

@@ -103,7 +103,7 @@ function handleChange(event) {
     state.trendMetric = el.value;
     state.trendOpen = true;
     replacePageContent(renderMediaOverview(state.dashboard));
-  } else if (el.closest("#article-filters") && el.name && el.name !== "q") {
+  } else if (el.closest("#article-filters") && el.name) {
     state.filters[el.name] = el.value;
     reloadFilteredPage("[name=" + el.name + "]");
   } else if (el.id === "review-account") {
@@ -122,26 +122,6 @@ function handleInput(event) {
   inputUnscheduledTodo(el);
   inputTodo(el);
   inputTodoTemplate(el);
-  if (el.name === "q" && el.closest("#article-filters")) {
-    state.filters.q = el.value;
-    state.listPage = 1;
-    updateRoute();
-    clearTimeout(runtime.searchTimer);
-    const query = el.value, version = runtime.renderVersion;
-    runtime.searchTimer = setTimeout(async () => {
-      runtime.searchTimer = null;
-      if (state.page !== "articles" || state.filters.q !== query || runtime.renderVersion !== version) return;
-      const start = el.selectionStart;
-      await renderPage();
-      if (runtime.renderVersion === version + 1 && !$("#overlay").firstChild) {
-        const next = $("#article-filters input[name=q]");
-        if (next) {
-          next.focus();
-          next.setSelectionRange(start, start);
-        }
-      }
-    }, 350);
-  }
 }
 function handleFilterSubmit(event) {
   if (event.target.id === "filter-panel") {

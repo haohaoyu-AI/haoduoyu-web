@@ -13,6 +13,7 @@ import { renderLogin } from "./pages/login.mjs";
 import { renderReviews } from "./pages/reviews.mjs";
 import { renderAccounts, renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
 import { loadTodos, paintTodos, renderTodos } from "./pages/todos.mjs";
+import { loadTodoPreferences } from "./pages/todo-preferences.mjs";
 import { renderDailyNotes } from "./pages/daily-notes.mjs";
 import { loadDailyNotes, paintDailyNotesPage } from "./daily-notes-controller.mjs";
 import { renderMemos } from "./pages/memos.mjs";
@@ -185,7 +186,7 @@ async function renderPage() {
         html = await renderReviews(version, context);
         break;
       case "settings":
-        if (state.settingsTab === "workspace") { await loadMemos(); break; }
+        if (state.settingsTab === "workspace") { await Promise.all([loadMemos(), loadTodoPreferences(context)]); break; }
         else if (state.settingsTab === "accounts") {
           data = await api("/account-profiles", {context});
           if (version !== runtime.renderVersion) return;
@@ -219,7 +220,6 @@ data-action="refresh">${icon("refresh")}重新加载</button></div>`, page);
   }
 }
 async function reloadFilteredPage(focus = "[data-action=article-filter]") {
-  clearTimeout(runtime.searchTimer);
   state.listPage = 1;
   updateRoute();
   const version = runtime.renderVersion + 1;

@@ -41,6 +41,7 @@ function updateRoute(push = false) {
   else u.searchParams.delete("memo_view");
   u.searchParams.set("period", state.overviewPeriod);
   u.searchParams.delete("article_scope");
+  u.searchParams.delete("q");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
