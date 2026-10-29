@@ -11590,7 +11590,7 @@ function makeView(pip) {
   const main = node(doc, "main", "", "floating-main");
   const head = node(doc, "header", "", "floating-head");
   head.append(node(doc, "time", "", "floating-date"));
-  const close = node(doc, "button", "×", "floating-close");
+  const close = node(doc, "button", "", "floating-close");
   close.type = "button";
   close.setAttribute("aria-label", "关闭便签");
   head.append(close);

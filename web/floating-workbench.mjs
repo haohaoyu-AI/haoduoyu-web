@@ -24,7 +24,7 @@ function makeView(pip) {
   const main = node(doc, 'main', '', 'floating-main');
   const head = node(doc, 'header', '', 'floating-head');
   head.append(node(doc, 'time', '', 'floating-date'));
-  const close = node(doc, 'button', '×', 'floating-close'); close.type = 'button';
+  const close = node(doc, 'button', '', 'floating-close'); close.type = 'button';
   close.setAttribute('aria-label', '关闭便签'); head.append(close); close.addEventListener('click', () => pip.close());
   const tabs = node(doc, 'nav', '', 'floating-tabs'); tabs.setAttribute('aria-label', '便签内容');
   for (const [id, text] of [['todos','今日待办'],['notes','今日碎碎念']]) {

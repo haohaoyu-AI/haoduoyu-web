@@ -647,27 +647,36 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 /* The floating view reuses this same-origin stylesheet under the site's CSP. */
 .todo-floating-open { margin:0 0 24px auto; }
 .todo-floating-support { margin-bottom:24px; color:var(--ink-2); font-size:12px; }
-body.floating-workbench { margin:0; min-height:100vh; color:#63635f; font:16px/1.5 ui-monospace,monospace;
-  background:linear-gradient(135deg,#e3eee2 0%,#f7ece7 53%,#ece5ed 100%); }
-.floating-main { box-sizing:border-box; min-height:100vh; padding:22px 28px 30px; border-radius:30px;
-  background:rgba(253,252,247,.76); backdrop-filter:blur(16px); box-shadow:0 4px 24px rgba(97,85,82,.08); }
-.floating-head { min-height:26px; display:flex; align-items:center; justify-content:center; position:relative; }
-.floating-head time { color:#969795; font-size:15px; letter-spacing:.04em; }
+body.floating-workbench { margin:0; min-height:100vh; color:#5e625f;
+  font:20px/1.5 "Cascadia Mono","DengXian","Microsoft YaHei",monospace; background:transparent; }
+.floating-main { box-sizing:border-box; min-height:100vh; padding:24px 32px 32px; border-radius:34px;
+  background:radial-gradient(ellipse at 10% 5%,rgba(197,225,219,.5),transparent 54%),
+    radial-gradient(ellipse at 95% 100%,rgba(237,216,224,.48),transparent 58%),
+    rgba(252,251,245,.96); backdrop-filter:blur(18px); }
+.floating-head { min-height:28px; display:flex; align-items:center; justify-content:center; position:relative; }
+.floating-head time { color:#929894; font:16px/1.5 ui-monospace,"Cascadia Mono",monospace; letter-spacing:.04em; }
 .floating-workbench button { font:inherit; color:inherit; cursor:pointer; border:0; background:transparent; }
 .floating-workbench button:disabled { opacity:.45; cursor:not-allowed; }
-.floating-workbench .floating-close { position:absolute; right:0; width:28px; height:28px; padding:0;
-  border-radius:50%; color:#a7a8a3; background:rgba(222,224,216,.55); font-size:16px; }
-.floating-tabs { display:flex; gap:4px; margin:20px 0 26px; padding:4px; background:rgba(221,222,215,.48); border-radius:13px; }
-.floating-tabs button { flex:1; padding:8px 3px; border-radius:10px; color:#999b98; font-size:14px; }
-.floating-tabs button[aria-pressed="true"] { background:#f4efd5; color:#666763; }
+.floating-workbench .floating-close { position:absolute; right:0; display:grid; place-items:center;
+  width:28px; height:28px; padding:0; border-radius:50%; background:rgba(133,147,139,.13); }
+.floating-close::before { content:""; width:5px; height:5px; border-radius:50%; background:#9ca9a2; }
+.floating-workbench button:focus-visible,.floating-list input:focus-visible { outline:2px solid #718f82; outline-offset:3px; }
+.floating-tabs { display:flex; gap:4px; height:44px; margin:36px 0 30px; padding:0; border-radius:12px; }
+.floating-tabs button { flex:1; padding:0 3px; border-radius:12px; color:#8a918d; font-size:16px; }
+.floating-tabs button[aria-pressed="true"] { background:rgba(246,237,195,.85); color:#62675f; }
 .floating-workbench [hidden] { display:none !important; }
-.floating-group-title { margin:0 0 14px; color:#666964; font-size:16px; font-weight:700; }
-.floating-list,.floating-note-list { list-style:none; padding:0; margin:0 0 24px; display:grid; gap:8px; }
-.floating-list li { min-height:27px; }
+.floating-group-title { margin:0 0 14px; color:#606761; font-size:20px; font-weight:600; }
+.floating-list,.floating-note-list { list-style:none; padding:0; margin:0 0 30px; display:grid; gap:0; }
+.floating-list li { min-height:40px; }
 .floating-list label { display:flex; align-items:flex-start; gap:12px; overflow-wrap:anywhere; }
-.floating-list input { flex:none; width:15px; height:15px; margin:5px 0 0; accent-color:#b2b49f; }
-.floating-list span { font-size:16px; line-height:1.7; }
-.floating-list .is-complete span { text-decoration:line-through; color:#a8aaa6; }
+.floating-list input { appearance:none; flex:none; width:18px; height:18px; margin:11px 0 0;
+  border:1px solid #9ba9a0; border-radius:4px; background:transparent; cursor:pointer; }
+.floating-list input:checked { background:#a2b3a6; border-color:#a2b3a6; }
+.floating-list input:checked::after { content:""; display:block; width:8px; height:4px; margin:4px 0 0 4px;
+  border:solid #fff; border-width:0 0 1.5px 1.5px; transform:rotate(-45deg); }
+.floating-list input:disabled { cursor:not-allowed; }
+.floating-list span { font-size:20px; line-height:40px; }
+.floating-list .is-complete span { text-decoration:line-through; color:#7e8981; }
 .floating-note-list button,.floating-note-list li>div { display:grid; text-align:left; width:100%; padding:6px 0;
   overflow-wrap:anywhere; border-bottom:1px solid rgba(170,171,163,.2); }
 .floating-note-list small { color:#a2a39d; font-size:12px; }
