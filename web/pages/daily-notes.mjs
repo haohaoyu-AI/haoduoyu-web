@@ -59,22 +59,22 @@ export function renderDailyNotes() {
     '<input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label>' +
     '<button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button>' +
     '<button class="btn text" type="button" data-notes-action="today">今天</button></div>' +
-    '<span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div>' +
-    '<div id="notes-drafts" class="notes-drafts" hidden></div>' +
-    '<p id="notes-entry-message" class="notes-message" role="alert" hidden></p>' +
     '<div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button>' +
     '<button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div>' +
-    '<section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden>' +
-    '<label>分类 <select id="notes-compose-label" class="input"><option value="生活">生活</option><option value="工作">工作</option></select></label>' +
-    '<div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div>' +
-    '<div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section>' +
-    '<p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p>' +
-    '<div id="notes-unpublished" class="notes-entry-list"></div><details class="notes-published"><summary>已发布记录</summary><div id="notes-entry-list" class="notes-entry-list"></div>' +
+    '<details class="notes-published"><summary>已发布记录</summary><div id="notes-entry-list" class="notes-entry-list"></div>' +
     '<article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden>' +
     '<div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div>' +
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button>' +
-    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></details></div></section>';
+    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></details>' +
+    '<span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div>' +
+    '<div id="notes-drafts" class="notes-drafts" hidden></div>' +
+    '<p id="notes-entry-message" class="notes-message" role="alert" hidden></p>' +
+    '<section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden>' +
+    '<div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div>' +
+    '<div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section>' +
+    '<p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p>' +
+    '<div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
 }
 
 const statuses = {loading: '', dirty: '未发送', saving: '发送中…', conflict: '草稿有冲突',
@@ -162,8 +162,7 @@ function createEntryElement(item, editing) {
 }
 function paintEntrySummary(node, item) {
   node.dataset.category = item.category;
-  node.querySelector('.note-entry-label').textContent = item.category === 'work' ? '工作' :
-    !item.labelKnown || !item.labelComplete ? '标签待联网核实' : item.labels?.length ? item.labels.join('、') : item.label || '生活';
+  node.querySelector('.note-entry-label').textContent = !item.labelKnown || !item.labelComplete ? '标签待联网核实' : (item.labels || []).join('、');
   paintTime(node.querySelector('time'), item.updatedAt);
   const status = node.querySelector('.note-entry-status');
   status.textContent = statuses[item.phase] || (item.deleted ? '已删除' : item.version ? '已保存' : '未发送');
@@ -187,10 +186,10 @@ function paintEntryEditor(node, item, confirmId, labels) {
   editor.hidden = item.deleted; editor.readOnly = !item.canEdit;
   editor.disabled = ['delete', 'restore'].includes(item.pending?.kind); paintEditorValue(editor, item.draft);
   const fieldset = find('.note-entry-labels'), options = find('.note-entry-label-options');
-  fieldset.hidden = item.category !== 'life' || item.deleted;
+  fieldset.hidden = item.deleted;
   fieldset.disabled = !item.canEdit || !item.labelComplete || Boolean(item.pending);
   fieldset.title = item.labelComplete ? '' : '请联网读取完整标签后再修改。';
-  const available = [...new Set([...labels, ...(item.labels || [])])];
+  const available = [...new Set(['生活', '工作', ...labels, ...(item.labels || [])])];
   if (JSON.stringify([...options.querySelectorAll('input')].map(input => input.value)) !== JSON.stringify(available)) {
     options.replaceChildren(...available.map(value => {
       const label = document.createElement('label'), input = document.createElement('input');

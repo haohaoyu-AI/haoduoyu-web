@@ -12,10 +12,10 @@ export function noteEntryCategory(value='life') {
   if(value!=='life'&&value!=='work')throw fail(400,'VALIDATION_ERROR','碎碎念分类无效');
   return value;
 }
-export function noteLabel(value) {
+export function noteLabel(value,allowBuiltins=false) {
   if(typeof value!=='string'||!value.isWellFormed())throw fail(400,'VALIDATION_ERROR','标签无效');
   const name=value.trim().normalize('NFC');
-  if(!name||[...name].length>32||/[\u0000-\u001f\u007f]/.test(name)||['生活','工作'].includes(name))
+  if(!name||[...name].length>32||/[\u0000-\u001f\u007f]/.test(name)||!allowBuiltins&&['生活','工作'].includes(name))
     throw fail(400,'VALIDATION_ERROR','标签须为 1–32 字，且不能与生活或工作重名');
   return name;
 }
@@ -23,7 +23,7 @@ export function noteEntryQuery(query,allowed) {
   if([...query.keys()].some(key=>!allowed.includes(key)||query.getAll(key).length!==1))
     throw fail(400,'VALIDATION_ERROR','碎碎念查询参数无效');
 }
-export function noteEntryInput(input,method) {
+export function noteEntryInput(input,method,version=0) {
   const expected=method==='PUT'?['category','date','text','version','save_id',...(Object.hasOwn(input,'label')?['label']:[]),...(Object.hasOwn(input,'labels')?['labels']:[])]:['version','save_id'];
   if(Object.keys(input).sort().join(',')!==expected.sort().join(',')||
     !Number.isSafeInteger(input.version)||input.version<(method==='PUT'?0:1)||input.version>=Number.MAX_SAFE_INTEGER)
@@ -32,9 +32,9 @@ export function noteEntryInput(input,method) {
   if(method==='PUT') {
     value.category=noteEntryCategory(input.category);
     if(Object.hasOwn(input,'labels')) {
-      if(Object.hasOwn(input,'label')||!Array.isArray(input.labels)||input.labels.length>200)throw fail(400,'VALIDATION_ERROR','标签字段无效');
-      value.labels=input.labels.map(noteLabel);
-      if(new Set(value.labels).size!==value.labels.length||value.category!=='life'&&value.labels.length)throw fail(400,'VALIDATION_ERROR','标签字段无效');
+      if(Object.hasOwn(input,'label')||!Array.isArray(input.labels)||input.labels.length>(version===3?202:200))throw fail(400,'VALIDATION_ERROR','标签字段无效');
+      value.labels=input.labels.map(label=>noteLabel(label,version===3));
+      if(new Set(value.labels).size!==value.labels.length||version!==3&&value.category!=='life'&&value.labels.length)throw fail(400,'VALIDATION_ERROR','标签字段无效');
       value.labels.sort();
     }
     if(Object.hasOwn(input,'label')) {

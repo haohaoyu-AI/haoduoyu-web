@@ -4,7 +4,7 @@ import {noteEditor,limitNoteWrites} from './public-note-access.mjs';
 import {noteEntryId,noteEntryQuery,noteLabel} from './note-entry-validation.mjs';
 export async function handleNoteLabels(db,request,owner,env,origin,initialRevision) {
   noteEntryQuery(new URL(request.url).searchParams,[]);
-  const header=request.headers.get('X-Note-Labels-Version'),aware=header==='2'?2:header==='1'?1:0;
+  const header=request.headers.get('X-Note-Labels-Version'),aware=header==='3'?3:header==='2'?2:header==='1'?1:0;
   const data=value=>Response.json({data:{...value,...(aware?{labels_version:aware}:{})}});
   if(request.method==='GET')return consistentRead(db,async store=>{
     if(!await store.get('SELECT id FROM users WHERE id=?',owner))throw fail(503,'NOTES_CONFIG','碎碎念归属尚未核实');

@@ -2,7 +2,7 @@ import {fail} from './security.mjs';
 import {consistentRead} from './storage.mjs';
 import {snapshotDate} from './business-snapshot.mjs';
 import {noteEntryQuery} from './note-entry-validation.mjs';
-import {labelsFor} from './note-entries.mjs';
+import {labelsFor,labelsForView} from './note-entries.mjs';
 
 // A month is returned in full or not at all. In particular, never turn an
 // exhausted budget into an apparently empty calendar day.
@@ -33,7 +33,7 @@ const params=(source,owner,start,end,limit)=>[owner,...(source.legacy?[]:[source
 
 export async function handleNoteMonth(db,request,owner,initialRevision) {
   if(request.method!=='GET')throw fail(405,'METHOD_NOT_ALLOWED','月记录只提供读取');
-  const header=request.headers.get('X-Note-Labels-Version'),aware=header==='2'?2:header==='1'?1:0;
+  const header=request.headers.get('X-Note-Labels-Version'),aware=header==='3'?3:header==='2'?2:header==='1'?1:0;
   const query=new URL(request.url).searchParams;
   noteEntryQuery(query,['month']);
   const month=query.get('month');
@@ -54,14 +54,14 @@ export async function handleNoteMonth(db,request,owner,initialRevision) {
     for(const [index,source] of sources.entries()) {
       const rows=await store.all(noteMonthQueries(source).rows,...params(source,owner,start,end,counts[index]+1));
       if(rows.length!==counts[index])throw fail(503,'NOTES_DATA','月记录读取数量无法核对');
-      const labelsByEntry=source.legacy||!aware?new Map():await labelsFor(store,owner,rows);
+      const labelsByEntry=source.legacy||!aware?new Map():await labelsFor(store,owner,rows,aware);
       for(const row of rows) {
         try {if(snapshotDate(row.date)!==row.date||!row.date.startsWith(month+'-'))throw Error();}catch {throw fail(503,'NOTES_DATA','月记录日期无法核对');}
         const category=source.legacy?source.category:row.category;
         if(!['life','work'].includes(category)||typeof row.text!=='string'||!source.legacy&&row.label!==null&&typeof row.label!=='string')
           throw fail(503,'NOTES_DATA','月记录内容无法核对');
         const item={entity_id:source.legacy?'legacy-'+category+':'+row.date:'note-entry:'+row.id,
-          source:source.legacy?'legacy_daily_note':'note_entry',category,...(aware===2?{labels:source.legacy?[]:labelsByEntry.get(row.id)??[]}:{label:source.legacy||!aware?null:labelsByEntry.get(row.id)?.[0]??null}),
+          source:source.legacy?'legacy_daily_note':'note_entry',category,...(aware>=2?{labels:source.legacy?(aware===3?[category==='work'?'工作':'生活']:[]):labelsForView(row,labelsByEntry,aware)}:{label:source.legacy||!aware?null:labelsByEntry.get(row.id)?.[0]??null}),
           text:row.text,created_at:source.legacy?null:row.created_at,updated_at:row.updated_at};
         if(!days.has(row.date))days.set(row.date,[]);
         days.get(row.date).push(item);

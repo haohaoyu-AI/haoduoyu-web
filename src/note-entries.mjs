@@ -15,11 +15,11 @@ function entityHash(row) {
 }
 function view(row,canEdit,labels=[],version=0) {
   const label=labels[0]??null;
-  return {...row,...(version===2?{labels_version:2,labels}:version===1?{labels_version:1,label}:label?{label}:{}),deleted:row.deleted_at!==null,can_edit:canEdit,content_hash:entityHash(row)};
+  return {...row,...(version>=2?{labels_version:version,labels}:version===1?{labels_version:1,label}:label?{label}:{}),deleted:row.deleted_at!==null,can_edit:canEdit,content_hash:entityHash(row)};
 }
-const labelVersion=request=>request.headers.get('X-Note-Labels-Version')==='2'?2:request.headers.get('X-Note-Labels-Version')==='1'?1:0;
-export async function labelsFor(store,owner,rows) {
-  const result=new Map();
+const labelVersion=request=>request.headers.get('X-Note-Labels-Version')==='3'?3:request.headers.get('X-Note-Labels-Version')==='2'?2:request.headers.get('X-Note-Labels-Version')==='1'?1:0;
+export async function labelsFor(store,owner,rows,version=0) {
+  const result=new Map(); result.sets=new Map();
   for(let offset=0;offset<rows.length;offset+=50) {
     const batch=rows.slice(offset,offset+50);
     const labels=await store.all('SELECT entry_id,label FROM matrix_note_entry_labels WHERE user_id=? AND entry_id IN ('+batch.map(()=>'?').join(',')+') ORDER BY label',owner,...batch.map(row=>row.id));
@@ -29,8 +29,22 @@ export async function labelsFor(store,owner,rows) {
       let values;try { values=JSON.parse(row.labels_json); if(!Array.isArray(values)||values.length>200||new Set(values).size!==values.length||values.some(value=>noteLabel(value)!==value))throw Error(); } catch { throw fail(503,'NOTES_DATA','标签数据无法核对'); }
       result.set(row.entry_id,values.slice().sort());
     }
+    if(version===3) {
+      const sets=await store.all('SELECT entry_id,labels_json FROM matrix_note_entry_label_sets WHERE user_id=? AND entry_id IN ('+batch.map(()=>'?').join(',')+')',owner,...batch.map(row=>row.id));
+      for(const row of sets) {
+        let values; try { values=JSON.parse(row.labels_json); if(!Array.isArray(values)||values.length>202||new Set(values).size!==values.length||values.some(value=>noteLabel(value,true)!==value))throw Error(); } catch { throw fail(503,'NOTES_DATA','标签数据无法核对'); }
+        result.sets.set(row.entry_id,values);
+      }
+    }
   }
   return result;
+}
+export function labelsForView(row,labels,version) {
+  const old=labels.get(row.id)??[];
+  if(version!==3)return old;
+  const saved=labels.sets.get(row.id);
+  if(!saved)return [...new Set([row.category==='work'?'工作':'生活',...old])].sort();
+  return [...new Set(row.category==='life'?[...saved,...old]:saved)].sort();
 }
 async function ownerExists(store,owner) {
   if(!await store.get('SELECT id FROM users WHERE id=?',owner))throw fail(503,'NOTES_CONFIG','碎碎念归属尚未核实');
@@ -65,8 +79,8 @@ async function readEntries(db,request,route,owner,env,origin,initialRevision) {
       const rows=await store.all('SELECT '+fields+' FROM matrix_note_entries WHERE user_id=? AND category=? AND date=? AND deleted_at IS NULL ORDER BY created_at,id LIMIT ?',
         owner,category,date,NOTE_ENTRY_LIMITS.per_day+1);
       if(rows.length>NOTE_ENTRY_LIMITS.per_day)throw fail(503,'NOTES_LIMIT','该日记录超过完整读取上限，请保留草稿后核对');
-      const labels=await labelsFor(store,owner,rows);
-      return json({category,date,...(aware?{labels_version:aware}:{}),entries:rows.map(row=>view(row,canEdit,labels.get(row.id)??[],aware)),can_edit:canEdit});
+      const labels=await labelsFor(store,owner,rows,aware);
+      return json({category,date,...(aware?{labels_version:aware}:{}),entries:rows.map(row=>view(row,canEdit,labelsForView(row,labels,aware),aware)),can_edit:canEdit});
     }
     noteEntryQuery(query,[]);
     const operation=/^\/note-entries\/operations\/([^/]+)$/.exec(route);
@@ -79,16 +93,16 @@ async function readEntries(db,request,route,owner,env,origin,initialRevision) {
       if(!aware)return json({found:true,...receipt});
       const row=await rowFor(store,owner,receipt.id);
       if(!row)throw fail(503,'NOTES_RECEIPT','保存收据对应记录无法核对，请保留草稿');
-      const labels=await labelsFor(store,owner,[row]);
-      const current=labels.get(row.id)??[];
-      return json({found:true,...receipt,labels_version:aware,...(aware===2?{labels:current}:{label:current[0]??null})});
+      const labels=await labelsFor(store,owner,[row],aware);
+      const current=labelsForView(row,labels,aware);
+      return json({found:true,...receipt,labels_version:aware,...(aware>=2?{labels:current}:{label:current[0]??null})});
     }
     const detail=/^\/note-entries\/([^/]+)$/.exec(route);
     if(!detail)throw fail(404,'NOT_FOUND','碎碎念接口不存在');
     const id=noteEntryId(detail[1]),canEdit=Boolean(await noteEditor(store,request,owner,env,'notes',origin)),row=await rowFor(store,owner,id);
     if(!row||!canEdit&&row.deleted_at!==null)throw fail(404,'NOT_FOUND','该条记录不存在');
-    const labels=await labelsFor(store,owner,[row]);
-    return json(view(row,canEdit,labels.get(row.id)??[],aware));
+    const labels=await labelsFor(store,owner,[row],aware);
+    return json(view(row,canEdit,labelsForView(row,labels,aware),aware));
   },initialRevision);
 }
 async function writeEntry(db,request,route,owner,env,origin) {
@@ -99,13 +113,15 @@ async function writeEntry(db,request,route,owner,env,origin) {
   const id=noteEntryId(match[1]),restore=Boolean(match[2]);
   await noteEditor(storeFor(db),request,owner,env,'notes',origin,{write:true});
   limitNoteWrites(owner,'notes');
-  const input=noteEntryInput(await bodyFor(request),method),key='note-entry:'+input.save_id;
+  const protocol=labelVersion(request),input=noteEntryInput(await bodyFor(request),method,protocol),key='note-entry:'+input.save_id;
   const hash=digest(JSON.stringify(stable({method,id,restore,...input})));
   return (await mutate(db,async store=>{
     await ownerExists(store,owner);
     const actor=await noteEditor(store,request,owner,env,'notes',origin,{write:true}),row=await rowFor(store,owner,id);
-    const oldLabels=row?(await labelsFor(store,owner,[row])).get(id)??[]:[];
-    const labels=method==='PUT'&&Object.hasOwn(input,'labels')?input.labels:row?oldLabels:input.label?[input.label]:[];
+    const stored=row?await labelsFor(store,owner,[row],protocol):null;
+    const oldLabels=row?stored.get(id)??[]:[];
+    const currentLabels=row?labelsForView(row,stored,protocol):[];
+    const labels=method==='PUT'&&Object.hasOwn(input,'labels')?input.labels:row?currentLabels:input.label?[input.label]:[];
     const label=oldLabels[0]??null;
     const saved=await store.get('SELECT request_hash,response_json FROM idempotency WHERE actor=? AND key=?',actor.actor,key);
     if(saved) {
@@ -113,7 +129,7 @@ async function writeEntry(db,request,route,owner,env,origin) {
       const receipt=JSON.parse(saved.response_json);
       if(!row||row.version!==receipt.version||entityHash(row)!==receipt.content_hash)
         throw fail(409,'VERSION_CONFLICT','该条记录已有更新，请先核对保存收据');
-      return {replayed:true,response:json(view(row,true,oldLabels,labelVersion(request)))};
+      return {replayed:true,response:json(view(row,true,currentLabels,protocol))};
     }
     if((row?.version||0)!==input.version)throw fail(409,'VERSION_CONFLICT','该条记录已在其他位置更新，请保留草稿');
     if(method!=='PUT'&&!row)throw fail(404,'NOT_FOUND','该条记录不存在');
@@ -135,21 +151,25 @@ async function writeEntry(db,request,route,owner,env,origin) {
     else store.queue('INSERT INTO matrix_note_entries(user_id,id,category,date,text,version,change_seq,created_at,updated_at,deleted_at) VALUES(?,?,?,?,?,?,?,?,?,?)',
       owner,id,value.category,value.date,value.text,value.version,changeSeq,time,time,null);
     store.expectChange();
-    if(method==='PUT' && input.category==='life' && (!row || Object.hasOwn(input,'labels'))) {
+    if(method==='PUT' && (input.category==='life'||protocol===3) && (!row || Object.hasOwn(input,'labels'))) {
       const missing=[];
-      for(const name of labels)if(!await store.get('SELECT name FROM matrix_note_labels WHERE user_id=? AND name=?',owner,name))missing.push(name);
+      for(const name of labels.filter(name=>!['生活','工作'].includes(name)))if(!await store.get('SELECT name FROM matrix_note_labels WHERE user_id=? AND name=?',owner,name))missing.push(name);
       if(missing.length) {
         const count=await store.get('SELECT count(*) AS n FROM matrix_note_labels WHERE user_id=?',owner);
         if(count.n+missing.length>200)throw fail(409,'NOTES_LIMIT','自建标签已达上限');
         for(const name of missing)store.queue('INSERT INTO matrix_note_labels(user_id,name,created_at) VALUES(?,?,?)',owner,name,time);
       }
-      if(!row&&Object.hasOwn(input,'label'))store.queue('INSERT INTO matrix_note_entry_labels(user_id,entry_id,label) VALUES(?,?,?)',owner,id,input.label);
-      else if(Object.hasOwn(input,'labels'))store.queue('INSERT INTO matrix_note_entry_label_overrides(user_id,entry_id,labels_json) VALUES(?,?,?) ON CONFLICT(user_id,entry_id) DO UPDATE SET labels_json=excluded.labels_json',owner,id,JSON.stringify(labels));
+      if(input.category==='life'&&!row&&Object.hasOwn(input,'label'))store.queue('INSERT INTO matrix_note_entry_labels(user_id,entry_id,label) VALUES(?,?,?)',owner,id,input.label);
+      else if(input.category==='life'&&Object.hasOwn(input,'labels'))store.queue('INSERT INTO matrix_note_entry_label_overrides(user_id,entry_id,labels_json) VALUES(?,?,?) ON CONFLICT(user_id,entry_id) DO UPDATE SET labels_json=excluded.labels_json',owner,id,JSON.stringify(protocol===3?labels.filter(name=>!['生活','工作'].includes(name)):labels));
+    }
+    if(method==='PUT'&&protocol===3&&Object.hasOwn(input,'labels')) {
+      const values=input.category==='life'?labels.filter(name=>['生活','工作'].includes(name)):labels;
+      store.queue('INSERT INTO matrix_note_entry_label_sets(user_id,entry_id,labels_json) VALUES(?,?,?) ON CONFLICT(user_id,entry_id) DO UPDATE SET labels_json=excluded.labels_json',owner,id,JSON.stringify(values));
     }
     const receipt={id,version:value.version,deleted_at:value.deleted_at,change_seq:changeSeq,content_hash:entityHash(value)};
     store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,200,?)',
       actor.actor,key,hash,JSON.stringify(receipt),time);
-    return {actor,response:json(view(value,true,labels,labelVersion(request)))};
+    return {actor,response:json(view(value,true,labels,protocol))};
   })).response;
 }
 export async function handleNoteEntries(db,request,route,env,origin,initialRevision) {

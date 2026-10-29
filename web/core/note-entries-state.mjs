@@ -10,8 +10,13 @@ const savedText = item => item.localBacked ? item.durableText : item.serverText;
 const savedPhase = item => item.localBacked ? item.localQueued ? 'queued' : 'cached' : item.version ? 'saved' : 'empty';
 const labelsOf = value => Array.isArray(value?.labels) ? value.labels : value?.label ? [value.label] : [];
 const equalLabels = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
-const validLabels = (labels, category) => Array.isArray(labels) && (category === 'life' || labels.length === 0) && labels.every(validCustomNoteLabel) && new Set(labels).size === labels.length;
+const validLabels = labels => Array.isArray(labels) && labels.every(validNoteLabel) && new Set(labels).size === labels.length;
+const validLegacyLabels = (labels, category) => validLabels(labels) && (category === 'life' || labels.length === 0) && labels.every(validCustomNoteLabel);
 const localFailure = error => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || '');
+export function validNoteLabel(value) {
+  return typeof value === 'string' && value.isWellFormed() && value === value.trim().normalize('NFC') &&
+    [...value].length >= 1 && [...value].length <= 32 && !/[\u0000-\u001f\u007f]/.test(value);
+}
 export function validCustomNoteLabel(value) {
   return typeof value === 'string' && value.isWellFormed() && value === value.trim().normalize('NFC') &&
     [...value].length >= 1 && [...value].length <= 32 && !/[\u0000-\u001f\u007f]/.test(value) &&
@@ -33,7 +38,10 @@ function checkedEntry(value, category, date, id) {
       value.date !== date || typeof value.text !== 'string' || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES ||
       !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== 'boolean' ||
       typeof value.can_edit !== 'boolean' || !timestamp(value.created_at) || !timestamp(value.updated_at) ||
-      typeof value.content_hash !== 'string' || !value.content_hash || value.labels_version === 2 && !Array.isArray(value.labels) || value.labels !== undefined && !validLabels(value.labels, category) || value.label != null &&
+      typeof value.content_hash !== 'string' || !value.content_hash ||
+      [2,3].includes(value.labels_version) && !Array.isArray(value.labels) ||
+      value.labels !== undefined && !(value.labels_version === 3 ? validLabels(value.labels) : validLegacyLabels(value.labels, category)) ||
+      value.label != null &&
       (category !== 'life' || !validCustomNoteLabel(value.label))) {
     throw new Error('记录读取不完整，请重新核对。');
   }
@@ -82,9 +90,9 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
     item.canEdit = value.can_edit;
     item.serverText = value.deleted ? '' : value.text;
     item.version = value.version; item.createdAt = value.created_at; item.updatedAt = value.updated_at;
-    item.labelComplete = value.labels_version === 2 && Array.isArray(value.labels);
+    item.labelComplete = [2,3].includes(value.labels_version) && Array.isArray(value.labels);
     item.serverLabels = labelsOf(value); if (!preserve) item.labels = [...item.serverLabels];
-    item.label = item.labels[0] || ''; item.labelKnown = category === 'work' || value.labels_version === 2 && Array.isArray(value.labels) || value.labels_version === 1 && Object.hasOwn(value, 'label');
+    item.label = item.labels[0] || ''; item.labelKnown = category === 'work' || [2,3].includes(value.labels_version) && Array.isArray(value.labels) || value.labels_version === 1 && Object.hasOwn(value, 'label');
     item.contentHash = value.content_hash; item.deleted = value.deleted;
     item.localVersion = value.version; item.durableText = item.serverText; item.localBacked = false; item.localQueued = false;
     item.localOperation = null; item.localConflict = null; item.localCreatedAt = null; item.localUpdatedAt = null;
@@ -168,7 +176,7 @@ function createEntryReadingActions(context) {
     try {
       const value = checkedCollection(await load(date, options), category, date);
       if (context.disposed || sequence !== current.sequence) return;
-      current.canEdit = value.can_edit; current.labelsComplete = value.labels_version === 2;
+      current.canEdit = value.can_edit; current.labelsComplete = [2,3].includes(value.labels_version);
       const found = new Set();
       for (const raw of value.entries) {
         const visible = noteValue(raw);
@@ -263,7 +271,7 @@ function createEntryRecoveryActions(context) {
   const {category, page, entry, entries, makeEntry, stopTimer, emit} = context;
   function restoreDraft(raw) {
     if (!raw || raw.category !== category || !validDailyNotesDate(raw.date) || !uuidPattern.test(raw.id) ||
-        raw.label && (category !== 'life' || !validCustomNoteLabel(raw.label)) ||
+        raw.label && !validNoteLabel(raw.label) ||
         typeof raw.draft !== 'string' || raw.draft.length > 262144 || context.disposed) return;
     const current = page(raw.date);
     let item = entry(raw.id);
@@ -304,7 +312,7 @@ function createEntryWritingActions(context) {
   const {put, remove, restore, uuid, onSaved} = context.options;
   const matches = (value, operation) => value.version === operation.version + 1 &&
     (operation.kind === 'delete' ? value.deleted : operation.kind === 'restore' ? !value.deleted :
-      !value.deleted && value.text === operation.text && (!operation.labels || value.labels_version === 2 && equalLabels(value.labels, operation.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation.labels)) && (!operation.label || value.labels_version === 1 && value.label === operation.label) &&
+      !value.deleted && value.text === operation.text && (!operation.labels || [2,3].includes(value.labels_version) && equalLabels(value.labels, operation.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation.labels)) && (!operation.label || value.labels_version === 1 && value.label === operation.label) &&
       (!operation.expectedLabel || value.labels_version === 1 && value.label === operation.expectedLabel));
   function accepted(item, value, operation) {
     const preserve = operation.kind === 'put' && item.draft !== operation.text;
@@ -360,7 +368,7 @@ function createEntryWritingActions(context) {
       item.phase = 'oversize'; item.error = '文字超过 64 KiB，草稿已保留。'; emit(); return;
     }
     return send(item, {kind: 'put', version: persistedVersion(item), text: item.draft, saveId: uuid(),
-      ...(context.multiLabels && item.labelComplete && item.category === 'life' && !equalLabels(item.labels, item.serverLabels) ? {labels: [...item.labels]} : {}),
+      ...(context.multiLabels && item.labelComplete && (!persistedVersion(item) || !equalLabels(item.labels, item.serverLabels)) ? {labels: [...item.labels]} : {}),
       ...(!context.multiLabels && !persistedVersion(item) && item.label ? {label: item.label} : {}),
       ...(!context.multiLabels && item.label ? {expectedLabel: item.label} : {})});
   }

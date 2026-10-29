@@ -569,10 +569,12 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 
 /* Give the daily-notes controls and writing surface room to breathe. */
 #daily-notes > .segmented { margin-bottom: 24px; }
-#daily-notes .notes-toolbar { gap: 12px 20px; margin-bottom: 20px; }
+#daily-notes .notes-toolbar { gap: 12px 20px; margin-bottom: 24px; }
 #daily-notes .notes-date-controls { gap: 8px; min-width: 0; }
-#daily-notes .notes-entry-toolbar { margin: 0; }
-#daily-notes .notes-entry-toolbar:has(> :not([hidden])) { min-height: 44px; margin-bottom: 20px; }
+#daily-notes .notes-entry-toolbar { margin: 0 0 0 auto; }
+#daily-notes .notes-entry-toolbar:has(> :not([hidden])) { min-height: 44px; }
+#daily-notes .notes-status:empty { display: none; }
+#daily-notes .notes-status:not(:empty) { flex-basis: 100%; }
 #daily-notes .notes-composer { margin: 0 0 24px; padding: 24px; }
 #daily-notes .notes-composer > label { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; color: var(--ink-2); }
 #daily-notes .notes-composer > label .input { width: auto; min-width: 120px; max-width: 100%; }
@@ -583,9 +585,14 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 #daily-notes .note-entry-label-options { gap: 10px 16px; padding-top: 10px; }
 #daily-notes .note-entry-label-options label { min-height: 28px; }
 #daily-notes .note-entry-actions { gap: 12px; margin-top: 20px; }
-#daily-notes .notes-published { margin-top: 24px; }
+#daily-notes .notes-published { margin: 0; min-width: 0; }
+#daily-notes .notes-published[open] { flex-basis: 100%; }
+#daily-notes .notes-published > summary { min-height: 44px; box-sizing: border-box; }
+#daily-notes .notes-published[open] > summary { margin-bottom: 12px; }
 @media (max-width: 760px) {
   #daily-notes > .segmented { margin-bottom: 20px; }
+  #daily-notes .notes-toolbar { align-items: center; }
+  #daily-notes .notes-entry-toolbar { margin-left: 0; }
   #daily-notes .notes-composer { padding: 18px; }
   #daily-notes .notes-composer > label { margin-bottom: 16px; }
   #daily-notes .note-entry-editor { min-height: 150px; }

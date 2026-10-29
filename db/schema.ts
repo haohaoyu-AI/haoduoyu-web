@@ -82,6 +82,11 @@ export const matrixNoteEntryLabelOverrides=sqliteTable('matrix_note_entry_label_
 },t=>[primaryKey({columns:[t.user_id,t.entry_id]}),
   foreignKey({columns:[t.user_id,t.entry_id],foreignColumns:[matrixNoteEntries.user_id,matrixNoteEntries.id]}).onDelete('cascade'),
   check('matrix_note_entry_override_json',sql`json_valid(${t.labels_json}) AND json_type(${t.labels_json}) = 'array'`)]);
+export const matrixNoteEntryLabelSets=sqliteTable('matrix_note_entry_label_sets',{
+  user_id:text('user_id').notNull(),entry_id:text('entry_id').notNull(),labels_json:text('labels_json').notNull(),
+},t=>[primaryKey({columns:[t.user_id,t.entry_id]}),
+  foreignKey({columns:[t.user_id,t.entry_id],foreignColumns:[matrixNoteEntries.user_id,matrixNoteEntries.id]}).onDelete('cascade'),
+  check('matrix_note_entry_label_sets_json',sql`json_valid(${t.labels_json}) AND json_type(${t.labels_json}) = 'array'`)]);
 export const matrixWorkReminders=sqliteTable('matrix_work_reminders',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
   date:text('date').notNull(),source_key:text('source_key').notNull(),summary:text('summary').notNull(),
