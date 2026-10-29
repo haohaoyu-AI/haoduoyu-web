@@ -7,9 +7,16 @@ import {ARTICLE_PIPELINE_FIELDS,LEGACY_ARTICLE_PIPELINE_DEFAULTS} from '../src/a
 // and the exact empty private tables on these historical paired fixtures.
 export function legacyBackupEnvelope(value) {
   const result=structuredClone(value),backup=result.data;
-  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10'].includes(backup?.data?.format)) return result;
+  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13'].includes(backup?.data?.format)) return result;
   const checksum=data=>createHash('sha256').update(JSON.stringify(stable(data))).digest('hex');
   assert.equal(backup.sha256,checksum(backup.data));
+  for(const [version,name] of [[13,'note_label_archives'],[12,'note_entry_label_sets'],[11,'note_entry_label_overrides']]) {
+    if(backup.data.format==='haoduoyu-matrix-d1-v'+version) {
+      assert.deepEqual(backup.data.tables[name],[], 'legacy projection cannot hide new data: '+name);
+      delete backup.data.tables[name];
+      backup.data.format='haoduoyu-matrix-d1-v'+(version-1);
+    }
+  }
   if(backup.data.format==='haoduoyu-matrix-d1-v10') {
     for(const name of ['unscheduled_todos','note_labels','note_entry_labels']) {
       assert.deepEqual(backup.data.tables[name],[], 'legacy projection cannot hide new data: '+name);

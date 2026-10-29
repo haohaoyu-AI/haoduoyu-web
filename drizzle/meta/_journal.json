@@ -92,6 +92,13 @@
       "when": 1793171400003,
       "tag": "0012_note_entry_label_sets",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1793171400004,
+      "tag": "0013_note_label_archives",
+      "breakpoints": true
     }
   ]
 }

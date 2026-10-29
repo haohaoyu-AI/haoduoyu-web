@@ -7546,7 +7546,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">▲</button><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">▼</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button><span id="notes-label-status" role="status" aria-live="polite"></span></div><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><details class="notes-published"><summary>已发布记录</summary><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></details><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">▲</button><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">▼</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button><span id="notes-label-status" role="status" aria-live="polite"></span></div><p>归档标签后，已有记录和标签关联仍会保留。</p><h3>使用中的标签</h3><ul id="notes-label-list"></ul><h3>已归档标签</h3><p id="notes-archived-empty">暂无已归档标签。</p><ul id="notes-archived-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><details class="notes-published"><summary>已发布记录</summary><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></details><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
 }
 var statuses = {
   loading: "",
@@ -7657,7 +7657,7 @@ function paintSavedEntry(node, item) {
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
 }
-function paintEntryEditor(node, item, confirmId, labels) {
+function paintEntryEditor(node, item, confirmId, labels, labelsVerified) {
   paintEntrySummary(node, item);
   const find = (selector) => node.querySelector(selector), editor = find("textarea");
   editor.dataset.date = item.date;
@@ -7668,9 +7668,9 @@ function paintEntryEditor(node, item, confirmId, labels) {
   paintEditorValue(editor, item.draft);
   const fieldset = find(".note-entry-labels"), options2 = find(".note-entry-label-options");
   fieldset.hidden = item.deleted;
-  fieldset.disabled = !item.canEdit || !item.labelComplete || Boolean(item.pending);
-  fieldset.title = item.labelComplete ? "" : "请联网读取完整标签后再修改。";
-  const available = [.../* @__PURE__ */ new Set(["生活", "工作", ...labels, ...item.labels || []])];
+  fieldset.disabled = !item.canEdit || !item.labelComplete || !labelsVerified || Boolean(item.pending);
+  fieldset.title = item.labelComplete && labelsVerified ? "" : "请联网核实标签状态后再修改。";
+  const available = [.../* @__PURE__ */ new Set([...labels, ...item.labels || []])];
   if (JSON.stringify([...options2.querySelectorAll("input")].map((input) => input.value)) !== JSON.stringify(available)) {
     options2.replaceChildren(...available.map((value) => {
       const label3 = document.createElement("label"), input = document.createElement("input");
@@ -7707,7 +7707,7 @@ function paintEntryEditor(node, item, confirmId, labels) {
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
 var editorNodes = /* @__PURE__ */ new WeakMap();
-function paintActiveEditor(root, store, active5, legacy, confirmId, labels) {
+function paintActiveEditor(root, store, active5, legacy, confirmId, labels, labelsVerified) {
   const host = root.querySelector("#notes-active-entry");
   if (!editorNodes.has(root)) editorNodes.set(root, /* @__PURE__ */ new Map());
   const nodes = editorNodes.get(root), item = store.entry(active5);
@@ -7716,7 +7716,7 @@ function paintActiveEditor(root, store, active5, legacy, confirmId, labels) {
     if (!nodes.has(active5)) nodes.set(active5, createEntryElement(item, true));
     const node = nodes.get(active5);
     if (host.firstElementChild !== node) host.replaceChildren(node);
-    paintEntryEditor(node, item, confirmId, labels);
+    paintEntryEditor(node, item, confirmId, labels, labelsVerified);
   }
   root.querySelector("#notes-legacy-card").hidden = active5 !== "legacy";
   paintDailyNotes(root, legacy, { compatibility: true, editing: active5 === "legacy" });
@@ -7777,7 +7777,7 @@ function paintOtherLegacy(root, list, legacy, category) {
   exportButton.dataset.legacyCategory = category;
   exportButton.hidden = !draft;
 }
-function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "", labels = [] } = {}) {
+function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "", labels = [], labelsVerified = true } = {}) {
   const find = (selector) => root.querySelector(selector), list = find("#notes-entry-list");
   root.dataset.date = current2.date;
   const dateInput = find("#notes-date");
@@ -7798,7 +7798,7 @@ function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmI
     (noteDraftNeedsAttention(item) ? unpublished : list).append(node);
     paintSavedEntry(node, item);
   }
-  paintActiveEditor(root, store, active5, legacy, confirmId, labels);
+  paintActiveEditor(root, store, active5, legacy, confirmId, labels, labelsVerified);
   paintLegacySummary(root, legacy, active5);
   (retainedLegacy(legacy) ? unpublished : list).append(root.querySelector("#notes-legacy-saved"));
   paintOtherLegacy(root, list, otherLegacy, otherCategory);
@@ -7819,7 +7819,7 @@ function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmI
 var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "", notesRefreshPaused = false, notesDraftError = "", notesDraftRevision = 0;
 var notesView = "today", historyMonth = "", historyDate = "", historyDays = /* @__PURE__ */ new Map(), historySequence = 0;
 var historyActiveLoad = null;
-var notesSelectedLabel = "生活", notesLabels = [], notesLabelIntent = null, notesLabelBusy = false, notesLabelMessage = "";
+var notesSelectedLabel = "生活", notesLabels = [], notesArchivedLabels = [], notesLabelsVerified = false, notesLabelIntent = null, notesArchiveIntent = null, notesLabelBusy = false, notesLabelMessage = "", notesLabelSequence = 0;
 var notesStores = /* @__PURE__ */ new Map(), entryStores = /* @__PURE__ */ new Map(), editorViews = createNotesEditorView();
 var notesIdentityNow = () => JSON.stringify([
   runtime.sessionEpoch,
@@ -7998,9 +7998,13 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
     historyActiveLoad = null;
     notesSelectedLabel = "生活";
     notesLabels = [];
+    notesArchivedLabels = [];
+    notesLabelsVerified = false;
     notesLabelIntent = null;
+    notesArchiveIntent = null;
     notesLabelBusy = false;
     notesLabelMessage = "";
+    notesLabelSequence++;
     notesActiveCategory = "";
   }
   if (select && notesActiveCategory !== category) {
@@ -8146,15 +8150,28 @@ function paintDailyNotesPage() {
     button2.setAttribute("aria-pressed", String(button2.dataset.notesView === notesView));
   const date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy = notesStore.page(date), current2 = entryStore.page(date);
   root.querySelector("#notes-label-status").textContent = notesLabelMessage;
-  const labelList = root.querySelector("#notes-label-list");
-  const visibleLabels = [.../* @__PURE__ */ new Set(["生活", "工作", ...notesLabels])];
-  if (JSON.stringify([...labelList.children].map((node) => node.textContent)) !== JSON.stringify(visibleLabels))
-    labelList.replaceChildren(...visibleLabels.map((name) => {
-      const node = document.createElement("li");
-      node.textContent = name;
-      return node;
+  const archivedNames = new Set(notesArchivedLabels.map((row) => row.name));
+  const activeLabels = [.../* @__PURE__ */ new Set(["生活", "工作", ...notesLabels])].filter((name) => !archivedNames.has(name));
+  const paintLabels = (selector, names, action, buttonText) => {
+    const list = root.querySelector(selector);
+    list.replaceChildren(...names.map((name) => {
+      const item = document.createElement("li"), text = document.createElement("span"), button2 = document.createElement("button");
+      text.textContent = name;
+      button2.type = "button";
+      button2.className = "btn text";
+      button2.dataset.notesAction = action;
+      button2.dataset.labelName = name;
+      button2.textContent = buttonText;
+      button2.setAttribute("aria-label", buttonText + "标签 " + name);
+      button2.disabled = notesLabelBusy || !notesLabelsVerified;
+      item.append(text, button2);
+      return item;
     }));
-  root.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy;
+  };
+  paintLabels("#notes-label-list", activeLabels, "archive-label", "归档");
+  paintLabels("#notes-archived-label-list", notesArchivedLabels.map((row) => row.name), "restore-label", "恢复");
+  root.querySelector("#notes-archived-empty").hidden = notesArchivedLabels.length > 0;
+  root.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy || !notesLabelsVerified;
   const otherCategory = category === "life" ? "work" : "life";
   const otherStore = entryStores.get(otherCategory), otherLegacy = notesStores.get(otherCategory)?.page(date);
   const otherPage = otherStore?.page(date);
@@ -8189,7 +8206,7 @@ function paintDailyNotesPage() {
     mixedStore,
     mixed,
     legacy,
-    { drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory, labels: notesLabels }
+    { drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory, labels: activeLabels, labelsVerified: notesLabelsVerified }
   );
   if (notesDraftError) {
     const message = root.querySelector("#notes-entry-message");
@@ -8205,29 +8222,79 @@ function paintDailyNotesPage() {
   }
   root.querySelector("#notes-delete-confirm").hidden = true;
 }
-async function readNoteLabels() {
-  const expected = notesIdentityNow();
+async function readNoteLabels({ afterWrite = false } = {}) {
+  if (notesLabelBusy && !afterWrite) return false;
+  const expected = notesIdentityNow(), sequence2 = ++notesLabelSequence;
   try {
-    const data = await apiNetwork("/note-entries/labels", { headers: { "X-Note-Labels-Version": "2" } });
-    if (expected !== notesIdentityNow() || data?.labels_version !== 2 || !Array.isArray(data?.labels) || data.labels.some((row) => !validCustomNoteLabel(row?.name))) throw new Error("标签列表未核实。");
+    const data = await apiNetwork("/note-entries/labels", { headers: { "X-Note-Labels-Version": "3", "X-Note-Labels-Archive": "1" } });
+    if (expected !== notesIdentityNow() || sequence2 !== notesLabelSequence) return;
+    if (data?.labels_version !== 3 || !Array.isArray(data?.labels) || !Array.isArray(data?.archived_labels) || data.labels.some((row) => !validCustomNoteLabel(row?.name)) || data.archived_labels.some((row) => typeof row?.name !== "string" || !(row.name === "生活" || row.name === "工作" || validCustomNoteLabel(row.name)) || typeof row.archived_at !== "string" || !Number.isFinite(Date.parse(row.archived_at))))
+      throw new Error("服务器未提供可核实的归档状态。");
     notesLabels = [...new Set(data.labels.map((row) => row.name))];
+    notesArchivedLabels = [...new Map(data.archived_labels.map((row) => [row.name, row])).values()];
+    notesLabelsVerified = true;
     notesLabelMessage = "";
+    paintDailyNotesPage();
+    return true;
   } catch (error) {
-    if (expected !== notesIdentityNow()) return;
-    notesLabelMessage = "标签需联网核实：" + (error.message || "请稍后重试。");
+    if (expected !== notesIdentityNow() || sequence2 !== notesLabelSequence) return;
+    notesLabelsVerified = false;
+    notesLabelMessage = "标签状态读取失败，请联网后重新打开标签管理：" + (error.message || "请稍后重试。");
   }
   paintDailyNotesPage();
+  return false;
+}
+async function changeLabelArchive(name, action) {
+  if (notesLabelBusy || !notesLabelsVerified) return;
+  if (!notesArchiveIntent || notesArchiveIntent.name !== name || notesArchiveIntent.action !== action)
+    notesArchiveIntent = { name, action, save_id: crypto.randomUUID() };
+  const expected = notesIdentityNow(), intent = notesArchiveIntent;
+  ++notesLabelSequence;
+  notesLabelBusy = true;
+  notesLabelMessage = action === "archive" ? "正在归档标签…" : "正在恢复标签…";
+  paintDailyNotesPage();
+  try {
+    const saved = await apiNetwork("/note-entries/labels", {
+      method: "POST",
+      body: intent,
+      headers: { "X-Note-Labels-Version": "3", "X-Note-Labels-Archive": "1" }
+    });
+    if (expected !== notesIdentityNow()) return;
+    if (saved?.labels_version !== 3 || saved?.name !== name || (action === "archive" ? typeof saved.archived_at !== "string" || !Number.isFinite(Date.parse(saved.archived_at)) : saved.archived_at !== null))
+      throw new Error("服务器返回的状态无法核实。");
+    ++notesLabelSequence;
+    notesLabelsVerified = false;
+    const verified = await readNoteLabels({ afterWrite: true });
+    if (expected !== notesIdentityNow()) return;
+    if (verified) {
+      notesArchiveIntent = null;
+      const archived = notesArchivedLabels.some((row) => row.name === name);
+      notesLabelMessage = archived === (action === "archive") ? archived ? "标签已归档，历史记录及关联保留。" : "标签已恢复。" : "操作已收到，但标签状态已在别处改变；显示的是当前状态。";
+    }
+  } catch (error) {
+    ++notesLabelSequence;
+    if (expected === notesIdentityNow()) notesLabelMessage = "操作结果未确认，请重试或重新打开标签管理核实：" + (error.message || "请联网后重试。");
+  } finally {
+    notesLabelBusy = false;
+    if (expected === notesIdentityNow()) paintDailyNotesPage();
+  }
 }
 async function createNoteLabel(root) {
-  if (notesLabelBusy) return;
+  if (notesLabelBusy || !notesLabelsVerified) return;
   const input = root.querySelector("#notes-new-label"), label3 = input.value.trim().normalize("NFC");
   if (!validCustomNoteLabel(label3)) {
     notesLabelMessage = "标签须为 1–32 个字符，且不能叫生活或工作。";
     paintDailyNotesPage();
     return;
   }
+  if (notesArchivedLabels.some((row) => row.name === label3)) {
+    notesLabelMessage = "该标签已归档，请在下方恢复。";
+    paintDailyNotesPage();
+    return;
+  }
   if (!notesLabelIntent || notesLabelIntent.name !== label3) notesLabelIntent = { name: label3, save_id: crypto.randomUUID() };
   const expected = notesIdentityNow(), intent = notesLabelIntent;
+  ++notesLabelSequence;
   notesLabelBusy = true;
   notesLabelMessage = "正在添加标签…";
   paintDailyNotesPage();
@@ -8501,6 +8568,7 @@ async function handleNotesClick(event) {
     historySequence++;
     paintDailyNotesPage();
     if (notesView === "history") await loadHistory();
+    else if (notesView === "labels") await readNoteLabels();
     return;
   }
   if (target.dataset.notesCategory) {
@@ -8548,6 +8616,8 @@ async function handleNotesClick(event) {
     const item = entries.start(date);
     if (item) openEditor(item.id);
   } else if (action === "create-label") await createNoteLabel(root);
+  else if (action === "archive-label" || action === "restore-label")
+    await changeLabelArchive(target.dataset.labelName, action === "archive-label" ? "archive" : "restore");
   else if (action === "edit-legacy") openEditor("legacy");
   else if (action === "collapse") {
     const { active: active5, revision: revision2 } = editorViews.page(dailyNotesRouteCategory(), date);

@@ -99,12 +99,12 @@ test('v8 backups preserve work and tombstones, accept old v7 into empty targets 
   assert.equal(scoped.data.tables.daily_work_notes.length,1);assert.equal(scoped.data.tables.daily_work_notes[0].user_id,app.owner);
   const hidden=await app.call('/daily-notes?date='+DAY+'&category=work');
   assert.equal(hidden.data.text,'');assert.equal(hidden.data.deleted,true);
-  const backup=await exportBackup(app.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v10');
+  const backup=await exportBackup(app.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v13');
   assert.equal(backup.data.tables.daily_work_notes.length,2);assert.ok(backup.data.tables.daily_work_notes.every(row=>row.deleted_at));
   const empty=await fixture(t,{bootstrap:false});await restoreIntoEmptyDatabase(empty.db,backup,{allowEmptyRestore:true});
   assert.deepEqual((await empty.db.prepare('SELECT * FROM matrix_daily_work_notes').all()).results,backup.data.tables.daily_work_notes);
   const data=structuredClone(backup.data);data.format='haoduoyu-matrix-d1-v7';delete data.tables.daily_work_notes;
-  for(const name of ['unscheduled_todos','note_labels','note_entry_labels']) {
+  for(const name of ['unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives']) {
     assert.deepEqual(data.tables[name],[],'historical fixture cannot hide new data: '+name);delete data.tables[name];
   }
   for(const name of ['note_entries','work_reminders','account_profiles']) {

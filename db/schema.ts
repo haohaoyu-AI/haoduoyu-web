@@ -71,6 +71,9 @@ export const matrixNoteEntries=sqliteTable('matrix_note_entries',{
 export const matrixNoteLabels=sqliteTable('matrix_note_labels',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),name:text('name').notNull(),created_at:text('created_at').notNull(),
 },t=>[primaryKey({columns:[t.user_id,t.name]}),check('matrix_note_label_name',sql`length(${t.name}) BETWEEN 1 AND 32`)]);
+export const matrixNoteLabelArchives=sqliteTable('matrix_note_label_archives',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),name:text('name').notNull(),archived_at:text('archived_at').notNull(),
+},t=>[primaryKey({columns:[t.user_id,t.name]}),check('matrix_note_label_archive_name',sql`length(${t.name}) BETWEEN 1 AND 32`)]);
 export const matrixNoteEntryLabels=sqliteTable('matrix_note_entry_labels',{
   user_id:text('user_id').notNull(),entry_id:text('entry_id').notNull(),label:text('label').notNull(),
 },t=>[primaryKey({columns:[t.user_id,t.entry_id]}),

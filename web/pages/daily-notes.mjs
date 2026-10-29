@@ -51,7 +51,9 @@ export function renderDailyNotes() {
     '<section id="notes-labels" hidden aria-label="标签管理">' +
     '<div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label>' +
     '<button class="btn text" type="button" data-notes-action="create-label">添加标签</button>' +
-    '<span id="notes-label-status" role="status" aria-live="polite"></span></div><ul id="notes-label-list"></ul></section>' +
+    '<span id="notes-label-status" role="status" aria-live="polite"></span></div>' +
+    '<p>归档标签后，已有记录和标签关联仍会保留。</p><h3>使用中的标签</h3><ul id="notes-label-list"></ul>' +
+    '<h3>已归档标签</h3><p id="notes-archived-empty">暂无已归档标签。</p><ul id="notes-archived-label-list"></ul></section>' +
     '<div id="notes-today">' +
     '<div class="notes-toolbar"><div class="notes-date-controls">' +
     '<button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button>' +
@@ -179,7 +181,7 @@ function paintSavedEntry(node, item) {
   const edit = node.querySelector('[data-note-entry-action="edit"]'); edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? '继续编辑草稿' : item.deleted ? '查看' : '编辑';
 }
-function paintEntryEditor(node, item, confirmId, labels) {
+function paintEntryEditor(node, item, confirmId, labels, labelsVerified) {
   paintEntrySummary(node, item);
   const find = selector => node.querySelector(selector), editor = find('textarea');
   editor.dataset.date = item.date; editor.dataset.category = item.category;
@@ -187,9 +189,9 @@ function paintEntryEditor(node, item, confirmId, labels) {
   editor.disabled = ['delete', 'restore'].includes(item.pending?.kind); paintEditorValue(editor, item.draft);
   const fieldset = find('.note-entry-labels'), options = find('.note-entry-label-options');
   fieldset.hidden = item.deleted;
-  fieldset.disabled = !item.canEdit || !item.labelComplete || Boolean(item.pending);
-  fieldset.title = item.labelComplete ? '' : '请联网读取完整标签后再修改。';
-  const available = [...new Set(['生活', '工作', ...labels, ...(item.labels || [])])];
+  fieldset.disabled = !item.canEdit || !item.labelComplete || !labelsVerified || Boolean(item.pending);
+  fieldset.title = item.labelComplete && labelsVerified ? '' : '请联网核实标签状态后再修改。';
+  const available = [...new Set([...labels, ...(item.labels || [])])];
   if (JSON.stringify([...options.querySelectorAll('input')].map(input => input.value)) !== JSON.stringify(available)) {
     options.replaceChildren(...available.map(value => {
       const label = document.createElement('label'), input = document.createElement('input');
@@ -223,7 +225,7 @@ function paintEntryEditor(node, item, confirmId, labels) {
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
 const editorNodes = new WeakMap();
-function paintActiveEditor(root, store, active, legacy, confirmId, labels) {
+function paintActiveEditor(root, store, active, legacy, confirmId, labels, labelsVerified) {
   const host = root.querySelector('#notes-active-entry');
   if (!editorNodes.has(root)) editorNodes.set(root, new Map());
   const nodes = editorNodes.get(root), item = store.entry(active);
@@ -232,7 +234,7 @@ function paintActiveEditor(root, store, active, legacy, confirmId, labels) {
     if (!nodes.has(active)) nodes.set(active, createEntryElement(item, true));
     const node = nodes.get(active);
     if (host.firstElementChild !== node) host.replaceChildren(node);
-    paintEntryEditor(node, item, confirmId, labels);
+    paintEntryEditor(node, item, confirmId, labels, labelsVerified);
   }
   root.querySelector('#notes-legacy-card').hidden = active !== 'legacy';
   paintDailyNotes(root, legacy, {compatibility: true, editing: active === 'legacy'});
@@ -292,7 +294,7 @@ function paintOtherLegacy(root, list, legacy, category) {
 }
 
 // Saved cards contain plain text; the single active field is kept intact across acknowledgements.
-export function paintNoteEntries(root, store, current, legacy, {drafts = [], confirmId = '', active = '', otherLegacy = null, otherCategory = '', labels = []} = {}) {
+export function paintNoteEntries(root, store, current, legacy, {drafts = [], confirmId = '', active = '', otherLegacy = null, otherCategory = '', labels = [], labelsVerified = true} = {}) {
   const find = selector => root.querySelector(selector), list = find('#notes-entry-list');
   root.dataset.date = current.date;
   const dateInput = find('#notes-date'); if (dateInput.value !== current.date) dateInput.value = current.date;
@@ -311,7 +313,7 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
     (noteDraftNeedsAttention(item) ? unpublished : list).append(node);
     paintSavedEntry(node, item);
   }
-  paintActiveEditor(root, store, active, legacy, confirmId, labels); paintLegacySummary(root, legacy, active);
+  paintActiveEditor(root, store, active, legacy, confirmId, labels, labelsVerified); paintLegacySummary(root, legacy, active);
   (retainedLegacy(legacy) ? unpublished : list).append(root.querySelector('#notes-legacy-saved'));
   paintOtherLegacy(root, list, otherLegacy, otherCategory);
   if (otherLegacy && retainedLegacy(otherLegacy)) unpublished.append(root.querySelector('#notes-legacy-other'));

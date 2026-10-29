@@ -18,7 +18,8 @@ let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesDraftError = '', notesDraftRevision = 0;
 let notesView = 'today', historyMonth = '', historyDate = '', historyDays = new Map(), historySequence = 0;
 let historyActiveLoad = null;
-let notesSelectedLabel = '生活', notesLabels = [], notesLabelIntent = null, notesLabelBusy = false, notesLabelMessage = '';
+let notesSelectedLabel = '生活', notesLabels = [], notesArchivedLabels = [], notesLabelsVerified = false,
+  notesLabelIntent = null, notesArchiveIntent = null, notesLabelBusy = false, notesLabelMessage = '', notesLabelSequence = 0;
 const notesStores = new Map(), entryStores = new Map(), editorViews = createNotesEditorView();
 const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.id || '',
   state.me?.publicBusiness === true, getOfflineRuntime()?.state.scope || '']);
@@ -124,7 +125,8 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
     notesStores.clear(); entryStores.clear(); editorViews.clear(); notesIdentity = next;
     notesConfirmDate = ''; notesConfirmEntry = ''; notesRefreshPaused = false; notesDraftError = ''; notesDraftRevision++;
     notesView = 'today'; historyMonth = ''; historyDate = ''; historyDays = new Map(); historySequence++; historyActiveLoad = null;
-    notesSelectedLabel = '生活'; notesLabels = []; notesLabelIntent = null; notesLabelBusy = false; notesLabelMessage = '';
+    notesSelectedLabel = '生活'; notesLabels = []; notesArchivedLabels = []; notesLabelsVerified = false;
+    notesLabelIntent = null; notesArchiveIntent = null; notesLabelBusy = false; notesLabelMessage = ''; notesLabelSequence++;
     notesActiveCategory = '';
   }
   if (select && notesActiveCategory !== category) {
@@ -236,11 +238,23 @@ export function paintDailyNotesPage() {
     button.setAttribute('aria-pressed', String(button.dataset.notesView === notesView));
   const date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy = notesStore.page(date), current = entryStore.page(date);
   root.querySelector('#notes-label-status').textContent = notesLabelMessage;
-  const labelList = root.querySelector('#notes-label-list');
-  const visibleLabels = [...new Set(['生活', '工作', ...notesLabels])];
-  if (JSON.stringify([...labelList.children].map(node => node.textContent)) !== JSON.stringify(visibleLabels))
-    labelList.replaceChildren(...visibleLabels.map(name => { const node = document.createElement('li'); node.textContent = name; return node; }));
-  root.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy;
+  const archivedNames = new Set(notesArchivedLabels.map(row => row.name));
+  const activeLabels = [...new Set(['生活', '工作', ...notesLabels])].filter(name => !archivedNames.has(name));
+  const paintLabels = (selector, names, action, buttonText) => {
+    const list = root.querySelector(selector);
+    list.replaceChildren(...names.map(name => {
+      const item = document.createElement('li'), text = document.createElement('span'), button = document.createElement('button');
+      text.textContent = name; button.type = 'button'; button.className = 'btn text';
+      button.dataset.notesAction = action; button.dataset.labelName = name; button.textContent = buttonText;
+      button.setAttribute('aria-label', buttonText + '标签 ' + name);
+      button.disabled = notesLabelBusy || !notesLabelsVerified;
+      item.append(text, button); return item;
+    }));
+  };
+  paintLabels('#notes-label-list', activeLabels, 'archive-label', '归档');
+  paintLabels('#notes-archived-label-list', notesArchivedLabels.map(row => row.name), 'restore-label', '恢复');
+  root.querySelector('#notes-archived-empty').hidden = notesArchivedLabels.length > 0;
+  root.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy || !notesLabelsVerified;
   const otherCategory = category === 'life' ? 'work' : 'life';
   const otherStore = entryStores.get(otherCategory), otherLegacy = notesStores.get(otherCategory)?.page(date);
   const otherPage = otherStore?.page(date);
@@ -261,7 +275,7 @@ export function paintDailyNotesPage() {
   const selected = editorViews.sync(category, date, mixed.ids.map(id => mixedStore.entry(id)).filter(Boolean), legacy,
     {focused: host.contains(document.activeElement), composing: field?.dataset.composing === 'true'});
   paintNoteEntries(root, mixedStore, mixed, legacy,
-    {drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory, labels: notesLabels});
+    {drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory, labels: activeLabels, labelsVerified: notesLabelsVerified});
   if (notesDraftError) {
     const message = root.querySelector('#notes-entry-message');
     message.textContent = notesDraftError; message.hidden = false;
@@ -272,25 +286,67 @@ export function paintDailyNotesPage() {
   }
   root.querySelector('#notes-delete-confirm').hidden = true;
 }
-async function readNoteLabels() {
-  const expected = notesIdentityNow();
+async function readNoteLabels({afterWrite = false} = {}) {
+  if (notesLabelBusy && !afterWrite) return false;
+  const expected = notesIdentityNow(), sequence = ++notesLabelSequence;
   try {
-    const data = await apiNetwork('/note-entries/labels', {headers:{'X-Note-Labels-Version':'2'}});
-    if (expected !== notesIdentityNow() || data?.labels_version !== 2 || !Array.isArray(data?.labels) ||
-        data.labels.some(row => !validCustomNoteLabel(row?.name))) throw new Error('标签列表未核实。');
-    notesLabels = [...new Set(data.labels.map(row => row.name))]; notesLabelMessage = '';
+    const data = await apiNetwork('/note-entries/labels', {headers:{'X-Note-Labels-Version':'3', 'X-Note-Labels-Archive':'1'}});
+    if (expected !== notesIdentityNow() || sequence !== notesLabelSequence) return;
+    if (data?.labels_version !== 3 || !Array.isArray(data?.labels) || !Array.isArray(data?.archived_labels) ||
+        data.labels.some(row => !validCustomNoteLabel(row?.name)) ||
+        data.archived_labels.some(row => typeof row?.name !== 'string' ||
+          !(row.name === '生活' || row.name === '工作' || validCustomNoteLabel(row.name)) ||
+          typeof row.archived_at !== 'string' || !Number.isFinite(Date.parse(row.archived_at))))
+      throw new Error('服务器未提供可核实的归档状态。');
+    notesLabels = [...new Set(data.labels.map(row => row.name))];
+    notesArchivedLabels = [...new Map(data.archived_labels.map(row => [row.name, row])).values()];
+    notesLabelsVerified = true; notesLabelMessage = '';
+    paintDailyNotesPage(); return true;
   } catch (error) {
-    if (expected !== notesIdentityNow()) return;
-    notesLabelMessage = '标签需联网核实：' + (error.message || '请稍后重试。');
+    if (expected !== notesIdentityNow() || sequence !== notesLabelSequence) return;
+    notesLabelsVerified = false;
+    notesLabelMessage = '标签状态读取失败，请联网后重新打开标签管理：' + (error.message || '请稍后重试。');
   }
-  paintDailyNotesPage();
+  paintDailyNotesPage(); return false;
+}
+async function changeLabelArchive(name, action) {
+  if (notesLabelBusy || !notesLabelsVerified) return;
+  if (!notesArchiveIntent || notesArchiveIntent.name !== name || notesArchiveIntent.action !== action)
+    notesArchiveIntent = {name, action, save_id:crypto.randomUUID()};
+  const expected = notesIdentityNow(), intent = notesArchiveIntent;
+  ++notesLabelSequence; notesLabelBusy = true;
+  notesLabelMessage = action === 'archive' ? '正在归档标签…' : '正在恢复标签…'; paintDailyNotesPage();
+  try {
+    const saved = await apiNetwork('/note-entries/labels', {method:'POST', body:intent,
+      headers:{'X-Note-Labels-Version':'3', 'X-Note-Labels-Archive':'1'}});
+    if (expected !== notesIdentityNow()) return;
+    if (saved?.labels_version !== 3 || saved?.name !== name || (action === 'archive' ?
+      typeof saved.archived_at !== 'string' || !Number.isFinite(Date.parse(saved.archived_at)) : saved.archived_at !== null))
+      throw new Error('服务器返回的状态无法核实。');
+    // A replayed receipt is not necessarily the current state. Discard older reads and
+    // fetch the authoritative list after the write before reporting success.
+    ++notesLabelSequence; notesLabelsVerified = false;
+    const verified = await readNoteLabels({afterWrite:true});
+    if (expected !== notesIdentityNow()) return;
+    if (verified) {
+      notesArchiveIntent = null;
+      const archived = notesArchivedLabels.some(row => row.name === name);
+      notesLabelMessage = archived === (action === 'archive') ?
+        (archived ? '标签已归档，历史记录及关联保留。' : '标签已恢复。') :
+        '操作已收到，但标签状态已在别处改变；显示的是当前状态。';
+    }
+  } catch (error) {
+    ++notesLabelSequence;
+    if (expected === notesIdentityNow()) notesLabelMessage = '操作结果未确认，请重试或重新打开标签管理核实：' + (error.message || '请联网后重试。');
+  } finally { notesLabelBusy = false; if (expected === notesIdentityNow()) paintDailyNotesPage(); }
 }
 async function createNoteLabel(root) {
-  if (notesLabelBusy) return;
+  if (notesLabelBusy || !notesLabelsVerified) return;
   const input = root.querySelector('#notes-new-label'), label = input.value.trim().normalize('NFC');
   if (!validCustomNoteLabel(label)) { notesLabelMessage = '标签须为 1–32 个字符，且不能叫生活或工作。'; paintDailyNotesPage(); return; }
+  if (notesArchivedLabels.some(row => row.name === label)) { notesLabelMessage = '该标签已归档，请在下方恢复。'; paintDailyNotesPage(); return; }
   if (!notesLabelIntent || notesLabelIntent.name !== label) notesLabelIntent = {name:label, save_id:crypto.randomUUID()};
-  const expected = notesIdentityNow(), intent = notesLabelIntent; notesLabelBusy = true; notesLabelMessage = '正在添加标签…'; paintDailyNotesPage();
+  const expected = notesIdentityNow(), intent = notesLabelIntent; ++notesLabelSequence; notesLabelBusy = true; notesLabelMessage = '正在添加标签…'; paintDailyNotesPage();
   try {
     const saved = await apiNetwork('/note-entries/labels', {method:'POST', body:intent, headers:{'X-Note-Labels-Version':'2'}});
     if (expected !== notesIdentityNow()) return;
@@ -507,7 +563,8 @@ async function handleNotesClick(event) {
   }
   if (target.dataset.notesView) {
     notesView = ['history', 'labels'].includes(target.dataset.notesView) ? target.dataset.notesView : 'today'; historySequence++;
-    paintDailyNotesPage(); if (notesView === 'history') await loadHistory(); return;
+    paintDailyNotesPage(); if (notesView === 'history') await loadHistory();
+    else if (notesView === 'labels') await readNoteLabels(); return;
   }
   if (target.dataset.notesCategory) {
     notesSelectedLabel = target.dataset.notesCategory === 'work' ? '工作' : '生活';
@@ -544,6 +601,8 @@ async function handleNotesClick(event) {
   if (action === 'new') {
     const item = entries.start(date); if (item) openEditor(item.id); }
   else if (action === 'create-label') await createNoteLabel(root);
+  else if (action === 'archive-label' || action === 'restore-label')
+    await changeLabelArchive(target.dataset.labelName, action === 'archive-label' ? 'archive' : 'restore');
   else if (action === 'edit-legacy') openEditor('legacy');
   else if (action === 'collapse') {
     const {active, revision} = editorViews.page(dailyNotesRouteCategory(), date);

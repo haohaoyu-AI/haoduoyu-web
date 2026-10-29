@@ -68,7 +68,7 @@ async function seedWorkbench(db,{owner,other}) {
 }
 function v8Data(input) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v8';
-  for(const name of ['unscheduled_todos','note_labels','note_entry_labels']) {
+  for(const name of ['unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives']) {
     assert.deepEqual(data.tables[name],[],'historical fixture cannot hide new data: '+name);delete data.tables[name];
   }
   for(const name of newTables)delete data.tables[name];
@@ -111,7 +111,7 @@ test('0008 migration adds exactly three tables and preserves all nineteen prior 
 test('v10 exports owner-scoped entries and reminders and restores complete data, tombstones and the high-water mark',async t=>{
   const db=await database(t),users=await seedOld(db);await seedWorkbench(db,users);
   const full=await exportBackup(db),scoped=await exportBackup(db,{todoUserId:users.owner});
-  assert.equal(full.data.format,'haoduoyu-matrix-d1-v10');assert.equal(Object.keys(full.data.tables).length,22);
+  assert.equal(full.data.format,'haoduoyu-matrix-d1-v13');assert.equal(Object.keys(full.data.tables).length,25);
   for(const name of ['note_entries','work_reminders']) {
     assert.equal(full.data.tables[name].length,4);assert.equal(scoped.data.tables[name].length,2);
     assert.ok(scoped.data.tables[name].some(row=>row.deleted_at===stamp));
@@ -120,7 +120,7 @@ test('v10 exports owner-scoped entries and reminders and restores complete data,
   const inventory=await createSourceInventory(db),target=await database(t);
   assert.throws(()=>verifyBackupInventory(scoped,inventory),/MIGRATION_INVENTORY_MISMATCH/);
   await restoreIntoEmptyDatabase(target,full,{allowEmptyRestore:true});
-  assert.deepEqual(await verifyRestoredInventory(target,full,inventory),{verified:true,restored_tables:22,reset_tables:3});
+  assert.deepEqual(await verifyRestoredInventory(target,full,inventory),{verified:true,restored_tables:25,reset_tables:3});
   for(const name of Object.keys(full.data.tables))assert.deepEqual(await rows(target,name),await rows(db,name),name);
   assert.equal((await target.prepare('SELECT revision FROM matrix_control').first()).revision,100);
   assert.deepEqual(await rows(target,'sessions'),[]);assert.deepEqual(await rows(target,'login_attempts'),[]);

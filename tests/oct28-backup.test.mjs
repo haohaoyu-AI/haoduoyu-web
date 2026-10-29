@@ -36,15 +36,18 @@ test('v10 backup restores future todos, tombstones, labels and old v9 backup wit
     bind('INSERT INTO matrix_note_entry_labels VALUES(?,?,?)',owner,note,'合成标签'),
     bind('INSERT INTO matrix_unscheduled_todos VALUES(?,?,?,0,2,?,?,?)',owner,todo,'未来事项',at,at,at),
   ]);
-  const full=await exportBackup(db);assert.equal(full.data.format,'haoduoyu-matrix-d1-v10');
+  const full=await exportBackup(db);assert.equal(full.data.format,'haoduoyu-matrix-d1-v13');
   assert.equal(full.data.tables.note_labels.length,2);assert.equal(full.data.tables.unscheduled_todos[0].deleted_at,at);
   const inventory=await createSourceInventory(db);
-  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:22,reset_tables:3});
+  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:25,reset_tables:3});
   const target=await database(t);await restoreIntoEmptyDatabase(target,full,{allowEmptyRestore:true});
-  assert.deepEqual(await verifyRestoredInventory(target,full,inventory),{verified:true,restored_tables:22,reset_tables:3});
+  assert.deepEqual(await verifyRestoredInventory(target,full,inventory),{verified:true,restored_tables:25,reset_tables:3});
   for(const table of Object.keys(full.data.tables))assert.deepEqual(await rows(target,table),await rows(db,table),table);
   const old=structuredClone(full.data);old.format='haoduoyu-matrix-d1-v9';
   for(const table of ['unscheduled_todos','note_labels','note_entry_labels'])delete old.tables[table];
+  for(const table of ['note_entry_label_overrides','note_entry_label_sets','note_label_archives']) {
+    assert.deepEqual(old.tables[table],[], 'historical fixture cannot hide new data: '+table);delete old.tables[table];
+  }
   const legacyTarget=await database(t);await restoreIntoEmptyDatabase(legacyTarget,sign(old),{allowEmptyRestore:true});
   assert.equal((await rows(legacyTarget,'note_entries'))[0].text,'text');
   for(const table of ['unscheduled_todos','note_labels','note_entry_labels'])assert.deepEqual(await rows(legacyTarget,table),[]);
