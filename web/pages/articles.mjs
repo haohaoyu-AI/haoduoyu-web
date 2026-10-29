@@ -74,8 +74,7 @@ async function renderArticles(version = runtime.renderVersion, context) {
   return `<section class="card article-list article-ledger article-ledger-list" aria-label="已发布文章详情"><form id="article-filters" class="filters">
 <label class="search">${icon("search", 15)}<input class="input" name="q" value="${e(f.q)}"
 placeholder="搜索标题或链接…" aria-label="搜索文章"></label>
-${platformFilter("article-platform", f.platform, "文章平台")}${articleSelect("data_status", "数据状态", articleStatuses, f.data_status)}
-<button type="button" class="btn" data-action="article-filter" aria-expanded="false" aria-controls="article-filter-popover">筛选 ▾</button>
+${platformFilter("article-platform", f.platform, "文章平台")}
 </form>${filterChips(f)}${content}${articlePagination(meta)}</section>`;
 }
 function pipelineFilterFields(f) {

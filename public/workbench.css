@@ -533,3 +533,60 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 .note-entry-label-options { display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
 .note-entry-label-options label { display: inline-flex; align-items: center; gap: .3rem; }
 #notes-label-list { padding-left: 1.25rem; }
+
+/* Give the todo and memo workspaces the available width without an inner card. */
+.content:has(#daily-todos),
+.content:has(#todo-history:not([hidden])),
+.content:has(#memos):not(:has(.workbench-settings)) {
+  max-width:none;
+}
+#page-content > #daily-todos {
+  max-width:none;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+#page-content > #memos .memo-layout {
+  width:100%;
+  max-width:none;
+  min-height:75dvh;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  background:transparent;
+}
+#page-content > #memos .memo-library { border-radius:0; }
+#page-content > #memos .memo-editor { border-radius:0; }
+#page-content > #memos :is(.memo-body,.memo-read-body) { min-height:60dvh; }
+@media (max-width:760px) {
+  #page-content > #memos .memo-layout,
+  #page-content > #memos .memo-library { min-height:60dvh; }
+  #page-content > #memos :is(.memo-body,.memo-read-body) { min-height:52dvh; }
+}
+
+
+/* Give the daily-notes controls and writing surface room to breathe. */
+#daily-notes > .segmented { margin-bottom: 24px; }
+#daily-notes .notes-toolbar { gap: 12px 20px; margin-bottom: 20px; }
+#daily-notes .notes-date-controls { gap: 8px; min-width: 0; }
+#daily-notes .notes-entry-toolbar { margin: 0; }
+#daily-notes .notes-entry-toolbar:has(> :not([hidden])) { min-height: 44px; margin-bottom: 20px; }
+#daily-notes .notes-composer { margin: 0 0 24px; padding: 24px; }
+#daily-notes .notes-composer > label { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; color: var(--ink-2); }
+#daily-notes .notes-composer > label .input { width: auto; min-width: 120px; max-width: 100%; }
+#daily-notes .note-entry-editing .note-entry-head { gap: 8px 16px; margin-bottom: 12px; }
+#daily-notes .note-entry-editor { box-sizing: border-box; min-height: 180px; padding: 12px 0; }
+#daily-notes .note-entry-labels { min-width: 0; padding: 16px 0 4px; }
+#daily-notes .note-entry-labels legend { padding: 0; }
+#daily-notes .note-entry-label-options { gap: 10px 16px; padding-top: 10px; }
+#daily-notes .note-entry-label-options label { min-height: 28px; }
+#daily-notes .note-entry-actions { gap: 12px; margin-top: 20px; }
+#daily-notes .notes-published { margin-top: 24px; }
+@media (max-width: 760px) {
+  #daily-notes > .segmented { margin-bottom: 20px; }
+  #daily-notes .notes-composer { padding: 18px; }
+  #daily-notes .notes-composer > label { margin-bottom: 16px; }
+  #daily-notes .note-entry-editor { min-height: 150px; }
+}
