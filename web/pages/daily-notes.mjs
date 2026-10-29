@@ -32,27 +32,27 @@ export function renderDailyNotes() {
   return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '">' +
     '<div class="segmented" role="group" aria-label="碎碎念视图">' +
     '<button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button>' +
-    '<button type="button" data-notes-view="history" aria-pressed="false">历史</button></div>' +
+    '<button type="button" data-notes-view="history" aria-pressed="false">历史</button>' +
+    '<button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div>' +
     '<section id="notes-history" hidden aria-label="碎碎念历史">' +
     '<div class="notes-calendar-layout"><aside class="notes-calendar-filters">' +
     '<label>月份 <input type="month" id="notes-history-month" class="input"></label>' +
-    '<div class="notes-calendar-month-actions"><button type="button" class="btn" data-notes-month="prev">上个月</button>' +
-    '<button type="button" class="btn" data-notes-month="next">下个月</button></div>' +
+    '<div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">▲</button>' +
+    '<button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">▼</button></div>' +
     '<label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label>' +
     '<label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label>' +
     '<label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside>' +
-    '<div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p>' +
+    '<div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p>' +
     '<p id="notes-history-status" role="status" aria-live="polite"></p>' +
     '<div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span>' +
     '<span>四</span><span>五</span><span>六</span><span>日</span></div>' +
     '<div id="notes-history-grid" class="notes-calendar-grid"></div>' +
     '<div id="notes-history-list" class="notes-entry-list"></div></div></div></section>' +
+    '<section id="notes-labels" hidden aria-label="标签管理">' +
+    '<div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label>' +
+    '<button class="btn text" type="button" data-notes-action="create-label">添加标签</button>' +
+    '<span id="notes-label-status" role="status" aria-live="polite"></span></div><ul id="notes-label-list"></ul></section>' +
     '<div id="notes-today">' +
-    '<div class="notes-categories"><label>标签 <select id="notes-compose-label" class="input">' +
-      '<option value="生活">生活</option><option value="工作">工作</option></select></label>' +
-      '<label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label>' +
-      '<button class="btn text" type="button" data-notes-action="create-label">添加标签</button>' +
-      '<span id="notes-label-status" role="status" aria-live="polite"></span></div>' +
     '<div class="notes-toolbar"><div class="notes-date-controls">' +
     '<button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button>' +
     '<label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span>' +
@@ -65,6 +65,7 @@ export function renderDailyNotes() {
     '<div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button>' +
     '<button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div>' +
     '<section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden>' +
+    '<label>分类 <select id="notes-compose-label" class="input"><option value="生活">生活</option><option value="工作">工作</option></select></label>' +
     '<div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div>' +
     '<div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section>' +
     '<p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p>' +
@@ -153,7 +154,7 @@ function createEntryElement(item, editing) {
     '<span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing ?
     '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label>' +
     '<textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) +
-    '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() :
+    '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() :
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
     '<button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
@@ -162,7 +163,7 @@ function createEntryElement(item, editing) {
 function paintEntrySummary(node, item) {
   node.dataset.category = item.category;
   node.querySelector('.note-entry-label').textContent = item.category === 'work' ? '工作' :
-    !item.labelKnown ? '标签未核实' : item.label || '生活';
+    !item.labelKnown || !item.labelComplete ? '标签待联网核实' : item.labels?.length ? item.labels.join('、') : item.label || '生活';
   paintTime(node.querySelector('time'), item.updatedAt);
   const status = node.querySelector('.note-entry-status');
   status.textContent = statuses[item.phase] || (item.deleted ? '已删除' : item.version ? '已保存' : '未发送');
@@ -179,12 +180,26 @@ function paintSavedEntry(node, item) {
   const edit = node.querySelector('[data-note-entry-action="edit"]'); edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? '继续编辑草稿' : item.deleted ? '查看' : '编辑';
 }
-function paintEntryEditor(node, item, confirmId) {
+function paintEntryEditor(node, item, confirmId, labels) {
   paintEntrySummary(node, item);
   const find = selector => node.querySelector(selector), editor = find('textarea');
   editor.dataset.date = item.date; editor.dataset.category = item.category;
   editor.hidden = item.deleted; editor.readOnly = !item.canEdit;
   editor.disabled = ['delete', 'restore'].includes(item.pending?.kind); paintEditorValue(editor, item.draft);
+  const fieldset = find('.note-entry-labels'), options = find('.note-entry-label-options');
+  fieldset.hidden = item.category !== 'life' || item.deleted;
+  fieldset.disabled = !item.canEdit || !item.labelComplete || Boolean(item.pending);
+  fieldset.title = item.labelComplete ? '' : '请联网读取完整标签后再修改。';
+  const available = [...new Set([...labels, ...(item.labels || [])])];
+  if (JSON.stringify([...options.querySelectorAll('input')].map(input => input.value)) !== JSON.stringify(available)) {
+    options.replaceChildren(...available.map(value => {
+      const label = document.createElement('label'), input = document.createElement('input');
+      input.type = 'checkbox'; input.value = value; input.dataset.noteLabel = item.id;
+      label.append(input, document.createTextNode(value)); return label;
+    }));
+  }
+  for (const input of options.querySelectorAll('input')) input.checked = (item.labels || []).includes(input.value);
+
   const reader = find('.note-entry-reader'); reader.textContent = item.deleted ? '这条记录已删除。' : item.serverText;
   reader.hidden = !item.deleted;
   find('.note-entry-actions').hidden = !item.canEdit;
@@ -209,7 +224,7 @@ function paintEntryEditor(node, item, confirmId) {
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
 const editorNodes = new WeakMap();
-function paintActiveEditor(root, store, active, legacy, confirmId) {
+function paintActiveEditor(root, store, active, legacy, confirmId, labels) {
   const host = root.querySelector('#notes-active-entry');
   if (!editorNodes.has(root)) editorNodes.set(root, new Map());
   const nodes = editorNodes.get(root), item = store.entry(active);
@@ -218,7 +233,7 @@ function paintActiveEditor(root, store, active, legacy, confirmId) {
     if (!nodes.has(active)) nodes.set(active, createEntryElement(item, true));
     const node = nodes.get(active);
     if (host.firstElementChild !== node) host.replaceChildren(node);
-    paintEntryEditor(node, item, confirmId);
+    paintEntryEditor(node, item, confirmId, labels);
   }
   root.querySelector('#notes-legacy-card').hidden = active !== 'legacy';
   paintDailyNotes(root, legacy, {compatibility: true, editing: active === 'legacy'});
@@ -278,7 +293,7 @@ function paintOtherLegacy(root, list, legacy, category) {
 }
 
 // Saved cards contain plain text; the single active field is kept intact across acknowledgements.
-export function paintNoteEntries(root, store, current, legacy, {drafts = [], confirmId = '', active = '', otherLegacy = null, otherCategory = ''} = {}) {
+export function paintNoteEntries(root, store, current, legacy, {drafts = [], confirmId = '', active = '', otherLegacy = null, otherCategory = '', labels = []} = {}) {
   const find = selector => root.querySelector(selector), list = find('#notes-entry-list');
   root.dataset.date = current.date;
   const dateInput = find('#notes-date'); if (dateInput.value !== current.date) dateInput.value = current.date;
@@ -297,7 +312,7 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
     (noteDraftNeedsAttention(item) ? unpublished : list).append(node);
     paintSavedEntry(node, item);
   }
-  paintActiveEditor(root, store, active, legacy, confirmId); paintLegacySummary(root, legacy, active);
+  paintActiveEditor(root, store, active, legacy, confirmId, labels); paintLegacySummary(root, legacy, active);
   (retainedLegacy(legacy) ? unpublished : list).append(root.querySelector('#notes-legacy-saved'));
   paintOtherLegacy(root, list, otherLegacy, otherCategory);
   if (otherLegacy && retainedLegacy(otherLegacy)) unpublished.append(root.querySelector('#notes-legacy-other'));

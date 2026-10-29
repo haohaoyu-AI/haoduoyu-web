@@ -28,7 +28,7 @@ export function noteMonthWeeks(month) {
 }
 export function checkedNoteMonth(data, month) {
   const fail = () => { throw new Error('月记录不完整，请联网重试。'); };
-  if (!validNoteMonth(month) || !data || data.month !== month || data.complete !== true || data.labels_version !== 1 ||
+  if (!validNoteMonth(month) || !data || data.month !== month || data.complete !== true || ![1, 2].includes(data.labels_version) ||
       !Array.isArray(data.days) || data.days.length > 31) fail();
   const result = new Map(), ids = new Set(); let total = 0;
   for (const day of data.days) {
@@ -37,12 +37,13 @@ export function checkedNoteMonth(data, month) {
     const items = day.items.map(item => {
       if (!item || typeof item.entity_id !== 'string' || ids.has(item.entity_id) ||
           !['note_entry', 'legacy_daily_note'].includes(item.source) || !['life','work'].includes(item.category) ||
-          !Object.hasOwn(item, 'label') || item.label !== null && (item.category !== 'life' || !validCustomNoteLabel(item.label)) ||
+          (data.labels_version === 1 && (!Object.hasOwn(item, 'label') || item.label !== null && (item.category !== 'life' || !validCustomNoteLabel(item.label)))) ||
+          (data.labels_version === 2 && (!Array.isArray(item.labels) || item.labels.some(label => item.category !== 'life' || !validCustomNoteLabel(label)) || new Set(item.labels).size !== item.labels.length)) ||
           typeof item.text !== 'string' || !item.text || !Object.hasOwn(item, 'created_at') ||
           item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) ||
           item.source === 'legacy_daily_note' && item.created_at !== null ||
           !Number.isFinite(Date.parse(item.updated_at))) fail();
-      ids.add(item.entity_id); total++; return {...item, displayLabel:item.label || (item.category === 'work' ? '工作' : '生活')};
+      ids.add(item.entity_id); total++; return {...item, displayLabels: (item.labels?.length ? item.labels : item.label ? [item.label] : [item.category === 'work' ? '工作' : '生活']), displayLabel: item.labels?.length ? item.labels.join('、') : item.label || (item.category === 'work' ? '工作' : '生活')};
     });
     result.set(day.date, items);
   }

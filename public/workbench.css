@@ -441,3 +441,95 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 .notes-calendar-day { min-height:42px; align-items:center; justify-content:center; padding:6px; }
 .notes-calendar-day.is-empty { display:flex; visibility:hidden; }
 @media (max-width:700px) { .notes-calendar-weekdays:not([hidden]) { display:grid; } }
+
+/* Keep the offline annotation mount without leaving an empty toolbar row. */
+#page-header:empty { display:none; }
+#page-header:not(:empty) { min-height:0; margin-bottom:16px; }
+#page-header .offline-page-note { margin:0; }
+
+/* The three writing surfaces share the same available workspace width. */
+.content:has(#daily-todos),
+.content:has(#daily-notes),
+.content:has(#memos):not(:has(.workbench-settings)) {
+  box-sizing:border-box;
+  width:100%;
+  max-width:1600px;
+}
+#daily-todos,
+#daily-notes,
+#page-content > #memos {
+  box-sizing:border-box;
+  width:100%;
+  max-width:none;
+  margin-inline:auto;
+}
+#daily-todos { min-height:65dvh; }
+#page-content > #memos .memo-layout { min-height:70dvh; }
+#page-content > #memos :is(.memo-body,.memo-read-body) { min-height:52dvh; }
+
+@media (max-width:760px) {
+  #daily-todos { min-height:55dvh; }
+  #page-content > #memos .memo-layout,
+  #page-content > #memos .memo-library { min-height:55dvh; }
+  #page-content > #memos :is(.memo-body,.memo-read-body) { min-height:45dvh; }
+}
+
+/* History calendar: retain the site's glass surfaces and give the month grid room. */
+.content:has(#todo-history:not([hidden])) { max-width: 1500px; }
+#todo-history .daily-todo-calendar {
+  display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 24px;
+  width: 100%; max-width: none; margin: 0 0 24px; padding: 0; overflow: visible;
+}
+.todo-calendar-sidebar { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 16px; border: 1px solid var(--glass-edge); border-radius: 14px; background: var(--color-white-a-55); align-self: start; }
+.todo-calendar-sidebar label { margin-top: 12px; color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.todo-calendar-sidebar label:first-child { margin-top: 0; }
+.todo-calendar-sidebar .input { width: 100%; min-width: 0; }
+.todo-calendar-main { min-width: 0; }
+#todo-history .todo-calendar-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+.todo-calendar-navigation, .todo-calendar-views { display: flex; align-items: center; gap: 8px; }
+.todo-calendar-navigation #todo-calendar-month { min-width: 112px; text-align: center; white-space: nowrap; }
+.todo-calendar-views .btn[aria-pressed="true"] { background: var(--accent); color: var(--color-white); border-color: var(--accent); }
+#todo-history .todo-calendar-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+#todo-history .todo-calendar-stats span { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+#todo-history .todo-calendar-stats small { color: var(--ink-2); white-space: nowrap; }
+#todo-history .todo-calendar-stats strong { font-size: 20px; }
+.todo-calendar-loading { color: var(--ink-2); }
+.todo-calendar-scroll { min-width: 0; overflow-x: auto; }
+#todo-history .todo-calendar-grid { min-width: 650px; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+#todo-history .todo-calendar-day { min-height: 110px; overflow: hidden; }
+#todo-history .todo-calendar-day.is-selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--ink); }
+#todo-history .todo-calendar-day.is-today { border-color: var(--accent); }
+.todo-calendar-more { color: var(--ink-2); font-size: 12px; }
+/* The selected day's existing list remains available below the calendar. */
+#todo-history:not([hidden]) + #todo-main #todo-form,
+#todo-history:not([hidden]) + #todo-main #todo-inline-templates { display: none; }
+@media (max-width: 900px) {
+  #todo-history .daily-todo-calendar { grid-template-columns: 1fr; gap: 16px; }
+  .todo-calendar-sidebar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; }
+  .todo-calendar-sidebar label { margin: 0; }
+  .todo-calendar-sidebar label:nth-of-type(1) { grid-column: 1; grid-row: 1; }
+  .todo-calendar-sidebar label:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+  .todo-calendar-sidebar label:nth-of-type(3) { grid-column: 3; grid-row: 1; }
+}
+@media (max-width: 767px) {
+  #todo-history .daily-todo-calendar { width: 100%; margin-inline: 0; }
+  #todo-history .todo-calendar-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #todo-history .todo-calendar-head { align-items: flex-start; }
+  .todo-calendar-sidebar { grid-template-columns: 1fr; }
+  .todo-calendar-sidebar label:nth-of-type(n) { grid-column: auto; grid-row: auto; margin-top: 8px; }
+  .todo-calendar-sidebar label:first-child { margin-top: 0; }
+}
+
+.notes-calendar-month-actions { display: flex; align-items: center; gap: .35rem; }
+.notes-calendar-month-actions .notes-month-step { border: 0; background: transparent; color: #777; font-size: .8rem; line-height: 1; padding: .35rem .45rem; cursor: pointer; }
+.notes-calendar-month-actions .notes-month-step:hover { color: #333; }
+.notes-calendar-month-actions .notes-month-step:focus-visible, .notes-timeline-order:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.notes-timeline-order { margin-left: .5rem; }
+.notes-timeline-day { border-top: 1px solid #b8b8b8; padding-top: .8rem; margin-top: 1.2rem; }
+.notes-timeline-date { margin: 0 0 .75rem; color: #666; font-size: .9rem; font-weight: 600; }
+
+.note-entry-labels { border: 0; padding: .5rem 0; margin: 0; }
+.note-entry-labels legend { color: #666; font-size: .9rem; }
+.note-entry-label-options { display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
+.note-entry-label-options label { display: inline-flex; align-items: center; gap: .3rem; }
+#notes-label-list { padding-left: 1.25rem; }

@@ -1,6 +1,6 @@
 import {entityKey} from './db.mjs';
 
-const fields = ['kind', 'id', 'category', 'date', 'draft', 'version', 'serverText', 'contentHash', 'label', 'labelKnown', 'createdAt', 'updatedAt',
+const fields = ['kind', 'id', 'category', 'date', 'draft', 'version', 'serverText', 'contentHash', 'label', 'labels', 'labelKnown', 'createdAt', 'updatedAt',
   'dirty', 'phase', 'pending', 'remote', 'localVersion', 'durableText', 'localBacked', 'localQueued', 'recoveredBaseline'];
 const unresolved = row => row.dirty || row.pending || ['unknown', 'conflict', 'error', 'oversize'].includes(row.phase);
 function safeDraft(row) {
@@ -28,7 +28,7 @@ export function createDraftJournal({db, getScope, getGeneration = () => 0, now =
         else if (row.kind === 'note_entry') {
           await tx.delete('meta', key);
           for (const old of await tx.getAll('meta')) if (old.scope === owner && old.draft_kind === 'note_entry' &&
-              old.data.id === row.id && old.data.draft === row.draft && !old.data.pending) await tx.delete('meta', old.key);
+              old.data.id === row.id && old.data.draft === row.draft && JSON.stringify(old.data.labels || []) === JSON.stringify(row.labels || []) && !old.data.pending) await tx.delete('meta', old.key);
         }
       }
       active();

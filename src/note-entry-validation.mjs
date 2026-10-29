@@ -24,13 +24,19 @@ export function noteEntryQuery(query,allowed) {
     throw fail(400,'VALIDATION_ERROR','碎碎念查询参数无效');
 }
 export function noteEntryInput(input,method) {
-  const expected=method==='PUT'?['category','date','text','version','save_id',...(Object.hasOwn(input,'label')?['label']:[])]:['version','save_id'];
+  const expected=method==='PUT'?['category','date','text','version','save_id',...(Object.hasOwn(input,'label')?['label']:[]),...(Object.hasOwn(input,'labels')?['labels']:[])]:['version','save_id'];
   if(Object.keys(input).sort().join(',')!==expected.sort().join(',')||
     !Number.isSafeInteger(input.version)||input.version<(method==='PUT'?0:1)||input.version>=Number.MAX_SAFE_INTEGER)
     throw fail(400,'VALIDATION_ERROR','碎碎念字段或版本无效');
   const value={...input,save_id:noteEntryId(input.save_id)};
   if(method==='PUT') {
     value.category=noteEntryCategory(input.category);
+    if(Object.hasOwn(input,'labels')) {
+      if(Object.hasOwn(input,'label')||!Array.isArray(input.labels)||input.labels.length>200)throw fail(400,'VALIDATION_ERROR','标签字段无效');
+      value.labels=input.labels.map(noteLabel);
+      if(new Set(value.labels).size!==value.labels.length||value.category!=='life'&&value.labels.length)throw fail(400,'VALIDATION_ERROR','标签字段无效');
+      value.labels.sort();
+    }
     if(Object.hasOwn(input,'label')) {
       value.label=noteLabel(input.label);
       if(value.category!=='life')throw fail(400,'VALIDATION_ERROR','自建标签须使用生活分类');

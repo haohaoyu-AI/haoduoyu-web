@@ -17,7 +17,7 @@ import { renderDailyNotes } from "./pages/daily-notes.mjs";
 import { loadDailyNotes, paintDailyNotesPage } from "./daily-notes-controller.mjs";
 import { renderMemos } from "./pages/memos.mjs";
 import { loadMemos, paintMemosPage } from "./memos-controller.mjs";
-import { pageHeader, skeleton } from "./ui/components.mjs";
+import { skeleton } from "./ui/components.mjs";
 import { replacePageContent, stopPageEntry } from "./ui/entry.mjs";
 import { setMenu, syncMenu } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
@@ -30,7 +30,7 @@ import {renderWorkbenchSettings} from "./pages/workbench-settings.mjs";
 import {renderWorkReminders} from "./pages/work-reminders.mjs";
 import {loadWorkReminders} from "./work-reminders-controller.mjs";
 function mainContent() {
-  return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
+  return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
     state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts} : settingsTabs), state.settingsTab,
     "设置分类", "tab", "page-tabs") : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }

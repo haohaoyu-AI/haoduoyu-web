@@ -14,6 +14,7 @@ import {
 } from "./todo-preferences.mjs";
 let todoClock = null;
 let monthSnapshot = {month:"", owner:"", days:new Map(), loading:false, error:""};
+let calendarStatus = "all";
 const savingTimes = new WeakMap(), savingTimers = new WeakMap();
 function todoCalendarMonth(date) {
   if (todosState.calendarDate !== date || !validTodoDate(`${todosState.calendarMonth}-01`)) {
@@ -24,11 +25,13 @@ function todoCalendarMonth(date) {
 }
 function todoCalendarDay(date, selected) {
   const today = date === bjtDate(), active = date === selected;
-  const items = (monthSnapshot.days.get(date) || []).filter(item => !item.deleted_at);
-  const content = items.slice(0, 4).map(item => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ${e(item.text)}</span>`).join("");
+  const items = (monthSnapshot.month === date.slice(0, 7) && monthSnapshot.owner === todoOwner() ? monthSnapshot.days.get(date) || [] : []).filter(item => !item.deleted_at);
+  const shown = items.filter(item => calendarStatus === "all" || Boolean(item.completed) === (calendarStatus === "done"));
+  const content = shown.slice(0, 4).map(item => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ${e(item.text)}</span>`).join("");
+  const more = shown.length > 4 ? `<span class="todo-calendar-more">还有 ${shown.length - 4} 项</span>` : "";
   return `<button class="todo-calendar-day${active ? " is-selected" : ""}${today ? " is-today" : ""}" type="button"
 data-action="todo-calendar-date" data-date="${e(date)}" aria-label="${e(date)}" aria-pressed="${active}"
-${today ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.days.has(date) ? items.length + " 项" : ""}</small></span>${content}</button>`;
+${today ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.owner === todoOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date) ? shown.length + " 项" : ""}</small></span>${content}${more}</button>`;
 }
 function todoCalendar(date) {
   const month = todoCalendarMonth(date), first = new Date(`${month}-01T00:00:00Z`), last = new Date(first);
@@ -37,32 +40,43 @@ function todoCalendar(date) {
   const blanks = (first.getUTCDay() + 6) % 7;
   const days = Array.from({ length: last.getUTCDate() }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`);
   const cells = [...Array(blanks).fill(null), ...days];
+  while (cells.length % 7) cells.push(null);
   const index = Math.max(0, cells.indexOf(date));
-  const visible = todosState.calendarView === "week" ? cells.slice(Math.floor(index / 7) * 7, Math.floor(index / 7) * 7 + 7) : cells;
+  const weekIndex = Math.floor(index / 7);
+  const visible = todosState.calendarView === "week" ? cells.slice(weekIndex * 7, weekIndex * 7 + 7) : cells;
+  const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7).filter(Boolean));
   const all = [...monthSnapshot.days.values()].flat().filter(item => !item.deleted_at), done = all.filter(item => item.completed).length;
   const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === todoOwner();
   const activeDays = [...monthSnapshot.days.values()].filter(items => items.some(item => !item.deleted_at)).length;
-  const stats = !currentSnapshot || monthSnapshot.loading ? "" : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : monthSnapshot.days.size ? `<div class="todo-calendar-stats"><span>本月 ${all.length}</span><span>已完成 ${done}</span><span>未完成 ${all.length-done}</span><span>有任务 ${activeDays} 天</span><span>完成率 ${all.length ? Math.round(done/all.length*100) : 0}%</span></div>` : "";
-  return `<div class="todo-calendar-head"><input type="month" class="input" data-todo-calendar-month value="${e(month)}" aria-label="选择月份"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button><button class="icon-button" type="button" data-action="todo-calendar-prev"
-aria-label="上一月" ${month === "0001-01" ? "disabled" : ""}>‹</button>
-<span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span>
-<button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一月"
-${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button><button class="btn primary" type="button" data-action="todo-panel-close">新建任务</button></div>${stats}
-<div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
-${["一", "二", "三", "四", "五", "六", "日"].map((day) => `<span class="todo-calendar-weekday" aria-hidden="true">${day}</span>`).join("")}
-${visible.map(day => day ? todoCalendarDay(day, date) : '<span aria-hidden="true"></span>').join("")}</div>`;
+  const stats = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done / all.length * 100) : 0}%`]].map(([label, value]) => `<span><small>${label}</small><strong>${value}</strong></span>`).join("")}</div>`;
+  return `<aside class="todo-calendar-sidebar"><label for="todo-calendar-month-input">月份</label><input id="todo-calendar-month-input" type="month" class="input" data-todo-calendar-month value="${e(month)}">
+<label for="todo-calendar-week">周日期</label><select id="todo-calendar-week" class="input" data-todo-calendar-week>${weeks.map((week, i) => `<option value="${week[0]}" ${i === weekIndex ? "selected" : ""}>${week[0].slice(5)} — ${week.at(-1).slice(5)}</option>`).join("")}</select>
+<label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
+<div class="todo-calendar-main"><div class="todo-calendar-head"><div class="todo-calendar-navigation"><button class="icon-button" type="button" data-action="todo-calendar-prev" aria-label="上一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "0001-01" ? "disabled" : ""}>‹</button><span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span><button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button></div><div class="todo-calendar-views"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button></div></div>${stats}
+<div class="todo-calendar-scroll"><div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
+${["一", "二", "三", "四", "五", "六", "日"].map(day => `<span class="todo-calendar-weekday" aria-hidden="true">周${day}</span>`).join("")}
+${visible.map(day => day ? todoCalendarDay(day, date) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
-  const day = todoDay(), date = new Date(`${todoCalendarMonth(day.date)}-01T00:00:00Z`);
+  const day = todoDay(), month = todoCalendarMonth(day.date);
+  if (todosState.calendarView === "week") {
+    const anchor = day.date.startsWith(month) ? day.date : `${month}-01`;
+    const weekDate = new Date(`${anchor}T00:00:00Z`);
+    weekDate.setUTCDate(weekDate.getUTCDate() + offset * 7);
+    const next = weekDate.toISOString().slice(0, 10);
+    if (validTodoDate(next)) selectTodoDate(next);
+    return;
+  }
+  const date = new Date(`${month}-01T00:00:00Z`);
   date.setUTCMonth(date.getUTCMonth() + offset);
-  const month = date.toISOString().slice(0, 7);
-  if (!validTodoDate(`${month}-01`)) return;
-  todosState.calendarMonth = month;
+  const nextMonth = date.toISOString().slice(0, 7);
+  if (!validTodoDate(`${nextMonth}-01`)) return;
+  todosState.calendarMonth = nextMonth;
   const calendar = $("#todo-calendar"), action = document.activeElement?.dataset?.action;
   if (!calendar) return;
-  paintTodoCalendar(day.date); void loadTodoMonth(month);
+  paintTodoCalendar(day.date); void loadTodoMonth(nextMonth);
   if (["todo-calendar-prev", "todo-calendar-next"].includes(action)) $(`[data-action="${action}"]`, calendar)?.focus();
 }
 function paintTodoCalendar(date) {
@@ -74,6 +88,10 @@ function paintTodoCalendar(date) {
       todosState.calendarView = button.dataset.todoCalendarView; calendar.dataset.month = ""; paintTodoCalendar(todoDay().date);
     });
     calendar.addEventListener('change', event => {
+      if (event.target.matches('[data-todo-calendar-status]')) {
+        calendarStatus = event.target.value; calendar.dataset.month = ''; paintTodoCalendar(todoDay().date); return;
+      }
+      if (event.target.matches('[data-todo-calendar-week]')) { selectTodoDate(event.target.value); return; }
       if (!event.target.matches('[data-todo-calendar-month]')) return;
       const month = event.target.value; if (!validTodoDate(`${month}-01`)) return;
       todosState.calendarMonth = month; calendar.dataset.month = ""; paintTodoCalendar(todoDay().date); void loadTodoMonth(month);
@@ -139,10 +157,9 @@ ${[["today","今日"],["future","未来待办"],["history","历史"],["templates
   aria-current="${selected===panel?'page':'false'}" ${panel==='templates'?'aria-label="管理常用"':''}>${label}</button>`).join("")}</nav>`;
 }
 function renderTodoHistory(day) {
-  return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
-<div class="todo-view-head"><h2>待办日历</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
+  return `<section id="todo-history" class="todo-view" aria-label="历史待办" ${state.todoPanel === "history" ? "" : "hidden"}>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day.date)}" data-today="${bjtDate()}">
-${todoCalendar(day.date)}</div>${todoDateControls(day.date)}</section>`;
+${todoCalendar(day.date)}</div></section>`;
 }
 function paintTodoPanels(root) {
   const panel = state.todoPanel || "";
@@ -163,7 +180,7 @@ async function setTodoPanel(panel) {
   if (state.todoPanel === "future") await loadUnscheduledTodos();
   else { await loadTodos(); if (state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(todoDay().date)); }
   const selector = state.todoPanel === 'future' ? '#todo-future-text' : state.todoPanel ?
-    '#todo-' + state.todoPanel + ' [data-action="todo-panel-close"]' : '#todo-text';
+    state.todoPanel === 'history' ? '#todo-calendar-month-input' : '#todo-' + state.todoPanel + ' [data-action="todo-panel-close"]' : '#todo-text';
   $(selector)?.focus();
 }
 function todoPending(day) {

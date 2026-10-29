@@ -2966,6 +2966,7 @@ var fields = [
   "serverText",
   "contentHash",
   "label",
+  "labels",
   "labelKnown",
   "createdAt",
   "updatedAt",
@@ -3002,7 +3003,7 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
         if (unresolved(row)) await tx.put("meta", { key, scope: owner2, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now() });
         else if (row.kind === "note_entry") {
           await tx.delete("meta", key);
-          for (const old of await tx.getAll("meta")) if (old.scope === owner2 && old.draft_kind === "note_entry" && old.data.id === row.id && old.data.draft === row.draft && !old.data.pending) await tx.delete("meta", old.key);
+          for (const old of await tx.getAll("meta")) if (old.scope === owner2 && old.draft_kind === "note_entry" && old.data.id === row.id && old.data.draft === row.draft && JSON.stringify(old.data.labels || []) === JSON.stringify(row.labels || []) && !old.data.pending) await tx.delete("meta", old.key);
         }
       }
       active5();
@@ -6076,6 +6077,7 @@ async function changeTodoCompletedMode(mode) {
 // web/pages/todos.mjs
 var todoClock = null;
 var monthSnapshot = { month: "", owner: "", days: /* @__PURE__ */ new Map(), loading: false, error: "" };
+var calendarStatus = "all";
 var savingTimes = /* @__PURE__ */ new WeakMap(), savingTimers = /* @__PURE__ */ new WeakMap();
 function todoCalendarMonth(date) {
   if (todosState.calendarDate !== date || !validTodoDate(`${todosState.calendarMonth}-01`)) {
@@ -6086,11 +6088,13 @@ function todoCalendarMonth(date) {
 }
 function todoCalendarDay(date, selected) {
   const today2 = date === bjtDate(), active5 = date === selected;
-  const items = (monthSnapshot.days.get(date) || []).filter((item) => !item.deleted_at);
-  const content2 = items.slice(0, 4).map((item) => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ${e(item.text)}</span>`).join("");
+  const items = (monthSnapshot.month === date.slice(0, 7) && monthSnapshot.owner === todoOwner() ? monthSnapshot.days.get(date) || [] : []).filter((item) => !item.deleted_at);
+  const shown = items.filter((item) => calendarStatus === "all" || Boolean(item.completed) === (calendarStatus === "done"));
+  const content2 = shown.slice(0, 4).map((item) => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ${e(item.text)}</span>`).join("");
+  const more = shown.length > 4 ? `<span class="todo-calendar-more">还有 ${shown.length - 4} 项</span>` : "";
   return `<button class="todo-calendar-day${active5 ? " is-selected" : ""}${today2 ? " is-today" : ""}" type="button"
 data-action="todo-calendar-date" data-date="${e(date)}" aria-label="${e(date)}" aria-pressed="${active5}"
-${today2 ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.days.has(date) ? items.length + " 项" : ""}</small></span>${content2}</button>`;
+${today2 ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.owner === todoOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date) ? shown.length + " 项" : ""}</small></span>${content2}${more}</button>`;
 }
 function todoCalendar(date) {
   const month = todoCalendarMonth(date), first = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`), last = new Date(first);
@@ -6099,33 +6103,44 @@ function todoCalendar(date) {
   const blanks = (first.getUTCDay() + 6) % 7;
   const days = Array.from({ length: last.getUTCDate() }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`);
   const cells = [...Array(blanks).fill(null), ...days];
+  while (cells.length % 7) cells.push(null);
   const index = Math.max(0, cells.indexOf(date));
-  const visible3 = todosState.calendarView === "week" ? cells.slice(Math.floor(index / 7) * 7, Math.floor(index / 7) * 7 + 7) : cells;
+  const weekIndex = Math.floor(index / 7);
+  const visible3 = todosState.calendarView === "week" ? cells.slice(weekIndex * 7, weekIndex * 7 + 7) : cells;
+  const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7).filter(Boolean));
   const all = [...monthSnapshot.days.values()].flat().filter((item) => !item.deleted_at), done = all.filter((item) => item.completed).length;
   const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === todoOwner();
   const activeDays = [...monthSnapshot.days.values()].filter((items) => items.some((item) => !item.deleted_at)).length;
-  const stats = !currentSnapshot || monthSnapshot.loading ? "" : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : monthSnapshot.days.size ? `<div class="todo-calendar-stats"><span>本月 ${all.length}</span><span>已完成 ${done}</span><span>未完成 ${all.length - done}</span><span>有任务 ${activeDays} 天</span><span>完成率 ${all.length ? Math.round(done / all.length * 100) : 0}%</span></div>` : "";
-  return `<div class="todo-calendar-head"><input type="month" class="input" data-todo-calendar-month value="${e(month)}" aria-label="选择月份"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button><button class="icon-button" type="button" data-action="todo-calendar-prev"
-aria-label="上一月" ${month === "0001-01" ? "disabled" : ""}>‹</button>
-<span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span>
-<button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一月"
-${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button><button class="btn primary" type="button" data-action="todo-panel-close">新建任务</button></div>${stats}
-<div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
-${["一", "二", "三", "四", "五", "六", "日"].map((day4) => `<span class="todo-calendar-weekday" aria-hidden="true">${day4}</span>`).join("")}
-${visible3.map((day4) => day4 ? todoCalendarDay(day4, date) : '<span aria-hidden="true"></span>').join("")}</div>`;
+  const stats = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done / all.length * 100) : 0}%`]].map(([label3, value]) => `<span><small>${label3}</small><strong>${value}</strong></span>`).join("")}</div>`;
+  return `<aside class="todo-calendar-sidebar"><label for="todo-calendar-month-input">月份</label><input id="todo-calendar-month-input" type="month" class="input" data-todo-calendar-month value="${e(month)}">
+<label for="todo-calendar-week">周日期</label><select id="todo-calendar-week" class="input" data-todo-calendar-week>${weeks.map((week, i) => `<option value="${week[0]}" ${i === weekIndex ? "selected" : ""}>${week[0].slice(5)} — ${week.at(-1).slice(5)}</option>`).join("")}</select>
+<label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
+<div class="todo-calendar-main"><div class="todo-calendar-head"><div class="todo-calendar-navigation"><button class="icon-button" type="button" data-action="todo-calendar-prev" aria-label="上一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "0001-01" ? "disabled" : ""}>‹</button><span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span><button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button></div><div class="todo-calendar-views"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button></div></div>${stats}
+<div class="todo-calendar-scroll"><div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
+${["一", "二", "三", "四", "五", "六", "日"].map((day4) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day4}</span>`).join("")}
+${visible3.map((day4) => day4 ? todoCalendarDay(day4, date) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
-  const day4 = todoDay(), date = /* @__PURE__ */ new Date(`${todoCalendarMonth(day4.date)}-01T00:00:00Z`);
+  const day4 = todoDay(), month = todoCalendarMonth(day4.date);
+  if (todosState.calendarView === "week") {
+    const anchor = day4.date.startsWith(month) ? day4.date : `${month}-01`;
+    const weekDate = /* @__PURE__ */ new Date(`${anchor}T00:00:00Z`);
+    weekDate.setUTCDate(weekDate.getUTCDate() + offset * 7);
+    const next = weekDate.toISOString().slice(0, 10);
+    if (validTodoDate(next)) selectTodoDate(next);
+    return;
+  }
+  const date = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`);
   date.setUTCMonth(date.getUTCMonth() + offset);
-  const month = date.toISOString().slice(0, 7);
-  if (!validTodoDate(`${month}-01`)) return;
-  todosState.calendarMonth = month;
+  const nextMonth = date.toISOString().slice(0, 7);
+  if (!validTodoDate(`${nextMonth}-01`)) return;
+  todosState.calendarMonth = nextMonth;
   const calendar = $("#todo-calendar"), action = document.activeElement?.dataset?.action;
   if (!calendar) return;
   paintTodoCalendar(day4.date);
-  void loadTodoMonth(month);
+  void loadTodoMonth(nextMonth);
   if (["todo-calendar-prev", "todo-calendar-next"].includes(action)) $(`[data-action="${action}"]`, calendar)?.focus();
 }
 function paintTodoCalendar(date) {
@@ -6140,6 +6155,16 @@ function paintTodoCalendar(date) {
       paintTodoCalendar(todoDay().date);
     });
     calendar.addEventListener("change", (event) => {
+      if (event.target.matches("[data-todo-calendar-status]")) {
+        calendarStatus = event.target.value;
+        calendar.dataset.month = "";
+        paintTodoCalendar(todoDay().date);
+        return;
+      }
+      if (event.target.matches("[data-todo-calendar-week]")) {
+        selectTodoDate(event.target.value);
+        return;
+      }
       if (!event.target.matches("[data-todo-calendar-month]")) return;
       const month2 = event.target.value;
       if (!validTodoDate(`${month2}-01`)) return;
@@ -6222,10 +6247,9 @@ ${[["today", "今日"], ["future", "未来待办"], ["history", "历史"], ["tem
   aria-current="${selected === panel ? "page" : "false"}" ${panel === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>`;
 }
 function renderTodoHistory(day4) {
-  return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
-<div class="todo-view-head"><h2>待办日历</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
+  return `<section id="todo-history" class="todo-view" aria-label="历史待办" ${state.todoPanel === "history" ? "" : "hidden"}>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day4.date)}" data-today="${bjtDate()}">
-${todoCalendar(day4.date)}</div>${todoDateControls(day4.date)}</section>`;
+${todoCalendar(day4.date)}</div></section>`;
 }
 function paintTodoPanels(root) {
   const panel = state.todoPanel || "";
@@ -6253,7 +6277,7 @@ async function setTodoPanel(panel) {
     await loadTodos();
     if (state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(todoDay().date));
   }
-  const selector = state.todoPanel === "future" ? "#todo-future-text" : state.todoPanel ? "#todo-" + state.todoPanel + ' [data-action="todo-panel-close"]' : "#todo-text";
+  const selector = state.todoPanel === "future" ? "#todo-future-text" : state.todoPanel ? state.todoPanel === "history" ? "#todo-calendar-month-input" : "#todo-" + state.todoPanel + ' [data-action="todo-panel-close"]' : "#todo-text";
   $(selector)?.focus();
 }
 function todoPending(day4) {
@@ -6609,6 +6633,9 @@ var noteValue = (value) => isLocalDocument(value) ? documentValue(value) : value
 var persistedVersion = (item) => item.localBacked ? item.localVersion : item.version;
 var savedText = (item) => item.localBacked ? item.durableText : item.serverText;
 var savedPhase = (item) => item.localBacked ? item.localQueued ? "queued" : "cached" : item.version ? "saved" : "empty";
+var labelsOf = (value) => Array.isArray(value?.labels) ? value.labels : value?.label ? [value.label] : [];
+var equalLabels = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+var validLabels = (labels, category) => Array.isArray(labels) && (category === "life" || labels.length === 0) && labels.every(validCustomNoteLabel) && new Set(labels).size === labels.length;
 var localFailure = (error) => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || "");
 function validCustomNoteLabel(value) {
   return typeof value === "string" && value.isWellFormed() && value === value.trim().normalize("NFC") && [...value].length >= 1 && [...value].length <= 32 && !/[\u0000-\u001f\u007f]/.test(value) && !["生活", "工作"].includes(value);
@@ -6621,7 +6648,7 @@ function checkedLocalDocument(value, category, date, id) {
 }
 function checkedEntry(value, category, date, id) {
   if (isLocalDocument(value)) return checkedLocalDocument(value, category, date, id);
-  if (!value || !uuidPattern6.test(value.id) || id && value.id !== id || value.category !== category || value.date !== date || typeof value.text !== "string" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || !timestamp3(value.created_at) || !timestamp3(value.updated_at) || typeof value.content_hash !== "string" || !value.content_hash || value.label != null && (category !== "life" || !validCustomNoteLabel(value.label))) {
+  if (!value || !uuidPattern6.test(value.id) || id && value.id !== id || value.category !== category || value.date !== date || typeof value.text !== "string" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES || !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || !timestamp3(value.created_at) || !timestamp3(value.updated_at) || typeof value.content_hash !== "string" || !value.content_hash || value.labels_version === 2 && !Array.isArray(value.labels) || value.labels !== void 0 && !validLabels(value.labels, category) || value.label != null && (category !== "life" || !validCustomNoteLabel(value.label))) {
     throw new Error("记录读取不完整，请重新核对。");
   }
   return value;
@@ -6653,7 +6680,8 @@ function createEntriesContext({
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   delay = 400,
-  manualSave = false
+  manualSave = false,
+  multiLabels = false
 }) {
   if (!["life", "work"].includes(category)) throw new Error("请选择有效分类。");
   const pages = /* @__PURE__ */ new Map(), entries = /* @__PURE__ */ new Map();
@@ -6661,6 +6689,7 @@ function createEntriesContext({
     category,
     pages,
     entries,
+    multiLabels,
     disposed: false,
     options: { load, loadEntry, loadOperation, put, remove, restore, onSaved, uuid: uuid5 }
   };
@@ -6702,7 +6731,10 @@ function createEntriesContext({
       updatedAt: null,
       contentHash: "",
       label: "",
+      labels: [],
+      serverLabels: [],
       labelKnown: false,
+      labelComplete: false,
       deleted: false,
       dirty: false,
       phase: "empty",
@@ -6730,8 +6762,11 @@ function createEntriesContext({
     item.version = value.version;
     item.createdAt = value.created_at;
     item.updatedAt = value.updated_at;
-    item.label = value.label || "";
-    item.labelKnown = category === "work" || value.labels_version === 1 && Object.hasOwn(value, "label");
+    item.labelComplete = value.labels_version === 2 && Array.isArray(value.labels);
+    item.serverLabels = labelsOf(value);
+    if (!preserve) item.labels = [...item.serverLabels];
+    item.label = item.labels[0] || "";
+    item.labelKnown = category === "work" || value.labels_version === 2 && Array.isArray(value.labels) || value.labels_version === 1 && Object.hasOwn(value, "label");
     item.contentHash = value.content_hash;
     item.deleted = value.deleted;
     item.localVersion = value.version;
@@ -6743,7 +6778,7 @@ function createEntriesContext({
     item.localCreatedAt = null;
     item.localUpdatedAt = null;
     if (!preserve) item.draft = item.serverText;
-    item.dirty = item.draft !== item.serverText;
+    item.dirty = item.draft !== item.serverText || !equalLabels(item.labels, item.serverLabels);
     item.loaded = true;
   }
   function schedule(item) {
@@ -6800,7 +6835,10 @@ function createEntryLocalActions(context) {
     if (server && server.version >= item.version) adopt(item, server, true);
     item.localVersion = local.version;
     item.durableText = local.deleted ? "" : local.text;
-    item.label = local.label || "";
+    item.labelComplete = false;
+    item.labels = labelsOf(local);
+    item.serverLabels = [...item.labels];
+    item.label = item.labels[0] || "";
     item.labelKnown = item.category === "work" || local.labels_version === 1 && Object.hasOwn(local, "label");
     item.localBacked = true;
     item.localQueued = Boolean(operation2);
@@ -6854,6 +6892,7 @@ function createEntryReadingActions(context) {
       const value = checkedCollection(await load(date, options2), category, date);
       if (context.disposed || sequence2 !== current2.sequence) return;
       current2.canEdit = value.can_edit;
+      current2.labelsComplete = value.labels_version === 2;
       const found = /* @__PURE__ */ new Set();
       for (const raw of value.entries) {
         const visible3 = noteValue(raw);
@@ -6910,17 +6949,19 @@ function createEntryReadingActions(context) {
 function createEntryEditingActions(context) {
   const { page, entry, entries, emit, stopTimer, schedule, makeEntry } = context;
   const { uuid: uuid5 } = context.options;
-  function start(date, { label: label3 = "" } = {}) {
+  function start(date, { label: label3 = "", labels = label3 ? [label3] : [] } = {}) {
     const current2 = page(date);
-    if (label3 && (context.category !== "life" || !validCustomNoteLabel(label3))) throw new Error("标签无效。");
+    if (!validLabels(labels, context.category)) throw new Error("标签无效。");
     if (context.disposed || !current2.loaded || !current2.canEdit) return;
     const existing = entry(current2.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label3) return existing;
     const id = uuid5();
     if (!uuidPattern6.test(id) || entries.has(id)) throw new Error("暂时无法新建记录，请重试。");
     const item = makeEntry(id, date, current2.canEdit);
-    item.label = label3;
+    item.labels = [...labels];
+    item.label = item.labels[0] || "";
     item.labelKnown = true;
+    item.labelComplete = true;
     entries.set(id, item);
     current2.ids.push(id);
     current2.composerId = id;
@@ -6932,7 +6973,7 @@ function createEntryEditingActions(context) {
     if (!item || context.disposed || !item.canEdit || item.deleted || ["delete", "restore"].includes(item.pending?.kind)) return;
     item.draft = text;
     item.composing = composing;
-    item.dirty = text !== savedText(item);
+    item.dirty = text !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
     stopTimer(item);
     if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
       if (!blocked(item)) item.phase = "oversize";
@@ -6944,11 +6985,14 @@ function createEntryEditingActions(context) {
     emit();
     if (!composing) schedule(item);
   }
-  function relabelDraft(id, label3 = "") {
+  function relabelDraft(id, labels = []) {
     const item = entry(id);
-    if (!item || context.disposed || !item.canEdit || item.deleted || item.pending || persistedVersion(item) !== 0 || label3 && (context.category !== "life" || !validCustomNoteLabel(label3))) return false;
-    item.label = label3;
-    item.labelKnown = true;
+    if (typeof labels === "string") labels = labels ? [labels] : [];
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) || !validLabels(labels, context.category)) return false;
+    item.labels = [...labels];
+    item.label = labels[0] || "";
+    item.dirty = item.draft !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
+    item.phase = item.dirty ? "dirty" : savedPhase(item);
     emit();
     return true;
   }
@@ -6962,20 +7006,23 @@ function createEntryRecoveryActions(context) {
     let item = entry(raw.id);
     if (item && (item.pending || item.composing || item.dirty)) return item;
     const pendingDurable = item && raw.pending?.saveId && raw.pending.saveId === item.localOperation?.save_id;
-    if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.pending || pendingDurable)) return item;
+    if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.labels || equalLabels(raw.labels, item.serverLabels)) && (!raw.pending || pendingDurable)) return item;
     if (!item) {
       item = makeEntry(raw.id, raw.date, current2.canEdit);
       entries.set(item.id, item);
     }
     if (!persistedVersion(item)) {
-      item.label = raw.label || "";
+      item.labels = validLabels(raw.labels, category) ? raw.labels : raw.label ? [raw.label] : [];
+      item.label = item.labels[0] || "";
       item.labelKnown = raw.labelKnown === true;
+      item.labelComplete = current2.labelsComplete === true;
     }
     if (!current2.ids.includes(item.id)) current2.ids.push(item.id);
     stopTimer(item);
     item.writeEpoch++;
     item.draft = raw.draft;
-    item.dirty = item.draft !== savedText(item);
+    if (validLabels(raw.labels, category)) item.labels = [...raw.labels];
+    item.dirty = item.draft !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
     item.recoveredBaseline = raw.recoveredBaseline || {
       version: raw.version ?? null,
       serverText: raw.serverText ?? null,
@@ -6987,13 +7034,14 @@ function createEntryRecoveryActions(context) {
     };
     if (raw.pending && !pendingDurable) {
       const operation2 = raw.pending;
-      const valid = ["put", "delete", "restore"].includes(operation2.kind) && uuidPattern6.test(operation2.saveId) && Number.isSafeInteger(operation2.version) && operation2.version >= 0 && (operation2.kind !== "put" || typeof operation2.text === "string" && dailyNotesBytes(operation2.text) <= DAILY_NOTES_MAX_BYTES && (!operation2.label || category === "life" && validCustomNoteLabel(operation2.label)) && (!operation2.expectedLabel || category === "life" && validCustomNoteLabel(operation2.expectedLabel)));
+      const valid = ["put", "delete", "restore"].includes(operation2.kind) && uuidPattern6.test(operation2.saveId) && Number.isSafeInteger(operation2.version) && operation2.version >= 0 && (operation2.kind !== "put" || typeof operation2.text === "string" && dailyNotesBytes(operation2.text) <= DAILY_NOTES_MAX_BYTES && (!operation2.labels || validLabels(operation2.labels, category)) && (!operation2.label || category === "life" && validCustomNoteLabel(operation2.label)) && (!operation2.expectedLabel || category === "life" && validCustomNoteLabel(operation2.expectedLabel)));
       item.pending = valid ? {
         kind: operation2.kind,
         version: operation2.version,
         saveId: operation2.saveId,
         ...operation2.kind === "put" ? {
           text: operation2.text,
+          ...operation2.labels ? { labels: operation2.labels } : {},
           ...operation2.label ? { label: operation2.label } : {},
           ...operation2.expectedLabel ? { expectedLabel: operation2.expectedLabel } : {}
         } : {},
@@ -7015,7 +7063,7 @@ function createEntryRecoveryActions(context) {
 function createEntryWritingActions(context) {
   const { category, page, entry, entries, emit, stopTimer, adopt, schedule } = context;
   const { put, remove, restore, uuid: uuid5, onSaved } = context.options;
-  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted : operation2.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation2.text && (!operation2.label || value.labels_version === 1 && value.label === operation2.label) && (!operation2.expectedLabel || value.labels_version === 1 && value.label === operation2.expectedLabel));
+  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted : operation2.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation2.text && (!operation2.labels || value.labels_version === 2 && equalLabels(value.labels, operation2.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation2.labels)) && (!operation2.label || value.labels_version === 1 && value.label === operation2.label) && (!operation2.expectedLabel || value.labels_version === 1 && value.label === operation2.expectedLabel));
   function accepted(item, value, operation2) {
     const preserve = operation2.kind === "put" && item.draft !== operation2.text;
     item.writeEpoch++;
@@ -7054,7 +7102,7 @@ function createEntryWritingActions(context) {
         category: item.category,
         date: item.date,
         text: operation2.text,
-        ...operation2.label ? { label: operation2.label } : {}
+        ...operation2.labels ? { labels: operation2.labels } : operation2.label ? { label: operation2.label } : {}
       }, options2);
       if (context.disposed || item.pending !== operation2) return;
       const value = checkedEntry(raw, category, item.date, item.id);
@@ -7098,6 +7146,12 @@ function createEntryWritingActions(context) {
     stopTimer(item);
     if (context.disposed || !item.canEdit || item.deleted || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
     if (!persistedVersion(item) && !item.draft.trim()) return;
+    if (context.multiLabels && !item.labelComplete && !equalLabels(item.labels, item.serverLabels)) {
+      item.phase = "error";
+      item.error = "请联网核实完整标签后再保存，草稿已保留。";
+      emit();
+      return;
+    }
     if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
       item.phase = "oversize";
       item.error = "文字超过 64 KiB，草稿已保留。";
@@ -7109,8 +7163,9 @@ function createEntryWritingActions(context) {
       version: persistedVersion(item),
       text: item.draft,
       saveId: uuid5(),
-      ...!persistedVersion(item) && item.label ? { label: item.label } : {},
-      ...item.label ? { expectedLabel: item.label } : {}
+      ...context.multiLabels && item.labelComplete && item.category === "life" && !equalLabels(item.labels, item.serverLabels) ? { labels: [...item.labels] } : {},
+      ...!context.multiLabels && !persistedVersion(item) && item.label ? { label: item.label } : {},
+      ...!context.multiLabels && item.label ? { expectedLabel: item.label } : {}
     });
   }
   async function deleteEntry(id) {
@@ -7326,16 +7381,16 @@ function checkedNoteMonth(data, month) {
   const fail5 = () => {
     throw new Error("月记录不完整，请联网重试。");
   };
-  if (!validNoteMonth(month) || !data || data.month !== month || data.complete !== true || data.labels_version !== 1 || !Array.isArray(data.days) || data.days.length > 31) fail5();
+  if (!validNoteMonth(month) || !data || data.month !== month || data.complete !== true || ![1, 2].includes(data.labels_version) || !Array.isArray(data.days) || data.days.length > 31) fail5();
   const result = /* @__PURE__ */ new Map(), ids = /* @__PURE__ */ new Set();
   let total = 0;
   for (const day4 of data.days) {
     if (!day4 || !validDailyNotesDate(day4.date) || !day4.date.startsWith(month + "-") || result.has(day4.date) || !Array.isArray(day4.items)) fail5();
     const items = day4.items.map((item) => {
-      if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || !Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label)) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail5();
+      if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || data.labels_version === 1 && (!Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label))) || data.labels_version === 2 && (!Array.isArray(item.labels) || item.labels.some((label3) => item.category !== "life" || !validCustomNoteLabel(label3)) || new Set(item.labels).size !== item.labels.length) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail5();
       ids.add(item.entity_id);
       total++;
-      return { ...item, displayLabel: item.label || (item.category === "work" ? "工作" : "生活") };
+      return { ...item, displayLabels: item.labels?.length ? item.labels : item.label ? [item.label] : [item.category === "work" ? "工作" : "生活"], displayLabel: item.labels?.length ? item.labels.join("、") : item.label || (item.category === "work" ? "工作" : "生活") };
     });
     result.set(day4.date, items);
   }
@@ -7477,7 +7532,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="btn" data-notes-month="prev">上个月</button><button type="button" class="btn" data-notes-month="next">下个月</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><div id="notes-today"><div class="notes-categories"><label>标签 <select id="notes-compose-label" class="input"><option value="生活">生活</option><option value="工作">工作</option></select></label><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button><span id="notes-label-status" role="status" aria-live="polite"></span></div><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div><details class="notes-published"><summary>已发布记录</summary><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></details></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">▲</button><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">▼</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button><span id="notes-label-status" role="status" aria-live="polite"></span></div><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><label>分类 <select id="notes-compose-label" class="input"><option value="生活">生活</option><option value="工作">工作</option></select></label><div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div><details class="notes-published"><summary>已发布记录</summary><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></details></div></section>';
 }
 var statuses = {
   loading: "",
@@ -7563,12 +7618,12 @@ function createEntryElement(item, editing3) {
   node.className = "note-entry " + (editing3 ? "note-entry-editing" : "note-entry-saved");
   node.dataset.noteEntry = item.id;
   node.dataset.category = item.category;
-  node.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
+  node.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
   return node;
 }
 function paintEntrySummary(node, item) {
   node.dataset.category = item.category;
-  node.querySelector(".note-entry-label").textContent = item.category === "work" ? "工作" : !item.labelKnown ? "标签未核实" : item.label || "生活";
+  node.querySelector(".note-entry-label").textContent = item.category === "work" ? "工作" : !item.labelKnown || !item.labelComplete ? "标签待联网核实" : item.labels?.length ? item.labels.join("、") : item.label || "生活";
   paintTime(node.querySelector("time"), item.updatedAt);
   const status = node.querySelector(".note-entry-status");
   status.textContent = statuses[item.phase] || (item.deleted ? "已删除" : item.version ? "已保存" : "未发送");
@@ -7588,7 +7643,7 @@ function paintSavedEntry(node, item) {
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
 }
-function paintEntryEditor(node, item, confirmId) {
+function paintEntryEditor(node, item, confirmId, labels) {
   paintEntrySummary(node, item);
   const find = (selector) => node.querySelector(selector), editor = find("textarea");
   editor.dataset.date = item.date;
@@ -7597,6 +7652,22 @@ function paintEntryEditor(node, item, confirmId) {
   editor.readOnly = !item.canEdit;
   editor.disabled = ["delete", "restore"].includes(item.pending?.kind);
   paintEditorValue(editor, item.draft);
+  const fieldset = find(".note-entry-labels"), options2 = find(".note-entry-label-options");
+  fieldset.hidden = item.category !== "life" || item.deleted;
+  fieldset.disabled = !item.canEdit || !item.labelComplete || Boolean(item.pending);
+  fieldset.title = item.labelComplete ? "" : "请联网读取完整标签后再修改。";
+  const available = [.../* @__PURE__ */ new Set([...labels, ...item.labels || []])];
+  if (JSON.stringify([...options2.querySelectorAll("input")].map((input) => input.value)) !== JSON.stringify(available)) {
+    options2.replaceChildren(...available.map((value) => {
+      const label3 = document.createElement("label"), input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = value;
+      input.dataset.noteLabel = item.id;
+      label3.append(input, document.createTextNode(value));
+      return label3;
+    }));
+  }
+  for (const input of options2.querySelectorAll("input")) input.checked = (item.labels || []).includes(input.value);
   const reader = find(".note-entry-reader");
   reader.textContent = item.deleted ? "这条记录已删除。" : item.serverText;
   reader.hidden = !item.deleted;
@@ -7622,7 +7693,7 @@ function paintEntryEditor(node, item, confirmId) {
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
 var editorNodes = /* @__PURE__ */ new WeakMap();
-function paintActiveEditor(root, store, active5, legacy, confirmId) {
+function paintActiveEditor(root, store, active5, legacy, confirmId, labels) {
   const host = root.querySelector("#notes-active-entry");
   if (!editorNodes.has(root)) editorNodes.set(root, /* @__PURE__ */ new Map());
   const nodes = editorNodes.get(root), item = store.entry(active5);
@@ -7631,7 +7702,7 @@ function paintActiveEditor(root, store, active5, legacy, confirmId) {
     if (!nodes.has(active5)) nodes.set(active5, createEntryElement(item, true));
     const node = nodes.get(active5);
     if (host.firstElementChild !== node) host.replaceChildren(node);
-    paintEntryEditor(node, item, confirmId);
+    paintEntryEditor(node, item, confirmId, labels);
   }
   root.querySelector("#notes-legacy-card").hidden = active5 !== "legacy";
   paintDailyNotes(root, legacy, { compatibility: true, editing: active5 === "legacy" });
@@ -7692,7 +7763,7 @@ function paintOtherLegacy(root, list, legacy, category) {
   exportButton.dataset.legacyCategory = category;
   exportButton.hidden = !draft;
 }
-function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "" } = {}) {
+function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "", labels = [] } = {}) {
   const find = (selector) => root.querySelector(selector), list = find("#notes-entry-list");
   root.dataset.date = current2.date;
   const dateInput = find("#notes-date");
@@ -7713,7 +7784,7 @@ function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmI
     (noteDraftNeedsAttention(item) ? unpublished : list).append(node);
     paintSavedEntry(node, item);
   }
-  paintActiveEditor(root, store, active5, legacy, confirmId);
+  paintActiveEditor(root, store, active5, legacy, confirmId, labels);
   paintLegacySummary(root, legacy, active5);
   (retainedLegacy(legacy) ? unpublished : list).append(root.querySelector("#notes-legacy-saved"));
   paintOtherLegacy(root, list, otherLegacy, otherCategory);
@@ -7751,6 +7822,7 @@ var draftFields = [
   "serverText",
   "contentHash",
   "label",
+  "labels",
   "labelKnown",
   "createdAt",
   "updatedAt",
@@ -7939,10 +8011,39 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
       active5();
       return value;
     };
-    const noteRequest = (path, options2 = {}) => request(path, {
-      ...options2,
-      headers: { ...options2.headers, "X-Note-Labels-Version": "1" }
-    });
+    const noteRequest = async (path, options2 = {}) => {
+      active5();
+      const value = await apiNetwork(path, {
+        ...options2,
+        headers: { ...options2.headers, "X-Note-Labels-Version": "2" }
+      });
+      active5();
+      if (value?.labels_version !== 2) throw new Error("服务器尚不支持多标签，草稿已保留。");
+      return value;
+    };
+    const noteRead = async (path) => {
+      const cached = await request(path, { headers: { "X-Note-Labels-Version": "1" } });
+      if (isLocalDocument(cached) || cached?.entries?.some(isLocalDocument)) return cached;
+      try {
+        return await noteRequest(path);
+      } catch (error) {
+        if (error.code === "NETWORK_UNAVAILABLE") return cached;
+        throw error;
+      }
+    };
+    const noteWrite = async (path, options2) => {
+      try {
+        return await noteRequest(path, options2);
+      } catch (error) {
+        if (error.code !== "NETWORK_UNAVAILABLE") throw error;
+        const body2 = options2.body || {}, labels = body2.labels;
+        if (labels && (body2.version !== 0 || labels.length > 1))
+          throw Object.assign(new Error("多标签修改需要联网，草稿已保留。"), { code: "OFFLINE_MULTI_LABEL", localNotSaved: true });
+        const { labels: ignored, ...legacyBody } = body2;
+        if (labels?.length === 1) legacyBody.label = labels[0];
+        return request(path, { ...options2, offlineUnknown: true, body: legacyBody, headers: { "X-Note-Labels-Version": "1" } });
+      }
+    };
     const suffix = (separator) => category === "work" ? separator + "category=work" : "";
     const changed4 = () => {
       if (expected !== notesIdentityNow()) return;
@@ -7977,11 +8078,12 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
     const entries = createNoteEntriesStore({
       category,
       manualSave: true,
-      load: (date, options2) => options2?.localOnly ? getOfflineRuntime().localRead("/note-entries?category=" + category + "&date=" + date) : noteRequest("/note-entries?category=" + category + "&date=" + encodeURIComponent(date)),
-      loadEntry: (id, options2) => options2?.localOnly ? getOfflineRuntime().localRead("/note-entries/" + id) : noteRequest("/note-entries/" + encodeURIComponent(id)),
+      multiLabels: true,
+      load: (date) => noteRead("/note-entries?category=" + category + "&date=" + encodeURIComponent(date)),
+      loadEntry: (id) => noteRead("/note-entries/" + encodeURIComponent(id)),
       loadOperation: (id) => noteRequest("/note-entries/operations/" + encodeURIComponent(id)),
-      put: (id, body2, options2) => noteRequest("/note-entries/" + encodeURIComponent(id), { ...options2, method: "PUT", body: body2 }),
-      remove: (id, body2, options2) => noteRequest("/note-entries/" + encodeURIComponent(id), { ...options2, method: "DELETE", body: body2 }),
+      put: (id, body2, options2) => noteWrite("/note-entries/" + encodeURIComponent(id), { ...options2, method: "PUT", body: body2 }),
+      remove: (id, body2, options2) => noteWrite("/note-entries/" + encodeURIComponent(id), { ...options2, method: "DELETE", body: body2 }),
       restore: (id, body2, options2) => noteRequest("/note-entries/" + encodeURIComponent(id) + "/restore", { ...options2, method: "POST", body: body2 }),
       onChange: changed4,
       onSaved: changed4
@@ -8022,11 +8124,11 @@ function paintDailyNotesPage() {
   if (!root || !notesStore || !entryStore) return;
   root.querySelector("#notes-today").hidden = notesView !== "today";
   root.querySelector("#notes-history").hidden = notesView !== "history";
+  root.querySelector("#notes-labels").hidden = notesView !== "labels";
   for (const button2 of root.querySelectorAll("[data-notes-view]"))
     button2.setAttribute("aria-pressed", String(button2.dataset.notesView === notesView));
   const date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy = notesStore.page(date), current2 = entryStore.page(date);
-  const labelSelect = root.querySelector("#notes-compose-label"), labelValues = ["生活", "工作", ...notesLabels];
-  if (!labelValues.includes(notesSelectedLabel)) labelValues.push(notesSelectedLabel);
+  const labelSelect = root.querySelector("#notes-compose-label"), labelValues = ["生活", "工作"];
   if (JSON.stringify([...labelSelect.options].map((option) => option.value)) !== JSON.stringify(labelValues)) {
     labelSelect.replaceChildren(...labelValues.map((value) => {
       const option = document.createElement("option");
@@ -8037,6 +8139,13 @@ function paintDailyNotesPage() {
   }
   labelSelect.value = notesSelectedLabel;
   root.querySelector("#notes-label-status").textContent = notesLabelMessage;
+  const labelList = root.querySelector("#notes-label-list");
+  if (JSON.stringify([...labelList.children].map((node) => node.textContent)) !== JSON.stringify(notesLabels))
+    labelList.replaceChildren(...notesLabels.map((name) => {
+      const node = document.createElement("li");
+      node.textContent = name;
+      return node;
+    }));
   root.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy;
   const otherCategory = category === "life" ? "work" : "life";
   const otherStore = entryStores.get(otherCategory), otherLegacy = notesStores.get(otherCategory)?.page(date);
@@ -8069,7 +8178,7 @@ function paintDailyNotesPage() {
   );
   const selectedItem = selected.active === "legacy" ? legacy : mixedStore.entry(selected.active);
   if (selectedItem && selected.active !== "legacy") {
-    const currentLabel = selectedItem.category === "work" ? "工作" : selectedItem.label || "生活";
+    const currentLabel = selectedItem.category === "work" ? "工作" : "生活";
     if (![...labelSelect.options].some((option) => option.value === currentLabel)) {
       const option = document.createElement("option");
       option.value = currentLabel;
@@ -8086,7 +8195,7 @@ function paintDailyNotesPage() {
     mixedStore,
     mixed,
     legacy,
-    { drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory }
+    { drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory, labels: notesLabels }
   );
   if (notesDraftError) {
     const message = root.querySelector("#notes-entry-message");
@@ -8105,8 +8214,8 @@ function paintDailyNotesPage() {
 async function readNoteLabels() {
   const expected = notesIdentityNow();
   try {
-    const data = await apiNetwork("/note-entries/labels", { headers: { "X-Note-Labels-Version": "1" } });
-    if (expected !== notesIdentityNow() || data?.labels_version !== 1 || !Array.isArray(data?.labels) || data.labels.some((row) => !validCustomNoteLabel(row?.name))) throw new Error("标签列表未核实。");
+    const data = await apiNetwork("/note-entries/labels", { headers: { "X-Note-Labels-Version": "2" } });
+    if (expected !== notesIdentityNow() || data?.labels_version !== 2 || !Array.isArray(data?.labels) || data.labels.some((row) => !validCustomNoteLabel(row?.name))) throw new Error("标签列表未核实。");
     notesLabels = [...new Set(data.labels.map((row) => row.name))];
     notesLabelMessage = "";
   } catch (error) {
@@ -8129,11 +8238,10 @@ async function createNoteLabel(root) {
   notesLabelMessage = "正在添加标签…";
   paintDailyNotesPage();
   try {
-    const saved = await apiNetwork("/note-entries/labels", { method: "POST", body: intent, headers: { "X-Note-Labels-Version": "1" } });
+    const saved = await apiNetwork("/note-entries/labels", { method: "POST", body: intent, headers: { "X-Note-Labels-Version": "2" } });
     if (expected !== notesIdentityNow()) return;
-    if (saved?.labels_version !== 1 || saved.name !== label3) throw new Error("标签保存结果尚未核实，请重试原请求。");
+    if (saved?.labels_version !== 2 || saved.name !== label3) throw new Error("标签保存结果尚未核实，请重试原请求。");
     notesLabels = [.../* @__PURE__ */ new Set([...notesLabels, label3])];
-    notesSelectedLabel = label3;
     notesLabelIntent = null;
     notesLabelMessage = "标签已添加";
     input.value = "";
@@ -8182,25 +8290,47 @@ function paintHistoryRows(root) {
   const weeks = noteMonthWeeks(historyMonth), selected = root.querySelector("#notes-history-date").value;
   historyDate = selected;
   const grid = root.querySelector("#notes-history-grid"), list = root.querySelector("#notes-history-list");
-  const shown = (item) => !label3 || item.displayLabel === label3;
+  const shown = (item) => !label3 || (item.displayLabels || [item.displayLabel]).includes(label3);
   const visibleWeeks = weeks.filter((_, index) => !weekValue || Number(weekValue) === index + 1);
   grid.replaceChildren(...visibleWeeks.flatMap((week) => week.map((date) => makeMonthCard(date, (historyDays.get(date) || []).filter(shown), selected))));
   const timeline = root.dataset.historyDisplay === "timeline";
   root.querySelector(".notes-calendar-weekdays").hidden = timeline;
   grid.hidden = timeline;
-  const rows = timeline ? [...historyDays.entries()].sort(([a], [b]) => b.localeCompare(a)).flatMap(([date, items]) => items.filter(shown).map((item) => ({ ...item, timelineDate: date }))) : (historyDays.get(selected) || []).filter(shown);
-  list.replaceChildren(...rows.map((row) => {
+  const order = root.dataset.historyOrder === "asc" ? "asc" : "desc";
+  const orderButton = root.querySelector("[data-history-order]");
+  orderButton.hidden = !timeline;
+  orderButton.dataset.historyOrder = order;
+  orderButton.textContent = order === "asc" ? "时间：从旧到新" : "时间：从新到旧";
+  const card = (row) => {
     const article = document.createElement("article");
     article.className = "note-entry note-entry-saved";
     const heading = document.createElement("div");
     heading.className = "note-entry-head";
-    heading.textContent = [row.timelineDate, row.displayLabel, monthTime(row.updated_at)].filter(Boolean).join(" · ");
+    heading.textContent = [row.displayLabel, monthTime(row.updated_at)].filter(Boolean).join(" · ");
     const text = document.createElement("div");
     text.className = "note-entry-reader";
     text.textContent = row.text;
     article.append(heading, text);
     return article;
-  }));
+  };
+  let rows;
+  if (timeline) {
+    const direction = order === "asc" ? 1 : -1;
+    const groups = [...historyDays.entries()].sort(([a], [b]) => direction * a.localeCompare(b)).map(([date, items]) => [date, items.filter(shown).sort((a, b) => direction * String(a.updated_at || "").localeCompare(String(b.updated_at || "")))]).filter(([, items]) => items.length);
+    rows = groups.flatMap(([, items]) => items);
+    list.replaceChildren(...groups.map(([date, items]) => {
+      const section = document.createElement("section");
+      section.className = "notes-timeline-day";
+      const heading = document.createElement("h3");
+      heading.className = "notes-timeline-date";
+      heading.textContent = date;
+      section.append(heading, ...items.map(card));
+      return section;
+    }));
+  } else {
+    rows = (historyDays.get(selected) || []).filter(shown);
+    list.replaceChildren(...rows.map(card));
+  }
   const total = [...historyDays.values()].flat().filter(shown).length;
   root.querySelector("#notes-history-summary").textContent = historyMonth + " · " + total + " 条已同步记录";
   root.querySelector("#notes-history-status").textContent = rows.length ? "待同步内容请在原日期查看。" : !total && !label3 ? "本月没有已同步记录。" : "所选日期没有符合条件的已同步记录。";
@@ -8216,7 +8346,7 @@ function applyHistoryMonth(root, month, days, chosenDate) {
   root.querySelector("#notes-history-month").value = month;
   monthOptions(dateSelect, dates, selected, "");
   monthOptions(root.querySelector("#notes-history-week"), ["", ...weeks.map((_, index) => String(index + 1))], "", "全部周次");
-  const labels = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().map((row) => row.displayLabel)])];
+  const labels = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
   monthOptions(labelSelect, labels, oldLabel, "全部标签");
   paintHistoryRows(root);
 }
@@ -8233,7 +8363,7 @@ async function loadHistory(month = "", chosenDate = "") {
   try {
     const value = await apiNetwork(
       "/note-entries/month?month=" + encodeURIComponent(target),
-      { headers: { "X-Note-Labels-Version": "1" } }
+      { headers: { "X-Note-Labels-Version": "2" } }
     );
     const days = checkedNoteMonth(value, target);
     if (!active5()) return;
@@ -8298,7 +8428,11 @@ function registerNotesInputEvents() {
     else entryStores.get(event.target.dataset.category)?.edit(event.target.dataset.noteEntryEditor, event.target.value);
   });
   document.addEventListener("change", async (event) => {
-    if (notesVisible() && event.target.id === "notes-date") void selectDailyNotesDate(event.target.value);
+    if (notesVisible() && event.target.dataset.noteLabel) {
+      const itemId = event.target.dataset.noteLabel, source = [...entryStores.values()].find((store) => store.entry(itemId));
+      const selected = [...event.target.closest(".note-entry-label-options").querySelectorAll("input:checked")].map((input) => input.value);
+      if (!source?.relabelDraft(itemId, selected)) paintDailyNotesPage();
+    } else if (notesVisible() && event.target.id === "notes-date") void selectDailyNotesDate(event.target.value);
     else if (notesVisible() && event.target.id === "notes-history-date") {
       const root = event.target.closest("#daily-notes"), week = root.querySelector("#notes-history-week");
       if (week.value && !noteMonthWeeks(historyMonth)[Number(week.value) - 1]?.includes(event.target.value)) week.value = "";
@@ -8411,9 +8545,14 @@ async function handleEntryAction(target, entries) {
 async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector("#daily-notes");
-  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display]");
+  const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order]");
   if (!target || !root?.contains(target)) return;
   event.preventDefault();
+  if (target.dataset.historyOrder) {
+    root.dataset.historyOrder = target.dataset.historyOrder === "asc" ? "desc" : "asc";
+    if (historyMonth) paintHistoryRows(root);
+    return;
+  }
   if (target.dataset.historyDisplay) {
     root.dataset.historyDisplay = target.dataset.historyDisplay;
     for (const button2 of root.querySelectorAll("[data-history-display]")) button2.setAttribute("aria-pressed", String(button2 === target));
@@ -8431,7 +8570,7 @@ async function handleNotesClick(event) {
     return;
   }
   if (target.dataset.notesView) {
-    notesView = target.dataset.notesView === "history" ? "history" : "today";
+    notesView = ["history", "labels"].includes(target.dataset.notesView) ? target.dataset.notesView : "today";
     historySequence++;
     paintDailyNotesPage();
     if (notesView === "history") await loadHistory();
@@ -10063,7 +10202,7 @@ function applyMemoSplit(width = null, persist = false) {
   const max = Math.max(min, Math.floor(Math.min(480, area - 200, area * 0.65)));
   if (memoSplitRatio === void 0) {
     const saved = Number(storage.get(memoSplitStorage));
-    memoSplitRatio = Number.isFinite(saved) && saved >= 0.1 && saved <= 0.8 ? saved : 0.24;
+    memoSplitRatio = Number.isFinite(saved) && saved >= 0.1 && saved <= 0.8 ? saved : 0.16;
   }
   const value = Math.round(Math.max(min, Math.min(max, width ?? area * memoSplitRatio)));
   root.style.setProperty("--memo-list-w", value + "px");
@@ -10478,7 +10617,7 @@ function registerReminderEvents() {
 
 // web/controller.mjs
 function mainContent() {
-  return `<div id="page-header" class="page-head">${pageHeader()}</div>${state.page === "settings" ? segmented(
+  return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented(
     "settings-tab",
     Object.entries(
       state.me?.publicBusiness ? { workspace: settingsTabs.workspace, accounts: settingsTabs.accounts } : settingsTabs

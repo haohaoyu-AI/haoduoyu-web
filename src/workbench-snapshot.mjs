@@ -4,6 +4,7 @@ import {snapshotDate} from './business-snapshot.mjs';
 import {snapshotAccess} from './snapshot-access.mjs';
 import {snapshotBudget,snapshotDatabase} from './snapshot-budget.mjs';
 import {memosOwner} from './memos-validation.mjs';
+import {labelsFor} from './note-entries.mjs';
 
 const format='haoduoyu-workbench-snapshot-v1',timezone='Asia/Shanghai';
 const invalid=()=>fail(503,'SNAPSHOT_DATA','工作台数据无法完整投影，未返回部分内容');
@@ -65,12 +66,7 @@ export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memo
   const memos=await all('SELECT '+memoFields+',group_id,body FROM matrix_memo_notes WHERE user_id=?',[memosOwnerId]);
   const undated=version===2?await all('SELECT id,text,completed,version,created_at,updated_at,deleted_at FROM matrix_unscheduled_todos WHERE user_id=?',[ownerId]):[];
   const labels=version===2?await all('SELECT name,created_at FROM matrix_note_labels WHERE user_id=?',[notesOwnerId],'name'):[];
-  const links=version===2?await all('SELECT entry_id,label FROM matrix_note_entry_labels WHERE user_id=?',[notesOwnerId],'entry_id'):[];
-  const labelNames=new Set(labels.map(row=>row.name)),entryLabels=new Map();
-  for(const row of links) {
-    if(typeof row.entry_id!=='string'||!labelNames.has(row.label)||entryLabels.has(row.entry_id))invalid();
-    entryLabels.set(row.entry_id,row.label);
-  }
+  const entryLabels=version===2?await labelsFor(store,notesOwnerId,entries):new Map();
   const data=Object.fromEntries((version===2?v2Collections:collections).map(key=>[key,[]]));
   for(const row of todos) {
     if(row.completed!==0&&row.completed!==1||typeof row.text!=='string')invalid();
@@ -83,11 +79,11 @@ export async function readWorkbenchSnapshotData(store,{ownerId,notesOwnerId,memo
   }
   for(const row of entries) {
     if(!['life','work'].includes(row.category)||typeof row.text!=='string')invalid();
-    const label=entryLabels.get(row.id);
-    if(label!==undefined&&row.category!=='life')invalid();
+    const labels=entryLabels.get(row.id);
+    if(labels!==undefined&&row.category!=='life')invalid();
     entryLabels.delete(row.id);
     data[row.category+'_notes'].push(record(row,{prefix:'note-entry',type:row.category+'_note',source:'note_entry',
-      category:row.category,content:{text:row.text,...(label===undefined?{}:{label})}},budget));
+      category:row.category,content:{text:row.text,...(labels===undefined?{}:{label:labels[0]})}},budget));
   }
   if(entryLabels.size)invalid();
   for(const row of undated) {

@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 
+export const labelMigrationTag='0011_note_entry_multi_labels';
+export const labelMigrationSha256='943029b954208a8efce356ad7ee9a62ddea2d5ec0b03395d10578406639f7d90';
+export function validateLabelMigrationSource(tag,sql) {
+  assert.equal(tag,labelMigrationTag,'Only the reviewed label migration is allowed');
+  assert.equal(createHash('sha256').update(sql).digest('hex'),labelMigrationSha256,'Label migration source differs from its reviewed hash');
+  return sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+}
 export const articleMigrationTag='0005_article_pipeline';
 export const articleMigrationSha256='b45a31900d6b7153a423b8c7fa870b0a98da3e5b074b6d6f62ac044f7782a2ba';
 const statementHashes=[
@@ -104,7 +111,7 @@ export async function applyArticleMigration(db,options={}) {
 
 export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
   const journal=JSON.parse(await readFile(new URL('drizzle/meta/_journal.json',root),'utf8'));
-  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels'],'Unreviewed local migration journal');
+  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag],'Unreviewed local migration journal');
   await db.prepare('CREATE TABLE IF NOT EXISTS __fixture_migrations(name TEXT PRIMARY KEY)').run();
   const migrated=await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_control'").first();
   if(migrated)await db.prepare('INSERT OR IGNORE INTO __fixture_migrations(name) VALUES(?)').bind(journal.entries[0].tag).run();
@@ -113,8 +120,9 @@ export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
     if(entry.tag===articleMigrationTag)await applyArticleMigration(db);
     else {
       const sql=await readFile(new URL('drizzle/'+entry.tag+'.sql',root),'utf8');
-      const statements=split(sql);
+      const statements=entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):split(sql);
       for(const statement of statements) {
+        if(entry.tag===labelMigrationTag)continue;
         if(entry.idx===3&&['ALTER TABLE `matrix_todos` ADD `deleted_at` text;',
           'ALTER TABLE `matrix_todo_template_links` ADD `created_with_todo` integer DEFAULT 1 NOT NULL;'].includes(statement))continue;
         assert.match(statement,/^CREATE (?:TABLE|(?:UNIQUE )?INDEX)\s+`matrix_/,'Unreviewed legacy migration statement');

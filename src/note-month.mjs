@@ -2,6 +2,7 @@ import {fail} from './security.mjs';
 import {consistentRead} from './storage.mjs';
 import {snapshotDate} from './business-snapshot.mjs';
 import {noteEntryQuery} from './note-entry-validation.mjs';
+import {labelsFor} from './note-entries.mjs';
 
 // A month is returned in full or not at all. In particular, never turn an
 // exhausted budget into an apparently empty calendar day.
@@ -22,8 +23,8 @@ export function noteMonthQueries(source) {
   const stat='SELECT count(*) AS n,coalesce(sum(length(CAST(text AS BLOB))),0) AS bytes FROM '+
     '(SELECT text FROM '+source.table+' WHERE '+clause('')+' LIMIT ?)';
   const alias=source.legacy?'':'e.';
-  const select=source.legacy?'date,text,updated_at':'e.id,e.category,e.date,e.text,e.created_at,e.updated_at,l.label';
-  const from=source.legacy?source.table:source.table+' e LEFT JOIN matrix_note_entry_labels l ON l.user_id=e.user_id AND l.entry_id=e.id';
+  const select=source.legacy?'date,text,updated_at':'e.id,e.category,e.date,e.text,e.created_at,e.updated_at,(SELECT label FROM matrix_note_entry_labels l WHERE l.user_id=e.user_id AND l.entry_id=e.id ORDER BY label LIMIT 1) AS label';
+  const from=source.legacy?source.table:source.table+' e';
   const rows='SELECT '+select+' FROM '+from+' WHERE '+clause(alias)+' ORDER BY '+alias+'date'+(source.legacy?'':',e.created_at,e.id')+' LIMIT ?';
   return {stat,rows};
 }
@@ -32,7 +33,7 @@ const params=(source,owner,start,end,limit)=>[owner,...(source.legacy?[]:[source
 
 export async function handleNoteMonth(db,request,owner,initialRevision) {
   if(request.method!=='GET')throw fail(405,'METHOD_NOT_ALLOWED','月记录只提供读取');
-  const aware=request.headers.get('X-Note-Labels-Version')==='1';
+  const header=request.headers.get('X-Note-Labels-Version'),aware=header==='2'?2:header==='1'?1:0;
   const query=new URL(request.url).searchParams;
   noteEntryQuery(query,['month']);
   const month=query.get('month');
@@ -53,19 +54,20 @@ export async function handleNoteMonth(db,request,owner,initialRevision) {
     for(const [index,source] of sources.entries()) {
       const rows=await store.all(noteMonthQueries(source).rows,...params(source,owner,start,end,counts[index]+1));
       if(rows.length!==counts[index])throw fail(503,'NOTES_DATA','月记录读取数量无法核对');
+      const labelsByEntry=source.legacy||!aware?new Map():await labelsFor(store,owner,rows);
       for(const row of rows) {
         try {if(snapshotDate(row.date)!==row.date||!row.date.startsWith(month+'-'))throw Error();}catch {throw fail(503,'NOTES_DATA','月记录日期无法核对');}
         const category=source.legacy?source.category:row.category;
         if(!['life','work'].includes(category)||typeof row.text!=='string'||!source.legacy&&row.label!==null&&typeof row.label!=='string')
           throw fail(503,'NOTES_DATA','月记录内容无法核对');
         const item={entity_id:source.legacy?'legacy-'+category+':'+row.date:'note-entry:'+row.id,
-          source:source.legacy?'legacy_daily_note':'note_entry',category,label:source.legacy||!aware?null:row.label,
+          source:source.legacy?'legacy_daily_note':'note_entry',category,...(aware===2?{labels:source.legacy?[]:labelsByEntry.get(row.id)??[]}:{label:source.legacy||!aware?null:labelsByEntry.get(row.id)?.[0]??null}),
           text:row.text,created_at:source.legacy?null:row.created_at,updated_at:row.updated_at};
         if(!days.has(row.date))days.set(row.date,[]);
         days.get(row.date).push(item);
       }
     }
-    const value={format:'haoduoyu-note-month-v1',month,complete:true,labels_version:aware?1:0,days:[...days].sort(([a],[b])=>a.localeCompare(b)).map(([date,items])=>({
+    const value={format:'haoduoyu-note-month-v1',month,complete:true,labels_version:aware,days:[...days].sort(([a],[b])=>a.localeCompare(b)).map(([date,items])=>({
       date,items:items.sort((a,b)=>String(a.created_at??'').localeCompare(String(b.created_at??''))||a.entity_id.localeCompare(b.entity_id))
     }))};
     const serialized=JSON.stringify({data:value});
