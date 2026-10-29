@@ -1,3 +1,4 @@
+import {openFloatingWorkbench} from "./floating-workbench.mjs";
 import {deleteUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
 import { cancelModalRequests } from "./core/requests.mjs";
 import { navigate, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell, renderMediaOverview } from "./controller.mjs";
@@ -297,6 +298,7 @@ const actions = {
   "media-records": reviewRecordsModal,
   "article-verify-retry": retryArticleVerification,
   "article-verify-refresh": refreshArticleVerification,
+  "todo-floating": openFloatingWorkbench,
   "todo-menu": openTodoMenu,
   "todo-delete": ({ target }) => deleteTodo(target.dataset),
   "todo-restore": ({ target }) => restoreTodo(target.dataset),

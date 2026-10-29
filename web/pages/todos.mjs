@@ -16,6 +16,14 @@ let todoClock = null;
 let monthSnapshot = {month:"", owner:"", days:new Map(), loading:false, error:""};
 let calendarStatus = "all";
 const savingTimes = new WeakMap(), savingTimers = new WeakMap();
+const todoObservers = new Set();
+function observeTodoChanges(callback) {
+  todoObservers.add(callback);
+  return () => todoObservers.delete(callback);
+}
+function notifyTodoChanges() {
+  for (const callback of todoObservers) callback();
+}
 function todoCalendarMonth(date) {
   if (todosState.calendarDate !== date || !validTodoDate(`${todosState.calendarMonth}-01`)) {
     todosState.calendarDate = date;
@@ -149,12 +157,17 @@ function todoCaption(day) {
   const today = day.date === bjtDate();
   return `<time datetime="${e(day.date)}" title="北京时间">${today ? "今天 · " : ""}${e(day.date)}</time>`;
 }
+function floatingTodoSupported() {
+  return typeof window !== "undefined" && typeof window.documentPictureInPicture?.requestWindow === "function";
+}
 function todoHeading(day) {
   const selected=state.todoPanel||"today";
   return `<span id="todo-caption" hidden>${todoCaption(day)}</span><nav class="todo-page-tabs" aria-label="待办页面">
 ${[["today","今日"],["future","未来待办"],["history","历史"],["templates","常用"]].map(([panel,label])=>
   `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel==='today'?'':panel}"
-  aria-current="${selected===panel?'page':'false'}" ${panel==='templates'?'aria-label="管理常用"':''}>${label}</button>`).join("")}</nav>`;
+  aria-current="${selected===panel?'page':'false'}" ${panel==='templates'?'aria-label="管理常用"':''}>${label}</button>`).join("")}</nav>
+<button class="btn todo-floating-open" type="button" data-action="todo-floating" ${floatingTodoSupported() ? "" : "disabled"}>桌面便签</button>
+${floatingTodoSupported() ? "" : '<span class="todo-floating-support" role="status">当前浏览器不支持置顶便签</span>'}`;
 }
 function renderTodoHistory(day) {
   return `<section id="todo-history" class="todo-view" aria-label="历史待办" ${state.todoPanel === "history" ? "" : "hidden"}>
@@ -229,6 +242,7 @@ function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
 }
 function paintTodos() {
+  notifyTodoChanges();
   const root = $("#daily-todos");
   if (!root || !todosVisible()) return;
   const day = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
@@ -290,16 +304,18 @@ async function loadTodos(context) {
   } catch (error) {
     if (todoReadActive(owner, version, date, day, sequence) && !isRequestAbort(error) && !error.staleSession) day.error = error.message;
   } finally {
-    if (todoReadActive(owner, version, date, day, sequence)) {
+    if (todoSessionActive(owner) && day.sequence === sequence) {
+      const visible = todoReadActive(owner, version, date, day, sequence);
       day.loading = false;
       paintTodos();
-      if (state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
+      if (visible && state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
+      if (!visible && todoObservers.size && date === bjtDate()) void loadFloatingToday();
     }
   }
 }
 function inputTodo(target) {
   const date = target.form?.dataset.date;
-  if (target.id === "todo-text" && validTodoDate(date)) todoDay(date).draft = target.value;
+  if (target.id === "todo-text" && validTodoDate(date)) { todoDay(date).draft = target.value; notifyTodoChanges(); }
 }
 function showTodoFailure(day, error) {
   if (!isRequestAbort(error) && !error.staleSession) day.error = error.message;
@@ -382,11 +398,11 @@ async function submitTodoTemplate(template) {
   }
   await saveTodo(day, request, template.id);
 }
-async function toggleTodo(target) {
-  if (!todosVisible()) return;
+async function toggleTodo(target, {floating = false} = {}) {
+  if (!(floating ? Boolean(state.me) : todosVisible())) return;
   const day = todoDay(target.dataset.date), owner = todoOwner();
   const item = day.items.find((row) => row.id === target.dataset.todoId);
-  if (!item || item.deleted_at || day.date !== todoDate()) return;
+  if (!item || item.deleted_at || day.date !== (floating ? bjtDate() : todoDate())) return;
   if (todoBusy(day, item.id)) {
     target.checked = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
     return;
@@ -407,9 +423,12 @@ async function toggleTodo(target) {
     if (!todoSessionActive(owner)) return;
     day.updates.set(item.id, item.completed);
     showTodoFailure(day, error);
-    if (error.status === 409 && day.date === todoDate()) {
+    if (error.status === 409 && (floating || day.date === todoDate())) {
       day.error = "这项计划已更新，已重新读取，请核对后再操作。";
-      await loadTodos();
+      if (floating) {
+        await loadFloatingToday();
+        if (todoSessionActive(owner)) day.error = "这项计划已更新，已重新读取，请核对后再操作。";
+      } else await loadTodos();
       if (todoSessionActive(owner) && item.template_id) refreshOpenTodoTemplates();
     }
   } finally {
@@ -418,6 +437,25 @@ async function toggleTodo(target) {
       day.revision++;
       paintTodos();
     }
+  }
+}
+// The floating view uses the same day object, writes, and offline transport.
+async function loadFloatingToday() {
+  if (!state.me) return;
+  const date = bjtDate(), day = todoDay(date), owner = todoOwner();
+  const sequence = ++day.sequence, revision = day.revision;
+  const current = () => todoSessionActive(owner) && date === bjtDate() && day.sequence === sequence;
+  day.loading = true; day.error = ""; paintTodos();
+  try {
+    const data = await api(`/todos?date=${encodeURIComponent(date)}`);
+    if (!current()) return;
+    if (day.revision !== revision) { void loadFloatingToday(); return; }
+    receiveTodoPreferences(data.completed_mode, data.preferences_version);
+    day.items = data.items; day.loaded = true;
+  } catch (error) {
+    if (current() && !isRequestAbort(error) && !error.staleSession) day.error = error.message;
+  } finally {
+    if (current()) { day.loading = false; paintTodos(); }
   }
 }
 function selectTodoDate(date) {
@@ -461,6 +499,7 @@ function registerTodosClock() {
   scheduleTodoClock();
 }
 export {
-  inputTodo, loadTodos, moveTodoDate, moveTodoMonth, paintTodos, refreshTodos, registerTodosClock, renderTodos, retryTodoCreate,
-  selectTodoDate, setTodoNotice, setTodoPanel, submitTodo, submitTodoTemplate, toggleTodo
+  floatingTodoSupported, inputTodo, loadFloatingToday, loadTodos, moveTodoDate, moveTodoMonth, paintTodos, refreshTodos,
+  registerTodosClock, renderTodos, retryTodoCreate,
+  observeTodoChanges, selectTodoDate, setTodoNotice, setTodoPanel, submitTodo, submitTodoTemplate, toggleTodo
 };

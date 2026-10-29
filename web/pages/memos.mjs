@@ -81,7 +81,8 @@ function flatNoteRow(note, store) {
 }
 function paintLists(root, store) {
   const s = store.state, find = q => root.querySelector(q);
-  find('#memo-groups-heading').textContent = s.trash ? '回收站' : '笔记';
+  find('#memo-groups-heading').textContent = s.trash ? '回收站' : '';
+  find('#memo-groups-heading').hidden = !s.trash;
   const notes = s.notes.filter(note => {
     const group = s.groups.find(row => row.id === note.group_id);
     return Boolean(note.deleted_at || group?.deleted_at) === s.trash;

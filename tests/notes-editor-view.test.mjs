@@ -49,13 +49,14 @@ test('IME composing state blocks collapse through blur and an otherwise stable a
   item.composing = false; assert.equal(views.sync('life', day, [item], legacy()).active, '');
 });
 
-test('unknown, conflict, oversize and unsaved drafts remain recoverable even before first save', () => {
+test('drafts start in the list and explicit cancel preserves their contents', () => {
   for (const phase of ['unknown', 'conflict', 'oversize', 'error']) {
     const views = createNotesEditorView(), item = record('one', {phase, version: 0, dirty: true});
-    const view = views.sync('life', day, [item], legacy());
-    assert.equal(view.active, item.id); views.requestCollapse('life', day, item.id, view.revision, {explicit: true});
-    assert.equal(views.sync('life', day, [item], legacy()).active, item.id); assert.equal(noteEditorCanCollapse(item), false);
-    views.activate('life', day, 'two'); assert.equal(views.sync('life', day, [item, record('two')], legacy()).active, 'two');
+    assert.equal(views.sync('life', day, [item], legacy()).active, '');
+    const revision = views.activate('life', day, item.id).revision;
+    views.requestCollapse('life', day, item.id, revision, {explicit: true});
+    assert.equal(views.sync('life', day, [item], legacy()).active, '');
+    assert.equal(item.draft, '已保存文字');
   }
 });
 
@@ -68,10 +69,12 @@ test('date and category changes retain each active record independently and rese
   views.clear(); assert.equal(views.sync('life', day, [item], legacy()).active, '');
 });
 
-test('legacy records follow the same explicit editing and unknown-write protection', () => {
+test('legacy pending writes remain protected when viewing and cancelling', () => {
   const views = createNotesEditorView(), old = record('legacy', {phase: 'unknown', pending: {}});
-  const view = views.sync('life', day, [], old); assert.equal(view.active, 'legacy');
-  views.requestCollapse('life', day, 'legacy', view.revision); assert.equal(views.sync('life', day, [], old).active, 'legacy');
+  assert.equal(views.sync('life', day, [], old).active, '');
+  const view = views.activate('life', day, 'legacy');
+  views.requestCollapse('life', day, 'legacy', view.revision, {explicit:true});
+  assert.equal(views.sync('life', day, [], old).active, 'legacy');
   old.pending = null; old.phase = 'saved'; assert.equal(views.sync('life', day, [], old).active, '');
 });
 

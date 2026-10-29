@@ -1,6 +1,6 @@
 import {e} from '../core/dom.mjs';
 import {dailyNotesToday, dailyNotesRouteCategory} from '../core/daily-notes-state.mjs';
-import {noteDraftNeedsAttention, noteEditorCanCollapse} from '../core/notes-editor-view.mjs';
+import {noteDraftNeedsAttention} from '../core/notes-editor-view.mjs';
 import {renderNotesMonthMarkup} from '../notes-month-controller.mjs';
 
 function legacyEditorMarkup() {
@@ -50,10 +50,8 @@ export function renderDailyNotes() {
     '<div id="notes-history-list" class="notes-entry-list"></div></div></div></section>' +
     '<section id="notes-labels" hidden aria-label="标签管理">' +
     '<div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label>' +
-    '<button class="btn text" type="button" data-notes-action="create-label">添加标签</button>' +
-    '<span id="notes-label-status" role="status" aria-live="polite"></span></div>' +
-    '<p>归档标签后，已有记录和标签关联仍会保留。</p><h3>使用中的标签</h3><ul id="notes-label-list"></ul>' +
-    '<h3>已归档标签</h3><p id="notes-archived-empty">暂无已归档标签。</p><ul id="notes-archived-label-list"></ul></section>' +
+    '<button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div>' +
+    '<p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section>' +
     '<div id="notes-today">' +
     '<div class="notes-toolbar"><div class="notes-date-controls">' +
     '<button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button>' +
@@ -63,17 +61,17 @@ export function renderDailyNotes() {
     '<button class="btn text" type="button" data-notes-action="today">今天</button></div>' +
     '<div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button>' +
     '<button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div>' +
-    '<details class="notes-published"><summary>已发布记录</summary><div id="notes-entry-list" class="notes-entry-list"></div>' +
+    '<span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div>' +
+    '<div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div>' +
     '<article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden>' +
     '<div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div>' +
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button>' +
-    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></details>' +
-    '<span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div>' +
+    '<button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div>' +
     '<div id="notes-drafts" class="notes-drafts" hidden></div>' +
     '<p id="notes-entry-message" class="notes-message" role="alert" hidden></p>' +
     '<section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden>' +
-    '<div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div>' +
+    '<div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div>' +
     '<div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section>' +
     '<p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p>' +
     '<div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
@@ -311,15 +309,21 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
   for (const item of saved) {
     const node = nodes.get(item.id) || createEntryElement(item, false);
     (noteDraftNeedsAttention(item) ? unpublished : list).append(node);
-    paintSavedEntry(node, item);
+    paintSavedEntry(node, item); node.dataset.sortTime = item.createdAt || item.localCreatedAt || '';
   }
   paintActiveEditor(root, store, active, legacy, confirmId, labels, labelsVerified); paintLegacySummary(root, legacy, active);
   (retainedLegacy(legacy) ? unpublished : list).append(root.querySelector('#notes-legacy-saved'));
+  root.querySelector('#notes-legacy-saved').dataset.sortTime = legacy.updatedAt || '';
   paintOtherLegacy(root, list, otherLegacy, otherCategory);
+  root.querySelector('#notes-legacy-other').dataset.sortTime = otherLegacy?.updatedAt || '';
   if (otherLegacy && retainedLegacy(otherLegacy)) unpublished.append(root.querySelector('#notes-legacy-other'));
   const composer = find('#notes-composer'), activeItem = active === 'legacy' ? legacy : store.entry(active);
   composer.hidden = !activeItem; composer.dataset.active = active;
-  find('[data-notes-action="collapse"]').disabled = !noteEditorCanCollapse(activeItem);
+  find('.notes-published').hidden = Boolean(activeItem); unpublished.hidden = Boolean(activeItem);
+  find('[data-notes-action="new"]').hidden = !canEdit || Boolean(activeItem);
+  find('[data-notes-action="collapse"]').disabled = Boolean(activeItem?.pending || activeItem?.composing);
+  const ordered = [...list.children].sort((a, b) => String(a.dataset.sortTime || '').localeCompare(String(b.dataset.sortTime || '')));
+  list.append(...ordered);
   find('#notes-entry-empty').hidden = !(current.allLoaded ?? current.loaded) || Boolean(activeItem) || saved.length > 0 || legacy.version > 0 ||
     noteDraftNeedsAttention(legacy) || Boolean(otherLegacy && (otherLegacy.version > 0 || noteDraftNeedsAttention(otherLegacy)));
   const unresolved = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy);

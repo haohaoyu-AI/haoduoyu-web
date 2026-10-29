@@ -28,13 +28,8 @@ export function createNotesEditorView() {
   function sync(category, date, items, legacy, {focused = false, composing = false} = {}) {
     const view = page(category, date), item = view.active === 'legacy' ? legacy : items.find(value => value.id === view.active);
     if (view.active && !item) activate(category, date, '');
-    else if (view.collapseRequested && noteEditorCanCollapse(item) && !composing && (!focused || view.explicit)) {
+    else if (view.collapseRequested && (noteEditorCanCollapse(item) || view.explicit && item && !item.pending) && !composing && (!focused || view.explicit)) {
       activate(category, date, '');
-    }
-    if (!view.active) {
-      const draft = items.find(noteDraftNeedsAttention);
-      if (draft) activate(category, date, draft.id);
-      else if (noteDraftNeedsAttention(legacy)) activate(category, date, 'legacy');
     }
     return view;
   }

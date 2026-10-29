@@ -282,6 +282,7 @@ function todoOwner() {
   return JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null]);
 }
 function resetTodos() {
+  if (typeof window !== "undefined" && typeof Event === "function") window.dispatchEvent(new Event("haoduoyu-todos-reset"));
   todosState.owner = todoOwner();
   todosState.days.clear();
   todosState.today = bjtDate();
@@ -423,12 +424,12 @@ function animatePageEntry(container) {
   }
 }
 function applyChartStyles(container) {
-  for (const node of container.querySelectorAll(".publication-bars i[data-chart-color],.legend-dot[data-chart-color]")) {
-    const color = node.dataset.chartColor;
-    node.style.setProperty("--plot-color", /^var\(--p-(?:toutiao|zhihu|wechat|other)\)$/.test(color) ? color : "var(--p-other)");
-    if (node.hasAttribute("data-chart-height")) {
-      const height = Number(node.dataset.chartHeight);
-      node.style.setProperty("--h", Number.isFinite(height) && height >= 0 && height <= 80 ? `${height}px` : "0px");
+  for (const node2 of container.querySelectorAll(".publication-bars i[data-chart-color],.legend-dot[data-chart-color]")) {
+    const color = node2.dataset.chartColor;
+    node2.style.setProperty("--plot-color", /^var\(--p-(?:toutiao|zhihu|wechat|other)\)$/.test(color) ? color : "var(--p-other)");
+    if (node2.hasAttribute("data-chart-height")) {
+      const height = Number(node2.dataset.chartHeight);
+      node2.style.setProperty("--h", Number.isFinite(height) && height >= 0 && height <= 80 ? `${height}px` : "0px");
     }
   }
 }
@@ -444,9 +445,9 @@ function replacePageContent(html, animate = false) {
 // web/ui/popover.mjs
 function closePopover({ restoreFocus = true } = {}) {
   if (!runtime.activePopover) return;
-  const { node, trigger } = runtime.activePopover;
+  const { node: node2, trigger } = runtime.activePopover;
   runtime.activePopover = null;
-  node.remove();
+  node2.remove();
   trigger.setAttribute("aria-expanded", "false");
   if (restoreFocus && trigger.isConnected) trigger.focus();
 }
@@ -456,21 +457,21 @@ function popover(trigger, body2, { menu = false, label: label3 = "说明" } = {}
     return;
   }
   closePopover();
-  const id = trigger.getAttribute("aria-controls") || `popover-${++runtime.popoverId}`, node = document.createElement("div");
+  const id = trigger.getAttribute("aria-controls") || `popover-${++runtime.popoverId}`, node2 = document.createElement("div");
   trigger.setAttribute("aria-controls", id);
   trigger.setAttribute("aria-expanded", "true");
-  node.id = id;
-  node.className = "popover";
-  node.setAttribute("role", menu ? "menu" : "dialog");
-  node.setAttribute("aria-label", label3);
-  node.tabIndex = -1;
-  node.innerHTML = body2;
-  (trigger.closest("[role=dialog]") || document.body).append(node);
-  runtime.activePopover = { node, trigger, menu };
-  const anchor = trigger.getBoundingClientRect(), r = node.getBoundingClientRect();
-  node.style.left = `var(--popover-left,${Math.max(16, Math.min(anchor.right - r.width, innerWidth - r.width - 16))}px)`;
-  node.style.top = `var(--popover-top,${Math.max(16, Math.min(anchor.bottom + 8, innerHeight - r.height - 16))}px)`;
-  (node.querySelector('button,a[href],input:not([type=hidden]),select,[tabindex="0"]') || node).focus();
+  node2.id = id;
+  node2.className = "popover";
+  node2.setAttribute("role", menu ? "menu" : "dialog");
+  node2.setAttribute("aria-label", label3);
+  node2.tabIndex = -1;
+  node2.innerHTML = body2;
+  (trigger.closest("[role=dialog]") || document.body).append(node2);
+  runtime.activePopover = { node: node2, trigger, menu };
+  const anchor = trigger.getBoundingClientRect(), r = node2.getBoundingClientRect();
+  node2.style.left = `var(--popover-left,${Math.max(16, Math.min(anchor.right - r.width, innerWidth - r.width - 16))}px)`;
+  node2.style.top = `var(--popover-top,${Math.max(16, Math.min(anchor.bottom + 8, innerHeight - r.height - 16))}px)`;
+  (node2.querySelector('button,a[href],input:not([type=hidden]),select,[tabindex="0"]') || node2).focus();
 }
 
 // web/pages/login.mjs
@@ -2013,7 +2014,7 @@ function operationFor(input, uuid5, time2) {
   return operation2;
 }
 async function digest(value) {
-  const canonical4 = (node) => Array.isArray(node) ? node.map(canonical4) : node && typeof node === "object" ? Object.fromEntries(Object.keys(node).sort().map((key) => [key, canonical4(node[key])])) : node;
+  const canonical4 = (node2) => Array.isArray(node2) ? node2.map(canonical4) : node2 && typeof node2 === "object" ? Object.fromEntries(Object.keys(node2).sort().map((key) => [key, canonical4(node2[key])])) : node2;
   const bytes = new TextEncoder().encode(JSON.stringify(canonical4(value)));
   const hash = await globalThis.crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(hash)].map((value2) => value2.toString(16).padStart(2, "0")).join("");
@@ -4863,13 +4864,13 @@ function sortHeading(key, label3) {
 
 // web/ui/toast.mjs
 function toast(message, error = false) {
-  const node = document.createElement("div");
-  node.className = `toast${error ? " error" : ""}`;
-  node.setAttribute("role", error ? "alert" : "status");
-  node.textContent = message;
-  $("#toasts").append(node);
+  const node2 = document.createElement("div");
+  node2.className = `toast${error ? " error" : ""}`;
+  node2.setAttribute("role", error ? "alert" : "status");
+  node2.textContent = message;
+  $("#toasts").append(node2);
   while ($("#toasts").children.length > 3) $("#toasts").firstElementChild.remove();
-  setTimeout(() => node.remove(), error ? 8e3 : 4500);
+  setTimeout(() => node2.remove(), error ? 8e3 : 4500);
 }
 
 // web/pages/articles.mjs
@@ -5686,8 +5687,8 @@ function paintTodoTemplates() {
     "todo-template-feedback": e(store.error),
     "todo-template-status": ""
   })) {
-    const node = $("#" + id, root);
-    if (node && node.innerHTML !== html) node.innerHTML = html;
+    const node2 = $("#" + id, root);
+    if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
   }
 }
 function templateReadActive(store, owner2, sequence2, version2, date) {
@@ -6092,6 +6093,14 @@ var todoClock = null;
 var monthSnapshot = { month: "", owner: "", days: /* @__PURE__ */ new Map(), loading: false, error: "" };
 var calendarStatus = "all";
 var savingTimes = /* @__PURE__ */ new WeakMap(), savingTimers = /* @__PURE__ */ new WeakMap();
+var todoObservers = /* @__PURE__ */ new Set();
+function observeTodoChanges(callback) {
+  todoObservers.add(callback);
+  return () => todoObservers.delete(callback);
+}
+function notifyTodoChanges() {
+  for (const callback of todoObservers) callback();
+}
 function todoCalendarMonth(date) {
   if (todosState.calendarDate !== date || !validTodoDate(`${todosState.calendarMonth}-01`)) {
     todosState.calendarDate = date;
@@ -6216,9 +6225,9 @@ async function loadTodoMonth(month) {
   } finally {
     snapshot.loading = false;
     if (monthSnapshot === snapshot && todosVisible()) {
-      const node = $("#todo-calendar");
-      if (node) {
-        node.dataset.month = "";
+      const node2 = $("#todo-calendar");
+      if (node2) {
+        node2.dataset.month = "";
         paintTodoCalendar(todoDay().date);
       }
     }
@@ -6253,11 +6262,16 @@ function todoCaption(day4) {
   const today2 = day4.date === bjtDate();
   return `<time datetime="${e(day4.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day4.date)}</time>`;
 }
+function floatingTodoSupported() {
+  return typeof window !== "undefined" && typeof window.documentPictureInPicture?.requestWindow === "function";
+}
 function todoHeading(day4) {
   const selected = state.todoPanel || "today";
   return `<span id="todo-caption" hidden>${todoCaption(day4)}</span><nav class="todo-page-tabs" aria-label="待办页面">
 ${[["today", "今日"], ["future", "未来待办"], ["history", "历史"], ["templates", "常用"]].map(([panel, label3]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel === "today" ? "" : panel}"
-  aria-current="${selected === panel ? "page" : "false"}" ${panel === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>`;
+  aria-current="${selected === panel ? "page" : "false"}" ${panel === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>
+<button class="btn todo-floating-open" type="button" data-action="todo-floating" ${floatingTodoSupported() ? "" : "disabled"}>桌面便签</button>
+${floatingTodoSupported() ? "" : '<span class="todo-floating-support" role="status">当前浏览器不支持置顶便签</span>'}`;
 }
 function renderTodoHistory(day4) {
   return `<section id="todo-history" class="todo-view" aria-label="历史待办" ${state.todoPanel === "history" ? "" : "hidden"}>
@@ -6267,8 +6281,8 @@ ${todoCalendar(day4.date)}</div></section>`;
 function paintTodoPanels(root) {
   const panel = state.todoPanel || "";
   for (const [id, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"], ["todo-future", "future"]]) {
-    const node = $("#" + id, root);
-    if (node) node.hidden = id === "todo-main" ? ["templates", "future"].includes(panel) : panel !== value;
+    const node2 = $("#" + id, root);
+    if (node2) node2.hidden = id === "todo-main" ? ["templates", "future"].includes(panel) : panel !== value;
   }
   const back = $("#todo-return-today", root);
   if (back) back.hidden = !state.todoDate || Boolean(panel);
@@ -6341,6 +6355,7 @@ function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
 }
 function paintTodos() {
+  notifyTodoChanges();
   const root = $("#daily-todos");
   if (!root || !todosVisible()) return;
   const day4 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
@@ -6359,8 +6374,8 @@ function paintTodos() {
     "todo-history-empty": todoHistoryEmpty(day4)
   };
   for (const [id, html] of Object.entries(parts)) {
-    const node = $("#" + id, root);
-    if (node && node.innerHTML !== html) node.innerHTML = html;
+    const node2 = $("#" + id, root);
+    if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
   }
   paintTodoCalendar(day4.date);
   const input = $("#todo-text", root), button2 = $("#todo-form button[type=submit]", root);
@@ -6414,16 +6429,21 @@ async function loadTodos(context) {
   } catch (error) {
     if (todoReadActive(owner2, version2, date, day4, sequence2) && !isRequestAbort(error) && !error.staleSession) day4.error = error.message;
   } finally {
-    if (todoReadActive(owner2, version2, date, day4, sequence2)) {
+    if (todoSessionActive(owner2) && day4.sequence === sequence2) {
+      const visible3 = todoReadActive(owner2, version2, date, day4, sequence2);
       day4.loading = false;
       paintTodos();
-      if (state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
+      if (visible3 && state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
+      if (!visible3 && todoObservers.size && date === bjtDate()) void loadFloatingToday();
     }
   }
 }
 function inputTodo(target) {
   const date = target.form?.dataset.date;
-  if (target.id === "todo-text" && validTodoDate(date)) todoDay(date).draft = target.value;
+  if (target.id === "todo-text" && validTodoDate(date)) {
+    todoDay(date).draft = target.value;
+    notifyTodoChanges();
+  }
 }
 function showTodoFailure(day4, error) {
   if (!isRequestAbort(error) && !error.staleSession) day4.error = error.message;
@@ -6509,11 +6529,11 @@ async function submitTodoTemplate(template) {
   }
   await saveTodo(day4, request, template.id);
 }
-async function toggleTodo(target) {
-  if (!todosVisible()) return;
+async function toggleTodo(target, { floating = false } = {}) {
+  if (!(floating ? Boolean(state.me) : todosVisible())) return;
   const day4 = todoDay(target.dataset.date), owner2 = todoOwner();
   const item = day4.items.find((row) => row.id === target.dataset.todoId);
-  if (!item || item.deleted_at || day4.date !== todoDate()) return;
+  if (!item || item.deleted_at || day4.date !== (floating ? bjtDate() : todoDate())) return;
   if (todoBusy(day4, item.id)) {
     target.checked = day4.updates.has(item.id) ? day4.updates.get(item.id) : item.completed;
     return;
@@ -6534,15 +6554,45 @@ async function toggleTodo(target) {
     if (!todoSessionActive(owner2)) return;
     day4.updates.set(item.id, item.completed);
     showTodoFailure(day4, error);
-    if (error.status === 409 && day4.date === todoDate()) {
+    if (error.status === 409 && (floating || day4.date === todoDate())) {
       day4.error = "这项计划已更新，已重新读取，请核对后再操作。";
-      await loadTodos();
+      if (floating) {
+        await loadFloatingToday();
+        if (todoSessionActive(owner2)) day4.error = "这项计划已更新，已重新读取，请核对后再操作。";
+      } else await loadTodos();
       if (todoSessionActive(owner2) && item.template_id) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner2)) {
       day4.updates.delete(item.id);
       day4.revision++;
+      paintTodos();
+    }
+  }
+}
+async function loadFloatingToday() {
+  if (!state.me) return;
+  const date = bjtDate(), day4 = todoDay(date), owner2 = todoOwner();
+  const sequence2 = ++day4.sequence, revision2 = day4.revision;
+  const current2 = () => todoSessionActive(owner2) && date === bjtDate() && day4.sequence === sequence2;
+  day4.loading = true;
+  day4.error = "";
+  paintTodos();
+  try {
+    const data = await api(`/todos?date=${encodeURIComponent(date)}`);
+    if (!current2()) return;
+    if (day4.revision !== revision2) {
+      void loadFloatingToday();
+      return;
+    }
+    receiveTodoPreferences(data.completed_mode, data.preferences_version);
+    day4.items = data.items;
+    day4.loaded = true;
+  } catch (error) {
+    if (current2() && !isRequestAbort(error) && !error.staleSession) day4.error = error.message;
+  } finally {
+    if (current2()) {
+      day4.loading = false;
       paintTodos();
     }
   }
@@ -6620,13 +6670,8 @@ function createNotesEditorView() {
   function sync(category, date, items, legacy, { focused = false, composing = false } = {}) {
     const view = page(category, date), item = view.active === "legacy" ? legacy : items.find((value) => value.id === view.active);
     if (view.active && !item) activate(category, date, "");
-    else if (view.collapseRequested && noteEditorCanCollapse(item) && !composing && (!focused || view.explicit)) {
+    else if (view.collapseRequested && (noteEditorCanCollapse(item) || view.explicit && item && !item.pending) && !composing && (!focused || view.explicit)) {
       activate(category, date, "");
-    }
-    if (!view.active) {
-      const draft = items.find(noteDraftNeedsAttention);
-      if (draft) activate(category, date, draft.id);
-      else if (noteDraftNeedsAttention(legacy)) activate(category, date, "legacy");
     }
     return view;
   }
@@ -7426,7 +7471,7 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
   const active5 = () => !disposed && root.isConnected && identityNow() === expected;
   const visibleRows = (date) => (days.get(date) || []).filter((item) => !category || item.category === category);
   find("#notes-month-input").value = month;
-  function node(tag, text, className = "") {
+  function node2(tag, text, className = "") {
     const result = doc.createElement(tag);
     result.textContent = text;
     if (className) result.className = className;
@@ -7437,13 +7482,13 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
     list.replaceChildren();
     find("#notes-month-day-title").textContent = selected + " · " + rows.length + " 条记录";
     for (const item of rows) {
-      const card = node("article", "", "note-entry note-entry-saved"), head = node("div", "", "note-entry-head");
-      head.append(node("span", item.displayLabel + (item.source === "legacy_daily_note" ? " · 原有记录" : "")));
-      const time2 = node("time", new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.updated_at)));
+      const card = node2("article", "", "note-entry note-entry-saved"), head = node2("div", "", "note-entry-head");
+      head.append(node2("span", item.displayLabel + (item.source === "legacy_daily_note" ? " · 原有记录" : "")));
+      const time2 = node2("time", new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.updated_at)));
       time2.dateTime = item.updated_at;
       head.append(time2);
-      card.append(head, node("div", item.text || "这条记录没有文字。", "note-entry-reader"));
-      const open = node("button", "查看当天", "btn text");
+      card.append(head, node2("div", item.text || "这条记录没有文字。", "note-entry-reader"));
+      const open = node2("button", "查看当天", "btn text");
       open.type = "button";
       open.addEventListener("click", () => {
         if (active5()) void selectDate(selected, item.category);
@@ -7451,17 +7496,17 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
       card.append(open);
       list.append(card);
     }
-    if (!rows.length) list.append(node("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
+    if (!rows.length) list.append(node2("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
   }
   function paint() {
     const grid = find("#notes-month-grid");
     grid.replaceChildren();
     for (const date of noteMonthWeeks(month).flat()) {
       if (!date) {
-        grid.append(node("span", ""));
+        grid.append(node2("span", ""));
         continue;
       }
-      const count = visibleRows(date).length, button2 = node("button", String(Number(date.slice(-2))) + (count ? " · " + count : ""), "btn");
+      const count = visibleRows(date).length, button2 = node2("button", String(Number(date.slice(-2))) + (count ? " · " + count : ""), "btn");
       button2.type = "button";
       button2.dataset.notesMonthDate = date;
       button2.setAttribute("aria-label", date + "，" + count + " 条记录");
@@ -7546,7 +7591,7 @@ function legacyEditorMarkup() {
 }
 function renderDailyNotes() {
   const category = dailyNotesRouteCategory();
-  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">▲</button><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">▼</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button><span id="notes-label-status" role="status" aria-live="polite"></span></div><p>归档标签后，已有记录和标签关联仍会保留。</p><h3>使用中的标签</h3><ul id="notes-label-list"></ul><h3>已归档标签</h3><p id="notes-archived-empty">暂无已归档标签。</p><ul id="notes-archived-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><details class="notes-published"><summary>已发布记录</summary><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></details><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading" hidden><button class="btn text" type="button" data-notes-action="collapse">收起</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
+  return '<section id="daily-notes" class="daily-notes" aria-label="碎碎念" data-category="' + category + '"><div class="segmented" role="group" aria-label="碎碎念视图"><button type="button" data-notes-view="today" aria-pressed="true">今日碎碎念</button><button type="button" data-notes-view="history" aria-pressed="false">历史</button><button type="button" data-notes-view="labels" aria-pressed="false">标签</button></div><section id="notes-history" hidden aria-label="碎碎念历史"><div class="notes-calendar-layout"><aside class="notes-calendar-filters"><label>月份 <input type="month" id="notes-history-month" class="input"></label><div class="notes-calendar-month-actions"><button type="button" class="notes-month-step" data-notes-month="prev" aria-label="上个月" title="上个月">▲</button><button type="button" class="notes-month-step" data-notes-month="next" aria-label="下个月" title="下个月">▼</button></div><label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label><label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label><label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside><div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p><p id="notes-history-status" role="status" aria-live="polite"></p><div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-history-grid" class="notes-calendar-grid"></div><div id="notes-history-list" class="notes-entry-list"></div></div></div></section><section id="notes-labels" hidden aria-label="标签管理"><div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label><button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div><p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section><div id="notes-today"><div class="notes-toolbar"><div class="notes-date-controls"><button class="btn" type="button" data-notes-action="previous" aria-label="前一天">‹</button><label class="notes-date-label"><span class="sr-only">选择碎碎念日期</span><input id="notes-date" class="input" type="date" max="' + dailyNotesToday() + '"></label><button class="btn" type="button" data-notes-action="next" aria-label="后一天">›</button><button class="btn text" type="button" data-notes-action="today">今天</button></div><div class="notes-entry-toolbar"><button class="btn notes-add-entry" type="button" data-notes-action="new" hidden>＋ 写一条</button><button class="btn text" type="button" data-notes-action="login" hidden>所有者登录</button></div><span id="notes-status" class="notes-status" role="status" aria-live="polite"></span></div><div class="notes-published"><div id="notes-entry-list" class="notes-entry-list"></div><article id="notes-legacy-saved" class="note-entry note-entry-saved notes-legacy-saved" hidden><div class="note-entry-head"><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button></article></div><div id="notes-drafts" class="notes-drafts" hidden></div><p id="notes-entry-message" class="notes-message" role="alert" hidden></p><section id="notes-composer" class="notes-composer" aria-label="当前编辑的碎碎念" hidden><div class="notes-composer-heading"><button class="btn text" type="button" data-notes-action="collapse">取消</button></div><div id="notes-active-entry"></div>' + legacyEditorMarkup() + '</section><p id="notes-entry-empty" class="notes-empty" hidden>这一天还没有记录。</p><div id="notes-unpublished" class="notes-entry-list"></div></div></section>';
 }
 var statuses = {
   loading: "",
@@ -7628,38 +7673,38 @@ function entryControlsMarkup() {
   return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送">发送</button><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
 }
 function createEntryElement(item, editing3) {
-  const node = document.createElement("article");
-  node.className = "note-entry " + (editing3 ? "note-entry-editing" : "note-entry-saved");
-  node.dataset.noteEntry = item.id;
-  node.dataset.category = item.category;
-  node.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
-  return node;
+  const node2 = document.createElement("article");
+  node2.className = "note-entry " + (editing3 ? "note-entry-editing" : "note-entry-saved");
+  node2.dataset.noteEntry = item.id;
+  node2.dataset.category = item.category;
+  node2.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time"></time><span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing3 ? '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label><textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) + '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() : '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
+  return node2;
 }
-function paintEntrySummary(node, item) {
-  node.dataset.category = item.category;
-  node.querySelector(".note-entry-label").textContent = !item.labelKnown || !item.labelComplete ? "标签待联网核实" : (item.labels || []).join("、");
-  paintTime(node.querySelector("time"), item.updatedAt);
-  const status = node.querySelector(".note-entry-status");
+function paintEntrySummary(node2, item) {
+  node2.dataset.category = item.category;
+  node2.querySelector(".note-entry-label").textContent = !item.labelKnown || !item.labelComplete ? "标签待联网核实" : (item.labels || []).join("、");
+  paintTime(node2.querySelector("time"), item.updatedAt);
+  const status = node2.querySelector(".note-entry-status");
   status.textContent = statuses[item.phase] || (item.deleted ? "已删除" : item.version ? "已保存" : "未发送");
   status.dataset.phase = item.phase;
-  const message = node.querySelector(".note-entry-message");
+  const message = node2.querySelector(".note-entry-message");
   message.textContent = item.error;
   message.hidden = !item.error;
 }
-function paintSavedEntry(node, item) {
-  paintEntrySummary(node, item);
-  node.querySelector(".note-entry-send-feedback").textContent = item.manualSubmitted && !item.dirty && item.phase === "saved" ? "发送成功" : "";
-  const draft = noteDraftNeedsAttention(item), body2 = node.querySelector(".note-entry-reader");
+function paintSavedEntry(node2, item) {
+  paintEntrySummary(node2, item);
+  node2.querySelector(".note-entry-send-feedback").textContent = item.manualSubmitted && !item.dirty && item.phase === "saved" ? "发送成功" : "";
+  const draft = noteDraftNeedsAttention(item), body2 = node2.querySelector(".note-entry-reader");
   body2.textContent = item.deleted ? "这条记录已删除。" : displayedText(item);
   body2.classList.toggle("note-entry-draft-label", draft);
-  node.dataset.draft = String(draft);
-  const edit = node.querySelector('[data-note-entry-action="edit"]');
+  node2.dataset.draft = String(draft);
+  const edit = node2.querySelector('[data-note-entry-action="edit"]');
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
 }
-function paintEntryEditor(node, item, confirmId, labels, labelsVerified) {
-  paintEntrySummary(node, item);
-  const find = (selector) => node.querySelector(selector), editor = find("textarea");
+function paintEntryEditor(node2, item, confirmId, labels, labelsVerified) {
+  paintEntrySummary(node2, item);
+  const find = (selector) => node2.querySelector(selector), editor = find("textarea");
   editor.dataset.date = item.date;
   editor.dataset.category = item.category;
   editor.hidden = item.deleted;
@@ -7714,33 +7759,33 @@ function paintActiveEditor(root, store, active5, legacy, confirmId, labels, labe
   host.hidden = !item;
   if (item) {
     if (!nodes.has(active5)) nodes.set(active5, createEntryElement(item, true));
-    const node = nodes.get(active5);
-    if (host.firstElementChild !== node) host.replaceChildren(node);
-    paintEntryEditor(node, item, confirmId, labels, labelsVerified);
+    const node2 = nodes.get(active5);
+    if (host.firstElementChild !== node2) host.replaceChildren(node2);
+    paintEntryEditor(node2, item, confirmId, labels, labelsVerified);
   }
   root.querySelector("#notes-legacy-card").hidden = active5 !== "legacy";
   paintDailyNotes(root, legacy, { compatibility: true, editing: active5 === "legacy" });
 }
 function paintLegacySummary(root, legacy, active5) {
-  const node = root.querySelector("#notes-legacy-saved"), draft = retainedLegacy(legacy);
-  let label3 = node.querySelector(".note-entry-label");
+  const node2 = root.querySelector("#notes-legacy-saved"), draft = retainedLegacy(legacy);
+  let label3 = node2.querySelector(".note-entry-label");
   if (!label3) {
     label3 = document.createElement("span");
     label3.className = "note-entry-label";
-    node.querySelector(".note-entry-head").prepend(label3);
+    node2.querySelector(".note-entry-head").prepend(label3);
   }
   label3.textContent = root.dataset.category === "work" ? "工作" : "生活";
-  node.hidden = active5 === "legacy" || !(legacy.version > 0 || draft);
-  paintTime(node.querySelector("time"), legacy.updatedAt);
-  node.querySelector(".note-entry-reader").textContent = draft ? legacy.draft : legacy.deleted ? "原有记录已删除。" : legacy.serverText;
-  node.querySelector(".note-entry-status").textContent = draft ? statuses[legacy.phase] || "保留的原有草稿" : "原有记录 · 只读";
-  node.querySelector(".note-entry-status").dataset.phase = legacy.phase;
-  node.querySelector(".note-entry-message").textContent = legacy.error;
-  node.querySelector(".note-entry-message").hidden = !legacy.error;
-  const edit = node.querySelector('[data-notes-action="edit-legacy"]');
+  node2.hidden = active5 === "legacy" || !(legacy.version > 0 || draft);
+  paintTime(node2.querySelector("time"), legacy.updatedAt);
+  node2.querySelector(".note-entry-reader").textContent = draft ? legacy.draft : legacy.deleted ? "原有记录已删除。" : legacy.serverText;
+  node2.querySelector(".note-entry-status").textContent = draft ? statuses[legacy.phase] || "保留的原有草稿" : "原有记录 · 只读";
+  node2.querySelector(".note-entry-status").dataset.phase = legacy.phase;
+  node2.querySelector(".note-entry-message").textContent = legacy.error;
+  node2.querySelector(".note-entry-message").hidden = !legacy.error;
+  const edit = node2.querySelector('[data-notes-action="edit-legacy"]');
   edit.hidden = false;
   edit.textContent = draft ? "查看保留的原有草稿" : "查看原有记录";
-  node.querySelector('[data-notes-action="export-legacy"]').hidden = !draft;
+  node2.querySelector('[data-notes-action="export-legacy"]').hidden = !draft;
 }
 function paintRetainedDrafts(root, current2, drafts) {
   const box = root.querySelector("#notes-drafts");
@@ -7752,28 +7797,28 @@ function paintRetainedDrafts(root, current2, drafts) {
   }).join("");
 }
 function paintOtherLegacy(root, list, legacy, category) {
-  let node = root.querySelector("#notes-legacy-other");
-  if (!node) {
-    node = document.createElement("article");
-    node.id = "notes-legacy-other";
-    node.className = "note-entry note-entry-saved notes-legacy-saved";
-    node.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-other-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-other-legacy" hidden>导出保留的原有草稿</button>';
+  let node2 = root.querySelector("#notes-legacy-other");
+  if (!node2) {
+    node2 = document.createElement("article");
+    node2.id = "notes-legacy-other";
+    node2.className = "note-entry note-entry-saved notes-legacy-saved";
+    node2.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-other-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-other-legacy" hidden>导出保留的原有草稿</button>';
   }
-  list.append(node);
+  list.append(node2);
   const draft = legacy && retainedLegacy(legacy);
-  node.hidden = !legacy || !(legacy.version > 0 || draft);
+  node2.hidden = !legacy || !(legacy.version > 0 || draft);
   if (!legacy) return;
-  node.querySelector(".note-entry-label").textContent = category === "work" ? "工作" : "生活";
-  paintTime(node.querySelector("time"), legacy.updatedAt);
-  node.querySelector(".note-entry-reader").textContent = draft ? legacy.draft : legacy.deleted ? "原有记录已删除。" : legacy.serverText;
-  node.querySelector(".note-entry-status").textContent = draft ? statuses[legacy.phase] || "保留的原有草稿" : "原有记录 · 只读";
-  const message = node.querySelector(".note-entry-message");
+  node2.querySelector(".note-entry-label").textContent = category === "work" ? "工作" : "生活";
+  paintTime(node2.querySelector("time"), legacy.updatedAt);
+  node2.querySelector(".note-entry-reader").textContent = draft ? legacy.draft : legacy.deleted ? "原有记录已删除。" : legacy.serverText;
+  node2.querySelector(".note-entry-status").textContent = draft ? statuses[legacy.phase] || "保留的原有草稿" : "原有记录 · 只读";
+  const message = node2.querySelector(".note-entry-message");
   message.textContent = legacy.error;
   message.hidden = !legacy.error;
-  const edit = node.querySelector('[data-notes-action="edit-other-legacy"]');
+  const edit = node2.querySelector('[data-notes-action="edit-other-legacy"]');
   edit.dataset.legacyCategory = category;
   edit.textContent = draft ? "查看保留的原有草稿" : "查看原有记录";
-  const exportButton = node.querySelector('[data-notes-action="export-other-legacy"]');
+  const exportButton = node2.querySelector('[data-notes-action="export-other-legacy"]');
   exportButton.dataset.legacyCategory = category;
   exportButton.hidden = !draft;
 }
@@ -7791,22 +7836,30 @@ function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmI
   const items = current2.ids.map((id) => store.entry(id)).filter(Boolean);
   const saved = items.filter((item) => item.id !== active5 && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const unpublished = find("#notes-unpublished");
-  const nodes = new Map([...list.children, ...unpublished.children].filter((node) => node.dataset.noteEntry).map((node) => [node.dataset.noteEntry, node])), wanted = new Set(saved.map((item) => item.id));
-  for (const [id, node] of nodes) if (!wanted.has(id)) node.remove();
+  const nodes = new Map([...list.children, ...unpublished.children].filter((node2) => node2.dataset.noteEntry).map((node2) => [node2.dataset.noteEntry, node2])), wanted = new Set(saved.map((item) => item.id));
+  for (const [id, node2] of nodes) if (!wanted.has(id)) node2.remove();
   for (const item of saved) {
-    const node = nodes.get(item.id) || createEntryElement(item, false);
-    (noteDraftNeedsAttention(item) ? unpublished : list).append(node);
-    paintSavedEntry(node, item);
+    const node2 = nodes.get(item.id) || createEntryElement(item, false);
+    (noteDraftNeedsAttention(item) ? unpublished : list).append(node2);
+    paintSavedEntry(node2, item);
+    node2.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
   }
   paintActiveEditor(root, store, active5, legacy, confirmId, labels, labelsVerified);
   paintLegacySummary(root, legacy, active5);
   (retainedLegacy(legacy) ? unpublished : list).append(root.querySelector("#notes-legacy-saved"));
+  root.querySelector("#notes-legacy-saved").dataset.sortTime = legacy.updatedAt || "";
   paintOtherLegacy(root, list, otherLegacy, otherCategory);
+  root.querySelector("#notes-legacy-other").dataset.sortTime = otherLegacy?.updatedAt || "";
   if (otherLegacy && retainedLegacy(otherLegacy)) unpublished.append(root.querySelector("#notes-legacy-other"));
   const composer = find("#notes-composer"), activeItem = active5 === "legacy" ? legacy : store.entry(active5);
   composer.hidden = !activeItem;
   composer.dataset.active = active5;
-  find('[data-notes-action="collapse"]').disabled = !noteEditorCanCollapse(activeItem);
+  find(".notes-published").hidden = Boolean(activeItem);
+  unpublished.hidden = Boolean(activeItem);
+  find('[data-notes-action="new"]').hidden = !canEdit || Boolean(activeItem);
+  find('[data-notes-action="collapse"]').disabled = Boolean(activeItem?.pending || activeItem?.composing);
+  const ordered2 = [...list.children].sort((a, b) => String(a.dataset.sortTime || "").localeCompare(String(b.dataset.sortTime || "")));
+  list.append(...ordered2);
   find("#notes-entry-empty").hidden = !(current2.allLoaded ?? current2.loaded) || Boolean(activeItem) || saved.length > 0 || legacy.version > 0 || noteDraftNeedsAttention(legacy) || Boolean(otherLegacy && (otherLegacy.version > 0 || noteDraftNeedsAttention(otherLegacy)));
   const unresolved2 = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy);
   const status = find("#notes-status");
@@ -7821,6 +7874,12 @@ var notesView = "today", historyMonth = "", historyDate = "", historyDays = /* @
 var historyActiveLoad = null;
 var notesSelectedLabel = "生活", notesLabels = [], notesArchivedLabels = [], notesLabelsVerified = false, notesLabelIntent = null, notesArchiveIntent = null, notesLabelBusy = false, notesLabelMessage = "", notesLabelSequence = 0;
 var notesStores = /* @__PURE__ */ new Map(), entryStores = /* @__PURE__ */ new Map(), editorViews = createNotesEditorView();
+var floatingNoteObservers = /* @__PURE__ */ new Set();
+var floatingNoteId = "", floatingNoteDate = "", floatingNoteCategory = "life", floatingComposingId = "";
+function observeFloatingNotes(callback) {
+  floatingNoteObservers.add(callback);
+  return () => floatingNoteObservers.delete(callback);
+}
 var notesIdentityNow = () => JSON.stringify([
   runtime.sessionEpoch,
   state.me?.id || "",
@@ -8006,6 +8065,10 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
     notesLabelMessage = "";
     notesLabelSequence++;
     notesActiveCategory = "";
+    floatingNoteId = "";
+    floatingNoteDate = "";
+    floatingNoteCategory = "life";
+    floatingComposingId = "";
   }
   if (select && notesActiveCategory !== category) {
     if (category === "work") notesSelectedLabel = "工作";
@@ -8140,6 +8203,7 @@ function retainedDrafts() {
   return result;
 }
 function paintDailyNotesPage() {
+  for (const callback of floatingNoteObservers) callback();
   if (!notesVisible() || notesRefreshPaused) return;
   const root = document.querySelector("#daily-notes");
   if (!root || !notesStore || !entryStore) return;
@@ -8168,9 +8232,7 @@ function paintDailyNotesPage() {
       return item;
     }));
   };
-  paintLabels("#notes-label-list", activeLabels, "archive-label", "归档");
-  paintLabels("#notes-archived-label-list", notesArchivedLabels.map((row) => row.name), "restore-label", "恢复");
-  root.querySelector("#notes-archived-empty").hidden = notesArchivedLabels.length > 0;
+  paintLabels("#notes-label-list", activeLabels, "delete-label", "删除");
   root.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy || !notesLabelsVerified;
   const otherCategory = category === "life" ? "work" : "life";
   const otherStore = entryStores.get(otherCategory), otherLegacy = notesStores.get(otherCategory)?.page(date);
@@ -8244,14 +8306,20 @@ async function readNoteLabels({ afterWrite = false } = {}) {
   paintDailyNotesPage();
   return false;
 }
-async function changeLabelArchive(name, action) {
+function confirmLabelDeletion(name) {
+  if (!name || notesLabelBusy || !notesLabelsVerified) return false;
+  const builtin = name === "生活" || name === "工作";
+  const consequence = builtin ? "此标签将从可选列表隐藏，历史记录和标签关联会保留。" : "此标签及已有记录中的标签关联将被永久删除，正文保留。此操作无法撤销。";
+  return window.confirm("确定删除标签“" + name + "”吗？\n\n" + consequence);
+}
+async function deleteNoteLabel(name) {
   if (notesLabelBusy || !notesLabelsVerified) return;
-  if (!notesArchiveIntent || notesArchiveIntent.name !== name || notesArchiveIntent.action !== action)
-    notesArchiveIntent = { name, action, save_id: crypto.randomUUID() };
-  const expected = notesIdentityNow(), intent = notesArchiveIntent;
+  if (!notesArchiveIntent || notesArchiveIntent.name !== name || notesArchiveIntent.action !== "delete")
+    notesArchiveIntent = { name, action: "delete", save_id: crypto.randomUUID() };
+  const expected = notesIdentityNow(), intent = notesArchiveIntent, date = dailyNotesRouteDate();
   ++notesLabelSequence;
   notesLabelBusy = true;
-  notesLabelMessage = action === "archive" ? "正在归档标签…" : "正在恢复标签…";
+  notesLabelMessage = "";
   paintDailyNotesPage();
   try {
     const saved = await apiNetwork("/note-entries/labels", {
@@ -8260,20 +8328,22 @@ async function changeLabelArchive(name, action) {
       headers: { "X-Note-Labels-Version": "3", "X-Note-Labels-Archive": "1" }
     });
     if (expected !== notesIdentityNow()) return;
-    if (saved?.labels_version !== 3 || saved?.name !== name || (action === "archive" ? typeof saved.archived_at !== "string" || !Number.isFinite(Date.parse(saved.archived_at)) : saved.archived_at !== null))
-      throw new Error("服务器返回的状态无法核实。");
+    if (saved?.labels_version !== 3 || saved.name !== name || saved.deleted !== true || !["deleted", "builtin-hidden"].includes(saved.mode)) throw new Error("服务器返回的状态无法核实。");
     ++notesLabelSequence;
     notesLabelsVerified = false;
     const verified = await readNoteLabels({ afterWrite: true });
     if (expected !== notesIdentityNow()) return;
     if (verified) {
-      notesArchiveIntent = null;
-      const archived = notesArchivedLabels.some((row) => row.name === name);
-      notesLabelMessage = archived === (action === "archive") ? archived ? "标签已归档，历史记录及关联保留。" : "标签已恢复。" : "操作已收到，但标签状态已在别处改变；显示的是当前状态。";
+      const active5 = ["生活", "工作", ...notesLabels].includes(name) && !notesArchivedLabels.some((row) => row.name === name);
+      if (active5) notesLabelMessage = "删除结果已变化，请核对当前标签。";
+      else {
+        notesArchiveIntent = null;
+        await readMixedNotes(date);
+      }
     }
   } catch (error) {
     ++notesLabelSequence;
-    if (expected === notesIdentityNow()) notesLabelMessage = "操作结果未确认，请重试或重新打开标签管理核实：" + (error.message || "请联网后重试。");
+    if (expected === notesIdentityNow()) notesLabelMessage = "删除结果未确认，请重试或重新打开标签管理核实：" + (error.message || "请联网后重试。");
   } finally {
     notesLabelBusy = false;
     if (expected === notesIdentityNow()) paintDailyNotesPage();
@@ -8288,7 +8358,7 @@ async function createNoteLabel(root) {
     return;
   }
   if (notesArchivedLabels.some((row) => row.name === label3)) {
-    notesLabelMessage = "该标签已归档，请在下方恢复。";
+    notesLabelMessage = "该标签名称暂不可用。";
     paintDailyNotesPage();
     return;
   }
@@ -8304,11 +8374,8 @@ async function createNoteLabel(root) {
     if (saved?.labels_version !== 2 || saved.name !== label3) throw new Error("标签保存结果尚未核实，请重试原请求。");
     notesLabels = [.../* @__PURE__ */ new Set([...notesLabels, label3])];
     notesLabelIntent = null;
-    notesLabelMessage = "标签已添加";
+    notesLabelMessage = "";
     input.value = "";
-    setDailyNotesRouteCategory("life");
-    updateRoute(true);
-    renderShell();
   } catch (error) {
     if (expected === notesIdentityNow()) notesLabelMessage = "添加失败，输入已保留，可重试：" + (error.message || "请联网后重试。");
   } finally {
@@ -8457,18 +8524,6 @@ function openEditor(key) {
   editor?.focus();
   document.querySelector("#notes-composer")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
 }
-function requestEditorCollapse(event) {
-  if (!notesVisible() || notesRefreshPaused || !event.target.closest("#notes-composer")) return;
-  const root = document.querySelector("#daily-notes"), host = root?.querySelector("#notes-composer");
-  if (!host || host.contains(event.relatedTarget) || event.relatedTarget?.closest(
-    '[data-note-entry-action="edit"],[data-notes-action="new"],[data-notes-action="edit-legacy"]'
-  )) return;
-  const category = root.dataset.category, date = root.dataset.date, { active: active5, revision: revision2 } = editorViews.page(category, date);
-  setTimeout(() => {
-    editorViews.requestCollapse(category, date, active5, revision2);
-    if (notesVisible() && category === dailyNotesRouteCategory() && date === dailyNotesRouteDate()) paintDailyNotesPage();
-  }, 0);
-}
 function registerNotesInputEvents() {
   document.addEventListener("input", (event) => {
     if (!notesVisible()) return;
@@ -8506,7 +8561,6 @@ function registerNotesInputEvents() {
     } else if (notesVisible() && event.target.id === "notes-history-label") paintHistoryRows(event.target.closest("#daily-notes"));
     else if (notesVisible() && event.target.id === "notes-history-month" && validNoteMonth(event.target.value)) void loadHistory(event.target.value);
   });
-  document.addEventListener("focusout", requestEditorCollapse);
 }
 async function handleEntryAction(target, entries) {
   const id = target.closest("[data-note-entry]")?.dataset.noteEntry, item = entries.entry(id);
@@ -8516,7 +8570,12 @@ async function handleEntryAction(target, entries) {
   else if (action === "save") {
     const attempt = /* @__PURE__ */ Symbol("note-send");
     item.manualSubmitted = attempt;
+    const category = dailyNotesRouteCategory(), date = dailyNotesRouteDate();
+    const revision2 = editorViews.page(category, date).revision;
     await entries.save(id);
+    if (!item.dirty && !item.pending && ["saved", "queued", "cached"].includes(item.phase)) {
+      editorViews.requestCollapse(category, date, id, revision2, { explicit: true });
+    }
     paintDailyNotesPage();
   } else if (action === "restore") await entries.restoreEntry(id);
   else if (action === "delete") {
@@ -8616,8 +8675,7 @@ async function handleNotesClick(event) {
     const item = entries.start(date);
     if (item) openEditor(item.id);
   } else if (action === "create-label") await createNoteLabel(root);
-  else if (action === "archive-label" || action === "restore-label")
-    await changeLabelArchive(target.dataset.labelName, action === "archive-label" ? "archive" : "restore");
+  else if (action === "delete-label" && confirmLabelDeletion(target.dataset.labelName)) await deleteNoteLabel(target.dataset.labelName);
   else if (action === "edit-legacy") openEditor("legacy");
   else if (action === "collapse") {
     const { active: active5, revision: revision2 } = editorViews.page(dailyNotesRouteCategory(), date);
@@ -8636,7 +8694,7 @@ function registerDailyNotesEvents() {
   registerConflictDraftGuard(createNoteConflictDraftGuard({
     getStores: () => entryStores,
     getIdentity: notesIdentityNow,
-    getComposing: (id) => document.querySelector('[data-note-entry-editor="' + id + '"]')?.dataset.composing === "true"
+    getComposing: (id) => floatingComposingId === id || document.querySelector('[data-note-entry-editor="' + id + '"]')?.dataset.composing === "true"
   }));
   window.addEventListener("haoduoyu:before-refresh", (event) => {
     if (typeof event.detail?.waitUntil !== "function" || notesIdentity !== notesIdentityNow()) return;
@@ -8705,12 +8763,133 @@ async function loadDailyNotes() {
   setDailyNotesRouteDate(dailyNotesRouteDate());
   ensureDailyNotesStore();
   const date = dailyNotesRouteDate(), expected = notesIdentityNow();
+  void readNoteLabels();
   await readMixedNotes(date);
   if (expected !== notesIdentityNow()) return;
-  void readNoteLabels();
   const historyRoot = document.querySelector("#daily-notes");
   if (notesView === "history" && (!historyMonth || historyRoot?.dataset.historyLoadedMonth !== historyMonth))
     void loadHistory(historyMonth, historyDate);
+}
+function selectedFloatingEntry(store, id, date) {
+  const item = id && store?.entry(id);
+  return item && item.date === date && !item.deleted ? item : null;
+}
+function floatingNotesSnapshot() {
+  if (notesIdentity !== notesIdentityNow()) return null;
+  const date = dailyNotesToday(), store = entryStores.get(floatingNoteCategory), page = entryStores.get("life")?.page(date);
+  const item = selectedFloatingEntry(store, floatingNoteId, floatingNoteDate);
+  const entries = [], errors = [];
+  for (const category of ["life", "work"]) {
+    const source = entryStores.get(category), current2 = source?.page(date);
+    if (current2?.error) errors.push(current2.error);
+    for (const id of current2?.ids || []) {
+      const value = source.entry(id);
+      if (value && !value.deleted && (value.version || value.localVersion || value.dirty || value.pending)) entries.push(value);
+    }
+    const legacy = notesStores.get(category)?.page(date);
+    if (legacy?.error) errors.push(legacy.error);
+    if (legacy && (!legacy.deleted || legacy.dirty || legacy.pending) && (legacy.version || legacy.dirty || legacy.pending))
+      entries.push({
+        id: "legacy-" + category,
+        category,
+        legacy: true,
+        draft: legacy.dirty ? legacy.draft : legacy.serverText,
+        updatedAt: legacy.updatedAt
+      });
+  }
+  entries.sort((a, b) => String(a.createdAt || a.localCreatedAt || a.updatedAt || "").localeCompare(
+    String(b.createdAt || b.localCreatedAt || b.updatedAt || "")
+  ));
+  const archived = new Set(notesArchivedLabels.map((row) => row.name));
+  return {
+    date,
+    page,
+    item,
+    entries,
+    error: errors.join("；"),
+    labels: [.../* @__PURE__ */ new Set(["生活", "工作", ...notesLabels])].filter((name) => !archived.has(name)),
+    labelsVerified: notesLabelsVerified,
+    labelError: notesLabelMessage,
+    draftError: notesDraftError
+  };
+}
+async function loadFloatingNotes() {
+  if (!state.me) return;
+  registerDailyNotesEvents();
+  ensureDailyNotesStore();
+  const date = dailyNotesToday(), expected = notesIdentityNow();
+  void readNoteLabels();
+  await readMixedNotes(date);
+  if (expected === notesIdentityNow()) {
+    floatingNoteEntry(false);
+    paintDailyNotesPage();
+  }
+}
+function floatingNoteEntry(create = false) {
+  if (!state.me || notesIdentity !== notesIdentityNow() || notesRefreshPaused) return null;
+  const date = dailyNotesToday(), store = entryStores.get(floatingNoteCategory);
+  if (!store) return null;
+  const selected = selectedFloatingEntry(store, floatingNoteId, floatingNoteDate);
+  if (selected) return selected;
+  const page = store.page(date);
+  const candidate = page.ids.map((id) => store.entry(id)).find((item2) => item2 && !item2.version && !item2.localVersion && (item2.dirty || item2.pending || ["unknown", "conflict", "error", "oversize"].includes(item2.phase)));
+  const item = candidate || (create ? store.start(date) : null);
+  if (item) {
+    floatingNoteId = item.id;
+    floatingNoteDate = date;
+  }
+  return item;
+}
+function hasFloatingNoteDraft() {
+  return retainedDrafts().some((item) => item.dirty || item.pending || item.phase === "unknown");
+}
+function selectFloatingNote(id, category) {
+  if (!["life", "work"].includes(category) || notesIdentity !== notesIdentityNow()) return;
+  const item = entryStores.get(category)?.entry(id);
+  if (!item || item.date !== dailyNotesToday() || item.deleted) return;
+  floatingNoteId = id;
+  floatingNoteDate = item.date;
+  floatingNoteCategory = category;
+  paintDailyNotesPage();
+}
+function newFloatingNote() {
+  floatingNoteId = "";
+  floatingNoteDate = "";
+  floatingNoteCategory = "life";
+  floatingNoteEntry(true);
+  paintDailyNotesPage();
+}
+function markFloatingNoteComposing(value) {
+  floatingComposingId = value ? floatingNoteId : "";
+}
+function editFloatingNote(text, composing = false) {
+  const item = floatingNoteEntry(true);
+  if (item) entryStores.get(item.category).edit(item.id, text, { composing });
+}
+function labelFloatingNote(labels) {
+  const item = floatingNoteEntry(true);
+  if (!item || !notesLabelsVerified) return false;
+  return entryStores.get(item.category).relabelDraft(item.id, labels);
+}
+async function sendFloatingNote() {
+  const item = floatingNoteEntry(false), store = item && entryStores.get(item.category);
+  if (!item || !store || item.date !== dailyNotesToday()) return;
+  const selectedId = floatingNoteId, selectedDate = floatingNoteDate, selectedCategory = floatingNoteCategory;
+  item.manualSubmitted = /* @__PURE__ */ Symbol("note-send");
+  await store.save(item.id);
+  if (floatingNoteId === selectedId && floatingNoteDate === selectedDate && floatingNoteCategory === selectedCategory && !item.dirty && !item.pending && ["saved", "queued", "cached"].includes(item.phase)) {
+    floatingNoteId = "";
+    floatingNoteDate = "";
+    floatingNoteCategory = "life";
+  }
+  paintDailyNotesPage();
+}
+async function checkFloatingNote(retry = false) {
+  const item = floatingNoteEntry(false), store = item && entryStores.get(item.category);
+  if (!item || !store) return;
+  if (retry) await store.retryPending(item.id);
+  else if (item.phase === "unknown") await store.reconcile(item.id);
+  paintDailyNotesPage();
 }
 
 // web/pages/memos.mjs
@@ -8730,13 +8909,13 @@ var phases = {
   loading: ""
 };
 var active4 = (rows, trash) => rows.filter((row) => Boolean(row.deleted_at) === trash);
-function paintEditedTime(node, item) {
+function paintEditedTime(node2, item) {
   const local = item.localQueued && item.localUpdatedAt;
   const value = local || item.updated_at;
   const timestamp4 = value && Date.parse(value);
-  node.hidden = !Number.isFinite(timestamp4);
-  node.dateTime = node.hidden ? "" : value;
-  node.textContent = node.hidden ? "" : (local ? "本机编辑于 " : "编辑于 ") + new Intl.DateTimeFormat("zh-CN", {
+  node2.hidden = !Number.isFinite(timestamp4);
+  node2.dateTime = node2.hidden ? "" : value;
+  node2.textContent = node2.hidden ? "" : (local ? "本机编辑于 " : "编辑于 ") + new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -8759,7 +8938,8 @@ function flatNoteRow(note, store) {
 }
 function paintLists(root, store) {
   const s = store.state, find = (q) => root.querySelector(q);
-  find("#memo-groups-heading").textContent = s.trash ? "回收站" : "笔记";
+  find("#memo-groups-heading").textContent = s.trash ? "回收站" : "";
+  find("#memo-groups-heading").hidden = !s.trash;
   const notes = s.notes.filter((note) => {
     const group = s.groups.find((row) => row.id === note.group_id);
     return Boolean(note.deleted_at || group?.deleted_at) === s.trash;
@@ -11151,6 +11331,605 @@ function registerTodoGestures(onOpen, isEligible = () => true) {
   };
 }
 
+// web/offline/ui.mjs
+function offlineStatusLabel(state2) {
+  if (state2.unsupported) return "需新版";
+  if (state2.conflicts) return "有冲突";
+  if (!state2.online) return `离线（${state2.pending || 0} 条待同步）`;
+  if (state2.error) return "同步失败，等待重试";
+  if (state2.phase === "syncing") return "";
+  if (state2.pending) return `待同步（${state2.pending} 条）`;
+  return "";
+}
+function textNode(document2, tag, text, className) {
+  const node2 = document2.createElement(tag);
+  node2.textContent = text;
+  if (className) node2.className = className;
+  return node2;
+}
+function readable(value) {
+  if (!value) return "（线上已不存在）";
+  const text = value.body !== void 0 ? value.title + "\n" + value.body : value.text ?? value.title;
+  if (typeof value.completed === "boolean") return `${text || ""}${value.date ? "\n日期：" + value.date : ""}
+完成：${value.completed ? "是" : "否"}
+版本：${value.version || ""}`;
+  return typeof text === "string" ? text : JSON.stringify(value, null, 2);
+}
+var absent = (value) => !value || value.deleted || value.deleted_at;
+var selectedLocal = (row) => Object.hasOwn(row, "review_local") ? row.review_local : row.local;
+var selectedRemote = (row) => Object.hasOwn(row, "review_remote") ? row.review_remote : row.remote;
+function conflictLocalChoiceLabel(conflict) {
+  const local = selectedLocal(conflict), remote = selectedRemote(conflict), type = conflict.operation.entity_type;
+  if (absent(local) && absent(remote)) return "确认删除结果";
+  if (conflict.copy_required || absent(remote) || conflict.reason === "MEMO_GROUP_UNAVAILABLE" || type === "todo" && (local?.date !== remote.date || local?.text !== remote.text) || type === "unscheduled_todo" && local?.text !== remote.text || type === "note_entry" && (local?.date !== remote.date || local?.category !== remote.category) || type === "memo_note" && local?.group_id !== remote.group_id) return "另存本地副本";
+  return "用本地";
+}
+function conflictActions(document2, conflict, runtime2, refresh, requests) {
+  const actions2 = document2.createElement("div");
+  actions2.className = "offline-conflict-actions";
+  const localLabel = conflictLocalChoiceLabel(conflict);
+  for (const [choice2, label3] of [["use-local", localLabel], ["use-server", "用线上"], ["keep-both", "两份都留"]]) {
+    const button2 = textNode(document2, "button", label3, "btn text");
+    button2.type = "button";
+    button2.disabled = requests.busy(conflict.key);
+    button2.addEventListener("click", async () => {
+      const controller = requests.begin(conflict.key);
+      if (!controller) return;
+      for (const control of actions2.children) control.disabled = true;
+      const cancel = textNode(document2, "button", "取消", "btn text");
+      cancel.type = "button";
+      cancel.addEventListener("click", () => controller.abort());
+      actions2.append(cancel);
+      try {
+        const result = await runtime2.resolve(conflict.key, choice2, {
+          signal: controller.signal,
+          expected: conflictDecisionToken(conflict),
+          copyConfirmed: localLabel === "另存本地副本"
+        });
+        requests.message(conflict.key, result.blocked ? result.resolution_message : "");
+      } catch (error) {
+        requests.message(conflict.key, error.name === "AbortError" ? "本次选择已取消，原文仍保留。" : error.message);
+      } finally {
+        requests.end(conflict.key, controller);
+        cancel.remove();
+        await refresh();
+      }
+    });
+    actions2.append(button2);
+  }
+  return actions2;
+}
+function conflictEvidence(document2, conflict) {
+  const history2 = document2.createElement("details");
+  history2.append(textNode(document2, "summary", "先前对比（原文保留）"));
+  for (const row of conflict.remote_history || []) history2.append(textNode(document2, "pre", readable(row)));
+  return history2;
+}
+function queueRows(document2, queue, runtime2, refresh, requests) {
+  const root = document2.createDocumentFragment();
+  if (!queue.operations.length && !queue.conflicts.length) root.append(textNode(document2, "p", "暂无待处理内容。"));
+  const labels = {
+    queued: "等待同步",
+    sending: "待同步",
+    unknown: "结果待核对",
+    paused: "需联网核实身份",
+    blocked: "需处理",
+    conflict: "有冲突"
+  };
+  for (const operation2 of queue.operations) {
+    const item = textNode(
+      document2,
+      "p",
+      `${operation2.needs_upgrade ? "需新版" : labels[operation2.status] || "等待同步"} · ${readable(operation2.local)}`,
+      "offline-queue-row"
+    );
+    if (operation2.error) item.append(textNode(document2, "span", " · " + operation2.error));
+    root.append(item);
+  }
+  for (const conflict of queue.conflicts) {
+    const item = document2.createElement("article");
+    item.className = "offline-conflict";
+    item.append(
+      textNode(document2, "h3", "两份内容已保留"),
+      textNode(document2, "p", "本机内容"),
+      textNode(document2, "pre", readable(selectedLocal(conflict))),
+      textNode(document2, "p", "线上内容"),
+      textNode(document2, "pre", readable(selectedRemote(conflict)))
+    );
+    if (conflict.remote_history?.length) item.append(conflictEvidence(document2, conflict));
+    if (conflict.resolution_message) item.append(textNode(document2, "p", conflict.resolution_message));
+    if (requests.message(conflict.key)) item.append(textNode(document2, "p", requests.message(conflict.key)));
+    if (conflict.needs_upgrade) {
+      item.append(textNode(document2, "p", "此本机操作需新版页面处理，原内容已保留。"));
+      root.append(item);
+      continue;
+    }
+    if (conflict.resolution) {
+      const labels2 = {
+        queued: "选择已存本机，正在核对线上结果。",
+        conflict: "新保存有冲突，请核对下方的新比较内容。",
+        blocked: "新保存暂未完成，原文与选择仍保留。",
+        paused: "需联网核实后继续，原文与选择仍保留。"
+      };
+      item.append(textNode(document2, "p", labels2[conflict.resolution.state] || "正在核对线上结果。"));
+      root.append(item);
+      continue;
+    }
+    if (conflictLocalChoiceLabel(conflict) === "另存本地副本")
+      item.append(textNode(document2, "p", "副本会使用新记录，原记录保持原状。"));
+    item.append(conflictActions(document2, conflict, runtime2, refresh, requests));
+    root.append(item);
+  }
+  return root;
+}
+function pageAnnotation(document2, state2) {
+  const page = new URL(document2.defaultView.location.href).searchParams.get("page") || "dashboard";
+  const header = document2.querySelector("#page-header");
+  let banner = document2.querySelector("#offline-page-note");
+  let label3 = "";
+  if (page === "settings" && !state2.online) label3 = "设置需联网后使用。";
+  if (page === "todos" && state2.partial) label3 = "当前仅显示本机已保存的事项，完整列表需联网读取。";
+  if (page === "dashboard" && !state2.online && state2.cachedAt) label3 = "数据截至 " + new Date(state2.cachedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false });
+  if (label3 && header) {
+    if (!banner) {
+      banner = textNode(document2, "p", "", "offline-page-note");
+      banner.id = "offline-page-note";
+      header.append(banner);
+    }
+    if (banner.textContent !== label3) banner.textContent = label3;
+  } else banner?.remove();
+  const content2 = document2.querySelector("#page-content");
+  if (content2) {
+    const unavailable = page === "settings" && !state2.online;
+    content2.inert = unavailable;
+    if (unavailable || content2.dataset.offlineHidden === "true") content2.hidden = unavailable;
+    content2.dataset.offlineHidden = String(unavailable);
+  }
+}
+function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
+  let state2 = { ...runtime2.state }, expanded = false, rendering = 0;
+  const pending = /* @__PURE__ */ new Map(), messages = /* @__PURE__ */ new Map(), requests = {
+    busy: (key) => pending.has(key),
+    begin(key) {
+      if (pending.has(key)) return null;
+      const controller = new AbortController();
+      pending.set(key, controller);
+      return controller;
+    },
+    end(key, controller) {
+      if (pending.get(key) === controller) pending.delete(key);
+    },
+    message(key, value) {
+      if (value !== void 0) messages.set(key, value);
+      return messages.get(key) || "";
+    },
+    cancel() {
+      for (const controller of pending.values()) controller.abort();
+    }
+  };
+  const root = document2.createElement("aside");
+  root.className = "offline-indicator";
+  root.setAttribute("aria-label", "同步状态");
+  const button2 = textNode(document2, "button", "", "offline-state-button");
+  button2.type = "button";
+  button2.setAttribute("aria-controls", "offline-queue");
+  button2.setAttribute("aria-expanded", "false");
+  const panel = document2.createElement("section");
+  panel.id = "offline-queue";
+  panel.className = "offline-queue";
+  panel.setAttribute("aria-label", "本机待同步内容与冲突");
+  panel.hidden = true;
+  root.append(button2, panel);
+  async function refreshQueue() {
+    if (!expanded) return;
+    const sequence2 = ++rendering, queue = await runtime2.queue();
+    if (sequence2 !== rendering || !expanded) return;
+    panel.replaceChildren(textNode(document2, "h2", "同步队列"), queueRows(document2, queue, runtime2, refreshQueue, requests));
+  }
+  function mount() {
+    if (!root.isConnected && document2.body) document2.body.append(root);
+    const label3 = offlineStatusLabel(state2);
+    root.hidden = !state2.identity || !label3;
+    if (button2.textContent !== label3) button2.textContent = label3;
+    root.dataset.phase = state2.conflicts ? "conflict" : state2.phase;
+    pageAnnotation(document2, state2);
+  }
+  button2.addEventListener("click", () => {
+    expanded = !expanded;
+    panel.hidden = !expanded;
+    button2.setAttribute("aria-expanded", String(expanded));
+    if (!expanded) requests.cancel();
+    if (expanded) void refreshQueue();
+  });
+  const unsubscribe = runtime2.subscribe((next) => {
+    state2 = next;
+    mount();
+    if (expanded) void refreshQueue();
+    window2.dispatchEvent(new CustomEvent("haoduoyu-offline-status", { detail: { pending: state2.pending, conflicts: state2.conflicts } }));
+  });
+  const observer = new MutationObserver(mount);
+  observer.observe(document2.body, { childList: true, subtree: true });
+  const stop = runtime2.start({ window: window2, document: document2 });
+  mount();
+  return () => {
+    requests.cancel();
+    unsubscribe();
+    observer.disconnect();
+    stop();
+    root.remove();
+  };
+}
+function startOfflineUI({ document: document2 = globalThis.document, window: window2 = globalThis.window } = {}) {
+  if (!document2?.body || !window2) return () => {
+  };
+  let stop = () => {
+  };
+  const unsubscribe = onOfflineRuntime((runtime2) => {
+    stop();
+    stop = mountRuntimeUI(runtime2, { document: document2, window: window2 });
+  });
+  return () => {
+    unsubscribe();
+    stop();
+  };
+}
+
+// web/floating-workbench.mjs
+var activeWindow = null, opening = false;
+function node(doc, tag, text = "", className = "") {
+  const result = doc.createElement(tag);
+  result.textContent = text;
+  if (className) result.className = className;
+  return result;
+}
+function makeView(pip) {
+  const doc = pip.document;
+  doc.title = "好多鱼桌面便签";
+  for (const link of document.querySelectorAll('link[rel="stylesheet"]')) doc.head.append(link.cloneNode());
+  doc.body.className = "floating-workbench";
+  const main = node(doc, "main", "", "floating-main");
+  const head = node(doc, "header", "", "floating-head");
+  head.append(node(doc, "time", "", "floating-date"));
+  const close = node(doc, "button", "×", "floating-close");
+  close.type = "button";
+  close.setAttribute("aria-label", "关闭便签");
+  head.append(close);
+  close.addEventListener("click", () => pip.close());
+  const tabs = node(doc, "nav", "", "floating-tabs");
+  tabs.setAttribute("aria-label", "便签内容");
+  for (const [id, text] of [["todos", "今日待办"], ["notes", "今日碎碎念"]]) {
+    const button2 = node(doc, "button", text);
+    button2.type = "button";
+    button2.dataset.tab = id;
+    tabs.append(button2);
+  }
+  const offline = node(doc, "p", "", "floating-offline");
+  offline.setAttribute("role", "status");
+  const todo = node(doc, "section", "", "floating-panel");
+  todo.dataset.panel = "todos";
+  todo.append(node(doc, "h2", "⌄  今日待办", "floating-group-title"));
+  const todoMessage = node(doc, "p", "", "floating-message");
+  todoMessage.setAttribute("role", "alert");
+  const todoList = node(doc, "ul", "", "floating-list");
+  todo.append(todoMessage, todoList);
+  const notes = node(doc, "section", "", "floating-panel");
+  notes.dataset.panel = "notes";
+  notes.hidden = true;
+  notes.append(node(doc, "h2", "⌄  今日碎碎念", "floating-group-title"));
+  const noteList = node(doc, "ul", "", "floating-note-list");
+  const newNote = node(doc, "button", "写一条");
+  newNote.type = "button";
+  const notesInput = node(doc, "textarea");
+  notesInput.placeholder = "写下一点想说的话…";
+  notesInput.setAttribute("aria-label", "碎碎念内容");
+  notesInput.rows = 5;
+  const labels = node(doc, "fieldset", "", "floating-labels");
+  labels.append(node(doc, "legend", "标签（可多选）"));
+  const options2 = node(doc, "div");
+  labels.append(options2);
+  const noteMessage = node(doc, "p", "", "floating-message");
+  noteMessage.setAttribute("role", "status");
+  const noteActions = node(doc, "div", "", "floating-actions");
+  const send = node(doc, "button", "发送");
+  send.type = "button";
+  const check = node(doc, "button", "核对保存结果");
+  check.type = "button";
+  check.hidden = true;
+  const retry = node(doc, "button", "重试原保存");
+  retry.type = "button";
+  retry.hidden = true;
+  noteActions.append(send, check, retry);
+  notes.append(noteList, newNote, notesInput, labels, noteMessage, noteActions);
+  main.append(head, tabs, offline, todo, notes);
+  doc.body.replaceChildren(main);
+  return {
+    doc,
+    head,
+    tabs,
+    offline,
+    todo,
+    todoMessage,
+    todoList,
+    notes,
+    noteList,
+    newNote,
+    notesInput,
+    labels,
+    options: options2,
+    noteMessage,
+    send,
+    check,
+    retry
+  };
+}
+function paintTodo(view) {
+  const day4 = todoDay(bjtDate());
+  view.head.querySelector("time").textContent = day4.date;
+  view.todoMessage.textContent = day4.error || (!day4.loaded && day4.loading ? "正在读取待办…" : "");
+  const fragment = view.doc.createDocumentFragment();
+  for (const item of day4.items) {
+    const removal = day4.removals.get(item.id);
+    if (item.deleted_at || removal && removal.phase !== "restoring") continue;
+    const li = node(view.doc, "li"), label3 = node(view.doc, "label"), check = node(view.doc, "input");
+    check.type = "checkbox";
+    check.dataset.todoId = item.id;
+    check.dataset.date = day4.date;
+    check.checked = day4.updates.has(item.id) ? day4.updates.get(item.id) : Boolean(item.completed);
+    check.disabled = !day4.loaded || todoBusy(day4, item.id);
+    label3.append(check, node(view.doc, "span", item.text));
+    li.append(label3);
+    if (check.checked) li.classList.add("is-complete");
+    fragment.append(li);
+  }
+  if (!day4.items.some((item) => !item.deleted_at) && day4.loaded) fragment.append(node(view.doc, "li", "今天还没有待办。", "floating-empty"));
+  view.todoList.replaceChildren(fragment);
+}
+function paintNotes(view) {
+  const snap = floatingNotesSnapshot(), item = snap?.item, page = snap?.page;
+  const previousDate = Boolean(item && item.date !== snap?.date);
+  const text = item?.draft || "";
+  const fragment = view.doc.createDocumentFragment();
+  for (const record of snap?.entries || []) {
+    const row = node(view.doc, "li");
+    const content2 = record.legacy ? node(view.doc, "div") : node(view.doc, "button");
+    if (!record.legacy) {
+      content2.type = "button";
+      content2.dataset.noteId = record.id;
+      content2.dataset.category = record.category;
+    }
+    const time2 = record.createdAt || record.localCreatedAt || record.updatedAt;
+    const caption = time2 && Number.isFinite(Date.parse(time2)) ? new Intl.DateTimeFormat(
+      "zh-CN",
+      { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+    ).format(new Date(time2)) : "";
+    content2.append(
+      node(view.doc, "small", [caption, record.legacy ? "原有记录 · 只读" : record.dirty ? "草稿" : ""].filter(Boolean).join(" · ")),
+      node(view.doc, "span", record.dirty ? record.draft : record.draft ?? record.serverText ?? "")
+    );
+    row.append(content2);
+    fragment.append(row);
+  }
+  view.noteList.replaceChildren(fragment);
+  view.newNote.disabled = !page?.loaded || !page.canEdit;
+  if ((view.doc.activeElement !== view.notesInput || !view.doc.hasFocus()) && view.notesInput.value !== text)
+    view.notesInput.value = text;
+  view.notesInput.disabled = !page?.loaded || !page.canEdit || item?.canEdit === false;
+  view.notesInput.readOnly = Boolean(view.frozen);
+  view.labels.disabled = Boolean(view.frozen) || !snap?.labelsVerified || !page?.canEdit || Boolean(item?.pending) || item?.labelComplete === false;
+  const current2 = [...view.options.querySelectorAll("input")].map((input) => input.value);
+  const available = [.../* @__PURE__ */ new Set([...snap?.labels || [], ...item?.labels || []])];
+  if (JSON.stringify(current2) !== JSON.stringify(available)) {
+    const fragment2 = view.doc.createDocumentFragment();
+    for (const name of available) {
+      const label3 = node(view.doc, "label"), input = node(view.doc, "input");
+      input.type = "checkbox";
+      input.value = name;
+      label3.append(input, node(view.doc, "span", name));
+      fragment2.append(label3);
+    }
+    view.options.replaceChildren(fragment2);
+  }
+  for (const input of view.options.querySelectorAll("input")) input.checked = Boolean(item?.labels?.includes(input.value));
+  const blocked2 = item?.pending || item?.composing || ["unknown", "conflict", "oversize"].includes(item?.phase);
+  view.send.disabled = Boolean(view.frozen) || !item?.dirty || Boolean(blocked2) || !item.canEdit || previousDate;
+  view.check.hidden = item?.phase !== "unknown";
+  view.check.disabled = Boolean(view.frozen || item?.pending?.checking);
+  view.retry.hidden = item?.phase !== "unknown" || !item?.pending?.retryReady;
+  view.retry.disabled = Boolean(view.frozen);
+  view.newNote.disabled ||= Boolean(view.frozen);
+  view.noteMessage.textContent = item?.error || snap?.error || page?.error || snap?.draftError || snap?.labelError || (previousDate ? `此草稿属于 ${item.date}，请在原日期处理；点击“写一条”可继续今日记录。` : !page?.loaded ? "正在读取碎碎念…" : !page.canEdit ? "当前身份为只读。" : item?.phase === "queued" ? "已存本机，待同步。" : "");
+}
+function bindOfflineStatus(view, active5) {
+  let unsubscribe = () => {
+  };
+  const stop = onOfflineRuntime((runtime2) => {
+    unsubscribe();
+    unsubscribe = runtime2.subscribe((value) => {
+      if (active5()) view.offline.textContent = [
+        offlineStatusLabel(value),
+        value.partial ? "仅显示本机已保存事项，完整列表需联网读取。" : ""
+      ].filter(Boolean).join(" ");
+    });
+  });
+  return () => {
+    stop();
+    unsubscribe();
+  };
+}
+function mountFloating(pip) {
+  const view = makeView(pip), owner2 = todoOwner();
+  let alive = true, tab = "todos", notesLoaded = false, composing = false, date = bjtDate();
+  const active5 = () => alive && !pip.closed && todoSessionActive(owner2);
+  const paint = () => {
+    if (active5()) {
+      paintTodo(view);
+      if (tab === "notes") paintNotes(view);
+    }
+  };
+  const stopTodos = observeTodoChanges(paint), stopNotes = observeFloatingNotes(paint);
+  const stopRuntime = bindOfflineStatus(view, active5);
+  const beforeUnload = (event) => {
+    if (active5() && hasFloatingNoteDraft()) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  };
+  const beforeRefresh2 = (event) => {
+    if (!active5() || typeof event.detail?.waitUntil !== "function") return;
+    if (composing) {
+      event.detail.waitUntil(Promise.reject(new Error("输入尚未完成，请结束输入后再刷新。")));
+      return;
+    }
+    const current2 = floatingNotesSnapshot()?.item;
+    if (tab === "notes" && view.notesInput.value !== (current2?.draft || "")) editFloatingNote(view.notesInput.value);
+    view.frozen = true;
+    paint();
+    event.detail.onFailure?.(() => {
+      view.frozen = false;
+      if (active5()) paint();
+    });
+  };
+  const reset = () => {
+    if (alive) pip.close();
+  };
+  const focus = () => {
+    if (active5()) {
+      void loadFloatingToday();
+      if (tab === "notes") void loadFloatingNotes();
+    }
+  };
+  const timer = setInterval(() => {
+    if (!active5()) {
+      if (alive) pip.close();
+      return;
+    }
+    if (date !== bjtDate()) {
+      if (hasFloatingNoteDraft()) toast("前一天仍有未发送内容，请确认保存后再关闭主页面。");
+      date = bjtDate();
+      notesLoaded = false;
+      void loadFloatingToday();
+      if (tab === "notes") {
+        notesLoaded = true;
+        void loadFloatingNotes();
+      }
+    }
+  }, 3e4);
+  function cleanup() {
+    if (!alive) return;
+    if (composing && todoSessionActive(owner2)) {
+      editFloatingNote(view.notesInput.value, false);
+      composing = false;
+    }
+    markFloatingNoteComposing(false);
+    const draft = hasFloatingNoteDraft();
+    alive = false;
+    clearInterval(timer);
+    stopTodos();
+    stopNotes();
+    stopRuntime();
+    window.removeEventListener("beforeunload", beforeUnload);
+    window.removeEventListener("haoduoyu:before-refresh", beforeRefresh2);
+    window.removeEventListener("haoduoyu-todos-reset", reset);
+    pip.removeEventListener("focus", focus);
+    if (activeWindow === pip) activeWindow = null;
+    if (draft && todoSessionActive(owner2)) toast("未发送内容仍在当前页面，请确认保存后再关闭主页面。");
+  }
+  view.tabs.addEventListener("click", (event) => {
+    const button2 = event.target.closest("button[data-tab]");
+    if (!button2) return;
+    tab = button2.dataset.tab;
+    view.todo.hidden = tab !== "todos";
+    view.notes.hidden = tab !== "notes";
+    for (const control of view.tabs.querySelectorAll("button")) control.setAttribute("aria-pressed", String(control === button2));
+    if (tab === "notes" && !notesLoaded) {
+      notesLoaded = true;
+      void loadFloatingNotes();
+    }
+    paint();
+  });
+  view.todoList.addEventListener("change", (event) => {
+    const input = event.target;
+    if (input.dataset.todoId) void toggleTodo(input, { floating: true });
+  });
+  view.newNote.addEventListener("click", () => {
+    newFloatingNote();
+    paint();
+    view.notesInput.focus();
+  });
+  view.noteList.addEventListener("click", (event) => {
+    const button2 = event.target.closest("[data-note-id]");
+    if (button2) selectFloatingNote(button2.dataset.noteId, button2.dataset.category);
+  });
+  view.notesInput.addEventListener("compositionstart", () => {
+    composing = true;
+    markFloatingNoteComposing(true);
+  });
+  view.notesInput.addEventListener("input", (event) => {
+    editFloatingNote(view.notesInput.value, composing || event.isComposing);
+    if (composing || event.isComposing) markFloatingNoteComposing(true);
+  });
+  view.notesInput.addEventListener("compositionend", () => {
+    composing = false;
+    editFloatingNote(view.notesInput.value);
+    markFloatingNoteComposing(false);
+  });
+  view.options.addEventListener("change", () => {
+    labelFloatingNote([...view.options.querySelectorAll("input:checked")].map((input) => input.value));
+    paint();
+  });
+  view.send.addEventListener("click", () => {
+    void sendFloatingNote();
+  });
+  view.check.addEventListener("click", () => {
+    void checkFloatingNote();
+  });
+  view.retry.addEventListener("click", () => {
+    void checkFloatingNote(true);
+  });
+  window.addEventListener("beforeunload", beforeUnload);
+  window.addEventListener("haoduoyu:before-refresh", beforeRefresh2);
+  window.addEventListener("haoduoyu-todos-reset", reset);
+  pip.addEventListener("focus", focus);
+  pip.addEventListener("pagehide", cleanup, { once: true });
+  view.tabs.querySelector('[data-tab="todos"]').setAttribute("aria-pressed", "true");
+  paint();
+  void loadFloatingToday();
+}
+async function openFloatingWorkbench() {
+  if (!floatingTodoSupported()) {
+    toast("当前浏览器不支持置顶便签。", true);
+    return;
+  }
+  if (activeWindow && !activeWindow.closed) {
+    activeWindow.focus();
+    return;
+  }
+  if (opening || !state.me) return;
+  opening = true;
+  try {
+    const request = window.documentPictureInPicture.requestWindow({ width: 390, height: 520 });
+    todoDay(bjtDate());
+    const owner2 = todoOwner();
+    const pip = await request;
+    if (!todoSessionActive(owner2) || pip.closed) {
+      if (!pip.closed) pip.close();
+      return;
+    }
+    activeWindow = pip;
+    try {
+      mountFloating(pip);
+    } catch (error) {
+      activeWindow = null;
+      pip.close();
+      throw error;
+    }
+  } catch (error) {
+    toast("无法打开置顶便签：" + (error?.message || "请稍后重试。"), true);
+  } finally {
+    opening = false;
+  }
+}
+
 // web/pages/detail.mjs
 var articleStatus = { drafting: "撰写中", illustrated: "已配图", draft_saved: "草稿已存", published: "已发布", failed: "失败" };
 var articleWriter = { dedao: "得到大脑", gemini_web: "Gemini", human: "本人", other: "其他" };
@@ -11279,7 +12058,7 @@ async function articleDetail(id) {
     const focused = document.activeElement?.dataset?.articleVerifyIndex;
     document.querySelector("#overlay .article-ledger-detail").outerHTML = renderArticleDetailBody(view.article, view);
     document.querySelector("#modal-title").textContent = view.article.title;
-    if (focused !== void 0 && !view.busy) Array.from(document.querySelectorAll("#overlay [data-article-verify-index]")).find((node) => node.dataset.articleVerifyIndex === focused)?.focus();
+    if (focused !== void 0 && !view.busy) Array.from(document.querySelectorAll("#overlay [data-article-verify-index]")).find((node2) => node2.dataset.articleVerifyIndex === focused)?.focus();
   } });
 }
 
@@ -11562,6 +12341,7 @@ var actions = {
   "media-records": reviewRecordsModal,
   "article-verify-retry": retryArticleVerification,
   "article-verify-refresh": refreshArticleVerification,
+  "todo-floating": openFloatingWorkbench,
   "todo-menu": openTodoMenu,
   "todo-delete": ({ target }) => deleteTodo(target.dataset),
   "todo-restore": ({ target }) => restoreTodo(target.dataset),
@@ -12273,249 +13053,6 @@ async function startServiceWorker({
     for (const remove of cleanups) remove();
     return null;
   }
-}
-
-// web/offline/ui.mjs
-function offlineStatusLabel(state2) {
-  if (state2.unsupported) return "需新版";
-  if (state2.conflicts) return "有冲突";
-  if (!state2.online) return `离线（${state2.pending || 0} 条待同步）`;
-  if (state2.error) return "同步失败，等待重试";
-  if (state2.phase === "syncing") return "";
-  if (state2.pending) return `待同步（${state2.pending} 条）`;
-  return "";
-}
-function textNode(document2, tag, text, className) {
-  const node = document2.createElement(tag);
-  node.textContent = text;
-  if (className) node.className = className;
-  return node;
-}
-function readable(value) {
-  if (!value) return "（线上已不存在）";
-  const text = value.body !== void 0 ? value.title + "\n" + value.body : value.text ?? value.title;
-  if (typeof value.completed === "boolean") return `${text || ""}${value.date ? "\n日期：" + value.date : ""}
-完成：${value.completed ? "是" : "否"}
-版本：${value.version || ""}`;
-  return typeof text === "string" ? text : JSON.stringify(value, null, 2);
-}
-var absent = (value) => !value || value.deleted || value.deleted_at;
-var selectedLocal = (row) => Object.hasOwn(row, "review_local") ? row.review_local : row.local;
-var selectedRemote = (row) => Object.hasOwn(row, "review_remote") ? row.review_remote : row.remote;
-function conflictLocalChoiceLabel(conflict) {
-  const local = selectedLocal(conflict), remote = selectedRemote(conflict), type = conflict.operation.entity_type;
-  if (absent(local) && absent(remote)) return "确认删除结果";
-  if (conflict.copy_required || absent(remote) || conflict.reason === "MEMO_GROUP_UNAVAILABLE" || type === "todo" && (local?.date !== remote.date || local?.text !== remote.text) || type === "unscheduled_todo" && local?.text !== remote.text || type === "note_entry" && (local?.date !== remote.date || local?.category !== remote.category) || type === "memo_note" && local?.group_id !== remote.group_id) return "另存本地副本";
-  return "用本地";
-}
-function conflictActions(document2, conflict, runtime2, refresh, requests) {
-  const actions2 = document2.createElement("div");
-  actions2.className = "offline-conflict-actions";
-  const localLabel = conflictLocalChoiceLabel(conflict);
-  for (const [choice2, label3] of [["use-local", localLabel], ["use-server", "用线上"], ["keep-both", "两份都留"]]) {
-    const button2 = textNode(document2, "button", label3, "btn text");
-    button2.type = "button";
-    button2.disabled = requests.busy(conflict.key);
-    button2.addEventListener("click", async () => {
-      const controller = requests.begin(conflict.key);
-      if (!controller) return;
-      for (const control of actions2.children) control.disabled = true;
-      const cancel = textNode(document2, "button", "取消", "btn text");
-      cancel.type = "button";
-      cancel.addEventListener("click", () => controller.abort());
-      actions2.append(cancel);
-      try {
-        const result = await runtime2.resolve(conflict.key, choice2, {
-          signal: controller.signal,
-          expected: conflictDecisionToken(conflict),
-          copyConfirmed: localLabel === "另存本地副本"
-        });
-        requests.message(conflict.key, result.blocked ? result.resolution_message : "");
-      } catch (error) {
-        requests.message(conflict.key, error.name === "AbortError" ? "本次选择已取消，原文仍保留。" : error.message);
-      } finally {
-        requests.end(conflict.key, controller);
-        cancel.remove();
-        await refresh();
-      }
-    });
-    actions2.append(button2);
-  }
-  return actions2;
-}
-function conflictEvidence(document2, conflict) {
-  const history2 = document2.createElement("details");
-  history2.append(textNode(document2, "summary", "先前对比（原文保留）"));
-  for (const row of conflict.remote_history || []) history2.append(textNode(document2, "pre", readable(row)));
-  return history2;
-}
-function queueRows(document2, queue, runtime2, refresh, requests) {
-  const root = document2.createDocumentFragment();
-  if (!queue.operations.length && !queue.conflicts.length) root.append(textNode(document2, "p", "暂无待处理内容。"));
-  const labels = {
-    queued: "等待同步",
-    sending: "待同步",
-    unknown: "结果待核对",
-    paused: "需联网核实身份",
-    blocked: "需处理",
-    conflict: "有冲突"
-  };
-  for (const operation2 of queue.operations) {
-    const item = textNode(
-      document2,
-      "p",
-      `${operation2.needs_upgrade ? "需新版" : labels[operation2.status] || "等待同步"} · ${readable(operation2.local)}`,
-      "offline-queue-row"
-    );
-    if (operation2.error) item.append(textNode(document2, "span", " · " + operation2.error));
-    root.append(item);
-  }
-  for (const conflict of queue.conflicts) {
-    const item = document2.createElement("article");
-    item.className = "offline-conflict";
-    item.append(
-      textNode(document2, "h3", "两份内容已保留"),
-      textNode(document2, "p", "本机内容"),
-      textNode(document2, "pre", readable(selectedLocal(conflict))),
-      textNode(document2, "p", "线上内容"),
-      textNode(document2, "pre", readable(selectedRemote(conflict)))
-    );
-    if (conflict.remote_history?.length) item.append(conflictEvidence(document2, conflict));
-    if (conflict.resolution_message) item.append(textNode(document2, "p", conflict.resolution_message));
-    if (requests.message(conflict.key)) item.append(textNode(document2, "p", requests.message(conflict.key)));
-    if (conflict.needs_upgrade) {
-      item.append(textNode(document2, "p", "此本机操作需新版页面处理，原内容已保留。"));
-      root.append(item);
-      continue;
-    }
-    if (conflict.resolution) {
-      const labels2 = {
-        queued: "选择已存本机，正在核对线上结果。",
-        conflict: "新保存有冲突，请核对下方的新比较内容。",
-        blocked: "新保存暂未完成，原文与选择仍保留。",
-        paused: "需联网核实后继续，原文与选择仍保留。"
-      };
-      item.append(textNode(document2, "p", labels2[conflict.resolution.state] || "正在核对线上结果。"));
-      root.append(item);
-      continue;
-    }
-    if (conflictLocalChoiceLabel(conflict) === "另存本地副本")
-      item.append(textNode(document2, "p", "副本会使用新记录，原记录保持原状。"));
-    item.append(conflictActions(document2, conflict, runtime2, refresh, requests));
-    root.append(item);
-  }
-  return root;
-}
-function pageAnnotation(document2, state2) {
-  const page = new URL(document2.defaultView.location.href).searchParams.get("page") || "dashboard";
-  const header = document2.querySelector("#page-header");
-  let banner = document2.querySelector("#offline-page-note");
-  let label3 = "";
-  if (page === "settings" && !state2.online) label3 = "设置需联网后使用。";
-  if (page === "todos" && state2.partial) label3 = "当前仅显示本机已保存的事项，完整列表需联网读取。";
-  if (page === "dashboard" && !state2.online && state2.cachedAt) label3 = "数据截至 " + new Date(state2.cachedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false });
-  if (label3 && header) {
-    if (!banner) {
-      banner = textNode(document2, "p", "", "offline-page-note");
-      banner.id = "offline-page-note";
-      header.append(banner);
-    }
-    if (banner.textContent !== label3) banner.textContent = label3;
-  } else banner?.remove();
-  const content2 = document2.querySelector("#page-content");
-  if (content2) {
-    const unavailable = page === "settings" && !state2.online;
-    content2.inert = unavailable;
-    if (unavailable || content2.dataset.offlineHidden === "true") content2.hidden = unavailable;
-    content2.dataset.offlineHidden = String(unavailable);
-  }
-}
-function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
-  let state2 = { ...runtime2.state }, expanded = false, rendering = 0;
-  const pending = /* @__PURE__ */ new Map(), messages = /* @__PURE__ */ new Map(), requests = {
-    busy: (key) => pending.has(key),
-    begin(key) {
-      if (pending.has(key)) return null;
-      const controller = new AbortController();
-      pending.set(key, controller);
-      return controller;
-    },
-    end(key, controller) {
-      if (pending.get(key) === controller) pending.delete(key);
-    },
-    message(key, value) {
-      if (value !== void 0) messages.set(key, value);
-      return messages.get(key) || "";
-    },
-    cancel() {
-      for (const controller of pending.values()) controller.abort();
-    }
-  };
-  const root = document2.createElement("aside");
-  root.className = "offline-indicator";
-  root.setAttribute("aria-label", "同步状态");
-  const button2 = textNode(document2, "button", "", "offline-state-button");
-  button2.type = "button";
-  button2.setAttribute("aria-controls", "offline-queue");
-  button2.setAttribute("aria-expanded", "false");
-  const panel = document2.createElement("section");
-  panel.id = "offline-queue";
-  panel.className = "offline-queue";
-  panel.setAttribute("aria-label", "本机待同步内容与冲突");
-  panel.hidden = true;
-  root.append(button2, panel);
-  async function refreshQueue() {
-    if (!expanded) return;
-    const sequence2 = ++rendering, queue = await runtime2.queue();
-    if (sequence2 !== rendering || !expanded) return;
-    panel.replaceChildren(textNode(document2, "h2", "同步队列"), queueRows(document2, queue, runtime2, refreshQueue, requests));
-  }
-  function mount() {
-    if (!root.isConnected && document2.body) document2.body.append(root);
-    const label3 = offlineStatusLabel(state2);
-    root.hidden = !state2.identity || !label3;
-    if (button2.textContent !== label3) button2.textContent = label3;
-    root.dataset.phase = state2.conflicts ? "conflict" : state2.phase;
-    pageAnnotation(document2, state2);
-  }
-  button2.addEventListener("click", () => {
-    expanded = !expanded;
-    panel.hidden = !expanded;
-    button2.setAttribute("aria-expanded", String(expanded));
-    if (!expanded) requests.cancel();
-    if (expanded) void refreshQueue();
-  });
-  const unsubscribe = runtime2.subscribe((next) => {
-    state2 = next;
-    mount();
-    if (expanded) void refreshQueue();
-    window2.dispatchEvent(new CustomEvent("haoduoyu-offline-status", { detail: { pending: state2.pending, conflicts: state2.conflicts } }));
-  });
-  const observer = new MutationObserver(mount);
-  observer.observe(document2.body, { childList: true, subtree: true });
-  const stop = runtime2.start({ window: window2, document: document2 });
-  mount();
-  return () => {
-    requests.cancel();
-    unsubscribe();
-    observer.disconnect();
-    stop();
-    root.remove();
-  };
-}
-function startOfflineUI({ document: document2 = globalThis.document, window: window2 = globalThis.window } = {}) {
-  if (!document2?.body || !window2) return () => {
-  };
-  let stop = () => {
-  };
-  const unsubscribe = onOfflineRuntime((runtime2) => {
-    stop();
-    stop = mountRuntimeUI(runtime2, { document: document2, window: window2 });
-  });
-  return () => {
-    unsubscribe();
-    stop();
-  };
 }
 
 // web/main.mjs
