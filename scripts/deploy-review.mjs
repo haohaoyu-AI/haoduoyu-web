@@ -115,21 +115,10 @@ async function outsideGit(path) {
 async function makePrivateDirectory(path) {
   await mkdir(path,{recursive:true,mode:0o700});
   check(!(await lstat(path)).isSymbolicLink(),'EVIDENCE_PATH_INVALID');
-  if(process.platform==='win32') {
-    // Node's POSIX modes do not restrict Windows ACLs. Grant only this user
-    // and SYSTEM access; the path is an environment value, never shell code.
-    const script="$ErrorActionPreference='Stop'; $acl=New-Object System.Security.AccessControl.DirectorySecurity; "+
-      "$acl.SetAccessRuleProtection($true,$false); $sid=[System.Security.Principal.WindowsIdentity]::GetCurrent().User; "+
-      "$rights=[System.Security.AccessControl.FileSystemRights]::FullControl; "+
-      "$inherit=[System.Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit'; "+
-      "$prop=[System.Security.AccessControl.PropagationFlags]::None; $allow=[System.Security.AccessControl.AccessControlType]::Allow; "+
-      "$acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid,$rights,$inherit,$prop,$allow)); "+
-      "$acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new([System.Security.Principal.SecurityIdentifier]::new('S-1-5-18'),$rights,$inherit,$prop,$allow)); "+
-      "Set-Acl -LiteralPath $env:HAODUOYU_RELEASE_PRIVATE_DIR -AclObject $acl";
-    try{await exec('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{
-      windowsHide:true,env:{...process.env,HAODUOYU_RELEASE_PRIVATE_DIR:path},maxBuffer:1024*1024});}
-    catch{throw new ReviewFailure('PRIVATE_DIRECTORY_ACL_FAILED');}
-  }else await chmod(path,0o700);
+  // Inherit the operator's existing Windows directory ACL. A release must not
+  // change local permission settings; use the current user's private temp path
+  // by default, or an already-private destination selected by the operator.
+  if(process.platform!=='win32')await chmod(path,0o700);
 }
 
 export async function readRemoteSnapshot(config,{request=fetch}={}) {
