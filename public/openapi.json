@@ -5878,7 +5878,7 @@
       "get": {
         "operationId": "listAiReports",
         "summary": "List AI reports",
-        "description": "Public access is available only when PUBLIC_BUSINESS_MODE=1, using the configured daily-notes owner. No identity authentication is required in public mode: author is self-reported and is not a verified identity. An owner session is also supported; explicitly supplied invalid credentials do not fall back to public access. Bearer keys do not grant access. Returns up to 100 records ordered by created_at descending then id descending. Increase offset by 100 while has_more is true. Offset pagination can shift when new records arrive.",
+        "description": "Public access is available only when PUBLIC_BUSINESS_MODE=1, using the configured daily-notes owner. No identity authentication is required in public mode: author is self-reported and is not a verified identity. An owner session is also supported; explicitly supplied invalid credentials do not fall back to public access. Bearer keys do not grant access. Returns up to 100 records ordered by created_at descending then id descending. Increase offset by 100 while has_more is true. Offset pagination can shift when new records arrive. Each item includes content_hash for conditional deletion.",
         "tags": [
           "AI reports"
         ],
@@ -5913,7 +5913,7 @@
                           "type": "array",
                           "maxItems": 100,
                           "items": {
-                            "$ref": "#/components/schemas/AiReport"
+                            "$ref": "#/components/schemas/AiReportListItem"
                           }
                         },
                         "has_more": {
@@ -5962,7 +5962,7 @@
       "put": {
         "operationId": "createAiReport",
         "summary": "Create an AI report using a client-generated UUID",
-        "description": "Public access is available only when PUBLIC_BUSINESS_MODE=1, using the configured daily-notes owner. No identity authentication is required in public mode: author is self-reported and is not a verified identity. An owner session is also supported; explicitly supplied invalid credentials do not fall back to public access. Bearer keys do not grant access. Public writes require an Origin exactly matching the site origin and X-Public-Business: 1. A logged-in owner session instead requires same-origin Origin and X-CSRF-Token. Use the same lowercase UUID and same normalized author/content for safe retry: the existing record returns 200; differing content returns 409 IDEMPOTENCY_CONFLICT. Put the work date as YYYY-MM-DD on the first line of content, followed by the report; this is a client convention, not server validation. Public writes are limited per owner and module per process to 60/minute and 2000/UTC day, not globally; rejected payloads and retries count. JSON request body is capped at 256 KiB. Error responses use {error:{code,message},request_id}.",
+        "description": "Public access is available only when PUBLIC_BUSINESS_MODE=1, using the configured daily-notes owner. No identity authentication is required in public mode: author is self-reported and is not a verified identity. An owner session is also supported; explicitly supplied invalid credentials do not fall back to public access. Bearer keys do not grant access. Public writes require an Origin exactly matching the site origin and X-Public-Business: 1. A logged-in owner session instead requires same-origin Origin and X-CSRF-Token. Use the same lowercase UUID and same normalized author/content for safe retry: the existing record returns 200; differing content returns 409 IDEMPOTENCY_CONFLICT. Put the work date as YYYY-MM-DD on the first line of content, followed by the report; this is a client convention, not server validation. Public writes are limited per owner and module per process to 60/minute and 2000/UTC day, not globally; rejected payloads and retries count. JSON request body is capped at 256 KiB. Error responses use {error:{code,message},request_id}. After permanent deletion, PUT with the same UUID returns 409 AI_REPORT_DELETED.",
         "tags": [
           "AI reports"
         ],
@@ -6095,6 +6095,154 @@
           },
           "503": {
             "description": "CONFIGURATION: required owner configuration unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAiReport",
+        "summary": "Permanently delete one AI report",
+        "description": "The user has approved any visitor deleting any single report when PUBLIC_BUSINESS_MODE=1. Deletion is permanent and cannot be recovered. Author signatures are self-reported and unauthenticated. Use content_hash from the GET list as expected_hash. The same identity repeating an identical request with the same save_id replays success unless a record with the same ID exists again (409). Reuse of save_id for a different request returns 409 IDEMPOTENCY_CONFLICT; a stale hash returns 409 VERSION_CONFLICT. After deletion, PUT with the same report UUID returns 409 AI_REPORT_DELETED to prevent delayed create retries from resurrecting it. A missing report returns 404. Public writes require exact same-origin Origin and X-Public-Business: 1. Owner-session writes require same-origin Origin and X-CSRF-Token. Explicit invalid credentials do not fall back to public access; Bearer keys do not grant access. Public write attempts, including retries and rejected bodies, count toward the per-owner and module per-process limit of 60/minute and 2000/UTC day.",
+        "tags": [
+          "AI reports"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Lowercase UUID of the single report to delete.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "example": "123e4567-e89b-42d3-a456-426614174000"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "description": "Must exactly match the site origin for public or session writes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "required": false,
+            "description": "Required value 1 for anonymous public writes.",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "description": "Required for owner-session writes.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiReportDelete"
+              },
+              "example": {
+                "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deleted, or replay of the identical successful request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "deleted"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "deleted": {
+                          "const": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "description": "AI_REPORTS_RATE_LIMIT: per-process public write limit reached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "CONFIGURATION: required owner configuration unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "VERSION_CONFLICT: stale expected_hash; IDEMPOTENCY_CONFLICT: save_id used for a different request; or the report ID exists again during replay. Reread the list before deciding whether to retry.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10927,6 +11075,46 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "AiReportListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AiReport"
+          },
+          {
+            "type": "object",
+            "required": [
+              "content_hash"
+            ],
+            "properties": {
+              "content_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "Lowercase SHA-256 of stable JSON over id, author, content and created_at; supply this value as expected_hash when deleting."
+              }
+            }
+          }
+        ]
+      },
+      "AiReportDelete": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_hash",
+          "save_id"
+        ],
+        "properties": {
+          "expected_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "The content_hash from the current GET list item."
+          },
+          "save_id": {
+            "type": "string",
+            "description": "Lowercase UUID for this operation; reuse it only for an identical retry by the same identity.",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
           }
         }
       }

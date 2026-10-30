@@ -28,3 +28,15 @@ regexes = [
   '''^f887a379fda652dccfbcce630fc499bc9bfde705adfa62c10641ad6e219d2487$''',
   '''^2fddbf533d8cd210df72f1941c2a21bfc7f286fe1dbd8a017c7f023692ac2415$''',
 ]
+
+# User-approved: exact current public AI report deletion documentation checksums.
+[[allowlists]]
+description = "Approved exact AI report deletion documentation checksums"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^\.ci/public-assets\.json$''']
+regexes = [
+  '''^5f033232bbebc0df2e2b3043779a4c9056cbed21ca1cf9850f47a398002968ba$''',
+  '''^51479d62456ab0fff85a2a32e0dba97c3d10bcb00745e65ed22944208f337763$''',
+]

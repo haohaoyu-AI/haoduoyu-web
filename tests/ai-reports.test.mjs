@@ -39,7 +39,7 @@ test('AI reports require the owner session, persist truthful input, and replay w
   assert.ok(Number.isFinite(Date.parse(created.data.created_at)));
   assert.deepEqual((await call('/'+id,'PUT',body,auth)).data,created.data);
   assert.equal((await call('/'+id,'PUT',{...body,content:'different'},auth)).status,409);
-  assert.deepEqual((await call('','GET',null,auth)).data.items,[created.data]);
+  assert.deepEqual((await call('','GET',null,auth)).data.items,[{...created.data,content_hash:digest(JSON.stringify(stable(created.data)))}]);
   const other=randomUUID(),token=randomBytes(32).toString('hex');
   await app.db.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) SELECT ?,?,password_hash,created_at FROM matrix_users WHERE id=?').bind(other,'other',owner).run();
   await app.db.prepare('INSERT INTO matrix_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').bind(digest(token),other,new Date(Date.now()+60000).toISOString()).run();
@@ -102,7 +102,7 @@ test('public AI reports use the fixed owner, reject supplied invalid credentials
   assert.equal(created.status,201);assert.equal(created.data.author,body.author);assert.equal(created.data.content,body.content);
   assert.deepEqual((await call('/'+id,'PUT',body,publicHeaders)).data,created.data);
   assert.equal((await call('/'+id,'PUT',{...body,content:'changed'},publicHeaders)).status,409);
-  assert.deepEqual((await call()).data.items,[created.data]);
+  assert.deepEqual((await call()).data.items,[{...created.data,content_hash:digest(JSON.stringify(stable(created.data)))}]);
   assert.equal((await call('','GET',undefined,{}, {...env,PUBLIC_BUSINESS_MODE:'0'})).status,401);
   assert.equal((await call('/'+randomUUID(),'PUT',body,publicHeaders,{...env,PUBLIC_BUSINESS_MODE:'0'})).status,401);
   assert.equal((await call('','GET',undefined,{Cookie:session.cookie},{...env,PUBLIC_BUSINESS_MODE:'0'})).status,200);
@@ -116,6 +116,81 @@ test('AI report write limit is module-specific and local to this process',()=>{
   for(let i=0;i<60;i++)limitNoteWrites(owner,'ai-reports',1000);
   assert.throws(()=>limitNoteWrites(owner,'ai-reports',1000),e=>e.status===429&&e.code==='AI_REPORTS_RATE_LIMIT');
   limitNoteWrites(owner,'notes',1000);limitNoteWrites(owner,'memos',1000);limitNoteWrites(owner,'ai-reports',61000);
+});
+
+test('public deletion checks version and identity, preserves other rows, and safely replays',async t=>{
+  const app=fixture(t),session=await app.login(),env={DAILY_NOTES_OWNER_ID:app.owner,PUBLIC_BUSINESS_MODE:'1'};
+  const publicHeaders={Origin:app.origin,'X-Public-Business':'1'},id=randomUUID(),other=randomUUID();
+  async function call(path='',method='GET',data,headers={}) {
+    const h=new Headers(headers);if(data!==undefined)h.set('Content-Type','application/json');
+    const request=new Request(app.origin+'/api/v1/ai-reports'+path,{method,headers:h,body:data===undefined?undefined:JSON.stringify(data)});
+    try {const response=await handleAiReports(app.db,request,'/ai-reports'+path,env,app.origin);return {status:response.status,...await response.json()};}
+    catch(error) {if(!error.status)throw error;return {status:error.status,code:error.code};}
+  }
+  const body={author:'A',content:'PRIVATE REPORT BODY'},otherBody={author:'B',content:'untouched'};
+  const created=await call('/'+id,'PUT',body,publicHeaders);
+  await call('/'+other,'PUT',otherBody,publicHeaders);
+  const rows=(await call()).data.items,hash=rows.find(row=>row.id===id).content_hash;
+  assert.equal(hash,digest(JSON.stringify(stable(created.data))));
+  const save_id=randomUUID(),payload={expected_hash:hash,save_id};
+  for(const headers of [{},{Origin:app.origin},{...publicHeaders,Origin:'https://other.invalid'},
+    {...publicHeaders,Authorization:'Bearer invalid'}, {...publicHeaders,Cookie:session.cookie,'X-CSRF-Token':'wrong'}])
+    assert.notEqual((await call('/'+id,'DELETE',payload,headers)).status,200);
+  assert.equal((await call('/'+id,'DELETE',{...payload,expected_hash:'0'.repeat(64)},publicHeaders)).code,'VERSION_CONFLICT');
+  assert.equal((await call('/'+id,'DELETE',{...payload,save_id:'invalid'},publicHeaders)).status,400);
+  const deleted=await call('/'+id,'DELETE',payload,publicHeaders);
+  assert.deepEqual(deleted,{status:200,data:{deleted:true,id}});
+  assert.deepEqual(await call('/'+id,'DELETE',payload,publicHeaders),deleted);
+  assert.equal((await call('/'+other,'DELETE',{...payload,expected_hash:rows.find(row=>row.id===other).content_hash},publicHeaders)).code,'IDEMPOTENCY_CONFLICT');
+  assert.equal((await call('/'+id,'DELETE',{...payload,save_id:randomUUID()},publicHeaders)).status,404);
+  assert.equal((await call('/'+id,'PUT',body,publicHeaders)).code,'AI_REPORT_DELETED');
+  assert.equal((await call()).data.items.length,1);
+  assert.equal((await call()).data.items[0].content,otherBody.content);
+  const stored=await app.db.prepare('SELECT request_hash,response_json FROM matrix_idempotency WHERE key IN (?,?)').bind('ai-report-delete:'+save_id,'ai-report-deleted:'+id).all();
+  assert.equal(stored.results.length,2);
+  assert.ok(!JSON.stringify(stored.results).includes(body.content));
+  const backup=await exportBackup(app.db,{todoUserId:app.owner}),target=fixture(t,{bootstrap:false});
+  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
+  const restoredRequest=new Request(app.origin+'/api/v1/ai-reports/'+id,{method:'PUT',headers:{...publicHeaders,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  await assert.rejects(handleAiReports(target.db,restoredRequest,'/ai-reports/'+id,env,app.origin),error=>error.code==='AI_REPORT_DELETED');
+  // An out-of-band recreation must not turn a retry into a false success or delete it.
+  await app.db.prepare('INSERT INTO matrix_ai_reports(user_id,id,author,content,created_at) VALUES(?,?,?,?,?)').bind(app.owner,id,'new','new body',new Date().toISOString()).run();
+  assert.equal((await call('/'+id,'DELETE',payload,publicHeaders)).code,'VERSION_CONFLICT');
+  assert.equal((await app.db.prepare('SELECT content FROM matrix_ai_reports WHERE user_id=? AND id=?').bind(app.owner,id).first()).content,'new body');
+});
+
+test('receipt failure rolls back the report deletion and tombstone',async t=>{
+  const app=fixture(t),env={DAILY_NOTES_OWNER_ID:app.owner,PUBLIC_BUSINESS_MODE:'1'},id=randomUUID(),headers={Origin:app.origin,'X-Public-Business':'1','Content-Type':'application/json'};
+  const request=(method,body)=>new Request(app.origin+'/api/v1/ai-reports/'+id,{method,headers,body:JSON.stringify(body)});
+  const created=await handleAiReports(app.db,request('PUT',{author:'A',content:'kept'}),'/ai-reports/'+id,env,app.origin);
+  const row=(await created.json()).data,hash=digest(JSON.stringify(stable(row))),batch=app.db.batch;
+  app.db.batch=statements=>batch([...statements.slice(0,-1),{run:async()=>{throw new Error('synthetic receipt failure');}}]);
+  await assert.rejects(handleAiReports(app.db,request('DELETE',{expected_hash:hash,save_id:randomUUID()}),'/ai-reports/'+id,env,app.origin),/synthetic receipt failure/);
+  assert.equal((await app.db.prepare('SELECT content FROM matrix_ai_reports WHERE user_id=? AND id=?').bind(app.owner,id).first()).content,'kept');
+  assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_idempotency').first()).n,0);
+});
+
+test('deletion retries an interleaved revision and never removes changed content',async t=>{
+  const app=fixture(t),env={DAILY_NOTES_OWNER_ID:app.owner,PUBLIC_BUSINESS_MODE:'1'},id=randomUUID(),headers={Origin:app.origin,'X-Public-Business':'1','Content-Type':'application/json'};
+  async function call(method,body) {
+    const request=new Request(app.origin+'/api/v1/ai-reports/'+id,{method,headers,body:JSON.stringify(body)});
+    try {const response=await handleAiReports(app.db,request,'/ai-reports/'+id,env,app.origin);return {status:response.status,...await response.json()};}
+    catch(error) {if(!error.status)throw error;return {status:error.status,code:error.code};}
+  }
+  const created=await call('PUT',{author:'A',content:'old'});
+  const hash=digest(JSON.stringify(stable(created.data))),batch=app.db.batch;
+  let interleaved=false;
+  app.db.batch=async statements=>{
+    if(!interleaved) {
+      interleaved=true;
+      await app.db.prepare('UPDATE matrix_ai_reports SET content=? WHERE user_id=? AND id=?').bind('new',app.owner,id).run();
+      await app.db.prepare('UPDATE matrix_control SET revision=revision+1 WHERE id=1').run();
+    }
+    return batch(statements);
+  };
+  assert.equal((await call('DELETE',{expected_hash:hash,save_id:randomUUID()})).code,'VERSION_CONFLICT');
+  assert.equal((await app.db.prepare('SELECT content FROM matrix_ai_reports WHERE user_id=? AND id=?').bind(app.owner,id).first()).content,'new');
+  assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_idempotency').first()).n,0);
 });
 
 

@@ -1,9 +1,13 @@
-import {bodyFor,authenticate,fail} from './security.mjs';
+import {bodyFor,authenticate,digest,stable,fail} from './security.mjs';
 import {noteEditor,limitNoteWrites} from './public-note-access.mjs';
 import {storeFor,consistentRead,mutate} from './storage.mjs';
 import {dailyNotesOwner} from './daily-notes.mjs';
 
 const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
+const hashPattern=/^[a-f0-9]{64}$/;
+const reportHash=row=>digest(JSON.stringify(stable({id:row.id,author:row.author,content:row.content,created_at:row.created_at})));
+const tombstoneActor=owner=>'ai-reports-tombstone:'+owner;
+const tombstoneKey=id=>'ai-report-deleted:'+id;
 export function reportText(value,kind) {
   if(typeof value!=='string'||!value.isWellFormed()||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value))
     throw fail(400,'VALIDATION_ERROR','请填写有效的署名和实际工作内容');
@@ -32,17 +36,45 @@ export async function handleAiReports(db,request,route,env,origin,initialRevisio
   if(route==='/ai-reports'&&request.method==='GET') return consistentRead(db,async store=>{
     await reportActor(store,request,owner,env,origin);
     const items=await store.all('SELECT id,author,content,created_at FROM matrix_ai_reports WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 101 OFFSET ?',owner,offset);
-    return Response.json({data:{items:items.slice(0,100),has_more:items.length>100}});
+    return Response.json({data:{items:items.slice(0,100).map(row=>({...row,content_hash:reportHash(row)})),has_more:items.length>100}});
   },initialRevision);
   const match=/^\/ai-reports\/([a-f0-9-]+)$/.exec(route);
-  if(!match||!uuid.test(match[1])||request.method!=='PUT')throw fail(404,'NOT_FOUND','汇报接口不存在');
+  if(!match||!uuid.test(match[1])||!['PUT','DELETE'].includes(request.method))throw fail(404,'NOT_FOUND','汇报接口不存在');
   const preflightActor=await reportActor(storeFor(db),request,owner,env,origin,true);
   if(preflightActor.kind==='public')limitNoteWrites(owner,'ai-reports');
   const input=await bodyFor(request);
+  const id=match[1];
+  if(request.method==='DELETE') {
+    if(Object.keys(input).sort().join(',')!=='expected_hash,save_id'||
+      typeof input.expected_hash!=='string'||!hashPattern.test(input.expected_hash)||
+      typeof input.save_id!=='string'||!uuid.test(input.save_id))throw fail(400,'VALIDATION_ERROR','删除需要有效的汇报版本和保存标识');
+    const key='ai-report-delete:'+input.save_id;
+    const requestHash=digest(JSON.stringify(stable({method:'DELETE',id,...input})));
+    return (await mutate(db,async store=>{
+      const actor=await reportActor(store,request,owner,env,origin,true);
+      const saved=await store.get('SELECT request_hash FROM idempotency WHERE actor=? AND key=?',actor.actor,key);
+      const row=await store.get('SELECT id,author,content,created_at FROM matrix_ai_reports WHERE user_id=? AND id=?',owner,id);
+      if(saved) {
+        if(saved.request_hash!==requestHash)throw fail(409,'IDEMPOTENCY_CONFLICT','保存标识已用于不同请求');
+        if(row)throw fail(409,'VERSION_CONFLICT','汇报已发生变化，请刷新后核对');
+        return {replayed:true,response:Response.json({data:{deleted:true,id}})};
+      }
+      if(!row)throw fail(404,'NOT_FOUND','汇报不存在');
+      if(reportHash(row)!==input.expected_hash)throw fail(409,'VERSION_CONFLICT','汇报已发生变化，请刷新后核对');
+      store.queue('DELETE FROM matrix_ai_reports WHERE user_id=? AND id=? AND author=? AND content=? AND created_at=?',owner,id,row.author,row.content,row.created_at);
+      store.expectChange();
+      const time=new Date().toISOString(),receipt=JSON.stringify({deleted:true,id});
+      store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,200,?)',actor.actor,key,requestHash,receipt,time);
+      store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,200,?) ON CONFLICT(actor,key) DO UPDATE SET request_hash=excluded.request_hash,response_json=excluded.response_json,created_at=excluded.created_at',tombstoneActor(owner),tombstoneKey(id),input.expected_hash,receipt,time);
+      return {actor,response:Response.json({data:{deleted:true,id}})};
+    })).response;
+  }
   if(Object.keys(input).sort().join(',')!=='author,content')throw fail(400,'VALIDATION_ERROR','汇报字段无效');
-  const author=reportText(input.author,'author'),content=reportText(input.content,'content'),id=match[1];
+  const author=reportText(input.author,'author'),content=reportText(input.content,'content');
   return (await mutate(db,async store=>{
     const actor=await reportActor(store,request,owner,env,origin,true);
+    if(await store.get('SELECT key FROM idempotency WHERE actor=? AND key=?',tombstoneActor(owner),tombstoneKey(id)))
+      throw fail(409,'AI_REPORT_DELETED','该汇报已永久删除');
     const existing=await store.get('SELECT id,author,content,created_at FROM matrix_ai_reports WHERE user_id=? AND id=?',owner,id);
     if(existing) {
       if(existing.author!==author||existing.content!==content)throw fail(409,'IDEMPOTENCY_CONFLICT','汇报标识已用于其他内容');
