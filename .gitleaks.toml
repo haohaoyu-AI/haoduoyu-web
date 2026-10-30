@@ -40,3 +40,15 @@ regexes = [
   '''^5f033232bbebc0df2e2b3043779a4c9056cbed21ca1cf9850f47a398002968ba$''',
   '''^51479d62456ab0fff85a2a32e0dba97c3d10bcb00745e65ed22944208f337763$''',
 ]
+
+# User-approved: exact checksums of the public content review documentation.
+[[allowlists]]
+description = "Approved exact content review documentation checksums"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^\.ci/public-assets\.json$''']
+regexes = [
+  '''^57f4ee0beb1f71b77ebf977e7a154e9be4a684dac95b32d3d55ef3b7bddda25c$''',
+  '''^fc7ab764912890eb70a51a7d60b682e3f106ccaa8def0173863a1342a79717f0$''',
+]

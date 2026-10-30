@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { sqliteTable,text,integer,index,uniqueIndex,primaryKey,foreignKey,check } from 'drizzle-orm/sqlite-core';
+import { sqliteTable,text,integer,real,index,uniqueIndex,primaryKey,foreignKey,check } from 'drizzle-orm/sqlite-core';
 
 export const matrixAccounts=sqliteTable('matrix_accounts',{
   id:text('id').primaryKey(),platform:text('platform').notNull(),name:text('name').notNull(),active:integer('active').notNull().default(1),created_at:text('created_at').notNull(),
@@ -151,3 +151,62 @@ export const matrixAiReports=sqliteTable('matrix_ai_reports',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
   author:text('author').notNull(),content:text('content').notNull(),created_at:text('created_at').notNull(),
 },t=>[primaryKey({columns:[t.user_id,t.id]}),index('matrix_ai_reports_owner_time').on(t.user_id,t.created_at,t.id)]);
+
+// Content review is a separate, initially empty collection; legacy articles stay intact.
+export const matrixReviewArticles=sqliteTable('matrix_review_articles',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  account:text('account').notNull().default('V字'),platform:text('platform').notNull().default('toutiao'),
+  platform_article_id:text('platform_article_id'),title:text('title').notNull(),url:text('url'),published_at:text('published_at'),
+  topic_category:text('topic_category'),title_pattern:text('title_pattern'),sample_title:text('sample_title'),sample_url:text('sample_url'),
+  image_count:integer('image_count'),source_chat:text('source_chat'),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  uniqueIndex('matrix_review_article_platform_id').on(t.user_id,t.account,t.platform_article_id),
+  index('matrix_review_article_account_date').on(t.user_id,t.account,t.published_at,t.id),
+  check('matrix_review_article_platform',sql`${t.platform} = 'toutiao'`),
+  check('matrix_review_article_image_count',sql`${t.image_count} IS NULL OR (typeof(${t.image_count})='integer' AND ${t.image_count} BETWEEN 0 AND 9007199254740991)`),
+]);
+export const matrixReviewSnapshots=sqliteTable('matrix_review_snapshots',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  article_id:text('article_id').notNull(),snapshot_date:text('snapshot_date').notNull(),
+  impressions:integer('impressions'),fan_impressions:integer('fan_impressions'),
+  reads:integer('reads'),fan_reads:integer('fan_reads'),
+  ctr:real('ctr'),completion_rate:real('completion_rate'),avg_read_seconds:real('avg_read_seconds'),
+  likes:integer('likes'),comments:integer('comments'),reposts:integer('reposts'),
+  shares:integer('shares'),favorites:integer('favorites'),revenue:real('revenue'),
+  traffic_sources_json:text('traffic_sources_json'),completion_curve_json:text('completion_curve_json'),audience_json:text('audience_json'),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  foreignKey({columns:[t.user_id,t.article_id],foreignColumns:[matrixReviewArticles.user_id,matrixReviewArticles.id]}).onDelete('cascade'),
+  uniqueIndex('matrix_review_snapshot_article_date').on(t.user_id,t.article_id,t.snapshot_date),
+  check('matrix_review_snapshot_counts',sql`(${t.impressions} IS NULL OR (typeof(${t.impressions})='integer' AND ${t.impressions} BETWEEN 0 AND 9007199254740991)) AND (${t.fan_impressions} IS NULL OR (typeof(${t.fan_impressions})='integer' AND ${t.fan_impressions} BETWEEN 0 AND 9007199254740991)) AND (${t.reads} IS NULL OR (typeof(${t.reads})='integer' AND ${t.reads} BETWEEN 0 AND 9007199254740991)) AND (${t.fan_reads} IS NULL OR (typeof(${t.fan_reads})='integer' AND ${t.fan_reads} BETWEEN 0 AND 9007199254740991)) AND (${t.likes} IS NULL OR (typeof(${t.likes})='integer' AND ${t.likes} BETWEEN 0 AND 9007199254740991)) AND (${t.comments} IS NULL OR (typeof(${t.comments})='integer' AND ${t.comments} BETWEEN 0 AND 9007199254740991)) AND (${t.reposts} IS NULL OR (typeof(${t.reposts})='integer' AND ${t.reposts} BETWEEN 0 AND 9007199254740991)) AND (${t.shares} IS NULL OR (typeof(${t.shares})='integer' AND ${t.shares} BETWEEN 0 AND 9007199254740991)) AND (${t.favorites} IS NULL OR (typeof(${t.favorites})='integer' AND ${t.favorites} BETWEEN 0 AND 9007199254740991))`),
+  check('matrix_review_snapshot_rates',sql`(${t.ctr} IS NULL OR ${t.ctr} >= 0) AND (${t.completion_rate} IS NULL OR ${t.completion_rate} >= 0) AND (${t.avg_read_seconds} IS NULL OR ${t.avg_read_seconds} >= 0) AND (${t.revenue} IS NULL OR ${t.revenue} >= 0)`),
+  check('matrix_review_snapshot_traffic_json',sql`${t.traffic_sources_json} IS NULL OR json_valid(${t.traffic_sources_json})`),
+  check('matrix_review_snapshot_curve_json',sql`${t.completion_curve_json} IS NULL OR json_valid(${t.completion_curve_json})`),
+  check('matrix_review_snapshot_audience_json',sql`${t.audience_json} IS NULL OR json_valid(${t.audience_json})`),
+]);
+export const matrixReviewReports=sqliteTable('matrix_review_reports',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  account:text('account').notNull().default('V字'),period_type:text('period_type').notNull(),period_start:text('period_start').notNull(),period_end:text('period_end').notNull(),
+  verdicts_json:text('verdicts_json').notNull().default('{}'),findings_json:text('findings_json').notNull().default('{}'),summary_md:text('summary_md').notNull().default(''),
+  metrics_json:text('metrics_json').notNull().default('{}'),playbook_version:integer('playbook_version'),created_at:text('created_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  uniqueIndex('matrix_review_report_account_period').on(t.user_id,t.account,t.period_type,t.period_start),
+  index('matrix_review_report_account_date').on(t.user_id,t.account,t.period_start,t.id),
+  check('matrix_review_report_period_type',sql`${t.period_type} IN ('daily','three_day','weekly')`),
+  check('matrix_review_report_period_order',sql`${t.period_start} <= ${t.period_end}`),
+  check('matrix_review_report_playbook_version',sql`${t.playbook_version} IS NULL OR (typeof(${t.playbook_version})='integer' AND ${t.playbook_version} BETWEEN 1 AND 9007199254740991)`),
+  check('matrix_review_report_verdicts_json',sql`CASE WHEN json_valid(${t.verdicts_json}) THEN json_type(${t.verdicts_json})='object' ELSE 0 END`),
+  check('matrix_review_report_findings_json',sql`CASE WHEN json_valid(${t.findings_json}) THEN json_type(${t.findings_json})='object' ELSE 0 END`),
+  check('matrix_review_report_metrics_json',sql`CASE WHEN json_valid(${t.metrics_json}) THEN json_type(${t.metrics_json})='object' ELSE 0 END`),
+]);
+export const matrixReviewPlaybooks=sqliteTable('matrix_review_playbooks',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  account:text('account').notNull().default('V字'),version:integer('version').notNull(),published_on:text('published_on').notNull(),content_md:text('content_md').notNull().default(''),
+  rules_json:text('rules_json').notNull().default('[]'),changelog_md:text('changelog_md').notNull().default(''),sent_to_gemini_at:text('sent_to_gemini_at'),created_at:text('created_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),uniqueIndex('matrix_review_playbook_account_version').on(t.user_id,t.account,t.version),
+  check('matrix_review_playbook_version',sql`typeof(${t.version})='integer' AND ${t.version} BETWEEN 1 AND 9007199254740991`),
+  check('matrix_review_playbook_rules_json',sql`CASE WHEN json_valid(${t.rules_json}) THEN json_type(${t.rules_json})='array' ELSE 0 END`),
+]);

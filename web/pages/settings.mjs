@@ -91,8 +91,7 @@ class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, tr
     ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
       const article = r.entity_id && typeof r.entity_label === "string" && r.entity_label ? r : null;
       return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.
-        created_at))}</time>${article ? `<br><button class="article-link" data-action="article-detail" data-id="${e(article.entity_id)}">${
-          e(article.entity_label)}</button>` : ""}</li>`;
+        created_at))}</time>${article ? `<br><span class="article-title">${e(article.entity_label)}</span>` : ""}</li>`;
     }).join("")}</ol></details>`;
   }).join("") || empty("暂无操作记录")}</div></section>`;
 }

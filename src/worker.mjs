@@ -29,6 +29,7 @@ import {handleNoteEntries} from './note-entries.mjs';
 import {handleWorkbenchSnapshot} from './workbench-snapshot.mjs';
 import {handleWorkReminders} from './work-reminders.mjs';
 import {handleAiReports} from './ai-reports.mjs';
+import {handleContentReview} from './content-review.mjs';
 
 const prefix='/api/v1';
 const revalidatedStatic=new Set(['/app.js','/style.css','/memos.css','/favicon.svg','/openapi.json','/sw.js']);
@@ -270,6 +271,8 @@ async function handle(request,env,trace) {
       return handleNoteEntries(db,request,route,env,origin,state.revision);
     if(route==='/ai-reports'||route.startsWith('/ai-reports/'))
       return handleAiReports(db,request,route,env,origin,state.revision);
+    if(route==='/review'||route.startsWith('/review/'))
+      return handleContentReview(db,request,route,env,origin,state.revision,trace);
     if(route==='/work-reminders'||route.startsWith('/work-reminders/'))
       return handleWorkReminders(db,request,route,env,origin,state.revision);
     if(route==='/memos'||route.startsWith('/memos/'))

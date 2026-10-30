@@ -1,5 +1,5 @@
 import { defaultColumns, defaultFilters } from "./constants.mjs";
-const state = { me: null, savedViews: [], accounts: [], accountProfiles: [], page: "dashboard", settingsTab: "accounts", account: "",
+const state = { me: null, savedViews: [], accounts: [], accountProfiles: [], page: "review", settingsTab: "workspace", account: "V字",
 overviewPeriod: "yesterday",
 trendOpen: false, attentionExpanded: false, reviewTab: "observations", reviewArticles: [], articles: [], articleOverviewMode: "published",
   columns: new Set(defaultColumns), filters: defaultFilters(),

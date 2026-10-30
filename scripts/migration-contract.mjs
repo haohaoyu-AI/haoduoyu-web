@@ -31,6 +31,19 @@ export function validateAiReportsMigrationSource(tag,sql) {
   return sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
 }
 export const articleMigrationTag='0005_article_pipeline';
+export const reviewMigrationTag='0015_content_review';
+export function validateReviewMigrationSource(tag,sql) {
+  assert.equal(tag,reviewMigrationTag,'Only the reviewed content review migration is allowed');
+  assert.equal(createHash('sha256').update(sql).digest('hex'),'112d05af48a2984fac58ac322da334f04f7861842fd4e3bc2c9ef904059cb910','Content review schema differs from its reviewed source');
+  const statements=sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+  assert.equal(statements.length,10);
+  assert.equal(statements.filter(value=>value.startsWith('CREATE TABLE')).length,4);
+  for(const statement of statements) {
+    assert.match(statement,/^CREATE (?:TABLE|(?:UNIQUE )?INDEX) `matrix_review_/);
+    assert.ok(!/\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b/i.test(statement.replace(/ON (?:UPDATE|DELETE) (?:no action|cascade)/gi,'')),'New review schema cannot rewrite business rows');
+  }
+  return statements;
+}
 export const articleMigrationSha256='b45a31900d6b7153a423b8c7fa870b0a98da3e5b074b6d6f62ac044f7782a2ba';
 const statementHashes=[
   '77a05205027ae6c5c74706b8d5093319c010b578f70f323e90da0b11420200e3',
@@ -131,7 +144,7 @@ export async function applyArticleMigration(db,options={}) {
 
 export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
   const journal=JSON.parse(await readFile(new URL('drizzle/meta/_journal.json',root),'utf8'));
-  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag],'Unreviewed local migration journal');
+  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag],'Unreviewed local migration journal');
   await db.prepare('CREATE TABLE IF NOT EXISTS __fixture_migrations(name TEXT PRIMARY KEY)').run();
   const migrated=await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_control'").first();
   if(migrated)await db.prepare('INSERT OR IGNORE INTO __fixture_migrations(name) VALUES(?)').bind(journal.entries[0].tag).run();
@@ -140,7 +153,7 @@ export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
     if(entry.tag===articleMigrationTag)await applyArticleMigration(db);
     else {
       const sql=await readFile(new URL('drizzle/'+entry.tag+'.sql',root),'utf8');
-      const statements=entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):entry.tag===labelSetsMigrationTag?validateLabelSetsMigrationSource(entry.tag,sql):entry.tag===labelArchivesMigrationTag?validateLabelArchivesMigrationSource(entry.tag,sql):entry.tag===aiReportsMigrationTag?validateAiReportsMigrationSource(entry.tag,sql):split(sql);
+      const statements=entry.tag===reviewMigrationTag?validateReviewMigrationSource(entry.tag,sql):entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):entry.tag===labelSetsMigrationTag?validateLabelSetsMigrationSource(entry.tag,sql):entry.tag===labelArchivesMigrationTag?validateLabelArchivesMigrationSource(entry.tag,sql):entry.tag===aiReportsMigrationTag?validateAiReportsMigrationSource(entry.tag,sql):split(sql);
       for(const statement of statements) {
         if(entry.tag===labelMigrationTag||entry.tag===labelSetsMigrationTag)continue;
         if(entry.idx===3&&['ALTER TABLE `matrix_todos` ADD `deleted_at` text;',

@@ -16,7 +16,7 @@ import { dashboardInfoBody, renderDashboard } from "./pages/dashboard.mjs";
 import { articleDetail } from "./pages/detail.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { reviewModal, reviewRecordsModal } from "./pages/reviews.mjs";
-import { accountModal, keyModal, testProfile } from "./pages/settings.mjs";
+import { keyModal } from "./pages/settings.mjs";
 import { moveTodoDate, moveTodoMonth, refreshTodos, selectTodoDate, setTodoPanel, retryTodoCreate } from "./pages/todos.mjs";
 import { cancelTodoTemplateEdit, editTodoTemplate, useTodoTemplate, writeTodoTemplate } from "./pages/todo-templates.mjs";
 import { changeTodoTemplate, deleteTodo, openTodoMenu, restoreTodo } from "./pages/todo-actions.mjs";
@@ -231,14 +231,6 @@ async function actionReviewTab({ target, action }) {
   }
   return;
 }
-function actionNewAccount({}) {
-  accountModal();
-  return;
-}
-function actionEditAccount({ id }) {
-  accountModal(id);
-  return;
-}
 function actionNewKey({}) {
   keyModal();
   return;
@@ -286,7 +278,7 @@ function actionResetFilters({}) {
 }
 const actions = {
   "media-menu": ({event}) => {
-    event.preventDefault(); navigate('dashboard');
+    event.preventDefault(); navigate('review');
   },
   "notes-menu": ({event}) => {
     if (state.page !== 'notes') {
@@ -357,9 +349,6 @@ const actions = {
   "review-article": actionReviewArticle,
   "new-review": actionNewReview,
   "review-tab": actionReviewTab,
-  "new-account": actionNewAccount,
-  "edit-account": actionEditAccount,
-  "test-profile": testProfile,
   "new-key": actionNewKey,
   "select-account": actionSelectAccount,
   "record-detail": actionRecordDetail,

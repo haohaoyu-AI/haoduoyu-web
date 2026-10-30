@@ -5,28 +5,22 @@ import {storage} from '../core/storage.mjs';
 import {dailyNotesRouteCategory} from '../core/daily-notes-state.mjs';
 import {isMobileLayout} from '../core/router.mjs';
 
-const mediaPages = new Set(['dashboard', 'articles', 'reviews']);
+const mediaPages = new Set(['review']);
 function navigationLink(item, mobile = false) {
   const selected = item.id === state.page && (!item.category || item.category === dailyNotesRouteCategory());
-  const query = item.id === 'settings' ? '&amp;tab=workspace' : item.category ? '&amp;notes_category=' + item.category : '';
+  const query = item.id === 'settings' ? '&amp;tab=workspace' : item.id === 'review' ?
+    '&amp;account=' + encodeURIComponent(item.account || state.account || 'V字') :
+    item.category ? '&amp;notes_category=' + item.category : '';
   return `<a href="?page=${e(item.id)}${query}" data-nav="${e(item.id)}" ${item.category ? `data-notes-category="${item.category}"` : ''}
 title="${e(item.label)}"
 class="${mobile ? 'mobile-nav-item' : 'nav-item'}${selected ? ' active' : ''}" aria-label="${e(item.label)}"
 ${selected ? 'aria-current="page"' : ''}>${icon(item.icon, 18)}<span class="nav-label">${e(item.label)}</span></a>`;
 }
 export function mediaNavigation(mobile = false) {
-  const active = mediaPages.has(state.page), name = mobile ? 'mobile-nav-item' : 'nav-item';
-  return `<a href="?page=dashboard" data-nav="dashboard" class="${name} media-link${active ? ' active' : ''}"
-aria-label="好多鱼图文" ${active ? 'aria-current="page"' : ''}>${icon('articles',18)}\
-<span class="nav-label">${mobile ? '图文' : '好多鱼图文'}</span></a>`;
+  const account = state.account || 'V字';
+  return navigationLink({id:'review',icon:'chart',label:mobile ? '复盘' : '内容复盘',account},mobile);
 }
-export function renderMediaTabs() {
-  if (!mediaPages.has(state.page)) return '';
-  return '<nav class="media-page-tabs" aria-label="图文页面">' +
-    [['dashboard','数据总览'],['articles','文章详情']].map(([page,label]) =>
-      `<a href="?page=${page}" data-nav="${page}" class="btn media-page-tab${state.page === page ? ' active' : ''}"
-${state.page === page ? 'aria-current="page"' : ''}>${label}</a>`).join('') + '</nav>';
-}
+export function renderMediaTabs() { return ''; }
 export function notesNavigation(mobile = false) {
   return navigationLink({id:'notes',icon:'edit',label:'碎碎念'}, mobile);
 }
@@ -47,7 +41,7 @@ ${navigationLink(nav.find(item => item.id === 'ai-reports'))}${settingsNavigatio
 }
 export function syncWorkbenchNavigation() {
   const active = mediaPages.has(state.page);
-  for (const link of document.querySelectorAll('.media-link')) {
+  for (const link of document.querySelectorAll('[data-nav=review]')) {
     link.classList.toggle('active',active);
     if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
   }

@@ -27,7 +27,7 @@ function isMobileLayout() {
   return Number.isFinite(window.innerWidth) && window.innerWidth < 768;
 }
 function mobilePage(page) {
-  return isMobileLayout() && ["articles", "reviews"].includes(page) ? "dashboard" : page;
+  return ["overview", "dashboard", "articles", "reviews"].includes(page) ? "review" : page;
 }
 function updateRoute(push = false) {
   const page = mobilePage(state.page), redirected = page !== state.page;
@@ -39,7 +39,7 @@ function updateRoute(push = false) {
   else u.searchParams.delete("notes_category");
   if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
   else u.searchParams.delete("memo_view");
-  u.searchParams.set("period", state.overviewPeriod);
+  u.searchParams.delete("period");
   u.searchParams.delete("article_scope");
   u.searchParams.delete("q");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
@@ -49,30 +49,23 @@ function updateRoute(push = false) {
   if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
   else u.searchParams.delete("todo_panel");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
-  else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
   else u.searchParams.delete("tab");
-  if (state.account) u.searchParams.set("account", state.account);
+  if (state.page === "review") u.searchParams.set("account", state.account || "V字");
   else u.searchParams.delete("account");
-  for (const [key, value] of Object.entries(state.filters)) {
-    if (value && value !== defaultFilters()[key]) u.searchParams.set(key, value);
-    else u.searchParams.delete(key);
+  for (const key of [...Object.keys(defaultFilters()), "list_page", "page_size", "top_n", "top_platform", "columns"])
+    u.searchParams.delete(key);
+  if (state.page !== "review") {
+    for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare"])
+      u.searchParams.delete(key);
   }
-  for (const [key, value, def] of [["list_page", state.listPage, 1], ["page_size", state.pageSize, 20], ["top_n", state.topN, 5], [
-    "top_platform", state.topPlatform, ""]]) {
-    if (value !== def) u.searchParams.set(key, value);
-    else u.searchParams.delete(key);
-  }
-  if ([...state.columns].join(",") !== defaultColumns.join(",")) u.searchParams.set("columns", [...state.columns].join(","));
-  else u.searchParams.delete("columns");
   history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
   storage.set("haoduoyu.account", state.account);
 }
 function readRoute() {
   const params = new URLSearchParams(location.search);
   const raw = params.get("page");
-  const fallback = "todos";
+  const fallback = "review";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
-  if (state.page === "reviews") state.page = "articles";
   state.page = mobilePage(state.page);
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date")); setDailyNotesRouteCategory(params.get("notes_category"));
@@ -83,13 +76,12 @@ function readRoute() {
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoPanel = state.page === "todos" && ["history", "templates", "future"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
   state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.
-  get("tab") : raw === "settings" && !params.has("tab") ? "workspace" : "accounts");
+  get("tab") : "workspace");
   if (raw === "memos" && params.get("memo_view") === "trash") state.settingsTab = "workspace";
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
   state.articleOverviewMode = "published";
-  const account = params.get("account") || "";
-  state.account = state.accounts.some((a) => a.id === account) ? account : "";
+  state.account = params.get("account")?.trim() || "V字";
   state.filters = defaultFilters();
   for (const key of Object.keys(state.filters)) if (params.has(key)) state.filters[key] = params.get(key);
   const allowed = { sort: ["published_at", "reads", "likes", "comments", "approvals", "latest_as_of", "duration"], order: ["asc", "desc"], platform: [

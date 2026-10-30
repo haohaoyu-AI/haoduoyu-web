@@ -117,7 +117,6 @@ const forms = {
   "login-form": submitLoginForm,
   "article-form": submitArticleForm,
   "review-form": submitReviewForm,
-  "account-form": submitAccountForm,
   "key-form": submitKeyForm,
   "revoke-form": submitRevokeForm,
   "password-form": submitPasswordForm
@@ -140,7 +139,7 @@ async function handleFormSubmit(event) {
     await submitTodo({ form, data: Object.fromEntries(new FormData(form)) });
     return;
   }
-  if (!form.matches("#login-form,#article-form,#review-form,#account-form,#key-form,#password-form,#revoke-form,#article-filters,\
+  if (!form.matches("#login-form,#article-form,#review-form,#key-form,#password-form,#revoke-form,#article-filters,\
 #save-view-form")) return;
   event.preventDefault();
   if (form.id === "article-filters") return;

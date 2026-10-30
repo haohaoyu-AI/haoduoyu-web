@@ -1,117 +1,144 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res, err) => function __init() {
+  if (err) throw err[0];
+  try {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  } catch (e2) {
+    throw err = [e2], e2;
+  }
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
 // web/core/constants.mjs
-var platforms = { toutiao: "今日头条", zhihu: "知乎", wechat: "微信公众号", other: "其他平台" };
-var modeLabels = { manual: "人工", automatic: "自动化", mixed: "人工＋自动化", unknown: "未记录" };
-var kindLabels = { latest: "最新数据", d1: "第 1 天观察", d3: "第 3 天观察", d7: "第 7 天观察" };
-var statusLabels = { drafting: "起草中", illustrated: "已配图", draft_saved: "草稿已存", published: "已发布", failed: "受阻" };
-var slotLabels = { zh1: "知乎 1", zh2: "知乎 2", tt1: "头条 1", tt2: "头条 2", zh3: "知乎 3", tt3: "头条 3", gzh: "公众号" };
-var writerLabels = { dedao: "得到大脑", gemini_web: "Gemini", human: "本人", other: "其他" };
-var illustratorLabels = { codex: "Codex", pil: "PIL", human: "本人" };
-var metrics = { reads: "阅读", impressions: "展现", likes: "点赞", comments: "评论", favorites: "收藏", shares: "分享", approvals: "赞同", reading_users: "阅读人数" };
-var nav = [
-  { id: "dashboard", label: "数据总览", icon: "grid" },
-  { id: "articles", label: "文章详情", icon: "articles" },
-  { id: "reviews", label: "数据", icon: "chart" },
-  { id: "todos", label: "每日待办", icon: "check" },
-  { id: "notes", label: "碎碎念", icon: "edit" },
-  { id: "memos", label: "备忘录", icon: "articles" },
-  { id: "reminders", label: "工作提醒", icon: "calendar" },
-  { id: "ai-reports", label: "AI 汇报", icon: "articles" },
-  { id: "settings", label: "设置", icon: "settings" }
-];
-var settingsTabs = { workspace: "回收站", accounts: "账号添加", todo: "待办切换", keys: "AI 授权", security: "安全", log: "操作日志" };
-var legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
-var defaultFilters = () => ({
-  mode: "",
-  from: "",
-  to: "",
-  sort: "published_at",
-  order: "desc",
-  group: "",
-  platform: "",
-  topic: "",
-  data_status: "",
-  status: "published",
-  slot: "",
-  writer: "",
-  has_warnings: "",
-  has_pending_verify: "",
-  series_no_min: "",
-  series_no_max: ""
+var platforms, modeLabels, kindLabels, statusLabels, slotLabels, writerLabels, illustratorLabels, metrics, nav, settingsTabs, legacyPages, defaultFilters, articleColumns, articleStatuses, articleChoices, defaultColumns;
+var init_constants = __esm({
+  "web/core/constants.mjs"() {
+    platforms = { toutiao: "今日头条", zhihu: "知乎", wechat: "微信公众号", other: "其他平台" };
+    modeLabels = { manual: "人工", automatic: "自动化", mixed: "人工＋自动化", unknown: "未记录" };
+    kindLabels = { latest: "最新数据", d1: "第 1 天观察", d3: "第 3 天观察", d7: "第 7 天观察" };
+    statusLabels = { drafting: "起草中", illustrated: "已配图", draft_saved: "草稿已存", published: "已发布", failed: "受阻" };
+    slotLabels = { zh1: "知乎 1", zh2: "知乎 2", tt1: "头条 1", tt2: "头条 2", zh3: "知乎 3", tt3: "头条 3", gzh: "公众号" };
+    writerLabels = { dedao: "得到大脑", gemini_web: "Gemini", human: "本人", other: "其他" };
+    illustratorLabels = { codex: "Codex", pil: "PIL", human: "本人" };
+    metrics = { reads: "阅读", impressions: "展现", likes: "点赞", comments: "评论", favorites: "收藏", shares: "分享", approvals: "赞同", reading_users: "阅读人数" };
+    nav = [
+      { id: "review", label: "内容复盘", icon: "chart" },
+      { id: "todos", label: "每日待办", icon: "check" },
+      { id: "notes", label: "碎碎念", icon: "edit" },
+      { id: "memos", label: "备忘录", icon: "articles" },
+      { id: "reminders", label: "工作提醒", icon: "calendar" },
+      { id: "ai-reports", label: "AI 汇报", icon: "articles" },
+      { id: "settings", label: "设置", icon: "settings" }
+    ];
+    settingsTabs = { workspace: "回收站", todo: "待办切换", keys: "AI 授权", security: "安全", log: "操作日志" };
+    legacyPages = { management: "workspace", accounts: "workspace", keys: "keys" };
+    defaultFilters = () => ({
+      mode: "",
+      from: "",
+      to: "",
+      sort: "published_at",
+      order: "desc",
+      group: "",
+      platform: "",
+      topic: "",
+      data_status: "",
+      status: "published",
+      slot: "",
+      writer: "",
+      has_warnings: "",
+      has_pending_verify: "",
+      series_no_min: "",
+      series_no_max: ""
+    });
+    articleColumns = {
+      reads: ["阅读", "reads"],
+      likes: ["点赞", "likes"],
+      comments: ["评论", "comments"],
+      as_of: ["数据截至", "latest_as_of"],
+      approvals: ["赞同", "approvals"],
+      mode: ["生产方式", ""],
+      duration: ["耗时", "duration"],
+      published: [
+        "发布日期",
+        "published_at"
+      ],
+      account: ["账号", ""],
+      status: ["状态", ""],
+      slot: ["槽位", ""],
+      writer: ["写作者", ""],
+      char_count: ["字数", ""],
+      subheading_count: ["小标题", ""],
+      image_count: ["图数", ""],
+      draft_ref: ["草稿凭证", ""],
+      total_duration: ["流水线耗时", ""],
+      warnings: ["警告", ""],
+      verify: ["待核", ""],
+      topic: ["题材", ""]
+    };
+    articleStatuses = { no_snapshot: "未采集", missing_reads: "缺阅读数据", missing_likes: "缺点赞数据", missing_comments: "缺评论数据", incomplete: "指标不完整", zero_reads: "真实0阅读", date_unverified: "日期待核实" };
+    articleChoices = {
+      topic: { entertainment: "文娱（推断）", insurance: "保险（推断）", unknown: "未推断" },
+      mode: modeLabels,
+      group: { account: "按账号", mode: "按生产方式" }
+    };
+    defaultColumns = ["account", "reads", "likes", "comments", "as_of"];
+  }
 });
-var articleColumns = {
-  reads: ["阅读", "reads"],
-  likes: ["点赞", "likes"],
-  comments: ["评论", "comments"],
-  as_of: ["数据截至", "latest_as_of"],
-  approvals: ["赞同", "approvals"],
-  mode: ["生产方式", ""],
-  duration: ["耗时", "duration"],
-  published: [
-    "发布日期",
-    "published_at"
-  ],
-  account: ["账号", ""],
-  status: ["状态", ""],
-  slot: ["槽位", ""],
-  writer: ["写作者", ""],
-  char_count: ["字数", ""],
-  subheading_count: ["小标题", ""],
-  image_count: ["图数", ""],
-  draft_ref: ["草稿凭证", ""],
-  total_duration: ["流水线耗时", ""],
-  warnings: ["警告", ""],
-  verify: ["待核", ""],
-  topic: ["题材", ""]
-};
-var articleStatuses = { no_snapshot: "未采集", missing_reads: "缺阅读数据", missing_likes: "缺点赞数据", missing_comments: "缺评论数据", incomplete: "指标不完整", zero_reads: "真实0阅读", date_unverified: "日期待核实" };
-var articleChoices = {
-  topic: { entertainment: "文娱（推断）", insurance: "保险（推断）", unknown: "未推断" },
-  mode: modeLabels,
-  group: { account: "按账号", mode: "按生产方式" }
-};
-var defaultColumns = ["account", "reads", "likes", "comments", "as_of"];
 
 // web/core/state.mjs
-var state = {
-  me: null,
-  savedViews: [],
-  accounts: [],
-  accountProfiles: [],
-  page: "dashboard",
-  settingsTab: "accounts",
-  account: "",
-  overviewPeriod: "yesterday",
-  trendOpen: false,
-  attentionExpanded: false,
-  reviewTab: "observations",
-  reviewArticles: [],
-  articles: [],
-  articleOverviewMode: "published",
-  columns: new Set(defaultColumns),
-  filters: defaultFilters(),
-  listPage: 1,
-  pageSize: 20,
-  topN: 5,
-  topPlatform: "",
-  trendMetric: "reads",
-  todoDate: ""
-};
-var runtime = {
-  renderVersion: 0,
-  lastFocus: null,
-  activePopover: null,
-  popoverId: 0,
-  modalRequestVersion: 0,
-  menuFocus: null,
-  entryObserver: null,
-  entryBlocks: [],
-  articleIndexGeneration: 0,
-  sessionEpoch: 0
-};
+var state_exports = {};
+__export(state_exports, {
+  runtime: () => runtime,
+  state: () => state
+});
+var state, runtime;
+var init_state = __esm({
+  "web/core/state.mjs"() {
+    init_constants();
+    state = {
+      me: null,
+      savedViews: [],
+      accounts: [],
+      accountProfiles: [],
+      page: "review",
+      settingsTab: "workspace",
+      account: "V字",
+      overviewPeriod: "yesterday",
+      trendOpen: false,
+      attentionExpanded: false,
+      reviewTab: "observations",
+      reviewArticles: [],
+      articles: [],
+      articleOverviewMode: "published",
+      columns: new Set(defaultColumns),
+      filters: defaultFilters(),
+      listPage: 1,
+      pageSize: 20,
+      topN: 5,
+      topPlatform: "",
+      trendMetric: "reads",
+      todoDate: ""
+    };
+    runtime = {
+      renderVersion: 0,
+      lastFocus: null,
+      activePopover: null,
+      popoverId: 0,
+      modalRequestVersion: 0,
+      menuFocus: null,
+      entryObserver: null,
+      entryBlocks: [],
+      articleIndexGeneration: 0,
+      sessionEpoch: 0
+    };
+  }
+});
 
 // web/core/requests.mjs
-var pageContext = null, modalContext = null, backgroundContext = null, backgroundKey = "";
-var contextId = 0;
 function requestAbort() {
   return new DOMException("请求已取消", "AbortError");
 }
@@ -150,11 +177,11 @@ function backgroundRequests() {
 function assertRequestActive(context, signal) {
   if (context.controller.signal.aborted || signal?.aborted) throw requestAbort();
 }
-function requestKey(path, options2, envelope2) {
+function requestKey(path, options3, envelope2) {
   const settings = {};
-  for (const key of Object.keys(options2).sort()) {
+  for (const key of Object.keys(options3).sort()) {
     if (key === "signal") continue;
-    const value = options2[key];
+    const value = options3[key];
     if (key === "headers") settings.headers = [...new Headers(value)].sort(([a], [b]) => a.localeCompare(b));
     else if (value == null || ["string", "number", "boolean", "undefined"].includes(typeof value)) settings[key] = value;
     else return null;
@@ -196,9 +223,9 @@ function subscribeRequest(entry, signal) {
     if (contextSignal.aborted || signal?.aborted) abort();
   });
 }
-function pendingGet(path, options2, envelope2, context, factory) {
-  assertRequestActive(context, options2.signal);
-  const key = requestKey(path, options2, envelope2) ?? /* @__PURE__ */ Symbol("unshared request");
+function pendingGet(path, options3, envelope2, context, factory) {
+  assertRequestActive(context, options3.signal);
+  const key = requestKey(path, options3, envelope2) ?? /* @__PURE__ */ Symbol("unshared request");
   let entry = context.pending.get(key);
   if (!entry) {
     entry = { key, context, controller: new AbortController(), consumers: /* @__PURE__ */ new Set(), done: false };
@@ -211,60 +238,18 @@ function pendingGet(path, options2, envelope2, context, factory) {
     }
     Promise.resolve(pending).then((value) => settleRequest(entry, null, value), (error) => settleRequest(entry, error));
   }
-  return subscribeRequest(entry, options2.signal);
+  return subscribeRequest(entry, options3.signal);
 }
+var pageContext, modalContext, backgroundContext, backgroundKey, contextId;
+var init_requests = __esm({
+  "web/core/requests.mjs"() {
+    init_state();
+    pageContext = null, modalContext = null, backgroundContext = null, backgroundKey = "";
+    contextId = 0;
+  }
+});
 
 // web/core/format.mjs
-var num = (value) => value === null || value === void 0 || value === "" ? "—" : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(Number(value));
-var compact = (value) => value == null ? "—" : Number(value) >= 1e4 ? `${num(Number(value) / 1e4)}万` : num(value);
-var bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Shanghai",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-}).format(new Date(value));
-var time = (value, short = false) => {
-  if (!value) return "未记录";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "未记录";
-  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : {
-    year: "numeric",
-    second: "2-digit"
-  }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
-};
-var duration = (seconds) => {
-  if (seconds == null) return "未记录";
-  const n = Number(seconds);
-  if (n < 60) return `${Math.round(n)} 秒`;
-  if (n < 3600) return `${Math.round(n / 60)} 分钟`;
-  const h = Math.floor(n / 3600), m = Math.round(n % 3600 / 60);
-  return m === 60 ? `${h + 1} 小时` : `${h} 小时${m ? ` ${m} 分钟` : ""}`;
-};
-var localDateTime = (value) => {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Date(d.getTime() + 8 * 36e5).toISOString().slice(0, 16);
-};
-var iso = (value) => value ? (/* @__PURE__ */ new Date(`${value}:00+08:00`)).toISOString() : null;
-var metricData = (item) => {
-  const raw = item?.metrics ?? item?.metrics_json ?? {};
-  if (typeof raw === "string") {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return {};
-    }
-  }
-  return raw || {};
-};
-var accountLabel = (account) => `${platforms[account.platform] || account.platform} · ${account.name}`;
-var accountName = (id) => {
-  const a = state.accounts.find((a2) => a2.id === id);
-  return a ? accountLabel(a) : "未找到账号";
-};
-var selectedQuery = () => state.account ? `account_id=${encodeURIComponent(state.account)}` : "";
-var rowsForAccount = (rows) => state.account ? rows.filter((a) => a.account_id === state.account) : rows;
 function displayTime(value) {
   const stamp2 = Date.parse(value), diff = Date.now() - stamp2;
   return !Number.isFinite(stamp2) ? "未记录" : diff >= 0 && diff < 864e5 ? `${Math.floor(diff / 36e5)} 小时前` : time(value, bjtDate(value).slice(0, 4) === bjtDate().slice(0, 4));
@@ -276,9 +261,65 @@ function safeURL(value) {
     return false;
   }
 }
+var num, compact, bjtDate, time, duration, localDateTime, iso, metricData, accountLabel, accountName, selectedQuery, rowsForAccount;
+var init_format = __esm({
+  "web/core/format.mjs"() {
+    init_constants();
+    init_state();
+    num = (value) => value === null || value === void 0 || value === "" ? "—" : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(Number(value));
+    compact = (value) => value == null ? "—" : Number(value) >= 1e4 ? `${num(Number(value) / 1e4)}万` : num(value);
+    bjtDate = (value = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date(value));
+    time = (value, short = false) => {
+      if (!value) return "未记录";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "未记录";
+      return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", ...short ? {} : {
+        year: "numeric",
+        second: "2-digit"
+      }, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+    };
+    duration = (seconds) => {
+      if (seconds == null) return "未记录";
+      const n = Number(seconds);
+      if (n < 60) return `${Math.round(n)} 秒`;
+      if (n < 3600) return `${Math.round(n / 60)} 分钟`;
+      const h = Math.floor(n / 3600), m = Math.round(n % 3600 / 60);
+      return m === 60 ? `${h + 1} 小时` : `${h} 小时${m ? ` ${m} 分钟` : ""}`;
+    };
+    localDateTime = (value) => {
+      if (!value) return "";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "";
+      return new Date(d.getTime() + 8 * 36e5).toISOString().slice(0, 16);
+    };
+    iso = (value) => value ? (/* @__PURE__ */ new Date(`${value}:00+08:00`)).toISOString() : null;
+    metricData = (item) => {
+      const raw = item?.metrics ?? item?.metrics_json ?? {};
+      if (typeof raw === "string") {
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return {};
+        }
+      }
+      return raw || {};
+    };
+    accountLabel = (account) => `${platforms[account.platform] || account.platform} · ${account.name}`;
+    accountName = (id) => {
+      const a = state.accounts.find((a2) => a2.id === id);
+      return a ? accountLabel(a) : "未找到账号";
+    };
+    selectedQuery = () => state.account ? `account_id=${encodeURIComponent(state.account)}` : "";
+    rowsForAccount = (rows) => state.account ? rows.filter((a) => a.account_id === state.account) : rows;
+  }
+});
 
 // web/core/todos-state.mjs
-var todosState = { owner: "", days: /* @__PURE__ */ new Map(), today: "", calendarMonth: "", calendarDate: "" };
 function todoOwner() {
   return JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null]);
 }
@@ -333,17 +374,24 @@ function syncTodoDay(now = Date.now()) {
 function todoSessionActive(owner2) {
   return Boolean(state.me) && owner2 === todoOwner() && owner2 === todosState.owner;
 }
-function mergeTodo(day4, item) {
-  const index = day4.items.findIndex((row) => row.id === item.id);
-  if (index < 0) day4.items.push(item);
-  else if (day4.items[index].version <= item.version) day4.items[index] = item;
+function mergeTodo(day5, item) {
+  const index = day5.items.findIndex((row) => row.id === item.id);
+  if (index < 0) day5.items.push(item);
+  else if (day5.items[index].version <= item.version) day5.items[index] = item;
 }
-function todoTemplateAdded(day4, id) {
-  return day4.items.some((item) => item.date === day4.date && item.template_id === id && !item.deleted_at);
+function todoTemplateAdded(day5, id) {
+  return day5.items.some((item) => item.date === day5.date && item.template_id === id && !item.deleted_at);
 }
+var todosState;
+var init_todos_state = __esm({
+  "web/core/todos-state.mjs"() {
+    init_format();
+    init_state();
+    todosState = { owner: "", days: /* @__PURE__ */ new Map(), today: "", calendarMonth: "", calendarDate: "" };
+  }
+});
 
 // web/core/session-index-state.mjs
-var articleIndexes = /* @__PURE__ */ new Map();
 function clearArticleIndexes() {
   runtime.articleIndexGeneration++;
   articleIndexes.clear();
@@ -355,34 +403,48 @@ function resetSessionIndexes() {
   resetTodos();
   clearArticleIndexes();
 }
+var articleIndexes;
+var init_session_index_state = __esm({
+  "web/core/session-index-state.mjs"() {
+    init_requests();
+    init_state();
+    init_todos_state();
+    articleIndexes = /* @__PURE__ */ new Map();
+  }
+});
 
 // web/core/dom.mjs
-var $ = (q, root = document) => root.querySelector(q);
-var $$ = (q, root = document) => [...root.querySelectorAll(q)];
-var e = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-var icons = {
-  fish: '<path d="M18 8c-4-5-10-4-14 4 4 8 10 9 14 4l5 4V4z"/><circle cx="9" cy="11" r=".8" fill="currentColor" stroke="none"/>',
-  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
-  articles: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
-  chart: '<path d="M4 3v17h17M8 15l4-5 4 2 5-7"/>',
-  settings: '<path d="m9 3-1 3-3 1-2 3 2 2v3l-1 2 3 3 3-1 2 2 3-1 1-3 3-1 2-3-2-2V9l1-2-3-3-3 1-2-2z"/><circle cx="12" cy="12" r="3"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  check: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/>',
-  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 4h3m4 0h3"/>',
-  arrow: '<path d="M5 12h14m-5-5 5 5-5 5"/>',
-  search: '<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',
-  close: '<path d="m6 6 12 12M6 18 18 6"/>',
-  logout: '<path d="M9 4H4v16h5m5-12 4 4-4 4m-6-4h14"/>',
-  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/>',
-  download: '<path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/>',
-  edit: '<path d="m15 4 5 5M4 20l5-1L21 7a3.5 3.5 0 0 0-5-5L4 14z"/>',
-  link: '<path d="m9 15 6-6m-8 3-3 3a4 4 0 0 0 6 6l4-4m-4-10 4-4a4 4 0 0 1 6 6l-3 3"/>',
-  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
-  refresh: '<path d="M20 7a8 8 0 1 0 0 10M20 3v5h-5"/>',
-  copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',
-  key: '<circle cx="8" cy="8" r="5"/><path d="m12 12 9 9m-3-3 3-3m-6 0 3-3"/>'
-};
-var icon = (name, size = 17) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.articles}</svg>`;
+var $, $$, e, icons, icon;
+var init_dom = __esm({
+  "web/core/dom.mjs"() {
+    $ = (q, root2 = document) => root2.querySelector(q);
+    $$ = (q, root2 = document) => [...root2.querySelectorAll(q)];
+    e = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    icons = {
+      fish: '<path d="M18 8c-4-5-10-4-14 4 4 8 10 9 14 4l5 4V4z"/><circle cx="9" cy="11" r=".8" fill="currentColor" stroke="none"/>',
+      grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+      articles: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+      chart: '<path d="M4 3v17h17M8 15l4-5 4 2 5-7"/>',
+      settings: '<path d="m9 3-1 3-3 1-2 3 2 2v3l-1 2 3 3 3-1 2 2 3-1 1-3 3-1 2-3-2-2V9l1-2-3-3-3 1-2-2z"/><circle cx="12" cy="12" r="3"/>',
+      plus: '<path d="M12 5v14M5 12h14"/>',
+      check: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/>',
+      calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 4h3m4 0h3"/>',
+      arrow: '<path d="M5 12h14m-5-5 5 5-5 5"/>',
+      search: '<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',
+      close: '<path d="m6 6 12 12M6 18 18 6"/>',
+      logout: '<path d="M9 4H4v16h5m5-12 4 4-4 4m-6-4h14"/>',
+      info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/>',
+      download: '<path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/>',
+      edit: '<path d="m15 4 5 5M4 20l5-1L21 7a3.5 3.5 0 0 0-5-5L4 14z"/>',
+      link: '<path d="m9 15 6-6m-8 3-3 3a4 4 0 0 0 6 6l4-4m-4-10 4-4a4 4 0 0 1 6 6l-3 3"/>',
+      menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+      refresh: '<path d="M20 7a8 8 0 1 0 0 10M20 3v5h-5"/>',
+      copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',
+      key: '<circle cx="8" cy="8" r="5"/><path d="m12 12 9 9m-3-3 3-3m-6 0 3-3"/>'
+    };
+    icon = (name, size = 17) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.articles}</svg>`;
+  }
+});
 
 // web/ui/entry.mjs
 function stopPageEntry() {
@@ -442,6 +504,12 @@ function replacePageContent(html, animate = false) {
   applyChartStyles(content2);
   if (animate) animatePageEntry(content2);
 }
+var init_entry = __esm({
+  "web/ui/entry.mjs"() {
+    init_dom();
+    init_state();
+  }
+});
 
 // web/ui/popover.mjs
 function closePopover({ restoreFocus = true } = {}) {
@@ -474,6 +542,11 @@ function popover(trigger, body2, { menu = false, label: label3 = "说明" } = {}
   node2.style.top = `var(--popover-top,${Math.max(16, Math.min(anchor.bottom + 8, innerHeight - r.height - 16))}px)`;
   (node2.querySelector('button,a[href],input:not([type=hidden]),select,[tabindex="0"]') || node2).focus();
 }
+var init_popover = __esm({
+  "web/ui/popover.mjs"() {
+    init_state();
+  }
+});
 
 // web/pages/login.mjs
 function renderLogin() {
@@ -487,6 +560,15 @@ function renderLogin() {
     15
   )}</button></form></section></main>`;
 }
+var init_login = __esm({
+  "web/pages/login.mjs"() {
+    init_dom();
+    init_session_index_state();
+    init_state();
+    init_entry();
+    init_popover();
+  }
+});
 
 // web/ui/modal.mjs
 function openModal(title, body2, { drawer = false, context = "" } = {}) {
@@ -511,9 +593,16 @@ function closeModal() {
   document.body.style.overflow = "";
   if (wasOpen && runtime.lastFocus?.isConnected) runtime.lastFocus.focus();
 }
+var init_modal = __esm({
+  "web/ui/modal.mjs"() {
+    init_requests();
+    init_dom();
+    init_state();
+    init_popover();
+  }
+});
 
 // web/offline/db.mjs
-var OFFLINE_STORES = Object.freeze(["entities", "outbox", "conflicts", "meta"]);
 function entityKey(scope, id) {
   if (typeof scope !== "string" || !scope || typeof id !== "string" || !id) {
     throw new TypeError("Offline records require an explicit scope and identity");
@@ -669,22 +758,22 @@ function createMemoryDB() {
   function transaction(names, mode, callback) {
     const work = tail.then(async () => {
       const next = structuredClone(tables);
-      const table2 = (name) => {
+      const table3 = (name) => {
         if (!names.includes(name) || !next[name]) throw new Error("Store outside transaction");
         return next[name];
       };
       const api2 = {
-        get: async (name, key) => structuredClone(table2(name).get(key)),
-        getAll: async (name) => structuredClone([...table2(name).values()]),
+        get: async (name, key) => structuredClone(table3(name).get(key)),
+        getAll: async (name) => structuredClone([...table3(name).values()]),
         put: async (name, value) => {
           if (mode !== "readwrite") throw new Error("Readonly transaction");
           assertOfflineData(value);
           if (typeof value.key !== "string") throw new TypeError("Offline record key is required");
-          table2(name).set(value.key, structuredClone(value));
+          table3(name).set(value.key, structuredClone(value));
         },
         delete: async (name, key) => {
           if (mode !== "readwrite") throw new Error("Readonly transaction");
-          table2(name).delete(key);
+          table3(name).delete(key);
         }
       };
       const result = await callback(api2);
@@ -698,10 +787,14 @@ function createMemoryDB() {
   return { transaction, close() {
   } };
 }
+var OFFLINE_STORES;
+var init_db = __esm({
+  "web/offline/db.mjs"() {
+    OFFLINE_STORES = Object.freeze(["entities", "outbox", "conflicts", "meta"]);
+  }
+});
 
 // web/offline/document.mjs
-var localMarker = /* @__PURE__ */ Symbol("haoduoyu-local-durable-document");
-var documents = /* @__PURE__ */ new WeakMap();
 function localDocument({ local, server = null, operation: operation2 = null, conflict = null }) {
   const { content_hash, change_seq, ...value } = structuredClone(local);
   const document2 = Object.freeze({ ...value, [localMarker]: true });
@@ -713,21 +806,18 @@ function localDocument({ local, server = null, operation: operation2 = null, con
   });
   return document2;
 }
-var isLocalDocument = (value) => Boolean(value && documents.has(value));
-var documentValue = (value) => documents.get(value)?.local || value;
-var documentState = (value) => documents.get(value) || null;
+var localMarker, documents, isLocalDocument, documentValue, documentState;
+var init_document = __esm({
+  "web/offline/document.mjs"() {
+    localMarker = /* @__PURE__ */ Symbol("haoduoyu-local-durable-document");
+    documents = /* @__PURE__ */ new WeakMap();
+    isLocalDocument = (value) => Boolean(value && documents.has(value));
+    documentValue = (value) => documents.get(value)?.local || value;
+    documentState = (value) => documents.get(value) || null;
+  }
+});
 
 // web/offline/notes.mjs
-var uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var hashPattern = /^[a-f0-9]{64}$/;
-var isObject = (value) => value && typeof value === "object" && !Array.isArray(value);
-var fail = (message, code) => Object.assign(new Error(message), { code });
-var missing = () => fail("此记录尚未完整保存在本机，请联网读取一次。", "OFFLINE_CACHE_MISS");
-var validDay = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
-var timestamp = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
-var noteEntity = (row) => row?.entity_id?.startsWith("note-entry:");
-var removed = (row) => Boolean(row && (row.deleted || row.deleted_at));
-var liveOperation = (row) => !["acked", "archived"].includes(row.status);
 function noteReadRoute(path) {
   const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
   if (url.origin !== "https://offline.invalid" || url.hash) return null;
@@ -742,28 +832,28 @@ function isNoteApiRow(row) {
 function awareLabel(row) {
   return row?.labels_version === 1 && Object.hasOwn(row, "label") && (row.label === null || typeof row.label === "string" && row.label.isWellFormed() && row.category === "life" && row.label === row.label.trim().normalize("NFC") && row.label.length > 0 && [...row.label].length <= 32 && !["生活", "工作"].includes(row.label) && !/[\u0000-\u001f\u007f]/.test(row.label));
 }
-function checkedResponse(route, value, labelsV1) {
+function checkedResponse(route2, value, labelsV1) {
   const invalid4 = () => fail("碎碎念读取结果不完整，未覆盖本机内容。", "OFFLINE_RESPONSE_INVALID");
-  if (route.kind === "note_entry") {
-    if (!isNoteApiRow(value) || value.id !== route.id || labelsV1 && !awareLabel(value)) throw invalid4();
+  if (route2.kind === "note_entry") {
+    if (!isNoteApiRow(value) || value.id !== route2.id || labelsV1 && !awareLabel(value)) throw invalid4();
     return structuredClone(value);
   }
-  if (!isObject(value) || labelsV1 && value.labels_version !== 1 || value.category !== route.category || value.date !== route.date || typeof value.can_edit !== "boolean" || !Array.isArray(value.entries) || value.entries.length > 200) throw invalid4();
+  if (!isObject(value) || labelsV1 && value.labels_version !== 1 || value.category !== route2.category || value.date !== route2.date || typeof value.can_edit !== "boolean" || !Array.isArray(value.entries) || value.entries.length > 200) throw invalid4();
   const ids = /* @__PURE__ */ new Set();
   for (const row of value.entries) {
-    if (!isNoteApiRow(row) || labelsV1 && !awareLabel(row) || row.category !== route.category || row.date !== route.date || row.deleted || row.can_edit !== value.can_edit || ids.has(row.id)) throw invalid4();
+    if (!isNoteApiRow(row) || labelsV1 && !awareLabel(row) || row.category !== route2.category || row.date !== route2.date || row.deleted || row.can_edit !== value.can_edit || ids.has(row.id)) throw invalid4();
     ids.add(row.id);
   }
   return structuredClone(value);
 }
-function inRoute(entity, route) {
+function inRoute(entity, route2) {
   if (!noteEntity(entity)) return false;
-  if (route.kind === "note_entry") return entity.entity_id === "note-entry:" + route.id;
+  if (route2.kind === "note_entry") return entity.entity_id === "note-entry:" + route2.id;
   const row = entity.dirty ? entity.local : entity.server || entity.api_server;
-  return row?.category === route.category && row?.date === route.date;
+  return row?.category === route2.category && row?.date === route2.date;
 }
-function serverFence(rows, route, owner2) {
-  return JSON.stringify(rows.filter((row) => row.scope === owner2 && inRoute(row, route)).map((row) => [row.entity_id, row.server || null, row.api_server || null, row.remote_missing === true]).sort((a, b) => a[0].localeCompare(b[0])));
+function serverFence(rows, route2, owner2) {
+  return JSON.stringify(rows.filter((row) => row.scope === owner2 && inRoute(row, route2)).map((row) => [row.entity_id, row.server || null, row.api_server || null, row.remote_missing === true]).sort((a, b) => a[0].localeCompare(b[0])));
 }
 function localValue(entity, capability) {
   const row = entity.dirty ? entity.local : entity.server;
@@ -830,8 +920,8 @@ function readingMethods(context) {
     owner2.active();
     return record?.scope === owner2.scope && typeof record.can_edit === "boolean" ? record.can_edit : null;
   }
-  async function read(path, route = noteReadRoute(path)) {
-    if (!route) throw missing();
+  async function read(path, route2 = noteReadRoute(path)) {
+    if (!route2) throw missing();
     const owner2 = capture();
     const result = await db.transaction(["entities", "outbox", "conflicts", "meta"], "readonly", async (tx) => {
       owner2.active();
@@ -840,8 +930,8 @@ function readingMethods(context) {
       const cached = await tx.get("meta", entityKey(owner2.scope, "get:" + path));
       const snapshot = await tx.get("meta", entityKey(owner2.scope, "snapshot"));
       const complete = snapshot?.value?.index?.complete === true && snapshot.value.index.scope_id === owner2.scope;
-      const entities = rows.entities.filter((row) => inRoute(row, route) && (row.dirty || !row.remote_missing && row.server));
-      if (route.kind === "note_entry") {
+      const entities = rows.entities.filter((row) => inRoute(row, route2) && (row.dirty || !row.remote_missing && row.server));
+      if (route2.kind === "note_entry") {
         if (!entities.length) throw missing();
         owner2.active();
         return {
@@ -852,7 +942,7 @@ function readingMethods(context) {
       if (!cached && !complete && !entities.some((row) => row.dirty)) throw missing();
       if (complete && Array.isArray(snapshot.value.index.entities)) {
         const present = new Set(entities.map((row) => row.entity_id));
-        if (snapshot.value.index.entities.some((row) => row.entity_id?.startsWith("note-entry:") && row.date === route.date && row.entity_type === route.category + "_note" && !row.deleted_at && !present.has(row.entity_id)))
+        if (snapshot.value.index.entities.some((row) => row.entity_id?.startsWith("note-entry:") && row.date === route2.date && row.entity_type === route2.category + "_note" && !row.deleted_at && !present.has(row.entity_id)))
           throw missing();
       }
       const entries = entities.filter((row) => !removed(row.dirty ? row.local : row.server)).map((row) => projectEntity(row, capability2, rows.outbox, rows.conflicts));
@@ -861,8 +951,8 @@ function readingMethods(context) {
       owner2.active();
       return {
         data: {
-          category: route.category,
-          date: route.date,
+          category: route2.category,
+          date: route2.date,
           can_edit: capability2 === true,
           entries,
           ...!cached && !complete ? { offline_partial: true } : {}
@@ -874,9 +964,9 @@ function readingMethods(context) {
     return result;
   }
   async function fence(pathOrRoute) {
-    const route = typeof pathOrRoute === "string" ? noteReadRoute(pathOrRoute) : pathOrRoute, owner2 = capture();
-    if (!route) throw missing();
-    const result = await db.transaction(["entities"], "readonly", async (tx) => serverFence(await tx.getAll("entities"), route, owner2.scope));
+    const route2 = typeof pathOrRoute === "string" ? noteReadRoute(pathOrRoute) : pathOrRoute, owner2 = capture();
+    if (!route2) throw missing();
+    const result = await db.transaction(["entities"], "readonly", async (tx) => serverFence(await tx.getAll("entities"), route2, owner2.scope));
     owner2.active();
     return result;
   }
@@ -884,19 +974,19 @@ function readingMethods(context) {
 }
 function writingMethods(context) {
   const { db, capture, capabilityKey, now } = context;
-  async function write(path, route, value, { baseline } = {}) {
-    route ||= noteReadRoute(path);
-    if (!route) throw missing();
-    const owner2 = capture(), data = checkedResponse(route, value, context.labelsV1);
-    const incoming = route.kind === "note_entry" ? [data] : data.entries;
+  async function write(path, route2, value, { baseline } = {}) {
+    route2 ||= noteReadRoute(path);
+    if (!route2) throw missing();
+    const owner2 = capture(), data2 = checkedResponse(route2, value, context.labelsV1);
+    const incoming = route2.kind === "note_entry" ? [data2] : data2.entries;
     await db.transaction(["entities", "meta"], "readwrite", async (tx) => {
       owner2.active();
       const rows = await tx.getAll("entities");
-      if (baseline !== void 0 && baseline !== serverFence(rows, route, owner2.scope))
+      if (baseline !== void 0 && baseline !== serverFence(rows, route2, owner2.scope))
         throw fail("本机刚确认了新版本，请重新读取完整记录。", "OFFLINE_CACHE_CHANGED");
       const found = new Set(incoming.map((row) => "note-entry:" + row.id));
-      if (route.kind === "note_entries") for (const old of rows) {
-        if (old.scope === owner2.scope && inRoute(old, route) && !found.has(old.entity_id))
+      if (route2.kind === "note_entries") for (const old of rows) {
+        if (old.scope === owner2.scope && inRoute(old, route2) && !found.has(old.entity_id))
           await tx.put("entities", { ...old, remote_missing: true });
       }
       for (const row of incoming) {
@@ -924,12 +1014,12 @@ function writingMethods(context) {
           remote_missing: false
         });
       }
-      await tx.put("meta", { key: entityKey(owner2.scope, "get:" + path), scope: owner2.scope, path, data, saved_at: now() });
-      await tx.put("meta", { key: capabilityKey(owner2.scope), scope: owner2.scope, can_edit: data.can_edit, verified_at: now() });
+      await tx.put("meta", { key: entityKey(owner2.scope, "get:" + path), scope: owner2.scope, path, data: data2, saved_at: now() });
+      await tx.put("meta", { key: capabilityKey(owner2.scope), scope: owner2.scope, can_edit: data2.can_edit, verified_at: now() });
       owner2.active();
     });
     owner2.active();
-    const result = await context.read(path, route);
+    const result = await context.read(path, route2);
     owner2.active();
     return result.data;
   }
@@ -951,16 +1041,31 @@ function writingMethods(context) {
   }
   return { write, captureAcknowledged };
 }
-function createNotesCache(options2) {
-  const context = notesContext(options2);
+function createNotesCache(options3) {
+  const context = notesContext(options3);
   const reading = readingMethods(context);
   Object.assign(context, reading);
   return { ...reading, ...writingMethods(context) };
 }
+var uuidPattern, hashPattern, isObject, fail, missing, validDay, timestamp, noteEntity, removed, liveOperation;
+var init_notes = __esm({
+  "web/offline/notes.mjs"() {
+    init_db();
+    init_document();
+    uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+    hashPattern = /^[a-f0-9]{64}$/;
+    isObject = (value) => value && typeof value === "object" && !Array.isArray(value);
+    fail = (message, code) => Object.assign(new Error(message), { code });
+    missing = () => fail("此记录尚未完整保存在本机，请联网读取一次。", "OFFLINE_CACHE_MISS");
+    validDay = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
+    timestamp = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
+    noteEntity = (row) => row?.entity_id?.startsWith("note-entry:");
+    removed = (row) => Boolean(row && (row.deleted || row.deleted_at));
+    liveOperation = (row) => !["acked", "archived"].includes(row.status);
+  }
+});
 
 // web/offline/read-only.mjs
-var day = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
-var missing2 = () => Object.assign(new Error("此内容尚未完整缓存在本机，请联网读取。"), { code: "OFFLINE_CACHE_MISS" });
 function readOnlyRoute(path) {
   const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
   if (url.origin !== "https://offline.invalid" || url.hash) return null;
@@ -976,23 +1081,23 @@ function readOnlyRoute(path) {
     size: Number(size)
   };
 }
-function matches(entity, route) {
-  if (route.kind === "reminders") return entity.entity_id.startsWith("work-reminder:");
-  return route.source === "legacy" ? entity.entity_id.startsWith("legacy-" + route.category + ":") : entity.entity_id.startsWith("note-entry:");
+function matches(entity, route2) {
+  if (route2.kind === "reminders") return entity.entity_id.startsWith("work-reminder:");
+  return route2.source === "legacy" ? entity.entity_id.startsWith("legacy-" + route2.category + ":") : entity.entity_id.startsWith("note-entry:");
 }
-async function readOnlySnapshot({ db, scope, route, getScope, getGeneration }) {
+async function readOnlySnapshot({ db, scope, route: route2, getScope, getGeneration }) {
   const generation = getGeneration();
   const result = await db.transaction(["entities", "meta"], "readonly", async (tx) => {
     const snapshot = await tx.get("meta", entityKey(scope, "snapshot")), index = snapshot?.value?.index;
     if (index?.complete !== true || index.scope_id !== scope) throw missing2();
-    const rows = (await tx.getAll("entities")).filter((row) => row.scope === scope && matches(row, route));
-    for (const expected of index.entities.filter((row) => matches(row, route) && !row.deleted_at)) {
+    const rows = (await tx.getAll("entities")).filter((row) => row.scope === scope && matches(row, route2));
+    for (const expected of index.entities.filter((row) => matches(row, route2) && !row.deleted_at)) {
       if (!rows.some((row) => row.entity_id === expected.entity_id && row.server)) throw missing2();
     }
-    const active5 = rows.filter((row) => row.dirty || !row.remote_missing).map((row) => route.source === "note_entry" && row.dirty ? row.local : row.server).filter((row) => row && !row.deleted && !row.deleted_at);
-    let data;
-    if (route.kind === "reminders") {
-      const items = active5.filter((row) => row.date === route.date).map((row) => {
+    const active5 = rows.filter((row) => row.dirty || !row.remote_missing).map((row) => route2.source === "note_entry" && row.dirty ? row.local : row.server).filter((row) => row && !row.deleted && !row.deleted_at);
+    let data2;
+    if (route2.kind === "reminders") {
+      const items = active5.filter((row) => row.date === route2.date).map((row) => {
         if (typeof row.summary !== "string" || !Number.isFinite(Date.parse(row.updated_at))) throw missing2();
         return {
           id: row.id || row.source_id,
@@ -1003,39 +1108,42 @@ async function readOnlySnapshot({ db, scope, route, getScope, getGeneration }) {
           updated_at: row.updated_at
         };
       });
-      data = { date: route.date, can_edit: false, items, snapshot_complete: true };
+      data2 = { date: route2.date, can_edit: false, items, snapshot_complete: true };
     } else {
-      const dates = [...new Set(active5.filter((row) => row.category === route.category && day(row.date) && (route.source !== "legacy" || typeof row.text === "string" && row.text !== "") && (!route.before || row.date < route.before)).map((row) => row.date))].sort().reverse();
-      const selected = dates.slice(0, route.size), has_more = dates.length > route.size;
-      data = { dates: selected, has_more, next_before: has_more ? selected.at(-1) : null, snapshot_complete: true };
+      const dates = [...new Set(active5.filter((row) => row.category === route2.category && day(row.date) && (route2.source !== "legacy" || typeof row.text === "string" && row.text !== "") && (!route2.before || row.date < route2.before)).map((row) => row.date))].sort().reverse();
+      const selected = dates.slice(0, route2.size), has_more = dates.length > route2.size;
+      data2 = { dates: selected, has_more, next_before: has_more ? selected.at(-1) : null, snapshot_complete: true };
     }
-    return { data, saved_at: snapshot.value.verified_at || null };
+    return { data: data2, saved_at: snapshot.value.verified_at || null };
   });
   if (scope !== getScope() || generation !== getGeneration()) throw missing2();
   return result;
 }
+var day, missing2;
+var init_read_only = __esm({
+  "web/offline/read-only.mjs"() {
+    init_db();
+    day = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
+    missing2 = () => Object.assign(new Error("此内容尚未完整缓存在本机，请联网读取。"), { code: "OFFLINE_CACHE_MISS" });
+  }
+});
 
 // web/offline/cache.mjs
-var dayPattern = /^(?!0000)\d{4}-\d{2}-\d{2}$/;
-var uuidPattern2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var clone = (value) => structuredClone(value);
-var missing3 = () => Object.assign(new Error("此内容尚未保存在本机，请联网读取一次。"), { code: "OFFLINE_CACHE_MISS" });
-var active = (row) => row && !row.deleted && !row.deleted_at;
 function offlineReadRoute(path) {
   const url = new URL(path, "https://offline.invalid");
   if (url.origin !== "https://offline.invalid" || url.hash) return null;
-  const route = url.pathname, query = url.searchParams;
-  if (["/work-reminders", "/note-entries/dates", "/daily-notes/dates"].includes(route)) return readOnlyRoute(path);
-  if (route === "/todos" && [...query.keys()].every((key) => key === "date") && query.getAll("date").length === 1 && dayPattern.test(query.get("date"))) return { kind: "todo", date: query.get("date") };
-  if (route === "/unscheduled-todos" && !url.search) return { kind: "unscheduled_todo" };
-  if (route === "/todo-templates" && !url.search) return { kind: "template" };
-  if (route === "/accounts" && !url.search) return { kind: "accounts" };
-  if (route === "/overview") return { kind: "overview" };
-  if (route === "/daily-notes" && query.getAll("date").length === 1 && dayPattern.test(query.get("date")) && [...query.keys()].every((key) => ["date", "category"].includes(key)) && query.getAll("category").length <= 1 && (!query.has("category") || ["life", "work"].includes(query.get("category"))))
+  const route2 = url.pathname, query = url.searchParams;
+  if (["/work-reminders", "/note-entries/dates", "/daily-notes/dates"].includes(route2)) return readOnlyRoute(path);
+  if (route2 === "/todos" && [...query.keys()].every((key) => key === "date") && query.getAll("date").length === 1 && dayPattern.test(query.get("date"))) return { kind: "todo", date: query.get("date") };
+  if (route2 === "/unscheduled-todos" && !url.search) return { kind: "unscheduled_todo" };
+  if (route2 === "/todo-templates" && !url.search) return { kind: "template" };
+  if (route2 === "/accounts" && !url.search) return { kind: "accounts" };
+  if (route2 === "/overview") return { kind: "overview" };
+  if (route2 === "/daily-notes" && query.getAll("date").length === 1 && dayPattern.test(query.get("date")) && [...query.keys()].every((key) => ["date", "category"].includes(key)) && query.getAll("category").length <= 1 && (!query.has("category") || ["life", "work"].includes(query.get("category"))))
     return { kind: "legacy", date: query.get("date"), category: query.get("category") || "life" };
-  if (route === "/note-entries" || route.startsWith("/note-entries/")) return noteReadRoute(path);
-  if (route === "/memos" && !url.search) return { kind: "memos" };
-  if (/^\/memos\/notes\/[a-f0-9-]{36}$/i.test(route)) return { kind: "memo_note" };
+  if (route2 === "/note-entries" || route2.startsWith("/note-entries/")) return noteReadRoute(path);
+  if (route2 === "/memos" && !url.search) return { kind: "memos" };
+  if (/^\/memos\/notes\/[a-f0-9-]{36}$/i.test(route2)) return { kind: "memo_note" };
   return null;
 }
 function safeIdentity(value) {
@@ -1043,23 +1151,22 @@ function safeIdentity(value) {
     throw new Error("身份读取不完整，未启用本机数据。");
   return { id: value.id, username: value.username, ...value.publicBusiness === true ? { publicBusiness: true } : {} };
 }
-var identityFingerprint = (value) => JSON.stringify([value.id, value.publicBusiness === true]);
 function safeAccounts(value) {
   if (!Array.isArray(value)) throw new Error("账户读取不完整。");
   if (value.some((row) => !row || ![0, 1].includes(row.active))) throw new Error("账户状态读取不完整。");
   const fields5 = ["id", "name", "platform", "active", "account_name", "position", "created_at", "updated_at"];
   return value.map((row) => Object.fromEntries(fields5.filter((key) => row[key] !== void 0).map((key) => [key, row[key]])));
 }
-function checkedResponse2(route, value) {
+function checkedResponse2(route2, value) {
   const invalid4 = () => Object.assign(new Error("读取结果不完整，未覆盖本机数据。"), { code: "OFFLINE_RESPONSE_INVALID" });
   if (value === void 0 || value === null) throw invalid4();
-  if (["todo", "template", "unscheduled_todo"].includes(route.kind) && (!Array.isArray(value.items) || value.items.some((row) => !row || !uuidPattern2.test(row.id) || !Number.isSafeInteger(row.version) || row.version < 1 || typeof row.text !== "string" || !row.text.trim() || row.text.length > 500 || !Number.isFinite(Date.parse(row.created_at)) || !Number.isFinite(Date.parse(row.updated_at)) || route.kind === "todo" && (row.date !== route.date || typeof row.completed !== "boolean" || row.deleted_at !== null) || route.kind === "unscheduled_todo" && (typeof row.completed !== "boolean" || row.deleted_at !== null || Object.hasOwn(row, "date")))))
+  if (["todo", "template", "unscheduled_todo"].includes(route2.kind) && (!Array.isArray(value.items) || value.items.some((row) => !row || !uuidPattern2.test(row.id) || !Number.isSafeInteger(row.version) || row.version < 1 || typeof row.text !== "string" || !row.text.trim() || row.text.length > 500 || !Number.isFinite(Date.parse(row.created_at)) || !Number.isFinite(Date.parse(row.updated_at)) || route2.kind === "todo" && (row.date !== route2.date || typeof row.completed !== "boolean" || row.deleted_at !== null) || route2.kind === "unscheduled_todo" && (typeof row.completed !== "boolean" || row.deleted_at !== null || Object.hasOwn(row, "date")))))
     throw invalid4();
-  return route.kind === "accounts" ? safeAccounts(value) : clone(value);
+  return route2.kind === "accounts" ? safeAccounts(value) : clone(value);
 }
-function belongs(row, route) {
+function belongs(row, route2) {
   const value = offlineValue(row);
-  return row.entity_id.startsWith(route.kind + ":") && value && (route.kind !== "todo" || value.date === route.date);
+  return row.entity_id.startsWith(route2.kind + ":") && value && (route2.kind !== "todo" || value.date === route2.date);
 }
 function todoFence(value) {
   if (!value) return null;
@@ -1078,15 +1185,15 @@ function todoFence(value) {
     value.template_active ?? null
   ];
 }
-function serverFence2(rows, route, owner2) {
-  if (!["todo", "template", "unscheduled_todo"].includes(route.kind)) return null;
-  return JSON.stringify(rows.filter((row) => row.scope === owner2 && belongs(row, route)).map((row) => [row.entity_id, route.kind === "todo" ? todoFence(row.server) : row.server || null, row.remote_missing === true]).sort((a, b) => a[0].localeCompare(b[0])));
+function serverFence2(rows, route2, owner2) {
+  if (!["todo", "template", "unscheduled_todo"].includes(route2.kind)) return null;
+  return JSON.stringify(rows.filter((row) => row.scope === owner2 && belongs(row, route2)).map((row) => [row.entity_id, route2.kind === "todo" ? todoFence(row.server) : row.server || null, row.remote_missing === true]).sort((a, b) => a[0].localeCompare(b[0])));
 }
-function overlay(value, route, entities, dirtyOnly) {
-  if (!["todo", "template", "unscheduled_todo"].includes(route.kind)) return value;
+function overlay(value, route2, entities, dirtyOnly) {
+  if (!["todo", "template", "unscheduled_todo"].includes(route2.kind)) return value;
   const items = new Map(value.items.map((row) => [row.id, row]));
   for (const entity of entities) {
-    if (!belongs(entity, route) || dirtyOnly && !entity.dirty) continue;
+    if (!belongs(entity, route2) || dirtyOnly && !entity.dirty) continue;
     const row = offlineValue(entity);
     if (active(row) && !entity.remote_missing || entity.dirty && active(row)) items.set(row.id, clone(row));
     else items.delete(row.id);
@@ -1098,25 +1205,25 @@ function identityMethods(db, now) {
   return {
     readIdentity: () => db.transaction(["meta"], "readonly", (tx) => tx.get("meta", key)),
     async saveIdentity(me, scope) {
-      const identity4 = safeIdentity(me);
-      await db.transaction(["meta"], "readwrite", (tx) => tx.put("meta", { key, identity: identity4, scope, verified_at: now() }));
-      return identity4;
+      const identity5 = safeIdentity(me);
+      await db.transaction(["meta"], "readwrite", (tx) => tx.put("meta", { key, identity: identity5, scope, verified_at: now() }));
+      return identity5;
     },
     forgetIdentity: () => db.transaction(["meta"], "readwrite", (tx) => tx.delete("meta", key))
   };
 }
-async function legacySnapshot(db, owner2, route) {
+async function legacySnapshot(db, owner2, route2) {
   return db.transaction(["entities", "meta"], "readonly", async (tx) => {
     const v1 = await tx.get("meta", entityKey(owner2, "snapshot"));
     const v2 = await tx.get("meta", entityKey(owner2, "snapshot-v2"));
     const snapshot = (v2?.value?.verified_at || 0) >= (v1?.value?.verified_at || 0) ? v2 || v1 : v1;
     if (snapshot?.value?.index?.complete !== true || snapshot.value.index.scope_id !== owner2) throw missing3();
-    const entity = await tx.get("entities", entityKey(owner2, "legacy-" + route.category + ":" + route.date));
+    const entity = await tx.get("entities", entityKey(owner2, "legacy-" + route2.category + ":" + route2.date));
     const row = !entity?.remote_missing && entity?.server;
-    if (!row && snapshot.value.index.entities?.some((value) => value.entity_id === "legacy-" + route.category + ":" + route.date)) throw missing3();
+    if (!row && snapshot.value.index.entities?.some((value) => value.entity_id === "legacy-" + route2.category + ":" + route2.date)) throw missing3();
     if (row && (!Number.isSafeInteger(row.version) || row.version < 1 || !row.deleted_at && typeof row.text !== "string")) throw missing3();
-    const data = {
-      date: route.date,
+    const data2 = {
+      date: route2.date,
       text: row?.text || "",
       version: row?.version || 0,
       updated_at: row?.updated_at || null,
@@ -1124,7 +1231,7 @@ async function legacySnapshot(db, owner2, route) {
       can_edit: false,
       snapshot_complete: true
     };
-    return { data, saved_at: snapshot.value.verified_at || null };
+    return { data: data2, saved_at: snapshot.value.verified_at || null };
   });
 }
 function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () => 0, labelsV1 = false }) {
@@ -1135,10 +1242,10 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
     return value;
   };
   async function write(path, value, { baseline } = {}) {
-    const route = offlineReadRoute(path);
-    if (!route) return value;
-    if (["note_entries", "note_entry"].includes(route.kind)) return notes.write(path, route, value, { baseline });
-    const owner2 = scope(), generation = getGeneration(), data = checkedResponse2(route, value), key = entityKey(owner2, "get:" + path);
+    const route2 = offlineReadRoute(path);
+    if (!route2) return value;
+    if (["note_entries", "note_entry"].includes(route2.kind)) return notes.write(path, route2, value, { baseline });
+    const owner2 = scope(), generation = getGeneration(), data2 = checkedResponse2(route2, value), key = entityKey(owner2, "get:" + path);
     const active5 = () => {
       if (scope() !== owner2 || getGeneration() !== generation)
         throw Object.assign(new Error("身份范围已变化，本次读取未保存。"), { code: "OFFLINE_SCOPE_CHANGED" });
@@ -1146,20 +1253,20 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
     await db.transaction(["meta", "entities"], "readwrite", async (tx) => {
       active5();
       const rows = await tx.getAll("entities");
-      if (baseline !== void 0 && baseline !== serverFence2(rows, route, owner2))
+      if (baseline !== void 0 && baseline !== serverFence2(rows, route2, owner2))
         throw Object.assign(new Error("本机刚同步了新版本，请重新读取完整列表。"), { code: "OFFLINE_CACHE_CHANGED" });
-      await tx.put("meta", { key, scope: owner2, path, data, saved_at: now() });
-      if (!["todo", "template", "unscheduled_todo"].includes(route.kind)) {
+      await tx.put("meta", { key, scope: owner2, path, data: data2, saved_at: now() });
+      if (!["todo", "template", "unscheduled_todo"].includes(route2.kind)) {
         active5();
         return;
       }
-      const found = new Set(data.items.map((row) => row.id));
+      const found = new Set(data2.items.map((row) => row.id));
       for (const old of rows) {
-        if (old.scope === owner2 && belongs(old, route) && !found.has(offlineValue(old).id))
+        if (old.scope === owner2 && belongs(old, route2) && !found.has(offlineValue(old).id))
           await tx.put("entities", { ...old, remote_missing: true });
       }
-      for (const row of data.items) {
-        const entity_id = route.kind + ":" + row.id, storageKey = entityKey(owner2, entity_id);
+      for (const row of data2.items) {
+        const entity_id = route2.kind + ":" + row.id, storageKey = entityKey(owner2, entity_id);
         const old = await tx.get("entities", storageKey);
         if (old?.server?.version > row.version)
           throw Object.assign(new Error("读取结果早于本机已确认版本，请重新读取。"), { code: "OFFLINE_CACHE_CHANGED" });
@@ -1170,39 +1277,39 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
           entity_id,
           server: row,
           remote_missing: false,
-          ...route.kind === "todo" ? { needs_api_refresh: false } : {}
+          ...route2.kind === "todo" ? { needs_api_refresh: false } : {}
         });
       }
       active5();
     });
-    const result = overlay(route.kind === "accounts" ? value : data, route, await entities(owner2), true);
+    const result = overlay(route2.kind === "accounts" ? value : data2, route2, await entities(owner2), true);
     active5();
     return result;
   }
   const entities = (owner2) => db.transaction(["entities"], "readonly", async (tx) => (await tx.getAll("entities")).filter((row) => row.scope === owner2));
   async function read(path) {
-    const route = offlineReadRoute(path);
-    if (!route) throw missing3();
-    if (["note_entries", "note_entry"].includes(route.kind)) return notes.read(path, route);
+    const route2 = offlineReadRoute(path);
+    if (!route2) throw missing3();
+    if (["note_entries", "note_entry"].includes(route2.kind)) return notes.read(path, route2);
     const owner2 = scope(), generation = getGeneration();
     const cached = await db.transaction(["meta"], "readonly", (tx) => tx.get("meta", entityKey(owner2, "get:" + path)));
-    if (["reminders", "dates"].includes(route.kind)) {
+    if (["reminders", "dates"].includes(route2.kind)) {
       try {
-        return await readOnlySnapshot({ db, scope: owner2, route, getScope, getGeneration });
+        return await readOnlySnapshot({ db, scope: owner2, route: route2, getScope, getGeneration });
       } catch (error) {
         if (error.code !== "OFFLINE_CACHE_MISS" || !cached) throw error;
       }
     }
     if (!cached || cached.data === void 0) {
-      if (route.kind === "legacy") {
-        const result2 = await legacySnapshot(db, owner2, route);
+      if (route2.kind === "legacy") {
+        const result2 = await legacySnapshot(db, owner2, route2);
         if (scope() !== owner2 || getGeneration() !== generation) throw missing3();
         return result2;
       }
-      const local = ["todo", "unscheduled_todo"].includes(route.kind) ? (await entities(owner2)).filter((row) => row.dirty && belongs(row, route)) : [];
+      const local = ["todo", "unscheduled_todo"].includes(route2.kind) ? (await entities(owner2)).filter((row) => row.dirty && belongs(row, route2)) : [];
       if (!local.length) throw missing3();
-      const data = route.kind === "todo" ? {
-        date: route.date,
+      const data2 = route2.kind === "todo" ? {
+        date: route2.date,
         today: new Date(now() + 8 * 36e5).toISOString().slice(0, 10),
         completed_mode: "strike",
         preferences_version: 0,
@@ -1210,16 +1317,16 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
         offline_partial: true
       } : { items: [], offline_partial: true };
       if (scope() !== owner2 || getGeneration() !== generation) throw missing3();
-      return { data: overlay(data, route, local, false), saved_at: null };
+      return { data: overlay(data2, route2, local, false), saved_at: null };
     }
-    const result = route.kind === "legacy" ? { ...clone(cached.data), can_edit: false } : overlay(clone(cached.data), route, await entities(owner2), false);
+    const result = route2.kind === "legacy" ? { ...clone(cached.data), can_edit: false } : overlay(clone(cached.data), route2, await entities(owner2), false);
     if (scope() !== owner2 || getGeneration() !== generation) throw missing3();
     return { data: result, saved_at: cached.saved_at };
   }
   const entity = (id) => db.transaction(["entities"], "readonly", (tx) => tx.get("entities", entityKey(scope(), id)));
   const fence = async (path) => {
-    const route = offlineReadRoute(path);
-    return ["note_entries", "note_entry"].includes(route?.kind) ? notes.fence(route) : serverFence2(await entities(scope()), route, scope());
+    const route2 = offlineReadRoute(path);
+    return ["note_entries", "note_entry"].includes(route2?.kind) ? notes.fence(route2) : serverFence2(await entities(scope()), route2, scope());
   };
   return {
     read,
@@ -1232,6 +1339,20 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
     ...identityMethods(db, now)
   };
 }
+var dayPattern, uuidPattern2, clone, missing3, active, identityFingerprint;
+var init_cache = __esm({
+  "web/offline/cache.mjs"() {
+    init_db();
+    init_notes();
+    init_read_only();
+    dayPattern = /^(?!0000)\d{4}-\d{2}-\d{2}$/;
+    uuidPattern2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+    clone = (value) => structuredClone(value);
+    missing3 = () => Object.assign(new Error("此内容尚未保存在本机，请联网读取一次。"), { code: "OFFLINE_CACHE_MISS" });
+    active = (row) => row && !row.deleted && !row.deleted_at;
+    identityFingerprint = (value) => JSON.stringify([value.id, value.publicBusiness === true]);
+  }
+});
 
 // web/offline/resolution-ledger.mjs
 function resolutionParent(rows, operation2) {
@@ -1318,6 +1439,10 @@ async function recordResolutionFailure(tx, operation2, fields5) {
 async function finishServerResolution(tx, conflict, time2) {
   if (conflict.resolution?.state === "accepted-server") await finishParents(tx, conflict, time2);
 }
+var init_resolution_ledger = __esm({
+  "web/offline/resolution-ledger.mjs"() {
+  }
+});
 
 // web/offline/conflict.mjs
 function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
@@ -1349,27 +1474,17 @@ function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
       return conflict;
     });
   }
-  const list = (scope) => db.transaction(["conflicts"], "readonly", async (tx) => (await tx.getAll("conflicts")).filter((value) => value.scope === scope && value.resolved_at === null));
-  return { record, list };
+  const list2 = (scope) => db.transaction(["conflicts"], "readonly", async (tx) => (await tx.getAll("conflicts")).filter((value) => value.scope === scope && value.resolved_at === null));
+  return { record, list: list2 };
 }
+var init_conflict = __esm({
+  "web/offline/conflict.mjs"() {
+    init_db();
+    init_resolution_ledger();
+  }
+});
 
 // web/offline/conflict-plan.mjs
-var prefixes = {
-  unscheduled_todo: "unscheduled_todo:",
-  todo: "todo:",
-  template: "template:",
-  note_entry: "note-entry:",
-  memo_note: "memo-note:",
-  memo_group: "memo-group:"
-};
-var uuidPattern3 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var clientIdPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
-var removed2 = (value) => Boolean(value && (value.deleted || value.deleted_at));
-var revision = (value) => Number.isSafeInteger(value) && value >= 1 && value < Number.MAX_SAFE_INTEGER;
-var plain = (value) => typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
-var invalid = () => {
-  throw new TypeError("冲突内容不完整，请保留原文并重新核对。");
-};
 function checkedDay(value) {
   if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) invalid();
   const stamp2 = Date.parse(value + "T00:00:00Z");
@@ -1572,15 +1687,29 @@ function planConflictResolution({ conflict, remote = null, choice: choice2, grou
   if (context.type === "note_entry") return notePlan(context, value);
   return memoPlan(context, value, groups);
 }
+var prefixes, uuidPattern3, clientIdPattern, removed2, revision, plain, invalid;
+var init_conflict_plan = __esm({
+  "web/offline/conflict-plan.mjs"() {
+    prefixes = {
+      unscheduled_todo: "unscheduled_todo:",
+      todo: "todo:",
+      template: "template:",
+      note_entry: "note-entry:",
+      memo_note: "memo-note:",
+      memo_group: "memo-group:"
+    };
+    uuidPattern3 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+    clientIdPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+    removed2 = (value) => Boolean(value && (value.deleted || value.deleted_at));
+    revision = (value) => Number.isSafeInteger(value) && value >= 1 && value < Number.MAX_SAFE_INTEGER;
+    plain = (value) => typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+    invalid = () => {
+      throw new TypeError("冲突内容不完整，请保留原文并重新核对。");
+    };
+  }
+});
 
 // web/offline/conflict-decisions.mjs
-var live = (row) => !["acked", "archived"].includes(row.status);
-var own = (value, key) => Object.hasOwn(value, key);
-var currentLocal = (row) => own(row, "review_local") ? row.review_local : row.local;
-var currentRemote = (row) => own(row, "review_remote") ? row.review_remote : row.remote;
-var failure = (message, code = "OFFLINE_CONFLICT_CHANGED") => Object.assign(new Error(message), { code });
-var canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
-var stable = (value) => JSON.stringify(canonical(value));
 function conflictDecisionToken(conflict) {
   return stable({
     key: conflict.key,
@@ -1771,26 +1900,23 @@ async function rememberParents(tx, scope, groups, operations2) {
     });
   }
 }
+var live, own, currentLocal, currentRemote, failure, canonical, stable;
+var init_conflict_decisions = __esm({
+  "web/offline/conflict-decisions.mjs"() {
+    init_db();
+    init_conflict_plan();
+    init_resolution_ledger();
+    live = (row) => !["acked", "archived"].includes(row.status);
+    own = (value, key) => Object.hasOwn(value, key);
+    currentLocal = (row) => own(row, "review_local") ? row.review_local : row.local;
+    currentRemote = (row) => own(row, "review_remote") ? row.review_remote : row.remote;
+    failure = (message, code = "OFFLINE_CONFLICT_CHANGED") => Object.assign(new Error(message), { code });
+    canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
+    stable = (value) => JSON.stringify(canonical(value));
+  }
+});
 
 // web/offline/conflict-transport.mjs
-var prefixes2 = {
-  unscheduled_todo: "unscheduled_todo:",
-  todo: "todo:",
-  template: "template:",
-  note_entry: "note-entry:",
-  memo_note: "memo-note:",
-  memo_group: "memo-group:"
-};
-var uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
-var object = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
-var version = (value) => Number.isSafeInteger(value) && value >= 1 && value < Number.MAX_SAFE_INTEGER;
-var sequence = (value) => Number.isSafeInteger(value) && value >= 0;
-var timestamp2 = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
-var invalid2 = () => {
-  throw Object.assign(new Error("线上内容读取不完整，原文已保留，请重新核对。"), { code: "OFFLINE_RESPONSE_INVALID" });
-};
-var removed3 = (row) => row?.deleted === true || row?.deleted_at !== null && row?.deleted_at !== void 0;
-var own2 = (value, key) => Object.hasOwn(value, key);
 function day2(value) {
   return typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
 }
@@ -1897,22 +2023,32 @@ function createConflictPreparation({ readRemote, network }) {
     return { remote: null, groups: [] };
   };
 }
+var prefixes2, uuid, object, version, sequence, timestamp2, invalid2, removed3, own2;
+var init_conflict_transport = __esm({
+  "web/offline/conflict-transport.mjs"() {
+    init_notes();
+    prefixes2 = {
+      unscheduled_todo: "unscheduled_todo:",
+      todo: "todo:",
+      template: "template:",
+      note_entry: "note-entry:",
+      memo_note: "memo-note:",
+      memo_group: "memo-group:"
+    };
+    uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
+    object = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
+    version = (value) => Number.isSafeInteger(value) && value >= 1 && value < Number.MAX_SAFE_INTEGER;
+    sequence = (value) => Number.isSafeInteger(value) && value >= 0;
+    timestamp2 = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
+    invalid2 = () => {
+      throw Object.assign(new Error("线上内容读取不完整，原文已保留，请重新核对。"), { code: "OFFLINE_RESPONSE_INVALID" });
+    };
+    removed3 = (row) => row?.deleted === true || row?.deleted_at !== null && row?.deleted_at !== void 0;
+    own2 = (value, key) => Object.hasOwn(value, key);
+  }
+});
 
 // web/offline/outbox.mjs
-var RETRY_DELAYS = Object.freeze([5e3, 15e3, 6e4, 3e5]);
-var prefixes3 = {
-  unscheduled_todo: "unscheduled_todo:",
-  todo: "todo:",
-  template: "template:",
-  note_entry: "note-entry:",
-  memo_note: "memo-note:",
-  memo_group: "memo-group:"
-};
-var uuidPattern4 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var active2 = (operation2) => !["acked", "archived"].includes(operation2.status);
-var deleted = (value) => Boolean(value && (value.deleted || value.deleted_at));
-var ordered = (rows) => rows.sort((a, b) => a.seq - b.seq);
-var needsUpgrade = () => Object.assign(new Error("此本机操作需新版页面处理，原内容已保留。"), { code: "OFFLINE_UPGRADE_REQUIRED" });
 function canonicalRoute(operation2) {
   const { entity_type: type, source_id: id, entity_id, method, path } = operation2;
   if (!uuidPattern4.test(id) || entity_id !== prefixes3[type] + id) return false;
@@ -1923,10 +2059,10 @@ function canonicalRoute(operation2) {
   }
   return (method === "PUT" || type === "note_entry" && method === "DELETE") && path === base + "/" + id;
 }
-function dispatchCapabilities(options2) {
-  const types2 = new Set(options2.enabledTypes || Object.keys(prefixes3));
-  const protocols = new Set(options2.supportedProtocols || [1, 2, 3]);
-  const memoDependencies = (operation2) => options2.supportedDependencies === true && operation2.entity_type === "memo_note" && operation2.method === "PUT" && uuidPattern4.test(operation2.body?.group_id) && Array.isArray(operation2.depends_on) && operation2.depends_on.length === 1 && operation2.depends_on[0] === "memo-group:" + operation2.body.group_id;
+function dispatchCapabilities(options3) {
+  const types2 = new Set(options3.enabledTypes || Object.keys(prefixes3));
+  const protocols = new Set(options3.supportedProtocols || [1, 2, 3]);
+  const memoDependencies = (operation2) => options3.supportedDependencies === true && operation2.entity_type === "memo_note" && operation2.method === "PUT" && uuidPattern4.test(operation2.body?.group_id) && Array.isArray(operation2.depends_on) && operation2.depends_on.length === 1 && operation2.depends_on[0] === "memo-group:" + operation2.body.group_id;
   const decision = (operation2) => {
     let origin;
     try {
@@ -1934,7 +2070,7 @@ function dispatchCapabilities(options2) {
     } catch {
       return false;
     }
-    return options2.resolutionReceipts !== false && uuidPattern4.test(operation2.resolution_id) && operation2.resolution_receipt === 1 && Array.isArray(origin) && origin.length === 2 && origin[0] === operation2.scope && typeof origin[1] === "string" && origin[1].startsWith("conflict:") && (!Object.hasOwn(operation2, "depends_on") || memoDependencies(operation2));
+    return options3.resolutionReceipts !== false && uuidPattern4.test(operation2.resolution_id) && operation2.resolution_receipt === 1 && Array.isArray(origin) && origin.length === 2 && origin[0] === operation2.scope && typeof origin[1] === "string" && origin[1].startsWith("conflict:") && (!Object.hasOwn(operation2, "depends_on") || memoDependencies(operation2));
   };
   const canDispatch = (operation2) => {
     const legacySafe = operation2?.entity_type !== "note_entry" || !Object.hasOwn(operation2?.body || {}, "label");
@@ -2065,19 +2201,19 @@ function acceptedLabelEvidence(operation2, confirmed, entity) {
     throw new Error("标签证据已变化，原请求已保留。");
   return proof;
 }
-function createContext(options2) {
-  const { db, request, getScope, now = Date.now, uuid: uuid5 = () => crypto.randomUUID(), timeout = 2e4 } = options2;
+function createContext(options3) {
+  const { db, request, getScope, now = Date.now, uuid: uuid5 = () => crypto.randomUUID(), timeout = 2e4 } = options3;
   const owner2 = uuid5();
   const state2 = { phase: "idle", pending: 0, unsupported: 0, error: null };
-  const { canDispatch, requireDispatch } = dispatchCapabilities(options2);
+  const { canDispatch, requireDispatch } = dispatchCapabilities(options3);
   const conflicts = createConflictStore({ db, now, canDispatch });
   const leaseKey = (scope) => entityKey(scope, "outbox-lease");
   const checkScope = (scope) => {
     if (getScope() !== scope) throw Object.assign(new Error("Offline identity changed"), { code: "OFFLINE_SCOPE_CHANGED" });
   };
-  const list = (scope) => db.transaction(["outbox"], "readonly", async (tx) => ordered((await tx.getAll("outbox")).filter((value) => value.scope === scope && active2(value))));
+  const list2 = (scope) => db.transaction(["outbox"], "readonly", async (tx) => ordered((await tx.getAll("outbox")).filter((value) => value.scope === scope && active2(value))));
   const retryable = async (scope) => {
-    const rows = await list(scope), first = /* @__PURE__ */ new Map(), ready = [];
+    const rows = await list2(scope), first = /* @__PURE__ */ new Map(), ready = [];
     for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
     for (const row of first.values()) {
       if (!canDispatch(row) || !["queued", "unknown", "sending"].includes(row.status)) continue;
@@ -2131,7 +2267,7 @@ function createContext(options2) {
     state: state2,
     leaseKey,
     checkScope,
-    list,
+    list: list2,
     lease,
     network,
     readNetwork,
@@ -2184,8 +2320,8 @@ function storageMethods(context) {
       throw new Error("Offline edits must use the preceding local version");
     }
     const sequenceKey = entityKey(input.scope, "outbox-sequence");
-    const sequence3 = (await tx.get("meta", sequenceKey))?.value || 0;
-    operation2.seq = sequence3 + 1;
+    const sequence4 = (await tx.get("meta", sequenceKey))?.value || 0;
+    operation2.seq = sequence4 + 1;
     const key = entityKey(input.scope, operation2.entity_id), old = await tx.get("entities", key);
     await noteCapacity(tx, operation2, old);
     const visible3 = old?.dirty ? old.local : old?.server || operation2.base;
@@ -2281,8 +2417,8 @@ function remoteMethods(context) {
     if (!Array.isArray(index?.items)) throw new Error("Incomplete offline entity index");
     const row = index.items.find((value) => value.id === operation2.source_id);
     if (row || type === "template") return row || null;
-    const day4 = operation2.body.date || operation2.base?.date || operation2.local.date;
-    const snapshot = await network(scope, "/workbench-snapshot?date=" + day4);
+    const day5 = operation2.body.date || operation2.base?.date || operation2.local.date;
+    const snapshot = await network(scope, "/workbench-snapshot?date=" + day5);
     if (snapshot?.complete !== true || snapshot.scope_id !== scope || !Array.isArray(snapshot.data?.todos)) {
       throw new Error("Todo absence could not be verified completely");
     }
@@ -2418,18 +2554,18 @@ async function dependenciesReady(context, operation2, rows) {
   return state2 === "ready";
 }
 function executionMethods(context) {
-  const { getScope, lease, state: state2, list, checkScope, process, db, leaseKey, owner: owner2, now, retryable, canDispatch } = context;
+  const { getScope, lease, state: state2, list: list2, checkScope, process, db, leaseKey, owner: owner2, now, retryable, canDispatch } = context;
   let running = null;
   async function run2() {
     const scope = getScope();
     if (!scope) return { phase: "paused", pending: 0 };
-    if (!await lease(scope)) return { phase: "busy", pending: (await list(scope)).length };
+    if (!await lease(scope)) return { phase: "busy", pending: (await list2(scope)).length };
     state2.phase = "syncing";
     state2.error = null;
     try {
       for (let count = 0; count < 1e3; count++) {
         checkScope(scope);
-        const rows = await list(scope);
+        const rows = await list2(scope);
         let operation2;
         for (const candidate of await retryable(scope)) {
           if (candidate.next_attempt_at <= now() && await dependenciesReady(context, candidate, rows)) {
@@ -2440,7 +2576,7 @@ function executionMethods(context) {
         if (!operation2) break;
         await process(operation2);
       }
-      const pending = await list(scope);
+      const pending = await list2(scope);
       state2.pending = pending.length;
       state2.unsupported = pending.filter((value) => !canDispatch(value)).length;
       state2.phase = state2.unsupported ? "upgrade-required" : pending.some((value) => value.status === "conflict") ? "conflict" : pending.length ? "pending" : "synced";
@@ -2477,8 +2613,8 @@ function executionMethods(context) {
   }
   return { run: run2, drain, resume };
 }
-function createOutbox(options2) {
-  const context = createContext(options2);
+function createOutbox(options3) {
+  const context = createContext(options3);
   Object.assign(context, storageMethods(context));
   Object.assign(context, remoteMethods(context));
   Object.assign(context, receiptMethods(context));
@@ -2512,56 +2648,35 @@ function createOutbox(options2) {
     }
   }
   context.conflicts.resolve = resolve;
-  const { enqueue, drain, resume, list, state: state2, conflicts, canDispatch, retryable } = context;
-  return { enqueue, drain, resume, list, state: state2, conflicts, canDispatch, retryable, resolve };
+  const { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable } = context;
+  return { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable, resolve };
 }
+var RETRY_DELAYS, prefixes3, uuidPattern4, active2, deleted, ordered, needsUpgrade;
+var init_outbox = __esm({
+  "web/offline/outbox.mjs"() {
+    init_db();
+    init_conflict();
+    init_conflict_decisions();
+    init_conflict_transport();
+    init_resolution_ledger();
+    RETRY_DELAYS = Object.freeze([5e3, 15e3, 6e4, 3e5]);
+    prefixes3 = {
+      unscheduled_todo: "unscheduled_todo:",
+      todo: "todo:",
+      template: "template:",
+      note_entry: "note-entry:",
+      memo_note: "memo-note:",
+      memo_group: "memo-group:"
+    };
+    uuidPattern4 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+    active2 = (operation2) => !["acked", "archived"].includes(operation2.status);
+    deleted = (value) => Boolean(value && (value.deleted || value.deleted_at));
+    ordered = (rows) => rows.sort((a, b) => a.seq - b.seq);
+    needsUpgrade = () => Object.assign(new Error("此本机操作需新版页面处理，原内容已保留。"), { code: "OFFLINE_UPGRADE_REQUIRED" });
+  }
+});
 
 // web/offline/sync.mjs
-var FORMAT = "haoduoyu-workbench-snapshot-v1", FORMAT2 = "haoduoyu-workbench-snapshot-v2";
-var collections = ["todos", "life_notes", "work_notes", "work_reminders", "memo_groups", "memos"];
-var v2Collections = [...collections, "unscheduled_todos", "note_labels"];
-var types = /* @__PURE__ */ new Set(["todo", "life_note", "work_note", "work_reminder", "memo_group", "memo_note"]);
-var v2Types = /* @__PURE__ */ new Set([...types, "unscheduled_todo", "note_label"]);
-var recordKeys = /* @__PURE__ */ new Set([
-  "entity_id",
-  "entity_type",
-  "source",
-  "source_id",
-  "date",
-  "category",
-  "version",
-  "change_seq",
-  "created_at",
-  "updated_at",
-  "deleted_at",
-  "content_hash",
-  "text",
-  "completed",
-  "summary",
-  "source_key",
-  "title",
-  "position",
-  "body",
-  "group_id",
-  "label",
-  "name"
-]);
-var hashPattern2 = /^[a-f0-9]{64}$/;
-var datePattern = /^(?!0000)\d{4}-\d{2}-\d{2}$/;
-var supportedId = /^(?:todo|legacy-life|legacy-work|note-entry|work-reminder|memo-group|memo-note):/;
-var supportedId2 = /^(?:todo|legacy-life|legacy-work|note-entry|work-reminder|memo-group|memo-note|unscheduled_todo|note-label):/;
-var SNAPSHOT_PULL_LIMITS = Object.freeze({
-  maxEntities: 4e3,
-  maxDates: 1e3,
-  maxResponseBytes: 1048576,
-  maxBatchBytes: 8388608,
-  maxHashBytes: 8388608,
-  maxRequests: 128
-});
-var stable2 = (value) => Array.isArray(value) ? value.map(stable2) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable2(value[key])])) : value;
-var canonical2 = (value) => JSON.stringify(stable2(value));
-var equal = (a, b) => canonical2(a) === canonical2(b);
-var object2 = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 function fail2(code, message, status) {
   throw Object.assign(new Error(message), { code, ...status ? { status } : {} });
 }
@@ -2805,11 +2920,11 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
     state2.last_success = now();
     return { status: "synced", scope, changed_dates: [...changed4].sort(), entities: index.entities.length };
   }
-  function pull(options2) {
+  function pull(options3) {
     if (inFlight) return inFlight;
     state2.status = "pulling";
     state2.error = null;
-    inFlight = run2(options2).then((result) => {
+    inFlight = run2(options3).then((result) => {
       state2.status = "synced";
       return result;
     }, (error) => {
@@ -2847,12 +2962,61 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
   }
   return { pull, state: state2, start, stop: () => stopTriggers() };
 }
+var FORMAT, FORMAT2, collections, v2Collections, types, v2Types, recordKeys, hashPattern2, datePattern, supportedId, supportedId2, SNAPSHOT_PULL_LIMITS, stable2, canonical2, equal, object2;
+var init_sync = __esm({
+  "web/offline/sync.mjs"() {
+    init_db();
+    FORMAT = "haoduoyu-workbench-snapshot-v1", FORMAT2 = "haoduoyu-workbench-snapshot-v2";
+    collections = ["todos", "life_notes", "work_notes", "work_reminders", "memo_groups", "memos"];
+    v2Collections = [...collections, "unscheduled_todos", "note_labels"];
+    types = /* @__PURE__ */ new Set(["todo", "life_note", "work_note", "work_reminder", "memo_group", "memo_note"]);
+    v2Types = /* @__PURE__ */ new Set([...types, "unscheduled_todo", "note_label"]);
+    recordKeys = /* @__PURE__ */ new Set([
+      "entity_id",
+      "entity_type",
+      "source",
+      "source_id",
+      "date",
+      "category",
+      "version",
+      "change_seq",
+      "created_at",
+      "updated_at",
+      "deleted_at",
+      "content_hash",
+      "text",
+      "completed",
+      "summary",
+      "source_key",
+      "title",
+      "position",
+      "body",
+      "group_id",
+      "label",
+      "name"
+    ]);
+    hashPattern2 = /^[a-f0-9]{64}$/;
+    datePattern = /^(?!0000)\d{4}-\d{2}-\d{2}$/;
+    supportedId = /^(?:todo|legacy-life|legacy-work|note-entry|work-reminder|memo-group|memo-note):/;
+    supportedId2 = /^(?:todo|legacy-life|legacy-work|note-entry|work-reminder|memo-group|memo-note|unscheduled_todo|note-label):/;
+    SNAPSHOT_PULL_LIMITS = Object.freeze({
+      maxEntities: 4e3,
+      maxDates: 1e3,
+      maxResponseBytes: 1048576,
+      maxBatchBytes: 8388608,
+      maxHashBytes: 8388608,
+      maxRequests: 128
+    });
+    stable2 = (value) => Array.isArray(value) ? value.map(stable2) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable2(value[key])])) : value;
+    canonical2 = (value) => JSON.stringify(stable2(value));
+    equal = (a, b) => canonical2(a) === canonical2(b);
+    object2 = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  }
+});
 
 // web/offline/note-mutations.mjs
-var uuid2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var failure2 = (message, code = "OFFLINE_INVALID_MUTATION") => Object.assign(new Error(message), { code, localNotSaved: true });
-function noteMutationRoute(path, options2, features) {
-  const match = /^\/note-entries\/([a-f0-9-]{36})$/i.exec(path), method = (options2.method || "GET").toUpperCase();
+function noteMutationRoute(path, options3, features) {
+  const match = /^\/note-entries\/([a-f0-9-]{36})$/i.exec(path), method = (options3.method || "GET").toUpperCase();
   return features.notes && match && uuid2.test(match[1]) && ["PUT", "DELETE"].includes(method) ? { type: "note_entry", id: match[1].toLowerCase(), method } : null;
 }
 function checked(body2, method, labelsV1) {
@@ -2872,14 +3036,14 @@ function checked(body2, method, labelsV1) {
       if (body2.category !== "life" || typeof label3 !== "string" || !label3.isWellFormed() || !label3.trim() || [...label3.trim()].length > 32 || /[\u0000-\u001f\u007f]/.test(label3) || ["生活", "工作"].includes(label3.trim().normalize("NFC"))) throw failure2("标签无效，草稿已保留。");
       body2 = { ...body2, label: label3.trim().normalize("NFC") };
     }
-    const day4 = /* @__PURE__ */ new Date(body2.date + "T00:00:00Z");
-    if (!["life", "work"].includes(body2.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body2.date) || !Number.isFinite(day4.getTime()) || day4.toISOString().slice(0, 10) !== body2.date || typeof body2.text !== "string" || !body2.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body2.text) || new TextEncoder().encode(body2.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
+    const day5 = /* @__PURE__ */ new Date(body2.date + "T00:00:00Z");
+    if (!["life", "work"].includes(body2.category) || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(body2.date) || !Number.isFinite(day5.getTime()) || day5.toISOString().slice(0, 10) !== body2.date || typeof body2.text !== "string" || !body2.text.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body2.text) || new TextEncoder().encode(body2.text.replace(/\r\n?/g, "\n")).byteLength > 65536)
       throw failure2("分类、日期或正文无效，草稿已保留。");
   }
   return structuredClone(body2);
 }
 function createNoteMutations(context) {
-  async function mutate(path, options2, route, guard) {
+  async function mutate(path, options3, route2, guard) {
     const { state: state2, cache: cache2, outbox, now } = context, owner2 = state2.scope, generation = context.generation;
     const active5 = () => {
       guard();
@@ -2887,21 +3051,21 @@ function createNoteMutations(context) {
         throw failure2("身份范围已变化，本次修改未保存。", "OFFLINE_SCOPE_CHANGED");
     };
     active5();
-    const body2 = checked(options2.body, route.method, context.features.labelsV1 === true);
+    const body2 = checked(options3.body, route2.method, context.features.labelsV1 === true);
     if (!await cache2.noteCapability()) throw failure2("请先联网核实碎碎念编辑能力。", "OFFLINE_SCOPE_REQUIRED");
     active5();
-    const stored = await cache2.entity("note-entry:" + route.id), visible3 = offlineValue(stored);
+    const stored = await cache2.entity("note-entry:" + route2.id), visible3 = offlineValue(stored);
     active5();
-    if (route.method === "PUT" && body2.version === 0 && !visible3) {
+    if (route2.method === "PUT" && body2.version === 0 && !visible3) {
       const existing = await cache2.entities();
       active5();
       if (existing.filter((row) => row.entity_id.startsWith("note-entry:") && (row.dirty ? row.local : row.server)?.category === body2.category && (row.dirty ? row.local : row.server)?.date === body2.date && !(row.dirty ? row.local : row.server)?.deleted && !(row.dirty ? row.local : row.server)?.deleted_at && (row.dirty || !row.remote_missing)).length >= 200)
         throw failure2("本机该日记录已达 200 条，草稿已保留。", "OFFLINE_CACHE_LIMIT");
     }
-    if (!options2.offlineUnknown && body2.version !== (visible3?.version || 0))
+    if (!options3.offlineUnknown && body2.version !== (visible3?.version || 0))
       throw failure2("本机已有更新，请重新读取后保存，草稿已保留。", "OFFLINE_CACHE_CHANGED");
-    if (route.method === "DELETE" && !visible3) throw failure2("此记录尚未保存在本机。", "OFFLINE_CACHE_MISS");
-    if (visible3 && route.method === "PUT" && (visible3.category !== body2.category || visible3.date !== body2.date))
+    if (route2.method === "DELETE" && !visible3) throw failure2("此记录尚未保存在本机。", "OFFLINE_CACHE_MISS");
+    if (visible3 && route2.method === "PUT" && (visible3.category !== body2.category || visible3.date !== body2.date))
       throw failure2("记录的分类和日期不可更改。");
     const labelMode = context.features.labelsV1 === true;
     const persisted = stored?.label_evidence;
@@ -2917,26 +3081,26 @@ function createNoteMutations(context) {
       ...visible3,
       ...body2,
       ...labelMode ? { labels_version: 1, label: label3 } : {},
-      id: route.id,
+      id: route2.id,
       can_edit: true,
-      deleted: route.method === "DELETE",
+      deleted: route2.method === "DELETE",
       created_at: visible3?.created_at || stamp2,
       updated_at: stamp2,
-      deleted_at: route.method === "DELETE" ? stamp2 : null
+      deleted_at: route2.method === "DELETE" ? stamp2 : null
     };
     let result;
     try {
       result = await outbox.enqueue({
         scope: owner2,
         entity_type: "note_entry",
-        entity_id: route.id,
-        method: route.method,
+        entity_id: route2.id,
+        method: route2.method,
         path,
         body: body2,
         base: stored?.server || null,
         local,
         ...labelMode ? { protocol: 5 } : {},
-        initial_status: options2.offlineUnknown ? "unknown" : "queued",
+        initial_status: options3.offlineUnknown ? "unknown" : "queued",
         assertActive: active5
       });
     } catch (error) {
@@ -2954,33 +3118,17 @@ function createNoteMutations(context) {
   }
   return { mutate };
 }
+var uuid2, failure2;
+var init_note_mutations = __esm({
+  "web/offline/note-mutations.mjs"() {
+    init_db();
+    init_document();
+    uuid2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+    failure2 = (message, code = "OFFLINE_INVALID_MUTATION") => Object.assign(new Error(message), { code, localNotSaved: true });
+  }
+});
 
 // web/offline/drafts.mjs
-var fields = [
-  "kind",
-  "id",
-  "category",
-  "date",
-  "draft",
-  "version",
-  "serverText",
-  "contentHash",
-  "label",
-  "labels",
-  "labelKnown",
-  "createdAt",
-  "updatedAt",
-  "dirty",
-  "phase",
-  "pending",
-  "remote",
-  "localVersion",
-  "durableText",
-  "localBacked",
-  "localQueued",
-  "recoveredBaseline"
-];
-var unresolved = (row) => row.dirty || row.pending || ["unknown", "conflict", "error", "oversize"].includes(row.phase);
 function safeDraft(row) {
   if (!row || !["legacy", "note_entry"].includes(row.kind) || !["life", "work"].includes(row.category) || !/^\d{4}-\d{2}-\d{2}$/.test(row.date) || typeof row.draft !== "string" || row.draft.length > 262144 || row.kind === "note_entry" && !/^[a-f0-9-]{36}$/i.test(row.id)) throw new Error("本机草稿字段无效。");
   return Object.fromEntries(fields.filter((key) => row[key] !== void 0).map((key) => [key, structuredClone(row[key])]));
@@ -2998,8 +3146,8 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     await db.transaction(["meta"], "readwrite", async (tx) => {
       active5();
       for (const row of clean) {
-        const identity4 = row.kind === "legacy" ? row.category + ":" + row.date : row.id;
-        const key = entityKey(owner2, "draft:" + row.kind + ":" + identity4 + ":" + draftOwner);
+        const identity5 = row.kind === "legacy" ? row.category + ":" + row.date : row.id;
+        const key = entityKey(owner2, "draft:" + row.kind + ":" + identity5 + ":" + draftOwner);
         if (unresolved(row)) await tx.put("meta", { key, scope: owner2, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now() });
         else if (row.kind === "note_entry") {
           await tx.delete("meta", key);
@@ -3016,24 +3164,47 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     });
     return work;
   }
-  async function list(kind) {
+  async function list2(kind) {
     const owner2 = getScope(), generation = getGeneration();
     if (!owner2) return [];
     const rows = await db.transaction(["meta"], "readonly", async (tx) => (await tx.getAll("meta")).filter((row) => row.scope === owner2 && row.draft_kind === kind).sort((a, b) => b.saved_at - a.saved_at).map((row) => row.data));
     return owner2 === getScope() && generation === getGeneration() ? rows : [];
   }
-  return { capture, list, flush: () => Promise.all([...pending]) };
+  return { capture, list: list2, flush: () => Promise.all([...pending]) };
 }
+var fields, unresolved;
+var init_drafts = __esm({
+  "web/offline/drafts.mjs"() {
+    init_db();
+    fields = [
+      "kind",
+      "id",
+      "category",
+      "date",
+      "draft",
+      "version",
+      "serverText",
+      "contentHash",
+      "label",
+      "labels",
+      "labelKnown",
+      "createdAt",
+      "updatedAt",
+      "dirty",
+      "phase",
+      "pending",
+      "remote",
+      "localVersion",
+      "durableText",
+      "localBacked",
+      "localQueued",
+      "recoveredBaseline"
+    ];
+    unresolved = (row) => row.dirty || row.pending || ["unknown", "conflict", "error", "oversize"].includes(row.phase);
+  }
+});
 
 // web/offline/conflict-draft-guards.mjs
-var factories = /* @__PURE__ */ new Set();
-var uuid3 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var changed = () => {
-  throw Object.assign(new Error("本机输入或身份已变化，请保留原文并重新比较。"), { code: "OFFLINE_CONFLICT_CHANGED" });
-};
-var fields2 = (value, names) => value ? Object.fromEntries(names.filter((name) => value[name] !== void 0).map((name) => [name, value[name]])) : null;
-var canonical3 = (value) => Array.isArray(value) ? value.map(canonical3) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical3(value[key])])) : value;
-var stable3 = (value) => JSON.stringify(canonical3(value));
 function pendingIntent(value) {
   if (!value) return null;
   return {
@@ -3095,7 +3266,7 @@ function createMemoConflictDraftGuard({
   return (entity_id) => {
     const id = entityId(entity_id, "memo-note:"), store = id && getStore();
     if (!store) return null;
-    const identity4 = getIdentity(), owner2 = store.state.draftOwner;
+    const identity5 = getIdentity(), owner2 = store.state.draftOwner;
     const snapshot = () => stable3({
       draft: draftSnapshot(store.drafts.get(id), "memo"),
       operation: store.state.operation?.pending?.id === id ? pendingIntent(store.state.operation.pending) : null,
@@ -3109,7 +3280,7 @@ function createMemoConflictDraftGuard({
       changed();
     }
     return () => {
-      if (store !== getStore() || identity4 !== getIdentity() || owner2 !== store.state.draftOwner) changed();
+      if (store !== getStore() || identity5 !== getIdentity() || owner2 !== store.state.draftOwner) changed();
       try {
         if (snapshot() !== initial) changed();
       } catch {
@@ -3125,7 +3296,7 @@ function createNoteConflictDraftGuard({ getStores, getIdentity, getComposing = (
     const find = () => [...getStores()].filter(([, store]) => store.entries.has(id));
     const initialStores = find();
     if (!initialStores.length) return null;
-    const identity4 = getIdentity();
+    const identity5 = getIdentity();
     const snapshot = (rows) => stable3({
       drafts: rows.map(([category, store]) => [category, draftSnapshot(store.entries.get(id), "note")]),
       composing: getComposing(id) === true
@@ -3133,25 +3304,33 @@ function createNoteConflictDraftGuard({ getStores, getIdentity, getComposing = (
     const initial = snapshot(initialStores);
     return () => {
       const current2 = find();
-      if (identity4 !== getIdentity() || current2.length !== initialStores.length || current2.some(([category, store], index) => category !== initialStores[index][0] || store !== initialStores[index][1])) changed();
+      if (identity5 !== getIdentity() || current2.length !== initialStores.length || current2.some(([category, store], index) => category !== initialStores[index][0] || store !== initialStores[index][1])) changed();
       if (snapshot(current2) !== initial) changed();
     };
   };
 }
+var factories, uuid3, changed, fields2, canonical3, stable3;
+var init_conflict_draft_guards = __esm({
+  "web/offline/conflict-draft-guards.mjs"() {
+    factories = /* @__PURE__ */ new Set();
+    uuid3 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+    changed = () => {
+      throw Object.assign(new Error("本机输入或身份已变化，请保留原文并重新比较。"), { code: "OFFLINE_CONFLICT_CHANGED" });
+    };
+    fields2 = (value, names) => value ? Object.fromEntries(names.filter((name) => value[name] !== void 0).map((name) => [name, value[name]])) : null;
+    canonical3 = (value) => Array.isArray(value) ? value.map(canonical3) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical3(value[key])])) : value;
+    stable3 = (value) => JSON.stringify(canonical3(value));
+  }
+});
 
 // web/offline/memos.mjs
-var uuid4 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var active3 = (value) => !["archived", "acked"].includes(value.status);
-var fail3 = (message, code = "OFFLINE_MEMO_INVALID") => Object.assign(new Error(message), { code });
-var keyFor = (scope, kind, id) => entityKey(scope, (kind === "notes" ? "memo-note:" : "memo-group:") + id);
-var fields3 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at", "group_id", "body"];
 function memoRoute(path) {
   if (path === "/memos") return { kind: "index" };
   const match = /^\/memos\/(notes|groups)\/([a-f0-9-]{36})$/i.exec(path);
   return match && uuid4.test(match[2]) ? { kind: match[1], id: match[2].toLowerCase() } : null;
 }
-function checked2(row, kind, detail = false) {
-  if (!row || !uuid4.test(row.id) || typeof row.title !== "string" || !row.title.trim() || !Number.isSafeInteger(row.version) || row.version < 1 || !Number.isSafeInteger(row.position) || kind === "notes" && (!uuid4.test(row.group_id) || detail && typeof row.body !== "string")) {
+function checked2(row, kind, detail2 = false) {
+  if (!row || !uuid4.test(row.id) || typeof row.title !== "string" || !row.title.trim() || !Number.isSafeInteger(row.version) || row.version < 1 || !Number.isSafeInteger(row.position) || kind === "notes" && (!uuid4.test(row.group_id) || detail2 && typeof row.body !== "string")) {
     throw fail3("备忘录读取不完整，未覆盖本机内容。");
   }
   return Object.fromEntries(fields3.filter((field2) => row[field2] !== void 0).map((field2) => [field2, row[field2]]));
@@ -3200,8 +3379,8 @@ function checkedInput(raw, kind, createId) {
 }
 function memoReads(context) {
   async function project(path) {
-    const route = memoRoute(path), guard = scoped(context);
-    if (!route || route.kind === "groups") throw fail3("此备忘录尚未缓存。", "OFFLINE_CACHE_MISS");
+    const route2 = memoRoute(path), guard = scoped(context);
+    if (!route2 || route2.kind === "groups") throw fail3("此备忘录尚未缓存。", "OFFLINE_CACHE_MISS");
     const result = await context.db.transaction(["entities", "outbox", "conflicts", "meta"], "readonly", async (tx) => {
       guard.check();
       const cap = await tx.get("meta", entityKey(guard.scope, "memo-capability"));
@@ -3211,8 +3390,8 @@ function memoReads(context) {
         conflicts: (await tx.getAll("conflicts")).filter((row) => row.scope === guard.scope)
       };
       const canEdit = cap?.can_edit === true;
-      if (route.kind === "notes") {
-        const entity = entities.find((row) => row.key === keyFor(guard.scope, "notes", route.id));
+      if (route2.kind === "notes") {
+        const entity = entities.find((row) => row.key === keyFor(guard.scope, "notes", route2.id));
         if (!entity || typeof offlineValue(entity)?.body !== "string") throw fail3("请联网读取此笔记正文。", "OFFLINE_CACHE_MISS");
         const document2 = memoDocument(entity, records, canEdit);
         if (!document2) throw fail3("笔记已不在当前缓存范围。", "OFFLINE_CACHE_MISS");
@@ -3220,14 +3399,14 @@ function memoReads(context) {
         return document2;
       }
       const values = (kind) => entities.filter((row) => row.entity_id.startsWith(kind === "groups" ? "memo-group:" : "memo-note:")).map((row) => memoDocument(row, records, canEdit, true)).filter(Boolean).sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
-      const data = {
+      const data2 = {
         groups: values("groups"),
         notes: values("notes"),
         can_edit: canEdit,
         ...cap?.draft_scope ? { draft_scope: cap.draft_scope } : {}
       };
       guard.check();
-      return data;
+      return data2;
     });
     guard.check();
     return result;
@@ -3235,25 +3414,25 @@ function memoReads(context) {
   return { project };
 }
 function memoCache(context) {
-  const serverFence3 = (rows, route) => JSON.stringify(rows.filter((row) => row.server && row.entity_id.startsWith("memo-") && (route.kind === "index" || row.entity_id === "memo-note:" + route.id)).map((row) => [row.entity_id, Object.fromEntries(fields3.map((field2) => [field2, row.server[field2]]))]).sort((a, b) => a[0].localeCompare(b[0])));
+  const serverFence3 = (rows, route2) => JSON.stringify(rows.filter((row) => row.server && row.entity_id.startsWith("memo-") && (route2.kind === "index" || row.entity_id === "memo-note:" + route2.id)).map((row) => [row.entity_id, Object.fromEntries(fields3.map((field2) => [field2, row.server[field2]]))]).sort((a, b) => a[0].localeCompare(b[0])));
   async function fence(path) {
-    const guard = scoped(context), route = memoRoute(path);
+    const guard = scoped(context), route2 = memoRoute(path);
     const rows = await context.db.transaction(["entities"], "readonly", (tx) => tx.getAll("entities"));
     guard.check();
-    return serverFence3(rows.filter((row) => row.scope === guard.scope), route);
+    return serverFence3(rows.filter((row) => row.scope === guard.scope), route2);
   }
   async function remember(path, value, { baseline } = {}) {
-    const route = memoRoute(path), guard = scoped(context);
-    if (!route) return value;
-    if (route.kind === "index" && (!Array.isArray(value?.groups) || !Array.isArray(value.notes) || typeof value.can_edit !== "boolean")) throw fail3("备忘录索引不完整，未覆盖本机内容。");
+    const route2 = memoRoute(path), guard = scoped(context);
+    if (!route2) return value;
+    if (route2.kind === "index" && (!Array.isArray(value?.groups) || !Array.isArray(value.notes) || typeof value.can_edit !== "boolean")) throw fail3("备忘录索引不完整，未覆盖本机内容。");
     await context.db.transaction(["entities", "meta"], "readwrite", async (tx) => {
       guard.check();
       const initial = (await tx.getAll("entities")).filter((row) => row.scope === guard.scope);
-      if (baseline !== void 0 && baseline !== serverFence3(initial, route))
+      if (baseline !== void 0 && baseline !== serverFence3(initial, route2))
         throw fail3("本机刚确认了新版本，请重新读取备忘录。", "OFFLINE_CACHE_CHANGED");
-      const collections2 = route.kind === "index" ? [["groups", value.groups], ["notes", value.notes]] : [[route.kind, [value]]];
+      const collections2 = route2.kind === "index" ? [["groups", value.groups], ["notes", value.notes]] : [[route2.kind, [value]]];
       for (const [kind, rows] of collections2) for (const raw of rows) {
-        const server = checked2(raw, kind, route.kind === "notes"), key = keyFor(guard.scope, kind, server.id);
+        const server = checked2(raw, kind, route2.kind === "notes"), key = keyFor(guard.scope, kind, server.id);
         const old = await tx.get("entities", key);
         if (old?.server?.version > server.version) throw fail3("本机已有较新备忘录，请重读。", "OFFLINE_CACHE_CHANGED");
         const complete = kind === "groups" || typeof server.body === "string";
@@ -3268,7 +3447,7 @@ function memoCache(context) {
           remote_missing: false
         });
       }
-      if (route.kind === "index") await tx.put("meta", {
+      if (route2.kind === "index") await tx.put("meta", {
         key: entityKey(guard.scope, "memo-capability"),
         can_edit: value.can_edit,
         ...value.draft_scope ? { draft_scope: value.draft_scope } : {},
@@ -3282,16 +3461,16 @@ function memoCache(context) {
   return { remember, fence };
 }
 function memoWrites(context) {
-  async function mutate(path, options2, assertActive) {
-    const route = memoRoute(path), guard = scoped(context, assertActive);
-    if (!route || !["notes", "groups"].includes(route.kind) || options2.method?.toUpperCase() !== "PUT") {
+  async function mutate(path, options3, assertActive) {
+    const route2 = memoRoute(path), guard = scoped(context, assertActive);
+    if (!route2 || !["notes", "groups"].includes(route2.kind) || options3.method?.toUpperCase() !== "PUT") {
       throw fail3("备忘录删除和恢复需联网确认。", "OFFLINE_UNSUPPORTED");
     }
-    const body2 = checkedInput(options2.body, route.kind, context.uuid);
+    const body2 = checkedInput(options3.body, route2.kind, context.uuid);
     const cap = await context.db.transaction(["meta"], "readonly", (tx) => tx.get("meta", entityKey(guard.scope, "memo-capability")));
     guard.check();
     if (cap?.can_edit !== true) throw fail3("请先联网确认备忘录编辑权限。", "OFFLINE_SCOPE_REQUIRED");
-    const key = keyFor(guard.scope, route.kind, route.id);
+    const key = keyFor(guard.scope, route2.kind, route2.id);
     const old = await context.db.transaction(["entities"], "readonly", (tx) => tx.get("entities", key));
     guard.check();
     const visible3 = offlineValue(old);
@@ -3299,7 +3478,7 @@ function memoWrites(context) {
     const local = {
       ...visible3,
       ...body2,
-      id: route.id,
+      id: route2.id,
       version: body2.version + 1,
       created_at: visible3?.created_at || new Date(context.now()).toISOString(),
       updated_at: new Date(context.now()).toISOString(),
@@ -3307,16 +3486,16 @@ function memoWrites(context) {
     };
     const result = await context.outbox.enqueue({
       scope: guard.scope,
-      entity_type: route.kind === "notes" ? "memo_note" : "memo_group",
-      entity_id: route.id,
+      entity_type: route2.kind === "notes" ? "memo_note" : "memo_group",
+      entity_id: route2.id,
       method: "PUT",
       path,
       body: body2,
       base: old?.server || null,
       local,
       assertActive: guard.check,
-      ...route.kind === "notes" ? { protocol: 2, depends_on: ["memo-group:" + body2.group_id] } : {},
-      ...options2.offlineUnknown ? { initial_status: "unknown" } : {}
+      ...route2.kind === "notes" ? { protocol: 2, depends_on: ["memo-group:" + body2.group_id] } : {},
+      ...options3.offlineUnknown ? { initial_status: "unknown" } : {}
     });
     guard.check();
     return localDocument({
@@ -3328,25 +3507,30 @@ function memoWrites(context) {
   }
   return { mutate };
 }
-function createMemoOfflineAdapter(options2) {
-  const context = { getGeneration: () => 0, now: Date.now, uuid: () => crypto.randomUUID(), ...options2 };
+function createMemoOfflineAdapter(options3) {
+  const context = { getGeneration: () => 0, now: Date.now, uuid: () => crypto.randomUUID(), ...options3 };
   Object.assign(context, memoReads(context), memoCache(context), memoWrites(context));
   return { project: context.project, remember: context.remember, mutate: context.mutate, fence: context.fence };
 }
+var uuid4, active3, fail3, keyFor, fields3;
+var init_memos = __esm({
+  "web/offline/memos.mjs"() {
+    init_db();
+    init_document();
+    uuid4 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+    active3 = (value) => !["archived", "acked"].includes(value.status);
+    fail3 = (message, code = "OFFLINE_MEMO_INVALID") => Object.assign(new Error(message), { code });
+    keyFor = (scope, kind, id) => entityKey(scope, (kind === "notes" ? "memo-note:" : "memo-group:") + id);
+    fields3 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at", "group_id", "body"];
+  }
+});
 
 // web/offline/runtime.mjs
-var OFFLINE_FEATURES = Object.freeze({ todos: true, notes: true, memos: true, snapshotV2: true, labelsV1: true });
-var scopePattern = /^[a-f0-9]{64}$/;
-var uuidPattern5 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-var networkFailure = (error) => error?.code === "NETWORK_UNAVAILABLE" || error?.code === "OFFLINE_NETWORK";
-var fail4 = (message, code) => Object.assign(new Error(message), { code });
-var today = (now) => new Date(now() + 8 * 36e5).toISOString().slice(0, 10);
-var offlineError = () => fail4("当前离线，此操作需联网；输入内容已保留。", "OFFLINE_NETWORK");
-async function identityProbe(context, path, options2 = {}) {
-  const controller = new AbortController(), external = options2.signal;
-  const abort = () => controller.abort(external.reason);
-  if (external?.aborted) abort();
-  else external?.addEventListener("abort", abort, { once: true });
+async function identityProbe(context, path, options3 = {}) {
+  const controller = new AbortController(), external2 = options3.signal;
+  const abort = () => controller.abort(external2.reason);
+  if (external2?.aborted) abort();
+  else external2?.addEventListener("abort", abort, { once: true });
   let timer;
   try {
     const expired = new Promise((_, reject) => {
@@ -3355,15 +3539,15 @@ async function identityProbe(context, path, options2 = {}) {
         controller.abort();
       }, 1e4);
     });
-    return await Promise.race([context.request(path, { ...options2, signal: controller.signal }), expired]);
+    return await Promise.race([context.request(path, { ...options3, signal: controller.signal }), expired]);
   } finally {
     clearTimeout(timer);
-    external?.removeEventListener("abort", abort);
+    external2?.removeEventListener("abort", abort);
   }
 }
-function writableRoute(path, options2, features) {
+function writableRoute(path, options3, features) {
   if (!features.todos) return null;
-  const method = (options2.method || "GET").toUpperCase();
+  const method = (options3.method || "GET").toUpperCase();
   if (["/todos", "/todo-templates", "/unscheduled-todos"].includes(path) && method === "POST")
     return { type: path === "/todos" ? "todo" : path === "/unscheduled-todos" ? "unscheduled_todo" : "template", create: true };
   const match = /^\/(todos|todo-templates|unscheduled-todos)\/([a-f0-9-]{36})(\/restore)?$/i.exec(path);
@@ -3375,11 +3559,11 @@ function writableRoute(path, options2, features) {
     restore: Boolean(match[3])
   };
 }
-function checkedBody(route, options2, uuid5) {
-  const body2 = structuredClone(options2.body || {}), method = (options2.method || "GET").toUpperCase();
-  const required = route.create ? route.type === "todo" ? ["id", "date", "text"] : ["id", "text"] : route.type === "todo" ? route.restore || method === "DELETE" ? ["date", "version"] : ["completed", "version"] : route.type === "unscheduled_todo" ? route.restore || method === "DELETE" ? ["version"] : ["completed", "version"] : method === "DELETE" ? ["version"] : ["text", "version"];
-  if (route.create && !body2.id) body2.id = uuid5();
-  const allowed = [...required, ...route.create && route.type === "todo" ? ["template_id"] : []];
+function checkedBody(route2, options3, uuid5) {
+  const body2 = structuredClone(options3.body || {}), method = (options3.method || "GET").toUpperCase();
+  const required = route2.create ? route2.type === "todo" ? ["id", "date", "text"] : ["id", "text"] : route2.type === "todo" ? route2.restore || method === "DELETE" ? ["date", "version"] : ["completed", "version"] : route2.type === "unscheduled_todo" ? route2.restore || method === "DELETE" ? ["version"] : ["completed", "version"] : method === "DELETE" ? ["version"] : ["text", "version"];
+  if (route2.create && !body2.id) body2.id = uuid5();
+  const allowed = [...required, ...route2.create && route2.type === "todo" ? ["template_id"] : []];
   if (required.some((key) => !Object.hasOwn(body2, key)) || Object.keys(body2).some((key) => !allowed.includes(key)))
     throw fail4("请求字段不完整，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
   if (body2.id && !uuidPattern5.test(body2.id) || body2.template_id && !uuidPattern5.test(body2.template_id))
@@ -3390,11 +3574,11 @@ function checkedBody(route, options2, uuid5) {
     throw fail4("请填写 1–500 字的内容。", "OFFLINE_INVALID_MUTATION");
   if (Object.hasOwn(body2, "completed") && typeof body2.completed !== "boolean")
     throw fail4("完成状态无效。", "OFFLINE_INVALID_MUTATION");
-  if (!route.create && (!Number.isSafeInteger(body2.version) || body2.version < 1 || body2.version >= Number.MAX_SAFE_INTEGER))
+  if (!route2.create && (!Number.isSafeInteger(body2.version) || body2.version < 1 || body2.version >= Number.MAX_SAFE_INTEGER))
     throw fail4("版本无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
   return body2;
 }
-function runtimeContext(options2) {
+function runtimeContext(options3) {
   const {
     db,
     request,
@@ -3404,7 +3588,7 @@ function runtimeContext(options2) {
     onIdentity = () => {
     },
     features = OFFLINE_FEATURES
-  } = options2;
+  } = options3;
   const state2 = {
     scope: null,
     verifiedScope: null,
@@ -3473,7 +3657,7 @@ function runtimeContext(options2) {
     getScope: () => state2.scope,
     now,
     uuid: uuid5,
-    timeout: options2.timeout,
+    timeout: options3.timeout,
     enabledTypes: [
       ...features.todos ? ["todo", "template", "unscheduled_todo"] : [],
       ...features.notes ? ["note_entry"] : [],
@@ -3512,32 +3696,32 @@ function identityActions(context) {
     emit();
   }
   async function adopt(me, index, generation) {
-    const identity4 = safeIdentity(me);
+    const identity5 = safeIdentity(me);
     if (generation !== context.generation) throw fail4("身份读取已过期。", "OFFLINE_SCOPE_CHANGED");
     if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== "current")
       throw fail4("身份范围读取不完整，请联网重试。", "OFFLINE_SCOPE_REQUIRED");
-    if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity4))) {
+    if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity5))) {
       await invalidate({ forget: true });
       throw fail4("当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。", "OFFLINE_SCOPE_CHANGED");
     }
-    await cache2.saveIdentity(identity4, index.scope_id);
+    await cache2.saveIdentity(identity5, index.scope_id);
     if (generation !== context.generation || state2.scope && state2.scope !== index.scope_id) {
       await invalidate({ forget: true });
       throw fail4("身份核实已过期，原本机数据已保留。", "OFFLINE_SCOPE_CHANGED");
     }
     state2.scope = index.scope_id;
     state2.verifiedScope = index.scope_id;
-    state2.identity = identity4;
+    state2.identity = identity5;
     state2.online = true;
     onIdentity(me);
     emit();
     return me;
   }
-  async function authenticate(options2 = {}) {
+  async function authenticate(options3 = {}) {
     const generation = context.generation;
     let liveIdentity = null;
     try {
-      const me = await identityProbe(context, "/auth/me", options2);
+      const me = await identityProbe(context, "/auth/me", options3);
       liveIdentity = safeIdentity(me);
       const index = await identityProbe(context, "/workbench-snapshot/index");
       return await adopt(me, index, generation);
@@ -3593,14 +3777,14 @@ function identityActions(context) {
 function stateActions(context) {
   const { state: state2, outbox, emit, online } = context;
   async function refresh() {
-    const sequence3 = context.refreshSequence = (context.refreshSequence || 0) + 1;
+    const sequence4 = context.refreshSequence = (context.refreshSequence || 0) + 1;
     if (!state2.scope) {
       emit();
       return { ...state2 };
     }
     const owner2 = state2.scope, generation = context.generation;
     const [pending, conflicts] = await Promise.all([outbox.list(owner2), outbox.conflicts.list(owner2)]);
-    if (sequence3 !== context.refreshSequence || owner2 !== state2.scope || generation !== context.generation) return { ...state2 };
+    if (sequence4 !== context.refreshSequence || owner2 !== state2.scope || generation !== context.generation) return { ...state2 };
     state2.pending = pending.length;
     state2.conflicts = conflicts.length;
     state2.online = online() && state2.online;
@@ -3617,14 +3801,14 @@ function stateActions(context) {
     result.conflicts = result.conflicts.map((row) => outbox.canDispatch(row.operation) ? row : { ...row, needs_upgrade: true });
     return owner2 === state2.scope && generation === context.generation ? result : { operations: [], conflicts: [] };
   }
-  async function resolve(key, choice2, options2 = {}) {
+  async function resolve(key, choice2, options3 = {}) {
     if (!state2.scope) throw fail4("请先核实身份。", "OFFLINE_SCOPE_REQUIRED");
     const conflict = (await outbox.conflicts.list(state2.scope)).find((row) => row.key === key);
     if (conflict && !outbox.canDispatch(conflict.operation)) throw fail4("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
     const owner2 = state2.scope, generation = context.generation;
     const checkDraft = captureConflictDraftGuard(conflict?.entity_id);
     const active5 = () => {
-      if (options2.signal?.aborted) throw new DOMException("请求已取消", "AbortError");
+      if (options3.signal?.aborted) throw new DOMException("请求已取消", "AbortError");
       if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份已变化，原文已保留。", "OFFLINE_SCOPE_CHANGED");
       checkDraft();
     };
@@ -3634,8 +3818,8 @@ function stateActions(context) {
     const result = await outbox.resolve(key, choice2, {
       scope: owner2,
       assertActive: active5,
-      expected: options2.expected,
-      copyConfirmed: options2.copyConfirmed
+      expected: options3.expected,
+      copyConfirmed: options3.copyConfirmed
     });
     await refresh();
     context.broadcast();
@@ -3729,17 +3913,17 @@ function syncActions(context) {
   }
   return { sync, scheduleRetry };
 }
-async function unmanaged(context, path, options2, guard) {
+async function unmanaged(context, path, options3, guard) {
   try {
     guard();
-    return await context.request(path, options2);
+    return await context.request(path, options3);
   } catch (error) {
     if ([401, 403].includes(error.status)) await context.invalidate({ forget: true });
     throw error;
   }
 }
-async function mutateMemo(context, path, options2, guard) {
-  const value = await context.memos.mutate(path, options2, guard);
+async function mutateMemo(context, path, options3, guard) {
+  const value = await context.memos.mutate(path, options3, guard);
   guard();
   await context.refresh();
   context.broadcast();
@@ -3758,12 +3942,12 @@ async function rememberRead(context, path, value, baseline, memo) {
     return value;
   }
 }
-function labelRequestOptions(path, options2, features) {
-  return features.labelsV1 && path.startsWith("/note-entries") ? { ...options2, headers: { ...options2.headers, "X-Note-Labels-Version": "1" } } : options2;
+function labelRequestOptions(path, options3, features) {
+  return features.labelsV1 && path.startsWith("/note-entries") ? { ...options3, headers: { ...options3.headers, "X-Note-Labels-Version": "1" } } : options3;
 }
 function mutationActions(context) {
   const { state: state2, cache: cache2, now, uuid: uuid5, outbox, features } = context;
-  async function mutate(path, options2, route, guard) {
+  async function mutate(path, options3, route2, guard) {
     guard();
     if (!state2.scope || !state2.identity) throw fail4("请先联网读取此工作台，再保存离线内容。", "OFFLINE_SCOPE_REQUIRED");
     const owner2 = state2.scope, generation = context.generation;
@@ -3772,20 +3956,20 @@ function mutationActions(context) {
       if (owner2 !== state2.scope || generation !== context.generation)
         throw fail4("身份范围已变化，本次修改未保存，输入已保留。", "OFFLINE_SCOPE_CHANGED");
     };
-    const body2 = checkedBody(route, options2, uuid5), id = route.id || body2.id;
-    const old = await cache2.entity(route.type + ":" + id), base = old?.server || null, visible3 = offlineValue(old);
+    const body2 = checkedBody(route2, options3, uuid5), id = route2.id || body2.id;
+    const old = await cache2.entity(route2.type + ":" + id), base = old?.server || null, visible3 = offlineValue(old);
     active5();
-    if (!route.create && !visible3) throw fail4("此事项尚未保存在本机，请联网读取后再操作。", "OFFLINE_CACHE_MISS");
-    const stamp2 = new Date(now()).toISOString(), method = options2.method.toUpperCase();
+    if (!route2.create && !visible3) throw fail4("此事项尚未保存在本机，请联网读取后再操作。", "OFFLINE_CACHE_MISS");
+    const stamp2 = new Date(now()).toISOString(), method = options3.method.toUpperCase();
     const local = {
       ...visible3,
       ...body2,
       id,
       created_at: visible3?.created_at || stamp2,
       updated_at: stamp2,
-      deleted_at: method === "DELETE" ? stamp2 : route.restore ? null : visible3?.deleted_at || null,
-      ...route.create ? { completed: false, ...route.type === "template" ? { completed_days: 0, habit_status: "todo" } : {} } : {},
-      ...route.restore ? { deleted: false } : {}
+      deleted_at: method === "DELETE" ? stamp2 : route2.restore ? null : visible3?.deleted_at || null,
+      ...route2.create ? { completed: false, ...route2.type === "template" ? { completed_days: 0, habit_status: "todo" } : {} } : {},
+      ...route2.restore ? { deleted: false } : {}
     };
     if (body2.template_id) {
       const template = offlineValue(await cache2.entity("template:" + body2.template_id));
@@ -3797,14 +3981,14 @@ function mutationActions(context) {
     active5();
     const { entity } = await outbox.enqueue({
       scope: owner2,
-      entity_type: route.type,
+      entity_type: route2.type,
       entity_id: id,
       method,
       path,
       body: body2,
       base,
       local,
-      ...route.type === "unscheduled_todo" ? { protocol: 4 } : {},
+      ...route2.type === "unscheduled_todo" ? { protocol: 4 } : {},
       assertActive: active5
     });
     active5();
@@ -3815,21 +3999,21 @@ function mutationActions(context) {
   }
   async function call(path, input = {}, readRetried = false) {
     const { offlineGuard: guard = () => {
-    }, ...options2 } = input;
+    }, ...options3 } = input;
     guard();
-    const method = (options2.method || "GET").toUpperCase(), route = writableRoute(path, options2, features);
+    const method = (options3.method || "GET").toUpperCase(), route2 = writableRoute(path, options3, features);
     const memo = features.memos && memoRoute(path);
-    const noteRoute = noteMutationRoute(path, options2, features);
-    if (noteRoute) return context.noteMutations.mutate(path, options2, noteRoute, guard);
-    if (path === "/auth/me" && method === "GET") return options2.context || options2.signal ? context.authenticate(options2) : context.verify();
+    const noteRoute = noteMutationRoute(path, options3, features);
+    if (noteRoute) return context.noteMutations.mutate(path, options3, noteRoute, guard);
+    if (path === "/auth/me" && method === "GET") return options3.context || options3.signal ? context.authenticate(options3) : context.verify();
     if (["/auth/login", "/auth/logout"].includes(path) && method === "POST") {
-      const value = await context.request(path, labelRequestOptions(path, options2, features));
+      const value = await context.request(path, labelRequestOptions(path, options3, features));
       await context.invalidate({ forget: true });
       return value;
     }
-    if (route) return mutate(path, options2, route, guard);
-    if (memo && method === "PUT") return mutateMemo(context, path, options2, guard);
-    if (method !== "GET" || !offlineReadRoute(path)) return unmanaged(context, path, options2, guard);
+    if (route2) return mutate(path, options3, route2, guard);
+    if (memo && method === "PUT") return mutateMemo(context, path, options3, guard);
+    if (method !== "GET" || !offlineReadRoute(path)) return unmanaged(context, path, options3, guard);
     if (offlineReadRoute(path).kind === "todo") context.lastTodoPath = path;
     try {
       if (context.online() && state2.identity) await context.verifyScope();
@@ -3837,7 +4021,7 @@ function mutationActions(context) {
       const owner2 = state2.scope, generation = context.generation;
       const baseline = owner2 ? await (memo ? context.memos.fence(path) : cache2.fence(path)) : void 0;
       guard();
-      const value = await context.request(path, labelRequestOptions(path, options2, features));
+      const value = await context.request(path, labelRequestOptions(path, options3, features));
       guard();
       if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
       if (offlineReadRoute(path).kind === "todo") state2.partial = false;
@@ -3862,9 +4046,9 @@ function mutationActions(context) {
       const kind = offlineReadRoute(path).kind;
       if (kind === "overview") state2.cachedAt = cached.saved_at;
       if (kind === "todo") state2.partial = cached.data.offline_partial === true;
-      const data = ["legacy", ...!features.notes ? ["note_entries", "note_entry"] : [], "memos", "memo_note"].includes(kind) ? { ...cached.data, can_edit: false, ...Array.isArray(cached.data.entries) ? { entries: cached.data.entries.map((entry) => ({ ...entry, can_edit: false })) } : {} } : cached.data;
+      const data2 = ["legacy", ...!features.notes ? ["note_entries", "note_entry"] : [], "memos", "memo_note"].includes(kind) ? { ...cached.data, can_edit: false, ...Array.isArray(cached.data.entries) ? { entries: cached.data.entries.map((entry) => ({ ...entry, can_edit: false })) } : {} } : cached.data;
       await context.refresh();
-      return data;
+      return data2;
     }
   }
   return { call, mutate };
@@ -3913,8 +4097,8 @@ function lifecycleActions(context) {
   }
   return { start, stop: () => stop(), broadcast };
 }
-function createOfflineRuntime(options2) {
-  const context = runtimeContext(options2);
+function createOfflineRuntime(options3) {
+  const context = runtimeContext(options3);
   Object.assign(context, identityActions(context), stateActions(context), syncActions(context), lifecycleActions(context));
   Object.assign(context, mutationActions(context));
   context.noteMutations = createNoteMutations(context);
@@ -3941,8 +4125,6 @@ function createOfflineRuntime(options2) {
     }
   };
 }
-var singleton = null, initialization = null;
-var readyListeners = /* @__PURE__ */ new Set();
 function getOfflineRuntime() {
   return singleton;
 }
@@ -3951,7 +4133,7 @@ function onOfflineRuntime(callback) {
   if (singleton) callback(singleton);
   return () => readyListeners.delete(callback);
 }
-async function offlineRequest(path, options2, request, onIdentity, assertActive = () => {
+async function offlineRequest(path, options3, request, onIdentity, assertActive = () => {
 }) {
   if (!initialization) initialization = openOfflineDB().then((db) => {
     singleton = createOfflineRuntime({ db, request, onIdentity });
@@ -3963,21 +4145,48 @@ async function offlineRequest(path, options2, request, onIdentity, assertActive 
     runtime2 = await initialization;
   } catch {
     assertActive();
-    if (writableRoute(path, options2, OFFLINE_FEATURES) || noteMutationRoute(path, options2, OFFLINE_FEATURES) || OFFLINE_FEATURES.memos && memoRoute(path) && options2.method?.toUpperCase() === "PUT")
+    if (writableRoute(path, options3, OFFLINE_FEATURES) || noteMutationRoute(path, options3, OFFLINE_FEATURES) || OFFLINE_FEATURES.memos && memoRoute(path) && options3.method?.toUpperCase() === "PUT")
       throw fail4("浏览器无法保存本机数据，本次修改未保存；输入已保留。", "OFFLINE_STORAGE_UNAVAILABLE");
-    return request(path, options2);
+    return request(path, options3);
   }
   assertActive();
-  const managed = offlineReadRoute(path) || writableRoute(path, options2, OFFLINE_FEATURES) || noteMutationRoute(path, options2, OFFLINE_FEATURES) || ["/auth/me", "/auth/login", "/auth/logout"].includes(path);
-  if (!managed) return runtime2.call(path, { ...options2, offlineGuard: assertActive });
-  const { envelope: envelope2 = false, ...opts } = options2;
+  const managed = offlineReadRoute(path) || writableRoute(path, options3, OFFLINE_FEATURES) || noteMutationRoute(path, options3, OFFLINE_FEATURES) || ["/auth/me", "/auth/login", "/auth/logout"].includes(path);
+  if (!managed) return runtime2.call(path, { ...options3, offlineGuard: assertActive });
+  const { envelope: envelope2 = false, ...opts } = options3;
   const value = await runtime2.call(path, { ...opts, offlineGuard: assertActive });
   return envelope2 ? { data: value } : value;
 }
+var OFFLINE_FEATURES, scopePattern, uuidPattern5, networkFailure, fail4, today, offlineError, singleton, initialization, readyListeners;
+var init_runtime = __esm({
+  "web/offline/runtime.mjs"() {
+    init_db();
+    init_cache();
+    init_outbox();
+    init_sync();
+    init_note_mutations();
+    init_drafts();
+    init_conflict_draft_guards();
+    init_memos();
+    OFFLINE_FEATURES = Object.freeze({ todos: true, notes: true, memos: true, snapshotV2: true, labelsV1: true });
+    scopePattern = /^[a-f0-9]{64}$/;
+    uuidPattern5 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+    networkFailure = (error) => error?.code === "NETWORK_UNAVAILABLE" || error?.code === "OFFLINE_NETWORK";
+    fail4 = (message, code) => Object.assign(new Error(message), { code });
+    today = (now) => new Date(now() + 8 * 36e5).toISOString().slice(0, 10);
+    offlineError = () => fail4("当前离线，此操作需联网；输入内容已保留。", "OFFLINE_NETWORK");
+    singleton = null, initialization = null;
+    readyListeners = /* @__PURE__ */ new Set();
+  }
+});
 
 // web/core/api.mjs
-function apiOptions(options2) {
-  const opts = { credentials: "same-origin", ...options2, headers: { Accept: "application/json", ...options2.headers || {} } };
+var api_exports = {};
+__export(api_exports, {
+  api: () => api,
+  apiNetwork: () => apiNetwork
+});
+function apiOptions(options3) {
+  const opts = { credentials: "same-origin", ...options3, headers: { Accept: "application/json", ...options3.headers || {} } };
   if (opts.body !== void 0) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(opts.body);
@@ -4011,8 +4220,8 @@ async function apiTransport(path, opts) {
   }
   return { ok: response.ok, status: response.status, text };
 }
-function apiFailure(path, response, payload, epoch, identity4) {
-  const current2 = epoch === runtime.sessionEpoch && identity4 === (state.me?.id ?? null);
+function apiFailure(path, response, payload, epoch, identity5) {
+  const current2 = epoch === runtime.sessionEpoch && identity5 === (state.me?.id ?? null);
   if (response.status === 401 && path !== "/auth/login" && current2) {
     state.me = null;
     closeModal();
@@ -4025,9 +4234,9 @@ function apiFailure(path, response, payload, epoch, identity4) {
   if (response.status === 401 && !current2) error.staleSession = true;
   return error;
 }
-async function apiNetwork(path, options2 = {}) {
-  const epoch = runtime.sessionEpoch, identity4 = state.me?.id ?? null;
-  const { envelope: envelope2 = false, context, ...requestOptions } = options2;
+async function apiNetwork(path, options3 = {}) {
+  const epoch = runtime.sessionEpoch, identity5 = state.me?.id ?? null;
+  const { envelope: envelope2 = false, context, ...requestOptions } = options3;
   const opts = apiOptions(requestOptions), method = (opts.method || "GET").toUpperCase();
   const scope = method === "GET" ? context || backgroundRequests() : null;
   const response = scope ? await pendingGet(
@@ -4044,20 +4253,33 @@ async function apiNetwork(path, options2 = {}) {
   } catch {
     throw new Error("服务暂时不可用，请稍后重试。");
   }
-  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity4);
+  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity5);
   return envelope2 ? payload : payload.data;
 }
-function api(path, options2 = {}) {
-  const epoch = runtime.sessionEpoch, identity4 = state.me?.id ?? null;
+function api(path, options3 = {}) {
+  const epoch = runtime.sessionEpoch, identity5 = state.me?.id ?? null;
   const active5 = () => {
-    if (epoch !== runtime.sessionEpoch || identity4 !== (state.me?.id ?? null) || options2.signal?.aborted || options2.context?.controller.signal.aborted) throw new DOMException("请求已取消", "AbortError");
+    if (epoch !== runtime.sessionEpoch || identity5 !== (state.me?.id ?? null) || options3.signal?.aborted || options3.context?.controller.signal.aborted) throw new DOMException("请求已取消", "AbortError");
   };
-  return offlineRequest(path, options2, apiNetwork, (me) => {
+  return offlineRequest(path, options3, apiNetwork, (me) => {
     if (state.me && state.me.id === me.id) state.me = me;
   }, active5);
 }
+var init_api = __esm({
+  "web/core/api.mjs"() {
+    init_session_index_state();
+    init_state();
+    init_login();
+    init_modal();
+    init_requests();
+    init_runtime();
+  }
+});
 
 // web/pages/unscheduled-todos.mjs
+init_api();
+init_dom();
+init_state();
 var cache = { owner: "", items: [], draft: "", loaded: false, loading: false, error: "", pending: false, request: null };
 var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null]);
 function current() {
@@ -4076,15 +4298,15 @@ function renderUnscheduledTodos() {
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
 function paintUnscheduledTodos() {
-  const v = current(), root = $("#todo-future");
-  if (!root) return;
-  root.hidden = !visible();
-  const input = $("#todo-future-text", root), button2 = $("#todo-future-form button", root), status = $("#todo-future-status", root), error = $("#todo-future-error", root), list = $("#todo-future-items", root);
+  const v = current(), root2 = $("#todo-future");
+  if (!root2) return;
+  root2.hidden = !visible();
+  const input = $("#todo-future-text", root2), button2 = $("#todo-future-form button", root2), status = $("#todo-future-status", root2), error = $("#todo-future-error", root2), list2 = $("#todo-future-items", root2);
   if (input && document.activeElement !== input && input.value !== v.draft) input.value = v.draft;
   if (button2) button2.disabled = v.pending;
   if (status) status.textContent = v.loading && !v.loaded ? "" : v.loaded && v.items.length === 0 ? "还没有未来待办。" : "";
   if (error) error.textContent = v.error;
-  if (list) list.innerHTML = v.items.filter((x) => !x.deleted_at && !x.deleted).map((x) => `<li class="daily-todo-row${x.completed ? " is-complete" : ""}">
+  if (list2) list2.innerHTML = v.items.filter((x) => !x.deleted_at && !x.deleted).map((x) => `<li class="daily-todo-row${x.completed ? " is-complete" : ""}">
 <label><input type="checkbox" data-future-todo-id="${e(x.id)}" ${x.completed ? "checked" : ""} ${v.pending ? "disabled" : ""}>
 <span class="daily-todo-text">${e(x.text)}</span></label><button class="icon-button" type="button"
  data-action="todo-future-delete" data-id="${e(x.id)}" aria-label="删除 ${e(x.text)}" ${v.pending ? "disabled" : ""}>×</button></li>`).join("");
@@ -4097,9 +4319,9 @@ async function loadUnscheduledTodos() {
   v.error = "";
   paintUnscheduledTodos();
   try {
-    const data = await api("/unscheduled-todos");
-    if (v.owner !== key || owner() !== key || !Array.isArray(data.items)) return;
-    v.items = data.items;
+    const data2 = await api("/unscheduled-todos");
+    if (v.owner !== key || owner() !== key || !Array.isArray(data2.items)) return;
+    v.items = data2.items;
     v.loaded = true;
   } catch (error) {
     if (v.owner === key && owner() === key && !error.staleSession && error.name !== "AbortError") v.error = error.message;
@@ -4113,9 +4335,9 @@ async function loadUnscheduledTodos() {
 function inputUnscheduledTodo(el) {
   if (el.id === "todo-future-text") current().draft = el.value;
 }
-async function submitUnscheduledTodo({ data }) {
+async function submitUnscheduledTodo({ data: data2 }) {
   if (!visible()) return;
-  const v = current(), key = v.owner, text = String(data.text || "").trim();
+  const v = current(), key = v.owner, text = String(data2.text || "").trim();
   if (v.pending) return;
   if (!text || text.length > 500) {
     v.error = "请填写 1–500 字的内容。";
@@ -4171,6 +4393,10 @@ function deleteUnscheduledTodo(id) {
 }
 
 // web/ui/components.mjs
+init_constants();
+init_dom();
+init_format();
+init_state();
 var platformLogo = (p) => `<span class="platform-logo platform-${e(["toutiao", "zhihu", "wechat"].includes(p) ? p : "other")}">${e({
   toutiao: "头",
   zhihu: "知",
@@ -4222,8 +4448,8 @@ function skeleton() {
 }
 function comparisonHTML(comparison) {
   if (!comparison?.comparable) return `<span class="comparison muted" title="${e(comparison?.reason || "缺少完整的可比数据")}">暂不可比</span>`;
-  const delta = Number(comparison.delta), direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
-  const change2 = delta === 0 ? "持平" : `${delta > 0 ? "+" : ""}${num(delta)}`;
+  const delta2 = Number(comparison.delta), direction = delta2 > 0 ? "up" : delta2 < 0 ? "down" : "flat";
+  const change2 = delta2 === 0 ? "持平" : `${delta2 > 0 ? "+" : ""}${num(delta2)}`;
   const percent = comparison.percent == null ? "" : `（${Number(comparison.percent) > 0 ? "+" : ""}${num(comparison.percent)}%）`;
   return `<span class="comparison ${direction}" title="${e(comparison.reason || "与前一等长周期比较")}">${change2}${percent}</span>`;
 }
@@ -4258,8 +4484,8 @@ function metricSummary(a) {
 function articleSelect(name, label3, choices, value) {
   return `<label class="form-field">${e(label3)}<select name="${e(name)}" class="input" aria-label="${e(label3)}"><option value="">全部</option>${Object.entries(choices).map(([key, text]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(text)}</option>`).join("")}</select></label>`;
 }
-function field(name, label3, type = "text", value = "", options2 = "", full = false) {
-  return `<div class="form-field${full ? " full" : ""}"><label for="field-${e(name)}">${label3}</label><input id="field-${e(name)}" class="input" name="${e(name)}" type="${type}" value="${e(value)}" ${options2}></div>`;
+function field(name, label3, type = "text", value = "", options3 = "", full = false) {
+  return `<div class="form-field${full ? " full" : ""}"><label for="field-${e(name)}">${label3}</label><input id="field-${e(name)}" class="input" name="${e(name)}" type="${type}" value="${e(value)}" ${options3}></div>`;
 }
 function formEnd(label3 = "保存") {
   return `<p class="form-message" role="alert"></p><div class="form-actions"><button type="button" class="btn" data-action="close-modal">取消</button><button class="btn primary" type="submit">${e(label3)}</button></div>`;
@@ -4272,6 +4498,9 @@ function renderSnapshot(row) {
 }
 
 // web/core/article-ledger.mjs
+init_dom();
+init_format();
+init_constants();
 var warningLabels = {
   TOUTIAO_TITLE_TOO_LONG: "头条标题超过 30 字",
   CHAR_COUNT_OUT_OF_RANGE: "字数不在 2000–2300",
@@ -4333,6 +4562,9 @@ function ledgerCell(row, key) {
 }
 
 // web/pages/article-reconciliation.mjs
+init_api();
+init_dom();
+init_constants();
 var reconciliationData = null;
 var fieldLabels = { run_date: "日期", status: "状态", slot: "槽位", writer: "写作者", series_no: "编号" };
 var label = (choices, value) => choices[value] || "未知";
@@ -4342,8 +4574,8 @@ function options(values, choices) {
 function statusCounts(counts) {
   return Object.entries(counts).map(([key, value]) => `${label(statusLabels, key)} ${value}`).join(" · ");
 }
-function insurance(data) {
-  const value = data.insurance;
+function insurance(data2) {
+  const value = data2.insurance;
   return `<section class="card"><h2 title="仅按公众号槽位统计">保险编号进度</h2>
 <dl class="article-ledger-stats"><div><dt>实际记录</dt><dd>${e(value.recorded)}</dd></div><div><dt>去重编号</dt><dd>${e(value.unique_count)}</dd></div>
 <div><dt>最高编号</dt><dd>${e(value.highest ?? "未知")}</dd></div></dl><p>${e(statusCounts(value.counts))}</p>
@@ -4359,8 +4591,8 @@ function articleRows(rows) {
 <td>${e(row.has_pending_verify === true ? "待核" : row.verify_state === "complete" ? "已核" : "未知")}</td>
 <td>${e(row.warnings.length ? row.warnings.map((key) => warningLabels[key] || key).join("；") : "无")}</td><td>${row.sample == null ? "未知" : `<details><summary>原始样本记录</summary><pre>${e(JSON.stringify(row.sample, null, 2))}</pre></details>`}</td></tr>`).join("");
 }
-function table(data, filters = {}) {
-  const rows = data.rows.filter((row) => ["run_date", "slot", "writer", "status"].every((key) => !filters[key] || (row[key] ?? "unknown") === filters[key]));
+function table(data2, filters = {}) {
+  const rows = data2.rows.filter((row) => ["run_date", "slot", "writer", "status"].every((key) => !filters[key] || (row[key] ?? "unknown") === filters[key]));
   return `<p role="status">筛选结果 ${e(rows.length)} 条</p>${rows.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>文章</th><th>存稿日期</th><th>槽位</th><th>状态</th>
 <th>写作者</th><th>编号</th><th>缺字段</th><th>待核</th><th>警告</th><th>样本</th></tr></thead><tbody>${articleRows(rows)}</tbody></table></div>` : '<p class="muted">没有符合条件的实际文章记录。</p>'}`;
 }
@@ -4370,19 +4602,19 @@ function changeReconciliationFilters(element) {
   document.querySelector("#reconciliation-results").innerHTML = table(reconciliationData, Object.fromEntries(new FormData(form)));
   return true;
 }
-function renderReconciliation(data) {
-  if (data?.complete !== true || !Array.isArray(data.rows)) throw new Error("发布情况未完整取得，请重试。");
-  reconciliationData = data;
-  const values = (key) => [...new Set(data.rows.map((row) => row[key] ?? "unknown"))].sort();
+function renderReconciliation(data2) {
+  if (data2?.complete !== true || !Array.isArray(data2.rows)) throw new Error("发布情况未完整取得，请重试。");
+  reconciliationData = data2;
+  const values = (key) => [...new Set(data2.rows.map((row) => row[key] ?? "unknown"))].sort();
   const dates = Object.fromEntries(values("run_date").map((value) => [value, value === "unknown" ? "日期未标注" : value]));
   return `<div class="article-ledger-overview article-reconciliation"><section class="card"><h2>发布情况</h2>
-<p>应产出：未配置 · 缺产：未配置 · 逾期：未配置</p><p>${e(statusCounts(data.counts))}</p>
+<p>应产出：未配置 · 缺产：未配置 · 逾期：未配置</p><p>${e(statusCounts(data2.counts))}</p>
 <form id="reconciliation-filters" class="filters">
 <label class="form-field">日期<select class="input" name="run_date">${options(values("run_date"), dates)}</select></label>
 <label class="form-field">槽位<select class="input" name="slot">${options(values("slot"), slotLabels)}</select></label>
 <label class="form-field">写作者<select class="input" name="writer">${options(values("writer"), writerLabels)}</select></label>
 <label class="form-field">状态<select class="input" name="status">${options(values("status"), statusLabels)}</select></label></form>
-<div id="reconciliation-results">${table(data)}</div></section>${insurance(data)}</div>`;
+<div id="reconciliation-results">${table(data2)}</div></section>${insurance(data2)}</div>`;
 }
 async function loadReconciliation(context) {
   return api("/article-reconciliation", { context });
@@ -4525,12 +4757,12 @@ function createReadingActions(context) {
   const { page, emit, stopTimer, adopt, schedule } = context;
   const { load } = context.options;
   async function read(date) {
-    const item = page(date), sequence3 = ++item.sequence, writeEpoch = item.writeEpoch;
+    const item = page(date), sequence4 = ++item.sequence, writeEpoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
       const value = checkedPage(await load(date), date);
-      if (context.disposed || sequence3 !== item.sequence) return;
+      if (context.disposed || sequence4 !== item.sequence) return;
       if (item.pending || writeEpoch !== item.writeEpoch) return;
       if (["conflict", "unknown"].includes(item.phase)) {
         item.remote = value;
@@ -4546,12 +4778,12 @@ function createReadingActions(context) {
         item.error = "";
       }
     } catch (error) {
-      if (!context.disposed && sequence3 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.error = error.message;
         if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence3 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
@@ -4706,14 +4938,17 @@ function createResolutionActions(context) {
   }
   return { reconcile, useServer, useDraft };
 }
-function createDailyNotesStore(options2) {
-  const context = createDailyNotesContext(options2);
+function createDailyNotesStore(options3) {
+  const context = createDailyNotesContext(options3);
   Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
   const { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
   return { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
 }
 
 // web/core/router.mjs
+init_constants();
+init_state();
+init_todos_state();
 function normalizeArticlePipelineFilters(filters) {
   const allowed = {
     status: ["published"],
@@ -4741,7 +4976,7 @@ function isMobileLayout() {
   return Number.isFinite(window.innerWidth) && window.innerWidth < 768;
 }
 function mobilePage(page) {
-  return isMobileLayout() && ["articles", "reviews"].includes(page) ? "dashboard" : page;
+  return ["overview", "dashboard", "articles", "reviews"].includes(page) ? "review" : page;
 }
 function updateRoute(push = false) {
   const page = mobilePage(state.page), redirected = page !== state.page;
@@ -4753,7 +4988,7 @@ function updateRoute(push = false) {
   else u.searchParams.delete("notes_category");
   if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
   else u.searchParams.delete("memo_view");
-  u.searchParams.set("period", state.overviewPeriod);
+  u.searchParams.delete("period");
   u.searchParams.delete("article_scope");
   u.searchParams.delete("q");
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
@@ -4763,33 +4998,23 @@ function updateRoute(push = false) {
   if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
   else u.searchParams.delete("todo_panel");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
-  else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
   else u.searchParams.delete("tab");
-  if (state.account) u.searchParams.set("account", state.account);
+  if (state.page === "review") u.searchParams.set("account", state.account || "V字");
   else u.searchParams.delete("account");
-  for (const [key, value] of Object.entries(state.filters)) {
-    if (value && value !== defaultFilters()[key]) u.searchParams.set(key, value);
-    else u.searchParams.delete(key);
+  for (const key of [...Object.keys(defaultFilters()), "list_page", "page_size", "top_n", "top_platform", "columns"])
+    u.searchParams.delete(key);
+  if (state.page !== "review") {
+    for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare"])
+      u.searchParams.delete(key);
   }
-  for (const [key, value, def] of [["list_page", state.listPage, 1], ["page_size", state.pageSize, 20], ["top_n", state.topN, 5], [
-    "top_platform",
-    state.topPlatform,
-    ""
-  ]]) {
-    if (value !== def) u.searchParams.set(key, value);
-    else u.searchParams.delete(key);
-  }
-  if ([...state.columns].join(",") !== defaultColumns.join(",")) u.searchParams.set("columns", [...state.columns].join(","));
-  else u.searchParams.delete("columns");
   history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
   storage.set("haoduoyu.account", state.account);
 }
 function readRoute() {
   const params = new URLSearchParams(location.search);
   const raw = params.get("page");
-  const fallback = "todos";
+  const fallback = "review";
   state.page = Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
-  if (state.page === "reviews") state.page = "articles";
   state.page = mobilePage(state.page);
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date"));
@@ -4803,13 +5028,12 @@ function readRoute() {
   state.reminderDate = state.page === "reminders" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
   state.todoPanel = state.page === "todos" && ["history", "templates", "future"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
-  state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : raw === "settings" && !params.has("tab") ? "workspace" : "accounts");
+  state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : "workspace");
   if (raw === "memos" && params.get("memo_view") === "trash") state.settingsTab = "workspace";
   state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
   state.articleOverviewMode = "published";
-  const account = params.get("account") || "";
-  state.account = state.accounts.some((a) => a.id === account) ? account : "";
+  state.account = params.get("account")?.trim() || "V字";
   state.filters = defaultFilters();
   for (const key of Object.keys(state.filters)) if (params.has(key)) state.filters[key] = params.get(key);
   const allowed = { sort: ["published_at", "reads", "likes", "comments", "approvals", "latest_as_of", "duration"], order: ["asc", "desc"], platform: [
@@ -4845,6 +5069,8 @@ function readRoute() {
 }
 
 // web/core/modal-request.mjs
+init_api();
+init_state();
 async function modalRequest(path, ticket, version2, context) {
   try {
     return await api(path, { context });
@@ -4855,6 +5081,8 @@ async function modalRequest(path, ticket, version2, context) {
 }
 
 // web/ui/segmented.mjs
+init_constants();
+init_dom();
 function segmented(action, items, selected, label3, attribute = "tab", classes = "") {
   return `<div class="segmented${classes ? " " + e(classes) : ""}" role="group" aria-label="${e(label3)}">${items.map(([value, text]) => `<button type="button" class="btn" data-action="${e(action)}" data-${e(attribute)}="${e(value)}" aria-pressed="${selected === value}">${e(
     text
@@ -4865,11 +5093,14 @@ function platformFilter(action, selected, label3 = "平台") {
 }
 
 // web/ui/table.mjs
+init_dom();
+init_state();
 function sortHeading(key, label3) {
   return `<button class="sort-heading" data-action="sort-column" data-sort="${e(key)}" aria-label="按${e(label3)}排序">${e(label3)} ${state.filters.sort === key ? state.filters.order === "asc" ? "↑" : "↓" : "↕"}</button>`;
 }
 
 // web/ui/toast.mjs
+init_dom();
 function toast(message, error = false) {
   const node2 = document.createElement("div");
   node2.className = `toast${error ? " error" : ""}`;
@@ -4881,6 +5112,13 @@ function toast(message, error = false) {
 }
 
 // web/pages/articles.mjs
+init_requests();
+init_api();
+init_constants();
+init_dom();
+init_format();
+init_state();
+init_modal();
 var pipelineColumns = /* @__PURE__ */ new Set([
   "status",
   "slot",
@@ -5110,8 +5348,12 @@ async function articleModal(id = "") {
 }
 
 // web/pages/dashboard.mjs
-function dailyDates(data) {
-  return (data.trend || []).filter((d) => (d.accounts || []).some((a) => Object.values(a.metrics || {}).some((v) => v != null)));
+init_constants();
+init_dom();
+init_format();
+init_state();
+function dailyDates(data2) {
+  return (data2.trend || []).filter((d) => (d.accounts || []).some((a) => Object.values(a.metrics || {}).some((v) => v != null)));
 }
 function periodControls() {
   return segmented(
@@ -5122,21 +5364,21 @@ function periodControls() {
     "period"
   );
 }
-function renderDashboard(data) {
-  return renderDashboardSummary(data);
+function renderDashboard(data2) {
+  return renderDashboardSummary(data2);
 }
-function renderDashboardSummary(data) {
-  const daily = dailyDates(data);
+function renderDashboardSummary(data2) {
+  const daily2 = dailyDates(data2);
   const selector = `<label class="form-field"><span>统计账号</span><select id="overview-account" class="input"><option value="">全部账号</option>${state.accounts.map((a) => `<option value="${e(a.id)}" ${state.account === a.id ? "selected" : ""}>${e(accountLabel(a))}</option>`).join("")}</select></label>`;
-  return `${selector}${renderCumulative(data)}
- ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label3]) => `<option value="${e(
+  return `${selector}${renderCumulative(data2)}
+ ${daily2.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label3]) => `<option value="${e(
     key
   )}" ${state.trendMetric === key ? "selected" : ""}>${e(label3)}</option>`).join("")}</select></label></div>${renderTrend(
-    data
-  )}<h3>本站发布量 ${dashboardInfo("publication", "发布量口径")}</h3>${renderPublicationTrend(data)}${segmented("trend-tab", [
+    data2
+  )}<h3>本站发布量 ${dashboardInfo("publication", "发布量口径")}</h3>${renderPublicationTrend(data2)}${segmented("trend-tab", [
     ["metrics", "每日明细"],
     ["publication", "各账号每日发布量"]
-  ], state.trendTab || "metrics", "趋势明细")}${renderDailyTable(data)}</div></details>`}`;
+  ], state.trendTab || "metrics", "趋势明细")}${renderDailyTable(data2)}</div></details>`}`;
 }
 function renderPeriodAccounts(accounts) {
   const approvals = accounts.some((a) => a.period_metrics?.approvals != null), columns = [["reads", "阅读"], ["likes", "点赞"], [
@@ -5168,18 +5410,18 @@ function renderAttentionArticles(articles) {
     )}</span>${comparisonHTML(a.comparisons?.comments)}</div>${m.approvals != null ? `<div>赞同 ${e(num(m.approvals))}${comparisonHTML(a.comparisons?.approvals)}</div>` : ""}</td><td class="reason-cell"><span class="badge ${attention.kind === "up" ? "up" : attention.kind === "down" ? "warn" : ""}">${e(label3)}</span>${dashboardInfo("attention", "比较依据", a.id)}</td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
-function renderCumulative(data) {
-  const c = data.cumulative || {}, rows = data.top_articles || [], fresh = freshness(c);
+function renderCumulative(data2) {
+  const c = data2.cumulative || {}, rows = data2.top_articles || [], fresh = freshness(c);
   const interactions = c.totals?.likes == null || c.totals?.comments == null ? null : c.totals.likes + c.totals.comments;
-  const stats = [["已发布文章", num(c.article_count)], ["累计阅读", num(c.totals?.reads)], ["篇均阅读", num(c.mean_reads)], ["互动（赞+评）", num(
+  const stats2 = [["已发布文章", num(c.article_count)], ["累计阅读", num(c.totals?.reads)], ["篇均阅读", num(c.mean_reads)], ["互动（赞+评）", num(
     interactions
   )], ["数据覆盖", c.coverage == null ? "—" : num(c.coverage * 100) + "%"]];
   return `<div class="overview-status" role="status"><span><i class="fresh-dot ${e(fresh.kind)}"></i>${e(fresh.label)}</span><div>${c.no_snapshot_count ? `<button class="btn text" data-action="missing-list" data-status="no_snapshot">未采集 ${e(num(c.no_snapshot_count))} 篇 →</button>` : ""}</div></div>
- <dl class="dashboard-stats">${stats.map(([label3, value], i) => `<div class="stat"><dt>${e(label3)}${i === 4 ? dashboardInfo(
+ <dl class="dashboard-stats">${stats2.map(([label3, value], i) => `<div class="stat"><dt>${e(label3)}${i === 4 ? dashboardInfo(
     "coverage",
     "数据覆盖与统计口径"
   ) : ""}</dt><dd class="${value === "—" ? "missing-value" : ""}">${e(value)}</dd></div>`).join("")}</dl>
- <div class="dashboard-grid dashboard-results"><section class="card"><div class="section-heading"><h2>账号表现</h2></div>${renderPlatformTable(data.platform_comparison || [])}</section></div>
+ <div class="dashboard-grid dashboard-results"><section class="card"><div class="section-heading"><h2>账号表现</h2></div>${renderPlatformTable(data2.platform_comparison || [])}</section></div>
  <section class="card cumulative-top"><div class="section-heading"><h2 id="top-heading">阅读 Top 5</h2>${segmented("top-platform", [[
     "",
     "全部"
@@ -5235,17 +5477,17 @@ function dashboardInfoBody(kind, id) {
   if (kind === "publication") return `<p>${e(d.publication_note)}</p>`;
   if (kind === "trend") return `<p>只用真实每日新增，不以累计快照补零或插值。</p>${(d.accounts || []).map((a) => `<p>${e(
     accountLabel(a)
-  )}：${e(num((d.trend || []).filter((day4) => day4.accounts.some((r) => r.account_id === a.id && r.metrics?.[state.trendMetric] != null)).length))}/${e(num((d.trend || []).length))}天有该指标；缺日处断开。</p>`).join("")}`;
+  )}：${e(num((d.trend || []).filter((day5) => day5.accounts.some((r) => r.account_id === a.id && r.metrics?.[state.trendMetric] != null)).length))}/${e(num((d.trend || []).length))}天有该指标；缺日处断开。</p>`).join("")}`;
   return `<p>${e(c.metric_note || "likes为点赞，approvals为赞同，分别记录；未采集、未取得和真实0分开。")}</p><p>周期仅使用真实每日新增，不补零、不插值。累计快照不补每日数据。</p>`;
 }
-function renderPublicationTrend(data) {
-  const rows = data.publication_trend || [], max = Math.max(1, ...rows.map((r) => r.accounts.reduce((n, a) => n + a.count, 0)));
-  return `<div class="publication-bars" aria-label="本站每日发布量">${rows.map((row) => `<div><span>${e(row.date.slice(5))}</span><div class="publication-stack">${row.accounts.map((a) => `<i data-chart-height="${e(a.count / max * 80)}" data-chart-color="${e(platformColor((data.accounts || []).find((v) => v.id === a.account_id)?.platform))}" title="${e(accountName(a.account_id))} ${e(num(a.count))}篇"></i>`).join(
+function renderPublicationTrend(data2) {
+  const rows = data2.publication_trend || [], max = Math.max(1, ...rows.map((r) => r.accounts.reduce((n, a) => n + a.count, 0)));
+  return `<div class="publication-bars" aria-label="本站每日发布量">${rows.map((row) => `<div><span>${e(row.date.slice(5))}</span><div class="publication-stack">${row.accounts.map((a) => `<i data-chart-height="${e(a.count / max * 80)}" data-chart-color="${e(platformColor((data2.accounts || []).find((v) => v.id === a.account_id)?.platform))}" title="${e(accountName(a.account_id))} ${e(num(a.count))}篇"></i>`).join(
     ""
   )}</div><strong>${e(num(row.accounts.reduce((n, a) => n + a.count, 0)))}</strong></div>`).join("")}</div>`;
 }
-function renderDailyTable(data) {
-  const publication = state.trendTab === "publication", rows = publication ? data.publication_trend || [] : data.trend || [], accounts = data.accounts || [];
+function renderDailyTable(data2) {
+  const publication = state.trendTab === "publication", rows = publication ? data2.publication_trend || [] : data2.trend || [], accounts = data2.accounts || [];
   return `<div class="table-scroll"><table class="data-table"><thead><tr><th>日期</th>${accounts.map((a) => `<th>${e(accountLabel(a))}</th>`).join(
     ""
   )}</tr></thead><tbody>${rows.map((d) => `<tr><td>${e(d.date)}</td>${accounts.map((a) => {
@@ -5253,8 +5495,8 @@ function renderDailyTable(data) {
     return `<td>${value == null ? "未取得" : e(num(value))}</td>`;
   }).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
-function renderTrend(data) {
-  const dates = data.trend || [], accounts = data.accounts || [], key = state.trendMetric, colors = accounts.map((a) => platformColor(a.platform));
+function renderTrend(data2) {
+  const dates = data2.trend || [], accounts = data2.accounts || [], key = state.trendMetric, colors = accounts.map((a) => platformColor(a.platform));
   const all = dates.flatMap((d) => (d.accounts || []).map((a) => a.metrics?.[key])).filter((v) => v != null);
   const dataDays = dates.filter((d) => d.accounts.some((a) => a.metrics?.[key] != null)).length;
   const max = Math.max(...all.map(Number), 1), w = 620, h = 200, left = 45, plotW = 550, plotH = 150;
@@ -5285,156 +5527,6 @@ function renderTrend(data) {
     const row = selected.accounts.find((v) => v.account_id === a.id);
     return `<span>${e(a.name)}：${row?.metrics?.[key] == null ? "未取得" : num(row.metrics[key])} ${e(metrics[key])}${row?.coverage?.source === "articles" ? "（仅已录入文章）" : ""}</span>`;
   }).join("")}` : "暂无日期"}</div>`;
-}
-
-// web/core/article-index.mjs
-var indexRequests = /* @__PURE__ */ new WeakMap();
-async function articleIndex(query = "", context) {
-  const identity4 = state.me?.id, generation = runtime.articleIndexGeneration;
-  if (!identity4) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
-  const scope = context || backgroundRequests();
-  const params = new URLSearchParams(Object.entries(Object.fromEntries(new URLSearchParams(query))).sort(([a], [b]) => a.localeCompare(b)));
-  params.set("fields", "index");
-  const key = identity4 + ":" + params.toString();
-  let pending = articleIndexes.get(key);
-  const owner2 = pending && indexRequests.get(pending);
-  if (owner2 && !owner2.done && owner2.scope !== scope) pending = null;
-  if (!pending) {
-    const entry = { scope, done: false };
-    pending = api("/articles?" + params, { context: scope }).then((rows2) => {
-      entry.done = true;
-      return Object.freeze(rows2.map((row) => Object.freeze(row)));
-    });
-    indexRequests.set(pending, entry);
-    articleIndexes.set(key, pending);
-    if (articleIndexes.size > 10) articleIndexes.delete(articleIndexes.keys().next().value);
-    pending.catch(() => {
-      if (articleIndexes.get(key) === pending) articleIndexes.delete(key);
-    });
-  }
-  const rows = await pending;
-  if (generation !== runtime.articleIndexGeneration || identity4 !== state.me?.id) {
-    if (!state.me || identity4 !== state.me.id) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
-    return articleIndex(query, context);
-  }
-  return rows;
-}
-
-// web/pages/reviews.mjs
-async function renderReviews(version2 = runtime.renderVersion, context, { isCurrent = () => true, compactFilters = false } = {}) {
-  const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches2 = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
-  const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
-  if (version2 !== runtime.renderVersion || !isCurrent()) return "";
-  if (generation !== runtime.articleIndexGeneration) return renderReviews(version2, context, { isCurrent, compactFilters });
-  state.reviewArticles = articles;
-  const account = (r) => r.account_id || articles.find((a) => a.id === r.article_id)?.account_id, records = rows.filter((r) => matches2(account(
-    r
-  ))), due = dueRows.filter((r) => matches2(r.account_id));
-  state.reviewRecords = records;
-  const tabs = `${segmented(
-    "review-tab",
-    [["pending", `待办 ${num(due.length)}`], ["observations", "文章快照"], ["daily", "每日数据"]],
-    tab,
-    "数据类型",
-    "tab",
-    "page-tabs"
-  )}${compactFilters ? "" : `<div class="review-summary">${platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`}`;
-  const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label3]) => [
-    key,
-    ["likes", "approvals"].includes(key) ? `${label3}（${key}）` : label3
-  ]), [
-    tab === "observations" ? "as_of" : "source",
-    tab === "observations" ? "数据截至" : "来源"
-  ]];
-  const cell = (r, key) => key === "account" ? e(accountName(account(r))) : key === "due_kind" ? e(kindLabels[r.due_kind] || r.due_kind) : [
-    "as_of",
-    "due_at"
-  ].includes(key) ? e(displayTime(r[key])) : key === "source" ? e(r.source || "未标注来源") : metricData(r)[key] == null ? '<span class="missing-value">未取得</span>' : e(num(metricData(r)[key]));
-  return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
-    const id = pending ? r.id : r.article_id, a = articles.find((a2) => a2.id === id);
-    return `<tr><td class="title-cell">${id ? `<button class="article-link" data-action="article-detail" data-id="${e(id)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label3]) => `<td data-label="${e(
-      label3
-    )}">${cell(r, key)}</td>`).join("")}<td>${pending ? `<button class="btn small" data-action="review-article" data-id="${e(
-      id
-    )}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
-  }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" : "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
-}
-async function reviewRecordsModal() {
-  openModal("数据记录", '<div id="media-records" role="status"></div>', { drawer: true });
-  const ticket = runtime.modalRequestVersion, version2 = runtime.renderVersion, context = beginModalRequests();
-  const isCurrent = () => ticket === runtime.modalRequestVersion && version2 === runtime.renderVersion;
-  try {
-    const html = await renderReviews(version2, context, { isCurrent, compactFilters: true });
-    const root = document.querySelector("#media-records");
-    if (isCurrent() && root) {
-      root.innerHTML = html;
-      root.removeAttribute("role");
-    }
-  } catch (error) {
-    const root = document.querySelector("#media-records");
-    if (isCurrent() && root) {
-      root.setAttribute("role", "alert");
-      root.textContent = error.message || "数据记录读取失败，请重试";
-    }
-  }
-}
-async function reviewModal(articleId = "", kind = "latest", indexRetry = false) {
-  const context = beginModalRequests();
-  const ticket = ++runtime.modalRequestVersion, version2 = runtime.renderVersion, generation = runtime.articleIndexGeneration;
-  const directArticle = Boolean(articleId);
-  let articles;
-  try {
-    articles = await articleIndex("", context);
-  } catch (err) {
-    if (ticket !== runtime.modalRequestVersion || version2 !== runtime.renderVersion) return;
-    throw err;
-  }
-  if (ticket !== runtime.modalRequestVersion || version2 !== runtime.renderVersion) return;
-  if (generation !== runtime.articleIndexGeneration) return reviewModal(articleId, kind, indexRetry);
-  if (directArticle && !articles.some((a) => a.id === articleId)) {
-    if (indexRetry) throw new Error("文章不存在或无权访问，请刷新后重试。");
-    clearArticleIndexes();
-    return reviewModal(articleId, kind, true);
-  }
-  if (!articleId && state.account) articleId = articles.find((a) => a.account_id === state.account)?.id || "";
-  state.reviewArticles = articles;
-  const daily = state.reviewTab === "daily" && !directArticle;
-  if (!articles.length && !daily) {
-    openModal("录入复盘数据", empty("请先记录文章", "", '<button class="btn primary" data-action="new-article">记录发布</button>'));
-    return;
-  }
-  const accountId = state.account || articles.find((a) => a.id === articleId)?.account_id || state.accounts.find((a) => a.active)?.id || "";
-  openModal(daily ? "填写每日新增数据" : "追加文章累计快照", `<form id="review-form" data-type="${daily ? "daily" : "observation"}"><p class="form-context">北京时间</p><div class="form-grid">${daily ? `<div class="form-field"><label for="review-account">所属账号 <span class="required">*</span></label><select class="input" name="account_id" id="review-account" required>${accountOptions(
-    accountId,
-    false,
-    true
-  )}</select></div><div class="form-field"><label for="review-article">统计范围</label><select class="input" name="article_id" id="review-article"><option value="">账号总体</option>${articles.filter((a) => a.account_id === accountId).map((a) => `<option value="${e(a.id)}">${e(
-    a.title
-  )}</option>`).join("")}</select></div>${field("date", '数据所属日期 <span class="required">*</span>', "date", bjtDate(), `max="${bjtDate()}" required`)}` : `<div class="form-field full"><label for="review-article">文章 <span class="required">*</span></label><select class="input" name="article_id" id="review-article" required>${articles.map((a) => `<option value="${e(a.id)}" ${a.id === articleId ? "selected" : ""}>${e(a.title)} · ${e(accountName(a.account_id))}</option>`).join("")}</select></div><div class="form-field"><label for="field-kind">观察节点</label><select class="input" id="field-kind" name="kind">${Object.entries(kindLabels).map(([key, label3]) => `<option value="${key}" ${key === kind ? "selected" : ""}>${label3}</option>`).join("")}</select></div>${field(
-    "as_of",
-    '数据截至时间 <span class="required">*</span>',
-    "datetime-local",
-    localDateTime(/* @__PURE__ */ new Date()),
-    "required"
-  )}${field(
-    "collected_at",
-    '实际采集时间 <span class="required">*</span>',
-    "datetime-local",
-    localDateTime(/* @__PURE__ */ new Date()),
-    "required"
-  )}`}${field(
-    "source",
-    '数据来源 <span class="required">*</span>',
-    "text",
-    "",
-    'required maxlength="200"'
-  )}<div class="form-field full"><span class="field-label">${daily ? "当天新增指标" : "累计指标"}</span><span class="hint">至少一项；缺失留空，真实为零才填 0。</span></div>${Object.entries(metrics).map(([key, label3]) => field(
-    `metric_${key}`,
-    label3,
-    "number",
-    "",
-    'min="0" step="1" inputmode="numeric" placeholder="未取得"'
-  )).join("")}${daily ? "" : `<div class="form-field full"><label for="field-note">复盘备注</label><textarea class="input" name="note" id="field-note" maxlength="10000"></textarea></div>`}</div>${formEnd(daily ? "保存每日数据" : "追加快照")}</form>`);
 }
 
 // src/lib/errors.mjs
@@ -5478,10 +5570,10 @@ function normalizeAccountProfile(value, expectedPlatform) {
     const actions2 = url.searchParams.getAll("action"), identities = url.searchParams.getAll("__biz");
     if (!/^\/mp\/profile_ext\/?$/.test(url.pathname) || actions2.length !== 1 || actions2[0] !== "home" || identities.length !== 1 || !/^[A-Za-z0-9+/]{4,160}={0,2}$/.test(identities[0])) unsupported();
     platform = "wechat";
-    const identity4 = identities[0];
-    const query = new URLSearchParams({ action: "home", __biz: identity4 });
+    const identity5 = identities[0];
+    const query = new URLSearchParams({ action: "home", __biz: identity5 });
     profile_url = `https://mp.weixin.qq.com/mp/profile_ext?${query}`;
-    platform_identity = `wechat:biz:${identity4}`;
+    platform_identity = `wechat:biz:${identity5}`;
   } else unsupported();
   if (expectedPlatform && expectedPlatform !== platform) invalid3("主页链接与所选平台不一致，请修改平台或主页链接");
   return { platform, profile_url, platform_identity };
@@ -5490,6 +5582,11 @@ var hasAccountProfileInput = (body2) => Object.hasOwn(body2, "profile_url");
 var hasAccountProfileValue = (body2) => hasAccountProfileInput(body2) && body2.profile_url !== "" && body2.profile_url !== null;
 
 // web/pages/settings.mjs
+init_constants();
+init_dom();
+init_format();
+init_state();
+init_modal();
 function profileForAccount(id) {
   return (state.accountProfiles || []).find((profile) => profile.account_id === id);
 }
@@ -5567,8 +5664,8 @@ function auditLabel(action) {
     ["退出登录", "auth.logout", "POST /auth/logout"],
     ["初始化网站", "auth.bootstrap"]
   ];
-  const route = String(action || "").replace(/^(PUT|DELETE) \/(articles|accounts|api-keys)\/[^/]+$/, "$1 /$2/:id");
-  return labels.find((row) => row.includes(route))?.[0] || route || "未知操作";
+  const route2 = String(action || "").replace(/^(PUT|DELETE) \/(articles|accounts|api-keys)\/[^/]+$/, "$1 /$2/:id");
+  return labels.find((row) => row.includes(route2))?.[0] || route2 || "未知操作";
 }
 function renderSecurity() {
   return `<section class="card panel security-panel"><h2>登录与安全</h2><p class="muted security-context">当前登录：${e(state.me.username)}</p><form id="password-form"><div class="form-field"><label for="current-password">当前密码</label><input class="input" type="password" id="current-password" name="currentPassword" autocomplete="current-password" required></div><div class="form-field field-spaced"><label for="new-password">新密码</label><input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password" minlength="12" required><span class="hint">至少 12 位</span></div><div class="form-field field-spaced"><label for="confirm-password">再次输入新密码</label><input class="input" type="password" id="confirm-password" name="confirmPassword" autocomplete="new-password" minlength="12" required></div><p class="form-message" role="alert"></p><div class="form-actions"><button class="btn primary" type="submit">更新密码</button></div></form><div class="detail-section"><h3>数据导出</h3><a class="btn" href="/api/v1/export" download>${icon("download", 14)}导出发布记录 CSV</a></div></section>`;
@@ -5583,13 +5680,13 @@ function renderAudit(audit, keys = []) {
     if (last && day22 !== "日期未知" && last.day === day22 && last.actor === row.actor && last.label === label3) last.rows.push(row);
     else groups.push({ day: day22, actor: row.actor, label: label3, rows: [row] });
   }
-  let day4 = "";
+  let day5 = "";
   return `<section class="card panel"><h2>最近操作</h2><div class="audit-list">${groups.map((g) => {
-    const heading = day4 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
-    day4 = g.day;
+    const heading = day5 === g.day ? "" : `<h3>${e(g.day === bjtDate() ? "今天" : g.day === bjtDate(Date.now() - 864e5) ? "昨天" : g.day)}</h3>`;
+    day5 = g.day;
     return `${heading}<details class="audit-item"><summary><div><strong>${e(g.label)} ×${e(num(g.rows.length))}</strong><div class="audit-meta">${e(actor(g.actor))} · ${e(time(g.rows.at(-1).created_at, true))}${g.rows.length > 1 ? " — " + e(time(g.rows[0].created_at, true)) : ""}</div></div></summary><ol class="snapshot-timeline">${g.rows.map((r) => {
       const article = r.entity_id && typeof r.entity_label === "string" && r.entity_label ? r : null;
-      return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.created_at))}</time>${article ? `<br><button class="article-link" data-action="article-detail" data-id="${e(article.entity_id)}">${e(article.entity_label)}</button>` : ""}</li>`;
+      return `<li>${e(auditLabel(r.action))} · <time datetime="${e(r.created_at)}" title="${e(time(r.created_at))}">${e(displayTime(r.created_at))}</time>${article ? `<br><span class="article-title">${e(article.entity_label)}</span>` : ""}</li>`;
     }).join("")}</ol></details>`;
   }).join("") || empty("暂无操作记录")}</div></section>`;
 }
@@ -5635,6 +5732,8 @@ function keyModal() {
 }
 
 // web/core/todo-templates-state.mjs
+init_state();
+init_todos_state();
 var todoTemplatesState = { owner: "" };
 function templateState() {
   const owner2 = todoOwner();
@@ -5669,18 +5768,24 @@ function mergeTodoTemplate(item) {
 }
 
 // web/pages/todo-templates.mjs
-function templateUnavailable(store, day4, id) {
-  return !store.loaded || !day4.loaded || day4.loading || day4.adding || store.pending.has(id) || todoTemplateAdded(day4, id) || [...day4.removals.values()].some((ticket) => ticket.phase === "restoring" && ticket.item.template_id === id);
+init_api();
+init_dom();
+init_requests();
+init_format();
+init_state();
+init_todos_state();
+function templateUnavailable(store, day5, id) {
+  return !store.loaded || !day5.loaded || day5.loading || day5.adding || store.pending.has(id) || todoTemplateAdded(day5, id) || [...day5.removals.values()].some((ticket) => ticket.phase === "restoring" && ticket.item.template_id === id);
 }
 function inlineTodoTemplateContent(store) {
-  const day4 = todoDay(), label3 = day4.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day5 = todoDay(), label3 = day5.date === bjtDate() ? "今日已添加" : "当日已添加";
   const status = "";
   const error = store.error ? `<p class="form-message" role="alert">${e(store.error)}
 <button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
   return status + error + store.items.map((item) => {
-    const added = todoTemplateAdded(day4, item.id);
+    const added = todoTemplateAdded(day5, item.id);
     return `<button type="button" class="todo-template-chip${added ? " is-added" : ""}" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="${e(added ? item.text + "，" + label3 : "添加：" + item.text)}" ${templateUnavailable(store, day4, item.id) ? "disabled" : ""}>
+aria-label="${e(added ? item.text + "，" + label3 : "添加：" + item.text)}" ${templateUnavailable(store, day5, item.id) ? "disabled" : ""}>
 <span class="todo-template-chip-text">${e(item.text)}</span>${added ? `<span class="todo-template-chip-status">${label3}</span>` : ""}</button>`;
   }).join("");
 }
@@ -5693,20 +5798,20 @@ function renderInlineTodoTemplates() {
 aria-busy="${store.loading}" ${inlineTodoTemplatesEmpty(store) ? "hidden" : ""}>${inlineTodoTemplateContent(store)}</div>`;
 }
 function paintInlineTodoTemplates(store) {
-  const root = $("#todo-inline-templates");
-  if (!root) return;
+  const root2 = $("#todo-inline-templates");
+  if (!root2) return;
   const html = inlineTodoTemplateContent(store);
-  if (root.innerHTML !== html) root.innerHTML = html;
-  root.hidden = inlineTodoTemplatesEmpty(store);
-  root.setAttribute("aria-busy", String(store.loading));
+  if (root2.innerHTML !== html) root2.innerHTML = html;
+  root2.hidden = inlineTodoTemplatesEmpty(store);
+  root2.setAttribute("aria-busy", String(store.loading));
 }
 function todoTemplateRows(store) {
-  const day4 = todoDay();
-  const added = (id) => todoTemplateAdded(day4, id);
-  const addedLabel = day4.date === bjtDate() ? "今日已添加" : "当日已添加";
+  const day5 = todoDay();
+  const added = (id) => todoTemplateAdded(day5, id);
+  const addedLabel = day5.date === bjtDate() ? "今日已添加" : "当日已添加";
   return store.items.map((item) => `<li class="todo-template-row" data-template-id="${e(item.id)}">
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
-aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day4, item.id) ? "disabled" : ""}>${e(item.text)}</button>
+aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day5, item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
 <p class="todo-template-added" data-template-added ${added(item.id) ? "" : "hidden"}>${addedLabel}</p>
@@ -5733,8 +5838,8 @@ function renderTodoTemplates(floatingControl = "") {
 <p id="todo-template-status" class="daily-todo-status" role="status"></p>
 <ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul></div></section>`;
 }
-function syncTemplateForm(root, id, value, pending) {
-  const input = $(id, root);
+function syncTemplateForm(root2, id, value, pending) {
+  const input = $(id, root2);
   if (!input) return;
   if (input.value !== value) input.value = value;
   input.readOnly = pending;
@@ -5749,47 +5854,47 @@ function paintTodoTemplates() {
   if (state.page !== "todos" || !state.me) return;
   const store = templateState();
   paintInlineTodoTemplates(store);
-  const root = $("#todo-templates");
-  if (!root) return;
-  const editor = $("#todo-template-editor", root), form = $("#todo-template-edit-form", root);
+  const root2 = $("#todo-templates");
+  if (!root2) return;
+  const editor = $("#todo-template-editor", root2), form = $("#todo-template-edit-form", root2);
   if (editor && (form?.dataset.id || null) !== (store.editing?.id || null)) editor.innerHTML = todoTemplateEditor(store);
-  root.dataset.loaded = String(store.loaded);
-  const create = $("#todo-template-form", root);
+  root2.dataset.loaded = String(store.loaded);
+  const create = $("#todo-template-form", root2);
   if (create) create.hidden = Boolean(store.editing);
-  syncTemplateForm(root, "#todo-template-text", store.draft, store.adding);
-  syncTemplateForm(root, "#todo-template-edit-text", store.editDraft, store.pending.has(store.editing?.id));
+  syncTemplateForm(root2, "#todo-template-text", store.draft, store.adding);
+  syncTemplateForm(root2, "#todo-template-edit-text", store.editDraft, store.pending.has(store.editing?.id));
   for (const [id, html] of Object.entries({
     "todo-template-items": todoTemplateRows(store),
     "todo-template-feedback": e(store.error),
     "todo-template-status": ""
   })) {
-    const node2 = $("#" + id, root);
+    const node2 = $("#" + id, root2);
     if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
   }
 }
-function templateReadActive(store, owner2, sequence3, version2, date) {
-  return templateSessionActive(owner2) && store.sequence === sequence3 && version2 === runtime.renderVersion && state.page === "todos" && date === todoDate();
+function templateReadActive(store, owner2, sequence4, version2, date) {
+  return templateSessionActive(owner2) && store.sequence === sequence4 && version2 === runtime.renderVersion && state.page === "todos" && date === todoDate();
 }
 async function loadTodoTemplates({ ensure = false } = {}) {
   if (state.page !== "todos" || !state.me) return;
   const store = templateState(), date = todoDate(), version2 = runtime.renderVersion;
   if (ensure && (store.loaded && !store.error && !store.loading || store.loading && store.readDate === date && store.readVersion === version2)) return;
-  const owner2 = store.owner, sequence3 = ++store.sequence, revision2 = store.revision;
+  const owner2 = store.owner, sequence4 = ++store.sequence, revision2 = store.revision;
   store.readDate = date;
   store.readVersion = version2;
   store.loading = true;
   store.error = "";
   paintTodoTemplates();
   try {
-    const data = await api("/todo-templates");
-    if (!templateReadActive(store, owner2, sequence3, version2, date)) return;
+    const data2 = await api("/todo-templates");
+    if (!templateReadActive(store, owner2, sequence4, version2, date)) return;
     if (revision2 !== store.revision) return loadTodoTemplates();
-    store.items = data.items;
+    store.items = data2.items;
     store.loaded = true;
   } catch (error) {
-    if (templateReadActive(store, owner2, sequence3, version2, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
+    if (templateReadActive(store, owner2, sequence4, version2, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
   } finally {
-    if (templateSessionActive(owner2) && store.sequence === sequence3) {
+    if (templateSessionActive(owner2) && store.sequence === sequence4) {
       store.loading = false;
       paintTodoTemplates();
     }
@@ -5810,10 +5915,10 @@ async function templateWriteError(error, store, owner2, editing3 = null) {
     if (latest) editing3.version = latest.version;
   }
 }
-async function submitTodoTemplateForm({ data }) {
-  const store = templateState(), owner2 = store.owner, text = String(data.text || "").trim();
+async function submitTodoTemplateForm({ data: data2 }) {
+  const store = templateState(), owner2 = store.owner, text = String(data2.text || "").trim();
   if (store.adding || !state.me) return;
-  store.draft = String(data.text || "");
+  store.draft = String(data2.text || "");
   if (!text || text.length > 500) {
     store.error = "请填写 1–500 字的常用待办。";
     paintTodoTemplates();
@@ -5891,9 +5996,9 @@ async function writeTodoTemplate(id, text, remove = false) {
     }
   }
 }
-async function submitTodoTemplateEdit({ form, data }) {
-  const store = templateState(), text = String(data.text || "").trim();
-  store.editDraft = String(data.text || "");
+async function submitTodoTemplateEdit({ form, data: data2 }) {
+  const store = templateState(), text = String(data2.text || "").trim();
+  store.editDraft = String(data2.text || "");
   if (!store.editing || store.editing.id !== form.dataset.id) return;
   if (!text || text.length > 500) {
     store.error = "请填写 1–500 字的常用待办。";
@@ -5913,13 +6018,19 @@ function refreshOpenTodoTemplates() {
 }
 
 // web/pages/todo-actions.mjs
-function todoBusy(day4, id) {
-  return day4.updates.has(id) || day4.removals.has(id) || day4.templateWrites.has(id);
+init_api();
+init_dom();
+init_requests();
+init_state();
+init_todos_state();
+init_popover();
+function todoBusy(day5, id) {
+  return day5.updates.has(id) || day5.removals.has(id) || day5.templateWrites.has(id);
 }
 function todoActionContext({ id, date, owner: owner2 = todoOwner() }) {
   if (!state.me || state.page !== "todos" || !validTodoDate(date) || date !== todoDate() || !todoSessionActive(owner2)) return null;
-  const day4 = todoDay(date), item = day4.items.find((row) => row.id === id);
-  return item ? { day: day4, item, owner: owner2 } : null;
+  const day5 = todoDay(date), item = day5.items.find((row) => row.id === id);
+  return item ? { day: day5, item, owner: owner2 } : null;
 }
 function canOpenTodoMenu({ id, date, anchor }) {
   const context = todoActionContext({ id, date });
@@ -5938,69 +6049,69 @@ function openTodoMenu({ target, id, date, anchor }) {
   popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
-function renderTodoUndo(day4) {
-  return [...day4.removals.entries()].map(([id, ticket]) => {
+function renderTodoUndo(day5) {
+  return [...day5.removals.entries()].map(([id, ticket]) => {
     const label3 = ticket.phase === "deleting" ? "删除中…" : ticket.phase === "restoring" ? "恢复中…" : "已删除";
     return `<div class="todo-undo-entry"><span>${label3}：${e(ticket.item.text)}</span>
-<button class="btn text small" data-action="todo-restore" data-id="${e(id)}" data-date="${e(day4.date)}"
+<button class="btn text small" data-action="todo-restore" data-id="${e(id)}" data-date="${e(day5.date)}"
 data-owner="${e(todoOwner())}" ${ticket.phase === "ready" ? "" : "disabled"}>撤销</button></div>`;
   }).join("");
 }
-function expireTodoUndo(day4, id, ticket, owner2) {
+function expireTodoUndo(day5, id, ticket, owner2) {
   clearTimeout(ticket.timer);
   ticket.timer = setTimeout(() => {
-    if (!todoSessionActive(owner2) || day4.removals.get(id) !== ticket || ticket.phase !== "ready") return;
-    day4.removals.delete(id);
+    if (!todoSessionActive(owner2) || day5.removals.get(id) !== ticket || ticket.phase !== "ready") return;
+    day5.removals.delete(id);
     paintTodos();
   }, 8e3);
   ticket.timer?.unref?.();
 }
-async function todoActionFailure(day4, error, owner2) {
+async function todoActionFailure(day5, error, owner2) {
   if (!todoSessionActive(owner2) || isRequestAbort(error) || error.staleSession) return;
-  day4.error = error.message;
-  if ([404, 409].includes(error.status) && day4.date === todoDate()) {
-    day4.error = "这项计划已更新，请核对最新内容后再操作。";
+  day5.error = error.message;
+  if ([404, 409].includes(error.status) && day5.date === todoDate()) {
+    day5.error = "这项计划已更新，请核对最新内容后再操作。";
     await loadTodos();
   }
 }
-async function deleteTodo(options2) {
-  const context = todoActionContext(options2);
+async function deleteTodo(options3) {
+  const context = todoActionContext(options3);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day4, item, owner: owner2 } = context, ticket = { item, phase: "deleting", timer: null };
-  day4.removals.set(item.id, ticket);
-  day4.error = "";
-  day4.notice = "";
-  day4.revision++;
+  const { day: day5, item, owner: owner2 } = context, ticket = { item, phase: "deleting", timer: null };
+  day5.removals.set(item.id, ticket);
+  day5.error = "";
+  day5.notice = "";
+  day5.revision++;
   paintTodos();
   try {
-    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day4.date, version: item.version } });
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "DELETE", body: { date: day5.date, version: item.version } });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day4, saved);
+    mergeTodo(day5, saved);
     ticket.item = saved;
     ticket.phase = "ready";
-    expireTodoUndo(day4, item.id, ticket, owner2);
+    expireTodoUndo(day5, item.id, ticket, owner2);
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error) {
     if (!todoSessionActive(owner2)) return;
-    day4.removals.delete(item.id);
-    await todoActionFailure(day4, error, owner2);
+    day5.removals.delete(item.id);
+    await todoActionFailure(day5, error, owner2);
     if (todoSessionActive(owner2) && item.template_id && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner2)) {
-      day4.revision++;
+      day5.revision++;
       paintTodos();
     }
   }
 }
 async function restoreTodo({ id, date, owner: owner2 = todoOwner() }) {
   if (!state.me || state.page !== "todos" || date !== todoDate() || !todoSessionActive(owner2)) return;
-  const day4 = todoDay(date), ticket = day4.removals.get(id);
+  const day5 = todoDay(date), ticket = day5.removals.get(id);
   if (!ticket || ticket.phase !== "ready") return;
   clearTimeout(ticket.timer);
   ticket.phase = "restoring";
-  mergeTodo(day4, ticket.item);
-  day4.error = "";
-  day4.revision++;
+  mergeTodo(day5, ticket.item);
+  day5.error = "";
+  day5.revision++;
   paintTodos();
   try {
     const saved = await api(`/todos/${encodeURIComponent(id)}/restore`, {
@@ -6008,79 +6119,84 @@ async function restoreTodo({ id, date, owner: owner2 = todoOwner() }) {
       body: { date, version: ticket.item.version }
     });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day4, saved);
-    day4.removals.delete(id);
-    setTodoNotice(day4, "已恢复");
+    mergeTodo(day5, saved);
+    day5.removals.delete(id);
+    setTodoNotice(day5, "已恢复");
     if (saved.template_id) refreshOpenTodoTemplates();
   } catch (error) {
     if (!todoSessionActive(owner2)) return;
-    if (error.status === 409) day4.removals.delete(id);
+    if (error.status === 409) day5.removals.delete(id);
     else {
       ticket.phase = "ready";
-      expireTodoUndo(day4, id, ticket, owner2);
+      expireTodoUndo(day5, id, ticket, owner2);
     }
-    await todoActionFailure(day4, error, owner2);
+    await todoActionFailure(day5, error, owner2);
     if (todoSessionActive(owner2) && ticket.item.template_id && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
   } finally {
     if (todoSessionActive(owner2)) {
-      day4.revision++;
+      day5.revision++;
       paintTodos();
     }
   }
 }
-function todoTemplateRequest(day4, item) {
-  let request = day4.templateLinks.get(item.id);
+function todoTemplateRequest(day5, item) {
+  let request = day5.templateLinks.get(item.id);
   if (!request || request.version !== item.version || request.template_version !== (item.template_version || 0)) {
     request = {
-      date: day4.date,
+      date: day5.date,
       version: item.version,
       template_id: item.template_id || crypto.randomUUID(),
       template_version: item.template_version || 0
     };
-    day4.templateLinks.set(item.id, request);
+    day5.templateLinks.set(item.id, request);
   }
   return request;
 }
-async function changeTodoTemplate(options2, remove = false) {
-  const context = todoActionContext(options2);
+async function changeTodoTemplate(options3, remove = false) {
+  const context = todoActionContext(options3);
   if (!context || context.item.deleted_at || todoBusy(context.day, context.item.id)) return;
-  const { day: day4, item, owner: owner2 } = context;
+  const { day: day5, item, owner: owner2 } = context;
   if (remove !== Boolean(item.template_active) || templateState().pending.has(item.template_id)) return;
-  day4.templateWrites.add(item.id);
-  day4.error = "";
-  day4.notice = "";
-  day4.revision++;
+  day5.templateWrites.add(item.id);
+  day5.error = "";
+  day5.notice = "";
+  day5.revision++;
   paintTodos();
   try {
     const saved = await api(remove ? `/todo-templates/${encodeURIComponent(item.template_id)}` : `/todos/${encodeURIComponent(item.id)}/template`, {
       method: remove ? "DELETE" : "POST",
-      body: remove ? { version: item.template_version } : todoTemplateRequest(day4, item)
+      body: remove ? { version: item.template_version } : todoTemplateRequest(day5, item)
     });
     if (!todoSessionActive(owner2)) return;
     if (remove) templateState().items = templateState().items.filter((row) => row.id !== item.template_id);
     else {
-      mergeTodo(day4, saved.todo);
+      mergeTodo(day5, saved.todo);
       mergeTodoTemplate(saved.template);
     }
-    day4.templateLinks.delete(item.id);
-    setTodoNotice(day4, remove ? "已取消常用，事项已保留" : "已添加为常用");
+    day5.templateLinks.delete(item.id);
+    setTodoNotice(day5, remove ? "已取消常用，事项已保留" : "已添加为常用");
     refreshOpenTodoTemplates();
-    if (remove && day4.date === todoDate()) await loadTodos();
+    if (remove && day5.date === todoDate()) await loadTodos();
   } catch (error) {
     if (todoSessionActive(owner2)) {
-      await todoActionFailure(day4, error, owner2);
+      await todoActionFailure(day5, error, owner2);
       if (todoSessionActive(owner2) && [404, 409].includes(error.status)) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day4.templateWrites.delete(item.id);
-      day4.revision++;
+      day5.templateWrites.delete(item.id);
+      day5.revision++;
       paintTodos();
     }
   }
 }
 
 // web/pages/todo-preferences.mjs
+init_api();
+init_dom();
+init_requests();
+init_state();
+init_todos_state();
 function todoPreferences() {
   todoDay();
   return todosState.preferences;
@@ -6165,6 +6281,13 @@ async function changeTodoCompletedMode(mode) {
 }
 
 // web/pages/todos.mjs
+init_api();
+init_dom();
+init_format();
+init_requests();
+init_state();
+init_todos_state();
+init_todos_state();
 var todoClock = null;
 var monthSnapshot = { month: "", owner: "", days: /* @__PURE__ */ new Map(), loading: false, error: "" };
 var calendarStatus = "all";
@@ -6209,21 +6332,21 @@ function todoCalendar(date) {
   const all = [...monthSnapshot.days.values()].flat().filter((item) => !item.deleted_at), done = all.filter((item) => item.completed).length;
   const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === todoOwner();
   const activeDays = [...monthSnapshot.days.values()].filter((items) => items.some((item) => !item.deleted_at)).length;
-  const stats = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done / all.length * 100) : 0}%`]].map(([label3, value]) => `<span><small>${label3}</small><strong>${value}</strong></span>`).join("")}</div>`;
+  const stats2 = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done / all.length * 100) : 0}%`]].map(([label3, value]) => `<span><small>${label3}</small><strong>${value}</strong></span>`).join("")}</div>`;
   return `<aside class="todo-calendar-sidebar"><label for="todo-calendar-month-input">月份</label><input id="todo-calendar-month-input" type="month" class="input" data-todo-calendar-month value="${e(month)}">
 <label for="todo-calendar-week">周日期</label><select id="todo-calendar-week" class="input" data-todo-calendar-week>${weeks.map((week, i) => `<option value="${week[0]}" ${i === weekIndex ? "selected" : ""}>${week[0].slice(5)} — ${week.at(-1).slice(5)}</option>`).join("")}</select>
 <label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
-<div class="todo-calendar-main"><div class="todo-calendar-head"><div class="todo-calendar-navigation"><button class="icon-button" type="button" data-action="todo-calendar-prev" aria-label="上一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "0001-01" ? "disabled" : ""}>‹</button><span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span><button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button></div><div class="todo-calendar-views"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button></div></div>${stats}
+<div class="todo-calendar-main"><div class="todo-calendar-head"><div class="todo-calendar-navigation"><button class="icon-button" type="button" data-action="todo-calendar-prev" aria-label="上一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "0001-01" ? "disabled" : ""}>‹</button><span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span><button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button></div><div class="todo-calendar-views"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button></div></div>${stats2}
 <div class="todo-calendar-scroll"><div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
-${["一", "二", "三", "四", "五", "六", "日"].map((day4) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day4}</span>`).join("")}
-${visible3.map((day4) => day4 ? todoCalendarDay(day4, date) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
+${["一", "二", "三", "四", "五", "六", "日"].map((day5) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day5}</span>`).join("")}
+${visible3.map((day5) => day5 ? todoCalendarDay(day5, date) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
 }
 function moveTodoMonth(offset) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
-  const day4 = todoDay(), month = todoCalendarMonth(day4.date);
+  const day5 = todoDay(), month = todoCalendarMonth(day5.date);
   if (todosState.calendarView === "week") {
-    const anchor = day4.date.startsWith(month) ? day4.date : `${month}-01`;
+    const anchor = day5.date.startsWith(month) ? day5.date : `${month}-01`;
     const weekDate = /* @__PURE__ */ new Date(`${anchor}T00:00:00Z`);
     weekDate.setUTCDate(weekDate.getUTCDate() + offset * 7);
     const next = weekDate.toISOString().slice(0, 10);
@@ -6237,7 +6360,7 @@ function moveTodoMonth(offset) {
   todosState.calendarMonth = nextMonth;
   const calendar = $("#todo-calendar"), action = document.activeElement?.dataset?.action;
   if (!calendar) return;
-  paintTodoCalendar(day4.date);
+  paintTodoCalendar(day5.date);
   void loadTodoMonth(nextMonth);
   if (["todo-calendar-prev", "todo-calendar-next"].includes(action)) $(`[data-action="${action}"]`, calendar)?.focus();
 }
@@ -6315,28 +6438,28 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
-function todoRow(item, day4) {
-  const pending = todoBusy(day4, item.id);
-  const completed = day4.updates.has(item.id) ? day4.updates.get(item.id) : item.completed;
-  const removal = day4.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
+function todoRow(item, day5) {
+  const pending = todoBusy(day5, item.id);
+  const completed = day5.updates.has(item.id) ? day5.updates.get(item.id) : item.completed;
+  const removal = day5.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
   if (deleted2 || completed && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
-  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day4.date)}">
-<label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day4.date)}" ${completed ? "checked" : ""}
+  return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day5.date)}">
+<label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day5.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
 
-<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day4.date)}"
+<button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day5.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
-function todoForm(day4) {
-  const label3 = day4.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
-  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day4.date)}" aria-label="添加 ${e(day4.date)} 的计划">
+function todoForm(day5) {
+  const label3 = day5.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
+  return `<form id="todo-form" class="daily-todo-form" data-date="${e(day5.date)}" aria-label="添加 ${e(day5.date)} 的计划">
 <label for="todo-text" class="sr-only">${label3}</label><input id="todo-text" class="input" name="text" maxlength="500" required
-autocomplete="off" placeholder="${label3}" value="${e(day4.draft)}" >
-<button class="btn primary" type="submit" ${day4.adding ? "disabled" : ""}>添加</button></form>`;
+autocomplete="off" placeholder="${label3}" value="${e(day5.draft)}" >
+<button class="btn primary" type="submit" ${day5.adding ? "disabled" : ""}>添加</button></form>`;
 }
-function todoCaption(day4) {
-  const today2 = day4.date === bjtDate();
-  return `<time datetime="${e(day4.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day4.date)}</time>`;
+function todoCaption(day5) {
+  const today2 = day5.date === bjtDate();
+  return `<time datetime="${e(day5.date)}" title="北京时间">${today2 ? "今天 · " : ""}${e(day5.date)}</time>`;
 }
 function floatingTodoSupported() {
   return typeof window !== "undefined" && typeof window.documentPictureInPicture?.requestWindow === "function";
@@ -6345,33 +6468,33 @@ function floatingTodoControl() {
   return `<div class="todo-floating-control"><button class="btn todo-floating-open" type="button" data-action="todo-floating" ${floatingTodoSupported() ? "" : "disabled"}>桌面便签</button>
 ${floatingTodoSupported() ? "" : '<span class="todo-floating-support" role="status">当前浏览器不支持置顶便签</span>'}</div>`;
 }
-function todoHeading(day4) {
+function todoHeading(day5) {
   const selected = state.todoPanel || "today";
-  return `<span id="todo-caption" hidden>${todoCaption(day4)}</span><nav class="todo-page-tabs" aria-label="待办页面">
-${[["today", "今日"], ["future", "未来待办"], ["history", "历史"], ["templates", "常用"]].map(([panel, label3]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel === "today" ? "" : panel}"
-  aria-current="${selected === panel ? "page" : "false"}" ${panel === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>
+  return `<span id="todo-caption" hidden>${todoCaption(day5)}</span><nav class="todo-page-tabs" aria-label="待办页面">
+${[["today", "今日"], ["future", "未来待办"], ["history", "历史"], ["templates", "常用"]].map(([panel2, label3]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel2 === "today" ? "" : panel2}"
+  aria-current="${selected === panel2 ? "page" : "false"}" ${panel2 === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>
 <div id="todo-floating-toolbar" ${state.todoPanel === "templates" ? "hidden" : ""}>${floatingTodoControl()}</div>`;
 }
-function renderTodoHistory(day4) {
+function renderTodoHistory(day5) {
   return `<section id="todo-history" class="todo-view" aria-label="历史待办" ${state.todoPanel === "history" ? "" : "hidden"}>
-<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day4.date)}" data-today="${bjtDate()}">
-${todoCalendar(day4.date)}</div></section>`;
+<div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day5.date)}" data-today="${bjtDate()}">
+${todoCalendar(day5.date)}</div></section>`;
 }
-function paintTodoPanels(root) {
-  const panel = state.todoPanel || "";
+function paintTodoPanels(root2) {
+  const panel2 = state.todoPanel || "";
   for (const [id, value] of [["todo-main", ""], ["todo-history", "history"], ["todo-templates", "templates"], ["todo-future", "future"]]) {
-    const node2 = $("#" + id, root);
-    if (node2) node2.hidden = id === "todo-main" ? ["templates", "future"].includes(panel) : panel !== value;
+    const node2 = $("#" + id, root2);
+    if (node2) node2.hidden = id === "todo-main" ? ["templates", "future"].includes(panel2) : panel2 !== value;
   }
-  const floatingToolbar = $("#todo-floating-toolbar", root);
-  if (floatingToolbar) floatingToolbar.hidden = panel === "templates";
-  root?.querySelectorAll('[data-action="todo-panel"]').forEach((button2) => {
-    button2.setAttribute("aria-current", button2.dataset.panel === panel ? "page" : "false");
+  const floatingToolbar = $("#todo-floating-toolbar", root2);
+  if (floatingToolbar) floatingToolbar.hidden = panel2 === "templates";
+  root2?.querySelectorAll('[data-action="todo-panel"]').forEach((button2) => {
+    button2.setAttribute("aria-current", button2.dataset.panel === panel2 ? "page" : "false");
   });
 }
-async function setTodoPanel(panel) {
+async function setTodoPanel(panel2) {
   if (!todosVisible()) return;
-  state.todoPanel = ["history", "templates", "future"].includes(panel) ? panel : "";
+  state.todoPanel = ["history", "templates", "future"].includes(panel2) ? panel2 : "";
   if (!state.todoPanel) state.todoDate = "";
   updateRoute(true);
   paintTodos();
@@ -6383,51 +6506,51 @@ async function setTodoPanel(panel) {
   const selector = state.todoPanel === "future" ? "#todo-future-text" : state.todoPanel ? state.todoPanel === "history" ? "#todo-calendar-month-input" : "#todo-template-text" : "#todo-text";
   $(selector)?.focus();
 }
-function todoPending(day4) {
-  return Boolean(day4.adding || day4.updates.size || day4.templateWrites.size || [...day4.removals.values()].some((ticket) => ticket.phase !== "ready") || todoPreferences().pending);
+function todoPending(day5) {
+  return Boolean(day5.adding || day5.updates.size || day5.templateWrites.size || [...day5.removals.values()].some((ticket) => ticket.phase !== "ready") || todoPreferences().pending);
 }
-function todoStatus(day4) {
-  if (todoPending(day4) || day4.error || todoPreferences().error) return "";
-  return day4.loading && !day4.loaded ? "" : day4.notice;
+function todoStatus(day5) {
+  if (todoPending(day5) || day5.error || todoPreferences().error) return "";
+  return day5.loading && !day5.loaded ? "" : day5.notice;
 }
-function paintTodoSaving(root, day4) {
-  const busy = todoPending(day4);
-  root.setAttribute("aria-busy", String(busy));
+function paintTodoSaving(root2, day5) {
+  const busy = todoPending(day5);
+  root2.setAttribute("aria-busy", String(busy));
   if (!busy) {
-    clearTimeout(savingTimers.get(day4));
-    savingTimers.delete(day4);
-    savingTimes.delete(day4);
+    clearTimeout(savingTimers.get(day5));
+    savingTimers.delete(day5);
+    savingTimes.delete(day5);
     return;
   }
-  if (!savingTimes.has(day4)) {
-    savingTimes.set(day4, Date.now());
-    savingTimers.set(day4, setTimeout(() => {
-      if (todosVisible() && todoDay() === day4) paintTodos();
+  if (!savingTimes.has(day5)) {
+    savingTimes.set(day5, Date.now());
+    savingTimers.set(day5, setTimeout(() => {
+      if (todosVisible() && todoDay() === day5) paintTodos();
     }, 900));
-  } else if (Date.now() - savingTimes.get(day4) >= 900) $("#todo-status", root).textContent = "正在同步…";
+  } else if (Date.now() - savingTimes.get(day5) >= 900) $("#todo-status", root2).textContent = "正在同步…";
 }
-function pendingTodo(day4) {
-  return day4.adding && day4.submitting ? `<li class="todo-pending-row" aria-label="待添加">
-<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day4.submitting.text)}</span></li>` : "";
+function pendingTodo(day5) {
+  return day5.adding && day5.submitting ? `<li class="todo-pending-row" aria-label="待添加">
+<span class="todo-pending-marker" aria-hidden="true"></span><span>${e(day5.submitting.text)}</span></li>` : "";
 }
-function todoFeedback(day4) {
-  const error = [day4.error, todoPreferences().error].filter(Boolean).join(" ");
-  return error ? `${e(error)} ${day4.failedCreate ? `<span>「${e(day4.failedCreate.text)}」</span>
+function todoFeedback(day5) {
+  const error = [day5.error, todoPreferences().error].filter(Boolean).join(" ");
+  return error ? `${e(error)} ${day5.failedCreate ? `<span>「${e(day5.failedCreate.text)}」</span>
 <button class="btn text small" data-action="todo-retry-add">重试添加</button>` : ""} <button class="btn text small" data-action="todo-reload">重新读取</button>` : "";
 }
-function todoHistoryEmpty(day4) {
-  return state.todoPanel === "history" && day4.loaded && !day4.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
+function todoHistoryEmpty(day5) {
+  return state.todoPanel === "history" && day5.loaded && !day5.items.some((item) => !item.deleted_at) ? "这一天还没有待办。" : "";
 }
 function renderTodos() {
-  const day4 = todoDay();
-  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day4.date)}" aria-label="每日计划">
-<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day4)}</div>
-${renderTodoHistory(day4)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoForm(day4)}${renderInlineTodoTemplates()}
-<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day4)}</div>
-<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day4)}</p>
-<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day4)}</div>
-<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day4)}</p>
-<ul id="todo-items" class="daily-todo-items">${day4.items.map((item) => todoRow(item, day4)).join("")}${pendingTodo(day4)}</ul></div>
+  const day5 = todoDay();
+  return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day5.date)}" aria-label="每日计划">
+<div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day5)}</div>
+${renderTodoHistory(day5)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoForm(day5)}${renderInlineTodoTemplates()}
+<div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day5)}</div>
+<p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day5)}</p>
+<div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day5)}</div>
+<p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day5)}</p>
+<ul id="todo-items" class="daily-todo-items">${day5.items.map((item) => todoRow(item, day5)).join("")}${pendingTodo(day5)}</ul></div>
 ${renderTodoTemplates(floatingTodoControl())}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {
@@ -6435,50 +6558,50 @@ function todosVisible() {
 }
 function paintTodos() {
   notifyTodoChanges();
-  const root = $("#daily-todos");
-  if (!root || !todosVisible()) return;
-  const day4 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const root2 = $("#daily-todos");
+  if (!root2 || !todosVisible()) return;
+  const day5 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
   const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
-  if (root.dataset.date !== day4.date) {
-    root.outerHTML = renderTodos();
+  if (root2.dataset.date !== day5.date) {
+    root2.outerHTML = renderTodos();
     paintTodoTemplates();
     return;
   }
   const parts = {
-    "todo-caption": todoCaption(day4),
-    "todo-status": todoStatus(day4),
-    "todo-undo": renderTodoUndo(day4),
-    "todo-items": day4.items.map((item) => todoRow(item, day4)).join("") + pendingTodo(day4),
-    "todo-feedback": todoFeedback(day4),
-    "todo-history-empty": todoHistoryEmpty(day4)
+    "todo-caption": todoCaption(day5),
+    "todo-status": todoStatus(day5),
+    "todo-undo": renderTodoUndo(day5),
+    "todo-items": day5.items.map((item) => todoRow(item, day5)).join("") + pendingTodo(day5),
+    "todo-feedback": todoFeedback(day5),
+    "todo-history-empty": todoHistoryEmpty(day5)
   };
   for (const [id, html] of Object.entries(parts)) {
-    const node2 = $("#" + id, root);
+    const node2 = $("#" + id, root2);
     if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
   }
-  paintTodoCalendar(day4.date);
-  const input = $("#todo-text", root), button2 = $("#todo-form button[type=submit]", root);
-  const prompt = day4.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label3 = $('label[for="todo-text"]', root);
-  if (input && input.value !== day4.draft) input.value = day4.draft;
+  paintTodoCalendar(day5.date);
+  const input = $("#todo-text", root2), button2 = $("#todo-form button[type=submit]", root2);
+  const prompt = day5.date === bjtDate() ? "今天想完成什么？" : "这一天的计划", label3 = $('label[for="todo-text"]', root2);
+  if (input && input.value !== day5.draft) input.value = day5.draft;
   if (input) {
     input.readOnly = false;
     input.placeholder = prompt;
   }
   if (label3) label3.textContent = prompt;
   if (button2) {
-    button2.disabled = day4.adding;
+    button2.disabled = day5.adding;
     button2.textContent = "添加";
-    button2.setAttribute("aria-busy", String(day4.adding));
+    button2.setAttribute("aria-busy", String(day5.adding));
   }
-  paintTodoSaving(root, day4);
-  paintTodoPanels(root);
+  paintTodoSaving(root2, day5);
+  paintTodoPanels(root2);
   paintUnscheduledTodos();
   const focus = checkbox ? `[data-todo-id="${CSS.escape(checkbox)}"]` : menu ? `[data-action="todo-menu"][data-id="${CSS.escape(menu)}"]` : "";
-  if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-text", root))?.focus();
+  if (focus) ($(focus, root2) || $("[data-todo-id]", root2) || $("#todo-text", root2))?.focus();
   paintTodoTemplates();
 }
-function todoReadActive(owner2, version2, date, day4, sequence3) {
-  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date && day4.sequence === sequence3 && todosVisible();
+function todoReadActive(owner2, version2, date, day5, sequence4) {
+  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date && day5.sequence === sequence4 && todosVisible();
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
@@ -6487,30 +6610,30 @@ async function loadTodos(context) {
     return;
   }
   void loadTodoTemplates({ ensure: true });
-  const day4 = todoDay(), date = day4.date, owner2 = todoOwner(), version2 = runtime.renderVersion;
-  const sequence3 = ++day4.sequence, revision2 = day4.revision;
-  day4.loading = true;
-  day4.error = "";
+  const day5 = todoDay(), date = day5.date, owner2 = todoOwner(), version2 = runtime.renderVersion;
+  const sequence4 = ++day5.sequence, revision2 = day5.revision;
+  day5.loading = true;
+  day5.error = "";
   paintTodos();
   try {
-    const data = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
-    if (!todoReadActive(owner2, version2, date, day4, sequence3)) return;
-    if (day4.revision !== revision2) return loadTodos(context);
-    receiveTodoPreferences(data.completed_mode, data.preferences_version);
-    day4.items = data.items;
-    day4.loaded = true;
+    const data2 = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
+    if (!todoReadActive(owner2, version2, date, day5, sequence4)) return;
+    if (day5.revision !== revision2) return loadTodos(context);
+    receiveTodoPreferences(data2.completed_mode, data2.preferences_version);
+    day5.items = data2.items;
+    day5.loaded = true;
     if (monthSnapshot.owner === owner2 && monthSnapshot.month === date.slice(0, 7) && !monthSnapshot.loading) {
-      monthSnapshot.days.set(date, data.items);
+      monthSnapshot.days.set(date, data2.items);
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
     }
     if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error) {
-    if (todoReadActive(owner2, version2, date, day4, sequence3) && !isRequestAbort(error) && !error.staleSession) day4.error = error.message;
+    if (todoReadActive(owner2, version2, date, day5, sequence4) && !isRequestAbort(error) && !error.staleSession) day5.error = error.message;
   } finally {
-    if (todoSessionActive(owner2) && day4.sequence === sequence3) {
-      const visible3 = todoReadActive(owner2, version2, date, day4, sequence3);
-      day4.loading = false;
+    if (todoSessionActive(owner2) && day5.sequence === sequence4) {
+      const visible3 = todoReadActive(owner2, version2, date, day5, sequence4);
+      day5.loading = false;
       paintTodos();
       if (visible3 && state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
       if (!visible3 && todoObservers.size && date === bjtDate()) void loadFloatingToday();
@@ -6524,154 +6647,154 @@ function inputTodo(target) {
     notifyTodoChanges();
   }
 }
-function showTodoFailure(day4, error) {
-  if (!isRequestAbort(error) && !error.staleSession) day4.error = error.message;
+function showTodoFailure(day5, error) {
+  if (!isRequestAbort(error) && !error.staleSession) day5.error = error.message;
 }
-function setTodoNotice(day4, text) {
-  const owner2 = todoOwner(), version2 = ++day4.noticeVersion;
-  day4.notice = text;
+function setTodoNotice(day5, text) {
+  const owner2 = todoOwner(), version2 = ++day5.noticeVersion;
+  day5.notice = text;
   const timer = setTimeout(() => {
-    if (!todoSessionActive(owner2) || day4.noticeVersion !== version2) return;
-    day4.notice = "";
-    if (day4.date === todoDate()) paintTodos();
+    if (!todoSessionActive(owner2) || day5.noticeVersion !== version2) return;
+    day5.notice = "";
+    if (day5.date === todoDate()) paintTodos();
   }, 2500);
   timer?.unref?.();
 }
-async function saveTodo(day4, request, templateId = "") {
-  const owner2 = todoOwner(), submittedDraft = day4.draft;
-  day4.adding = true;
-  day4.submitting = request;
-  day4.failedCreate = null;
-  day4.error = "";
-  day4.notice = "";
-  day4.revision++;
+async function saveTodo(day5, request, templateId = "") {
+  const owner2 = todoOwner(), submittedDraft = day5.draft;
+  day5.adding = true;
+  day5.submitting = request;
+  day5.failedCreate = null;
+  day5.error = "";
+  day5.notice = "";
+  day5.revision++;
   paintTodos();
   try {
     const item = await api("/todos", { method: "POST", body: request });
     if (!todoSessionActive(owner2)) return;
-    mergeTodo(day4, item);
-    if (templateId) day4.templateCreates.delete(templateId);
+    mergeTodo(day5, item);
+    if (templateId) day5.templateCreates.delete(templateId);
     else {
-      if (day4.draft === submittedDraft && submittedDraft.trim() === request.text) day4.draft = "";
-      day4.create = null;
+      if (day5.draft === submittedDraft && submittedDraft.trim() === request.text) day5.draft = "";
+      day5.create = null;
     }
-    setTodoNotice(day4, "已添加");
+    setTodoNotice(day5, "已添加");
   } catch (error) {
     if (todoSessionActive(owner2)) {
-      day4.failedCreate = request;
-      showTodoFailure(day4, error);
+      day5.failedCreate = request;
+      showTodoFailure(day5, error);
       if (error.status === 410) {
-        if (templateId) day4.templateCreates.delete(templateId);
-        else day4.create = null;
-        day4.error = "原事项已被删除，输入已保留，可再次添加。";
+        if (templateId) day5.templateCreates.delete(templateId);
+        else day5.create = null;
+        day5.error = "原事项已被删除，输入已保留，可再次添加。";
       }
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day4.adding = false;
-      day4.submitting = null;
-      day4.revision++;
+      day5.adding = false;
+      day5.submitting = null;
+      day5.revision++;
       paintTodos();
     }
   }
 }
 async function retryTodoCreate() {
-  const day4 = todoDay();
-  if (todosVisible() && day4.failedCreate && !day4.adding)
-    await saveTodo(day4, day4.failedCreate, day4.failedCreate.template_id || "");
+  const day5 = todoDay();
+  if (todosVisible() && day5.failedCreate && !day5.adding)
+    await saveTodo(day5, day5.failedCreate, day5.failedCreate.template_id || "");
 }
-async function submitTodo({ form, data }) {
+async function submitTodo({ form, data: data2 }) {
   if (!todosVisible() || !validTodoDate(form.dataset.date)) return;
-  const day4 = todoDay(form.dataset.date), text = String(data.text || "").trim();
-  if (day4.adding) return;
-  day4.draft = String(data.text || "");
-  if (day4.date !== todoDate()) {
+  const day5 = todoDay(form.dataset.date), text = String(data2.text || "").trim();
+  if (day5.adding) return;
+  day5.draft = String(data2.text || "");
+  if (day5.date !== todoDate()) {
     paintTodos();
     return;
   }
   if (!text || text.length > 500) {
-    day4.error = "请填写 1–500 字的计划。";
+    day5.error = "请填写 1–500 字的计划。";
     paintTodos();
     return;
   }
-  if (!day4.create || day4.create.text !== text) day4.create = { id: crypto.randomUUID(), date: day4.date, text };
-  await saveTodo(day4, day4.create);
+  if (!day5.create || day5.create.text !== text) day5.create = { id: crypto.randomUUID(), date: day5.date, text };
+  await saveTodo(day5, day5.create);
 }
 async function submitTodoTemplate(template) {
   if (!todosVisible()) return;
-  const day4 = todoDay();
-  if (day4.adding || todoTemplateAdded(day4, template.id)) return;
-  let request = day4.templateCreates.get(template.id);
+  const day5 = todoDay();
+  if (day5.adding || todoTemplateAdded(day5, template.id)) return;
+  let request = day5.templateCreates.get(template.id);
   if (!request || request.text !== template.text) {
-    request = { id: crypto.randomUUID(), date: day4.date, text: template.text, template_id: template.id };
-    day4.templateCreates.set(template.id, request);
+    request = { id: crypto.randomUUID(), date: day5.date, text: template.text, template_id: template.id };
+    day5.templateCreates.set(template.id, request);
   }
-  await saveTodo(day4, request, template.id);
+  await saveTodo(day5, request, template.id);
 }
 async function toggleTodo(target, { floating = false } = {}) {
   if (!(floating ? Boolean(state.me) : todosVisible())) return;
-  const day4 = todoDay(target.dataset.date), owner2 = todoOwner();
-  const item = day4.items.find((row) => row.id === target.dataset.todoId);
-  if (!item || item.deleted_at || day4.date !== (floating ? bjtDate() : todoDate())) return;
-  if (todoBusy(day4, item.id)) {
-    target.checked = day4.updates.has(item.id) ? day4.updates.get(item.id) : item.completed;
+  const day5 = todoDay(target.dataset.date), owner2 = todoOwner();
+  const item = day5.items.find((row) => row.id === target.dataset.todoId);
+  if (!item || item.deleted_at || day5.date !== (floating ? bjtDate() : todoDate())) return;
+  if (todoBusy(day5, item.id)) {
+    target.checked = day5.updates.has(item.id) ? day5.updates.get(item.id) : item.completed;
     return;
   }
   const completed = target.checked;
-  day4.updates.set(item.id, completed);
-  day4.error = "";
-  day4.notice = "";
-  day4.revision++;
+  day5.updates.set(item.id, completed);
+  day5.error = "";
+  day5.notice = "";
+  day5.revision++;
   paintTodos();
   try {
     const updated = await api(`/todos/${encodeURIComponent(item.id)}`, { method: "PATCH", body: { completed, version: item.version } });
     if (todoSessionActive(owner2)) {
-      mergeTodo(day4, updated);
+      mergeTodo(day5, updated);
       if (updated.template_id) refreshOpenTodoTemplates();
     }
   } catch (error) {
     if (!todoSessionActive(owner2)) return;
-    day4.updates.set(item.id, item.completed);
-    showTodoFailure(day4, error);
-    if (error.status === 409 && (floating || day4.date === todoDate())) {
-      day4.error = "这项计划已更新，已重新读取，请核对后再操作。";
+    day5.updates.set(item.id, item.completed);
+    showTodoFailure(day5, error);
+    if (error.status === 409 && (floating || day5.date === todoDate())) {
+      day5.error = "这项计划已更新，已重新读取，请核对后再操作。";
       if (floating) {
         await loadFloatingToday();
-        if (todoSessionActive(owner2)) day4.error = "这项计划已更新，已重新读取，请核对后再操作。";
+        if (todoSessionActive(owner2)) day5.error = "这项计划已更新，已重新读取，请核对后再操作。";
       } else await loadTodos();
       if (todoSessionActive(owner2) && item.template_id) refreshOpenTodoTemplates();
     }
   } finally {
     if (todoSessionActive(owner2)) {
-      day4.updates.delete(item.id);
-      day4.revision++;
+      day5.updates.delete(item.id);
+      day5.revision++;
       paintTodos();
     }
   }
 }
 async function loadFloatingToday() {
   if (!state.me) return;
-  const date = bjtDate(), day4 = todoDay(date), owner2 = todoOwner();
-  const sequence3 = ++day4.sequence, revision2 = day4.revision;
-  const current2 = () => todoSessionActive(owner2) && date === bjtDate() && day4.sequence === sequence3;
-  day4.loading = true;
-  day4.error = "";
+  const date = bjtDate(), day5 = todoDay(date), owner2 = todoOwner();
+  const sequence4 = ++day5.sequence, revision2 = day5.revision;
+  const current2 = () => todoSessionActive(owner2) && date === bjtDate() && day5.sequence === sequence4;
+  day5.loading = true;
+  day5.error = "";
   paintTodos();
   try {
-    const data = await api(`/todos?date=${encodeURIComponent(date)}`);
+    const data2 = await api(`/todos?date=${encodeURIComponent(date)}`);
     if (!current2()) return;
-    if (day4.revision !== revision2) {
+    if (day5.revision !== revision2) {
       void loadFloatingToday();
       return;
     }
-    receiveTodoPreferences(data.completed_mode, data.preferences_version);
-    day4.items = data.items;
-    day4.loaded = true;
+    receiveTodoPreferences(data2.completed_mode, data2.preferences_version);
+    day5.items = data2.items;
+    day5.loaded = true;
   } catch (error) {
-    if (current2() && !isRequestAbort(error) && !error.staleSession) day4.error = error.message;
+    if (current2() && !isRequestAbort(error) && !error.staleSession) day5.error = error.message;
   } finally {
     if (current2()) {
-      day4.loading = false;
+      day5.loading = false;
       paintTodos();
     }
   }
@@ -6759,6 +6882,7 @@ function createNotesEditorView() {
 }
 
 // web/core/note-entries-state.mjs
+init_document();
 var uuidPattern6 = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var blocked = (item) => ["conflict", "unknown"].includes(item.phase);
 var timestamp3 = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
@@ -7019,15 +7143,15 @@ function createEntryLocalActions(context) {
 function createEntryReadingActions(context) {
   const { category, page, entry, entries, emit, adopt, merge, schedule, makeEntry } = context;
   const { load, loadEntry } = context.options;
-  async function read(date, options2 = {}) {
-    const current2 = page(date), sequence3 = ++current2.sequence;
+  async function read(date, options3 = {}) {
+    const current2 = page(date), sequence4 = ++current2.sequence;
     const epochs = new Map(current2.ids.map((id) => [id, entry(id)?.writeEpoch]));
     current2.loading = true;
     current2.error = "";
     emit();
     try {
-      const value = checkedCollection(await load(date, options2), category, date);
-      if (context.disposed || sequence3 !== current2.sequence) return;
+      const value = checkedCollection(await load(date, options3), category, date);
+      if (context.disposed || sequence4 !== current2.sequence) return;
       current2.canEdit = value.can_edit;
       current2.labelsComplete = [2, 3].includes(value.labels_version);
       const found = /* @__PURE__ */ new Set();
@@ -7048,33 +7172,33 @@ function createEntryReadingActions(context) {
       });
       current2.ids = [.../* @__PURE__ */ new Set([...retained, ...value.entries.map((raw) => noteValue(raw).id)])];
       current2.loaded = true;
-      await Promise.all(current2.ids.filter((id) => !found.has(id) && persistedVersion(entry(id)) > 0 && (entry(id).dirty || entry(id).localBacked) && !entry(id).pending).map((id) => readOne(id, options2)));
+      await Promise.all(current2.ids.filter((id) => !found.has(id) && persistedVersion(entry(id)) > 0 && (entry(id).dirty || entry(id).localBacked) && !entry(id).pending).map((id) => readOne(id, options3)));
     } catch (error) {
-      if (!context.disposed && sequence3 === current2.sequence) current2.error = error.message;
+      if (!context.disposed && sequence4 === current2.sequence) current2.error = error.message;
     } finally {
-      if (!context.disposed && sequence3 === current2.sequence) {
+      if (!context.disposed && sequence4 === current2.sequence) {
         current2.loading = false;
         emit();
         for (const id of current2.ids) schedule(entry(id));
       }
     }
   }
-  async function readOne(id, options2 = {}) {
+  async function readOne(id, options3 = {}) {
     const item = entry(id);
     if (!item || context.disposed) return;
-    const sequence3 = ++item.sequence, epoch = item.writeEpoch;
+    const sequence4 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
-      const value = checkedEntry(await loadEntry(id, options2), category, item.date, id);
-      if (!context.disposed && sequence3 === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
+      const value = checkedEntry(await loadEntry(id, options3), category, item.date, id);
+      if (!context.disposed && sequence4 === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
     } catch (error) {
-      if (!context.disposed && sequence3 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.error = error.message;
         if (!blocked(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence3 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
@@ -7233,14 +7357,14 @@ function createEntryWritingActions(context) {
     emit();
     try {
       const body2 = { version: operation2.version, save_id: operation2.saveId };
-      const options2 = operation2.uncertain ? { offlineUnknown: true } : void 0;
-      const raw = operation2.kind === "delete" ? await remove(item.id, body2, options2) : operation2.kind === "restore" ? await restore(item.id, body2, options2) : await put(item.id, {
+      const options3 = operation2.uncertain ? { offlineUnknown: true } : void 0;
+      const raw = operation2.kind === "delete" ? await remove(item.id, body2, options3) : operation2.kind === "restore" ? await restore(item.id, body2, options3) : await put(item.id, {
         ...body2,
         category: item.category,
         date: item.date,
         text: operation2.text,
         ...operation2.labels ? { labels: operation2.labels } : operation2.label ? { label: operation2.label } : {}
-      }, options2);
+      }, options3);
       if (context.disposed || item.pending !== operation2) return;
       const value = checkedEntry(raw, category, item.date, item.id);
       if (isLocalDocument(value)) {
@@ -7423,8 +7547,8 @@ function createEntryResolutionActions(context) {
   }
   return { reconcile, retryPending, useServer, useDraft };
 }
-function createNoteEntriesStore(options2) {
-  const context = createEntriesContext(options2);
+function createNoteEntriesStore(options3) {
+  const context = createEntriesContext(options3);
   Object.assign(context, createEntryLocalActions(context));
   Object.assign(
     context,
@@ -7495,10 +7619,10 @@ function coalesceNoteMonthFlight(current2, next) {
   if (next.chosenDate) current2.chosenDate = next.chosenDate;
   return true;
 }
-function shiftNoteMonth(month, delta) {
-  if (!validNoteMonth(month) || !Number.isInteger(delta)) throw new Error("请选择有效月份。");
+function shiftNoteMonth(month, delta2) {
+  if (!validNoteMonth(month) || !Number.isInteger(delta2)) throw new Error("请选择有效月份。");
   const date = /* @__PURE__ */ new Date(month + "-01T12:00:00Z");
-  date.setUTCMonth(date.getUTCMonth() + delta);
+  date.setUTCMonth(date.getUTCMonth() + delta2);
   const value = date.toISOString().slice(0, 7);
   if (!validNoteMonth(value)) throw new Error("请选择有效月份。");
   return value;
@@ -7510,27 +7634,27 @@ function noteMonthWeeks(month) {
   last.setUTCMonth(last.getUTCMonth() + 1);
   last.setUTCDate(0);
   const weeks = Array.from({ length: Math.ceil((offset + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
-  for (let day4 = 1; day4 <= last.getUTCDate(); day4++)
-    weeks[Math.floor((offset + day4 - 1) / 7)][(offset + day4 - 1) % 7] = month + "-" + String(day4).padStart(2, "0");
+  for (let day5 = 1; day5 <= last.getUTCDate(); day5++)
+    weeks[Math.floor((offset + day5 - 1) / 7)][(offset + day5 - 1) % 7] = month + "-" + String(day5).padStart(2, "0");
   return weeks;
 }
-function checkedNoteMonth(data, month) {
+function checkedNoteMonth(data2, month) {
   const fail6 = () => {
     throw new Error("月记录不完整，请联网重试。");
   };
-  if (!validNoteMonth(month) || !data || data.month !== month || data.complete !== true || ![1, 2, 3].includes(data.labels_version) || !Array.isArray(data.days) || data.days.length > 31) fail6();
+  if (!validNoteMonth(month) || !data2 || data2.month !== month || data2.complete !== true || ![1, 2, 3].includes(data2.labels_version) || !Array.isArray(data2.days) || data2.days.length > 31) fail6();
   const result = /* @__PURE__ */ new Map(), ids = /* @__PURE__ */ new Set();
   let total = 0;
-  for (const day4 of data.days) {
-    if (!day4 || !validDailyNotesDate(day4.date) || !day4.date.startsWith(month + "-") || result.has(day4.date) || !Array.isArray(day4.items)) fail6();
-    const items = day4.items.map((item) => {
-      if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || data.labels_version === 1 && (!Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label))) || data.labels_version >= 2 && (!Array.isArray(item.labels) || item.labels.some((label3) => data.labels_version === 3 ? !validNoteLabel(label3) : item.category !== "life" || !validCustomNoteLabel(label3)) || new Set(item.labels).size !== item.labels.length) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail6();
+  for (const day5 of data2.days) {
+    if (!day5 || !validDailyNotesDate(day5.date) || !day5.date.startsWith(month + "-") || result.has(day5.date) || !Array.isArray(day5.items)) fail6();
+    const items = day5.items.map((item) => {
+      if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || data2.labels_version === 1 && (!Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label))) || data2.labels_version >= 2 && (!Array.isArray(item.labels) || item.labels.some((label3) => data2.labels_version === 3 ? !validNoteLabel(label3) : item.category !== "life" || !validCustomNoteLabel(label3)) || new Set(item.labels).size !== item.labels.length) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail6();
       ids.add(item.entity_id);
       total++;
-      const displayLabels = data.labels_version === 3 ? item.labels : item.labels?.length ? item.labels : item.label ? [item.label] : [item.category === "work" ? "工作" : "生活"];
+      const displayLabels = data2.labels_version === 3 ? item.labels : item.labels?.length ? item.labels : item.label ? [item.label] : [item.category === "work" ? "工作" : "生活"];
       return { ...item, displayLabels, displayLabel: displayLabels.join("、") };
     });
-    result.set(day4.date, items);
+    result.set(day5.date, items);
   }
   if (total > 2e3) fail6();
   return result;
@@ -7540,25 +7664,25 @@ function checkedNoteMonth(data, month) {
 function renderNotesMonthMarkup() {
   return '<details id="notes-month-panel" class="notes-month-panel"><summary>月历与历史</summary><div class="notes-month-controls"><button class="btn" type="button" data-notes-month-step="-1" aria-label="上个月">‹</button><label>月份 <input id="notes-month-input" class="input" type="month"></label><button class="btn" type="button" data-notes-month-step="1" aria-label="下个月">›</button><label>分类 <select id="notes-month-category" class="input"><option value="">全部</option><option value="life">生活</option><option value="work">工作</option></select></label><button class="btn text" type="button" data-notes-month-refresh>刷新</button></div><p id="notes-month-status" role="status" aria-live="polite"></p><div class="notes-month-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-month-grid" class="notes-month-grid"></div><h3 id="notes-month-day-title"></h3><div id="notes-month-history" class="notes-entry-list"></div></details>';
 }
-function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
-  const panel = root.querySelector("#notes-month-panel");
-  if (!panel) return () => {
+function mountNotesMonth(root2, { request, selectDate, identity: identity5 }) {
+  const panel2 = root2.querySelector("#notes-month-panel");
+  if (!panel2) return () => {
   };
-  const find = (selector) => panel.querySelector(selector), doc = root.ownerDocument;
-  const identityNow = typeof identity4 === "function" ? identity4 : () => identity4, expected = identityNow();
-  let disposed = false, sequence3 = 0, days = /* @__PURE__ */ new Map(), loaded = "", selected = dailyNotesToday(), month = selected.slice(0, 7), category = "";
-  const active5 = () => !disposed && root.isConnected && identityNow() === expected;
+  const find = (selector) => panel2.querySelector(selector), doc = root2.ownerDocument;
+  const identityNow = typeof identity5 === "function" ? identity5 : () => identity5, expected = identityNow();
+  let disposed = false, sequence4 = 0, days = /* @__PURE__ */ new Map(), loaded = "", selected = dailyNotesToday(), month = selected.slice(0, 7), category = "";
+  const active5 = () => !disposed && root2.isConnected && identityNow() === expected;
   const visibleRows = (date) => (days.get(date) || []).filter((item) => !category || item.category === category);
   find("#notes-month-input").value = month;
-  function node2(tag, text, className = "") {
-    const result = doc.createElement(tag);
+  function node2(tag2, text, className = "") {
+    const result = doc.createElement(tag2);
     result.textContent = text;
     if (className) result.className = className;
     return result;
   }
   function paintHistory() {
-    const rows = visibleRows(selected), list = find("#notes-month-history");
-    list.replaceChildren();
+    const rows = visibleRows(selected), list2 = find("#notes-month-history");
+    list2.replaceChildren();
     find("#notes-month-day-title").textContent = selected + " · " + rows.length + " 条记录";
     for (const item of rows) {
       const card = node2("article", "", "note-entry note-entry-saved"), head = node2("div", "", "note-entry-head");
@@ -7573,9 +7697,9 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
         if (active5()) void selectDate(selected, item.category);
       });
       card.append(open);
-      list.append(card);
+      list2.append(card);
     }
-    if (!rows.length) list.append(node2("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
+    if (!rows.length) list2.append(node2("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
   }
   function paint() {
     const grid = find("#notes-month-grid");
@@ -7596,8 +7720,8 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
     paintHistory();
   }
   async function load(force = false) {
-    if (!active5() || !panel.open || !validNoteMonth(month) || !force && loaded === month) return;
-    const current2 = ++sequence3, target = month;
+    if (!active5() || !panel2.open || !validNoteMonth(month) || !force && loaded === month) return;
+    const current2 = ++sequence4, target = month;
     loaded = "";
     days = /* @__PURE__ */ new Map();
     find("#notes-month-grid").replaceChildren();
@@ -7605,20 +7729,20 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
     find("#notes-month-day-title").textContent = "";
     find("#notes-month-status").textContent = "";
     try {
-      const data = await request("/note-entries/month?month=" + target);
-      if (!active5() || current2 !== sequence3 || target !== month) return;
-      days = checkedNoteMonth(data, target);
+      const data2 = await request("/note-entries/month?month=" + target);
+      if (!active5() || current2 !== sequence4 || target !== month) return;
+      days = checkedNoteMonth(data2, target);
       loaded = target;
       if (!selected.startsWith(target + "-")) selected = [...days.keys()][0] || target + "-01";
       find("#notes-month-status").textContent = "仅展示已同步记录；待同步草稿请在原日期查看。";
       paint();
     } catch (error) {
-      if (!active5() || current2 !== sequence3) return;
+      if (!active5() || current2 !== sequence4) return;
       find("#notes-month-status").textContent = error.message || "月记录读取失败，请重试。";
     }
   }
   function toggle() {
-    if (panel.open) void load();
+    if (panel2.open) void load();
   }
   function change2(event) {
     if (!active5()) return;
@@ -7637,7 +7761,7 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
   function click(event) {
     if (!active5()) return;
     const target = event.target.closest("[data-notes-month-step],[data-notes-month-date],[data-notes-month-refresh]");
-    if (!target || !panel.contains(target)) return;
+    if (!target || !panel2.contains(target)) return;
     event.preventDefault();
     if (target.dataset.notesMonthStep) {
       try {
@@ -7652,19 +7776,20 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
       paint();
     } else void load(true);
   }
-  panel.addEventListener("toggle", toggle);
-  panel.addEventListener("change", change2);
-  panel.addEventListener("click", click);
+  panel2.addEventListener("toggle", toggle);
+  panel2.addEventListener("change", change2);
+  panel2.addEventListener("click", click);
   return () => {
     disposed = true;
-    sequence3++;
-    panel.removeEventListener("toggle", toggle);
-    panel.removeEventListener("change", change2);
-    panel.removeEventListener("click", click);
+    sequence4++;
+    panel2.removeEventListener("toggle", toggle);
+    panel2.removeEventListener("change", change2);
+    panel2.removeEventListener("click", click);
   };
 }
 
 // web/pages/daily-notes.mjs
+init_dom();
 function legacyEditorMarkup() {
   return '<article id="notes-legacy-card" class="note-entry note-entry-editing notes-legacy-card" hidden><div class="note-entry-head"><time id="notes-legacy-time" class="note-entry-time" hidden></time><span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">原有记录内容</label><textarea id="notes-editor" class="notes-editor" aria-label="原有记录或保留草稿，只读" readonly hidden></textarea><div id="notes-reader" class="notes-reader"></div><p id="notes-empty" hidden>这条记录没有文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复原有记录</button><button class="btn text" type="button" data-notes-action="delete">删除原有记录</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除原有记录？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div></article>';
 }
@@ -7715,12 +7840,12 @@ function paintEditorValue(editor, text) {
     editor.scrollTop = scroll;
   }
 }
-function paintDailyNotes(root, item, { compatibility = false, editing: editing3 = false } = {}) {
-  if (!root) return;
-  const find = (selector) => root.querySelector(selector), editor = find("#notes-editor"), reader = find("#notes-reader");
+function paintDailyNotes(root2, item, { compatibility = false, editing: editing3 = false } = {}) {
+  if (!root2) return;
+  const find = (selector) => root2.querySelector(selector), editor = find("#notes-editor"), reader = find("#notes-reader");
   const retained = retainedLegacy(item);
   editor.dataset.date = item.date;
-  editor.dataset.category = root.dataset.category || dailyNotesRouteCategory();
+  editor.dataset.category = root2.dataset.category || dailyNotesRouteCategory();
   editor.hidden = !editing3 || !item.loaded || item.deleted && !retained;
   editor.readOnly = true;
   editor.disabled = false;
@@ -7790,13 +7915,13 @@ function paintEntryEditor(node2, item, confirmId, labels, labelsVerified) {
   editor.readOnly = !item.canEdit;
   editor.disabled = ["delete", "restore"].includes(item.pending?.kind);
   paintEditorValue(editor, item.draft);
-  const fieldset = find(".note-entry-labels"), options2 = find(".note-entry-label-options");
+  const fieldset = find(".note-entry-labels"), options3 = find(".note-entry-label-options");
   fieldset.hidden = item.deleted;
   fieldset.disabled = !item.canEdit || !item.labelComplete || !labelsVerified || Boolean(item.pending);
   fieldset.title = item.labelComplete && labelsVerified ? "" : "请联网核实标签状态后再修改。";
   const available = [.../* @__PURE__ */ new Set([...labels, ...item.labels || []])];
-  if (JSON.stringify([...options2.querySelectorAll("input")].map((input) => input.value)) !== JSON.stringify(available)) {
-    options2.replaceChildren(...available.map((value) => {
+  if (JSON.stringify([...options3.querySelectorAll("input")].map((input) => input.value)) !== JSON.stringify(available)) {
+    options3.replaceChildren(...available.map((value) => {
       const label3 = document.createElement("label"), input = document.createElement("input");
       input.type = "checkbox";
       input.value = value;
@@ -7805,7 +7930,7 @@ function paintEntryEditor(node2, item, confirmId, labels, labelsVerified) {
       return label3;
     }));
   }
-  for (const input of options2.querySelectorAll("input")) input.checked = (item.labels || []).includes(input.value);
+  for (const input of options3.querySelectorAll("input")) input.checked = (item.labels || []).includes(input.value);
   const reader = find(".note-entry-reader");
   reader.textContent = item.deleted ? "这条记录已删除。" : item.serverText;
   reader.hidden = !item.deleted;
@@ -7831,10 +7956,10 @@ function paintEntryEditor(node2, item, confirmId, labels, labelsVerified) {
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
 var editorNodes = /* @__PURE__ */ new WeakMap();
-function paintActiveEditor(root, store, active5, legacy, confirmId, labels, labelsVerified) {
-  const host = root.querySelector("#notes-active-entry");
-  if (!editorNodes.has(root)) editorNodes.set(root, /* @__PURE__ */ new Map());
-  const nodes = editorNodes.get(root), item = store.entry(active5);
+function paintActiveEditor(root2, store, active5, legacy, confirmId, labels, labelsVerified) {
+  const host = root2.querySelector("#notes-active-entry");
+  if (!editorNodes.has(root2)) editorNodes.set(root2, /* @__PURE__ */ new Map());
+  const nodes = editorNodes.get(root2), item = store.entry(active5);
   host.hidden = !item;
   if (item) {
     if (!nodes.has(active5)) nodes.set(active5, createEntryElement(item, true));
@@ -7842,18 +7967,18 @@ function paintActiveEditor(root, store, active5, legacy, confirmId, labels, labe
     if (host.firstElementChild !== node2) host.replaceChildren(node2);
     paintEntryEditor(node2, item, confirmId, labels, labelsVerified);
   }
-  root.querySelector("#notes-legacy-card").hidden = active5 !== "legacy";
-  paintDailyNotes(root, legacy, { compatibility: true, editing: active5 === "legacy" });
+  root2.querySelector("#notes-legacy-card").hidden = active5 !== "legacy";
+  paintDailyNotes(root2, legacy, { compatibility: true, editing: active5 === "legacy" });
 }
-function paintLegacySummary(root, legacy, active5) {
-  const node2 = root.querySelector("#notes-legacy-saved"), draft = retainedLegacy(legacy);
+function paintLegacySummary(root2, legacy, active5) {
+  const node2 = root2.querySelector("#notes-legacy-saved"), draft = retainedLegacy(legacy);
   let label3 = node2.querySelector(".note-entry-label");
   if (!label3) {
     label3 = document.createElement("span");
     label3.className = "note-entry-label";
     node2.querySelector(".note-entry-head").prepend(label3);
   }
-  label3.textContent = root.dataset.category === "work" ? "工作" : "生活";
+  label3.textContent = root2.dataset.category === "work" ? "工作" : "生活";
   node2.hidden = active5 === "legacy" || !(legacy.version > 0 || draft);
   paintTime(node2.querySelector("time"), legacy.updatedAt);
   node2.querySelector(".note-entry-reader").textContent = draft ? legacy.draft : legacy.deleted ? "原有记录已删除。" : legacy.serverText;
@@ -7866,8 +7991,8 @@ function paintLegacySummary(root, legacy, active5) {
   edit.textContent = draft ? "查看保留的原有草稿" : "查看原有记录";
   node2.querySelector('[data-notes-action="export-legacy"]').hidden = !draft;
 }
-function paintRetainedDrafts(root, current2, drafts) {
-  const box = root.querySelector("#notes-drafts");
+function paintRetainedDrafts(root2, current2, drafts) {
+  const box = root2.querySelector("#notes-drafts");
   const retained = [...new Set(drafts.filter((value) => value.date !== current2.date || value.category !== current2.category).map((value) => value.category + ":" + value.date))];
   box.hidden = !retained.length;
   box.innerHTML = "<span>保留的草稿：</span>" + retained.map((key) => {
@@ -7875,15 +8000,15 @@ function paintRetainedDrafts(root, current2, drafts) {
     return '<button class="btn text" type="button" data-notes-draft-category="' + e(category) + '" data-notes-date="' + e(date) + '">' + (category === "work" ? "工作 " : "生活 ") + e(date) + "</button>";
   }).join("");
 }
-function paintOtherLegacy(root, list, legacy, category) {
-  let node2 = root.querySelector("#notes-legacy-other");
+function paintOtherLegacy(root2, list2, legacy, category) {
+  let node2 = root2.querySelector("#notes-legacy-other");
   if (!node2) {
     node2 = document.createElement("article");
     node2.id = "notes-legacy-other";
     node2.className = "note-entry note-entry-saved notes-legacy-saved";
     node2.innerHTML = '<div class="note-entry-head"><span class="note-entry-label"></span><time class="note-entry-time" hidden></time><span class="note-entry-status"></span></div><div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p><button class="btn text note-entry-edit" type="button" data-notes-action="edit-other-legacy">查看原有记录</button><button class="btn text" type="button" data-notes-action="export-other-legacy" hidden>导出保留的原有草稿</button>';
   }
-  list.append(node2);
+  list2.append(node2);
   const draft = legacy && retainedLegacy(legacy);
   node2.hidden = !legacy || !(legacy.version > 0 || draft);
   if (!legacy) return;
@@ -7901,9 +8026,9 @@ function paintOtherLegacy(root, list, legacy, category) {
   exportButton.dataset.legacyCategory = category;
   exportButton.hidden = !draft;
 }
-function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "", labels = [], labelsVerified = true } = {}) {
-  const find = (selector) => root.querySelector(selector), list = find("#notes-entry-list");
-  root.dataset.date = current2.date;
+function paintNoteEntries(root2, store, current2, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "", labels = [], labelsVerified = true } = {}) {
+  const find = (selector) => root2.querySelector(selector), list2 = find("#notes-entry-list");
+  root2.dataset.date = current2.date;
   const dateInput = find("#notes-date");
   if (dateInput.value !== current2.date) dateInput.value = current2.date;
   find('[data-notes-action="next"]').disabled = current2.date >= dailyNotesToday();
@@ -7915,21 +8040,21 @@ function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmI
   const items = current2.ids.map((id) => store.entry(id)).filter(Boolean);
   const saved = items.filter((item) => item.id !== active5 && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const unpublished = find("#notes-unpublished");
-  const nodes = new Map([...list.children, ...unpublished.children].filter((node2) => node2.dataset.noteEntry).map((node2) => [node2.dataset.noteEntry, node2])), wanted = new Set(saved.map((item) => item.id));
+  const nodes = new Map([...list2.children, ...unpublished.children].filter((node2) => node2.dataset.noteEntry).map((node2) => [node2.dataset.noteEntry, node2])), wanted = new Set(saved.map((item) => item.id));
   for (const [id, node2] of nodes) if (!wanted.has(id)) node2.remove();
   for (const item of saved) {
     const node2 = nodes.get(item.id) || createEntryElement(item, false);
-    (noteDraftNeedsAttention(item) ? unpublished : list).append(node2);
+    (noteDraftNeedsAttention(item) ? unpublished : list2).append(node2);
     paintSavedEntry(node2, item);
     node2.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
   }
-  paintActiveEditor(root, store, active5, legacy, confirmId, labels, labelsVerified);
-  paintLegacySummary(root, legacy, active5);
-  (retainedLegacy(legacy) ? unpublished : list).append(root.querySelector("#notes-legacy-saved"));
-  root.querySelector("#notes-legacy-saved").dataset.sortTime = legacy.updatedAt || "";
-  paintOtherLegacy(root, list, otherLegacy, otherCategory);
-  root.querySelector("#notes-legacy-other").dataset.sortTime = otherLegacy?.updatedAt || "";
-  if (otherLegacy && retainedLegacy(otherLegacy)) unpublished.append(root.querySelector("#notes-legacy-other"));
+  paintActiveEditor(root2, store, active5, legacy, confirmId, labels, labelsVerified);
+  paintLegacySummary(root2, legacy, active5);
+  (retainedLegacy(legacy) ? unpublished : list2).append(root2.querySelector("#notes-legacy-saved"));
+  root2.querySelector("#notes-legacy-saved").dataset.sortTime = legacy.updatedAt || "";
+  paintOtherLegacy(root2, list2, otherLegacy, otherCategory);
+  root2.querySelector("#notes-legacy-other").dataset.sortTime = otherLegacy?.updatedAt || "";
+  if (otherLegacy && retainedLegacy(otherLegacy)) unpublished.append(root2.querySelector("#notes-legacy-other"));
   const composer = find("#notes-composer"), activeItem = active5 === "legacy" ? legacy : store.entry(active5);
   composer.hidden = !activeItem;
   composer.dataset.active = active5;
@@ -7937,17 +8062,23 @@ function paintNoteEntries(root, store, current2, legacy, { drafts = [], confirmI
   unpublished.hidden = Boolean(activeItem);
   find('[data-notes-action="new"]').hidden = !canEdit || Boolean(activeItem);
   find('[data-notes-action="collapse"]').disabled = Boolean(activeItem?.pending || activeItem?.composing);
-  const ordered2 = [...list.children].sort((a, b) => String(a.dataset.sortTime || "").localeCompare(String(b.dataset.sortTime || "")));
-  list.append(...ordered2);
+  const ordered2 = [...list2.children].sort((a, b) => String(a.dataset.sortTime || "").localeCompare(String(b.dataset.sortTime || "")));
+  list2.append(...ordered2);
   find("#notes-entry-empty").hidden = !(current2.allLoaded ?? current2.loaded) || Boolean(activeItem) || saved.length > 0 || legacy.version > 0 || noteDraftNeedsAttention(legacy) || Boolean(otherLegacy && (otherLegacy.version > 0 || noteDraftNeedsAttention(otherLegacy)));
   const unresolved2 = items.some(noteDraftNeedsAttention) || noteDraftNeedsAttention(legacy);
   const status = find("#notes-status");
   status.textContent = !current2.loaded && current2.loading ? "" : current2.error ? "读取失败" : unresolved2 ? "有未发送内容" : canEdit ? "" : current2.loaded ? "公开只读" : "";
   status.hidden = canEdit && !current2.error && !unresolved2;
-  paintRetainedDrafts(root, current2, drafts);
+  paintRetainedDrafts(root2, current2, drafts);
 }
 
 // web/daily-notes-controller.mjs
+init_api();
+init_state();
+init_login();
+init_runtime();
+init_document();
+init_conflict_draft_guards();
 var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "", notesRefreshPaused = false, notesDraftError = "", notesDraftRevision = 0;
 var notesView = "today", historyMonth = "", historyDate = "", historyDays = /* @__PURE__ */ new Map(), historySequence = 0;
 var historyActiveLoad = null;
@@ -8052,9 +8183,9 @@ async function archivedDrafts() {
   return offline ? [...await offline.retainedDrafts("legacy"), ...await offline.retainedDrafts("note_entry")] : [];
 }
 async function showRetainedArchive() {
-  const expected = notesIdentityNow(), rows = await archivedDrafts(), root = document.querySelector("#daily-notes");
-  if (!root || !notesVisible() || expected !== notesIdentityNow() || !rows.length) return;
-  let box = root.querySelector("#notes-retained-archive");
+  const expected = notesIdentityNow(), rows = await archivedDrafts(), root2 = document.querySelector("#daily-notes");
+  if (!root2 || !notesVisible() || expected !== notesIdentityNow() || !rows.length) return;
+  let box = root2.querySelector("#notes-retained-archive");
   if (!box) {
     box = document.createElement("details");
     box.id = "notes-retained-archive";
@@ -8081,7 +8212,7 @@ ${row.draft}`;
         return pre;
       }));
     });
-    root.querySelector("#notes-drafts").after(box);
+    root2.querySelector("#notes-drafts").after(box);
   }
   box.querySelector("summary").textContent = `本机保留草稿（${rows.length} 份，只读）`;
 }
@@ -8165,23 +8296,23 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
         throw new DOMException("请求已取消", "AbortError");
       }
     };
-    const request = async (path, options2) => {
+    const request = async (path, options3) => {
       active5();
-      const value = await api(path, options2);
+      const value = await api(path, options3);
       active5();
       return value;
     };
-    const noteRequest = async (path, options2 = {}) => {
+    const noteRequest = async (path, options3 = {}) => {
       active5();
-      if (options2.method && options2.method !== "GET") {
-        const date = options2.body?.date || dailyNotesRouteDate();
+      if (options3.method && options3.method !== "GET") {
+        const date = options3.body?.date || dailyNotesRouteDate();
         await noteRequest("/note-entries?category=" + category + "&date=" + encodeURIComponent(date));
       }
-      const value = await apiNetwork(path, { ...options2, headers: { ...options2.headers, "X-Note-Labels-Version": "3" } });
+      const value = await apiNetwork(path, { ...options3, headers: { ...options3.headers, "X-Note-Labels-Version": "3" } });
       active5();
       if (value?.labels_version !== 3) throw Object.assign(
         new Error("服务器尚不支持多标签，草稿已保留。"),
-        { code: "NOTE_LABELS_VERSION", localNotSaved: !options2.method || options2.method === "GET" }
+        { code: "NOTE_LABELS_VERSION", localNotSaved: !options3.method || options3.method === "GET" }
       );
       return value;
     };
@@ -8195,16 +8326,16 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
         throw error;
       }
     };
-    const noteWrite = async (path, options2) => {
+    const noteWrite = async (path, options3) => {
       try {
-        return await noteRequest(path, options2);
+        return await noteRequest(path, options3);
       } catch (error) {
         if (error.code !== "NETWORK_UNAVAILABLE") throw error;
-        const body2 = options2.body || {}, labels = body2.labels;
+        const body2 = options3.body || {}, labels = body2.labels;
         if (labels)
           throw Object.assign(new Error("多标签修改需要联网，草稿已保留。"), { code: "OFFLINE_MULTI_LABEL", localNotSaved: true });
         const { labels: ignored, ...legacyBody } = body2;
-        return request(path, { ...options2, offlineUnknown: true, body: legacyBody, headers: { "X-Note-Labels-Version": "1" } });
+        return request(path, { ...options3, offlineUnknown: true, body: legacyBody, headers: { "X-Note-Labels-Version": "1" } });
       }
     };
     const suffix = (separator) => category === "work" ? separator + "category=work" : "";
@@ -8245,9 +8376,9 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
       load: (date) => noteRead("/note-entries?category=" + category + "&date=" + encodeURIComponent(date)),
       loadEntry: (id) => noteRead("/note-entries/" + encodeURIComponent(id)),
       loadOperation: (id) => noteRequest("/note-entries/operations/" + encodeURIComponent(id)),
-      put: (id, body2, options2) => noteWrite("/note-entries/" + encodeURIComponent(id), { ...options2, method: "PUT", body: body2 }),
-      remove: (id, body2, options2) => noteWrite("/note-entries/" + encodeURIComponent(id), { ...options2, method: "DELETE", body: body2 }),
-      restore: (id, body2, options2) => noteRequest("/note-entries/" + encodeURIComponent(id) + "/restore", { ...options2, method: "POST", body: body2 }),
+      put: (id, body2, options3) => noteWrite("/note-entries/" + encodeURIComponent(id), { ...options3, method: "PUT", body: body2 }),
+      remove: (id, body2, options3) => noteWrite("/note-entries/" + encodeURIComponent(id), { ...options3, method: "DELETE", body: body2 }),
+      restore: (id, body2, options3) => noteRequest("/note-entries/" + encodeURIComponent(id) + "/restore", { ...options3, method: "POST", body: body2 }),
       onChange: changed4,
       onSaved: changed4
     });
@@ -8284,20 +8415,20 @@ function retainedDrafts() {
 function paintDailyNotesPage() {
   for (const callback of floatingNoteObservers) callback();
   if (!notesVisible() || notesRefreshPaused) return;
-  const root = document.querySelector("#daily-notes");
-  if (!root || !notesStore || !entryStore) return;
-  root.querySelector("#notes-today").hidden = notesView !== "today";
-  root.querySelector("#notes-history").hidden = notesView !== "history";
-  root.querySelector("#notes-labels").hidden = notesView !== "labels";
-  for (const button2 of root.querySelectorAll("[data-notes-view]"))
+  const root2 = document.querySelector("#daily-notes");
+  if (!root2 || !notesStore || !entryStore) return;
+  root2.querySelector("#notes-today").hidden = notesView !== "today";
+  root2.querySelector("#notes-history").hidden = notesView !== "history";
+  root2.querySelector("#notes-labels").hidden = notesView !== "labels";
+  for (const button2 of root2.querySelectorAll("[data-notes-view]"))
     button2.setAttribute("aria-pressed", String(button2.dataset.notesView === notesView));
   const date = dailyNotesRouteDate(), category = dailyNotesRouteCategory(), legacy = notesStore.page(date), current2 = entryStore.page(date);
-  root.querySelector("#notes-label-status").textContent = notesLabelMessage;
+  root2.querySelector("#notes-label-status").textContent = notesLabelMessage;
   const archivedNames = new Set(notesArchivedLabels.map((row) => row.name));
   const activeLabels = [.../* @__PURE__ */ new Set(["生活", "工作", ...notesLabels])].filter((name) => !archivedNames.has(name));
   const paintLabels = (selector, names, action, buttonText) => {
-    const list = root.querySelector(selector);
-    list.replaceChildren(...names.map((name) => {
+    const list2 = root2.querySelector(selector);
+    list2.replaceChildren(...names.map((name) => {
       const item = document.createElement("li"), text = document.createElement("span"), button2 = document.createElement("button");
       text.textContent = name;
       button2.type = "button";
@@ -8312,7 +8443,7 @@ function paintDailyNotesPage() {
     }));
   };
   paintLabels("#notes-label-list", activeLabels, "delete-label", "删除");
-  root.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy || !notesLabelsVerified;
+  root2.querySelector('[data-notes-action="create-label"]').disabled = notesLabelBusy || !notesLabelsVerified;
   const otherCategory = category === "life" ? "work" : "life";
   const otherStore = entryStores.get(otherCategory), otherLegacy = notesStores.get(otherCategory)?.page(date);
   const otherPage = otherStore?.page(date);
@@ -8333,8 +8464,8 @@ function paintDailyNotesPage() {
     const first = mixedStore.entry(a), second = mixedStore.entry(b);
     return String(first?.createdAt || first?.localCreatedAt || "").localeCompare(String(second?.createdAt || second?.localCreatedAt || "")) || a.localeCompare(b);
   });
-  const host = root.querySelector("#notes-composer"), view = editorViews.page(category, date), active5 = view.active;
-  const field2 = active5 === "legacy" ? root.querySelector("#notes-editor") : host.querySelector('[data-note-entry-editor="' + active5 + '"]');
+  const host = root2.querySelector("#notes-composer"), view = editorViews.page(category, date), active5 = view.active;
+  const field2 = active5 === "legacy" ? root2.querySelector("#notes-editor") : host.querySelector('[data-note-entry-editor="' + active5 + '"]');
   const selected = editorViews.sync(
     category,
     date,
@@ -8343,42 +8474,42 @@ function paintDailyNotesPage() {
     { focused: host.contains(document.activeElement), composing: field2?.dataset.composing === "true" }
   );
   paintNoteEntries(
-    root,
+    root2,
     mixedStore,
     mixed,
     legacy,
     { drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory, labels: activeLabels, labelsVerified: notesLabelsVerified }
   );
   if (notesDraftError) {
-    const message = root.querySelector("#notes-entry-message");
+    const message = root2.querySelector("#notes-entry-message");
     message.textContent = notesDraftError;
     message.hidden = false;
   }
   if (mixed.ids.some((id) => mixedStore.entry(id)?.category === "life" && !mixedStore.entry(id)?.labelKnown)) {
-    const message = root.querySelector("#notes-entry-message");
+    const message = root2.querySelector("#notes-entry-message");
     if (message.hidden) {
       message.textContent = "部分记录标签尚未核实，请联网读取后查看。";
       message.hidden = false;
     }
   }
-  root.querySelector("#notes-delete-confirm").hidden = true;
+  root2.querySelector("#notes-delete-confirm").hidden = true;
 }
 async function readNoteLabels({ afterWrite = false } = {}) {
   if (notesLabelBusy && !afterWrite) return false;
-  const expected = notesIdentityNow(), sequence3 = ++notesLabelSequence;
+  const expected = notesIdentityNow(), sequence4 = ++notesLabelSequence;
   try {
-    const data = await apiNetwork("/note-entries/labels", { headers: { "X-Note-Labels-Version": "3", "X-Note-Labels-Archive": "1" } });
-    if (expected !== notesIdentityNow() || sequence3 !== notesLabelSequence) return;
-    if (data?.labels_version !== 3 || !Array.isArray(data?.labels) || !Array.isArray(data?.archived_labels) || data.labels.some((row) => !validCustomNoteLabel(row?.name)) || data.archived_labels.some((row) => typeof row?.name !== "string" || !(row.name === "生活" || row.name === "工作" || validCustomNoteLabel(row.name)) || typeof row.archived_at !== "string" || !Number.isFinite(Date.parse(row.archived_at))))
+    const data2 = await apiNetwork("/note-entries/labels", { headers: { "X-Note-Labels-Version": "3", "X-Note-Labels-Archive": "1" } });
+    if (expected !== notesIdentityNow() || sequence4 !== notesLabelSequence) return;
+    if (data2?.labels_version !== 3 || !Array.isArray(data2?.labels) || !Array.isArray(data2?.archived_labels) || data2.labels.some((row) => !validCustomNoteLabel(row?.name)) || data2.archived_labels.some((row) => typeof row?.name !== "string" || !(row.name === "生活" || row.name === "工作" || validCustomNoteLabel(row.name)) || typeof row.archived_at !== "string" || !Number.isFinite(Date.parse(row.archived_at))))
       throw new Error("服务器未提供可核实的归档状态。");
-    notesLabels = [...new Set(data.labels.map((row) => row.name))];
-    notesArchivedLabels = [...new Map(data.archived_labels.map((row) => [row.name, row])).values()];
+    notesLabels = [...new Set(data2.labels.map((row) => row.name))];
+    notesArchivedLabels = [...new Map(data2.archived_labels.map((row) => [row.name, row])).values()];
     notesLabelsVerified = true;
     notesLabelMessage = "";
     paintDailyNotesPage();
     return true;
   } catch (error) {
-    if (expected !== notesIdentityNow() || sequence3 !== notesLabelSequence) return;
+    if (expected !== notesIdentityNow() || sequence4 !== notesLabelSequence) return;
     notesLabelsVerified = false;
     notesLabelMessage = "标签状态读取失败，请联网后重新打开标签管理：" + (error.message || "请稍后重试。");
   }
@@ -8428,9 +8559,9 @@ async function deleteNoteLabel(name) {
     if (expected === notesIdentityNow()) paintDailyNotesPage();
   }
 }
-async function createNoteLabel(root) {
+async function createNoteLabel(root2) {
   if (notesLabelBusy || !notesLabelsVerified) return;
-  const input = root.querySelector("#notes-new-label"), label3 = input.value.trim().normalize("NFC");
+  const input = root2.querySelector("#notes-new-label"), label3 = input.value.trim().normalize("NFC");
   if (!validCustomNoteLabel(label3)) {
     notesLabelMessage = "标签须为 1–32 个字符，且不能叫生活或工作。";
     paintDailyNotesPage();
@@ -8492,19 +8623,19 @@ function makeMonthCard(date, items, selected) {
   button2.append(heading);
   return button2;
 }
-function paintHistoryRows(root) {
-  const label3 = root.querySelector("#notes-history-label").value, weekValue = root.querySelector("#notes-history-week").value;
-  const weeks = noteMonthWeeks(historyMonth), selected = root.querySelector("#notes-history-date").value;
+function paintHistoryRows(root2) {
+  const label3 = root2.querySelector("#notes-history-label").value, weekValue = root2.querySelector("#notes-history-week").value;
+  const weeks = noteMonthWeeks(historyMonth), selected = root2.querySelector("#notes-history-date").value;
   historyDate = selected;
-  const grid = root.querySelector("#notes-history-grid"), list = root.querySelector("#notes-history-list");
+  const grid = root2.querySelector("#notes-history-grid"), list2 = root2.querySelector("#notes-history-list");
   const shown = (item) => !label3 || (item.displayLabels || [item.displayLabel]).includes(label3);
   const visibleWeeks = weeks.filter((_, index) => !weekValue || Number(weekValue) === index + 1);
   grid.replaceChildren(...visibleWeeks.flatMap((week) => week.map((date) => makeMonthCard(date, (historyDays.get(date) || []).filter(shown), selected))));
-  const timeline = root.dataset.historyDisplay === "timeline";
-  root.querySelector(".notes-calendar-weekdays").hidden = timeline;
+  const timeline = root2.dataset.historyDisplay === "timeline";
+  root2.querySelector(".notes-calendar-weekdays").hidden = timeline;
   grid.hidden = timeline;
-  const order = root.dataset.historyOrder === "asc" ? "asc" : "desc";
-  const orderButton = root.querySelector("[data-history-order]");
+  const order = root2.dataset.historyOrder === "asc" ? "asc" : "desc";
+  const orderButton = root2.querySelector("[data-history-order]");
   orderButton.hidden = !timeline;
   orderButton.dataset.historyOrder = order;
   orderButton.textContent = order === "asc" ? "时间：从旧到新" : "时间：从新到旧";
@@ -8525,7 +8656,7 @@ function paintHistoryRows(root) {
     const direction = order === "asc" ? 1 : -1;
     const groups = [...historyDays.entries()].sort(([a], [b]) => direction * a.localeCompare(b)).map(([date, items]) => [date, items.filter(shown).sort((a, b) => direction * String(a.updated_at || "").localeCompare(String(b.updated_at || "")))]).filter(([, items]) => items.length);
     rows = groups.flatMap(([, items]) => items);
-    list.replaceChildren(...groups.map(([date, items]) => {
+    list2.replaceChildren(...groups.map(([date, items]) => {
       const section = document.createElement("section");
       section.className = "notes-timeline-day";
       const heading = document.createElement("h3");
@@ -8536,36 +8667,36 @@ function paintHistoryRows(root) {
     }));
   } else {
     rows = (historyDays.get(selected) || []).filter(shown);
-    list.replaceChildren(...rows.map(card));
+    list2.replaceChildren(...rows.map(card));
   }
   const total = [...historyDays.values()].flat().filter(shown).length;
-  root.querySelector("#notes-history-summary").textContent = historyMonth + " · " + total + " 条已同步记录";
-  root.querySelector("#notes-history-status").textContent = rows.length ? "待同步内容请在原日期查看。" : !total && !label3 ? "本月没有已同步记录。" : "所选日期没有符合条件的已同步记录。";
+  root2.querySelector("#notes-history-summary").textContent = historyMonth + " · " + total + " 条已同步记录";
+  root2.querySelector("#notes-history-status").textContent = rows.length ? "待同步内容请在原日期查看。" : !total && !label3 ? "本月没有已同步记录。" : "所选日期没有符合条件的已同步记录。";
 }
-function applyHistoryMonth(root, month, days, chosenDate) {
+function applyHistoryMonth(root2, month, days, chosenDate) {
   const weeks = noteMonthWeeks(month), dates = weeks.flat().filter(Boolean);
-  const dateSelect = root.querySelector("#notes-history-date"), labelSelect = root.querySelector("#notes-history-label");
+  const dateSelect = root2.querySelector("#notes-history-date"), labelSelect = root2.querySelector("#notes-history-label");
   const oldLabel = labelSelect.value, oldDate = dateSelect.value;
   const selected = dates.includes(chosenDate) ? chosenDate : dates.includes(oldDate) ? oldDate : dates[0];
   historyMonth = month;
   historyDays = days;
-  root.dataset.historyLoadedMonth = month;
-  root.querySelector("#notes-history-month").value = month;
+  root2.dataset.historyLoadedMonth = month;
+  root2.querySelector("#notes-history-month").value = month;
   monthOptions(dateSelect, dates, selected, "");
-  monthOptions(root.querySelector("#notes-history-week"), ["", ...weeks.map((_, index) => String(index + 1))], "", "全部周次");
+  monthOptions(root2.querySelector("#notes-history-week"), ["", ...weeks.map((_, index) => String(index + 1))], "", "全部周次");
   const labels = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
   monthOptions(labelSelect, labels, oldLabel, "全部标签");
-  paintHistoryRows(root);
+  paintHistoryRows(root2);
 }
 async function loadHistory(month = "", chosenDate = "") {
-  const root = document.querySelector("#daily-notes"), expected = notesIdentityNow();
-  if (!root) return;
+  const root2 = document.querySelector("#daily-notes"), expected = notesIdentityNow();
+  if (!root2) return;
   const target = month || historyMonth || dailyNotesToday().slice(0, 7);
-  if (coalesceNoteMonthFlight(historyActiveLoad, { root, target, expected, sequence: historySequence, chosenDate })) return;
-  const sequence3 = ++historySequence;
-  historyActiveLoad = { root, target, expected, sequence: sequence3, chosenDate };
-  const active5 = () => notesVisible() && notesView === "history" && sequence3 === historySequence && expected === notesIdentityNow();
-  const status = root.querySelector("#notes-history-status");
+  if (coalesceNoteMonthFlight(historyActiveLoad, { root: root2, target, expected, sequence: historySequence, chosenDate })) return;
+  const sequence4 = ++historySequence;
+  historyActiveLoad = { root: root2, target, expected, sequence: sequence4, chosenDate };
+  const active5 = () => notesVisible() && notesView === "history" && sequence4 === historySequence && expected === notesIdentityNow();
+  const status = root2.querySelector("#notes-history-status");
   status.textContent = "";
   try {
     const value = await apiNetwork(
@@ -8574,13 +8705,13 @@ async function loadHistory(month = "", chosenDate = "") {
     );
     const days = checkedNoteMonth(value, target);
     if (!active5()) return;
-    applyHistoryMonth(root, target, days, historyActiveLoad.chosenDate || historyDate || dailyNotesRouteDate());
+    applyHistoryMonth(root2, target, days, historyActiveLoad.chosenDate || historyDate || dailyNotesRouteDate());
   } catch (error) {
     if (!active5()) return;
     status.textContent = "月记录读取失败，保留当前内容：" + (error.message || "请联网重试。");
-    if (historyMonth) root.querySelector("#notes-history-month").value = historyMonth;
+    if (historyMonth) root2.querySelector("#notes-history-month").value = historyMonth;
   } finally {
-    if (historyActiveLoad?.sequence === sequence3) historyActiveLoad = null;
+    if (historyActiveLoad?.sequence === sequence4) historyActiveLoad = null;
   }
 }
 async function selectDailyNotesDate(value) {
@@ -8593,8 +8724,8 @@ async function selectDailyNotesDate(value) {
   paintDailyNotesPage();
   await readMixedNotes(value);
 }
-function shiftedNotesDate(date, delta) {
-  return new Date(Date.parse(date + "T12:00:00Z") + delta * 864e5).toISOString().slice(0, 10);
+function shiftedNotesDate(date, delta2) {
+  return new Date(Date.parse(date + "T12:00:00Z") + delta2 * 864e5).toISOString().slice(0, 10);
 }
 function openEditor(key) {
   editorViews.activate(dailyNotesRouteCategory(), dailyNotesRouteDate(), key);
@@ -8629,14 +8760,14 @@ function registerNotesInputEvents() {
       if (!source?.relabelDraft(itemId, selected)) paintDailyNotesPage();
     } else if (notesVisible() && event.target.id === "notes-date") void selectDailyNotesDate(event.target.value);
     else if (notesVisible() && event.target.id === "notes-history-date") {
-      const root = event.target.closest("#daily-notes"), week = root.querySelector("#notes-history-week");
+      const root2 = event.target.closest("#daily-notes"), week = root2.querySelector("#notes-history-week");
       if (week.value && !noteMonthWeeks(historyMonth)[Number(week.value) - 1]?.includes(event.target.value)) week.value = "";
-      paintHistoryRows(root);
+      paintHistoryRows(root2);
     } else if (notesVisible() && event.target.id === "notes-history-week") {
-      const root = event.target.closest("#daily-notes"), week = Number(event.target.value);
-      const date = root.querySelector("#notes-history-date"), dates = noteMonthWeeks(historyMonth)[week - 1];
+      const root2 = event.target.closest("#daily-notes"), week = Number(event.target.value);
+      const date = root2.querySelector("#notes-history-date"), dates = noteMonthWeeks(historyMonth)[week - 1];
       if (dates && !dates.includes(date.value)) date.value = dates.find(Boolean);
-      paintHistoryRows(root);
+      paintHistoryRows(root2);
     } else if (notesVisible() && event.target.id === "notes-history-label") paintHistoryRows(event.target.closest("#daily-notes"));
     else if (notesVisible() && event.target.id === "notes-history-month" && validNoteMonth(event.target.value)) void loadHistory(event.target.value);
   });
@@ -8676,19 +8807,19 @@ async function handleEntryAction(target, entries) {
 }
 async function handleNotesClick(event) {
   if (!notesVisible() || notesRefreshPaused) return;
-  const root = document.querySelector("#daily-notes");
+  const root2 = document.querySelector("#daily-notes");
   const target = event.target.closest("[data-notes-action],[data-notes-date],[data-notes-category],[data-note-entry-action],[data-notes-view],[data-notes-month],[data-notes-history-day],[data-history-display],[data-history-order]");
-  if (!target || !root?.contains(target)) return;
+  if (!target || !root2?.contains(target)) return;
   event.preventDefault();
   if (target.dataset.historyOrder) {
-    root.dataset.historyOrder = target.dataset.historyOrder === "asc" ? "desc" : "asc";
-    if (historyMonth) paintHistoryRows(root);
+    root2.dataset.historyOrder = target.dataset.historyOrder === "asc" ? "desc" : "asc";
+    if (historyMonth) paintHistoryRows(root2);
     return;
   }
   if (target.dataset.historyDisplay) {
-    root.dataset.historyDisplay = target.dataset.historyDisplay;
-    for (const button2 of root.querySelectorAll("[data-history-display]")) button2.setAttribute("aria-pressed", String(button2 === target));
-    if (historyMonth) paintHistoryRows(root);
+    root2.dataset.historyDisplay = target.dataset.historyDisplay;
+    for (const button2 of root2.querySelectorAll("[data-history-display]")) button2.setAttribute("aria-pressed", String(button2 === target));
+    if (historyMonth) paintHistoryRows(root2);
     return;
   }
   if (target.dataset.notesMonth) {
@@ -8697,8 +8828,8 @@ async function handleNotesClick(event) {
     return;
   }
   if (target.dataset.notesHistoryDay) {
-    root.querySelector("#notes-history-date").value = target.dataset.notesHistoryDay;
-    paintHistoryRows(root);
+    root2.querySelector("#notes-history-date").value = target.dataset.notesHistoryDay;
+    paintHistoryRows(root2);
     return;
   }
   if (target.dataset.notesView) {
@@ -8740,7 +8871,7 @@ async function handleNotesClick(event) {
     setDailyNotesRouteCategory(category);
     updateRoute(true);
     ensureDailyNotesStore();
-    root.dataset.category = category;
+    root2.dataset.category = category;
     openEditor("legacy");
     return;
   }
@@ -8753,7 +8884,7 @@ async function handleNotesClick(event) {
   if (action === "new") {
     const item = entries.start(date);
     if (item) openEditor(item.id);
-  } else if (action === "create-label") await createNoteLabel(root);
+  } else if (action === "create-label") await createNoteLabel(root2);
   else if (action === "delete-label" && confirmLabelDeletion(target.dataset.labelName)) await deleteNoteLabel(target.dataset.labelName);
   else if (action === "edit-legacy") openEditor("legacy");
   else if (action === "collapse") {
@@ -8777,19 +8908,19 @@ function registerDailyNotesEvents() {
   }));
   window.addEventListener("haoduoyu:before-refresh", (event) => {
     if (typeof event.detail?.waitUntil !== "function" || notesIdentity !== notesIdentityNow()) return;
-    const resumes = [], expected = notesIdentityNow(), root = document.querySelector("#daily-notes");
-    const controls = [...root?.querySelectorAll("button,input,select") || []].map((control) => [control, control.disabled]);
-    const field2 = root?.querySelector("#notes-active-entry textarea"), readOnly = field2?.readOnly;
-    const wasInert = root?.inert;
+    const resumes = [], expected = notesIdentityNow(), root2 = document.querySelector("#daily-notes");
+    const controls = [...root2?.querySelectorAll("button,input,select") || []].map((control) => [control, control.disabled]);
+    const field2 = root2?.querySelector("#notes-active-entry textarea"), readOnly = field2?.readOnly;
+    const wasInert = root2?.inert;
     notesRefreshPaused = true;
-    if (root) root.inert = true;
+    if (root2) root2.inert = true;
     for (const [control] of controls) control.disabled = true;
     if (field2) field2.readOnly = true;
     event.detail.onFailure?.(() => {
       for (const resume of resumes) resume();
       if (expected !== notesIdentityNow()) return;
       notesRefreshPaused = false;
-      if (root) root.inert = wasInert;
+      if (root2) root2.inert = wasInert;
       for (const [control, disabled] of controls) control.disabled = disabled;
       if (field2) field2.readOnly = readOnly;
       paintDailyNotesPage();
@@ -8972,6 +9103,7 @@ async function checkFloatingNote(retry = false) {
 }
 
 // web/pages/memos.mjs
+init_dom();
 var button = (action, label3, extra = "") => '<button type="button" class="btn" data-memo-action="' + action + '" ' + extra + ">" + label3 + "</button>";
 function renderMemos() {
   return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + "</div></div>" + button("empty-trash", "清空回收站", "hidden") + '<p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4H5v16h12v-7M8 16l1-3 8-8 2 2-8 8-3 1ZM18 13v6m-3-3h6"/></svg>', 'hidden aria-label="新建笔记" title="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><div id="memo-save-notice" class="memo-save-notice" hidden><span id="memo-status" role="status" aria-live="polite" hidden></span><span id="memo-note-error" role="alert" hidden></span><div id="memo-drafts" class="memo-drafts" hidden></div>' + button("recovery", "找回本机草稿", "hidden") + '</div><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M14 4h6v6m0-6-7 7M10 20H4v-6m0 6 7-7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
@@ -9015,30 +9147,30 @@ function flatNoteRow(note, store) {
   const retention = s.trash ? '<small class="memo-retention">' + (days ? "30天恢复期 · 剩余" + days + "天" : "已超过30天") + "</small>" : "";
   return '<div class="memo-flat-row">' + listButton("note", note, s.noteId) + control + retention + "</div>";
 }
-function paintLists(root, store) {
-  const s = store.state, find = (q) => root.querySelector(q);
+function paintLists(root2, store) {
+  const s = store.state, find = (q) => root2.querySelector(q);
   find("#memo-groups-heading").textContent = s.trash ? "回收站" : "";
-  find("#memo-groups-heading").hidden = !s.trash || Boolean(root.closest(".workbench-settings"));
+  find("#memo-groups-heading").hidden = !s.trash || Boolean(root2.closest(".workbench-settings"));
   const notes = s.notes.filter((note) => {
     const group = s.groups.find((row) => row.id === note.group_id);
     return Boolean(note.deleted_at || group?.deleted_at) === s.trash;
   });
   const html = notes.map((note) => flatNoteRow(note, store)).join("") || '<p class="memo-empty">' + (s.trash ? "回收站是空的。" : "点 ＋ 开始记录。") + "</p>";
-  const list = find("#memo-group-list");
-  if (list.innerHTML !== html) list.innerHTML = html;
+  const list2 = find("#memo-group-list");
+  if (list2.innerHTML !== html) list2.innerHTML = html;
   find('[data-memo-action="new-note"]').hidden = !s.canEdit || s.trash;
-  root.querySelectorAll('.memo-flat-row button,[data-memo-action="new-note"]').forEach((button2) => {
+  root2.querySelectorAll('.memo-flat-row button,[data-memo-action="new-note"]').forEach((button2) => {
     button2.disabled = Boolean(s.operation?.pending);
   });
 }
-function paintDrafts(root, store) {
+function paintDrafts(root2, store) {
   const drafts = [...store.drafts.values()].filter((item) => ["unknown", "conflict", "offline", "error"].includes(item.phase) || item.id !== store.state.noteId && (item.dirty || item.pending));
-  const box = root.querySelector("#memo-drafts");
+  const box = root2.querySelector("#memo-drafts");
   box.hidden = store.state.trash || !store.state.canEdit || !drafts.length;
   box.innerHTML = "<span>本机保留的草稿：</span>" + drafts.map((item) => '<button type="button" class="btn text" data-memo-draft="' + e(item.id) + '">' + e(item.title || "未命名笔记") + "</button>").join("");
 }
-function paintDocument(root, store) {
-  const s = store.state, item = store.drafts.get(s.noteId), find = (q) => root.querySelector(q);
+function paintDocument(root2, store) {
+  const s = store.state, item = store.drafts.get(s.noteId), find = (q) => root2.querySelector(q);
   find("#memo-empty").hidden = Boolean(item);
   find("#memo-empty").textContent = s.trash ? "选择笔记查看" : "选择一篇笔记";
   find("#memo-document").hidden = !item;
@@ -9064,8 +9196,8 @@ function paintDocument(root, store) {
   find("#memo-note-actions").hidden = !s.canEdit;
   find('[data-memo-action="save"]').hidden = deleted2;
   find('[data-memo-action="save"]').disabled = !item.dirty || Boolean(item.pending) || item.phase === "conflict";
-  root.querySelector('#memo-note-actions [data-memo-action="delete-note"]').hidden = true;
-  const restore = root.querySelector('#memo-note-actions [data-memo-action="restore-note"]');
+  root2.querySelector('#memo-note-actions [data-memo-action="delete-note"]').hidden = true;
+  const restore = root2.querySelector('#memo-note-actions [data-memo-action="restore-note"]');
   restore.hidden = !deleted2;
   restore.disabled = Boolean(s.operation?.pending || item.pending);
   const expanded = find("#memo-fullscreen").open, zoom = find('[data-memo-action="fullscreen"]');
@@ -9080,10 +9212,10 @@ function paintDocument(root, store) {
   find("#memo-remote").textContent = item.remote ? (item.remote.deleted_at ? "（已删除）\n" : "") + item.remote.title + "\n\n" + item.remote.body : "";
   find('[data-memo-action="use-draft"]').disabled = !s.canEdit || !item.remote || Boolean(item.remote.deleted_at || group?.deleted_at);
 }
-function paintMemos(root, store) {
-  if (!root) return;
-  const s = store.state, item = store.drafts.get(s.noteId), find = (q) => root.querySelector(q);
-  root.dataset.pane = s.pane;
+function paintMemos(root2, store) {
+  if (!root2) return;
+  const s = store.state, item = store.drafts.get(s.noteId), find = (q) => root2.querySelector(q);
+  root2.dataset.pane = s.pane;
   const actual = phases[item?.phase] || "已保存", routine = ["dirty", "saving", "saved", "loading"].includes(item?.phase) || !item;
   find("#memo-status").textContent = s.loading ? "" : !s.canEdit ? "公开只读" : routine ? "自动保存" : actual;
   find("#memo-status").hidden = s.loading || s.trash || s.canEdit && routine;
@@ -9093,22 +9225,23 @@ function paintMemos(root, store) {
   find("#memo-error").textContent = [s.error, s.storageError].filter(Boolean).join(" ");
   find('[data-memo-action="login"]').hidden = s.canEdit || s.loading;
   if (!s.canEdit) find("#memo-recovery").hidden = true;
-  find('[data-memo-action="exit-trash"]').hidden = !s.trash || root.closest(".workbench-settings") !== null;
+  find('[data-memo-action="exit-trash"]').hidden = !s.trash || root2.closest(".workbench-settings") !== null;
   find('[data-memo-action="back-notes"]').hidden = s.pane !== "editor";
   const operation2 = s.operation;
   find("#memo-operation").hidden = !operation2?.error && operation2?.phase !== "unknown";
   find("#memo-operation-text").textContent = operation2?.error || (operation2?.phase === "saving" ? "正在保存操作…" : "操作结果待核对");
   find('[data-memo-action="operation-check"]').hidden = operation2?.phase !== "unknown";
   find('[data-memo-action="operation-retry"]').hidden = operation2?.phase !== "unknown" || !operation2?.retryReady;
-  paintLists(root, store);
-  paintDrafts(root, store);
-  paintDocument(root, store);
+  paintLists(root2, store);
+  paintDrafts(root2, store);
+  paintDocument(root2, store);
   const recovery = find('[data-memo-action="recovery"]');
   recovery.hidden = !s.canEdit || s.trash || find("#memo-drafts").hidden && find("#memo-note-error").hidden && !["error", "offline", "unknown", "conflict"].includes(item?.phase);
   find("#memo-save-notice").hidden = find("#memo-status").hidden && find("#memo-note-error").hidden && find("#memo-drafts").hidden && recovery.hidden;
 }
 
 // web/core/memos-local.mjs
+init_document();
 var fields4 = ["group_id", "title", "body", "position"];
 var changed2 = (a, b) => fields4.some((field2) => a[field2] !== b?.[field2]);
 function memoLocalProtocol(context) {
@@ -9154,13 +9287,13 @@ function memoLocalProtocol(context) {
   }
   function row(value) {
     if (!isLocalDocument(value)) return value;
-    const data = documentState(value), local = documentValue(value);
+    const data2 = documentState(value), local = documentValue(value);
     return {
       ...local,
-      version: data.server?.version || 0,
+      version: data2.server?.version || 0,
       localVersion: local.version,
-      localQueued: Boolean(data.operation) || Boolean(data.conflict),
-      server: data.server
+      localQueued: Boolean(data2.operation) || Boolean(data2.conflict),
+      server: data2.server
     };
   }
   function index(value) {
@@ -9170,6 +9303,7 @@ function memoLocalProtocol(context) {
 }
 
 // web/core/memos-state.mjs
+init_document();
 var MEMOS_MAX_BYTES = 65536;
 var memoBytes = (value) => new TextEncoder().encode(value).length;
 var idPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -9222,9 +9356,9 @@ function recoveredDraft(raw) {
   item.error = item.pending ? "上次保存结果待核对，草稿已保留。" : "已找回此浏览器保留的草稿。";
   return item;
 }
-function makeContext(options2) {
+function makeContext(options3) {
   const { request, ownerId = "", storage: storage2, onChange = () => {
-  }, uuid: uuid5 = () => globalThis.crypto.randomUUID(), delay = 700 } = options2;
+  }, uuid: uuid5 = () => globalThis.crypto.randomUUID(), delay = 700 } = options3;
   const state2 = {
     groups: [],
     notes: [],
@@ -9239,13 +9373,13 @@ function makeContext(options2) {
     storageError: ""
   };
   const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request, ownerId, storage: storage2, uuid: uuid5, delay, disposed: false, hydrated: false, loadSequence: 0 };
-  context.draftScope = options2.draftScope || uuid5();
-  context.restoreDraftScope = options2.restoreDraftScope;
-  context.storagePersistent = options2.storagePersistent !== false && Boolean(options2.draftScope);
-  context.online = options2.online || (() => globalThis.navigator?.onLine !== false);
-  context.durable = options2.durable === true;
-  context.readLocal = options2.readLocal;
-  context.resolveLocal = options2.resolveLocal;
+  context.draftScope = options3.draftScope || uuid5();
+  context.restoreDraftScope = options3.restoreDraftScope;
+  context.storagePersistent = options3.storagePersistent !== false && Boolean(options3.draftScope);
+  context.online = options3.online || (() => globalThis.navigator?.onLine !== false);
+  context.durable = options3.durable === true;
+  context.readLocal = options3.readLocal;
+  context.resolveLocal = options3.resolveLocal;
   context.stop = (item) => {
     clearTimeout(item.timer);
     item.timer = null;
@@ -9262,12 +9396,12 @@ function makeContext(options2) {
     return pending && (pending.kind === "notes" && pending.id === item.id || pending.kind === "groups" && pending.method === "DELETE" && pending.id === item.group_id);
   };
   context.upsert = (kind, value) => {
-    const list = state2[kind], index = list.findIndex((row2) => row2.id === value.id);
+    const list2 = state2[kind], index = list2.findIndex((row2) => row2.id === value.id);
     const row = { ...value };
     if (kind === "notes") delete row.body;
-    if (index < 0) list.push(row);
-    else list[index] = row;
-    list.sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+    if (index < 0) list2.push(row);
+    else list2[index] = row;
+    list2.sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
     if (kind === "notes") for (const group of state2.groups)
       group.active_note_count = state2.notes.filter((note) => note.group_id === group.id && !note.deleted_at && (note.version > 0 || note.localVersion > 0)).length;
   };
@@ -9389,12 +9523,12 @@ function memoReads2(context) {
       return;
     }
     const reschedule = context.durable && (item.localQueued || Boolean(item.timer));
-    const sequence3 = ++item.sequence, epoch = item.writeEpoch;
+    const sequence4 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos/notes/" + id) : context.request("/memos/notes/" + id));
-      if (context.disposed || sequence3 !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
+      if (context.disposed || sequence4 !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
       if (isLocalDocument(raw)) {
         context.local.accept(item, raw);
         return;
@@ -9419,12 +9553,12 @@ function memoReads2(context) {
         context.upsert("notes", value);
       }
     } catch (error) {
-      if (!context.disposed && sequence3 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.error = error.message;
         if (!isUncertain(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence3 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.loading = false;
         context.emit();
         if (reschedule) context.schedule(item);
@@ -9432,13 +9566,13 @@ function memoReads2(context) {
     }
   }
   async function load({ local = false } = {}) {
-    const { state: state2 } = context, sequence3 = ++context.loadSequence;
+    const { state: state2 } = context, sequence4 = ++context.loadSequence;
     state2.loading = true;
     state2.error = "";
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos") : context.request("/memos"));
-      if (context.disposed || sequence3 !== context.loadSequence) return;
+      if (context.disposed || sequence4 !== context.loadSequence) return;
       if (!Array.isArray(raw?.groups) || !Array.isArray(raw.notes) || typeof raw.can_edit !== "boolean")
         throw new Error("备忘录列表不完整，请重新读取。");
       const value = context.local.index(raw);
@@ -9459,9 +9593,9 @@ function memoReads2(context) {
       if (!state2.noteId) state2.noteId = state2.notes.find((note) => note.group_id === state2.groupId && (state2.trash || !note.deleted_at))?.id || "";
       if (state2.noteId) await selectNote(state2.noteId, { open: false, local });
     } catch (error) {
-      if (!context.disposed && sequence3 === context.loadSequence) state2.error = error.message;
+      if (!context.disposed && sequence4 === context.loadSequence) state2.error = error.message;
     } finally {
-      if (!context.disposed && sequence3 === context.loadSequence) {
+      if (!context.disposed && sequence4 === context.loadSequence) {
         state2.loading = false;
         context.emit();
       }
@@ -9824,8 +9958,8 @@ function structure(context) {
   }
   return { createGroup, renameGroup, removeGroup, removeNote, restore };
 }
-function createMemosStore(options2) {
-  const context = makeContext(options2);
+function createMemosStore(options3) {
+  const context = makeContext(options3);
   context.local = memoLocalProtocol(context);
   Object.assign(context, persistence(context), memoReads2(context), editing(context), resolution(context), operations(context), structure(context));
   const {
@@ -9893,6 +10027,7 @@ function createMemosStore(options2) {
 }
 
 // web/memos-recovery.mjs
+init_dom();
 var recoveries = [], selectedRecovery = -1;
 function resetMemoRecovery() {
   recoveries = [];
@@ -9930,10 +10065,10 @@ function label2(row, index) {
   const timestamp4 = Date.parse(row.savedAt), date = Number.isFinite(timestamp4) ? new Date(timestamp4).toLocaleString() : "保存时间未知";
   return index + 1 + ". " + (row.raw.title || "未命名笔记") + " · " + date + " · 版本 " + row.raw.version;
 }
-function openMemoRecovery(root, store, ownerId) {
-  if (!store.state.canEdit || !ownerId || !root) return;
+function openMemoRecovery(root2, store, ownerId) {
+  if (!store.state.canEdit || !ownerId || !root2) return;
   resetMemoRecovery();
-  const find = (q) => root.querySelector(q);
+  const find = (q) => root2.querySelector(q);
   try {
     recoveries = snapshots(window.localStorage, ownerId);
   } catch {
@@ -9944,23 +10079,28 @@ function openMemoRecovery(root, store, ownerId) {
   find("#memo-recovery-list").innerHTML = recoveries.map((row, index) => '<button type="button" class="memo-recovery-item" data-memo-recovery="' + index + '">' + e(label2(row, index)) + "</button>").join("");
   find("#memo-recovery-status").textContent = recoveries.length ? "仅显示此所有者在本机保留的最近 100 份草稿。选择后可复制文字；恢复前会核对服务器版本。" : "此浏览器没有找到可恢复的草稿。";
 }
-function selectMemoRecovery(root, index) {
+function selectMemoRecovery(root2, index) {
   const row = recoveries[index];
-  if (!root || !row || !Number.isSafeInteger(index)) return;
+  if (!root2 || !row || !Number.isSafeInteger(index)) return;
   selectedRecovery = index;
-  root.querySelector("#memo-recovery-detail").hidden = false;
-  root.querySelector("#memo-recovery-selected").textContent = label2(row, index);
-  root.querySelector("#memo-recovery-copy").value = row.raw.title + "\n\n" + row.raw.body;
-  root.querySelector("#memo-recovery-copy").focus();
+  root2.querySelector("#memo-recovery-detail").hidden = false;
+  root2.querySelector("#memo-recovery-selected").textContent = label2(row, index);
+  root2.querySelector("#memo-recovery-copy").value = row.raw.title + "\n\n" + row.raw.body;
+  root2.querySelector("#memo-recovery-copy").focus();
 }
-async function restoreMemoRecovery(root, store) {
+async function restoreMemoRecovery(root2, store) {
   const row = recoveries[selectedRecovery];
   if (!row || !store.state.canEdit) return;
   await store.recoverDraft(row.raw);
-  root.querySelector("#memo-recovery-status").textContent = store.state.error || "草稿已取回编辑区。请核对保存状态；存在服务器新版本时不会自动覆盖。";
+  root2.querySelector("#memo-recovery-status").textContent = store.state.error || "草稿已取回编辑区。请核对保存状态；存在服务器新版本时不会自动覆盖。";
 }
 
 // web/memos-controller.mjs
+init_api();
+init_state();
+init_runtime();
+init_conflict_draft_guards();
+init_login();
 var memoStore, memoIdentity = "", memoEvents = false, memoDialog = null, memoDraftScope, memoCreating = false, memoTool = "";
 var memoEditorFocus = null, memoDeleting = "", memoDeleteWait = null;
 var memoOfflineRefresh = false, memoOfflineLoading = false, memoOfflineFlight = null, memoPendingCount = 0, memoConflictCount = 0;
@@ -9991,8 +10131,8 @@ var currentIdentity = () => JSON.stringify([
 var settingsTrash = () => state.page === "settings" && state.settingsTab === "workspace";
 var visible2 = () => (state.page === "memos" || settingsTrash()) && memoIdentity === currentIdentity();
 function ensureStore() {
-  const identity4 = currentIdentity();
-  if (memoStore && memoIdentity === identity4) return memoStore;
+  const identity5 = currentIdentity();
+  if (memoStore && memoIdentity === identity5) return memoStore;
   memoDeleteWait?.(true);
   memoDeleteWait = null;
   memoDeleting = "";
@@ -10000,15 +10140,15 @@ function ensureStore() {
   memoRefreshPaused = false;
   memoRefreshReady = false;
   memoStore?.dispose();
-  memoIdentity = identity4;
+  memoIdentity = identity5;
   memoDialog = null;
   resetMemoRecovery();
   const active5 = () => {
-    if (currentIdentity() !== identity4) throw new DOMException("登录状态已经改变", "AbortError");
+    if (currentIdentity() !== identity5) throw new DOMException("登录状态已经改变", "AbortError");
   };
-  const request = async (path, options2) => {
+  const request = async (path, options3) => {
     active5();
-    const value = await api(path, options2);
+    const value = await api(path, options3);
     active5();
     return value;
   };
@@ -10027,7 +10167,7 @@ function ensureStore() {
     resolveLocal: (key, choice2) => getOfflineRuntime().resolve(key, choice2),
     ownerId: state.me?.publicBusiness ? "" : String(state.me?.id || ""),
     onChange: () => {
-      if (identity4 === currentIdentity()) {
+      if (identity5 === currentIdentity()) {
         memoDeleteWait?.();
         paintMemosPage();
         refreshDurableMemos();
@@ -10050,8 +10190,8 @@ function refreshDurableMemos() {
     }
   });
 }
-function paintDialog(root) {
-  const find = (query) => root.querySelector(query), dialog = memoDialog;
+function paintDialog(root2) {
+  const find = (query) => root2.querySelector(query), dialog = memoDialog;
   find("#memo-dialog").hidden = !dialog;
   if (!dialog) return;
   find("#memo-dialog-heading").textContent = dialog.heading;
@@ -10063,30 +10203,30 @@ function paintDialog(root) {
 }
 function paintMemosPage() {
   if (!visible2() || !memoStore) return;
-  const root = document.querySelector("#memos");
-  if (!root) return;
-  paintMemos(root, memoStore);
-  paintDialog(root);
-  setupMemoSplit(root);
-  const purge = root.querySelector('[data-memo-action="empty-trash"]');
+  const root2 = document.querySelector("#memos");
+  if (!root2) return;
+  paintMemos(root2, memoStore);
+  paintDialog(root2);
+  setupMemoSplit(root2);
+  const purge = root2.querySelector('[data-memo-action="empty-trash"]');
   if (purge) {
     purge.hidden = !settingsTrash() || !state.me?.id;
     purge.disabled = memoPurgeBusy || memoStore.state.loading;
     purge.textContent = memoPurgeIntent?.identity === memoIdentity ? "核对清空结果" : "清空回收站";
   }
   if (memoRefreshPaused) {
-    root.inert = true;
-    root.querySelectorAll("button,input,select").forEach((control) => {
+    root2.inert = true;
+    root2.querySelectorAll("button,input,select").forEach((control) => {
       control.disabled = true;
     });
-    root.querySelectorAll("#memo-title,#memo-body").forEach((field2) => {
+    root2.querySelectorAll("#memo-title,#memo-body").forEach((field2) => {
       field2.readOnly = true;
     });
   }
-  if (memoDeleting) root.querySelectorAll('[data-memo-action="delete-note"]').forEach((button2) => {
+  if (memoDeleting) root2.querySelectorAll('[data-memo-action="delete-note"]').forEach((button2) => {
     if (button2.dataset.memoTarget === memoDeleting) button2.disabled = true;
   });
-  if (memoCreating) root.querySelectorAll('[data-memo-action="new-group"],[data-memo-action="new-note"]').forEach((button2) => {
+  if (memoCreating) root2.querySelectorAll('[data-memo-action="new-group"],[data-memo-action="new-note"]').forEach((button2) => {
     button2.disabled = true;
   });
 }
@@ -10287,16 +10427,16 @@ async function restoreMemo(id) {
   await selectVisibleMemo(store);
 }
 function toggleMemoFullscreen(expanded) {
-  const root = document.querySelector("#memos"), dialog = root?.querySelector("#memo-fullscreen");
+  const root2 = document.querySelector("#memos"), dialog = root2?.querySelector("#memo-fullscreen");
   if (!dialog) return;
-  const editor = root.querySelector(".memo-editor"), field2 = root.contains(memoEditorFocus) ? memoEditorFocus : root.querySelector("#memo-body");
+  const editor = root2.querySelector(".memo-editor"), field2 = root2.contains(memoEditorFocus) ? memoEditorFocus : root2.querySelector("#memo-body");
   const selection = field2 ? { start: field2.selectionStart, end: field2.selectionEnd, direction: field2.selectionDirection, scroll: field2.scrollTop } : null;
   if (expanded ?? !dialog.open) {
     dialog.append(editor);
     dialog.showModal();
   } else {
     dialog.close();
-    root.querySelector(".memo-layout").append(editor);
+    root2.querySelector(".memo-layout").append(editor);
   }
   paintMemosPage();
   if (field2 && !field2.hidden && !field2.disabled) {
@@ -10353,8 +10493,8 @@ function run(action) {
 }
 function editing2(event, composing) {
   if (memoRefreshPaused || !visible2() || !["memo-title", "memo-body"].includes(event.target.id)) return;
-  const root = document.querySelector("#memos");
-  if (!root?.contains(event.target)) return;
+  const root2 = document.querySelector("#memos");
+  if (!root2?.contains(event.target)) return;
   memoStore.edit(
     event.target.id === "memo-title" ? "title" : "body",
     event.target.value,
@@ -10363,12 +10503,12 @@ function editing2(event, composing) {
 }
 function preserveMemosBeforeRefresh(event) {
   if (typeof event.detail?.waitUntil !== "function" || memoIdentity !== currentIdentity() || !memoStore?.state.canEdit) return;
-  const store = memoStore, expected = memoIdentity, resume = store.pauseAutosave(), root = document.querySelector("#memos");
-  const controls = [...root?.querySelectorAll("button,input,select") || []].map((control) => [control, control.disabled]);
-  const fields5 = [...root?.querySelectorAll("#memo-title,#memo-body") || []].map((field2) => ({ field: field2, value: field2.value, readOnly: field2.readOnly, composing: field2.dataset.composing === "true" }));
+  const store = memoStore, expected = memoIdentity, resume = store.pauseAutosave(), root2 = document.querySelector("#memos");
+  const controls = [...root2?.querySelectorAll("button,input,select") || []].map((control) => [control, control.disabled]);
+  const fields5 = [...root2?.querySelectorAll("#memo-title,#memo-body") || []].map((field2) => ({ field: field2, value: field2.value, readOnly: field2.readOnly, composing: field2.dataset.composing === "true" }));
   const focused = fields5.find((row) => row.field === document.activeElement)?.field;
   const selection = focused ? [focused.selectionStart, focused.selectionEnd, focused.selectionDirection, focused.scrollTop] : null;
-  const wasInert = root?.inert;
+  const wasInert = root2?.inert;
   memoRefreshPaused = true;
   memoRefreshReady = false;
   event.detail.onFailure?.(() => {
@@ -10376,7 +10516,7 @@ function preserveMemosBeforeRefresh(event) {
     if (store !== memoStore || expected !== currentIdentity()) return;
     memoRefreshPaused = false;
     memoRefreshReady = false;
-    if (root) root.inert = wasInert;
+    if (root2) root2.inert = wasInert;
     for (const [control, disabled] of controls) control.disabled = disabled;
     for (const { field: field2, readOnly } of fields5) field2.readOnly = readOnly;
     paintMemosPage();
@@ -10390,7 +10530,7 @@ function preserveMemosBeforeRefresh(event) {
   try {
     const composing = fields5.some((row) => row.composing);
     for (const { field: field2, value } of fields5) store.edit(field2.id === "memo-title" ? "title" : "body", value, { composing, retainPrivate: true });
-    if (root) root.inert = true;
+    if (root2) root2.inert = true;
     for (const [control] of controls) control.disabled = true;
     for (const { field: field2 } of fields5) field2.readOnly = true;
     event.detail.waitUntil(store.flushDrafts().then(() => {
@@ -10510,12 +10650,12 @@ async function loadMemos() {
 var memoSplitRoot = null, memoSplitObserver = null, memoSplitRatio, memoSplitDrag = null;
 var memoSplitStorage = "haoduoyu.memos.split-ratio.v1";
 function applyMemoSplit(width = null, persist = false) {
-  const root = memoSplitRoot, layout = root?.querySelector(".memo-layout"), handle = root?.querySelector("#memo-resizer");
-  if (!root?.isConnected || !layout || !handle) return;
+  const root2 = memoSplitRoot, layout = root2?.querySelector(".memo-layout"), handle = root2?.querySelector("#memo-resizer");
+  if (!root2?.isConnected || !layout || !handle) return;
   const mobile = window.innerWidth <= 760;
   handle.hidden = mobile;
   if (mobile) {
-    root.style.removeProperty("--memo-list-w");
+    root2.style.removeProperty("--memo-list-w");
     return;
   }
   const area = layout.clientWidth - 10, min = area < 400 ? 120 : 160;
@@ -10525,19 +10665,19 @@ function applyMemoSplit(width = null, persist = false) {
     memoSplitRatio = Number.isFinite(saved) && saved >= 0.1 && saved <= 0.8 ? saved : 0.16;
   }
   const value = Math.round(Math.max(min, Math.min(max, width ?? area * memoSplitRatio)));
-  root.style.setProperty("--memo-list-w", value + "px");
+  root2.style.setProperty("--memo-list-w", value + "px");
   for (const [name, number] of Object.entries({ min, max, now: value })) handle.setAttribute("aria-value" + name, String(number));
   handle.setAttribute("aria-valuetext", "笔记列表宽度 " + value + " 像素");
   if (width !== null) memoSplitRatio = value / area;
   if (persist) storage.set(memoSplitStorage, String(memoSplitRatio));
 }
-function setupMemoSplit(root) {
-  if (root === memoSplitRoot) return;
+function setupMemoSplit(root2) {
+  if (root2 === memoSplitRoot) return;
   memoSplitObserver?.disconnect();
-  memoSplitRoot = root;
+  memoSplitRoot = root2;
   if (typeof ResizeObserver === "function") {
     memoSplitObserver = new ResizeObserver(() => applyMemoSplit());
-    memoSplitObserver.observe(root.querySelector(".memo-layout"));
+    memoSplitObserver.observe(root2.querySelector(".memo-layout"));
   }
   applyMemoSplit();
 }
@@ -10608,13 +10748,16 @@ function registerMemoSplitEvents() {
 }
 
 // web/ui/menu.mjs
+init_dom();
+init_state();
+init_popover();
 function syncMenu() {
   const phone = isMobileLayout(), open = Boolean($(".shell")?.classList.contains("menu-open")), side = $(".sidebar");
   if (side) side.inert = phone;
-  const panel = $("#mobile-settings-menu");
-  if (panel) {
-    panel.hidden = !phone || !open;
-    panel.inert = !phone || !open;
+  const panel2 = $("#mobile-settings-menu");
+  if (panel2) {
+    panel2.hidden = !phone || !open;
+    panel2.inert = !phone || !open;
   }
   const trigger = $(".mobile-settings-trigger");
   if (trigger) {
@@ -10644,11 +10787,11 @@ function closeMobileMenuOutside(target) {
 }
 function trapMobileMenuFocus(event) {
   if (event.key !== "Tab" || !isMobileLayout() || !$(".shell")?.classList.contains("menu-open")) return false;
-  const panel = $("#mobile-settings-menu");
-  if (!panel) return false;
-  const nodes = $$("a[href],button:not(:disabled)", panel);
+  const panel2 = $("#mobile-settings-menu");
+  if (!panel2) return false;
+  const nodes = $$("a[href],button:not(:disabled)", panel2);
   if (!nodes.length) return false;
-  const first = nodes[0], last = nodes.at(-1), outside = !panel.contains(document.activeElement);
+  const first = nodes[0], last = nodes.at(-1), outside = !panel2.contains(document.activeElement);
   if (outside || event.shiftKey && document.activeElement === first || !event.shiftKey && document.activeElement === last) {
     event.preventDefault();
     (event.shiftKey ? last : first).focus();
@@ -10658,24 +10801,24 @@ function trapMobileMenuFocus(event) {
 }
 
 // web/ui/workbench.mjs
-var mediaPages = /* @__PURE__ */ new Set(["dashboard", "articles", "reviews"]);
+init_constants();
+init_dom();
+init_state();
+var mediaPages = /* @__PURE__ */ new Set(["review"]);
 function navigationLink(item, mobile = false) {
   const selected = item.id === state.page && (!item.category || item.category === dailyNotesRouteCategory());
-  const query = item.id === "settings" ? "&amp;tab=workspace" : item.category ? "&amp;notes_category=" + item.category : "";
+  const query = item.id === "settings" ? "&amp;tab=workspace" : item.id === "review" ? "&amp;account=" + encodeURIComponent(item.account || state.account || "V字") : item.category ? "&amp;notes_category=" + item.category : "";
   return `<a href="?page=${e(item.id)}${query}" data-nav="${e(item.id)}" ${item.category ? `data-notes-category="${item.category}"` : ""}
 title="${e(item.label)}"
 class="${mobile ? "mobile-nav-item" : "nav-item"}${selected ? " active" : ""}" aria-label="${e(item.label)}"
 ${selected ? 'aria-current="page"' : ""}>${icon(item.icon, 18)}<span class="nav-label">${e(item.label)}</span></a>`;
 }
 function mediaNavigation(mobile = false) {
-  const active5 = mediaPages.has(state.page), name = mobile ? "mobile-nav-item" : "nav-item";
-  return `<a href="?page=dashboard" data-nav="dashboard" class="${name} media-link${active5 ? " active" : ""}"
-aria-label="好多鱼图文" ${active5 ? 'aria-current="page"' : ""}>${icon("articles", 18)}<span class="nav-label">${mobile ? "图文" : "好多鱼图文"}</span></a>`;
+  const account = state.account || "V字";
+  return navigationLink({ id: "review", icon: "chart", label: mobile ? "复盘" : "内容复盘", account }, mobile);
 }
 function renderMediaTabs() {
-  if (!mediaPages.has(state.page)) return "";
-  return '<nav class="media-page-tabs" aria-label="图文页面">' + [["dashboard", "数据总览"], ["articles", "文章详情"]].map(([page, label3]) => `<a href="?page=${page}" data-nav="${page}" class="btn media-page-tab${state.page === page ? " active" : ""}"
-${state.page === page ? 'aria-current="page"' : ""}>${label3}</a>`).join("") + "</nav>";
+  return "";
 }
 function notesNavigation(mobile = false) {
   return navigationLink({ id: "notes", icon: "edit", label: "碎碎念" }, mobile);
@@ -10696,7 +10839,7 @@ ${navigationLink(nav.find((item) => item.id === "ai-reports"))}${settingsNavigat
 }
 function syncWorkbenchNavigation() {
   const active5 = mediaPages.has(state.page);
-  for (const link of document.querySelectorAll(".media-link")) {
+  for (const link of document.querySelectorAll("[data-nav=review]")) {
     link.classList.toggle("active", active5);
     if (active5) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
@@ -10854,21 +10997,21 @@ function keepMobileInputVisible() {
   });
 }
 function syncMobileViewport() {
-  const root = document.documentElement;
-  if (!root?.style?.setProperty) return;
+  const root2 = document.documentElement;
+  if (!root2?.style?.setProperty) return;
   if (!isMobileLayout()) {
-    for (const key of ["height", "top", "keyboard"]) root.style.removeProperty("--mobile-viewport-" + key);
-    delete root.dataset.mobileKeyboard;
+    for (const key of ["height", "top", "keyboard"]) root2.style.removeProperty("--mobile-viewport-" + key);
+    delete root2.dataset.mobileKeyboard;
     return;
   }
   const viewport = window.visualViewport, height = viewport?.height || window.innerHeight, top = viewport?.offsetTop || 0;
   if (!Number.isFinite(height) || height <= 0) return;
   const editing3 = document.activeElement?.matches?.('input,textarea,select,[contenteditable="true"]');
   const keyboard = editing3 ? Math.max(0, (window.innerHeight || height) - height - top) : 0;
-  root.style.setProperty("--mobile-viewport-height", Math.round(height) + "px");
-  root.style.setProperty("--mobile-viewport-top", Math.round(top) + "px");
-  root.style.setProperty("--mobile-viewport-keyboard", Math.round(keyboard) + "px");
-  root.dataset.mobileKeyboard = String(keyboard > 80);
+  root2.style.setProperty("--mobile-viewport-height", Math.round(height) + "px");
+  root2.style.setProperty("--mobile-viewport-top", Math.round(top) + "px");
+  root2.style.setProperty("--mobile-viewport-keyboard", Math.round(keyboard) + "px");
+  root2.dataset.mobileKeyboard = String(keyboard > 80);
   keepMobileInputVisible();
 }
 function setupMobileViewport() {
@@ -10890,31 +11033,37 @@ function renderTodoSettings() {
 }
 
 // web/pages/work-reminders.mjs
+init_dom();
+init_format();
 function renderWorkReminders() {
   return '<section id="work-reminders" aria-label="每日工作提醒"><div class="reminder-toolbar"><label for="reminder-date" class="sr-only">提醒日期</label><input id="reminder-date" class="input" type="date"><button type="button" class="btn text" data-reminder-today>今天</button></div><p id="reminder-error" role="alert" hidden></p><div id="reminder-list" aria-live="polite"></div></section>';
 }
-function paintWorkReminders(data, error = "") {
-  const root = document.querySelector("#work-reminders");
-  if (!root) return;
-  const date = data?.date || bjtDate(), field2 = root.querySelector("#reminder-date");
+function paintWorkReminders(data2, error = "") {
+  const root2 = document.querySelector("#work-reminders");
+  if (!root2) return;
+  const date = data2?.date || bjtDate(), field2 = root2.querySelector("#reminder-date");
   if (document.activeElement !== field2) field2.value = date;
-  const message = root.querySelector("#reminder-error");
+  const message = root2.querySelector("#reminder-error");
   message.hidden = !error;
   message.textContent = error;
-  const rows = data?.items || [];
-  root.querySelector("#reminder-list").innerHTML = rows.length ? rows.map((row) => '<article class="card reminder-card"><time datetime="' + e(row.updated_at) + '">' + e(new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(row.updated_at))) + "</time><p>" + e(row.summary) + "</p></article>").join("") : data?.loading ? "" : '<div class="card reminder-empty">暂无工作提醒</div>';
+  const rows = data2?.items || [];
+  root2.querySelector("#reminder-list").innerHTML = rows.length ? rows.map((row) => '<article class="card reminder-card"><time datetime="' + e(row.updated_at) + '">' + e(new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(row.updated_at))) + "</time><p>" + e(row.summary) + "</p></article>").join("") : data2?.loading ? "" : '<div class="card reminder-empty">暂无工作提醒</div>';
 }
 
 // web/work-reminders-controller.mjs
+init_api();
+init_format();
+init_state();
+init_todos_state();
 var reminderSequence = 0, reminderEvents = false;
 async function loadWorkReminders() {
   registerReminderEvents();
-  const sequence3 = ++reminderSequence, session = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
-  const current2 = () => sequence3 === reminderSequence && session === runtime.sessionEpoch && state.page === "reminders";
+  const sequence4 = ++reminderSequence, session = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
+  const current2 = () => sequence4 === reminderSequence && session === runtime.sessionEpoch && state.page === "reminders";
   paintWorkReminders({ date, items: [], loading: true });
   try {
-    const data = await api("/work-reminders?date=" + encodeURIComponent(date));
-    if (current2()) paintWorkReminders(data);
+    const data2 = await api("/work-reminders?date=" + encodeURIComponent(date));
+    if (current2()) paintWorkReminders(data2);
   } catch (error) {
     if (current2()) paintWorkReminders({ date, items: [] }, error.message || "提醒读取失败，请稍后重试");
   }
@@ -10937,6 +11086,7 @@ function registerReminderEvents() {
 }
 
 // web/pages/ai-reports.mjs
+init_dom();
 function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 汇报">
     <div>
@@ -10984,14 +11134,14 @@ function reportDay(row) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 function paintAiReports(items, error = "", loading = false, selectedDate2 = dailyNotesToday()) {
-  const root = document.querySelector("#ai-reports");
-  if (!root) return;
-  const status = root.querySelector("#ai-report-list-status");
+  const root2 = document.querySelector("#ai-reports");
+  if (!root2) return;
+  const status = root2.querySelector("#ai-report-list-status");
   status.textContent = error || (loading || items.length ? "" : "暂无汇报");
-  const dateInput = root.querySelector("#ai-report-date");
+  const dateInput = root2.querySelector("#ai-report-date");
   dateInput.value = selectedDate2;
   dateInput.max = dailyNotesToday();
-  root.querySelector("[data-ai-report-next]").disabled = selectedDate2 >= dailyNotesToday();
+  root2.querySelector("[data-ai-report-next]").disabled = selectedDate2 >= dailyNotesToday();
   const rows = [];
   for (const row of items) {
     const date = new Date(row.created_at);
@@ -11002,10 +11152,12 @@ function paintAiReports(items, error = "", loading = false, selectedDate2 = dail
     rows.push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp2)}"><p><strong>${e(row.author)}：</strong><br><br>${e(body2).replace(/\n/g, "<br>")}</p></article>`);
   }
   const group = `${Number(selectedDate2.slice(0, 4))}年${Number(selectedDate2.slice(5, 7))}月${Number(selectedDate2.slice(8, 10))}日`;
-  root.querySelector("#ai-report-list").innerHTML = rows.length ? `<h3 class="field-spaced">${e(group)}</h3>${rows.join("")}` : "";
+  root2.querySelector("#ai-report-list").innerHTML = rows.length ? `<h3 class="field-spaced">${e(group)}</h3>${rows.join("")}` : "";
 }
 
 // web/ai-reports-controller.mjs
+init_api();
+init_state();
 var sequence2 = 0, registered = false, selectedDate = "", pageSession = null;
 function aiReportsYesterday(today2 = dailyNotesToday()) {
   const date = /* @__PURE__ */ new Date(today2 + "T00:00:00Z");
@@ -11026,15 +11178,15 @@ function sortAiReports(items) {
 async function readAllAiReports(read, current2 = () => true) {
   const items = [], seen = /* @__PURE__ */ new Set();
   for (let offset = 0; ; offset += 100) {
-    const data = await read("/ai-reports?offset=" + offset);
+    const data2 = await read("/ai-reports?offset=" + offset);
     if (!current2()) return null;
-    if (!Array.isArray(data?.items) || typeof data.has_more !== "boolean" || data.items.length > 100 || data.has_more && data.items.length !== 100)
+    if (!Array.isArray(data2?.items) || typeof data2.has_more !== "boolean" || data2.items.length > 100 || data2.has_more && data2.items.length !== 100)
       throw new Error("汇报读取不完整，请稍后重试。");
-    for (const row of data.items) if (!seen.has(row.id)) {
+    for (const row of data2.items) if (!seen.has(row.id)) {
       seen.add(row.id);
       items.push(row);
     }
-    if (!data.has_more) return items;
+    if (!data2.has_more) return items;
   }
 }
 async function loadAiReports({ resetDate = false } = {}) {
@@ -11086,12 +11238,750 @@ function registerAiReportEvents() {
   });
 }
 
+// web/core/review-data.mjs
+var SNAPSHOT_NUMBERS = ["impressions", "fan_impressions", "reads", "fan_reads", "ctr", "completion_rate", "avg_read_seconds", "likes", "comments", "reposts", "shares", "favorites", "revenue"];
+var SNAPSHOT_JSON = ["traffic_sources", "completion_curve", "audience"];
+var SUM_FIELDS = ["impressions", "fan_impressions", "reads", "fan_reads", "likes", "comments", "reposts", "shares", "favorites", "revenue"];
+var AVG_FIELDS = ["ctr", "completion_rate", "avg_read_seconds"];
+function parseJson(value, fallback = null) {
+  if (value === null || value === void 0 || value === "") return fallback;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+function finiteNumber(value) {
+  if (typeof value !== "number" && typeof value !== "string" || value === "") return null;
+  if (typeof value === "string" && !value.trim()) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+function day4(value) {
+  if (typeof value !== "string") return "";
+  const date = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
+  const stamp2 = Date.parse(`${date}T00:00:00Z`);
+  return Number.isFinite(stamp2) && new Date(stamp2).toISOString().slice(0, 10) === date ? date : "";
+}
+function shiftDay(value, amount) {
+  const date = day4(value);
+  if (!date || !Number.isFinite(amount)) return "";
+  return new Date(Date.parse(`${date}T00:00:00Z`) + amount * 864e5).toISOString().slice(0, 10);
+}
+function list(value) {
+  return Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
+}
+function object3(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function rules(value) {
+  return list(parseJson(value, [])).filter((rule) => rule && typeof rule === "object" && typeof rule.rule_id === "string");
+}
+function normalizeReviewData(input = {}) {
+  return {
+    articles: list(input.articles).filter(Boolean).map((article) => ({ ...article, image_count: finiteNumber(article.image_count) })),
+    snapshots: list(input.snapshots).filter(Boolean).map((snapshot) => {
+      const normalized = { ...snapshot };
+      for (const field2 of SNAPSHOT_NUMBERS) normalized[field2] = finiteNumber(snapshot[field2]);
+      for (const field2 of SNAPSHOT_JSON) normalized[field2] = parseJson(snapshot[field2]);
+      return normalized;
+    }),
+    reports: list(input.reports).filter(Boolean).map((report) => ({
+      ...report,
+      verdicts: object3(parseJson(report.verdicts, {})),
+      findings: object3(parseJson(report.findings, {})),
+      metrics: object3(parseJson(report.metrics, {}))
+    })),
+    playbooks: list(input.playbooks).filter(Boolean).map((playbook) => ({ ...playbook, rules: rules(playbook.rules) }))
+  };
+}
+function latestSnapshots(snapshots2 = [], cutoff = "9999-12-31") {
+  const result = /* @__PURE__ */ new Map();
+  for (const snapshot of list(snapshots2)) {
+    const date = day4(snapshot.snapshot_date);
+    if (!date || date > cutoff || snapshot.article_id === null || snapshot.article_id === void 0) continue;
+    const key = String(snapshot.article_id);
+    const previous = result.get(key);
+    if (!previous || date > day4(previous.snapshot_date) || date === day4(previous.snapshot_date) && String(snapshot.id || "") > String(previous.id || "")) result.set(key, snapshot);
+  }
+  return result;
+}
+function verdictMap(reports = [], { end = "9999-12-31", periodType } = {}) {
+  const result = /* @__PURE__ */ new Map();
+  const ordered2 = list(reports).filter((report) => (!periodType || report.period_type === periodType) && day4(report.period_end) && day4(report.period_end) <= end).sort((a, b) => day4(a.period_end).localeCompare(day4(b.period_end)) || String(a.id || "").localeCompare(String(b.id || "")));
+  for (const report of ordered2) {
+    for (const [id, raw] of Object.entries(object3(parseJson(report.verdicts, {})))) {
+      const entry = typeof raw === "string" ? { verdict: raw } : object3(raw);
+      if (!["爆", "中", "扑"].includes(entry.verdict)) continue;
+      result.set(String(id), { verdict: entry.verdict, reason: typeof entry.reason === "string" ? entry.reason : "", report_id: report.id });
+    }
+  }
+  return result;
+}
+function articleRows2(data2 = {}, { start = "", end = "9999-12-31", periodType } = {}) {
+  const snapshots2 = latestSnapshots(data2.snapshots, end);
+  const verdicts = verdictMap(data2.reports, { end, periodType });
+  return list(data2.articles).filter((article) => {
+    const published = day4(article.published_at);
+    return published && (!start || published >= start) && published <= end;
+  }).map((article) => ({
+    ...article,
+    snapshot: snapshots2.get(String(article.id)) || null,
+    verdict: verdicts.get(String(article.id))?.verdict || "",
+    reason: verdicts.get(String(article.id))?.reason || ""
+  })).sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)) || String(a.id).localeCompare(String(b.id)));
+}
+function aggregate(rows = []) {
+  const result = { count: rows.length, hits: 0, flops: 0, judged_count: 0, hit_rate: null, coverage: {}, partial: {} };
+  for (const field2 of [...SUM_FIELDS, ...AVG_FIELDS]) {
+    const values = rows.map((row) => finiteNumber(row.snapshot?.[field2])).filter((value) => value !== null);
+    result.coverage[field2] = values.length;
+    result.partial[field2] = values.length > 0 && values.length < rows.length;
+    result[field2] = values.length ? values.reduce((sum, value) => sum + value, 0) / (AVG_FIELDS.includes(field2) ? values.length : 1) : null;
+  }
+  for (const row of rows) {
+    if (["爆", "中", "扑"].includes(row.verdict)) result.judged_count += 1;
+    if (row.verdict === "爆") result.hits += 1;
+    if (row.verdict === "扑") result.flops += 1;
+  }
+  if (!result.judged_count) {
+    result.hits = null;
+    result.flops = null;
+  } else result.hit_rate = result.hits / result.judged_count * 100;
+  result.coverage.verdict = result.judged_count;
+  result.partial.verdict = result.judged_count > 0 && result.judged_count < rows.length;
+  return result;
+}
+function compareMetrics(current2 = {}, previous = {}) {
+  const result = {};
+  for (const field2 of ["count", ...SUM_FIELDS, ...AVG_FIELDS, "hits", "flops", "hit_rate", "published_count", "total_reads", "average_ctr", "recent_hits"]) {
+    const now = finiteNumber(current2[field2]);
+    const before = finiteNumber(previous[field2]);
+    result[field2] = {
+      current: now,
+      previous: before,
+      delta: now !== null && before !== null ? now - before : null,
+      percent: now !== null && before !== null && before !== 0 ? (now - before) / Math.abs(before) * 100 : null
+    };
+  }
+  return result;
+}
+function periodSummary(data2, { start, end, periodType } = {}) {
+  const duration2 = day4(start) && day4(end) ? Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5) + 1 : 0;
+  const previousEnd = duration2 > 0 ? shiftDay(start, -1) : "";
+  const previousStart = duration2 > 0 ? shiftDay(start, -duration2) : "";
+  const rows = articleRows2(data2, { start, end, periodType });
+  const previousRows = duration2 > 0 ? articleRows2(data2, { start: previousStart, end: previousEnd, periodType }) : [];
+  const current2 = aggregate(rows), previous = aggregate(previousRows);
+  return { start, end, previousStart, previousEnd, rows, previousRows, current: current2, previous, changes: compareMetrics(current2, previous) };
+}
+function dailySummary(data2, date) {
+  const previousDate = shiftDay(date, -1);
+  const result = periodSummary(data2, { start: date, end: date, periodType: "daily" });
+  const recentRows = articleRows2(data2, { start: shiftDay(date, -2), end: date });
+  const previousRecentRows = articleRows2(data2, { start: shiftDay(date, -3), end: previousDate });
+  const recent = aggregate(recentRows), previousRecent = aggregate(previousRecentRows);
+  const stats2 = { published_count: result.current.count, total_reads: result.current.reads, average_ctr: result.current.ctr, recent_hits: recent.hits };
+  const previousStats = { published_count: result.previous.count, total_reads: result.previous.reads, average_ctr: result.previous.ctr, recent_hits: previousRecent.hits };
+  return { ...result, date, previousDate, recentRows, stats: stats2, previousStats, statChanges: compareMetrics(stats2, previousStats) };
+}
+function groupPerformance(rows = [], field2 = "topic_category") {
+  const groups = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const key = typeof row[field2] === "string" && row[field2].trim() ? row[field2] : "未分类";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+  return [...groups].map(([name, members]) => {
+    const summary = aggregate(members);
+    return { name, ...summary, average_reads: summary.coverage.reads ? summary.reads / summary.coverage.reads : null, rows: members };
+  }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+function dailySeries(data2 = {}, { start = "", end = "9999-12-31" } = {}) {
+  const dates = [...new Set(list(data2.snapshots).map((snapshot) => day4(snapshot.snapshot_date)).filter((date) => date && date >= start && date <= end))].sort();
+  const articles = new Map(list(data2.articles).map((article) => [String(article.id), article]));
+  return dates.map((date) => {
+    const sameDay = list(data2.snapshots).filter((snapshot) => day4(snapshot.snapshot_date) === date);
+    const snapshots2 = latestSnapshots(sameDay, date);
+    const rows = [...snapshots2.entries()].filter(([id]) => articles.has(id)).map(([id, snapshot]) => ({ ...articles.get(id), snapshot }));
+    return { date, ...aggregate(rows) };
+  });
+}
+function diffRules(previous, current2) {
+  const before = new Map(rules(previous?.rules ?? previous).map((rule) => [rule.rule_id, rule]));
+  const after = new Map(rules(current2?.rules ?? current2).map((rule) => [rule.rule_id, rule]));
+  const added = [], removed4 = [], unchanged = [], changed4 = [];
+  for (const [id, rule] of before) {
+    const next = after.get(id);
+    if (!next) removed4.push(rule);
+    else if (String(rule.text || "") !== String(next.text || "") || String(rule.section || "") !== String(next.section || "")) {
+      removed4.push(rule);
+      added.push(next);
+      changed4.push({ before: rule, after: next });
+    } else unchanged.push(next);
+  }
+  for (const [id, rule] of after) if (!before.has(id)) added.push(rule);
+  return { added, removed: removed4, unchanged, changed: changed4 };
+}
+function metricDiscrepancies(report = {}, computed = {}) {
+  const metrics3 = object3(parseJson(report.metrics, {}));
+  const aliases = { total_reads: "reads", average_ctr: "ctr", avg_ctr: "ctr", total_impressions: "impressions", average_completion_rate: "completion_rate", avg_completion_rate: "completion_rate", total_revenue: "revenue", article_count: "count", published_count: "count", hit_count: "hits", flop_count: "flops" };
+  return Object.entries(metrics3).map(([key, value]) => {
+    const field2 = aliases[key] || key;
+    const authorValue = finiteNumber(value), calculated = finiteNumber(computed[field2]);
+    const comparable = authorValue !== null && calculated !== null;
+    return {
+      key,
+      field: field2,
+      authorValue,
+      computedValue: calculated,
+      comparable,
+      mismatch: comparable ? Math.abs(authorValue - calculated) > Math.max(5e-3, Math.abs(calculated) * 1e-6) : false,
+      partial: Boolean(computed.partial?.[field2])
+    };
+  });
+}
+function periodsFor(data2 = {}, type = "daily") {
+  const periods = /* @__PURE__ */ new Map();
+  for (const report of list(data2.reports)) {
+    if (report.period_type !== type) continue;
+    const start = day4(report.period_start), end = day4(report.period_end);
+    if (!start || !end || start > end) continue;
+    periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report });
+  }
+  if (!periods.size) {
+    const dates = [...new Set([...list(data2.snapshots).map((snapshot) => day4(snapshot.snapshot_date)), ...list(data2.articles).map((article) => day4(article.published_at))].filter(Boolean))].sort().reverse();
+    const duration2 = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
+    for (const end of dates) {
+      const start = shiftDay(end, -(duration2 - 1));
+      periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report: null });
+    }
+  }
+  return [...periods.values()].sort((a, b) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start));
+}
+
+// web/pages/content-review.mjs
+init_dom();
+var REVIEW_VIEWS = [["daily", "每日复盘"], ["three_day", "每 3 天复盘"], ["weekly", "每周复盘"], ["articles", "文章库"], ["playbooks", "写作手册"]];
+var metricLabels = {
+  impressions: "展现",
+  fan_impressions: "粉丝展现",
+  reads: "阅读",
+  fan_reads: "粉丝阅读",
+  ctr: "CTR",
+  completion_rate: "完读率",
+  avg_read_seconds: "平均阅读秒数",
+  likes: "点赞",
+  comments: "评论",
+  reposts: "转发",
+  shares: "分享",
+  favorites: "收藏",
+  revenue: "收益",
+  hits: "爆款",
+  flops: "扑街",
+  count: "篇数"
+};
+var ratios = /* @__PURE__ */ new Set(["ctr", "completion_rate"]);
+function reviewNumber(value, key = "", partial = false) {
+  const n = finiteNumber(value);
+  return n === null ? "未采集" : `${partial ? ratios.has(key) ? "部分：" : "≥ " : ""}${key === "revenue" ? "¥" : ""}${n.toLocaleString("zh-CN", { maximumFractionDigits: ratios.has(key) || key === "revenue" ? 2 : 1 })}${ratios.has(key) ? "%" : ""}`;
+}
+function safeReviewUrl(value) {
+  try {
+    const url = new URL(String(value));
+    return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+function inline(text) {
+  return String(text).split(/(\[[^\]\n]+\]\([^\)\n]+\)|\*\*[^*\n]+\*\*|`[^`\n]+`)/g).map((part) => {
+    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (link) {
+      const href = safeReviewUrl(link[2]);
+      return href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(link[1])}</a>` : e(link[1]);
+    }
+    if (part.startsWith("**") && part.endsWith("**")) return `<strong>${e(part.slice(2, -2))}</strong>`;
+    if (part.startsWith("`") && part.endsWith("`")) return `<code>${e(part.slice(1, -1))}</code>`;
+    return e(part);
+  }).join("");
+}
+function renderReviewMarkdown(value) {
+  const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
+  let list2 = false, code = false, out = "";
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) {
+      if (list2) {
+        out += "</ul>";
+        list2 = false;
+      }
+      out += code ? "</code></pre>" : "<pre><code>";
+      code = !code;
+      continue;
+    }
+    if (code) {
+      out += e(line) + "\n";
+      continue;
+    }
+    const item = line.match(/^\s*[-*]\s+(.+)$/);
+    if (item) {
+      if (!list2) out += "<ul>";
+      list2 = true;
+      out += `<li>${inline(item[1])}</li>`;
+      continue;
+    }
+    if (list2) {
+      out += "</ul>";
+      list2 = false;
+    }
+    const heading = line.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) {
+      const h = Math.min(heading[1].length + 1, 5);
+      out += `<h${h}>${inline(heading[2])}</h${h}>`;
+    } else if (line.trim()) out += /^>\s?/.test(line) ? `<blockquote>${inline(line.replace(/^>\s?/, ""))}</blockquote>` : `<p>${inline(line)}</p>`;
+  }
+  return out + (list2 ? "</ul>" : "") + (code ? "</code></pre>" : "");
+}
+var empty2 = (title, text = "相应资料写入复盘接口后会显示在这里。") => `<div class="review-empty"><strong>${e(title)}</strong><p>${e(text)}</p></div>`;
+var panel = (title, body2, note = "") => `<section class="review-panel"><div class="review-panel-head"><h2>${e(title)}</h2>${note ? `<span class="review-note">${e(note)}</span>` : ""}</div>${body2}</section>`;
+var options2 = (rows, value) => rows.map(([id, label3]) => `<option value="${e(id)}"${String(id) === String(value) ? " selected" : ""}>${e(label3)}</option>`).join("");
+function external(url, label3) {
+  const safe = safeReviewUrl(url);
+  return safe ? `<a href="${e(safe)}" target="_blank" rel="noopener noreferrer">${e(label3)}</a>` : `<span class="review-note">${e(label3)}：未提供有效链接</span>`;
+}
+function delta(value, key = "") {
+  if (value && typeof value === "object") value = value.delta;
+  if (value === null || value === void 0 || !Number.isFinite(Number(value))) return '<span class="review-change">无可比数据</span>';
+  const n = Number(value);
+  return `<span class="review-change ${n > 0 ? "positive" : n < 0 ? "negative" : ""}">${n > 0 ? "↑" : n < 0 ? "↓" : "—"} ${Math.abs(n).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}${ratios.has(key) ? " 个百分点" : ""}</span>`;
+}
+function stats(items) {
+  return `<div class="review-stats">${items.map((item) => `<article class="review-stat"><span>${e(item.label)}</span><strong>${e(reviewNumber(item.value, item.key, item.partial))}</strong><div>${delta(item.change, item.key)}<span class="review-note"> ${e(item.compare || "较前一日")}</span></div></article>`).join("")}</div>`;
+}
+function tag(verdict) {
+  return `<span class="review-tag ${verdict === "爆" ? "hit" : verdict === "扑" ? "flop" : ""}">${e(verdict || "未判定")}</span>`;
+}
+function metrics2(row, full = false) {
+  const s = row.snapshot || {};
+  const keys = full ? Object.keys(metricLabels).filter((k) => !["count", "hits", "flops"].includes(k)) : ["impressions", "reads", "ctr", "completion_rate", "likes", "comments", "revenue"];
+  return `<dl class="review-metrics">${keys.map((key) => `<div><dt>${metricLabels[key]}</dt><dd>${e(reviewNumber(s[key], key))}</dd></div>`).join("")}</dl>`;
+}
+function articleCard(row, full = false) {
+  return `<article class="review-article-card"><div class="review-article-head"><span class="review-note">${e(String(row.published_at || "").slice(0, 16).replace("T", " "))} · ${e(row.platform || "平台未提供")}</span>${tag(row.verdict)}</div><h3><button type="button" class="review-title-button" data-review-article="${e(row.id)}">${e(row.title || "未命名文章")}</button></h3><div class="review-tags"><span class="review-tag">${e(row.topic_category || "类别未提供")}</span><span class="review-tag">${e(row.title_pattern || "标题类型未提供")}</span></div>${metrics2(row, full)}<p class="review-reason">${e(row.reason || "尚无复盘判定原因。")}</p><div class="review-note">${row.snapshot ? `快照 ${e(row.snapshot.snapshot_date)}` : "暂无数据快照"} · ${external(row.url, "原文")}</div></article>`;
+}
+function cards(rows, full = false) {
+  return rows.length ? `<div class="review-article-grid">${rows.map((row) => articleCard(row, full)).join("")}</div>` : empty2("本周期暂无文章", "还没有该周期发布的文章；不会从旧图文台账迁入数据。");
+}
+function reportFor(data2, type, start, end) {
+  return data2.reports.find((r) => r.period_type === type && r.period_start === start && r.period_end === end) || data2.reports.find((r) => r.period_type === type && r.period_end === end);
+}
+function findings(report, data2) {
+  const groups = [["verified", "已验证", "review-rule-add"], ["overturned", "已推翻", "review-rule-remove"]];
+  return `<div class="review-findings">${groups.map(([key, label3, css]) => `<div><h3>${label3}</h3>${Array.isArray(report.findings?.[key]) && report.findings[key].length ? `<ul>${report.findings[key].map((item) => {
+    const rule = typeof item === "string" ? item : item.rule_id;
+    const detail2 = typeof item === "object" ? item.reason || item.text || item.evidence || "" : "";
+    const exists = data2.playbooks.some((p) => p.rules.some((r) => r.rule_id === rule));
+    return `<li class="${css}">${exists ? `<button type="button" class="review-text-button" data-review-rule="${e(rule)}" data-review-version="${e(report.playbook_version || "")}">${e(rule)}</button>` : `<span>${e(rule || "未标注规则")}${rule ? "（手册中未找到）" : ""}</span>`}${detail2 ? `：${e(detail2)}` : ""}</li>`;
+  }).join("")}</ul>` : '<p class="review-note">本期未记录。</p>'}</div>`).join("")}</div>`;
+}
+function reportPanel(report, data2, computed) {
+  if (!report) return panel("复盘结论", empty2("本周期还没有复盘报告", "快照指标仍按实际采集资料显示；复盘判断由报告提供。"));
+  const mismatch = metricDiscrepancies(report, computed).filter((item) => item.mismatch);
+  const authorMetrics = report.metrics && Object.keys(report.metrics).length ? `<details class="review-author-metrics"><summary>报告附带指标${mismatch.length ? " · 与快照计算存在不一致" : ""}</summary><p class="review-note">此处为报告作者填写的额外信息，统计卡以快照计算为准。</p><dl class="review-metrics">${Object.entries(report.metrics).map(([k, v]) => `<div><dt>${e(metricLabels[k] || k)}</dt><dd>${e(typeof v === "object" ? JSON.stringify(v) : v)}</dd></div>`).join("")}</dl>${mismatch.length ? `<p class="review-warning">不一致字段：${e(mismatch.map((x) => typeof x === "string" ? x : x.field || x.key).join("、"))}</p>` : ""}</details>` : "";
+  return panel("复盘结论", `<div class="review-markdown">${report.summary_md ? renderReviewMarkdown(report.summary_md) : '<p class="review-note">报告未提供正文。</p>'}</div>${findings(report, data2)}${authorMetrics}`, report.playbook_version ? `手册 ${report.playbook_version}` : "未标注手册版本");
+}
+function daily(data2, vm2) {
+  const summary = dailySummary(data2, vm2.date), { stats: s, statChanges: c } = summary;
+  const selected = reportFor(data2, "daily", vm2.date, vm2.date);
+  const recents = summary.recentRows || [];
+  return `<p class="review-note review-method">统计日 ${e(vm2.date)} · 指标取该日及以前的最新快照；缺失值标记“未采集”，部分采集的合计以 ≥ 标识。昨日指所选日报的统计日。</p>${stats([
+    { label: "昨日发文数", value: s.published_count, change: c.published_count },
+    { label: "昨日文章总阅读", value: s.total_reads, key: "reads", change: c.total_reads, partial: summary.current.partial?.reads },
+    { label: "平均 CTR", value: s.average_ctr, key: "ctr", change: c.average_ctr, partial: summary.current.partial?.ctr },
+    { label: "近 3 天爆款", value: s.recent_hits, change: c.recent_hits }
+  ])}${panel("昨日文章", cards(summary.rows, true))}<div class="review-two-col">${panel("近 3 天 · 爆", cards(recents.filter((x) => x.verdict === "爆")))}${panel("近 3 天 · 扑", cards(recents.filter((x) => x.verdict === "扑")))}</div>${reportPanel(selected, data2, summary.current)}`;
+}
+function table2(headers, rows, caption = "") {
+  return `<div class="review-table-wrap" tabindex="0" role="region" aria-label="${e(caption || "可横向滚动的数据表")}"><table class="review-table">${caption ? `<caption>${e(caption)}</caption>` : ""}<thead><tr>${headers.map((h) => `<th scope="col">${e(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+}
+function groupTable(groups) {
+  if (!groups.length) return empty2("暂无分类表现", "有带类别与快照的文章后显示分类比较。");
+  const max = Math.max(...groups.map((g) => finiteNumber(g.average_reads ?? g.avg_reads ?? (g.reads === null ? null : g.reads / g.count)) || 0), 1);
+  return table2(["类别", "篇数", "平均阅读", "平均 CTR", "爆率", "平均阅读比较"], groups.map((g) => {
+    const m = g.metrics || g, name = g.name ?? g.label ?? g.key ?? g.value ?? "未分类";
+    const reads = finiteNumber(g.average_reads ?? g.avg_reads ?? (m.reads === null ? null : m.reads / m.count));
+    const hitRate = finiteNumber(g.hit_rate ?? g.hitRate);
+    return `<tr><th scope="row">${e(name)}</th><td>${e(reviewNumber(m.count))}</td><td>${e(reviewNumber(reads))}</td><td>${e(reviewNumber(m.ctr, "ctr"))}</td><td>${e(reviewNumber(hitRate, "ctr"))}</td><td>${reads === null ? "未采集" : `<svg class="review-bar" viewBox="0 0 160 14" role="img" aria-label="平均阅读 ${e(reads)}"><rect width="${Math.max(0, reads / max * 160).toFixed(2)}" height="14" rx="3"/></svg>`}</td></tr>`;
+  }), "分类表现");
+}
+function diffMarkup(previous, current2) {
+  if (!current2) return empty2("暂无手册版本");
+  const diff = diffRules(previous, current2);
+  const added = diff.added || [], removed4 = diff.removed || [];
+  return `<div class="review-diff"><p class="review-note">${previous ? `${e(previous.version)} → ${e(current2.version)}` : "首个版本，尚无前一版。"}</p>${!added.length && !removed4.length ? '<p class="review-note">没有规则变动。</p>' : ""}${removed4.map((r) => `<p class="review-rule-remove">− ${e(r.rule_id)} · ${e(r.text)}</p>`).join("")}${added.map((r) => `<p class="review-rule-add">+ ${e(r.rule_id)} · ${e(r.text)}</p>`).join("")}</div>`;
+}
+function versionMeta(playbook) {
+  return playbook ? `<div class="review-version-meta"><strong>${e(playbook.version)}</strong><span>发布 ${e(playbook.published_on || "未提供")}</span><span>Gemini：${e(playbook.sent_to_gemini_at ? `已发送 ${playbook.sent_to_gemini_at}` : "未记录发送")}</span></div>` : empty2("此周期未关联手册", "报告提供 playbook_version 后显示对应版本。");
+}
+function threeDay(data2, vm2) {
+  const s = periodSummary(data2, { start: vm2.start, end: vm2.end, periodType: "three_day" }), report = reportFor(data2, "three_day", vm2.start, vm2.end);
+  const book = data2.playbooks.find((p) => p.version === report?.playbook_version), index = data2.playbooks.indexOf(book), previous = index >= 0 ? data2.playbooks[index + 1] : null;
+  const titles = groupPerformance(s.rows, "title_pattern");
+  return `${stats([
+    { label: "本期篇数", value: s.current.count, change: s.changes.count, compare: "较前 3 天" },
+    { label: "总阅读", value: s.current.reads, key: "reads", change: s.changes.reads, compare: "较前 3 天", partial: s.current.partial?.reads },
+    { label: "平均 CTR", value: s.current.ctr, key: "ctr", change: s.changes.ctr, compare: "较前 3 天", partial: s.current.partial?.ctr },
+    { label: "爆款", value: s.current.hits, change: s.changes.hits, compare: "较前 3 天" }
+  ])}${panel("本期手册", versionMeta(book) + (book ? diffMarkup(previous, book) : ""))}${panel("分类表现", groupTable(groupPerformance(s.rows, "topic_category")))}${panel("标题类型与 CTR", titles.length ? table2(["标题类型", "篇数", "平均 CTR"], titles.map((g) => {
+    const m = g.metrics || g;
+    return `<tr><th scope="row">${e(g.name ?? g.label ?? g.key ?? g.value ?? "未标注")}</th><td>${e(reviewNumber(m.count))}</td><td>${e(reviewNumber(m.ctr, "ctr"))}</td></tr>`;
+  })) : empty2("暂无标题类型数据"))}${reportPanel(report, data2, s.current)}`;
+}
+function lineChart(points, books = [], key = "reads", label3 = "阅读") {
+  const available = points.filter((p) => finiteNumber(p[key]) !== null);
+  if (!available.length) return empty2(`暂无${label3}曲线`, "此周期没有可绘制的真实快照。");
+  const values = available.map((p) => Number(p[key])), max = Math.max(...values, 1), width = 680, height = 180;
+  const dated = points.every((p) => day4(String(p.date || p.day)));
+  const first = dated ? Date.parse(points[0].date || points[0].day) : 0, last = dated ? Date.parse(points.at(-1).date || points.at(-1).day) : 0;
+  const dateX = (date) => 48 + (first === last ? width / 2 : (Date.parse(date) - first) / (last - first) * width);
+  const x = (i) => dated ? dateX(points[i].date || points[i].day) : 48 + (points.length <= 1 ? width / 2 : i / (points.length - 1) * width);
+  const y = (n) => 24 + height - Math.max(0, n) / max * height;
+  let segments = "", segment = [];
+  const flush = () => {
+    if (segment.length) segments += `<polyline class="${key === "ctr" ? "review-line-ctr" : "review-line-reads"}" points="${segment.join(" ")}"/>`;
+    segment = [];
+  };
+  const dots = points.map((p, i) => {
+    const n = finiteNumber(p[key]);
+    if (n === null) {
+      flush();
+      return "";
+    }
+    if (dated && i && Date.parse(p.date || p.day) - Date.parse(points[i - 1].date || points[i - 1].day) > 864e5) flush();
+    segment.push(`${x(i).toFixed(2)},${y(n).toFixed(2)}`);
+    return `<circle class="review-point" cx="${x(i).toFixed(2)}" cy="${y(n).toFixed(2)}" r="4" tabindex="0"><title>${e(p.date || p.day)} · ${label3} ${e(reviewNumber(n, key))}</title></circle>`;
+  });
+  flush();
+  const upgrades = books.map((book) => {
+    const d = day4(String(book.published_on || "")), stamp2 = Date.parse(d);
+    if (!dated || !d || stamp2 < first || stamp2 > last) return "";
+    const px = dateX(d).toFixed(2);
+    return `<g class="review-upgrade"><line x1="${px}" x2="${px}" y1="18" y2="208"/><text x="${px}" y="12" text-anchor="middle">${e(book.version)}</text><title>手册升级 ${e(book.version)} · ${e(d)}</title></g>`;
+  }).join("");
+  return `<div class="review-chart"><svg viewBox="0 0 760 245" role="img" aria-label="${e(label3)}逐日趋势，虚线为手册升级"><line class="review-axis" x1="48" x2="728" y1="204" y2="204"/><text x="4" y="29">${e(reviewNumber(max, key))}</text><text x="18" y="207">0</text>${upgrades}${segments}${dots.join("")}${points.map((p, i) => `<text x="${x(i).toFixed(2)}" y="232" text-anchor="middle">${e(dated ? String(p.date || p.day).slice(5) : String(p.date || p.day))}</text>`).join("")}</svg></div>`;
+}
+function scatter(rows) {
+  const points = rows.filter((r) => finiteNumber(r.snapshot?.ctr) !== null && finiteNumber(r.snapshot?.completion_rate) !== null);
+  if (!points.length) return empty2("暂无 CTR / 完读率散点", "需要同一篇文章的 CTR 与完读率同时存在。");
+  const maxX = Math.max(...points.map((r) => Number(r.snapshot.ctr)), 1), maxY = Math.max(...points.map((r) => Number(r.snapshot.completion_rate)), 1);
+  return `<div class="review-chart"><svg viewBox="0 0 760 270" role="img" aria-label="文章 CTR 与完读率散点图"><line class="review-axis" x1="56" x2="728" y1="220" y2="220"/><line class="review-axis" x1="56" x2="56" y1="26" y2="220"/><text x="9" y="16">完读率</text><text x="674" y="255">CTR →</text><text x="8" y="34">${e(reviewNumber(maxY, "completion_rate"))}</text><text x="663" y="235">${e(reviewNumber(maxX, "ctr"))}</text>${points.map((r) => `<circle class="review-scatter ${r.verdict === "爆" ? "hit" : r.verdict === "扑" ? "flop" : ""}" cx="${(56 + Number(r.snapshot.ctr) / maxX * 650).toFixed(2)}" cy="${(220 - Number(r.snapshot.completion_rate) / maxY * 180).toFixed(2)}" r="6" tabindex="0"><title>${e(r.title)} · CTR ${e(reviewNumber(r.snapshot.ctr, "ctr"))} · 完读率 ${e(reviewNumber(r.snapshot.completion_rate, "completion_rate"))}</title></circle>`).join("")}</svg></div>`;
+}
+function weekly(data2, vm2) {
+  const s = periodSummary(data2, { start: vm2.start, end: vm2.end, periodType: "weekly" }), report = reportFor(data2, "weekly", vm2.start, vm2.end);
+  const series = dailySeries(data2, { start: vm2.start, end: vm2.end }), ranked = s.rows.filter((r) => finiteNumber(r.snapshot?.reads) !== null).sort((a, b) => b.snapshot.reads - a.snapshot.reads);
+  return `${stats(["impressions", "reads", "ctr", "completion_rate", "hits", "flops", "revenue"].map((key) => ({ label: metricLabels[key], value: s.current[key], key, change: s.changes[key], compare: "较上周", partial: s.current.partial?.[key] })))}${panel("逐日阅读", lineChart(series, data2.playbooks, "reads", "阅读"), "虚线：手册升级；断点：该日无快照")}${panel("逐日 CTR", lineChart(series, data2.playbooks, "ctr", "CTR"))}${panel("CTR × 完读率", scatter(s.rows), "悬停或聚焦圆点查看文章题目")}<div class="review-two-col">${panel("阅读 Top 5", cards(ranked.slice(0, 5)))}${panel("阅读 Bottom 5", cards([...ranked].reverse().slice(0, 5)))}</div>${reportPanel(report, data2, s.current)}`;
+}
+function library(data2, vm2) {
+  const all = articleRows2(data2, {}), f = vm2.filters || {}, fields5 = [["category", "topic_category", "类别"], ["pattern", "title_pattern", "标题类型"]];
+  let rows = all.filter((r) => (!f.from || String(r.published_at || "").slice(0, 10) >= f.from) && (!f.to || String(r.published_at || "").slice(0, 10) <= f.to) && (!f.verdict || r.verdict === f.verdict) && (!f.category || r.topic_category === f.category) && (!f.pattern || r.title_pattern === f.pattern));
+  const sortKey = ["reads", "ctr", "completion_rate", "revenue"].includes(f.sort) ? f.sort : "reads";
+  rows.sort((a, b) => {
+    const x = finiteNumber(a.snapshot?.[sortKey]), y = finiteNumber(b.snapshot?.[sortKey]);
+    return x === null ? y === null ? String(b.published_at).localeCompare(String(a.published_at)) : 1 : y === null ? -1 : y - x;
+  });
+  const filters = `<div class="review-filters"><label>发布日期从<input class="input" type="date" data-review-filter="from" value="${e(f.from || "")}"></label><label>至<input class="input" type="date" data-review-filter="to" value="${e(f.to || "")}"></label><label>判定<select class="input" data-review-filter="verdict">${options2([["", "全部"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]], f.verdict)}</select></label>${fields5.map(([id, field2, label3]) => `<label>${label3}<select class="input" data-review-filter="${id}">${options2([["", "全部"], ...Array.from(new Set(all.map((r) => r[field2]).filter(Boolean))).sort().map((x) => [x, x])], f[id])}</select></label>`).join("")}<label>排序<select class="input" data-review-filter="sort">${options2([["reads", "阅读 · 从高到低"], ["ctr", "CTR · 从高到低"], ["completion_rate", "完读率 · 从高到低"], ["revenue", "收益 · 从高到低"]], sortKey)}</select></label><button class="btn text" type="button" data-review-action="reset-filters">重置筛选</button></div>`;
+  return `${filters}<p class="review-note">共 ${rows.length} 篇 · 指标取每篇文章最新快照 · 未采集值排在末尾</p>${rows.length ? table2(["文章", "发布日期", "判定", "类别", "标题类型", "阅读", "CTR", "完读率", "收益"], rows.map((r) => `<tr><th scope="row"><button type="button" class="review-title-button" data-review-article="${e(r.id)}">${e(r.title || "未命名文章")}</button></th><td>${e(String(r.published_at || "").slice(0, 10))}</td><td>${tag(r.verdict)}</td><td>${e(r.topic_category || "未提供")}</td><td>${e(r.title_pattern || "未提供")}</td>${["reads", "ctr", "completion_rate", "revenue"].map((k) => `<td>${e(reviewNumber(r.snapshot?.[k], k))}</td>`).join("")}</tr>`), "文章库，向右滚动查看全部指标") : empty2(data2.articles.length ? "没有符合筛选条件的文章" : "文章库为空", data2.articles.length ? "调整日期、类别或判定筛选后重试。" : "尚无内容复盘文章；不会显示演示数据或旧台账记录。")}`;
+}
+function objectPairs(value) {
+  if (Array.isArray(value)) return value.map((item, i) => typeof item === "object" && item ? [item.name ?? item.label ?? item.source ?? item.position ?? String(i + 1), finiteNumber(item.percent ?? item.value ?? item.count ?? item.rate)] : [String(i + 1), finiteNumber(item)]).filter(([, n]) => n !== null);
+  if (value && typeof value === "object") return Object.entries(value).map(([k, v]) => [k, finiteNumber(v)]).filter(([, n]) => n !== null);
+  return [];
+}
+function breakdown(value, label3) {
+  const pairs = objectPairs(value);
+  if (!pairs.length) return empty2(`暂无${label3}数据`);
+  const total = pairs.reduce((s, [, n]) => s + n, 0), max = Math.max(...pairs.map(([, n]) => n), 1);
+  return table2([label3, "原始数值", "占比 / 比较"], pairs.map(([key, n]) => `<tr><th scope="row">${e(key)}</th><td>${e(reviewNumber(n))}</td><td><svg class="review-bar" viewBox="0 0 160 14" role="img" aria-label="${e(key)} ${e(n)}"><rect width="${Math.max(0, n / max * 160).toFixed(2)}" height="14" rx="3"/></svg>${total > 0 ? ` ${e((n / total * 100).toFixed(1))}%` : ""}</td></tr>`));
+}
+function audience(value) {
+  if (!value || typeof value !== "object" || !Object.keys(value).length) return empty2("暂无读者画像");
+  return Object.entries(value).map(([name, v]) => `<div><h3>${e(name)}</h3>${v && typeof v === "object" ? breakdown(v, name) : `<p>${e(v)}</p>`}</div>`).join("");
+}
+function detail(data2, vm2) {
+  const row = articleRows2(data2, {}).find((r) => r.id === vm2.article);
+  if (!row) return `<button class="btn review-back" data-review-action="close-article" type="button">← 返回</button>${empty2("未找到这篇文章", "该链接中的文章可能已被移除，或不属于当前账号。")}`;
+  const snapshots2 = data2.snapshots.filter((s) => s.article_id === row.id).sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date)), latest = snapshots2.at(-1), curve = objectPairs(latest?.completion_curve);
+  const growth = table2(["快照日", "展现", "阅读", "阅读增长", "CTR", "完读率", "收益"], snapshots2.map((s, i) => {
+    const n = finiteNumber(s.reads), prev = finiteNumber(snapshots2[i - 1]?.reads);
+    return `<tr><th scope="row">${e(s.snapshot_date)}</th><td>${e(reviewNumber(s.impressions))}</td><td>${e(reviewNumber(s.reads))}</td><td>${i && n !== null && prev !== null ? e((n - prev).toLocaleString("zh-CN")) : "无可比快照"}</td><td>${e(reviewNumber(s.ctr, "ctr"))}</td><td>${e(reviewNumber(s.completion_rate, "completion_rate"))}</td><td>${e(reviewNumber(s.revenue, "revenue"))}</td></tr>`;
+  }), "逐日快照与累计阅读增长");
+  return `<button class="btn review-back" data-review-action="close-article" type="button">← 返回${vm2.view === "articles" ? "文章库" : "复盘"}</button>${panel("文章详情", articleCard(row, true) + `<div class="review-detail-meta"><p>样本：${e(row.sample_title || "未提供")} · ${external(row.sample_url, "样本链接")}</p><p>配图数：${e(reviewNumber(row.image_count))} · ${safeReviewUrl(row.source_chat) ? external(row.source_chat, "Gemini 对话") : `Gemini 对话：${e(row.source_chat || "未提供")}`}</p><p class="review-note">平台文章 ID：${e(row.platform_article_id || "未提供")}</p></div>`)}${panel("逐日快照增长", snapshots2.length ? growth : empty2("暂无快照"))}${panel("流量来源", breakdown(latest?.traffic_sources, "来源"))}${panel("完读曲线", curve.length ? lineChart(curve.map(([name, n]) => ({ date: String(name), completion_rate: n })), [], "completion_rate", "完读率") : empty2("暂无完读曲线"))}${panel("读者画像", audience(latest?.audience))}`;
+}
+function playbooks(data2, vm2) {
+  if (!data2.playbooks.length) return empty2("写作手册为空", "新账号还没有发布的手册版本。");
+  const book = data2.playbooks.find((p) => p.version === vm2.version) || data2.playbooks[0], index = data2.playbooks.indexOf(book), previous = data2.playbooks.find((p) => p.version === vm2.compare) || data2.playbooks[index + 1];
+  const controls = `<div class="review-filters"><label>阅读版本<select class="input" data-review-select="version">${options2(data2.playbooks.map((p) => [p.version, `${p.version} · ${p.published_on || "日期未提供"}`]), book.version)}</select></label><label>比较版本<select class="input" data-review-select="compare">${options2([["", "选择比较版本"], ...data2.playbooks.filter((p) => p !== book).map((p) => [p.version, `${p.version} · ${p.published_on || "日期未提供"}`])], previous?.version || "")}</select></label></div>`;
+  const full = `<div class="review-markdown">${renderReviewMarkdown(book.content_md || "") || '<p class="review-note">本版本未提供手册正文。</p>'}</div>${book.rules.length ? `<div class="review-rule-list">${book.rules.map((r) => `<article id="review-rule-${e(encodeURIComponent(r.rule_id))}" class="review-rule" tabindex="-1"><span class="review-note">${e(r.section || "")} · ${e(r.rule_id)}</span><p>${e(r.text)}</p></article>`).join("")}</div>` : '<p class="review-note">本版本未提供可引用规则。</p>'}`;
+  return `${controls}${panel("版本信息", versionMeta(book))}${panel("规则版本比较", diffMarkup(previous, book))}${panel("写作手册全文", full)}${book.changelog_md ? panel("版本变更说明", `<div class="review-markdown">${renderReviewMarkdown(book.changelog_md)}</div>`) : ""}<details class="review-panel"><summary>全部版本 · 最新在前</summary><ol class="review-version-list">${data2.playbooks.map((p) => `<li><button type="button" class="review-text-button" data-review-version="${e(p.version)}">${e(p.version)}</button> · ${e(p.published_on || "日期未提供")} · ${e(p.sent_to_gemini_at ? "已发送 Gemini" : "未记录 Gemini 发送")}</li>`).join("")}</ol></details>`;
+}
+function renderContentReview() {
+  return '<section id="content-review" class="content-review" aria-label="内容复盘"><p class="review-status" role="status" aria-live="polite">正在读取内容复盘…</p></section>';
+}
+function renderContentReviewContent(data2, vm2) {
+  const tabs = `<div class="review-tabs" role="group" aria-label="复盘视图">${REVIEW_VIEWS.map(([id, label3]) => `<button type="button" data-review-view="${id}" aria-pressed="${vm2.view === id}">${label3}</button>`).join("")}</div>`;
+  let controls = "";
+  if (vm2.view === "daily") controls = `<label>统计日期<input class="input" type="date" data-review-select="date" value="${e(vm2.date)}"></label><button class="btn text" data-review-action="latest" type="button">最新日期</button>`;
+  else if (["three_day", "weekly"].includes(vm2.view)) controls = `<label>选择周期<select class="input" data-review-select="period">${options2(vm2.periods.map((p) => [`${p.start}|${p.end}`, p.label || `${p.start} 至 ${p.end}`]), `${vm2.start}|${vm2.end}`)}</select></label>`;
+  const header = `<div class="review-toolbar"><div class="review-account"><strong>${e(vm2.account)}</strong><span class="review-note">内容复盘 · 阅读工作台</span></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>${tabs}<div class="review-period">${controls}</div>`;
+  if (vm2.loading) return header + '<p class="review-status" role="status" aria-live="polite">正在读取内容复盘…</p>';
+  if (vm2.error) return header + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm2.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
+  const isEmpty = !data2.articles.length && !data2.snapshots.length && !data2.reports.length && !data2.playbooks.length;
+  const body2 = isEmpty ? empty2("尚无内容复盘数据", "当前账号尚未录入文章、快照、复盘报告或手册。接入真实资料后即可阅读，不会自动迁入旧图文台账。") : vm2.article ? detail(data2, vm2) : vm2.view === "articles" ? library(data2, vm2) : vm2.view === "playbooks" ? playbooks(data2, vm2) : vm2.view === "three_day" ? threeDay(data2, vm2) : vm2.view === "weekly" ? weekly(data2, vm2) : daily(data2, vm2);
+  return `${header}<div class="review-body">${body2}</div><p class="review-note review-data-note">所有统计来自当前账号的文章快照；判定与文字结论来自复盘报告。百分比按采集值显示，平均值按已采集文章等权计算。</p>`;
+}
+
+// web/review-controller.mjs
+var resources = ["articles", "snapshots", "reports", "playbooks"];
+var data = normalizeReviewData(), sequence3 = 0, registered2 = false, identity4 = "", pageContext2;
+var vm = { account: "V字", view: "daily", date: "", start: "", end: "", periods: [], filters: {}, article: "", version: "", compare: "", loading: true, error: "" };
+var root = () => typeof document === "undefined" ? null : document.querySelector("#content-review");
+function staleRead(message = "复盘资料在读取时发生变化，请重新读取。") {
+  return Object.assign(new Error(message), { code: "REVIEW_READ_CHANGED" });
+}
+async function readReviewCollection(read, resource, selectedAccount, current2 = () => true) {
+  if (!resources.includes(resource)) throw new Error("未知的复盘资料类型。");
+  const items = [], seen = /* @__PURE__ */ new Set();
+  let revision2;
+  for (let offset = 0; ; offset += 100) {
+    const page = await read(`/review/${resource}?account=${encodeURIComponent(selectedAccount)}&offset=${offset}${revision2 === void 0 ? "" : `&read_revision=${encodeURIComponent(revision2)}`}`);
+    if (!current2()) return null;
+    if (!Array.isArray(page?.items) || typeof page.has_more !== "boolean" || page.items.length > 100 || page.has_more && page.items.length !== 100) throw new Error("复盘分页资料不完整，请重新读取。");
+    if (page.read_revision !== void 0) {
+      if (revision2 !== void 0 && revision2 !== page.read_revision) throw staleRead();
+      revision2 = page.read_revision;
+    }
+    for (const row of page.items) {
+      if (!row || typeof row !== "object" || row.id === null || row.id === void 0 || seen.has(String(row.id))) throw staleRead("复盘资料存在重复或无效记录，请重新读取。");
+      if (resource !== "snapshots" && row.account !== selectedAccount) throw new Error("复盘资料与当前账号不一致。");
+      seen.add(String(row.id));
+      items.push(row);
+    }
+    if (!page.has_more) return { items, read_revision: revision2 };
+  }
+}
+async function readContentReviewData(read, selectedAccount, current2 = () => true) {
+  const results = await Promise.all(resources.map((name) => readReviewCollection(read, name, selectedAccount, current2)));
+  if (!current2() || results.some((result2) => result2 === null)) return null;
+  const revisions = results.map((result2) => result2.read_revision).filter((value) => value !== void 0);
+  if (revisions.length && revisions.some((value) => value !== revisions[0])) throw staleRead();
+  const result = normalizeReviewData(Object.fromEntries(resources.map((key, index) => [key, results[index].items])));
+  const articles = new Set(result.articles.map((row) => String(row.id)));
+  if (result.snapshots.some((row) => !articles.has(String(row.article_id)))) throw staleRead("快照对应的文章不完整，请重新读取。");
+  result.playbooks.sort((a, b) => String(b.published_on || "").localeCompare(String(a.published_on || "")) || String(b.version).localeCompare(String(a.version), void 0, { numeric: true }));
+  result.reports.sort((a, b) => String(b.period_end).localeCompare(String(a.period_end)) || String(b.id).localeCompare(String(a.id)));
+  return result;
+}
+function yesterday() {
+  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(/* @__PURE__ */ new Date());
+  return shiftDay(date, -1);
+}
+function route() {
+  const url = new URL(location.href), p = url.searchParams;
+  const view = REVIEW_VIEWS.some(([id]) => id === p.get("review_view")) ? p.get("review_view") : "daily";
+  return {
+    account: p.get("account")?.trim() || "V字",
+    view,
+    date: day4(p.get("review_date") || ""),
+    period: p.get("review_period") || "",
+    article: p.get("review_article") || "",
+    version: p.get("review_version") || "",
+    compare: p.get("review_compare") || ""
+  };
+}
+function writeRoute(values) {
+  const url = new URL(location.href);
+  for (const [key, value] of Object.entries(values)) {
+    if (value) url.searchParams.set(`review_${key}`, value);
+    else url.searchParams.delete(`review_${key}`);
+  }
+  history.replaceState({}, "", url);
+}
+function selectPeriod(selected = "") {
+  const type = ["three_day", "weekly"].includes(vm.view) ? vm.view : "daily";
+  vm.periods = periodsFor(data, type);
+  const period = vm.periods.find((p) => `${p.start}|${p.end}` === selected) || vm.periods[0];
+  const end = period?.end || vm.date || yesterday();
+  vm.start = period?.start || shiftDay(end, type === "weekly" ? -6 : type === "three_day" ? -2 : 0);
+  vm.end = end;
+}
+function syncViewFromRoute() {
+  const r = route();
+  const latestDaily = periodsFor(data, "daily")[0]?.end || yesterday();
+  vm = { ...vm, ...r, date: r.date || latestDaily, periods: [], loading: false, error: "" };
+  selectPeriod(r.period);
+}
+function paintContentReviewPage() {
+  const node2 = root();
+  if (!node2) return;
+  node2.innerHTML = renderContentReviewContent(data, vm);
+}
+async function loadContentReview(context) {
+  registerEvents2();
+  pageContext2 = context;
+  const [{ apiNetwork: apiNetwork2 }, { state: state2, runtime: runtime2 }] = await Promise.all([Promise.resolve().then(() => (init_api(), api_exports)), Promise.resolve().then(() => (init_state(), state_exports))]);
+  const requested = route(), currentIdentity2 = `${runtime2.sessionEpoch}:${state2.me?.id || ""}:${requested.account}`;
+  if (identity4 !== currentIdentity2) {
+    data = normalizeReviewData();
+    vm.filters = {};
+    identity4 = currentIdentity2;
+  }
+  vm = { ...vm, ...requested, loading: true, error: "" };
+  selectPeriod(requested.period);
+  paintContentReviewPage();
+  const ticket = ++sequence3, epoch = runtime2.sessionEpoch;
+  const current2 = () => ticket === sequence3 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root());
+  const read = (path) => apiNetwork2(path, context ? { context } : {});
+  try {
+    let result;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        result = await readContentReviewData(read, requested.account, current2);
+        break;
+      } catch (error) {
+        if (error.code !== "REVIEW_READ_CHANGED" || attempt) throw error;
+      }
+    }
+    if (!current2() || !result) return;
+    data = result;
+    syncViewFromRoute();
+    paintContentReviewPage();
+  } catch (error) {
+    if (!current2() || error.name === "AbortError") return;
+    vm.loading = false;
+    vm.error = error.message || "读取失败，请稍后重试。";
+    paintContentReviewPage();
+  }
+}
+function focusRule(id) {
+  const node2 = document.getElementById(`review-rule-${encodeURIComponent(id)}`);
+  if (node2) {
+    node2.scrollIntoView({ block: "center", behavior: "auto" });
+    node2.focus({ preventScroll: true });
+  }
+}
+function registerEvents2() {
+  if (registered2 || typeof document === "undefined") return;
+  registered2 = true;
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest?.("button");
+    if (!target || !root()?.contains(target)) return;
+    if (target.dataset.reviewAction === "refresh") {
+      void loadContentReview(pageContext2);
+      return;
+    }
+    if (vm.loading || vm.error) return;
+    if (target.dataset.reviewView) {
+      vm.view = target.dataset.reviewView;
+      vm.article = "";
+      selectPeriod();
+      writeRoute({ view: vm.view, article: "", period: "" });
+      paintContentReviewPage();
+      return;
+    }
+    if (target.dataset.reviewArticle) {
+      vm.article = target.dataset.reviewArticle;
+      writeRoute({ article: vm.article });
+      paintContentReviewPage();
+      root()?.querySelector(".review-back")?.focus();
+      return;
+    }
+    if (target.dataset.reviewRule) {
+      const id = target.dataset.reviewRule, preferred = target.dataset.reviewVersion;
+      const book = data.playbooks.find((p) => p.version === preferred && p.rules.some((r) => r.rule_id === id)) || data.playbooks.find((p) => p.rules.some((r) => r.rule_id === id));
+      if (!book) return;
+      vm.view = "playbooks";
+      vm.version = book.version;
+      vm.article = "";
+      vm.compare = "";
+      writeRoute({ view: vm.view, version: vm.version, article: "", compare: "" });
+      paintContentReviewPage();
+      focusRule(id);
+      return;
+    }
+    if (target.dataset.reviewVersion) {
+      vm.version = target.dataset.reviewVersion;
+      vm.compare = "";
+      writeRoute({ version: vm.version, compare: "" });
+      paintContentReviewPage();
+      return;
+    }
+    if (target.dataset.reviewAction === "close-article") {
+      vm.article = "";
+      writeRoute({ article: "" });
+      paintContentReviewPage();
+      return;
+    }
+    if (target.dataset.reviewAction === "reset-filters") {
+      vm.filters = {};
+      paintContentReviewPage();
+      return;
+    }
+    if (target.dataset.reviewAction === "latest") {
+      vm.date = periodsFor(data, "daily")[0]?.end || yesterday();
+      writeRoute({ date: "" });
+      paintContentReviewPage();
+    }
+  });
+  document.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!root()?.contains(target) || vm.loading || vm.error) return;
+    if (target.dataset.reviewFilter) {
+      vm.filters[target.dataset.reviewFilter] = target.value;
+      paintContentReviewPage();
+      return;
+    }
+    const key = target.dataset.reviewSelect;
+    if (key === "date") {
+      if (!day4(target.value)) {
+        target.value = vm.date;
+        return;
+      }
+      vm.date = target.value;
+      writeRoute({ date: vm.date });
+    } else if (key === "period") {
+      selectPeriod(target.value);
+      writeRoute({ period: `${vm.start}|${vm.end}` });
+    } else if (key === "version") {
+      vm.version = target.value;
+      vm.compare = "";
+      writeRoute({ version: vm.version, compare: "" });
+    } else if (key === "compare") {
+      vm.compare = target.value;
+      writeRoute({ compare: vm.compare });
+    } else return;
+    paintContentReviewPage();
+  });
+}
+
 // web/controller.mjs
+init_requests();
+init_api();
+init_constants();
+init_dom();
+init_format();
+init_session_index_state();
+init_state();
+init_login();
+init_entry();
+init_modal();
+init_popover();
 function mainContent() {
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented(
     "settings-tab",
     Object.entries(
-      state.me?.publicBusiness ? { workspace: settingsTabs.workspace, accounts: settingsTabs.accounts, todo: settingsTabs.todo } : settingsTabs
+      state.me?.publicBusiness ? { workspace: settingsTabs.workspace, todo: settingsTabs.todo } : settingsTabs
     ),
     state.settingsTab,
     "设置分类",
@@ -11115,7 +12005,7 @@ function reuseShell() {
 }
 function renderShell() {
   redirectMobileArticlePage();
-  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts", "todo"].includes(state.settingsTab))
+  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "todo"].includes(state.settingsTab))
     state.settingsTab = "workspace";
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -11123,7 +12013,7 @@ function renderShell() {
     renderPage();
     return;
   }
-  $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
+  $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=review&amp;account=${e(encodeURIComponent(state.account || "V字"))}" class="brand" data-nav="review"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
     "close"
   )}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div></aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><span>好多鱼工作台</span><button class="icon-button mobile-settings-trigger" data-action="menu" aria-label="设置菜单" aria-expanded="false" aria-controls="mobile-settings-menu">${icon("settings", 20)}</button>${mobileSettingsMenu()}</header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
@@ -11155,7 +12045,7 @@ function navigateLink(page) {
   navigate(page);
 }
 function navigate(page, tab) {
-  if (page === "reviews") page = "articles";
+  page = mobilePage(page);
   if (page === "memos" && tab === "trash") {
     page = "settings";
     tab = "workspace";
@@ -11169,13 +12059,14 @@ function navigate(page, tab) {
     state.todoDate = "";
     state.todoPanel = "";
   }
-  if (page === "settings") state.settingsTab = legacy || tab || "workspace";
+  if (page === "settings") state.settingsTab = legacy || (Object.hasOwn(settingsTabs, tab) ? tab : "workspace");
   updateRoute(true);
   closeModal();
   renderShell();
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 function pageLoading(page) {
+  if (page === "review") return renderContentReview();
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
@@ -11185,7 +12076,10 @@ function pageLoading(page) {
   return skeleton();
 }
 function setPageBody(html, page) {
-  if (page === "todos") paintTodos();
+  if (page === "review") {
+    if (html) replacePageContent(html, true);
+    else paintContentReviewPage();
+  } else if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
@@ -11201,13 +12095,13 @@ function publishedArticleLinks(html) {
 async function loadArticleOverview(version2, context) {
   const query = new URLSearchParams({ period: state.overviewPeriod, top_n: state.topN, top_platform: state.topPlatform });
   if (state.account) query.set("account_id", state.account);
-  const data = await api(`/overview?${query}`, { context });
+  const data2 = await api(`/overview?${query}`, { context });
   if (version2 !== runtime.renderVersion) return "";
-  state.dashboard = data;
-  return renderMediaOverview(data);
+  state.dashboard = data2;
+  return renderMediaOverview(data2);
 }
-function renderMediaOverview(data) {
-  return publishedArticleLinks(renderDashboardSummary(data));
+function renderMediaOverview(data2) {
+  return publishedArticleLinks(renderDashboardSummary(data2));
 }
 async function renderPage() {
   if (redirectMobileArticlePage()) {
@@ -11225,7 +12119,7 @@ async function renderPage() {
   if (hasTodos) loadTodos(context);
   $("#page-content")?.setAttribute("aria-busy", "true");
   try {
-    let html = "", data;
+    let html = "", data2;
     switch (page) {
       case "todos":
         html = renderTodos();
@@ -11242,14 +12136,8 @@ async function renderPage() {
       case "ai-reports":
         await loadAiReports({ resetDate: true });
         break;
-      case "dashboard":
-        html = await loadArticleOverview(version2, context);
-        break;
-      case "articles":
-        html = await renderArticles(version2, context);
-        break;
-      case "reviews":
-        html = await renderReviews(version2, context);
+      case "review":
+        await loadContentReview(context);
         break;
       case "settings":
         if (state.settingsTab === "workspace") {
@@ -11258,14 +12146,9 @@ async function renderPage() {
         } else if (state.settingsTab === "todo") {
           await loadTodoPreferences(context);
           html = renderTodoSettings();
-        } else if (state.settingsTab === "accounts") {
-          data = await api("/account-profiles", { context });
-          if (version2 !== runtime.renderVersion) return;
-          state.accountProfiles = data;
-          html = renderAccounts();
         } else if (state.settingsTab === "keys") {
-          data = await api("/api-keys", { context });
-          html = renderKeys(data);
+          data2 = await api("/api-keys", { context });
+          html = renderKeys(data2);
         } else if (state.settingsTab === "security") html = renderSecurity();
         else {
           const [audit, keys] = await Promise.all([api("/audit", { context }), api("/api-keys", { context })]);
@@ -11276,7 +12159,7 @@ async function renderPage() {
     if (version2 === runtime.renderVersion && state.me) {
       setPageBody(html, page);
       if (counter?.isConnected) {
-        const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? state.accounts.length : null;
+        const count = null;
         counter.hidden = count == null;
         counter.textContent = count == null ? "" : num(count);
       }
@@ -11340,6 +12223,8 @@ async function init({ freshLogin = false } = {}) {
 }
 
 // web/pages/article-verification.mjs
+init_api();
+init_state();
 var copy = (value) => structuredClone(value);
 var same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 function validArticle(value, id) {
@@ -11609,9 +12494,9 @@ function resetTodoPress(gesture) {
 }
 function registerTodoGestures(onOpen, isEligible = () => true) {
   const gesture = { onOpen, isEligible, press: null, blocked: null, pointers: /* @__PURE__ */ new Set() }, listeners = [];
-  const listen = (target, name, handler, options2 = true) => {
-    target.addEventListener(name, handler, options2);
-    listeners.push(() => target.removeEventListener(name, handler, options2));
+  const listen = (target, name, handler, options3 = true) => {
+    target.addEventListener(name, handler, options3);
+    listeners.push(() => target.removeEventListener(name, handler, options3));
   };
   listen(document, "pointerdown", (event) => startTodoPress(gesture, event), { capture: true, passive: true });
   listen(document, "pointermove", (event) => moveTodoPress(gesture, event), { capture: true, passive: true });
@@ -11630,6 +12515,8 @@ function registerTodoGestures(onOpen, isEligible = () => true) {
 }
 
 // web/offline/ui.mjs
+init_runtime();
+init_conflict_decisions();
 function offlineStatusLabel(state2) {
   if (state2.unsupported) return "需新版";
   if (state2.conflicts) return "有冲突";
@@ -11639,8 +12526,8 @@ function offlineStatusLabel(state2) {
   if (state2.pending) return `待同步（${state2.pending} 条）`;
   return "查看同步状态";
 }
-function textNode(document2, tag, text, className) {
-  const node2 = document2.createElement(tag);
+function textNode(document2, tag2, text, className) {
+  const node2 = document2.createElement(tag2);
   node2.textContent = text;
   if (className) node2.className = className;
   return node2;
@@ -11704,8 +12591,8 @@ function conflictEvidence(document2, conflict) {
   return history2;
 }
 function queueRows(document2, queue, runtime2, refresh, requests) {
-  const root = document2.createDocumentFragment();
-  if (!queue.operations.length && !queue.conflicts.length) root.append(textNode(document2, "p", "暂无待处理内容。"));
+  const root2 = document2.createDocumentFragment();
+  if (!queue.operations.length && !queue.conflicts.length) root2.append(textNode(document2, "p", "暂无待处理内容。"));
   const labels = {
     queued: "等待同步",
     sending: "待同步",
@@ -11722,7 +12609,7 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
       "offline-queue-row"
     );
     if (operation2.error) item.append(textNode(document2, "span", " · " + operation2.error));
-    root.append(item);
+    root2.append(item);
   }
   for (const conflict of queue.conflicts) {
     const item = document2.createElement("article");
@@ -11739,7 +12626,7 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
     if (requests.message(conflict.key)) item.append(textNode(document2, "p", requests.message(conflict.key)));
     if (conflict.needs_upgrade) {
       item.append(textNode(document2, "p", "此本机操作需新版页面处理，原内容已保留。"));
-      root.append(item);
+      root2.append(item);
       continue;
     }
     if (conflict.resolution) {
@@ -11750,15 +12637,15 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
         paused: "需联网核实后继续，原文与选择仍保留。"
       };
       item.append(textNode(document2, "p", labels2[conflict.resolution.state] || "正在核对线上结果。"));
-      root.append(item);
+      root2.append(item);
       continue;
     }
     if (conflictLocalChoiceLabel(conflict) === "另存本地副本")
       item.append(textNode(document2, "p", "副本会使用新记录，原记录保持原状。"));
     item.append(conflictActions(document2, conflict, runtime2, refresh, requests));
-    root.append(item);
+    root2.append(item);
   }
-  return root;
+  return root2;
 }
 function pageAnnotation(document2, state2) {
   const page = new URL(document2.defaultView.location.href).searchParams.get("page") || "dashboard";
@@ -11805,23 +12692,23 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
       for (const controller of pending.values()) controller.abort();
     }
   };
-  const root = document2.createElement("aside");
-  root.className = "offline-indicator";
-  root.setAttribute("aria-label", "同步状态");
+  const root2 = document2.createElement("aside");
+  root2.className = "offline-indicator";
+  root2.setAttribute("aria-label", "同步状态");
   const button2 = textNode(document2, "button", "", "offline-state-button");
   button2.type = "button";
   button2.setAttribute("aria-controls", "offline-queue");
   button2.setAttribute("aria-expanded", "false");
-  const panel = document2.createElement("section");
-  panel.id = "offline-queue";
-  panel.className = "offline-queue";
-  panel.setAttribute("aria-label", "本机待同步内容与冲突");
-  panel.hidden = true;
-  root.append(button2, panel);
+  const panel2 = document2.createElement("section");
+  panel2.id = "offline-queue";
+  panel2.className = "offline-queue";
+  panel2.setAttribute("aria-label", "本机待同步内容与冲突");
+  panel2.hidden = true;
+  root2.append(button2, panel2);
   async function refreshQueue() {
     if (!expanded) return;
-    const sequence3 = ++rendering, queue = await runtime2.queue();
-    if (sequence3 !== rendering || !expanded) return;
+    const sequence4 = ++rendering, queue = await runtime2.queue();
+    if (sequence4 !== rendering || !expanded) return;
     const title = textNode(document2, "h2", "同步状态");
     const syncButton = textNode(document2, "button", state2.phase === "syncing" ? "正在同步…" : "立即同步", "offline-sync-now");
     syncButton.type = "button";
@@ -11837,19 +12724,19 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
       details.append(textNode(document2, "p", `${stages[state2.errorStage] || "同步检查"}失败：${state2.error}`, "offline-sync-error"));
     }
     details.append(textNode(document2, "h3", "待提交队列"));
-    panel.replaceChildren(title, syncButton, details, queueRows(document2, queue, runtime2, refreshQueue, requests));
+    panel2.replaceChildren(title, syncButton, details, queueRows(document2, queue, runtime2, refreshQueue, requests));
   }
   function mount() {
-    if (!root.isConnected && document2.body) document2.body.append(root);
+    if (!root2.isConnected && document2.body) document2.body.append(root2);
     const label3 = offlineStatusLabel(state2);
-    root.hidden = !state2.identity;
+    root2.hidden = !state2.identity;
     if (button2.textContent !== label3) button2.textContent = label3;
-    root.dataset.phase = state2.conflicts ? "conflict" : state2.phase;
+    root2.dataset.phase = state2.conflicts ? "conflict" : state2.phase;
     pageAnnotation(document2, state2);
   }
   button2.addEventListener("click", () => {
     expanded = !expanded;
-    panel.hidden = !expanded;
+    panel2.hidden = !expanded;
     button2.setAttribute("aria-expanded", String(expanded));
     if (!expanded) requests.cancel();
     if (expanded) void refreshQueue();
@@ -11869,7 +12756,7 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
     unsubscribe();
     observer.disconnect();
     stop();
-    root.remove();
+    root2.remove();
   };
 }
 function startOfflineUI({ document: document2 = globalThis.document, window: window2 = globalThis.window } = {}) {
@@ -11888,9 +12775,13 @@ function startOfflineUI({ document: document2 = globalThis.document, window: win
 }
 
 // web/floating-workbench.mjs
+init_format();
+init_state();
+init_todos_state();
+init_runtime();
 var activeWindow = null, opening = false;
-function node(doc, tag, text = "", className = "") {
-  const result = doc.createElement(tag);
+function node(doc, tag2, text = "", className = "") {
+  const result = doc.createElement(tag2);
   result.textContent = text;
   if (className) result.className = className;
   return result;
@@ -11938,8 +12829,8 @@ function makeView(pip) {
   notesInput.rows = 5;
   const labels = node(doc, "fieldset", "", "floating-labels");
   labels.append(node(doc, "legend", "标签（可多选）"));
-  const options2 = node(doc, "div");
-  labels.append(options2);
+  const options3 = node(doc, "div");
+  labels.append(options3);
   const noteMessage = node(doc, "p", "", "floating-message");
   noteMessage.setAttribute("role", "status");
   const noteActions = node(doc, "div", "", "floating-actions");
@@ -11968,7 +12859,7 @@ function makeView(pip) {
     newNote,
     notesInput,
     labels,
-    options: options2,
+    options: options3,
     noteMessage,
     send,
     check,
@@ -11976,25 +12867,25 @@ function makeView(pip) {
   };
 }
 function paintTodo(view) {
-  const day4 = todoDay(bjtDate());
-  view.head.querySelector("time").textContent = day4.date;
-  view.todoMessage.textContent = day4.error || (!day4.loaded && day4.loading ? "正在读取待办…" : "");
+  const day5 = todoDay(bjtDate());
+  view.head.querySelector("time").textContent = day5.date;
+  view.todoMessage.textContent = day5.error || (!day5.loaded && day5.loading ? "正在读取待办…" : "");
   const fragment = view.doc.createDocumentFragment();
-  for (const item of day4.items) {
-    const removal = day4.removals.get(item.id);
+  for (const item of day5.items) {
+    const removal = day5.removals.get(item.id);
     if (item.deleted_at || removal && removal.phase !== "restoring") continue;
     const li = node(view.doc, "li"), label3 = node(view.doc, "label"), check = node(view.doc, "input");
     check.type = "checkbox";
     check.dataset.todoId = item.id;
-    check.dataset.date = day4.date;
-    check.checked = day4.updates.has(item.id) ? day4.updates.get(item.id) : Boolean(item.completed);
-    check.disabled = !day4.loaded || todoBusy(day4, item.id);
+    check.dataset.date = day5.date;
+    check.checked = day5.updates.has(item.id) ? day5.updates.get(item.id) : Boolean(item.completed);
+    check.disabled = !day5.loaded || todoBusy(day5, item.id);
     label3.append(check, node(view.doc, "span", item.text));
     li.append(label3);
     if (check.checked) li.classList.add("is-complete");
     fragment.append(li);
   }
-  if (!day4.items.some((item) => !item.deleted_at) && day4.loaded) fragment.append(node(view.doc, "li", "今天还没有待办。", "floating-empty"));
+  if (!day5.items.some((item) => !item.deleted_at) && day5.loaded) fragment.append(node(view.doc, "li", "今天还没有待办。", "floating-empty"));
   view.todoList.replaceChildren(fragment);
 }
 function paintNotes(view) {
@@ -12244,6 +13135,12 @@ async function openFloatingWorkbench() {
 }
 
 // web/pages/detail.mjs
+init_requests();
+init_constants();
+init_dom();
+init_format();
+init_state();
+init_modal();
 var articleStatus = { drafting: "撰写中", illustrated: "已配图", draft_saved: "草稿已存", published: "已发布", failed: "失败" };
 var articleWriter = { dedao: "得到大脑", gemini_web: "Gemini", human: "本人", other: "其他" };
 var warningLabels2 = {
@@ -12375,7 +13272,181 @@ async function articleDetail(id) {
   } });
 }
 
+// web/core/article-index.mjs
+init_api();
+init_session_index_state();
+init_state();
+init_requests();
+var indexRequests = /* @__PURE__ */ new WeakMap();
+async function articleIndex(query = "", context) {
+  const identity5 = state.me?.id, generation = runtime.articleIndexGeneration;
+  if (!identity5) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
+  const scope = context || backgroundRequests();
+  const params = new URLSearchParams(Object.entries(Object.fromEntries(new URLSearchParams(query))).sort(([a], [b]) => a.localeCompare(b)));
+  params.set("fields", "index");
+  const key = identity5 + ":" + params.toString();
+  let pending = articleIndexes.get(key);
+  const owner2 = pending && indexRequests.get(pending);
+  if (owner2 && !owner2.done && owner2.scope !== scope) pending = null;
+  if (!pending) {
+    const entry = { scope, done: false };
+    pending = api("/articles?" + params, { context: scope }).then((rows2) => {
+      entry.done = true;
+      return Object.freeze(rows2.map((row) => Object.freeze(row)));
+    });
+    indexRequests.set(pending, entry);
+    articleIndexes.set(key, pending);
+    if (articleIndexes.size > 10) articleIndexes.delete(articleIndexes.keys().next().value);
+    pending.catch(() => {
+      if (articleIndexes.get(key) === pending) articleIndexes.delete(key);
+    });
+  }
+  const rows = await pending;
+  if (generation !== runtime.articleIndexGeneration || identity5 !== state.me?.id) {
+    if (!state.me || identity5 !== state.me.id) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
+    return articleIndex(query, context);
+  }
+  return rows;
+}
+
+// web/pages/reviews.mjs
+init_requests();
+init_api();
+init_constants();
+init_dom();
+init_format();
+init_session_index_state();
+init_state();
+init_modal();
+async function renderReviews(version2 = runtime.renderVersion, context, { isCurrent = () => true, compactFilters = false } = {}) {
+  const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches2 = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
+  const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
+  if (version2 !== runtime.renderVersion || !isCurrent()) return "";
+  if (generation !== runtime.articleIndexGeneration) return renderReviews(version2, context, { isCurrent, compactFilters });
+  state.reviewArticles = articles;
+  const account = (r) => r.account_id || articles.find((a) => a.id === r.article_id)?.account_id, records = rows.filter((r) => matches2(account(
+    r
+  ))), due = dueRows.filter((r) => matches2(r.account_id));
+  state.reviewRecords = records;
+  const tabs = `${segmented(
+    "review-tab",
+    [["pending", `待办 ${num(due.length)}`], ["observations", "文章快照"], ["daily", "每日数据"]],
+    tab,
+    "数据类型",
+    "tab",
+    "page-tabs"
+  )}${compactFilters ? "" : `<div class="review-summary">${platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`}`;
+  const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label3]) => [
+    key,
+    ["likes", "approvals"].includes(key) ? `${label3}（${key}）` : label3
+  ]), [
+    tab === "observations" ? "as_of" : "source",
+    tab === "observations" ? "数据截至" : "来源"
+  ]];
+  const cell = (r, key) => key === "account" ? e(accountName(account(r))) : key === "due_kind" ? e(kindLabels[r.due_kind] || r.due_kind) : [
+    "as_of",
+    "due_at"
+  ].includes(key) ? e(displayTime(r[key])) : key === "source" ? e(r.source || "未标注来源") : metricData(r)[key] == null ? '<span class="missing-value">未取得</span>' : e(num(metricData(r)[key]));
+  return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
+    const id = pending ? r.id : r.article_id, a = articles.find((a2) => a2.id === id);
+    return `<tr><td class="title-cell">${id ? `<button class="article-link" data-action="article-detail" data-id="${e(id)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label3]) => `<td data-label="${e(
+      label3
+    )}">${cell(r, key)}</td>`).join("")}<td>${pending ? `<button class="btn small" data-action="review-article" data-id="${e(
+      id
+    )}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
+  }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" : "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
+}
+async function reviewRecordsModal() {
+  openModal("数据记录", '<div id="media-records" role="status"></div>', { drawer: true });
+  const ticket = runtime.modalRequestVersion, version2 = runtime.renderVersion, context = beginModalRequests();
+  const isCurrent = () => ticket === runtime.modalRequestVersion && version2 === runtime.renderVersion;
+  try {
+    const html = await renderReviews(version2, context, { isCurrent, compactFilters: true });
+    const root2 = document.querySelector("#media-records");
+    if (isCurrent() && root2) {
+      root2.innerHTML = html;
+      root2.removeAttribute("role");
+    }
+  } catch (error) {
+    const root2 = document.querySelector("#media-records");
+    if (isCurrent() && root2) {
+      root2.setAttribute("role", "alert");
+      root2.textContent = error.message || "数据记录读取失败，请重试";
+    }
+  }
+}
+async function reviewModal(articleId = "", kind = "latest", indexRetry = false) {
+  const context = beginModalRequests();
+  const ticket = ++runtime.modalRequestVersion, version2 = runtime.renderVersion, generation = runtime.articleIndexGeneration;
+  const directArticle = Boolean(articleId);
+  let articles;
+  try {
+    articles = await articleIndex("", context);
+  } catch (err) {
+    if (ticket !== runtime.modalRequestVersion || version2 !== runtime.renderVersion) return;
+    throw err;
+  }
+  if (ticket !== runtime.modalRequestVersion || version2 !== runtime.renderVersion) return;
+  if (generation !== runtime.articleIndexGeneration) return reviewModal(articleId, kind, indexRetry);
+  if (directArticle && !articles.some((a) => a.id === articleId)) {
+    if (indexRetry) throw new Error("文章不存在或无权访问，请刷新后重试。");
+    clearArticleIndexes();
+    return reviewModal(articleId, kind, true);
+  }
+  if (!articleId && state.account) articleId = articles.find((a) => a.account_id === state.account)?.id || "";
+  state.reviewArticles = articles;
+  const daily2 = state.reviewTab === "daily" && !directArticle;
+  if (!articles.length && !daily2) {
+    openModal("录入复盘数据", empty("请先记录文章", "", '<button class="btn primary" data-action="new-article">记录发布</button>'));
+    return;
+  }
+  const accountId = state.account || articles.find((a) => a.id === articleId)?.account_id || state.accounts.find((a) => a.active)?.id || "";
+  openModal(daily2 ? "填写每日新增数据" : "追加文章累计快照", `<form id="review-form" data-type="${daily2 ? "daily" : "observation"}"><p class="form-context">北京时间</p><div class="form-grid">${daily2 ? `<div class="form-field"><label for="review-account">所属账号 <span class="required">*</span></label><select class="input" name="account_id" id="review-account" required>${accountOptions(
+    accountId,
+    false,
+    true
+  )}</select></div><div class="form-field"><label for="review-article">统计范围</label><select class="input" name="article_id" id="review-article"><option value="">账号总体</option>${articles.filter((a) => a.account_id === accountId).map((a) => `<option value="${e(a.id)}">${e(
+    a.title
+  )}</option>`).join("")}</select></div>${field("date", '数据所属日期 <span class="required">*</span>', "date", bjtDate(), `max="${bjtDate()}" required`)}` : `<div class="form-field full"><label for="review-article">文章 <span class="required">*</span></label><select class="input" name="article_id" id="review-article" required>${articles.map((a) => `<option value="${e(a.id)}" ${a.id === articleId ? "selected" : ""}>${e(a.title)} · ${e(accountName(a.account_id))}</option>`).join("")}</select></div><div class="form-field"><label for="field-kind">观察节点</label><select class="input" id="field-kind" name="kind">${Object.entries(kindLabels).map(([key, label3]) => `<option value="${key}" ${key === kind ? "selected" : ""}>${label3}</option>`).join("")}</select></div>${field(
+    "as_of",
+    '数据截至时间 <span class="required">*</span>',
+    "datetime-local",
+    localDateTime(/* @__PURE__ */ new Date()),
+    "required"
+  )}${field(
+    "collected_at",
+    '实际采集时间 <span class="required">*</span>',
+    "datetime-local",
+    localDateTime(/* @__PURE__ */ new Date()),
+    "required"
+  )}`}${field(
+    "source",
+    '数据来源 <span class="required">*</span>',
+    "text",
+    "",
+    'required maxlength="200"'
+  )}<div class="form-field full"><span class="field-label">${daily2 ? "当天新增指标" : "累计指标"}</span><span class="hint">至少一项；缺失留空，真实为零才填 0。</span></div>${Object.entries(metrics).map(([key, label3]) => field(
+    `metric_${key}`,
+    label3,
+    "number",
+    "",
+    'min="0" step="1" inputmode="numeric" placeholder="未取得"'
+  )).join("")}${daily2 ? "" : `<div class="form-field full"><label for="field-note">复盘备注</label><textarea class="input" name="note" id="field-note" maxlength="10000"></textarea></div>`}</div>${formEnd(daily2 ? "保存每日数据" : "追加快照")}</form>`);
+}
+
 // web/actions.mjs
+init_requests();
+init_api();
+init_constants();
+init_dom();
+init_format();
+init_format();
+init_session_index_state();
+init_state();
+init_login();
+init_entry();
+init_modal();
+init_popover();
 function actionMissingList({ target }) {
   state.filters = { ...defaultFilters(), status: "published", data_status: target.dataset.status || "incomplete" };
   state.listPage = 1;
@@ -12584,14 +13655,6 @@ async function actionReviewTab({ target, action }) {
   }
   return;
 }
-function actionNewAccount({}) {
-  accountModal();
-  return;
-}
-function actionEditAccount({ id }) {
-  accountModal(id);
-  return;
-}
 function actionNewKey({}) {
   keyModal();
   return;
@@ -12640,7 +13703,7 @@ function actionResetFilters({}) {
 var actions = {
   "media-menu": ({ event }) => {
     event.preventDefault();
-    navigate("dashboard");
+    navigate("review");
   },
   "notes-menu": ({ event }) => {
     if (state.page !== "notes") {
@@ -12716,9 +13779,6 @@ var actions = {
   "review-article": actionReviewArticle,
   "new-review": actionNewReview,
   "review-tab": actionReviewTab,
-  "new-account": actionNewAccount,
-  "edit-account": actionEditAccount,
-  "test-profile": testProfile,
   "new-key": actionNewKey,
   "select-account": actionSelectAccount,
   "record-detail": actionRecordDetail,
@@ -12728,6 +13788,10 @@ var actions = {
 };
 
 // web/pages/article-form.mjs
+init_api();
+init_constants();
+init_format();
+init_state();
 var textValue = (value) => typeof value === "string" ? value.trim() : "";
 var objectValue = (value) => value && typeof value === "object" && !Array.isArray(value);
 function articleFormCurrent(form, cache2 = runtime.articleFormRecord) {
@@ -12776,8 +13840,8 @@ function mergedObject(original, fields5) {
   }
   return Object.keys(result).length || original != null ? result : null;
 }
-function publicationFields(data, original, status) {
-  const raw = textValue(data.url), time2 = textValue(data.published_at);
+function publicationFields(data2, original, status) {
+  const raw = textValue(data2.url), time2 = textValue(data2.published_at);
   if (status !== "published" && (raw || time2)) {
     throw new Error("未发布状态不能保留公开链接或发布时间，请明确清空发布信息或选择已发布。");
   }
@@ -12787,41 +13851,41 @@ function publicationFields(data, original, status) {
   url.hash = "";
   return { url: url.toString(), published_at: articleTime(time2, "实际发布时间", original.published_at) };
 }
-function buildArticleFormPayload(data, original = {}) {
-  const status = choice(data.status, statusLabels, "文章状态");
+function buildArticleFormPayload(data2, original = {}) {
+  const status = choice(data2.status, statusLabels, "文章状态");
   if (!status) throw new Error("请明确选择文章状态，未确认的状态不会自动保存为草稿或已发布。");
   const body2 = {
-    account_id: textValue(data.account_id),
-    title: textValue(data.title),
+    account_id: textValue(data2.account_id),
+    title: textValue(data2.title),
     status,
-    ...publicationFields(data, original, status),
-    started_at: articleTime(data.started_at, "流水线开始", original.started_at),
-    production_mode: choice(data.production_mode, modeLabels, "生产方式", "unknown"),
-    summary: textValue(data.summary),
-    notes: textValue(data.notes),
-    platform_article_id: textValue(data.platform_article_id) || null,
-    slot: choice(data.slot, slotLabels, "槽位"),
-    writer: choice(data.writer, writerLabels, "写作者"),
-    illustrator: choice(data.illustrator, illustratorLabels, "配图者"),
-    run_dir: textValue(data.run_dir) || null,
-    run_date: textValue(data.run_date) || null,
-    series_no: nullableNumber(data.series_no, "系列编号", 1),
-    char_count: nullableNumber(data.char_count, "字数"),
-    subheading_count: nullableNumber(data.subheading_count, "小标题数"),
-    image_count: nullableNumber(data.image_count, "图数")
+    ...publicationFields(data2, original, status),
+    started_at: articleTime(data2.started_at, "流水线开始", original.started_at),
+    production_mode: choice(data2.production_mode, modeLabels, "生产方式", "unknown"),
+    summary: textValue(data2.summary),
+    notes: textValue(data2.notes),
+    platform_article_id: textValue(data2.platform_article_id) || null,
+    slot: choice(data2.slot, slotLabels, "槽位"),
+    writer: choice(data2.writer, writerLabels, "写作者"),
+    illustrator: choice(data2.illustrator, illustratorLabels, "配图者"),
+    run_dir: textValue(data2.run_dir) || null,
+    run_date: textValue(data2.run_date) || null,
+    series_no: nullableNumber(data2.series_no, "系列编号", 1),
+    char_count: nullableNumber(data2.char_count, "字数"),
+    subheading_count: nullableNumber(data2.subheading_count, "小标题数"),
+    image_count: nullableNumber(data2.image_count, "图数")
   };
   if (!body2.account_id || !body2.title) throw new Error("请填写文章标题并选择所属运营账号。");
   if (body2.published_at && body2.started_at && body2.started_at > body2.published_at) {
     throw new Error("流水线开始时间不能晚于发布时间。");
   }
-  const editor = textValue(data.draft_editor_url);
+  const editor = textValue(data2.draft_editor_url);
   if (editor && !safeLedgerURL(editor)) throw new Error("草稿编辑链接请使用有效的 HTTP/HTTPS 地址。");
   body2.draft_ref = mergedObject(original.draft_ref, {
-    pgc_id: textValue(data.draft_pgc_id) || null,
-    appmsgid: textValue(data.draft_appmsgid) || null,
+    pgc_id: textValue(data2.draft_pgc_id) || null,
+    appmsgid: textValue(data2.draft_appmsgid) || null,
     editor_url: editor || null
   });
-  body2.timings = mergedObject(original.timings, { finished_at: articleTime(data.finished_at, "流水线结束", original.timings?.finished_at) });
+  body2.timings = mergedObject(original.timings, { finished_at: articleTime(data2.finished_at, "流水线结束", original.timings?.finished_at) });
   if (original.id) body2.version = original.version;
   return body2;
 }
@@ -12851,10 +13915,10 @@ async function reconcileArticleSave(cache2, request, isCurrent) {
   if (savedArticle(remote, cache2.saveAttempt)) return remote;
   throw uncertainArticleSave(cache2, "保存结果与当前记录未能确认一致，当前表单不会再次提交。请重新打开最新记录核对。");
 }
-async function saveArticleForm({ form, data }, { request = api, uuid: uuid5 = () => crypto.randomUUID() } = {}) {
+async function saveArticleForm({ form, data: data2 }, { request = api, uuid: uuid5 = () => crypto.randomUUID() } = {}) {
   const cache2 = articleFormRecord(form), isCurrent = () => articleFormCurrent(form, cache2);
   if (cache2.saveAttempt) throw new Error("此表单已有保存请求，请关闭后核对文章列表或最新详情，不要重复新建。");
-  const body2 = buildArticleFormPayload(data, cache2.record), id = form.dataset.id || "";
+  const body2 = buildArticleFormPayload(data2, cache2.record), id = form.dataset.id || "";
   cache2.saveAttempt = { id, body: structuredClone(body2), key: uuid5(), phase: "saving" };
   let value;
   try {
@@ -12880,8 +13944,16 @@ async function saveArticleForm({ form, data }, { request = api, uuid: uuid5 = ()
 }
 
 // web/forms.mjs
-async function submitSaveViewForm({ data }) {
-  const saved = { id: crypto.randomUUID(), name: data.name.trim(), version: 2, filters: { ...state.filters }, columns: [...state.columns] };
+init_requests();
+init_api();
+init_constants();
+init_dom();
+init_format();
+init_state();
+init_login();
+init_modal();
+async function submitSaveViewForm({ data: data2 }) {
+  const saved = { id: crypto.randomUUID(), name: data2.name.trim(), version: 2, filters: { ...state.filters }, columns: [...state.columns] };
   if (!saved.name) throw new Error("请填写视图名称。");
   state.savedViews = state.savedViews.filter((v) => v.name !== saved.name).concat(saved).slice(-20);
   storage.set("haoduoyu.views", JSON.stringify(state.savedViews));
@@ -12889,13 +13961,13 @@ async function submitSaveViewForm({ data }) {
   await renderPage();
   return;
 }
-async function submitLoginForm({ data }) {
-  await api("/auth/login", { method: "POST", body: { username: data.username, password: data.password } });
+async function submitLoginForm({ data: data2 }) {
+  await api("/auth/login", { method: "POST", body: { username: data2.username, password: data2.password } });
   await init({ freshLogin: true });
   return;
 }
-async function submitArticleForm({ form, data }) {
-  const saved = await saveArticleForm({ form, data });
+async function submitArticleForm({ form, data: data2 }) {
+  const saved = await saveArticleForm({ form, data: data2 });
   if (!saved) return;
   closeModal();
   const epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
@@ -12908,30 +13980,30 @@ async function submitArticleForm({ form, data }) {
   }
   return;
 }
-async function submitReviewForm({ form, data }) {
+async function submitReviewForm({ form, data: data2 }) {
   const m = {};
   for (const key of Object.keys(metrics)) {
-    const value = data[`metric_${key}`];
+    const value = data2[`metric_${key}`];
     if (value !== "" && value != null) m[key] = Number(value);
   }
   if (!Object.keys(m).length) throw new Error("请至少填写一个已取得的指标。");
   let body2, path;
   if (form.dataset.type === "daily") {
     path = "/daily-metrics";
-    body2 = { account_id: data.account_id, article_id: data.article_id || null, date: data.date, metrics: m, source: data.source.trim() };
+    body2 = { account_id: data2.account_id, article_id: data2.article_id || null, date: data2.date, metrics: m, source: data2.source.trim() };
   } else {
     path = "/observations";
-    body2 = { article_id: data.article_id, kind: data.kind, as_of: iso(data.as_of), collected_at: iso(data.collected_at), metrics: m, source: data.source.trim(), note: data.note };
+    body2 = { article_id: data2.article_id, kind: data2.kind, as_of: iso(data2.as_of), collected_at: iso(data2.collected_at), metrics: m, source: data2.source.trim(), note: data2.note };
   }
   await api(path, { method: "POST", body: body2 });
   closeModal();
   await renderPage();
   return;
 }
-async function submitAccountForm({ form, data, values }) {
+async function submitAccountForm({ form, data: data2, values }) {
   const id = form.dataset.id, epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
-  const profile = String(data.profile_url || "").trim();
-  const body2 = id ? { name: data.name.trim(), active: values.has("active") } : {};
+  const profile = String(data2.profile_url || "").trim();
+  const body2 = id ? { name: data2.name.trim(), active: values.has("active") } : {};
   if (profile || id && (state.accountProfiles || []).some((row) => row.account_id === id)) body2.profile_url = profile;
   const signature = JSON.stringify(body2);
   if (form.accountSaveSignature !== signature) {
@@ -12959,11 +14031,11 @@ async function submitAccountForm({ form, data, values }) {
   renderShell();
   return;
 }
-async function submitKeyForm({ form, data, values }) {
+async function submitKeyForm({ form, data: data2, values }) {
   const ids = values.getAll("account_ids"), permissions = values.getAll("permissions");
   if (!ids.length) throw new Error("请至少选择一个允许访问的账号。");
   if (!permissions.length) throw new Error("请至少选择一种操作权限。");
-  const result = await api("/api-keys", { method: "POST", body: { name: data.name.trim(), account_ids: ids, permissions } });
+  const result = await api("/api-keys", { method: "POST", body: { name: data2.name.trim(), account_ids: ids, permissions } });
   openModal("凭证已创建 · 请立即保存", `<div class="info-line warn">${icon("key", 15)}<span>凭证仅显示一次，请安全保存。</span></div><pre class="token-box" id="created-token">${e(result.token)}</pre><div class="form-actions"><button class="btn" data-action="copy-token">${icon(
     "copy",
     14
@@ -12978,9 +14050,9 @@ async function submitRevokeForm({ form }) {
   await renderPage();
   return;
 }
-async function submitPasswordForm({ form, data }) {
-  if (data.newPassword !== data.confirmPassword) throw new Error("两次输入的新密码不一致。");
-  await api("/auth/password", { method: "PUT", body: { currentPassword: data.currentPassword, newPassword: data.newPassword } });
+async function submitPasswordForm({ form, data: data2 }) {
+  if (data2.newPassword !== data2.confirmPassword) throw new Error("两次输入的新密码不一致。");
+  await api("/auth/password", { method: "PUT", body: { currentPassword: data2.currentPassword, newPassword: data2.newPassword } });
   form.reset();
   toast("密码已更新，请使用新密码登录。");
   state.me = null;
@@ -12992,7 +14064,6 @@ var forms = {
   "login-form": submitLoginForm,
   "article-form": submitArticleForm,
   "review-form": submitReviewForm,
-  "account-form": submitAccountForm,
   "key-form": submitKeyForm,
   "revoke-form": submitRevokeForm,
   "password-form": submitPasswordForm
@@ -13015,10 +14086,10 @@ async function handleFormSubmit(event) {
     await submitTodo({ form, data: Object.fromEntries(new FormData(form)) });
     return;
   }
-  if (!form.matches("#login-form,#article-form,#review-form,#account-form,#key-form,#password-form,#revoke-form,#article-filters,#save-view-form")) return;
+  if (!form.matches("#login-form,#article-form,#review-form,#key-form,#password-form,#revoke-form,#article-filters,#save-view-form")) return;
   event.preventDefault();
   if (form.id === "article-filters") return;
-  const button2 = $("button[type=submit]", form), message = $(".form-message", form), values = new FormData(form), data = Object.fromEntries(
+  const button2 = $("button[type=submit]", form), message = $(".form-message", form), values = new FormData(form), data2 = Object.fromEntries(
     values
   );
   if (button2?.disabled) return;
@@ -13026,7 +14097,7 @@ async function handleFormSubmit(event) {
   if (button2) button2.disabled = true;
   try {
     const handler = forms[form.id];
-    if (handler) await handler({ form, data, values });
+    if (handler) await handler({ form, data: data2, values });
   } catch (err) {
     if (err.staleSession || isRequestAbort(err)) return;
     if (form.id === "article-form" && !articleFormCurrent(form)) return;
@@ -13038,6 +14109,12 @@ async function handleFormSubmit(event) {
 }
 
 // web/events.mjs
+init_requests();
+init_dom();
+init_state();
+init_entry();
+init_modal();
+init_popover();
 async function handleClick(event) {
   closeMobileMenuOutside(event.target);
   closeMediaNavigation(event.target);
@@ -13212,7 +14289,7 @@ function handlePopstate() {
     renderShell();
   }
 }
-function registerEvents2() {
+function registerEvents3() {
   registerTodosClock();
   registerTodoGestures(openTodoMenu, canOpenTodoMenu);
   document.addEventListener("click", handleClick);
@@ -13231,7 +14308,7 @@ var VERSION = /^[a-f0-9]{64}$/;
 async function beforeRefresh(page) {
   const pending = [], failures = [];
   let collecting = true, dispatchError;
-  const detail = Object.freeze({
+  const detail2 = Object.freeze({
     waitUntil(promise) {
       if (!collecting) throw new Error("REFRESH_WAIT_CLOSED");
       pending.push(Promise.resolve(promise));
@@ -13243,7 +14320,7 @@ async function beforeRefresh(page) {
   });
   const fail6 = (error) => Promise.allSettled(failures.map((callback) => Promise.resolve().then(() => callback(error))));
   try {
-    page.dispatchEvent(new page.CustomEvent("haoduoyu:before-refresh", { detail }));
+    page.dispatchEvent(new page.CustomEvent("haoduoyu:before-refresh", { detail: detail2 }));
   } catch (error) {
     dispatchError = error;
   }
@@ -13371,6 +14448,6 @@ async function startServiceWorker({
 
 // web/main.mjs
 startOfflineUI();
-registerEvents2();
+registerEvents3();
 startServiceWorker();
 init();

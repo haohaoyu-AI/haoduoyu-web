@@ -7,11 +7,10 @@ import { readRoute, updateRoute, mobilePage } from "./core/router.mjs";
 import { resetSessionIndexes } from "./core/session-index-state.mjs";
 import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
-import { articleDraft, renderArticles } from "./pages/articles.mjs";
+import { articleDraft } from "./pages/articles.mjs";
 import { renderDashboardSummary } from "./pages/dashboard.mjs";
 import { renderLogin } from "./pages/login.mjs";
-import { renderReviews } from "./pages/reviews.mjs";
-import { renderAccounts, renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
+import { renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
 import { loadTodos, paintTodos, renderTodos } from "./pages/todos.mjs";
 import { loadTodoPreferences } from "./pages/todo-preferences.mjs";
 import { renderDailyNotes } from "./pages/daily-notes.mjs";
@@ -32,9 +31,11 @@ import {renderWorkReminders} from "./pages/work-reminders.mjs";
 import {loadWorkReminders} from "./work-reminders-controller.mjs";
 import {renderAiReports} from "./pages/ai-reports.mjs";
 import {loadAiReports} from "./ai-reports-controller.mjs";
+import {renderContentReview} from "./pages/content-review.mjs";
+import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
-    state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts, todo: settingsTabs.todo} : settingsTabs), state.settingsTab,
+    state.me?.publicBusiness ? {workspace: settingsTabs.workspace, todo: settingsTabs.todo} : settingsTabs), state.settingsTab,
     "设置分类", "tab", "page-tabs") : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
@@ -53,7 +54,7 @@ function reuseShell() {
 }
 function renderShell() {
   redirectMobileArticlePage();
-  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts", "todo"].includes(state.settingsTab))
+  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "todo"].includes(state.settingsTab))
     state.settingsTab = "workspace";
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -63,7 +64,8 @@ function renderShell() {
   }
   $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" \
 class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a \
-href="?page=todos" class="brand" data-nav="todos"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a>\
+href="?page=review&amp;account=${e(encodeURIComponent(state.account || "V字"))}" class="brand" data-nav="review">\
+<span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a>\
 <button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
   "close")}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div \
 class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div \
@@ -104,7 +106,7 @@ function navigateLink(page) {
   navigate(page);
 }
 function navigate(page, tab) {
-  if (page === "reviews") page = "articles";
+  page = mobilePage(page);
   if (page === "memos" && tab === "trash") { page = "settings"; tab = "workspace"; }
   const legacy = Object.hasOwn(legacyPages, page) ? legacyPages[page] : null;
   if (legacy) page = "settings";
@@ -112,13 +114,14 @@ function navigate(page, tab) {
   state.page = page;
   if (page === "memos") state.memoView = tab === "trash" ? "trash" : "";
   if (page === "todos") { state.todoDate = ""; state.todoPanel = ""; }
-  if (page === "settings") state.settingsTab = legacy || tab || "workspace";
+  if (page === "settings") state.settingsTab = legacy || (Object.hasOwn(settingsTabs, tab) ? tab : "workspace");
   updateRoute(true);
   closeModal();
   renderShell();
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 function pageLoading(page) {
+  if (page === "review") return renderContentReview();
   if (page === "todos") return renderTodos();
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
@@ -128,7 +131,11 @@ function pageLoading(page) {
   return skeleton();
 }
 function setPageBody(html, page) {
-  if (page === "todos") paintTodos();
+  if (page === "review") {
+    if (html) replacePageContent(html, true);
+    else paintContentReviewPage();
+  }
+  else if (page === "todos") paintTodos();
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
@@ -182,23 +189,12 @@ async function renderPage() {
       case "ai-reports":
         await loadAiReports({resetDate:true});
         break;
-      case "dashboard":
-        html = await loadArticleOverview(version, context);
-        break;
-      case "articles":
-        html = await renderArticles(version, context);
-        break;
-      case "reviews":
-        html = await renderReviews(version, context);
+      case "review":
+        await loadContentReview(context);
         break;
       case "settings":
         if (state.settingsTab === "workspace") { await loadMemos(); break; }
         else if (state.settingsTab === "todo") { await loadTodoPreferences(context); html = renderTodoSettings(); }
-        else if (state.settingsTab === "accounts") {
-          data = await api("/account-profiles", {context});
-          if (version !== runtime.renderVersion) return;
-          state.accountProfiles = data; html = renderAccounts();
-        }
         else if (state.settingsTab === "keys") {
           data = await api("/api-keys", { context });
           html = renderKeys(data);
@@ -212,7 +208,7 @@ async function renderPage() {
     if (version === runtime.renderVersion && state.me) {
       setPageBody(html, page);
       if (counter?.isConnected) {
-        const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? state.accounts.length : null;
+        const count = null;
         counter.hidden = count == null;
         counter.textContent = count == null ? "" : num(count);
       }
