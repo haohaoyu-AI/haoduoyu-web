@@ -25,6 +25,35 @@ function fixture(t) {
   return {db,sql,owner,token,env,origin,call,publicHeaders,auth:{...publicHeaders,Cookie:'matrix_session='+token,'X-CSRF-Token':csrfFor(token)}};
 }
 
+test('review article date filters use Beijing days before pagination and retain date-only semantics',async t=>{
+  const app=fixture(t),time='2026-10-30T00:00:00.000Z',ids=new Map();
+  const insert=app.sql.prepare('INSERT INTO matrix_review_articles(user_id,id,account,platform,title,published_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)');
+  function seed(name,published) {
+    const id=randomUUID();ids.set(name,id);insert.run(app.owner,id,'V字','toutiao',name,published,time,time);
+  }
+  seed('before-midnight','2026-10-26T15:59:59Z');
+  seed('beijing-midnight','2026-10-26T16:00:00Z');
+  seed('same-instant-offset','2026-10-27T00:00:00+08:00');
+  seed('late-utc-publication','2026-10-26T20:05:00Z');
+  seed('date-only','2026-10-27');
+  seed('last-beijing-second','2026-10-27T15:59:59Z');
+  seed('next-beijing-midnight','2026-10-27T16:00:00Z');
+  seed('second-real-boundary','2026-10-27T22:09:00Z');
+  seed('unknown',null);seed('invalid','unknown');seed('invalid-date','2026-02-30');
+  seed('invalid-timestamp','2026-02-30T20:05:00Z');seed('no-offset','2026-10-26T20:05:00');
+  // More than a page of newer, out-of-range records proves filtering precedes paging.
+  for(let i=0;i<105;i++)seed('newer-'+i,'2026-11-01T00:00:00Z');
+  const query='articles?account='+encodeURIComponent('V字')+'&from=2026-10-27&to=2026-10-27';
+  const selected=await app.call(query);assert.equal(selected.status,200);assert.equal(selected.data.has_more,false);
+  const expected=['beijing-midnight','same-instant-offset','late-utc-publication','date-only','last-beijing-second'].map(name=>ids.get(name)).sort();
+  assert.deepEqual(selected.data.items.map(row=>row.id).sort(),expected);
+  const offset=await app.call(query+'&offset=1');assert.deepEqual(offset.data.items.map(row=>row.id),selected.data.items.slice(1).map(row=>row.id));
+  const next=await app.call('articles?account='+encodeURIComponent('V字')+'&from=2026-10-28&to=2026-10-28');
+  assert.deepEqual(next.data.items.map(row=>row.id).sort(),['next-beijing-midnight','second-real-boundary'].map(name=>ids.get(name)).sort());
+  const unchanged=app.sql.prepare('SELECT published_at FROM matrix_review_articles WHERE id=?').get(ids.get('same-instant-offset'));
+  assert.equal(unchanged.published_at,'2026-10-27T00:00:00+08:00');
+});
+
 test('review public access is route-local; supplied credentials and owner-session CSRF stay strict',async t=>{
   const app=fixture(t),id=randomUUID();
   for(const kind of ['articles','snapshots','reports','playbooks'])assert.deepEqual((await app.call(kind)).data.items,[]);

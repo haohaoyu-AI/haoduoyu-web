@@ -18,12 +18,37 @@ export function finiteNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-export function day(value) {
-  if (typeof value !== "string") return "";
-  const date = value.slice(0, 10);
+function calendarDate(date) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
   const stamp = Date.parse(`${date}T00:00:00Z`);
   return Number.isFinite(stamp) && new Date(stamp).toISOString().slice(0, 10) === date ? date : "";
+}
+
+const shanghaiClock = new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23"});
+function shanghaiParts(value) {
+  if (typeof value !== "string") return null;
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+  if (!match || !calendarDate(match[1]) || Number(match[2]) > 23 || Number(match[3]) > 59 || Number(match[4] || 0) > 59 ||
+    (match[6] !== "Z" && (Number(match[6].slice(1, 3)) > 23 || Number(match[6].slice(4, 6)) > 59))) return null;
+  const stamp = Date.parse(value);
+  if (!Number.isFinite(stamp)) return null;
+  return Object.fromEntries(shanghaiClock.formatToParts(stamp).map(part => [part.type, part.value]));
+}
+
+/** A calendar date stays a date; an explicit instant is assigned to its Shanghai day. */
+export function day(value) {
+  if (typeof value !== "string") return "";
+  if (calendarDate(value)) return value;
+  const parts = shanghaiParts(value);
+  return parts ? calendarDate(`${parts.year.padStart(4, "0")}-${parts.month}-${parts.day}`) : "";
+}
+
+/** Do not invent midnight when the source only provides a date. */
+export function reviewDateTime(value) {
+  if (typeof value !== "string") return "";
+  if (calendarDate(value)) return value;
+  const parts = shanghaiParts(value), date = day(value);
+  return parts && date ? `${date} ${parts.hour}:${parts.minute}` : "";
 }
 
 export function shiftDay(value, amount) {

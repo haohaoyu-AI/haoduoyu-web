@@ -36,6 +36,10 @@
 
 UUID 均为小写 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`。PUT 单项的 id 来自路径，请求体不放 id；快照 batch 的每项必须包含 id。单项GET返回 `{"data":{...实体字段,"content_hash":"64位小写SHA-256"}}`。成功及错误响应有 X-Request-Id，错误顶层 request_id 可用于排查。
 
+## 日期与北京时间
+
+文章的 published_at 若为具体时间，所有分组、每日统计、文章库筛选、趋势归日及 API from/to 均先转换为 Asia/Shanghai（北京时间）再取日期，页面的具体时间也以北京时间显示。例如 2026-10-26T20:05:00Z 等于北京 2026-10-27 04:05，归入10月27日。BOT知道具体时间时应录入带 +08:00 的 ISO 时间，例如 2026-10-27T04:05:00+08:00；服务端仍规范存储为 UTC，不改动原业务时间。仅知日期时传严格 YYYY-MM-DD，原样保留，不伪造零点；未知传 null。snapshot_date、period_start、period_end、published_on 是纯日期，不加8小时；sent_to_gemini_at 的具体时间也以北京时间显示。
+
 ## 字段与 JSON 示例
 
 所有输入拒绝未知顶层字段，服务端 created_at、updated_at 及 content_hash 只读。普通文本规范化换行并 trim；单行字段不允许换行/制表符；Markdown正文、结论reason及规则text允许换行/制表符，拒绝无效 Unicode 和控制字符。长度上限均以 UTF-8 字节计算。nullable字段的未知数据保留 null，真实零保留0；不补造缺失指标。所有数值有限且非负，计数为安全整数（不超过9007199254740991）。
@@ -51,7 +55,7 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
 | platform_article_id | string \| null | 默认null；非空时最多240字节，按账号唯一 |
 | title | string | 必填，1–2000字节 |
 | url / sample_url | HTTP(S) URL \| null | 默认null；每个最多4096字节，不含凭据 |
-| published_at | date / ISO timestamp \| null | 默认null；ISO带时区并规范为UTC |
+| published_at | date / ISO timestamp \| null | 默认null；具体时间由BOT带+08:00录入并规范存储为UTC；纯日期原样保留，未知null |
 | topic_category | string \| null | 默认null；240字节 |
 | title_pattern | string \| null | 默认null；1000字节 |
 | sample_title | string \| null | 默认null；2000字节 |
@@ -160,7 +164,7 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
 | content_md / changelog_md | string | 默认空字符串，非空各最多128KiB |
 | rules | array | 默认[]；每项恰好rule_id、section、text；rule_id≤120字节且数组内唯一，text≤16KiB |
 | rules[].section | enum | keep_topic / drop_topic / title / body / audience / checklist |
-| sent_to_gemini_at | date / ISO timestamp \| null | 默认null；仅记录时间，不触发发送 |
+| sent_to_gemini_at | date / ISO timestamp \| null | 默认null；具体时间带+08:00录入、存储UTC、显示北京时间；仅记录，不触发发送 |
 
 (account, version) 唯一。读取额外返回id、created_at、content_hash。规则示意结构为 `{"rule_id":"title-001","section":"title","text":"由调用者填写规则"}`；不自动发布或向 Gemini 发送内容。
 
@@ -187,7 +191,7 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
 | reports | account, period_type, from, to | period_start DESC, created_at DESC, id DESC |
 | playbooks | account | version DESC, created_at DESC, id DESC |
 
-from/to为含边界的有效日期，articles按published_at日期筛选，reports按period_start筛选；两者同传时from≤to。account精确匹配，省略则不过滤。快照account筛选通过关联的新复盘文章生效，可与article_id组合。所有列表可传read_revision（非负安全整数），未知/重复参数被拒绝。
+from/to为含边界的有效日期，articles在数据库分页前按published_at转换后的Asia/Shanghai日期筛选，reports按纯日期period_start筛选；两者同传时from≤to。account精确匹配，省略则不过滤。快照account筛选通过关联的新复盘文章生效，可与article_id组合。所有列表可传read_revision（非负安全整数），未知/重复参数被拒绝。
 
 首次读取保存read_revision，后续每页带回相同修订号；若全局数据变更则409 READ_REVISION_CHANGED，重新从offset=0开始。它用于发现跨页竞争，不提供历史时点快照；不带它的offset分页可能在并发写入时移位。hash只代表当前实体，对象键稳定排序、业务数组顺序保留，客户端使用服务端返回值。
 

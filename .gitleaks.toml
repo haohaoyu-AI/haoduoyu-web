@@ -52,3 +52,15 @@ regexes = [
   '''^57f4ee0beb1f71b77ebf977e7a154e9be4a684dac95b32d3d55ef3b7bddda25c$''',
   '''^fc7ab764912890eb70a51a7d60b682e3f106ccaa8def0173863a1342a79717f0$''',
 ]
+
+# User-approved: exact public documentation checksums for Shanghai date handling.
+[[allowlists]]
+description = "Approved exact Shanghai date documentation checksums"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^\.ci/public-assets\.json$''']
+regexes = [
+  '''^18da0fd7785f03671e1514450c670b53b5826ad9c8ce16f662d763698293e718$''',
+  '''^1422924afc2c9f28d29d90e10642db7fb018ec8626649440b0bb49e5b51deabf$''',
+]

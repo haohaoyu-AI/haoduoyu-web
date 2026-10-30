@@ -65,3 +65,30 @@ test('read sets reject mixed revisions and do not accept another account',async 
   await assert.rejects(() => readContentReviewData(async path => ({items:[],has_more:false,read_revision:path.includes('/reports?') ? 2 : 1}),'V字'),{code:'REVIEW_READ_CHANGED'});
   await assert.rejects(() => readReviewCollection(async () => ({items:[{id:'x',account:'other'}],has_more:false,read_revision:1}),'articles','V字'),/账号不一致/);
 });
+
+test('article cards, library filters and Gemini delivery show the same Shanghai date and time', () => {
+  const data=fixture();
+  data.articles[0].published_at='2026-10-26T20:05:00Z';
+  data.playbooks[0].sent_to_gemini_at='2026-10-27T22:09:00Z';
+  const daily=renderContentReviewContent(data,{...model(data,'daily'),date:'2026-10-27'});
+  assert.match(daily,/2026-10-27 04:05/);
+  assert.doesNotMatch(daily,/2026-10-26 20:05/);
+  const selected=renderContentReviewContent(data,{...model(data,'articles'),filters:{from:'2026-10-27',to:'2026-10-27'}});
+  assert.match(selected,/data-review-article="a"/);
+  assert.match(selected,/<td>2026-10-27<\/td>/);
+  const excluded=renderContentReviewContent(data,{...model(data,'articles'),filters:{from:'2026-10-26',to:'2026-10-26'}});
+  assert.doesNotMatch(excluded,/data-review-article="a"/);
+  const books=renderContentReviewContent(data,model(data,'playbooks'));
+  assert.match(books,/2026-10-28 06:09/);
+  assert.doesNotMatch(books,/2026-10-27T22:09:00Z/);
+});
+
+test('one-sided and two-sided article date filters exclude unknown publication dates', () => {
+  const data=fixture();
+  data.articles.push({id:'unknown',account:data.articles[0].account,title:'unknown publication',published_at:null});
+  for (const filters of [{to:'2026-10-29'},{from:'2026-10-29'},{from:'2026-10-29',to:'2026-10-29'}]) {
+    const html=renderContentReviewContent(data,{...model(data,'articles'),filters});
+    assert.match(html,/data-review-article="a"/);
+    assert.doesNotMatch(html,/data-review-article="unknown"/);
+  }
+});

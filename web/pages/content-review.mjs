@@ -1,6 +1,6 @@
 import {e} from '../core/dom.mjs';
 import {articleRows, dailySummary, dailySeries, day, diffRules, finiteNumber, groupPerformance,
-  metricDiscrepancies, periodSummary, shiftDay} from '../core/review-data.mjs';
+  metricDiscrepancies, periodSummary, reviewDateTime, shiftDay} from '../core/review-data.mjs';
 
 export const REVIEW_VIEWS = [['daily','每日复盘'],['three_day','每 3 天复盘'],['weekly','每周复盘'],['articles','文章库'],['playbooks','写作手册']];
 const metricLabels = {impressions:'展现',fan_impressions:'粉丝展现',reads:'阅读',fan_reads:'粉丝阅读',ctr:'CTR',completion_rate:'完读率',
@@ -55,7 +55,7 @@ function metrics(row, full = false) {
   return `<dl class="review-metrics">${keys.map(key => `<div><dt>${metricLabels[key]}</dt><dd>${e(reviewNumber(s[key],key))}</dd></div>`).join('')}</dl>`;
 }
 function articleCard(row, full = false) {
-  return `<article class="review-article-card"><div class="review-article-head"><span class="review-note">${e(String(row.published_at || '').slice(0,16).replace('T',' '))} · ${e(row.platform || '平台未提供')}</span>${tag(row.verdict)}</div><h3><button type="button" class="review-title-button" data-review-article="${e(row.id)}">${e(row.title || '未命名文章')}</button></h3><div class="review-tags"><span class="review-tag">${e(row.topic_category || '类别未提供')}</span><span class="review-tag">${e(row.title_pattern || '标题类型未提供')}</span></div>${metrics(row,full)}<p class="review-reason">${e(row.reason || '尚无复盘判定原因。')}</p><div class="review-note">${row.snapshot ? `快照 ${e(row.snapshot.snapshot_date)}` : '暂无数据快照'} · ${external(row.url,'原文')}</div></article>`;
+  return `<article class="review-article-card"><div class="review-article-head"><span class="review-note">${e(reviewDateTime(row.published_at))} · ${e(row.platform || '平台未提供')}</span>${tag(row.verdict)}</div><h3><button type="button" class="review-title-button" data-review-article="${e(row.id)}">${e(row.title || '未命名文章')}</button></h3><div class="review-tags"><span class="review-tag">${e(row.topic_category || '类别未提供')}</span><span class="review-tag">${e(row.title_pattern || '标题类型未提供')}</span></div>${metrics(row,full)}<p class="review-reason">${e(row.reason || '尚无复盘判定原因。')}</p><div class="review-note">${row.snapshot ? `快照 ${e(row.snapshot.snapshot_date)}` : '暂无数据快照'} · ${external(row.url,'原文')}</div></article>`;
 }
 function cards(rows, full = false) { return rows.length ? `<div class="review-article-grid">${rows.map(row => articleCard(row,full)).join('')}</div>` : empty('本周期暂无文章','还没有该周期发布的文章；不会从旧图文台账迁入数据。'); }
 function reportFor(data,type,start,end) { return data.reports.find(r => r.period_type === type && r.period_start === start && r.period_end === end) || data.reports.find(r => r.period_type === type && r.period_end === end); }
@@ -105,7 +105,7 @@ function diffMarkup(previous,current) {
   return `<div class="review-diff"><p class="review-note">${previous ? `${e(previous.version)} → ${e(current.version)}` : '首个版本，尚无前一版。'}</p>${!added.length && !removed.length ? '<p class="review-note">没有规则变动。</p>' : ''}${removed.map(r => `<p class="review-rule-remove">− ${e(r.rule_id)} · ${e(r.text)}</p>`).join('')}${added.map(r => `<p class="review-rule-add">+ ${e(r.rule_id)} · ${e(r.text)}</p>`).join('')}</div>`;
 }
 function versionMeta(playbook) {
-  return playbook ? `<div class="review-version-meta"><strong>${e(playbook.version)}</strong><span>发布 ${e(playbook.published_on || '未提供')}</span><span>Gemini：${e(playbook.sent_to_gemini_at ? `已发送 ${playbook.sent_to_gemini_at}` : '未记录发送')}</span></div>` : empty('此周期未关联手册','报告提供 playbook_version 后显示对应版本。');
+  return playbook ? `<div class="review-version-meta"><strong>${e(playbook.version)}</strong><span>发布 ${e(playbook.published_on || '未提供')}</span><span>Gemini：${e(playbook.sent_to_gemini_at ? `已发送 ${reviewDateTime(playbook.sent_to_gemini_at)}` : '未记录发送')}</span></div>` : empty('此周期未关联手册','报告提供 playbook_version 后显示对应版本。');
 }
 function threeDay(data,vm) {
   const s = periodSummary(data,{start:vm.start,end:vm.end,periodType:'three_day'}), report = reportFor(data,'three_day',vm.start,vm.end);
@@ -144,11 +144,15 @@ function weekly(data,vm) {
 }
 function library(data,vm) {
   const all = articleRows(data,{}), f = vm.filters || {}, fields = [['category','topic_category','类别'],['pattern','title_pattern','标题类型']];
-  let rows = all.filter(r => (!f.from || String(r.published_at || '').slice(0,10) >= f.from) && (!f.to || String(r.published_at || '').slice(0,10) <= f.to) && (!f.verdict || r.verdict === f.verdict) && (!f.category || r.topic_category === f.category) && (!f.pattern || r.title_pattern === f.pattern));
+  let rows = all.filter(r => {
+    const published = day(r.published_at);
+    return (!(f.from || f.to) || Boolean(published)) && (!f.from || published >= f.from) && (!f.to || published <= f.to) &&
+      (!f.verdict || r.verdict === f.verdict) && (!f.category || r.topic_category === f.category) && (!f.pattern || r.title_pattern === f.pattern);
+  });
   const sortKey = ['reads','ctr','completion_rate','revenue'].includes(f.sort) ? f.sort : 'reads';
   rows.sort((a,b) => { const x = finiteNumber(a.snapshot?.[sortKey]), y = finiteNumber(b.snapshot?.[sortKey]); return x === null ? y === null ? String(b.published_at).localeCompare(String(a.published_at)) : 1 : y === null ? -1 : y - x; });
   const filters = `<div class="review-filters"><label>发布日期从<input class="input" type="date" data-review-filter="from" value="${e(f.from || '')}"></label><label>至<input class="input" type="date" data-review-filter="to" value="${e(f.to || '')}"></label><label>判定<select class="input" data-review-filter="verdict">${options([['','全部'],['爆','爆'],['中','中'],['扑','扑']],f.verdict)}</select></label>${fields.map(([id,field,label]) => `<label>${label}<select class="input" data-review-filter="${id}">${options([['','全部'],...Array.from(new Set(all.map(r => r[field]).filter(Boolean))).sort().map(x => [x,x])],f[id])}</select></label>`).join('')}<label>排序<select class="input" data-review-filter="sort">${options([['reads','阅读 · 从高到低'],['ctr','CTR · 从高到低'],['completion_rate','完读率 · 从高到低'],['revenue','收益 · 从高到低']],sortKey)}</select></label><button class="btn text" type="button" data-review-action="reset-filters">重置筛选</button></div>`;
-  return `${filters}<p class="review-note">共 ${rows.length} 篇 · 指标取每篇文章最新快照 · 未采集值排在末尾</p>${rows.length ? table(['文章','发布日期','判定','类别','标题类型','阅读','CTR','完读率','收益'],rows.map(r => `<tr><th scope="row"><button type="button" class="review-title-button" data-review-article="${e(r.id)}">${e(r.title || '未命名文章')}</button></th><td>${e(String(r.published_at || '').slice(0,10))}</td><td>${tag(r.verdict)}</td><td>${e(r.topic_category || '未提供')}</td><td>${e(r.title_pattern || '未提供')}</td>${['reads','ctr','completion_rate','revenue'].map(k => `<td>${e(reviewNumber(r.snapshot?.[k],k))}</td>`).join('')}</tr>`),'文章库，向右滚动查看全部指标') : empty(data.articles.length ? '没有符合筛选条件的文章' : '文章库为空',data.articles.length ? '调整日期、类别或判定筛选后重试。' : '尚无内容复盘文章；不会显示演示数据或旧台账记录。')}`;
+  return `${filters}<p class="review-note">共 ${rows.length} 篇 · 指标取每篇文章最新快照 · 未采集值排在末尾</p>${rows.length ? table(['文章','发布日期','判定','类别','标题类型','阅读','CTR','完读率','收益'],rows.map(r => `<tr><th scope="row"><button type="button" class="review-title-button" data-review-article="${e(r.id)}">${e(r.title || '未命名文章')}</button></th><td>${e(day(r.published_at))}</td><td>${tag(r.verdict)}</td><td>${e(r.topic_category || '未提供')}</td><td>${e(r.title_pattern || '未提供')}</td>${['reads','ctr','completion_rate','revenue'].map(k => `<td>${e(reviewNumber(r.snapshot?.[k],k))}</td>`).join('')}</tr>`),'文章库，向右滚动查看全部指标') : empty(data.articles.length ? '没有符合筛选条件的文章' : '文章库为空',data.articles.length ? '调整日期、类别或判定筛选后重试。' : '尚无内容复盘文章；不会显示演示数据或旧台账记录。')}`;
 }
 function objectPairs(value) {
   if (Array.isArray(value)) return value.map((item,i) => typeof item === 'object' && item ? [item.name ?? item.label ?? item.source ?? item.position ?? String(i + 1),finiteNumber(item.percent ?? item.value ?? item.count ?? item.rate)] : [String(i + 1),finiteNumber(item)]).filter(([,n]) => n !== null);

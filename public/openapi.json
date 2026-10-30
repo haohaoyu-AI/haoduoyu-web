@@ -6265,7 +6265,7 @@
           "Content review"
         ],
         "summary": "列出公开复盘 articles",
-        "description": "独立内容复盘模块；一期页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 published_at DESC, created_at DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。",
+        "description": "独立内容复盘模块；一期页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 published_at DESC, created_at DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。 published_at时间戳的日期按Asia/Shanghai（北京时间）换算，from/to在数据库分页前筛选；严格YYYY-MM-DD原样保留，null不匹配日期范围。",
         "security": [],
         "parameters": [
           {
@@ -6305,7 +6305,7 @@
               "format": "date",
               "description": "有效的 YYYY-MM-DD 日历日期。"
             },
-            "description": "包含该日期的下界；articles按published_at日期、reports按period_start。"
+            "description": "含边界下界；按published_at的Asia/Shanghai日筛选，具体时间先换时区再取日期；严格YYYY-MM-DD原样保留。过滤发生在分页之前，null不匹配范围。"
           },
           {
             "name": "to",
@@ -6315,7 +6315,7 @@
               "format": "date",
               "description": "有效的 YYYY-MM-DD 日历日期。"
             },
-            "description": "包含该日期的上界；不得早于from。"
+            "description": "含边界上界，不得早于from；按published_at的Asia/Shanghai日筛选，具体时间先换时区再取日期；严格YYYY-MM-DD原样保留。过滤发生在分页之前，null不匹配范围。"
           }
         ],
         "responses": {
@@ -15921,8 +15921,9 @@
                 "type": "null"
               }
             ],
-            "description": "null、YYYY-MM-DD 或带秒与时区的 ISO 时间；ISO 时间规范为 UTC，日期字符串保留。",
-            "default": null
+            "description": "null、严格YYYY-MM-DD或带秒与时区的ISO时间。BOT知道具体时间时应带+08:00录入；服务端规范存储UTC。分组、统计、文章库、趋势和from/to先换算Asia/Shanghai再取日期，页面时间显示北京时间。纯日期原样保留，不伪造零点；未知null。例如2026-10-26T20:05:00Z归入北京2026-10-27 04:05。",
+            "default": null,
+            "example": "2026-10-27T04:05:00+08:00"
           },
           "topic_category": {
             "type": [
@@ -16053,8 +16054,9 @@
                 "type": "null"
               }
             ],
-            "description": "null、YYYY-MM-DD 或带秒与时区的 ISO 时间；ISO 时间规范为 UTC，日期字符串保留。",
-            "default": null
+            "description": "null、严格YYYY-MM-DD或带秒与时区的ISO时间。BOT知道具体时间时应带+08:00录入；服务端规范存储UTC。分组、统计、文章库、趋势和from/to先换算Asia/Shanghai再取日期，页面时间显示北京时间。纯日期原样保留，不伪造零点；未知null。例如2026-10-26T20:05:00Z归入北京2026-10-27 04:05。",
+            "default": null,
+            "example": "2026-10-27T04:05:00+08:00"
           },
           "topic_category": {
             "type": [
@@ -16186,8 +16188,9 @@
                 "type": "null"
               }
             ],
-            "description": "null、YYYY-MM-DD 或带秒与时区的 ISO 时间；ISO 时间规范为 UTC，日期字符串保留。",
-            "default": null
+            "description": "null、严格YYYY-MM-DD或带秒与时区的ISO时间。BOT知道具体时间时应带+08:00录入；服务端规范存储UTC。分组、统计、文章库、趋势和from/to先换算Asia/Shanghai再取日期，页面时间显示北京时间。纯日期原样保留，不伪造零点；未知null。例如2026-10-26T20:05:00Z归入北京2026-10-27 04:05。",
+            "default": null,
+            "example": "2026-10-26T20:05:00.000Z"
           },
           "topic_category": {
             "type": [
@@ -16304,7 +16307,7 @@
           "snapshot_date": {
             "type": "string",
             "format": "date",
-            "description": "有效的 YYYY-MM-DD 日历日期。"
+            "description": "有效的 YYYY-MM-DD 日历日期。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "impressions": {
             "type": [
@@ -16513,7 +16516,7 @@
           "snapshot_date": {
             "type": "string",
             "format": "date",
-            "description": "有效的 YYYY-MM-DD 日历日期。"
+            "description": "有效的 YYYY-MM-DD 日历日期。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "impressions": {
             "type": [
@@ -16721,7 +16724,7 @@
           "snapshot_date": {
             "type": "string",
             "format": "date",
-            "description": "有效的 YYYY-MM-DD 日历日期。"
+            "description": "有效的 YYYY-MM-DD 日历日期。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "impressions": {
             "type": [
@@ -16949,12 +16952,12 @@
           "period_start": {
             "type": "string",
             "format": "date",
-            "description": "有效的 YYYY-MM-DD 日历日期。"
+            "description": "有效的 YYYY-MM-DD 日历日期。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "period_end": {
             "type": "string",
             "format": "date",
-            "description": "有效日期且不得早于period_start；不自动推断周期天数。"
+            "description": "有效日期且不得早于period_start；不自动推断周期天数。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "verdicts": {
             "$ref": "#/components/schemas/ReviewVerdicts"
@@ -17031,12 +17034,12 @@
           "period_start": {
             "type": "string",
             "format": "date",
-            "description": "有效的 YYYY-MM-DD 日历日期。"
+            "description": "有效的 YYYY-MM-DD 日历日期。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "period_end": {
             "type": "string",
             "format": "date",
-            "description": "有效日期且不得早于period_start；不自动推断周期天数。"
+            "description": "有效日期且不得早于period_start；不自动推断周期天数。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "verdicts": {
             "$ref": "#/components/schemas/ReviewVerdicts"
@@ -17110,12 +17113,12 @@
           "period_start": {
             "type": "string",
             "format": "date",
-            "description": "有效的 YYYY-MM-DD 日历日期。"
+            "description": "有效的 YYYY-MM-DD 日历日期。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "period_end": {
             "type": "string",
             "format": "date",
-            "description": "有效日期且不得早于period_start；不自动推断周期天数。"
+            "description": "有效日期且不得早于period_start；不自动推断周期天数。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "verdicts": {
             "$ref": "#/components/schemas/ReviewVerdicts"
@@ -17209,7 +17212,7 @@
           "published_on": {
             "type": "string",
             "format": "date",
-            "description": "有效的 YYYY-MM-DD 日历日期。"
+            "description": "有效的 YYYY-MM-DD 日历日期。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "content_md": {
             "type": "string",
@@ -17243,7 +17246,7 @@
                 "type": "null"
               }
             ],
-            "description": "仅记录调用者提供的发送时间或null；此字段不会触发Gemini调用或推送。",
+            "description": "仅记录调用者提供的发送时间或null，不触发Gemini调用或推送。具体时间由BOT带+08:00录入、规范存储UTC、页面显示Asia/Shanghai北京时间；严格YYYY-MM-DD日期原样保留，不伪造零点，未知null。",
             "default": null
           }
         },
@@ -17284,7 +17287,7 @@
           "published_on": {
             "type": "string",
             "format": "date",
-            "description": "有效的 YYYY-MM-DD 日历日期。"
+            "description": "有效的 YYYY-MM-DD 日历日期。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "content_md": {
             "type": "string",
@@ -17318,7 +17321,7 @@
                 "type": "null"
               }
             ],
-            "description": "仅记录调用者提供的发送时间或null；此字段不会触发Gemini调用或推送。",
+            "description": "仅记录调用者提供的发送时间或null，不触发Gemini调用或推送。具体时间由BOT带+08:00录入、规范存储UTC、页面显示Asia/Shanghai北京时间；严格YYYY-MM-DD日期原样保留，不伪造零点，未知null。",
             "default": null
           }
         },
@@ -17359,7 +17362,7 @@
           "published_on": {
             "type": "string",
             "format": "date",
-            "description": "有效的 YYYY-MM-DD 日历日期。"
+            "description": "有效的 YYYY-MM-DD 日历日期。 纯YYYY-MM-DD日历日期，原样保留，不进行时区或加8小时换算。"
           },
           "content_md": {
             "type": "string",
@@ -17393,7 +17396,7 @@
                 "type": "null"
               }
             ],
-            "description": "仅记录调用者提供的发送时间或null；此字段不会触发Gemini调用或推送。",
+            "description": "仅记录调用者提供的发送时间或null，不触发Gemini调用或推送。具体时间由BOT带+08:00录入、规范存储UTC、页面显示Asia/Shanghai北京时间；严格YYYY-MM-DD日期原样保留，不伪造零点，未知null。",
             "default": null
           },
           "created_at": {

@@ -13,6 +13,19 @@ const errorBody=error=>({code:error.code,message:error.message,...(error.existin
 const columnsFor=kind=>Object.keys(reviewSpecs[kind].fields);
 const columnFor=(spec,key)=>spec.json?.includes(key)?key+'_json':key;
 const valueFor=(spec,key,row)=>spec.json?.includes(key)&&row[key]!==null?JSON.stringify(stable(row[key])):row[key];
+// Date-only values are business dates. Timestamp dates are always Beijing dates,
+// including filtering before LIMIT/OFFSET; no host-local timezone is consulted.
+const articlePublishedDaySql=`CASE
+  WHEN length(published_at)=10
+    AND published_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+    AND date(published_at,'+0 days')=published_at THEN published_at
+  WHEN substr(published_at,11,1)='T'
+    AND substr(published_at,12,8) GLOB '[0-9][0-9]:[0-9][0-9]:[0-9][0-9]'
+    AND date(substr(published_at,1,10),'+0 days')=substr(published_at,1,10)
+    AND (substr(published_at,-1)='Z' OR
+      (substr(published_at,-6,1) IN ('+','-') AND substr(published_at,-5) GLOB '[0-9][0-9]:[0-9][0-9]'))
+    THEN date(published_at,'+8 hours')
+  ELSE NULL END`;
 async function actorFor(store,request,owner,env,origin,write=false) {
   const explicit=request.headers.has('authorization')||/(?:^|;\s*)matrix_session(?:\s*=|\s*(?:;|$))/.test(request.headers.get('cookie')||'');
   if(request.headers.has('authorization')&&!request.headers.get('authorization'))throw fail(401,'UNAUTHORIZED','授权凭据无效');
@@ -37,7 +50,7 @@ function validateQuery(query,kind,list) {
     const value=query.get(key);
     if(key==='from'||key==='to') {
       reviewDate(value);
-      const column=kind==='articles'?'substr(published_at,1,10)':'period_start';
+      const column=kind==='articles'?articlePublishedDaySql:'period_start';
       where.push(column+(key==='from'?'>=?':'<=?'));args.push(value);
     }else if(kind==='snapshots'&&key==='account') {
       const normalized=reviewSpecs.articles.fields.account(value);
