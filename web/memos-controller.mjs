@@ -1,4 +1,4 @@
-import {api} from './core/api.mjs';
+import {api, apiNetwork} from './core/api.mjs';
 import {navigate} from './controller.mjs';
 import {storage} from './core/storage.mjs';
 import {runtime, state} from './core/state.mjs';
@@ -14,6 +14,7 @@ let memoStore, memoIdentity = '', memoEvents = false, memoDialog = null, memoDra
 let memoEditorFocus = null, memoDeleting = '', memoDeleteWait = null;
 let memoOfflineRefresh = false, memoOfflineLoading = false, memoOfflineFlight = null, memoPendingCount = 0, memoConflictCount = 0;
 let memoRefreshPaused = false, memoRefreshReady = false;
+let memoPurgeIntent = null, memoPurgeBusy = false;
 export function requestMemoTool(tool) { memoTool = ['trash', 'recovery'].includes(tool) ? tool : ''; }
 function draftStorageScope() {
   if (memoDraftScope) return memoDraftScope;
@@ -75,6 +76,13 @@ export function paintMemosPage() {
   const root = document.querySelector('#memos');
   if (!root) return;
   paintMemos(root, memoStore); paintDialog(root); setupMemoSplit(root);
+  const purge = root.querySelector('[data-memo-action="empty-trash"]');
+  if (purge) {
+    purge.hidden = !settingsTrash() || !state.me?.id;
+    purge.disabled = memoPurgeBusy || memoStore.state.loading;
+    purge.textContent = state.me?.publicBusiness ? '登录后清空回收站' :
+      memoPurgeIntent?.identity === memoIdentity ? '核对清空结果' : '清空回收站';
+  }
   if (memoRefreshPaused) {
     root.inert = true;
     root.querySelectorAll('button,input,select').forEach(control => { control.disabled = true; });
@@ -130,6 +138,46 @@ async function confirmDialog() {
   } finally {
     dialog.saving = false; paintMemosPage();
   }
+}
+async function clearMemoTrash() {
+  if (!settingsTrash() || !state.me?.id || memoPurgeBusy) return;
+  if (state.me.publicBusiness) { renderLogin(); return; }
+  const owner = currentIdentity(), store = memoStore, offline = getOfflineRuntime();
+  const safe = () => store === memoStore && owner === currentIdentity() && settingsTrash() &&
+    offline?.state?.online === true && Boolean(offline.state.verifiedScope) &&
+    !offline.state.pending && !offline.state.conflicts && !offline.state.unsupported &&
+    !store.state.operation?.pending && !store.state.loading &&
+    ![...store.drafts.values()].some(item => item.dirty || item.pending || item.localQueued || item.composing);
+  if (!safe()) throw new Error('请先联网并处理所有待同步操作和未保存草稿，再清空回收站。');
+  memoPurgeBusy = true; paintMemosPage();
+  try {
+    let intent = memoPurgeIntent?.identity === owner ? memoPurgeIntent : null;
+    if (!intent) {
+      const fresh = await apiNetwork('/memos');
+      if (!safe()) throw new Error('数据状态已变化，请处理待同步操作后重试。');
+      if (!Array.isArray(fresh?.groups) || !Array.isArray(fresh.notes) || !fresh.can_edit)
+        throw new Error('回收站未能完整读取，请稍后重试。');
+      const groups = fresh.groups.filter(x => x.deleted_at);
+      const deletedGroups = new Set(groups.map(x => x.id));
+      const notes = fresh.notes.filter(x => x.deleted_at || deletedGroups.has(x.group_id));
+      if (!groups.length && !notes.length) { store.state.error = '回收站是空的。'; return; }
+      const lines = [...groups.map(x => '分组：' + x.title), ...notes.map(x => '笔记：' + x.title)];
+      if (!window.confirm('将永久删除回收站中 ' + groups.length + ' 个分组和 ' + notes.length + ' 篇笔记，无法恢复。\n\n' + lines.join('\n') + '\n\n确定清空吗？')) return;
+      if (!safe()) throw new Error('数据状态已变化，请重新核对。');
+      intent = {identity:owner, body:{groups:groups.map(({id,version}) => ({id,version})),
+        notes:notes.map(({id,version}) => ({id,version})), save_id:crypto.randomUUID()}};
+      memoPurgeIntent = intent;
+    } else if (!window.confirm('上次清空结果尚未确认。使用同一请求核对结果吗？')) return;
+    const result = await apiNetwork('/memos/trash/clear', {method:'POST', body:intent.body});
+    if (owner !== currentIdentity()) return;
+    if (result?.cleared !== true || result.groups !== intent.body.groups.length || result.notes !== intent.body.notes.length)
+      throw new Error('服务器返回的清空结果无法核实，请重试同一请求。');
+    memoPurgeIntent = null; store.state.noteId = ''; store.state.groupId = '';
+    await store.load(); store.state.error = '回收站已清空。';
+  } catch (error) {
+    if (error.status === 409 || error.status === 403 || error.status === 401) memoPurgeIntent = null;
+    throw error;
+  } finally { memoPurgeBusy = false; paintMemosPage(); }
 }
 async function createMemo(action, target) {
   if (memoCreating || !memoStore.state.canEdit) return;
@@ -208,6 +256,7 @@ function toggleMemoFullscreen(expanded) {
 }
 async function clickAction(action, target) {
   const store = ensureStore(), s = store.state;
+  if (action === 'empty-trash') return clearMemoTrash();
   if (['new-group', 'new-note'].includes(action)) return createMemo(action, target);
   if (action === 'delete-note') return removeMemo(target?.dataset.memoTarget || s.noteId);
   if (action === 'restore-note') return restoreMemo(target?.dataset.memoTarget || s.noteId);

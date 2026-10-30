@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {state} from '../web/core/state.mjs';
 import {sidebarNavigation, mobileSettingsMenu} from '../web/ui/workbench.mjs';
-import {renderAiReports, paintAiReports} from '../web/pages/ai-reports.mjs';
+import {renderAiReports, paintAiReports, reportDay} from '../web/pages/ai-reports.mjs';
+import {readAllAiReports} from '../web/ai-reports-controller.mjs';
 
 test('AI reports are reachable in public and private desktop and mobile navigation', () => {
   for (const publicBusiness of [true, false]) {
@@ -15,14 +16,15 @@ test('AI reports are reachable in public and private desktop and mobile navigati
   }
 });
 
-test('report reading page has no manual entry controls and retains pagination', () => {
+test('report reading page has no report entry controls and offers date navigation', () => {
   const html = renderAiReports();
-  assert.doesNotMatch(html, /<(?:details|summary|form|input|textarea)\b/i);
+  assert.doesNotMatch(html, /<(?:details|summary|form|textarea)\b/i);
   assert.doesNotMatch(html, /ai-report-(?:form|author|content|message|author-hint)/);
   assert.match(html, /id="ai-report-list-status"/);
   assert.match(html, /id="ai-report-list"/);
-  assert.match(html, /id="ai-report-pagination"/);
-  assert.match(html, /data-ai-report-prev/);
+  assert.doesNotMatch(html, /id="ai-report-pagination"/);
+  assert.match(html, /id="ai-report-date"[^>]*type="date"/);
+  assert.match(html, /data-ai-report-previous/);
   assert.match(html, /data-ai-report-next/);
 });
 
@@ -72,7 +74,7 @@ test('report author is emphasized above four escaped, line-separated items', () 
   } finally { globalThis.document = originalDocument; }
 });
 
-test('report errors and pagination remain visible and actionable', () => {
+test('report errors and date navigation remain visible and actionable', () => {
   const elements = new Map();
   const root = {querySelector(selector) {
     if (!elements.has(selector)) elements.set(selector, {});
@@ -81,13 +83,23 @@ test('report errors and pagination remain visible and actionable', () => {
   const originalDocument = globalThis.document;
   globalThis.document = {querySelector: () => root};
   try {
-    paintAiReports([], 'Network error', false, 100, false);
+    paintAiReports([], 'Network error', false, '2026-10-29');
     assert.equal(elements.get('#ai-report-list-status').textContent, 'Network error');
-    assert.equal(elements.get('#ai-report-pagination').hidden, false);
-    assert.equal(elements.get('[data-ai-report-prev]').disabled, false);
-    assert.equal(elements.get('[data-ai-report-next]').disabled, true);
-    paintAiReports([{author: 'A', content: 'B', created_at: '2026-10-30T03:00:00Z'}], '', false, 0, true);
-    assert.equal(elements.get('[data-ai-report-prev]').disabled, true);
-    assert.equal(elements.get('[data-ai-report-next]').disabled, false);
+    assert.equal(elements.get('#ai-report-date').value, '2026-10-29');
+    assert.equal(elements.get('[data-ai-report-next]').disabled, '2026-10-29' >= elements.get('#ai-report-date').max);
   } finally { globalThis.document = originalDocument; }
+});
+
+test('declared work date takes precedence; otherwise use the Beijing submission date', () => {
+  assert.equal(reportDay({content:'2026-10-29\nwork',created_at:'2026-10-30T03:00:00Z'}),'2026-10-29');
+  assert.equal(reportDay({content:'2026-02-30\nwork',created_at:'2026-10-29T17:00:00Z'}),'2026-10-30');
+});
+
+test('reads all pages before selecting a day, including more than 100 reports', async () => {
+  const first = Array.from({length:100}, (_, i) => ({id:String(i),content:'2026-10-29\nwork',created_at:'2026-10-30T03:00:00Z'}));
+  const paths=[];
+  const rows=await readAllAiReports(async path => { paths.push(path); return paths.length===1 ?
+    {items:first,has_more:true} : {items:[{id:'100',content:'2026-10-29\nmore',created_at:'2026-10-30T03:00:00Z'}],has_more:false}; });
+  assert.equal(rows.filter(row=>reportDay(row)==='2026-10-29').length,101);
+  assert.deepEqual(paths,['/ai-reports?offset=0','/ai-reports?offset=100']);
 });

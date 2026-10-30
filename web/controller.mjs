@@ -27,14 +27,14 @@ import { segmented } from "./ui/segmented.mjs";
 import { toast } from "./ui/toast.mjs";
 import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize,
   renderMediaTabs, mobileSettingsMenu, syncMobileViewport, setupMobileViewport} from "./ui/workbench.mjs";
-import {renderWorkbenchSettings} from "./pages/workbench-settings.mjs";
+import {renderWorkbenchSettings, renderTodoSettings} from "./pages/workbench-settings.mjs";
 import {renderWorkReminders} from "./pages/work-reminders.mjs";
 import {loadWorkReminders} from "./work-reminders-controller.mjs";
 import {renderAiReports} from "./pages/ai-reports.mjs";
 import {loadAiReports} from "./ai-reports-controller.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
-    state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts} : settingsTabs), state.settingsTab,
+    state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts, todo: settingsTabs.todo} : settingsTabs), state.settingsTab,
     "设置分类", "tab", "page-tabs") : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
@@ -53,7 +53,7 @@ function reuseShell() {
 }
 function renderShell() {
   redirectMobileArticlePage();
-  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts"].includes(state.settingsTab))
+  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts", "todo"].includes(state.settingsTab))
     state.settingsTab = "workspace";
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -192,7 +192,8 @@ async function renderPage() {
         html = await renderReviews(version, context);
         break;
       case "settings":
-        if (state.settingsTab === "workspace") { await Promise.all([loadMemos(), loadTodoPreferences(context)]); break; }
+        if (state.settingsTab === "workspace") { await loadMemos(); break; }
+        else if (state.settingsTab === "todo") { await loadTodoPreferences(context); html = renderTodoSettings(); }
         else if (state.settingsTab === "accounts") {
           data = await api("/account-profiles", {context});
           if (version !== runtime.renderVersion) return;

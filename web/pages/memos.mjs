@@ -7,6 +7,7 @@ export function renderMemos() {
     '<div class="memo-toolbar"><div class="memo-mobile-back">' + button('back-notes', '‹ 返回笔记') +
     '</div>' +
     '<div class="memo-toolbar-actions">' + button('exit-trash', '‹ 返回工作台设置', 'hidden') + button('login', '所有者登录', 'hidden') + '</div></div>' +
+    button('empty-trash', '清空回收站', 'hidden') +
     '<p id="memo-error" class="memo-message" role="alert" hidden></p>' +
     '<div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' +
     button('operation-check', '核对操作结果') + button('operation-retry', '重试同一操作', 'hidden') + '</div>' +
@@ -76,13 +77,13 @@ function flatNoteRow(note, store) {
   const removed = note.deleted_at || group?.deleted_at;
   const days = removed ? Math.max(0,30-Math.floor((Date.now()-Date.parse(removed))/86400000)) : 0;
   const retention = s.trash ? '<small class="memo-retention">' +
-    (days ? '30天恢复期 · 剩余' + days + '天' : '已归档 · 可恢复') + '</small>' : '';
+    (days ? '30天恢复期 · 剩余' + days + '天' : '已超过30天') + '</small>' : '';
   return '<div class="memo-flat-row">' + listButton('note', note, s.noteId) + control + retention + '</div>';
 }
 function paintLists(root, store) {
   const s = store.state, find = q => root.querySelector(q);
   find('#memo-groups-heading').textContent = s.trash ? '回收站' : '';
-  find('#memo-groups-heading').hidden = !s.trash;
+  find('#memo-groups-heading').hidden = !s.trash || Boolean(root.closest('.workbench-settings'));
   const notes = s.notes.filter(note => {
     const group = s.groups.find(row => row.id === note.group_id);
     return Boolean(note.deleted_at || group?.deleted_at) === s.trash;

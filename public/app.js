@@ -18,7 +18,7 @@ var nav = [
   { id: "ai-reports", label: "AI 汇报", icon: "articles" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
-var settingsTabs = { workspace: "工作台", accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
+var settingsTabs = { workspace: "回收站", accounts: "账号添加", todo: "待办切换", keys: "AI 授权", security: "安全", log: "操作日志" };
 var legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
 var defaultFilters = () => ({
   mode: "",
@@ -5200,14 +5200,14 @@ function renderPlatformTable(rows) {
     ))}</td></tr>`;
   }).join("")}</tbody></table></div>` : '<div class="empty inline-empty">暂无账号。<button class="btn" data-action="new-account">添加账号</button></div>';
 }
-function renderTopTable(rows, offset2 = 0) {
+function renderTopTable(rows, offset = 0) {
   const approvals = rows.some((a) => a.platform === "zhihu" || a.latest_metrics?.approvals != null);
   return `<div class="table-scroll"><table class="data-table dashboard-table top-table"><thead><tr><th>文章</th><th>账号</th><th>阅读</th><th>点赞 ${dashboardInfo(
     "metrics",
     "点赞与赞同口径",
-    "top" + offset2
+    "top" + offset
   )}</th><th>评论</th>${approvals ? "<th>赞同</th>" : ""}</tr></thead><tbody>${rows.map(
-    (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset2 + i + 1))}</span><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button></td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
+    (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset + i + 1))}</span><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button></td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
       "reads",
       "likes",
       "comments",
@@ -6126,7 +6126,7 @@ async function loadTodoPreferences(context) {
   }
 }
 async function changeTodoCompletedMode(mode) {
-  if (!state.me || !(state.page === "todos" || state.page === "settings" && state.settingsTab === "workspace") || !["strike", "hide"].includes(mode)) return;
+  if (!state.me || !(state.page === "todos" || state.page === "settings" && state.settingsTab === "todo") || !["strike", "hide"].includes(mode)) return;
   const prefs = todoPreferences(), owner2 = todoOwner();
   if (prefs.pending || !prefs.loaded || mode === prefs.mode) {
     paintTodoPreferences();
@@ -6218,20 +6218,20 @@ function todoCalendar(date) {
 ${["一", "二", "三", "四", "五", "六", "日"].map((day4) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day4}</span>`).join("")}
 ${visible3.map((day4) => day4 ? todoCalendarDay(day4, date) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
 }
-function moveTodoMonth(offset2) {
+function moveTodoMonth(offset) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
   const day4 = todoDay(), month = todoCalendarMonth(day4.date);
   if (todosState.calendarView === "week") {
     const anchor = day4.date.startsWith(month) ? day4.date : `${month}-01`;
     const weekDate = /* @__PURE__ */ new Date(`${anchor}T00:00:00Z`);
-    weekDate.setUTCDate(weekDate.getUTCDate() + offset2 * 7);
+    weekDate.setUTCDate(weekDate.getUTCDate() + offset * 7);
     const next = weekDate.toISOString().slice(0, 10);
     if (validTodoDate(next)) selectTodoDate(next);
     return;
   }
   const date = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`);
-  date.setUTCMonth(date.getUTCMonth() + offset2);
+  date.setUTCMonth(date.getUTCMonth() + offset);
   const nextMonth = date.toISOString().slice(0, 7);
   if (!validTodoDate(`${nextMonth}-01`)) return;
   todosState.calendarMonth = nextMonth;
@@ -6685,9 +6685,9 @@ function selectTodoDate(date) {
   paintTodos();
   loadTodos();
 }
-function moveTodoDate(offset2) {
+function moveTodoDate(offset) {
   const date = /* @__PURE__ */ new Date(`${todoDate()}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + offset2);
+  date.setUTCDate(date.getUTCDate() + offset);
   selectTodoDate(date.toISOString().slice(0, 10));
 }
 function refreshTodos() {
@@ -7505,13 +7505,13 @@ function shiftNoteMonth(month, delta) {
 }
 function noteMonthWeeks(month) {
   if (!validNoteMonth(month)) throw new Error("请选择有效月份。");
-  const first = /* @__PURE__ */ new Date(month + "-01T12:00:00Z"), offset2 = (first.getUTCDay() + 6) % 7;
+  const first = /* @__PURE__ */ new Date(month + "-01T12:00:00Z"), offset = (first.getUTCDay() + 6) % 7;
   const last = new Date(first);
   last.setUTCMonth(last.getUTCMonth() + 1);
   last.setUTCDate(0);
-  const weeks = Array.from({ length: Math.ceil((offset2 + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
+  const weeks = Array.from({ length: Math.ceil((offset + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
   for (let day4 = 1; day4 <= last.getUTCDate(); day4++)
-    weeks[Math.floor((offset2 + day4 - 1) / 7)][(offset2 + day4 - 1) % 7] = month + "-" + String(day4).padStart(2, "0");
+    weeks[Math.floor((offset + day4 - 1) / 7)][(offset + day4 - 1) % 7] = month + "-" + String(day4).padStart(2, "0");
   return weeks;
 }
 function checkedNoteMonth(data, month) {
@@ -8953,10 +8953,10 @@ function labelFloatingNote(labels) {
 async function sendFloatingNote() {
   const item = floatingNoteEntry(false), store = item && entryStores.get(item.category);
   if (!item || !store || item.date !== dailyNotesToday()) return;
-  const selectedId = floatingNoteId, selectedDate = floatingNoteDate, selectedCategory = floatingNoteCategory;
+  const selectedId = floatingNoteId, selectedDate2 = floatingNoteDate, selectedCategory = floatingNoteCategory;
   item.manualSubmitted = /* @__PURE__ */ Symbol("note-send");
   await store.save(item.id);
-  if (floatingNoteId === selectedId && floatingNoteDate === selectedDate && floatingNoteCategory === selectedCategory && !item.dirty && !item.pending && ["saved", "queued", "cached"].includes(item.phase)) {
+  if (floatingNoteId === selectedId && floatingNoteDate === selectedDate2 && floatingNoteCategory === selectedCategory && !item.dirty && !item.pending && ["saved", "queued", "cached"].includes(item.phase)) {
     floatingNoteId = "";
     floatingNoteDate = "";
     floatingNoteCategory = "life";
@@ -8974,7 +8974,7 @@ async function checkFloatingNote(retry = false) {
 // web/pages/memos.mjs
 var button = (action, label3, extra = "") => '<button type="button" class="btn" data-memo-action="' + action + '" ' + extra + ">" + label3 + "</button>";
 function renderMemos() {
-  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4H5v16h12v-7M8 16l1-3 8-8 2 2-8 8-3 1ZM18 13v6m-3-3h6"/></svg>', 'hidden aria-label="新建笔记" title="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><div id="memo-save-notice" class="memo-save-notice" hidden><span id="memo-status" role="status" aria-live="polite" hidden></span><span id="memo-note-error" role="alert" hidden></span><div id="memo-drafts" class="memo-drafts" hidden></div>' + button("recovery", "找回本机草稿", "hidden") + '</div><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M14 4h6v6m0-6-7 7M10 20H4v-6m0 6 7-7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
+  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + "</div></div>" + button("empty-trash", "清空回收站", "hidden") + '<p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4H5v16h12v-7M8 16l1-3 8-8 2 2-8 8-3 1ZM18 13v6m-3-3h6"/></svg>', 'hidden aria-label="新建笔记" title="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><div id="memo-save-notice" class="memo-save-notice" hidden><span id="memo-status" role="status" aria-live="polite" hidden></span><span id="memo-note-error" role="alert" hidden></span><div id="memo-drafts" class="memo-drafts" hidden></div>' + button("recovery", "找回本机草稿", "hidden") + '</div><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M14 4h6v6m0-6-7 7M10 20H4v-6m0 6 7-7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
 }
 var phases = {
   dirty: "等待自动保存",
@@ -9012,13 +9012,13 @@ function flatNoteRow(note, store) {
   const control = !s.canEdit ? "" : s.trash ? button("restore-note", "恢复", extra) : button("delete-note", "×", extra + ' aria-label="删除' + e(note.title) + '" title="移至回收站"');
   const removed4 = note.deleted_at || group?.deleted_at;
   const days = removed4 ? Math.max(0, 30 - Math.floor((Date.now() - Date.parse(removed4)) / 864e5)) : 0;
-  const retention = s.trash ? '<small class="memo-retention">' + (days ? "30天恢复期 · 剩余" + days + "天" : "已归档 · 可恢复") + "</small>" : "";
+  const retention = s.trash ? '<small class="memo-retention">' + (days ? "30天恢复期 · 剩余" + days + "天" : "已超过30天") + "</small>" : "";
   return '<div class="memo-flat-row">' + listButton("note", note, s.noteId) + control + retention + "</div>";
 }
 function paintLists(root, store) {
   const s = store.state, find = (q) => root.querySelector(q);
   find("#memo-groups-heading").textContent = s.trash ? "回收站" : "";
-  find("#memo-groups-heading").hidden = !s.trash;
+  find("#memo-groups-heading").hidden = !s.trash || Boolean(root.closest(".workbench-settings"));
   const notes = s.notes.filter((note) => {
     const group = s.groups.find((row) => row.id === note.group_id);
     return Boolean(note.deleted_at || group?.deleted_at) === s.trash;
@@ -9965,6 +9965,7 @@ var memoStore, memoIdentity = "", memoEvents = false, memoDialog = null, memoDra
 var memoEditorFocus = null, memoDeleting = "", memoDeleteWait = null;
 var memoOfflineRefresh = false, memoOfflineLoading = false, memoOfflineFlight = null, memoPendingCount = 0, memoConflictCount = 0;
 var memoRefreshPaused = false, memoRefreshReady = false;
+var memoPurgeIntent = null, memoPurgeBusy = false;
 function requestMemoTool(tool) {
   memoTool = ["trash", "recovery"].includes(tool) ? tool : "";
 }
@@ -10067,6 +10068,12 @@ function paintMemosPage() {
   paintMemos(root, memoStore);
   paintDialog(root);
   setupMemoSplit(root);
+  const purge = root.querySelector('[data-memo-action="empty-trash"]');
+  if (purge) {
+    purge.hidden = !settingsTrash() || !state.me?.id;
+    purge.disabled = memoPurgeBusy || memoStore.state.loading;
+    purge.textContent = state.me?.publicBusiness ? "登录后清空回收站" : memoPurgeIntent?.identity === memoIdentity ? "核对清空结果" : "清空回收站";
+  }
   if (memoRefreshPaused) {
     root.inert = true;
     root.querySelectorAll("button,input,select").forEach((control) => {
@@ -10147,6 +10154,58 @@ async function confirmDialog() {
     if (memoDialog === dialog) memoDialog = null;
   } finally {
     dialog.saving = false;
+    paintMemosPage();
+  }
+}
+async function clearMemoTrash() {
+  if (!settingsTrash() || !state.me?.id || memoPurgeBusy) return;
+  if (state.me.publicBusiness) {
+    renderLogin();
+    return;
+  }
+  const owner2 = currentIdentity(), store = memoStore, offline = getOfflineRuntime();
+  const safe = () => store === memoStore && owner2 === currentIdentity() && settingsTrash() && offline?.state?.online === true && Boolean(offline.state.verifiedScope) && !offline.state.pending && !offline.state.conflicts && !offline.state.unsupported && !store.state.operation?.pending && !store.state.loading && ![...store.drafts.values()].some((item) => item.dirty || item.pending || item.localQueued || item.composing);
+  if (!safe()) throw new Error("请先联网并处理所有待同步操作和未保存草稿，再清空回收站。");
+  memoPurgeBusy = true;
+  paintMemosPage();
+  try {
+    let intent = memoPurgeIntent?.identity === owner2 ? memoPurgeIntent : null;
+    if (!intent) {
+      const fresh = await apiNetwork("/memos");
+      if (!safe()) throw new Error("数据状态已变化，请处理待同步操作后重试。");
+      if (!Array.isArray(fresh?.groups) || !Array.isArray(fresh.notes) || !fresh.can_edit)
+        throw new Error("回收站未能完整读取，请稍后重试。");
+      const groups = fresh.groups.filter((x) => x.deleted_at);
+      const deletedGroups = new Set(groups.map((x) => x.id));
+      const notes = fresh.notes.filter((x) => x.deleted_at || deletedGroups.has(x.group_id));
+      if (!groups.length && !notes.length) {
+        store.state.error = "回收站是空的。";
+        return;
+      }
+      const lines = [...groups.map((x) => "分组：" + x.title), ...notes.map((x) => "笔记：" + x.title)];
+      if (!window.confirm("将永久删除回收站中 " + groups.length + " 个分组和 " + notes.length + " 篇笔记，无法恢复。\n\n" + lines.join("\n") + "\n\n确定清空吗？")) return;
+      if (!safe()) throw new Error("数据状态已变化，请重新核对。");
+      intent = { identity: owner2, body: {
+        groups: groups.map(({ id, version: version2 }) => ({ id, version: version2 })),
+        notes: notes.map(({ id, version: version2 }) => ({ id, version: version2 })),
+        save_id: crypto.randomUUID()
+      } };
+      memoPurgeIntent = intent;
+    } else if (!window.confirm("上次清空结果尚未确认。使用同一请求核对结果吗？")) return;
+    const result = await apiNetwork("/memos/trash/clear", { method: "POST", body: intent.body });
+    if (owner2 !== currentIdentity()) return;
+    if (result?.cleared !== true || result.groups !== intent.body.groups.length || result.notes !== intent.body.notes.length)
+      throw new Error("服务器返回的清空结果无法核实，请重试同一请求。");
+    memoPurgeIntent = null;
+    store.state.noteId = "";
+    store.state.groupId = "";
+    await store.load();
+    store.state.error = "回收站已清空。";
+  } catch (error) {
+    if (error.status === 409 || error.status === 403 || error.status === 401) memoPurgeIntent = null;
+    throw error;
+  } finally {
+    memoPurgeBusy = false;
     paintMemosPage();
   }
 }
@@ -10252,6 +10311,7 @@ function toggleMemoFullscreen(expanded) {
 }
 async function clickAction(action, target) {
   const store = ensureStore(), s = store.state;
+  if (action === "empty-trash") return clearMemoTrash();
   if (["new-group", "new-note"].includes(action)) return createMemo(action, target);
   if (action === "delete-note") return removeMemo(target?.dataset.memoTarget || s.noteId);
   if (action === "restore-note") return restoreMemo(target?.dataset.memoTarget || s.noteId);
@@ -10827,10 +10887,10 @@ function setupMobileViewport() {
 
 // web/pages/workbench-settings.mjs
 function renderWorkbenchSettings() {
-  return `<section class="workbench-settings"><div class="section-heading"><h2>回收站</h2>
-<button class="btn text" data-action="memo-tools" data-tool="recovery">${icon("refresh")}找回未保存内容</button></div>
-<p class="trash-policy">删除后30天内可恢复；超过30天归档保留，仍可恢复。</p>${renderMemos()}
-<section class="card panel todo-settings"><h2>今日待办</h2>${renderTodoPreferences()}</section></section>`;
+  return `<section class="workbench-settings">${renderMemos()}</section>`;
+}
+function renderTodoSettings() {
+  return `<section class="card panel todo-settings"><h2>今日待办</h2>${renderTodoPreferences()}</section>`;
 }
 
 // web/pages/work-reminders.mjs
@@ -10883,13 +10943,15 @@ function registerReminderEvents() {
 // web/pages/ai-reports.mjs
 function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 汇报">
-    <div class="field-spaced"><h2>汇报记录</h2><p id="ai-report-list-status" role="status"></p>
+    <div class="field-spaced"><h2>汇报记录</h2>
+      <div class="notes-toolbar"><div class="notes-date-controls">
+        <button class="btn" type="button" data-ai-report-previous aria-label="前一天">‹</button>
+        <label class="notes-date-label"><span class="sr-only">选择汇报日期</span><input id="ai-report-date" class="input" type="date" max="${dailyNotesToday()}"></label>
+        <button class="btn" type="button" data-ai-report-next aria-label="后一天">›</button>
+        <button class="btn text" type="button" data-ai-report-today>今天</button>
+      </div></div><p id="ai-report-list-status" role="status"></p>
       <div id="ai-report-list" aria-live="polite"></div>
-      <div class="field-spaced" id="ai-report-pagination" hidden>
-        <button class="btn" type="button" data-ai-report-prev>上一页</button>
-        <span id="ai-report-page"></span>
-        <button class="btn" type="button" data-ai-report-next>下一页</button>
-      </div></div>
+    </div>
   </section>`;
 }
 var dateFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -10912,16 +10974,28 @@ function reportContent(value) {
     return { workDate: null, body: content2 };
   return { workDate: firstLine, body: content2.slice(firstLine.length).replace(/^\r?\n/, "") };
 }
-function paintAiReports(items, error = "", loading = false, offset2 = 0, hasMore = false) {
+function reportDay(row) {
+  const { workDate } = reportContent(row.content);
+  const date = new Date(row.created_at);
+  if (workDate) return workDate;
+  if (!Number.isFinite(date.getTime())) return "";
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+function paintAiReports(items, error = "", loading = false, selectedDate2 = dailyNotesToday()) {
   const root = document.querySelector("#ai-reports");
   if (!root) return;
   const status = root.querySelector("#ai-report-list-status");
-  status.textContent = error || (loading ? "正在读取汇报…" : items.length ? "" : "暂无汇报");
-  const pager = root.querySelector("#ai-report-pagination");
-  pager.hidden = loading || !items.length && offset2 === 0;
-  root.querySelector("[data-ai-report-prev]").disabled = loading || offset2 === 0;
-  root.querySelector("[data-ai-report-next]").disabled = loading || !hasMore;
-  root.querySelector("#ai-report-page").textContent = `第 ${Math.floor(offset2 / 100) + 1} 页`;
+  status.textContent = error || (loading || items.length ? "" : "暂无汇报");
+  const dateInput = root.querySelector("#ai-report-date");
+  dateInput.value = selectedDate2;
+  dateInput.max = dailyNotesToday();
+  root.querySelector("[data-ai-report-next]").disabled = selectedDate2 >= dailyNotesToday();
   const groups = /* @__PURE__ */ new Map();
   for (const row of items) {
     const date = new Date(row.created_at);
@@ -10937,22 +11011,46 @@ function paintAiReports(items, error = "", loading = false, offset2 = 0, hasMore
 }
 
 // web/ai-reports-controller.mjs
-var sequence2 = 0, registered = false, offset = 0, pageSession = null;
+var sequence2 = 0, registered = false, selectedDate = "", pageSession = null;
+async function readAllAiReports(read, current2 = () => true) {
+  const items = [], seen = /* @__PURE__ */ new Set();
+  for (let offset = 0; ; offset += 100) {
+    const data = await read("/ai-reports?offset=" + offset);
+    if (!current2()) return null;
+    if (!Array.isArray(data?.items) || typeof data.has_more !== "boolean" || data.items.length > 100 || data.has_more && data.items.length !== 100)
+      throw new Error("汇报读取不完整，请稍后重试。");
+    for (const row of data.items) if (!seen.has(row.id)) {
+      seen.add(row.id);
+      items.push(row);
+    }
+    if (!data.has_more) return items;
+  }
+}
 async function loadAiReports() {
   registerAiReportEvents();
   const session = runtime.sessionEpoch;
   if (pageSession !== session) {
     pageSession = session;
-    offset = 0;
+    selectedDate = dailyNotesToday();
   }
-  const ticket = ++sequence2, requestedOffset = offset;
+  if (!selectedDate || selectedDate > dailyNotesToday()) selectedDate = dailyNotesToday();
+  const ticket = ++sequence2, date = selectedDate;
   const current2 = () => ticket === sequence2 && session === runtime.sessionEpoch && state.page === "ai-reports";
-  paintAiReports([], "", true);
+  paintAiReports([], "", true, date);
   try {
-    const data = await api("/ai-reports?offset=" + requestedOffset);
-    if (current2()) paintAiReports(data.items || [], "", false, requestedOffset, data.has_more === true);
+    const items = await readAllAiReports(api, current2);
+    if (current2() && items) paintAiReports(items.filter((row) => reportDay(row) === date), "", false, date);
   } catch (error) {
-    if (current2()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, requestedOffset);
+    if (current2()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, date);
+  }
+}
+function moveDate(days) {
+  const d = /* @__PURE__ */ new Date(selectedDate + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  const next = d.toISOString().slice(0, 10);
+  if (validDailyNotesDate(next) && next <= dailyNotesToday()) {
+    selectedDate = next;
+    void loadAiReports();
   }
 }
 function registerAiReportEvents() {
@@ -10960,13 +11058,20 @@ function registerAiReportEvents() {
   registered = true;
   document.addEventListener("click", (event) => {
     if (state.page !== "ai-reports") return;
-    if (event.target.closest?.("[data-ai-report-prev]") && offset > 0) {
-      offset -= 100;
-      void loadAiReports();
-    } else if (event.target.closest?.("[data-ai-report-next]")) {
-      offset += 100;
+    if (event.target.closest?.("[data-ai-report-previous]")) moveDate(-1);
+    else if (event.target.closest?.("[data-ai-report-next]")) moveDate(1);
+    else if (event.target.closest?.("[data-ai-report-today]")) {
+      selectedDate = dailyNotesToday();
       void loadAiReports();
     }
+  });
+  document.addEventListener("change", (event) => {
+    if (state.page !== "ai-reports" || event.target.id !== "ai-report-date") return;
+    const value = event.target.value;
+    if (validDailyNotesDate(value) && value <= dailyNotesToday()) {
+      selectedDate = value;
+      void loadAiReports();
+    } else event.target.value = selectedDate;
   });
 }
 
@@ -10975,7 +11080,7 @@ function mainContent() {
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented(
     "settings-tab",
     Object.entries(
-      state.me?.publicBusiness ? { workspace: settingsTabs.workspace, accounts: settingsTabs.accounts } : settingsTabs
+      state.me?.publicBusiness ? { workspace: settingsTabs.workspace, accounts: settingsTabs.accounts, todo: settingsTabs.todo } : settingsTabs
     ),
     state.settingsTab,
     "设置分类",
@@ -10999,7 +11104,7 @@ function reuseShell() {
 }
 function renderShell() {
   redirectMobileArticlePage();
-  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts"].includes(state.settingsTab))
+  if (state.me?.publicBusiness && state.page === "settings" && !["workspace", "accounts", "todo"].includes(state.settingsTab))
     state.settingsTab = "workspace";
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -11137,8 +11242,11 @@ async function renderPage() {
         break;
       case "settings":
         if (state.settingsTab === "workspace") {
-          await Promise.all([loadMemos(), loadTodoPreferences(context)]);
+          await loadMemos();
           break;
+        } else if (state.settingsTab === "todo") {
+          await loadTodoPreferences(context);
+          html = renderTodoSettings();
         } else if (state.settingsTab === "accounts") {
           data = await api("/account-profiles", { context });
           if (version2 !== runtime.renderVersion) return;

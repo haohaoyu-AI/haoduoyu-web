@@ -17,7 +17,7 @@ const nav = [
   { id: "ai-reports", label: "AI 汇报", icon: "articles" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
-const settingsTabs = { workspace: "工作台", accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
+const settingsTabs = { workspace: "回收站", accounts: "账号添加", todo: "待办切换", keys: "AI 授权", security: "安全", log: "操作日志" };
 const legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
 const defaultFilters = () => ({ mode: "", from: "", to: "", sort: "published_at", order: "desc", group: "", platform: "", topic: "",
   data_status: "", status: "published", slot: "", writer: "", has_warnings: "", has_pending_verify: "", series_no_min: "", series_no_max: "" });

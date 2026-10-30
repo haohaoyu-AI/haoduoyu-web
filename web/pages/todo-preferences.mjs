@@ -49,7 +49,7 @@ async function loadTodoPreferences(context) {
   }
 }
 async function changeTodoCompletedMode(mode) {
-  if (!state.me || !(state.page === "todos" || state.page === "settings" && state.settingsTab === "workspace") ||
+  if (!state.me || !(state.page === "todos" || state.page === "settings" && state.settingsTab === "todo") ||
     !["strike", "hide"].includes(mode)) return;
   const prefs = todoPreferences(), owner = todoOwner();
   if (prefs.pending || !prefs.loaded || mode === prefs.mode) {
