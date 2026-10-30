@@ -22,8 +22,7 @@ function registerAiReportEvents() {
   registered = true;
   document.addEventListener('click', event => {
     if (state.page !== 'ai-reports') return;
-    if (event.target.closest?.('[data-ai-report-retry]')) { void loadAiReports(); }
-    else if (event.target.closest?.('[data-ai-report-prev]') && offset > 0) { offset -= 100; void loadAiReports(); }
+    if (event.target.closest?.('[data-ai-report-prev]') && offset > 0) { offset -= 100; void loadAiReports(); }
     else if (event.target.closest?.('[data-ai-report-next]')) { offset += 100; void loadAiReports(); }
   });
   document.addEventListener('input', event => {
