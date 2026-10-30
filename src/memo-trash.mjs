@@ -8,10 +8,8 @@ export const memoPurgedKey=(kind,id)=>kind+':'+id;
 export async function memoWasPurged(store,owner,kind,id) {
   return Boolean(await store.get('SELECT key FROM idempotency WHERE actor=? AND key=?',deletedActor(owner),memoPurgedKey(kind,id)));
 }
-async function ownerSession(store,request,owner,env,origin) {
-  const actor=await noteEditor(store,request,owner,env,'memos',origin,{write:true});
-  if(actor.kind!=='session')throw fail(403,'MEMO_PURGE_LOGIN_REQUIRED','请先登录所有者账号，再清空回收站。');
-  return actor;
+async function clearActor(store,request,owner,env,origin) {
+  return noteEditor(store,request,owner,env,'memos',origin,{write:true});
 }
 function snapshot(items,max) {
   if(!Array.isArray(items)||items.length>max)throw fail(400,'VALIDATION_ERROR','回收站范围无效');
@@ -24,7 +22,7 @@ function snapshot(items,max) {
   return result;
 }
 export async function clearMemoTrash(db,request,owner,env,origin) {
-  await ownerSession(storeFor(db),request,owner,env,origin);
+  await clearActor(storeFor(db),request,owner,env,origin);
   limitNoteWrites(owner,'memos');
   const input=await bodyFor(request);
   if(Object.keys(input).sort().join(',')!=='groups,notes,save_id')throw fail(400,'VALIDATION_ERROR','回收站范围无效');
@@ -32,7 +30,7 @@ export async function clearMemoTrash(db,request,owner,env,origin) {
   if(!groups.length&&!notes.length)throw fail(400,'VALIDATION_ERROR','回收站为空');
   const requestHash=digest(JSON.stringify(stable({groups,notes,save_id:saveId}))),key='memo-trash-clear:'+saveId;
   return (await mutate(db,async store=>{
-    const actor=await ownerSession(store,request,owner,env,origin);
+    const actor=await clearActor(store,request,owner,env,origin);
     const previous=await store.get('SELECT request_hash,response_json FROM idempotency WHERE actor=? AND key=?',actor.actor,key);
     if(previous) {
       if(previous.request_hash!==requestHash)throw fail(409,'IDEMPOTENCY_CONFLICT','操作标识已用于其他范围');

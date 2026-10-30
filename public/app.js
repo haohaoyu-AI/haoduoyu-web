@@ -5722,8 +5722,8 @@ function todoTemplateEditor(store) {
 }
 function renderTodoTemplates(floatingControl = "") {
   const store = templateState();
-  return `<section id="todo-templates" class="daily-todo-templates todo-view" ${state.todoPanel === "templates" ? "" : "hidden"}>
-<div class="todo-view-head"><h2>常用待办</h2>${floatingControl}</div>
+  return `<section id="todo-templates" class="daily-todo-templates todo-view" aria-label="常用待办" ${state.todoPanel === "templates" ? "" : "hidden"}>
+<div class="todo-view-head">${floatingControl}</div>
 <div class="todo-template-content">
 <form id="todo-template-form" class="todo-template-form" ${store.editing ? "hidden" : ""}>
 <label for="todo-template-text" class="sr-only">新建常用待办</label>
@@ -10072,7 +10072,7 @@ function paintMemosPage() {
   if (purge) {
     purge.hidden = !settingsTrash() || !state.me?.id;
     purge.disabled = memoPurgeBusy || memoStore.state.loading;
-    purge.textContent = state.me?.publicBusiness ? "登录后清空回收站" : memoPurgeIntent?.identity === memoIdentity ? "核对清空结果" : "清空回收站";
+    purge.textContent = memoPurgeIntent?.identity === memoIdentity ? "核对清空结果" : "清空回收站";
   }
   if (memoRefreshPaused) {
     root.inert = true;
@@ -10159,10 +10159,6 @@ async function confirmDialog() {
 }
 async function clearMemoTrash() {
   if (!settingsTrash() || !state.me?.id || memoPurgeBusy) return;
-  if (state.me.publicBusiness) {
-    renderLogin();
-    return;
-  }
   const owner2 = currentIdentity(), store = memoStore, offline = getOfflineRuntime();
   const safe = () => store === memoStore && owner2 === currentIdentity() && settingsTrash() && offline?.state?.online === true && Boolean(offline.state.verifiedScope) && !offline.state.pending && !offline.state.conflicts && !offline.state.unsupported && !store.state.operation?.pending && !store.state.loading && ![...store.drafts.values()].some((item) => item.dirty || item.pending || item.localQueued || item.composing);
   if (!safe()) throw new Error("请先联网并处理所有待同步操作和未保存草稿，再清空回收站。");
@@ -10890,7 +10886,7 @@ function renderWorkbenchSettings() {
   return `<section class="workbench-settings">${renderMemos()}</section>`;
 }
 function renderTodoSettings() {
-  return `<section class="card panel todo-settings"><h2>今日待办</h2>${renderTodoPreferences()}</section>`;
+  return `<section class="card panel todo-settings" aria-label="今日待办设置">${renderTodoPreferences()}</section>`;
 }
 
 // web/pages/work-reminders.mjs
@@ -10943,7 +10939,7 @@ function registerReminderEvents() {
 // web/pages/ai-reports.mjs
 function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 汇报">
-    <div class="field-spaced"><h2>汇报记录</h2>
+    <div>
       <div class="notes-toolbar"><div class="notes-date-controls">
         <button class="btn" type="button" data-ai-report-previous aria-label="前一天">‹</button>
         <label class="notes-date-label"><span class="sr-only">选择汇报日期</span><input id="ai-report-date" class="input" type="date" max="${dailyNotesToday()}"></label>
@@ -10996,22 +10992,37 @@ function paintAiReports(items, error = "", loading = false, selectedDate2 = dail
   dateInput.value = selectedDate2;
   dateInput.max = dailyNotesToday();
   root.querySelector("[data-ai-report-next]").disabled = selectedDate2 >= dailyNotesToday();
-  const groups = /* @__PURE__ */ new Map();
+  const rows = [];
   for (const row of items) {
     const date = new Date(row.created_at);
     const validDate = Number.isFinite(date.getTime());
     const submissionDay = validDate ? dateFormatter.format(date) : "日期未知";
-    const { workDate, body: body2 } = reportContent(row.content);
-    const group = workDate ? `${Number(workDate.slice(0, 4))}年${Number(workDate.slice(5, 7))}月${Number(workDate.slice(8, 10))}日` : `提交日期 · ${submissionDay}`;
+    const { body: body2 } = reportContent(row.content);
     const stamp2 = validDate ? `${submissionDay} ${timeFormatter.format(date)}（北京时间）` : String(row.created_at ?? "未知");
-    if (!groups.has(group)) groups.set(group, []);
-    groups.get(group).push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp2)}"><p><strong>${e(row.author)}：</strong><br><br>${e(body2).replace(/\n/g, "<br>")}</p></article>`);
+    rows.push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp2)}"><p><strong>${e(row.author)}：</strong><br><br>${e(body2).replace(/\n/g, "<br>")}</p></article>`);
   }
-  root.querySelector("#ai-report-list").innerHTML = [...groups].map(([group, rows]) => `<h3 class="field-spaced">${e(group)}</h3>${rows.join("")}`).join("");
+  const group = `${Number(selectedDate2.slice(0, 4))}年${Number(selectedDate2.slice(5, 7))}月${Number(selectedDate2.slice(8, 10))}日`;
+  root.querySelector("#ai-report-list").innerHTML = rows.length ? `<h3 class="field-spaced">${e(group)}</h3>${rows.join("")}` : "";
 }
 
 // web/ai-reports-controller.mjs
 var sequence2 = 0, registered = false, selectedDate = "", pageSession = null;
+function aiReportsYesterday(today2 = dailyNotesToday()) {
+  const date = /* @__PURE__ */ new Date(today2 + "T00:00:00Z");
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+function reportRank(author) {
+  const value = String(author ?? "");
+  if (/gpt/i.test(value)) return 0;
+  if (/(?:^|[^a-z0-9])bot(?:$|[^a-z0-9])/i.test(value)) return 1;
+  if (/gemini/i.test(value)) return 2;
+  return 3;
+}
+var compareText = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+function sortAiReports(items) {
+  return [...items].sort((a, b) => reportRank(a.author) - reportRank(b.author) || compareText(String(a.author ?? "").toLowerCase(), String(b.author ?? "").toLowerCase()) || compareText(String(a.created_at ?? ""), String(b.created_at ?? "")) || compareText(String(a.id ?? ""), String(b.id ?? "")));
+}
 async function readAllAiReports(read, current2 = () => true) {
   const items = [], seen = /* @__PURE__ */ new Set();
   for (let offset = 0; ; offset += 100) {
@@ -11026,20 +11037,20 @@ async function readAllAiReports(read, current2 = () => true) {
     if (!data.has_more) return items;
   }
 }
-async function loadAiReports() {
+async function loadAiReports({ resetDate = false } = {}) {
   registerAiReportEvents();
   const session = runtime.sessionEpoch;
-  if (pageSession !== session) {
+  if (pageSession !== session || resetDate) {
     pageSession = session;
-    selectedDate = dailyNotesToday();
+    selectedDate = aiReportsYesterday();
   }
-  if (!selectedDate || selectedDate > dailyNotesToday()) selectedDate = dailyNotesToday();
+  if (!selectedDate || selectedDate > dailyNotesToday()) selectedDate = aiReportsYesterday();
   const ticket = ++sequence2, date = selectedDate;
   const current2 = () => ticket === sequence2 && session === runtime.sessionEpoch && state.page === "ai-reports";
   paintAiReports([], "", true, date);
   try {
     const items = await readAllAiReports(api, current2);
-    if (current2() && items) paintAiReports(items.filter((row) => reportDay(row) === date), "", false, date);
+    if (current2() && items) paintAiReports(sortAiReports(items.filter((row) => reportDay(row) === date)), "", false, date);
   } catch (error) {
     if (current2()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, date);
   }
@@ -11229,7 +11240,7 @@ async function renderPage() {
         await loadWorkReminders();
         break;
       case "ai-reports":
-        await loadAiReports();
+        await loadAiReports({ resetDate: true });
         break;
       case "dashboard":
         html = await loadArticleOverview(version2, context);

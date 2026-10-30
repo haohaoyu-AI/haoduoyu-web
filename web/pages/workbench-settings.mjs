@@ -6,5 +6,5 @@ export function renderWorkbenchSettings() {
 }
 
 export function renderTodoSettings() {
-  return `<section class="card panel todo-settings"><h2>今日待办</h2>${renderTodoPreferences()}</section>`;
+  return `<section class="card panel todo-settings" aria-label="今日待办设置">${renderTodoPreferences()}</section>`;
 }

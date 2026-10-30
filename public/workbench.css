@@ -324,6 +324,7 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 .trash-policy { margin:var(--space-8) 0 var(--space-20); color:var(--ink-2); font-size:var(--font-size-13); }
 .workbench-settings #memos .memo-layout { min-height:360px; }
 .workbench-settings #memos .memo-toolbar { min-height:0; margin-bottom:var(--space-12); }
+.workbench-settings #memos [data-memo-action="empty-trash"] { display:block; margin-bottom:var(--space-16); }
 .workbench-settings #memos .memo-body,.workbench-settings #memos .memo-read-body { min-height:220px; }
 .reminder-toolbar { margin-bottom:var(--space-20); }
 .reminder-toolbar .input { width:auto; min-width:160px; }

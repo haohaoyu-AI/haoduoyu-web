@@ -60,8 +60,8 @@ function todoTemplateEditor(store) {
 }
 function renderTodoTemplates(floatingControl = "") {
   const store = templateState();
-  return `<section id="todo-templates" class="daily-todo-templates todo-view" ${state.todoPanel === "templates" ? "" : "hidden"}>
-<div class="todo-view-head"><h2>常用待办</h2>${floatingControl}</div>
+  return `<section id="todo-templates" class="daily-todo-templates todo-view" aria-label="常用待办" ${state.todoPanel === "templates" ? "" : "hidden"}>
+<div class="todo-view-head">${floatingControl}</div>
 <div class="todo-template-content">
 <form id="todo-template-form" class="todo-template-form" ${store.editing ? "hidden" : ""}>
 <label for="todo-template-text" class="sr-only">新建常用待办</label>

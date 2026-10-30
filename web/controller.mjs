@@ -180,7 +180,7 @@ async function renderPage() {
         await loadWorkReminders();
         break;
       case "ai-reports":
-        await loadAiReports();
+        await loadAiReports({resetDate:true});
         break;
       case "dashboard":
         html = await loadArticleOverview(version, context);

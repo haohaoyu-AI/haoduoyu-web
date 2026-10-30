@@ -80,8 +80,7 @@ export function paintMemosPage() {
   if (purge) {
     purge.hidden = !settingsTrash() || !state.me?.id;
     purge.disabled = memoPurgeBusy || memoStore.state.loading;
-    purge.textContent = state.me?.publicBusiness ? '登录后清空回收站' :
-      memoPurgeIntent?.identity === memoIdentity ? '核对清空结果' : '清空回收站';
+    purge.textContent = memoPurgeIntent?.identity === memoIdentity ? '核对清空结果' : '清空回收站';
   }
   if (memoRefreshPaused) {
     root.inert = true;
@@ -141,7 +140,6 @@ async function confirmDialog() {
 }
 async function clearMemoTrash() {
   if (!settingsTrash() || !state.me?.id || memoPurgeBusy) return;
-  if (state.me.publicBusiness) { renderLogin(); return; }
   const owner = currentIdentity(), store = memoStore, offline = getOfflineRuntime();
   const safe = () => store === memoStore && owner === currentIdentity() && settingsTrash() &&
     offline?.state?.online === true && Boolean(offline.state.verifiedScope) &&

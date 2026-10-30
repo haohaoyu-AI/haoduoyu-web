@@ -5,6 +5,27 @@ import {paintAiReports,reportDay} from './pages/ai-reports.mjs';
 
 let sequence = 0, registered = false, selectedDate = '', pageSession = null;
 
+export function aiReportsYesterday(today = dailyNotesToday()) {
+  const date = new Date(today + 'T00:00:00Z');
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function reportRank(author) {
+  const value = String(author ?? '');
+  if (/gpt/i.test(value)) return 0;
+  if (/(?:^|[^a-z0-9])bot(?:$|[^a-z0-9])/i.test(value)) return 1;
+  if (/gemini/i.test(value)) return 2;
+  return 3;
+}
+const compareText = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+export function sortAiReports(items) {
+  return [...items].sort((a, b) => reportRank(a.author) - reportRank(b.author) ||
+    compareText(String(a.author ?? '').toLowerCase(), String(b.author ?? '').toLowerCase()) ||
+    compareText(String(a.created_at ?? ''), String(b.created_at ?? '')) ||
+    compareText(String(a.id ?? ''), String(b.id ?? '')));
+}
+
 // Reports are paginated by submission time, not work date, so read every page
 // before filtering. This keeps all entries for a day, including later submissions.
 export async function readAllAiReports(read, current = () => true) {
@@ -20,17 +41,17 @@ export async function readAllAiReports(read, current = () => true) {
   }
 }
 
-export async function loadAiReports() {
+export async function loadAiReports({resetDate = false} = {}) {
   registerAiReportEvents();
   const session = runtime.sessionEpoch;
-  if (pageSession !== session) { pageSession = session; selectedDate = dailyNotesToday(); }
-  if (!selectedDate || selectedDate > dailyNotesToday()) selectedDate = dailyNotesToday();
+  if (pageSession !== session || resetDate) { pageSession = session; selectedDate = aiReportsYesterday(); }
+  if (!selectedDate || selectedDate > dailyNotesToday()) selectedDate = aiReportsYesterday();
   const ticket = ++sequence, date = selectedDate;
   const current = () => ticket === sequence && session === runtime.sessionEpoch && state.page === 'ai-reports';
   paintAiReports([], '', true, date);
   try {
     const items = await readAllAiReports(api, current);
-    if (current() && items) paintAiReports(items.filter(row => reportDay(row) === date), '', false, date);
+    if (current() && items) paintAiReports(sortAiReports(items.filter(row => reportDay(row) === date)), '', false, date);
   } catch (error) {
     if (current()) paintAiReports([], error.message || '读取失败，请稍后重试。', false, date);
   }

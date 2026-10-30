@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {state} from '../web/core/state.mjs';
 import {sidebarNavigation, mobileSettingsMenu} from '../web/ui/workbench.mjs';
 import {renderAiReports, paintAiReports, reportDay} from '../web/pages/ai-reports.mjs';
-import {readAllAiReports} from '../web/ai-reports-controller.mjs';
+import {readAllAiReports, aiReportsYesterday, sortAiReports} from '../web/ai-reports-controller.mjs';
 
 test('AI reports are reachable in public and private desktop and mobile navigation', () => {
   for (const publicBusiness of [true, false]) {
@@ -40,11 +40,11 @@ test('report reading distinguishes declared work dates from submission time and 
     paintAiReports([
       {author:'dot小鱼', content:'2026-10-29\n完成 <script>alert(1)</script>', created_at:'2026-10-30T03:00:00Z'},
       {author:'旧记录', content:'2026-02-30\n原文保留', created_at:'2026-10-30T03:00:00Z'}
-    ]);
+    ], '', false, '2026-10-29');
     const html = elements.get('#ai-report-list').innerHTML;
     assert.match(html, /<h3[^>]*>2026年10月29日<\/h3>/);
     assert.doesNotMatch(html, /2026-10-29/);
-    assert.match(html, /提交日期 · 2026\/10\/30/);
+    assert.equal((html.match(/<h3\b/g) || []).length, 1);
     assert.match(html, /title="提交于 2026\/10\/30 11:00（北京时间）"/);
     assert.match(html, /<strong>dot小鱼：<\/strong><br><br>完成/);
     assert.match(html, /2026-02-30<br>原文保留/);
@@ -93,6 +93,26 @@ test('report errors and date navigation remain visible and actionable', () => {
 test('declared work date takes precedence; otherwise use the Beijing submission date', () => {
   assert.equal(reportDay({content:'2026-10-29\nwork',created_at:'2026-10-30T03:00:00Z'}),'2026-10-29');
   assert.equal(reportDay({content:'2026-02-30\nwork',created_at:'2026-10-29T17:00:00Z'}),'2026-10-30');
+});
+
+test('default date is yesterday across month, year and leap-day boundaries', () => {
+  assert.equal(aiReportsYesterday('2026-10-30'), '2026-10-29');
+  assert.equal(aiReportsYesterday('2026-01-01'), '2025-12-31');
+  assert.equal(aiReportsYesterday('2024-03-01'), '2024-02-29');
+});
+
+test('report order is GPT, BOT, GEMINI then other authors regardless of input order', () => {
+  const rows = [
+    {id:'g',author:'Gemini',created_at:'2026-10-29T08:00:00Z'},
+    {id:'o',author:'Other',created_at:'2026-10-29T01:00:00Z'},
+    {id:'b',author:'Grok Bot-小小鱼',created_at:'2026-10-29T03:00:00Z'},
+    {id:'a',author:'ChatGPT-dot小鱼',created_at:'2026-10-29T09:00:00Z'},
+    {id:'a2',author:'ChatGPT-dot小鱼',created_at:'2026-10-29T02:00:00Z'}
+  ];
+  const expected = ['a2','a','b','g','o'];
+  assert.deepEqual(sortAiReports(rows).map(row => row.id), expected);
+  assert.deepEqual(sortAiReports([...rows].reverse()).map(row => row.id), expected);
+  assert.equal(rows[0].id, 'g');
 });
 
 test('reads all pages before selecting a day, including more than 100 reports', async () => {
