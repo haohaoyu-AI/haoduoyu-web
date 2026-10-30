@@ -10931,7 +10931,7 @@ function paintAiReports(items, error = "", loading = false, offset2 = 0, hasMore
     const group = workDate ? `${Number(workDate.slice(0, 4))}年${Number(workDate.slice(5, 7))}月${Number(workDate.slice(8, 10))}日` : `提交日期 · ${submissionDay}`;
     const stamp2 = validDate ? `${submissionDay} ${timeFormatter.format(date)}（北京时间）` : String(row.created_at ?? "未知");
     if (!groups.has(group)) groups.set(group, []);
-    groups.get(group).push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp2)}"><p><strong>${e(row.author)}：</strong>${e(body2).replace(/\n/g, "<br>")}</p></article>`);
+    groups.get(group).push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp2)}"><p><strong>${e(row.author)}：</strong><br><br>${e(body2).replace(/\n/g, "<br>")}</p></article>`);
   }
   root.querySelector("#ai-report-list").innerHTML = [...groups].map(([group, rows]) => `<h3 class="field-spaced">${e(group)}</h3>${rows.join("")}`).join("");
 }

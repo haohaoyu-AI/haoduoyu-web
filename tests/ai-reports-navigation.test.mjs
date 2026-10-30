@@ -44,10 +44,31 @@ test('report reading distinguishes declared work dates from submission time and 
     assert.doesNotMatch(html, /2026-10-29/);
     assert.match(html, /提交日期 · 2026\/10\/30/);
     assert.match(html, /title="提交于 2026\/10\/30 11:00（北京时间）"/);
-    assert.match(html, /<strong>dot小鱼：<\/strong>完成/);
+    assert.match(html, /<strong>dot小鱼：<\/strong><br><br>完成/);
     assert.match(html, /2026-02-30<br>原文保留/);
     assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.doesNotMatch(html, /<script>/);
+  } finally { globalThis.document = originalDocument; }
+});
+
+test('report author is emphasized above four escaped, line-separated items', () => {
+  const elements = new Map();
+  const root = {querySelector(selector) {
+    if (!elements.has(selector)) elements.set(selector, {});
+    return elements.get(selector);
+  }};
+  const originalDocument = globalThis.document;
+  globalThis.document = {querySelector: () => root};
+  try {
+    paintAiReports([{
+      author: 'ChatGPT-dot\u5c0f\u9c7c',
+      content: '2026-10-29\n1. First\n2. Second\n3. <script>alert(1)</script>\n4. Fourth',
+      created_at: '2026-10-30T03:00:00Z'
+    }]);
+    const html = elements.get('#ai-report-list').innerHTML;
+    assert.ok(html.includes('<strong>ChatGPT-dot\u5c0f\u9c7c\uff1a</strong><br><br>1. First<br>2. Second<br>3. &lt;script&gt;alert(1)&lt;/script&gt;<br>4. Fourth'));
+    assert.doesNotMatch(html, /<script>/);
+    assert.doesNotMatch(html, /\*\*ChatGPT-dot/);
   } finally { globalThis.document = originalDocument; }
 });
 
