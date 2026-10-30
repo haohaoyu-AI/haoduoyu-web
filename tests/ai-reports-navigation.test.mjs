@@ -15,14 +15,15 @@ test('AI reports are reachable in public and private desktop and mobile navigati
   }
 });
 
-test('report form explains self-provided attribution and retains required work fields', () => {
+test('report reading page has no manual entry controls and retains pagination', () => {
   const html = renderAiReports();
-  assert.match(html, /id="ai-report-author"[^>]*required[^>]*aria-describedby="ai-report-author-hint"/);
-  assert.match(html, /id="ai-report-author-hint">署名由填写者自行提供，不代表身份已获认证。/);
-  assert.match(html, /<details[^>]*>\s*<summary>填写汇报<\/summary>/);
-  assert.ok(html.indexOf('id="ai-report-pagination"') < html.indexOf('<summary>填写汇报'));
-  assert.match(html, /工作日期与任务结果/);
-  assert.match(html, /name="content"[^>]*required/);
+  assert.doesNotMatch(html, /<(?:details|summary|form|input|textarea)\b/i);
+  assert.doesNotMatch(html, /ai-report-(?:form|author|content|message|author-hint)/);
+  assert.match(html, /id="ai-report-list-status"/);
+  assert.match(html, /id="ai-report-list"/);
+  assert.match(html, /id="ai-report-pagination"/);
+  assert.match(html, /data-ai-report-prev/);
+  assert.match(html, /data-ai-report-next/);
 });
 
 test('report reading distinguishes declared work dates from submission time and escapes text', () => {
@@ -47,5 +48,25 @@ test('report reading distinguishes declared work dates from submission time and 
     assert.match(html, /2026-02-30<br>原文保留/);
     assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.doesNotMatch(html, /<script>/);
+  } finally { globalThis.document = originalDocument; }
+});
+
+test('report errors and pagination remain visible and actionable', () => {
+  const elements = new Map();
+  const root = {querySelector(selector) {
+    if (!elements.has(selector)) elements.set(selector, {});
+    return elements.get(selector);
+  }};
+  const originalDocument = globalThis.document;
+  globalThis.document = {querySelector: () => root};
+  try {
+    paintAiReports([], 'Network error', false, 100, false);
+    assert.equal(elements.get('#ai-report-list-status').textContent, 'Network error');
+    assert.equal(elements.get('#ai-report-pagination').hidden, false);
+    assert.equal(elements.get('[data-ai-report-prev]').disabled, false);
+    assert.equal(elements.get('[data-ai-report-next]').disabled, true);
+    paintAiReports([{author: 'A', content: 'B', created_at: '2026-10-30T03:00:00Z'}], '', false, 0, true);
+    assert.equal(elements.get('[data-ai-report-prev]').disabled, true);
+    assert.equal(elements.get('[data-ai-report-next]').disabled, false);
   } finally { globalThis.document = originalDocument; }
 });

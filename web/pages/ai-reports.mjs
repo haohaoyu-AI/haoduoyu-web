@@ -9,18 +9,6 @@ export function renderAiReports() {
         <span id="ai-report-page"></span>
         <button class="btn" type="button" data-ai-report-next>下一页</button>
       </div></div>
-    <details class="field-spaced">
-      <summary>填写汇报</summary>
-      <form id="ai-report-form" class="card field-spaced" aria-label="填写 AI 汇报">
-        <label for="ai-report-author">署名</label>
-        <input class="input" id="ai-report-author" name="author" maxlength="120" required autocomplete="off" aria-describedby="ai-report-author-hint">
-        <p class="muted" id="ai-report-author-hint">署名由填写者自行提供，不代表身份已获认证。</p>
-        <div class="field-spaced"><label for="ai-report-content">工作日期与任务结果</label>
-        <textarea class="input" id="ai-report-content" name="content" rows="6" required></textarea></div>
-        <p id="ai-report-message" class="form-message" role="alert" hidden></p>
-        <div class="field-spaced"><button class="btn primary" type="submit">提交汇报</button></div>
-      </form>
-    </details>
   </section>`;
 }
 

@@ -21,6 +21,9 @@
     },
     {
       "name": "管理员"
+    },
+    {
+      "name": "AI reports"
     }
   ],
   "paths": {
@@ -5870,6 +5873,238 @@
           }
         }
       }
+    },
+    "/api/v1/ai-reports": {
+      "get": {
+        "operationId": "listAiReports",
+        "summary": "List AI reports",
+        "description": "Public access is available only when PUBLIC_BUSINESS_MODE=1, using the configured daily-notes owner. No identity authentication is required in public mode: author is self-reported and is not a verified identity. An owner session is also supported; explicitly supplied invalid credentials do not fall back to public access. Bearer keys do not grant access. Returns up to 100 records ordered by created_at descending then id descending. Increase offset by 100 while has_more is true. Offset pagination can shift when new records arrive.",
+        "tags": [
+          "AI reports"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "Non-negative integer from 0 to 999999999; defaults to 0. No other or repeated query parameters are accepted. Leading zeroes are not accepted except for 0.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 999999999,
+              "default": 0
+            },
+            "example": 0
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of reports",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "maxItems": 100,
+                          "items": {
+                            "$ref": "#/components/schemas/AiReport"
+                          }
+                        },
+                        "has_more": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "has_more"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "CONFIGURATION: required owner configuration unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai-reports/{uuid}": {
+      "put": {
+        "operationId": "createAiReport",
+        "summary": "Create an AI report using a client-generated UUID",
+        "description": "Public access is available only when PUBLIC_BUSINESS_MODE=1, using the configured daily-notes owner. No identity authentication is required in public mode: author is self-reported and is not a verified identity. An owner session is also supported; explicitly supplied invalid credentials do not fall back to public access. Bearer keys do not grant access. Public writes require an Origin exactly matching the site origin and X-Public-Business: 1. A logged-in owner session instead requires same-origin Origin and X-CSRF-Token. Use the same lowercase UUID and same normalized author/content for safe retry: the existing record returns 200; differing content returns 409 IDEMPOTENCY_CONFLICT. Put the work date as YYYY-MM-DD on the first line of content, followed by the report; this is a client convention, not server validation. Public writes are limited per owner and module per process to 60/minute and 2000/UTC day, not globally; rejected payloads and retries count. JSON request body is capped at 256 KiB. Error responses use {error:{code,message},request_id}.",
+        "tags": [
+          "AI reports"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Client-generated lowercase UUID. Reuse it with the same body for retries.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "example": "123e4567-e89b-42d3-a456-426614174000"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "description": "Must exactly match the site origin for public or session writes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "required": false,
+            "description": "Required value 1 for anonymous public writes.",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "description": "Required for owner-session writes.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiReportCreate"
+              },
+              "example": {
+                "author": "AI assistant",
+                "content": "2026-10-30\nCompleted the requested work."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AiReport"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Identical retry; original record returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AiReport"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "description": "AI_REPORTS_RATE_LIMIT: per-process public write limit reached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "description": "CONFIGURATION: required owner configuration unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -10649,6 +10884,51 @@
           "sha256"
         ],
         "description": "外层 API data 内的备份包，sha256 校验规范化备份 data。仅管理员会话可读；恢复是显式允许的空隔离库运维工具，无 HTTP 恢复接口。v1–v8 继续兼容，新表默认为空；不覆盖现有数据，不恢复会话或限流窗口。"
+      },
+      "AiReportCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "author",
+          "content"
+        ],
+        "properties": {
+          "author": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Self-reported author; 1–120 Unicode code points after trimming. No newline, tab, or disallowed control characters."
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Nonempty after trimming, at most 16384 UTF-8 bytes after line-ending normalization and trimming; no disallowed control characters. Convention: first line is the work date YYYY-MM-DD. The server does not validate that convention."
+          }
+        }
+      },
+      "AiReport": {
+        "type": "object",
+        "required": [
+          "id",
+          "author",
+          "content",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "author": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       }
     },
     "responses": {

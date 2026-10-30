@@ -16,3 +16,15 @@ regexes = [
   '''^4d94d10cf50ded0a7f26230daa3253415b495d0dd3ccc36cf9fa22cdda5baa25$''',
   '''^02d875ec592080e3040e94b5032141916a6fecca4da562076855ac7b115c112d$''',
 ]
+
+# User-approved: exact SHA-256 values of two public documentation files.
+[[allowlists]]
+description = "Approved exact AI report public documentation checksums"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^\.ci/public-assets\.json$''']
+regexes = [
+  '''^f887a379fda652dccfbcce630fc499bc9bfde705adfa62c10641ad6e219d2487$''',
+  '''^2fddbf533d8cd210df72f1941c2a21bfc7f286fe1dbd8a017c7f023692ac2415$''',
+]

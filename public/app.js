@@ -203,13 +203,13 @@ function pendingGet(path, options2, envelope2, context, factory) {
   if (!entry) {
     entry = { key, context, controller: new AbortController(), consumers: /* @__PURE__ */ new Set(), done: false };
     context.pending.set(key, entry);
-    let pending2;
+    let pending;
     try {
-      pending2 = factory(entry.controller.signal);
+      pending = factory(entry.controller.signal);
     } catch (error) {
-      pending2 = Promise.reject(error);
+      pending = Promise.reject(error);
     }
-    Promise.resolve(pending2).then((value) => settleRequest(entry, null, value), (error) => settleRequest(entry, error));
+    Promise.resolve(pending).then((value) => settleRequest(entry, null, value), (error) => settleRequest(entry, error));
   }
   return subscribeRequest(entry, options2.signal);
 }
@@ -799,12 +799,12 @@ function projectEntity(entity, capability, operations2, conflicts) {
       can_edit: capability === true
     };
   }
-  const pending2 = operations2.filter((row) => row.entity_id === entity.entity_id && liveOperation(row)).sort((a, b) => a.seq - b.seq).at(-1);
+  const pending = operations2.filter((row) => row.entity_id === entity.entity_id && liveOperation(row)).sort((a, b) => a.seq - b.seq).at(-1);
   const conflict = conflicts.find((row) => row.key === entity.conflict && row.resolved_at === null) || conflicts.filter((row) => row.entity_id === entity.entity_id && row.resolved_at === null).at(-1) || null;
   return localDocument({
     local,
     server: entity.dirty ? server : null,
-    operation: entity.dirty ? pending2 || null : null,
+    operation: entity.dirty ? pending || null : null,
     conflict: entity.dirty ? conflict : null
   });
 }
@@ -1239,9 +1239,9 @@ function resolutionParent(rows, operation2) {
 }
 async function outstandingResolution(tx, conflict, acknowledgements = [], completedChild = null) {
   const children = new Set(conflict.resolution.conflict_keys || []), acked = new Set(acknowledgements.map((row) => row.operation_key));
-  const pending2 = (await tx.getAll("outbox")).some((row) => row.scope === conflict.scope && row.resolution_id === conflict.resolution.id && !["acked", "archived"].includes(row.status) && !acked.has(row.key));
+  const pending = (await tx.getAll("outbox")).some((row) => row.scope === conflict.scope && row.resolution_id === conflict.resolution.id && !["acked", "archived"].includes(row.status) && !acked.has(row.key));
   const conflicts = (await tx.getAll("conflicts")).some((row) => row.scope === conflict.scope && row.resolved_at === null && row.key !== completedChild && (row.resolution_parent === conflict.key || children.has(row.key)));
-  return { pending: pending2, conflicts };
+  return { pending, conflicts };
 }
 async function finishParents(tx, conflict, time2) {
   let key = conflict.resolution_parent, completedChild = conflict.key;
@@ -2440,10 +2440,10 @@ function executionMethods(context) {
         if (!operation2) break;
         await process(operation2);
       }
-      const pending2 = await list(scope);
-      state2.pending = pending2.length;
-      state2.unsupported = pending2.filter((value) => !canDispatch(value)).length;
-      state2.phase = state2.unsupported ? "upgrade-required" : pending2.some((value) => value.status === "conflict") ? "conflict" : pending2.length ? "pending" : "synced";
+      const pending = await list(scope);
+      state2.pending = pending.length;
+      state2.unsupported = pending.filter((value) => !canDispatch(value)).length;
+      state2.phase = state2.unsupported ? "upgrade-required" : pending.some((value) => value.status === "conflict") ? "conflict" : pending.length ? "pending" : "synced";
       return { ...state2 };
     } catch (error) {
       state2.phase = "paused";
@@ -2986,7 +2986,7 @@ function safeDraft(row) {
   return Object.fromEntries(fields.filter((key) => row[key] !== void 0).map((key) => [key, structuredClone(row[key])]));
 }
 function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.now, draftOwner = crypto.randomUUID() }) {
-  const pending2 = /* @__PURE__ */ new Set();
+  const pending = /* @__PURE__ */ new Set();
   async function write(rows) {
     const owner2 = getScope(), generation = getGeneration();
     if (!owner2) return;
@@ -3011,8 +3011,8 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
   }
   function capture(rows) {
     const work = write(rows);
-    pending2.add(work);
-    work.finally(() => pending2.delete(work)).catch(() => {
+    pending.add(work);
+    work.finally(() => pending.delete(work)).catch(() => {
     });
     return work;
   }
@@ -3022,7 +3022,7 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     const rows = await db.transaction(["meta"], "readonly", async (tx) => (await tx.getAll("meta")).filter((row) => row.scope === owner2 && row.draft_kind === kind).sort((a, b) => b.saved_at - a.saved_at).map((row) => row.data));
     return owner2 === getScope() && generation === getGeneration() ? rows : [];
   }
-  return { capture, list, flush: () => Promise.all([...pending2]) };
+  return { capture, list, flush: () => Promise.all([...pending]) };
 }
 
 // web/offline/conflict-draft-guards.mjs
@@ -3599,13 +3599,13 @@ function stateActions(context) {
       return { ...state2 };
     }
     const owner2 = state2.scope, generation = context.generation;
-    const [pending2, conflicts] = await Promise.all([outbox.list(owner2), outbox.conflicts.list(owner2)]);
+    const [pending, conflicts] = await Promise.all([outbox.list(owner2), outbox.conflicts.list(owner2)]);
     if (sequence3 !== context.refreshSequence || owner2 !== state2.scope || generation !== context.generation) return { ...state2 };
-    state2.pending = pending2.length;
+    state2.pending = pending.length;
     state2.conflicts = conflicts.length;
     state2.online = online() && state2.online;
-    state2.unsupported = pending2.filter((row) => !outbox.canDispatch(row)).length;
-    if (state2.phase !== "syncing") state2.phase = state2.unsupported ? "upgrade-required" : conflicts.length ? "conflict" : state2.online ? pending2.length ? "pending" : "synced" : "offline";
+    state2.unsupported = pending.filter((row) => !outbox.canDispatch(row)).length;
+    if (state2.phase !== "syncing") state2.phase = state2.unsupported ? "upgrade-required" : conflicts.length ? "conflict" : state2.online ? pending.length ? "pending" : "synced" : "offline";
     emit();
     return { ...state2 };
   }
@@ -5296,23 +5296,23 @@ async function articleIndex(query = "", context) {
   const params = new URLSearchParams(Object.entries(Object.fromEntries(new URLSearchParams(query))).sort(([a], [b]) => a.localeCompare(b)));
   params.set("fields", "index");
   const key = identity4 + ":" + params.toString();
-  let pending2 = articleIndexes.get(key);
-  const owner2 = pending2 && indexRequests.get(pending2);
-  if (owner2 && !owner2.done && owner2.scope !== scope) pending2 = null;
-  if (!pending2) {
+  let pending = articleIndexes.get(key);
+  const owner2 = pending && indexRequests.get(pending);
+  if (owner2 && !owner2.done && owner2.scope !== scope) pending = null;
+  if (!pending) {
     const entry = { scope, done: false };
-    pending2 = api("/articles?" + params, { context: scope }).then((rows2) => {
+    pending = api("/articles?" + params, { context: scope }).then((rows2) => {
       entry.done = true;
       return Object.freeze(rows2.map((row) => Object.freeze(row)));
     });
-    indexRequests.set(pending2, entry);
-    articleIndexes.set(key, pending2);
+    indexRequests.set(pending, entry);
+    articleIndexes.set(key, pending);
     if (articleIndexes.size > 10) articleIndexes.delete(articleIndexes.keys().next().value);
-    pending2.catch(() => {
-      if (articleIndexes.get(key) === pending2) articleIndexes.delete(key);
+    pending.catch(() => {
+      if (articleIndexes.get(key) === pending) articleIndexes.delete(key);
     });
   }
-  const rows = await pending2;
+  const rows = await pending;
   if (generation !== runtime.articleIndexGeneration || identity4 !== state.me?.id) {
     if (!state.me || identity4 !== state.me.id) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
     return articleIndex(query, context);
@@ -5322,8 +5322,8 @@ async function articleIndex(query = "", context) {
 
 // web/pages/reviews.mjs
 async function renderReviews(version2 = runtime.renderVersion, context, { isCurrent = () => true, compactFilters = false } = {}) {
-  const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending2 = tab === "pending", query = selectedQuery(), matches2 = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
-  const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending2 ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
+  const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches2 = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
+  const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
   if (version2 !== runtime.renderVersion || !isCurrent()) return "";
   if (generation !== runtime.articleIndexGeneration) return renderReviews(version2, context, { isCurrent, compactFilters });
   state.reviewArticles = articles;
@@ -5339,7 +5339,7 @@ async function renderReviews(version2 = runtime.renderVersion, context, { isCurr
     "tab",
     "page-tabs"
   )}${compactFilters ? "" : `<div class="review-summary">${platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`}`;
-  const items = pending2 ? due : records, columns = pending2 ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label3]) => [
+  const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label3]) => [
     key,
     ["likes", "approvals"].includes(key) ? `${label3}（${key}）` : label3
   ]), [
@@ -5350,14 +5350,14 @@ async function renderReviews(version2 = runtime.renderVersion, context, { isCurr
     "as_of",
     "due_at"
   ].includes(key) ? e(displayTime(r[key])) : key === "source" ? e(r.source || "未标注来源") : metricData(r)[key] == null ? '<span class="missing-value">未取得</span>' : e(num(metricData(r)[key]));
-  return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending2 ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
-    const id = pending2 ? r.id : r.article_id, a = articles.find((a2) => a2.id === id);
-    return `<tr><td class="title-cell">${id ? `<button class="article-link" data-action="article-detail" data-id="${e(id)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending2 ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label3]) => `<td data-label="${e(
+  return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
+    const id = pending ? r.id : r.article_id, a = articles.find((a2) => a2.id === id);
+    return `<tr><td class="title-cell">${id ? `<button class="article-link" data-action="article-detail" data-id="${e(id)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label3]) => `<td data-label="${e(
       label3
-    )}">${cell(r, key)}</td>`).join("")}<td>${pending2 ? `<button class="btn small" data-action="review-article" data-id="${e(
+    )}">${cell(r, key)}</td>`).join("")}<td>${pending ? `<button class="btn small" data-action="review-article" data-id="${e(
       id
     )}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
-  }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending2 ? "暂无到期提醒" : "暂无记录", "", pending2 ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
+  }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" : "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
 }
 async function reviewRecordsModal() {
   openModal("数据记录", '<div id="media-records" role="status"></div>', { drawer: true });
@@ -5733,16 +5733,16 @@ function renderTodoTemplates(floatingControl = "") {
 <p id="todo-template-status" class="daily-todo-status" role="status"></p>
 <ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul></div></section>`;
 }
-function syncTemplateForm(root, id, value, pending2) {
+function syncTemplateForm(root, id, value, pending) {
   const input = $(id, root);
   if (!input) return;
   if (input.value !== value) input.value = value;
-  input.readOnly = pending2;
+  input.readOnly = pending;
   const button2 = $("button[type=submit]", input.form);
   if (button2) {
-    button2.disabled = pending2;
+    button2.disabled = pending;
     button2.textContent = "保存";
-    button2.setAttribute("aria-busy", String(pending2));
+    button2.setAttribute("aria-busy", String(pending));
   }
 }
 function paintTodoTemplates() {
@@ -6316,16 +6316,16 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
 function todoRow(item, day4) {
-  const pending2 = todoBusy(day4, item.id);
+  const pending = todoBusy(day4, item.id);
   const completed = day4.updates.has(item.id) ? day4.updates.get(item.id) : item.completed;
   const removal = day4.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
   if (deleted2 || completed && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day4.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day4.date)}" ${completed ? "checked" : ""}
-aria-disabled="${pending2}"><span class="daily-todo-text">${e(item.text)}</span></label>
+aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
 
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day4.date)}"
-aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending2 ? "disabled" : ""}>⋯</button></li>`;
+aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
 function todoForm(day4) {
   const label3 = day4.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
@@ -9119,14 +9119,14 @@ function memoLocalProtocol(context) {
     item.localConflict = null;
     item.durable = Object.fromEntries(fields4.map((field2) => [field2, value[field2]]));
   }
-  function accept(item, value, pending2 = null) {
+  function accept(item, value, pending = null) {
     const document2 = documentState(value);
     if (!document2) return false;
     const local = document2.local, server = document2.server;
     if (local.id !== item.id || !Number.isSafeInteger(local.version) || local.version < 1 || typeof local.body !== "string")
       throw new Error("本机保存记录不完整，原稿已保留。");
-    const preserve = pending2 ? changed2(item, pending2.snapshot || pending2.body) : item.dirty;
-    const concurrent = !pending2 && item.dirty && item.localVersion && item.localVersion !== local.version;
+    const preserve = pending ? changed2(item, pending.snapshot || pending.body) : item.dirty;
+    const concurrent = !pending && item.dirty && item.localVersion && item.localVersion !== local.version;
     if (!preserve) for (const field2 of fields4) item[field2] = local[field2];
     if (server && typeof server.body === "string") {
       item.server = { ...server };
@@ -9258,8 +9258,8 @@ function makeContext(options2) {
   };
   context.writable = () => !context.disposed && state2.canEdit && idPattern.test(context.ownerId);
   context.blocked = (item) => {
-    const pending2 = state2.operation?.pending;
-    return pending2 && (pending2.kind === "notes" && pending2.id === item.id || pending2.kind === "groups" && pending2.method === "DELETE" && pending2.id === item.group_id);
+    const pending = state2.operation?.pending;
+    return pending && (pending.kind === "notes" && pending.id === item.id || pending.kind === "groups" && pending.method === "DELETE" && pending.id === item.group_id);
   };
   context.upsert = (kind, value) => {
     const list = state2[kind], index = list.findIndex((row2) => row2.id === value.id);
@@ -9352,8 +9352,8 @@ function persistence(context) {
   }
   return { persist, hydrate, recoverDraft, flushDrafts: async () => persist({ verify: true }) };
 }
-function acceptNote(context, item, value, pending2) {
-  const preserve = changed3(item, pending2.snapshot || pending2.body);
+function acceptNote(context, item, value, pending) {
+  const preserve = changed3(item, pending.snapshot || pending.body);
   if (!preserve) for (const field2 of noteFields) item[field2] = value[field2];
   item.server = { ...value };
   item.version = value.version;
@@ -9500,29 +9500,29 @@ function editing(context) {
     context.emit();
     if (!composing) context.schedule(item);
   }
-  async function sendNote(item, pending2, { offlineUnknown = false } = {}) {
+  async function sendNote(item, pending, { offlineUnknown = false } = {}) {
     context.stop(item);
-    item.pending = pending2;
+    item.pending = pending;
     item.phase = "saving";
     item.error = "";
     item.writeEpoch++;
     context.emit();
     try {
-      const raw = await context.request(pending2.path, {
-        method: pending2.method,
-        body: pending2.body,
+      const raw = await context.request(pending.path, {
+        method: pending.method,
+        body: pending.body,
         ...offlineUnknown ? { offlineUnknown: true } : {}
       });
-      if (context.disposed || item.pending !== pending2) return;
+      if (context.disposed || item.pending !== pending) return;
       if (isLocalDocument(raw)) {
-        context.local.accept(item, raw, pending2);
+        context.local.accept(item, raw, pending);
         return;
       }
       const value = checkedNote(raw, item.id);
-      if (value.version !== pending2.body.version + 1 || changed3(value, pending2.body)) throw new Error("保存响应需要重新核对。");
-      acceptNote(context, item, value, pending2);
+      if (value.version !== pending.body.version + 1 || changed3(value, pending.body)) throw new Error("保存响应需要重新核对。");
+      acceptNote(context, item, value, pending);
     } catch (error) {
-      if (context.disposed || item.pending !== pending2) return;
+      if (context.disposed || item.pending !== pending) return;
       if (error.status === 409) {
         item.pending = null;
         item.phase = "conflict";
@@ -9588,26 +9588,26 @@ function editing(context) {
 }
 function resolution(context) {
   async function checkNote(id = context.state.noteId) {
-    const item = context.drafts.get(id), pending2 = item?.pending;
+    const item = context.drafts.get(id), pending = item?.pending;
     if (!context.writable() || !item) return;
-    if (!pending2) return context.selectNote(id, { open: false });
-    if (context.durable && pending2.method === "PUT") return context.sendNote(item, pending2, { offlineUnknown: true });
-    if (pending2.checking) return;
-    pending2.checking = true;
-    pending2.retryReady = false;
+    if (!pending) return context.selectNote(id, { open: false });
+    if (context.durable && pending.method === "PUT") return context.sendNote(item, pending, { offlineUnknown: true });
+    if (pending.checking) return;
+    pending.checking = true;
+    pending.retryReady = false;
     context.emit();
     try {
-      const receipt = await context.request("/memos/operations/" + pending2.body.save_id);
-      if (context.disposed || item.pending !== pending2) return;
+      const receipt = await context.request("/memos/operations/" + pending.body.save_id);
+      if (context.disposed || item.pending !== pending) return;
       if (receipt?.found === false) {
-        pending2.retryReady = true;
+        pending.retryReady = true;
         item.error = "暂未找到保存收据；可手动重试同一保存，不会新建重复操作。";
         return;
       }
       if (receipt?.found !== true || receipt.kind !== "notes" || receipt.id !== id) throw new Error("保存收据不匹配。");
       const value = checkedNote(await context.request("/memos/notes/" + id), id);
-      if (context.disposed || item.pending !== pending2) return;
-      if (value.version === receipt.version && !changed3(value, pending2.body)) acceptNote(context, item, value, pending2);
+      if (context.disposed || item.pending !== pending) return;
+      if (value.version === receipt.version && !changed3(value, pending.body)) acceptNote(context, item, value, pending);
       else {
         item.pending = null;
         item.remote = value;
@@ -9616,17 +9616,17 @@ function resolution(context) {
         item.error = "原保存已记录，服务器随后又有更新。请核对两个版本。";
       }
     } catch (error) {
-      if (!context.disposed && item.pending === pending2) item.error = "核对失败，保留草稿并暂停发送：" + error.message;
+      if (!context.disposed && item.pending === pending) item.error = "核对失败，保留草稿并暂停发送：" + error.message;
     } finally {
-      pending2.checking = false;
+      pending.checking = false;
       context.emit();
     }
   }
   async function retryPending(id = context.state.noteId) {
-    const item = context.drafts.get(id), pending2 = item?.pending;
-    if (!context.writable() || item?.phase !== "unknown" || !pending2?.retryReady || pending2.checking) return;
-    pending2.retryReady = false;
-    return context.sendNote(item, pending2);
+    const item = context.drafts.get(id), pending = item?.pending;
+    if (!context.writable() || item?.phase !== "unknown" || !pending?.retryReady || pending.checking) return;
+    pending.retryReady = false;
+    return context.sendNote(item, pending);
   }
   function useServer(id = context.state.noteId) {
     const item = context.drafts.get(id);
@@ -9664,24 +9664,24 @@ function resolution(context) {
   return { checkNote, retryPending, useServer, useDraft };
 }
 function operations(context) {
-  async function sendOperation(pending2) {
-    const operation3 = { pending: pending2, phase: "saving", error: "", retryReady: false };
+  async function sendOperation(pending) {
+    const operation3 = { pending, phase: "saving", error: "", retryReady: false };
     context.state.operation = operation3;
     context.emit();
     try {
-      const raw = await context.request(pending2.path, { method: pending2.method, body: pending2.body });
+      const raw = await context.request(pending.path, { method: pending.method, body: pending.body });
       if (context.disposed || context.state.operation !== operation3) return;
       if (isLocalDocument(raw)) {
-        context.upsert(pending2.kind, context.local.row(raw));
+        context.upsert(pending.kind, context.local.row(raw));
         context.state.operation = null;
         context.emit();
         return;
       }
       const value = raw;
-      if (value?.id !== pending2.id || !Number.isSafeInteger(value.version)) throw new Error("操作结果需要核对。");
-      context.upsert(pending2.kind, value);
+      if (value?.id !== pending.id || !Number.isSafeInteger(value.version)) throw new Error("操作结果需要核对。");
+      context.upsert(pending.kind, value);
       context.state.operation = null;
-      if (pending2.kind === "notes") context.drafts.delete(pending2.id);
+      if (pending.kind === "notes") context.drafts.delete(pending.id);
       await context.load();
     } catch (error) {
       if (context.disposed || context.state.operation !== operation3) return;
@@ -9712,18 +9712,18 @@ function operations(context) {
     });
   }
   async function checkOperation() {
-    const value = context.state.operation, pending2 = value?.pending;
-    if (!context.writable() || !pending2 || value.checking) return;
+    const value = context.state.operation, pending = value?.pending;
+    if (!context.writable() || !pending || value.checking) return;
     value.checking = true;
     value.retryReady = false;
     context.emit();
     try {
-      const receipt = await context.request("/memos/operations/" + pending2.body.save_id);
+      const receipt = await context.request("/memos/operations/" + pending.body.save_id);
       if (context.disposed || context.state.operation !== value) return;
       if (receipt?.found === false) {
         value.retryReady = true;
         value.error = "暂未找到收据，可手动重试同一操作。";
-      } else if (receipt?.found === true && receipt.id === pending2.id && receipt.kind === pending2.kind) {
+      } else if (receipt?.found === true && receipt.id === pending.id && receipt.kind === pending.kind) {
         context.state.operation = null;
         await context.load();
       } else throw new Error("操作收据不匹配。");
@@ -10164,14 +10164,14 @@ async function createMemo(action, target) {
         group = store.state.groups.find((row) => row.id === id && !row.deleted_at);
       }
       if (!group || store !== memoStore || !visible2()) return;
-      const pending2 = store.createNote(group.id, "未命名笔记");
+      const pending = store.createNote(group.id, "未命名笔记");
       paintMemosPage();
       const field2 = document.querySelector("#memo-title");
       if (visible2() && store === memoStore) {
         field2?.focus();
         field2?.select();
       }
-      await pending2;
+      await pending;
     }
   } finally {
     memoCreating = false;
@@ -10417,9 +10417,9 @@ function registerEvents() {
     if (visible2()) paintMemosPage();
   });
   window.addEventListener("haoduoyu-offline-status", (event) => {
-    const pending2 = event.detail?.pending || 0, conflicts = event.detail?.conflicts || 0;
-    if (pending2 < memoPendingCount || conflicts !== memoConflictCount) memoOfflineRefresh = true;
-    memoPendingCount = pending2;
+    const pending = event.detail?.pending || 0, conflicts = event.detail?.conflicts || 0;
+    if (pending < memoPendingCount || conflicts !== memoConflictCount) memoOfflineRefresh = true;
+    memoPendingCount = pending;
     memoConflictCount = conflicts;
     refreshDurableMemos();
   });
@@ -10890,18 +10890,6 @@ function renderAiReports() {
         <span id="ai-report-page"></span>
         <button class="btn" type="button" data-ai-report-next>下一页</button>
       </div></div>
-    <details class="field-spaced">
-      <summary>填写汇报</summary>
-      <form id="ai-report-form" class="card field-spaced" aria-label="填写 AI 汇报">
-        <label for="ai-report-author">署名</label>
-        <input class="input" id="ai-report-author" name="author" maxlength="120" required autocomplete="off" aria-describedby="ai-report-author-hint">
-        <p class="muted" id="ai-report-author-hint">署名由填写者自行提供，不代表身份已获认证。</p>
-        <div class="field-spaced"><label for="ai-report-content">工作日期与任务结果</label>
-        <textarea class="input" id="ai-report-content" name="content" rows="6" required></textarea></div>
-        <p id="ai-report-message" class="form-message" role="alert" hidden></p>
-        <div class="field-spaced"><button class="btn primary" type="submit">提交汇报</button></div>
-      </form>
-    </details>
   </section>`;
 }
 var dateFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -10949,14 +10937,13 @@ function paintAiReports(items, error = "", loading = false, offset2 = 0, hasMore
 }
 
 // web/ai-reports-controller.mjs
-var sequence2 = 0, registered = false, pending = null, offset = 0, pageSession = null;
+var sequence2 = 0, registered = false, offset = 0, pageSession = null;
 async function loadAiReports() {
   registerAiReportEvents();
   const session = runtime.sessionEpoch;
   if (pageSession !== session) {
     pageSession = session;
     offset = 0;
-    pending = null;
   }
   const ticket = ++sequence2, requestedOffset = offset;
   const current2 = () => ticket === sequence2 && session === runtime.sessionEpoch && state.page === "ai-reports";
@@ -10979,50 +10966,6 @@ function registerAiReportEvents() {
     } else if (event.target.closest?.("[data-ai-report-next]")) {
       offset += 100;
       void loadAiReports();
-    }
-  });
-  document.addEventListener("input", (event) => {
-    if (event.target.closest?.("#ai-report-form") && pending && !pending.sending) pending = null;
-  });
-  document.addEventListener("submit", async (event) => {
-    if (event.target.id !== "ai-report-form" || state.page !== "ai-reports") return;
-    event.preventDefault();
-    const form = event.target, author = form.elements.author.value.trim(), content2 = form.elements.content.value.trim();
-    const message = form.querySelector("#ai-report-message"), button2 = form.querySelector('button[type="submit"]');
-    if (!author || !content2) {
-      message.hidden = false;
-      message.textContent = "请填写署名和实际工作。";
-      return;
-    }
-    if (pending?.sending) return;
-    if (!pending || pending.session !== runtime.sessionEpoch || pending.author !== author || pending.content !== content2)
-      pending = { id: crypto.randomUUID(), author, content: content2, session: runtime.sessionEpoch };
-    const submission = pending, session = runtime.sessionEpoch;
-    submission.sending = true;
-    button2.disabled = true;
-    form.elements.author.disabled = true;
-    form.elements.content.disabled = true;
-    message.hidden = true;
-    try {
-      await api("/ai-reports/" + submission.id, { method: "PUT", body: { author, content: content2 } });
-      pending = null;
-      if (form.isConnected && session === runtime.sessionEpoch && state.page === "ai-reports") {
-        form.elements.content.value = "";
-        offset = 0;
-        await loadAiReports();
-      }
-    } catch (error) {
-      if (form.isConnected && session === runtime.sessionEpoch && state.page === "ai-reports") {
-        message.textContent = error.message || "提交失败，请重试。";
-        message.hidden = false;
-      }
-    } finally {
-      submission.sending = false;
-      if (form.isConnected) {
-        button2.disabled = false;
-        form.elements.author.disabled = false;
-        form.elements.content.disabled = false;
-      }
     }
   });
 }
@@ -11288,7 +11231,7 @@ function verificationIntent(index, done) {
 }
 function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () => crypto.randomUUID(), onChange = () => {
 }, isCurrent = () => true }) {
-  let current2 = copy(article), phase = "idle", message = "", pending2 = null, busy = false, retryReady = false;
+  let current2 = copy(article), phase = "idle", message = "", pending = null, busy = false, retryReady = false;
   const snapshot = () => ({ article: copy(current2), phase, message, busy, retryReady });
   const notify = () => onChange(snapshot());
   function received(value) {
@@ -11311,27 +11254,27 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
       message = "详情读取不完整，保存结果尚未确认。";
       return false;
     }
-    if (pending2 && remote.version > pending2.body.version && same(remote.verify_items, pending2.body.verify_items)) {
+    if (pending && remote.version > pending.body.version && same(remote.verify_items, pending.body.verify_items)) {
       received(remote);
-      pending2 = null;
+      pending = null;
       phase = "saved";
       retryReady = false;
       message = "已核对服务器记录，当前选择已保存。";
       return false;
     }
-    if (conflict || pending2 && remote.version !== pending2.body.version) {
-      const intent = pending2 ? verificationIntent(pending2.index, pending2.done) : "本次选择";
+    if (conflict || pending && remote.version !== pending.body.version) {
+      const intent = pending ? verificationIntent(pending.index, pending.done) : "本次选择";
       received(remote);
-      pending2 = null;
+      pending = null;
       phase = "conflict";
       retryReady = false;
       message = `${intent}未保存；已显示最新版本，请核对后重新选择。`;
       return false;
     }
     received(remote);
-    phase = pending2 ? "unknown" : "idle";
-    retryReady = !!pending2 && same(remote.verify_items, pending2.before);
-    message = pending2 ? retryReady ? "原保存尚未确认；已读取当前版本，可显式重试原保存。" : "记录状态尚未确认，请重新核对；不会重发保存。" : "";
+    phase = pending ? "unknown" : "idle";
+    retryReady = !!pending && same(remote.verify_items, pending.before);
+    message = pending ? retryReady ? "原保存尚未确认；已读取当前版本，可显式重试原保存。" : "记录状态尚未确认，请重新核对；不会重发保存。" : "";
     return retryReady;
   }
   async function send() {
@@ -11342,21 +11285,21 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
     notify();
     let response;
     try {
-      response = await put(current2.id, copy(pending2.body), pending2.key);
+      response = await put(current2.id, copy(pending.body), pending.key);
     } catch (error) {
       if (error.status >= 400 && error.status < 500 && error.status !== 409) {
-        pending2 = null;
+        pending = null;
         phase = "error";
         message = error.message || "保存被拒绝，请核对后重试。";
       } else await reconcile(error.status === 409);
       return;
     }
-    if (!validArticle(response, current2.id) || response.version <= pending2.body.version || !same(response.verify_items, pending2.body.verify_items)) {
+    if (!validArticle(response, current2.id) || response.version <= pending.body.version || !same(response.verify_items, pending.body.verify_items)) {
       await reconcile();
       return;
     }
     received({ ...current2, ...response });
-    pending2 = null;
+    pending = null;
     phase = "saved";
     message = "";
     try {
@@ -11374,11 +11317,11 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
     }
   }
   async function save(index, done) {
-    if (busy || pending2 || !Number.isSafeInteger(index) || typeof done !== "boolean" || !Array.isArray(current2.verify_items) || !current2.verify_items[index] || typeof current2.verify_items[index] !== "object") return;
+    if (busy || pending || !Number.isSafeInteger(index) || typeof done !== "boolean" || !Array.isArray(current2.verify_items) || !current2.verify_items[index] || typeof current2.verify_items[index] !== "object") return;
     if (current2.verify_items[index].done === done) return;
     const items = copy(current2.verify_items);
     items[index].done = done;
-    pending2 = { index, done, before: copy(current2.verify_items), body: { version: current2.version, verify_items: items }, key: uuid5() };
+    pending = { index, done, before: copy(current2.verify_items), body: { version: current2.version, verify_items: items }, key: uuid5() };
     busy = true;
     try {
       await send();
@@ -11399,7 +11342,7 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
     }
   }
   async function retry() {
-    if (busy || !pending2) return;
+    if (busy || !pending) return;
     busy = true;
     notify();
     try {
@@ -11724,23 +11667,23 @@ function pageAnnotation(document2, state2) {
 }
 function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   let state2 = { ...runtime2.state }, expanded = false, rendering = 0;
-  const pending2 = /* @__PURE__ */ new Map(), messages = /* @__PURE__ */ new Map(), requests = {
-    busy: (key) => pending2.has(key),
+  const pending = /* @__PURE__ */ new Map(), messages = /* @__PURE__ */ new Map(), requests = {
+    busy: (key) => pending.has(key),
     begin(key) {
-      if (pending2.has(key)) return null;
+      if (pending.has(key)) return null;
       const controller = new AbortController();
-      pending2.set(key, controller);
+      pending.set(key, controller);
       return controller;
     },
     end(key, controller) {
-      if (pending2.get(key) === controller) pending2.delete(key);
+      if (pending.get(key) === controller) pending.delete(key);
     },
     message(key, value) {
       if (value !== void 0) messages.set(key, value);
       return messages.get(key) || "";
     },
     cancel() {
-      for (const controller of pending2.values()) controller.abort();
+      for (const controller of pending.values()) controller.abort();
     }
   };
   const root = document2.createElement("aside");
@@ -12769,8 +12712,8 @@ function equalValue(a, b) {
   const keys = Object.keys(a);
   return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && equalValue(a[key], b[key]));
 }
-function savedArticle(value, pending2) {
-  return typeof value?.id === "string" && !!value.id && (!pending2.id || value.id === pending2.id) && Number.isSafeInteger(value.version) && value.version > (pending2.body.version || 0) && Object.entries(pending2.body).every(([key, expected]) => key === "version" || equalValue(value[key], expected));
+function savedArticle(value, pending) {
+  return typeof value?.id === "string" && !!value.id && (!pending.id || value.id === pending.id) && Number.isSafeInteger(value.version) && value.version > (pending.body.version || 0) && Object.entries(pending.body).every(([key, expected]) => key === "version" || equalValue(value[key], expected));
 }
 function uncertainArticleSave(cache2, message) {
   cache2.saveAttempt.phase = "unknown";
@@ -13167,12 +13110,12 @@ function registerEvents2() {
 // web/offline/sw-client.mjs
 var VERSION = /^[a-f0-9]{64}$/;
 async function beforeRefresh(page) {
-  const pending2 = [], failures = [];
+  const pending = [], failures = [];
   let collecting = true, dispatchError;
   const detail = Object.freeze({
     waitUntil(promise) {
       if (!collecting) throw new Error("REFRESH_WAIT_CLOSED");
-      pending2.push(Promise.resolve(promise));
+      pending.push(Promise.resolve(promise));
     },
     onFailure(callback) {
       if (!collecting || typeof callback !== "function") throw new Error("REFRESH_FAILURE_CALLBACK_INVALID");
@@ -13186,7 +13129,7 @@ async function beforeRefresh(page) {
     dispatchError = error;
   }
   collecting = false;
-  const results = await Promise.allSettled(pending2);
+  const results = await Promise.allSettled(pending);
   const rejected = results.find((result) => result.status === "rejected");
   if (dispatchError || rejected) {
     const error = dispatchError || rejected.reason;
