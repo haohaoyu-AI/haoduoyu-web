@@ -101,3 +101,13 @@ test('explicit timestamp input requires seconds to match the API format', () => 
   assert.equal(day('2026-10-26T16:00:00Z'),'2026-10-27');
   assert.equal(day('2026-10-27T00:00:00+08:00'),'2026-10-27');
 });
+
+test('a 07:13 Beijing post stays on that civil day and a daily verdict fills later cohorts', () => {
+  assert.equal(day('2026-10-27T23:13:00.000Z'), '2026-10-28');
+  assert.equal(reviewDateTime('2026-10-27T23:13:00.000Z'), '2026-10-28 07:13');
+  const morning = normalizeReviewData({articles:[{id:'m', published_at:'2026-10-27T23:13:00.000Z'}]});
+  assert.deepEqual(articleRows(morning, {start:'2026-10-28', end:'2026-10-28'}).map(row => row.id), ['m']);
+  assert.deepEqual(articleRows(morning, {start:'2026-10-27', end:'2026-10-27'}), []);
+  const rows = articleRows(fixture(), {start:'2026-10-30', end:'2026-10-30', periodType:'three_day'});
+  assert.equal(rows.find(row => row.id === 'b').verdict, '扑');
+});

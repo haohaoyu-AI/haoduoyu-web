@@ -13,8 +13,9 @@ const errorBody=error=>({code:error.code,message:error.message,...(error.existin
 const columnsFor=kind=>Object.keys(reviewSpecs[kind].fields);
 const columnFor=(spec,key)=>spec.json?.includes(key)?key+'_json':key;
 const valueFor=(spec,key,row)=>spec.json?.includes(key)&&row[key]!==null?JSON.stringify(stable(row[key])):row[key];
-// Date-only values are business dates. Timestamp dates are always Beijing dates,
-// including filtering before LIMIT/OFFSET; no host-local timezone is consulted.
+// Date-only values stay business dates. Instants are converted to Asia/Shanghai
+// before LIMIT/OFFSET: UTC Z shifts by +8 hours, and an explicit offset is applied
+// to the clock time. +08:00 therefore keeps its own calendar day.
 const articlePublishedDaySql=`CASE
   WHEN length(published_at)=10
     AND published_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
@@ -24,7 +25,11 @@ const articlePublishedDaySql=`CASE
     AND date(substr(published_at,1,10),'+0 days')=substr(published_at,1,10)
     AND (substr(published_at,-1)='Z' OR
       (substr(published_at,-6,1) IN ('+','-') AND substr(published_at,-5) GLOB '[0-9][0-9]:[0-9][0-9]'))
-    THEN date(published_at,'+8 hours')
+    THEN date(substr(published_at,1,19),printf('%+d minutes',480-CASE
+      WHEN substr(published_at,-1)='Z' THEN 0
+      ELSE (CASE substr(published_at,-6,1) WHEN '-' THEN -1 ELSE 1 END)
+        *(CAST(substr(published_at,-5,2) AS INTEGER)*60+CAST(substr(published_at,-2) AS INTEGER))
+    END))
   ELSE NULL END`;
 async function actorFor(store,request,owner,env,origin,write=false) {
   const explicit=request.headers.has('authorization')||/(?:^|;\s*)matrix_session(?:\s*=|\s*(?:;|$))/.test(request.headers.get('cookie')||'');
