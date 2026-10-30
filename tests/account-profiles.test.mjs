@@ -112,6 +112,19 @@ test('legacy writes omit profile fields, profile edits persist, and blank profil
   assert.equal((await app.request('/api/v1/accounts', {session: app.session})).data.find(row => row.id === legacy.data.id).name, '合成改名');
 });
 
+test('a homepage URL alone creates a provisional account and duplicate URLs reuse it', async t => {
+  const app = await setup(t), original = await count(app, 'accounts');
+  const created = await post(app, {profile_url: zhihu});
+  assert.equal(created.status, 201, created.text);
+  assert.equal(created.data.platform, 'zhihu');
+  assert.match(created.data.name, /^主页标识 /);
+  const duplicate = await post(app, {profile_url: zhihu + '/answers?utm_source=test'});
+  assert.equal(duplicate.status, 200, duplicate.text);
+  assert.equal(duplicate.data.id, created.data.id);
+  assert.equal(duplicate.data.profile_reused, true);
+  assert.equal(await count(app, 'accounts'), original + 1);
+});
+
 test('profile validation failures commit no account, audit or receipt', async t => {
   const app = await setup(t), accounts = await count(app, 'accounts'), audit = await count(app, 'audit');
   for (const body of [{name: '失败', profile_url: 'https://evil.invalid/private'},

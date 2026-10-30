@@ -16,7 +16,8 @@ function renderDashboard(data) {
 }
 function renderDashboardSummary(data) {
   const daily = dailyDates(data);
-  return `${renderCumulative(data)}
+  const selector = `<label class="form-field"><span>统计账号</span><select id="overview-account" class="input"><option value="">全部账号</option>${state.accounts.map((a) => `<option value="${e(a.id)}" ${state.account === a.id ? "selected" : ""}>${e(accountLabel(a))}</option>`).join("")}</select></label>`;
+  return `${selector}${renderCumulative(data)}
  ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量\
 </summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标\
 </span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label]) => `<option value="${e(
@@ -74,7 +75,7 @@ function renderPlatformTable(rows) {
   return rows.length ? `<div class="table-scroll"><table class="data-table dashboard-table platform-table"><thead><tr><th>账号</th><th>篇数</th>\
 <th>累计阅读</th><th>篇均</th><th>中位数</th></tr></thead><tbody>${[...rows].sort((a, b) => (b.totals?.reads ?? -1) - (a.totals?.reads ??
   -1)).map((p) => {
-    const accounts = state.accounts.filter((a) => a.platform === p.platform), label = accounts.map((a) => a.name).join("，") || platforms[p.
+    const accounts = state.accounts.filter((a) => a.platform === p.platform && (!state.account || state.account === a.id)), label = accounts.map((a) => accountLabel(a)).join("，") || platforms[p.
     platform] || p.platform;
     return `<tr data-action="${accounts.length === 1 ? "select-account" : "select-platform"}" data-id="${e(accounts[0]?.id ||
        "")}" data-platform="${e(p.platform)}"><td><span class="account-title">${platformLogo(p.
@@ -105,7 +106,7 @@ data-status="date_unverified">日期待核实 ${e(num(c.unverified_date_count))}
   totals?.comments))} · 赞同 ${e(num(c.totals?.approvals))}；互动仅在赞、评均取得时相加。</p><p>自动化占比 ${totals.article_count ?
   e(num(totals.automatic_count / totals.article_count * 100)) + "%" : "—"} · 耗时中位数 ${e(duration(totals.median_duration_seconds))}</p>`;
   if (kind === "platform") {
-    const p = (d.platform_comparison || []).find((p2) => p2.platform === id) || {}, accounts = state.accounts.filter((a) => a.platform === id);
+    const p = (d.platform_comparison || []).find((p2) => p2.platform === id) || {}, accounts = state.accounts.filter((a) => a.platform === id && (!state.account || state.account === a.id));
     return `<p>${accounts.length > 1 ? "同平台多账号，表中为平台汇总；各账号可分别进入文章列表。" : "累计指标来自该平台汇总。"}</p>${accounts.map((a) =>
        `<button class="btn text" data-action="select-account" data-id="${e(a.id)}">${e(a.name)} →</button>`).join(
     "")}<p>覆盖 ${p.coverage == null ? "—" : e(num(p.coverage * 100)) + "%"} · 截至 ${e(time(p.as_of))}</p>${p.best_article ?
@@ -133,7 +134,7 @@ class="publication-stack">${row.accounts.map((a) => `<i data-chart-height="${e(a
 function renderDailyTable(data) {
   const publication = state.trendTab === "publication", rows = publication ? data.publication_trend || [] : data.trend || [], accounts = data.
   accounts || [];
-  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>日期</th>${accounts.map((a) => `<th>${e(a.name)}</th>`).join(
+  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>日期</th>${accounts.map((a) => `<th>${e(accountLabel(a))}</th>`).join(
   "")}</tr></thead><tbody>${rows.map((d) => `<tr><td>${e(d.date)}</td>${accounts.map((a) => {
     const r = d.accounts.find((r2) => r2.account_id === a.id), value = publication ? r?.count : r?.metrics?.[state.trendMetric];
     return `<td>${value == null ? "未取得" : e(num(value))}</td>`;

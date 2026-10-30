@@ -5,12 +5,11 @@ const button = (action, label, extra = '') => '<button type="button" class="btn"
 export function renderMemos() {
   return '<section id="memos" data-pane="groups" aria-label="长期备忘录">' +
     '<div class="memo-toolbar"><div class="memo-mobile-back">' + button('back-notes', '‹ 返回笔记') +
-    '</div><span id="memo-status" role="status" aria-live="polite"></span>' +
+    '</div>' +
     '<div class="memo-toolbar-actions">' + button('exit-trash', '‹ 返回工作台设置', 'hidden') + button('login', '所有者登录', 'hidden') + '</div></div>' +
     '<p id="memo-error" class="memo-message" role="alert" hidden></p>' +
     '<div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' +
     button('operation-check', '核对操作结果') + button('operation-retry', '重试同一操作', 'hidden') + '</div>' +
-    '<div id="memo-drafts" class="memo-drafts" hidden></div>' +
     '<section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head">' +
     '<h2>找回本机草稿</h2>' + button('close-recovery', '关闭') + '</div><p id="memo-recovery-status" role="status"></p>' +
     '<div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p>' +
@@ -23,19 +22,22 @@ export function renderMemos() {
     '<div class="memo-dialog-actions">' + button('cancel', '取消') + button('confirm', '确认') + '</div></section>' +
     '<div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录">' +
     '<div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' +
-    button('new-note', '＋', 'hidden aria-label="新建笔记"') + '</div>' +
+    button('new-note', '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4H5v16h12v-7M8 16l1-3 8-8 2 2-8 8-3 1ZM18 13v6m-3-3h6"/></svg>', 'hidden aria-label="新建笔记" title="新建笔记"') + '</div>' +
     '<div id="memo-group-list" class="memo-list"></div></aside>' +
     '<div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" ' +
     'aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" ' +
     'title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div>' +
-    '<article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p>' +
+    '<article class="memo-editor" aria-label="笔记内容"><div id="memo-save-notice" class="memo-save-notice" hidden>' +
+    '<span id="memo-status" role="status" aria-live="polite" hidden></span>' +
+    '<span id="memo-note-error" role="alert" hidden></span><div id="memo-drafts" class="memo-drafts" hidden></div>' +
+    button('recovery', '找回本机草稿', 'hidden') + '</div><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p>' +
     '<div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title">' +
     '<label for="memo-title" class="sr-only">笔记标题</label>' +
     '<input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off">' +
     '<h2 id="memo-read-title" class="memo-read-title" hidden></h2>' +
     '<time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' +
     button('fullscreen', '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true">' +
-    '<path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" stroke-width="1.6"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div>' +
+    '<path d="M14 4h6v6m0-6-7 7M10 20H4v-6m0 6 7-7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div>' +
     '<label for="memo-body" class="sr-only">笔记正文</label>' +
     '<textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea>' +
     '<div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div>' +
@@ -43,7 +45,6 @@ export function renderMemos() {
     '<details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' +
     button('save', '立即保存') + button('delete-note', '删除笔记') + button('restore-note', '恢复笔记', 'hidden') +
     '</div></details></div></div>' +
-    '<p id="memo-note-error" class="memo-message" role="alert" hidden></p>' +
     '<div id="memo-resolution" class="memo-resolution" hidden>' + button('check', '核对服务器结果') +
     button('retry', '重试同一保存', 'hidden') + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3>' +
     '<pre id="memo-remote"></pre>' + button('use-server', '采用服务器内容') +
@@ -59,8 +60,7 @@ function paintEditedTime(node, item) {
   const timestamp = value && Date.parse(value);
   node.hidden = !Number.isFinite(timestamp);
   node.dateTime = node.hidden ? '' : value;
-  node.textContent = node.hidden ? '' : (local ? '本机编辑于 ' : '编辑于 ') +
-    new Intl.DateTimeFormat('zh-CN', {year: 'numeric', month: '2-digit', day: '2-digit',
+  node.textContent = node.hidden ? '' : new Intl.DateTimeFormat('zh-CN', {year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', hour12: false}).format(timestamp);
 }
 function listButton(kind, row, current, subtitle = '') {
@@ -109,7 +109,7 @@ function paintDocument(root, store) {
   find('#memo-empty').hidden = Boolean(item);
   find('#memo-empty').textContent = s.trash ? '选择笔记查看' : '选择一篇笔记';
   find('#memo-document').hidden = !item;
-  if (!item) return;
+  if (!item) { find('#memo-note-error').hidden = true; find('#memo-note-error').textContent = ''; return; }
   const group = s.groups.find(row => row.id === item.group_id), deleted = Boolean(item.deleted_at || group?.deleted_at);
   const editable = s.canEdit && !deleted;
   const operation = s.operation?.pending;
@@ -165,4 +165,9 @@ export function paintMemos(root, store) {
   find('[data-memo-action="operation-check"]').hidden = operation?.phase !== 'unknown';
   find('[data-memo-action="operation-retry"]').hidden = operation?.phase !== 'unknown' || !operation?.retryReady;
   paintLists(root, store); paintDrafts(root, store); paintDocument(root, store);
+  const recovery = find('[data-memo-action="recovery"]');
+  recovery.hidden = !s.canEdit || s.trash || find('#memo-drafts').hidden && find('#memo-note-error').hidden &&
+    !['error', 'offline', 'unknown', 'conflict'].includes(item?.phase);
+  find('#memo-save-notice').hidden = find('#memo-status').hidden && find('#memo-note-error').hidden &&
+    find('#memo-drafts').hidden && recovery.hidden;
 }

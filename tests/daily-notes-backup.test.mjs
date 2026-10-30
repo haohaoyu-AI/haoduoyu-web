@@ -51,7 +51,7 @@ async function seed(db,{notes=true}={}) {
 }
 function historical(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
-  for(const [introduced,name] of [[13,'note_label_archives'],[12,'note_entry_label_sets'],[11,'note_entry_label_overrides']]) {
+  for(const [introduced,name] of [[14,'ai_reports'],[13,'note_label_archives'],[12,'note_entry_label_sets'],[11,'note_entry_label_overrides']]) {
     if(version<introduced) { assert.deepEqual(data.tables[name],[],'historical fixture cannot hide new data: '+name);delete data.tables[name]; }
   }
   if(version<10)for(const name of ['unscheduled_todos','note_labels','note_entry_labels']) {
@@ -96,17 +96,17 @@ test('v7 scopes daily notes to the user while full operator backup preserves all
       .bind('synthetic-notion-notes','cursor',digest('synthetic'),'{"cursor":98}',stamp),
   ]);
   const scoped=await exportBackup(db,{todoUserId:owner}),full=await exportBackup(db);
-  assert.equal(full.data.format,'haoduoyu-matrix-d1-v13');
+  assert.equal(full.data.format,'haoduoyu-matrix-d1-v14');
   assert.equal(full.data.source_revision,99);
-  assert.equal(Object.keys(full.data.tables).length,25);
+  assert.equal(Object.keys(full.data.tables).length,26);
   assert.equal(scoped.data.tables.daily_notes.length,1);assert.equal(scoped.data.tables.daily_notes[0].user_id,owner);
   assert.ok(!JSON.stringify(scoped.data.tables.daily_notes).includes('OTHER-USER-NOTE-CANARY'));
   assert.ok(scoped.data.tables.daily_notes[0].deleted_at);
   assert.equal(full.data.tables.daily_notes.length,2);
   const inventory=await createSourceInventory(db);
-  assert.equal(Object.keys(inventory.tables).length,25);
+  assert.equal(Object.keys(inventory.tables).length,29);
   assert.throws(()=>verifyBackupInventory(scoped,inventory),/MIGRATION_INVENTORY_MISMATCH/);
-  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:25,reset_tables:3});
+  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:26,reset_tables:3});
   const target=await database(t);
   const restored=await restoreIntoEmptyDatabase(target,full,{allowEmptyRestore:true});
   assert.equal(restored.counts.daily_notes,2);

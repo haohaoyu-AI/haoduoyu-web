@@ -54,6 +54,8 @@ test('backup and restore retains both original label and override',async()=>{
  source.sql.exec(setsMigration);target.sql.exec(setsMigration);
  const archivesMigration=readFileSync(new URL('../drizzle/0013_note_label_archives.sql',import.meta.url),'utf8');
  source.sql.exec(archivesMigration);target.sql.exec(archivesMigration);
+ const aiMigration=readFileSync(new URL('../drizzle/0014_ai_reports.sql',import.meta.url),'utf8');
+ source.sql.exec(aiMigration);target.sql.exec(aiMigration);
  const user=randomUUID(),entry=randomUUID(),time='2026-10-28T08:00:00.000Z';
  source.sql.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) VALUES(?,?,?,?)').run(user,'demo','hash',time);
  source.sql.exec('INSERT INTO matrix_control(id,revision,initialized) VALUES(1,1,1)');
@@ -61,13 +63,13 @@ test('backup and restore retains both original label and override',async()=>{
  for(const tag of ['old','new','third'])source.sql.prepare('INSERT INTO matrix_note_labels(user_id,name,created_at) VALUES(?,?,?)').run(user,tag,time);
  source.sql.prepare('INSERT INTO matrix_note_entry_labels(user_id,entry_id,label) VALUES(?,?,?)').run(user,entry,'old');
  source.sql.prepare('INSERT INTO matrix_note_entry_label_overrides(user_id,entry_id,labels_json) VALUES(?,?,?)').run(user,entry,JSON.stringify(['old','new','third']));
- const backup=await exportBackup(source.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v13');
+ const backup=await exportBackup(source.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v14');
  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
  assert.deepEqual({...target.sql.prepare('SELECT * FROM matrix_note_entry_labels').get()},{user_id:user,entry_id:entry,label:'old'});
  assert.deepEqual(JSON.parse(target.sql.prepare('SELECT labels_json FROM matrix_note_entry_label_overrides').get().labels_json),['old','new','third']);
  assert.equal(target.sql.prepare('SELECT text FROM matrix_note_entries').get().text,'original');
- const legacy=structuredClone(backup);legacy.data.format='haoduoyu-matrix-d1-v10';delete legacy.data.tables.note_entry_label_overrides;delete legacy.data.tables.note_entry_label_sets;delete legacy.data.tables.note_label_archives;legacy.sha256=digest(JSON.stringify(stable(legacy.data)));
- const oldTarget=database();oldTarget.sql.exec(migration);oldTarget.sql.exec(setsMigration);oldTarget.sql.exec(archivesMigration);await restoreIntoEmptyDatabase(oldTarget.db,legacy,{allowEmptyRestore:true});
+ const legacy=structuredClone(backup);legacy.data.format='haoduoyu-matrix-d1-v10';delete legacy.data.tables.ai_reports;delete legacy.data.tables.note_entry_label_overrides;delete legacy.data.tables.note_entry_label_sets;delete legacy.data.tables.note_label_archives;legacy.sha256=digest(JSON.stringify(stable(legacy.data)));
+ const oldTarget=database();oldTarget.sql.exec(migration);oldTarget.sql.exec(setsMigration);oldTarget.sql.exec(archivesMigration);oldTarget.sql.exec(aiMigration);await restoreIntoEmptyDatabase(oldTarget.db,legacy,{allowEmptyRestore:true});
  assert.equal(oldTarget.sql.prepare('SELECT label FROM matrix_note_entry_labels').get().label,'old');
  assert.equal(oldTarget.sql.prepare('SELECT count(*) AS n FROM matrix_note_entry_label_overrides').get().n,0);
 });

@@ -30,6 +30,8 @@ import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNa
 import {renderWorkbenchSettings} from "./pages/workbench-settings.mjs";
 import {renderWorkReminders} from "./pages/work-reminders.mjs";
 import {loadWorkReminders} from "./work-reminders-controller.mjs";
+import {renderAiReports} from "./pages/ai-reports.mjs";
+import {loadAiReports} from "./ai-reports-controller.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
     state.me?.publicBusiness ? {workspace: settingsTabs.workspace, accounts: settingsTabs.accounts} : settingsTabs), state.settingsTab,
@@ -81,7 +83,7 @@ tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
 function redirectMobileArticlePage() {
   const page = mobilePage(state.page);
   if (page === state.page) return false;
-  state.page = page; state.account = ""; updateRoute();
+  state.page = page; updateRoute();
   return true;
 }
 function handleResponsiveLayout() {
@@ -111,7 +113,6 @@ function navigate(page, tab) {
   if (page === "memos") state.memoView = tab === "trash" ? "trash" : "";
   if (page === "todos") { state.todoDate = ""; state.todoPanel = ""; }
   if (page === "settings") state.settingsTab = legacy || tab || "workspace";
-  if (mobilePage(page) === "dashboard") state.account = "";
   updateRoute(true);
   closeModal();
   renderShell();
@@ -122,6 +123,7 @@ function pageLoading(page) {
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
   if (page === "reminders") return renderWorkReminders();
+  if (page === "ai-reports") return renderAiReports();
   if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
   return skeleton();
 }
@@ -130,12 +132,13 @@ function setPageBody(html, page) {
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
-  else if (page === "reminders") return;
+  else if (page === "reminders" || page === "ai-reports") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
   const query = new URLSearchParams({ page: "articles", status: "published", sort: "reads", order: "desc" });
   if (state.topPlatform) query.set("platform", state.topPlatform);
+  if (state.account) query.set("account", state.account);
   return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
 }
 async function loadArticleOverview(version, context) {
@@ -176,6 +179,9 @@ async function renderPage() {
       case "reminders":
         await loadWorkReminders();
         break;
+      case "ai-reports":
+        await loadAiReports();
+        break;
       case "dashboard":
         html = await loadArticleOverview(version, context);
         break;
@@ -205,8 +211,7 @@ async function renderPage() {
     if (version === runtime.renderVersion && state.me) {
       setPageBody(html, page);
       if (counter?.isConnected) {
-        const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
-        state.accounts).length : null;
+        const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? state.accounts.length : null;
         counter.hidden = count == null;
         counter.textContent = count == null ? "" : num(count);
       }

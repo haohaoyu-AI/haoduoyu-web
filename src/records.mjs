@@ -215,7 +215,10 @@ export function createRecords(store) {
     const profile = hasAccountProfileValue(body) ? normalizeAccountProfile(body.profile_url, body.platform || undefined) : null;
     const platform = profile?.platform || body.platform;
     if (!PLATFORMS.has(platform)) fail(400, 'VALIDATION_ERROR', '平台须为 toutiao、zhihu、wechat 或 other');
-    const id = randomUUID(), name = text(body.name, '账号名称', 100);
+    // A URL identifies a profile but does not establish its display name.
+    const id = randomUUID(), name = body.name === undefined && profile
+      ? `主页标识 ${profile.platform_identity}`.slice(0, 100)
+      : text(body.name, '账号名称', 100);
     if (profile) {
       const existing = await existingProfile(profile, scope);
       if (existing) return {...existing, profile_reused: true};

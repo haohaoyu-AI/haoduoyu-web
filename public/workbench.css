@@ -645,8 +645,9 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 #daily-notes #notes-label-list li button { flex:none; }
 
 /* The floating view reuses this same-origin stylesheet under the site's CSP. */
-.todo-floating-open { margin:0 0 24px auto; }
-.todo-floating-support { margin-bottom:24px; color:var(--ink-2); font-size:12px; }
+#todo-floating-toolbar { margin:0 0 24px auto; }
+.todo-floating-control { display:flex; align-items:center; flex-wrap:wrap; gap:var(--space-8); }
+.todo-floating-support { color:var(--ink-2); font-size:12px; }
 body.floating-workbench {
   margin:0; min-height:100dvh; color:var(--ink); font:var(--font-size-15)/var(--line-height-body) var(--font-family-ui);
   background:var(--color-shell-solid); overflow-wrap:anywhere;

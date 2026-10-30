@@ -15,6 +15,7 @@ var nav = [
   { id: "notes", label: "碎碎念", icon: "edit" },
   { id: "memos", label: "备忘录", icon: "articles" },
   { id: "reminders", label: "工作提醒", icon: "calendar" },
+  { id: "ai-reports", label: "AI 汇报", icon: "articles" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
 var settingsTabs = { workspace: "工作台", accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
@@ -202,13 +203,13 @@ function pendingGet(path, options2, envelope2, context, factory) {
   if (!entry) {
     entry = { key, context, controller: new AbortController(), consumers: /* @__PURE__ */ new Set(), done: false };
     context.pending.set(key, entry);
-    let pending;
+    let pending2;
     try {
-      pending = factory(entry.controller.signal);
+      pending2 = factory(entry.controller.signal);
     } catch (error) {
-      pending = Promise.reject(error);
+      pending2 = Promise.reject(error);
     }
-    Promise.resolve(pending).then((value) => settleRequest(entry, null, value), (error) => settleRequest(entry, error));
+    Promise.resolve(pending2).then((value) => settleRequest(entry, null, value), (error) => settleRequest(entry, error));
   }
   return subscribeRequest(entry, options2.signal);
 }
@@ -742,15 +743,15 @@ function awareLabel(row) {
   return row?.labels_version === 1 && Object.hasOwn(row, "label") && (row.label === null || typeof row.label === "string" && row.label.isWellFormed() && row.category === "life" && row.label === row.label.trim().normalize("NFC") && row.label.length > 0 && [...row.label].length <= 32 && !["生活", "工作"].includes(row.label) && !/[\u0000-\u001f\u007f]/.test(row.label));
 }
 function checkedResponse(route, value, labelsV1) {
-  const invalid3 = () => fail("碎碎念读取结果不完整，未覆盖本机内容。", "OFFLINE_RESPONSE_INVALID");
+  const invalid4 = () => fail("碎碎念读取结果不完整，未覆盖本机内容。", "OFFLINE_RESPONSE_INVALID");
   if (route.kind === "note_entry") {
-    if (!isNoteApiRow(value) || value.id !== route.id || labelsV1 && !awareLabel(value)) throw invalid3();
+    if (!isNoteApiRow(value) || value.id !== route.id || labelsV1 && !awareLabel(value)) throw invalid4();
     return structuredClone(value);
   }
-  if (!isObject(value) || labelsV1 && value.labels_version !== 1 || value.category !== route.category || value.date !== route.date || typeof value.can_edit !== "boolean" || !Array.isArray(value.entries) || value.entries.length > 200) throw invalid3();
+  if (!isObject(value) || labelsV1 && value.labels_version !== 1 || value.category !== route.category || value.date !== route.date || typeof value.can_edit !== "boolean" || !Array.isArray(value.entries) || value.entries.length > 200) throw invalid4();
   const ids = /* @__PURE__ */ new Set();
   for (const row of value.entries) {
-    if (!isNoteApiRow(row) || labelsV1 && !awareLabel(row) || row.category !== route.category || row.date !== route.date || row.deleted || row.can_edit !== value.can_edit || ids.has(row.id)) throw invalid3();
+    if (!isNoteApiRow(row) || labelsV1 && !awareLabel(row) || row.category !== route.category || row.date !== route.date || row.deleted || row.can_edit !== value.can_edit || ids.has(row.id)) throw invalid4();
     ids.add(row.id);
   }
   return structuredClone(value);
@@ -798,12 +799,12 @@ function projectEntity(entity, capability, operations2, conflicts) {
       can_edit: capability === true
     };
   }
-  const pending = operations2.filter((row) => row.entity_id === entity.entity_id && liveOperation(row)).sort((a, b) => a.seq - b.seq).at(-1);
+  const pending2 = operations2.filter((row) => row.entity_id === entity.entity_id && liveOperation(row)).sort((a, b) => a.seq - b.seq).at(-1);
   const conflict = conflicts.find((row) => row.key === entity.conflict && row.resolved_at === null) || conflicts.filter((row) => row.entity_id === entity.entity_id && row.resolved_at === null).at(-1) || null;
   return localDocument({
     local,
     server: entity.dirty ? server : null,
-    operation: entity.dirty ? pending || null : null,
+    operation: entity.dirty ? pending2 || null : null,
     conflict: entity.dirty ? conflict : null
   });
 }
@@ -1050,10 +1051,10 @@ function safeAccounts(value) {
   return value.map((row) => Object.fromEntries(fields5.filter((key) => row[key] !== void 0).map((key) => [key, row[key]])));
 }
 function checkedResponse2(route, value) {
-  const invalid3 = () => Object.assign(new Error("读取结果不完整，未覆盖本机数据。"), { code: "OFFLINE_RESPONSE_INVALID" });
-  if (value === void 0 || value === null) throw invalid3();
+  const invalid4 = () => Object.assign(new Error("读取结果不完整，未覆盖本机数据。"), { code: "OFFLINE_RESPONSE_INVALID" });
+  if (value === void 0 || value === null) throw invalid4();
   if (["todo", "template", "unscheduled_todo"].includes(route.kind) && (!Array.isArray(value.items) || value.items.some((row) => !row || !uuidPattern2.test(row.id) || !Number.isSafeInteger(row.version) || row.version < 1 || typeof row.text !== "string" || !row.text.trim() || row.text.length > 500 || !Number.isFinite(Date.parse(row.created_at)) || !Number.isFinite(Date.parse(row.updated_at)) || route.kind === "todo" && (row.date !== route.date || typeof row.completed !== "boolean" || row.deleted_at !== null) || route.kind === "unscheduled_todo" && (typeof row.completed !== "boolean" || row.deleted_at !== null || Object.hasOwn(row, "date")))))
-    throw invalid3();
+    throw invalid4();
   return route.kind === "accounts" ? safeAccounts(value) : clone(value);
 }
 function belongs(row, route) {
@@ -1238,9 +1239,9 @@ function resolutionParent(rows, operation2) {
 }
 async function outstandingResolution(tx, conflict, acknowledgements = [], completedChild = null) {
   const children = new Set(conflict.resolution.conflict_keys || []), acked = new Set(acknowledgements.map((row) => row.operation_key));
-  const pending = (await tx.getAll("outbox")).some((row) => row.scope === conflict.scope && row.resolution_id === conflict.resolution.id && !["acked", "archived"].includes(row.status) && !acked.has(row.key));
+  const pending2 = (await tx.getAll("outbox")).some((row) => row.scope === conflict.scope && row.resolution_id === conflict.resolution.id && !["acked", "archived"].includes(row.status) && !acked.has(row.key));
   const conflicts = (await tx.getAll("conflicts")).some((row) => row.scope === conflict.scope && row.resolved_at === null && row.key !== completedChild && (row.resolution_parent === conflict.key || children.has(row.key)));
-  return { pending, conflicts };
+  return { pending: pending2, conflicts };
 }
 async function finishParents(tx, conflict, time2) {
   let key = conflict.resolution_parent, completedChild = conflict.key;
@@ -2183,8 +2184,8 @@ function storageMethods(context) {
       throw new Error("Offline edits must use the preceding local version");
     }
     const sequenceKey = entityKey(input.scope, "outbox-sequence");
-    const sequence2 = (await tx.get("meta", sequenceKey))?.value || 0;
-    operation2.seq = sequence2 + 1;
+    const sequence3 = (await tx.get("meta", sequenceKey))?.value || 0;
+    operation2.seq = sequence3 + 1;
     const key = entityKey(input.scope, operation2.entity_id), old = await tx.get("entities", key);
     await noteCapacity(tx, operation2, old);
     const visible3 = old?.dirty ? old.local : old?.server || operation2.base;
@@ -2339,7 +2340,7 @@ function processingMethods(context) {
     }
     return { result: "conflict", remote };
   }
-  async function fail5(operation2, error) {
+  async function fail6(operation2, error) {
     if ([409, 410, 404].includes(error.status)) {
       const current2 = await context.db.transaction(["outbox"], "readonly", (tx) => tx.get("outbox", operation2.key));
       if (!context.canDispatch(current2)) return;
@@ -2385,10 +2386,10 @@ function processingMethods(context) {
       if (!validAcknowledgement(operation2, remote)) throw new Error("Invalid offline write acknowledgement");
       return await acknowledge(sending, remote);
     } catch (error) {
-      return fail5({ ...operation2, claim_owner: owner2 }, error);
+      return fail6({ ...operation2, claim_owner: owner2 }, error);
     }
   }
-  return { reconcile, fail: fail5, process };
+  return { reconcile, fail: fail6, process };
 }
 async function dependencyState(context, operation2, rows) {
   if (!operation2.depends_on?.length) return "ready";
@@ -2439,10 +2440,10 @@ function executionMethods(context) {
         if (!operation2) break;
         await process(operation2);
       }
-      const pending = await list(scope);
-      state2.pending = pending.length;
-      state2.unsupported = pending.filter((value) => !canDispatch(value)).length;
-      state2.phase = state2.unsupported ? "upgrade-required" : pending.some((value) => value.status === "conflict") ? "conflict" : pending.length ? "pending" : "synced";
+      const pending2 = await list(scope);
+      state2.pending = pending2.length;
+      state2.unsupported = pending2.filter((value) => !canDispatch(value)).length;
+      state2.phase = state2.unsupported ? "upgrade-required" : pending2.some((value) => value.status === "conflict") ? "conflict" : pending2.length ? "pending" : "synced";
       return { ...state2 };
     } catch (error) {
       state2.phase = "paused";
@@ -2985,7 +2986,7 @@ function safeDraft(row) {
   return Object.fromEntries(fields.filter((key) => row[key] !== void 0).map((key) => [key, structuredClone(row[key])]));
 }
 function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.now, draftOwner = crypto.randomUUID() }) {
-  const pending = /* @__PURE__ */ new Set();
+  const pending2 = /* @__PURE__ */ new Set();
   async function write(rows) {
     const owner2 = getScope(), generation = getGeneration();
     if (!owner2) return;
@@ -3010,8 +3011,8 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
   }
   function capture(rows) {
     const work = write(rows);
-    pending.add(work);
-    work.finally(() => pending.delete(work)).catch(() => {
+    pending2.add(work);
+    work.finally(() => pending2.delete(work)).catch(() => {
     });
     return work;
   }
@@ -3021,7 +3022,7 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     const rows = await db.transaction(["meta"], "readonly", async (tx) => (await tx.getAll("meta")).filter((row) => row.scope === owner2 && row.draft_kind === kind).sort((a, b) => b.saved_at - a.saved_at).map((row) => row.data));
     return owner2 === getScope() && generation === getGeneration() ? rows : [];
   }
-  return { capture, list, flush: () => Promise.all([...pending]) };
+  return { capture, list, flush: () => Promise.all([...pending2]) };
 }
 
 // web/offline/conflict-draft-guards.mjs
@@ -3185,15 +3186,15 @@ function checkedInput(raw, kind, createId) {
   if (!body2.save_id) body2.save_id = createId();
   const fields5 = ["title", "position", "version", "save_id", ...kind === "notes" ? ["group_id", "body"] : []];
   const plain2 = (value) => typeof value === "string" && value.isWellFormed() && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
-  const invalid3 = () => {
+  const invalid4 = () => {
     throw Object.assign(fail3("备忘录字段无效，输入仍保留。"), { status: 400 });
   };
-  if (Object.keys(body2).sort().join(",") !== fields5.sort().join(",") || !uuid4.test(body2.save_id) || !Number.isSafeInteger(body2.version) || body2.version < 0 || body2.version >= Number.MAX_SAFE_INTEGER || !Number.isSafeInteger(body2.position) || body2.position < 0 || body2.position > 1e6 || !plain2(body2.title) || !body2.title.trim() || [...body2.title.trim()].length > 120 || /[\r\n\t]/.test(body2.title)) invalid3();
+  if (Object.keys(body2).sort().join(",") !== fields5.sort().join(",") || !uuid4.test(body2.save_id) || !Number.isSafeInteger(body2.version) || body2.version < 0 || body2.version >= Number.MAX_SAFE_INTEGER || !Number.isSafeInteger(body2.position) || body2.position < 0 || body2.position > 1e6 || !plain2(body2.title) || !body2.title.trim() || [...body2.title.trim()].length > 120 || /[\r\n\t]/.test(body2.title)) invalid4();
   body2.title = body2.title.trim();
   if (kind === "notes") {
-    if (!uuid4.test(body2.group_id) || !plain2(body2.body)) invalid3();
+    if (!uuid4.test(body2.group_id) || !plain2(body2.body)) invalid4();
     body2.body = body2.body.replace(/\r\n?/g, "\n");
-    if (new TextEncoder().encode(body2.body).length > 65536) invalid3();
+    if (new TextEncoder().encode(body2.body).length > 65536) invalid4();
   }
   return body2;
 }
@@ -3416,6 +3417,7 @@ function runtimeContext(options2) {
     lastSuccess: null,
     cachedAt: null,
     error: null,
+    errorStage: null,
     ready: true
   };
   const listeners = /* @__PURE__ */ new Set();
@@ -3527,7 +3529,6 @@ function identityActions(context) {
     state2.verifiedScope = index.scope_id;
     state2.identity = identity4;
     state2.online = true;
-    state2.error = null;
     onIdentity(me);
     emit();
     return me;
@@ -3592,19 +3593,19 @@ function identityActions(context) {
 function stateActions(context) {
   const { state: state2, outbox, emit, online } = context;
   async function refresh() {
-    const sequence2 = context.refreshSequence = (context.refreshSequence || 0) + 1;
+    const sequence3 = context.refreshSequence = (context.refreshSequence || 0) + 1;
     if (!state2.scope) {
       emit();
       return { ...state2 };
     }
     const owner2 = state2.scope, generation = context.generation;
-    const [pending, conflicts] = await Promise.all([outbox.list(owner2), outbox.conflicts.list(owner2)]);
-    if (sequence2 !== context.refreshSequence || owner2 !== state2.scope || generation !== context.generation) return { ...state2 };
-    state2.pending = pending.length;
+    const [pending2, conflicts] = await Promise.all([outbox.list(owner2), outbox.conflicts.list(owner2)]);
+    if (sequence3 !== context.refreshSequence || owner2 !== state2.scope || generation !== context.generation) return { ...state2 };
+    state2.pending = pending2.length;
     state2.conflicts = conflicts.length;
     state2.online = online() && state2.online;
-    state2.unsupported = pending.filter((row) => !outbox.canDispatch(row)).length;
-    if (state2.phase !== "syncing") state2.phase = state2.unsupported ? "upgrade-required" : conflicts.length ? "conflict" : state2.online ? pending.length ? "pending" : "synced" : "offline";
+    state2.unsupported = pending2.filter((row) => !outbox.canDispatch(row)).length;
+    if (state2.phase !== "syncing") state2.phase = state2.unsupported ? "upgrade-required" : conflicts.length ? "conflict" : state2.online ? pending2.length ? "pending" : "synced" : "offline";
     emit();
     return { ...state2 };
   }
@@ -3654,18 +3655,23 @@ function syncActions(context) {
       context.scheduleRetry();
       return context.refresh();
     }
+    let stage = "identity";
     try {
       await context.verify();
       if (!state2.verifiedScope) return context.refresh();
       state2.phase = "syncing";
       emit();
+      stage = "outbox";
       await outbox.resume(state2.scope);
       await outbox.drain();
+      stage = "cache";
       if (state2.verifiedScope) await context.cache.captureDocuments();
       if (state2.verifiedScope) {
+        stage = "snapshot";
         await snapshot.pull({ date: today(now) });
         if (context.snapshotV2) await context.snapshotV2.pull({ date: today(now) });
         if (context.lastTodoPath) {
+          stage = "cache";
           const date = offlineReadRoute(context.lastTodoPath).date;
           if ((await context.cache.entities()).some((row) => row.needs_api_refresh && row.server?.date === date))
             await context.call(context.lastTodoPath);
@@ -3673,8 +3679,10 @@ function syncActions(context) {
       }
       state2.lastSuccess = now();
       state2.error = null;
+      state2.errorStage = null;
     } catch (error) {
       state2.error = error.message;
+      state2.errorStage = stage;
       if (error.status === 429) context.cooldownUntil = now() + 6e4;
       if (error.status) state2.online = true;
       else if (networkFailure(error)) state2.online = false;
@@ -3745,6 +3753,7 @@ async function rememberRead(context, path, value, baseline, memo) {
   } catch (error) {
     if (["OFFLINE_RESPONSE_INVALID", "OFFLINE_SCOPE_CHANGED", "OFFLINE_CACHE_CHANGED"].includes(error.code)) throw error;
     context.state.error = error.message;
+    context.state.errorStage = "cache";
     context.emit();
     return value;
   }
@@ -4179,7 +4188,7 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
-  if (["notes", "memos", "reminders"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
+  if (["notes", "memos", "reminders", "ai-reports"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
   if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button>`;
   if (state.page === "articles") return `<a class="btn" href="/api/v1/export" download>${icon("download")}导出 CSV</a><button class="btn primary" data-action="new-article">${icon("plus")}记录文章</button>`;
   if (state.page === "reviews") return `<button class="btn primary" data-action="new-review">${icon("plus")}录入数据</button>`;
@@ -4197,6 +4206,7 @@ function accountFilter() {
   )}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "ai-reports") return '<div class="heading-left"><h1>AI 汇报</h1></div>';
   if (state.page === "reminders") return '<div class="heading-left"><h1>每日工作提醒</h1></div>';
   if (state.page === "memos") return '<div class="heading-left"><h1>' + (state.memoView === "trash" ? "备忘录回收站" : "备忘录") + "</h1></div>";
   if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
@@ -4515,12 +4525,12 @@ function createReadingActions(context) {
   const { page, emit, stopTimer, adopt, schedule } = context;
   const { load } = context.options;
   async function read(date) {
-    const item = page(date), sequence2 = ++item.sequence, writeEpoch = item.writeEpoch;
+    const item = page(date), sequence3 = ++item.sequence, writeEpoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
       const value = checkedPage(await load(date), date);
-      if (context.disposed || sequence2 !== item.sequence) return;
+      if (context.disposed || sequence3 !== item.sequence) return;
       if (item.pending || writeEpoch !== item.writeEpoch) return;
       if (["conflict", "unknown"].includes(item.phase)) {
         item.remote = value;
@@ -4536,12 +4546,12 @@ function createReadingActions(context) {
         item.error = "";
       }
     } catch (error) {
-      if (!context.disposed && sequence2 === item.sequence) {
+      if (!context.disposed && sequence3 === item.sequence) {
         item.error = error.message;
         if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence2 === item.sequence) {
+      if (!context.disposed && sequence3 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
@@ -4735,10 +4745,7 @@ function mobilePage(page) {
 }
 function updateRoute(push = false) {
   const page = mobilePage(state.page), redirected = page !== state.page;
-  if (redirected) {
-    state.page = page;
-    state.account = "";
-  }
+  if (redirected) state.page = page;
   state.filters.status = "published";
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
@@ -4758,7 +4765,7 @@ function updateRoute(push = false) {
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
   else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
   else u.searchParams.delete("tab");
-  if (state.account && state.page !== "dashboard") u.searchParams.set("account", state.account);
+  if (state.account) u.searchParams.set("account", state.account);
   else u.searchParams.delete("account");
   for (const [key, value] of Object.entries(state.filters)) {
     if (value && value !== defaultFilters()[key]) u.searchParams.set(key, value);
@@ -4802,7 +4809,7 @@ function readRoute() {
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
   state.articleOverviewMode = "published";
   const account = params.get("account") || "";
-  state.account = state.page !== "dashboard" && state.accounts.some((a) => a.id === account) ? account : "";
+  state.account = state.accounts.some((a) => a.id === account) ? account : "";
   state.filters = defaultFilters();
   for (const key of Object.keys(state.filters)) if (params.has(key)) state.filters[key] = params.get(key);
   const allowed = { sort: ["published_at", "reads", "likes", "comments", "approvals", "latest_as_of", "duration"], order: ["asc", "desc"], platform: [
@@ -5120,7 +5127,8 @@ function renderDashboard(data) {
 }
 function renderDashboardSummary(data) {
   const daily = dailyDates(data);
-  return `${renderCumulative(data)}
+  const selector = `<label class="form-field"><span>统计账号</span><select id="overview-account" class="input"><option value="">全部账号</option>${state.accounts.map((a) => `<option value="${e(a.id)}" ${state.account === a.id ? "selected" : ""}>${e(accountLabel(a))}</option>`).join("")}</select></label>`;
+  return `${selector}${renderCumulative(data)}
  ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label3]) => `<option value="${e(
     key
   )}" ${state.trendMetric === key ? "selected" : ""}>${e(label3)}</option>`).join("")}</select></label></div>${renderTrend(
@@ -5182,7 +5190,7 @@ function renderCumulative(data) {
 }
 function renderPlatformTable(rows) {
   return rows.length ? `<div class="table-scroll"><table class="data-table dashboard-table platform-table"><thead><tr><th>账号</th><th>篇数</th><th>累计阅读</th><th>篇均</th><th>中位数</th></tr></thead><tbody>${[...rows].sort((a, b) => (b.totals?.reads ?? -1) - (a.totals?.reads ?? -1)).map((p) => {
-    const accounts = state.accounts.filter((a) => a.platform === p.platform), label3 = accounts.map((a) => a.name).join("，") || platforms[p.platform] || p.platform;
+    const accounts = state.accounts.filter((a) => a.platform === p.platform && (!state.account || state.account === a.id)), label3 = accounts.map((a) => accountLabel(a)).join("，") || platforms[p.platform] || p.platform;
     return `<tr data-action="${accounts.length === 1 ? "select-account" : "select-platform"}" data-id="${e(accounts[0]?.id || "")}" data-platform="${e(p.platform)}"><td><span class="account-title">${platformLogo(p.platform)}<button class="article-link" data-action="${accounts.length === 1 ? "select-account" : "select-platform"}" data-id="${e(accounts[0]?.id || "")}" data-platform="${e(p.platform)}">${e(label3)}</button>${dashboardInfo(
       "platform",
       "账号表现、最佳文章与计划",
@@ -5192,14 +5200,14 @@ function renderPlatformTable(rows) {
     ))}</td></tr>`;
   }).join("")}</tbody></table></div>` : '<div class="empty inline-empty">暂无账号。<button class="btn" data-action="new-account">添加账号</button></div>';
 }
-function renderTopTable(rows, offset = 0) {
+function renderTopTable(rows, offset2 = 0) {
   const approvals = rows.some((a) => a.platform === "zhihu" || a.latest_metrics?.approvals != null);
   return `<div class="table-scroll"><table class="data-table dashboard-table top-table"><thead><tr><th>文章</th><th>账号</th><th>阅读</th><th>点赞 ${dashboardInfo(
     "metrics",
     "点赞与赞同口径",
-    "top" + offset
+    "top" + offset2
   )}</th><th>评论</th>${approvals ? "<th>赞同</th>" : ""}</tr></thead><tbody>${rows.map(
-    (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset + i + 1))}</span><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button></td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
+    (a, i) => `<tr><td class="title-cell"><span class="rank">${e(num(offset2 + i + 1))}</span><button class="article-link" data-action="article-detail" data-id="${e(a.id)}">${e(a.title)}</button></td><td>${platformLogo(a.platform)} ${e(a.account_name)}</td>${[
       "reads",
       "likes",
       "comments",
@@ -5214,7 +5222,7 @@ function dashboardInfoBody(kind, id) {
   const d = state.dashboard || {}, c = d.cumulative || {}, totals = d.totals || {};
   if (kind === "coverage") return `<p>${e(c.metric_note)}</p><p>篇均分母：有阅读数据 ${e(num(c.data_article_count))} 篇。</p><p>截至 ${e(time(c.as_of))} · 采集 ${e(time(c.collected_at))}</p><p><button class="btn text" data-action="missing-list" data-status="missing_reads">缺阅读 ${e(num(c.missing_reads_count))} 篇 →</button><button class="btn text" data-action="missing-list" data-status="date_unverified">日期待核实 ${e(num(c.unverified_date_count))} 篇 →</button></p><p>点赞 ${e(num(c.totals?.likes))} · 评论 ${e(num(c.totals?.comments))} · 赞同 ${e(num(c.totals?.approvals))}；互动仅在赞、评均取得时相加。</p><p>自动化占比 ${totals.article_count ? e(num(totals.automatic_count / totals.article_count * 100)) + "%" : "—"} · 耗时中位数 ${e(duration(totals.median_duration_seconds))}</p>`;
   if (kind === "platform") {
-    const p = (d.platform_comparison || []).find((p2) => p2.platform === id) || {}, accounts = state.accounts.filter((a) => a.platform === id);
+    const p = (d.platform_comparison || []).find((p2) => p2.platform === id) || {}, accounts = state.accounts.filter((a) => a.platform === id && (!state.account || state.account === a.id));
     return `<p>${accounts.length > 1 ? "同平台多账号，表中为平台汇总；各账号可分别进入文章列表。" : "累计指标来自该平台汇总。"}</p>${accounts.map((a) => `<button class="btn text" data-action="select-account" data-id="${e(a.id)}">${e(a.name)} →</button>`).join(
       ""
     )}<p>覆盖 ${p.coverage == null ? "—" : e(num(p.coverage * 100)) + "%"} · 截至 ${e(time(p.as_of))}</p>${p.best_article ? `<p>最佳文章：<button class="article-link" data-action="article-detail" data-id="${e(p.best_article.id)}">${e(p.best_article.title)}</button> · 阅读 ${e(num(p.best_article.latest_metrics?.reads))}</p>` : "<p>暂无有阅读数据的文章。</p>"}`;
@@ -5238,7 +5246,7 @@ function renderPublicationTrend(data) {
 }
 function renderDailyTable(data) {
   const publication = state.trendTab === "publication", rows = publication ? data.publication_trend || [] : data.trend || [], accounts = data.accounts || [];
-  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>日期</th>${accounts.map((a) => `<th>${e(a.name)}</th>`).join(
+  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>日期</th>${accounts.map((a) => `<th>${e(accountLabel(a))}</th>`).join(
     ""
   )}</tr></thead><tbody>${rows.map((d) => `<tr><td>${e(d.date)}</td>${accounts.map((a) => {
     const r = d.accounts.find((r2) => r2.account_id === a.id), value = publication ? r?.count : r?.metrics?.[state.trendMetric];
@@ -5288,23 +5296,23 @@ async function articleIndex(query = "", context) {
   const params = new URLSearchParams(Object.entries(Object.fromEntries(new URLSearchParams(query))).sort(([a], [b]) => a.localeCompare(b)));
   params.set("fields", "index");
   const key = identity4 + ":" + params.toString();
-  let pending = articleIndexes.get(key);
-  const owner2 = pending && indexRequests.get(pending);
-  if (owner2 && !owner2.done && owner2.scope !== scope) pending = null;
-  if (!pending) {
+  let pending2 = articleIndexes.get(key);
+  const owner2 = pending2 && indexRequests.get(pending2);
+  if (owner2 && !owner2.done && owner2.scope !== scope) pending2 = null;
+  if (!pending2) {
     const entry = { scope, done: false };
-    pending = api("/articles?" + params, { context: scope }).then((rows2) => {
+    pending2 = api("/articles?" + params, { context: scope }).then((rows2) => {
       entry.done = true;
       return Object.freeze(rows2.map((row) => Object.freeze(row)));
     });
-    indexRequests.set(pending, entry);
-    articleIndexes.set(key, pending);
+    indexRequests.set(pending2, entry);
+    articleIndexes.set(key, pending2);
     if (articleIndexes.size > 10) articleIndexes.delete(articleIndexes.keys().next().value);
-    pending.catch(() => {
-      if (articleIndexes.get(key) === pending) articleIndexes.delete(key);
+    pending2.catch(() => {
+      if (articleIndexes.get(key) === pending2) articleIndexes.delete(key);
     });
   }
-  const rows = await pending;
+  const rows = await pending2;
   if (generation !== runtime.articleIndexGeneration || identity4 !== state.me?.id) {
     if (!state.me || identity4 !== state.me.id) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
     return articleIndex(query, context);
@@ -5314,8 +5322,8 @@ async function articleIndex(query = "", context) {
 
 // web/pages/reviews.mjs
 async function renderReviews(version2 = runtime.renderVersion, context, { isCurrent = () => true, compactFilters = false } = {}) {
-  const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending = tab === "pending", query = selectedQuery(), matches2 = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
-  const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
+  const generation = runtime.articleIndexGeneration, tab = state.reviewTab, pending2 = tab === "pending", query = selectedQuery(), matches2 = (id) => !state.filters.platform || state.accounts.find((a) => a.id === id)?.platform === state.filters.platform;
+  const [articles, rows, dueRows] = await Promise.all([articleIndex(query, context), pending2 ? [] : api(`/${tab === "observations" ? "observations" : "daily-metrics"}?${query}`, { context }), api(`/due-reviews${query ? "?" + query : ""}`, { context })]);
   if (version2 !== runtime.renderVersion || !isCurrent()) return "";
   if (generation !== runtime.articleIndexGeneration) return renderReviews(version2, context, { isCurrent, compactFilters });
   state.reviewArticles = articles;
@@ -5331,7 +5339,7 @@ async function renderReviews(version2 = runtime.renderVersion, context, { isCurr
     "tab",
     "page-tabs"
   )}${compactFilters ? "" : `<div class="review-summary">${platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`}`;
-  const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label3]) => [
+  const items = pending2 ? due : records, columns = pending2 ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label3]) => [
     key,
     ["likes", "approvals"].includes(key) ? `${label3}（${key}）` : label3
   ]), [
@@ -5342,14 +5350,14 @@ async function renderReviews(version2 = runtime.renderVersion, context, { isCurr
     "as_of",
     "due_at"
   ].includes(key) ? e(displayTime(r[key])) : key === "source" ? e(r.source || "未标注来源") : metricData(r)[key] == null ? '<span class="missing-value">未取得</span>' : e(num(metricData(r)[key]));
-  return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
-    const id = pending ? r.id : r.article_id, a = articles.find((a2) => a2.id === id);
-    return `<tr><td class="title-cell">${id ? `<button class="article-link" data-action="article-detail" data-id="${e(id)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label3]) => `<td data-label="${e(
+  return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending2 ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
+    const id = pending2 ? r.id : r.article_id, a = articles.find((a2) => a2.id === id);
+    return `<tr><td class="title-cell">${id ? `<button class="article-link" data-action="article-detail" data-id="${e(id)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending2 ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label3]) => `<td data-label="${e(
       label3
-    )}">${cell(r, key)}</td>`).join("")}<td>${pending ? `<button class="btn small" data-action="review-article" data-id="${e(
+    )}">${cell(r, key)}</td>`).join("")}<td>${pending2 ? `<button class="btn small" data-action="review-article" data-id="${e(
       id
     )}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
-  }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" : "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
+  }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending2 ? "暂无到期提醒" : "暂无记录", "", pending2 ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
 }
 async function reviewRecordsModal() {
   openModal("数据记录", '<div id="media-records" role="status"></div>', { drawer: true });
@@ -5429,6 +5437,58 @@ async function reviewModal(articleId = "", kind = "latest", indexRetry = false) 
   )).join("")}${daily ? "" : `<div class="form-field full"><label for="field-note">复盘备注</label><textarea class="input" name="note" id="field-note" maxlength="10000"></textarea></div>`}</div>${formEnd(daily ? "保存每日数据" : "追加快照")}</form>`);
 }
 
+// src/lib/errors.mjs
+function fail5(status, code, message) {
+  throw Object.assign(new Error(message), { status, code });
+}
+
+// src/account-profiles.mjs
+var invalid3 = (message) => fail5(400, "VALIDATION_ERROR", message);
+var unsupported = () => invalid3("请粘贴今日头条、知乎或微信公众号的公开主页链接，文章和后台链接不能作为账号主页");
+function normalizeAccountProfile(value, expectedPlatform) {
+  if (typeof value !== "string" || !value.trim() || value.length > 2048 || /[\u0000-\u001f\u007f\\]/.test(value) || /\s/.test(value.trim())) {
+    invalid3("账号主页须为完整 HTTP(S) 链接，且不能包含空格或控制字符");
+  }
+  let url;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    invalid3("账号主页须为完整 HTTP(S) 链接");
+  }
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.port) {
+    invalid3("账号主页须为不含登录凭据和自定义端口的 HTTP(S) 链接");
+  }
+  const host = url.hostname.toLowerCase();
+  let platform, profile_url, platform_identity;
+  if (["zhihu.com", "www.zhihu.com"].includes(host)) {
+    const match = /^\/(people|org)\/([A-Za-z0-9_-]{1,128})(?:\/(?:activities|answers|posts|followers|following|collections))?\/?$/.exec(url.pathname);
+    if (!match) unsupported();
+    platform = "zhihu";
+    profile_url = `https://www.zhihu.com/${match[1]}/${match[2]}`;
+    platform_identity = `zhihu:${match[1]}:${match[2]}`;
+  } else if (["toutiao.com", "www.toutiao.com", "m.toutiao.com"].includes(host)) {
+    const token = /^\/c\/user\/token\/([A-Za-z0-9_-]{8,512})((?:=|%3[dD]){0,2})\/?$/.exec(url.pathname);
+    const numeric = /^\/(?:user(?:\/profile)?|c\/user)\/(\d{1,30})\/?$/.exec(url.pathname);
+    if (!token && !numeric) unsupported();
+    platform = "toutiao";
+    const tokenIdentity = token ? token[1] + token[2].replace(/%3d/gi, "=") : null;
+    profile_url = token ? `https://www.toutiao.com/c/user/token/${tokenIdentity}/` : `https://www.toutiao.com/user/${numeric[1]}/`;
+    platform_identity = token ? `toutiao:token:${tokenIdentity}` : `toutiao:user:${numeric[1]}`;
+  } else if (host === "mp.weixin.qq.com") {
+    const actions2 = url.searchParams.getAll("action"), identities = url.searchParams.getAll("__biz");
+    if (!/^\/mp\/profile_ext\/?$/.test(url.pathname) || actions2.length !== 1 || actions2[0] !== "home" || identities.length !== 1 || !/^[A-Za-z0-9+/]{4,160}={0,2}$/.test(identities[0])) unsupported();
+    platform = "wechat";
+    const identity4 = identities[0];
+    const query = new URLSearchParams({ action: "home", __biz: identity4 });
+    profile_url = `https://mp.weixin.qq.com/mp/profile_ext?${query}`;
+    platform_identity = `wechat:biz:${identity4}`;
+  } else unsupported();
+  if (expectedPlatform && expectedPlatform !== platform) invalid3("主页链接与所选平台不一致，请修改平台或主页链接");
+  return { platform, profile_url, platform_identity };
+}
+var hasAccountProfileInput = (body2) => Object.hasOwn(body2, "profile_url");
+var hasAccountProfileValue = (body2) => hasAccountProfileInput(body2) && body2.profile_url !== "" && body2.profile_url !== null;
+
 // web/pages/settings.mjs
 function profileForAccount(id) {
   return (state.accountProfiles || []).find((profile) => profile.account_id === id);
@@ -5443,10 +5503,10 @@ function profileLink(account) {
     return "";
   }
   if (url.protocol !== "https:" || url.username || url.password || url.port || !["www.zhihu.com", "www.toutiao.com", "mp.weixin.qq.com"].includes(url.hostname)) return "";
-  return `<div class="cell-sub"><a href="${e(url.href)}" target="_blank" rel="noopener noreferrer">打开公开主页 ${icon("link", 11)}</a></div>`;
+  return `<div class="cell-sub"><a href="${e(url.href)}" target="_blank" rel="noopener noreferrer">打开主页核验 ${icon("link", 11)}</a> · 访问状态未自动验证</div>`;
 }
 function renderAccounts() {
-  const accounts = rowsForAccount(state.accounts);
+  const accounts = state.accounts;
   return `<section class="card">${accounts.length ? `<div class="table-scroll"><table class="data-table accounts-table"><thead><tr><th>账号</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${accounts.map((a) => `<tr><td><span class="account-title">${platformLogo(
     a.platform
   )}${e(a.name)}</span><div class="cell-sub">${e(platforms[a.platform] || a.platform)}</div>${profileLink(a)}</td><td><span class="badge ${a.active ? "up" : ""}">${a.active ? "使用中" : "已停用"}</span></td><td>${e(time(a.created_at))}</td><td><button class="btn small" data-action="edit-account" data-id="${e(a.id)}">${icon("edit", 13)}编辑</button></td></tr>`).join("")}</tbody></table></div>` : empty("暂无账号")}</section>`;
@@ -5536,12 +5596,28 @@ function renderAudit(audit, keys = []) {
 function accountModal(id = "") {
   const a = state.accounts.find((a2) => a2.id === id) || { platform: "", name: "", active: true };
   const profile = profileForAccount(id);
-  const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" placeholder="粘贴今日头条、知乎或微信公众号主页"><span class="hint">保存主页无需登录平台。支持识别重复主页；后台统计仍需另行录入。</span></div>`;
-  openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid">${homepage}<div class="form-field"><label for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" ${id ? "disabled" : ""}>${Object.entries(
+  const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" placeholder="粘贴今日头条、知乎或微信公众号主页" ${id ? "" : "required"}><span class="hint">只校验和保存主页地址，不自动访问平台。知乎的动态、回答等子页面会规范化为对应主页；后台统计仍需另行录入。</span><button type="button" class="btn small" data-action="test-profile">测试链接格式</button><div id="profile-test-result" class="hint" role="status" aria-live="polite"></div></div>`;
+  openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid">${homepage}<div class="form-field"><label for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" disabled>${Object.entries(
     id ? platforms : { "": "根据主页自动识别", ...platforms }
   ).map(([key, label3]) => `<option value="${key}" ${a.platform === key ? "selected" : ""}>${label3}</option>`).join(
     ""
-  )}</select></div>${field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"')}${id ? `<div class="form-field full"><label class="check-option"><input type="checkbox" name="active" ${a.active ? "checked" : ""}>启用此账号</label><span class="hint">停用保留历史数据。</span></div>` : ""}</div>${formEnd(id ? "保存账号" : "添加账号")}</form>`);
+  )}</select></div>${id ? field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"') : '<p class="hint full">平台自动识别，账号名称暂用主页标识，可在保存后编辑。</p>'}${id ? `<div class="form-field full"><label class="check-option"><input type="checkbox" name="active" ${a.active ? "checked" : ""}>启用此账号</label><span class="hint">停用保留历史数据。</span></div>` : ""}</div>${formEnd(id ? "保存账号" : "添加账号")}</form>`);
+  document.querySelector("#field-profile-url")?.addEventListener?.("input", () => {
+    const result = document.querySelector("#profile-test-result");
+    if (result) result.textContent = "";
+  });
+}
+function testProfile() {
+  const input = document.querySelector("#field-profile-url"), result = document.querySelector("#profile-test-result");
+  if (!input || !result) return;
+  try {
+    const id = document.querySelector("#account-form")?.dataset.id;
+    const account = state.accounts.find((a) => a.id === id);
+    const profile = normalizeAccountProfile(input.value, account?.platform);
+    result.innerHTML = `格式有效（${e(platforms[profile.platform])}）；访问情况无法自动核验。<a href="${e(profile.profile_url)}" target="_blank" rel="noopener noreferrer">打开官方主页自行核验</a>`;
+  } catch (error) {
+    result.textContent = `格式未通过：${error.message}`;
+  }
 }
 function keyModal() {
   if (!state.accounts.some((a) => a.active)) {
@@ -5644,10 +5720,10 @@ function todoTemplateEditor(store) {
 <input id="todo-template-edit-text" class="input" name="text" maxlength="500" required value="${e(store.editDraft)}">
 <button class="btn" type="submit">保存</button><button class="btn text" type="button" data-action="todo-template-cancel">取消</button></form>`;
 }
-function renderTodoTemplates() {
+function renderTodoTemplates(floatingControl = "") {
   const store = templateState();
   return `<section id="todo-templates" class="daily-todo-templates todo-view" ${state.todoPanel === "templates" ? "" : "hidden"}>
-<div class="todo-view-head"><h2>常用待办</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
+<div class="todo-view-head"><h2>常用待办</h2>${floatingControl}</div>
 <div class="todo-template-content">
 <form id="todo-template-form" class="todo-template-form" ${store.editing ? "hidden" : ""}>
 <label for="todo-template-text" class="sr-only">新建常用待办</label>
@@ -5657,16 +5733,16 @@ function renderTodoTemplates() {
 <p id="todo-template-status" class="daily-todo-status" role="status"></p>
 <ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul></div></section>`;
 }
-function syncTemplateForm(root, id, value, pending) {
+function syncTemplateForm(root, id, value, pending2) {
   const input = $(id, root);
   if (!input) return;
   if (input.value !== value) input.value = value;
-  input.readOnly = pending;
+  input.readOnly = pending2;
   const button2 = $("button[type=submit]", input.form);
   if (button2) {
-    button2.disabled = pending;
+    button2.disabled = pending2;
     button2.textContent = "保存";
-    button2.setAttribute("aria-busy", String(pending));
+    button2.setAttribute("aria-busy", String(pending2));
   }
 }
 function paintTodoTemplates() {
@@ -5691,14 +5767,14 @@ function paintTodoTemplates() {
     if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
   }
 }
-function templateReadActive(store, owner2, sequence2, version2, date) {
-  return templateSessionActive(owner2) && store.sequence === sequence2 && version2 === runtime.renderVersion && state.page === "todos" && date === todoDate();
+function templateReadActive(store, owner2, sequence3, version2, date) {
+  return templateSessionActive(owner2) && store.sequence === sequence3 && version2 === runtime.renderVersion && state.page === "todos" && date === todoDate();
 }
 async function loadTodoTemplates({ ensure = false } = {}) {
   if (state.page !== "todos" || !state.me) return;
   const store = templateState(), date = todoDate(), version2 = runtime.renderVersion;
   if (ensure && (store.loaded && !store.error && !store.loading || store.loading && store.readDate === date && store.readVersion === version2)) return;
-  const owner2 = store.owner, sequence2 = ++store.sequence, revision2 = store.revision;
+  const owner2 = store.owner, sequence3 = ++store.sequence, revision2 = store.revision;
   store.readDate = date;
   store.readVersion = version2;
   store.loading = true;
@@ -5706,14 +5782,14 @@ async function loadTodoTemplates({ ensure = false } = {}) {
   paintTodoTemplates();
   try {
     const data = await api("/todo-templates");
-    if (!templateReadActive(store, owner2, sequence2, version2, date)) return;
+    if (!templateReadActive(store, owner2, sequence3, version2, date)) return;
     if (revision2 !== store.revision) return loadTodoTemplates();
     store.items = data.items;
     store.loaded = true;
   } catch (error) {
-    if (templateReadActive(store, owner2, sequence2, version2, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
+    if (templateReadActive(store, owner2, sequence3, version2, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
   } finally {
-    if (templateSessionActive(owner2) && store.sequence === sequence2) {
+    if (templateSessionActive(owner2) && store.sequence === sequence3) {
       store.loading = false;
       paintTodoTemplates();
     }
@@ -6142,20 +6218,20 @@ function todoCalendar(date) {
 ${["一", "二", "三", "四", "五", "六", "日"].map((day4) => `<span class="todo-calendar-weekday" aria-hidden="true">周${day4}</span>`).join("")}
 ${visible3.map((day4) => day4 ? todoCalendarDay(day4, date) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
 }
-function moveTodoMonth(offset) {
+function moveTodoMonth(offset2) {
   if (!todosVisible()) return;
   if (state.todoPanel === "templates" && $("#todo-templates")?.dataset.loaded !== "true") void loadTodoTemplates();
   const day4 = todoDay(), month = todoCalendarMonth(day4.date);
   if (todosState.calendarView === "week") {
     const anchor = day4.date.startsWith(month) ? day4.date : `${month}-01`;
     const weekDate = /* @__PURE__ */ new Date(`${anchor}T00:00:00Z`);
-    weekDate.setUTCDate(weekDate.getUTCDate() + offset * 7);
+    weekDate.setUTCDate(weekDate.getUTCDate() + offset2 * 7);
     const next = weekDate.toISOString().slice(0, 10);
     if (validTodoDate(next)) selectTodoDate(next);
     return;
   }
   const date = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`);
-  date.setUTCMonth(date.getUTCMonth() + offset);
+  date.setUTCMonth(date.getUTCMonth() + offset2);
   const nextMonth = date.toISOString().slice(0, 7);
   if (!validTodoDate(`${nextMonth}-01`)) return;
   todosState.calendarMonth = nextMonth;
@@ -6240,16 +6316,16 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
 function todoRow(item, day4) {
-  const pending = todoBusy(day4, item.id);
+  const pending2 = todoBusy(day4, item.id);
   const completed = day4.updates.has(item.id) ? day4.updates.get(item.id) : item.completed;
   const removal = day4.removals.get(item.id), deleted2 = removal ? removal.phase !== "restoring" : Boolean(item.deleted_at);
   if (deleted2 || completed && todoCompletedMode() === "hide" && state.todoPanel !== "history") return "";
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day4.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day4.date)}" ${completed ? "checked" : ""}
-aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
+aria-disabled="${pending2}"><span class="daily-todo-text">${e(item.text)}</span></label>
 
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day4.date)}"
-aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
+aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending2 ? "disabled" : ""}>⋯</button></li>`;
 }
 function todoForm(day4) {
   const label3 = day4.date === bjtDate() ? "今天想完成什么？" : "这一天的计划";
@@ -6265,13 +6341,16 @@ function todoCaption(day4) {
 function floatingTodoSupported() {
   return typeof window !== "undefined" && typeof window.documentPictureInPicture?.requestWindow === "function";
 }
+function floatingTodoControl() {
+  return `<div class="todo-floating-control"><button class="btn todo-floating-open" type="button" data-action="todo-floating" ${floatingTodoSupported() ? "" : "disabled"}>桌面便签</button>
+${floatingTodoSupported() ? "" : '<span class="todo-floating-support" role="status">当前浏览器不支持置顶便签</span>'}</div>`;
+}
 function todoHeading(day4) {
   const selected = state.todoPanel || "today";
   return `<span id="todo-caption" hidden>${todoCaption(day4)}</span><nav class="todo-page-tabs" aria-label="待办页面">
 ${[["today", "今日"], ["future", "未来待办"], ["history", "历史"], ["templates", "常用"]].map(([panel, label3]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel === "today" ? "" : panel}"
   aria-current="${selected === panel ? "page" : "false"}" ${panel === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>
-<button class="btn todo-floating-open" type="button" data-action="todo-floating" ${floatingTodoSupported() ? "" : "disabled"}>桌面便签</button>
-${floatingTodoSupported() ? "" : '<span class="todo-floating-support" role="status">当前浏览器不支持置顶便签</span>'}`;
+<div id="todo-floating-toolbar" ${state.todoPanel === "templates" ? "hidden" : ""}>${floatingTodoControl()}</div>`;
 }
 function renderTodoHistory(day4) {
   return `<section id="todo-history" class="todo-view" aria-label="历史待办" ${state.todoPanel === "history" ? "" : "hidden"}>
@@ -6284,8 +6363,8 @@ function paintTodoPanels(root) {
     const node2 = $("#" + id, root);
     if (node2) node2.hidden = id === "todo-main" ? ["templates", "future"].includes(panel) : panel !== value;
   }
-  const back = $("#todo-return-today", root);
-  if (back) back.hidden = !state.todoDate || Boolean(panel);
+  const floatingToolbar = $("#todo-floating-toolbar", root);
+  if (floatingToolbar) floatingToolbar.hidden = panel === "templates";
   root?.querySelectorAll('[data-action="todo-panel"]').forEach((button2) => {
     button2.setAttribute("aria-current", button2.dataset.panel === panel ? "page" : "false");
   });
@@ -6301,7 +6380,7 @@ async function setTodoPanel(panel) {
     await loadTodos();
     if (state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(todoDay().date));
   }
-  const selector = state.todoPanel === "future" ? "#todo-future-text" : state.todoPanel ? state.todoPanel === "history" ? "#todo-calendar-month-input" : "#todo-" + state.todoPanel + ' [data-action="todo-panel-close"]' : "#todo-text";
+  const selector = state.todoPanel === "future" ? "#todo-future-text" : state.todoPanel ? state.todoPanel === "history" ? "#todo-calendar-month-input" : "#todo-template-text" : "#todo-text";
   $(selector)?.focus();
 }
 function todoPending(day4) {
@@ -6349,7 +6428,7 @@ ${renderTodoHistory(day4)}<div id="todo-main" ${["templates", "future"].includes
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day4)}</div>
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day4)}</p>
 <ul id="todo-items" class="daily-todo-items">${day4.items.map((item) => todoRow(item, day4)).join("")}${pendingTodo(day4)}</ul></div>
-${renderTodoTemplates()}${renderUnscheduledTodos()}</section>`;
+${renderTodoTemplates(floatingTodoControl())}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
@@ -6398,8 +6477,8 @@ function paintTodos() {
   if (focus) ($(focus, root) || $("[data-todo-id]", root) || $("#todo-text", root))?.focus();
   paintTodoTemplates();
 }
-function todoReadActive(owner2, version2, date, day4, sequence2) {
-  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date && day4.sequence === sequence2 && todosVisible();
+function todoReadActive(owner2, version2, date, day4, sequence3) {
+  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date && day4.sequence === sequence3 && todosVisible();
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
@@ -6409,13 +6488,13 @@ async function loadTodos(context) {
   }
   void loadTodoTemplates({ ensure: true });
   const day4 = todoDay(), date = day4.date, owner2 = todoOwner(), version2 = runtime.renderVersion;
-  const sequence2 = ++day4.sequence, revision2 = day4.revision;
+  const sequence3 = ++day4.sequence, revision2 = day4.revision;
   day4.loading = true;
   day4.error = "";
   paintTodos();
   try {
     const data = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
-    if (!todoReadActive(owner2, version2, date, day4, sequence2)) return;
+    if (!todoReadActive(owner2, version2, date, day4, sequence3)) return;
     if (day4.revision !== revision2) return loadTodos(context);
     receiveTodoPreferences(data.completed_mode, data.preferences_version);
     day4.items = data.items;
@@ -6427,10 +6506,10 @@ async function loadTodos(context) {
     }
     if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error) {
-    if (todoReadActive(owner2, version2, date, day4, sequence2) && !isRequestAbort(error) && !error.staleSession) day4.error = error.message;
+    if (todoReadActive(owner2, version2, date, day4, sequence3) && !isRequestAbort(error) && !error.staleSession) day4.error = error.message;
   } finally {
-    if (todoSessionActive(owner2) && day4.sequence === sequence2) {
-      const visible3 = todoReadActive(owner2, version2, date, day4, sequence2);
+    if (todoSessionActive(owner2) && day4.sequence === sequence3) {
+      const visible3 = todoReadActive(owner2, version2, date, day4, sequence3);
       day4.loading = false;
       paintTodos();
       if (visible3 && state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
@@ -6573,8 +6652,8 @@ async function toggleTodo(target, { floating = false } = {}) {
 async function loadFloatingToday() {
   if (!state.me) return;
   const date = bjtDate(), day4 = todoDay(date), owner2 = todoOwner();
-  const sequence2 = ++day4.sequence, revision2 = day4.revision;
-  const current2 = () => todoSessionActive(owner2) && date === bjtDate() && day4.sequence === sequence2;
+  const sequence3 = ++day4.sequence, revision2 = day4.revision;
+  const current2 = () => todoSessionActive(owner2) && date === bjtDate() && day4.sequence === sequence3;
   day4.loading = true;
   day4.error = "";
   paintTodos();
@@ -6606,9 +6685,9 @@ function selectTodoDate(date) {
   paintTodos();
   loadTodos();
 }
-function moveTodoDate(offset) {
+function moveTodoDate(offset2) {
   const date = /* @__PURE__ */ new Date(`${todoDate()}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + offset);
+  date.setUTCDate(date.getUTCDate() + offset2);
   selectTodoDate(date.toISOString().slice(0, 10));
 }
 function refreshTodos() {
@@ -6941,14 +7020,14 @@ function createEntryReadingActions(context) {
   const { category, page, entry, entries, emit, adopt, merge, schedule, makeEntry } = context;
   const { load, loadEntry } = context.options;
   async function read(date, options2 = {}) {
-    const current2 = page(date), sequence2 = ++current2.sequence;
+    const current2 = page(date), sequence3 = ++current2.sequence;
     const epochs = new Map(current2.ids.map((id) => [id, entry(id)?.writeEpoch]));
     current2.loading = true;
     current2.error = "";
     emit();
     try {
       const value = checkedCollection(await load(date, options2), category, date);
-      if (context.disposed || sequence2 !== current2.sequence) return;
+      if (context.disposed || sequence3 !== current2.sequence) return;
       current2.canEdit = value.can_edit;
       current2.labelsComplete = [2, 3].includes(value.labels_version);
       const found = /* @__PURE__ */ new Set();
@@ -6971,9 +7050,9 @@ function createEntryReadingActions(context) {
       current2.loaded = true;
       await Promise.all(current2.ids.filter((id) => !found.has(id) && persistedVersion(entry(id)) > 0 && (entry(id).dirty || entry(id).localBacked) && !entry(id).pending).map((id) => readOne(id, options2)));
     } catch (error) {
-      if (!context.disposed && sequence2 === current2.sequence) current2.error = error.message;
+      if (!context.disposed && sequence3 === current2.sequence) current2.error = error.message;
     } finally {
-      if (!context.disposed && sequence2 === current2.sequence) {
+      if (!context.disposed && sequence3 === current2.sequence) {
         current2.loading = false;
         emit();
         for (const id of current2.ids) schedule(entry(id));
@@ -6983,19 +7062,19 @@ function createEntryReadingActions(context) {
   async function readOne(id, options2 = {}) {
     const item = entry(id);
     if (!item || context.disposed) return;
-    const sequence2 = ++item.sequence, epoch = item.writeEpoch;
+    const sequence3 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
       const value = checkedEntry(await loadEntry(id, options2), category, item.date, id);
-      if (!context.disposed && sequence2 === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
+      if (!context.disposed && sequence3 === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
     } catch (error) {
-      if (!context.disposed && sequence2 === item.sequence) {
+      if (!context.disposed && sequence3 === item.sequence) {
         item.error = error.message;
         if (!blocked(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence2 === item.sequence) {
+      if (!context.disposed && sequence3 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
@@ -7426,26 +7505,26 @@ function shiftNoteMonth(month, delta) {
 }
 function noteMonthWeeks(month) {
   if (!validNoteMonth(month)) throw new Error("请选择有效月份。");
-  const first = /* @__PURE__ */ new Date(month + "-01T12:00:00Z"), offset = (first.getUTCDay() + 6) % 7;
+  const first = /* @__PURE__ */ new Date(month + "-01T12:00:00Z"), offset2 = (first.getUTCDay() + 6) % 7;
   const last = new Date(first);
   last.setUTCMonth(last.getUTCMonth() + 1);
   last.setUTCDate(0);
-  const weeks = Array.from({ length: Math.ceil((offset + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
+  const weeks = Array.from({ length: Math.ceil((offset2 + last.getUTCDate()) / 7) }, () => Array(7).fill(null));
   for (let day4 = 1; day4 <= last.getUTCDate(); day4++)
-    weeks[Math.floor((offset + day4 - 1) / 7)][(offset + day4 - 1) % 7] = month + "-" + String(day4).padStart(2, "0");
+    weeks[Math.floor((offset2 + day4 - 1) / 7)][(offset2 + day4 - 1) % 7] = month + "-" + String(day4).padStart(2, "0");
   return weeks;
 }
 function checkedNoteMonth(data, month) {
-  const fail5 = () => {
+  const fail6 = () => {
     throw new Error("月记录不完整，请联网重试。");
   };
-  if (!validNoteMonth(month) || !data || data.month !== month || data.complete !== true || ![1, 2, 3].includes(data.labels_version) || !Array.isArray(data.days) || data.days.length > 31) fail5();
+  if (!validNoteMonth(month) || !data || data.month !== month || data.complete !== true || ![1, 2, 3].includes(data.labels_version) || !Array.isArray(data.days) || data.days.length > 31) fail6();
   const result = /* @__PURE__ */ new Map(), ids = /* @__PURE__ */ new Set();
   let total = 0;
   for (const day4 of data.days) {
-    if (!day4 || !validDailyNotesDate(day4.date) || !day4.date.startsWith(month + "-") || result.has(day4.date) || !Array.isArray(day4.items)) fail5();
+    if (!day4 || !validDailyNotesDate(day4.date) || !day4.date.startsWith(month + "-") || result.has(day4.date) || !Array.isArray(day4.items)) fail6();
     const items = day4.items.map((item) => {
-      if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || data.labels_version === 1 && (!Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label))) || data.labels_version >= 2 && (!Array.isArray(item.labels) || item.labels.some((label3) => data.labels_version === 3 ? !validNoteLabel(label3) : item.category !== "life" || !validCustomNoteLabel(label3)) || new Set(item.labels).size !== item.labels.length) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail5();
+      if (!item || typeof item.entity_id !== "string" || ids.has(item.entity_id) || !["note_entry", "legacy_daily_note"].includes(item.source) || !["life", "work"].includes(item.category) || data.labels_version === 1 && (!Object.hasOwn(item, "label") || item.label !== null && (item.category !== "life" || !validCustomNoteLabel(item.label))) || data.labels_version >= 2 && (!Array.isArray(item.labels) || item.labels.some((label3) => data.labels_version === 3 ? !validNoteLabel(label3) : item.category !== "life" || !validCustomNoteLabel(label3)) || new Set(item.labels).size !== item.labels.length) || typeof item.text !== "string" || !item.text || !Object.hasOwn(item, "created_at") || item.created_at !== null && !Number.isFinite(Date.parse(item.created_at)) || item.source === "legacy_daily_note" && item.created_at !== null || !Number.isFinite(Date.parse(item.updated_at))) fail6();
       ids.add(item.entity_id);
       total++;
       const displayLabels = data.labels_version === 3 ? item.labels : item.labels?.length ? item.labels : item.label ? [item.label] : [item.category === "work" ? "工作" : "生活"];
@@ -7453,7 +7532,7 @@ function checkedNoteMonth(data, month) {
     });
     result.set(day4.date, items);
   }
-  if (total > 2e3) fail5();
+  if (total > 2e3) fail6();
   return result;
 }
 
@@ -7467,7 +7546,7 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
   };
   const find = (selector) => panel.querySelector(selector), doc = root.ownerDocument;
   const identityNow = typeof identity4 === "function" ? identity4 : () => identity4, expected = identityNow();
-  let disposed = false, sequence2 = 0, days = /* @__PURE__ */ new Map(), loaded = "", selected = dailyNotesToday(), month = selected.slice(0, 7), category = "";
+  let disposed = false, sequence3 = 0, days = /* @__PURE__ */ new Map(), loaded = "", selected = dailyNotesToday(), month = selected.slice(0, 7), category = "";
   const active5 = () => !disposed && root.isConnected && identityNow() === expected;
   const visibleRows = (date) => (days.get(date) || []).filter((item) => !category || item.category === category);
   find("#notes-month-input").value = month;
@@ -7518,7 +7597,7 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
   }
   async function load(force = false) {
     if (!active5() || !panel.open || !validNoteMonth(month) || !force && loaded === month) return;
-    const current2 = ++sequence2, target = month;
+    const current2 = ++sequence3, target = month;
     loaded = "";
     days = /* @__PURE__ */ new Map();
     find("#notes-month-grid").replaceChildren();
@@ -7527,14 +7606,14 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
     find("#notes-month-status").textContent = "";
     try {
       const data = await request("/note-entries/month?month=" + target);
-      if (!active5() || current2 !== sequence2 || target !== month) return;
+      if (!active5() || current2 !== sequence3 || target !== month) return;
       days = checkedNoteMonth(data, target);
       loaded = target;
       if (!selected.startsWith(target + "-")) selected = [...days.keys()][0] || target + "-01";
       find("#notes-month-status").textContent = "仅展示已同步记录；待同步草稿请在原日期查看。";
       paint();
     } catch (error) {
-      if (!active5() || current2 !== sequence2) return;
+      if (!active5() || current2 !== sequence3) return;
       find("#notes-month-status").textContent = error.message || "月记录读取失败，请重试。";
     }
   }
@@ -7578,7 +7657,7 @@ function mountNotesMonth(root, { request, selectDate, identity: identity4 }) {
   panel.addEventListener("click", click);
   return () => {
     disposed = true;
-    sequence2++;
+    sequence3++;
     panel.removeEventListener("toggle", toggle);
     panel.removeEventListener("change", change2);
     panel.removeEventListener("click", click);
@@ -8286,10 +8365,10 @@ function paintDailyNotesPage() {
 }
 async function readNoteLabels({ afterWrite = false } = {}) {
   if (notesLabelBusy && !afterWrite) return false;
-  const expected = notesIdentityNow(), sequence2 = ++notesLabelSequence;
+  const expected = notesIdentityNow(), sequence3 = ++notesLabelSequence;
   try {
     const data = await apiNetwork("/note-entries/labels", { headers: { "X-Note-Labels-Version": "3", "X-Note-Labels-Archive": "1" } });
-    if (expected !== notesIdentityNow() || sequence2 !== notesLabelSequence) return;
+    if (expected !== notesIdentityNow() || sequence3 !== notesLabelSequence) return;
     if (data?.labels_version !== 3 || !Array.isArray(data?.labels) || !Array.isArray(data?.archived_labels) || data.labels.some((row) => !validCustomNoteLabel(row?.name)) || data.archived_labels.some((row) => typeof row?.name !== "string" || !(row.name === "生活" || row.name === "工作" || validCustomNoteLabel(row.name)) || typeof row.archived_at !== "string" || !Number.isFinite(Date.parse(row.archived_at))))
       throw new Error("服务器未提供可核实的归档状态。");
     notesLabels = [...new Set(data.labels.map((row) => row.name))];
@@ -8299,7 +8378,7 @@ async function readNoteLabels({ afterWrite = false } = {}) {
     paintDailyNotesPage();
     return true;
   } catch (error) {
-    if (expected !== notesIdentityNow() || sequence2 !== notesLabelSequence) return;
+    if (expected !== notesIdentityNow() || sequence3 !== notesLabelSequence) return;
     notesLabelsVerified = false;
     notesLabelMessage = "标签状态读取失败，请联网后重新打开标签管理：" + (error.message || "请稍后重试。");
   }
@@ -8483,9 +8562,9 @@ async function loadHistory(month = "", chosenDate = "") {
   if (!root) return;
   const target = month || historyMonth || dailyNotesToday().slice(0, 7);
   if (coalesceNoteMonthFlight(historyActiveLoad, { root, target, expected, sequence: historySequence, chosenDate })) return;
-  const sequence2 = ++historySequence;
-  historyActiveLoad = { root, target, expected, sequence: sequence2, chosenDate };
-  const active5 = () => notesVisible() && notesView === "history" && sequence2 === historySequence && expected === notesIdentityNow();
+  const sequence3 = ++historySequence;
+  historyActiveLoad = { root, target, expected, sequence: sequence3, chosenDate };
+  const active5 = () => notesVisible() && notesView === "history" && sequence3 === historySequence && expected === notesIdentityNow();
   const status = root.querySelector("#notes-history-status");
   status.textContent = "";
   try {
@@ -8501,7 +8580,7 @@ async function loadHistory(month = "", chosenDate = "") {
     status.textContent = "月记录读取失败，保留当前内容：" + (error.message || "请联网重试。");
     if (historyMonth) root.querySelector("#notes-history-month").value = historyMonth;
   } finally {
-    if (historyActiveLoad?.sequence === sequence2) historyActiveLoad = null;
+    if (historyActiveLoad?.sequence === sequence3) historyActiveLoad = null;
   }
 }
 async function selectDailyNotesDate(value) {
@@ -8895,7 +8974,7 @@ async function checkFloatingNote(retry = false) {
 // web/pages/memos.mjs
 var button = (action, label3, extra = "") => '<button type="button" class="btn" data-memo-action="' + action + '" ' + extra + ">" + label3 + "</button>";
 function renderMemos() {
-  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><span id="memo-status" role="status" aria-live="polite"></span><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><div id="memo-drafts" class="memo-drafts" hidden></div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", "＋", 'hidden aria-label="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" stroke-width="1.6"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><p id="memo-note-error" class="memo-message" role="alert" hidden></p><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
+  return '<section id="memos" data-pane="groups" aria-label="长期备忘录"><div class="memo-toolbar"><div class="memo-mobile-back">' + button("back-notes", "‹ 返回笔记") + '</div><div class="memo-toolbar-actions">' + button("exit-trash", "‹ 返回工作台设置", "hidden") + button("login", "所有者登录", "hidden") + '</div></div><p id="memo-error" class="memo-message" role="alert" hidden></p><div id="memo-operation" class="memo-message" hidden><p id="memo-operation-text" role="status"></p>' + button("operation-check", "核对操作结果") + button("operation-retry", "重试同一操作", "hidden") + '</div><section id="memo-recovery" class="memo-recovery" aria-label="找回本机草稿" hidden><div class="memo-panel-head"><h2>找回本机草稿</h2>' + button("close-recovery", "关闭") + '</div><p id="memo-recovery-status" role="status"></p><div id="memo-recovery-list"></div><div id="memo-recovery-detail" hidden><p id="memo-recovery-selected"></p><label for="memo-recovery-copy">草稿文字（可选中复制）</label><textarea id="memo-recovery-copy" readonly></textarea>' + button("restore-draft", "恢复此草稿并核对") + '</div></section><section id="memo-dialog" class="memo-dialog" aria-labelledby="memo-dialog-heading" hidden><h3 id="memo-dialog-heading"></h3><p id="memo-dialog-description"></p><label id="memo-dialog-label" for="memo-dialog-title">名称</label><input id="memo-dialog-title" class="input" maxlength="120" autocomplete="off"><div class="memo-dialog-actions">' + button("cancel", "取消") + button("confirm", "确认") + '</div></section><div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录"><div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' + button("new-note", '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4H5v16h12v-7M8 16l1-3 8-8 2 2-8 8-3 1ZM18 13v6m-3-3h6"/></svg>', 'hidden aria-label="新建笔记" title="新建笔记"') + '</div><div id="memo-group-list" class="memo-list"></div></aside><div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" title="拖动调整列表与正文比例；方向键微调，Home / End 到边界"></div><article class="memo-editor" aria-label="笔记内容"><div id="memo-save-notice" class="memo-save-notice" hidden><span id="memo-status" role="status" aria-live="polite" hidden></span><span id="memo-note-error" role="alert" hidden></span><div id="memo-drafts" class="memo-drafts" hidden></div>' + button("recovery", "找回本机草稿", "hidden") + '</div><p id="memo-empty" class="memo-empty">选择一篇笔记，长期记录常用信息。</p><div id="memo-document" hidden><div class="memo-document-heading"><div class="memo-heading-title"><label for="memo-title" class="sr-only">笔记标题</label><input id="memo-title" class="memo-title" maxlength="120" placeholder="笔记标题" autocomplete="off"><h2 id="memo-read-title" class="memo-read-title" hidden></h2><time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' + button("fullscreen", '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true"><path d="M14 4h6v6m0-6-7 7M10 20H4v-6m0 6 7-7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div><label for="memo-body" class="sr-only">笔记正文</label><textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea><div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div><div class="memo-document-footer"><span id="memo-detail"></span><div id="memo-note-actions" hidden><details class="memo-document-menu"><summary aria-label="笔记操作">⋯</summary><div class="memo-context-actions">' + button("save", "立即保存") + button("delete-note", "删除笔记") + button("restore-note", "恢复笔记", "hidden") + '</div></details></div></div><div id="memo-resolution" class="memo-resolution" hidden>' + button("check", "核对服务器结果") + button("retry", "重试同一保存", "hidden") + '<div id="memo-conflict" hidden><h3>服务器上的内容</h3><pre id="memo-remote"></pre>' + button("use-server", "采用服务器内容") + button("use-draft", "用此草稿保存到新版本") + '</div></div></div></article></div><dialog id="memo-fullscreen" aria-label="备忘录正文全屏"></dialog></section>';
 }
 var phases = {
   dirty: "等待自动保存",
@@ -8915,7 +8994,7 @@ function paintEditedTime(node2, item) {
   const timestamp4 = value && Date.parse(value);
   node2.hidden = !Number.isFinite(timestamp4);
   node2.dateTime = node2.hidden ? "" : value;
-  node2.textContent = node2.hidden ? "" : (local ? "本机编辑于 " : "编辑于 ") + new Intl.DateTimeFormat("zh-CN", {
+  node2.textContent = node2.hidden ? "" : new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -8963,7 +9042,11 @@ function paintDocument(root, store) {
   find("#memo-empty").hidden = Boolean(item);
   find("#memo-empty").textContent = s.trash ? "选择笔记查看" : "选择一篇笔记";
   find("#memo-document").hidden = !item;
-  if (!item) return;
+  if (!item) {
+    find("#memo-note-error").hidden = true;
+    find("#memo-note-error").textContent = "";
+    return;
+  }
   const group = s.groups.find((row) => row.id === item.group_id), deleted2 = Boolean(item.deleted_at || group?.deleted_at);
   const editable = s.canEdit && !deleted2;
   const operation2 = s.operation?.pending;
@@ -9020,6 +9103,9 @@ function paintMemos(root, store) {
   paintLists(root, store);
   paintDrafts(root, store);
   paintDocument(root, store);
+  const recovery = find('[data-memo-action="recovery"]');
+  recovery.hidden = !s.canEdit || s.trash || find("#memo-drafts").hidden && find("#memo-note-error").hidden && !["error", "offline", "unknown", "conflict"].includes(item?.phase);
+  find("#memo-save-notice").hidden = find("#memo-status").hidden && find("#memo-note-error").hidden && find("#memo-drafts").hidden && recovery.hidden;
 }
 
 // web/core/memos-local.mjs
@@ -9033,14 +9119,14 @@ function memoLocalProtocol(context) {
     item.localConflict = null;
     item.durable = Object.fromEntries(fields4.map((field2) => [field2, value[field2]]));
   }
-  function accept(item, value, pending = null) {
+  function accept(item, value, pending2 = null) {
     const document2 = documentState(value);
     if (!document2) return false;
     const local = document2.local, server = document2.server;
     if (local.id !== item.id || !Number.isSafeInteger(local.version) || local.version < 1 || typeof local.body !== "string")
       throw new Error("本机保存记录不完整，原稿已保留。");
-    const preserve = pending ? changed2(item, pending.snapshot || pending.body) : item.dirty;
-    const concurrent = !pending && item.dirty && item.localVersion && item.localVersion !== local.version;
+    const preserve = pending2 ? changed2(item, pending2.snapshot || pending2.body) : item.dirty;
+    const concurrent = !pending2 && item.dirty && item.localVersion && item.localVersion !== local.version;
     if (!preserve) for (const field2 of fields4) item[field2] = local[field2];
     if (server && typeof server.body === "string") {
       item.server = { ...server };
@@ -9172,8 +9258,8 @@ function makeContext(options2) {
   };
   context.writable = () => !context.disposed && state2.canEdit && idPattern.test(context.ownerId);
   context.blocked = (item) => {
-    const pending = state2.operation?.pending;
-    return pending && (pending.kind === "notes" && pending.id === item.id || pending.kind === "groups" && pending.method === "DELETE" && pending.id === item.group_id);
+    const pending2 = state2.operation?.pending;
+    return pending2 && (pending2.kind === "notes" && pending2.id === item.id || pending2.kind === "groups" && pending2.method === "DELETE" && pending2.id === item.group_id);
   };
   context.upsert = (kind, value) => {
     const list = state2[kind], index = list.findIndex((row2) => row2.id === value.id);
@@ -9266,8 +9352,8 @@ function persistence(context) {
   }
   return { persist, hydrate, recoverDraft, flushDrafts: async () => persist({ verify: true }) };
 }
-function acceptNote(context, item, value, pending) {
-  const preserve = changed3(item, pending.snapshot || pending.body);
+function acceptNote(context, item, value, pending2) {
+  const preserve = changed3(item, pending2.snapshot || pending2.body);
   if (!preserve) for (const field2 of noteFields) item[field2] = value[field2];
   item.server = { ...value };
   item.version = value.version;
@@ -9303,12 +9389,12 @@ function memoReads2(context) {
       return;
     }
     const reschedule = context.durable && (item.localQueued || Boolean(item.timer));
-    const sequence2 = ++item.sequence, epoch = item.writeEpoch;
+    const sequence3 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos/notes/" + id) : context.request("/memos/notes/" + id));
-      if (context.disposed || sequence2 !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
+      if (context.disposed || sequence3 !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
       if (isLocalDocument(raw)) {
         context.local.accept(item, raw);
         return;
@@ -9333,12 +9419,12 @@ function memoReads2(context) {
         context.upsert("notes", value);
       }
     } catch (error) {
-      if (!context.disposed && sequence2 === item.sequence) {
+      if (!context.disposed && sequence3 === item.sequence) {
         item.error = error.message;
         if (!isUncertain(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence2 === item.sequence) {
+      if (!context.disposed && sequence3 === item.sequence) {
         item.loading = false;
         context.emit();
         if (reschedule) context.schedule(item);
@@ -9346,13 +9432,13 @@ function memoReads2(context) {
     }
   }
   async function load({ local = false } = {}) {
-    const { state: state2 } = context, sequence2 = ++context.loadSequence;
+    const { state: state2 } = context, sequence3 = ++context.loadSequence;
     state2.loading = true;
     state2.error = "";
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos") : context.request("/memos"));
-      if (context.disposed || sequence2 !== context.loadSequence) return;
+      if (context.disposed || sequence3 !== context.loadSequence) return;
       if (!Array.isArray(raw?.groups) || !Array.isArray(raw.notes) || typeof raw.can_edit !== "boolean")
         throw new Error("备忘录列表不完整，请重新读取。");
       const value = context.local.index(raw);
@@ -9373,9 +9459,9 @@ function memoReads2(context) {
       if (!state2.noteId) state2.noteId = state2.notes.find((note) => note.group_id === state2.groupId && (state2.trash || !note.deleted_at))?.id || "";
       if (state2.noteId) await selectNote(state2.noteId, { open: false, local });
     } catch (error) {
-      if (!context.disposed && sequence2 === context.loadSequence) state2.error = error.message;
+      if (!context.disposed && sequence3 === context.loadSequence) state2.error = error.message;
     } finally {
-      if (!context.disposed && sequence2 === context.loadSequence) {
+      if (!context.disposed && sequence3 === context.loadSequence) {
         state2.loading = false;
         context.emit();
       }
@@ -9414,29 +9500,29 @@ function editing(context) {
     context.emit();
     if (!composing) context.schedule(item);
   }
-  async function sendNote(item, pending, { offlineUnknown = false } = {}) {
+  async function sendNote(item, pending2, { offlineUnknown = false } = {}) {
     context.stop(item);
-    item.pending = pending;
+    item.pending = pending2;
     item.phase = "saving";
     item.error = "";
     item.writeEpoch++;
     context.emit();
     try {
-      const raw = await context.request(pending.path, {
-        method: pending.method,
-        body: pending.body,
+      const raw = await context.request(pending2.path, {
+        method: pending2.method,
+        body: pending2.body,
         ...offlineUnknown ? { offlineUnknown: true } : {}
       });
-      if (context.disposed || item.pending !== pending) return;
+      if (context.disposed || item.pending !== pending2) return;
       if (isLocalDocument(raw)) {
-        context.local.accept(item, raw, pending);
+        context.local.accept(item, raw, pending2);
         return;
       }
       const value = checkedNote(raw, item.id);
-      if (value.version !== pending.body.version + 1 || changed3(value, pending.body)) throw new Error("保存响应需要重新核对。");
-      acceptNote(context, item, value, pending);
+      if (value.version !== pending2.body.version + 1 || changed3(value, pending2.body)) throw new Error("保存响应需要重新核对。");
+      acceptNote(context, item, value, pending2);
     } catch (error) {
-      if (context.disposed || item.pending !== pending) return;
+      if (context.disposed || item.pending !== pending2) return;
       if (error.status === 409) {
         item.pending = null;
         item.phase = "conflict";
@@ -9502,26 +9588,26 @@ function editing(context) {
 }
 function resolution(context) {
   async function checkNote(id = context.state.noteId) {
-    const item = context.drafts.get(id), pending = item?.pending;
+    const item = context.drafts.get(id), pending2 = item?.pending;
     if (!context.writable() || !item) return;
-    if (!pending) return context.selectNote(id, { open: false });
-    if (context.durable && pending.method === "PUT") return context.sendNote(item, pending, { offlineUnknown: true });
-    if (pending.checking) return;
-    pending.checking = true;
-    pending.retryReady = false;
+    if (!pending2) return context.selectNote(id, { open: false });
+    if (context.durable && pending2.method === "PUT") return context.sendNote(item, pending2, { offlineUnknown: true });
+    if (pending2.checking) return;
+    pending2.checking = true;
+    pending2.retryReady = false;
     context.emit();
     try {
-      const receipt = await context.request("/memos/operations/" + pending.body.save_id);
-      if (context.disposed || item.pending !== pending) return;
+      const receipt = await context.request("/memos/operations/" + pending2.body.save_id);
+      if (context.disposed || item.pending !== pending2) return;
       if (receipt?.found === false) {
-        pending.retryReady = true;
+        pending2.retryReady = true;
         item.error = "暂未找到保存收据；可手动重试同一保存，不会新建重复操作。";
         return;
       }
       if (receipt?.found !== true || receipt.kind !== "notes" || receipt.id !== id) throw new Error("保存收据不匹配。");
       const value = checkedNote(await context.request("/memos/notes/" + id), id);
-      if (context.disposed || item.pending !== pending) return;
-      if (value.version === receipt.version && !changed3(value, pending.body)) acceptNote(context, item, value, pending);
+      if (context.disposed || item.pending !== pending2) return;
+      if (value.version === receipt.version && !changed3(value, pending2.body)) acceptNote(context, item, value, pending2);
       else {
         item.pending = null;
         item.remote = value;
@@ -9530,17 +9616,17 @@ function resolution(context) {
         item.error = "原保存已记录，服务器随后又有更新。请核对两个版本。";
       }
     } catch (error) {
-      if (!context.disposed && item.pending === pending) item.error = "核对失败，保留草稿并暂停发送：" + error.message;
+      if (!context.disposed && item.pending === pending2) item.error = "核对失败，保留草稿并暂停发送：" + error.message;
     } finally {
-      pending.checking = false;
+      pending2.checking = false;
       context.emit();
     }
   }
   async function retryPending(id = context.state.noteId) {
-    const item = context.drafts.get(id), pending = item?.pending;
-    if (!context.writable() || item?.phase !== "unknown" || !pending?.retryReady || pending.checking) return;
-    pending.retryReady = false;
-    return context.sendNote(item, pending);
+    const item = context.drafts.get(id), pending2 = item?.pending;
+    if (!context.writable() || item?.phase !== "unknown" || !pending2?.retryReady || pending2.checking) return;
+    pending2.retryReady = false;
+    return context.sendNote(item, pending2);
   }
   function useServer(id = context.state.noteId) {
     const item = context.drafts.get(id);
@@ -9578,24 +9664,24 @@ function resolution(context) {
   return { checkNote, retryPending, useServer, useDraft };
 }
 function operations(context) {
-  async function sendOperation(pending) {
-    const operation3 = { pending, phase: "saving", error: "", retryReady: false };
+  async function sendOperation(pending2) {
+    const operation3 = { pending: pending2, phase: "saving", error: "", retryReady: false };
     context.state.operation = operation3;
     context.emit();
     try {
-      const raw = await context.request(pending.path, { method: pending.method, body: pending.body });
+      const raw = await context.request(pending2.path, { method: pending2.method, body: pending2.body });
       if (context.disposed || context.state.operation !== operation3) return;
       if (isLocalDocument(raw)) {
-        context.upsert(pending.kind, context.local.row(raw));
+        context.upsert(pending2.kind, context.local.row(raw));
         context.state.operation = null;
         context.emit();
         return;
       }
       const value = raw;
-      if (value?.id !== pending.id || !Number.isSafeInteger(value.version)) throw new Error("操作结果需要核对。");
-      context.upsert(pending.kind, value);
+      if (value?.id !== pending2.id || !Number.isSafeInteger(value.version)) throw new Error("操作结果需要核对。");
+      context.upsert(pending2.kind, value);
       context.state.operation = null;
-      if (pending.kind === "notes") context.drafts.delete(pending.id);
+      if (pending2.kind === "notes") context.drafts.delete(pending2.id);
       await context.load();
     } catch (error) {
       if (context.disposed || context.state.operation !== operation3) return;
@@ -9626,18 +9712,18 @@ function operations(context) {
     });
   }
   async function checkOperation() {
-    const value = context.state.operation, pending = value?.pending;
-    if (!context.writable() || !pending || value.checking) return;
+    const value = context.state.operation, pending2 = value?.pending;
+    if (!context.writable() || !pending2 || value.checking) return;
     value.checking = true;
     value.retryReady = false;
     context.emit();
     try {
-      const receipt = await context.request("/memos/operations/" + pending.body.save_id);
+      const receipt = await context.request("/memos/operations/" + pending2.body.save_id);
       if (context.disposed || context.state.operation !== value) return;
       if (receipt?.found === false) {
         value.retryReady = true;
         value.error = "暂未找到收据，可手动重试同一操作。";
-      } else if (receipt?.found === true && receipt.id === pending.id && receipt.kind === pending.kind) {
+      } else if (receipt?.found === true && receipt.id === pending2.id && receipt.kind === pending2.kind) {
         context.state.operation = null;
         await context.load();
       } else throw new Error("操作收据不匹配。");
@@ -10078,14 +10164,14 @@ async function createMemo(action, target) {
         group = store.state.groups.find((row) => row.id === id && !row.deleted_at);
       }
       if (!group || store !== memoStore || !visible2()) return;
-      const pending = store.createNote(group.id, "未命名笔记");
+      const pending2 = store.createNote(group.id, "未命名笔记");
       paintMemosPage();
       const field2 = document.querySelector("#memo-title");
       if (visible2() && store === memoStore) {
         field2?.focus();
         field2?.select();
       }
-      await pending;
+      await pending2;
     }
   } finally {
     memoCreating = false;
@@ -10180,8 +10266,10 @@ async function clickAction(action, target) {
     renderLogin();
     return;
   } else if (action === "refresh") await store.load();
-  else if (action === "recovery") openMemoRecovery(document.querySelector("#memos"), store, store.state.draftOwner);
-  else if (action === "close-recovery") document.querySelector("#memo-recovery").hidden = true;
+  else if (action === "recovery") {
+    if (document.querySelector("#memo-fullscreen")?.open) toggleMemoFullscreen(false);
+    openMemoRecovery(document.querySelector("#memos"), store, store.state.draftOwner);
+  } else if (action === "close-recovery") document.querySelector("#memo-recovery").hidden = true;
   else if (action === "restore-draft") await restoreMemoRecovery(document.querySelector("#memos"), store);
   else if (action === "save") await store.saveNote();
   else if (action === "check") await store.checkNote(s.noteId);
@@ -10329,9 +10417,9 @@ function registerEvents() {
     if (visible2()) paintMemosPage();
   });
   window.addEventListener("haoduoyu-offline-status", (event) => {
-    const pending = event.detail?.pending || 0, conflicts = event.detail?.conflicts || 0;
-    if (pending < memoPendingCount || conflicts !== memoConflictCount) memoOfflineRefresh = true;
-    memoPendingCount = pending;
+    const pending2 = event.detail?.pending || 0, conflicts = event.detail?.conflicts || 0;
+    if (pending2 < memoPendingCount || conflicts !== memoConflictCount) memoOfflineRefresh = true;
+    memoPendingCount = pending2;
     memoConflictCount = conflicts;
     refreshDurableMemos();
   });
@@ -10537,7 +10625,7 @@ function notesNavigation(mobile = false) {
   return navigationLink({ id: "notes", icon: "edit", label: "碎碎念" }, mobile);
 }
 function sidebarNavigation() {
-  return mediaNavigation() + nav.filter((item) => !mediaPages.has(item.id) && item.id !== "settings").map((item) => item.id === "notes" ? notesNavigation() : navigationLink(item)).join("");
+  return mediaNavigation() + nav.filter((item) => !mediaPages.has(item.id) && item.id !== "settings" && !(item.id === "ai-reports" && state.me?.publicBusiness)).map((item) => item.id === "notes" ? notesNavigation() : navigationLink(item)).join("");
 }
 function settingsNavigation() {
   return navigationLink(nav.find((item) => item.id === "settings"));
@@ -10548,7 +10636,7 @@ function mobileNavigation() {
 }
 function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
-${settingsNavigation()}${state.me?.publicBusiness ? "" : `<button class="btn text" data-action="logout">${icon("logout", 18)}退出登录</button>`}</nav>`;
+${state.me?.publicBusiness ? "" : navigationLink(nav.find((item) => item.id === "ai-reports"))}${settingsNavigation()}${state.me?.publicBusiness ? "" : `<button class="btn text" data-action="logout">${icon("logout", 18)}退出登录</button>`}</nav>`;
 }
 function syncWorkbenchNavigation() {
   const active5 = mediaPages.has(state.page);
@@ -10765,8 +10853,8 @@ function paintWorkReminders(data, error = "") {
 var reminderSequence = 0, reminderEvents = false;
 async function loadWorkReminders() {
   registerReminderEvents();
-  const sequence2 = ++reminderSequence, session = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
-  const current2 = () => sequence2 === reminderSequence && session === runtime.sessionEpoch && state.page === "reminders";
+  const sequence3 = ++reminderSequence, session = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
+  const current2 = () => sequence3 === reminderSequence && session === runtime.sessionEpoch && state.page === "reminders";
   paintWorkReminders({ date, items: [], loading: true });
   try {
     const data = await api("/work-reminders?date=" + encodeURIComponent(date));
@@ -10789,6 +10877,135 @@ function registerReminderEvents() {
   });
   document.addEventListener("click", (event) => {
     if (state.page === "reminders" && event.target.closest("[data-reminder-today]")) selectReminderDate(bjtDate());
+  });
+}
+
+// web/pages/ai-reports.mjs
+function renderAiReports() {
+  return `<section id="ai-reports" aria-label="AI 汇报">
+    <form id="ai-report-form" class="card" aria-label="填写 AI 汇报">
+      <p class="muted">记录过去 24 小时实际完成的工作，并填写署名。</p>
+      <label for="ai-report-author">署名</label>
+      <input class="input" id="ai-report-author" name="author" maxlength="120" required autocomplete="off">
+      <div class="field-spaced"><label for="ai-report-content">过去 24 小时的实际工作</label>
+      <textarea class="input" id="ai-report-content" name="content" rows="6" required></textarea></div>
+      <p id="ai-report-message" class="form-message" role="alert" hidden></p>
+      <div class="field-spaced"><button class="btn primary" type="submit">提交汇报</button></div>
+    </form>
+    <div class="field-spaced"><h2>汇报记录</h2><p id="ai-report-list-status" role="status"></p>
+      <button class="btn text" type="button" data-ai-report-retry hidden>重新读取</button>
+      <div id="ai-report-list" aria-live="polite"></div>
+      <div class="field-spaced" id="ai-report-pagination" hidden>
+        <button class="btn" type="button" data-ai-report-prev>上一页</button>
+        <span id="ai-report-page"></span>
+        <button class="btn" type="button" data-ai-report-next>下一页</button>
+      </div></div>
+  </section>`;
+}
+function paintAiReports(items, error = "", loading = false, offset2 = 0, hasMore = false) {
+  const root = document.querySelector("#ai-reports");
+  if (!root) return;
+  const status = root.querySelector("#ai-report-list-status");
+  status.textContent = error || (loading ? "正在读取汇报…" : items.length ? "" : "暂无汇报");
+  const pager = root.querySelector("#ai-report-pagination");
+  root.querySelector("[data-ai-report-retry]").hidden = !error;
+  pager.hidden = loading || !items.length && offset2 === 0;
+  root.querySelector("[data-ai-report-prev]").disabled = loading || offset2 === 0;
+  root.querySelector("[data-ai-report-next]").disabled = loading || !hasMore;
+  root.querySelector("#ai-report-page").textContent = `第 ${Math.floor(offset2 / 100) + 1} 页`;
+  root.querySelector("#ai-report-list").innerHTML = items.map((row) => {
+    const date = new Date(row.created_at);
+    const stamp2 = Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).format(date) + "（北京时间）" : row.created_at;
+    return `<article class="card field-spaced"><strong>${e(row.author)}</strong> · <time datetime="${e(row.created_at)}">${e(stamp2)}</time><p>${e(row.content).replace(/\n/g, "<br>")}</p></article>`;
+  }).join("");
+}
+
+// web/ai-reports-controller.mjs
+var sequence2 = 0, registered = false, pending = null, offset = 0, pageSession = null;
+async function loadAiReports() {
+  registerAiReportEvents();
+  const session = runtime.sessionEpoch;
+  if (pageSession !== session) {
+    pageSession = session;
+    offset = 0;
+    pending = null;
+  }
+  const ticket = ++sequence2, requestedOffset = offset;
+  const current2 = () => ticket === sequence2 && session === runtime.sessionEpoch && state.page === "ai-reports";
+  paintAiReports([], "", true);
+  try {
+    const data = await api("/ai-reports?offset=" + requestedOffset);
+    if (current2()) paintAiReports(data.items || [], "", false, requestedOffset, data.has_more === true);
+  } catch (error) {
+    if (current2()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, requestedOffset);
+  }
+}
+function registerAiReportEvents() {
+  if (registered) return;
+  registered = true;
+  document.addEventListener("click", (event) => {
+    if (state.page !== "ai-reports") return;
+    if (event.target.closest?.("[data-ai-report-retry]")) {
+      void loadAiReports();
+    } else if (event.target.closest?.("[data-ai-report-prev]") && offset > 0) {
+      offset -= 100;
+      void loadAiReports();
+    } else if (event.target.closest?.("[data-ai-report-next]")) {
+      offset += 100;
+      void loadAiReports();
+    }
+  });
+  document.addEventListener("input", (event) => {
+    if (event.target.closest?.("#ai-report-form") && pending && !pending.sending) pending = null;
+  });
+  document.addEventListener("submit", async (event) => {
+    if (event.target.id !== "ai-report-form" || state.page !== "ai-reports") return;
+    event.preventDefault();
+    const form = event.target, author = form.elements.author.value.trim(), content2 = form.elements.content.value.trim();
+    const message = form.querySelector("#ai-report-message"), button2 = form.querySelector('button[type="submit"]');
+    if (!author || !content2) {
+      message.hidden = false;
+      message.textContent = "请填写署名和实际工作。";
+      return;
+    }
+    if (pending?.sending) return;
+    if (!pending || pending.session !== runtime.sessionEpoch || pending.author !== author || pending.content !== content2)
+      pending = { id: crypto.randomUUID(), author, content: content2, session: runtime.sessionEpoch };
+    const submission = pending, session = runtime.sessionEpoch;
+    submission.sending = true;
+    button2.disabled = true;
+    form.elements.author.disabled = true;
+    form.elements.content.disabled = true;
+    message.hidden = true;
+    try {
+      await api("/ai-reports/" + submission.id, { method: "PUT", body: { author, content: content2 } });
+      pending = null;
+      if (form.isConnected && session === runtime.sessionEpoch && state.page === "ai-reports") {
+        form.elements.content.value = "";
+        offset = 0;
+        await loadAiReports();
+      }
+    } catch (error) {
+      if (form.isConnected && session === runtime.sessionEpoch && state.page === "ai-reports") {
+        message.textContent = error.message || "提交失败，请重试。";
+        message.hidden = false;
+      }
+    } finally {
+      submission.sending = false;
+      if (form.isConnected) {
+        button2.disabled = false;
+        form.elements.author.disabled = false;
+        form.elements.content.disabled = false;
+      }
+    }
   });
 }
 
@@ -10841,7 +11058,6 @@ function redirectMobileArticlePage() {
   const page = mobilePage(state.page);
   if (page === state.page) return false;
   state.page = page;
-  state.account = "";
   updateRoute();
   return true;
 }
@@ -10877,7 +11093,6 @@ function navigate(page, tab) {
     state.todoPanel = "";
   }
   if (page === "settings") state.settingsTab = legacy || tab || "workspace";
-  if (mobilePage(page) === "dashboard") state.account = "";
   updateRoute(true);
   closeModal();
   renderShell();
@@ -10888,6 +11103,7 @@ function pageLoading(page) {
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
   if (page === "reminders") return renderWorkReminders();
+  if (page === "ai-reports") return renderAiReports();
   if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
   return skeleton();
 }
@@ -10896,12 +11112,13 @@ function setPageBody(html, page) {
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
-  else if (page === "reminders") return;
+  else if (page === "reminders" || page === "ai-reports") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
   const query = new URLSearchParams({ page: "articles", status: "published", sort: "reads", order: "desc" });
   if (state.topPlatform) query.set("platform", state.topPlatform);
+  if (state.account) query.set("account", state.account);
   return html.replace('href="?page=articles&amp;sort=reads&amp;order=desc"', `href="?${e(query.toString())}"`);
 }
 async function loadArticleOverview(version2, context) {
@@ -10945,6 +11162,9 @@ async function renderPage() {
       case "reminders":
         await loadWorkReminders();
         break;
+      case "ai-reports":
+        await loadAiReports();
+        break;
       case "dashboard":
         html = await loadArticleOverview(version2, context);
         break;
@@ -10976,9 +11196,7 @@ async function renderPage() {
     if (version2 === runtime.renderVersion && state.me) {
       setPageBody(html, page);
       if (counter?.isConnected) {
-        const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
-          state.accounts
-        ).length : null;
+        const count = page === "articles" ? state.articleMeta?.total : page === "settings" && state.settingsTab === "accounts" ? state.accounts.length : null;
         counter.hidden = count == null;
         counter.textContent = count == null ? "" : num(count);
       }
@@ -11052,7 +11270,7 @@ function verificationIntent(index, done) {
 }
 function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () => crypto.randomUUID(), onChange = () => {
 }, isCurrent = () => true }) {
-  let current2 = copy(article), phase = "idle", message = "", pending = null, busy = false, retryReady = false;
+  let current2 = copy(article), phase = "idle", message = "", pending2 = null, busy = false, retryReady = false;
   const snapshot = () => ({ article: copy(current2), phase, message, busy, retryReady });
   const notify = () => onChange(snapshot());
   function received(value) {
@@ -11075,27 +11293,27 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
       message = "详情读取不完整，保存结果尚未确认。";
       return false;
     }
-    if (pending && remote.version > pending.body.version && same(remote.verify_items, pending.body.verify_items)) {
+    if (pending2 && remote.version > pending2.body.version && same(remote.verify_items, pending2.body.verify_items)) {
       received(remote);
-      pending = null;
+      pending2 = null;
       phase = "saved";
       retryReady = false;
       message = "已核对服务器记录，当前选择已保存。";
       return false;
     }
-    if (conflict || pending && remote.version !== pending.body.version) {
-      const intent = pending ? verificationIntent(pending.index, pending.done) : "本次选择";
+    if (conflict || pending2 && remote.version !== pending2.body.version) {
+      const intent = pending2 ? verificationIntent(pending2.index, pending2.done) : "本次选择";
       received(remote);
-      pending = null;
+      pending2 = null;
       phase = "conflict";
       retryReady = false;
       message = `${intent}未保存；已显示最新版本，请核对后重新选择。`;
       return false;
     }
     received(remote);
-    phase = pending ? "unknown" : "idle";
-    retryReady = !!pending && same(remote.verify_items, pending.before);
-    message = pending ? retryReady ? "原保存尚未确认；已读取当前版本，可显式重试原保存。" : "记录状态尚未确认，请重新核对；不会重发保存。" : "";
+    phase = pending2 ? "unknown" : "idle";
+    retryReady = !!pending2 && same(remote.verify_items, pending2.before);
+    message = pending2 ? retryReady ? "原保存尚未确认；已读取当前版本，可显式重试原保存。" : "记录状态尚未确认，请重新核对；不会重发保存。" : "";
     return retryReady;
   }
   async function send() {
@@ -11106,21 +11324,21 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
     notify();
     let response;
     try {
-      response = await put(current2.id, copy(pending.body), pending.key);
+      response = await put(current2.id, copy(pending2.body), pending2.key);
     } catch (error) {
       if (error.status >= 400 && error.status < 500 && error.status !== 409) {
-        pending = null;
+        pending2 = null;
         phase = "error";
         message = error.message || "保存被拒绝，请核对后重试。";
       } else await reconcile(error.status === 409);
       return;
     }
-    if (!validArticle(response, current2.id) || response.version <= pending.body.version || !same(response.verify_items, pending.body.verify_items)) {
+    if (!validArticle(response, current2.id) || response.version <= pending2.body.version || !same(response.verify_items, pending2.body.verify_items)) {
       await reconcile();
       return;
     }
     received({ ...current2, ...response });
-    pending = null;
+    pending2 = null;
     phase = "saved";
     message = "";
     try {
@@ -11138,11 +11356,11 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
     }
   }
   async function save(index, done) {
-    if (busy || pending || !Number.isSafeInteger(index) || typeof done !== "boolean" || !Array.isArray(current2.verify_items) || !current2.verify_items[index] || typeof current2.verify_items[index] !== "object") return;
+    if (busy || pending2 || !Number.isSafeInteger(index) || typeof done !== "boolean" || !Array.isArray(current2.verify_items) || !current2.verify_items[index] || typeof current2.verify_items[index] !== "object") return;
     if (current2.verify_items[index].done === done) return;
     const items = copy(current2.verify_items);
     items[index].done = done;
-    pending = { index, done, before: copy(current2.verify_items), body: { version: current2.version, verify_items: items }, key: uuid5() };
+    pending2 = { index, done, before: copy(current2.verify_items), body: { version: current2.version, verify_items: items }, key: uuid5() };
     busy = true;
     try {
       await send();
@@ -11163,7 +11381,7 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
     }
   }
   async function retry() {
-    if (busy || !pending) return;
+    if (busy || !pending2) return;
     busy = true;
     notify();
     try {
@@ -11336,10 +11554,10 @@ function offlineStatusLabel(state2) {
   if (state2.unsupported) return "需新版";
   if (state2.conflicts) return "有冲突";
   if (!state2.online) return `离线（${state2.pending || 0} 条待同步）`;
-  if (state2.error) return "同步失败，等待重试";
-  if (state2.phase === "syncing") return "";
+  if (state2.error) return "同步检查失败";
+  if (state2.phase === "syncing") return "正在同步…";
   if (state2.pending) return `待同步（${state2.pending} 条）`;
-  return "";
+  return "查看同步状态";
 }
 function textNode(document2, tag, text, className) {
   const node2 = document2.createElement(tag);
@@ -11488,23 +11706,23 @@ function pageAnnotation(document2, state2) {
 }
 function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   let state2 = { ...runtime2.state }, expanded = false, rendering = 0;
-  const pending = /* @__PURE__ */ new Map(), messages = /* @__PURE__ */ new Map(), requests = {
-    busy: (key) => pending.has(key),
+  const pending2 = /* @__PURE__ */ new Map(), messages = /* @__PURE__ */ new Map(), requests = {
+    busy: (key) => pending2.has(key),
     begin(key) {
-      if (pending.has(key)) return null;
+      if (pending2.has(key)) return null;
       const controller = new AbortController();
-      pending.set(key, controller);
+      pending2.set(key, controller);
       return controller;
     },
     end(key, controller) {
-      if (pending.get(key) === controller) pending.delete(key);
+      if (pending2.get(key) === controller) pending2.delete(key);
     },
     message(key, value) {
       if (value !== void 0) messages.set(key, value);
       return messages.get(key) || "";
     },
     cancel() {
-      for (const controller of pending.values()) controller.abort();
+      for (const controller of pending2.values()) controller.abort();
     }
   };
   const root = document2.createElement("aside");
@@ -11522,14 +11740,29 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   root.append(button2, panel);
   async function refreshQueue() {
     if (!expanded) return;
-    const sequence2 = ++rendering, queue = await runtime2.queue();
-    if (sequence2 !== rendering || !expanded) return;
-    panel.replaceChildren(textNode(document2, "h2", "同步队列"), queueRows(document2, queue, runtime2, refreshQueue, requests));
+    const sequence3 = ++rendering, queue = await runtime2.queue();
+    if (sequence3 !== rendering || !expanded) return;
+    const title = textNode(document2, "h2", "同步状态");
+    const syncButton = textNode(document2, "button", state2.phase === "syncing" ? "正在同步…" : "立即同步", "offline-sync-now");
+    syncButton.type = "button";
+    syncButton.disabled = state2.phase === "syncing";
+    syncButton.addEventListener("click", async () => {
+      syncButton.disabled = true;
+      await runtime2.sync();
+      await refreshQueue();
+    });
+    const details = document2.createDocumentFragment();
+    if (state2.error) {
+      const stages = { identity: "身份核验", outbox: "提交队列", cache: "本地缓存", snapshot: "服务器快照" };
+      details.append(textNode(document2, "p", `${stages[state2.errorStage] || "同步检查"}失败：${state2.error}`, "offline-sync-error"));
+    }
+    details.append(textNode(document2, "h3", "待提交队列"));
+    panel.replaceChildren(title, syncButton, details, queueRows(document2, queue, runtime2, refreshQueue, requests));
   }
   function mount() {
     if (!root.isConnected && document2.body) document2.body.append(root);
     const label3 = offlineStatusLabel(state2);
-    root.hidden = !state2.identity || !label3;
+    root.hidden = !state2.identity;
     if (button2.textContent !== label3) button2.textContent = label3;
     root.dataset.phase = state2.conflicts ? "conflict" : state2.phase;
     pageAnnotation(document2, state2);
@@ -12065,7 +12298,6 @@ async function articleDetail(id) {
 // web/actions.mjs
 function actionMissingList({ target }) {
   state.filters = { ...defaultFilters(), status: "published", data_status: target.dataset.status || "incomplete" };
-  state.account = "";
   state.listPage = 1;
   navigate("articles");
   return;
@@ -12169,7 +12401,7 @@ function actionAllTop({ target, event, action }) {
     platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
     ...action === "all-top" ? { sort: "reads", order: "desc" } : {}
   };
-  state.account = "";
+  if (action !== "all-top") state.account = "";
   state.listPage = 1;
   navigate("articles");
   return;
@@ -12406,6 +12638,7 @@ var actions = {
   "review-tab": actionReviewTab,
   "new-account": actionNewAccount,
   "edit-account": actionEditAccount,
+  "test-profile": testProfile,
   "new-key": actionNewKey,
   "select-account": actionSelectAccount,
   "record-detail": actionRecordDetail,
@@ -12518,8 +12751,8 @@ function equalValue(a, b) {
   const keys = Object.keys(a);
   return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && equalValue(a[key], b[key]));
 }
-function savedArticle(value, pending) {
-  return typeof value?.id === "string" && !!value.id && (!pending.id || value.id === pending.id) && Number.isSafeInteger(value.version) && value.version > (pending.body.version || 0) && Object.entries(pending.body).every(([key, expected]) => key === "version" || equalValue(value[key], expected));
+function savedArticle(value, pending2) {
+  return typeof value?.id === "string" && !!value.id && (!pending2.id || value.id === pending2.id) && Number.isSafeInteger(value.version) && value.version > (pending2.body.version || 0) && Object.entries(pending2.body).every(([key, expected]) => key === "version" || equalValue(value[key], expected));
 }
 function uncertainArticleSave(cache2, message) {
   cache2.saveAttempt.phase = "unknown";
@@ -12618,7 +12851,7 @@ async function submitReviewForm({ form, data }) {
 async function submitAccountForm({ form, data, values }) {
   const id = form.dataset.id, epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
   const profile = String(data.profile_url || "").trim();
-  const body2 = id ? { name: data.name.trim(), active: values.has("active") } : { platform: data.platform, name: data.name.trim() };
+  const body2 = id ? { name: data.name.trim(), active: values.has("active") } : {};
   if (profile || id && (state.accountProfiles || []).some((row) => row.account_id === id)) body2.profile_url = profile;
   const signature = JSON.stringify(body2);
   if (form.accountSaveSignature !== signature) {
@@ -12641,7 +12874,8 @@ async function submitAccountForm({ form, data, values }) {
     "other"
   ].indexOf(b.platform));
   closeModal();
-  if (saved.profile_reused) toast(`该主页已关联「${saved.name}」，已使用现有账号。`);
+  if (saved.profile_reused) toast(`该主页已关联「${saved.name}」，已使用现有账号。访问状态未自动验证。`);
+  else toast("账号已保存。请打开主页自行核验；访问状态未自动验证。");
   renderShell();
   return;
 }
@@ -12788,7 +13022,7 @@ function handleChange(event) {
   } else if (el.name === "columns" && el.closest("#filter-panel")) {
     $("#filter-panel").outerHTML = articleFilterPanel(articleDraft(el.form));
     $('#filter-panel input[value="' + el.value + '"]')?.focus();
-  } else if (el.id === "global-account") {
+  } else if (el.id === "global-account" || el.id === "overview-account") {
     state.account = el.value;
     state.listPage = 1;
     updateRoute();
@@ -12915,33 +13149,33 @@ function registerEvents2() {
 // web/offline/sw-client.mjs
 var VERSION = /^[a-f0-9]{64}$/;
 async function beforeRefresh(page) {
-  const pending = [], failures = [];
+  const pending2 = [], failures = [];
   let collecting = true, dispatchError;
   const detail = Object.freeze({
     waitUntil(promise) {
       if (!collecting) throw new Error("REFRESH_WAIT_CLOSED");
-      pending.push(Promise.resolve(promise));
+      pending2.push(Promise.resolve(promise));
     },
     onFailure(callback) {
       if (!collecting || typeof callback !== "function") throw new Error("REFRESH_FAILURE_CALLBACK_INVALID");
       failures.push(callback);
     }
   });
-  const fail5 = (error) => Promise.allSettled(failures.map((callback) => Promise.resolve().then(() => callback(error))));
+  const fail6 = (error) => Promise.allSettled(failures.map((callback) => Promise.resolve().then(() => callback(error))));
   try {
     page.dispatchEvent(new page.CustomEvent("haoduoyu:before-refresh", { detail }));
   } catch (error) {
     dispatchError = error;
   }
   collecting = false;
-  const results = await Promise.allSettled(pending);
+  const results = await Promise.allSettled(pending2);
   const rejected = results.find((result) => result.status === "rejected");
   if (dispatchError || rejected) {
     const error = dispatchError || rejected.reason;
-    await fail5(error);
+    await fail6(error);
     throw error;
   }
-  return fail5;
+  return fail6;
 }
 function updateAction(page, button2, activate) {
   let preparing = false, activated = false;

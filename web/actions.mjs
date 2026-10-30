@@ -16,7 +16,7 @@ import { dashboardInfoBody, renderDashboard } from "./pages/dashboard.mjs";
 import { articleDetail } from "./pages/detail.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { reviewModal, reviewRecordsModal } from "./pages/reviews.mjs";
-import { accountModal, keyModal } from "./pages/settings.mjs";
+import { accountModal, keyModal, testProfile } from "./pages/settings.mjs";
 import { moveTodoDate, moveTodoMonth, refreshTodos, selectTodoDate, setTodoPanel, retryTodoCreate } from "./pages/todos.mjs";
 import { cancelTodoTemplateEdit, editTodoTemplate, useTodoTemplate, writeTodoTemplate } from "./pages/todo-templates.mjs";
 import { changeTodoTemplate, deleteTodo, openTodoMenu, restoreTodo } from "./pages/todo-actions.mjs";
@@ -29,7 +29,6 @@ import { toast } from "./ui/toast.mjs";
 import {requestMemoTool} from "./memos-controller.mjs";
 function actionMissingList({ target }) {
   state.filters = { ...defaultFilters(), status: "published", data_status: target.dataset.status || "incomplete" };
-  state.account = "";
   state.listPage = 1;
   navigate("articles");
   return;
@@ -131,7 +130,7 @@ function actionAllTop({ target, event, action }) {
   state.filters = { ...defaultFilters(), status: "published",
     platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
      ...action === "all-top" ? { sort: "reads", order: "desc" } : {} };
-  state.account = "";
+  if (action !== "all-top") state.account = "";
   state.listPage = 1;
   navigate("articles");
   return;
@@ -360,6 +359,7 @@ const actions = {
   "review-tab": actionReviewTab,
   "new-account": actionNewAccount,
   "edit-account": actionEditAccount,
+  "test-profile": testProfile,
   "new-key": actionNewKey,
   "select-account": actionSelectAccount,
   "record-detail": actionRecordDetail,

@@ -80,3 +80,21 @@
   text-align: left; font: inherit; font-size: var(--font-size-12); cursor: pointer; overflow-wrap: anywhere; }
 #memos #memo-recovery-copy { display: block; box-sizing: border-box; width: 100%; min-height: 140px; margin: var(--space-8) 0 var(--space-12);
   border: 1px solid var(--color-memo-base-recovery-border); border-radius: var(--radius-6); padding: var(--space-12); background: var(--color-white); font: inherit; line-height: var(--line-height-comfortable); resize: vertical; }
+
+/* An open, uninterrupted writing surface for memo content. */
+#memos#memos .memo-editor,
+#memos#memos #memo-fullscreen,
+#memos#memos #memo-fullscreen .memo-editor,
+#page-content > #memos#memos .memo-layout > .memo-editor { background: #fff; }
+#memos#memos .memo-title,
+#memos#memos .memo-read-title { border: 0; padding: 4px 0 0; }
+#memos#memos .memo-edited-at { margin-top: 4px; }
+#memos#memos .memo-editor:has(.memo-body:focus-visible,.memo-title:focus-visible) .memo-document-heading { box-shadow: none; }
+#memos#memos .memo-document-footer { border: 0; }
+#memos#memos .memo-body,
+#memos#memos .memo-read-body { padding-top: 12px; }
+#page-content > #memos#memos .memo-layout > .memo-editor :is(.memo-body,.memo-read-body) { padding-top: 8px; }
+#memos#memos .memo-panel-head [data-memo-action="new-note"] { display: grid; place-items: center; padding: 6px; }
+#memos#memos .memo-save-notice { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; padding:8px 18px; color:var(--color-memo-base-warning); background:var(--color-memo-base-warning-muted); font-size:var(--font-size-12); line-height:1.5; }
+#memos#memos .memo-save-notice .memo-drafts { display:contents; padding:0; margin:0; background:none; }
+#memos#memos .memo-save-notice .btn { min-height:28px; padding:2px 6px; font-size:inherit; }

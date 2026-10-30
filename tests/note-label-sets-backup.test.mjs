@@ -7,7 +7,7 @@ import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
 import {digest,stable} from '../src/security.mjs';
 function database() {
  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');
- for(const name of ['0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes','0005_article_pipeline','0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels','0011_note_entry_multi_labels','0012_note_entry_label_sets','0013_note_label_archives'])
+ for(const name of ['0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes','0005_article_pipeline','0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels','0011_note_entry_multi_labels','0012_note_entry_label_sets','0013_note_label_archives','0014_ai_reports'])
   for(const stmt of readFileSync(new URL('../drizzle/'+name+'.sql',import.meta.url),'utf8').split('--> statement-breakpoint').map(x=>x.trim()).filter(Boolean))sql.exec(stmt);
  const db={prepare(text){let values=[];return {bind(...v){values=v;return this},async first(){return sql.prepare(text).get(...values)||null},async all(){return {results:sql.prepare(text).all(...values)}},async run(){const result=sql.prepare(text).run(...values);return {meta:{changes:Number(result.changes)}}}}},async batch(statements){sql.exec('BEGIN');try{for(const s of statements)await s.run();sql.exec('COMMIT')}catch(e){sql.exec('ROLLBACK');throw e}}};return {sql,db};
 }
@@ -21,10 +21,10 @@ test('v12 backup restores new labels and v11 stays readable',async()=>{
  for(const tag of tags.slice(1))source.sql.prepare('INSERT INTO matrix_note_labels(user_id,name,created_at) VALUES(?,?,?)').run(user,tag,time);
  const labels=['生活','工作',...tags];
  source.sql.prepare('INSERT INTO matrix_note_entry_label_sets(user_id,entry_id,labels_json) VALUES(?,?,?)').run(user,entry,JSON.stringify(labels));
- const backup=await exportBackup(source.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v13');
+ const backup=await exportBackup(source.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v14');
  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
  assert.deepEqual(JSON.parse(target.sql.prepare('SELECT labels_json FROM matrix_note_entry_label_sets').get().labels_json),labels);
- const old=structuredClone(backup);old.data.format='haoduoyu-matrix-d1-v11';delete old.data.tables.note_entry_label_sets;delete old.data.tables.note_label_archives;old.sha256=digest(JSON.stringify(stable(old.data)));
+ const old=structuredClone(backup);old.data.format='haoduoyu-matrix-d1-v11';delete old.data.tables.ai_reports;delete old.data.tables.note_entry_label_sets;delete old.data.tables.note_label_archives;old.sha256=digest(JSON.stringify(stable(old.data)));
  await restoreIntoEmptyDatabase(oldTarget.db,old,{allowEmptyRestore:true});
  assert.equal(oldTarget.sql.prepare('SELECT count(*) AS n FROM matrix_note_entry_label_sets').get().n,0);
  const invalid=structuredClone(backup);invalid.data.tables.note_entry_label_sets[0].labels_json=JSON.stringify(['missing']);invalid.sha256=digest(JSON.stringify(stable(invalid.data)));

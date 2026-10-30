@@ -146,3 +146,8 @@ export const matrixAttempts=sqliteTable('matrix_login_attempts',{
 export const matrixControl=sqliteTable('matrix_control',{
   id:integer('id').primaryKey(),revision:integer('revision').notNull().default(0),initialized:integer('initialized').notNull().default(0),revision_guard:integer('revision_guard').notNull().default(1),auth_guard:integer('auth_guard').notNull().default(1),setup_guard:integer('setup_guard').notNull().default(1),
 },t=>[check('matrix_single_control',sql`${t.id}=1`),check('matrix_revision_match',sql`${t.revision_guard}=1`),check('matrix_auth_match',sql`${t.auth_guard}=1`),check('matrix_setup_match',sql`${t.setup_guard}=1`)]);
+
+export const matrixAiReports=sqliteTable('matrix_ai_reports',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
+  author:text('author').notNull(),content:text('content').notNull(),created_at:text('created_at').notNull(),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),index('matrix_ai_reports_owner_time').on(t.user_id,t.created_at,t.id)]);

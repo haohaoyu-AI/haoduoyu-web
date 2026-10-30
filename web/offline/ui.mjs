@@ -5,10 +5,10 @@ export function offlineStatusLabel(state) {
   if (state.unsupported) return '需新版';
   if (state.conflicts) return '有冲突';
   if (!state.online) return `离线（${state.pending || 0} 条待同步）`;
-  if (state.error) return '同步失败，等待重试';
-  if (state.phase === 'syncing') return '';
+  if (state.error) return '同步检查失败';
+  if (state.phase === 'syncing') return '正在同步…';
   if (state.pending) return `待同步（${state.pending} 条）`;
-  return '';
+  return '查看同步状态';
 }
 function textNode(document, tag, text, className) {
   const node = document.createElement(tag); node.textContent = text;
@@ -139,12 +139,22 @@ function mountRuntimeUI(runtime, {document, window}) {
     if (!expanded) return;
     const sequence = ++rendering, queue = await runtime.queue();
     if (sequence !== rendering || !expanded) return;
-    panel.replaceChildren(textNode(document, 'h2', '同步队列'), queueRows(document, queue, runtime, refreshQueue, requests));
+    const title = textNode(document, 'h2', '同步状态');
+    const syncButton = textNode(document, 'button', state.phase === 'syncing' ? '正在同步…' : '立即同步', 'offline-sync-now');
+    syncButton.type = 'button'; syncButton.disabled = state.phase === 'syncing';
+    syncButton.addEventListener('click', async () => { syncButton.disabled = true; await runtime.sync(); await refreshQueue(); });
+    const details = document.createDocumentFragment();
+    if (state.error) {
+      const stages = {identity: '身份核验', outbox: '提交队列', cache: '本地缓存', snapshot: '服务器快照'};
+      details.append(textNode(document, 'p', `${stages[state.errorStage] || '同步检查'}失败：${state.error}`, 'offline-sync-error'));
+    }
+    details.append(textNode(document, 'h3', '待提交队列'));
+    panel.replaceChildren(title, syncButton, details, queueRows(document, queue, runtime, refreshQueue, requests));
   }
   function mount() {
     if (!root.isConnected && document.body) document.body.append(root);
     const label = offlineStatusLabel(state);
-    root.hidden = !state.identity || !label;
+    root.hidden = !state.identity;
     if (button.textContent !== label) button.textContent = label;
     root.dataset.phase = state.conflicts ? 'conflict' : state.phase;
     pageAnnotation(document, state);

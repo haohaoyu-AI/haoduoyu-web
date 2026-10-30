@@ -68,7 +68,7 @@ function runtimeContext(options) {
   const {db, request, now = Date.now, uuid = () => crypto.randomUUID(), online = () => globalThis.navigator?.onLine !== false,
     onIdentity = () => {}, features = OFFLINE_FEATURES} = options;
   const state = {scope: null, verifiedScope: null, identity: null, online: online(), phase: 'idle', pending: 0,
-    conflicts: 0, unsupported: 0, lastSuccess: null, cachedAt: null, error: null, ready: true};
+    conflicts: 0, unsupported: 0, lastSuccess: null, cachedAt: null, error: null, errorStage: null, ready: true};
   const listeners = new Set();
   const emit = () => { for (const callback of listeners) callback({...state}); };
   const cache = createOfflineCache({db, getScope: () => state.scope, getGeneration: () => context.generation, now,
@@ -130,7 +130,7 @@ function identityActions(context) {
       await invalidate({forget: true}); throw fail('身份核实已过期，原本机数据已保留。', 'OFFLINE_SCOPE_CHANGED');
     }
     state.scope = index.scope_id; state.verifiedScope = index.scope_id; state.identity = identity;
-    state.online = true; state.error = null; onIdentity(me); emit();
+    state.online = true; onIdentity(me); emit();
     return me;
   }
   async function authenticate(options = {}) {
@@ -228,25 +228,30 @@ function syncActions(context) {
   async function run() {
     if (!online()) { state.verifiedScope = null; return context.refresh(); }
     if (context.cooldownUntil > now()) { context.scheduleRetry(); return context.refresh(); }
+    let stage = 'identity';
     try {
       await context.verify();
       if (!state.verifiedScope) return context.refresh();
       state.phase = 'syncing'; emit();
+      stage = 'outbox';
       await outbox.resume(state.scope);
       await outbox.drain();
+      stage = 'cache';
       if (state.verifiedScope) await context.cache.captureDocuments();
       if (state.verifiedScope) {
+        stage = 'snapshot';
         await snapshot.pull({date: today(now)});
         if (context.snapshotV2) await context.snapshotV2.pull({date: today(now)});
         if (context.lastTodoPath) {
+          stage = 'cache';
           const date = offlineReadRoute(context.lastTodoPath).date;
           if ((await context.cache.entities()).some(row => row.needs_api_refresh && row.server?.date === date))
             await context.call(context.lastTodoPath);
         }
       }
-      state.lastSuccess = now(); state.error = null;
+      state.lastSuccess = now(); state.error = null; state.errorStage = null;
     } catch (error) {
-      state.error = error.message;
+      state.error = error.message; state.errorStage = stage;
       if (error.status === 429) context.cooldownUntil = now() + 60000;
       if (error.status) state.online = true;
       else if (networkFailure(error)) state.online = false;
@@ -302,7 +307,7 @@ async function rememberRead(context, path, value, baseline, memo) {
   try { return await context.cache.write(path, value, {baseline}); }
   catch (error) {
     if (['OFFLINE_RESPONSE_INVALID', 'OFFLINE_SCOPE_CHANGED', 'OFFLINE_CACHE_CHANGED'].includes(error.code)) throw error;
-    context.state.error = error.message; context.emit(); return value;
+    context.state.error = error.message; context.state.errorStage = 'cache'; context.emit(); return value;
   }
 }
 function labelRequestOptions(path, options, features) {

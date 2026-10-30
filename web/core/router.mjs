@@ -31,7 +31,7 @@ function mobilePage(page) {
 }
 function updateRoute(push = false) {
   const page = mobilePage(state.page), redirected = page !== state.page;
-  if (redirected) { state.page = page; state.account = ""; }
+  if (redirected) state.page = page;
   state.filters.status = "published";
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
@@ -51,7 +51,7 @@ function updateRoute(push = false) {
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
   else if (state.page === "reviews") u.searchParams.set("tab", state.reviewTab);
   else u.searchParams.delete("tab");
-  if (state.account && state.page !== "dashboard") u.searchParams.set("account", state.account);
+  if (state.account) u.searchParams.set("account", state.account);
   else u.searchParams.delete("account");
   for (const [key, value] of Object.entries(state.filters)) {
     if (value && value !== defaultFilters()[key]) u.searchParams.set(key, value);
@@ -89,7 +89,7 @@ function readRoute() {
   state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
   state.articleOverviewMode = "published";
   const account = params.get("account") || "";
-  state.account = state.page !== "dashboard" && state.accounts.some((a) => a.id === account) ? account : "";
+  state.account = state.accounts.some((a) => a.id === account) ? account : "";
   state.filters = defaultFilters();
   for (const key of Object.keys(state.filters)) if (params.has(key)) state.filters[key] = params.get(key);
   const allowed = { sort: ["published_at", "reads", "likes", "comments", "approvals", "latest_as_of", "duration"], order: ["asc", "desc"], platform: [

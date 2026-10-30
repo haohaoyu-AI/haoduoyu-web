@@ -5,6 +5,7 @@ import { state } from "../core/state.mjs";
 import { empty, field, formEnd, platformLogo } from "../ui/components.mjs";
 import { openModal } from "../ui/modal.mjs";
 import { toast } from "../ui/toast.mjs";
+import { normalizeAccountProfile } from "../../src/account-profiles.mjs";
 function profileForAccount(id) {
   return (state.accountProfiles || []).find((profile) => profile.account_id === id);
 }
@@ -15,10 +16,10 @@ function profileLink(account) {
   try { url = new URL(profile.profile_url); } catch { return ""; }
   if (url.protocol !== "https:" || url.username || url.password || url.port ||
     !["www.zhihu.com", "www.toutiao.com", "mp.weixin.qq.com"].includes(url.hostname)) return "";
-  return `<div class="cell-sub"><a href="${e(url.href)}" target="_blank" rel="noopener noreferrer">打开公开主页 ${icon("link", 11)}</a></div>`;
+  return `<div class="cell-sub"><a href="${e(url.href)}" target="_blank" rel="noopener noreferrer">打开主页核验 ${icon("link", 11)}</a> · 访问状态未自动验证</div>`;
 }
 function renderAccounts() {
-  const accounts = rowsForAccount(state.accounts);
+  const accounts = state.accounts;
   return `<section class="card">${accounts.length ? `<div class="table-scroll"><table class="data-table accounts-table"><thead><tr><th>账号\
 </th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${accounts.map((a) => `<tr><td><span class="account-title">${platformLogo(
   a.platform)}${e(a.name)}</span><div class="cell-sub">${e(platforms[a.platform] || a.platform)}</div>${profileLink(a)}</td><td><span class="badge ${a.active ?
@@ -100,15 +101,29 @@ function accountModal(id = "") {
   const profile = profileForAccount(id);
   const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" \
 id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" \
-placeholder="粘贴今日头条、知乎或微信公众号主页"><span class="hint">保存主页无需登录平台。支持识别重复主页；后台统计仍需另行录入。</span></div>`;
+placeholder="粘贴今日头条、知乎或微信公众号主页" ${id ? "" : "required"}><span class="hint">只校验和保存主页地址，不自动访问平台。知乎的动态、回答等子页面会规范化为对应主页；后台统计仍需另行录入。</span><button type="button" class="btn small" data-action="test-profile">测试链接格式</button><div id="profile-test-result" class="hint" role="status" aria-live="polite"></div></div>`;
   openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid">${homepage}\
 <div class="form-field"><label \
-for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" ${id ? "disabled" : ""}>${Object.entries(
+for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" disabled>${Object.entries(
   id ? platforms : { "": "根据主页自动识别", ...platforms }).map(([key, label]) => `<option value="${key}" ${a.platform === key ?
   "selected" : ""}>${label}</option>`).join(
-  "")}</select></div>${field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"')}${id ? `<div \
+  "")}</select></div>${id ? field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"') : '<p class="hint full">平台自动识别，账号名称暂用主页标识，可在保存后编辑。</p>'}${id ? `<div \
 class="form-field full"><label class="check-option"><input type="checkbox" name="active" ${a.active ? "checked" : ""}>启用此账号</label><span \
 class="hint">停用保留历史数据。</span></div>` : ""}</div>${formEnd(id ? "保存账号" : "添加账号")}</form>`);
+  document.querySelector('#field-profile-url')?.addEventListener?.('input', () => {
+    const result = document.querySelector('#profile-test-result');
+    if (result) result.textContent = '';
+  });
+}
+function testProfile() {
+  const input = document.querySelector('#field-profile-url'), result = document.querySelector('#profile-test-result');
+  if (!input || !result) return;
+  try {
+    const id = document.querySelector('#account-form')?.dataset.id;
+    const account = state.accounts.find(a => a.id === id);
+    const profile = normalizeAccountProfile(input.value, account?.platform);
+    result.innerHTML = `格式有效（${e(platforms[profile.platform])}）；访问情况无法自动核验。<a href="${e(profile.profile_url)}" target="_blank" rel="noopener noreferrer">打开官方主页自行核验</a>`;
+  } catch (error) { result.textContent = `格式未通过：${error.message}`; }
 }
 function keyModal() {
   if (!state.accounts.some((a) => a.active)) {
@@ -132,5 +147,6 @@ export {
   renderAudit,
   renderKeys,
   renderSecurity,
-  profileForAccount
+  profileForAccount,
+  testProfile
 };

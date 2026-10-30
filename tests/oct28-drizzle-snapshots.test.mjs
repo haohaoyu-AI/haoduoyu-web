@@ -11,11 +11,11 @@ const read=path=>JSON.parse(readFileSync(join(root,path),'utf8'));
 
 test('reviewed snapshots preserve previous tables and account for both new migrations',()=>{
   const a=read('drizzle/meta/0008_snapshot.json'),b=read('drizzle/meta/0009_snapshot.json'),c=read('drizzle/meta/0010_snapshot.json');
-  const d=read('drizzle/meta/0011_snapshot.json'),e=read('drizzle/meta/0012_snapshot.json'),f=read('drizzle/meta/0013_snapshot.json');
+  const d=read('drizzle/meta/0011_snapshot.json'),e=read('drizzle/meta/0012_snapshot.json'),f=read('drizzle/meta/0013_snapshot.json'),g=read('drizzle/meta/0014_snapshot.json');
   const journal=read('drizzle/meta/_journal.json');
-  assert.equal(b.prevId,a.id);assert.equal(c.prevId,b.id);assert.equal(d.prevId,c.id);assert.equal(e.prevId,d.id);assert.equal(f.prevId,e.id);
-  assert.deepEqual(journal.entries.slice(-5).map(x=>x.tag),['0009_unscheduled_todos','0010_note_labels','0011_note_entry_multi_labels','0012_note_entry_label_sets','0013_note_label_archives']);
-  for(const [prior,next,added] of [[a,b,['matrix_unscheduled_todos']],[b,c,['matrix_note_entry_labels','matrix_note_labels']],[c,d,['matrix_note_entry_label_overrides']],[d,e,['matrix_note_entry_label_sets']],[e,f,['matrix_note_label_archives']]]){
+  assert.equal(b.prevId,a.id);assert.equal(c.prevId,b.id);assert.equal(d.prevId,c.id);assert.equal(e.prevId,d.id);assert.equal(f.prevId,e.id);assert.equal(g.prevId,f.id);
+  assert.deepEqual(journal.entries.slice(-6).map(x=>x.tag),['0009_unscheduled_todos','0010_note_labels','0011_note_entry_multi_labels','0012_note_entry_label_sets','0013_note_label_archives','0014_ai_reports']);
+  for(const [prior,next,added] of [[a,b,['matrix_unscheduled_todos']],[b,c,['matrix_note_entry_labels','matrix_note_labels']],[c,d,['matrix_note_entry_label_overrides']],[d,e,['matrix_note_entry_label_sets']],[e,f,['matrix_note_label_archives']],[f,g,['matrix_ai_reports']]]){
     for(const name of Object.keys(prior.tables))assert.deepEqual(next.tables[name],prior.tables[name],name);
     assert.deepEqual(Object.keys(next.tables).filter(name=>!Object.hasOwn(prior.tables,name)).sort(),added);
   }

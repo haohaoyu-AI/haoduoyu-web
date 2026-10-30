@@ -63,7 +63,7 @@ async function submitReviewForm({ form, data }) {
 async function submitAccountForm({ form, data, values }) {
   const id = form.dataset.id, epoch = runtime.sessionEpoch, ticket = runtime.modalRequestVersion;
   const profile = String(data.profile_url || "").trim();
-  const body = id ? { name: data.name.trim(), active: values.has("active") } : { platform: data.platform, name: data.name.trim() };
+  const body = id ? { name: data.name.trim(), active: values.has("active") } : {};
   if (profile || id && (state.accountProfiles || []).some((row) => row.account_id === id)) body.profile_url = profile;
   const signature = JSON.stringify(body);
   if (form.accountSaveSignature !== signature) {
@@ -80,7 +80,8 @@ async function submitAccountForm({ form, data, values }) {
   state.accounts = accounts.sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - ["toutiao", "zhihu",
   "wechat", "other"].indexOf(b.platform));
   closeModal();
-  if (saved.profile_reused) toast(`该主页已关联「${saved.name}」，已使用现有账号。`);
+  if (saved.profile_reused) toast(`该主页已关联「${saved.name}」，已使用现有账号。访问状态未自动验证。`);
+  else toast("账号已保存。请打开主页自行核验；访问状态未自动验证。");
   renderShell();
   return;
 }

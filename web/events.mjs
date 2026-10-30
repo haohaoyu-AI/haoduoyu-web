@@ -85,7 +85,7 @@ function handleChange(event) {
   } else if (el.name === "columns" && el.closest("#filter-panel")) {
     $("#filter-panel").outerHTML = articleFilterPanel(articleDraft(el.form));
     $('#filter-panel input[value="' + el.value + '"]')?.focus();
-  } else if (el.id === "global-account") {
+  } else if (el.id === "global-account" || el.id === "overview-account") {
     state.account = el.value;
     state.listPage = 1;
     updateRoute();

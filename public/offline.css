@@ -15,10 +15,7 @@
   color: inherit;
   cursor: pointer;
 }
-.offline-state-button::before { content: '●'; margin-right: 6px; color: var(--success, #228065); }
-.offline-indicator[data-phase="offline"] .offline-state-button::before,
-.offline-indicator[data-phase="pending"] .offline-state-button::before { color: var(--warning, #ae7629); }
-.offline-indicator[data-phase="conflict"] .offline-state-button::before { color: var(--danger, #bc4949); }
+.offline-state-button::before { content: '⇄'; margin-right: 6px; color: var(--success, #228065); }
 .offline-queue {
   position: absolute;
   top: calc(100% + 8px);
@@ -44,3 +41,10 @@
   .offline-queue { right: -40px; }
   .offline-conflict-actions button { min-height: 44px; }
 }
+
+.offline-sync-now {
+  padding: 6px 12px; border: 1px solid #228065; border-radius: 8px;
+  background: #fff; color: #17694f; cursor: pointer;
+}
+.offline-sync-now:disabled { opacity: .6; cursor: wait; }
+.offline-sync-error { color: var(--danger, #bc4949); }

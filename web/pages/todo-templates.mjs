@@ -58,10 +58,10 @@ function todoTemplateEditor(store) {
 <input id="todo-template-edit-text" class="input" name="text" maxlength="500" required value="${e(store.editDraft)}">
 <button class="btn" type="submit">保存</button><button class="btn text" type="button" data-action="todo-template-cancel">取消</button></form>`;
 }
-function renderTodoTemplates() {
+function renderTodoTemplates(floatingControl = "") {
   const store = templateState();
   return `<section id="todo-templates" class="daily-todo-templates todo-view" ${state.todoPanel === "templates" ? "" : "hidden"}>
-<div class="todo-view-head"><h2>常用待办</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
+<div class="todo-view-head"><h2>常用待办</h2>${floatingControl}</div>
 <div class="todo-template-content">
 <form id="todo-template-form" class="todo-template-form" ${store.editing ? "hidden" : ""}>
 <label for="todo-template-text" class="sr-only">新建常用待办</label>
