@@ -36,7 +36,8 @@ import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs
 function mainContent() {
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
     state.me?.publicBusiness ? {workspace: settingsTabs.workspace, todo: settingsTabs.todo} : settingsTabs), state.settingsTab,
-    "设置分类", "tab", "page-tabs") : ""}${renderMediaTabs()}<div id="page-content"></div>`;
+    "设置分类", "tab", "page-tabs") : ""}${state.page === "settings" && state.me?.publicBusiness ?
+    '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -250,6 +251,10 @@ async function init({ freshLogin = false } = {}) {
     const me = await api("/auth/me");
     if (initEpoch !== runtime.sessionEpoch) return;
     state.me = me;
+    if (me.publicBusiness && new URLSearchParams(location.search).get("page") === "login") {
+      renderLogin();
+      return;
+    }
     const accounts = await api("/accounts");
     if (initEpoch !== runtime.sessionEpoch) return;
     state.accounts = accounts.sort((a, b) => ["toutiao", "zhihu", "wechat", "other"].indexOf(a.platform) - ["toutiao", "zhihu", "wechat",

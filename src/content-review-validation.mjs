@@ -71,11 +71,44 @@ function findings(value) {
   }
   return value;
 }
+export const reviewRuleStatuses=['candidate','trial','kept','dropped','hold'];
+function uniqueStrings(value,validator) {
+  value=json(value,{array:true});const seen=new Set();
+  return value.map(item=>{const normalized=validator(item);if(seen.has(normalized))invalid('Array entries must be unique');seen.add(normalized);return normalized;});
+}
+const ruleId=value=>text(value,120);
+const uuidList=value=>uniqueStrings(value,value=>{if(typeof value!=='string'||!reviewUuid.test(value))invalid('Expected UUID');return value;});
+function evidence(value) {
+  value=json(value);const allowed=['metric','with_median','without_median','n_with','n_without'];
+  if(Object.keys(value).some(key=>!allowed.includes(key))||allowed.some(key=>!Object.hasOwn(value,key)))invalid('Evidence requires metric, medians and sample counts');
+  value.metric=text(value.metric,120);
+  for(const key of ['with_median','without_median'])value[key]=number(value[key]);
+  for(const key of ['n_with','n_without'])value[key]=number(value[key],{integer:true,nullable:false});
+  return value;
+}
+function ruleCheck(value) {
+  if(value==='manual')return value;
+  value=json(value);
+  if(value.type==='manual'&&Object.keys(value).every(key=>key==='type'))return value;
+  if(value.type!=='regex'||Object.keys(value).sort().join(',')!=='type,value')invalid('Check must be manual or regex/value');
+  // Regex is inert metadata. Never compile or execute a user-supplied pattern.
+  value.value=text(value.value,2000);return value;
+}
+export const reviewRuleChangeFields={
+  status:value=>{if(!reviewRuleStatuses.includes(value))invalid('Invalid rule status');return value;},
+  evidence,support_ids:uuidList,counter_ids:uuidList,trials:value=>number(value,{integer:true,nullable:false}),
+};
+export function reviewRuleChanges(value) {
+  if(!value||typeof value!=='object'||Array.isArray(value)||!Object.keys(value).length||Object.keys(value).some(key=>!Object.hasOwn(reviewRuleChangeFields,key)))invalid('Invalid rule changes');
+  return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,reviewRuleChangeFields[key](item)]));
+}
 function rules(value) {
   value=json(value,{array:true});const ids=new Set();
   for(const item of value) {
-    if(!item||typeof item!=='object'||Array.isArray(item)||Object.keys(item).sort().join(',')!=='rule_id,section,text'||!sections.has(item.section))invalid('规则需要 rule_id、section 和 text');
+    if(!item||typeof item!=='object'||Array.isArray(item)||!['rule_id','section','text'].every(key=>Object.hasOwn(item,key))||Object.keys(item).some(key=>!['rule_id','section','text','check',...Object.keys(reviewRuleChangeFields)].includes(key))||!sections.has(item.section))invalid('规则需要 rule_id、section 和 text');
     item.rule_id=text(item.rule_id,120);item.text=text(item.text,16384,{multiline:true});
+    if(Object.hasOwn(item,'check'))item.check=ruleCheck(item.check);
+    for(const [key,validator] of Object.entries(reviewRuleChangeFields))if(Object.hasOwn(item,key))item[key]=validator(item[key]);
     if(ids.has(item.rule_id))invalid('规则 rule_id 不可重复');ids.add(item.rule_id);
   }
   return value;
@@ -91,12 +124,13 @@ export const reviewSpecs={
     account,platform:value=>{if(value!=='toutiao')invalid('目前仅支持 toutiao');return value;},platform_article_id:nullableText(240),
     title:value=>text(value,2000),url,published_at:timestamp,topic_category:nullableText(240),title_pattern:nullableText(1000),
     sample_title:nullableText(2000),sample_url:url,image_count:integer,source_chat:nullableText(4096),
-  },defaults:{account:'V字',platform:'toutiao',platform_article_id:null,url:null,published_at:null,topic_category:null,title_pattern:null,sample_title:null,sample_url:null,image_count:null,source_chat:null},required:['title'],timestamps:['created_at','updated_at']},
+    playbook_version_used:value=>number(value,{integer:true,min:1}),applied_rule_ids:value=>value===null?null:uniqueStrings(value,ruleId),
+  },defaults:{account:'V字',platform:'toutiao',platform_article_id:null,url:null,published_at:null,topic_category:null,title_pattern:null,sample_title:null,sample_url:null,image_count:null,source_chat:null,playbook_version_used:null,applied_rule_ids:null},required:['title'],timestamps:['created_at','updated_at'],json:['applied_rule_ids']},
   snapshots:{table:'matrix_review_snapshots',order:'snapshot_date DESC,id DESC',fields:{
-    article_id:uuid,snapshot_date:reviewDate,impressions:integer,fan_impressions:integer,reads:integer,fan_reads:integer,ctr:rate,completion_rate:rate,
+    article_id:uuid,snapshot_date:reviewDate,age_hours:integer,source:value=>{if(value!==null&&!['toutiao_excel','manual'].includes(value))invalid('Invalid snapshot source');return value;},impressions:integer,fan_impressions:integer,reads:integer,fan_reads:integer,ctr:rate,completion_rate:rate,
     avg_read_seconds:value=>number(value),likes:integer,comments:integer,reposts:integer,shares:integer,favorites:integer,revenue:value=>number(value),
     traffic_sources:value=>json(value,{nullable:true}),completion_curve:value=>value===null?null:json(value,{array:Array.isArray(value)}),audience:value=>json(value,{nullable:true}),
-  },defaults:Object.fromEntries(['impressions','fan_impressions','reads','fan_reads','ctr','completion_rate','avg_read_seconds','likes','comments','reposts','shares','favorites','revenue','traffic_sources','completion_curve','audience'].map(key=>[key,null])),required:['article_id','snapshot_date'],timestamps:[],json:['traffic_sources','completion_curve','audience']},
+  },defaults:Object.fromEntries(['age_hours','source','impressions','fan_impressions','reads','fan_reads','ctr','completion_rate','avg_read_seconds','likes','comments','reposts','shares','favorites','revenue','traffic_sources','completion_curve','audience'].map(key=>[key,null])),required:['article_id','snapshot_date'],timestamps:[],json:['traffic_sources','completion_curve','audience']},
   reports:{table:'matrix_review_reports',order:'period_start DESC,created_at DESC,id DESC',fields:{
     account,period_type:value=>{if(!['daily','three_day','weekly'].includes(value))invalid('复盘周期类型无效');return value;},period_start:reviewDate,period_end:reviewDate,
     verdicts,findings,summary_md:content,metrics:value=>json(value),playbook_version:value=>number(value,{integer:true,min:1}),
@@ -105,24 +139,34 @@ export const reviewSpecs={
     account,version:value=>number(value,{integer:true,nullable:false,min:1}),published_on:reviewDate,content_md:content,rules,changelog_md:content,sent_to_gemini_at:timestamp,
   },defaults:{account:'V字',content_md:'',rules:[],changelog_md:'',sent_to_gemini_at:null},required:['version','published_on'],timestamps:['created_at'],json:['rules']},
 };
-export function reviewInput(kind,input,{patch=false}={}) {
+export function reviewInput(kind,input,{patch=false,validateDaily=true}={}) {
   const spec=reviewSpecs[kind],keys=Object.keys(input);
   if(keys.some(key=>!Object.hasOwn(spec.fields,key))||patch&&!keys.length)invalid('存在未知字段或没有提交修改');
   if(!patch&&spec.required.some(key=>!Object.hasOwn(input,key)))invalid('缺少必填字段');
   const row=patch?{}:structuredClone(spec.defaults);
   for(const key of keys)row[key]=spec.fields[key](input[key]);
   if(kind==='reports'&&row.period_start&&row.period_end&&row.period_start>row.period_end)invalid('period_end 不可早于 period_start');
+  // Sentence terminators: Chinese full stops, question/exclamation marks, or
+  // an English period followed by whitespace/end. Decimal points stay intact.
+  if(validateDaily&&kind==='reports'&&row.period_type==='daily'&&row.summary_md&&row.summary_md.split(/(?:[。！？!?]+|\.(?=\s|$))\s*/u).filter(part=>part.trim()).length>2)invalid('Daily summary must contain at most two sentences');
   return row;
 }
 export function reviewView(kind,row) {
   if(!row)return null;
   const spec=reviewSpecs[kind],data={id:row.id};
-  for(const key of [...Object.keys(spec.fields),...spec.timestamps])data[key]=spec.json?.includes(key)?row[key+'_json']===null?null:JSON.parse(row[key+'_json']):row[key];
+  for(const key of [...Object.keys(spec.fields),...spec.timestamps])data[key]=spec.json?.includes(key)?row[key+'_json']==null?null:JSON.parse(row[key+'_json']):row[key]??null;
   return {...data,content_hash:reviewContentHash(data)};
 }
 export function reviewContentHash(row) {
-  const {content_hash,...data}=row;return digest(JSON.stringify(stable(data)));
+  const {content_hash,...data}=row;
+  // Nullable additions must not invalidate hashes held by pre-review3 clients.
+  for(const key of ['playbook_version_used','applied_rule_ids','age_hours','source'])if(data[key]===null)delete data[key];
+  return digest(JSON.stringify(stable(data)));
 }
 export function reviewEqual(kind,row,input) {
-  return JSON.stringify(stable(Object.fromEntries(Object.keys(reviewSpecs[kind].fields).map(key=>[key,row[key]]))))===JSON.stringify(stable(input));
+  const fields=Object.fromEntries(Object.keys(reviewSpecs[kind].fields).map(key=>[key,row[key]]));
+  const comparable=value=>kind==='playbooks'?{...value,rules:value.rules.map(rule=>({...rule,status:rule.status??'candidate'}))}:value;
+  // Echoing a read-only default must be an idempotent no-op, preserving the
+  // original raw rules and its legacy content hash.
+  return JSON.stringify(stable(comparable(fields)))===JSON.stringify(stable(comparable(input)));
 }

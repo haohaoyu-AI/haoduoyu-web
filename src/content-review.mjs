@@ -3,7 +3,8 @@ import {randomUUID} from 'node:crypto';
 import {noteEditor,limitNoteWrites} from './public-note-access.mjs';
 import {storeFor,consistentRead,mutate} from './storage.mjs';
 import {dailyNotesOwner} from './daily-notes.mjs';
-import {reviewUuid,reviewHash,reviewSpecs,reviewDate,reviewInput,reviewView,reviewEqual} from './content-review-validation.mjs';
+import {reviewUuid,reviewHash,reviewSpecs,reviewDate,reviewInput,reviewView,reviewEqual,reviewContentHash,reviewRuleChanges} from './content-review-validation.mjs';
+import {enrichArticles,enrichArticle,buildOverview} from '../shared/review-analytics.mjs';
 
 const tombstoneActor=owner=>'review-tombstones:'+owner;
 const tombstoneKey=(kind,id)=>'review-deleted:'+kind+':'+id;
@@ -42,10 +43,12 @@ function writeLimit(actor,owner) {
 }
 function validateQuery(query,kind,list) {
   const filters={articles:['account','from','to'],snapshots:['account','article_id'],reports:['account','period_type','from','to'],playbooks:['account']}[kind];
-  const allowed=list?['offset','read_revision',...filters]:[];
+  const allowed=list?['offset','read_revision',...(kind==='articles'?['page','verdict']:[]),...filters]:[];
   if([...query.keys()].some(key=>!allowed.includes(key)||query.getAll(key).length!==1))throw fail(400,'VALIDATION_ERROR','查询参数无效');
   for(const key of ['offset','read_revision'])if(query.has(key)&&(!/^(0|[1-9]\d*)$/.test(query.get(key))||!Number.isSafeInteger(Number(query.get(key)))))throw fail(400,'VALIDATION_ERROR','分页参数须为非负安全整数');
   const where=[],args=[];
+  if(query.has('page')&&(!/^[1-9]\d*$/.test(query.get('page'))||!Number.isSafeInteger(Number(query.get('page')))||query.has('offset')))throw fail(400,'VALIDATION_ERROR','Invalid page');
+  if(query.has('verdict')&&!['爆','中','扑','pending'].includes(query.get('verdict')))throw fail(400,'VALIDATION_ERROR','Invalid verdict');
   for(const key of filters)if(query.has(key)) {
     const value=query.get(key);
     if(key==='from'||key==='to') {
@@ -61,7 +64,19 @@ function validateQuery(query,kind,list) {
     }
   }
   if(query.has('from')&&query.has('to')&&query.get('from')>query.get('to'))throw fail(400,'VALIDATION_ERROR','日期范围无效');
-  return {where,args,offset:Number(query.get('offset')||0),expected:query.has('read_revision')?Number(query.get('read_revision')):null};
+  const offset=query.has('page')?(Number(query.get('page'))-1)*100:Number(query.get('offset')||0);
+  if(!Number.isSafeInteger(offset))throw fail(400,'VALIDATION_ERROR','Invalid page');
+  return {where,args,offset,expected:query.has('read_revision')?Number(query.get('read_revision')):null,verdict:query.get('verdict'),page:query.has('page')?Number(query.get('page')):null};
+}
+const publicView=(kind,row)=>kind==='playbooks'?{...row,rules:row.rules.map(rule=>({...rule,status:rule.status??'candidate'}))}:row;
+async function accountData(store,owner,account=null) {
+  const data={};
+  for(const kind of ['articles','snapshots','reports','playbooks']) {
+    const accountWhere=account===null?'':kind==='snapshots'?' AND article_id IN (SELECT id FROM matrix_review_articles WHERE user_id=? AND account=?)':' AND account=?';
+    const args=account===null?[]:kind==='snapshots'?[owner,account]:[account];
+    data[kind]=(await store.all('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=?'+accountWhere+' ORDER BY '+reviewSpecs[kind].order,owner,...args)).map(row=>reviewView(kind,row));
+  }
+  return data;
 }
 async function readRow(store,kind,owner,id) {
   return reviewView(kind,await store.get('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=? AND id=?',owner,id));
@@ -82,7 +97,7 @@ function queueTombstone(store,owner,kind,row,time) {
   store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,200,?) ON CONFLICT(actor,key) DO UPDATE SET request_hash=excluded.request_hash,response_json=excluded.response_json,created_at=excluded.created_at',tombstoneActor(owner),tombstoneKey(kind,row.id),row.content_hash,receipt,time);
 }
 async function put(db,request,kind,owner,id,input,env,origin) {
-  const values=reviewInput(kind,input),spec=reviewSpecs[kind];
+  const values=reviewInput(kind,input,{validateDaily:false}),spec=reviewSpecs[kind];
   return (await mutate(db,async store=>{
     const actor=await actorFor(store,request,owner,env,origin,true);
     if(await store.get('SELECT key FROM idempotency WHERE actor=? AND key=?',tombstoneActor(owner),tombstoneKey(kind,id)))throw fail(409,'REVIEW_DELETED','此标识已永久删除，请为新记录生成新 UUID');
@@ -91,12 +106,14 @@ async function put(db,request,kind,owner,id,input,env,origin) {
       if(!reviewEqual(kind,current,values))throw fail(409,'IDEMPOTENCY_CONFLICT','该 UUID 已用于不同内容；修改请使用 PATCH 和最新哈希');
       return {replayed:true,response:json(current)};
     }
+    reviewInput(kind,input);
+    if(kind==='reports'&&values.period_type==='three_day')throw fail(400,'VALIDATION_ERROR','New three_day reports are retired');
     await checkRelations(store,kind,owner,id,values);
     const time=new Date().toISOString(),row={id,...values,...Object.fromEntries(spec.timestamps.map(key=>[key,time]))};
     const keys=[...columnsFor(kind),...spec.timestamps],columns=['user_id','id',...keys.map(key=>columnFor(spec,key))];
     store.queue('INSERT INTO '+spec.table+'('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')',owner,id,...keys.map(key=>valueFor(spec,key,row)));
     store.audit(actor.actor,'review.'+kind+'.create',id);
-    return {actor,response:json({...row,content_hash:digest(JSON.stringify(stable(row)))},201)};
+    return {actor,response:json({...row,content_hash:reviewContentHash(row)},201)};
   })).response;
 }
 async function patch(db,request,kind,owner,id,input,env,origin) {
@@ -107,7 +124,8 @@ async function patch(db,request,kind,owner,id,input,env,origin) {
     const actor=await actorFor(store,request,owner,env,origin,true),current=await readRow(store,kind,owner,id);
     if(!current)throw fail(404,'NOT_FOUND','记录不存在');
     if(current.content_hash!==expected_hash)throw fail(409,'VERSION_CONFLICT','记录已改变，请读取最新内容再修改');
-    const values=reviewInput(kind,{...Object.fromEntries(columnsFor(kind).map(key=>[key,current[key]])),...partial});
+    if(kind==='reports'&&partial.period_type==='three_day'&&current.period_type!=='three_day')throw fail(400,'VALIDATION_ERROR','New three_day reports are retired');
+    const values=reviewInput(kind,{...Object.fromEntries(columnsFor(kind).map(key=>[key,current[key]])),...partial},{validateDaily:Object.hasOwn(partial,'summary_md')||Object.hasOwn(partial,'period_type')});
     await checkRelations(store,kind,owner,id,values);
     if(reviewEqual(kind,current,values))return {replayed:true,response:json(current)};
     const {content_hash,...previous}=current,row={...previous,...values};
@@ -115,7 +133,7 @@ async function patch(db,request,kind,owner,id,input,env,origin) {
     const keys=[...columnsFor(kind),...(spec.timestamps.includes('updated_at')?['updated_at']:[])];
     store.queue('UPDATE '+spec.table+' SET '+keys.map(key=>columnFor(spec,key)+'=?').join(',')+' WHERE user_id=? AND id=?',...keys.map(key=>valueFor(spec,key,row)),owner,id);
     store.expectChange();store.audit(actor.actor,'review.'+kind+'.update',id);
-    return {actor,response:json({...row,content_hash:digest(JSON.stringify(stable(row)))})};
+    return {actor,response:json({...row,content_hash:reviewContentHash(row)})};
   })).response;
 }
 async function remove(db,request,kind,owner,id,input,env,origin) {
@@ -149,24 +167,107 @@ async function remove(db,request,kind,owner,id,input,env,origin) {
     return {actor,response:json(result)};
   })).response;
 }
+async function patchRule(db,request,owner,ruleId,input,env,origin) {
+  const {account,playbook_id,expected_hash,save_id,...changes}=input;
+  const normalizedAccount=reviewSpecs.playbooks.fields.account(account);
+  if(!reviewUuid.test(playbook_id||'')||!reviewUuid.test(save_id||'')||!reviewHash.test(expected_hash||''))throw fail(400,'VALIDATION_ERROR','Rule update requires account, playbook_id, expected_hash and UUID save_id');
+  const partial=reviewRuleChanges(changes),key='review-rule:'+save_id;
+  const requestHash=digest(JSON.stringify(stable({rule_id:ruleId,account:normalizedAccount,playbook_id,expected_hash,changes:partial})));
+  return (await mutate(db,async store=>{
+    const actor=await actorFor(store,request,owner,env,origin,true);
+    const receipt=await store.get('SELECT request_hash,response_json FROM idempotency WHERE actor=? AND key=?',actor.actor,key);
+    if(receipt) {
+      if(receipt.request_hash!==requestHash)throw fail(409,'IDEMPOTENCY_CONFLICT','save_id already identifies a different rule update');
+      return {replayed:true,response:json(JSON.parse(receipt.response_json))};
+    }
+    const current=await readRow(store,'playbooks',owner,playbook_id);
+    if(!current||current.account!==normalizedAccount)throw fail(404,'NOT_FOUND','Playbook not found');
+    if(current.content_hash!==expected_hash)throw fail(409,'VERSION_CONFLICT','Playbook changed; read it again');
+    const matches=current.rules.filter(rule=>rule.rule_id===ruleId);
+    if(matches.length!==1)throw fail(matches.length?409:404,matches.length?'REVIEW_RULE_AMBIGUOUS':'NOT_FOUND','Rule must identify exactly one rule in the selected playbook');
+    const rules=current.rules.map(rule=>rule.rule_id===ruleId?{...rule,...partial}:rule);
+    const {content_hash:ignored,...previous}=current,row={...previous,rules};
+    const result={...row,content_hash:reviewContentHash(row)},time=new Date().toISOString();
+    if(JSON.stringify(stable(rules))!==JSON.stringify(stable(current.rules))) {
+      store.queue('UPDATE matrix_review_playbooks SET rules_json=? WHERE user_id=? AND id=?',JSON.stringify(stable(rules)),owner,playbook_id);
+      store.expectChange();
+    }
+    store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,200,?)',actor.actor,key,requestHash,JSON.stringify(publicView('playbooks',result)),time);
+    store.audit(actor.actor,'review.rules.update',playbook_id,{rule_id:ruleId});
+    return {actor,response:json(publicView('playbooks',result))};
+  })).response;
+}
 async function handle(db,request,route,env,origin,initialRevision) {
   const owner=dailyNotesOwner(env),url=new URL(request.url),method=request.method;
   const batch=route==='/review/snapshots:batch';
+  if(route==='/review/overview') {
+    const query=url.searchParams;
+    if(method!=='GET')throw fail(404,'NOT_FOUND','Review endpoint not found');
+    if([...query.keys()].some(key=>!['account','range','week'].includes(key)||query.getAll(key).length!==1)||!query.has('account')||query.has('range')&&!['7d','30d'].includes(query.get('range'))||query.has('week')&&!['this','last'].includes(query.get('week')))throw fail(400,'VALIDATION_ERROR','Invalid overview query');
+    const account=reviewSpecs.articles.fields.account(query.get('account'));
+    return consistentRead(db,async(store,before)=>{
+      await actorFor(store,request,owner,env,origin);
+      const data=await accountData(store,owner,account);
+      const overview=buildOverview(data,{account,range:query.get('range')||'7d',week:query.get('week')||'this'}),cards={each_prev_delta:{}};
+      for(const field of ['count','hit_rate','miss_rate','ctr_median']) {
+        cards[field]=overview.current[field];cards[field+'_prev_delta']=overview.changes[field].delta;
+        cards.each_prev_delta[field]=overview.changes[field].delta;
+      }
+      return json({...overview,cards,read_revision:before});
+    },initialRevision);
+  }
+  const ruleMatch=/^\/review\/rules\/([^/]+)$/.exec(route);
+  if(ruleMatch) {
+    if(method!=='PATCH'||url.search)throw fail(404,'NOT_FOUND','Review endpoint not found');
+    let ruleId;try{ruleId=decodeURIComponent(ruleMatch[1]);}catch{throw fail(400,'VALIDATION_ERROR','Invalid rule id');}
+    if(!ruleId||Buffer.byteLength(ruleId,'utf8')>120||/[\u0000-\u001f\u007f]/u.test(ruleId))throw fail(400,'VALIDATION_ERROR','Invalid rule id');
+    const actor=await actorFor(storeFor(db),request,owner,env,origin,true);writeLimit(actor,owner);
+    return patchRule(db,request,owner,ruleId,await bodyFor(request),env,origin);
+  }
+  const versionMatch=/^\/review\/playbooks\/([1-9]\d*)$/.exec(route);
+  if(versionMatch&&method==='PUT') {
+    if(url.search||!Number.isSafeInteger(Number(versionMatch[1])))throw fail(400,'VALIDATION_ERROR','Invalid playbook version');
+    const actor=await actorFor(storeFor(db),request,owner,env,origin,true);writeLimit(actor,owner);
+    const {id,...input}=await bodyFor(request);
+    if(!reviewUuid.test(id||'')||input.version!==Number(versionMatch[1]))throw fail(400,'VALIDATION_ERROR','Numeric version PUT requires UUID id and matching version');
+    return put(db,request,'playbooks',owner,id,input,env,origin);
+  }
   const match=/^\/review\/(articles|snapshots|reports|playbooks)(?:\/([a-f0-9-]+))?$/.exec(route);
   if(!batch&&(!match||match[2]&&!reviewUuid.test(match[2])))throw fail(404,'NOT_FOUND','内容复盘接口不存在');
   const kind=batch?'snapshots':match[1],id=match?.[2],list=!batch&&!id&&method==='GET';
-  if(batch&&method!=='PUT'||!batch&&!['GET',...(id?['PUT','PATCH','DELETE']:[])].includes(method))throw fail(404,'NOT_FOUND','内容复盘接口不存在');
+  if(batch&&method!=='PUT'||!batch&&!['GET',...(id?['PUT','PATCH','DELETE']:kind==='articles'?['POST']:[])].includes(method))throw fail(404,'NOT_FOUND','内容复盘接口不存在');
   const filters=validateQuery(url.searchParams,kind,list);
   if(method==='GET')return consistentRead(db,async(store,before)=>{
     await actorFor(store,request,owner,env,origin);
     if(filters.expected!==null&&filters.expected!==before)throw fail(409,'READ_REVISION_CHANGED','数据已更新，请从第一页重新读取');
-    if(id) {const row=await readRow(store,kind,owner,id);if(!row)throw fail(404,'NOT_FOUND','记录不存在');return json(row);}
+    if(id) {
+      const row=await readRow(store,kind,owner,id);if(!row)throw fail(404,'NOT_FOUND','记录不存在');
+      if(kind==='articles') {
+        const data=await accountData(store,owner,row.account);
+        const snapshots=data.snapshots.filter(item=>item.article_id===id).sort((a,b)=>a.snapshot_date.localeCompare(b.snapshot_date)||a.id.localeCompare(b.id));
+        return json({...enrichArticle(row,data.snapshots,data.playbooks,data.reports,data.articles),snapshots});
+      }
+      return json(publicView(kind,row));
+    }
+    if(kind==='articles') {
+      const rows=await store.all('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=?'+filters.where.map(sql=>' AND '+sql).join('')+' ORDER BY '+reviewSpecs[kind].order,owner,...filters.args);
+      const data=await accountData(store,owner,url.searchParams.has('account')?reviewSpecs.articles.fields.account(url.searchParams.get('account')):null);
+      const enriched=new Map(enrichArticles(data,{}).map(row=>[row.id,row]));
+      const all=rows.map(row=>enriched.get(row.id)).filter(row=>!filters.verdict||(filters.verdict==='pending'?row.verdict===null:row.verdict===filters.verdict));
+      const items=all.slice(filters.offset,filters.offset+100);
+      return json({items,has_more:all.length>filters.offset+100,read_revision:before,...(filters.page!==null?{page:filters.page,page_size:100,total:all.length}:{})});
+    }
     const rows=await store.all('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=?'+filters.where.map(sql=>' AND '+sql).join('')+' ORDER BY '+reviewSpecs[kind].order+' LIMIT 101 OFFSET ?',owner,...filters.args,filters.offset);
-    const items=rows.slice(0,100).map(row=>reviewView(kind,row));
+    const items=rows.slice(0,100).map(row=>publicView(kind,reviewView(kind,row)));
     return json({items,has_more:rows.length>100,read_revision:before});
   },initialRevision);
   const actor=await actorFor(storeFor(db),request,owner,env,origin,true);writeLimit(actor,owner);
   const input=await bodyFor(request);
+  if(method==='POST') {
+    const {id,...values}=input;
+    if(!reviewUuid.test(id||''))throw fail(400,'VALIDATION_ERROR','Article POST requires stable UUID id');
+    return put(db,request,'articles',owner,id,values,env,origin);
+  }
   if(batch) {
     if(Object.keys(input).join(',')!=='items'||!Array.isArray(input.items)||input.items.length<1||input.items.length>200)throw fail(400,'VALIDATION_ERROR','批量快照需要 1–200 条 items');
     const items=[];

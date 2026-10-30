@@ -159,16 +159,20 @@ export const matrixReviewArticles=sqliteTable('matrix_review_articles',{
   platform_article_id:text('platform_article_id'),title:text('title').notNull(),url:text('url'),published_at:text('published_at'),
   topic_category:text('topic_category'),title_pattern:text('title_pattern'),sample_title:text('sample_title'),sample_url:text('sample_url'),
   image_count:integer('image_count'),source_chat:text('source_chat'),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
+  playbook_version_used:integer('playbook_version_used'),applied_rule_ids_json:text('applied_rule_ids_json'),
 },t=>[
   primaryKey({columns:[t.user_id,t.id]}),
   uniqueIndex('matrix_review_article_platform_id').on(t.user_id,t.account,t.platform_article_id),
   index('matrix_review_article_account_date').on(t.user_id,t.account,t.published_at,t.id),
   check('matrix_review_article_platform',sql`${t.platform} = 'toutiao'`),
   check('matrix_review_article_image_count',sql`${t.image_count} IS NULL OR (typeof(${t.image_count})='integer' AND ${t.image_count} BETWEEN 0 AND 9007199254740991)`),
+  check('matrix_review_article_playbook_version_used',sql`${t.playbook_version_used} IS NULL OR (typeof(${t.playbook_version_used})='integer' AND ${t.playbook_version_used} BETWEEN 1 AND 9007199254740991)`),
+  check('matrix_review_article_applied_rule_ids_json',sql`${t.applied_rule_ids_json} IS NULL OR CASE WHEN json_valid(${t.applied_rule_ids_json}) THEN json_type(${t.applied_rule_ids_json})='array' ELSE 0 END`),
 ]);
 export const matrixReviewSnapshots=sqliteTable('matrix_review_snapshots',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
   article_id:text('article_id').notNull(),snapshot_date:text('snapshot_date').notNull(),
+  age_hours:integer('age_hours'),source:text('source'),
   impressions:integer('impressions'),fan_impressions:integer('fan_impressions'),
   reads:integer('reads'),fan_reads:integer('fan_reads'),
   ctr:real('ctr'),completion_rate:real('completion_rate'),avg_read_seconds:real('avg_read_seconds'),
@@ -184,6 +188,8 @@ export const matrixReviewSnapshots=sqliteTable('matrix_review_snapshots',{
   check('matrix_review_snapshot_traffic_json',sql`${t.traffic_sources_json} IS NULL OR json_valid(${t.traffic_sources_json})`),
   check('matrix_review_snapshot_curve_json',sql`${t.completion_curve_json} IS NULL OR json_valid(${t.completion_curve_json})`),
   check('matrix_review_snapshot_audience_json',sql`${t.audience_json} IS NULL OR json_valid(${t.audience_json})`),
+  check('matrix_review_snapshot_age_hours',sql`${t.age_hours} IS NULL OR (typeof(${t.age_hours})='integer' AND ${t.age_hours} BETWEEN 0 AND 9007199254740991)`),
+  check('matrix_review_snapshot_source',sql`${t.source} IS NULL OR ${t.source} IN ('toutiao_excel','manual')`),
 ]);
 export const matrixReviewReports=sqliteTable('matrix_review_reports',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),

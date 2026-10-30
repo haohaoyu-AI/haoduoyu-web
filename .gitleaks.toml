@@ -64,3 +64,16 @@ regexes = [
   '''^18da0fd7785f03671e1514450c670b53b5826ad9c8ce16f662d763698293e718$''',
   '''^1422924afc2c9f28d29d90e10642db7fb018ec8626649440b0bb49e5b51deabf$''',
 ]
+
+# User-approved: exact public documentation/token checksums for review3.
+[[allowlists]]
+description = "Approved exact review3 public file checksums"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^\.ci/public-assets\.json$''']
+regexes = [
+  '''^7dd4cd719991e879b91f74bdcc5b47775ccd3c8e110c9ca5148124a16dd3eb35$''',
+  '''^39da52db360bf66804c1d15b9f45a57a1aedcb01fd5ebf82cb340867c229c4b9$''',
+  '''^f446e0e207af533cf64c7e12739c386d6121c2ef7df738318794fad9f6cf999f$''',
+]

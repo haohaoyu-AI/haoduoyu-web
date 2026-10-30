@@ -1,6 +1,6 @@
 # 内容复盘公开 API
 
-内容复盘使用独立的 `/api/v1/review` 命名空间；一期入口为 `?page=review&account=V字`，页面固定展示 V字 / 头条。API 的 account 缺省为 V字，也接受其他合法账号字符串；platform 仅允许 toutiao。本模块存储从零开始，旧图文 API、后台旧文章/观察/每日指标均不迁入。页面提供读取展示，写入由 API 调用者完成，没有页面编辑表单。业务结论、快照指标和法典正文留给 Grok BOT 填写，本次不初始化示例业务数据。
+内容复盘使用独立的 `/api/v1/review` 命名空间；入口为 `?page=review&account=V字`，提供总览（overview）、文章库（articles）、写作法典（playbook）三个视图，展示 V字 / 头条。API 的 account 缺省为 V字，也接受其他合法账号字符串；platform 仅允许 toutiao。复盘资源与旧图文 API、后台旧文章/观察/每日指标独立，不自动迁入。页面提供读取展示，写入由 API 调用者完成，没有页面编辑表单。业务结论、快照指标和法典正文留给 Grok BOT 填写，本次不初始化示例业务数据。
 
 ## 公开访问与边界
 
@@ -8,12 +8,14 @@
 
 公开写入要求 Origin 与站点源完全一致、`X-Public-Business: 1`、`Content-Type: application/json`；owner 会话写入改用同源 Origin 与 X-CSRF-Token。每个 JSON 请求最多256KiB。公开写入按 owner 和复盘模块在每个进程内限流60次/分钟、2000次/UTC日，含拒绝请求和重试，不能当作全局计数。批量请求也受相同入口约束，每个HTTP写请求计1次，batch内最多200项仍计1次。所有例子只是文档，本次未对生产或其他服务发起请求。
 
-## 全部21个操作
+## 操作目录
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| GET | /api/v1/review/articles | 列表；固定100条及has_more/read_revision |
-| GET | /api/v1/review/articles/{uuid} | 当前单项及content_hash |
+| GET | /api/v1/review/overview | 总览、周比较与7/30日趋势 |
+| POST | /api/v1/review/articles | 请求体携带稳定UUID id；创建或相同重放 |
+| GET | /api/v1/review/articles | 列表；verdict/page筛选及原offset/read_revision |
+| GET | /api/v1/review/articles/{uuid} | 当前文章、snapshots、applied_rules与24h分析；含content_hash |
 | PUT | /api/v1/review/articles/{uuid} | 创建201；相同重放200；不同内容409 |
 | PATCH | /api/v1/review/articles/{uuid} | 当前expected_hash及至少一个可写字段 |
 | DELETE | /api/v1/review/articles/{uuid} | expected_hash + save_id；永久删除 |
@@ -32,9 +34,11 @@
 | PUT | /api/v1/review/playbooks/{uuid} | 创建201；相同重放200；不同内容409 |
 | PATCH | /api/v1/review/playbooks/{uuid} | 当前expected_hash及至少一个可写字段 |
 | DELETE | /api/v1/review/playbooks/{uuid} | expected_hash + save_id；永久删除 |
+| PUT | /api/v1/review/playbooks/{version} | 数字版本别名；请求体必须有稳定UUID id |
+| PATCH | /api/v1/review/rules/{rule_id} | 指定账号/法典内修改规则，带expected_hash/save_id |
 | PUT | /api/v1/review/snapshots:batch | 1–200条；逐条UUID与独立结果 |
 
-UUID 均为小写 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`。PUT 单项的 id 来自路径，请求体不放 id；快照 batch 的每项必须包含 id。单项GET返回 `{"data":{...实体字段,"content_hash":"64位小写SHA-256"}}`。成功及错误响应有 X-Request-Id，错误顶层 request_id 可用于排查。
+UUID 均为小写 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`。原有UUID PUT 单项的 id 来自路径，请求体不放 id；新增 POST articles 与数字版本 PUT playbooks 的请求体必须包含事先生成并固定的 id；快照 batch 的每项也必须包含 id。单项GET返回 `{"data":{...实体字段,"content_hash":"64位小写SHA-256"}}`。成功及错误响应有 X-Request-Id，错误顶层 request_id 可用于排查。
 
 ## 日期与北京时间
 
@@ -61,6 +65,8 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
 | sample_title | string \| null | 默认null；2000字节 |
 | image_count | integer \| null | 默认null；非负安全整数 |
 | source_chat | string \| null | 默认null；4096字节，仅记录来源，不证明身份 |
+| playbook_version_used | positive integer \| null | 默认null；实际采用的法典版本，不自动套用最新版本 |
+| applied_rule_ids | string[] \| null | 默认null；规则ID数组，元素非空、≤120 UTF-8字节且不重复；[]表示明确未用规则，null表示未记录 |
 
 读取额外返回 id、created_at、updated_at、content_hash。非null的 (account, platform_article_id) 唯一；没有平台文章ID时保留null。账号名称不是旧图文 account_id。
 
@@ -79,7 +85,9 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
   "sample_title": null,
   "sample_url": null,
   "image_count": null,
-  "source_chat": null
+  "source_chat": null,
+  "playbook_version_used": null,
+  "applied_rule_ids": null
 }
 ```
 
@@ -89,6 +97,8 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
 | --- | --- | --- |
 | article_id | lowercase UUID | 必填；指向新复盘文章 |
 | snapshot_date | YYYY-MM-DD | 必填；与article_id组合唯一 |
+| age_hours | integer \| null | 默认null；实际采集时距发布的非负整数小时，不从日期猜测 |
+| source | toutiao_excel / manual / null | 默认null；真实来源，未知保留null |
 | impressions / fan_impressions / reads / fan_reads | integer \| null | 展现、粉丝展现、阅读、粉丝阅读；默认null |
 | likes / comments / reposts / shares / favorites | integer \| null | 赞、评、转发、分享、收藏；默认null，各项独立 |
 | ctr / completion_rate | number \| null | 点击率、完读率；百分数0–100，默认null |
@@ -103,6 +113,8 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
 {
   "article_id": "123e4567-e89b-42d3-a456-426614174000",
   "snapshot_date": "2026-10-30",
+  "age_hours": null,
+  "source": null,
   "impressions": null,
   "fan_impressions": null,
   "reads": null,
@@ -122,16 +134,16 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
 }
 ```
 
-### reports — 日/三日/周复盘
+### reports — 日/周复盘与历史三日记录
 
 | 字段 | 类型 | 约束与缺省 |
 | --- | --- | --- |
 | account | string | 默认V字；120字节 |
-| period_type | daily / three_day / weekly | 必填 |
+| period_type | daily / weekly | 新建必填；禁止新建three_day，历史three_day仍可读取 |
 | period_start / period_end | YYYY-MM-DD | 均必填，start ≤ end；不自动推断天数 |
 | verdicts | object | 默认{}；文章UUID → {verdict:"爆"\|"中"\|"扑",reason:非空文本}，reason≤8192字节 |
 | findings | object | 默认{"verified":[],"overturned":[]}；只允许这两个数组，每项含rule_id（≤120字节）且可有合法证据JSON |
-| summary_md | string | 默认空字符串，非空最多128KiB |
+| summary_md | string | 默认空字符串，非空最多128KiB；daily最多两句话 |
 | metrics | object | 默认{}，可保存本次复盘指标JSON |
 | playbook_version | positive integer \| null | 默认null；正安全整数，版本号不是UUID |
 
@@ -162,9 +174,19 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
 | version | positive integer | 必填；与account组合唯一 |
 | published_on | YYYY-MM-DD | 必填 |
 | content_md / changelog_md | string | 默认空字符串，非空各最多128KiB |
-| rules | array | 默认[]；每项恰好rule_id、section、text；rule_id≤120字节且数组内唯一，text≤16KiB |
+| rules | array | 默认[]；每项必需rule_id、section、text；rule_id≤120字节且数组内唯一，text≤16KiB；附加字段见下表 |
 | rules[].section | enum | keep_topic / drop_topic / title / body / audience / checklist |
 | sent_to_gemini_at | date / ISO timestamp \| null | 默认null；具体时间带+08:00录入、存储UTC、显示北京时间；仅记录，不触发发送 |
+
+规则附加字段均可省略；旧规则读取按candidate显示，不写回存量JSON，也不凭空补造证据：
+
+| 字段 | 类型 | 约束 |
+| --- | --- | --- |
+| status | candidate / trial / kept / dropped / hold | 未记录状态的旧规则读取为candidate |
+| check | "manual" / {type:"manual"} / {type:"regex",value:string} | regex仅是元数据，不编译或执行；value≤2000字节 |
+| support_ids / counter_ids | UUID[] | 支持/反例文章；小写UUID，不重复 |
+| evidence | object | 恰好metric、with_median、without_median、n_with、n_without；metric非空≤120字节，中位数非负或null，样本数非负整数 |
+| trials | integer | 非负安全整数；记录真实试验次数 |
 
 (account, version) 唯一。读取额外返回id、created_at、content_hash。规则示意结构为 `{"rule_id":"title-001","section":"title","text":"由调用者填写规则"}`；不自动发布或向 Gemini 发送内容。
 
@@ -182,25 +204,62 @@ JSON 字段必须直接提交对象/数组，不接受字符串化 JSON；单字
 
 ## 列表、筛选与一致读取
 
-列表统一返回 `{"data":{"items":[],"has_more":false,"read_revision":123}}`，每条含content_hash。offset缺省0，每页固定最多100条，has_more为true时offset增加100；offset只接受0或无前导零的正十进制整数，最大9007199254740991。不得用结果不足100条代替has_more判断。
+列表基础形状为 `{"data":{"items":[],"has_more":false,"read_revision":123}}`，每条含content_hash。offset缺省0，每页固定最多100条，has_more为true时offset增加100；offset只接受0或无前导零的正十进制整数，最大9007199254740991。不得用结果不足100条代替has_more判断。
 
 | 资源 | 支持的额外筛选 | 排序 |
 | --- | --- | --- |
-| articles | account, from, to | published_at DESC, created_at DESC, id DESC |
+| articles | account, from, to, verdict, page | published_at DESC, created_at DESC, id DESC |
 | snapshots | account, article_id | snapshot_date DESC, id DESC |
 | reports | account, period_type, from, to | period_start DESC, created_at DESC, id DESC |
 | playbooks | account | version DESC, created_at DESC, id DESC |
 
 from/to为含边界的有效日期，articles在数据库分页前按published_at转换后的Asia/Shanghai日期筛选，reports按纯日期period_start筛选；两者同传时from≤to。account精确匹配，省略则不过滤。快照account筛选通过关联的新复盘文章生效，可与article_id组合。所有列表可传read_revision（非负安全整数），未知/重复参数被拒绝。
 
-首次读取保存read_revision，后续每页带回相同修订号；若全局数据变更则409 READ_REVISION_CHANGED，重新从offset=0开始。它用于发现跨页竞争，不提供历史时点快照；不带它的offset分页可能在并发写入时移位。hash只代表当前实体，对象键稳定排序、业务数组顺序保留，客户端使用服务端返回值。
+文章库另支持`verdict=爆|中|扑|pending`，pending为verdict:null；先筛选再分页。`page`为从1开始的正安全整数，每页100条，不可与offset同传；传page时data额外返回page、page_size:100、total（筛选后总数），原offset客户端无须改动。
+
+首次读取保存read_revision，后续每页带回相同修订号；若全局数据变更则409 READ_REVISION_CHANGED，重新从offset=0开始。它用于发现跨页竞争，不提供历史时点快照；不带它的offset分页可能在并发写入时移位。hash只代表持久化实体，对象键稳定排序、业务数组顺序保留，客户端使用服务端返回值。新nullable字段为null时不改变旧hash；展示用candidate默认状态和派生分析不进入存量hash，不能按响应自行重算。
+
+## 新增读取与BOT写入契约
+
+`GET /api/v1/review/overview?account=V%E5%AD%97&range=7d&week=this`：account必填，range为7d/30d（默认7d），week为this/last（默认this），拒绝未知/重复参数。data含account、range、week、today、start/end、previousStart/previousEnd、rows/previousRows、current/previous、changes、trend、alerts、summary/conclusion及read_revision。rows为所选发布周的派生文章；趋势按range返回截至上海今天的7/30个发布日，与所选周独立。current/previous给出发布数、爆/扑数、可判定数与率、CTR中位数及有效样本数（miss_rate同flop_rate、ctr_median同median_ctr）。summary为计算统计句；conclusion仅取同账号、weekly且起止日期与所选周完全匹配的周报summary_md第一句，无报告时明确提示本周/上周尚未生成周报。各指标无有效值为null，计数0仍为0。cards为current的薄映射，含count、hit_rate、miss_rate、ctr_median，以及四个平铺的`<field>_prev_delta`和`each_prev_delta:{count,hit_rate,miss_rate,ctr_median}`。两种delta均等于changes[field].delta（本周值减比较周值）；发布数差为计数，率和CTR差为百分点，无可比较样本为null。
+
+`GET /articles/{uuid}`的data直接返回原文章字段、sample24h、reads_24h、ctr_24h、completion_24h、verdict、reliable/verdict_reliable、verdict_basis、applied_rules及snapshots；不是额外包一层article。snapshots按snapshot_date、id升序，包含该文章全部快照；sample24h可以为null。文章列表同样返回派生分析，但不附全部snapshots。content_hash仍是原文章实体的hash，不包含这些分析或关联资源。
+
+`POST /articles`只接受`{id:"稳定小写UUID",...文章创建字段}`。首次创建前生成并保存id，重试保持原id和完整内容；201创建、200相同重放、409不同内容，不能让服务端随机生成id。原`PUT /articles/{uuid}`继续有效，体内不传id。
+
+`PUT /playbooks/{数字版本}`接受`{id:"稳定小写UUID",version:与路径相同的数字,published_on:"YYYY-MM-DD",...法典创建字段}`。id和version均必需；仍按账号+版本唯一，遵循原创建重放和墓碑规则。UUID版PUT继续有效。OpenAPI用同一个`/playbooks/{uuid}`路径模板说明UUID和数字别名，避免重复的等价路径模板。
+
+`PATCH /rules/{URL编码rule_id}`的JSON体为平铺结构：account、playbook_id、expected_hash、save_id全部必填，再附至少一个status/evidence/support_ids/counter_ids/trials。只能修改这五个字段；rule_id、section、text、check须通过法典资源修改。account和playbook_id共同确定法典，expected_hash取该法典最新GET的content_hash，save_id为本次操作的小写UUID。返回完整法典data（旧规则可带展示默认candidate），不只是被改规则。规则ID不跨版本或账号模糊匹配。
+
+```json
+{
+  "account": "V字",
+  "playbook_id": "123e4567-e89b-42d3-a456-426614174003",
+  "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "save_id": "123e4567-e89b-42d3-a456-426614174004",
+  "status": "trial",
+  "trials": 1
+}
+```
+
+规则PATCH有save_id收据：同一身份以完全相同的目标、账号、法典、旧hash及规范化修改重放，返回原成功结果，即使之后法典又被修改；save_id挪用于不同请求返回409 IDEMPOTENCY_CONFLICT。第一次操作hash过期返回409 VERSION_CONFLICT，先重读解决冲突，不能仅替换hash自动重试。该规则收据不改变原资源PATCH无收据的约定。新three_day报告返回400；历史three_day可继续GET、筛选及按原类型PATCH。daily新建或修改的正文最多两句；历史长摘要可保留并修改其他字段。按中文。！？、英文!?及后接空白/结尾的英文句点分句，小数点不分句。
+
+## 24h样本、判定与周统计
+
+`reads_24h`、`ctr_24h`、`completion_24h`来自同一个快照：仅从已记录整数`age_hours`在12–72（含边界）的快照中取距24小时最近的一条。距离相同依次取较小age_hours、较早snapshot_date、字典序较小id。不按各指标各取一条，不用snapshot_date减published_at猜年龄。无合格快照或选中快照的某项未知，该指标为null，真实0仍为0；历史22份缺年龄样本不能冒充24h样本。
+
+每个账号取最近30篇有有效reads_24h的文章作基线，按上海发布时间降序，未定日期在后，同日具体时间排在仅日期之前，完全相同按id升序。至少10篇时采用nearest-rank：升序第ceil(n×0.8)和ceil(n×0.3)项为q80/q30；reads_24h严格大于q80为爆，≤q30且<q80为扑，其余为中。边界并列不拆分、不凑固定比例，全相等均为中。不足10篇时暂用≥1000爆、≤100扑、其余中，并返回reliable:false；无有效reads_24h则verdict:null、reliable:false。verdict_basis返回方法、样本ID及阈值，供BOT核验。
+
+周范围按Asia/Shanghai周一至周日，this为本周，last为上周；与所选周的上一完整日历周比较。本周可包含尚未结束的日期，不伪称完整同比。发布数按published_at归日，不能用采集日、created_at或未知发布时间补成“当天发布”。爆/扑率分母为本发布周内有有效reads_24h且有判定的文章，包含临时固定阈值判定；无可判定项时率为null。CTR等聚合使用有效值中位数；变化为百分点（percentage_points），不是相对百分比。趋势逐发布日返回有效样本数，缺失指标为null。缺24h样本与超过2个上海日历日未采集分别提示，均不填造指标。
+
+文章的applied_rules按同账号及playbook_version_used匹配法典。applied_rule_ids为数组时只返回列出的规则；为null时展示该版本全部规则作为版本上下文，不证明逐条实际执行；未匹配版本返回空数组。
 
 ## 创建幂等与修改并发
 
 1. 首次创建前生成一次资源UUID并保存规范化完整请求。首次PUT返回201；同UUID与相同完整字段（含缺省值）返回200；不同内容409 IDEMPOTENCY_CONFLICT。PUT不是更新，不能用旧创建体覆盖PATCH后的新状态。
 2. 业务键重复返回409 REVIEW_UNIQUE_CONFLICT，包含 `error.existing_id`；先GET该UUID核对，不能换UUID盲目重试。同UUID错误和业务键错误不是同一概念。
 3. 修改前GET当前项，PATCH体包含expected_hash及至少一个可写字段。例如 `{"expected_hash":"从GET取得的64位哈希","image_count":0}`。hash过期返回409 VERSION_CONFLICT，先重读并解决内容冲突。未发生实际变化的PATCH返回当前项且哈希不变。
-4. PATCH不是save_id收据机制；如果写入结果未知，先GET核对。若PATCH确已改变实体，原旧hash重试会冲突，不能把冲突当作未保存或换hash自动覆盖。
+4. 原资源PATCH不是save_id收据机制；如果写入结果未知，先GET核对。若PATCH确已改变实体，原旧hash重试会冲突，不能把冲突当作未保存或换hash自动覆盖。
 
 ## 永久删除与防复活
 
@@ -230,11 +289,12 @@ from/to为含边界的有效日期，articles在数据库分页前按published_a
 | 401 | UNAUTHORIZED | 未开启公开模式且无有效所有者会话，或显式凭证无效 |
 | 403 | FORBIDDEN / CSRF | 无权身份、Bearer、缺失/错误Origin或公开头，或会话CSRF失败 |
 | 404 | NOT_FOUND / ARTICLE_NOT_FOUND | 接口、UUID、关联文章或活动记录不存在 |
-| 409 | IDEMPOTENCY_CONFLICT | 同UUID不同创建内容，或save_id用于不同删除请求 |
+| 409 | IDEMPOTENCY_CONFLICT | 同UUID不同创建内容，或save_id用于不同删除/规则修改请求 |
 | 409 | VERSION_CONFLICT | expected_hash不是当前版本；先GET核对再决定 |
 | 409 | READ_REVISION_CHANGED | 列表读取期间全局修订改变；从offset=0重读 |
 | 409 | REVIEW_UNIQUE_CONFLICT | 业务键重复；error.existing_id给出现有UUID |
 | 409 | REVIEW_DELETED | UUID已有永久删除墓碑，不能重放PUT复活 |
+| 409 | REVIEW_RULE_AMBIGUOUS | 指定法典内规则ID不唯一；核对法典 |
 | 409 | ARTICLE_HAS_SNAPSHOTS | 删除文章时有快照但未显式cascade_snapshots:true |
 | 413 | BODY_TOO_LARGE | 整个JSON请求超过256KiB |
 | 415 | CONTENT_TYPE | 请求不是application/json |

@@ -309,3 +309,32 @@
   --size-sidebar-mobile:272px;
 
 }
+
+/* Content review: semantic aliases keep its read-only status vocabulary local. */
+:root {
+  --review-verdict-hit:var(--color-warning);
+  --review-verdict-hit-bg:var(--color-warning-muted);
+  --review-verdict-middle:var(--color-platform-other);
+  --review-verdict-middle-bg:var(--color-platform-other-muted);
+  --review-verdict-flop:var(--color-platform-zhihu);
+  --review-verdict-flop-bg:var(--color-platform-zhihu-muted);
+  --review-chart-reads:var(--color-metric-peach);
+  --review-chart-ctr:var(--color-metric-teal);
+  --review-chart-hover:transparent;
+  --review-status-candidate:var(--color-platform-other);
+  --review-status-candidate-bg:var(--color-platform-other-muted);
+  --review-status-trial:var(--color-platform-zhihu);
+  --review-status-trial-bg:var(--color-platform-zhihu-muted);
+  --review-status-kept:var(--color-success);
+  --review-status-kept-bg:var(--color-success-muted);
+  --review-status-dropped:var(--color-danger);
+  --review-status-dropped-bg:var(--color-danger-muted);
+  --review-status-hold:var(--color-warning);
+  --review-status-hold-bg:var(--color-warning-muted);
+  --review-line-width:1px;
+  --review-focus-width:2px;
+  --review-chart-width:2.5px;
+  --review-filter-min:148px;
+  --review-drawer-width:640px;
+  --review-drawer-z:80;
+}
