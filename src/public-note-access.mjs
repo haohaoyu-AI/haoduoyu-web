@@ -40,7 +40,7 @@ export function limitNoteWrites(owner,module,time=Date.now()) {
   let bucket=buckets.get(key);
   if(!bucket||bucket.day!==day)bucket={day,minute,count:0,daily:0};
   if(bucket.minute!==minute){bucket.minute=minute;bucket.count=0;}
-  if(bucket.count>=60||bucket.daily>=2000)throw fail(429,module==='notes'?'NOTES_RATE_LIMIT':'MEMOS_RATE_LIMIT','保存过于频繁，请保留草稿后稍后再试');
+  if(bucket.count>=60||bucket.daily>=2000)throw fail(429,module==='notes'?'NOTES_RATE_LIMIT':module==='ai-reports'?'AI_REPORTS_RATE_LIMIT':'MEMOS_RATE_LIMIT','保存过于频繁，请保留草稿后稍后再试');
   bucket.count++;bucket.daily++;buckets.delete(key);buckets.set(key,bucket);
   while(buckets.size>64)buckets.delete(buckets.keys().next().value);
 }

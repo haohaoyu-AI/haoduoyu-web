@@ -5,7 +5,8 @@ export function renderAiReports() {
     <form id="ai-report-form" class="card" aria-label="填写 AI 汇报">
       <p class="muted">记录过去 24 小时实际完成的工作，并填写署名。</p>
       <label for="ai-report-author">署名</label>
-      <input class="input" id="ai-report-author" name="author" maxlength="120" required autocomplete="off">
+      <input class="input" id="ai-report-author" name="author" maxlength="120" required autocomplete="off" aria-describedby="ai-report-author-hint">
+      <p class="muted" id="ai-report-author-hint">署名由填写者自行提供，不代表身份已获认证。</p>
       <div class="field-spaced"><label for="ai-report-content">过去 24 小时的实际工作</label>
       <textarea class="input" id="ai-report-content" name="content" rows="6" required></textarea></div>
       <p id="ai-report-message" class="form-message" role="alert" hidden></p>

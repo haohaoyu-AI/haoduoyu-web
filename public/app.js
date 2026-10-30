@@ -5507,7 +5507,7 @@ function profileLink(account) {
 }
 function renderAccounts() {
   const accounts = state.accounts;
-  return `<section class="card">${accounts.length ? `<div class="table-scroll"><table class="data-table accounts-table"><thead><tr><th>账号</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${accounts.map((a) => `<tr><td><span class="account-title">${platformLogo(
+  return `<section class="card"><div class="section-heading"><div><h2>运营账号</h2><p class="hint">只需填写公开主页链接即可添加账号。</p></div><button type="button" class="btn primary" data-action="new-account">${icon("plus")}添加账号</button></div>${accounts.length ? `<div class="table-scroll"><table class="data-table accounts-table"><thead><tr><th>账号</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${accounts.map((a) => `<tr><td><span class="account-title">${platformLogo(
     a.platform
   )}${e(a.name)}</span><div class="cell-sub">${e(platforms[a.platform] || a.platform)}</div>${profileLink(a)}</td><td><span class="badge ${a.active ? "up" : ""}">${a.active ? "使用中" : "已停用"}</span></td><td>${e(time(a.created_at))}</td><td><button class="btn small" data-action="edit-account" data-id="${e(a.id)}">${icon("edit", 13)}编辑</button></td></tr>`).join("")}</tbody></table></div>` : empty("暂无账号")}</section>`;
 }
@@ -5596,7 +5596,7 @@ function renderAudit(audit, keys = []) {
 function accountModal(id = "") {
   const a = state.accounts.find((a2) => a2.id === id) || { platform: "", name: "", active: true };
   const profile = profileForAccount(id);
-  const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" placeholder="粘贴今日头条、知乎或微信公众号主页" ${id ? "" : "required"}><span class="hint">只校验和保存主页地址，不自动访问平台。知乎的动态、回答等子页面会规范化为对应主页；后台统计仍需另行录入。</span><button type="button" class="btn small" data-action="test-profile">测试链接格式</button><div id="profile-test-result" class="hint" role="status" aria-live="polite"></div></div>`;
+  const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" placeholder="粘贴今日头条、知乎或微信公众号主页" ${id ? "" : "required"}><span class="hint">只校验和保存主页地址，不自动访问平台。支持知乎 /people/ 或 /org/ 主页、今日头条用户主页，以及微信公众平台 profile_ext?action=home&amp;__biz=… 主页；文章链接不可用。知乎的动态、回答等子页面会规范化为对应主页；后台统计仍需另行录入。</span><button type="button" class="btn small" data-action="test-profile">测试链接格式</button><div id="profile-test-result" class="hint" role="status" aria-live="polite"></div></div>`;
   openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid">${homepage}<div class="form-field"><label for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" disabled>${Object.entries(
     id ? platforms : { "": "根据主页自动识别", ...platforms }
   ).map(([key, label3]) => `<option value="${key}" ${a.platform === key ? "selected" : ""}>${label3}</option>`).join(
@@ -10625,7 +10625,7 @@ function notesNavigation(mobile = false) {
   return navigationLink({ id: "notes", icon: "edit", label: "碎碎念" }, mobile);
 }
 function sidebarNavigation() {
-  return mediaNavigation() + nav.filter((item) => !mediaPages.has(item.id) && item.id !== "settings" && !(item.id === "ai-reports" && state.me?.publicBusiness)).map((item) => item.id === "notes" ? notesNavigation() : navigationLink(item)).join("");
+  return mediaNavigation() + nav.filter((item) => !mediaPages.has(item.id) && item.id !== "settings").map((item) => item.id === "notes" ? notesNavigation() : navigationLink(item)).join("");
 }
 function settingsNavigation() {
   return navigationLink(nav.find((item) => item.id === "settings"));
@@ -10636,7 +10636,7 @@ function mobileNavigation() {
 }
 function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
-${state.me?.publicBusiness ? "" : navigationLink(nav.find((item) => item.id === "ai-reports"))}${settingsNavigation()}${state.me?.publicBusiness ? "" : `<button class="btn text" data-action="logout">${icon("logout", 18)}退出登录</button>`}</nav>`;
+${navigationLink(nav.find((item) => item.id === "ai-reports"))}${settingsNavigation()}${state.me?.publicBusiness ? "" : `<button class="btn text" data-action="logout">${icon("logout", 18)}退出登录</button>`}</nav>`;
 }
 function syncWorkbenchNavigation() {
   const active5 = mediaPages.has(state.page);
@@ -10886,7 +10886,8 @@ function renderAiReports() {
     <form id="ai-report-form" class="card" aria-label="填写 AI 汇报">
       <p class="muted">记录过去 24 小时实际完成的工作，并填写署名。</p>
       <label for="ai-report-author">署名</label>
-      <input class="input" id="ai-report-author" name="author" maxlength="120" required autocomplete="off">
+      <input class="input" id="ai-report-author" name="author" maxlength="120" required autocomplete="off" aria-describedby="ai-report-author-hint">
+      <p class="muted" id="ai-report-author-hint">署名由填写者自行提供，不代表身份已获认证。</p>
       <div class="field-spaced"><label for="ai-report-content">过去 24 小时的实际工作</label>
       <textarea class="input" id="ai-report-content" name="content" rows="6" required></textarea></div>
       <p id="ai-report-message" class="form-message" role="alert" hidden></p>

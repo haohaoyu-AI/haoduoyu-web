@@ -31,7 +31,7 @@ export function notesNavigation(mobile = false) {
   return navigationLink({id:'notes',icon:'edit',label:'碎碎念'}, mobile);
 }
 export function sidebarNavigation() {
-  return mediaNavigation() + nav.filter(item => !mediaPages.has(item.id) && item.id !== 'settings' && !(item.id === 'ai-reports' && state.me?.publicBusiness))
+  return mediaNavigation() + nav.filter(item => !mediaPages.has(item.id) && item.id !== 'settings')
     .map(item => item.id === 'notes' ? notesNavigation() : navigationLink(item)).join('');
 }
 export function settingsNavigation() { return navigationLink(nav.find(item => item.id === 'settings')); }
@@ -43,7 +43,7 @@ export function mobileNavigation() {
 }
 export function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
-${state.me?.publicBusiness ? '' : navigationLink(nav.find(item => item.id === 'ai-reports'))}${settingsNavigation()}${state.me?.publicBusiness ? '' : `<button class="btn text" data-action="logout">${icon('logout',18)}退出登录</button>`}</nav>`;
+${navigationLink(nav.find(item => item.id === 'ai-reports'))}${settingsNavigation()}${state.me?.publicBusiness ? '' : `<button class="btn text" data-action="logout">${icon('logout',18)}退出登录</button>`}</nav>`;
 }
 export function syncWorkbenchNavigation() {
   const active = mediaPages.has(state.page);

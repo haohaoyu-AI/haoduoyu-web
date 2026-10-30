@@ -14,6 +14,7 @@ function fixture(t,{bootstrap=true}={}) {
  return {db,owner,token,origin:'http://localhost',login:async()=>({cookie:'matrix_session='+token,csrfToken:csrf(token)})};
 }
 import {handleAiReports} from '../src/ai-reports.mjs';
+import {limitNoteWrites} from '../src/public-note-access.mjs';
 import {digest,csrfFor,stable} from '../src/security.mjs';
 import {exportBackup,restoreIntoEmptyDatabase} from '../src/backup.mjs';
 
@@ -67,4 +68,66 @@ test('AI reports require the owner session, persist truthful input, and replay w
   const oldTarget=await fixture(t,{bootstrap:false});
   await restoreIntoEmptyDatabase(oldTarget.db,old,{allowEmptyRestore:true});
   assert.equal((await oldTarget.db.prepare('SELECT count(*) AS n FROM matrix_ai_reports').first()).n,0);
+});
+
+test('public AI reports use the fixed owner, reject supplied invalid credentials, and retain session CSRF',async t=>{
+  const app=fixture(t),session=await app.login(),env={DAILY_NOTES_OWNER_ID:app.owner,PUBLIC_BUSINESS_MODE:'1'};
+  const id=randomUUID(),body={author:'<img src=x onerror=alert(1)>',content:'<script>alert(1)</script> & "quoted"'};
+  async function call(path='',method='GET',data,headers={},settings=env) {
+    const h=new Headers(headers);if(data!==undefined)h.set('Content-Type','application/json');
+    const req=new Request(app.origin+'/api/v1/ai-reports'+path,{method,headers:h,body:data===undefined?undefined:JSON.stringify(data)});
+    try {const response=await handleAiReports(app.db,req,new URL(req.url).pathname.slice('/api/v1'.length),settings,app.origin);return {status:response.status,...await response.json()};}
+    catch(e){if(!e.status)throw e;return {status:e.status,code:e.code};}
+  }
+  const publicHeaders={Origin:app.origin,'X-Public-Business':'1'};
+  assert.equal((await call()).status,200);
+  for(const headers of [{},{Origin:app.origin},{...publicHeaders,Origin:'https://other.invalid'},{...publicHeaders,Origin:'null'},{...publicHeaders,'X-Public-Business':''}])
+    assert.equal((await call('/'+id,'PUT',body,headers)).status,403);
+  for(const headers of [{Authorization:'Bearer invalid'},{Authorization:''},{Cookie:'matrix_session=invalid'},
+    {Cookie:'matrix_session='+randomBytes(32).toString('hex')}]) {
+    assert.equal((await call('','GET',undefined,headers)).status,401);
+    assert.equal((await call('/'+id,'PUT',body,{...publicHeaders,...headers})).status,401);
+  }
+  const foreign=randomUUID(),foreignToken=randomBytes(32).toString('hex'),key='hdy_'+randomBytes(32).toString('hex');
+  await app.db.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) SELECT ?,?,password_hash,created_at FROM matrix_users WHERE id=?').bind(foreign,'foreign',app.owner).run();
+  await app.db.prepare('INSERT INTO matrix_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').bind(digest(foreignToken),foreign,new Date(Date.now()+60000).toISOString()).run();
+  await app.db.prepare('INSERT INTO matrix_api_keys(id,name,token_hash,account_ids_json,permissions_json,created_at) VALUES(?,?,?,?,?,?)').bind(randomUUID(),'key',digest(key),'[]','["read","write"]',new Date().toISOString()).run();
+  for(const headers of [{Cookie:'matrix_session='+foreignToken,'X-CSRF-Token':csrfFor(foreignToken)},{Authorization:'Bearer '+key}]) {
+    assert.equal((await call('','GET',undefined,headers)).status,403);
+    assert.equal((await call('/'+id,'PUT',body,{...publicHeaders,...headers})).status,403);
+  }
+  await app.db.prepare('INSERT INTO matrix_ai_reports(user_id,id,author,content,created_at) VALUES(?,?,?,?,?)').bind(foreign,randomUUID(),'foreign','PRIVATE-CANARY',new Date().toISOString()).run();
+  assert.equal((await call('/'+id,'PUT',body,{...publicHeaders,Cookie:session.cookie,'X-CSRF-Token':'wrong'})).status,403);
+  const created=await call('/'+id,'PUT',body,publicHeaders);
+  assert.equal(created.status,201);assert.equal(created.data.author,body.author);assert.equal(created.data.content,body.content);
+  assert.deepEqual((await call('/'+id,'PUT',body,publicHeaders)).data,created.data);
+  assert.equal((await call('/'+id,'PUT',{...body,content:'changed'},publicHeaders)).status,409);
+  assert.deepEqual((await call()).data.items,[created.data]);
+  assert.equal((await call('','GET',undefined,{}, {...env,PUBLIC_BUSINESS_MODE:'0'})).status,401);
+  assert.equal((await call('/'+randomUUID(),'PUT',body,publicHeaders,{...env,PUBLIC_BUSINESS_MODE:'0'})).status,401);
+  assert.equal((await call('','GET',undefined,{Cookie:session.cookie},{...env,PUBLIC_BUSINESS_MODE:'0'})).status,200);
+  assert.equal((await call('/'+randomUUID(),'PUT',body,{Origin:app.origin,Cookie:session.cookie,'X-CSRF-Token':session.csrfToken},{...env,PUBLIC_BUSINESS_MODE:'0'})).status,201);
+  assert.equal((await call('/'+randomUUID(),'PUT',{author:'ok',content:'x'.repeat(16385)},publicHeaders)).status,400);
+  assert.equal((await call('/'+randomUUID(),'PUT',{author:'ok',content:'bad\u0000text'},publicHeaders)).status,400);
+});
+
+test('AI report write limit is module-specific and local to this process',()=>{
+  const owner=randomUUID();
+  for(let i=0;i<60;i++)limitNoteWrites(owner,'ai-reports',1000);
+  assert.throws(()=>limitNoteWrites(owner,'ai-reports',1000),e=>e.status===429&&e.code==='AI_REPORTS_RATE_LIMIT');
+  limitNoteWrites(owner,'notes',1000);limitNoteWrites(owner,'memos',1000);limitNoteWrites(owner,'ai-reports',61000);
+});
+
+
+test('public report endpoint counts rejected payloads in its write limit',async t=>{
+  const app=fixture(t),env={DAILY_NOTES_OWNER_ID:app.owner,PUBLIC_BUSINESS_MODE:'1'},id=randomUUID();
+  async function attempt() {
+    const request=new Request(app.origin+'/api/v1/ai-reports/'+id,{method:'PUT',headers:{Origin:app.origin,'X-Public-Business':'1','Content-Type':'application/json'},body:JSON.stringify({unexpected:true})});
+    try {await handleAiReports(app.db,request,'/ai-reports/'+id,env,app.origin);assert.fail('unexpected success');} catch(error) {return error;}
+  }
+  for(let i=0;i<60;i++)assert.equal((await attempt()).status,400);
+  const error=await attempt();assert.equal(error.status,429);assert.equal(error.code,'AI_REPORTS_RATE_LIMIT');
+  assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_ai_reports').first()).n,0);
+  const session=await app.login(),ownerRequest=new Request(app.origin+'/api/v1/ai-reports/'+id,{method:'PUT',headers:{Origin:app.origin,Cookie:session.cookie,'X-CSRF-Token':session.csrfToken,'Content-Type':'application/json'},body:JSON.stringify({author:'owner',content:'session remains available'})});
+  assert.equal((await handleAiReports(app.db,ownerRequest,'/ai-reports/'+id,env,app.origin)).status,201);
 });

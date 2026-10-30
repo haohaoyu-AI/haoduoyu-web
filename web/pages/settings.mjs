@@ -20,7 +20,7 @@ function profileLink(account) {
 }
 function renderAccounts() {
   const accounts = state.accounts;
-  return `<section class="card">${accounts.length ? `<div class="table-scroll"><table class="data-table accounts-table"><thead><tr><th>账号\
+  return `<section class="card"><div class="section-heading"><div><h2>运营账号</h2><p class="hint">只需填写公开主页链接即可添加账号。</p></div><button type="button" class="btn primary" data-action="new-account">${icon("plus")}添加账号</button></div>${accounts.length ? `<div class="table-scroll"><table class="data-table accounts-table"><thead><tr><th>账号\
 </th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${accounts.map((a) => `<tr><td><span class="account-title">${platformLogo(
   a.platform)}${e(a.name)}</span><div class="cell-sub">${e(platforms[a.platform] || a.platform)}</div>${profileLink(a)}</td><td><span class="badge ${a.active ?
   "up" : ""}">${a.active ? "使用中" : "已停用"}</span></td><td>${e(time(a.created_at))}</td><td><button class="btn small" \
@@ -101,7 +101,7 @@ function accountModal(id = "") {
   const profile = profileForAccount(id);
   const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" \
 id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" \
-placeholder="粘贴今日头条、知乎或微信公众号主页" ${id ? "" : "required"}><span class="hint">只校验和保存主页地址，不自动访问平台。知乎的动态、回答等子页面会规范化为对应主页；后台统计仍需另行录入。</span><button type="button" class="btn small" data-action="test-profile">测试链接格式</button><div id="profile-test-result" class="hint" role="status" aria-live="polite"></div></div>`;
+placeholder="粘贴今日头条、知乎或微信公众号主页" ${id ? "" : "required"}><span class="hint">只校验和保存主页地址，不自动访问平台。支持知乎 /people/ 或 /org/ 主页、今日头条用户主页，以及微信公众平台 profile_ext?action=home&amp;__biz=… 主页；文章链接不可用。知乎的动态、回答等子页面会规范化为对应主页；后台统计仍需另行录入。</span><button type="button" class="btn small" data-action="test-profile">测试链接格式</button><div id="profile-test-result" class="hint" role="status" aria-live="polite"></div></div>`;
   openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid">${homepage}\
 <div class="form-field"><label \
 for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" disabled>${Object.entries(
