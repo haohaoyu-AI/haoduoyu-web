@@ -38,7 +38,7 @@ UUID 均为小写 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`。PUT 单项的 id 来�
 
 ## 日期与北京时间
 
-文章的 published_at 若为具体时间，所有分组、每日统计、文章库筛选、趋势归日及 API from/to 均先转换为 Asia/Shanghai（北京时间）再取日期，页面的具体时间也以北京时间显示。例如 2026-10-26T20:05:00Z 等于北京 2026-10-27 04:05，归入10月27日。BOT知道具体时间时应录入带 +08:00 的 ISO 时间，例如 2026-10-27T04:05:00+08:00；服务端仍规范存储为 UTC，不改动原业务时间。仅知日期时传严格 YYYY-MM-DD，原样保留，不伪造零点；未知传 null。snapshot_date、period_start、period_end、published_on 是纯日期，不加8小时；sent_to_gemini_at 的具体时间也以北京时间显示。
+文章的 published_at 若为具体时间，所有分组、每日统计、文章库筛选、趋势归日及 API from/to 均先转换为 Asia/Shanghai（北京时间）再取日期，页面的具体时间也以北京时间显示。例如 2026-10-26T20:05:00Z 等于北京 2026-10-27 04:05，归入10月27日。2026-10-27T23:13:00.000Z（北京 2026-10-28 07:13）归入10月28日，不会落在 UTC 的前一日。带偏移的存储值按偏移换算，+08:00 的钟面日期就是北京日期。BOT知道具体时间时应录入带 +08:00 的 ISO 时间，例如 2026-10-27T04:05:00+08:00；服务端仍规范存储为 UTC，不改动原业务时间。仅知日期时传严格 YYYY-MM-DD，原样保留，不伪造零点；未知传 null。snapshot_date、period_start、period_end、published_on 是纯日期，不加8小时；sent_to_gemini_at 的具体时间也以北京时间显示。
 
 ## 字段与 JSON 示例
 

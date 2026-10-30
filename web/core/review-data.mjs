@@ -117,10 +117,12 @@ export function verdictMap(reports = [], { end = "9999-12-31", periodType } = {}
   return result;
 }
 
-/** Article publication cohort, enriched with the latest snapshot as of end. */
-export function articleRows(data = {}, { start = "", end = "9999-12-31", periodType } = {}) {
+/** Article publication cohort, enriched with the latest snapshot as of end.
+ *  A verdict is about the article: the latest explicit 爆/中/扑 on or before
+ *  `end` applies in every view, so a daily report does not have to be copied. */
+export function articleRows(data = {}, { start = "", end = "9999-12-31" } = {}) {
   const snapshots = latestSnapshots(data.snapshots, end);
-  const verdicts = verdictMap(data.reports, { end, periodType });
+  const verdicts = verdictMap(data.reports, { end });
   return list(data.articles).filter(article => {
     const published = day(article.published_at);
     return published && (!start || published >= start) && published <= end;

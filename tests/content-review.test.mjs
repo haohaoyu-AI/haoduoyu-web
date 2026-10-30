@@ -39,6 +39,8 @@ test('review article date filters use Beijing days before pagination and retain 
   seed('last-beijing-second','2026-10-27T15:59:59Z');
   seed('next-beijing-midnight','2026-10-27T16:00:00Z');
   seed('second-real-boundary','2026-10-27T22:09:00Z');
+  seed('beijing-morning','2026-10-27T23:13:00.000Z');
+  seed('beijing-evening-offset','2026-10-28T18:00:00+08:00');
   seed('unknown',null);seed('invalid','unknown');seed('invalid-date','2026-02-30');
   seed('invalid-timestamp','2026-02-30T20:05:00Z');seed('no-offset','2026-10-26T20:05:00');
   // More than a page of newer, out-of-range records proves filtering precedes paging.
@@ -49,9 +51,38 @@ test('review article date filters use Beijing days before pagination and retain 
   assert.deepEqual(selected.data.items.map(row=>row.id).sort(),expected);
   const offset=await app.call(query+'&offset=1');assert.deepEqual(offset.data.items.map(row=>row.id),selected.data.items.slice(1).map(row=>row.id));
   const next=await app.call('articles?account='+encodeURIComponent('V字')+'&from=2026-10-28&to=2026-10-28');
-  assert.deepEqual(next.data.items.map(row=>row.id).sort(),['next-beijing-midnight','second-real-boundary'].map(name=>ids.get(name)).sort());
+  assert.deepEqual(next.data.items.map(row=>row.id).sort(),['next-beijing-midnight','second-real-boundary','beijing-morning','beijing-evening-offset'].map(name=>ids.get(name)).sort());
   const unchanged=app.sql.prepare('SELECT published_at FROM matrix_review_articles WHERE id=?').get(ids.get('same-instant-offset'));
   assert.equal(unchanged.published_at,'2026-10-27T00:00:00+08:00');
+});
+
+test('a full legacy write still round-trips and a 07:13 Beijing instant groups on that day',async t=>{
+  const {call}=fixture(t),article=randomUUID(),snapshot=randomUUID(),report=randomUUID(),book=randomUUID();
+  const articleBody={account:'V字',platform:'toutiao',platform_article_id:null,title:'完整旧载荷',url:'https://example.com/a',
+    published_at:'2026-10-28T07:13:00+08:00',topic_category:'剧评',title_pattern:'追问',sample_title:null,sample_url:null,
+    image_count:null,source_chat:null};
+  const created=await call('articles/'+article,'PUT',articleBody);
+  assert.equal(created.status,201);
+  assert.equal(created.data.published_at,'2026-10-27T23:13:00.000Z');
+  assert.equal(created.data.image_count,null);
+  const snapBody={article_id:article,snapshot_date:'2026-10-28',impressions:null,fan_impressions:null,reads:100,fan_reads:null,
+    ctr:5.5,completion_rate:null,avg_read_seconds:null,likes:null,comments:null,reposts:null,shares:null,favorites:null,revenue:null,
+    traffic_sources:null,completion_curve:null,audience:null};
+  assert.equal((await call('snapshots/'+snapshot,'PUT',snapBody)).status,201);
+  const reportBody={account:'V字',period_type:'daily',period_start:'2026-10-28',period_end:'2026-10-28',
+    verdicts:{[article]:{verdict:'爆',reason:'一句原因'}},findings:{verified:[],overturned:[]},summary_md:'一句结论',metrics:{},playbook_version:null};
+  assert.equal((await call('reports/'+report,'PUT',reportBody)).status,201);
+  const bookBody={account:'V字',version:3,published_on:'2026-10-28',content_md:'',rules:[],changelog_md:'',sent_to_gemini_at:null};
+  assert.equal((await call('playbooks/'+book,'PUT',bookBody)).status,201);
+  const patched=await call('snapshots/'+snapshot,'PATCH',{expected_hash:(await call('snapshots/'+snapshot)).data.content_hash,reads:101});
+  assert.equal(patched.status,200);
+  assert.equal(patched.data.reads,101);
+  assert.equal(patched.data.impressions,null);
+  const day=await call('articles?account='+encodeURIComponent('V字')+'&from=2026-10-28&to=2026-10-28');
+  assert.equal(day.data.items.some(row=>row.id===article),true);
+  const previous=await call('articles?account='+encodeURIComponent('V字')+'&from=2026-10-27&to=2026-10-27');
+  assert.equal(previous.data.items.some(row=>row.id===article),false);
+  assert.equal((await call('articles/'+article,'PUT',articleBody)).status,200);
 });
 
 test('review public access is route-local; supplied credentials and owner-session CSRF stay strict',async t=>{

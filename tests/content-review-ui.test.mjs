@@ -83,6 +83,23 @@ test('article cards, library filters and Gemini delivery show the same Shanghai 
   assert.doesNotMatch(books,/2026-10-27T22:09:00Z/);
 });
 
+test('period views lead with key numbers and keep a 07:13 Beijing post on that day', () => {
+  const data = fixture();
+  data.articles[0].published_at = '2026-10-27T23:13:00.000Z';
+  const three = renderContentReviewContent(data, {...model(data,'three_day'), start:'2026-10-28', end:'2026-10-30', periods:[{start:'2026-10-28', end:'2026-10-30', label:'2026-10-28 — 2026-10-30'}]});
+  assert.match(three, /class="review-keyline"/);
+  assert.match(three, /2026-10-28 07:13/);
+  assert.match(three, /真实原因/);
+  assert.match(three, /data-review-article="a"/);
+  assert.doesNotMatch(three, /未采集|无可比数据|本期手册|class="review-stat"/);
+  assert.doesNotMatch(renderContentReviewContent(data, {...model(data,'daily'), date:'2026-10-27'}), /data-review-article="a"/);
+  assert.match(renderContentReviewContent(data, {...model(data,'daily'), date:'2026-10-28'}), /data-review-article="a"/);
+  for (const view of ['daily','three_day','weekly','articles','playbooks']) assert.match(renderContentReviewContent(data, model(data, view)), /class="review-keyline"/);
+  const books = renderContentReviewContent(data, model(data,'playbooks'));
+  assert.match(books, /展开更多/);
+  assert.doesNotMatch(books, /未记录发送/);
+});
+
 test('one-sided and two-sided article date filters exclude unknown publication dates', () => {
   const data=fixture();
   data.articles.push({id:'unknown',account:data.articles[0].account,title:'unknown publication',published_at:null});
