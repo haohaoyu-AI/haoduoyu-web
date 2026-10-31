@@ -100,6 +100,38 @@ test('a genuine auth/me 401 invokes the login boundary through the real transpor
   assert.doesNotMatch(app.nodes.get('#app').innerHTML,/id="init-retry"/);
 });
 
+test('public 429 during initialization preserves the rate-limit message without a login or automatic retry',async t=>{
+  for (const limitedPath of ['/auth/me','/workbench-snapshot/index','/accounts']) {
+    const app=client(), calls=[];let limited=true, login=0, shell=0, clock=1700000000000;
+    app.context.Date=class extends Date {static now(){return clock;}};
+    app.context.fetch=async url=>{
+      const path=new URL(url,'http://localhost').pathname.replace('/api/v1','');calls.push(path);
+      if(path===limitedPath&&limited)return Response.json({error:{code:'RATE_LIMITED',message:'公开操作较多，请稍后重试'}},{status:429,headers:{'Retry-After':'900'}});
+      if(path==='/auth/me')return Response.json({data:{id:'public',username:'public',publicBusiness:true}});
+      if(path==='/workbench-snapshot/index')return Response.json({data:{scope_id:'a'.repeat(64),complete:true,projection:'current'}});
+      if(path==='/accounts')return Response.json({data:[]});
+      throw new Error('unexpected request '+path);
+    };
+    app.context.fakeLogin=()=>login++;app.context.fakeShell=()=>shell++;
+    app.run('renderLogin=fakeLogin;renderShell=fakeShell;stopPageEntry=()=>{};closePopover=()=>{};closeModal=()=>{}');
+    const offline=createOfflineRuntime({db:createMemoryDB(),request:app.run('apiNetwork'),online:()=>true,now:()=>clock});
+    t.after(()=>offline.stop());app.context.offlineCall=(path,options)=>offline.call(path,options);app.run('api=offlineCall');
+    await app.run('init()');
+    assert.equal(login,0,limitedPath);assert.equal(shell,0,limitedPath);
+    assert.match(app.nodes.get('#app').innerHTML,/公开操作较多，请稍后重试/);
+    assert.match(app.nodes.get('#app').innerHTML,/id="init-retry"/);
+    const before=calls.length;await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.length,before,'no automatic retry');
+    limited=false;clock+=899999;app.nodes.get('#init-retry').events.click();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(calls.length,before,'retry before Retry-After must not send a request');
+    assert.equal(shell,0,limitedPath);
+    clock+=1;app.nodes.get('#init-retry').events.click();
+    for(let i=0;i<20&&shell===0;i++)await new Promise(resolve=>setTimeout(resolve,5));
+    assert.equal(shell,1,limitedPath);assert.equal(login,0,limitedPath);
+    assert.equal(calls[before],'/auth/me','retry starts with identity');
+  }
+});
+
 test('an index authorization failure does not erase queued offline work',async t=>{
   const app=client(), db=createMemoryDB();let online=true,rejectIndex=false,login=0;
   app.context.fetch=async url=>{

@@ -560,13 +560,14 @@ function renderLogin() {
     15
   )}</button></form></section></main>`;
 }
-function renderInitializationError(message, onRetry) {
+function renderInitializationError(message, onRetry, { status } = {}) {
   stopPageEntry();
   closePopover({ restoreFocus: false });
   runtime.modalRequestVersion++;
   runtime.renderVersion++;
-  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card" role="alert"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">工作台暂时无法打开</h1></div><p>未能完成连接或读取，请检查网络后重试。</p><p>${e(message || "请稍后重试。")}</p><button id="init-retry" class="btn primary" type="button">重新连接</button></section></main>`;
-  $("#init-retry")?.addEventListener("click", onRetry, { once: true });
+  const explanation = status === 429 ? "请求较多，请稍后重试。" : "未能完成连接或读取，请检查网络后重试。";
+  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card" role="alert"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">工作台暂时无法打开</h1></div><p>${explanation}</p><p>${e(message || "请稍后重试。")}</p><button id="init-retry" class="btn primary" type="button">重新连接</button></section></main>`;
+  $("#init-retry")?.addEventListener("click", onRetry);
 }
 var init_login = __esm({
   "web/pages/login.mjs"() {
@@ -2056,6 +2057,32 @@ var init_conflict_transport = __esm({
   }
 });
 
+// web/core/retry-after.mjs
+function parseRetryAfter(value, now = Date.now()) {
+  if (typeof value !== "string") return DEFAULT_RETRY_AFTER;
+  const text = value.trim();
+  if (/^\d+$/.test(text)) {
+    const seconds = Number(text);
+    return Number.isFinite(seconds) ? Math.min(Number.MAX_SAFE_INTEGER, seconds * 1e3) : Number.MAX_SAFE_INTEGER;
+  }
+  if (!/[a-z]/i.test(text) || !/^(?:[a-z]{3},|[a-z]+,|[a-z]{3}\s)/i.test(text)) return DEFAULT_RETRY_AFTER;
+  const at = Date.parse(text);
+  return Number.isFinite(at) && Number.isFinite(now) ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, at - now)) : DEFAULT_RETRY_AFTER;
+}
+function retryAfterDelay(value) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(DEFAULT_RETRY_AFTER, Math.ceil(value))) : DEFAULT_RETRY_AFTER;
+}
+function retryUntil(now, delay) {
+  return Math.min(Number.MAX_SAFE_INTEGER - 1, Math.max(0, now) + retryAfterDelay(delay));
+}
+var DEFAULT_RETRY_AFTER, MAX_TIMER_DELAY;
+var init_retry_after = __esm({
+  "web/core/retry-after.mjs"() {
+    DEFAULT_RETRY_AFTER = 6e4;
+    MAX_TIMER_DELAY = 2147483647;
+  }
+});
+
 // web/offline/outbox.mjs
 function canonicalRoute(operation2) {
   const { entity_type: type, source_id: id2, entity_id, method, path } = operation2;
@@ -2216,10 +2243,33 @@ function createContext(options3) {
   const { canDispatch, requireDispatch } = dispatchCapabilities(options3);
   const conflicts = createConflictStore({ db, now, canDispatch });
   const leaseKey = (scope) => entityKey(scope, "outbox-lease");
+  const rateLimitKey = (scope) => entityKey(scope, "outbox-rate-limit");
   const checkScope = (scope) => {
     if (getScope() !== scope) throw Object.assign(new Error("Offline identity changed"), { code: "OFFLINE_SCOPE_CHANGED" });
   };
   const list2 = (scope) => db.transaction(["outbox"], "readonly", async (tx) => ordered((await tx.getAll("outbox")).filter((value) => value.scope === scope && active2(value))));
+  const cooldown = async (scope) => {
+    checkScope(scope);
+    const item = await db.transaction(["meta"], "readonly", (tx) => tx.get("meta", rateLimitKey(scope)));
+    checkScope(scope);
+    return Number.isSafeInteger(item?.until) && item.until >= 0 ? item.until : 0;
+  };
+  const setCooldown = async (scope, until, assertActive = () => {
+  }) => {
+    checkScope(scope);
+    assertActive();
+    if (!Number.isSafeInteger(until) || until < 0) throw new TypeError("Invalid rate-limit deadline");
+    return db.transaction(["meta"], "readwrite", async (tx) => {
+      checkScope(scope);
+      assertActive();
+      const key = rateLimitKey(scope), old = await tx.get("meta", key);
+      const value = Math.max(Number.isSafeInteger(old?.until) ? old.until : 0, until);
+      await tx.put("meta", { key, until: value });
+      checkScope(scope);
+      assertActive();
+      return value;
+    });
+  };
   const retryable = async (scope) => {
     const rows = await list2(scope), first = /* @__PURE__ */ new Map(), ready = [];
     for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
@@ -2274,6 +2324,9 @@ function createContext(options3) {
     conflicts,
     state: state2,
     leaseKey,
+    rateLimitKey,
+    cooldown,
+    setCooldown,
     checkScope,
     list: list2,
     lease,
@@ -2360,7 +2413,7 @@ function storageMethods(context) {
   async function enqueue(input) {
     return db.transaction(["entities", "outbox", "meta"], "readwrite", (tx) => enqueueInTransaction(tx, input));
   }
-  async function update(operation2, fields5) {
+  async function update(operation2, fields5, { rateLimitedUntil } = {}) {
     if (!context.canDispatch(operation2)) return null;
     return db.transaction(["outbox", "meta", "conflicts"], "readwrite", async (tx) => {
       const current2 = await tx.get("outbox", operation2.key);
@@ -2369,6 +2422,10 @@ function storageMethods(context) {
       if (!Object.hasOwn(fields5, "claim_owner") && current2.claim_owner !== owner2) return null;
       const result = { ...current2, ...fields5 };
       await tx.put("outbox", result);
+      if (Number.isSafeInteger(rateLimitedUntil)) {
+        const key = context.rateLimitKey(operation2.scope), old = await tx.get("meta", key);
+        await tx.put("meta", { key, until: Math.max(Number.isSafeInteger(old?.until) ? old.until : 0, rateLimitedUntil) });
+      }
       if (fields5.status) await recordResolutionFailure(tx, result, fields5);
       return result;
     });
@@ -2491,19 +2548,26 @@ function processingMethods(context) {
       let remote = null;
       try {
         remote = await readRemote(operation2);
-      } catch {
+      } catch (readError) {
+        if (readError.status === 429) return fail6(operation2, readError);
       }
       return conflicts.record({ operation: operation2, remote, reason: deleted(remote) ? "deleted" : error.code || "version" });
     }
     const attempts = operation2.attempts + 1;
     const delay = RETRY_DELAYS[Math.min(attempts - 1, RETRY_DELAYS.length - 1)];
     const status = [401, 403].includes(error.status) ? "paused" : error.status && error.status < 500 && error.status !== 429 ? "blocked" : "unknown";
+    const next = error.status === 429 ? retryUntil(now(), Math.max(delay, retryAfterDelay(error.retryAfterMs))) : now() + delay;
+    if (error.status === 429) {
+      if (context.rateLimitScope !== operation2.scope) context.rateLimitedUntil = 0;
+      context.rateLimitScope = operation2.scope;
+      context.rateLimitedUntil = Math.max(context.rateLimitedUntil || 0, next);
+    }
     return update(operation2, {
       status,
       attempts,
-      next_attempt_at: now() + (error.status === 429 ? Math.max(6e4, delay) : delay),
+      next_attempt_at: next,
       error: error.code || "OFFLINE_UNKNOWN"
-    });
+    }, error.status === 429 ? { rateLimitedUntil: next } : {});
   }
   async function process(operation2) {
     if (!context.canDispatch(operation2)) return;
@@ -2562,17 +2626,27 @@ async function dependenciesReady(context, operation2, rows) {
   return state2 === "ready";
 }
 function executionMethods(context) {
-  const { getScope, lease, state: state2, list: list2, checkScope, process, db, leaseKey, owner: owner2, now, retryable, canDispatch } = context;
+  const { getScope, lease, state: state2, list: list2, checkScope, process, db, leaseKey, owner: owner2, now, retryable, canDispatch, cooldown } = context;
   let running = null;
   async function run2() {
     const scope = getScope();
     if (!scope) return { phase: "paused", pending: 0 };
+    if (context.rateLimitScope !== scope) {
+      context.rateLimitScope = scope;
+      context.rateLimitedUntil = 0;
+    }
     if (!await lease(scope)) return { phase: "busy", pending: (await list2(scope)).length };
     state2.phase = "syncing";
     state2.error = null;
+    state2.rateLimitedUntil = 0;
     try {
       for (let count = 0; count < 1e3; count++) {
         checkScope(scope);
+        const blockedUntil = Math.max(await cooldown(scope), context.rateLimitedUntil || 0);
+        if (blockedUntil > now()) {
+          state2.rateLimitedUntil = blockedUntil;
+          break;
+        }
         const rows = await list2(scope);
         let operation2;
         for (const candidate of await retryable(scope)) {
@@ -2592,10 +2666,12 @@ function executionMethods(context) {
     } catch (error) {
       state2.phase = "paused";
       state2.error = error.code || "OFFLINE_UNKNOWN";
+      state2.rateLimitedUntil = context.rateLimitedUntil || 0;
       return { ...state2 };
     } finally {
       await db.transaction(["meta"], "readwrite", async (tx) => {
         if ((await tx.get("meta", leaseKey(scope)))?.owner === owner2) await tx.delete("meta", leaseKey(scope));
+      }).catch(() => {
       });
     }
   }
@@ -2656,8 +2732,8 @@ function createOutbox(options3) {
     }
   }
   context.conflicts.resolve = resolve;
-  const { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable } = context;
-  return { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable, resolve };
+  const { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown } = context;
+  return { enqueue, drain, resume, list: list2, state: state2, conflicts, canDispatch, retryable, cooldown, setCooldown, resolve };
 }
 var RETRY_DELAYS, prefixes3, uuidPattern4, active2, deleted, ordered, needsUpgrade;
 var init_outbox = __esm({
@@ -2667,6 +2743,7 @@ var init_outbox = __esm({
     init_conflict_decisions();
     init_conflict_transport();
     init_resolution_ledger();
+    init_retry_after();
     RETRY_DELAYS = Object.freeze([5e3, 15e3, 6e4, 3e5]);
     prefixes3 = {
       unscheduled_todo: "unscheduled_todo:",
@@ -3535,6 +3612,15 @@ var init_memos = __esm({
 
 // web/offline/runtime.mjs
 async function identityProbe(context, path, options3 = {}) {
+  const scope = context.state.scope, generation = context.generation;
+  if (scope) {
+    const deadline = Math.max(context.cooldownUntil || 0, await context.outbox.cooldown(scope));
+    if (generation !== context.generation || scope !== context.state.scope) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+    if (deadline > context.now()) throw Object.assign(
+      new Error("请求较多，请稍后重试。"),
+      { status: 429, rateLimitedUntil: deadline, retryAfterMs: deadline - context.now() }
+    );
+  }
   const controller = new AbortController(), external2 = options3.signal;
   const abort = () => controller.abort(external2.reason);
   if (external2?.aborted) abort();
@@ -3647,14 +3733,26 @@ function runtimeContext(options3) {
       throw fail4("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
     if (!online() || !state2.verifiedScope || state2.verifiedScope !== state2.scope) throw offlineError();
     const owner2 = state2.scope, generation = context.generation;
+    const checkCooldown = async () => {
+      const deadline = Math.max(context.cooldownUntil || 0, await context.outbox.cooldown(owner2));
+      if (owner2 !== state2.scope || generation !== context.generation) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+      if (deadline > now()) throw Object.assign(
+        new Error("请求较多，请稍后重试。"),
+        { status: 429, rateLimitedUntil: deadline, retryAfterMs: deadline - now() }
+      );
+    };
     try {
+      await checkCooldown();
       if (opts?.method && !["GET", "HEAD"].includes(opts.method.toUpperCase())) await context.verifyScope();
       if (!state2.verifiedScope || owner2 !== state2.scope || generation !== context.generation) throw offlineError();
+      await checkCooldown();
       const labelOpts = features.labelsV1 && path.startsWith("/note-entries") ? { ...opts, headers: { ...opts?.headers, "X-Note-Labels-Version": "1" } } : opts;
       const result = await request(path, labelOpts);
       if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份范围已变化。", "OFFLINE_SCOPE_CHANGED");
       return result;
     } catch (error) {
+      if (owner2 !== state2.scope || generation !== context.generation)
+        throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
       if ([401, 403].includes(error.status) && generation === context.generation) await context.invalidate({ forget: true });
       throw error;
     }
@@ -3693,6 +3791,7 @@ function identityActions(context) {
   async function invalidate({ forget = false } = {}) {
     context.generation++;
     context.authFlight = null;
+    context.cooldownUntil = 0;
     state2.scope = null;
     state2.verifiedScope = null;
     state2.identity = null;
@@ -3849,25 +3948,41 @@ function syncActions(context) {
       state2.verifiedScope = null;
       return context.refresh();
     }
-    if (context.cooldownUntil > now()) {
-      context.scheduleRetry();
-      return context.refresh();
-    }
     let stage = "identity";
+    let owner2 = state2.scope, generation = context.generation;
+    const active5 = () => generation === context.generation && owner2 === state2.scope;
     try {
+      if (state2.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state2.scope));
+      if (!active5()) return { ...state2 };
+      if (context.cooldownUntil > now()) {
+        context.scheduleRetry();
+        return context.refresh();
+      }
       await context.verify();
+      if (generation !== context.generation || owner2 && owner2 !== state2.scope) return { ...state2 };
       if (!state2.verifiedScope) return context.refresh();
+      owner2 = state2.scope;
+      generation = context.generation;
       state2.phase = "syncing";
       emit();
       stage = "outbox";
       await outbox.resume(state2.scope);
-      await outbox.drain();
+      if (!active5()) return { ...state2 };
+      const drained = await outbox.drain();
+      if (!active5()) return { ...state2 };
+      if (drained.rateLimitedUntil > now()) throw Object.assign(
+        new Error("请求较多，请稍后重试。"),
+        { status: 429, rateLimitedUntil: drained.rateLimitedUntil }
+      );
       stage = "cache";
       if (state2.verifiedScope) await context.cache.captureDocuments();
+      if (!active5()) return { ...state2 };
       if (state2.verifiedScope) {
         stage = "snapshot";
         await snapshot.pull({ date: today(now) });
+        if (!active5()) return { ...state2 };
         if (context.snapshotV2) await context.snapshotV2.pull({ date: today(now) });
+        if (!active5()) return { ...state2 };
         if (context.lastTodoPath) {
           stage = "cache";
           const date = offlineReadRoute(context.lastTodoPath).date;
@@ -3875,18 +3990,34 @@ function syncActions(context) {
             await context.call(context.lastTodoPath);
         }
       }
+      if (!active5()) return { ...state2 };
       state2.lastSuccess = now();
       state2.error = null;
       state2.errorStage = null;
     } catch (error) {
+      if (!active5()) return { ...state2 };
+      if (error.status === 429) {
+        const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
+        context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
+        if (owner2) {
+          const assertActive = () => {
+            if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+          };
+          try {
+            await outbox.setCooldown(owner2, context.cooldownUntil, assertActive);
+          } catch {
+          }
+        }
+      }
+      if (!active5()) return { ...state2 };
       state2.error = error.message;
       state2.errorStage = stage;
-      if (error.status === 429) context.cooldownUntil = now() + 6e4;
       if (error.status) state2.online = true;
       else if (networkFailure(error)) state2.online = false;
     }
     state2.phase = "idle";
     await context.refresh();
+    if (!active5()) return { ...state2 };
     context.broadcast();
     if (state2.pending && state2.online && !context.stopped) context.scheduleRetry();
     return { ...state2 };
@@ -3908,21 +4039,25 @@ function syncActions(context) {
   }
   function scheduleRetry() {
     clearTimeout(context.timer);
-    const owner2 = state2.scope;
+    const owner2 = state2.scope, generation = context.generation;
     if (!owner2) return;
-    outbox.retryable(owner2).then((operations2) => {
-      if (context.stopped || state2.scope !== owner2) return;
+    outbox.retryable(owner2).then(async (operations2) => {
+      if (context.stopped || state2.scope !== owner2 || context.generation !== generation) return;
       if (!operations2.length) return;
       const next = Math.min(...operations2.map((row) => row.next_attempt_at || 0));
-      const delay = Math.max(100, next - now(), (context.cooldownUntil || 0) - now());
+      const deadline = Math.max(context.cooldownUntil || 0, await outbox.cooldown(owner2));
+      if (context.stopped || state2.scope !== owner2 || context.generation !== generation) return;
+      const delay = Math.min(MAX_TIMER_DELAY, Math.max(100, next - now(), deadline - now()));
       clearTimeout(context.timer);
       context.timer = setTimeout(() => {
         if (!context.stopped) void sync();
       }, delay);
       context.timer?.unref?.();
     }).catch((error) => {
-      state2.error = error.message;
-      emit();
+      if (!context.stopped && state2.scope === owner2 && context.generation === generation) {
+        state2.error = error.message;
+        emit();
+      }
     });
   }
   return { sync, scheduleRetry };
@@ -4121,12 +4256,41 @@ function createOfflineRuntime(options3) {
   Object.assign(context, mutationActions(context));
   context.noteMutations = createNoteMutations(context);
   const drafts = createDraftJournal({ db: context.db, getScope: () => context.state.scope, getGeneration: () => context.generation, now: context.now });
+  function captureRateLimitContext() {
+    const scope = context.state.scope;
+    return scope && context.state.verifiedScope === scope ? { scope, generation: context.generation } : null;
+  }
+  async function recordRateLimit(token, delay) {
+    const active5 = () => {
+      if (!token || context.generation !== token.generation || context.state.scope !== token.scope || context.state.verifiedScope !== token.scope) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+    };
+    try {
+      active5();
+      const deadline = retryUntil(context.now(), delay);
+      context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
+      await context.outbox.setCooldown(token.scope, context.cooldownUntil, active5);
+      active5();
+      if (!context.stopped) context.scheduleRetry();
+    } catch {
+    }
+  }
+  async function callWithRateLimit(path, options4) {
+    const token = captureRateLimitContext();
+    try {
+      return await context.call(path, options4);
+    } catch (error) {
+      if (error.status === 429) await recordRateLimit(token, error.retryAfterMs);
+      throw error;
+    }
+  }
   return {
-    call: context.call,
+    call: callWithRateLimit,
     sync: context.sync,
     start: context.start,
     stop: context.stop,
     refresh: context.refresh,
+    captureRateLimitContext,
+    recordRateLimit,
     readMemo: (path) => context.memos.project(path),
     async findTodo(id2) {
       const owner2 = context.state.scope, generation = context.generation;
@@ -4152,6 +4316,13 @@ function createOfflineRuntime(options3) {
 }
 function getOfflineRuntime() {
   return singleton;
+}
+function captureOfflineRateLimitContext() {
+  const token = singleton?.captureRateLimitContext();
+  return token ? { runtime: singleton, token } : null;
+}
+async function recordOfflineRateLimit(captured, delay) {
+  if (captured?.runtime === singleton) await singleton.recordRateLimit(captured.token, delay);
 }
 function onOfflineRuntime(callback) {
   readyListeners.add(callback);
@@ -4192,6 +4363,7 @@ var init_runtime = __esm({
     init_drafts();
     init_conflict_draft_guards();
     init_memos();
+    init_retry_after();
     OFFLINE_FEATURES = Object.freeze({ todos: true, notes: true, memos: true, snapshotV2: true, labelsV1: true });
     scopePattern = /^[a-f0-9]{64}$/;
     uuidPattern5 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -4243,7 +4415,13 @@ async function apiTransport(path, opts) {
     if (isRequestAbort(error)) throw error;
     throw Object.assign(new Error("服务暂时不可用，请稍后重试。"), { code: "NETWORK_UNAVAILABLE" });
   }
-  return { ok: response.ok, status: response.status, text };
+  return {
+    ok: response.ok,
+    status: response.status,
+    text,
+    retryAfter: response.headers?.get?.("Retry-After") ?? null,
+    serverDate: response.headers?.get?.("Date") ?? null
+  };
 }
 function apiFailure(path, response, payload, epoch, identity5, suppressAuthRedirect = false) {
   const current2 = epoch === runtime.sessionEpoch && identity5 === (state.me?.id ?? null);
@@ -4256,11 +4434,16 @@ function apiFailure(path, response, payload, epoch, identity5, suppressAuthRedir
   const error = new Error(message);
   error.status = response.status;
   error.code = payload.error?.code;
+  if (response.status === 429) {
+    const serverTime = Date.parse(response.serverDate);
+    error.retryAfterMs = retryAfterDelay(parseRetryAfter(response.retryAfter, Number.isFinite(serverTime) ? serverTime : Date.now()));
+  }
   if (response.status === 401 && !current2) error.staleSession = true;
   return error;
 }
 async function apiNetwork(path, options3 = {}) {
   const epoch = runtime.sessionEpoch, identity5 = state.me?.id ?? null;
+  const rateLimitContext = captureOfflineRateLimitContext();
   const { envelope: envelope2 = false, context, suppressAuthRedirect = false, ...requestOptions } = options3;
   const opts = apiOptions(requestOptions), method = (opts.method || "GET").toUpperCase();
   const scope = method === "GET" ? context || backgroundRequests() : null;
@@ -4276,9 +4459,15 @@ async function apiNetwork(path, options3 = {}) {
   try {
     payload = JSON.parse(response.text);
   } catch {
-    throw new Error("服务暂时不可用，请稍后重试。");
+    if (response.status === 429) payload = { error: { code: "RATE_LIMITED", message: "请求较多，请稍后重试。" } };
+    else throw new Error("服务暂时不可用，请稍后重试。");
   }
-  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity5, suppressAuthRedirect);
+  if (!response.ok) {
+    const error = apiFailure(path, response, payload, epoch, identity5, suppressAuthRedirect);
+    if (error.status === 429 && epoch === runtime.sessionEpoch && identity5 === (state.me?.id ?? null))
+      await recordOfflineRateLimit(rateLimitContext, error.retryAfterMs);
+    throw error;
+  }
   return envelope2 ? payload : payload.data;
 }
 function api(path, options3 = {}) {
@@ -4298,6 +4487,7 @@ var init_api = __esm({
     init_modal();
     init_requests();
     init_runtime();
+    init_retry_after();
   }
 });
 
@@ -12321,6 +12511,7 @@ function registerEvents2() {
 // web/controller.mjs
 init_requests();
 init_api();
+init_retry_after();
 init_constants();
 init_dom();
 init_format();
@@ -12573,9 +12764,15 @@ async function init({ freshLogin = false } = {}) {
   } catch (err) {
     if (initEpoch !== runtime.sessionEpoch || err.staleSession || isRequestAbort(err)) return;
     if (err.status === 401 && !err.offlineScopeFailure) renderLogin();
-    else renderInitializationError(err.message, () => {
-      void init();
-    });
+    else {
+      const retryAt = err.status === 429 ? retryUntil(Date.now(), err.retryAfterMs) : 0;
+      let retrying = false;
+      renderInitializationError(err.message, () => {
+        if (retrying || Date.now() < retryAt) return;
+        retrying = true;
+        void init();
+      }, { status: err.status });
+    }
   }
 }
 

@@ -6,6 +6,7 @@ import {createNoteMutations, noteMutationRoute} from './note-mutations.mjs';
 import {createDraftJournal} from './drafts.mjs';
 import {captureConflictDraftGuard} from './conflict-draft-guards.mjs';
 import {createMemoOfflineAdapter, memoRoute} from './memos.mjs';
+import {MAX_TIMER_DELAY, retryUntil} from '../core/retry-after.mjs';
 
 export const OFFLINE_FEATURES = Object.freeze({todos: true, notes: true, memos: true, snapshotV2: true, labelsV1: true});
 const scopePattern = /^[a-f0-9]{64}$/;
@@ -15,6 +16,13 @@ const fail = (message, code) => Object.assign(new Error(message), {code});
 const today = now => new Date(now() + 8 * 3600000).toISOString().slice(0, 10);
 const offlineError = () => fail('当前离线，此操作需联网；输入内容已保留。', 'OFFLINE_NETWORK');
 async function identityProbe(context, path, options = {}) {
+  const scope = context.state.scope, generation = context.generation;
+  if (scope) {
+    const deadline = Math.max(context.cooldownUntil || 0, await context.outbox.cooldown(scope));
+    if (generation !== context.generation || scope !== context.state.scope) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
+    if (deadline > context.now()) throw Object.assign(new Error('请求较多，请稍后重试。'),
+      {status: 429, rateLimitedUntil: deadline, retryAfterMs: deadline - context.now()});
+  }
   const controller = new AbortController(), external = options.signal;
   const abort = () => controller.abort(external.reason);
   if (external?.aborted) abort(); else external?.addEventListener('abort', abort, {once: true});
@@ -82,15 +90,25 @@ function runtimeContext(options) {
       throw fail('此本机操作需新版页面处理，原内容已保留。', 'OFFLINE_UPGRADE_REQUIRED');
     if (!online() || !state.verifiedScope || state.verifiedScope !== state.scope) throw offlineError();
     const owner = state.scope, generation = context.generation;
+    const checkCooldown = async () => {
+      const deadline = Math.max(context.cooldownUntil || 0, await context.outbox.cooldown(owner));
+      if (owner !== state.scope || generation !== context.generation) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
+      if (deadline > now()) throw Object.assign(new Error('请求较多，请稍后重试。'),
+        {status: 429, rateLimitedUntil: deadline, retryAfterMs: deadline - now()});
+    };
     try {
+      await checkCooldown();
       if (opts?.method && !['GET', 'HEAD'].includes(opts.method.toUpperCase())) await context.verifyScope();
       if (!state.verifiedScope || owner !== state.scope || generation !== context.generation) throw offlineError();
+      await checkCooldown();
       const labelOpts = features.labelsV1 && path.startsWith('/note-entries') ?
         {...opts, headers: {...opts?.headers, 'X-Note-Labels-Version': '1'}} : opts;
       const result = await request(path, labelOpts);
       if (owner !== state.scope || generation !== context.generation) throw fail('身份范围已变化。', 'OFFLINE_SCOPE_CHANGED');
       return result;
     } catch (error) {
+      if (owner !== state.scope || generation !== context.generation)
+        throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
       if ([401, 403].includes(error.status) && generation === context.generation) await context.invalidate({forget: true});
       throw error;
     }
@@ -111,6 +129,7 @@ function identityActions(context) {
   async function invalidate({forget = false} = {}) {
     context.generation++;
     context.authFlight = null;
+    context.cooldownUntil = 0;
     state.scope = null; state.verifiedScope = null; state.identity = null; state.pending = 0; state.conflicts = 0; state.unsupported = 0;
     state.phase = 'paused';
     if (forget) await cache.forgetIdentity();
@@ -235,21 +254,34 @@ function syncActions(context) {
   const {state, emit, outbox, snapshot, now, online} = context;
   async function run() {
     if (!online()) { state.verifiedScope = null; return context.refresh(); }
-    if (context.cooldownUntil > now()) { context.scheduleRetry(); return context.refresh(); }
     let stage = 'identity';
+    let owner = state.scope, generation = context.generation;
+    const active = () => generation === context.generation && owner === state.scope;
     try {
+      if (state.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state.scope));
+      if (!active()) return {...state};
+      if (context.cooldownUntil > now()) { context.scheduleRetry(); return context.refresh(); }
       await context.verify();
+      if (generation !== context.generation || owner && owner !== state.scope) return {...state};
       if (!state.verifiedScope) return context.refresh();
+      owner = state.scope; generation = context.generation;
       state.phase = 'syncing'; emit();
       stage = 'outbox';
       await outbox.resume(state.scope);
-      await outbox.drain();
+      if (!active()) return {...state};
+      const drained = await outbox.drain();
+      if (!active()) return {...state};
+      if (drained.rateLimitedUntil > now()) throw Object.assign(new Error('请求较多，请稍后重试。'),
+        {status: 429, rateLimitedUntil: drained.rateLimitedUntil});
       stage = 'cache';
       if (state.verifiedScope) await context.cache.captureDocuments();
+      if (!active()) return {...state};
       if (state.verifiedScope) {
         stage = 'snapshot';
         await snapshot.pull({date: today(now)});
+        if (!active()) return {...state};
         if (context.snapshotV2) await context.snapshotV2.pull({date: today(now)});
+        if (!active()) return {...state};
         if (context.lastTodoPath) {
           stage = 'cache';
           const date = offlineReadRoute(context.lastTodoPath).date;
@@ -257,15 +289,28 @@ function syncActions(context) {
             await context.call(context.lastTodoPath);
         }
       }
+      if (!active()) return {...state};
       state.lastSuccess = now(); state.error = null; state.errorStage = null;
     } catch (error) {
+      if (!active()) return {...state};
+      if (error.status === 429) {
+        const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
+        context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
+        if (owner) {
+          const assertActive = () => { if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED'); };
+          try { await outbox.setCooldown(owner, context.cooldownUntil, assertActive); }
+          catch { /* The in-memory deadline still protects this session. */ }
+        }
+      }
+      if (!active()) return {...state};
       state.error = error.message; state.errorStage = stage;
-      if (error.status === 429) context.cooldownUntil = now() + 60000;
       if (error.status) state.online = true;
       else if (networkFailure(error)) state.online = false;
     }
     state.phase = 'idle';
-    await context.refresh(); context.broadcast();
+    await context.refresh();
+    if (!active()) return {...state};
+    context.broadcast();
     if (state.pending && state.online && !context.stopped) context.scheduleRetry();
     return {...state};
   }
@@ -283,17 +328,19 @@ function syncActions(context) {
   }
   function scheduleRetry() {
     clearTimeout(context.timer);
-    const owner = state.scope;
+    const owner = state.scope, generation = context.generation;
     if (!owner) return;
-    outbox.retryable(owner).then(operations => {
-      if (context.stopped || state.scope !== owner) return;
+    outbox.retryable(owner).then(async operations => {
+      if (context.stopped || state.scope !== owner || context.generation !== generation) return;
       if (!operations.length) return;
       const next = Math.min(...operations.map(row => row.next_attempt_at || 0));
-      const delay = Math.max(100, next - now(), (context.cooldownUntil || 0) - now());
+      const deadline = Math.max(context.cooldownUntil || 0, await outbox.cooldown(owner));
+      if (context.stopped || state.scope !== owner || context.generation !== generation) return;
+      const delay = Math.min(MAX_TIMER_DELAY, Math.max(100, next - now(), deadline - now()));
       clearTimeout(context.timer);
       context.timer = setTimeout(() => { if (!context.stopped) void sync(); }, delay);
       context.timer?.unref?.();
-    }).catch(error => { state.error = error.message; emit(); });
+    }).catch(error => { if (!context.stopped && state.scope === owner && context.generation === generation) { state.error = error.message; emit(); } });
   }
   return {sync, scheduleRetry};
 }
@@ -441,7 +488,34 @@ export function createOfflineRuntime(options) {
   Object.assign(context, mutationActions(context));
   context.noteMutations = createNoteMutations(context);
   const drafts = createDraftJournal({db: context.db, getScope: () => context.state.scope, getGeneration: () => context.generation, now: context.now});
-  return {call: context.call, sync: context.sync, start: context.start, stop: context.stop, refresh: context.refresh,
+  function captureRateLimitContext() {
+    const scope = context.state.scope;
+    return scope && context.state.verifiedScope === scope ? {scope, generation: context.generation} : null;
+  }
+  async function recordRateLimit(token, delay) {
+    const active = () => {
+      if (!token || context.generation !== token.generation || context.state.scope !== token.scope ||
+          context.state.verifiedScope !== token.scope) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
+    };
+    try {
+      active();
+      const deadline = retryUntil(context.now(), delay);
+      context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
+      await context.outbox.setCooldown(token.scope, context.cooldownUntil, active);
+      active();
+      if (!context.stopped) context.scheduleRetry();
+    } catch { /* Preserve the request failure and any in-memory deadline. */ }
+  }
+  async function callWithRateLimit(path, options) {
+    const token = captureRateLimitContext();
+    try { return await context.call(path, options); }
+    catch (error) {
+      if (error.status === 429) await recordRateLimit(token, error.retryAfterMs);
+      throw error;
+    }
+  }
+  return {call: callWithRateLimit, sync: context.sync, start: context.start, stop: context.stop, refresh: context.refresh,
+    captureRateLimitContext, recordRateLimit,
     readMemo: path => context.memos.project(path),
     async findTodo(id) {
       const owner = context.state.scope, generation = context.generation;
@@ -459,6 +533,13 @@ export function createOfflineRuntime(options) {
 let singleton = null, initialization = null;
 const readyListeners = new Set();
 export function getOfflineRuntime() { return singleton; }
+export function captureOfflineRateLimitContext() {
+  const token = singleton?.captureRateLimitContext();
+  return token ? {runtime: singleton, token} : null;
+}
+export async function recordOfflineRateLimit(captured, delay) {
+  if (captured?.runtime === singleton) await singleton.recordRateLimit(captured.token, delay);
+}
 export function onOfflineRuntime(callback) {
   readyListeners.add(callback); if (singleton) callback(singleton);
   return () => readyListeners.delete(callback);

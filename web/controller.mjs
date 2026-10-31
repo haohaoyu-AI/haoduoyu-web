@@ -1,5 +1,6 @@
 import { beginPageRequests, isRequestAbort } from "./core/requests.mjs";
 import { api } from "./core/api.mjs";
+import { retryUntil } from "./core/retry-after.mjs";
 import { legacyPages, nav, settingsTabs } from "./core/constants.mjs";
 import { $, $$, e, icon } from "./core/dom.mjs";
 import { num, rowsForAccount } from "./core/format.mjs";
@@ -268,7 +269,14 @@ async function init({ freshLogin = false } = {}) {
   } catch (err) {
     if (initEpoch !== runtime.sessionEpoch || err.staleSession || isRequestAbort(err)) return;
     if (err.status === 401 && !err.offlineScopeFailure) renderLogin();
-    else renderInitializationError(err.message, () => { void init(); });
+    else {
+      const retryAt = err.status === 429 ? retryUntil(Date.now(), err.retryAfterMs) : 0;
+      let retrying = false;
+      renderInitializationError(err.message, () => {
+        if (retrying || Date.now() < retryAt) return;
+        retrying = true; void init();
+      }, {status: err.status});
+    }
   }
 }
 export {

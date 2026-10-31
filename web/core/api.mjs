@@ -3,7 +3,8 @@ import { runtime, state } from "./state.mjs";
 import { renderLogin } from "../pages/login.mjs";
 import { closeModal } from "../ui/modal.mjs";
 import { assertRequestActive, backgroundRequests, isRequestAbort, pendingGet } from "./requests.mjs";
-import { offlineRequest } from "../offline/runtime.mjs";
+import { offlineRequest, captureOfflineRateLimitContext, recordOfflineRateLimit } from "../offline/runtime.mjs";
+import { parseRetryAfter, retryAfterDelay } from "./retry-after.mjs";
 function apiOptions(options) {
   const opts = { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...options.headers || {} } };
   if (opts.body !== undefined) {
@@ -37,7 +38,8 @@ async function apiTransport(path, opts) {
     if (isRequestAbort(error)) throw error;
     throw Object.assign(new Error("服务暂时不可用，请稍后重试。"), {code: "NETWORK_UNAVAILABLE"});
   }
-  return { ok: response.ok, status: response.status, text };
+  return { ok: response.ok, status: response.status, text, retryAfter: response.headers?.get?.("Retry-After") ?? null,
+    serverDate: response.headers?.get?.("Date") ?? null };
 }
 function apiFailure(path, response, payload, epoch, identity, suppressAuthRedirect = false) {
   const current = epoch === runtime.sessionEpoch && identity === (state.me?.id ?? null);
@@ -50,11 +52,16 @@ function apiFailure(path, response, payload, epoch, identity, suppressAuthRedire
   const error = new Error(message);
   error.status = response.status;
   error.code = payload.error?.code;
+  if (response.status === 429) {
+    const serverTime = Date.parse(response.serverDate);
+    error.retryAfterMs = retryAfterDelay(parseRetryAfter(response.retryAfter, Number.isFinite(serverTime) ? serverTime : Date.now()));
+  }
   if (response.status === 401 && !current) error.staleSession = true;
   return error;
 }
 async function apiNetwork(path, options = {}) {
   const epoch = runtime.sessionEpoch, identity = state.me?.id ?? null;
+  const rateLimitContext = captureOfflineRateLimitContext();
   const { envelope = false, context, suppressAuthRedirect = false, ...requestOptions } = options;
   const opts = apiOptions(requestOptions), method = (opts.method || "GET").toUpperCase();
   const scope = method === "GET" ? context || backgroundRequests() : null;
@@ -70,9 +77,15 @@ async function apiNetwork(path, options = {}) {
   try {
     payload = JSON.parse(response.text);
   } catch {
-    throw new Error("服务暂时不可用，请稍后重试。");
+    if (response.status === 429) payload = {error: {code: 'RATE_LIMITED', message: '请求较多，请稍后重试。'}};
+    else throw new Error("服务暂时不可用，请稍后重试。");
   }
-  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity, suppressAuthRedirect);
+  if (!response.ok) {
+    const error = apiFailure(path, response, payload, epoch, identity, suppressAuthRedirect);
+    if (error.status === 429 && epoch === runtime.sessionEpoch && identity === (state.me?.id ?? null))
+      await recordOfflineRateLimit(rateLimitContext, error.retryAfterMs);
+    throw error;
+  }
   return envelope ? payload : payload.data;
 }
 function api(path, options = {}) {

@@ -3,6 +3,7 @@ import {createConflictStore} from './conflict.mjs';
 import {createConflictDecisions} from './conflict-decisions.mjs';
 import {createConflictPreparation} from './conflict-transport.mjs';
 import {recordResolutionAck, recordResolutionFailure} from './resolution-ledger.mjs';
+import {retryAfterDelay, retryUntil} from '../core/retry-after.mjs';
 
 export const RETRY_DELAYS = Object.freeze([5000, 15000, 60000, 300000]);
 const prefixes = {unscheduled_todo: 'unscheduled_todo:', todo: 'todo:', template: 'template:', note_entry: 'note-entry:',
@@ -180,11 +181,33 @@ function createContext(options) {
   const {canDispatch, requireDispatch} = dispatchCapabilities(options);
   const conflicts = createConflictStore({db, now, canDispatch});
   const leaseKey = scope => entityKey(scope, 'outbox-lease');
+  const rateLimitKey = scope => entityKey(scope, 'outbox-rate-limit');
   const checkScope = scope => {
     if (getScope() !== scope) throw Object.assign(new Error('Offline identity changed'), {code: 'OFFLINE_SCOPE_CHANGED'});
   };
   const list = scope => db.transaction(['outbox'], 'readonly', async tx =>
     ordered((await tx.getAll('outbox')).filter(value => value.scope === scope && active(value))));
+  const cooldown = async scope => {
+    checkScope(scope);
+    const item = await db.transaction(['meta'], 'readonly', tx => tx.get('meta', rateLimitKey(scope)));
+    checkScope(scope);
+    return Number.isSafeInteger(item?.until) && item.until >= 0 ? item.until : 0;
+  };
+  const setCooldown = async (scope, until, assertActive = () => {}) => {
+    checkScope(scope);
+    assertActive();
+    if (!Number.isSafeInteger(until) || until < 0) throw new TypeError('Invalid rate-limit deadline');
+    return db.transaction(['meta'], 'readwrite', async tx => {
+      checkScope(scope);
+      assertActive();
+      const key = rateLimitKey(scope), old = await tx.get('meta', key);
+      const value = Math.max(Number.isSafeInteger(old?.until) ? old.until : 0, until);
+      await tx.put('meta', {key, until: value});
+      checkScope(scope);
+      assertActive();
+      return value;
+    });
+  };
   const retryable = async scope => {
     const rows = await list(scope), first = new Map(), ready = [];
     for (const row of rows) if (!first.has(row.entity_id)) first.set(row.entity_id, row);
@@ -229,7 +252,7 @@ function createContext(options) {
     return network(scope, path, opts, false);
   };
 
-  return {db, request, getScope, now, uuid, timeout, owner, conflicts, state, leaseKey, checkScope, list, lease, network,
+  return {db, request, getScope, now, uuid, timeout, owner, conflicts, state, leaseKey, rateLimitKey, cooldown, setCooldown, checkScope, list, lease, network,
     readNetwork, canDispatch, requireDispatch, retryable};
 }
 
@@ -300,7 +323,7 @@ function storageMethods(context) {
   async function enqueue(input) {
     return db.transaction(['entities', 'outbox', 'meta'], 'readwrite', tx => enqueueInTransaction(tx, input));
   }
-  async function update(operation, fields) {
+  async function update(operation, fields, {rateLimitedUntil} = {}) {
     if (!context.canDispatch(operation)) return null;
     return db.transaction(['outbox', 'meta', 'conflicts'], 'readwrite', async tx => {
       const current = await tx.get('outbox', operation.key);
@@ -309,6 +332,10 @@ function storageMethods(context) {
       if (!Object.hasOwn(fields, 'claim_owner') && current.claim_owner !== owner) return null;
       const result = {...current, ...fields};
       await tx.put('outbox', result);
+      if (Number.isSafeInteger(rateLimitedUntil)) {
+        const key = context.rateLimitKey(operation.scope), old = await tx.get('meta', key);
+        await tx.put('meta', {key, until: Math.max(Number.isSafeInteger(old?.until) ? old.until : 0, rateLimitedUntil)});
+      }
       if (fields.status) await recordResolutionFailure(tx, result, fields);
       return result;
     });
@@ -435,15 +462,22 @@ function processingMethods(context) {
       const current = await context.db.transaction(['outbox'], 'readonly', tx => tx.get('outbox', operation.key));
       if (!context.canDispatch(current)) return;
       let remote = null;
-      try { remote = await readRemote(operation); } catch {}
+      try { remote = await readRemote(operation); }
+      catch (readError) { if (readError.status === 429) return fail(operation, readError); }
       return conflicts.record({operation, remote, reason: deleted(remote) ? 'deleted' : error.code || 'version'});
     }
     const attempts = operation.attempts + 1;
     const delay = RETRY_DELAYS[Math.min(attempts - 1, RETRY_DELAYS.length - 1)];
     const status = [401, 403].includes(error.status) ? 'paused' :
       error.status && error.status < 500 && error.status !== 429 ? 'blocked' : 'unknown';
-    return update(operation, {status, attempts, next_attempt_at: now() + (error.status === 429 ? Math.max(60000, delay) : delay),
-      error: error.code || 'OFFLINE_UNKNOWN'});
+    const next = error.status === 429 ? retryUntil(now(), Math.max(delay, retryAfterDelay(error.retryAfterMs))) : now() + delay;
+    if (error.status === 429) {
+      if (context.rateLimitScope !== operation.scope) context.rateLimitedUntil = 0;
+      context.rateLimitScope = operation.scope;
+      context.rateLimitedUntil = Math.max(context.rateLimitedUntil || 0, next);
+    }
+    return update(operation, {status, attempts, next_attempt_at: next,
+      error: error.code || 'OFFLINE_UNKNOWN'}, error.status === 429 ? {rateLimitedUntil: next} : {});
   }
 
   async function process(operation) {
@@ -504,16 +538,19 @@ async function dependenciesReady(context, operation, rows) {
 }
 
 function executionMethods(context) {
-  const {getScope, lease, state, list, checkScope, process, db, leaseKey, owner, now, retryable, canDispatch} = context;
+  const {getScope, lease, state, list, checkScope, process, db, leaseKey, owner, now, retryable, canDispatch, cooldown} = context;
   let running = null;
   async function run() {
     const scope = getScope();
     if (!scope) return {phase: 'paused', pending: 0};
+    if (context.rateLimitScope !== scope) { context.rateLimitScope = scope; context.rateLimitedUntil = 0; }
     if (!await lease(scope)) return {phase: 'busy', pending: (await list(scope)).length};
-    state.phase = 'syncing'; state.error = null;
+    state.phase = 'syncing'; state.error = null; state.rateLimitedUntil = 0;
     try {
       for (let count = 0; count < 1000; count++) {
         checkScope(scope);
+        const blockedUntil = Math.max(await cooldown(scope), context.rateLimitedUntil || 0);
+        if (blockedUntil > now()) { state.rateLimitedUntil = blockedUntil; break; }
         const rows = await list(scope);
         let operation;
         for (const candidate of await retryable(scope)) {
@@ -532,11 +569,12 @@ function executionMethods(context) {
       return {...state};
     } catch (error) {
       state.phase = 'paused'; state.error = error.code || 'OFFLINE_UNKNOWN';
+      state.rateLimitedUntil = context.rateLimitedUntil || 0;
       return {...state};
     } finally {
       await db.transaction(['meta'], 'readwrite', async tx => {
         if ((await tx.get('meta', leaseKey(scope)))?.owner === owner) await tx.delete('meta', leaseKey(scope));
-      });
+      }).catch(() => {}); // A failed cleanup leaves a short-lived lease; never mask a 429 deadline.
     }
   }
 
@@ -589,6 +627,6 @@ export function createOutbox(options) {
     }
   }
   context.conflicts.resolve = resolve;
-  const {enqueue, drain, resume, list, state, conflicts, canDispatch, retryable} = context;
-  return {enqueue, drain, resume, list, state, conflicts, canDispatch, retryable, resolve};
+  const {enqueue, drain, resume, list, state, conflicts, canDispatch, retryable, cooldown, setCooldown} = context;
+  return {enqueue, drain, resume, list, state, conflicts, canDispatch, retryable, cooldown, setCooldown, resolve};
 }
