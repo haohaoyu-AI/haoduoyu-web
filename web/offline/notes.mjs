@@ -1,5 +1,6 @@
 import {entityKey} from './db.mjs';
 import {localDocument} from './document.mjs';
+import {latestCompleteSnapshot} from './read-only.mjs';
 
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const hashPattern = /^[a-f0-9]{64}$/;
@@ -125,7 +126,7 @@ function readingMethods(context) {
       const rows = await load(tx, owner.scope), cap = await tx.get('meta', capabilityKey(owner.scope));
       const capability = cap?.scope === owner.scope ? cap.can_edit : null;
       const cached = await tx.get('meta', entityKey(owner.scope, 'get:' + path));
-      const snapshot = await tx.get('meta', entityKey(owner.scope, 'snapshot'));
+      const snapshot = await latestCompleteSnapshot(tx, owner.scope);
       const complete = snapshot?.value?.index?.complete === true && snapshot.value.index.scope_id === owner.scope;
       const entities = rows.entities.filter(row => inRoute(row, route) && (row.dirty || !row.remote_missing && row.server));
       if (route.kind === 'note_entry') {

@@ -83,6 +83,18 @@ test('a snapshot alone grants reading but no editing capability, and incomplete 
   f.state.scope = otherOwner;
   await assert.rejects(f.cache.read(path(otherDate)), error => error.code === 'OFFLINE_CACHE_MISS');
 });
+test('v2 completeness reads dirty local notes without granting capability across scopes', async () => {
+  const f = setup(), row = apiRow({date: otherDate});
+  await putEntity(f, snapshotRow(row), {dirty: true, local: {...row, text: '尚未同步的内容'}, remote_missing: true});
+  await f.db.transaction(['meta'], 'readwrite', tx => tx.put('meta', {key: entityKey(owner, 'snapshot-v2'),
+    value: {index: {complete: true, scope_id: owner, entities: [{entity_id: 'note-entry:' + row.id,
+      entity_type: 'life_note', date: otherDate, deleted_at: null}]}, verified_at: 456}}));
+  const read = await f.cache.read(path(otherDate));
+  assert.equal(documentValue(read.data.entries[0]).text, '尚未同步的内容');
+  assert.equal(read.data.can_edit, false); assert.equal(read.saved_at, 456);
+  f.state.scope = otherOwner;
+  await assert.rejects(f.cache.read(path(otherDate)), error => error.code === 'OFFLINE_CACHE_MISS');
+});
 test('fresh read-only capability revokes cached editing without losing any local text', async () => {
   const f = setup(), row = apiRow(); await f.cache.write(path(), collection([row]));
   await f.cache.write(path(otherDate), collection([], otherDate, 'life', false));

@@ -826,6 +826,77 @@ var init_document = __esm({
   }
 });
 
+// web/offline/read-only.mjs
+async function latestCompleteSnapshot(tx, scope) {
+  const v1 = await tx.get("meta", entityKey(scope, "snapshot"));
+  const v2 = await tx.get("meta", entityKey(scope, "snapshot-v2"));
+  const valid = (value) => value?.value?.index?.complete === true && value.value.index.scope_id === scope;
+  if (!valid(v1)) return valid(v2) ? v2 : null;
+  if (!valid(v2)) return v1;
+  return (v2.value.verified_at || 0) >= (v1.value.verified_at || 0) ? v2 : v1;
+}
+function readOnlyRoute(path) {
+  const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
+  if (url.origin !== "https://offline.invalid" || url.hash) return null;
+  if (url.pathname === "/work-reminders" && [...query.keys()].every((key) => key === "date") && query.getAll("date").length === 1 && day(query.get("date"))) return { kind: "reminders", date: query.get("date") };
+  if (!["/note-entries/dates", "/daily-notes/dates"].includes(url.pathname) || [...query.keys()].some((key) => !["category", "before", "page_size"].includes(key) || query.getAll(key).length !== 1) || query.has("category") && !["life", "work"].includes(query.get("category")) || query.has("before") && !day(query.get("before"))) return null;
+  const size = query.get("page_size") || "30";
+  if (!/^[1-9]\d*$/.test(size) || Number(size) > 100) return null;
+  return {
+    kind: "dates",
+    source: url.pathname.startsWith("/daily-notes") ? "legacy" : "note_entry",
+    category: query.get("category") || "life",
+    before: query.get("before"),
+    size: Number(size)
+  };
+}
+function matches(entity, route2) {
+  if (route2.kind === "reminders") return entity.entity_id.startsWith("work-reminder:");
+  return route2.source === "legacy" ? entity.entity_id.startsWith("legacy-" + route2.category + ":") : entity.entity_id.startsWith("note-entry:");
+}
+async function readOnlySnapshot({ db, scope, route: route2, getScope, getGeneration }) {
+  const generation = getGeneration();
+  const result = await db.transaction(["entities", "meta"], "readonly", async (tx) => {
+    const snapshot = await latestCompleteSnapshot(tx, scope), index = snapshot?.value?.index;
+    if (index?.complete !== true || index.scope_id !== scope) throw missing();
+    const rows = (await tx.getAll("entities")).filter((row) => row.scope === scope && matches(row, route2));
+    for (const expected of index.entities.filter((row) => matches(row, route2) && !row.deleted_at)) {
+      if (!rows.some((row) => row.entity_id === expected.entity_id && row.server)) throw missing();
+    }
+    const active5 = rows.filter((row) => row.dirty || !row.remote_missing).map((row) => route2.source === "note_entry" && row.dirty ? row.local : row.server).filter((row) => row && !row.deleted && !row.deleted_at);
+    let data2;
+    if (route2.kind === "reminders") {
+      const items = active5.filter((row) => row.date === route2.date).map((row) => {
+        if (typeof row.summary !== "string" || !Number.isFinite(Date.parse(row.updated_at))) throw missing();
+        return {
+          id: row.id || row.source_id,
+          date: row.date,
+          summary: row.summary,
+          source_key: row.source_key,
+          version: row.version,
+          updated_at: row.updated_at
+        };
+      });
+      data2 = { date: route2.date, can_edit: false, items, snapshot_complete: true };
+    } else {
+      const dates = [...new Set(active5.filter((row) => row.category === route2.category && day(row.date) && (route2.source !== "legacy" || typeof row.text === "string" && row.text !== "") && (!route2.before || row.date < route2.before)).map((row) => row.date))].sort().reverse();
+      const selected = dates.slice(0, route2.size), has_more = dates.length > route2.size;
+      data2 = { dates: selected, has_more, next_before: has_more ? selected.at(-1) : null, snapshot_complete: true };
+    }
+    return { data: data2, saved_at: snapshot.value.verified_at || null };
+  });
+  if (scope !== getScope() || generation !== getGeneration()) throw missing();
+  return result;
+}
+var day, missing;
+var init_read_only = __esm({
+  "web/offline/read-only.mjs"() {
+    init_db();
+    day = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
+    missing = () => Object.assign(new Error("此内容尚未完整缓存在本机，请联网读取。"), { code: "OFFLINE_CACHE_MISS" });
+  }
+});
+
 // web/offline/notes.mjs
 function noteReadRoute(path) {
   const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
@@ -866,8 +937,8 @@ function serverFence(rows, route2, owner2) {
 }
 function localValue(entity, capability) {
   const row = entity.dirty ? entity.local : entity.server;
-  if (!row || !uuidPattern.test(row.id || row.source_id) || !["life", "work"].includes(row.category) || !validDay(row.date) || !Number.isSafeInteger(row.version) || row.version < 1) throw missing();
-  if (!removed(row) && typeof row.text !== "string") throw missing();
+  if (!row || !uuidPattern.test(row.id || row.source_id) || !["life", "work"].includes(row.category) || !validDay(row.date) || !Number.isSafeInteger(row.version) || row.version < 1) throw missing2();
+  if (!removed(row) && typeof row.text !== "string") throw missing2();
   const evidence2 = entity.label_evidence;
   const matches2 = evidence2 && evidence2.version === row.version && evidence2.category === row.category && evidence2.date === row.date && evidence2.created_at === row.created_at;
   return {
@@ -930,29 +1001,29 @@ function readingMethods(context) {
     return record?.scope === owner2.scope && typeof record.can_edit === "boolean" ? record.can_edit : null;
   }
   async function read(path, route2 = noteReadRoute(path)) {
-    if (!route2) throw missing();
+    if (!route2) throw missing2();
     const owner2 = capture();
     const result = await db.transaction(["entities", "outbox", "conflicts", "meta"], "readonly", async (tx) => {
       owner2.active();
       const rows = await load(tx, owner2.scope), cap = await tx.get("meta", capabilityKey(owner2.scope));
       const capability2 = cap?.scope === owner2.scope ? cap.can_edit : null;
       const cached = await tx.get("meta", entityKey(owner2.scope, "get:" + path));
-      const snapshot = await tx.get("meta", entityKey(owner2.scope, "snapshot"));
+      const snapshot = await latestCompleteSnapshot(tx, owner2.scope);
       const complete = snapshot?.value?.index?.complete === true && snapshot.value.index.scope_id === owner2.scope;
       const entities = rows.entities.filter((row) => inRoute(row, route2) && (row.dirty || !row.remote_missing && row.server));
       if (route2.kind === "note_entry") {
-        if (!entities.length) throw missing();
+        if (!entities.length) throw missing2();
         owner2.active();
         return {
           data: projectEntity(entities[0], capability2, rows.outbox, rows.conflicts),
           saved_at: cached?.saved_at || snapshot?.value?.verified_at || null
         };
       }
-      if (!cached && !complete && !entities.some((row) => row.dirty)) throw missing();
+      if (!cached && !complete && !entities.some((row) => row.dirty)) throw missing2();
       if (complete && Array.isArray(snapshot.value.index.entities)) {
         const present = new Set(entities.map((row) => row.entity_id));
         if (snapshot.value.index.entities.some((row) => row.entity_id?.startsWith("note-entry:") && row.date === route2.date && row.entity_type === route2.category + "_note" && !row.deleted_at && !present.has(row.entity_id)))
-          throw missing();
+          throw missing2();
       }
       const entries = entities.filter((row) => !removed(row.dirty ? row.local : row.server)).map((row) => projectEntity(row, capability2, rows.outbox, rows.conflicts));
       if (entries.length > 200) throw fail("本机当日记录较多，原文已保留，请联网核对。", "OFFLINE_CACHE_LIMIT");
@@ -974,7 +1045,7 @@ function readingMethods(context) {
   }
   async function fence(pathOrRoute) {
     const route2 = typeof pathOrRoute === "string" ? noteReadRoute(pathOrRoute) : pathOrRoute, owner2 = capture();
-    if (!route2) throw missing();
+    if (!route2) throw missing2();
     const result = await db.transaction(["entities"], "readonly", async (tx) => serverFence(await tx.getAll("entities"), route2, owner2.scope));
     owner2.active();
     return result;
@@ -985,7 +1056,7 @@ function writingMethods(context) {
   const { db, capture, capabilityKey, now } = context;
   async function write(path, route2, value, { baseline } = {}) {
     route2 ||= noteReadRoute(path);
-    if (!route2) throw missing();
+    if (!route2) throw missing2();
     const owner2 = capture(), data2 = checkedResponse(route2, value, context.labelsV1);
     const incoming = route2.kind === "note_entry" ? [data2] : data2.entries;
     await db.transaction(["entities", "meta"], "readwrite", async (tx) => {
@@ -1056,84 +1127,22 @@ function createNotesCache(options3) {
   Object.assign(context, reading);
   return { ...reading, ...writingMethods(context) };
 }
-var uuidPattern, hashPattern, isObject, fail, missing, validDay, timestamp, noteEntity, removed, liveOperation;
+var uuidPattern, hashPattern, isObject, fail, missing2, validDay, timestamp, noteEntity, removed, liveOperation;
 var init_notes = __esm({
   "web/offline/notes.mjs"() {
     init_db();
     init_document();
+    init_read_only();
     uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
     hashPattern = /^[a-f0-9]{64}$/;
     isObject = (value) => value && typeof value === "object" && !Array.isArray(value);
     fail = (message, code) => Object.assign(new Error(message), { code });
-    missing = () => fail("此记录尚未完整保存在本机，请联网读取一次。", "OFFLINE_CACHE_MISS");
+    missing2 = () => fail("此记录尚未完整保存在本机，请联网读取一次。", "OFFLINE_CACHE_MISS");
     validDay = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
     timestamp = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
     noteEntity = (row) => row?.entity_id?.startsWith("note-entry:");
     removed = (row) => Boolean(row && (row.deleted || row.deleted_at));
     liveOperation = (row) => !["acked", "archived"].includes(row.status);
-  }
-});
-
-// web/offline/read-only.mjs
-function readOnlyRoute(path) {
-  const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
-  if (url.origin !== "https://offline.invalid" || url.hash) return null;
-  if (url.pathname === "/work-reminders" && [...query.keys()].every((key) => key === "date") && query.getAll("date").length === 1 && day(query.get("date"))) return { kind: "reminders", date: query.get("date") };
-  if (!["/note-entries/dates", "/daily-notes/dates"].includes(url.pathname) || [...query.keys()].some((key) => !["category", "before", "page_size"].includes(key) || query.getAll(key).length !== 1) || query.has("category") && !["life", "work"].includes(query.get("category")) || query.has("before") && !day(query.get("before"))) return null;
-  const size = query.get("page_size") || "30";
-  if (!/^[1-9]\d*$/.test(size) || Number(size) > 100) return null;
-  return {
-    kind: "dates",
-    source: url.pathname.startsWith("/daily-notes") ? "legacy" : "note_entry",
-    category: query.get("category") || "life",
-    before: query.get("before"),
-    size: Number(size)
-  };
-}
-function matches(entity, route2) {
-  if (route2.kind === "reminders") return entity.entity_id.startsWith("work-reminder:");
-  return route2.source === "legacy" ? entity.entity_id.startsWith("legacy-" + route2.category + ":") : entity.entity_id.startsWith("note-entry:");
-}
-async function readOnlySnapshot({ db, scope, route: route2, getScope, getGeneration }) {
-  const generation = getGeneration();
-  const result = await db.transaction(["entities", "meta"], "readonly", async (tx) => {
-    const snapshot = await tx.get("meta", entityKey(scope, "snapshot")), index = snapshot?.value?.index;
-    if (index?.complete !== true || index.scope_id !== scope) throw missing2();
-    const rows = (await tx.getAll("entities")).filter((row) => row.scope === scope && matches(row, route2));
-    for (const expected of index.entities.filter((row) => matches(row, route2) && !row.deleted_at)) {
-      if (!rows.some((row) => row.entity_id === expected.entity_id && row.server)) throw missing2();
-    }
-    const active5 = rows.filter((row) => row.dirty || !row.remote_missing).map((row) => route2.source === "note_entry" && row.dirty ? row.local : row.server).filter((row) => row && !row.deleted && !row.deleted_at);
-    let data2;
-    if (route2.kind === "reminders") {
-      const items = active5.filter((row) => row.date === route2.date).map((row) => {
-        if (typeof row.summary !== "string" || !Number.isFinite(Date.parse(row.updated_at))) throw missing2();
-        return {
-          id: row.id || row.source_id,
-          date: row.date,
-          summary: row.summary,
-          source_key: row.source_key,
-          version: row.version,
-          updated_at: row.updated_at
-        };
-      });
-      data2 = { date: route2.date, can_edit: false, items, snapshot_complete: true };
-    } else {
-      const dates = [...new Set(active5.filter((row) => row.category === route2.category && day(row.date) && (route2.source !== "legacy" || typeof row.text === "string" && row.text !== "") && (!route2.before || row.date < route2.before)).map((row) => row.date))].sort().reverse();
-      const selected = dates.slice(0, route2.size), has_more = dates.length > route2.size;
-      data2 = { dates: selected, has_more, next_before: has_more ? selected.at(-1) : null, snapshot_complete: true };
-    }
-    return { data: data2, saved_at: snapshot.value.verified_at || null };
-  });
-  if (scope !== getScope() || generation !== getGeneration()) throw missing2();
-  return result;
-}
-var day, missing2;
-var init_read_only = __esm({
-  "web/offline/read-only.mjs"() {
-    init_db();
-    day = (value) => typeof value === "string" && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T00:00:00Z")) && (/* @__PURE__ */ new Date(value + "T00:00:00Z")).toISOString().slice(0, 10) === value;
-    missing2 = () => Object.assign(new Error("此内容尚未完整缓存在本机，请联网读取。"), { code: "OFFLINE_CACHE_MISS" });
   }
 });
 
@@ -3723,6 +3732,7 @@ function runtimeContext(options3) {
     listeners,
     generation: 0,
     authFlight: null,
+    scopeFlight: null,
     syncFlight: null,
     timer: null,
     channel: null,
@@ -3791,6 +3801,7 @@ function identityActions(context) {
   async function invalidate({ forget = false } = {}) {
     context.generation++;
     context.authFlight = null;
+    context.scopeFlight = null;
     context.cooldownUntil = 0;
     state2.scope = null;
     state2.verifiedScope = null;
@@ -3869,7 +3880,7 @@ function identityActions(context) {
     }
     return context.authFlight;
   }
-  async function verifyScope() {
+  async function verifyScopeOnce() {
     if (!state2.identity || !state2.verifiedScope) return verify();
     const generation = context.generation, owner2 = state2.scope;
     try {
@@ -3880,10 +3891,20 @@ function identityActions(context) {
       }
       return state2.identity;
     } catch (error) {
+      if (generation !== context.generation || state2.scope !== owner2) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
       state2.verifiedScope = null;
       if ([401, 403].includes(error.status)) await invalidate({ forget: true });
       throw error;
     }
+  }
+  function verifyScope() {
+    if (!context.scopeFlight) {
+      const flight = verifyScopeOnce().finally(() => {
+        if (context.scopeFlight === flight) context.scopeFlight = null;
+      });
+      context.scopeFlight = flight;
+    }
+    return context.scopeFlight;
   }
   return { authenticate, verify, verifyScope, invalidate };
 }
@@ -3979,9 +4000,7 @@ function syncActions(context) {
       if (!active5()) return { ...state2 };
       if (state2.verifiedScope) {
         stage = "snapshot";
-        await snapshot.pull({ date: today(now) });
-        if (!active5()) return { ...state2 };
-        if (context.snapshotV2) await context.snapshotV2.pull({ date: today(now) });
+        await (context.snapshotV2 || snapshot).pull({ date: today(now) });
         if (!active5()) return { ...state2 };
         if (context.lastTodoPath) {
           stage = "cache";
@@ -4022,9 +4041,9 @@ function syncActions(context) {
     if (state2.pending && state2.online && !context.stopped) context.scheduleRetry();
     return { ...state2 };
   }
-  function sync() {
+  function sync({ rerun = false } = {}) {
     if (context.syncFlight) {
-      if (online()) context.syncAgain = true;
+      if (rerun) context.syncAgain = true;
       return context.syncFlight;
     }
     context.syncFlight = run2().finally(() => {
@@ -4050,7 +4069,7 @@ function syncActions(context) {
       const delay = Math.min(MAX_TIMER_DELAY, Math.max(100, next - now(), deadline - now()));
       clearTimeout(context.timer);
       context.timer = setTimeout(() => {
-        if (!context.stopped) void sync();
+        if (!context.stopped) void sync({ rerun: true });
       }, delay);
       context.timer?.unref?.();
     }).catch((error) => {
@@ -4292,6 +4311,51 @@ function createOfflineRuntime(options3) {
     captureRateLimitContext,
     recordRateLimit,
     readMemo: (path) => context.memos.project(path),
+    async readTodoMonthSnapshot(month) {
+      if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month) || month.startsWith("0000")) return null;
+      if (context.syncFlight) {
+        let timer;
+        const completed = await Promise.race([
+          context.syncFlight.then(() => true),
+          new Promise((resolve) => {
+            timer = setTimeout(() => resolve(false), 5e3);
+          })
+        ]);
+        clearTimeout(timer);
+        if (!completed) return null;
+      }
+      const owner2 = context.state.scope, generation = context.generation;
+      if (!owner2 || context.state.verifiedScope !== owner2) return null;
+      const result = await context.db.transaction(["entities", "meta"], "readonly", async (tx) => {
+        const snapshot = await tx.get("meta", entityKey(owner2, "snapshot-v2"));
+        const index = snapshot?.value?.index, verified = snapshot?.value?.verified_at;
+        if (index?.complete !== true || index.scope_id !== owner2 || !Array.isArray(index.entities) || !Number.isFinite(verified) || verified > context.now() || context.now() - verified > 6e4) return null;
+        const entities = (await tx.getAll("entities")).filter((row) => row.scope === owner2);
+        const byId = new Map(entities.map((row) => [row.entity_id, row]));
+        const items = /* @__PURE__ */ new Map();
+        for (const expected of index.entities.filter((row) => row.entity_type === "todo" && row.date?.startsWith(month + "-") && !row.deleted_at)) {
+          const entity = byId.get(expected.entity_id);
+          if (!entity?.server || entity.remote_missing || entity.snapshot_hash !== expected.content_hash || entity.server.date !== expected.date || entity.server.updated_at !== expected.updated_at || entity.server.deleted_at) return null;
+          items.set(expected.entity_id, { ...entity.server, completed: Boolean(entity.server.completed) });
+        }
+        for (const entity of entities) {
+          const server = entity.server;
+          if (entity.entity_id.startsWith("todo:") && !entity.dirty && !entity.remote_missing && server && !server.deleted_at && server.date?.startsWith(month + "-") && !items.has(entity.entity_id)) return null;
+        }
+        for (const entity of entities.filter((row) => row.entity_id.startsWith("todo:") && row.dirty)) {
+          items.delete(entity.entity_id);
+          const value = offlineValue(entity);
+          if (value && !value.deleted && !value.deleted_at && value.date?.startsWith(month + "-"))
+            items.set(entity.entity_id, { ...value, completed: Boolean(value.completed) });
+        }
+        const days = {};
+        for (const item of items.values()) (days[item.date] ||= []).push(item);
+        return { days, verified_at: verified };
+      });
+      if (generation !== context.generation || owner2 !== context.state.scope || context.state.verifiedScope !== owner2)
+        throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+      return result;
+    },
     async findTodo(id2) {
       const owner2 = context.state.scope, generation = context.generation;
       if (!owner2) throw fail4("请先读取工作台数据，原未来待办仍保留。", "OFFLINE_SCOPE_REQUIRED");
@@ -6000,6 +6064,140 @@ function keyModal() {
   )}<fieldset class="form-field permission-fields"><legend class="field-label">允许访问的账号 <span class="required">*</span></legend><div class="checkboxes">${state.accounts.filter((a) => a.active).map((a) => `<label class="check-option"><input type="checkbox" name="account_ids" value="${e(a.id)}" ${state.account === a.id ? "checked" : ""}>${e(accountLabel(a))}</label>`).join("")}</div></fieldset><fieldset class="form-field permission-fields"><legend class="field-label">允许的操作</legend><div class="checkboxes"><label class="check-option"><input type="checkbox" name="permissions" value="read" checked>读取文章与数据</label><label class="check-option"><input type="checkbox" name="permissions" value="write">新增与更新数据</label></div></fieldset></div>${formEnd("创建凭证")}</form>`);
 }
 
+// web/core/todo-month.mjs
+function todoMonthScopeTransition(snapshotOwner, nextOwner, previousReady, ready) {
+  if (snapshotOwner !== nextOwner) return ready ? "replace-and-load" : "replace";
+  if (previousReady === ready) return "none";
+  return ready ? "resume" : "pause";
+}
+function todoMonthSeed(month, snapshot, loaded) {
+  const days = {};
+  if (snapshot?.days) {
+    const last = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`);
+    last.setUTCMonth(last.getUTCMonth() + 1);
+    last.setUTCDate(0);
+    for (let i = 1; i <= last.getUTCDate(); i++) {
+      const date = `${month}-${String(i).padStart(2, "0")}`;
+      days[date] = snapshot.days[date] || [];
+    }
+  }
+  for (const day6 of loaded) {
+    if (!snapshot?.days || day6.pending || day6.readAt > snapshot.verified_at) days[day6.date] = day6.items;
+  }
+  return days;
+}
+function createTodoMonthLoader({ read, seed, active: active5, changed: changed4 = () => {
+}, now = Date.now }) {
+  let owner2 = "", current2 = null, cooldown = 0;
+  const monthDays = (month) => {
+    const end = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`);
+    end.setUTCMonth(end.getUTCMonth() + 1);
+    end.setUTCDate(0);
+    return end.getUTCDate();
+  };
+  const months = /* @__PURE__ */ new Map();
+  function cancel(snapshot) {
+    if (!snapshot?.controller) return;
+    snapshot.controller.abort();
+    snapshot.controller = null;
+    snapshot.loading = false;
+  }
+  function open(month, nextOwner) {
+    if (owner2 !== nextOwner) {
+      cancel(current2);
+      months.clear();
+      owner2 = nextOwner;
+      current2 = null;
+      cooldown = 0;
+    }
+    if (current2?.month !== month) cancel(current2);
+    let snapshot = months.get(month);
+    if (!snapshot) {
+      snapshot = { month, owner: owner2, days: /* @__PURE__ */ new Map(), fresh: /* @__PURE__ */ new Set(), revisions: /* @__PURE__ */ new Map(), expiresAt: 0, loading: false, error: "", retryAt: 0 };
+      months.set(month, snapshot);
+    }
+    current2 = snapshot;
+    const count = monthDays(month), deadline = Math.max(snapshot.retryAt, cooldown);
+    if (snapshot.fresh.size === count && now() < snapshot.expiresAt) snapshot.error = "";
+    const expired = snapshot.fresh.size === count && now() >= snapshot.expiresAt;
+    if (expired) snapshot.fresh.clear();
+    if (!snapshot.loading && snapshot.fresh.size < count && now() < deadline && !snapshot.error)
+      snapshot.error = "请求较多，请稍后重试。";
+    if (!snapshot.loading && snapshot.fresh.size < count && now() >= deadline) {
+      const controller = new AbortController();
+      snapshot.controller = controller;
+      snapshot.loading = true;
+      snapshot.error = "";
+      snapshot.promise = run2(snapshot, controller, expired);
+    }
+    return snapshot;
+  }
+  async function run2(snapshot, controller, expired) {
+    const valid = () => snapshot.controller === controller && !controller.signal.aborted && active5(snapshot.owner);
+    const count = monthDays(snapshot.month);
+    const dates = Array.from({ length: count }, (_, i) => `${snapshot.month}-${String(i + 1).padStart(2, "0")}`);
+    const revisions = new Map(snapshot.revisions);
+    try {
+      const initial = await seed(snapshot.month, snapshot.owner, { refresh: expired });
+      if (!valid()) return;
+      if (initial) for (const [date, items] of Object.entries(initial)) {
+        if (dates.includes(date) && Array.isArray(items) && !snapshot.fresh.has(date) && (snapshot.revisions.get(date) || 0) === (revisions.get(date) || 0)) {
+          snapshot.days.set(date, items);
+          snapshot.fresh.add(date);
+        }
+      }
+      for (let start = 0; start < dates.length; start += 5) {
+        const batch = dates.slice(start, start + 5).filter((date) => !snapshot.fresh.has(date));
+        if (!batch.length) continue;
+        const context = { controller, pending: /* @__PURE__ */ new Map() };
+        const results = await Promise.allSettled(batch.map(async (date) => {
+          const revision2 = revisions.get(date) || 0;
+          const value = await read(date, context);
+          if (!Array.isArray(value?.items)) throw new Error("月记录读取不完整，请重试");
+          if (valid()) {
+            if ((snapshot.revisions.get(date) || 0) === revision2) snapshot.days.set(date, value.items);
+            snapshot.fresh.add(date);
+          }
+          return value;
+        }));
+        if (!valid()) return;
+        let failure3;
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          if (result.status === "rejected" && (!failure3 || result.reason?.status === 429)) failure3 = result.reason;
+        }
+        if (failure3) {
+          if (failure3.status === 429) {
+            const deadline = Math.min(Number.MAX_SAFE_INTEGER - 1, now() + (failure3.retryAfterMs || 6e4));
+            cooldown = Math.max(cooldown, deadline);
+            snapshot.retryAt = Math.max(snapshot.retryAt, deadline);
+          }
+          snapshot.error = failure3.message || "月记录读取失败，请重试";
+          break;
+        }
+      }
+      if (snapshot.fresh.size === count) snapshot.expiresAt = now() + 6e4;
+    } catch (error) {
+      if (valid()) snapshot.error = error.message || "月记录读取失败，请重试";
+    } finally {
+      if (snapshot.controller === controller) {
+        snapshot.controller = null;
+        snapshot.loading = false;
+        if (current2 === snapshot && active5(snapshot.owner)) changed4(snapshot);
+      }
+    }
+  }
+  function update(nextOwner, date, items) {
+    if (owner2 !== nextOwner || !Array.isArray(items)) return false;
+    const snapshot = months.get(date.slice(0, 7));
+    if (!snapshot || JSON.stringify(snapshot.days.get(date)) === JSON.stringify(items)) return false;
+    snapshot.days.set(date, items);
+    snapshot.revisions.set(date, (snapshot.revisions.get(date) || 0) + 1);
+    return true;
+  }
+  return { open, update, cancel: () => cancel(current2) };
+}
+
 // web/core/todo-templates-state.mjs
 init_state();
 init_todos_state();
@@ -6551,6 +6749,7 @@ async function changeTodoCompletedMode(mode) {
 
 // web/pages/todos.mjs
 init_api();
+init_runtime();
 init_dom();
 init_format();
 init_requests();
@@ -6562,6 +6761,41 @@ var monthSnapshot = { month: "", owner: "", days: /* @__PURE__ */ new Map(), loa
 var calendarStatus = "all";
 var savingTimes = /* @__PURE__ */ new WeakMap(), savingTimers = /* @__PURE__ */ new WeakMap();
 var todoObservers = /* @__PURE__ */ new Set();
+var monthDayOwners = /* @__PURE__ */ new WeakMap();
+function monthOwner() {
+  const offline = getOfflineRuntime();
+  return JSON.stringify([todoOwner(), offline?.state.scope || null]);
+}
+var monthLoader = createTodoMonthLoader({
+  read: (date, context) => api(`/todos?date=${encodeURIComponent(date)}`, { context }),
+  active: (owner2) => owner2 === monthOwner() && todoSessionActive(todoOwner()),
+  async seed(month, owner2, { refresh = false } = {}) {
+    const loaded = [];
+    if (todosState.owner === todoOwner()) for (const [date, day6] of todosState.days) {
+      const stamp2 = monthDayOwners.get(day6);
+      if (date.startsWith(month + "-") && day6.loaded && stamp2?.owner === owner2 && (!refresh || todoPending(day6))) {
+        loaded.push({ date, items: monthDayItems(day6), readAt: stamp2.at, pending: todoPending(day6) });
+      }
+    }
+    const offline = getOfflineRuntime(), scope = offline?.state.scope;
+    if (!scope || offline.state.verifiedScope !== scope) return todoMonthSeed(month, null, loaded);
+    let snapshot = null;
+    try {
+      snapshot = await offline.readTodoMonthSnapshot?.(month);
+    } catch {
+    }
+    if (owner2 !== monthOwner() || !todoSessionActive(todoOwner()) || offline.state.scope !== scope || offline.state.verifiedScope !== scope) return {};
+    return todoMonthSeed(month, snapshot, loaded);
+  },
+  changed(snapshot) {
+    if (monthSnapshot !== snapshot || !todosVisible()) return;
+    const node2 = $("#todo-calendar");
+    if (node2) {
+      node2.dataset.month = "";
+      paintTodoCalendar(todoDay().date);
+    }
+  }
+});
 function observeTodoChanges(callback) {
   todoObservers.add(callback);
   return () => todoObservers.delete(callback);
@@ -6578,13 +6812,13 @@ function todoCalendarMonth(date) {
 }
 function todoCalendarDay(date, selected) {
   const today2 = date === bjtDate(), active5 = date === selected;
-  const items = (monthSnapshot.month === date.slice(0, 7) && monthSnapshot.owner === todoOwner() ? monthSnapshot.days.get(date) || [] : []).filter((item) => !item.deleted_at);
+  const items = (monthSnapshot.month === date.slice(0, 7) && monthSnapshot.owner === monthOwner() ? monthSnapshot.days.get(date) || [] : []).filter((item) => !item.deleted_at);
   const shown = items.filter((item) => calendarStatus === "all" || Boolean(item.completed) === (calendarStatus === "done"));
   const content2 = shown.slice(0, 4).map((item) => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ${e(item.text)}</span>`).join("");
   const more = shown.length > 4 ? `<span class="todo-calendar-more">还有 ${shown.length - 4} 项</span>` : "";
   return `<button class="todo-calendar-day${active5 ? " is-selected" : ""}${today2 ? " is-today" : ""}" type="button"
 data-action="todo-calendar-date" data-date="${e(date)}" aria-label="${e(date)}" aria-pressed="${active5}"
-${today2 ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.owner === todoOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date) ? shown.length + " 项" : ""}</small></span>${content2}${more}</button>`;
+${today2 ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.owner === monthOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date) ? shown.length + " 项" : ""}</small></span>${content2}${more}</button>`;
 }
 function todoCalendar(date) {
   const month = todoCalendarMonth(date), first = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`), last = new Date(first);
@@ -6599,9 +6833,9 @@ function todoCalendar(date) {
   const visible3 = todosState.calendarView === "week" ? cells.slice(weekIndex * 7, weekIndex * 7 + 7) : cells;
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7).filter(Boolean));
   const all = [...monthSnapshot.days.values()].flat().filter((item) => !item.deleted_at), done = all.filter((item) => item.completed).length;
-  const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === todoOwner();
+  const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === monthOwner();
   const activeDays = [...monthSnapshot.days.values()].filter((items) => items.some((item) => !item.deleted_at)).length;
-  const stats = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done / all.length * 100) : 0}%`]].map(([label3, value]) => `<span><small>${label3}</small><strong>${value}</strong></span>`).join("")}</div>`;
+  const stats = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">部分日期未加载：${e(monthSnapshot.error)} <button class="btn text small" type="button" data-todo-calendar-retry>重试缺失日期</button></p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done / all.length * 100) : 0}%`]].map(([label3, value]) => `<span><small>${label3}</small><strong>${value}</strong></span>`).join("")}</div>`;
   return `<aside class="todo-calendar-sidebar"><label for="todo-calendar-month-input">月份</label><input id="todo-calendar-month-input" type="month" class="input" data-todo-calendar-month value="${e(month)}">
 <label for="todo-calendar-week">周日期</label><select id="todo-calendar-week" class="input" data-todo-calendar-week>${weeks.map((week, i) => `<option value="${week[0]}" ${i === weekIndex ? "selected" : ""}>${week[0].slice(5)} — ${week.at(-1).slice(5)}</option>`).join("")}</select>
 <label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
@@ -6638,6 +6872,11 @@ function paintTodoCalendar(date) {
   if (!calendar) return;
   if (!calendar.dataset.viewBound) {
     calendar.addEventListener("click", (event) => {
+      const retry = event.target.closest("[data-todo-calendar-retry]");
+      if (retry) {
+        void loadTodoMonth(todoCalendarMonth(todoDay().date));
+        return;
+      }
       const button2 = event.target.closest("[data-todo-calendar-view]");
       if (!button2) return;
       todosState.calendarView = button2.dataset.todoCalendarView;
@@ -6673,33 +6912,16 @@ function paintTodoCalendar(date) {
   if (focusedDate) $(`[data-date="${CSS.escape(focusedDate)}"]`, calendar)?.focus();
 }
 async function loadTodoMonth(month) {
-  const owner2 = todoOwner();
-  if (monthSnapshot.month === month && monthSnapshot.owner === owner2 && (monthSnapshot.loading || monthSnapshot.days.size)) return;
-  const snapshot = { month, owner: owner2, days: /* @__PURE__ */ new Map(), loading: true, error: "" };
+  const snapshot = monthLoader.open(month, monthOwner());
   monthSnapshot = snapshot;
-  const first = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`), last = new Date(first);
-  last.setUTCMonth(last.getUTCMonth() + 1);
-  last.setUTCDate(0);
-  try {
-    for (let start = 1; start <= last.getUTCDate(); start += 5) {
-      const dates = Array.from({ length: Math.min(5, last.getUTCDate() - start + 1) }, (_, i) => `${month}-${String(start + i).padStart(2, "0")}`);
-      const results = await Promise.all(dates.map((date) => api(`/todos?date=${encodeURIComponent(date)}`)));
-      if (monthSnapshot !== snapshot || !todoSessionActive(owner2)) return;
-      for (let i = 0; i < dates.length; i++) snapshot.days.set(dates[i], results[i].items || []);
-    }
-  } catch (error) {
-    snapshot.days.clear();
-    snapshot.error = error.message || "月记录读取失败，请重试";
-  } finally {
-    snapshot.loading = false;
-    if (monthSnapshot === snapshot && todosVisible()) {
-      const node2 = $("#todo-calendar");
-      if (node2) {
-        node2.dataset.month = "";
-        paintTodoCalendar(todoDay().date);
-      }
+  if (todosVisible()) {
+    const node2 = $("#todo-calendar");
+    if (node2) {
+      node2.dataset.month = "";
+      paintTodoCalendar(todoDay().date);
     }
   }
+  await snapshot.promise;
 }
 function todoDateControls(date) {
   return `<div class="daily-todo-dates"><button class="btn small" data-action="todo-prev" aria-label="前一天">‹</button>
@@ -6764,6 +6986,7 @@ function paintTodoPanels(root2) {
 async function setTodoPanel(panel2) {
   if (!todosVisible()) return;
   state.todoPanel = ["history", "templates", "future"].includes(panel2) ? panel2 : "";
+  if (state.todoPanel !== "history") monthLoader.cancel();
   if (!state.todoPanel) state.todoDate = "";
   updateRoute(true);
   paintTodos();
@@ -6825,11 +7048,28 @@ ${renderTodoTemplates(floatingTodoControl())}${renderUnscheduledTodos()}</sectio
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
 }
+function monthDayItems(day6) {
+  return day6.items.filter((item) => {
+    const removal = day6.removals.get(item.id);
+    return !removal || removal.phase === "restoring";
+  }).map((item) => day6.updates.has(item.id) ? { ...item, completed: day6.updates.get(item.id) } : item);
+}
 function paintTodos() {
   notifyTodoChanges();
   const root2 = $("#daily-todos");
   if (!root2 || !todosVisible()) return;
   const day6 = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const stamp2 = monthDayOwners.get(day6);
+  if (day6.loaded && stamp2?.owner === monthOwner()) {
+    if (stamp2.revision !== day6.revision) {
+      stamp2.at = Date.now();
+      stamp2.revision = day6.revision;
+    }
+    if (monthLoader.update(monthOwner(), day6.date, monthDayItems(day6))) {
+      const calendar = $("#todo-calendar");
+      if (calendar) calendar.dataset.month = "";
+    }
+  }
   const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
   if (root2.dataset.date !== day6.date) {
     root2.outerHTML = renderTodos();
@@ -6876,24 +7116,28 @@ function todoReadActive(owner2, version2, date, day6, sequence4) {
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
+  if (context?.controller?.signal) {
+    context.controller.signal.addEventListener("abort", () => monthLoader.cancel(), { once: true });
+  }
   if (state.todoPanel === "future") {
     await loadUnscheduledTodos();
     return;
   }
   void loadTodoTemplates({ ensure: true });
-  const day6 = todoDay(), date = day6.date, owner2 = todoOwner(), version2 = runtime.renderVersion;
+  const day6 = todoDay(), date = day6.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
   const sequence4 = ++day6.sequence, revision2 = day6.revision;
   day6.loading = true;
   day6.error = "";
   paintTodos();
   try {
     const data2 = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
-    if (!todoReadActive(owner2, version2, date, day6, sequence4)) return;
+    if (!todoReadActive(owner2, version2, date, day6, sequence4) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
     if (day6.revision !== revision2) return loadTodos(context);
     receiveTodoPreferences(data2.completed_mode, data2.preferences_version);
     day6.items = data2.items;
     day6.loaded = true;
-    if (monthSnapshot.owner === owner2 && monthSnapshot.month === date.slice(0, 7) && !monthSnapshot.loading) {
+    monthDayOwners.set(day6, { owner: monthOwner(), at: Date.now(), revision: day6.revision });
+    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date.slice(0, 7) && !monthSnapshot.loading) {
       monthSnapshot.days.set(date, data2.items);
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
@@ -6944,7 +7188,7 @@ async function saveTodo(day6, request, templateId = "") {
     const item = await api("/todos", { method: "POST", body: request });
     if (!todoSessionActive(owner2)) return;
     mergeTodo(day6, item);
-    if (monthSnapshot.owner === owner2 && monthSnapshot.month === day6.date.slice(0, 7)) {
+    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === day6.date.slice(0, 7)) {
       monthSnapshot.days.set(day6.date, [...day6.items]);
       const calendar = $("#todo-calendar");
       if (calendar) calendar.dataset.month = "";
@@ -7111,6 +7355,30 @@ function scheduleTodoClock() {
   todoClock?.unref?.();
 }
 function registerTodosClock() {
+  onOfflineRuntime((offline) => {
+    let previousReady;
+    offline.subscribe(() => {
+      const ready = Boolean(offline.state.scope && offline.state.verifiedScope === offline.state.scope);
+      const action = todoMonthScopeTransition(monthSnapshot.owner, monthOwner(), previousReady, ready);
+      previousReady = ready;
+      if (!todosVisible() || state.todoPanel !== "history" || action === "none") return;
+      monthLoader.cancel();
+      const month = todoCalendarMonth(todoDay().date);
+      if (action.startsWith("replace")) {
+        monthSnapshot = { month, owner: monthOwner(), days: /* @__PURE__ */ new Map(), loading: false, error: "" };
+      } else if (action === "pause") {
+        monthSnapshot.loading = false;
+        monthSnapshot.error = "身份范围暂未核实，请稍后重试。";
+      }
+      const node2 = $("#todo-calendar");
+      if (node2) {
+        node2.dataset.month = "";
+        paintTodoCalendar(todoDay().date);
+      }
+      if (ready) void loadTodoMonth(month);
+    });
+  });
+  window.addEventListener("haoduoyu-todos-reset", () => monthLoader.cancel());
   window.addEventListener("focus", checkTodoDay);
   document.addEventListener("visibilitychange", checkTodoDay);
   scheduleTodoClock();

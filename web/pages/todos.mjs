@@ -1,5 +1,7 @@
 import { loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos } from "./unscheduled-todos.mjs";
 import { api } from "../core/api.mjs";
+import { createTodoMonthLoader, todoMonthScopeTransition, todoMonthSeed } from "../core/todo-month.mjs";
+import { getOfflineRuntime, onOfflineRuntime } from "../offline/runtime.mjs";
 import { $, e } from "../core/dom.mjs";
 import { bjtDate } from "../core/format.mjs";
 import { isRequestAbort } from "../core/requests.mjs";
@@ -17,6 +19,36 @@ let monthSnapshot = {month:"", owner:"", days:new Map(), loading:false, error:""
 let calendarStatus = "all";
 const savingTimes = new WeakMap(), savingTimers = new WeakMap();
 const todoObservers = new Set();
+const monthDayOwners = new WeakMap();
+function monthOwner() {
+  const offline = getOfflineRuntime();
+  return JSON.stringify([todoOwner(), offline?.state.scope || null]);
+}
+const monthLoader = createTodoMonthLoader({
+  read: (date, context) => api(`/todos?date=${encodeURIComponent(date)}`, {context}),
+  active: owner => owner === monthOwner() && todoSessionActive(todoOwner()),
+  async seed(month, owner, {refresh = false} = {}) {
+    const loaded = [];
+    if (todosState.owner === todoOwner()) for (const [date, day] of todosState.days) {
+      const stamp = monthDayOwners.get(day);
+      if (date.startsWith(month + '-') && day.loaded && stamp?.owner === owner && (!refresh || todoPending(day))) {
+        loaded.push({date, items: monthDayItems(day), readAt: stamp.at, pending: todoPending(day)});
+      }
+    }
+    const offline = getOfflineRuntime(), scope = offline?.state.scope;
+    if (!scope || offline.state.verifiedScope !== scope) return todoMonthSeed(month, null, loaded);
+    let snapshot = null;
+    try { snapshot = await offline.readTodoMonthSnapshot?.(month); }
+    catch { /* A missing or changing snapshot falls back to daily reads. */ }
+    if (owner !== monthOwner() || !todoSessionActive(todoOwner()) || offline.state.scope !== scope || offline.state.verifiedScope !== scope) return {};
+    return todoMonthSeed(month, snapshot, loaded);
+  },
+  changed(snapshot) {
+    if (monthSnapshot !== snapshot || !todosVisible()) return;
+    const node = $("#todo-calendar");
+    if (node) { node.dataset.month = ""; paintTodoCalendar(todoDay().date); }
+  }
+});
 function observeTodoChanges(callback) {
   todoObservers.add(callback);
   return () => todoObservers.delete(callback);
@@ -33,13 +65,13 @@ function todoCalendarMonth(date) {
 }
 function todoCalendarDay(date, selected) {
   const today = date === bjtDate(), active = date === selected;
-  const items = (monthSnapshot.month === date.slice(0, 7) && monthSnapshot.owner === todoOwner() ? monthSnapshot.days.get(date) || [] : []).filter(item => !item.deleted_at);
+  const items = (monthSnapshot.month === date.slice(0, 7) && monthSnapshot.owner === monthOwner() ? monthSnapshot.days.get(date) || [] : []).filter(item => !item.deleted_at);
   const shown = items.filter(item => calendarStatus === "all" || Boolean(item.completed) === (calendarStatus === "done"));
   const content = shown.slice(0, 4).map(item => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ${e(item.text)}</span>`).join("");
   const more = shown.length > 4 ? `<span class="todo-calendar-more">还有 ${shown.length - 4} 项</span>` : "";
   return `<button class="todo-calendar-day${active ? " is-selected" : ""}${today ? " is-today" : ""}" type="button"
 data-action="todo-calendar-date" data-date="${e(date)}" aria-label="${e(date)}" aria-pressed="${active}"
-${today ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.owner === todoOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date) ? shown.length + " 项" : ""}</small></span>${content}${more}</button>`;
+${today ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.owner === monthOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date) ? shown.length + " 项" : ""}</small></span>${content}${more}</button>`;
 }
 function todoCalendar(date) {
   const month = todoCalendarMonth(date), first = new Date(`${month}-01T00:00:00Z`), last = new Date(first);
@@ -54,9 +86,9 @@ function todoCalendar(date) {
   const visible = todosState.calendarView === "week" ? cells.slice(weekIndex * 7, weekIndex * 7 + 7) : cells;
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7).filter(Boolean));
   const all = [...monthSnapshot.days.values()].flat().filter(item => !item.deleted_at), done = all.filter(item => item.completed).length;
-  const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === todoOwner();
+  const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === monthOwner();
   const activeDays = [...monthSnapshot.days.values()].filter(items => items.some(item => !item.deleted_at)).length;
-  const stats = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">${e(monthSnapshot.error)}</p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done / all.length * 100) : 0}%`]].map(([label, value]) => `<span><small>${label}</small><strong>${value}</strong></span>`).join("")}</div>`;
+  const stats = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">部分日期未加载：${e(monthSnapshot.error)} <button class="btn text small" type="button" data-todo-calendar-retry>重试缺失日期</button></p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done / all.length * 100) : 0}%`]].map(([label, value]) => `<span><small>${label}</small><strong>${value}</strong></span>`).join("")}</div>`;
   return `<aside class="todo-calendar-sidebar"><label for="todo-calendar-month-input">月份</label><input id="todo-calendar-month-input" type="month" class="input" data-todo-calendar-month value="${e(month)}">
 <label for="todo-calendar-week">周日期</label><select id="todo-calendar-week" class="input" data-todo-calendar-week>${weeks.map((week, i) => `<option value="${week[0]}" ${i === weekIndex ? "selected" : ""}>${week[0].slice(5)} — ${week.at(-1).slice(5)}</option>`).join("")}</select>
 <label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
@@ -92,6 +124,8 @@ function paintTodoCalendar(date) {
   if (!calendar) return;
   if (!calendar.dataset.viewBound) {
     calendar.addEventListener('click', event => {
+      const retry = event.target.closest('[data-todo-calendar-retry]');
+      if (retry) { void loadTodoMonth(todoCalendarMonth(todoDay().date)); return; }
       const button = event.target.closest('[data-todo-calendar-view]'); if (!button) return;
       todosState.calendarView = button.dataset.todoCalendarView; calendar.dataset.month = ""; paintTodoCalendar(todoDay().date);
     });
@@ -114,19 +148,13 @@ function paintTodoCalendar(date) {
   if (focusedDate) $(`[data-date="${CSS.escape(focusedDate)}"]`, calendar)?.focus();
 }
 async function loadTodoMonth(month) {
-  const owner = todoOwner();
-  if (monthSnapshot.month === month && monthSnapshot.owner === owner && (monthSnapshot.loading || monthSnapshot.days.size)) return;
-  const snapshot = {month, owner, days:new Map(), loading:true, error:""}; monthSnapshot = snapshot;
-  const first = new Date(`${month}-01T00:00:00Z`), last = new Date(first); last.setUTCMonth(last.getUTCMonth()+1); last.setUTCDate(0);
-  try {
-    for (let start=1; start<=last.getUTCDate(); start+=5) {
-      const dates = Array.from({length:Math.min(5,last.getUTCDate()-start+1)},(_,i)=>`${month}-${String(start+i).padStart(2,"0")}`);
-      const results = await Promise.all(dates.map(date => api(`/todos?date=${encodeURIComponent(date)}`)));
-      if (monthSnapshot !== snapshot || !todoSessionActive(owner)) return;
-      for (let i=0;i<dates.length;i++) snapshot.days.set(dates[i], results[i].items || []);
-    }
-  } catch (error) { snapshot.days.clear(); snapshot.error = error.message || "月记录读取失败，请重试"; }
-  finally { snapshot.loading = false; if (monthSnapshot === snapshot && todosVisible()) { const node = $("#todo-calendar"); if (node) { node.dataset.month=""; paintTodoCalendar(todoDay().date); } } }
+  const snapshot = monthLoader.open(month, monthOwner());
+  monthSnapshot = snapshot;
+  if (todosVisible()) {
+    const node = $("#todo-calendar");
+    if (node) { node.dataset.month = ""; paintTodoCalendar(todoDay().date); }
+  }
+  await snapshot.promise;
 }
 function todoDateControls(date) {
   return `<div class="daily-todo-dates"><button class="btn small" data-action="todo-prev" aria-label="前一天">‹</button>
@@ -190,6 +218,7 @@ function paintTodoPanels(root) {
 async function setTodoPanel(panel) {
   if (!todosVisible()) return;
   state.todoPanel = ["history", "templates", "future"].includes(panel) ? panel : "";
+  if (state.todoPanel !== "history") monthLoader.cancel();
   if (!state.todoPanel) state.todoDate = "";
   updateRoute(true); paintTodos();
   if (state.todoPanel === "future") await loadUnscheduledTodos();
@@ -244,11 +273,24 @@ ${renderTodoTemplates(floatingTodoControl())}${renderUnscheduledTodos()}</sectio
 function todosVisible() {
   return Boolean(state.me) && state.page === "todos";
 }
+function monthDayItems(day) {
+  return day.items.filter(item => {
+    const removal = day.removals.get(item.id);
+    return !removal || removal.phase === "restoring";
+  }).map(item => day.updates.has(item.id) ? {...item, completed: day.updates.get(item.id)} : item);
+}
 function paintTodos() {
   notifyTodoChanges();
   const root = $("#daily-todos");
   if (!root || !todosVisible()) return;
   const day = todoDay(), checkbox = document.activeElement?.dataset?.todoId;
+  const stamp = monthDayOwners.get(day);
+  if (day.loaded && stamp?.owner === monthOwner()) {
+    if (stamp.revision !== day.revision) { stamp.at = Date.now(); stamp.revision = day.revision; }
+    if (monthLoader.update(monthOwner(), day.date, monthDayItems(day))) {
+      const calendar = $("#todo-calendar"); if (calendar) calendar.dataset.month = "";
+    }
+  }
   const menu = document.activeElement?.dataset?.action === "todo-menu" ? document.activeElement.dataset.id : null;
   if (root.dataset.date !== day.date) {
     root.outerHTML = renderTodos();
@@ -287,21 +329,25 @@ function todoReadActive(owner, version, date, day, sequence) {
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
+  if (context?.controller?.signal) {
+    context.controller.signal.addEventListener("abort", () => monthLoader.cancel(), {once:true});
+  }
   if (state.todoPanel === "future") { await loadUnscheduledTodos(); return; }
   void loadTodoTemplates({ ensure: true });
-  const day = todoDay(), date = day.date, owner = todoOwner(), version = runtime.renderVersion;
+  const day = todoDay(), date = day.date, owner = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version = runtime.renderVersion;
   const sequence = ++day.sequence, revision = day.revision;
   day.loading = true;
   day.error = "";
   paintTodos();
   try {
     const data = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
-    if (!todoReadActive(owner, version, date, day, sequence)) return;
+    if (!todoReadActive(owner, version, date, day, sequence) ||
+        priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
     if (day.revision !== revision) return loadTodos(context);
     receiveTodoPreferences(data.completed_mode, data.preferences_version);
     day.items = data.items;
-    day.loaded = true;
-    if (monthSnapshot.owner === owner && monthSnapshot.month === date.slice(0, 7) && !monthSnapshot.loading) {
+    day.loaded = true; monthDayOwners.set(day, {owner: monthOwner(), at: Date.now(), revision: day.revision});
+    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === date.slice(0, 7) && !monthSnapshot.loading) {
       monthSnapshot.days.set(date, data.items);
       const calendar = $("#todo-calendar"); if (calendar) calendar.dataset.month = "";
     }
@@ -346,7 +392,7 @@ async function saveTodo(day, request, templateId = "") {
     const item = await api("/todos", { method: "POST", body: request });
     if (!todoSessionActive(owner)) return;
     mergeTodo(day, item);
-    if (monthSnapshot.owner === owner && monthSnapshot.month === day.date.slice(0, 7)) {
+    if (monthSnapshot.owner === monthOwner() && monthSnapshot.month === day.date.slice(0, 7)) {
       monthSnapshot.days.set(day.date, [...day.items]);
       const calendar = $("#todo-calendar"); if (calendar) calendar.dataset.month = "";
     }
@@ -503,6 +549,26 @@ function scheduleTodoClock() {
   todoClock?.unref?.();
 }
 function registerTodosClock() {
+  onOfflineRuntime(offline => {
+    let previousReady;
+    offline.subscribe(() => {
+      const ready = Boolean(offline.state.scope && offline.state.verifiedScope === offline.state.scope);
+      const action = todoMonthScopeTransition(monthSnapshot.owner, monthOwner(), previousReady, ready);
+      previousReady = ready;
+      if (!todosVisible() || state.todoPanel !== "history" || action === "none") return;
+      monthLoader.cancel();
+      const month = todoCalendarMonth(todoDay().date);
+      if (action.startsWith("replace")) {
+        monthSnapshot = {month, owner: monthOwner(), days:new Map(), loading:false, error:""};
+      } else if (action === "pause") {
+        monthSnapshot.loading = false; monthSnapshot.error = "身份范围暂未核实，请稍后重试。";
+      }
+      const node = $("#todo-calendar");
+      if (node) { node.dataset.month = ""; paintTodoCalendar(todoDay().date); }
+      if (ready) void loadTodoMonth(month);
+    });
+  });
+  window.addEventListener("haoduoyu-todos-reset", () => monthLoader.cancel());
   window.addEventListener("focus", checkTodoDay);
   document.addEventListener("visibilitychange", checkTodoDay);
   scheduleTodoClock();

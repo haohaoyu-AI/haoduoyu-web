@@ -45,3 +45,15 @@ test('an unread overview cannot be invented from a workbench snapshot', async ()
   const {cache} = await setup();
   await assert.rejects(cache.read('/overview?period=yesterday'), error => error.code === 'OFFLINE_CACHE_MISS');
 });
+test('v2 metadata supplies scoped completeness for reminders and date indexes', async () => {
+  const {db, cache, records} = await setup();
+  await db.transaction(['meta'], 'readwrite', async tx => {
+    const old = await tx.get('meta', entityKey(scope, 'snapshot'));
+    await tx.delete('meta', entityKey(scope, 'snapshot'));
+    await tx.put('meta', {key: entityKey(scope, 'snapshot-v2'), value: {...old.value, verified_at: 456}});
+  });
+  assert.equal((await cache.read('/work-reminders?date=2026-10-25')).saved_at, 456);
+  assert.equal((await cache.read('/note-entries/dates?category=life')).data.dates.length, 3);
+  await db.transaction(['entities'], 'readwrite', tx => tx.delete('entities', entityKey(scope, records[0].entity_id)));
+  await assert.rejects(cache.read('/note-entries/dates?category=life'), error => error.code === 'OFFLINE_CACHE_MISS');
+});

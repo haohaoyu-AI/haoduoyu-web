@@ -3,6 +3,16 @@ import {entityKey} from './db.mjs';
 const day = value => typeof value === 'string' && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value) &&
   Number.isFinite(Date.parse(value + 'T00:00:00Z')) && new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) === value;
 const missing = () => Object.assign(new Error('此内容尚未完整缓存在本机，请联网读取。'), {code: 'OFFLINE_CACHE_MISS'});
+// Both snapshot versions contain the common note and reminder projection. Only
+// use complete metadata belonging to this scope; prefer the newest evidence.
+export async function latestCompleteSnapshot(tx, scope) {
+  const v1 = await tx.get('meta', entityKey(scope, 'snapshot'));
+  const v2 = await tx.get('meta', entityKey(scope, 'snapshot-v2'));
+  const valid = value => value?.value?.index?.complete === true && value.value.index.scope_id === scope;
+  if (!valid(v1)) return valid(v2) ? v2 : null;
+  if (!valid(v2)) return v1;
+  return (v2.value.verified_at || 0) >= (v1.value.verified_at || 0) ? v2 : v1;
+}
 export function readOnlyRoute(path) {
   const url = new URL(path, 'https://offline.invalid'), query = url.searchParams;
   if (url.origin !== 'https://offline.invalid' || url.hash) return null;
@@ -25,7 +35,7 @@ function matches(entity, route) {
 export async function readOnlySnapshot({db, scope, route, getScope, getGeneration}) {
   const generation = getGeneration();
   const result = await db.transaction(['entities', 'meta'], 'readonly', async tx => {
-    const snapshot = await tx.get('meta', entityKey(scope, 'snapshot')), index = snapshot?.value?.index;
+    const snapshot = await latestCompleteSnapshot(tx, scope), index = snapshot?.value?.index;
     if (index?.complete !== true || index.scope_id !== scope) throw missing();
     const rows = (await tx.getAll('entities')).filter(row => row.scope === scope && matches(row, route));
     for (const expected of index.entities.filter(row => matches(row, route) && !row.deleted_at)) {
