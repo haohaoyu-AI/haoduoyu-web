@@ -33,6 +33,30 @@ export function validateAiReportsMigrationSource(tag,sql) {
 export const articleMigrationTag='0005_article_pipeline';
 export const reviewMigrationTag='0015_content_review';
 export const reviewAttributionMigrationTag='0016_review_attribution';
+export const reviewResourcesMigrationTag='0017_review_resources';
+export const reviewLegacyExtensionsMigrationTag='0018_review_legacy_extensions';
+export function validateReviewResourcesMigrationSource(tag,sql) {
+  assert.equal(tag,reviewResourcesMigrationTag);
+  assert.equal(createHash('sha256').update(sql).digest('hex'),'54ba48ec7ddd6746c2f76899c15d273ad9ebcbc142d48936e4383ae522414077','Review resources differ from reviewed additive source');
+  const statements=sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+  assert.equal(statements.length,8);
+  assert.equal(statements.filter(value=>value.startsWith('CREATE TABLE ')).length,4);
+  for(const statement of statements) {
+    assert.match(statement,/^CREATE (?:TABLE matrix_review_|(?:UNIQUE )?INDEX review_)/);
+    assert.ok(!/\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b/i.test(statement.replace(/ON (?:UPDATE|DELETE) (?:NO ACTION|CASCADE)/gi,'')),'New review schema cannot rewrite business rows');
+  }
+  return statements;
+}
+export function validateReviewLegacyExtensionsMigrationSource(tag,sql) {
+  assert.equal(tag,reviewLegacyExtensionsMigrationTag);
+  assert.equal(createHash('sha256').update(sql).digest('hex'),'4be164c77d20d6c5a7b73b8cf20c5440fcb989d364dff20edd97c801e4a6717e','Review legacy extensions differ from reviewed additive source');
+  const statements=sql.split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean);
+  assert.equal(statements.length,2);
+  assert.match(statements[0],/^ALTER TABLE `matrix_review_articles` ADD `reference_article_id` text;$/);
+  assert.match(statements[1],/^ALTER TABLE `matrix_review_playbooks` ADD `status` text CONSTRAINT /);
+  for(const statement of statements)assert.ok(!/\b(?:NOT NULL|DEFAULT|INSERT|UPDATE|DELETE|DROP|CREATE|RENAME)\b/i.test(statement));
+  return statements;
+}
 export function validateReviewAttributionMigrationSource(tag,sql) {
   assert.equal(tag,reviewAttributionMigrationTag);
   assert.equal(createHash('sha256').update(sql).digest('hex'),'b86ea49a67d9890af0bab00428f415e5d1943c5adf894256047fd40dedfb9de3','Review attribution differs from reviewed additive source');
@@ -157,7 +181,7 @@ export async function applyArticleMigration(db,options={}) {
 
 export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
   const journal=JSON.parse(await readFile(new URL('drizzle/meta/_journal.json',root),'utf8'));
-  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag],'Unreviewed local migration journal');
+  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag],'Unreviewed local migration journal');
   await db.prepare('CREATE TABLE IF NOT EXISTS __fixture_migrations(name TEXT PRIMARY KEY)').run();
   const migrated=await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_control'").first();
   if(migrated)await db.prepare('INSERT OR IGNORE INTO __fixture_migrations(name) VALUES(?)').bind(journal.entries[0].tag).run();
@@ -166,9 +190,9 @@ export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
     if(entry.tag===articleMigrationTag)await applyArticleMigration(db);
     else {
       const sql=await readFile(new URL('drizzle/'+entry.tag+'.sql',root),'utf8');
-      const statements=entry.tag===reviewAttributionMigrationTag?validateReviewAttributionMigrationSource(entry.tag,sql):entry.tag===reviewMigrationTag?validateReviewMigrationSource(entry.tag,sql):entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):entry.tag===labelSetsMigrationTag?validateLabelSetsMigrationSource(entry.tag,sql):entry.tag===labelArchivesMigrationTag?validateLabelArchivesMigrationSource(entry.tag,sql):entry.tag===aiReportsMigrationTag?validateAiReportsMigrationSource(entry.tag,sql):split(sql);
+      const statements=entry.tag===reviewLegacyExtensionsMigrationTag?validateReviewLegacyExtensionsMigrationSource(entry.tag,sql):entry.tag===reviewResourcesMigrationTag?validateReviewResourcesMigrationSource(entry.tag,sql):entry.tag===reviewAttributionMigrationTag?validateReviewAttributionMigrationSource(entry.tag,sql):entry.tag===reviewMigrationTag?validateReviewMigrationSource(entry.tag,sql):entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):entry.tag===labelSetsMigrationTag?validateLabelSetsMigrationSource(entry.tag,sql):entry.tag===labelArchivesMigrationTag?validateLabelArchivesMigrationSource(entry.tag,sql):entry.tag===aiReportsMigrationTag?validateAiReportsMigrationSource(entry.tag,sql):split(sql);
       for(const statement of statements) {
-        if(entry.tag===labelMigrationTag||entry.tag===labelSetsMigrationTag||entry.tag===reviewAttributionMigrationTag)continue;
+        if(entry.tag===labelMigrationTag||entry.tag===labelSetsMigrationTag||entry.tag===reviewAttributionMigrationTag||entry.tag===reviewResourcesMigrationTag||entry.tag===reviewLegacyExtensionsMigrationTag)continue;
         if(entry.idx===3&&['ALTER TABLE `matrix_todos` ADD `deleted_at` text;',
           'ALTER TABLE `matrix_todo_template_links` ADD `created_with_todo` integer DEFAULT 1 NOT NULL;'].includes(statement))continue;
         assert.match(statement,/^CREATE (?:TABLE|(?:UNIQUE )?INDEX)\s+`matrix_/,'Unreviewed legacy migration statement');

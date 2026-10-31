@@ -69,6 +69,10 @@ function rules(value) {
 
 export function normalizeReviewData(input = {}) {
   return {
+    benchmarkAccounts: list(input.benchmarkAccounts || input['benchmark-accounts']).filter(Boolean),
+    benchmarkArticles: list(input.benchmarkArticles || input['benchmark-articles']).filter(Boolean),
+    notes: list(input.notes).filter(Boolean),
+    accountHealth: list(input.accountHealth || input['account-health']).filter(Boolean),
     articles: list(input.articles).filter(Boolean).map(article => ({ ...article, image_count: finiteNumber(article.image_count) })),
     snapshots: list(input.snapshots).filter(Boolean).map(snapshot => {
       const normalized = { ...snapshot };

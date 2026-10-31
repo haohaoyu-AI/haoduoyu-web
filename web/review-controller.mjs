@@ -1,7 +1,7 @@
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS} from './pages/content-review.mjs';
 
-const resources = ['articles','snapshots','reports','playbooks'];
+const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
 let vm = {account:'V字',view:'overview',week:'this',date:'',start:'',end:'',periods:[],filters:{},article:'',version:'',compare:'',loading:true,error:''};
 const root = () => typeof document === 'undefined' ? null : document.querySelector('#content-review');
@@ -102,8 +102,10 @@ function registerEvents() {
   if (registered || typeof document === 'undefined') return;
   registered = true;
   document.addEventListener('click',event => {
-    const node = root(), target = event.target.closest?.('button,[data-review-row]');
+    const node = root(); if (event.target.closest?.('a')) return;
+    const target = event.target.closest?.('button,[data-review-row]');
     if (!target || !node?.contains(target)) return;
+    if (target.dataset.reviewAction === 'show-health') { if (vm.view !== 'overview') { vm.view = 'overview'; vm.article = ''; writeRoute({view:'overview',article:''}); paintContentReviewPage(); } const details = node.querySelector('#review-health-history'); if (details) { details.open = true; details.scrollIntoView({behavior:'smooth',block:'start'}); details.querySelector('summary')?.focus({preventScroll:true}); } return; }
     if (target.dataset.reviewAction === 'refresh') { void loadContentReview(pageContext); return; }
     if (vm.loading || vm.error) return;
     if (target.dataset.reviewView) { selectTab(target.dataset.reviewView,true); return; }

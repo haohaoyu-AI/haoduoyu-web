@@ -25,7 +25,7 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
 .content-review .review-panel { background:var(--color-white-a-55); border:var(--review-line-width) solid var(--color-divider); border-radius:var(--radius-16); padding:var(--space-24); }
 .content-review .review-week-toggle { display:flex; flex-wrap:wrap; gap:var(--space-4); border-radius:var(--radius-10); background:var(--color-segmented); padding:var(--space-3); }
 .content-review .review-week-toggle > button { padding:var(--space-6) var(--space-16); min-height:var(--size-control-base); font-size:var(--font-size-13); }
-.content-review .review-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--space-16); }
+.content-review .review-stats { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:var(--space-16); }
 .content-review .review-stat { background:var(--color-white-a-74); padding:var(--space-24); border-radius:var(--radius-14); box-shadow:var(--shadow-metric); font-variant-numeric:tabular-nums; }
 .content-review .review-stat > span { color:var(--color-text-secondary); font-size:var(--font-size-13); }
 .content-review .review-stat > strong { display:block; margin:var(--space-16) 0 var(--space-10); font-size:var(--font-size-32); font-weight:var(--font-weight-semibold); line-height:var(--line-height-compact); }
@@ -162,4 +162,15 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
   .content-review .review-detail-heading h2 { font-size:var(--font-size-22); }
   .content-review .review-chart-legend { gap:var(--space-8) var(--space-16); }
   .content-review .review-chart-legend > .review-note { width:100%; }
+}
+
+.content-review .review-health-badge { border:1px solid var(--color-divider); border-radius:999px; padding:4px 10px; background:transparent; color:inherit; cursor:pointer; }
+.content-review .review-no-sample { color:var(--color-danger); font-weight:600; }
+.content-review .review-archives { display:grid; gap:var(--space-12); }
+.content-review .review-extra > summary { cursor:pointer; font-weight:600; padding:var(--space-8) 0; }
+.content-review .review-extra-item { padding:var(--space-12) 0; border-bottom:1px solid var(--color-divider); overflow-wrap:anywhere; }
+.content-review .review-extra-item:last-child { border-bottom:0; }
+.content-review .review-extra-item p { margin:var(--space-8) 0; }
+@media (max-width: 700px) {
+  .content-review .review-articles-table td[data-label="原因"], .content-review .review-articles-table td[data-label="参考爆文"] { grid-column:1 / -1; overflow-wrap:anywhere; }
 }

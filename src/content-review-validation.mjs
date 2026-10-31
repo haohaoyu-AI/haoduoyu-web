@@ -96,7 +96,7 @@ function ruleCheck(value) {
 }
 export const reviewRuleChangeFields={
   status:value=>{if(!reviewRuleStatuses.includes(value))invalid('Invalid rule status');return value;},
-  evidence,support_ids:uuidList,counter_ids:uuidList,trials:value=>number(value,{integer:true,nullable:false}),
+  evidence,evidence_note:value=>text(value,2000,{nullable:true,multiline:true}),support_ids:uuidList,counter_ids:uuidList,trials:value=>number(value,{integer:true,nullable:false}),
 };
 export function reviewRuleChanges(value) {
   if(!value||typeof value!=='object'||Array.isArray(value)||!Object.keys(value).length||Object.keys(value).some(key=>!Object.hasOwn(reviewRuleChangeFields,key)))invalid('Invalid rule changes');
@@ -123,9 +123,9 @@ export const reviewSpecs={
   articles:{table:'matrix_review_articles',order:'published_at DESC,created_at DESC,id DESC',fields:{
     account,platform:value=>{if(value!=='toutiao')invalid('目前仅支持 toutiao');return value;},platform_article_id:nullableText(240),
     title:value=>text(value,2000),url,published_at:timestamp,topic_category:nullableText(240),title_pattern:nullableText(1000),
-    sample_title:nullableText(2000),sample_url:url,image_count:integer,source_chat:nullableText(4096),
+    sample_title:nullableText(2000),sample_url:url,reference_article_id:value=>value===null?null:uuid(value),image_count:integer,source_chat:nullableText(4096),
     playbook_version_used:value=>number(value,{integer:true,min:1}),applied_rule_ids:value=>value===null?null:uniqueStrings(value,ruleId),
-  },defaults:{account:'V字',platform:'toutiao',platform_article_id:null,url:null,published_at:null,topic_category:null,title_pattern:null,sample_title:null,sample_url:null,image_count:null,source_chat:null,playbook_version_used:null,applied_rule_ids:null},required:['title'],timestamps:['created_at','updated_at'],json:['applied_rule_ids']},
+  },defaults:{account:'V字',platform:'toutiao',platform_article_id:null,url:null,published_at:null,topic_category:null,title_pattern:null,sample_title:null,sample_url:null,reference_article_id:null,image_count:null,source_chat:null,playbook_version_used:null,applied_rule_ids:null},required:['title'],timestamps:['created_at','updated_at'],json:['applied_rule_ids']},
   snapshots:{table:'matrix_review_snapshots',order:'snapshot_date DESC,id DESC',fields:{
     article_id:uuid,snapshot_date:reviewDate,age_hours:integer,source:value=>{if(value!==null&&!['toutiao_excel','manual'].includes(value))invalid('Invalid snapshot source');return value;},impressions:integer,fan_impressions:integer,reads:integer,fan_reads:integer,ctr:rate,completion_rate:rate,
     avg_read_seconds:value=>number(value),likes:integer,comments:integer,reposts:integer,shares:integer,favorites:integer,revenue:value=>number(value),
@@ -136,8 +136,8 @@ export const reviewSpecs={
     verdicts,findings,summary_md:content,metrics:value=>json(value),playbook_version:value=>number(value,{integer:true,min:1}),
   },defaults:{account:'V字',verdicts:{},findings:{verified:[],overturned:[]},summary_md:'',metrics:{},playbook_version:null},required:['period_type','period_start','period_end'],timestamps:['created_at'],json:['verdicts','findings','metrics']},
   playbooks:{table:'matrix_review_playbooks',order:'version DESC,created_at DESC,id DESC',fields:{
-    account,version:value=>number(value,{integer:true,nullable:false,min:1}),published_on:reviewDate,content_md:content,rules,changelog_md:content,sent_to_gemini_at:timestamp,
-  },defaults:{account:'V字',content_md:'',rules:[],changelog_md:'',sent_to_gemini_at:null},required:['version','published_on'],timestamps:['created_at'],json:['rules']},
+    account,status:value=>{if(value!==null&&!['draft','active','archived'].includes(value))invalid('Invalid playbook status');return value;},version:value=>number(value,{integer:true,nullable:false,min:1}),published_on:reviewDate,content_md:content,rules,changelog_md:content,sent_to_gemini_at:timestamp,
+  },defaults:{account:'V字',status:null,content_md:'',rules:[],changelog_md:'',sent_to_gemini_at:null},required:['version','published_on'],timestamps:['created_at'],json:['rules']},
 };
 export function reviewInput(kind,input,{patch=false,validateDaily=true}={}) {
   const spec=reviewSpecs[kind],keys=Object.keys(input);
@@ -160,7 +160,7 @@ export function reviewView(kind,row) {
 export function reviewContentHash(row) {
   const {content_hash,...data}=row;
   // Nullable additions must not invalidate hashes held by pre-review3 clients.
-  for(const key of ['playbook_version_used','applied_rule_ids','age_hours','source'])if(data[key]===null)delete data[key];
+  for(const key of ['playbook_version_used','applied_rule_ids','age_hours','source','reference_article_id','status'])if(data[key]===null)delete data[key];
   return digest(JSON.stringify(stable(data)));
 }
 export function reviewEqual(kind,row,input) {

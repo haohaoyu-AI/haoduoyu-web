@@ -3,7 +3,7 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "info": {
     "title": "好多鱼图文矩阵 API",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "私有账号矩阵统计站。公开文档不授予数据权限。人类使用管理员会话；AI使用管理员签发的账号范围Bearer key。默认三日窗口为Asia/Shanghai今天及前两天；累计快照与实际日报分开保存；缺失不补零。无公开注册、模型登录、文章删除或自动平台采数。所有业务JSON成功响应为data、失败为error；公开文档和CSV为原始内容。JSON请求体上限256KB。"
   },
   "servers": [
@@ -6265,7 +6265,7 @@
           "Content review"
         ],
         "summary": "列出公开复盘 articles",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 published_at DESC, created_at DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。 published_at时间戳的日期按Asia/Shanghai（北京时间）换算，from/to在数据库分页前筛选；严格YYYY-MM-DD原样保留，null不匹配日期范围。 返回ReviewArticleRead派生分析。verdict先筛选后分页，样本基线按账号全部文章计算，不受列表日期筛选截断。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 published_at DESC, created_at DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。 published_at时间戳的日期按Asia/Shanghai（北京时间）换算，from/to在数据库分页前筛选；严格YYYY-MM-DD原样保留，null不匹配日期范围。 返回ReviewArticleRead派生分析。verdict先筛选后分页，样本基线按账号全部文章计算，不受列表日期筛选截断。",
         "security": [],
         "parameters": [
           {
@@ -6743,7 +6743,7 @@
           "Content review"
         ],
         "summary": "读取公开复盘 articles 单项",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 返回当前实体及content_hash；已永久删除或不存在返回404。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 返回当前实体及content_hash；已永久删除或不存在返回404。",
         "security": [],
         "parameters": [
           {
@@ -6895,7 +6895,7 @@
           "Content review"
         ],
         "summary": "幂等创建公开复盘 articles",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 首次UUID创建201；同UUID与相同规范化完整字段200（省略字段使用默认值），不同内容409 IDEMPOTENCY_CONFLICT。不可用PUT修改已有记录，改用PATCH。唯一业务键为 非null的(account, platform_article_id)，冲突409 REVIEW_UNIQUE_CONFLICT且error.existing_id为现有UUID。删除墓碑阻止旧PUT，返回409 REVIEW_DELETED。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 首次UUID创建201；同UUID与相同规范化完整字段200（省略字段使用默认值），不同内容409 IDEMPOTENCY_CONFLICT。不可用PUT修改已有记录，改用PATCH。唯一业务键为 非null的(account, platform_article_id)，冲突409 REVIEW_UNIQUE_CONFLICT且error.existing_id为现有UUID。删除墓碑阻止旧PUT，返回409 REVIEW_DELETED。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -7166,7 +7166,7 @@
           "Content review"
         ],
         "summary": "按哈希修改公开复盘 articles",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 expected_hash须等于当前content_hash；过期409 VERSION_CONFLICT，未传字段保留，JSON字段整体替换，null仅用于nullable字段。唯一业务键 非null的(account, platform_article_id) 的冲突带existing_id。创建时间只读；没有实际字段变化时不改哈希。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 expected_hash须等于当前content_hash；过期409 VERSION_CONFLICT，未传字段保留，JSON字段整体替换，null仅用于nullable字段。唯一业务键 非null的(account, platform_article_id) 的冲突带existing_id。创建时间只读；没有实际字段变化时不改哈希。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -7399,7 +7399,7 @@
           "Content review"
         ],
         "summary": "永久删除公开复盘 articles",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 公开模式下任何访客均可永久删除，无法恢复。expected_hash来自最新GET；过期409 VERSION_CONFLICT。save_id标识删除操作，同一身份相同save_id/路径/请求体重放200，不同请求409 IDEMPOTENCY_CONFLICT。持久墓碑防止旧PUT重放复活；没有restore接口。 有关联快照时需显式cascade_snapshots:true，否则409 ARTICLE_HAS_SNAPSHOTS；级联同样永久删除快照并为其保留墓碑。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 公开模式下任何访客均可永久删除，无法恢复。expected_hash来自最新GET；过期409 VERSION_CONFLICT。save_id标识删除操作，同一身份相同save_id/路径/请求体重放200，不同请求409 IDEMPOTENCY_CONFLICT。持久墓碑防止旧PUT重放复活；没有restore接口。 有关联快照时需显式cascade_snapshots:true，否则409 ARTICLE_HAS_SNAPSHOTS；级联同样永久删除快照并为其保留墓碑。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -7638,7 +7638,7 @@
           "Content review"
         ],
         "summary": "列出公开复盘 snapshots",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 snapshot_date DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 snapshot_date DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。",
         "security": [],
         "parameters": [
           {
@@ -7820,7 +7820,7 @@
           "Content review"
         ],
         "summary": "读取公开复盘 snapshots 单项",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 返回当前实体及content_hash；已永久删除或不存在返回404。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 返回当前实体及content_hash；已永久删除或不存在返回404。",
         "security": [],
         "parameters": [
           {
@@ -7972,7 +7972,7 @@
           "Content review"
         ],
         "summary": "幂等创建公开复盘 snapshots",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 首次UUID创建201；同UUID与相同规范化完整字段200（省略字段使用默认值），不同内容409 IDEMPOTENCY_CONFLICT。不可用PUT修改已有记录，改用PATCH。唯一业务键为 (article_id, snapshot_date)，冲突409 REVIEW_UNIQUE_CONFLICT且error.existing_id为现有UUID。删除墓碑阻止旧PUT，返回409 REVIEW_DELETED。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 首次UUID创建201；同UUID与相同规范化完整字段200（省略字段使用默认值），不同内容409 IDEMPOTENCY_CONFLICT。不可用PUT修改已有记录，改用PATCH。唯一业务键为 (article_id, snapshot_date)，冲突409 REVIEW_UNIQUE_CONFLICT且error.existing_id为现有UUID。删除墓碑阻止旧PUT，返回409 REVIEW_DELETED。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -8249,7 +8249,7 @@
           "Content review"
         ],
         "summary": "按哈希修改公开复盘 snapshots",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 expected_hash须等于当前content_hash；过期409 VERSION_CONFLICT，未传字段保留，JSON字段整体替换，null仅用于nullable字段。唯一业务键 (article_id, snapshot_date) 的冲突带existing_id。创建时间只读；没有实际字段变化时不改哈希。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 expected_hash须等于当前content_hash；过期409 VERSION_CONFLICT，未传字段保留，JSON字段整体替换，null仅用于nullable字段。唯一业务键 (article_id, snapshot_date) 的冲突带existing_id。创建时间只读；没有实际字段变化时不改哈希。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -8482,7 +8482,7 @@
           "Content review"
         ],
         "summary": "永久删除公开复盘 snapshots",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 公开模式下任何访客均可永久删除，无法恢复。expected_hash来自最新GET；过期409 VERSION_CONFLICT。save_id标识删除操作，同一身份相同save_id/路径/请求体重放200，不同请求409 IDEMPOTENCY_CONFLICT。持久墓碑防止旧PUT重放复活；没有restore接口。 只能删除此单项。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 公开模式下任何访客均可永久删除，无法恢复。expected_hash来自最新GET；过期409 VERSION_CONFLICT。save_id标识删除操作，同一身份相同save_id/路径/请求体重放200，不同请求409 IDEMPOTENCY_CONFLICT。持久墓碑防止旧PUT重放复活；没有restore接口。 只能删除此单项。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -8721,7 +8721,7 @@
           "Content review"
         ],
         "summary": "列出公开复盘 reports",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 period_start DESC, created_at DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 period_start DESC, created_at DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。",
         "security": [],
         "parameters": [
           {
@@ -8926,7 +8926,7 @@
           "Content review"
         ],
         "summary": "读取公开复盘 reports 单项",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 返回当前实体及content_hash；已永久删除或不存在返回404。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 返回当前实体及content_hash；已永久删除或不存在返回404。",
         "security": [],
         "parameters": [
           {
@@ -9078,7 +9078,7 @@
           "Content review"
         ],
         "summary": "幂等创建公开复盘 reports",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 首次UUID创建201；同UUID与相同规范化完整字段200（省略字段使用默认值），不同内容409 IDEMPOTENCY_CONFLICT。不可用PUT修改已有记录，改用PATCH。唯一业务键为 (account, period_type, period_start)，冲突409 REVIEW_UNIQUE_CONFLICT且error.existing_id为现有UUID。删除墓碑阻止旧PUT，返回409 REVIEW_DELETED。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 首次UUID创建201；同UUID与相同规范化完整字段200（省略字段使用默认值），不同内容409 IDEMPOTENCY_CONFLICT。不可用PUT修改已有记录，改用PATCH。唯一业务键为 (account, period_type, period_start)，冲突409 REVIEW_UNIQUE_CONFLICT且error.existing_id为现有UUID。删除墓碑阻止旧PUT，返回409 REVIEW_DELETED。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -9349,7 +9349,7 @@
           "Content review"
         ],
         "summary": "按哈希修改公开复盘 reports",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 expected_hash须等于当前content_hash；过期409 VERSION_CONFLICT，未传字段保留，JSON字段整体替换，null仅用于nullable字段。唯一业务键 (account, period_type, period_start) 的冲突带existing_id。创建时间只读；没有实际字段变化时不改哈希。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 expected_hash须等于当前content_hash；过期409 VERSION_CONFLICT，未传字段保留，JSON字段整体替换，null仅用于nullable字段。唯一业务键 (account, period_type, period_start) 的冲突带existing_id。创建时间只读；没有实际字段变化时不改哈希。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -9582,7 +9582,7 @@
           "Content review"
         ],
         "summary": "永久删除公开复盘 reports",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 公开模式下任何访客均可永久删除，无法恢复。expected_hash来自最新GET；过期409 VERSION_CONFLICT。save_id标识删除操作，同一身份相同save_id/路径/请求体重放200，不同请求409 IDEMPOTENCY_CONFLICT。持久墓碑防止旧PUT重放复活；没有restore接口。 只能删除此单项。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 公开模式下任何访客均可永久删除，无法恢复。expected_hash来自最新GET；过期409 VERSION_CONFLICT。save_id标识删除操作，同一身份相同save_id/路径/请求体重放200，不同请求409 IDEMPOTENCY_CONFLICT。持久墓碑防止旧PUT重放复活；没有restore接口。 只能删除此单项。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -9821,7 +9821,7 @@
           "Content review"
         ],
         "summary": "列出公开复盘 playbooks",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 version DESC, created_at DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 固定每页最多100条，按 version DESC, created_at DESC, id DESC 排序。只允许offset、read_revision及列出的筛选参数，不允许未知或重复查询参数。每个GET返回content_hash；分页非历史快照，建议传回read_revision。",
         "security": [],
         "parameters": [
           {
@@ -9994,7 +9994,7 @@
           "Content review"
         ],
         "summary": "读取公开复盘 playbooks 单项",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 返回当前实体及content_hash；已永久删除或不存在返回404。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 返回当前实体及content_hash；已永久删除或不存在返回404。",
         "security": [],
         "parameters": [
           {
@@ -10146,7 +10146,7 @@
           "Content review"
         ],
         "summary": "幂等创建公开复盘 playbooks",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 首次UUID创建201；同UUID与相同规范化完整字段200（省略字段使用默认值），不同内容409 IDEMPOTENCY_CONFLICT。不可用PUT修改已有记录，改用PATCH。唯一业务键为 (account, version)，冲突409 REVIEW_UNIQUE_CONFLICT且error.existing_id为现有UUID。删除墓碑阻止旧PUT，返回409 REVIEW_DELETED。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。 数字版本别名PUT /playbooks/{version}：请求体必需id和与路径一致的version。UUID路径体内不传id。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 首次UUID创建201；同UUID与相同规范化完整字段200（省略字段使用默认值），不同内容409 IDEMPOTENCY_CONFLICT。不可用PUT修改已有记录，改用PATCH。唯一业务键为 (account, version)，冲突409 REVIEW_UNIQUE_CONFLICT且error.existing_id为现有UUID。删除墓碑阻止旧PUT，返回409 REVIEW_DELETED。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。 数字版本别名PUT /playbooks/{version}：请求体必需id和与路径一致的version。UUID路径体内不传id。",
         "security": [],
         "parameters": [
           {
@@ -10428,7 +10428,7 @@
           "Content review"
         ],
         "summary": "按哈希修改公开复盘 playbooks",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 expected_hash须等于当前content_hash；过期409 VERSION_CONFLICT，未传字段保留，JSON字段整体替换，null仅用于nullable字段。唯一业务键 (account, version) 的冲突带existing_id。创建时间只读；没有实际字段变化时不改哈希。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 expected_hash须等于当前content_hash；过期409 VERSION_CONFLICT，未传字段保留，JSON字段整体替换，null仅用于nullable字段。唯一业务键 (account, version) 的冲突带existing_id。创建时间只读；没有实际字段变化时不改哈希。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -10661,7 +10661,7 @@
           "Content review"
         ],
         "summary": "永久删除公开复盘 playbooks",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 公开模式下任何访客均可永久删除，无法恢复。expected_hash来自最新GET；过期409 VERSION_CONFLICT。save_id标识删除操作，同一身份相同save_id/路径/请求体重放200，不同请求409 IDEMPOTENCY_CONFLICT。持久墓碑防止旧PUT重放复活；没有restore接口。 只能删除此单项。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 公开模式下任何访客均可永久删除，无法恢复。expected_hash来自最新GET；过期409 VERSION_CONFLICT。save_id标识删除操作，同一身份相同save_id/路径/请求体重放200，不同请求409 IDEMPOTENCY_CONFLICT。持久墓碑防止旧PUT重放复活；没有restore接口。 只能删除此单项。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。",
         "security": [],
         "parameters": [
           {
@@ -10900,7 +10900,7 @@
           "Content review"
         ],
         "summary": "逐条幂等创建至多200条复盘快照",
-        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写四类公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 请求恰好为{items:[{id,...快照创建字段}]}，每条必须有小写UUID；按顺序独立保存并逐条返回结果。HTTP200只表示批次已处理，逐项检查status与data/error；不保证整个批次原子成功，不把失败项当成功。重试保留原每条UUID与规范化内容；相同200、新建201、不同内容409。业务唯一冲突带existing_id。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。 重复id允许，按序处理：相同创建体可先201再200，不同内容后项409。业务可识别错误进入该项error；未知存储错误会终止批次且先前项可能已保存。失败项id回显输入字符串，缺少字符串id时为null；每项不含request_id，用整次X-Request-Id关联排查。",
+        "description": "独立内容复盘模块；页面 ?page=review&account=V字。PUBLIC_BUSINESS_MODE=1时所有访客可读写复盘公开资源，无身份认证，任何署名、来源或source_chat均不证明身份。沿用明确配置的日记owner，所有者会话也可用；显式无效凭证不回退匿名，Bearer不授予权限。旧 /articles、/observations、/daily-metrics 等API及旧数据独立，不自动迁入。 公开写入必须Origin与站点源完全相同、X-Public-Business: 1、Content-Type: application/json；所有者会话写入用同源Origin和X-CSRF-Token。JSON请求体最多256KiB；公开写入含拒绝体和重试受复盘模块每owner每进程60/分钟、2000/UTC日限制，不是全局限流。 请求恰好为{items:[{id,...快照创建字段}]}，每条必须有小写UUID；按顺序独立保存并逐条返回结果。HTTP200只表示批次已处理，逐项检查status与data/error；不保证整个批次原子成功，不把失败项当成功。重试保留原每条UUID与规范化内容；相同200、新建201、不同内容409。业务唯一冲突带existing_id。 限流按HTTP写请求计数，batch最多200项仍算1次；未知存储/网络错误可能在部分提交后返回整次500，先按每个原UUID GET核对，再用原UUID与原内容重试。 重复id允许，按序处理：相同创建体可先201再200，不同内容后项409。业务可识别错误进入该项error；未知存储错误会终止批次且先前项可能已保存。失败项id回显输入字符串，缺少字符串id时为null；每项不含request_id，用整次X-Request-Id关联排查。",
         "security": [],
         "parameters": [
           {
@@ -11311,7 +11311,7 @@
           "Content review"
         ],
         "summary": "在指定账号和法典内修改规则元数据",
-        "description": "account、playbook_id、最新法典expected_hash及UUID save_id必填；至少一项允许修改。返回完整法典。精确save_id重放返回原收据，即使之后又修改；同save_id不同请求409 IDEMPOTENCY_CONFLICT。不匹配账号/法典/规则404；首次过期hash409 VERSION_CONFLICT。仅修改五个字段，regex不执行。公开写入同源头要求不变。",
+        "description": "account、playbook_id、最新法典expected_hash及UUID save_id必填；至少一项允许修改。返回完整法典。精确save_id重放返回原收据，即使之后又修改；同save_id不同请求409 IDEMPOTENCY_CONFLICT。不匹配账号/法典/规则404；首次过期hash409 VERSION_CONFLICT。仅修改六个字段（含 evidence_note），regex不执行。公开写入同源头要求不变。",
         "security": [],
         "parameters": [
           {
@@ -11535,6 +11535,2895 @@
                 "$ref": "#/components/headers/RequestId"
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/review/benchmark-accounts": {
+      "get": {
+        "operationId": "listReviewBenchmarkAccount",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "列出 benchmark-accounts",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 每页最多100条；按 name、id 升序。后续页传 read_revision；变更时409并从头读取。include_deleted=1 包含软删除项。唯一键 (account, platform, name)，包括已删除项。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            },
+            "description": "固定每页100条；has_more时offset增加100。只接受不带前导零的十进制整数。"
+          },
+          {
+            "name": "read_revision",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "description": "将首次GET的read_revision用于后续页；全局修订变化时409 READ_REVISION_CHANGED，应从offset=0重新读取。"
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ],
+              "default": "0"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "一致读取的一页资源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkAccountList"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/benchmark-accounts/{uuid}": {
+      "get": {
+        "operationId": "getReviewBenchmarkAccount",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "GET benchmark-accounts 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 读取包含软删除项。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前单项",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkAccount"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putReviewBenchmarkAccount",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "PUT benchmark-accounts 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBenchmarkAccountCreate"
+              },
+              "example": {
+                "account": "V字",
+                "period_type": "daily",
+                "period_start": "2026-10-30",
+                "period_end": "2026-10-30",
+                "verdicts": {},
+                "findings": {
+                  "verified": [],
+                  "overturned": []
+                },
+                "summary_md": "",
+                "metrics": {},
+                "playbook_version": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "相同创建请求的重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkAccount"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "201": {
+            "description": "首次创建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkAccount"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchReviewBenchmarkAccount",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "PATCH benchmark-accounts 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBenchmarkAccountPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新后的当前项",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkAccount"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteReviewBenchmarkAccount",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "DELETE benchmark-accounts 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSimpleDelete"
+              },
+              "example": {
+                "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已删除或相同删除的成功重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkAccount"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/benchmark-accounts/{uuid}/restore": {
+      "post": {
+        "operationId": "restoreReviewBenchmarkAccount",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "恢复 benchmark-accounts 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 用删除后的最新 expected_hash 和 UUID save_id 恢复；同一 save_id 相同请求可重放，不同请求返回409。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSimpleDelete"
+              },
+              "example": {
+                "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已删除或相同删除的成功重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkAccount"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/benchmark-articles": {
+      "get": {
+        "operationId": "listReviewBenchmarkArticle",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "列出 benchmark-articles",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 每页最多100条；按 reads 降序、collected_on 降序、id。后续页传 read_revision；变更时409并从头读取。include_deleted=1 包含软删除项。唯一键 (benchmark_account_id, url)，包括已删除项。 sort 可选 benchmark_account_id、collected_on 或 reads。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            },
+            "description": "固定每页100条；has_more时offset增加100。只接受不带前导零的十进制整数。"
+          },
+          {
+            "name": "read_revision",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "description": "将首次GET的read_revision用于后续页；全局修订变化时409 READ_REVISION_CHANGED，应从offset=0重新读取。"
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ],
+              "default": "0"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "benchmark_account_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            }
+          },
+          {
+            "name": "collected_on",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "benchmark_account_id",
+                "collected_on",
+                "reads"
+              ],
+              "default": "reads"
+            },
+            "description": "对标号升序；采集日期和阅读量降序，按 id 稳定排序。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "一致读取的一页资源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkArticleList"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/benchmark-articles/{uuid}": {
+      "get": {
+        "operationId": "getReviewBenchmarkArticle",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "GET benchmark-articles 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 读取包含软删除项。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前单项",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkArticle"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putReviewBenchmarkArticle",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "PUT benchmark-articles 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBenchmarkArticleCreate"
+              },
+              "example": {
+                "account": "V字",
+                "period_type": "daily",
+                "period_start": "2026-10-30",
+                "period_end": "2026-10-30",
+                "verdicts": {},
+                "findings": {
+                  "verified": [],
+                  "overturned": []
+                },
+                "summary_md": "",
+                "metrics": {},
+                "playbook_version": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "相同创建请求的重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkArticle"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "201": {
+            "description": "首次创建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkArticle"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchReviewBenchmarkArticle",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "PATCH benchmark-articles 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBenchmarkArticlePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新后的当前项",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkArticle"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteReviewBenchmarkArticle",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "DELETE benchmark-articles 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSimpleDelete"
+              },
+              "example": {
+                "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已删除或相同删除的成功重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkArticle"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/benchmark-articles/{uuid}/restore": {
+      "post": {
+        "operationId": "restoreReviewBenchmarkArticle",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "恢复 benchmark-articles 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 用删除后的最新 expected_hash 和 UUID save_id 恢复；同一 save_id 相同请求可重放，不同请求返回409。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSimpleDelete"
+              },
+              "example": {
+                "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已删除或相同删除的成功重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkArticle"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/notes": {
+      "get": {
+        "operationId": "listReviewNote",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "列出 notes",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 每页最多100条；按 note_date、created_at 降序及 id。后续页传 read_revision；变更时409并从头读取。include_deleted=1 包含软删除项。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            },
+            "description": "固定每页100条；has_more时offset增加100。只接受不带前导零的十进制整数。"
+          },
+          {
+            "name": "read_revision",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "description": "将首次GET的read_revision用于后续页；全局修订变化时409 READ_REVISION_CHANGED，应从offset=0重新读取。"
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ],
+              "default": "0"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "insight",
+                "decision",
+                "diagnosis",
+                "account_health"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "一致读取的一页资源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewNoteList"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/notes/{uuid}": {
+      "get": {
+        "operationId": "getReviewNote",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "GET notes 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 读取包含软删除项。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前单项",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewNote"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putReviewNote",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "PUT notes 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewNoteCreate"
+              },
+              "example": {
+                "account": "V字",
+                "period_type": "daily",
+                "period_start": "2026-10-30",
+                "period_end": "2026-10-30",
+                "verdicts": {},
+                "findings": {
+                  "verified": [],
+                  "overturned": []
+                },
+                "summary_md": "",
+                "metrics": {},
+                "playbook_version": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "相同创建请求的重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewNote"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "201": {
+            "description": "首次创建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewNote"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchReviewNote",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "PATCH notes 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewNotePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新后的当前项",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewNote"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteReviewNote",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "DELETE notes 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSimpleDelete"
+              },
+              "example": {
+                "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已删除或相同删除的成功重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewNote"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/notes/{uuid}/restore": {
+      "post": {
+        "operationId": "restoreReviewNote",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "恢复 notes 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 用删除后的最新 expected_hash 和 UUID save_id 恢复；同一 save_id 相同请求可重放，不同请求返回409。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSimpleDelete"
+              },
+              "example": {
+                "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已删除或相同删除的成功重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewNote"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/account-health": {
+      "get": {
+        "operationId": "listReviewAccountHealth",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "列出 account-health",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 每页最多100条；按 observed_on、created_at 降序及 id。后续页传 read_revision；变更时409并从头读取。include_deleted=1 包含软删除项。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            },
+            "description": "固定每页100条；has_more时offset增加100。只接受不带前导零的十进制整数。"
+          },
+          {
+            "name": "read_revision",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "description": "将首次GET的read_revision用于后续页；全局修订变化时409 READ_REVISION_CHANGED，应从offset=0重新读取。"
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ],
+              "default": "0"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "一致读取的一页资源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewAccountHealthList"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/account-health/{uuid}": {
+      "get": {
+        "operationId": "getReviewAccountHealth",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "GET account-health 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 读取包含软删除项。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前单项",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewAccountHealth"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putReviewAccountHealth",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "PUT account-health 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewAccountHealthCreate"
+              },
+              "example": {
+                "account": "V字",
+                "period_type": "daily",
+                "period_start": "2026-10-30",
+                "period_end": "2026-10-30",
+                "verdicts": {},
+                "findings": {
+                  "verified": [],
+                  "overturned": []
+                },
+                "summary_md": "",
+                "metrics": {},
+                "playbook_version": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "相同创建请求的重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewAccountHealth"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "201": {
+            "description": "首次创建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewAccountHealth"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchReviewAccountHealth",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "PATCH account-health 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewAccountHealthPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新后的当前项",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewAccountHealth"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteReviewAccountHealth",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "DELETE account-health 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSimpleDelete"
+              },
+              "example": {
+                "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已删除或相同删除的成功重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewAccountHealth"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/account-health/{uuid}/restore": {
+      "post": {
+        "operationId": "restoreReviewAccountHealth",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "恢复 account-health 单项",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 用删除后的最新 expected_hash 和 UUID save_id 恢复；同一 save_id 相同请求可重放，不同请求返回409。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSimpleDelete"
+              },
+              "example": {
+                "expected_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "save_id": "123e4567-e89b-42d3-a456-426614174001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已删除或相同删除的成功重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewAccountHealth"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          }
+        }
+      }
+    },
+    "/api/v1/review/benchmark-articles:batch": {
+      "put": {
+        "operationId": "putReviewBenchmarkArticlesBatch",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "逐条幂等创建至多200条对标爆文",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 提交 {items:[{id,...创建字段}]}，每项独立保存，逐项检查 status；整批不保证原子性。结果不明时先按原 UUID 读取核对。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与站点Origin完全相同。"
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "const": "1"
+            },
+            "description": "匿名公开写入必填1。"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "所有者会话写入必填。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBenchmarkArticleBatch"
+              },
+              "example": {
+                "items": [
+                  {
+                    "id": "123e4567-e89b-42d3-a456-426614174002",
+                    "article_id": "123e4567-e89b-42d3-a456-426614174000",
+                    "snapshot_date": "2026-10-30"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "按输入顺序的逐条结果；失败不会回滚先前成功项",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewBenchmarkArticleBatchResult"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ReviewResourceError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ReviewResourceError"
           }
         }
       }
@@ -16649,6 +19538,13 @@
           },
           "evidence": {
             "$ref": "#/components/schemas/ReviewRuleEvidence"
+          },
+          "evidence_note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "规则证据备注，最多 2000 UTF-8 字节；可为 null。"
           }
         },
         "description": "rule_id/section/text必需；附加元数据可省略。旧规则读取默认candidate，不写回原JSON或改变原hash。"
@@ -16787,6 +19683,15 @@
             "uniqueItems": true,
             "default": null,
             "description": "null表示未记录；[]表示明确未用规则。JSON字段最多64KiB/深度12/10000节点。"
+          },
+          "reference_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "default": null,
+            "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
           }
         },
         "description": "PUT为创建和相同内容重放；缺省字段使用默认值。UUID来自路径，不放入请求体。",
@@ -16946,6 +19851,15 @@
             "uniqueItems": true,
             "default": null,
             "description": "null表示未记录；[]表示明确未用规则。JSON字段最多64KiB/深度12/10000节点。"
+          },
+          "reference_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "default": null,
+            "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
           }
         },
         "minProperties": 2,
@@ -17124,6 +20038,15 @@
             "uniqueItems": true,
             "default": null,
             "description": "null表示未记录；[]表示明确未用规则。JSON字段最多64KiB/深度12/10000节点。"
+          },
+          "reference_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "default": null,
+            "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
           }
         }
       },
@@ -18195,6 +21118,19 @@
             ],
             "description": "仅记录调用者提供的发送时间或null，不触发Gemini调用或推送。具体时间由BOT带+08:00录入、规范存储UTC、页面显示Asia/Shanghai北京时间；严格YYYY-MM-DD日期原样保留，不伪造零点，未知null。",
             "default": null
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "draft",
+              "active",
+              "archived",
+              null
+            ],
+            "description": "缺省读为 active；历史 V字 指定 v2 兼容显示 draft。历史空值不写回且不改变旧 hash；显式状态参与 hash。"
           }
         },
         "description": "PUT为创建和相同内容重放；缺省字段使用默认值。UUID来自路径，不放入请求体。",
@@ -18270,6 +21206,19 @@
             ],
             "description": "仅记录调用者提供的发送时间或null，不触发Gemini调用或推送。具体时间由BOT带+08:00录入、规范存储UTC、页面显示Asia/Shanghai北京时间；严格YYYY-MM-DD日期原样保留，不伪造零点，未知null。",
             "default": null
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "draft",
+              "active",
+              "archived",
+              null
+            ],
+            "description": "缺省读为 active；历史 V字 指定 v2 兼容显示 draft。历史空值不写回且不改变旧 hash；显式状态参与 hash。"
           }
         },
         "minProperties": 2,
@@ -18357,6 +21306,19 @@
             "pattern": "^[a-f0-9]{64}$",
             "description": "服务端持久化实体的稳定SHA-256。新增nullable字段为null及旧规则的展示默认状态不改变旧hash；派生分析不进入hash。使用服务端值，勿从完整响应自行重算。",
             "readOnly": true
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "draft",
+              "active",
+              "archived",
+              null
+            ],
+            "description": "缺省读为 active；历史 V字 指定 v2 兼容显示 draft。历史空值不写回且不改变旧 hash；显式状态参与 hash。"
           }
         }
       },
@@ -18944,6 +21906,15 @@
           "id": {
             "type": "string",
             "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "reference_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "default": null,
+            "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
           }
         },
         "description": "POST创建：必须使用调用者预先固定的小写UUID id；重试保持原id及完整内容。",
@@ -19028,6 +21999,19 @@
           "id": {
             "type": "string",
             "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "draft",
+              "active",
+              "archived",
+              null
+            ],
+            "description": "缺省读为 active；历史 V字 指定 v2 兼容显示 draft。历史空值不写回且不改变旧 hash；显式状态参与 hash。"
           }
         },
         "description": "数字版本路径创建：id必填，version必填且与路径数字相等。UUID路径继续使用ReviewPlaybookCreate且不传id。",
@@ -19343,6 +22327,15 @@
           },
           "verdict_reliable": {
             "type": "boolean"
+          },
+          "reference_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "default": null,
+            "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
           }
         },
         "description": "派生分析不进入content_hash。24h从已记录age_hours12..72中选距24最近的一条；同距按age_hours/date/id升序。规则版本上下文不证明实际执行。"
@@ -19596,6 +22589,15 @@
           },
           "verdict_reliable": {
             "type": "boolean"
+          },
+          "reference_article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$",
+            "default": null,
+            "description": "同一业务 owner 和 account 下未删除的参考爆文 UUID；sample_title/sample_url 继续保留为兜底。null 不改变旧记录 content_hash。"
           }
         },
         "description": "派生分析不进入content_hash。24h从已记录age_hours12..72中选距24最近的一条；同距按age_hours/date/id升序。规则版本上下文不证明实际执行。"
@@ -20069,6 +23071,13 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
+          },
+          "evidence_note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "规则证据备注，最多 2000 UTF-8 字节；可为 null。"
           }
         },
         "anyOf": [
@@ -20096,9 +23105,14 @@
             "required": [
               "trials"
             ]
+          },
+          {
+            "required": [
+              "evidence_note"
+            ]
           }
         ],
-        "description": "平铺修改，只允许status/evidence/support_ids/counter_ids/trials且至少一项。hash属于所选法典。save_id用于精确重放收据。"
+        "description": "平铺修改，只允许 status/evidence/evidence_note/support_ids/counter_ids/trials 且至少一项。hash 属于所选法典。save_id 用于精确重放收据。"
       },
       "ReviewOverviewCards": {
         "type": "object",
@@ -20192,6 +23206,1597 @@
           }
         },
         "description": "Thin mapping of current count/hit_rate/miss_rate/ctr_median. Four flat <field>_prev_delta aliases and each_prev_delta[field] both equal changes[field].delta (current minus previous). Count delta is a count; rate/CTR deltas are percentage_points; unavailable comparisons are null."
+      },
+      "ReviewBenchmarkAccountCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "account",
+          "platform",
+          "name"
+        ],
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "profile_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "HTTP(S)，不含用户名或密码；最多 4096 UTF-8 字节，服务端不访问外链。",
+            "default": null
+          },
+          "fans": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "is_featured_author": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "posting_cadence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "topic_focus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "title_patterns": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": null
+          },
+          "structure_notes_md": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "description": "PUT 创建或相同内容重放，未提供的可选字段为 null。UUID 来自路径。"
+      },
+      "ReviewBenchmarkAccountPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_hash"
+        ],
+        "properties": {
+          "expected_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "服务端返回的稳定 SHA-256；覆盖该实体除 content_hash 外全部返回字段，对象键排序，数组顺序保留。不要自行猜测或复用过期值。"
+          },
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "profile_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "HTTP(S)，不含用户名或密码；最多 4096 UTF-8 字节，服务端不访问外链。",
+            "default": null
+          },
+          "fans": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "is_featured_author": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "posting_cadence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "topic_focus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "title_patterns": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": null
+          },
+          "structure_notes_md": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "description": "expected_hash 必填，至少提交一个业务字段；未提供字段保留。"
+      },
+      "ReviewBenchmarkAccount": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "readOnly": true
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "服务端持久化实体的稳定SHA-256。新增nullable字段为null及旧规则的展示默认状态不改变旧hash；派生分析不进入hash。使用服务端值，勿从完整响应自行重算。",
+            "readOnly": true
+          },
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "profile_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "HTTP(S)，不含用户名或密码；最多 4096 UTF-8 字节，服务端不访问外链。",
+            "default": null
+          },
+          "fans": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "is_featured_author": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "posting_cadence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "topic_focus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "title_patterns": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": null
+          },
+          "structure_notes_md": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        }
+      },
+      "ReviewBenchmarkAccountList": {
+        "type": "object",
+        "required": [
+          "items",
+          "has_more",
+          "read_revision"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/ReviewBenchmarkAccount"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "read_revision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ReviewBenchmarkArticleCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "benchmark_account_id",
+          "title",
+          "url"
+        ],
+        "properties": {
+          "benchmark_account_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "reads": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "title_pattern": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "dialogue",
+              "外媒",
+              "又一",
+              "数字开头",
+              "央视曝光",
+              "其他",
+              null
+            ],
+            "default": null
+          },
+          "topic": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "news_hook": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "word_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "image_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "collected_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "default": null
+          },
+          "used_by_article_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "default": null,
+            "description": "由我方文章 reference_article_id 派生；如提交只能与实际引用集合一致。"
+          }
+        },
+        "description": "PUT 创建或相同内容重放，未提供的可选字段为 null。UUID 来自路径。"
+      },
+      "ReviewBenchmarkArticlePatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_hash"
+        ],
+        "properties": {
+          "expected_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "服务端返回的稳定 SHA-256；覆盖该实体除 content_hash 外全部返回字段，对象键排序，数组顺序保留。不要自行猜测或复用过期值。"
+          },
+          "benchmark_account_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "reads": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "title_pattern": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "dialogue",
+              "外媒",
+              "又一",
+              "数字开头",
+              "央视曝光",
+              "其他",
+              null
+            ],
+            "default": null
+          },
+          "topic": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "news_hook": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "word_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "image_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "collected_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "default": null
+          },
+          "used_by_article_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "default": null,
+            "description": "由我方文章 reference_article_id 派生；如提交只能与实际引用集合一致。"
+          }
+        },
+        "description": "expected_hash 必填，至少提交一个业务字段；未提供字段保留。"
+      },
+      "ReviewBenchmarkArticle": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "readOnly": true
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "服务端持久化实体的稳定SHA-256。新增nullable字段为null及旧规则的展示默认状态不改变旧hash；派生分析不进入hash。使用服务端值，勿从完整响应自行重算。",
+            "readOnly": true
+          },
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "readOnly": true,
+            "description": "由所属对标号派生。"
+          },
+          "benchmark_account_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "reads": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "title_pattern": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "dialogue",
+              "外媒",
+              "又一",
+              "数字开头",
+              "央视曝光",
+              "其他",
+              null
+            ],
+            "default": null
+          },
+          "topic": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "news_hook": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "word_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "image_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "collected_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "default": null
+          },
+          "used_by_article_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "default": null,
+            "description": "由我方文章 reference_article_id 派生；如提交只能与实际引用集合一致。"
+          }
+        }
+      },
+      "ReviewBenchmarkArticleList": {
+        "type": "object",
+        "required": [
+          "items",
+          "has_more",
+          "read_revision"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/ReviewBenchmarkArticle"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "read_revision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ReviewNoteCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "account",
+          "note_date",
+          "kind",
+          "title"
+        ],
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "note_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "insight",
+              "decision",
+              "diagnosis",
+              "account_health"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "body_md": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "tags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": null
+          },
+          "related_article_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "default": null
+          },
+          "related_rule_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": null
+          },
+          "decided_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "description": "PUT 创建或相同内容重放，未提供的可选字段为 null。UUID 来自路径。"
+      },
+      "ReviewNotePatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_hash"
+        ],
+        "properties": {
+          "expected_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "服务端返回的稳定 SHA-256；覆盖该实体除 content_hash 外全部返回字段，对象键排序，数组顺序保留。不要自行猜测或复用过期值。"
+          },
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "note_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "insight",
+              "decision",
+              "diagnosis",
+              "account_health"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "body_md": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "tags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": null
+          },
+          "related_article_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "default": null
+          },
+          "related_rule_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": null
+          },
+          "decided_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "description": "expected_hash 必填，至少提交一个业务字段；未提供字段保留。"
+      },
+      "ReviewNote": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "readOnly": true
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "服务端持久化实体的稳定SHA-256。新增nullable字段为null及旧规则的展示默认状态不改变旧hash；派生分析不进入hash。使用服务端值，勿从完整响应自行重算。",
+            "readOnly": true
+          },
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "note_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "insight",
+              "decision",
+              "diagnosis",
+              "account_health"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "body_md": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "tags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": null
+          },
+          "related_article_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+            },
+            "default": null
+          },
+          "related_rule_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": null
+          },
+          "decided_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        }
+      },
+      "ReviewNoteList": {
+        "type": "object",
+        "required": [
+          "items",
+          "has_more",
+          "read_revision"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/ReviewNote"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "read_revision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ReviewAccountHealthCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "account",
+          "platform",
+          "observed_on"
+        ],
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observed_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "impressions_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "reads_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "ctr": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100,
+            "default": null
+          },
+          "since_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "default": null
+          },
+          "platform_notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "date": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date",
+                    "default": null
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "judgement": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "normal",
+              "限流",
+              "降权",
+              "封禁",
+              null
+            ],
+            "default": null
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "resume_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "default": null
+          }
+        },
+        "description": "PUT 创建或相同内容重放，未提供的可选字段为 null。UUID 来自路径。"
+      },
+      "ReviewAccountHealthPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_hash"
+        ],
+        "properties": {
+          "expected_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "服务端返回的稳定 SHA-256；覆盖该实体除 content_hash 外全部返回字段，对象键排序，数组顺序保留。不要自行猜测或复用过期值。"
+          },
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observed_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "impressions_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "reads_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "ctr": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100,
+            "default": null
+          },
+          "since_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "default": null
+          },
+          "platform_notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "date": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date",
+                    "default": null
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "judgement": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "normal",
+              "限流",
+              "降权",
+              "封禁",
+              null
+            ],
+            "default": null
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "resume_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "default": null
+          }
+        },
+        "description": "expected_hash 必填，至少提交一个业务字段；未提供字段保留。"
+      },
+      "ReviewAccountHealth": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "readOnly": true
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "服务端持久化实体的稳定SHA-256。新增nullable字段为null及旧规则的展示默认状态不改变旧hash；派生分析不进入hash。使用服务端值，勿从完整响应自行重算。",
+            "readOnly": true
+          },
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observed_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "impressions_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "reads_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "ctr": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100,
+            "default": null
+          },
+          "since_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "default": null
+          },
+          "platform_notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "date": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date",
+                    "default": null
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "judgement": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "normal",
+              "限流",
+              "降权",
+              "封禁",
+              null
+            ],
+            "default": null
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "resume_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "default": null
+          }
+        }
+      },
+      "ReviewAccountHealthList": {
+        "type": "object",
+        "required": [
+          "items",
+          "has_more",
+          "read_revision"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/ReviewAccountHealth"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "read_revision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ReviewBenchmarkArticleBatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "benchmark_account_id",
+                "title",
+                "url"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+                },
+                "benchmark_account_id": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "reads": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "default": null
+                },
+                "published_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "title_pattern": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "dialogue",
+                    "外媒",
+                    "又一",
+                    "数字开头",
+                    "央视曝光",
+                    "其他",
+                    null
+                  ],
+                  "default": null
+                },
+                "topic": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "default": null
+                },
+                "news_hook": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "default": null
+                },
+                "word_count": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "default": null
+                },
+                "image_count": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "default": null
+                },
+                "collected_on": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date",
+                  "default": null
+                },
+                "used_by_article_ids": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "uniqueItems": true,
+                  "maxItems": 1000,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
+                  },
+                  "default": null,
+                  "description": "由我方文章 reference_article_id 派生；如提交只能与实际引用集合一致。"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ReviewBenchmarkArticleBatchResult": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "integer"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/ReviewBenchmarkArticle"
+                },
+                "error": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "existing_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "responses": {
@@ -20368,6 +24973,21 @@
             "schema": {
               "const": "60"
             }
+          }
+        }
+      },
+      "ReviewResourceError": {
+        "description": "复盘权限、验证、冲突或存储错误；请检查 error.code。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ReviewError"
+            }
+          }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
           }
         }
       }
