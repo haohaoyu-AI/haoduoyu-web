@@ -4,6 +4,7 @@ import {noteEditor,limitNoteWrites} from './public-note-access.mjs';
 import {storeFor,consistentRead,mutate} from './storage.mjs';
 import {dailyNotesOwner} from './daily-notes.mjs';
 import {reviewUuid,reviewHash,reviewSpecs,reviewDate,reviewInput,reviewView,reviewEqual,reviewContentHash,reviewRuleChanges} from './content-review-validation.mjs';
+import {handleReviewResources,isReviewResourceRoute} from './review-resources.mjs';
 import {enrichArticles,enrichArticle,buildOverview} from '../shared/review-analytics.mjs';
 
 const tombstoneActor=owner=>'review-tombstones:'+owner;
@@ -68,7 +69,8 @@ function validateQuery(query,kind,list) {
   if(!Number.isSafeInteger(offset))throw fail(400,'VALIDATION_ERROR','Invalid page');
   return {where,args,offset,expected:query.has('read_revision')?Number(query.get('read_revision')):null,verdict:query.get('verdict'),page:query.has('page')?Number(query.get('page')):null};
 }
-const publicView=(kind,row)=>kind==='playbooks'?{...row,rules:row.rules.map(rule=>({...rule,status:rule.status??'candidate'}))}:row;
+const writeView=(kind,row)=>kind==='playbooks'?{...row,status:row.status??(row.id==='8f553af0-302a-45fb-9fde-16d6d537c888'&&row.account==='V字'?'draft':'active')}:row;
+const publicView=(kind,row)=>kind==='playbooks'?{...writeView(kind,row),rules:row.rules.map(rule=>({...rule,status:rule.status??'candidate'}))}:row;
 async function accountData(store,owner,account=null) {
   const data={};
   for(const kind of ['articles','snapshots','reports','playbooks']) {
@@ -81,8 +83,12 @@ async function accountData(store,owner,account=null) {
 async function readRow(store,kind,owner,id) {
   return reviewView(kind,await store.get('SELECT * FROM '+reviewSpecs[kind].table+' WHERE user_id=? AND id=?',owner,id));
 }
-async function checkRelations(store,kind,owner,id,row) {
+async function checkRelations(store,kind,owner,id,row,previous=null) {
   let existing;
+  if(kind==='articles'&&row.reference_article_id!==null&&(!previous||row.reference_article_id!==previous.reference_article_id||row.account!==previous.account)) {
+    const ref=await store.get('SELECT ba.id FROM matrix_review_benchmark_articles ba JOIN matrix_review_benchmark_accounts b ON b.user_id=ba.user_id AND b.id=ba.benchmark_account_id WHERE ba.user_id=? AND ba.id=? AND ba.deleted_at IS NULL AND b.deleted_at IS NULL AND b.account=?',owner,row.reference_article_id,row.account);
+    if(!ref)throw fail(404,'REFERENCE_NOT_FOUND','参考爆文不存在或不属于该账号');
+  }
   if(kind==='articles'&&row.platform_article_id!==null)existing=await store.get('SELECT id FROM matrix_review_articles WHERE user_id=? AND account=? AND platform_article_id=? AND id<>?',owner,row.account,row.platform_article_id,id);
   if(kind==='snapshots') {
     if(!await store.get('SELECT id FROM matrix_review_articles WHERE user_id=? AND id=?',owner,row.article_id))throw fail(404,'ARTICLE_NOT_FOUND','快照所属文章不存在');
@@ -97,14 +103,16 @@ function queueTombstone(store,owner,kind,row,time) {
   store.queue('INSERT INTO idempotency(actor,key,request_hash,response_json,status,created_at) VALUES(?,?,?,?,200,?) ON CONFLICT(actor,key) DO UPDATE SET request_hash=excluded.request_hash,response_json=excluded.response_json,created_at=excluded.created_at',tombstoneActor(owner),tombstoneKey(kind,row.id),row.content_hash,receipt,time);
 }
 async function put(db,request,kind,owner,id,input,env,origin) {
+  if(kind==='playbooks'&&Object.hasOwn(input,'status')&&input.status===null)throw fail(400,'VALIDATION_ERROR','Invalid playbook status');
   const values=reviewInput(kind,input,{validateDaily:false}),spec=reviewSpecs[kind];
   return (await mutate(db,async store=>{
     const actor=await actorFor(store,request,owner,env,origin,true);
     if(await store.get('SELECT key FROM idempotency WHERE actor=? AND key=?',tombstoneActor(owner),tombstoneKey(kind,id)))throw fail(409,'REVIEW_DELETED','此标识已永久删除，请为新记录生成新 UUID');
     const current=await readRow(store,kind,owner,id);
     if(current) {
+      if(kind==='playbooks'&&current.status===null&&values.status===publicView(kind,current).status)values.status=null;
       if(!reviewEqual(kind,current,values))throw fail(409,'IDEMPOTENCY_CONFLICT','该 UUID 已用于不同内容；修改请使用 PATCH 和最新哈希');
-      return {replayed:true,response:json(current)};
+      return {replayed:true,response:json(writeView(kind,current))};
     }
     reviewInput(kind,input);
     if(kind==='reports'&&values.period_type==='three_day')throw fail(400,'VALIDATION_ERROR','New three_day reports are retired');
@@ -113,27 +121,31 @@ async function put(db,request,kind,owner,id,input,env,origin) {
     const keys=[...columnsFor(kind),...spec.timestamps],columns=['user_id','id',...keys.map(key=>columnFor(spec,key))];
     store.queue('INSERT INTO '+spec.table+'('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')',owner,id,...keys.map(key=>valueFor(spec,key,row)));
     store.audit(actor.actor,'review.'+kind+'.create',id);
-    return {actor,response:json({...row,content_hash:reviewContentHash(row)},201)};
+    return {actor,response:json(writeView(kind,{...row,content_hash:reviewContentHash(row)}),201)};
   })).response;
 }
 async function patch(db,request,kind,owner,id,input,env,origin) {
   const {expected_hash,...changes}=input;
   if(typeof expected_hash!=='string'||!reviewHash.test(expected_hash))throw fail(400,'VALIDATION_ERROR','修改需要有效的 expected_hash');
+  if(kind==='playbooks'&&Object.hasOwn(changes,'status')&&changes.status===null)throw fail(400,'VALIDATION_ERROR','Invalid playbook status');
   const partial=reviewInput(kind,changes,{patch:true}),spec=reviewSpecs[kind];
   return (await mutate(db,async store=>{
     const actor=await actorFor(store,request,owner,env,origin,true),current=await readRow(store,kind,owner,id);
     if(!current)throw fail(404,'NOT_FOUND','记录不存在');
     if(current.content_hash!==expected_hash)throw fail(409,'VERSION_CONFLICT','记录已改变，请读取最新内容再修改');
+    // Compare an echoed default against the account after this PATCH. The
+    // designated legacy draft is only a draft while it belongs to V字.
+    if(kind==='playbooks'&&current.status===null&&partial.status===writeView(kind,{...current,...partial,status:null}).status)delete partial.status;
     if(kind==='reports'&&partial.period_type==='three_day'&&current.period_type!=='three_day')throw fail(400,'VALIDATION_ERROR','New three_day reports are retired');
     const values=reviewInput(kind,{...Object.fromEntries(columnsFor(kind).map(key=>[key,current[key]])),...partial},{validateDaily:Object.hasOwn(partial,'summary_md')||Object.hasOwn(partial,'period_type')});
-    await checkRelations(store,kind,owner,id,values);
-    if(reviewEqual(kind,current,values))return {replayed:true,response:json(current)};
+    await checkRelations(store,kind,owner,id,values,current);
+    if(reviewEqual(kind,current,values))return {replayed:true,response:json(writeView(kind,current))};
     const {content_hash,...previous}=current,row={...previous,...values};
     if(spec.timestamps.includes('updated_at'))row.updated_at=new Date().toISOString();
     const keys=[...columnsFor(kind),...(spec.timestamps.includes('updated_at')?['updated_at']:[])];
     store.queue('UPDATE '+spec.table+' SET '+keys.map(key=>columnFor(spec,key)+'=?').join(',')+' WHERE user_id=? AND id=?',...keys.map(key=>valueFor(spec,key,row)),owner,id);
     store.expectChange();store.audit(actor.actor,'review.'+kind+'.update',id);
-    return {actor,response:json({...row,content_hash:reviewContentHash(row)})};
+    return {actor,response:json(writeView(kind,{...row,content_hash:reviewContentHash(row)}))};
   })).response;
 }
 async function remove(db,request,kind,owner,id,input,env,origin) {
@@ -199,6 +211,7 @@ async function patchRule(db,request,owner,ruleId,input,env,origin) {
 }
 async function handle(db,request,route,env,origin,initialRevision) {
   const owner=dailyNotesOwner(env),url=new URL(request.url),method=request.method;
+  if(isReviewResourceRoute(route))return handleReviewResources(db,request,route,env,origin,initialRevision);
   const batch=route==='/review/snapshots:batch';
   if(route==='/review/overview') {
     const query=url.searchParams;

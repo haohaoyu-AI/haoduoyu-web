@@ -1,11 +1,13 @@
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS} from './pages/content-review.mjs';
 
-const resources = ['articles','snapshots','reports','playbooks'];
+const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
 let vm = {account:'V字',view:'overview',week:'this',date:'',start:'',end:'',periods:[],filters:{},article:'',version:'',compare:'',loading:true,error:''};
 const root = () => typeof document === 'undefined' ? null : document.querySelector('#content-review');
-function staleRead(message = '复盘资料在读取时发生变化，请重新读取。') { return Object.assign(new Error(message),{code:'REVIEW_READ_CHANGED'}); }
+function staleRead(message = '复盘资料在读取时发生变化，请重新读取。') {
+  return Object.assign(new Error(message),{code:'READ_REVISION_CHANGED'});
+}
 
 /** Read-only, offset pagination. An invalid page is an error, never a partial success. */
 export async function readReviewCollection(read, resource, selectedAccount, current = () => true) {
@@ -40,6 +42,15 @@ export async function readContentReviewData(read, selectedAccount, current = () 
   result.playbooks.sort((a,b) => String(b.published_on || '').localeCompare(String(a.published_on || '')) || String(b.version).localeCompare(String(a.version),undefined,{numeric:true}));
   result.reports.sort((a,b) => String(b.period_end).localeCompare(String(a.period_end)) || String(b.id).localeCompare(String(a.id)));
   return result;
+}
+export async function readContentReviewDataWithRetry(read, selectedAccount, current = () => true) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try { return await readContentReviewData(read,selectedAccount,current); }
+    catch (error) {
+      if (!current()) return null;
+      if (error.code !== 'READ_REVISION_CHANGED' || attempt) throw error;
+    }
+  }
 }
 export function reviewRoute(href,defaultAccount = vm.account) {
   const p = new URL(href).searchParams, legacy = p.get('review_view');
@@ -77,11 +88,7 @@ export async function loadContentReview(context) {
   const current = () => ticket === sequence && epoch === runtime.sessionEpoch && state.page === 'review' && route().account === requested.account && Boolean(root());
   const read = path => apiNetwork(path,context ? {context} : {});
   try {
-    let result;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try { result = await readContentReviewData(read,requested.account,current); break; }
-      catch (error) { if (error.code !== 'REVIEW_READ_CHANGED' || attempt) throw error; }
-    }
+    const result = await readContentReviewDataWithRetry(read,requested.account,current);
     if (!current() || !result) return;
     data = result; syncViewFromRoute(); paintContentReviewPage();
   } catch (error) {
@@ -102,8 +109,21 @@ function registerEvents() {
   if (registered || typeof document === 'undefined') return;
   registered = true;
   document.addEventListener('click',event => {
-    const node = root(), target = event.target.closest?.('button,[data-review-row]');
+    const node = root(); if (event.target.closest?.('a')) return;
+    const target = event.target.closest?.('button,[data-review-row]');
     if (!target || !node?.contains(target)) return;
+    if (target.dataset.reviewAction === 'show-health') {
+      if (vm.view !== 'overview') {
+        vm.view = 'overview'; vm.article = '';
+        writeRoute({view:'overview',article:''}); paintContentReviewPage();
+      }
+      const details = node.querySelector('#review-health-history');
+      if (details) {
+        details.open = true; details.scrollIntoView({behavior:'smooth',block:'start'});
+        details.querySelector('summary')?.focus({preventScroll:true});
+      }
+      return;
+    }
     if (target.dataset.reviewAction === 'refresh') { void loadContentReview(pageContext); return; }
     if (vm.loading || vm.error) return;
     if (target.dataset.reviewView) { selectTab(target.dataset.reviewView,true); return; }

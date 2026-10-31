@@ -1,10 +1,10 @@
 # 内容复盘公开 API
 
-内容复盘使用独立的 `/api/v1/review` 命名空间；入口为 `?page=review&account=V字`，提供总览（overview）、文章库（articles）、写作法典（playbook）三个视图，展示 V字 / 头条。API 的 account 缺省为 V字，也接受其他合法账号字符串；platform 仅允许 toutiao。复盘资源与旧图文 API、后台旧文章/观察/每日指标独立，不自动迁入。页面提供读取展示，写入由 API 调用者完成，没有页面编辑表单。业务结论、快照指标和法典正文留给 Grok BOT 填写，本次不初始化示例业务数据。
+内容复盘使用独立的 `/api/v1/review` 命名空间；入口为 `?page=review&account=V字`，提供总览（overview）、文章库（articles）、写作法典（playbook）三个视图，展示 V字 / 头条。原有复盘文章的 account 缺省为 V字，也接受其他合法账号字符串；文章 platform 仅允许 toutiao。复盘资源与旧图文 API、后台旧文章/观察/每日指标独立，不自动迁入。页面提供读取展示，写入由 API 调用者完成，没有页面编辑表单。业务结论、快照指标和法典正文留给 Grok BOT 填写，本次不初始化示例业务数据。
 
 ## 公开访问与边界
 
-当 `PUBLIC_BUSINESS_MODE=1` 时，所有访客均可读取、创建、修改和永久删除四类复盘资源，无身份认证。署名、source_chat 和内容中的作者均为自述，不是已验证身份。记录归属沿用明确配置的日记 owner；有效 owner 会话也可访问。显式无效凭证不会回退到匿名公开访问，Bearer key 不授予这些资源的权限。此约定仅覆盖新复盘命名空间，不扩大密码、密钥、后台、备份或其他 API 的权限。
+当 `PUBLIC_BUSINESS_MODE=1` 时，所有访客均可读取、创建、修改复盘资源；原有四类可永久删除，v1.2 新增资源支持软删除和恢复，无身份认证。署名、source_chat 和内容中的作者均为自述，不是已验证身份。记录归属沿用明确配置的日记 owner；有效 owner 会话也可访问。显式无效凭证不会回退到匿名公开访问，Bearer key 不授予这些资源的权限。此约定仅覆盖新复盘命名空间，不扩大密码、密钥、后台、备份或其他 API 的权限。
 
 公开写入要求 Origin 与站点源完全一致、`X-Public-Business: 1`、`Content-Type: application/json`；owner 会话写入改用同源 Origin 与 X-CSRF-Token。每个 JSON 请求最多256KiB。公开写入按 owner 和复盘模块在每个进程内限流60次/分钟、2000次/UTC日，含拒绝请求和重试，不能当作全局计数。批量请求也受相同入口约束，每个HTTP写请求计1次，batch内最多200项仍计1次。所有例子只是文档，本次未对生产或其他服务发起请求。
 
@@ -39,6 +39,26 @@
 | PUT | /api/v1/review/snapshots:batch | 1–200条；逐条UUID与独立结果 |
 
 UUID 均为小写 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`。原有UUID PUT 单项的 id 来自路径，请求体不放 id；新增 POST articles 与数字版本 PUT playbooks 的请求体必须包含事先生成并固定的 id；快照 batch 的每项也必须包含 id。单项GET返回 `{"data":{...实体字段,"content_hash":"64位小写SHA-256"}}`。成功及错误响应有 X-Request-Id，错误顶层 request_id 可用于排查。
+
+
+## v1.2.0 新增资源与兼容字段
+
+以下路径均以 `/api/v1/review` 为前缀。列表每页最多100条，`offset` 从0递增，`read_revision` 检测页间变化；变化时返回409并从头读取。列表默认排除软删除项，`include_deleted=1` 包含墓碑；UUID GET 可读取墓碑。各资源的 UUID GET/PUT/PATCH/DELETE 与 POST `/{uuid}/restore` 可用。PUT 创建或相同请求重放；PATCH 用最新 `expected_hash`。DELETE 和 restore 均提交 `{"expected_hash":"最新hash","save_id":"小写UUID"}`，返回当前实体与新 hash；相同 save_id、相同操作可重放，不同请求冲突。新资源唯一键包括软删除记录，不可用不同 UUID 绕过。所有创建的可选字段缺省为 null，服务端提供 created_at、updated_at、deleted_at、content_hash。
+
+| 资源 | 创建必填 | 其他字段 | 列表筛选及顺序 |
+| --- | --- | --- | --- |
+| `benchmark-accounts` | account、platform、name | profile_url、fans、is_featured_author、posting_cadence、topic_focus、title_patterns、structure_notes_md | account、platform；name 和 id 升序；(account, platform, name) 唯一 |
+| `benchmark-articles` | benchmark_account_id、title、url | reads、published_at、title_pattern、topic、news_hook、word_count、image_count、collected_on；used_by_article_ids 为派生关联 | account、benchmark_account_id、collected_on；sort=benchmark_account_id/collected_on/reads，默认 reads 降序、collected_on 降序、id；(benchmark_account_id, url) 唯一 |
+| `notes` | account、note_date、kind、title | body_md、tags、related_article_ids、related_rule_ids、decided_by | account、from、to、kind；日期和创建时间降序；kind 为 insight、decision、diagnosis、account_health |
+| `account-health` | account、platform、observed_on | impressions_per_day、reads_per_day、ctr、since_date、platform_notice、judgement、action、resume_on | account、platform、from、to；观察日期和创建时间降序 |
+
+计数为非负整数，CTR 为0–100或null；健康 judgement 可为 null、normal、限流、降权、封禁。platform_notice 可为文本或 `{text,date}` 对象，date 可为 null。对标爆文 title_pattern 可为 null、dialogue、外媒、又一、数字开头、央视曝光、其他。数组可为 null 或不重复数组；null 表示未知。对标号仍有活动爆文、或爆文仍被引用时，删除返回409。
+
+`PUT /benchmark-articles:batch` 使用 `{items:[{id,...创建字段}]}`，1–200项，每项独立提交并返回 `{id,status,data}` 或 `{id,status,error}`；HTTP 200 不表示每项成功。请求结果未知时先按原 UUID 读取，保留原 ID 与内容再处理，不换 ID 盲重试。
+
+复盘文章新字段 `reference_article_id` 为 null 或同一 owner 和 account 的活动对标爆文 UUID；`sample_title` / `sample_url` 保留为兜底。对标爆文的 `used_by_article_ids` 从我方文章 `reference_article_id` 派生；提交该字段只能与当前关联一致，不一致返回409，修改关联应 PATCH 我方文章，避免两头失真。
+
+手册 `status` 支持 draft、active、archived；未设置时展示 active。指定 V字 历史 v2（`8f553af0-302a-45fb-9fde-16d6d537c888`）在存储状态为空时兼容展示 draft，不写回历史行；显式设置后状态参与 hash。`sent_to_gemini_at` 为 null 的页面展示“草稿·未发送”，并不据此把所有旧版本改为 draft。规则 `evidence_note` 为 null 或最多2000 UTF-8字节文本，可由规则 PATCH 修改。旧记录新增可空字段为 null 不改变原 hash；历史长日报摘要不自动截改，新建或修改摘要仍最多两句。
 
 ## 日期与北京时间
 
@@ -229,7 +249,7 @@ from/to为含边界的有效日期，articles在数据库分页前按published_a
 
 `PUT /playbooks/{数字版本}`接受`{id:"稳定小写UUID",version:与路径相同的数字,published_on:"YYYY-MM-DD",...法典创建字段}`。id和version均必需；仍按账号+版本唯一，遵循原创建重放和墓碑规则。UUID版PUT继续有效。OpenAPI用同一个`/playbooks/{uuid}`路径模板说明UUID和数字别名，避免重复的等价路径模板。
 
-`PATCH /rules/{URL编码rule_id}`的JSON体为平铺结构：account、playbook_id、expected_hash、save_id全部必填，再附至少一个status/evidence/support_ids/counter_ids/trials。只能修改这五个字段；rule_id、section、text、check须通过法典资源修改。account和playbook_id共同确定法典，expected_hash取该法典最新GET的content_hash，save_id为本次操作的小写UUID。返回完整法典data（旧规则可带展示默认candidate），不只是被改规则。规则ID不跨版本或账号模糊匹配。
+`PATCH /rules/{URL编码rule_id}`的JSON体为平铺结构：account、playbook_id、expected_hash、save_id全部必填，再附至少一个status/evidence/evidence_note/support_ids/counter_ids/trials。只能修改这六个字段；rule_id、section、text、check须通过法典资源修改。account和playbook_id共同确定法典，expected_hash取该法典最新GET的content_hash，save_id为本次操作的小写UUID。返回完整法典data（旧规则可带展示默认candidate），不只是被改规则。规则ID不跨版本或账号模糊匹配。
 
 ```json
 {
@@ -263,7 +283,7 @@ from/to为含边界的有效日期，articles在数据库分页前按published_a
 
 ## 永久删除与防复活
 
-四类资源均允许公开访客永久删除，无法恢复，没有restore接口。DELETE请求体恰好包含expected_hash、save_id；文章另允许cascade_snapshots。expected_hash必须来自最新GET，save_id是本次删除的小写UUID。
+原有 articles、snapshots、reports、playbooks 四类资源允许公开访客永久删除，无法恢复，没有restore接口。DELETE请求体恰好包含expected_hash、save_id；文章另允许cascade_snapshots。expected_hash必须来自最新GET，save_id是本次删除的小写UUID。
 
 `delete.json` 示例：
 
@@ -302,7 +322,7 @@ from/to为含边界的有效日期，articles在数据库分页前按published_a
 | 500 | INTERNAL_ERROR | 内部错误；保留request_id排查 |
 | 503 | NOTES_CONFIG / REVIEW_CONFIG | 所需owner配置不可用 |
 
-文章删除成功返回 `{data:{deleted:true,id,deleted_snapshots:数量}}`，其他资源为 `{data:{deleted:true,id}}`。ARTICLE_HAS_SNAPSHOTS额外包含 `error.snapshot_count`。
+文章删除成功返回 `{data:{deleted:true,id,deleted_snapshots:数量}}`，原有 snapshots、reports、playbooks 为 `{data:{deleted:true,id}}`。ARTICLE_HAS_SNAPSHOTS额外包含 `error.snapshot_count`。
 
 错误形状示例：
 

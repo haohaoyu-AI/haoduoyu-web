@@ -203,7 +203,7 @@ test('review3 additive migration preserves raw legacy rows and nullable fields p
   sql.prepare('INSERT INTO matrix_review_snapshots(user_id,id,article_id,snapshot_date,reads) VALUES(?,?,?,?,?)').run(owner,snapshot,article,'2026-10-30',null);
   const oldArticle=sql.prepare('SELECT * FROM matrix_review_articles').get(),oldSnapshot=sql.prepare('SELECT * FROM matrix_review_snapshots').get();
   const legacyHash=(row,kind)=>{
-    const view=reviewView(kind,row);for(const key of ['content_hash','playbook_version_used','applied_rule_ids','age_hours','source'])delete view[key];
+    const view=reviewView(kind,row);for(const key of ['content_hash','playbook_version_used','applied_rule_ids','age_hours','source','reference_article_id','status'])delete view[key];
     return digest(JSON.stringify(stable(view)));
   };
   const hashes=[legacyHash(oldArticle,'articles'),legacyHash(oldSnapshot,'snapshots')];
@@ -236,7 +236,7 @@ test('review3 stable creation aliases and nullable attribution validate without 
   const saved=await app.call('snapshots/'+snap,'PUT',snapBody);assert.equal(saved.status,201);assert.equal((await app.call('snapshots/'+snap)).data.content_hash,saved.data.content_hash);
   for(const values of [{age_hours:-1},{age_hours:1.2},{source:'other'}])assert.equal((await app.call('snapshots/'+randomUUID(),'PUT',{...snapBody,snapshot_date:'2026-10-29',...values})).status,400);
   const legacy=randomUUID(),legacySaved=(await app.call('articles/'+legacy,'PUT',{title:'Legacy hash'})).data;
-  const {playbook_version_used,applied_rule_ids,content_hash,...old}=legacySaved;
+  const {playbook_version_used,applied_rule_ids,reference_article_id,content_hash,...old}=legacySaved;
   assert.equal(content_hash,digest(JSON.stringify(stable(old))));
   assert.equal((await app.call('articles/'+legacy,'PUT',{title:'Legacy hash'})).status,200);
   assert.equal((await app.call('articles/'+legacy,'PATCH',{expected_hash:content_hash,title:'Old client update'})).status,200);
@@ -308,5 +308,70 @@ test('review3 extended rule checks are inert metadata and evidence fields reject
   }
   for(const changes of [{check:{type:'shell',value:'x'}},{check:{type:'regex',value:''}},{check:{type:'manual',extra:true}},{support_ids:['not-uuid']},{counter_ids:[randomUUID(),1]},{evidence:{metric:'reads',with_median:-1,without_median:null,n_with:0,n_without:0}},{evidence:{metric:'reads',with_median:0,without_median:0,n_with:1.5,n_without:0}},{trials:null}]) {
     assert.equal((await call('playbooks/'+randomUUID(),'PUT',{...base,version:100,rules:[{...rule,...changes}]})).status,400);
+  }
+});
+
+test('review 1.2 legacy playbook status is derived without changing historical hashes',async t=>{
+  const app=fixture(t),id='8f553af0-302a-45fb-9fde-16d6d537c888',other=randomUUID(),time='2026-10-30T00:00:00Z';
+  const insert=app.sql.prepare('INSERT INTO matrix_review_playbooks(user_id,id,account,version,published_on,rules_json,created_at) VALUES(?,?,?,?,?,?,?)');
+  insert.run(app.owner,id,'V字',2,'2026-10-30',JSON.stringify([{rule_id:'test',section:'title',text:'rule'}]),time);
+  insert.run(app.owner,other,'V字',1,'2026-10-29','[]',time);
+  const raw=app.sql.prepare('SELECT * FROM matrix_review_playbooks WHERE id=?').get(id),view=reviewView('playbooks',raw);
+  const {content_hash,status,...old}=view;assert.equal(content_hash,digest(JSON.stringify(stable(old))));
+  const draft=(await app.call('playbooks/'+id)).data,active=(await app.call('playbooks/'+other)).data;
+  assert.equal(draft.status,'draft');assert.equal(active.status,'active');assert.equal(draft.content_hash,content_hash);
+  assert.equal(app.sql.prepare('SELECT status FROM matrix_review_playbooks WHERE id=?').get(id).status,null);
+  const echo=await app.call('playbooks/'+other,'PUT',{account:'V字',version:1,published_on:'2026-10-29',status:'active'});
+  assert.equal(echo.status,200);assert.equal(echo.data.content_hash,active.content_hash);
+  assert.equal(app.sql.prepare('SELECT status FROM matrix_review_playbooks WHERE id=?').get(other).status,null);
+  const rule=await app.call('rules/test','PATCH',{account:'V字',playbook_id:id,expected_hash:content_hash,save_id:randomUUID(),evidence_note:'佐证'});
+  assert.equal(rule.status,200);assert.equal(rule.data.rules[0].evidence_note,'佐证');
+  assert.equal((await app.call('playbooks/'+id)).data.content_hash,rule.data.content_hash);
+  const tooLong=await app.call('rules/test','PATCH',{account:'V字',playbook_id:id,expected_hash:rule.data.content_hash,save_id:randomUUID(),evidence_note:'中'.repeat(667)});
+  assert.equal(tooLong.status,400);
+  const enabled=await app.call('playbooks/'+id,'PATCH',{expected_hash:rule.data.content_hash,status:'active'});
+  assert.equal(enabled.status,200);assert.equal(enabled.data.status,'active');assert.notEqual(enabled.data.content_hash,rule.data.content_hash);
+  assert.equal((await app.call('playbooks/'+id)).data.content_hash,enabled.data.content_hash);
+});
+
+test('review reference checks account ownership and derives reverse links without changing fallback fields',async t=>{
+  const app=fixture(t),account=randomUUID(),reference=randomUUID(),article=randomUUID(),foreign=randomUUID();
+  assert.equal((await app.call('benchmark-accounts/'+account,'PUT',{account:'V字',platform:'toutiao',name:'reference'})).status,201);
+  const ref=(await app.call('benchmark-articles/'+reference,'PUT',{benchmark_account_id:account,title:'sample',url:'https://example.com/sample',reads:123})).data;
+  const own=(await app.call('articles/'+article,'PUT',{title:'own',reference_article_id:reference,sample_title:'fallback',sample_url:'https://example.com/fallback'})).data;
+  assert.equal(own.sample_title,'fallback');assert.equal(own.sample_url,'https://example.com/fallback');
+  assert.deepEqual((await app.call('benchmark-articles/'+reference)).data.used_by_article_ids,[article]);
+  assert.equal((await app.call('articles/'+foreign,'PUT',{title:'wrong account',account:'other',reference_article_id:reference})).status,404);
+  assert.equal((await app.call('articles/'+article,'PATCH',{expected_hash:own.content_hash,account:'other'})).status,404);
+  const current=(await app.call('benchmark-articles/'+reference)).data;
+  assert.notEqual(ref.content_hash,current.content_hash);
+  assert.equal((await app.call('benchmark-articles/'+reference,'DELETE',{expected_hash:current.content_hash,save_id:randomUUID()})).status,409);
+  const cleared=(await app.call('articles/'+article,'PATCH',{expected_hash:own.content_hash,reference_article_id:null})).data;
+  assert.equal(cleared.sample_title,'fallback');assert.deepEqual((await app.call('benchmark-articles/'+reference)).data.used_by_article_ids,[]);
+});
+
+test('playbook writes preserve legacy raw rules while reads add display defaults',async t=>{
+  const app=fixture(t),id=randomUUID(),rule={rule_id:'raw-rule',section:'title',text:'Unchanged raw rule'};
+  const body={account:'write-shape',version:1,published_on:'2026-10-30',rules:[rule]};
+  const created=await app.call('playbooks/'+id,'PUT',body);
+  assert.deepEqual(created.data.rules,[rule]);assert.equal(created.data.status,'active');
+  const replay=await app.call('playbooks/'+id,'PUT',body);assert.deepEqual(replay.data.rules,[rule]);
+  const unchanged=await app.call('playbooks/'+id,'PATCH',{expected_hash:created.data.content_hash,changelog_md:''});assert.deepEqual(unchanged.data.rules,[rule]);
+  const changed=await app.call('playbooks/'+id,'PATCH',{expected_hash:created.data.content_hash,changelog_md:'change'});assert.deepEqual(changed.data.rules,[rule]);
+  assert.equal((await app.call('playbooks/'+id)).data.rules[0].status,'candidate');
+});
+
+test('legacy playbook combined account and status PATCH respects the destination account',async t=>{
+  const id='8f553af0-302a-45fb-9fde-16d6d537c888';
+  for(const [source,target,status] of [['V字','其他','draft'],['其他','V字','active']]) {
+    const app=fixture(t);
+    app.sql.prepare('INSERT INTO matrix_review_playbooks(user_id,id,account,version,published_on,rules_json,created_at) VALUES(?,?,?,?,?,?,?)')
+      .run(app.owner,id,source,2,'2026-10-30','[]','2026-10-30T00:00:00Z');
+    const before=(await app.call('playbooks/'+id)).data;
+    assert.equal(before.status,source==='V字'?'draft':'active');
+    const result=await app.call('playbooks/'+id,'PATCH',{expected_hash:before.content_hash,account:target,status});
+    assert.equal(result.status,200);assert.equal(result.data.status,status);
+    assert.equal((await app.call('playbooks/'+id)).data.status,status);
+    assert.equal(app.sql.prepare('SELECT status FROM matrix_review_playbooks WHERE id=?').get(id).status,status);
   }
 });

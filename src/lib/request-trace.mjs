@@ -11,11 +11,14 @@ const routes = new Map(paths.map(path => [path, path]));
 const dynamic = ['articles', 'accounts', 'api-keys', 'todos', 'todo-templates'].map(name => [
   new RegExp('^/api/v1/' + name + '/[^/]+$'), '/api/v1/' + name + '/{id}',
 ]);
-for(const kind of ['articles','snapshots','reports','playbooks']) {
+for(const kind of ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health']) {
   paths.push('/api/v1/review/'+kind);
   routes.set('/api/v1/review/'+kind,'/api/v1/review/'+kind);
   dynamic.push([new RegExp('^/api/v1/review/'+kind+'/[^/]+$'),'/api/v1/review/'+kind+'/{id}']);
 }
+for(const kind of ['benchmark-accounts','benchmark-articles','notes','account-health']) dynamic.push([new RegExp('^/api/v1/review/'+kind+'/[^/]+/restore$'),'/api/v1/review/'+kind+'/{id}/restore']);
+routes.set('/api/v1/review/benchmark-articles:batch','/api/v1/review/benchmark-articles:batch');
+paths.push('/api/v1/review/benchmark-articles:batch');
 routes.set('/api/v1/review/snapshots:batch','/api/v1/review/snapshots:batch');
 paths.push('/api/v1/review/snapshots:batch');
 for(const action of ['restore','template']) dynamic.push([new RegExp('^/api/v1/todos/[^/]+/'+action+'$'),'/api/v1/todos/{id}/'+action]);

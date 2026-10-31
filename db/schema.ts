@@ -157,7 +157,7 @@ export const matrixReviewArticles=sqliteTable('matrix_review_articles',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
   account:text('account').notNull().default('V字'),platform:text('platform').notNull().default('toutiao'),
   platform_article_id:text('platform_article_id'),title:text('title').notNull(),url:text('url'),published_at:text('published_at'),
-  topic_category:text('topic_category'),title_pattern:text('title_pattern'),sample_title:text('sample_title'),sample_url:text('sample_url'),
+  topic_category:text('topic_category'),title_pattern:text('title_pattern'),sample_title:text('sample_title'),sample_url:text('sample_url'),reference_article_id:text('reference_article_id'),
   image_count:integer('image_count'),source_chat:text('source_chat'),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
   playbook_version_used:integer('playbook_version_used'),applied_rule_ids_json:text('applied_rule_ids_json'),
 },t=>[
@@ -210,9 +210,23 @@ export const matrixReviewReports=sqliteTable('matrix_review_reports',{
 export const matrixReviewPlaybooks=sqliteTable('matrix_review_playbooks',{
   user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),
   account:text('account').notNull().default('V字'),version:integer('version').notNull(),published_on:text('published_on').notNull(),content_md:text('content_md').notNull().default(''),
-  rules_json:text('rules_json').notNull().default('[]'),changelog_md:text('changelog_md').notNull().default(''),sent_to_gemini_at:text('sent_to_gemini_at'),created_at:text('created_at').notNull(),
+  status:text('status'),rules_json:text('rules_json').notNull().default('[]'),changelog_md:text('changelog_md').notNull().default(''),sent_to_gemini_at:text('sent_to_gemini_at'),created_at:text('created_at').notNull(),
 },t=>[
   primaryKey({columns:[t.user_id,t.id]}),uniqueIndex('matrix_review_playbook_account_version').on(t.user_id,t.account,t.version),
+  check('matrix_review_playbook_status',sql`${t.status} IS NULL OR ${t.status} IN ('draft','active','archived')`),
   check('matrix_review_playbook_version',sql`typeof(${t.version})='integer' AND ${t.version} BETWEEN 1 AND 9007199254740991`),
   check('matrix_review_playbook_rules_json',sql`CASE WHEN json_valid(${t.rules_json}) THEN json_type(${t.rules_json})='array' ELSE 0 END`),
 ]);
+
+export const matrixReviewBenchmarkAccounts=sqliteTable('matrix_review_benchmark_accounts',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),account:text('account').notNull(),platform:text('platform').notNull(),name:text('name').notNull(),profile_url:text('profile_url'),fans:integer('fans'),is_featured_author:integer('is_featured_author'),posting_cadence:text('posting_cadence'),topic_focus:text('topic_focus'),title_patterns_json:text('title_patterns_json'),structure_notes_md:text('structure_notes_md'),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),uniqueIndex('review_benchmark_account_key').on(t.user_id,t.account,t.platform,t.name)]);
+export const matrixReviewBenchmarkArticles=sqliteTable('matrix_review_benchmark_articles',{
+  user_id:text('user_id').notNull(),id:text('id').notNull(),benchmark_account_id:text('benchmark_account_id').notNull(),title:text('title').notNull(),url:text('url').notNull(),reads:integer('reads'),published_at:text('published_at'),title_pattern:text('title_pattern'),topic:text('topic'),news_hook:text('news_hook'),word_count:integer('word_count'),image_count:integer('image_count'),collected_on:text('collected_on'),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),foreignKey({columns:[t.user_id,t.benchmark_account_id],foreignColumns:[matrixReviewBenchmarkAccounts.user_id,matrixReviewBenchmarkAccounts.id]}),uniqueIndex('review_benchmark_article_key').on(t.user_id,t.benchmark_account_id,t.url)]);
+export const matrixReviewNotes=sqliteTable('matrix_review_notes',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),account:text('account').notNull(),note_date:text('note_date').notNull(),kind:text('kind').notNull(),title:text('title').notNull(),body_md:text('body_md'),tags_json:text('tags_json'),related_article_ids_json:text('related_article_ids_json'),related_rule_ids_json:text('related_rule_ids_json'),decided_by:text('decided_by'),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),index('review_notes_account_date').on(t.user_id,t.account,t.note_date,t.id)]);
+export const matrixReviewAccountHealth=sqliteTable('matrix_review_account_health',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id,{onDelete:'cascade'}),id:text('id').notNull(),account:text('account').notNull(),platform:text('platform').notNull(),observed_on:text('observed_on').notNull(),impressions_per_day:integer('impressions_per_day'),reads_per_day:integer('reads_per_day'),ctr:real('ctr'),since_date:text('since_date'),platform_notice_json:text('platform_notice_json'),judgement:text('judgement'),action:text('action'),resume_on:text('resume_on'),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),deleted_at:text('deleted_at'),
+},t=>[primaryKey({columns:[t.user_id,t.id]}),index('review_health_account_date').on(t.user_id,t.account,t.observed_on,t.id)]);
