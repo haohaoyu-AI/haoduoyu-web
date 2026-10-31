@@ -560,6 +560,14 @@ function renderLogin() {
     15
   )}</button></form></section></main>`;
 }
+function renderInitializationError(message, onRetry) {
+  stopPageEntry();
+  closePopover({ restoreFocus: false });
+  runtime.modalRequestVersion++;
+  runtime.renderVersion++;
+  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card" role="alert"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">工作台暂时无法打开</h1></div><p>未能完成连接或读取，请检查网络后重试。</p><p>${e(message || "请稍后重试。")}</p><button id="init-retry" class="btn primary" type="button">重新连接</button></section></main>`;
+  $("#init-retry")?.addEventListener("click", onRetry, { once: true });
+}
 var init_login = __esm({
   "web/pages/login.mjs"() {
     init_dom();
@@ -3723,7 +3731,13 @@ function identityActions(context) {
     try {
       const me = await identityProbe(context, "/auth/me", options3);
       liveIdentity = safeIdentity(me);
-      const index = await identityProbe(context, "/workbench-snapshot/index");
+      let index;
+      try {
+        index = await identityProbe(context, "/workbench-snapshot/index", { suppressAuthRedirect: true });
+      } catch (error) {
+        error.offlineScopeFailure = true;
+        throw error;
+      }
       return await adopt(me, index, generation);
     } catch (error) {
       if (generation !== context.generation) throw fail4("身份核实已过期。", "OFFLINE_SCOPE_CHANGED");
@@ -3959,6 +3973,10 @@ function mutationActions(context) {
     const body2 = checkedBody(route2, options3, uuid5), id2 = route2.id || body2.id;
     const old = await cache2.entity(route2.type + ":" + id2), base = old?.server || null, visible3 = offlineValue(old);
     active5();
+    if (route2.create && route2.type === "todo" && visible3) {
+      if (!visible3.deleted_at && !visible3.deleted && visible3.date === body2.date && visible3.text === body2.text && (visible3.template_id || void 0) === (body2.template_id || void 0)) return structuredClone(visible3);
+      throw fail4(visible3.date ? `此待办已安排到 ${visible3.date}，原未来待办仍保留。` : "该待办标识已使用，原未来待办仍保留。", "TODO_ID_IN_USE");
+    }
     if (!route2.create && !visible3) throw fail4("此事项尚未保存在本机，请联网读取后再操作。", "OFFLINE_CACHE_MISS");
     const stamp2 = new Date(now()).toISOString(), method = options3.method.toUpperCase();
     const local = {
@@ -4110,6 +4128,13 @@ function createOfflineRuntime(options3) {
     stop: context.stop,
     refresh: context.refresh,
     readMemo: (path) => context.memos.project(path),
+    async findTodo(id2) {
+      const owner2 = context.state.scope, generation = context.generation;
+      if (!owner2) throw fail4("请先读取工作台数据，原未来待办仍保留。", "OFFLINE_SCOPE_REQUIRED");
+      const entity = await context.cache.entity("todo:" + id2);
+      if (owner2 !== context.state.scope || generation !== context.generation) throw fail4("账号已切换，原未来待办仍保留。", "OFFLINE_SCOPE_CHANGED");
+      return structuredClone(offlineValue(entity) || null);
+    },
     queue: context.queue,
     resolve: context.resolve,
     invalidate: context.invalidate,
@@ -4220,9 +4245,9 @@ async function apiTransport(path, opts) {
   }
   return { ok: response.ok, status: response.status, text };
 }
-function apiFailure(path, response, payload, epoch, identity5) {
+function apiFailure(path, response, payload, epoch, identity5, suppressAuthRedirect = false) {
   const current2 = epoch === runtime.sessionEpoch && identity5 === (state.me?.id ?? null);
-  if (response.status === 401 && path !== "/auth/login" && current2) {
+  if (response.status === 401 && path !== "/auth/login" && current2 && !suppressAuthRedirect) {
     state.me = null;
     closeModal();
     renderLogin();
@@ -4236,7 +4261,7 @@ function apiFailure(path, response, payload, epoch, identity5) {
 }
 async function apiNetwork(path, options3 = {}) {
   const epoch = runtime.sessionEpoch, identity5 = state.me?.id ?? null;
-  const { envelope: envelope2 = false, context, ...requestOptions } = options3;
+  const { envelope: envelope2 = false, context, suppressAuthRedirect = false, ...requestOptions } = options3;
   const opts = apiOptions(requestOptions), method = (opts.method || "GET").toUpperCase();
   const scope = method === "GET" ? context || backgroundRequests() : null;
   const response = scope ? await pendingGet(
@@ -4253,7 +4278,7 @@ async function apiNetwork(path, options3 = {}) {
   } catch {
     throw new Error("服务暂时不可用，请稍后重试。");
   }
-  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity5);
+  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity5, suppressAuthRedirect);
   return envelope2 ? payload : payload.data;
 }
 function api(path, options3 = {}) {
@@ -4280,11 +4305,13 @@ var init_api = __esm({
 init_api();
 init_dom();
 init_state();
-var cache = { owner: "", items: [], draft: "", loaded: false, loading: false, error: "", pending: false, request: null };
+init_todos_state();
+init_runtime();
+var cache = { owner: "", items: [], draft: "", loaded: false, loading: false, error: "", notice: "", pending: false, request: null, dates: {} };
 var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null]);
 function current() {
   const key = owner();
-  if (cache.owner !== key) Object.assign(cache, { owner: key, items: [], draft: "", loaded: false, loading: false, error: "", pending: false, request: null });
+  if (cache.owner !== key) Object.assign(cache, { owner: key, items: [], draft: "", loaded: false, loading: false, error: "", notice: "", pending: false, request: null, dates: {} });
   return cache;
 }
 var visible = () => Boolean(state.me) && state.page === "todos" && state.todoPanel === "future";
@@ -4294,6 +4321,7 @@ function renderUnscheduledTodos() {
 <form id="todo-future-form" class="daily-todo-form"><label class="sr-only" for="todo-future-text">未来待办</label>
 <input id="todo-future-text" class="input" name="text" maxlength="500" required autocomplete="off" placeholder="还没确定日期的事" value="${e(v.draft)}">
 <button class="btn primary" type="submit" ${v.pending ? "disabled" : ""}>添加</button></form>
+<p class="todo-future-help">选择日期后可添加至当天，原未来待办保留。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
@@ -4304,11 +4332,11 @@ function paintUnscheduledTodos() {
   const input = $("#todo-future-text", root2), button2 = $("#todo-future-form button", root2), status = $("#todo-future-status", root2), error = $("#todo-future-error", root2), list2 = $("#todo-future-items", root2);
   if (input && document.activeElement !== input && input.value !== v.draft) input.value = v.draft;
   if (button2) button2.disabled = v.pending;
-  if (status) status.textContent = v.loading && !v.loaded ? "" : v.loaded && v.items.length === 0 ? "还没有未来待办。" : "";
+  if (status) status.textContent = v.notice || (v.loading && !v.loaded ? "" : v.loaded && v.items.length === 0 ? "还没有未来待办。" : "");
   if (error) error.textContent = v.error;
   if (list2) list2.innerHTML = v.items.filter((x) => !x.deleted_at && !x.deleted).map((x) => `<li class="daily-todo-row${x.completed ? " is-complete" : ""}">
 <label><input type="checkbox" data-future-todo-id="${e(x.id)}" ${x.completed ? "checked" : ""} ${v.pending ? "disabled" : ""}>
-<span class="daily-todo-text">${e(x.text)}</span></label><button class="icon-button" type="button"
+<span class="daily-todo-text">${e(x.text)}</span></label><div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(x.id)}" value="${e(v.dates[x.id] || "")}" aria-label="为 ${e(x.text)} 选择日期" ${v.pending ? "disabled" : ""}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${e(x.id)}" ${v.pending ? "disabled" : ""}>添加至该日期</button></div><button class="icon-button" type="button"
  data-action="todo-future-delete" data-id="${e(x.id)}" aria-label="删除 ${e(x.text)}" ${v.pending ? "disabled" : ""}>×</button></li>`).join("");
 }
 async function loadUnscheduledTodos() {
@@ -4334,6 +4362,57 @@ async function loadUnscheduledTodos() {
 }
 function inputUnscheduledTodo(el) {
   if (el.id === "todo-future-text") current().draft = el.value;
+  if (el.dataset?.futureDateId) current().dates[el.dataset.futureDateId] = el.value;
+}
+async function planFutureSchedule(row, date, { findTodo, readIndex, create, expectedScope }) {
+  if (!validTodoDate(date)) throw new Error("请选择有效日期，原未来待办仍保留。");
+  const local = await findTodo(row.id);
+  if (local) return { existing: true, date: local.date, deleted: Boolean(local.deleted_at || local.deleted) };
+  let index;
+  try {
+    index = await readIndex();
+  } catch (error) {
+    if (error.status === 401 || error.status === 403) throw error;
+    throw new Error("暂时无法联网核对已安排日期，请联网后重试；原未来待办仍保留。");
+  }
+  if (index?.complete !== true || !Array.isArray(index.entities) || expectedScope && index.scope_id !== expectedScope)
+    throw new Error("无法核对已安排日期，请稍后重试；原未来待办仍保留。");
+  const existing = index.entities.find((item) => item?.entity_id === "todo:" + row.id);
+  if (existing) return { existing: true, date: existing.date, deleted: Boolean(existing.deleted_at) };
+  await create({ id: row.id, date, text: row.text });
+  return { existing: false, date };
+}
+async function scheduleUnscheduledTodo(id2) {
+  if (!visible()) return;
+  const v = current(), key = v.owner, row = v.items.find((item) => item.id === id2 && !item.deleted_at && !item.deleted);
+  if (!row || v.pending) return;
+  const date = v.dates[id2] || "";
+  v.pending = true;
+  v.error = "";
+  v.notice = "";
+  paintUnscheduledTodos();
+  try {
+    const offline = getOfflineRuntime();
+    if (!offline) throw new Error("本地数据尚未准备好，请稍后重试；原未来待办仍保留。");
+    const result = await planFutureSchedule(row, date, {
+      expectedScope: offline.state.scope,
+      findTodo: (todoId) => offline.findTodo(todoId),
+      readIndex: () => apiNetwork("/workbench-snapshot/index?version=2"),
+      create: (body2) => {
+        if (v.owner !== key || owner() !== key) throw Object.assign(new Error("账号已切换，原未来待办仍保留。"), { staleSession: true });
+        return api("/todos", { method: "POST", body: body2 });
+      }
+    });
+    if (v.owner !== key || owner() !== key) return;
+    v.notice = result.existing ? `此待办已安排至 ${result.date || "其他日期"}${result.deleted ? "（该日期的记录已删除）" : ""}；原未来待办保留。` : `已添加至 ${result.date}，后台自动同步；原未来待办保留。`;
+  } catch (error) {
+    if (v.owner === key && owner() === key && !error.staleSession) v.error = error.message;
+  } finally {
+    if (v.owner === key && owner() === key) {
+      v.pending = false;
+      paintUnscheduledTodos();
+    }
+  }
 }
 async function submitUnscheduledTodo({ data: data2 }) {
   if (!visible()) return;
@@ -6471,12 +6550,12 @@ ${floatingTodoSupported() ? "" : '<span class="todo-floating-support" role="stat
 function todoHeading(day6) {
   const selected = state.todoPanel || "today";
   return `<span id="todo-caption" hidden>${todoCaption(day6)}</span><nav class="todo-page-tabs" aria-label="待办页面">
-${[["today", "今日"], ["future", "未来待办"], ["history", "历史"], ["templates", "常用"]].map(([panel2, label3]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel2 === "today" ? "" : panel2}"
+${[["today", "今日"], ["future", "未来待办"], ["history", "日历"], ["templates", "常用"]].map(([panel2, label3]) => `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel2 === "today" ? "" : panel2}"
   aria-current="${selected === panel2 ? "page" : "false"}" ${panel2 === "templates" ? 'aria-label="管理常用"' : ""}>${label3}</button>`).join("")}</nav>
 <div id="todo-floating-toolbar" ${state.todoPanel === "templates" ? "hidden" : ""}>${floatingTodoControl()}</div>`;
 }
 function renderTodoHistory(day6) {
-  return `<section id="todo-history" class="todo-view" aria-label="历史待办" ${state.todoPanel === "history" ? "" : "hidden"}>
+  return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day6.date)}" data-today="${bjtDate()}">
 ${todoCalendar(day6.date)}</div></section>`;
 }
@@ -6545,12 +6624,12 @@ function renderTodos() {
   const day6 = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day6.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day6)}</div>
-${renderTodoHistory(day6)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoForm(day6)}${renderInlineTodoTemplates()}
+${renderTodoHistory(day6)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}><div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day6)}${renderInlineTodoTemplates()}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day6)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day6)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day6)}</div>
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day6)}</p>
-<ul id="todo-items" class="daily-todo-items">${day6.items.map((item) => todoRow(item, day6)).join("")}${pendingTodo(day6)}</ul></div>
+<ul id="todo-items" class="daily-todo-items">${day6.items.map((item) => todoRow(item, day6)).join("")}${pendingTodo(day6)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day6) : ""}</div>
 ${renderTodoTemplates(floatingTodoControl())}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {
@@ -6567,6 +6646,8 @@ function paintTodos() {
     paintTodoTemplates();
     return;
   }
+  const form = $("#todo-form", root2), formSlot = $(state.todoPanel === "history" ? "#todo-form-bottom" : "#todo-form-top", root2);
+  if (form && formSlot && formSlot.nextElementSibling !== form) formSlot.after(form);
   const parts2 = {
     "todo-caption": todoCaption(day6),
     "todo-status": todoStatus(day6),
@@ -6673,6 +6754,11 @@ async function saveTodo(day6, request, templateId = "") {
     const item = await api("/todos", { method: "POST", body: request });
     if (!todoSessionActive(owner2)) return;
     mergeTodo(day6, item);
+    if (monthSnapshot.owner === owner2 && monthSnapshot.month === day6.date.slice(0, 7)) {
+      monthSnapshot.days.set(day6.date, [...day6.items]);
+      const calendar = $("#todo-calendar");
+      if (calendar) calendar.dataset.month = "";
+    }
     if (templateId) day6.templateCreates.delete(templateId);
     else {
       if (day6.draft === submittedDraft && submittedDraft.trim() === request.text) day6.draft = "";
@@ -10831,11 +10917,11 @@ function settingsNavigation() {
 }
 function mobileNavigation() {
   const items = [["todos", "待办"], ["notes", "碎碎念"], ["memos", "备忘录"], ["reminders", "提醒"]];
-  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id2, label3]) => navigationLink({ ...nav.find((item) => item.id === id2), label: label3 }, true)).join("")}${mediaNavigation(true)}</nav>`;
+  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id2, label3]) => navigationLink({ ...nav.find((item) => item.id === id2), label: label3 }, true)).join("")}${mediaNavigation(true)}${navigationLink(nav.find((item) => item.id === "ai-reports"), true)}</nav>`;
 }
 function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
-${navigationLink(nav.find((item) => item.id === "ai-reports"))}${settingsNavigation()}${state.me?.publicBusiness ? "" : `<button class="btn text" data-action="logout">${icon("logout", 18)}退出登录</button>`}</nav>`;
+${settingsNavigation()}${state.me?.publicBusiness ? "" : `<button class="btn text" data-action="logout">${icon("logout", 18)}退出登录</button>`}</nav>`;
 }
 function syncWorkbenchNavigation() {
   const active5 = mediaPages.has(state.page);
@@ -11979,7 +12065,7 @@ function scopedReviewData(data2, account) {
 }
 function renderContentReviewContent(data2, vm2) {
   data2 = scopedReviewData(data2, vm2.account);
-  const header = `<div class="review-toolbar"><div class="review-account"><strong>内容复盘</strong><span class="review-version">v1.2.1</span><span class="review-note">${e(vm2.account)}</span> <button class="review-health-badge" type="button" data-review-action="show-health">${e(healthLabel(healthRows(data2, vm2.account)[0]))}</button></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>`;
+  const header = `<div class="review-toolbar"><div class="review-account"><strong>内容复盘</strong><span class="review-version">v1.2.2</span><span class="review-note">${e(vm2.account)}</span> <button class="review-health-badge" type="button" data-review-action="show-health">${e(healthLabel(healthRows(data2, vm2.account)[0]))}</button></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>`;
   if (vm2.loading) return header + '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
   if (vm2.error) return header + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm2.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data2, { account: vm2.account });
@@ -12254,7 +12340,7 @@ function mainContent() {
     "设置分类",
     "tab",
     "page-tabs"
-  ) : ""}${state.page === "settings" && state.me?.publicBusiness ? '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
+  ) : ""}${state.page === "settings" && state.me?.publicBusiness ? '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${state.page === "settings" ? '<section class="card panel" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -12486,10 +12572,10 @@ async function init({ freshLogin = false } = {}) {
     renderShell();
   } catch (err) {
     if (initEpoch !== runtime.sessionEpoch || err.staleSession || isRequestAbort(err)) return;
-    if (err.status !== 401) {
-      renderLogin();
-      toast(err.message, true);
-    } else renderLogin();
+    if (err.status === 401 && !err.offlineScopeFailure) renderLogin();
+    else renderInitializationError(err.message, () => {
+      void init();
+    });
   }
 }
 
@@ -12963,10 +13049,10 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
       for (const controller of pending.values()) controller.abort();
     }
   };
-  const root2 = document2.createElement("aside");
-  root2.className = "offline-indicator";
-  root2.setAttribute("aria-label", "同步状态");
-  const button2 = textNode(document2, "button", "", "offline-state-button");
+  const root2 = document2.createElement("section");
+  root2.className = "offline-settings-panel";
+  root2.setAttribute("aria-label", "本地待处理");
+  const button2 = textNode(document2, "button", "", "btn text offline-settings-toggle");
   button2.type = "button";
   button2.setAttribute("aria-controls", "offline-queue");
   button2.setAttribute("aria-expanded", "false");
@@ -12981,25 +13067,19 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
     const sequence4 = ++rendering, queue = await runtime2.queue();
     if (sequence4 !== rendering || !expanded) return;
     const title = textNode(document2, "h2", "同步状态");
-    const syncButton = textNode(document2, "button", state2.phase === "syncing" ? "正在同步…" : "立即同步", "offline-sync-now");
-    syncButton.type = "button";
-    syncButton.disabled = state2.phase === "syncing";
-    syncButton.addEventListener("click", async () => {
-      syncButton.disabled = true;
-      await runtime2.sync();
-      await refreshQueue();
-    });
     const details = document2.createDocumentFragment();
     if (state2.error) {
       const stages = { identity: "身份核验", outbox: "提交队列", cache: "本地缓存", snapshot: "服务器快照" };
       details.append(textNode(document2, "p", `${stages[state2.errorStage] || "同步检查"}失败：${state2.error}`, "offline-sync-error"));
     }
     details.append(textNode(document2, "h3", "待提交队列"));
-    panel2.replaceChildren(title, syncButton, details, queueRows(document2, queue, runtime2, refreshQueue, requests));
+    panel2.replaceChildren(title, details, queueRows(document2, queue, runtime2, refreshQueue, requests));
   }
   function mount() {
-    if (!root2.isConnected && document2.body) document2.body.append(root2);
-    const label3 = offlineStatusLabel(state2);
+    const host = document2.querySelector("#offline-settings-entry");
+    if (host && !host.contains(root2)) host.append(root2);
+    else if (!host && root2.isConnected) root2.remove();
+    const label3 = state2.conflicts ? `查看待处理项（${state2.conflicts} 项冲突）` : state2.pending ? `查看待处理项（${state2.pending} 项）` : "查看待处理项";
     root2.hidden = !state2.identity;
     if (button2.textContent !== label3) button2.textContent = label3;
     root2.dataset.phase = state2.conflicts ? "conflict" : state2.phase;
@@ -14005,6 +14085,7 @@ var actions = {
   },
   "todo-panel": ({ target }) => setTodoPanel(target.dataset.panel),
   "todo-future-delete": ({ id: id2 }) => deleteUnscheduledTodo(id2),
+  "todo-future-schedule": ({ id: id2 }) => scheduleUnscheduledTodo(id2),
   "todo-retry-add": retryTodoCreate,
   "todo-panel-close": () => setTodoPanel(""),
   "todo-template-cancel": cancelTodoTemplateEdit,
@@ -14431,6 +14512,10 @@ function handleChange(event) {
   }
   if (el.dataset?.futureTodoId) {
     toggleUnscheduledTodo(el);
+    return;
+  }
+  if (el.dataset?.futureDateId) {
+    inputUnscheduledTodo(el);
     return;
   }
   if (el.dataset?.todoId) {

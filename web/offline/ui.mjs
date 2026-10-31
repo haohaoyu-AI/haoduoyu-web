@@ -129,8 +129,8 @@ function mountRuntimeUI(runtime, {document, window}) {
     message(key, value) { if (value !== undefined) messages.set(key, value); return messages.get(key) || ''; },
     cancel() { for (const controller of pending.values()) controller.abort(); }
   };
-  const root = document.createElement('aside'); root.className = 'offline-indicator'; root.setAttribute('aria-label', '同步状态');
-  const button = textNode(document, 'button', '', 'offline-state-button'); button.type = 'button';
+  const root = document.createElement('section'); root.className = 'offline-settings-panel'; root.setAttribute('aria-label', '本地待处理');
+  const button = textNode(document, 'button', '', 'btn text offline-settings-toggle'); button.type = 'button';
   button.setAttribute('aria-controls', 'offline-queue'); button.setAttribute('aria-expanded', 'false');
   const panel = document.createElement('section'); panel.id = 'offline-queue'; panel.className = 'offline-queue';
   panel.setAttribute('aria-label', '本机待同步内容与冲突'); panel.hidden = true;
@@ -140,20 +140,19 @@ function mountRuntimeUI(runtime, {document, window}) {
     const sequence = ++rendering, queue = await runtime.queue();
     if (sequence !== rendering || !expanded) return;
     const title = textNode(document, 'h2', '同步状态');
-    const syncButton = textNode(document, 'button', state.phase === 'syncing' ? '正在同步…' : '立即同步', 'offline-sync-now');
-    syncButton.type = 'button'; syncButton.disabled = state.phase === 'syncing';
-    syncButton.addEventListener('click', async () => { syncButton.disabled = true; await runtime.sync(); await refreshQueue(); });
     const details = document.createDocumentFragment();
     if (state.error) {
       const stages = {identity: '身份核验', outbox: '提交队列', cache: '本地缓存', snapshot: '服务器快照'};
       details.append(textNode(document, 'p', `${stages[state.errorStage] || '同步检查'}失败：${state.error}`, 'offline-sync-error'));
     }
     details.append(textNode(document, 'h3', '待提交队列'));
-    panel.replaceChildren(title, syncButton, details, queueRows(document, queue, runtime, refreshQueue, requests));
+    panel.replaceChildren(title, details, queueRows(document, queue, runtime, refreshQueue, requests));
   }
   function mount() {
-    if (!root.isConnected && document.body) document.body.append(root);
-    const label = offlineStatusLabel(state);
+    const host = document.querySelector('#offline-settings-entry');
+    if (host && !host.contains(root)) host.append(root);
+    else if (!host && root.isConnected) root.remove();
+    const label = state.conflicts ? `查看待处理项（${state.conflicts} 项冲突）` : state.pending ? `查看待处理项（${state.pending} 项）` : '查看待处理项';
     root.hidden = !state.identity;
     if (button.textContent !== label) button.textContent = label;
     root.dataset.phase = state.conflicts ? 'conflict' : state.phase;

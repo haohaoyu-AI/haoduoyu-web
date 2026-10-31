@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {state} from '../web/core/state.mjs';
-import {sidebarNavigation, mobileSettingsMenu} from '../web/ui/workbench.mjs';
+import {sidebarNavigation, mobileNavigation, mobileSettingsMenu} from '../web/ui/workbench.mjs';
 import {renderAiReports, paintAiReports, reportDay} from '../web/pages/ai-reports.mjs';
 import {readAllAiReports, aiReportsYesterday, sortAiReports} from '../web/ai-reports-controller.mjs';
 
@@ -9,9 +9,11 @@ test('AI reports are reachable in public and private desktop and mobile navigati
   for (const publicBusiness of [true, false]) {
     state.me = {id: 'test-user', publicBusiness};
     state.page = 'ai-reports';
-    for (const html of [sidebarNavigation(), mobileSettingsMenu()]) {
+    for (const html of [sidebarNavigation(), mobileNavigation()]) {
       assert.match(html, /data-nav="ai-reports"[^>]*aria-current="page"/);
     }
+    assert.doesNotMatch(mobileSettingsMenu(), /data-nav="ai-reports"/);
+    assert.match(mobileSettingsMenu(), /data-nav="settings"/);
     if (publicBusiness) assert.doesNotMatch(mobileSettingsMenu(), /data-action="logout"/);
   }
 });

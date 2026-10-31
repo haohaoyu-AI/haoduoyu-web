@@ -139,7 +139,15 @@ function identityActions(context) {
     try {
       const me = await identityProbe(context, '/auth/me', options);
       liveIdentity = safeIdentity(me);
-      const index = await identityProbe(context, '/workbench-snapshot/index');
+      let index;
+      try {
+        index = await identityProbe(context, '/workbench-snapshot/index', {suppressAuthRedirect: true});
+      } catch (error) {
+        // An index failure is not proof that /auth/me requires a password.
+        // Still invalidate the verified scope below and require a fresh check.
+        error.offlineScopeFailure = true;
+        throw error;
+      }
       return await adopt(me, index, generation);
     } catch (error) {
       if (generation !== context.generation) throw fail('身份核实已过期。', 'OFFLINE_SCOPE_CHANGED');
@@ -328,6 +336,13 @@ function mutationActions(context) {
     const body = checkedBody(route, options, uuid), id = route.id || body.id;
     const old = await cache.entity(route.type + ':' + id), base = old?.server || null, visible = offlineValue(old);
     active();
+    // A source future item can be copied to a date using the same stable ID.
+    // Never replace an already cached or queued daily todo with that ID.
+    if (route.create && route.type === 'todo' && visible) {
+      if (!visible.deleted_at && !visible.deleted && visible.date === body.date && visible.text === body.text &&
+          (visible.template_id || undefined) === (body.template_id || undefined)) return structuredClone(visible);
+      throw fail(visible.date ? `此待办已安排到 ${visible.date}，原未来待办仍保留。` : '该待办标识已使用，原未来待办仍保留。', 'TODO_ID_IN_USE');
+    }
     if (!route.create && !visible) throw fail('此事项尚未保存在本机，请联网读取后再操作。', 'OFFLINE_CACHE_MISS');
     const stamp = new Date(now()).toISOString(), method = options.method.toUpperCase();
     const local = {...visible, ...body, id, created_at: visible?.created_at || stamp, updated_at: stamp,
@@ -428,6 +443,13 @@ export function createOfflineRuntime(options) {
   const drafts = createDraftJournal({db: context.db, getScope: () => context.state.scope, getGeneration: () => context.generation, now: context.now});
   return {call: context.call, sync: context.sync, start: context.start, stop: context.stop, refresh: context.refresh,
     readMemo: path => context.memos.project(path),
+    async findTodo(id) {
+      const owner = context.state.scope, generation = context.generation;
+      if (!owner) throw fail('请先读取工作台数据，原未来待办仍保留。', 'OFFLINE_SCOPE_REQUIRED');
+      const entity = await context.cache.entity('todo:' + id);
+      if (owner !== context.state.scope || generation !== context.generation) throw fail('账号已切换，原未来待办仍保留。', 'OFFLINE_SCOPE_CHANGED');
+      return structuredClone(offlineValue(entity) || null);
+    },
     queue: context.queue, resolve: context.resolve, invalidate: context.invalidate, state: context.state,
     localRead: async path => (await context.cache.read(path)).data,
     retainDrafts: drafts.capture, retainedDrafts: drafts.list, flushDrafts: drafts.flush,

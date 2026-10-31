@@ -64,14 +64,15 @@ function browser({width=390,search='?page=todos',shell=true}={}) {
     back(){assert.ok(index>0);locate(entries[--index]);},forward(){assert.ok(index+1<entries.length);locate(entries[++index]);}};
 }
 
-test('phone bottom navigation has exactly five ordered destinations, with settings and private logout in the top menu',()=>{
+test('phone bottom navigation includes AI reports separately from the settings menu',()=>{
   const app=browser(),html=app.run('mobileNavigation()');
-  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['todos','notes','memos','reminders','dashboard']);
+  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['todos','notes','memos','reminders','review','ai-reports']);
   assert.doesNotMatch(html,/<details|data-nav="settings"|data-nav="articles"/);
   assert.match(app.run('mobileSettingsMenu()'),/data-nav="settings"/);
+  assert.doesNotMatch(app.run('mobileSettingsMenu()'),/data-nav="ai-reports"/);
   assert.match(app.run('mobileSettingsMenu()'),/data-action="logout"/);
   app.run('state.me.publicBusiness=true');assert.doesNotMatch(app.run('mobileSettingsMenu()'),/data-action="logout"/);
-  assert.match(app.run('sidebarNavigation()'),/好多鱼图文/);
+  assert.match(app.run('sidebarNavigation()'),/data-nav="review"/);
   const fresh=browser({shell:false});fresh.run('renderShell()');
   assert.match(fresh.nodes.get('#app').innerHTML,/class="icon-button mobile-settings-trigger"[^>]*aria-label="设置菜单"/);
   assert.match(fresh.nodes.get('#app').innerHTML,/aria-controls="mobile-settings-menu"/);
@@ -113,7 +114,7 @@ test('phone navigation and resize replace articles once, preserve an open editor
   app.window.innerWidth=1440;assert.equal(app.run('handleResponsiveLayout()'),false);assert.equal(app.run('state.page'),'dashboard');
 });
 
-test('settings menu manages focus, outside closing, and the settings active marker without a sixth bottom item',()=>{
+test('settings menu manages focus, outside closing, and the settings active marker',()=>{
   const app=browser();app.run('state.page="settings";setMenu(true)');
   assert.equal(app.panel.hidden,false);assert.equal(app.side.inert,true);assert.equal(app.document.activeElement,app.settings);
   assert.equal(app.trigger.getAttribute('aria-current'),'page');assert.equal(app.trigger.getAttribute('aria-expanded'),'true');
@@ -165,7 +166,7 @@ test('mobile-only stylesheet covers safe area, touch inputs, bottom drawers and 
   const css=await readFile(new URL('../public/mobile.css',import.meta.url),'utf8');
   await transform(css,{loader:'css'});
   assert.match(css,/@media \(max-width:767px\)/);assert.match(css,/@media \(min-width:768px\) and \(max-width:1199px\)/);
-  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(css,/grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
   assert.match(css,/\.media-page-tabs \{ display:none; \}/);
   assert.match(css,/env\(safe-area-inset-bottom\)/);assert.match(css,/min-height:44px/);
   assert.match(css,/\.icon-button\.inline-info\s*\{\s*width:44px; min-width:44px; height:44px; min-height:44px/);

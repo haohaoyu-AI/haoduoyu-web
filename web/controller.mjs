@@ -9,7 +9,7 @@ import { runtime, state } from "./core/state.mjs";
 import { storage } from "./core/storage.mjs";
 import { articleDraft } from "./pages/articles.mjs";
 import { renderDashboardSummary } from "./pages/dashboard.mjs";
-import { renderLogin } from "./pages/login.mjs";
+import { renderLogin, renderInitializationError } from "./pages/login.mjs";
 import { renderAudit, renderKeys, renderSecurity } from "./pages/settings.mjs";
 import { loadTodos, paintTodos, renderTodos } from "./pages/todos.mjs";
 import { loadTodoPreferences } from "./pages/todo-preferences.mjs";
@@ -23,7 +23,6 @@ import { setMenu, syncMenu } from "./ui/menu.mjs";
 import { closeModal } from "./ui/modal.mjs";
 import { closePopover } from "./ui/popover.mjs";
 import { segmented } from "./ui/segmented.mjs";
-import { toast } from "./ui/toast.mjs";
 import {mobileNavigation, sidebarNavigation, settingsNavigation, syncWorkbenchNavigation, renderSidebarResizer, setupSidebarResize,
   renderMediaTabs, mobileSettingsMenu, syncMobileViewport, setupMobileViewport} from "./ui/workbench.mjs";
 import {renderWorkbenchSettings, renderTodoSettings} from "./pages/workbench-settings.mjs";
@@ -37,7 +36,7 @@ function mainContent() {
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
     state.me?.publicBusiness ? {workspace: settingsTabs.workspace, todo: settingsTabs.todo} : settingsTabs), state.settingsTab,
     "设置分类", "tab", "page-tabs") : ""}${state.page === "settings" && state.me?.publicBusiness ?
-    '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
+    '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${state.page === "settings" ? '<section class="card panel" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -268,10 +267,8 @@ async function init({ freshLogin = false } = {}) {
     renderShell();
   } catch (err) {
     if (initEpoch !== runtime.sessionEpoch || err.staleSession || isRequestAbort(err)) return;
-    if (err.status !== 401) {
-      renderLogin();
-      toast(err.message, true);
-    } else renderLogin();
+    if (err.status === 401 && !err.offlineScopeFailure) renderLogin();
+    else renderInitializationError(err.message, () => { void init(); });
   }
 }
 export {

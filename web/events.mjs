@@ -68,6 +68,10 @@ function handleChange(event) {
     toggleUnscheduledTodo(el);
     return;
   }
+  if (el.dataset?.futureDateId) {
+    inputUnscheduledTodo(el);
+    return;
+  }
   if (el.dataset?.todoId) {
     toggleTodo(el);
     return;

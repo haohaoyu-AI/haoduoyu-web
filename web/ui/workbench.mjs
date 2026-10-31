@@ -33,11 +33,11 @@ export function mobileNavigation() {
   const items = [['todos','待办'],['notes','碎碎念'],['memos','备忘录'],['reminders','提醒']];
   return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id,label]) =>
     navigationLink({...nav.find(item => item.id === id),label},true))
-    .join('')}${mediaNavigation(true)}</nav>`;
+    .join('')}${mediaNavigation(true)}${navigationLink(nav.find(item => item.id === 'ai-reports'),true)}</nav>`;
 }
 export function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
-${navigationLink(nav.find(item => item.id === 'ai-reports'))}${settingsNavigation()}${state.me?.publicBusiness ? '' : `<button class="btn text" data-action="logout">${icon('logout',18)}退出登录</button>`}</nav>`;
+${settingsNavigation()}${state.me?.publicBusiness ? '' : `<button class="btn text" data-action="logout">${icon('logout',18)}退出登录</button>`}</nav>`;
 }
 export function syncWorkbenchNavigation() {
   const active = mediaPages.has(state.page);

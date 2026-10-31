@@ -175,19 +175,19 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
   .content-review .review-articles-table td[data-label="原因"], .content-review .review-articles-table td[data-label="参考爆文"] { grid-column:1 / -1; overflow-wrap:anywhere; }
 }
 
-/* Compact article rows: the title, reference and reason each occupy at most one line. */
+/* Keep the five-column article list readable while preserving its compact details. */
 .content-review .review-articles-table th:first-child { width:150px; }
 .content-review .review-articles-table th:nth-child(2) { width:auto; }
 .content-review .review-articles-table th:nth-child(3),
 .content-review .review-articles-table th:nth-child(4) { width:88px; }
 .content-review .review-articles-table th:nth-child(5) { width:96px; }
-.content-review .review-articles-table :is(th,td) { padding:4px 10px; }
-.content-review .review-articles-table tbody tr { height:52px; }
-.content-review .review-articles-table td { line-height:16px; }
+.content-review .review-articles-table :is(th,td) { padding:12px 14px; }
+.content-review .review-articles-table tbody tr { height:auto; }
+.content-review .review-articles-table td { line-height:1.5; }
 .content-review .review-articles-table td:first-child { white-space:nowrap; }
 .content-review .review-articles-table td:nth-child(2) { min-width:0; }
-.content-review .review-articles-table .review-title-button { min-height:0; max-width:100%; line-height:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.content-review .review-reference, .content-review .review-reason-preview { display:block; max-width:100%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:12px; line-height:15px; }
+.content-review .review-articles-table .review-title-button { min-height:0; max-width:100%; line-height:1.5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.content-review .review-reference, .content-review .review-reason-preview { display:block; max-width:100%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:var(--font-size-13); line-height:1.5; }
 .content-review .review-reference a { display:block; overflow:hidden; text-overflow:ellipsis; }
 .content-review .review-reason-preview { color:var(--color-text-secondary); }
 .content-review .review-verdict-cell { white-space:nowrap; }
@@ -231,22 +231,3 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
 .content-review .review-legacy-metrics dt { color:var(--color-text-secondary); font-size:var(--font-size-12); }
 .content-review .review-legacy-metrics dd { margin:0; }
 .content-review #review-health-history { display:grid; gap:var(--space-12); }
-
-/* Keep the desktop overview and article controls compact enough for an eight-row first screen. */
-@media (min-width:761px) {
-  .content-review .review-toolbar { margin-bottom:6px; }
-  .content-review .review-body { gap:10px; }
-  .content-review .review-overview-metrics .review-panel-head { margin-bottom:6px; }
-  .content-review .review-overview-metrics .review-panel-head > div > .review-note { margin-top:0; }
-  .content-review .review-overview-metrics h2 { font-size:16px; }
-  .content-review .review-stats { gap:10px; }
-  .content-review .review-stat { padding:10px 14px; }
-  .content-review .review-stat > strong { margin:3px 0 0; font-size:26px; }
-  .content-review .review-panel:has(.review-articles-table) { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:8px 20px; padding:12px; }
-  .content-review .review-panel:has(.review-articles-table) > .review-panel-head { margin:0; }
-  .content-review .review-panel:has(.review-articles-table) > .review-filters { align-items:center; gap:12px; }
-  .content-review .review-panel:has(.review-articles-table) > .review-filters label { display:flex; align-items:center; gap:6px; min-width:0; white-space:nowrap; }
-  .content-review .review-panel:has(.review-articles-table) > .review-filters .input { width:120px; min-height:32px; height:32px; padding:0 28px 0 10px; line-height:normal; }
-  .content-review .review-panel:has(.review-articles-table) > .review-filters > .review-note { padding-bottom:0; }
-  .content-review .review-panel:has(.review-articles-table) > :is(.review-table-wrap,.review-footnote) { grid-column:1 / -1; }
-}

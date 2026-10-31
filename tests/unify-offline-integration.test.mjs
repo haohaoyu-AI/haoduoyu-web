@@ -361,10 +361,10 @@ test('a fresh server choice archives a real durable branch while retaining both 
   const saved = await f.db.transaction(['conflicts'], 'readonly', tx => tx.get('conflicts', key));
   assert.equal(saved.local.text, '本地全文'); assert.equal(saved.remote.text, '线上全文');
 });
-test('the four status labels expose queued and unresolved conflict state honestly', () => {
-  assert.equal(offlineStatusLabel({online: true, pending: 0}), '已同步');
-  assert.equal(offlineStatusLabel({online: true, phase: 'syncing'}), '同步中');
-  assert.equal(offlineStatusLabel({online: true, pending: 3}), '同步中');
+test('the status labels expose queued and unresolved conflict state honestly', () => {
+  assert.equal(offlineStatusLabel({online: true, pending: 0}), '查看同步状态');
+  assert.equal(offlineStatusLabel({online: true, phase: 'syncing'}), '正在同步…');
+  assert.equal(offlineStatusLabel({online: true, pending: 3}), '待同步（3 条）');
   assert.equal(offlineStatusLabel({online: false, pending: 3}), '离线（3 条待同步）');
   assert.equal(offlineStatusLabel({online: true, conflicts: 1}), '有冲突');
 });

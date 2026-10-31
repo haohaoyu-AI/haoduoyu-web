@@ -48,3 +48,12 @@
 }
 .offline-sync-now:disabled { opacity: .6; cursor: wait; }
 .offline-sync-error { color: var(--danger, #bc4949); }
+
+/* Conflict review lives in settings; background synchronization has no toolbar button. */
+.offline-settings-panel .offline-queue {
+  position: static;
+  width: 100%;
+  margin-top: 8px;
+  box-shadow: none;
+}
+.offline-settings-toggle { min-height: 44px; }

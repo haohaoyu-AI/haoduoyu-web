@@ -39,9 +39,9 @@ async function apiTransport(path, opts) {
   }
   return { ok: response.ok, status: response.status, text };
 }
-function apiFailure(path, response, payload, epoch, identity) {
+function apiFailure(path, response, payload, epoch, identity, suppressAuthRedirect = false) {
   const current = epoch === runtime.sessionEpoch && identity === (state.me?.id ?? null);
-  if (response.status === 401 && path !== "/auth/login" && current) {
+  if (response.status === 401 && path !== "/auth/login" && current && !suppressAuthRedirect) {
     state.me = null;
     closeModal();
     renderLogin();
@@ -55,7 +55,7 @@ function apiFailure(path, response, payload, epoch, identity) {
 }
 async function apiNetwork(path, options = {}) {
   const epoch = runtime.sessionEpoch, identity = state.me?.id ?? null;
-  const { envelope = false, context, ...requestOptions } = options;
+  const { envelope = false, context, suppressAuthRedirect = false, ...requestOptions } = options;
   const opts = apiOptions(requestOptions), method = (opts.method || "GET").toUpperCase();
   const scope = method === "GET" ? context || backgroundRequests() : null;
   const response = scope ? await pendingGet(
@@ -72,7 +72,7 @@ async function apiNetwork(path, options = {}) {
   } catch {
     throw new Error("服务暂时不可用，请稍后重试。");
   }
-  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity);
+  if (!response.ok) throw apiFailure(path, response, payload, epoch, identity, suppressAuthRedirect);
   return envelope ? payload : payload.data;
 }
 function api(path, options = {}) {

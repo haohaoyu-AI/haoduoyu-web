@@ -221,7 +221,7 @@ function scopedReviewData(data,account) {
 }
 export function renderContentReviewContent(data,vm) {
   data = scopedReviewData(data,vm.account);
-  const header = `<div class="review-toolbar"><div class="review-account"><strong>内容复盘</strong><span class="review-version">v1.2.1</span><span class="review-note">${e(vm.account)}</span> <button class="review-health-badge" type="button" data-review-action="show-health">${e(healthLabel(healthRows(data,vm.account)[0]))}</button></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>`;
+  const header = `<div class="review-toolbar"><div class="review-account"><strong>内容复盘</strong><span class="review-version">v1.2.2</span><span class="review-note">${e(vm.account)}</span> <button class="review-health-badge" type="button" data-review-action="show-health">${e(healthLabel(healthRows(data,vm.account)[0]))}</button></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>`;
   if (vm.loading) return header + '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
   if (vm.error) return header + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data,{account:vm.account});

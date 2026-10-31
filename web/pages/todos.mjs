@@ -167,13 +167,13 @@ ${floatingTodoSupported() ? "" : '<span class="todo-floating-support" role="stat
 function todoHeading(day) {
   const selected=state.todoPanel||"today";
   return `<span id="todo-caption" hidden>${todoCaption(day)}</span><nav class="todo-page-tabs" aria-label="待办页面">
-${[["today","今日"],["future","未来待办"],["history","历史"],["templates","常用"]].map(([panel,label])=>
+${[["today","今日"],["future","未来待办"],["history","日历"],["templates","常用"]].map(([panel,label])=>
   `<button class="btn todo-page-tab" type="button" data-action="todo-panel" data-panel="${panel==='today'?'':panel}"
   aria-current="${selected===panel?'page':'false'}" ${panel==='templates'?'aria-label="管理常用"':''}>${label}</button>`).join("")}</nav>
 <div id="todo-floating-toolbar" ${state.todoPanel === "templates" ? "hidden" : ""}>${floatingTodoControl()}</div>`;
 }
 function renderTodoHistory(day) {
-  return `<section id="todo-history" class="todo-view" aria-label="历史待办" ${state.todoPanel === "history" ? "" : "hidden"}>
+  return `<section id="todo-history" class="todo-view" aria-label="待办日历" ${state.todoPanel === "history" ? "" : "hidden"}>
 <div id="todo-calendar" class="daily-todo-calendar" data-month="${todoCalendarMonth(day.date)}" data-today="${bjtDate()}">
 ${todoCalendar(day.date)}</div></section>`;
 }
@@ -233,12 +233,12 @@ function renderTodos() {
   const day = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day)}</div>
-${renderTodoHistory(day)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}>${todoForm(day)}${renderInlineTodoTemplates()}
+${renderTodoHistory(day)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}><div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day)}${renderInlineTodoTemplates()}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day)}</p>
-<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul></div>
+<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day) : ""}</div>
 ${renderTodoTemplates(floatingTodoControl())}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {
@@ -255,6 +255,8 @@ function paintTodos() {
     paintTodoTemplates();
     return;
   }
+  const form = $("#todo-form", root), formSlot = $(state.todoPanel === "history" ? "#todo-form-bottom" : "#todo-form-top", root);
+  if (form && formSlot && formSlot.nextElementSibling !== form) formSlot.after(form);
   const parts = { "todo-caption": todoCaption(day), "todo-status": todoStatus(day), "todo-undo": renderTodoUndo(day),
     "todo-items": day.items.map((item) => todoRow(item, day)).join("") + pendingTodo(day), "todo-feedback": todoFeedback(day),
     "todo-history-empty": todoHistoryEmpty(day) };
@@ -344,6 +346,10 @@ async function saveTodo(day, request, templateId = "") {
     const item = await api("/todos", { method: "POST", body: request });
     if (!todoSessionActive(owner)) return;
     mergeTodo(day, item);
+    if (monthSnapshot.owner === owner && monthSnapshot.month === day.date.slice(0, 7)) {
+      monthSnapshot.days.set(day.date, [...day.items]);
+      const calendar = $("#todo-calendar"); if (calendar) calendar.dataset.month = "";
+    }
     if (templateId) day.templateCreates.delete(templateId);
     else {
       if (day.draft === submittedDraft && submittedDraft.trim() === request.text) day.draft = "";
