@@ -90,7 +90,11 @@ export function createTodoMonthLoader({read, seed, active, changed = () => {}, n
         let failure;
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          if (result.status === 'rejected' && (!failure || result.reason?.status === 429)) failure = result.reason;
+          if (result.status === 'rejected') {
+            const error = result.reason || new Error('月记录读取失败，请重试');
+            if (!failure || error?.status === 429 && (failure.status !== 429 ||
+                (error.retryAfterMs || 60000) > (failure.retryAfterMs || 60000))) failure = error;
+          }
         }
         if (failure) {
           if (failure.status === 429) {

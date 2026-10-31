@@ -6164,7 +6164,10 @@ function createTodoMonthLoader({ read, seed, active: active5, changed: changed4 
         let failure3;
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          if (result.status === "rejected" && (!failure3 || result.reason?.status === 429)) failure3 = result.reason;
+          if (result.status === "rejected") {
+            const error = result.reason || new Error("月记录读取失败，请重试");
+            if (!failure3 || error?.status === 429 && (failure3.status !== 429 || (error.retryAfterMs || 6e4) > (failure3.retryAfterMs || 6e4))) failure3 = error;
+          }
         }
         if (failure3) {
           if (failure3.status === 429) {

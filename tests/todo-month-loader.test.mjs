@@ -78,6 +78,16 @@ test('rate limit cooldown applies across months without sending more requests', 
   now = 90000; await loader.open('2026-10', 'same-scope').promise;
   assert.equal(calls, 10);
 });
+
+test('a batch honors the longest Retry-After from concurrent rate limits', async () => {
+  let calls = 0, now = 1000;
+  const loader = createTodoMonthLoader({now: () => now, active: () => true, seed: async () => ({}),
+    read: async () => { const delay = ++calls === 1 ? 180000 : 60000;
+      throw Object.assign(new Error('稍后重试'), {status: 429, retryAfterMs: delay}); }});
+  const snapshot = loader.open('2026-09', 'owner'); await snapshot.promise;
+  assert.equal(snapshot.retryAt, 181000); assert.equal(calls, 5);
+  now = 61000; loader.open('2026-09', 'owner'); assert.equal(calls, 5);
+});
 test('scope readiness transitions pause without clearing and resume only once', async () => {
   const {todoMonthScopeTransition} = await import('../web/core/todo-month.mjs');
   assert.equal(todoMonthScopeTransition('user:null', 'user:scope', false, true), 'replace-and-load');
