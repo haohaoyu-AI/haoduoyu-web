@@ -360,3 +360,18 @@ test('playbook writes preserve legacy raw rules while reads add display defaults
   const changed=await app.call('playbooks/'+id,'PATCH',{expected_hash:created.data.content_hash,changelog_md:'change'});assert.deepEqual(changed.data.rules,[rule]);
   assert.equal((await app.call('playbooks/'+id)).data.rules[0].status,'candidate');
 });
+
+test('legacy playbook combined account and status PATCH respects the destination account',async t=>{
+  const id='8f553af0-302a-45fb-9fde-16d6d537c888';
+  for(const [source,target,status] of [['V字','其他','draft'],['其他','V字','active']]) {
+    const app=fixture(t);
+    app.sql.prepare('INSERT INTO matrix_review_playbooks(user_id,id,account,version,published_on,rules_json,created_at) VALUES(?,?,?,?,?,?,?)')
+      .run(app.owner,id,source,2,'2026-10-30','[]','2026-10-30T00:00:00Z');
+    const before=(await app.call('playbooks/'+id)).data;
+    assert.equal(before.status,source==='V字'?'draft':'active');
+    const result=await app.call('playbooks/'+id,'PATCH',{expected_hash:before.content_hash,account:target,status});
+    assert.equal(result.status,200);assert.equal(result.data.status,status);
+    assert.equal((await app.call('playbooks/'+id)).data.status,status);
+    assert.equal(app.sql.prepare('SELECT status FROM matrix_review_playbooks WHERE id=?').get(id).status,status);
+  }
+});

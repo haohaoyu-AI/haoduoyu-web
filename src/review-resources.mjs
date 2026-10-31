@@ -5,10 +5,10 @@ import {dailyNotesOwner} from './daily-notes.mjs';
 import {reviewUuid,reviewHash,reviewDate} from './content-review-validation.mjs';
 
 const invalid=(message='字段无效')=>{throw fail(400,'VALIDATION_ERROR',message);};
-const str=(v,max=2000)=>{if(typeof v!=='string'||!v.isWellFormed()||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(v)||!v.trim()||Buffer.byteLength(v,'utf8')>max)invalid();return v.replace(/\r\n?/g,'\n').trim();};
+const str=(v,max=2000,{multiline=false}={})=>{if(typeof v!=='string'||!v.isWellFormed()||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(v)||!v.trim()||Buffer.byteLength(v,'utf8')>max||!multiline&&/[\r\n\t]/u.test(v))invalid();return v.replace(/\r\n?/g,'\n').trim();};
 const nullable=fn=>v=>v===null?null:fn(v);
 const text=nullable(v=>str(v));
-const long=nullable(v=>str(v,131072));
+const long=nullable(v=>str(v,131072,{multiline:true}));
 const uuid=v=>{if(typeof v!=='string'||!reviewUuid.test(v))invalid('标识须为 UUID');return v;};
 const date=nullable(reviewDate);
 const number=nullable(v=>{if(!Number.isSafeInteger(v)||v<0)invalid('数值须为非负整数');return v;});
@@ -23,7 +23,7 @@ const specs={
  'benchmark-accounts':{table:'matrix_review_benchmark_accounts',required:['account','platform','name'],fields:{account:v=>str(v,120),platform:v=>str(v,120),name:v=>str(v,2000),profile_url:link,fans:number,is_featured_author:bool,posting_cadence:text,topic_focus:text,title_patterns:arr(v=>str(v,2000)),structure_notes_md:long},json:['title_patterns'],order:'name,id'},
  'benchmark-articles':{table:'matrix_review_benchmark_articles',required:['benchmark_account_id','title','url'],fields:{benchmark_account_id:uuid,title:v=>str(v,2000),url:v=>link(v)??invalid(),reads:number,published_at:timestamp,title_pattern:nullable(enumOf(['dialogue','外媒','又一','数字开头','央视曝光','其他'])),topic:text,news_hook:text,word_count:number,image_count:number,collected_on:date},json:[],order:'reads DESC,collected_on DESC,id'},
  notes:{table:'matrix_review_notes',required:['account','note_date','kind','title'],fields:{account:v=>str(v,120),note_date:reviewDate,kind:enumOf(['insight','decision','diagnosis','account_health']),title:v=>str(v,2000),body_md:long,tags:arr(v=>str(v,200)),related_article_ids:arr(uuid),related_rule_ids:arr(v=>str(v,120)),decided_by:text},json:['tags','related_article_ids','related_rule_ids'],order:'note_date DESC,created_at DESC,id'},
- 'account-health':{table:'matrix_review_account_health',required:['account','platform','observed_on'],fields:{account:v=>str(v,120),platform:v=>str(v,120),observed_on:reviewDate,impressions_per_day:number,reads_per_day:number,ctr:rate,since_date:date,platform_notice:notice,judgement:nullable(enumOf(['normal','限流','降权','封禁'])),action:long,resume_on:date},json:['platform_notice'],order:'observed_on DESC,created_at DESC,id'}
+ 'account-health':{table:'matrix_review_account_health',required:['account','platform','observed_on'],fields:{account:v=>str(v,120),platform:v=>str(v,120),observed_on:reviewDate,impressions_per_day:number,reads_per_day:number,ctr:rate,since_date:date,platform_notice:notice,judgement:nullable(enumOf(['normal','限流','降权','封禁'])),action:nullable(v=>str(v,131072)),resume_on:date},json:['platform_notice'],order:'observed_on DESC,created_at DESC,id'}
 };
 const response=(data,status=200)=>Response.json({data},{status});
 const col=(s,k)=>s.json.includes(k)?k+'_json':k;

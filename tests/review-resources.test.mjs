@@ -109,3 +109,51 @@ test('benchmark article sorting is deterministic and validates the requested fie
   for(const sort of ['benchmark_account_id','collected_on','reads'])assert.deepEqual((await a.call('benchmark-articles?sort='+sort)).data.items.map(x=>x.title),['two','one']);
   assert.equal((await a.call('benchmark-articles?sort=title')).status,400);
 });
+
+test('documented review creation examples match their schemas and execute successfully',async t=>{
+  const api=JSON.parse(readFileSync(new URL('../public/openapi.json',import.meta.url),'utf8'));
+  const a=fixture(t),prefix='/api/v1/review/';
+  function requestExample(path,method){
+    const content=api.paths[prefix+path][method].requestBody.content['application/json'];
+    const schema=api.components.schemas[content.schema.$ref.split('/').at(-1)],body=content.example;
+    const checkObject=(value,shape)=>{
+      for(const key of shape.required||[])assert.ok(Object.hasOwn(value,key),`${path} requires ${key}`);
+      if(shape.additionalProperties===false)for(const key of Object.keys(value))assert.ok(Object.hasOwn(shape.properties,key),`${path} has unknown ${key}`);
+    };
+    checkObject(body,schema);
+    if(path.endsWith(':batch'))for(const item of body.items)checkObject(item,schema.properties.items.items);
+    return body;
+  }
+  const parent=api.paths[prefix+'benchmark-accounts/{uuid}'].put.parameters.find(x=>x.name==='uuid').example;
+  const account=requestExample('benchmark-accounts/{uuid}','put');
+  assert.equal((await a.call('benchmark-accounts/'+parent,'PUT',account)).status,201);
+  const cases=[
+    ['benchmark-articles/{uuid}','benchmark-articles/'+randomUUID()],
+    ['notes/{uuid}','notes/'+randomUUID()],
+    ['account-health/{uuid}','account-health/'+randomUUID()]
+  ];
+  for(const [documented,route] of cases){
+    const response=await a.call(route,'PUT',requestExample(documented,'put'));
+    assert.equal(response.status,201,`${documented}: ${JSON.stringify(response.error)}`);
+  }
+  const batch=await a.call('benchmark-articles:batch','PUT',requestExample('benchmark-articles:batch','put'));
+  assert.equal(batch.status,200);
+  assert.deepEqual(batch.data.items.map(item=>item.status),[201]);
+  const article=await a.call('articles','POST',requestExample('articles','post'));
+  assert.equal(article.status,201,JSON.stringify(article.error));
+});
+
+test('single-line fields reject whitespace controls while Markdown retains them',async t=>{
+  const a=fixture(t);
+  const base={account:'V字',platform:'toutiao',name:'benchmark'};
+  for(const value of ['bad\nname','bad\tname','bad\rname']) {
+    assert.equal((await a.call('benchmark-accounts/'+randomUUID(),'PUT',{...base,name:value})).status,400);
+    assert.equal((await a.call('notes/'+randomUUID(),'PUT',{account:'V字',note_date:'2026-10-31',kind:'insight',title:value})).status,400);
+    assert.equal((await a.call('account-health/'+randomUUID(),'PUT',{account:'V字',platform:'toutiao',observed_on:'2026-10-31',action:value})).status,400);
+  }
+  const md='第一行\r\n\t第二行';
+  const account=await a.call('benchmark-accounts/'+randomUUID(),'PUT',{...base,structure_notes_md:md});
+  const note=await a.call('notes/'+randomUUID(),'PUT',{account:'V字',note_date:'2026-10-31',kind:'insight',title:'标题',body_md:md});
+  assert.equal(account.status,201);assert.equal(account.data.structure_notes_md,'第一行\n\t第二行');
+  assert.equal(note.status,201);assert.equal(note.data.body_md,'第一行\n\t第二行');
+});

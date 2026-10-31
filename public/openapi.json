@@ -6529,7 +6529,8 @@
                 "sample_title": null,
                 "sample_url": null,
                 "image_count": null,
-                "source_chat": null
+                "source_chat": null,
+                "id": "123e4567-e89b-42d3-a456-426614174010"
               }
             }
           }
@@ -11734,7 +11735,8 @@
               "type": "string",
               "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
             },
-            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。",
+            "example": "123e4567-e89b-42d3-a456-426614174001"
           },
           {
             "name": "Origin",
@@ -11772,17 +11774,11 @@
               },
               "example": {
                 "account": "V字",
-                "period_type": "daily",
-                "period_start": "2026-10-30",
-                "period_end": "2026-10-30",
-                "verdicts": {},
-                "findings": {
-                  "verified": [],
-                  "overturned": []
-                },
-                "summary_md": "",
-                "metrics": {},
-                "playbook_version": null
+                "platform": "toutiao",
+                "name": "示例对标号",
+                "profile_url": "https://example.com/profile",
+                "fans": 12000,
+                "is_featured_author": true
               }
             }
           }
@@ -12424,7 +12420,7 @@
           "Content review"
         ],
         "summary": "PUT benchmark-articles 单项",
-        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 PUT 新建或重放；PATCH 使用 expected_hash；DELETE 软删除并使用 expected_hash 与 save_id。 示例中的 benchmark_account_id 需先使用对标号 PUT 示例及其路径 UUID 创建。",
         "security": [],
         "parameters": [
           {
@@ -12435,7 +12431,8 @@
               "type": "string",
               "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
             },
-            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。",
+            "example": "123e4567-e89b-42d3-a456-426614174002"
           },
           {
             "name": "Origin",
@@ -12472,18 +12469,12 @@
                 "$ref": "#/components/schemas/ReviewBenchmarkArticleCreate"
               },
               "example": {
-                "account": "V字",
-                "period_type": "daily",
-                "period_start": "2026-10-30",
-                "period_end": "2026-10-30",
-                "verdicts": {},
-                "findings": {
-                  "verified": [],
-                  "overturned": []
-                },
-                "summary_md": "",
-                "metrics": {},
-                "playbook_version": null
+                "benchmark_account_id": "123e4567-e89b-42d3-a456-426614174001",
+                "title": "示例参考爆文",
+                "url": "https://example.com/article/1",
+                "reads": 120000,
+                "collected_on": "2026-10-30",
+                "title_pattern": "数字开头"
               }
             }
           }
@@ -13135,7 +13126,8 @@
               "type": "string",
               "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
             },
-            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。",
+            "example": "123e4567-e89b-42d3-a456-426614174004"
           },
           {
             "name": "Origin",
@@ -13173,17 +13165,13 @@
               },
               "example": {
                 "account": "V字",
-                "period_type": "daily",
-                "period_start": "2026-10-30",
-                "period_end": "2026-10-30",
-                "verdicts": {},
-                "findings": {
-                  "verified": [],
-                  "overturned": []
-                },
-                "summary_md": "",
-                "metrics": {},
-                "playbook_version": null
+                "note_date": "2026-10-30",
+                "kind": "insight",
+                "title": "示例复盘笔记",
+                "body_md": "观察：标题中的数字有助于传达信息。",
+                "tags": [
+                  "标题"
+                ]
               }
             }
           }
@@ -13830,7 +13818,8 @@
               "type": "string",
               "pattern": "^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$"
             },
-            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。"
+            "description": "客户端生成的小写 UUID；删除后可用 restore 恢复同一记录。",
+            "example": "123e4567-e89b-42d3-a456-426614174005"
           },
           {
             "name": "Origin",
@@ -13868,17 +13857,12 @@
               },
               "example": {
                 "account": "V字",
-                "period_type": "daily",
-                "period_start": "2026-10-30",
-                "period_end": "2026-10-30",
-                "verdicts": {},
-                "findings": {
-                  "verified": [],
-                  "overturned": []
-                },
-                "summary_md": "",
-                "metrics": {},
-                "playbook_version": null
+                "platform": "toutiao",
+                "observed_on": "2026-10-30",
+                "impressions_per_day": 5000,
+                "reads_per_day": 600,
+                "ctr": 12,
+                "judgement": "normal"
               }
             }
           }
@@ -14321,7 +14305,7 @@
           "Content review"
         ],
         "summary": "逐条幂等创建至多200条对标爆文",
-        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 提交 {items:[{id,...创建字段}]}，每项独立保存，逐项检查 status；整批不保证原子性。结果不明时先按原 UUID 读取核对。",
+        "description": "复盘模块现有 owner 会话或 PUBLIC_BUSINESS_MODE=1 的公开业务范围；公开写入须同源 Origin 与 X-Public-Business: 1，owner 会话写入须同源 Origin 和 X-CSRF-Token。显式无效凭证不回退匿名，Bearer 不授予权限。 提交 {items:[{id,...创建字段}]}，每项独立保存，逐项检查 status；整批不保证原子性。结果不明时先按原 UUID 读取核对。 示例中的 benchmark_account_id 需先使用对标号 PUT 示例及其路径 UUID 创建。",
         "security": [],
         "parameters": [
           {
@@ -14361,9 +14345,12 @@
               "example": {
                 "items": [
                   {
-                    "id": "123e4567-e89b-42d3-a456-426614174002",
-                    "article_id": "123e4567-e89b-42d3-a456-426614174000",
-                    "snapshot_date": "2026-10-30"
+                    "id": "123e4567-e89b-42d3-a456-426614174003",
+                    "benchmark_account_id": "123e4567-e89b-42d3-a456-426614174001",
+                    "title": "另一篇示例参考爆文",
+                    "url": "https://example.com/article/2",
+                    "reads": 80000,
+                    "collected_on": "2026-10-30"
                   }
                 ]
               }

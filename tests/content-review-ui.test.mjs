@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeReviewData} from '../web/core/review-data.mjs';
 import {renderContentReviewContent,renderReviewMarkdown,safeReviewUrl,reviewNumber,REVIEW_VIEWS} from '../web/pages/content-review.mjs';
-import {readReviewCollection,readContentReviewData,reviewRoute} from '../web/review-controller.mjs';
+import {readReviewCollection,readContentReviewData,readContentReviewDataWithRetry,reviewRoute} from '../web/review-controller.mjs';
 
 const account = 'synthetic';
 const fixture = () => normalizeReviewData({
@@ -115,9 +115,29 @@ test('pagination uses fixed pages and pins the subsequent page revision',async (
 });
 
 test('four-resource read sets reject mixed revisions, orphan snapshots and another account',async () => {
-  await assert.rejects(() => readContentReviewData(async path => ({items:[],has_more:false,read_revision:path.includes('/reports?') ? 2 : 1}),account),{code:'REVIEW_READ_CHANGED'});
+  await assert.rejects(() => readContentReviewData(async path => ({items:[],has_more:false,read_revision:path.includes('/reports?') ? 2 : 1}),account),{code:'READ_REVISION_CHANGED'});
   await assert.rejects(() => readReviewCollection(async () => ({items:[{id:'x',account:'other'}],has_more:false,read_revision:1}),'articles',account));
-  await assert.rejects(() => readContentReviewData(async path => ({items:path.includes('/snapshots?') ? [{id:'orphan',article_id:'missing'}] : [],has_more:false,read_revision:1}),account),{code:'REVIEW_READ_CHANGED'});
+  await assert.rejects(() => readContentReviewData(async path => ({items:path.includes('/snapshots?') ? [{id:'orphan',article_id:'missing'}] : [],has_more:false,read_revision:1}),account),{code:'READ_REVISION_CHANGED'});
+});
+
+test('server revision conflict retries all pages once, then stops on another conflict',async () => {
+  const rows = Array.from({length:100},(_,i) => ({id:String(i),account}));
+  let firstPages = 0, failPages = 0;
+  const read = async path => {
+    if (!path.includes('/articles?')) return {items:[],has_more:false,read_revision:1};
+    if (path.includes('offset=0')) { firstPages++; return {items:rows,has_more:true,read_revision:1}; }
+    if (failPages++ === 0) throw Object.assign(new Error('changed'),{code:'READ_REVISION_CHANGED',status:409});
+    return {items:[],has_more:false,read_revision:1};
+  };
+  assert.equal((await readContentReviewDataWithRetry(read,account)).articles.length,100);
+  assert.equal(firstPages,2);
+  firstPages = 0;
+  await assert.rejects(() => readContentReviewDataWithRetry(async path => {
+    if (!path.includes('/articles?')) return {items:[],has_more:false,read_revision:1};
+    if (path.includes('offset=0')) { firstPages++; return {items:rows,has_more:true,read_revision:1}; }
+    throw Object.assign(new Error('changed'),{code:'READ_REVISION_CHANGED',status:409});
+  },account),{code:'READ_REVISION_CHANGED'});
+  assert.equal(firstPages,2);
 });
 
 test('article library and drawer show true Shanghai time and filters exclude unknown dates',() => {

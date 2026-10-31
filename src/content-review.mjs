@@ -133,7 +133,9 @@ async function patch(db,request,kind,owner,id,input,env,origin) {
     const actor=await actorFor(store,request,owner,env,origin,true),current=await readRow(store,kind,owner,id);
     if(!current)throw fail(404,'NOT_FOUND','记录不存在');
     if(current.content_hash!==expected_hash)throw fail(409,'VERSION_CONFLICT','记录已改变，请读取最新内容再修改');
-    if(kind==='playbooks'&&current.status===null&&partial.status===publicView(kind,current).status)delete partial.status;
+    // Compare an echoed default against the account after this PATCH. The
+    // designated legacy draft is only a draft while it belongs to V字.
+    if(kind==='playbooks'&&current.status===null&&partial.status===writeView(kind,{...current,...partial,status:null}).status)delete partial.status;
     if(kind==='reports'&&partial.period_type==='three_day'&&current.period_type!=='three_day')throw fail(400,'VALIDATION_ERROR','New three_day reports are retired');
     const values=reviewInput(kind,{...Object.fromEntries(columnsFor(kind).map(key=>[key,current[key]])),...partial},{validateDaily:Object.hasOwn(partial,'summary_md')||Object.hasOwn(partial,'period_type')});
     await checkRelations(store,kind,owner,id,values,current);
