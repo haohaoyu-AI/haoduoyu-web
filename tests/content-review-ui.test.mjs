@@ -17,13 +17,13 @@ const fixture = () => normalizeReviewData({
 });
 const model = (view = 'overview') => ({account,view,week:'this',now:'2026-10-30T12:00:00Z',filters:{},article:'',version:'',loading:false,error:''});
 
-test('three views render accurate empty states and preserve null, zero and percentage formatting',() => {
+test('legacy view URLs render an accurate empty state and preserve numeric formatting',() => {
   assert.deepEqual(REVIEW_VIEWS.map(([id]) => id),['overview','articles','playbook']);
   for (const [view] of REVIEW_VIEWS) {
     const html = renderContentReviewContent(normalizeReviewData(),model(view));
     assert.match(html,/暂无内容复盘数据/);
     assert.doesNotMatch(html,/class="review-stat"|<svg|style=/);
-    assert.equal((html.match(/role="tab" /g) || []).length,3);
+    assert.equal((html.match(/role="tab" /g) || []).length,0);
   }
   assert.equal(reviewNumber(null),'—');
   assert.equal(reviewNumber(0),'0');
@@ -31,20 +31,21 @@ test('three views render accurate empty states and preserve null, zero and perce
   assert.equal(reviewNumber(12000),'1.2 万');
 });
 
-test('overview has five metric cards, 30-day trend, weekly first sentence and issue-only alerts',() => {
-  const html = renderContentReviewContent(fixture(),model());
+test('overview has five metric cards and secondary tabs retain trend, conclusion and alerts',() => {
+  const html = renderContentReviewContent(fixture(),{...model(),secondary:'attention'});
   assert.equal((html.match(/class="review-stat"/g) || []).length,5);
-  assert.match(html,/近 30 天趋势/);
   assert.match(html,/2026-10-26 — 2026-11-01/);
   assert.match(html,/第一句结论。/);
   assert.doesNotMatch(html,/第二句不应|data-review-view="daily"|data-review-view="weekly"|data-review-view="three_day"/);
   assert.match(html,/24h 数据缺失/);
   assert.match(html,/仿对标爆文/);
   assert.match(html,/文章列表/);
+  assert.equal((html.match(/role="tab" /g) || []).length,6);
+  assert.match(renderContentReviewContent(fixture(),{...model(),secondary:'trend'}),/<svg/);
   const healthy = fixture(); healthy.articles = healthy.articles.slice(0,1); healthy.snapshots = healthy.snapshots.filter(s => s.article_id === 'a');
-  assert.doesNotMatch(renderContentReviewContent(healthy,model()),/需要关注/);
+  assert.doesNotMatch(renderContentReviewContent(healthy,{...model(),secondary:'attention'}),/class="review-alerts"/);
   healthy.reports = [];
-  assert.match(renderContentReviewContent(healthy,model()),/本周尚未生成周报/);
+  assert.match(renderContentReviewContent(healthy,{...model(),secondary:'attention'}),/本周尚未生成周报/);
 });
 
 test('article library escapes titles, preserves true zeros, and keeps unqualified raw values out of 24h columns',() => {
@@ -54,7 +55,7 @@ test('article library escapes titles, preserves true zeros, and keeps unqualifie
   assert.match(html,/data-label="24h 阅读">0<\/td>/);
   assert.match(html,/data-label="24h CTR">0.0%<\/td>/);
   assert.match(html,/暂无 24h 样本/);
-  assert.match(html,/样本不足，仅供参考/);
+  assert.match(html,/近期可比样本不足，当前判定仅供参考/);
   assert.match(html,/data-label="24h 阅读">—<\/td>/);
   assert.ok(html.indexOf('data-review-row="a"') < html.indexOf('data-review-row="b"'));
 });
@@ -62,7 +63,7 @@ test('article library escapes titles, preserves true zeros, and keeps unqualifie
 test('drawer retains ordered snapshots, exact applied rule text, raw fields and safe original URL',() => {
   const data = fixture(), html = renderContentReviewContent(data,{...model('articles'),article:'a'});
   assert.match(html,/role="dialog" aria-modal="true"/);
-  assert.match(html,/id="review-tabpanel"[^>]* inert/);
+  assert.match(html,/class="review-body" inert/);
   assert.match(html,/Exact applied rule/);
   assert.match(html,/全部原始字段/);
   assert.match(html,/快照年龄 24h/);
@@ -74,30 +75,36 @@ test('drawer retains ordered snapshots, exact applied rule text, raw fields and 
   assert.match(missing,/href="https:\/\/example.com\/article"/);
 });
 
-test('article rule counts distinguish unknown IDs, recorded empty IDs and unresolved recorded IDs',() => {
+test('article details distinguish unrecorded, empty and unresolved rule IDs',() => {
   const data = normalizeReviewData({articles:[
     {id:'unknown-rules',account,title:'Unknown rules',published_at:'2026-10-29',applied_rule_ids:null},
     {id:'empty-rules',account,title:'Recorded empty rules',published_at:'2026-10-29',applied_rule_ids:[]},
-    {id:'unresolved-rules',account,title:'Recorded unresolved rules',published_at:'2026-10-29',applied_rule_ids:['unresolved-1','unresolved-2']}
+    {id:'unresolved-rules',account,title:'Recorded unresolved rules',published_at:'2026-10-29',applied_rule_ids:['unresolved-1','<unresolved-2>']}
   ]});
   const html = renderContentReviewContent(data,model('articles'));
-  for (const [id,count] of [['unknown-rules','—'],['empty-rules','0'],['unresolved-rules','2']]) {
+  for (const id of ['unknown-rules','empty-rules','unresolved-rules']) {
     const row = html.match(new RegExp(`<tr data-review-row="${id}">([\\s\\S]*?)</tr>`))?.[1];
     assert.ok(row,`Expected article row ${id}`);
-    assert.ok(row.includes(`data-label="命中规则">${count}</td>`));
+    assert.doesNotMatch(row,/data-label="命中规则"|unresolved-1/);
   }
-  assert.match(html,/>总览<\/button>/); assert.match(html,/>文章库<\/button>/);
+  const detail = id => renderContentReviewContent(data,{...model('articles'),article:id});
+  assert.match(detail('unknown-rules'),/未记录命中规则/);
+  assert.match(detail('empty-rules'),/已记录：无命中规则/);
+  const unresolved = detail('unresolved-rules');
+  assert.match(unresolved,/已记录 2 条命中规则/);
+  assert.match(unresolved,/未找到对应规则：unresolved-1、&lt;unresolved-2&gt;/);
+  assert.doesNotMatch(unresolved,/<unresolved-2>/);
 });
 
 test('playbook has six sections, the five status filter choices and read-only historical versions',() => {
-  const html = renderContentReviewContent(fixture(),model('playbook'));
+  const html = renderContentReviewContent(fixture(),{...model('playbook'),secondary:'playbook'});
   for (const label of ['保留选题','放弃选题','标题','正文','读者','发布检查']) assert.match(html,new RegExp(`<h2>${label}</h2>`));
   for (const status of ['candidate','trial','kept','dropped','hold']) assert.match(html,new RegExp(`option value="${status}"`));
   assert.match(html,/Exact applied rule/); assert.match(html,/命中 9 篇，CTR 8.2%；未命中 13 篇，CTR 0.0%/);
   assert.doesNotMatch(html,/with_median|n_without/);
   assert.match(html,/历史版本 · 1 版/); assert.match(html,/只读/);
   assert.doesNotMatch(html,/data-review-action="save|<form/);
-  assert.doesNotMatch(renderContentReviewContent(fixture(),{...model('playbook'),filters:{status:'trial'}}),/Exact applied rule/);
+  assert.doesNotMatch(renderContentReviewContent(fixture(),{...model('playbook'),secondary:'playbook',filters:{status:'trial'}}),/Exact applied rule/);
 });
 
 test('Markdown permits safe formatting and HTTP links while escaping HTML and blocking URL schemes',() => {
@@ -114,9 +121,11 @@ test('pagination uses fixed pages and pins the subsequent page revision',async (
   await assert.rejects(() => readReviewCollection(async () => ({items:[{id:'a',account}],has_more:true,read_revision:7}),'articles',account));
 });
 
-test('four-resource read sets reject mixed revisions, orphan snapshots and another account',async () => {
+test('read sets reject mixed revisions and orphan snapshots, and filter another account',async () => {
   await assert.rejects(() => readContentReviewData(async path => ({items:[],has_more:false,read_revision:path.includes('/reports?') ? 2 : 1}),account),{code:'READ_REVISION_CHANGED'});
-  await assert.rejects(() => readReviewCollection(async () => ({items:[{id:'x',account:'other'}],has_more:false,read_revision:1}),'articles',account));
+  const filtered = await readReviewCollection(async () => ({items:[{id:'x',account:'other'}],has_more:false,read_revision:1}),'articles',account);
+  assert.deepEqual(filtered.items,[]);
+  assert.ok(filtered.foreignIds.has('x'));
   await assert.rejects(() => readContentReviewData(async path => ({items:path.includes('/snapshots?') ? [{id:'orphan',article_id:'missing'}] : [],has_more:false,read_revision:1}),account),{code:'READ_REVISION_CHANGED'});
 });
 
@@ -161,47 +170,51 @@ test('new tab URLs take priority and old review views map to the three-view navi
 test('new records show references, all health states and legacy draft without selecting it as current',() => {
   const data = fixture();
   data.articles[0].reference_article_id = 'ref'; data.articles[1].sample_title = '旧样本'; data.articles[1].sample_url = 'https://example.com/legacy';
-  data.benchmarkArticles = [{id:'ref',title:'参考标题',url:'https://example.com/ref',reads:12000}];
+  data.benchmarkArticles = [{id:'ref',benchmark_account_id:'ba',title:'参考标题',url:'https://example.com/ref',reads:12000}];
   data.benchmarkAccounts = [{id:'ba',account,name:'档案',profile_url:'https://example.com/author'}];
   data.notes = [{id:'n',account,title:'笔记',body_md:'**证据**'}];
   data.accountHealth = ['normal','限流','降权','封禁'].map((judgement,i) => ({id:String(i),account,observed_on:`2026-10-2${i}`,judgement}));
   data.playbooks = [{id:'8f553af0-302a-45fb-9fde-16d6d537c888',account,version:2,status:'draft',published_on:'2026-10-30',content_md:'草稿内容',rules:[],sent_to_gemini_at:null},
     {id:'p1',account,version:1,status:'active',published_on:'2026-10-29',content_md:'有效内容',rules:[],sent_to_gemini_at:'2026-10-29T00:00:00Z'}];
   const html = renderContentReviewContent(data,model());
-  assert.match(html,/仿：参考标题（1.2 万）/); assert.match(html,/仿：旧样本/); assert.match(html,/2 \/ 2<small>篇/);
-  for (const value of ['正常','限流','降权','封禁','档案','笔记']) assert.ok(html.includes(value));
-  assert.match(html,/当前手册<\/span><h2>1<\/h2>/); assert.match(html,/草稿·未发送/);
-  assert.match(html,/<details class="review-panel review-extra"/);
+  assert.match(html,/仿：参考标题（阅读 1.2 万）/); assert.match(html,/仿：旧样本/); assert.match(html,/2 \/ 2<small>篇/);
+  assert.match(html,/档案/);
+  const health = renderContentReviewContent(data,{...model(),secondary:'attention'});
+  for (const value of ['正常','限流','降权','封禁']) assert.ok(health.includes(value));
+  assert.match(renderContentReviewContent(data,{...model(),secondary:'notes'}),/笔记/);
+  const books = renderContentReviewContent(data,{...model(),secondary:'playbook'});
+  assert.match(books,/当前手册<\/span><h2>1<\/h2>/); assert.match(books,/草稿·未发送/);
 });
 
-test('unknown reference stays visibly missing, and untrusted sample URLs and notes are escaped',() => {
+test('unknown reference remains absent, and untrusted sample URLs and notes are escaped',() => {
   const data = fixture(); data.articles[0].reference_article_id = 'missing'; data.articles[0].sample_title = null; data.articles[0].sample_url = null;
   data.articles[1].sample_title = '<unsafe>'; data.articles[1].sample_url = 'javascript:alert(1)';
   data.notes = [{id:'n',account,title:'<script>',body_md:'<img src=x>'}];
-  const html = renderContentReviewContent(data,model());
-  assert.match(html,/无样本/); assert.match(html,/仿：&lt;unsafe&gt;/); assert.doesNotMatch(html,/<script>|<img|href="javascript/);
+  const html = renderContentReviewContent(data,{...model(),secondary:'notes'});
+  assert.doesNotMatch(html,/无样本/); assert.match(html,/仿：&lt;unsafe&gt;/);
+  assert.match(html,/&lt;script&gt;/); assert.match(html,/&lt;img src=x&gt;/);
+  assert.doesNotMatch(html,/<script>|<img|href="javascript/);
 });
 
-test('legacy daily metrics remain visible as attributed read-only material without inferring another account health',() => {
+test('legacy daily keeps summary and numeric metrics while excluding migrated nested fields',() => {
   const data = fixture();
-  data.reports.push({id:'old',account,period_type:'daily',period_end:'2026-10-31',metrics:{
+  data.reports.push({id:'old',account,period_type:'daily',period_end:'2026-10-31',summary_md:'历史摘要',metrics:{reads:42,
     notes_md:'历史笔记 **事实**',
     benchmark_accounts:[{name:'历史对标号',platform:'toutiao',fans:'10万',profile_url:null,top_articles:[['历史爆文',12345]]}],
     account_health:{account:'另一个账号',judgement:'限流/降权',impressions_per_day:400,reads_per_day:20,ctr_lt:2,since:'2026-10-28',notice:'平台通知',action:'观察'}
   }});
-  const html = renderContentReviewContent(data,model());
-  assert.match(html,/历史笔记/); assert.match(html,/历史对标号/); assert.match(html,/历史爆文/);
-  assert.match(html,/历史日报 2026-10-31 · 只读/);
-  assert.match(html,/观察对象：另一个账号 · 原始判断：限流\/降权/);
+  const html = renderContentReviewContent(data,{...model(),secondary:'notes'});
+  assert.match(html,/历史摘要/); assert.match(html,/>42<\/dd>/); assert.match(html,/历史日报 · 只读/);
+  assert.doesNotMatch(html,/历史笔记|历史对标号|历史爆文|另一个账号|平台通知/);
   assert.match(html,/<button class="review-health-badge"[^>]*>未记录<\/button>/);
   assert.doesNotMatch(html,/<button class="review-health-badge"[^>]*>限流/);
 });
 
-test('new records and attributed historical material remain visible together',() => {
-  const data = fixture(); data.reports.push({id:'old',account,period_end:'2026-10-31',metrics:{notes_md:'历史笔记',benchmark_accounts:[{name:'历史对标号',top_articles:[['历史爆文',5]]}],account_health:{account:'另一个账号',judgement:'限流/降权'}}});
+test('new records remain visible without duplicating migrated historical data',() => {
+  const data = fixture(); data.reports.push({id:'old',account,period_type:'daily',period_end:'2026-10-31',summary_md:'旧日报摘要',metrics:{notes_md:'历史笔记',benchmark_accounts:[{name:'历史对标号',top_articles:[['历史爆文',5]]}],account_health:{account:'另一个账号',judgement:'限流/降权'}}});
   data.notes = [{id:'n',account,title:'新笔记',body_md:'新内容'}]; data.accountHealth = [{id:'h',account,observed_on:'2026-10-31',judgement:'normal'}];
-  const html = renderContentReviewContent(data,model());
-  assert.match(html,/新笔记/); assert.match(html,/历史笔记/); assert.match(html,/观察对象：另一个账号 · 原始判断：限流\/降权/);
-  assert.match(html,/历史对标号/); assert.match(html,/历史爆文/);
+  const html = renderContentReviewContent(data,{...model(),secondary:'notes'});
+  assert.match(html,/新笔记/); assert.match(html,/旧日报摘要/);
+  assert.doesNotMatch(html,/历史笔记|另一个账号|历史对标号|历史爆文/);
   assert.match(html,/<button class="review-health-badge"[^>]*>正常<\/button>/);
 });

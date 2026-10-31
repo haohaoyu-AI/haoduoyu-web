@@ -1,9 +1,9 @@
 import {normalizeReviewData} from './core/review-data.mjs';
-import {renderContentReviewContent, REVIEW_VIEWS} from './pages/content-review.mjs';
+import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
 
 const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
-let vm = {account:'V字',view:'overview',week:'this',date:'',start:'',end:'',periods:[],filters:{},article:'',version:'',compare:'',loading:true,error:''};
+let vm = {account:'V字',view:'overview',secondary:'accounts',week:'this',date:'',start:'',end:'',periods:[],filters:{},article:'',version:'',compare:'',loading:true,error:''};
 const root = () => typeof document === 'undefined' ? null : document.querySelector('#content-review');
 function staleRead(message = '复盘资料在读取时发生变化，请重新读取。') {
   return Object.assign(new Error(message),{code:'READ_REVISION_CHANGED'});
@@ -12,7 +12,7 @@ function staleRead(message = '复盘资料在读取时发生变化，请重新�
 /** Read-only, offset pagination. An invalid page is an error, never a partial success. */
 export async function readReviewCollection(read, resource, selectedAccount, current = () => true) {
   if (!resources.includes(resource)) throw new Error('未知的复盘资料类型。');
-  const items = [], seen = new Set();
+  const items = [], seen = new Set(), foreignIds = new Set();
   let revision;
   for (let offset = 0; ; offset += 100) {
     const page = await read(`/review/${resource}?account=${encodeURIComponent(selectedAccount)}&offset=${offset}${revision === undefined ? '' : `&read_revision=${encodeURIComponent(revision)}`}`);
@@ -25,10 +25,11 @@ export async function readReviewCollection(read, resource, selectedAccount, curr
     }
     for (const row of page.items) {
       if (!row || typeof row !== 'object' || row.id === null || row.id === undefined || seen.has(String(row.id))) throw staleRead('复盘资料存在重复或无效记录，请重新读取。');
-      if (resource !== 'snapshots' && row.account !== selectedAccount) throw new Error('复盘资料与当前账号不一致。');
-      seen.add(String(row.id)); items.push(row);
+      seen.add(String(row.id));
+      if (resource !== 'snapshots' && row.account !== selectedAccount) { foreignIds.add(String(row.id)); continue; }
+      items.push(row);
     }
-    if (!page.has_more) return {items,read_revision:revision};
+    if (!page.has_more) return {items,read_revision:revision,foreignIds};
   }
 }
 export async function readContentReviewData(read, selectedAccount, current = () => true) {
@@ -38,7 +39,10 @@ export async function readContentReviewData(read, selectedAccount, current = () 
   if (revisions.length && revisions.some(value => value !== revisions[0])) throw staleRead();
   const result = normalizeReviewData(Object.fromEntries(resources.map((key,index) => [key,results[index].items])));
   const articles = new Set(result.articles.map(row => String(row.id)));
-  if (result.snapshots.some(row => !articles.has(String(row.article_id)))) throw staleRead('快照对应的文章不完整，请重新读取。');
+  const foreignArticles = results[0].foreignIds;
+  if (result.snapshots.some(row => !articles.has(String(row.article_id)) && !foreignArticles.has(String(row.article_id))))
+    throw staleRead('快照对应的文章不完整，请重新读取。');
+  result.snapshots = result.snapshots.filter(row => articles.has(String(row.article_id)));
   result.playbooks.sort((a,b) => String(b.published_on || '').localeCompare(String(a.published_on || '')) || String(b.version).localeCompare(String(a.version),undefined,{numeric:true}));
   result.reports.sort((a,b) => String(b.period_end).localeCompare(String(a.period_end)) || String(b.id).localeCompare(String(a.id)));
   return result;
@@ -56,7 +60,9 @@ export function reviewRoute(href,defaultAccount = vm.account) {
   const p = new URL(href).searchParams, legacy = p.get('review_view');
   const requested = p.get('tab') || (legacy === 'playbooks' ? 'playbook' : legacy);
   const view = REVIEW_VIEWS.some(([id]) => id === requested) ? requested : 'overview';
-  return {account:p.get('account')?.trim() || defaultAccount,view,week:p.get('review_week') === 'last' ? 'last' : 'this',article:p.get('review_article') || '',version:p.get('review_version') || ''};
+  const section = p.get('review_section');
+  const secondary = REVIEW_SECTIONS.some(([id]) => id === section) ? section : view === 'playbook' ? 'playbook' : 'accounts';
+  return {account:p.get('account')?.trim() || defaultAccount,view,secondary,week:p.get('review_week') === 'last' ? 'last' : 'this',article:p.get('review_article') || '',version:p.get('review_version') || ''};
 }
 const route = () => reviewRoute(location.href);
 function writeRoute(values) {
@@ -113,19 +119,19 @@ function registerEvents() {
     const target = event.target.closest?.('button,[data-review-row]');
     if (!target || !node?.contains(target)) return;
     if (target.dataset.reviewAction === 'show-health') {
-      if (vm.view !== 'overview') {
-        vm.view = 'overview'; vm.article = '';
-        writeRoute({view:'overview',article:''}); paintContentReviewPage();
-      }
-      const details = node.querySelector('#review-health-history');
-      if (details) {
-        details.open = true; details.scrollIntoView({behavior:'smooth',block:'start'});
-        details.querySelector('summary')?.focus({preventScroll:true});
-      }
+      vm.view = 'overview'; vm.secondary = 'attention'; vm.article = '';
+      writeRoute({view:'overview',section:'attention',article:''}); paintContentReviewPage();
+      const history = node.querySelector('#review-health-history');
+      history?.scrollIntoView({behavior:'smooth',block:'start'});
+      history?.focus({preventScroll:true});
       return;
     }
     if (target.dataset.reviewAction === 'refresh') { void loadContentReview(pageContext); return; }
     if (vm.loading || vm.error) return;
+    if (target.dataset.reviewSecondary) {
+      vm.secondary = target.dataset.reviewSecondary; writeRoute({section:vm.secondary}); paintContentReviewPage();
+      root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
+    }
     if (target.dataset.reviewView) { selectTab(target.dataset.reviewView,true); return; }
     if (target.dataset.reviewWeek) { vm.week = target.dataset.reviewWeek; writeRoute({week:vm.week}); paintContentReviewPage(); root()?.querySelector(`[data-review-week="${vm.week}"]`)?.focus({preventScroll:true}); return; }
     if (target.dataset.reviewAction === 'close-article') { closeArticle(); return; }
@@ -152,7 +158,12 @@ function registerEvents() {
       }
       return;
     }
-    if (event.target.matches('[role="tab"]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
+    if (event.target.matches('[data-review-secondary]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
+      event.preventDefault(); const ids = REVIEW_SECTIONS.map(([id]) => id), index = ids.indexOf(vm.secondary);
+      vm.secondary = event.key === 'Home' ? ids[0] : event.key === 'End' ? ids.at(-1) : ids[(index + (event.key === 'ArrowRight' ? 1 : ids.length-1)) % ids.length];
+      writeRoute({section:vm.secondary}); paintContentReviewPage(); root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
+    }
+    if (event.target.matches('[data-review-view]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
       event.preventDefault(); const ids = REVIEW_VIEWS.map(([id]) => id), index = ids.indexOf(vm.view);
       selectTab(event.key === 'Home' ? ids[0] : event.key === 'End' ? ids.at(-1) : ids[(index + (event.key === 'ArrowRight' ? 1 : ids.length-1)) % ids.length],true);
     }

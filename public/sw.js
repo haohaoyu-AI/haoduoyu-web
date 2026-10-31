@@ -1,5 +1,5 @@
 /* Build replaces only the marked configuration. This file never caches itself. */
-const SHELL_CONFIG = /* HAODUOYU_SHELL_START */ {"version":"a9bd636dd6d68190ef6b88453fa55235a9e57d515bc644ce73bfb8387f8dd302","assets":[{"url":"/","sha256":"37b22ce45a4fc9d8365dc0c7abae37ba8f6b5dfe4b678c8f94bbacd1ed2b9add"},{"url":"/app.js","sha256":"331748c0d5430ce4057db8ba2e888b40a9297f995a97dc21cdba4a3178911eee"},{"url":"/favicon.svg","sha256":"3e8f3efa9f1c0001145ff4f7f1f736c0feb815182e2a448b00f0d7b73238cb6b"},{"url":"/glass.css","sha256":"a7ad93ee19f0d2584e953aacb3a10927a468c1a02ca6e54e2b2d1b1150223433"},{"url":"/manifest.webmanifest","sha256":"b13e69559fb1b5a5d54a14bfc3fb59427b96c15860219ca2cd97f907d5d4d281"},{"url":"/memos.css","sha256":"53c2881e3a68728ddc961fd71a5edd992cf7e46a4efd0f91567b63deeb81c03a"},{"url":"/mobile.css","sha256":"a5898eb3965bf97acb33f6901fc1ba33f34e580ddfcd3aea9b4341a2a479eebf"},{"url":"/offline.css","sha256":"f5e5f80793bb06f9575b1cc7b89aeeac3caeda51bea32c77d71f8827ec8e6f15"},{"url":"/review.css","sha256":"8285ef985c329e06dba6649a747035cbada6a97cd22dbf5c4d5f1cc4ece01ad6"},{"url":"/style.css","sha256":"91f4a95bb5437f1c1a09526255da9b34b6811c5736c03bf709e7a385bf6df881"},{"url":"/sw-update.css","sha256":"8a9500d0a0b8cdb2543704b28e1dba99b029afb0af3725434b3448bd3239cd23"},{"url":"/tokens.css","sha256":"9613bcbaba412086d86e006f8178dcc23682f35bcaf515d9e43f7bc78b75af02"},{"url":"/workbench.css","sha256":"fd7cb6a02bd787ef44068fbb0893daa8b2618261eb26a25fea571372e3bba7a5"}]} /* HAODUOYU_SHELL_END */;
+const SHELL_CONFIG = /* HAODUOYU_SHELL_START */ {"version":"88bc323e1c810c04172384b38615372b663314c92eef1d0f72a0d2179df3dcc2","assets":[{"url":"/","sha256":"7cd1b60f17adac3364ca1a4c69d011a24908b4fd06c38a20c6202329df7bd941"},{"url":"/app.js","sha256":"b9e848d0df113dab5f73c311d38104bf472285a40f73233e4a2f8b88953ee498"},{"url":"/favicon.svg","sha256":"3e8f3efa9f1c0001145ff4f7f1f736c0feb815182e2a448b00f0d7b73238cb6b"},{"url":"/glass.css","sha256":"a7ad93ee19f0d2584e953aacb3a10927a468c1a02ca6e54e2b2d1b1150223433"},{"url":"/manifest.webmanifest","sha256":"b13e69559fb1b5a5d54a14bfc3fb59427b96c15860219ca2cd97f907d5d4d281"},{"url":"/memos.css","sha256":"53c2881e3a68728ddc961fd71a5edd992cf7e46a4efd0f91567b63deeb81c03a"},{"url":"/mobile.css","sha256":"a5898eb3965bf97acb33f6901fc1ba33f34e580ddfcd3aea9b4341a2a479eebf"},{"url":"/offline.css","sha256":"f5e5f80793bb06f9575b1cc7b89aeeac3caeda51bea32c77d71f8827ec8e6f15"},{"url":"/review.css","sha256":"b131380b5cf98af69e3becf6c64b8b9d6bf8467a089449528b00f52b3a709bb2"},{"url":"/style.css","sha256":"91f4a95bb5437f1c1a09526255da9b34b6811c5736c03bf709e7a385bf6df881"},{"url":"/sw-update.css","sha256":"8a9500d0a0b8cdb2543704b28e1dba99b029afb0af3725434b3448bd3239cd23"},{"url":"/tokens.css","sha256":"9613bcbaba412086d86e006f8178dcc23682f35bcaf515d9e43f7bc78b75af02"},{"url":"/workbench.css","sha256":"fd7cb6a02bd787ef44068fbb0893daa8b2618261eb26a25fea571372e3bba7a5"}]} /* HAODUOYU_SHELL_END */;
 
 (() => {
   'use strict';
@@ -158,7 +158,10 @@ const SHELL_CONFIG = /* HAODUOYU_SHELL_START */ {"version":"a9bd636dd6d68190ef6b
     return path === '/api/v1' || path.startsWith('/api/v1/') ||
       ['/health', '/auth', '/login', '/logout'].some(prefix => path === prefix || path.startsWith(prefix + '/'));
   }
-  self.addEventListener('install', event => event.waitUntil(install()));
+  // Activate only after every shell asset passes its integrity check. Existing
+  // documents are not claimed or reloaded: their pinned assets and any
+  // unsaved editor state remain intact. New navigations get the new shell.
+  self.addEventListener('install', event => event.waitUntil(install().then(() => self.skipWaiting())));
   self.addEventListener('activate', event => event.waitUntil(activate()));
   self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
@@ -181,6 +184,6 @@ const SHELL_CONFIG = /* HAODUOYU_SHELL_START */ {"version":"a9bd636dd6d68190ef6b
     if (event.data?.type === 'HAODUOYU_SHELL_CLIENT_VERSION')
       event.waitUntil(pin(source.id, event.data.version));
     if (event.data?.type === 'HAODUOYU_SHELL_ACTIVATE')
-      event.waitUntil(self.skipWaiting()); // Only an explicit page update button sends this.
+      event.waitUntil(self.skipWaiting()); // Retain compatibility with older update buttons.
   });
 })();

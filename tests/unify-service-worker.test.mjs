@@ -83,9 +83,9 @@ test('build hashes every shell byte and canonical SW, with deterministic version
   assert.throws(()=>buildServiceWorkerAssets({indexHtml:first.indexHtml,swSource:template,assets:missing}));
 });
 
-test('installation validates the complete generation and never activates or claims pages automatically',async()=>{
+test('installation activates only after validating the complete generation and never claims pages',async()=>{
   const built=fixture(),runtime=await installed(built);
-  assert.equal(runtime.state.skips,0);assert.equal(runtime.state.claims,0);
+  assert.equal(runtime.state.skips,1);assert.equal(runtime.state.claims,0);
   assert.equal(runtime.requests.length,built.config.assets.length);
   assert.ok(runtime.requests.every(request=>request.options.cache==='no-store'&&request.options.credentials==='omit'));
   const bad=fixture('B'),second=worker(bad,{caches:runtime.caches});second.state.network=runtime.state.network;
@@ -118,6 +118,21 @@ test('a new active worker serves old page assets from their pinned generation, n
   assert.equal(await (await fetched(current,`/retired.css?__shell=${a.version}`,{clientId:'old-tab'})).text(),'old optional CSS');
   assert.equal(await (await fetched(current,`/app.js?__shell=${b.version}`,{clientId:'new-tab'})).text(),b.assets['/app.js']);
   assert.equal((await fetched(current,`/app.js?__shell=${'f'.repeat(64)}`)).status,503);
+});
+
+test('an update leaves an existing editor pinned while the next review navigation gets the new shell',async()=>{
+  const a=fixture('A'),old=await installed(a,{clients:[{id:'editing-tab'}]});
+  await fetched(old,`/app.js?__shell=${a.version}`,{clientId:'editing-tab'});
+  const b=fixture('B'),current=await installed(b,{caches:old.caches,clients:[{id:'editing-tab'}]});
+  assert.equal(current.state.skips,1);
+  assert.equal(current.state.claims,0);
+  assert.equal(await (await fetched(current,`/app.js?__shell=${a.version}`,{clientId:'editing-tab'})).text(),a.assets['/app.js']);
+  const path='/?page=review&account=V%E5%AD%97';
+  const next=current.request(path,{request:{url:ORIGIN+path,method:'GET',mode:'navigate'},resultingClientId:'new-tab'});
+  const response=await next.response;await next.done;
+  assert.equal(response.status,200);assert.equal(response.headers.get('location'),null);
+  assert.equal(await response.text(),b.indexHtml);
+  assert.equal(await (await fetched(current,`/app.js?__shell=${b.version}`,{clientId:'new-tab'})).text(),b.assets['/app.js']);
 });
 
 test('background refresh detects a different build without replacing any old-generation response',async()=>{
@@ -164,12 +179,12 @@ test('activation prunes only unreferenced shell generations and closed pins, whi
   assert.equal(rollback.requests.length,0);assert.equal(await old.caches.has(PREFIX+d.version),true);
 });
 
-test('only a same-origin window update message requests activation; installation alone never does',async()=>{
+test('only a same-origin window update message may also request activation',async()=>{
   const runtime=await installed(fixture());
   await runtime.dispatch('message',{data:{type:'HAODUOYU_SHELL_ACTIVATE'},source:{type:'window',url:'https://outside.example',id:'x'}}).done;
-  assert.equal(runtime.state.skips,0);
+  assert.equal(runtime.state.skips,1);
   await runtime.dispatch('message',{data:{type:'HAODUOYU_SHELL_ACTIVATE'},source:{type:'window',url:ORIGIN+'/?page=todos',id:'x'}}).done;
-  assert.equal(runtime.state.skips,1);assert.equal(runtime.state.claims,0);
+  assert.equal(runtime.state.skips,2);assert.equal(runtime.state.claims,0);
 });
 
 function browserFixture() {
