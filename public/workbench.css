@@ -368,6 +368,10 @@ body:has(#memo-fullscreen[open]) { overflow:hidden; }
 .note-entry-saved .note-entry-reader { margin:0; min-height:0; white-space:pre-wrap; overflow:visible; overflow-wrap:anywhere; }
 .note-entry-saved .note-entry-status[data-phase="saved"] { display:none; }
 .note-entry-saved .note-entry-edit { position:absolute; top:6px; right:10px; min-width:var(--size-control); min-height:var(--size-control); padding:var(--space-6); font-size:var(--font-size-12); }
+/* Legacy read-only labels can be longer than the compact edit control. */
+#daily-notes .notes-legacy-saved .note-entry-head { padding-right:0; gap:var(--space-8); }
+#daily-notes .notes-legacy-saved .note-entry-status { min-width:0; overflow-wrap:anywhere; }
+#daily-notes .notes-legacy-saved .note-entry-edit { position:static; max-width:100%; white-space:normal; text-align:left; }
 .note-entry-draft-label { border-left:2px solid var(--color-draft-marker); padding-left:var(--space-10); }
 .notes-entry-list { gap:var(--space-10); }
 @media (max-width:760px) {
@@ -730,3 +734,21 @@ body.floating-workbench {
   #todo-future .todo-future-schedule { order:2; width:100%; }
   #todo-future .todo-future-schedule input[type=date] { flex:1; min-width:0; width:auto; }
 }
+
+/* Center the notes history month without widening its surrounding content. */
+#notes-history .notes-calendar-weekdays,
+#notes-history .notes-calendar-grid {
+  width:min(100%, 560px);
+  max-width:560px;
+  margin-inline:auto;
+}
+#notes-history .notes-calendar-day { min-height:48px; }
+@media (max-width:700px) {
+  #notes-history .notes-calendar-weekdays,
+  #notes-history .notes-calendar-grid { gap:4px; }
+  #notes-history .notes-calendar-day { min-height:44px; padding:4px; }
+}
+#notes-history:has(.notes-calendar-grid:not([hidden])) .notes-history-views { margin-bottom:16px; }
+#notes-history:has(.notes-calendar-grid:not([hidden])) .notes-calendar-summary { margin-bottom:10px; }
+#notes-history:has(.notes-calendar-grid:not([hidden])) #notes-history-status:not(:empty) { margin:0 0 14px; }
+#notes-history:has(.notes-calendar-grid:not([hidden])) #notes-history-status:empty { display:none; }

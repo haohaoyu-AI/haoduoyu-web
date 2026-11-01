@@ -23,7 +23,7 @@ export function renderMemos() {
     '<div class="memo-dialog-actions">' + button('cancel', '取消') + button('confirm', '确认') + '</div></section>' +
     '<div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录">' +
     '<div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' +
-    button('new-note', '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4H5v16h12v-7M8 16l1-3 8-8 2 2-8 8-3 1ZM18 13v6m-3-3h6"/></svg>', 'hidden aria-label="新建笔记" title="新建笔记"') + '</div>' +
+    button('new-note', '<span class="memo-add-page-visual"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="m8 16 1-3 6.8-6.8 2 2L11 15l-3 1Z"/></svg><span>添加页</span></span>', 'hidden aria-label="添加页" title="添加页"') + '</div>' +
     '<div id="memo-group-list" class="memo-list"></div></aside>' +
     '<div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" ' +
     'aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" ' +

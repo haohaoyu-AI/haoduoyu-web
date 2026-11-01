@@ -232,6 +232,12 @@ function retainedDrafts() {
   }
   return result;
 }
+// Keep the last message intact while avoiding doubled sentence punctuation
+// where multiple independent read-only warnings are joined.
+export function joinNotesErrors(values) {
+  const messages = values.filter(Boolean).map(String);
+  return messages.map((message, index) => index < messages.length - 1 ? message.replace(/[。；]+$/u, '') : message).join('；');
+}
 export function paintDailyNotesPage() {
   for (const callback of floatingNoteObservers) callback();
   if (!notesVisible() || notesRefreshPaused) return;
@@ -264,9 +270,9 @@ export function paintDailyNotesPage() {
   const otherPage = otherStore?.page(date);
   const mixedStore = {entry: id => entryStore.entry(id) || otherStore?.entry(id)};
   const mixed = {...current, ids: [...current.ids, ...(otherPage?.ids || [])],
-    error: [current.error, otherPage?.error && (otherCategory === 'work' ? '工作：' : '生活：') + otherPage.error,
+    error: joinNotesErrors([current.error, otherPage?.error && (otherCategory === 'work' ? '工作：' : '生活：') + otherPage.error,
       legacy.error && (category === 'work' ? '工作原记录：' : '生活原记录：') + legacy.error,
-      otherLegacy?.error && (otherCategory === 'work' ? '工作原记录：' : '生活原记录：') + otherLegacy.error].filter(Boolean).join('；'),
+      otherLegacy?.error && (otherCategory === 'work' ? '工作原记录：' : '生活原记录：') + otherLegacy.error]),
     loading: current.loading || Boolean(otherPage?.loading) || legacy.loading || Boolean(otherLegacy?.loading),
     allLoaded: current.loaded && Boolean(otherPage?.loaded) && legacy.loaded && Boolean(otherLegacy?.loaded) &&
       !current.error && !otherPage?.error && !legacy.error && !otherLegacy?.error};
