@@ -18,6 +18,12 @@ function versionOf(value) {
   if(!Number.isSafeInteger(value)||value<1||value>=Number.MAX_SAFE_INTEGER)throw fail(400,'VALIDATION_ERROR','待办版本需要为正整数');
   return value;
 }
+function dateOf(value) {
+  if(typeof value!=='string'||!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value))throw fail(400,'VALIDATION_ERROR','日期需要使用有效的 YYYY-MM-DD');
+  const parsed=new Date(value+'T00:00:00.000Z');
+  if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==value)throw fail(400,'VALIDATION_ERROR','日期需要使用有效的 YYYY-MM-DD');
+  return value;
+}
 function inputFor(body,operation) {
   if(operation==='create') {
     exact(body,['id','text']);
@@ -25,7 +31,8 @@ function inputFor(body,operation) {
       throw fail(400,'VALIDATION_ERROR','待办内容需要 1 至 500 个字符');
     return {id:idOf(body.id),text:body.text.trim()};
   }
-  exact(body,operation==='completed'?['completed','version']:['version']);versionOf(body.version);
+  exact(body,operation==='completed'?['completed','version']:operation==='move'?['date','version']:['version']);versionOf(body.version);
+  if(operation==='move')dateOf(body.date);
   if(operation==='completed'&&typeof body.completed!=='boolean')throw fail(400,'VALIDATION_ERROR','完成状态需要为布尔值');
   return body;
 }
@@ -46,6 +53,26 @@ async function write(store,actor,operation,id,input) {
   }
   const current=await find(store,actor.id,id);
   if(!current)throw fail(404,'NOT_FOUND','待办不存在');
+  if(operation==='move') {
+    const target=await store.get('SELECT id,date,text,completed,version,created_at,updated_at,deleted_at FROM matrix_todos WHERE user_id=? AND id=?',actor.id,id);
+    const link=target&&await store.get('SELECT template_id FROM matrix_todo_template_links WHERE user_id=? AND todo_id=?',actor.id,id);
+    if(target && target.deleted_at!==null)throw fail(410,'TODO_DELETED','目标日期中的同一待办已删除，请核对当前状态');
+    if(target&&(target.date!==input.date||target.text!==current.text||link))
+      throw fail(409,'IDEMPOTENCY_CONFLICT','已有同一标识的不同待办，请核对当前状态');
+    if(current.deleted_at!==null) {
+      if(current.version===input.version+1 && target)return {replayed:true,response:json({todo:item(target),source:item(current)})};
+      throw fail(409,'VERSION_CONFLICT','未来待办已变更，请刷新后重试');
+    }
+    if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
+    if(target&&Boolean(target.completed)!==Boolean(current.completed))
+      throw fail(409,'IDEMPOTENCY_CONFLICT','已有待办的完成状态不同，原未来待办仍保留');
+    const stamp=now();
+    const todo=target||{id,date:input.date,text:current.text,completed:current.completed,version:1,created_at:stamp,updated_at:stamp,deleted_at:null};
+    if(!target)store.queue('INSERT INTO matrix_todos(user_id,id,date,text,completed,version,created_at,updated_at) VALUES(?,?,?,?,?,1,?,?)',actor.id,id,input.date,current.text,Number(current.completed),stamp,stamp);
+    store.queue('UPDATE matrix_unscheduled_todos SET deleted_at=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',stamp,stamp,actor.id,id,input.version);
+    store.expectChange();
+    return {actor,response:json({todo:item(todo),source:item({...current,deleted_at:stamp,version:current.version+1,updated_at:stamp})})};
+  }
   if(operation==='completed'&&current.deleted_at!==null)throw fail(410,'TODO_DELETED','待办已删除，请使用恢复操作');
   const deleted=operation==='delete',restoring=operation==='restore';
   if((deleted||restoring)&&(current.deleted_at!==null)===deleted&&(current.version===input.version||current.version===input.version+1))
@@ -76,11 +103,11 @@ export async function handleUnscheduledTodos(db,request,route,origin,initialRevi
     return json({items:rows.map(item)});
   },initialRevision);
   const first=await authenticate(storeFor(db),request,method==='GET'?'read':'write');requireUser(first);
-  const match=/^\/unscheduled-todos\/([^/]+)$/.exec(route),restore=/^\/unscheduled-todos\/([^/]+)\/restore$/.exec(route);
-  const operation=method==='POST'&&route==='/unscheduled-todos'?'create':method==='PATCH'&&match?'completed':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':null;
+  const match=/^\/unscheduled-todos\/([^/]+)$/.exec(route),restore=/^\/unscheduled-todos\/([^/]+)\/restore$/.exec(route),move=/^\/unscheduled-todos\/([^/]+)\/move$/.exec(route);
+  const operation=method==='POST'&&route==='/unscheduled-todos'?'create':method==='PATCH'&&match?'completed':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&move?'move':null;
   if(!operation)throw fail(404,'NOT_FOUND','接口不存在');
   requireCsrf(request,first,origin);
-  const body=await bodyFor(request),id=operation==='create'?null:idOf((match||restore)[1]),input=inputFor(body,operation);
+  const body=await bodyFor(request),id=operation==='create'?null:idOf((match||restore||move)[1]),input=inputFor(body,operation);
   return (await mutate(db,async store=>{
     const actor=await authenticate(store,request,'write');requireUser(actor);requireCsrf(request,actor,origin);
     return write(store,actor,operation,id,input);

@@ -133,7 +133,7 @@ export function paintDailyNotes(root, item, {compatibility = false, editing = fa
 }
 function entryControlsMarkup() {
   return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions">' +
-    '<button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送">发送</button>' +
+    '<button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送"></button>' +
     '<span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
     '<button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button>' +
     '<button class="btn text" type="button" data-note-entry-action="delete">删除</button></div>' +
@@ -204,8 +204,9 @@ function paintEntryEditor(node, item, confirmId, labels, labelsVerified) {
   find('.note-entry-actions').hidden = !item.canEdit;
   const busy = Boolean(item.pending) || ['conflict', 'unknown'].includes(item.phase);
   const save = find('[data-note-entry-action="save"]'); save.hidden = item.deleted || !item.canEdit;
-  save.textContent = item.pending ? '发送中…' : item.phase === 'error' ? '重试发送' : '发送';
-  save.setAttribute('aria-label', save.textContent);
+  const sendLabel = item.pending ? '发送中…' : item.phase === 'error' ? '重试发送' : '发送';
+  save.setAttribute('aria-label', sendLabel);
+  save.setAttribute('title', sendLabel);
   save.disabled = busy || !item.dirty || item.composing || item.phase === 'oversize';
   const feedback = find('.note-entry-send-feedback');
   feedback.textContent = item.pending ? '发送中…' : !item.manualSubmitted || item.dirty ? '' :

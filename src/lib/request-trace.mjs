@@ -22,6 +22,7 @@ paths.push('/api/v1/review/benchmark-articles:batch');
 routes.set('/api/v1/review/snapshots:batch','/api/v1/review/snapshots:batch');
 paths.push('/api/v1/review/snapshots:batch');
 for(const action of ['restore','template']) dynamic.push([new RegExp('^/api/v1/todos/[^/]+/'+action+'$'),'/api/v1/todos/{id}/'+action]);
+dynamic.push([/^\/api\/v1\/unscheduled-todos\/[^/]+\/move$/,'/api/v1/unscheduled-todos/{id}/move']);
 for(const kind of ['groups','notes','operations']) dynamic.push([
   new RegExp('^/api/v1/memos/'+kind+'/[^/]+$'),'/api/v1/memos/'+kind+'/{id}',
 ]);

@@ -4363,6 +4363,37 @@ function createOfflineRuntime(options3) {
       if (owner2 !== context.state.scope || generation !== context.generation) throw fail4("账号已切换，原未来待办仍保留。", "OFFLINE_SCOPE_CHANGED");
       return structuredClone(offlineValue(entity) || null);
     },
+    // Confirmed server moves are reflected without discarding local edits.
+    async acceptMovedTodo({ source, todo }, token) {
+      const active5 = () => token && context.state.scope === token.scope && context.state.verifiedScope === token.scope && context.generation === token.generation;
+      if (!active5() || !source?.id || source.id !== todo?.id) return "refresh";
+      const ids = ["unscheduled_todo:" + source.id, "todo:" + source.id];
+      return context.db.transaction(["entities", "outbox", "conflicts", "meta"], "readwrite", async (tx) => {
+        if (!active5()) return "refresh";
+        const [operations2, conflicts] = await Promise.all([tx.getAll("outbox"), tx.getAll("conflicts")]);
+        if (operations2.some((op) => op.scope === token.scope && ids.includes(op.entity_id) && !["done", "archived"].includes(op.status)) || conflicts.some((conflict) => conflict.scope === token.scope && conflict.resolved_at === null && ids.includes(conflict.operation?.entity_id || conflict.entity_id))) return "pending";
+        const keys = ids.map((id2) => entityKey(token.scope, id2));
+        const old = await Promise.all(keys.map((key) => tx.get("entities", key)));
+        if (!active5()) return "refresh";
+        if (old.some((entity) => entity?.dirty)) return "pending";
+        if (old.some((entity, i) => entity?.server?.version > [source, todo][i].version)) return "refresh";
+        for (const [i, row] of [source, todo].entries()) {
+          await tx.put("entities", {
+            ...old[i],
+            key: keys[i],
+            scope: token.scope,
+            entity_id: ids[i],
+            server: structuredClone(row),
+            remote_missing: false,
+            ...i === 1 ? { needs_api_refresh: false } : {}
+          });
+        }
+        if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+        const day6 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
+        if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+        return Array.isArray(day6?.data?.items) ? "saved" : "refresh";
+      });
+    },
     queue: context.queue,
     resolve: context.resolve,
     invalidate: context.invalidate,
@@ -4555,17 +4586,29 @@ var init_api = __esm({
   }
 });
 
+// web/ui/toast.mjs
+init_dom();
+function toast(message, error = false) {
+  const node2 = document.createElement("div");
+  node2.className = `toast${error ? " error" : ""}`;
+  node2.setAttribute("role", error ? "alert" : "status");
+  node2.textContent = message;
+  $("#toasts").append(node2);
+  while ($("#toasts").children.length > 3) $("#toasts").firstElementChild.remove();
+  setTimeout(() => node2.remove(), error ? 8e3 : 4500);
+}
+
 // web/pages/unscheduled-todos.mjs
 init_api();
 init_dom();
 init_state();
 init_todos_state();
 init_runtime();
-var cache = { owner: "", items: [], draft: "", loaded: false, loading: false, error: "", notice: "", pending: false, request: null, dates: {} };
-var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null]);
+var cache = { owner: "", items: [], draft: "", loaded: false, loading: false, error: "", notice: "", pending: false, request: null, dates: {}, uncertain: {} };
+var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null, getOfflineRuntime()?.state.scope ?? null]);
 function current() {
   const key = owner();
-  if (cache.owner !== key) Object.assign(cache, { owner: key, items: [], draft: "", loaded: false, loading: false, error: "", notice: "", pending: false, request: null, dates: {} });
+  if (cache.owner !== key) Object.assign(cache, { owner: key, items: [], draft: "", loaded: false, loading: false, error: "", notice: "", pending: false, request: null, dates: {}, uncertain: {} });
   return cache;
 }
 var visible = () => Boolean(state.me) && state.page === "todos" && state.todoPanel === "future";
@@ -4575,7 +4618,7 @@ function renderUnscheduledTodos() {
 <form id="todo-future-form" class="daily-todo-form"><label class="sr-only" for="todo-future-text">未来待办</label>
 <input id="todo-future-text" class="input" name="text" maxlength="500" required autocomplete="off" placeholder="还没确定日期的事" value="${e(v.draft)}">
 <button class="btn primary" type="submit" ${v.pending ? "disabled" : ""}>添加</button></form>
-<p class="todo-future-help">选择日期后可添加至当天，原未来待办保留。</p>
+<p class="todo-future-help">选择日期后可移至当天的待办。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
@@ -4589,9 +4632,9 @@ function paintUnscheduledTodos() {
   if (status) status.textContent = v.notice || (v.loading && !v.loaded ? "" : v.loaded && v.items.length === 0 ? "还没有未来待办。" : "");
   if (error) error.textContent = v.error;
   if (list2) list2.innerHTML = v.items.filter((x) => !x.deleted_at && !x.deleted).map((x) => `<li class="daily-todo-row${x.completed ? " is-complete" : ""}">
-<label><input type="checkbox" data-future-todo-id="${e(x.id)}" ${x.completed ? "checked" : ""} ${v.pending ? "disabled" : ""}>
-<span class="daily-todo-text">${e(x.text)}</span></label><div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(x.id)}" value="${e(v.dates[x.id] || "")}" aria-label="为 ${e(x.text)} 选择日期" ${v.pending ? "disabled" : ""}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${e(x.id)}" ${v.pending ? "disabled" : ""}>添加至该日期</button></div><button class="icon-button" type="button"
- data-action="todo-future-delete" data-id="${e(x.id)}" aria-label="删除 ${e(x.text)}" ${v.pending ? "disabled" : ""}>×</button></li>`).join("");
+<label><input type="checkbox" data-future-todo-id="${e(x.id)}" ${x.completed ? "checked" : ""} ${v.pending || v.uncertain[x.id] ? "disabled" : ""}>
+<span class="daily-todo-text">${e(x.text)}</span></label><div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(x.id)}" value="${e(v.dates[x.id] || "")}" aria-label="为 ${e(x.text)} 选择日期" ${v.pending || v.uncertain[x.id] ? "disabled" : ""}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${e(x.id)}" ${v.pending ? "disabled" : ""}>${v.uncertain[x.id] ? "核实移动结果" : "移至该日期"}</button></div><button class="icon-button" type="button"
+ data-action="todo-future-delete" data-id="${e(x.id)}" aria-label="删除 ${e(x.text)}" ${v.pending || v.uncertain[x.id] ? "disabled" : ""}>×</button></li>`).join("");
 }
 async function loadUnscheduledTodos() {
   if (!visible()) return;
@@ -4603,7 +4646,8 @@ async function loadUnscheduledTodos() {
   try {
     const data2 = await api("/unscheduled-todos");
     if (v.owner !== key || owner() !== key || !Array.isArray(data2.items)) return;
-    v.items = data2.items;
+    const ids = new Set(data2.items.map((item) => item.id));
+    v.items = [...data2.items, ...Object.values(v.uncertain).map((item) => item.row).filter((item) => !ids.has(item.id))];
     v.loaded = true;
   } catch (error) {
     if (v.owner === key && owner() === key && !error.staleSession && error.name !== "AbortError") v.error = error.message;
@@ -4618,49 +4662,165 @@ function inputUnscheduledTodo(el) {
   if (el.id === "todo-future-text") current().draft = el.value;
   if (el.dataset?.futureDateId) current().dates[el.dataset.futureDateId] = el.value;
 }
-async function planFutureSchedule(row, date, { findTodo, readIndex, create, expectedScope }) {
-  if (!validTodoDate(date)) throw new Error("请选择有效日期，原未来待办仍保留。");
-  const local = await findTodo(row.id);
-  if (local) return { existing: true, date: local.date, deleted: Boolean(local.deleted_at || local.deleted) };
-  let index;
+function moved(row, date, source, todo) {
+  return source?.id === row.id && source.text === row.text && source.version === row.version + 1 && source.completed === row.completed && typeof source.deleted_at === "string" && todo?.id === row.id && todo.date === date && todo.text === row.text && todo.deleted_at === null && Number.isSafeInteger(todo.version) && todo.version >= 1 && todo.completed === row.completed && Number.isFinite(Date.parse(todo.created_at)) && Number.isFinite(Date.parse(todo.updated_at));
+}
+function unchanged(row, source) {
+  return source?.id === row.id && source.text === row.text && source.version === row.version && source.completed === row.completed && source.deleted_at === null;
+}
+async function verifyFutureMove(row, date, { readSource, readDay, guard = () => {
+} }) {
   try {
-    index = await readIndex();
-  } catch (error) {
-    if (error.status === 401 || error.status === 403) throw error;
-    throw new Error("暂时无法联网核对已安排日期，请联网后重试；原未来待办仍保留。");
+    const source = await readSource(row.id);
+    guard();
+    const day6 = await readDay(date);
+    guard();
+    const todo = Array.isArray(day6?.items) ? day6.items.find((item) => item.id === row.id) : null;
+    if (moved(row, date, source, todo)) return { state: "confirmed", source, todo };
+    const compatible = !todo || todo.date === date && todo.text === row.text && todo.completed === row.completed && todo.deleted_at === null && !todo.template_id;
+    return unchanged(row, source) && day6?.date === date && Array.isArray(day6.items) && compatible ? { state: "retryable" } : { state: "unknown", source };
+  } catch {
+    return { state: "unknown" };
   }
-  if (index?.complete !== true || !Array.isArray(index.entities) || expectedScope && index.scope_id !== expectedScope)
-    throw new Error("无法核对已安排日期，请稍后重试；原未来待办仍保留。");
-  const existing = index.entities.find((item) => item?.entity_id === "todo:" + row.id);
-  if (existing) return { existing: true, date: existing.date, deleted: Boolean(existing.deleted_at) };
-  await create({ id: row.id, date, text: row.text });
-  return { existing: false, date };
+}
+async function planFutureMove(row, date, { checkReady, move, readSource, readDay, guard = () => {
+}, priorUncertain = false }) {
+  if (!validTodoDate(date)) return { state: "not_started", reason: "请选择有效日期" };
+  try {
+    await checkReady(row);
+    guard();
+  } catch (error) {
+    if (error.staleSession) return { state: "cancelled" };
+    if (priorUncertain) return { state: "unknown" };
+    if (error.status === 429 || error.code === "NETWORK_UNAVAILABLE" || error.name === "AbortError")
+      return { state: "not_started", reason: error.message || "请稍后重试" };
+    try {
+      const source = await readSource(row.id);
+      guard();
+      if (source?.id === row.id && source.deleted_at === null) return { state: "failed", reason: error.message || "暂时无法核对数据" };
+    } catch {
+    }
+    return { state: "not_started", reason: error.message || "暂时无法核对数据" };
+  }
+  try {
+    const result2 = await move(row.id, { date, version: row.version });
+    guard();
+    if (moved(row, date, result2?.source, result2?.todo)) return { state: "confirmed", ...result2 };
+  } catch (error) {
+    if (error.staleSession) return { state: "unknown" };
+    if (error.status === 429) return priorUncertain ? { state: "unknown" } : { state: "not_started", reason: error.message || "请求较多，请稍后重试" };
+    if (!priorUncertain && error.status >= 400 && error.status < 500 && ![408, 425].includes(error.status)) {
+      try {
+        const source = await readSource(row.id);
+        guard();
+        if (source?.id === row.id && source.deleted_at === null) return { state: "failed", reason: error.message || "请稍后重试" };
+      } catch {
+      }
+    }
+  }
+  const result = await verifyFutureMove(row, date, { readSource, readDay, guard });
+  return result.state === "retryable" ? { state: "unknown" } : result;
+}
+function timedNetwork(path, options3 = {}) {
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 12e3);
+  return apiNetwork(path, { ...options3, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+function formatMovedDate(date) {
+  const [, month, day6] = date.split("-");
+  return `${Number(month)}月${Number(day6)}日`;
 }
 async function scheduleUnscheduledTodo(id2) {
   if (!visible()) return;
   const v = current(), key = v.owner, row = v.items.find((item) => item.id === id2 && !item.deleted_at && !item.deleted);
   if (!row || v.pending) return;
-  const date = v.dates[id2] || "";
+  const unresolved2 = v.uncertain[id2], original = unresolved2?.row || structuredClone(row), date = unresolved2?.date || v.dates[id2] || "";
   v.pending = true;
   v.error = "";
   v.notice = "";
   paintUnscheduledTodos();
+  const offline = getOfflineRuntime(), token = offline?.captureRateLimitContext();
+  if (!offline || !token) {
+    v.pending = false;
+    paintUnscheduledTodos();
+    toast("未执行移动：请联网并确认数据后重试", true);
+    return;
+  }
+  const guard = () => {
+    const currentToken = offline?.captureRateLimitContext();
+    if (v.owner !== key || owner() !== key || !token || !currentToken || currentToken.scope !== token.scope || currentToken.generation !== token.generation)
+      throw Object.assign(new Error("账号或数据范围已变化"), { staleSession: true });
+  };
+  const readSource = (sourceId) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId));
+  const readDay = (day6) => timedNetwork("/todos?date=" + encodeURIComponent(day6));
+  const services = {
+    guard,
+    readSource,
+    readDay,
+    move: (sourceId, body2) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId) + "/move", { method: "POST", body: body2 }),
+    async checkReady(item) {
+      guard();
+      const index = await timedNetwork("/workbench-snapshot/index?version=2");
+      guard();
+      if (index?.complete !== true || index.projection !== "current" || index.scope_id !== token.scope) throw new Error("无法核对当前数据范围");
+      const queue = await offline.queue();
+      guard();
+      const ids = ["unscheduled_todo:" + item.id, "todo:" + item.id];
+      const pending = (value) => value.operations.some((op) => ids.includes(op.entity_id)) || value.conflicts.some((conflict) => ids.includes(conflict.entity_id || conflict.operation?.entity_id));
+      if (pending(queue)) throw new Error("该待办有未同步内容，请同步后重试");
+      const source = await readSource(item.id);
+      guard();
+      if (!unchanged(item, source)) throw new Error("待办已变化，请刷新后重试");
+      const latest = await offline.queue();
+      guard();
+      if (pending(latest)) throw new Error("该待办有未同步内容，请同步后重试");
+    }
+  };
   try {
-    const offline = getOfflineRuntime();
-    if (!offline) throw new Error("本地数据尚未准备好，请稍后重试；原未来待办仍保留。");
-    const result = await planFutureSchedule(row, date, {
-      expectedScope: offline.state.scope,
-      findTodo: (todoId) => offline.findTodo(todoId),
-      readIndex: () => apiNetwork("/workbench-snapshot/index?version=2"),
-      create: (body2) => {
-        if (v.owner !== key || owner() !== key) throw Object.assign(new Error("账号已切换，原未来待办仍保留。"), { staleSession: true });
-        return api("/todos", { method: "POST", body: body2 });
-      }
-    });
+    let result;
+    if (unresolved2) {
+      result = await verifyFutureMove(original, date, services);
+      if (result.state === "retryable") result = await planFutureMove(original, date, { ...services, priorUncertain: true });
+    } else result = await planFutureMove(original, date, services);
     if (v.owner !== key || owner() !== key) return;
-    v.notice = result.existing ? `此待办已安排至 ${result.date || "其他日期"}${result.deleted ? "（该日期的记录已删除）" : ""}；原未来待办保留。` : `已添加至 ${result.date}，后台自动同步；原未来待办保留。`;
-  } catch (error) {
-    if (v.owner === key && owner() === key && !error.staleSession) v.error = error.message;
+    try {
+      guard();
+    } catch {
+      return;
+    }
+    if (result.state === "confirmed") {
+      delete v.uncertain[id2];
+      v.items = v.items.filter((item) => item.id !== id2);
+      let cacheStatus = "refresh";
+      try {
+        cacheStatus = await offline.acceptMovedTodo({ source: result.source, todo: result.todo }, token);
+      } catch {
+      }
+      if (v.owner !== key || owner() !== key) return;
+      try {
+        guard();
+      } catch {
+        return;
+      }
+      if (cacheStatus === "saved" && todosState.owner === todoOwner()) {
+        const day6 = todosState.days.get(date);
+        if (day6) {
+          mergeTodo(day6, result.todo);
+          day6.revision++;
+        }
+      }
+      const note = cacheStatus === "pending" ? "；本地仍有待处理内容，请在设置中处理" : cacheStatus === "saved" ? "" : "；本地缓存待刷新";
+      toast(`已移至 ${formatMovedDate(date)}${note}`);
+    } else if (result.state === "failed") {
+      toast(`移动失败，原项已保留：${result.reason}`, true);
+    } else if (result.state === "not_started") {
+      toast(`未执行移动：${result.reason}`, true);
+    } else if (result.state === "cancelled") {
+      return;
+    } else {
+      v.uncertain[id2] = { row: original, date };
+      v.notice = "移动结果尚未确认，请联网后点击“核实移动结果”。";
+      toast(v.notice, true);
+    }
   } finally {
     if (v.owner === key && owner() === key) {
       v.pending = false;
@@ -5430,18 +5590,6 @@ init_dom();
 init_state();
 function sortHeading(key, label3) {
   return `<button class="sort-heading" data-action="sort-column" data-sort="${e(key)}" aria-label="按${e(label3)}排序">${e(label3)} ${state.filters.sort === key ? state.filters.order === "asc" ? "↑" : "↓" : "↕"}</button>`;
-}
-
-// web/ui/toast.mjs
-init_dom();
-function toast(message, error = false) {
-  const node2 = document.createElement("div");
-  node2.className = `toast${error ? " error" : ""}`;
-  node2.setAttribute("role", error ? "alert" : "status");
-  node2.textContent = message;
-  $("#toasts").append(node2);
-  while ($("#toasts").children.length > 3) $("#toasts").firstElementChild.remove();
-  setTimeout(() => node2.remove(), error ? 8e3 : 4500);
 }
 
 // web/pages/articles.mjs
@@ -8421,7 +8569,7 @@ function paintDailyNotes(root2, item, { compatibility = false, editing: editing3
   if (compatibility) paintTime(find("#notes-legacy-time"), item.updatedAt);
 }
 function entryControlsMarkup() {
-  return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送">发送</button><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
+  return '<p class="note-entry-message" role="alert" hidden></p><div class="note-entry-actions"><button class="btn note-entry-send" type="button" data-note-entry-action="save" aria-label="发送"></button><span class="note-entry-send-feedback" role="status" aria-live="polite"></span><button class="btn text" type="button" data-note-entry-action="restore" hidden>恢复</button><button class="btn text" type="button" data-note-entry-action="delete">删除</button></div><div class="note-entry-confirm notes-confirm" hidden><p>删除这条记录？</p><button class="btn" type="button" data-note-entry-action="cancel-delete">取消</button><button class="btn" type="button" data-note-entry-action="confirm-delete">确认删除</button></div><div class="note-entry-resolution notes-resolution" hidden><button class="btn" type="button" data-note-entry-action="check">核对保存结果</button><button class="btn" type="button" data-note-entry-action="retry" hidden>重试原保存</button><div class="note-entry-conflict" hidden><p>服务器上的文字：</p><pre></pre><button class="btn" type="button" data-note-entry-action="use-server">采用服务器内容</button><button class="btn" type="button" data-note-entry-action="use-draft">用此草稿保存</button></div></div>';
 }
 function createEntryElement(item, editing3) {
   const node2 = document.createElement("article");
@@ -8485,8 +8633,9 @@ function paintEntryEditor(node2, item, confirmId, labels, labelsVerified) {
   const busy = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
   const save = find('[data-note-entry-action="save"]');
   save.hidden = item.deleted || !item.canEdit;
-  save.textContent = item.pending ? "发送中…" : item.phase === "error" ? "重试发送" : "发送";
-  save.setAttribute("aria-label", save.textContent);
+  const sendLabel = item.pending ? "发送中…" : item.phase === "error" ? "重试发送" : "发送";
+  save.setAttribute("aria-label", sendLabel);
+  save.setAttribute("title", sendLabel);
   save.disabled = busy || !item.dirty || item.composing || item.phase === "oversize";
   const feedback = find(".note-entry-send-feedback");
   feedback.textContent = item.pending ? "发送中…" : !item.manualSubmitted || item.dirty ? "" : item.phase === "queued" ? "已存本机，待同步" : item.phase === "saved" ? "发送成功" : "";
@@ -11982,7 +12131,7 @@ function dailySeries(data2 = {}, { start = "", end = "9999-12-31" } = {}) {
 function diffRules(previous, current2) {
   const before = new Map(rules(previous?.rules ?? previous).map((rule) => [rule.rule_id, rule]));
   const after = new Map(rules(current2?.rules ?? current2).map((rule) => [rule.rule_id, rule]));
-  const added = [], removed4 = [], unchanged = [], changed4 = [];
+  const added = [], removed4 = [], unchanged2 = [], changed4 = [];
   for (const [id2, rule] of before) {
     const next = after.get(id2);
     if (!next) removed4.push(rule);
@@ -11990,10 +12139,10 @@ function diffRules(previous, current2) {
       removed4.push(rule);
       added.push(next);
       changed4.push({ before: rule, after: next });
-    } else unchanged.push(next);
+    } else unchanged2.push(next);
   }
   for (const [id2, rule] of after) if (!before.has(id2)) added.push(rule);
-  return { added, removed: removed4, unchanged, changed: changed4 };
+  return { added, removed: removed4, unchanged: unchanged2, changed: changed4 };
 }
 function metricDiscrepancies(report = {}, computed = {}) {
   const metrics2 = object3(parseJson(report.metrics, {}));
@@ -13290,8 +13439,8 @@ function startTodoPress(gesture, event) {
 function moveTodoPress(gesture, event) {
   const press = gesture.press;
   if (!press || press.pointerId !== event.pointerId) return;
-  const moved = Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10;
-  if (moved || !todoPressEligible(gesture, press, event.clientX, event.clientY)) cancelTodoPress(gesture);
+  const moved2 = Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10;
+  if (moved2 || !todoPressEligible(gesture, press, event.clientX, event.clientY)) cancelTodoPress(gesture);
 }
 function endTodoPress(gesture, event) {
   gesture.pointers.delete(event.pointerId);

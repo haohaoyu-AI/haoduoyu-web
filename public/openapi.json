@@ -31,6 +31,37 @@
     }
   ],
   "paths": {
+    "/api/v1/unscheduled-todos/{id}/move": {
+      "post": {
+        "operationId": "moveUnscheduledTodo",
+        "summary": "将未来待办原子移动到指定日期",
+        "description": "同一事务创建或确认相同 UUID、日期、文本和完成状态的每日待办，并软删除源未来待办；源版本过期或已有目标不匹配时拒绝且保留源项。重复请求仅在源已删除且版本为请求版本加一、目标匹配时安全重放。结果不明时先读取源项和目标日期待办核对，不盲目重发。沿用管理员会话及 CSRF，或启用公开业务模式后的同源公开写权限，不新增 Bearer 权限。",
+        "tags": ["业务数据"],
+        "security": [{"AdminSession": []}, {}],
+        "parameters": [
+          {"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},
+          {"$ref":"#/components/parameters/WorkbenchOrigin"},
+          {"$ref":"#/components/parameters/WorkbenchCsrf"},
+          {"$ref":"#/components/parameters/WorkbenchPublicWrite"}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["date","version"],"properties":{"date":{"type":"string","format":"date"},"version":{"type":"integer","minimum":1}}}}}
+        },
+        "responses": {
+          "200": {"description":"移动完成或安全重放；data 包含目标 todo 与已软删除的 source。","content":{"application/json":{"schema":{"type":"object","required":["data"],"properties":{"data":{"type":"object","required":["todo","source"],"properties":{"todo":{"type":"object"},"source":{"type":"object"}}}}}}}},
+          "400": {"$ref":"#/components/responses/Error400"},
+          "401": {"$ref":"#/components/responses/Error401"},
+          "403": {"$ref":"#/components/responses/Error403"},
+          "404": {"$ref":"#/components/responses/Error404"},
+          "409": {"$ref":"#/components/responses/Error409"},
+          "410": {"description":"相同标识的目标待办已删除，源项保留。"},
+          "415": {"$ref":"#/components/responses/Error415"},
+          "429": {"$ref":"#/components/responses/Error429"},
+          "503": {"description":"服务暂不可用；如写入结果不明，应先读回核对。"}
+        }
+      }
+    },
     "/health": {
       "get": {
         "operationId": "getHealth",

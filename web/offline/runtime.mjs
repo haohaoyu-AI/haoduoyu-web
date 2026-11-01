@@ -575,6 +575,34 @@ export function createOfflineRuntime(options) {
       if (owner !== context.state.scope || generation !== context.generation) throw fail('账号已切换，原未来待办仍保留。', 'OFFLINE_SCOPE_CHANGED');
       return structuredClone(offlineValue(entity) || null);
     },
+    // Confirmed server moves are reflected without discarding local edits.
+    async acceptMovedTodo({source, todo}, token) {
+      const active = () => token && context.state.scope === token.scope &&
+        context.state.verifiedScope === token.scope && context.generation === token.generation;
+      if (!active() || !source?.id || source.id !== todo?.id) return 'refresh';
+      const ids = ['unscheduled_todo:' + source.id, 'todo:' + source.id];
+      return context.db.transaction(['entities', 'outbox', 'conflicts', 'meta'], 'readwrite', async tx => {
+        if (!active()) return 'refresh';
+        const [operations, conflicts] = await Promise.all([tx.getAll('outbox'), tx.getAll('conflicts')]);
+        if (operations.some(op => op.scope === token.scope && ids.includes(op.entity_id) && !['done', 'archived'].includes(op.status)) ||
+            conflicts.some(conflict => conflict.scope === token.scope && conflict.resolved_at === null &&
+              ids.includes(conflict.operation?.entity_id || conflict.entity_id))) return 'pending';
+        const keys = ids.map(id => entityKey(token.scope, id));
+        const old = await Promise.all(keys.map(key => tx.get('entities', key)));
+        if (!active()) return 'refresh';
+        if (old.some(entity => entity?.dirty)) return 'pending';
+        if (old.some((entity, i) => entity?.server?.version > [source, todo][i].version)) return 'refresh';
+        for (const [i, row] of [source, todo].entries()) {
+          await tx.put('entities', {...old[i], key: keys[i], scope: token.scope, entity_id: ids[i],
+            server: structuredClone(row), remote_missing: false, ...(i === 1 ? {needs_api_refresh: false} : {})});
+        }
+        if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
+        // A clean entity alone cannot seed an uncached day for offline reads.
+        const day = await tx.get('meta', entityKey(token.scope, 'get:/todos?date=' + encodeURIComponent(todo.date)));
+        if (!active()) throw fail('数据范围已变化。', 'OFFLINE_SCOPE_CHANGED');
+        return Array.isArray(day?.data?.items) ? 'saved' : 'refresh';
+      });
+    },
     queue: context.queue, resolve: context.resolve, invalidate: context.invalidate, state: context.state,
     localRead: async path => (await context.cache.read(path)).data,
     retainDrafts: drafts.capture, retainedDrafts: drafts.list, flushDrafts: drafts.flush,
