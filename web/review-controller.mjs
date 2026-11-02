@@ -61,9 +61,10 @@ export function reviewRoute(href,defaultAccount = vm.account) {
   const requested = p.get('tab') || (legacy === 'playbooks' ? 'playbook' : legacy);
   const view = REVIEW_VIEWS.some(([id]) => id === requested) ? requested : 'overview';
   const section = p.get('review_section');
-  const secondary = REVIEW_SECTIONS.some(([id]) => id === section) ? section :
+  const benchmark = p.get('review_benchmark') || '';
+  const secondary = benchmark ? 'benchmarks' : REVIEW_SECTIONS.some(([id]) => id === section) ? section :
     ['notes','playbook'].includes(section) || view === 'playbook' ? 'review' : 'benchmarks';
-  return {account:p.get('account')?.trim() || defaultAccount,view,secondary,week:p.get('review_week') === 'last' ? 'last' : 'this',article:p.get('review_article') || '',version:p.get('review_version') || ''};
+  return {account:p.get('account')?.trim() || defaultAccount,view,secondary,week:p.get('review_week') === 'last' ? 'last' : 'this',article:benchmark ? '' : p.get('review_article') || '',benchmark,version:p.get('review_version') || ''};
 }
 const route = () => reviewRoute(location.href);
 function writeRoute(values) {
@@ -77,6 +78,13 @@ function writeRoute(values) {
   history.replaceState({},'',url);
 }
 function syncViewFromRoute() { vm = {...vm,...route(),loading:false,error:''}; }
+function focusBenchmark(id) {
+  if (!id) return;
+  const node = document.getElementById(`review-benchmark-${encodeURIComponent(id)}`);
+  if (!node || !root()?.contains(node)) return;
+  node.scrollIntoView({block:'start'});
+  node.focus({preventScroll:true});
+}
 let returnFocusId = '', returnScroll = 0;
 export function paintContentReviewPage() {
   const node = root(); if (!node) return;
@@ -97,7 +105,7 @@ export async function loadContentReview(context) {
   try {
     const result = await readContentReviewDataWithRetry(read,requested.account,current);
     if (!current() || !result) return;
-    data = result; syncViewFromRoute(); paintContentReviewPage();
+    data = result; syncViewFromRoute(); paintContentReviewPage(); focusBenchmark(vm.benchmark);
   } catch (error) {
     if (!current() || error.name === 'AbortError') return;
     vm.loading = false; vm.error = error.message || '读取失败，请稍后重试。'; paintContentReviewPage();
@@ -109,14 +117,22 @@ function closeArticle() {
   node?.focus({preventScroll:true}); window.scrollTo({top:returnScroll,behavior:'instant'});
 }
 function selectTab(view,focus = false) {
-  vm.view = view; vm.article = ''; writeRoute({view,article:''}); paintContentReviewPage();
+  vm.view = view; vm.article = ''; vm.benchmark = ''; writeRoute({view,article:'',benchmark:''}); paintContentReviewPage();
   if (focus) root()?.querySelector(`#review-tab-${view}`)?.focus({preventScroll:true});
 }
 function registerEvents() {
   if (registered || typeof document === 'undefined') return;
   registered = true;
   document.addEventListener('click',event => {
-    const node = root(); if (event.target.closest?.('a')) return;
+    const node = root();
+    const benchmarkLink = event.target.closest?.('a[data-review-benchmark]');
+    if (benchmarkLink && node?.contains(benchmarkLink)) {
+      event.preventDefault();
+      vm.article = ''; vm.secondary = 'benchmarks'; vm.benchmark = benchmarkLink.dataset.reviewBenchmark;
+      writeRoute({section:'benchmarks',article:'',benchmark:vm.benchmark}); paintContentReviewPage();
+      focusBenchmark(vm.benchmark); return;
+    }
+    if (event.target.closest?.('a')) return;
     const target = event.target.closest?.('button,[data-review-row]');
     if (!target || !node?.contains(target)) return;
     if (target.dataset.reviewAction === 'show-health') {
@@ -130,14 +146,14 @@ function registerEvents() {
     if (target.dataset.reviewAction === 'refresh') { void loadContentReview(pageContext); return; }
     if (vm.loading || vm.error) return;
     if (target.dataset.reviewSecondary) {
-      vm.secondary = target.dataset.reviewSecondary; writeRoute({section:vm.secondary}); paintContentReviewPage();
+      vm.secondary = target.dataset.reviewSecondary; vm.benchmark = ''; writeRoute({section:vm.secondary,benchmark:''}); paintContentReviewPage();
       root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
     }
     if (target.dataset.reviewView) { selectTab(target.dataset.reviewView,true); return; }
     if (target.dataset.reviewWeek) { vm.week = target.dataset.reviewWeek; writeRoute({week:vm.week}); paintContentReviewPage(); root()?.querySelector(`[data-review-week="${vm.week}"]`)?.focus({preventScroll:true}); return; }
     if (target.dataset.reviewAction === 'close-article') { closeArticle(); return; }
     const article = target.dataset.reviewArticle || target.dataset.reviewRow;
-    if (article) { returnFocusId = article; returnScroll = window.scrollY; vm.article = article; writeRoute({article}); paintContentReviewPage(); }
+    if (article) { returnFocusId = article; returnScroll = window.scrollY; vm.article = article; vm.benchmark = ''; writeRoute({article,benchmark:''}); paintContentReviewPage(); }
   });
   document.addEventListener('change',event => {
     const target = event.target;
@@ -162,12 +178,12 @@ function registerEvents() {
     if (event.target.matches('[data-review-secondary]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
       event.preventDefault(); const ids = REVIEW_SECTIONS.map(([id]) => id), index = ids.indexOf(vm.secondary);
       vm.secondary = event.key === 'Home' ? ids[0] : event.key === 'End' ? ids.at(-1) : ids[(index + (event.key === 'ArrowRight' ? 1 : ids.length-1)) % ids.length];
-      writeRoute({section:vm.secondary}); paintContentReviewPage(); root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
+      vm.benchmark = ''; writeRoute({section:vm.secondary,benchmark:''}); paintContentReviewPage(); root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
     }
     if (event.target.matches('[data-review-view]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
       event.preventDefault(); const ids = REVIEW_VIEWS.map(([id]) => id), index = ids.indexOf(vm.view);
       selectTab(event.key === 'Home' ? ids[0] : event.key === 'End' ? ids.at(-1) : ids[(index + (event.key === 'ArrowRight' ? 1 : ids.length-1)) % ids.length],true);
     }
   });
-  window.addEventListener('popstate',() => { if (!root()) return; const next = route(); if (next.account !== vm.account) void loadContentReview(pageContext); else { syncViewFromRoute(); paintContentReviewPage(); } });
+  window.addEventListener('popstate',() => { if (!root()) return; const next = route(); if (next.account !== vm.account) void loadContentReview(pageContext); else { syncViewFromRoute(); paintContentReviewPage(); focusBenchmark(vm.benchmark); } });
 }

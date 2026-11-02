@@ -11366,7 +11366,7 @@ function applyMemoSplit(width = null, persist = false) {
   }
   const value = Math.round(Math.max(min, Math.min(max, width ?? area * memoSplitRatio)));
   root2.style.setProperty("--memo-list-w", value + "px");
-  for (const [name, number] of Object.entries({ min, max, now: value })) handle.setAttribute("aria-value" + name, String(number));
+  for (const [name, number2] of Object.entries({ min, max, now: value })) handle.setAttribute("aria-value" + name, String(number2));
   handle.setAttribute("aria-valuetext", "笔记列表宽度 " + value + " 像素");
   if (width !== null) memoSplitRatio = value / area;
   if (persist) storage.set(memoSplitStorage, String(memoSplitRatio));
@@ -11603,8 +11603,8 @@ function applySidebarWidth(value = readSidebarWidth(), persist = false) {
   const width = Math.round(Math.max(limits.min, Math.min(limits.max, value ?? fallback)));
   shell.style.setProperty("--sidebar-w", width + "px");
   shell.dataset.sidebarExpanded = String(width >= 200);
-  for (const [name, number] of Object.entries({ min: limits.min, max: limits.max, now: width }))
-    handle.setAttribute("aria-value" + name, String(number));
+  for (const [name, number2] of Object.entries({ min: limits.min, max: limits.max, now: width }))
+    handle.setAttribute("aria-value" + name, String(number2));
   handle.setAttribute("aria-valuetext", "导航宽度 " + width + " 像素");
   if (persist) {
     sidebarPreference = width;
@@ -11955,8 +11955,8 @@ function parseJson(value, fallback = null) {
 function finiteNumber(value) {
   if (typeof value !== "number" && typeof value !== "string" || value === "") return null;
   if (typeof value === "string" && !value.trim()) return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
+  const number2 = Number(value);
+  return Number.isFinite(number2) ? number2 : null;
 }
 function calendarDate(date) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
@@ -12220,6 +12220,84 @@ function renderTrafficCard(snapshots2, articleId) {
   return `<section class="review-traffic-card" aria-label="文章流量数据">${snapshot ? `<div class="review-traffic-date">数据日期 ${e(snapshot.snapshot_date)}</div>` : ""}<dl class="review-traffic-primary">${primary.map(([label3, value, subLabel, subValue]) => `<div><dt>${e(label3)}</dt><dd>${e(value)}</dd><div class="review-traffic-fan">${e(subLabel)} <span>${e(subValue)}</span></div></div>`).join("")}</dl><dl class="review-traffic-secondary">${secondary.map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl></section>`;
 }
 
+// web/pages/review-imitation.mjs
+init_dom();
+function safeUrl(value) {
+  try {
+    const url = new URL(String(value));
+    return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+function renderImitation(row, data2, account) {
+  if (!row || row.account !== account) return "";
+  const reference = row.reference_article_id == null ? null : (data2.benchmarkArticles || []).find((item) => item.account === account && String(item.id) === String(row.reference_article_id));
+  let value;
+  if (reference) {
+    const id2 = String(reference.id);
+    const query = new URLSearchParams({ page: "review", account, review_section: "benchmarks", review_benchmark: id2 });
+    value = `<a href="?${e(query.toString())}" data-review-benchmark="${e(id2)}">${e(reference.title || "未命名文章")}</a>`;
+  } else {
+    const title = String(row?.sample_title || "").trim();
+    const rawUrl = String(row?.sample_url || "").trim();
+    const url = safeUrl(rawUrl);
+    const label3 = title || (rawUrl ? "参考文章" : "自选题");
+    value = url ? `<a href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(label3)}</a>` : e(label3);
+  }
+  return `<div class="review-imitation"><span>仿</span><div>${value}</div></div>`;
+}
+
+// web/pages/review-benchmark-library.mjs
+init_dom();
+function safeUrl2(value) {
+  try {
+    const url = new URL(String(value));
+    return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+function number(value) {
+  const n = finiteNumber(value);
+  if (n === null || n < 0) return "—";
+  return n >= 1e4 ? `${(n / 1e4).toFixed(1)} 万` : n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
+}
+function articleLink(article, account) {
+  const external2 = safeUrl2(article.url);
+  const local = `?page=review&account=${encodeURIComponent(account)}&review_article=${encodeURIComponent(article.id)}`;
+  return `<a href="${e(external2 || local)}"${external2 ? ' target="_blank" rel="noopener noreferrer"' : ""}>${e(article.title || "未命名文章")}</a>`;
+}
+function renderBenchmarkLibrary(data2 = {}, account = "") {
+  const accounts = new Map((data2.benchmarkAccounts || []).filter((item) => item.account === account).map((item) => [String(item.id), item]));
+  const ownArticles = (data2.articles || []).filter((item) => item.account === account);
+  const rows = (data2.benchmarkArticles || []).filter((item) => item.account === account && accounts.has(String(item.benchmark_account_id))).map((item) => ({ item, published: reviewDateTime(item.published_at) })).sort((a, b) => {
+    const dayOrder = b.published.slice(0, 10).localeCompare(a.published.slice(0, 10));
+    if (dayOrder) return dayOrder;
+    const aTimed = a.published.length > 10, bTimed = b.published.length > 10;
+    return Number(bTimed) - Number(aTimed) || (aTimed && bTimed ? Date.parse(b.item.published_at) - Date.parse(a.item.published_at) : 0) || String(a.item.id).localeCompare(String(b.item.id));
+  });
+  if (!rows.length) return '<section class="review-benchmark-library"><h3>爆文库</h3><p class="review-note">暂无爆文</p></section>';
+  const headers = ["发布时间", "账号", "标题", "阅读", "配图数", "收录日期", "已仿"];
+  const body2 = rows.map(({ item, published }) => {
+    const owner2 = accounts.get(String(item.benchmark_account_id));
+    const target = safeUrl2(item.url);
+    const title = e(item.title || "未命名文章");
+    const used = ownArticles.filter((article) => article.reference_article_id != null && String(article.reference_article_id) === String(item.id));
+    const cells = [
+      e(published || "未知"),
+      e(owner2.name || "未命名账号"),
+      target ? `<a href="${e(target)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title,
+      e(number(item.reads)),
+      e(number(item.image_count)),
+      e(reviewDateTime(item.collected_on) || "未知"),
+      used.length ? used.map((article) => articleLink(article, account)).join("") : "—"
+    ];
+    return `<tr id="review-benchmark-${e(encodeURIComponent(item.id))}" tabindex="-1">${cells.map((cell, index) => `<td data-label="${headers[index]}">${cell}</td>`).join("")}</tr>`;
+  }).join("");
+  return `<section class="review-benchmark-library"><h3>爆文库</h3><div class="review-benchmark-table-wrap"><table class="review-benchmark-table"><thead><tr>${headers.map((label3) => `<th scope="col">${label3}</th>`).join("")}</tr></thead><tbody>${body2}</tbody></table></div></section>`;
+}
+
 // shared/review-analytics.mjs
 var array = (value) => Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
 var id = (value) => String(value ?? "");
@@ -12234,8 +12312,8 @@ function parsed(value, fallback) {
 }
 function finiteNumber2(value) {
   if (!["number", "string"].includes(typeof value) || typeof value === "string" && !value.trim()) return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
+  const number2 = Number(value);
+  return Number.isFinite(number2) ? number2 : null;
 }
 function calendarDate2(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
@@ -12492,6 +12570,7 @@ function reviewOverviewMetrics(data2, { account, range = "24h", now = (/* @__PUR
   const judged = metricSample(rows, (row) => row.verdict ? row.reads_24h : null);
   return {
     count: rows.length,
+    observedCount: rows.filter((row) => row.sample24h).length,
     hits: unknownVerdicts ? null : hits,
     middle: unknownVerdicts ? null : middle,
     flops: unknownVerdicts ? null : flops,
@@ -12507,6 +12586,35 @@ function reviewDuration(value) {
   if (n === null || n < 0) return "—";
   const seconds = Math.round(n);
   return `${Math.floor(seconds / 60)}分${String(seconds % 60).padStart(2, "0")}秒`;
+}
+
+// web/core/review-list-observation.mjs
+function instant2(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day4(value)) return null;
+  const stamp2 = Date.parse(value);
+  return Number.isFinite(stamp2) ? stamp2 : null;
+}
+var compare2 = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+function reviewListObservation(row, snapshots2 = [], now = (/* @__PURE__ */ new Date()).toISOString()) {
+  if (row.sample24h) return { kind: "sample", snapshot: row.sample24h, reads: row.reads_24h, hours: finiteNumber(row.sample24h.age_hours) };
+  const published = instant2(row.published_at);
+  const candidates = (Array.isArray(snapshots2) ? snapshots2 : []).filter((snapshot) => String(snapshot?.article_id) === String(row.id)).map((snapshot) => {
+    const explicitAge = finiteNumber(snapshot.age_hours);
+    const observed2 = instant2(snapshot.observed_at) ?? instant2(snapshot.snapshot_date);
+    const computedAge = published !== null && observed2 !== null ? (observed2 - published) / 36e5 : null;
+    const hours = explicitAge !== null && Number.isInteger(explicitAge) && explicitAge >= 0 ? explicitAge : explicitAge === null ? computedAge : null;
+    const reads = finiteNumber(snapshot.reads);
+    return { snapshot, hours, observed: observed2, reads: reads !== null && reads >= 0 ? reads : null };
+  }).filter((candidate) => candidate.hours !== null && candidate.hours > 72).sort((a, b) => a.hours - b.hours || (a.observed ?? Infinity) - (b.observed ?? Infinity) || compare2(String(a.snapshot.id ?? ""), String(b.snapshot.id ?? "")));
+  const first = candidates.find((candidate) => candidate.reads !== null) || candidates[0];
+  if (first) return { kind: "longtail", snapshot: first.snapshot, reads: first.reads, hours: first.hours };
+  const nowMs = instant2(now);
+  if (published !== null && nowMs !== null && nowMs >= published && nowMs - published < 12 * 36e5) return { kind: "immature", snapshot: null, reads: null, hours: null };
+  return { kind: "missing", snapshot: null, reads: null, hours: null };
+}
+function reviewObservationHours(value) {
+  const hours = finiteNumber(value);
+  return hours === null ? "" : String(Number(hours.toFixed(4)));
 }
 
 // web/pages/content-review.mjs
@@ -12679,14 +12787,16 @@ function v13Accounts(data2) {
 }
 function archives(data2, vm2) {
   const selected = REVIEW_SECTIONS.some(([id2]) => id2 === vm2.secondary) ? vm2.secondary : "benchmarks";
-  const bodies = { benchmarks: v13Accounts(data2), review: playbook(data2, vm2) };
+  const bodies = { benchmarks: v13Accounts(data2) + renderBenchmarkLibrary(data2, vm2.account), review: playbook(data2, vm2) };
   return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="复盘资料">${REVIEW_SECTIONS.map(([id2, label3]) => `<button type="button" id="review-secondary-${id2}" role="tab" data-review-secondary="${id2}" aria-controls="review-secondary-panel" aria-selected="${selected === id2}" tabindex="${selected === id2 ? "0" : "-1"}">${label3}</button>`).join("")}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${bodies[selected]}</div></section>`;
 }
 function overview(data2, vm2) {
   const rows = enrichArticles(data2, { account: vm2.account });
   const range = ["24h", "this", "last"].includes(vm2.filters?.metricsRange) ? vm2.filters.metricsRange : "24h";
   const current2 = reviewOverviewMetrics(data2, { account: vm2.account, range, now: vm2.now || (/* @__PURE__ */ new Date()).toISOString() });
-  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["24h", "近 24 小时"], ["this", "本周"], ["last", "上周"]], range)}</select></label></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current2.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current2.hits))} / ${e(reviewNumber(current2.middle))} / ${e(reviewNumber(current2.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span><strong>${e(reviewNumber(current2.readsMedian))}</strong></article><article class="review-stat"><span>CTR 中位数</span><strong>${e(reviewNumber(current2.ctrMedian, "ctr"))}</strong></article><article class="review-stat"><span>平均阅读时长</span><strong>${e(reviewDuration(current2.avgReadSeconds))}</strong></article><article class="review-stat"><span>平均阅读完成率</span><strong>${e(reviewNumber(current2.completion, "completion_rate"))}</strong></article></div></section>`;
+  const noSample = range !== "last" && current2.observedCount === 0;
+  const value = (formatted) => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
+  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["24h", "近 24 小时"], ["this", "本周"], ["last", "上周"]], range)}</select></label></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current2.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current2.hits))} / ${e(reviewNumber(current2.middle))} / ${e(reviewNumber(current2.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current2.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current2.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current2.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current2.completion, "completion_rate"))}</article></div></section>`;
   return cards + panel("文章列表", articleLibrary(rows, vm2, data2), "", "review-articles-panel") + archives(data2, vm2, "", [], []);
 }
 function articleLibrary(rows, vm2, data2 = {}) {
@@ -12694,12 +12804,15 @@ function articleLibrary(rows, vm2, data2 = {}) {
   const selected = rows.filter((r) => (!from || day4(r.published_at) && day4(r.published_at) >= from && day4(r.published_at) <= today2) && (!f.from || day4(r.published_at) >= f.from && day4(r.published_at)) && (!f.to || day4(r.published_at) <= f.to && day4(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
   const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options2([["7d", "近 7 天"], ["30d", "近 30 天"], ["all", "全部时间"]], range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options2([["", "全部判定"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]], f.verdict || "")}</select></label><span class="review-note">${selected.length} 篇</span></div>`;
   if (!selected.length) return filters + empty2("当前筛选下没有文章");
-  const cells = (row) => [
-    ["发布时间", e(reviewDateTime(row.published_at) || "—")],
-    ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${sampleLabel(row, data2)}`],
-    ["阅读", `${e(reviewNumber(row.reads_24h))}${row.sample24h ? `<span class="review-note review-observation-age">发布后 ${e(row.sample24h.age_hours)} 小时</span>` : ""}`],
-    ["判定", tag(row.verdict)]
-  ];
+  const cells = (row) => {
+    const observation = reviewListObservation(row, data2.snapshots, vm2.now || (/* @__PURE__ */ new Date()).toISOString());
+    return [
+      ["发布时间", e(reviewDateTime(row.published_at) || "—")],
+      ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${sampleLabel(row, data2)}`],
+      ["阅读", observation.kind === "immature" ? "未满24h" : `${e(reviewNumber(observation.reads))}${observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} 小时</span>` : ""}`],
+      ["判定", observation.kind === "longtail" ? '<span class="review-tag">长尾</span>' : tag(row.verdict)]
+    ];
+  };
   return filters + `<div class="review-table-wrap"><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${["发布时间", "标题", "阅读", "判定"].map((t) => `<th scope="col">${t}</th>`).join("")}</tr></thead><tbody>${selected.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body2]) => `<td data-label="${label3}">${body2}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 var sections = [["keep_topic", "保留选题"], ["drop_topic", "放弃选题"], ["title", "标题"], ["body", "正文"], ["audience", "读者"], ["checklist", "发布检查"]];
@@ -12766,7 +12879,7 @@ function drawer(data2, rows, vm2) {
   const row = rows.find((r) => String(r.id) === String(vm2.article));
   const close = '<button class="btn text review-drawer-close" type="button" data-review-action="close-article" aria-label="关闭文章详情">关闭 <span aria-hidden="true">×</span></button>';
   if (!row) return `<div class="review-drawer-overlay"><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1">${close}<h2 id="review-detail-title">未找到文章</h2><p>文章可能已移除或不属于当前账号。</p></aside></div>`;
-  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${e(reviewDateTime(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2><div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderTrafficCard(data2.snapshots, row.id)}</aside></div>`;
+  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${e(reviewDateTime(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2><div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderTrafficCard(data2.snapshots, row.id)}${renderImitation(row, data2, vm2.account)}</aside></div>`;
 }
 function renderContentReview() {
   return '<section id="content-review" class="content-review" aria-label="内容复盘"><p class="review-status" role="status" aria-live="polite">正在读取内容复盘…</p></section>';
@@ -12782,7 +12895,7 @@ function scopedReviewData(data2, account) {
 }
 function renderContentReviewContent(data2, vm2) {
   data2 = scopedReviewData(data2, vm2.account);
-  const header = `<div class="review-toolbar"><div class="review-account"><strong>内容复盘</strong><span class="review-version">v1.3</span><span class="review-note">${e(vm2.account)}</span></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>`;
+  const header = `<div class="review-toolbar"><div class="review-account"><strong>内容复盘</strong><span class="review-version">v1.4</span><span class="review-note">${e(vm2.account)}</span></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>`;
   if (vm2.loading) return header + '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
   if (vm2.error) return header + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm2.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data2, { account: vm2.account });
@@ -12853,8 +12966,9 @@ function reviewRoute(href, defaultAccount = vm.account) {
   const requested = p.get("tab") || (legacy === "playbooks" ? "playbook" : legacy);
   const view = REVIEW_VIEWS.some(([id2]) => id2 === requested) ? requested : "overview";
   const section = p.get("review_section");
-  const secondary = REVIEW_SECTIONS.some(([id2]) => id2 === section) ? section : ["notes", "playbook"].includes(section) || view === "playbook" ? "review" : "benchmarks";
-  return { account: p.get("account")?.trim() || defaultAccount, view, secondary, week: p.get("review_week") === "last" ? "last" : "this", article: p.get("review_article") || "", version: p.get("review_version") || "" };
+  const benchmark = p.get("review_benchmark") || "";
+  const secondary = benchmark ? "benchmarks" : REVIEW_SECTIONS.some(([id2]) => id2 === section) ? section : ["notes", "playbook"].includes(section) || view === "playbook" ? "review" : "benchmarks";
+  return { account: p.get("account")?.trim() || defaultAccount, view, secondary, week: p.get("review_week") === "last" ? "last" : "this", article: benchmark ? "" : p.get("review_article") || "", benchmark, version: p.get("review_version") || "" };
 }
 var route = () => reviewRoute(location.href);
 function writeRoute(values) {
@@ -12870,6 +12984,13 @@ function writeRoute(values) {
 }
 function syncViewFromRoute() {
   vm = { ...vm, ...route(), loading: false, error: "" };
+}
+function focusBenchmark(id2) {
+  if (!id2) return;
+  const node2 = document.getElementById(`review-benchmark-${encodeURIComponent(id2)}`);
+  if (!node2 || !root()?.contains(node2)) return;
+  node2.scrollIntoView({ block: "start" });
+  node2.focus({ preventScroll: true });
 }
 var returnFocusId = "", returnScroll = 0;
 function paintContentReviewPage() {
@@ -12901,6 +13022,7 @@ async function loadContentReview(context) {
     data = result;
     syncViewFromRoute();
     paintContentReviewPage();
+    focusBenchmark(vm.benchmark);
   } catch (error) {
     if (!current2() || error.name === "AbortError") return;
     vm.loading = false;
@@ -12919,7 +13041,8 @@ function closeArticle() {
 function selectTab(view, focus = false) {
   vm.view = view;
   vm.article = "";
-  writeRoute({ view, article: "" });
+  vm.benchmark = "";
+  writeRoute({ view, article: "", benchmark: "" });
   paintContentReviewPage();
   if (focus) root()?.querySelector(`#review-tab-${view}`)?.focus({ preventScroll: true });
 }
@@ -12928,6 +13051,17 @@ function registerEvents2() {
   registered2 = true;
   document.addEventListener("click", (event) => {
     const node2 = root();
+    const benchmarkLink = event.target.closest?.("a[data-review-benchmark]");
+    if (benchmarkLink && node2?.contains(benchmarkLink)) {
+      event.preventDefault();
+      vm.article = "";
+      vm.secondary = "benchmarks";
+      vm.benchmark = benchmarkLink.dataset.reviewBenchmark;
+      writeRoute({ section: "benchmarks", article: "", benchmark: vm.benchmark });
+      paintContentReviewPage();
+      focusBenchmark(vm.benchmark);
+      return;
+    }
     if (event.target.closest?.("a")) return;
     const target = event.target.closest?.("button,[data-review-row]");
     if (!target || !node2?.contains(target)) return;
@@ -12949,7 +13083,8 @@ function registerEvents2() {
     if (vm.loading || vm.error) return;
     if (target.dataset.reviewSecondary) {
       vm.secondary = target.dataset.reviewSecondary;
-      writeRoute({ section: vm.secondary });
+      vm.benchmark = "";
+      writeRoute({ section: vm.secondary, benchmark: "" });
       paintContentReviewPage();
       root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({ preventScroll: true });
       return;
@@ -12974,7 +13109,8 @@ function registerEvents2() {
       returnFocusId = article;
       returnScroll = window.scrollY;
       vm.article = article;
-      writeRoute({ article });
+      vm.benchmark = "";
+      writeRoute({ article, benchmark: "" });
       paintContentReviewPage();
     }
   });
@@ -13013,7 +13149,8 @@ function registerEvents2() {
       event.preventDefault();
       const ids = REVIEW_SECTIONS.map(([id2]) => id2), index = ids.indexOf(vm.secondary);
       vm.secondary = event.key === "Home" ? ids[0] : event.key === "End" ? ids.at(-1) : ids[(index + (event.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length];
-      writeRoute({ section: vm.secondary });
+      vm.benchmark = "";
+      writeRoute({ section: vm.secondary, benchmark: "" });
       paintContentReviewPage();
       root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({ preventScroll: true });
       return;
@@ -13031,6 +13168,7 @@ function registerEvents2() {
     else {
       syncViewFromRoute();
       paintContentReviewPage();
+      focusBenchmark(vm.benchmark);
     }
   });
 }
@@ -14883,11 +15021,11 @@ function articleFormRecord(form) {
 function nullableNumber(value, label3, minimum = 0) {
   const raw = textValue(value);
   if (!raw) return null;
-  const number = Number(raw);
-  if (!/^\d+$/.test(raw) || !Number.isSafeInteger(number) || number < minimum) {
+  const number2 = Number(raw);
+  if (!/^\d+$/.test(raw) || !Number.isSafeInteger(number2) || number2 < minimum) {
     throw new Error(`${label3}请填写${minimum ? "正" : "非负"}整数，未知时留空。`);
   }
-  return number;
+  return number2;
 }
 function choice(value, choices, label3, fallback = null) {
   const raw = textValue(value);

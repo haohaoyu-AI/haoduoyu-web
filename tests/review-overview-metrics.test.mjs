@@ -17,7 +17,7 @@ const data = {
 };
 test('rolling publication window uses explicit instants and recorded samples, scoped by account', () => {
   const value = reviewOverviewMetrics(data,{account:'A',range:'24h',now});
-  assert.deepEqual(value,{count:2,hits:1,middle:0,flops:1,readsMedian:500,ctrMedian:5,avgReadSeconds:45,completion:30,
+  assert.deepEqual(value,{count:2,observedCount:2,hits:1,middle:0,flops:1,readsMedian:500,ctrMedian:5,avgReadSeconds:45,completion:30,
     samples:Object.fromEntries(['judged','readsMedian','ctrMedian','avgReadSeconds','completion'].map(key => [key,{count:2,minHours:24,maxHours:24}]))});
 });
 test('Shanghai Monday and complete prior week include date-only records but exclude future instants', () => {

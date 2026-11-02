@@ -54,7 +54,7 @@ function stat(html,label) {
   const cards = [...html.matchAll(/<article class="review-stat">([\s\S]*?)<\/article>/g)];
   const card = cards.find(match => match[1].includes(`<span>${label}</span>`));
   assert.ok(card, `missing KPI ${label}`);
-  return card[1].match(/<strong>([\s\S]*?)<\/strong>/)?.[1].replace(/<[^>]+>/g,'').trim();
+  return card[1].match(/<strong(?:\s[^>]*)?>([\s\S]*?)<\/strong>/)?.[1].replace(/<[^>]+>/g,'').trim();
 }
 function row(html,id) {
   const match = html.match(new RegExp(`<tr data-review-row="${id}">([\\s\\S]*?)</tr>`));
@@ -85,12 +85,12 @@ test('six KPIs follow the selected publication window and isolate accounts', () 
   assert.doesNotMatch(lastWeek,/review-stat-sample/);
   for (const page of [html,thisWeek,lastWeek]) {
     const cards = [...page.matchAll(/<article class="review-stat">([\s\S]*?)<\/article>/g)].map(match => match[1]).join('');
-    assert.doesNotMatch(cards,/发布后|24h|review-stat-sample/);
+    assert.doesNotMatch(cards,/发布后|review-stat-sample/);
   }
   assert.doesNotMatch(html,/FOREIGN_|HEALTH_MUST_HIDE|关键指标|近 7 天爆文数/);
   const unknown = htmlFor({articles:[{id:'u',account,title:'无观察',published_at:'2026-11-02T03:00:00Z'}]});
-  assert.equal(stat(unknown,'阅读中位数'),'—');
-  assert.equal(stat(unknown,'CTR 中位数'),'—');
+  assert.equal(stat(unknown,'阅读中位数'),'数据未满24h');
+  assert.equal(stat(unknown,'CTR 中位数'),'数据未满24h');
   assert.equal(stat(unknown,'爆 / 中 / 扑'),'— / — / —');
 });
 
@@ -108,7 +108,7 @@ test('article list links its references and detail renders recorded traffic fiel
   assert.doesNotMatch(detail,/超过.*同类作品/);
 });
 
-test('benchmark accounts show current-account features and hide sample articles', () => {
+test('benchmark accounts show current-account features and benchmark library', () => {
   const input=fixture();
   input.benchmarkAccounts[0].topic_focus='TOPIC_FEATURE';
   input.benchmarkAccounts[0].title_patterns=['TITLE_FEATURE'];
@@ -119,7 +119,9 @@ test('benchmark accounts show current-account features and hide sample articles'
   assert.equal((html.match(/class="review-v13-benchmark-group"/g)||[]).length,3);
   for (const name of names) assert.ok(html.includes(name),name);
   for (const feature of ['TOPIC_FEATURE','TITLE_FEATURE','STRUCTURE_FEATURE']) assert.ok(html.includes(feature));
-  assert.doesNotMatch(html,/class="review-v13-sample-row"|FOREIGN_/);
+  assert.match(html,/class="review-benchmark-library"/);
+  assert.match(html,/id="review-benchmark-ref-0"/);
+  assert.doesNotMatch(html,/FOREIGN_/);
 });
 
 test('active manual shows all grouped rules without status controls and with complete text', () => {

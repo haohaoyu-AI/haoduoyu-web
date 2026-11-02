@@ -11,7 +11,8 @@ const data = normalizeReviewData({
     {id:'b',account,name:'对标甲',topic_focus:'科技产业',title_patterns:['提问式标题'],structure_notes_md:'- 分析结构'},
     {id:'foreign',account:'其他',name:'FOREIGN_ACCOUNT',topic_focus:'FOREIGN_FEATURE'},
   ],
-  benchmarkArticles:[{id:'ref',benchmark_account_id:'b',title:'BENCHMARK_ARTICLE',reads:1000}],
+  benchmarkArticles:[{id:'ref',account,benchmark_account_id:'b',title:'BENCHMARK_ARTICLE',reads:1000},
+    {id:'foreign-ref',account:'其他',benchmark_account_id:'foreign',title:'FOREIGN_REFERENCE'}],
   playbooks:[{account,status:'active',version:1,rules:[
     {rule_id:'R1',section:'title',status:'kept',text:'规则第一行\n规则第二行完整内容'},
     {rule_id:'R2',section:'body',status:'dropped',text:'另一条完整规则'},
@@ -22,12 +23,14 @@ const data = normalizeReviewData({
 });
 const html = secondary => renderContentReviewContent(data,vm(secondary));
 
-test('benchmark tab shows real account features without sample articles or other accounts', () => {
+test('benchmark tab shows account features and scoped benchmark library', () => {
   const view = html('benchmarks');
   for (const text of ['对标账号','规则','对标甲','科技产业','提问式标题','分析结构']) assert.ok(view.includes(text),text);
-  assert.doesNotMatch(view,/对标爆文|复盘与规则|FOREIGN_ACCOUNT|FOREIGN_FEATURE|review-v13-sample-row/);
+  assert.doesNotMatch(view,/复盘与规则|FOREIGN_ACCOUNT|FOREIGN_FEATURE|FOREIGN_REFERENCE/);
   const panel = view.split('id="review-secondary-panel"')[1];
-  assert.doesNotMatch(panel,/BENCHMARK_ARTICLE|review-reference/);
+  assert.match(panel,/BENCHMARK_ARTICLE/);
+  assert.match(panel,/review-benchmark-ref/);
+  assert.match(panel,/爆文库/);
 });
 
 test('rules remain fully visible regardless of status and notes and daily summaries stay hidden', () => {
