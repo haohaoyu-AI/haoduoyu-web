@@ -1,6 +1,6 @@
 import {e} from '../core/dom.mjs';
 import {day, finiteNumber, parseJson, reviewDateTime, shiftDay} from '../core/review-data.mjs';
-import {enrichArticles, recentArticles, median} from '../../shared/review-analytics.mjs';
+import {buildOverview, enrichArticles, recentArticles, median} from '../../shared/review-analytics.mjs';
 
 export const REVIEW_VIEWS = [['overview','总览'],['articles','文章库'],['playbook','手册']];
 const percentageKeys = new Set(['ctr','completion_rate','ctr_24h','completion_24h','hit_rate','flop_rate','median_ctr']);
@@ -159,14 +159,15 @@ function overview(data,vm) {
   const hits = rows.filter(row => { const date = day(row.published_at); return date && date >= weekStart && date <= today && row.verdict === '爆'; }).length;
   const readsMedian = median(rows.map(row => row.reads_24h));
   const ctrMedian = median(rows.map(row => row.ctr_24h));
-  const cards = `<section class="review-overview-metrics" aria-label="关键指标"><div class="review-panel-head"><div><h2>关键指标</h2><p class="review-note">中位数按当前账号全部已加载且有合格 24h 数据的文章计算</p></div></div><div class="review-stats"><article class="review-stat"><span>昨日发文数</span><strong>${e(yesterdayCount)}<small>篇</small></strong></article><article class="review-stat"><span>24h 阅读中位数</span><strong>${e(reviewNumber(readsMedian))}</strong></article><article class="review-stat"><span>24h CTR 中位数</span><strong>${e(reviewNumber(ctrMedian,'ctr'))}</strong></article><article class="review-stat"><span>近 7 天爆文数</span><strong>${e(hits)}<small>篇</small></strong></article></div></section>`;
+  const current = buildOverview(data,{account:vm.account,range:'30d',week:'this',now:vm.now || new Date().toISOString()}).current;
+  const cards = `<section class="review-overview-metrics" aria-label="关键指标"><div class="review-panel-head"><h2>关键指标</h2></div><div class="review-stats"><article class="review-stat"><span>昨日发文数</span><strong>${e(yesterdayCount)}<small>篇</small></strong></article><article class="review-stat"><span>24h 阅读中位数</span><strong>${e(reviewNumber(readsMedian))}</strong></article><article class="review-stat"><span>24h CTR 中位数</span><strong>${e(reviewNumber(ctrMedian,'ctr'))}</strong></article><article class="review-stat"><span>近 7 天爆文数</span><strong>${e(hits)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(current.hits)} / ${e(current.judged_count - current.hits - current.flops)} / ${e(current.flops)}</strong></article></div></section>`;
   return cards + panel('文章列表',articleLibrary(rows,vm,data),'','review-articles-panel') + archives(data,vm,'',[],[]);
 }
 function articleLibrary(rows,vm,data = {}) {
   const f = vm.filters || {}, range = f.range || '30d', today = day(vm.now || new Date().toISOString()), from = range === 'all' ? '' : shiftDay(today,range === '7d' ? -6 : -29);
   const selected = rows.filter(r => (!from || (day(r.published_at) && day(r.published_at) >= from && day(r.published_at) <= today)) && (!f.from || day(r.published_at) >= f.from && day(r.published_at)) && (!f.to || day(r.published_at) <= f.to && day(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
-  const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options([['7d','近 7 天'],['30d','近 30 天'],['all','全部时间']],range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options([['','全部判定'],['爆','爆'],['中','中'],['扑','扑']],f.verdict || '')}</select></label><span class="review-note">${selected.length} 篇 · 发布时间从新到旧</span></div>`;
-  if (!selected.length) return filters + empty('当前筛选下没有文章','试试更大的时间范围或其他判定。');
+  const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options([['7d','近 7 天'],['30d','近 30 天'],['all','全部时间']],range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options([['','全部判定'],['爆','爆'],['中','中'],['扑','扑']],f.verdict || '')}</select></label><span class="review-note">${selected.length} 篇</span></div>`;
+  if (!selected.length) return filters + empty('当前筛选下没有文章');
   const cells = row => [
     ['发布时间',e(reviewDateTime(row.published_at) || '—')],
     ['标题',`<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || '未命名文章')}</button>${sampleLabel(row,data)}`],
@@ -204,7 +205,7 @@ function articleRules(row) {
 }
 
 const v13RuleGroups = [['keep_topic','选题'],['drop_topic','放弃选题'],['title','标题'],['body','正文'],['audience','读者'],['checklist','自检清单']];
-const v13RuleStatuses = [['kept','有效/保留'],['hold','观察'],['candidate','候选'],['trial','待验证'],['dropped','淘汰']];
+const v13RuleStatuses = [['kept','有效/保留'],['hold','观察'],['candidate','待验证'],['trial','试用中'],['dropped','淘汰']];
 function v13Evidence(rule) {
   const note = String(rule.evidence_note || '').trim();
   if (note) return firstSentence(note);
@@ -215,7 +216,7 @@ function v13Evidence(rule) {
 function v13RuleRow(rule,index) {
   const status = v13RuleStatuses.find(([key]) => key === rule.status) || v13RuleStatuses[2];
   const text = String(rule.text || '').trim();
-  return `<article class="review-v13-rule-row" id="review-rule-${e(encodeURIComponent(rule.rule_id || index))}"><span class="review-v13-rule-id">${e(rule.rule_id || index)}</span><details class="review-v13-expand"><summary aria-label="展开或收起规则"><span class="review-v13-preview">${e(text)}</span></summary><div class="review-v13-expanded">${e(text)}</div></details><span class="review-v13-status ${e(status[0])}">${e(status[1])}</span><span class="review-v13-rule-evidence">${e(v13Evidence(rule))}</span></article>`;
+  return `<article class="review-v13-rule-row" id="review-rule-${e(encodeURIComponent(rule.rule_id || index))}"><span class="review-v13-rule-id">${e(rule.rule_id || index)}</span><details class="review-v13-expand"><summary><span class="review-v13-preview">${e(text)}</span></summary><div class="review-v13-expanded">${e(text)}</div></details><span class="review-v13-status ${e(status[0])}">${e(status[1])}</span><span class="review-v13-rule-evidence">${e(v13Evidence(rule))}</span></article>`;
 }
 function playbook(data,vm) {
   const book = [...(data.playbooks || [])].filter(p => p.account === vm.account && p.status === 'active')
@@ -226,8 +227,8 @@ function playbook(data,vm) {
   const firstSection=lines.findIndex(line => /^##\s/.test(line));
   const content=(firstSection < 0 ? lines : lines.slice(0,firstSection))
     .filter(line => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join('\n').trim();
-  const intro=content ? `<details class="review-v13-expand review-v13-intro"><summary aria-label="展开或收起总纲"><span class="review-v13-preview">${e(content)}</span></summary><div class="review-v13-expanded review-markdown">${renderReviewMarkdown(content)}</div></details>` : '';
-  const filter=`<div class="review-filters review-v13-rule-filter"><label>规则状态<select class="input" data-review-filter="status">${options([['','全部状态'],...v13RuleStatuses],status)}</select></label></div>`;
+  const intro=content ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content)}</div>` : '';
+  const filter=`<div class="review-filters review-v13-rule-filter"><label>规则状态<select class="input" data-review-filter="status">${options([['','全部规则'],...v13RuleStatuses],status)}</select></label></div>`;
   const groups=v13RuleGroups.map(([id,label]) => {
     const group=rules.filter(rule => rule.section === id);
     const shown=group.filter(rule => !status || (rule.status || 'candidate') === status);
@@ -269,6 +270,6 @@ export function renderContentReviewContent(data,vm) {
   if (vm.error) return header + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data,{account:vm.account});
   const hasData = ['articles','snapshots','reports','playbooks','benchmarkAccounts','benchmarkArticles','notes'].some(key => data[key].length);
-  const body = hasData ? overview(data,vm) : empty('暂无内容复盘数据','当前账号尚未录入文章、快照、复盘报告或手册。');
+  const body = hasData ? overview(data,vm) : empty('暂无内容复盘数据');
   return `${header}<div class="review-body"${vm.article ? ' inert' : ''}>${body}</div>${drawer(data,rows,vm)}`;
 }

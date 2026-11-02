@@ -12618,14 +12618,15 @@ function overview(data2, vm2) {
   }).length;
   const readsMedian = median(rows.map((row) => row.reads_24h));
   const ctrMedian = median(rows.map((row) => row.ctr_24h));
-  const cards = `<section class="review-overview-metrics" aria-label="关键指标"><div class="review-panel-head"><div><h2>关键指标</h2><p class="review-note">中位数按当前账号全部已加载且有合格 24h 数据的文章计算</p></div></div><div class="review-stats"><article class="review-stat"><span>昨日发文数</span><strong>${e(yesterdayCount)}<small>篇</small></strong></article><article class="review-stat"><span>24h 阅读中位数</span><strong>${e(reviewNumber(readsMedian))}</strong></article><article class="review-stat"><span>24h CTR 中位数</span><strong>${e(reviewNumber(ctrMedian, "ctr"))}</strong></article><article class="review-stat"><span>近 7 天爆文数</span><strong>${e(hits)}<small>篇</small></strong></article></div></section>`;
+  const current2 = buildOverview(data2, { account: vm2.account, range: "30d", week: "this", now: vm2.now || (/* @__PURE__ */ new Date()).toISOString() }).current;
+  const cards = `<section class="review-overview-metrics" aria-label="关键指标"><div class="review-panel-head"><h2>关键指标</h2></div><div class="review-stats"><article class="review-stat"><span>昨日发文数</span><strong>${e(yesterdayCount)}<small>篇</small></strong></article><article class="review-stat"><span>24h 阅读中位数</span><strong>${e(reviewNumber(readsMedian))}</strong></article><article class="review-stat"><span>24h CTR 中位数</span><strong>${e(reviewNumber(ctrMedian, "ctr"))}</strong></article><article class="review-stat"><span>近 7 天爆文数</span><strong>${e(hits)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(current2.hits)} / ${e(current2.judged_count - current2.hits - current2.flops)} / ${e(current2.flops)}</strong></article></div></section>`;
   return cards + panel("文章列表", articleLibrary(rows, vm2, data2), "", "review-articles-panel") + archives(data2, vm2, "", [], []);
 }
 function articleLibrary(rows, vm2, data2 = {}) {
   const f = vm2.filters || {}, range = f.range || "30d", today2 = day4(vm2.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay(today2, range === "7d" ? -6 : -29);
   const selected = rows.filter((r) => (!from || day4(r.published_at) && day4(r.published_at) >= from && day4(r.published_at) <= today2) && (!f.from || day4(r.published_at) >= f.from && day4(r.published_at)) && (!f.to || day4(r.published_at) <= f.to && day4(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
-  const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options2([["7d", "近 7 天"], ["30d", "近 30 天"], ["all", "全部时间"]], range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options2([["", "全部判定"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]], f.verdict || "")}</select></label><span class="review-note">${selected.length} 篇 · 发布时间从新到旧</span></div>`;
-  if (!selected.length) return filters + empty2("当前筛选下没有文章", "试试更大的时间范围或其他判定。");
+  const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options2([["7d", "近 7 天"], ["30d", "近 30 天"], ["all", "全部时间"]], range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options2([["", "全部判定"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]], f.verdict || "")}</select></label><span class="review-note">${selected.length} 篇</span></div>`;
+  if (!selected.length) return filters + empty2("当前筛选下没有文章");
   const cells = (row) => [
     ["发布时间", e(reviewDateTime(row.published_at) || "—")],
     ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${sampleLabel(row, data2)}`],
@@ -12660,7 +12661,7 @@ function articleRules(row) {
   return `<p class="review-note">已记录 ${ids.length} 条命中规则。</p>${resolved.length ? `<div class="review-rule-list">${resolved.map((rule, i) => ruleCard(rule, i, true)).join("")}</div>` : ""}${missing4.length ? `<p class="review-note">未找到对应规则：${missing4.map((id2) => e(String(id2))).join("、")}</p>` : ""}`;
 }
 var v13RuleGroups = [["keep_topic", "选题"], ["drop_topic", "放弃选题"], ["title", "标题"], ["body", "正文"], ["audience", "读者"], ["checklist", "自检清单"]];
-var v13RuleStatuses = [["kept", "有效/保留"], ["hold", "观察"], ["candidate", "候选"], ["trial", "待验证"], ["dropped", "淘汰"]];
+var v13RuleStatuses = [["kept", "有效/保留"], ["hold", "观察"], ["candidate", "待验证"], ["trial", "试用中"], ["dropped", "淘汰"]];
 function v13Evidence(rule) {
   const note = String(rule.evidence_note || "").trim();
   if (note) return firstSentence2(note);
@@ -12671,7 +12672,7 @@ function v13Evidence(rule) {
 function v13RuleRow(rule, index) {
   const status = v13RuleStatuses.find(([key]) => key === rule.status) || v13RuleStatuses[2];
   const text = String(rule.text || "").trim();
-  return `<article class="review-v13-rule-row" id="review-rule-${e(encodeURIComponent(rule.rule_id || index))}"><span class="review-v13-rule-id">${e(rule.rule_id || index)}</span><details class="review-v13-expand"><summary aria-label="展开或收起规则"><span class="review-v13-preview">${e(text)}</span></summary><div class="review-v13-expanded">${e(text)}</div></details><span class="review-v13-status ${e(status[0])}">${e(status[1])}</span><span class="review-v13-rule-evidence">${e(v13Evidence(rule))}</span></article>`;
+  return `<article class="review-v13-rule-row" id="review-rule-${e(encodeURIComponent(rule.rule_id || index))}"><span class="review-v13-rule-id">${e(rule.rule_id || index)}</span><details class="review-v13-expand"><summary><span class="review-v13-preview">${e(text)}</span></summary><div class="review-v13-expanded">${e(text)}</div></details><span class="review-v13-status ${e(status[0])}">${e(status[1])}</span><span class="review-v13-rule-evidence">${e(v13Evidence(rule))}</span></article>`;
 }
 function playbook(data2, vm2) {
   const book = [...data2.playbooks || []].filter((p) => p.account === vm2.account && p.status === "active").sort((a, b) => Number(b.version) - Number(a.version) || String(b.published_on || "").localeCompare(String(a.published_on || "")))[0];
@@ -12680,8 +12681,8 @@ function playbook(data2, vm2) {
   const lines = String(book.content_md || "").replace(/\r\n?/g, "\n").split("\n");
   const firstSection = lines.findIndex((line) => /^##\s/.test(line));
   const content2 = (firstSection < 0 ? lines : lines.slice(0, firstSection)).filter((line) => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join("\n").trim();
-  const intro = content2 ? `<details class="review-v13-expand review-v13-intro"><summary aria-label="展开或收起总纲"><span class="review-v13-preview">${e(content2)}</span></summary><div class="review-v13-expanded review-markdown">${renderReviewMarkdown(content2)}</div></details>` : "";
-  const filter = `<div class="review-filters review-v13-rule-filter"><label>规则状态<select class="input" data-review-filter="status">${options2([["", "全部状态"], ...v13RuleStatuses], status)}</select></label></div>`;
+  const intro = content2 ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content2)}</div>` : "";
+  const filter = `<div class="review-filters review-v13-rule-filter"><label>规则状态<select class="input" data-review-filter="status">${options2([["", "全部规则"], ...v13RuleStatuses], status)}</select></label></div>`;
   const groups = v13RuleGroups.map(([id2, label3]) => {
     const group = rules2.filter((rule) => rule.section === id2);
     const shown = group.filter((rule) => !status || (rule.status || "candidate") === status);
@@ -12723,7 +12724,7 @@ function renderContentReviewContent(data2, vm2) {
   if (vm2.error) return header + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm2.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data2, { account: vm2.account });
   const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes"].some((key) => data2[key].length);
-  const body2 = hasData ? overview(data2, vm2) : empty2("暂无内容复盘数据", "当前账号尚未录入文章、快照、复盘报告或手册。");
+  const body2 = hasData ? overview(data2, vm2) : empty2("暂无内容复盘数据");
   return `${header}<div class="review-body"${vm2.article ? " inert" : ""}>${body2}</div>${drawer(data2, rows, vm2)}`;
 }
 

@@ -61,17 +61,21 @@ function row(html,id) {
   assert.ok(match, `missing article ${id}`); return match[1];
 }
 
-test('four Shanghai-date KPIs retain zeros and exclude missing observations and other accounts', () => {
+test('five KPIs include the current Shanghai week verdict distribution and isolate accounts', () => {
   const html = htmlFor(fixture());
-  assert.equal((html.match(/<article class="review-stat">/g)||[]).length,4);
+  assert.equal((html.match(/<article class="review-stat">/g)||[]).length,5);
   assert.equal(stat(html,'昨日发文数'),'2篇');
   assert.equal(stat(html,'24h 阅读中位数'),'1,000');
   assert.equal(stat(html,'24h CTR 中位数'),'4.0%');
   assert.equal(stat(html,'近 7 天爆文数'),'1篇');
+  assert.equal(stat(html,'爆 / 中 / 扑'),'0 / 0 / 0');
+  const priorWeek=htmlFor(fixture(),{now:'2026-11-01T04:00:00Z'});
+  assert.equal(stat(priorWeek,'爆 / 中 / 扑'),'2 / 0 / 1');
   assert.doesNotMatch(html,/FOREIGN_|HEALTH_MUST_HIDE|账号健康|本周结论|24h 数据缺失/);
   const unknown = htmlFor({articles:[{id:'u',account,title:'无观测',published_at:'2026-11-01'}]});
   assert.equal(stat(unknown,'24h 阅读中位数'),'—');
   assert.equal(stat(unknown,'24h CTR 中位数'),'—');
+  assert.equal(stat(unknown,'爆 / 中 / 扑'),'0 / 0 / 0');
 });
 
 test('article list has four columns, safe linked and fallback references, empty unknown verdict, and complete detail', () => {
@@ -111,12 +115,15 @@ test('active manual alone is shown with 31 grouped rules, status filtering, and 
   assert.ok(html.includes('总纲全文')); assert.ok(html.includes('一句证据'));
   assert.doesNotMatch(html,/DRAFT_V2_SECRET|DRAFT_V3_SECRET|DRAFT_RULE|FOREIGN_BOOK|LATER_SECTION_MUST_HIDE|试验/);
   assert.match(html,/class="review-v13-rule-evidence"><\/span>/);
-  for (const [key,label] of [['kept','有效/保留'],['hold','观察'],['candidate','候选'],['trial','待验证'],['dropped','淘汰']]) {
+  for (const [key,label] of [['kept','有效/保留'],['hold','观察'],['candidate','待验证'],['trial','试用中'],['dropped','淘汰']]) {
     assert.ok(html.includes(`class="review-v13-status ${key}">${label}</span>`), `missing status ${key}`);
   }
   const filtered=htmlFor(input,{secondary:'review',filters:{range:'all',status:'kept'}});
   assert.equal((filtered.match(/class="review-v13-rule-row"/g)||[]).length,1);
   assert.ok(filtered.includes('ACTIVE_RULE_1')); assert.doesNotMatch(filtered,/ACTIVE_RULE_2(?:\D|$)/);
+  assert.match(html,/全部规则/);
+  assert.doesNotMatch(html,/全部状态|展开或收起规则/);
+  assert.match(html,/ACTIVE_RULE_1 第一行\n第二行\n展开全文/);
 });
 
 test('notes and daily summaries sort newest first without foreign or hidden legacy fields', () => {
