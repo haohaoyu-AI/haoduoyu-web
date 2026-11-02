@@ -65,25 +65,32 @@ test('six KPIs follow the selected publication window and isolate accounts', () 
   const html = htmlFor(fixture());
   assert.equal((html.match(/<article class="review-stat">/g)||[]).length,6);
   assert.match(html,/data-review-filter="metricsRange"/);
+  assert.match(html,/<option value="24h" selected>/);
   assert.equal(stat(html,'发文数'),'1篇');
   assert.equal(stat(html,'爆 / 中 / 扑'),'1 / 0 / 0');
-  assert.equal(stat(html,'观测阅读中位数'),'1,000');
-  assert.equal(stat(html,'观测 CTR 中位数'),'10.0%');
+  assert.equal(stat(html,'阅读中位数'),'1,000');
+  assert.equal(stat(html,'CTR 中位数'),'10.0%');
   assert.equal(stat(html,'平均阅读时长'),'1分05秒');
   assert.equal(stat(html,'平均阅读完成率'),'14.7%');
-  assert.match(html,/class="review-stat-sample">1 篇 · 发布后 24 小时/);
+  assert.doesNotMatch(html,/review-stat-sample/);
   const thisWeek=htmlFor(fixture(),{filters:{range:'all',metricsRange:'this'}});
+  assert.match(thisWeek,/<option value="this" selected>/);
   assert.equal(stat(thisWeek,'发文数'),'1篇');
   assert.equal(stat(thisWeek,'爆 / 中 / 扑'),'— / — / —');
   const lastWeek=htmlFor(fixture(),{filters:{range:'all',metricsRange:'last'}});
+  assert.match(lastWeek,/<option value="last" selected>/);
   assert.equal(stat(lastWeek,'发文数'),'3篇');
   assert.equal(stat(lastWeek,'爆 / 中 / 扑'),'2 / 0 / 1');
-  assert.equal(stat(lastWeek,'观测 CTR 中位数'),'4.0%');
-  assert.match(lastWeek,/class="review-stat-sample">3 篇 · 发布后 23–36 小时/);
+  assert.equal(stat(lastWeek,'CTR 中位数'),'4.0%');
+  assert.doesNotMatch(lastWeek,/review-stat-sample/);
+  for (const page of [html,thisWeek,lastWeek]) {
+    const cards = [...page.matchAll(/<article class="review-stat">([\s\S]*?)<\/article>/g)].map(match => match[1]).join('');
+    assert.doesNotMatch(cards,/发布后|24h|review-stat-sample/);
+  }
   assert.doesNotMatch(html,/FOREIGN_|HEALTH_MUST_HIDE|关键指标|近 7 天爆文数/);
   const unknown = htmlFor({articles:[{id:'u',account,title:'无观察',published_at:'2026-11-02T03:00:00Z'}]});
-  assert.equal(stat(unknown,'观测阅读中位数'),'—');
-  assert.equal(stat(unknown,'观测 CTR 中位数'),'—');
+  assert.equal(stat(unknown,'阅读中位数'),'—');
+  assert.equal(stat(unknown,'CTR 中位数'),'—');
   assert.equal(stat(unknown,'爆 / 中 / 扑'),'— / — / —');
 });
 

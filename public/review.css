@@ -288,7 +288,7 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
   .content-review .review-v13-rule-row > .review-v13-expand { grid-column:1 / -1; grid-row:2; }
   .content-review .review-v13-rule-evidence { grid-column:1 / -1; }
 }
-#content-review .review-stats { grid-template-columns:repeat(5,minmax(0,1fr)); }
+#content-review .review-stats { grid-template-columns:repeat(3,minmax(0,1fr)); }
 #content-review .review-v13-article-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 16px; margin:16px 0; }
 #content-review .review-v13-article-metrics > div:last-child { grid-column:1 / -1; }
 #content-review .review-v13-article-metrics dt { color:var(--color-text-secondary); font-size:var(--font-size-12); }
