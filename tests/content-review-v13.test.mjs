@@ -26,7 +26,7 @@ function fixture() {
     {id:'foreign',account:other,title:'FOREIGN_ARTICLE',published_at:'2026-11-01',reference_article_id:'foreign-ref'}
   ];
   const snapshots = [
-    {id:'snap-a',article_id:'own-a',snapshot_date:'2026-11-02',age_hours:24,reads:1000,ctr:10,completion_rate:14.71},
+    {id:'snap-a',article_id:'own-a',snapshot_date:'2026-11-02',age_hours:24,impressions:1100,fan_impressions:100,reads:1000,fan_reads:10,ctr:10,completion_rate:14.71,avg_read_seconds:65},
     {id:'snap-b',article_id:'own-b',snapshot_date:'2026-11-02',age_hours:24,reads:0,ctr:0},
     {id:'snap-old',article_id:'old',snapshot_date:'2026-10-27',age_hours:24,reads:5000,ctr:4},
     {id:'snap-foreign',article_id:'foreign',snapshot_date:'2026-11-02',age_hours:24,reads:999999,ctr:99}
@@ -61,76 +61,70 @@ function row(html,id) {
   assert.ok(match, `missing article ${id}`); return match[1];
 }
 
-test('five KPIs include the current Shanghai week verdict distribution and isolate accounts', () => {
+test('six KPIs follow the selected publication window and isolate accounts', () => {
   const html = htmlFor(fixture());
-  assert.equal((html.match(/<article class="review-stat">/g)||[]).length,5);
-  assert.equal(stat(html,'昨日发文数'),'2篇');
+  assert.equal((html.match(/<article class="review-stat">/g)||[]).length,6);
+  assert.match(html,/data-review-filter="metricsRange"/);
+  assert.equal(stat(html,'发文数'),'1篇');
+  assert.equal(stat(html,'爆 / 中 / 扑'),'1 / 0 / 0');
   assert.equal(stat(html,'24h 阅读中位数'),'1,000');
-  assert.equal(stat(html,'24h CTR 中位数'),'4.0%');
-  assert.equal(stat(html,'近 7 天爆文数'),'1篇');
-  assert.equal(stat(html,'爆 / 中 / 扑'),'0 / 0 / 0');
-  const priorWeek=htmlFor(fixture(),{now:'2026-11-01T04:00:00Z'});
-  assert.equal(stat(priorWeek,'爆 / 中 / 扑'),'2 / 0 / 1');
-  assert.doesNotMatch(html,/FOREIGN_|HEALTH_MUST_HIDE|账号健康|本周结论|24h 数据缺失/);
-  const unknown = htmlFor({articles:[{id:'u',account,title:'无观测',published_at:'2026-11-01'}]});
+  assert.equal(stat(html,'24h CTR 中位数'),'10.0%');
+  assert.equal(stat(html,'24h 平均阅读时长'),'1分05秒');
+  assert.equal(stat(html,'24h 平均阅读完成率'),'14.7%');
+  const thisWeek=htmlFor(fixture(),{filters:{range:'all',metricsRange:'this'}});
+  assert.equal(stat(thisWeek,'发文数'),'1篇');
+  assert.equal(stat(thisWeek,'爆 / 中 / 扑'),'— / — / —');
+  const lastWeek=htmlFor(fixture(),{filters:{range:'all',metricsRange:'last'}});
+  assert.equal(stat(lastWeek,'发文数'),'3篇');
+  assert.equal(stat(lastWeek,'爆 / 中 / 扑'),'2 / 0 / 1');
+  assert.equal(stat(lastWeek,'24h CTR 中位数'),'4.0%');
+  assert.doesNotMatch(html,/FOREIGN_|HEALTH_MUST_HIDE|关键指标|近 7 天爆文数/);
+  const unknown = htmlFor({articles:[{id:'u',account,title:'无观察',published_at:'2026-11-02T03:00:00Z'}]});
   assert.equal(stat(unknown,'24h 阅读中位数'),'—');
   assert.equal(stat(unknown,'24h CTR 中位数'),'—');
-  assert.equal(stat(unknown,'爆 / 中 / 扑'),'0 / 0 / 0');
+  assert.equal(stat(unknown,'爆 / 中 / 扑'),'— / — / —');
 });
 
-test('article list has four columns, safe linked and fallback references, empty unknown verdict, and complete detail', () => {
+test('article list hides benchmark articles and detail renders recorded traffic fields', () => {
   const input=fixture(), html=htmlFor(input);
   for (const id of ['own-a','own-b','unknown']) assert.equal((row(html,id).match(/<td\b/g)||[]).length,4);
   const a=row(html,'own-a'), b=row(html,'own-b'), u=row(html,'unknown');
-  assert.match(a,/样本0/); assert.match(a,/280,000|28\.0 万|28 万/); assert.match(a,/https:\/\/example\.com\/reference\/0/);
-  assert.match(b,/回退样本标题/); assert.match(b,/https:\/\/example\.com\/fallback/);
+  assert.doesNotMatch(a,/review-reference|https:\/\/example\.com\/reference\/0/);
+  assert.doesNotMatch(b,/review-reference|https:\/\/example\.com\/fallback/);
   assert.match(b,/data-label="24h 阅读">0<\/td>/);
-  assert.doesNotMatch(u,/review-reference|待判定|review-sample-icon/);
-  assert.doesNotMatch(html,/待判定|暂无 24h 样本/);
-  assert.doesNotMatch(a,/data-label="24h CTR"|data-label="原因"|FOREIGN_/);
+  assert.doesNotMatch(u,/review-reference|review-sample-icon/);
+  assert.doesNotMatch(a,/data-label="24h CTR"|FOREIGN_/);
   const detail=htmlFor(input,{article:'own-a'});
-  for (const value of ['24h CTR','24h 完成率','配图数','模板','判定依据','原因全文','模板甲','14.7%','25']) assert.ok(detail.includes(value),value);
+  for (const value of ['展现量','粉丝展现量','阅读量','粉丝阅读量','点击率','平均阅读完成率','平均阅读时长','1,100','1,000','100','10.0%','14.7%','1分5秒']) assert.ok(detail.includes(value),value);
+  assert.doesNotMatch(detail,/超过.*同类作品/);
 });
 
-test('only two tabs show three current-account groups, eleven samples and the referenced own article', () => {
-  const html=htmlFor(fixture(),{secondary:'benchmarks'});
+test('benchmark accounts show current-account features and hide sample articles', () => {
+  const input=fixture();
+  input.benchmarkAccounts[0].topic_focus='TOPIC_FEATURE';
+  input.benchmarkAccounts[0].title_patterns=['TITLE_FEATURE'];
+  input.benchmarkAccounts[0].structure_notes_md='STRUCTURE_FEATURE';
+  const html=htmlFor(input,{secondary:'benchmarks'});
   assert.deepEqual(REVIEW_SECTIONS.map(([id])=>id),['benchmarks','review']);
   assert.equal((html.match(/data-review-secondary=/g)||[]).length,2);
   assert.equal((html.match(/class="review-v13-benchmark-group"/g)||[]).length,3);
-  assert.equal((html.match(/class="review-v13-sample-row"/g)||[]).length,11);
   for (const name of names) assert.ok(html.includes(name),name);
-  assert.match(html,/已仿/); assert.match(html,/我方文章甲/); assert.match(html,/https:\/\/example\.com\/ours\/a/);
-  const firstGroup=html.match(/<section class="review-v13-benchmark-group">([\s\S]*?)<\/section>/)?.[1];
-  assert.ok(firstGroup);
-  assert.ok(firstGroup.indexOf('样本0') < firstGroup.indexOf('样本9'));
-  assert.ok(firstGroup.indexOf('样本9') < firstGroup.indexOf('样本6'));
-  assert.ok(firstGroup.indexOf('样本6') < firstGroup.indexOf('样本3'));
-  assert.doesNotMatch(html,/FOREIGN_|账号健康|趋势|需要关注/);
+  for (const feature of ['TOPIC_FEATURE','TITLE_FEATURE','STRUCTURE_FEATURE']) assert.ok(html.includes(feature));
+  assert.doesNotMatch(html,/class="review-v13-sample-row"|FOREIGN_|review-reference/);
 });
 
-test('active manual alone is shown with 31 grouped rules, status filtering, and no fabricated evidence', () => {
-  const input=fixture(), html=htmlFor(input,{secondary:'review'});
+test('active manual shows all grouped rules without status controls and with complete text', () => {
+  const html=htmlFor(fixture(),{secondary:'review',filters:{range:'all',status:'kept'}});
   assert.equal((html.match(/class="review-v13-rule-row"/g)||[]).length,31);
-  for (const title of ['选题','放弃选题','标题','正文','读者','自检清单']) assert.ok(html.includes(title),title);
-  assert.ok(html.includes('总纲全文')); assert.ok(html.includes('一句证据'));
-  assert.doesNotMatch(html,/DRAFT_V2_SECRET|DRAFT_V3_SECRET|DRAFT_RULE|FOREIGN_BOOK|LATER_SECTION_MUST_HIDE|试验/);
-  assert.match(html,/class="review-v13-rule-evidence"><\/span>/);
-  for (const [key,label] of [['kept','有效/保留'],['hold','观察'],['candidate','待验证'],['trial','试用中'],['dropped','淘汰']]) {
-    assert.ok(html.includes(`class="review-v13-status ${key}">${label}</span>`), `missing status ${key}`);
-  }
-  const filtered=htmlFor(input,{secondary:'review',filters:{range:'all',status:'kept'}});
-  assert.equal((filtered.match(/class="review-v13-rule-row"/g)||[]).length,1);
-  assert.ok(filtered.includes('ACTIVE_RULE_1')); assert.doesNotMatch(filtered,/ACTIVE_RULE_2(?:\D|$)/);
-  assert.match(html,/全部规则/);
-  assert.doesNotMatch(html,/全部状态|展开或收起规则/);
-  assert.match(html,/ACTIVE_RULE_1 第一行\n第二行\n展开全文/);
+  assert.match(html,/ACTIVE_RULE_1/);
+  assert.match(html,/ACTIVE_RULE_2/);
+  assert.match(html,/ACTIVE_RULE_1 [^<]*\n[^<]*\n[^<]*/);
+  assert.doesNotMatch(html,/DRAFT_V2_SECRET|DRAFT_V3_SECRET|DRAFT_RULE|FOREIGN_BOOK|LATER_SECTION_MUST_HIDE|review-v13-status|review-v13-expand|data-review-filter="status"/);
 });
 
-test('notes and daily summaries sort newest first without foreign or hidden legacy fields', () => {
+test('notes and daily summaries remain hidden', () => {
   const html=htmlFor(fixture(),{secondary:'review'});
-  assert.ok(html.indexOf('新笔记') < html.indexOf('旧笔记'));
-  assert.ok(html.includes('日报摘要文本'));
-  assert.doesNotMatch(html,/FOREIGN_|WEEKLY_MUST_HIDE|LEGACY_NOTES_MUST_HIDE|历史日报 · 只读/);
+  assert.doesNotMatch(html,/review-v13-notes|FOREIGN_|WEEKLY_MUST_HIDE|LEGACY_NOTES_MUST_HIDE/);
   assert.equal(reviewRoute('https://haoduoyu.xyz/?page=review&account=V%E5%AD%97').account,account);
 });
 
@@ -141,5 +135,5 @@ test('hidden account-health data cannot create a visible panel and untrusted sam
   const html=htmlFor({articles:[{id:'x',account,title:'<img src=x onerror=alert(1)>',published_at:'2026-11-01',
     sample_title:'<script>BAD</script>',sample_url:'javascript:alert(1)'}]});
   assert.doesNotMatch(html,/<img|<script>|href="javascript:/);
-  assert.match(html,/&lt;img/); assert.match(html,/&lt;script&gt;/);
+  assert.match(html,/&lt;img/); assert.doesNotMatch(html,/&lt;script&gt;/);
 });
