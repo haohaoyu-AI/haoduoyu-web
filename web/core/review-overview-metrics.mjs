@@ -7,17 +7,19 @@ function instant(value) {
   const stamp = Date.parse(value);
   return Number.isFinite(stamp) ? stamp : null;
 }
-function average(values, maximum = Infinity) {
-  const valid = values.map(finiteNumber).filter(value => value !== null && value >= 0 && value <= maximum);
-  return valid.length ? valid.reduce((sum,value) => sum + value,0) / valid.length : null;
+function metricSample(rows, valueOf, maximum = Infinity) {
+  const entries = rows.map(row => ({value:finiteNumber(valueOf(row)), hours:finiteNumber(row.sample24h?.age_hours)}))
+    .filter(({value,hours}) => value !== null && value >= 0 && value <= maximum && hours !== null);
+  const hours = entries.map(entry => entry.hours);
+  return {values:entries.map(entry => entry.value), sample:{count:entries.length,
+    minHours:hours.length ? Math.min(...hours) : null, maxHours:hours.length ? Math.max(...hours) : null}};
 }
 
-export function exact24hArticles(data, account) {
-  const snapshots = (data.snapshots || []).filter(snapshot => finiteNumber(snapshot.age_hours) === 24);
-  return enrichArticles({...data,snapshots},{account});
+function average(values) {
+  return values.length ? values.reduce((sum,value) => sum + value,0) / values.length : null;
 }
 
-/** Publication cohort in Shanghai time; article metrics use only recorded age=24 snapshots. */
+/** Publication cohort in Shanghai time; samples retain their recorded observation ages. */
 export function reviewOverviewMetrics(data, {account, range = '24h', now = new Date().toISOString()} = {}) {
   const nowMs = instant(now);
   if (nowMs === null) throw new TypeError('now must be an explicit ISO timestamp');
@@ -26,7 +28,7 @@ export function reviewOverviewMetrics(data, {account, range = '24h', now = new D
   const monday = shiftDay(today,-((weekday + 6) % 7));
   const start = range === 'last' ? shiftDay(monday,-7) : monday;
   const end = range === 'last' ? shiftDay(monday,-1) : today;
-  const rows = exact24hArticles(data,account).filter(row => {
+  const rows = enrichArticles(data,{account}).filter(row => {
     const publishedDay = day(row.published_at);
     const publishedMs = instant(row.published_at);
     if (range === '24h') return publishedMs !== null && publishedMs >= nowMs - 86400000 && publishedMs <= nowMs;
@@ -36,8 +38,14 @@ export function reviewOverviewMetrics(data, {account, range = '24h', now = new D
   const middle = rows.filter(row => row.verdict === '中').length;
   const flops = rows.filter(row => row.verdict === '扑').length;
   const unknownVerdicts = rows.length > 0 && hits + middle + flops === 0;
-  return {count:rows.length,hits:unknownVerdicts ? null : hits,middle:unknownVerdicts ? null : middle,flops:unknownVerdicts ? null : flops,readsMedian:median(rows.map(row => row.reads_24h)),ctrMedian:median(rows.map(row => row.ctr_24h)),
-    avgReadSeconds:average(rows.map(row => row.sample24h?.avg_read_seconds)),completion:average(rows.map(row => row.completion_24h),100)};
+  const reads = metricSample(rows,row => row.reads_24h);
+  const ctr = metricSample(rows,row => row.ctr_24h,100);
+  const seconds = metricSample(rows,row => row.sample24h?.avg_read_seconds);
+  const completion = metricSample(rows,row => row.completion_24h,100);
+  const judged = metricSample(rows,row => row.verdict ? row.reads_24h : null);
+  return {count:rows.length,hits:unknownVerdicts ? null : hits,middle:unknownVerdicts ? null : middle,flops:unknownVerdicts ? null : flops,
+    readsMedian:median(reads.values),ctrMedian:median(ctr.values),avgReadSeconds:average(seconds.values),completion:average(completion.values),
+    samples:{judged:judged.sample,readsMedian:reads.sample,ctrMedian:ctr.sample,avgReadSeconds:seconds.sample,completion:completion.sample}};
 }
 export function reviewDuration(value) {
   const n = finiteNumber(value);

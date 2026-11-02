@@ -12455,13 +12455,17 @@ function instant(value) {
   const stamp2 = Date.parse(value);
   return Number.isFinite(stamp2) ? stamp2 : null;
 }
-function average(values, maximum = Infinity) {
-  const valid2 = values.map(finiteNumber).filter((value) => value !== null && value >= 0 && value <= maximum);
-  return valid2.length ? valid2.reduce((sum, value) => sum + value, 0) / valid2.length : null;
+function metricSample(rows, valueOf, maximum = Infinity) {
+  const entries = rows.map((row) => ({ value: finiteNumber(valueOf(row)), hours: finiteNumber(row.sample24h?.age_hours) })).filter(({ value, hours: hours2 }) => value !== null && value >= 0 && value <= maximum && hours2 !== null);
+  const hours = entries.map((entry) => entry.hours);
+  return { values: entries.map((entry) => entry.value), sample: {
+    count: entries.length,
+    minHours: hours.length ? Math.min(...hours) : null,
+    maxHours: hours.length ? Math.max(...hours) : null
+  } };
 }
-function exact24hArticles(data2, account) {
-  const snapshots2 = (data2.snapshots || []).filter((snapshot) => finiteNumber(snapshot.age_hours) === 24);
-  return enrichArticles({ ...data2, snapshots: snapshots2 }, { account });
+function average(values) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 function reviewOverviewMetrics(data2, { account, range = "24h", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   const nowMs = instant(now);
@@ -12471,7 +12475,7 @@ function reviewOverviewMetrics(data2, { account, range = "24h", now = (/* @__PUR
   const monday = shiftDay(today2, -((weekday + 6) % 7));
   const start = range === "last" ? shiftDay(monday, -7) : monday;
   const end = range === "last" ? shiftDay(monday, -1) : today2;
-  const rows = exact24hArticles(data2, account).filter((row) => {
+  const rows = enrichArticles(data2, { account }).filter((row) => {
     const publishedDay = day4(row.published_at);
     const publishedMs = instant(row.published_at);
     if (range === "24h") return publishedMs !== null && publishedMs >= nowMs - 864e5 && publishedMs <= nowMs;
@@ -12481,15 +12485,21 @@ function reviewOverviewMetrics(data2, { account, range = "24h", now = (/* @__PUR
   const middle = rows.filter((row) => row.verdict === "中").length;
   const flops = rows.filter((row) => row.verdict === "扑").length;
   const unknownVerdicts = rows.length > 0 && hits + middle + flops === 0;
+  const reads = metricSample(rows, (row) => row.reads_24h);
+  const ctr = metricSample(rows, (row) => row.ctr_24h, 100);
+  const seconds = metricSample(rows, (row) => row.sample24h?.avg_read_seconds);
+  const completion = metricSample(rows, (row) => row.completion_24h, 100);
+  const judged = metricSample(rows, (row) => row.verdict ? row.reads_24h : null);
   return {
     count: rows.length,
     hits: unknownVerdicts ? null : hits,
     middle: unknownVerdicts ? null : middle,
     flops: unknownVerdicts ? null : flops,
-    readsMedian: median(rows.map((row) => row.reads_24h)),
-    ctrMedian: median(rows.map((row) => row.ctr_24h)),
-    avgReadSeconds: average(rows.map((row) => row.sample24h?.avg_read_seconds)),
-    completion: average(rows.map((row) => row.completion_24h), 100)
+    readsMedian: median(reads.values),
+    ctrMedian: median(ctr.values),
+    avgReadSeconds: average(seconds.values),
+    completion: average(completion.values),
+    samples: { judged: judged.sample, readsMedian: reads.sample, ctrMedian: ctr.sample, avgReadSeconds: seconds.sample, completion: completion.sample }
   };
 }
 function reviewDuration(value) {
@@ -12666,11 +12676,16 @@ function archives(data2, vm2) {
   const bodies = { benchmarks: v13Accounts(data2), review: playbook(data2, vm2) };
   return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="复盘资料">${REVIEW_SECTIONS.map(([id2, label3]) => `<button type="button" id="review-secondary-${id2}" role="tab" data-review-secondary="${id2}" aria-controls="review-secondary-panel" aria-selected="${selected === id2}" tabindex="${selected === id2 ? "0" : "-1"}">${label3}</button>`).join("")}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${bodies[selected]}</div></section>`;
 }
+function sampleSummary(sample) {
+  if (!sample?.count) return "";
+  const hours = sample.minHours === sample.maxHours ? `${sample.minHours}` : `${sample.minHours}–${sample.maxHours}`;
+  return `<span class="review-stat-sample">${e(sample.count)} 篇 · 发布后 ${e(hours)} 小时</span>`;
+}
 function overview(data2, vm2) {
-  const rows = exact24hArticles(data2, vm2.account);
+  const rows = enrichArticles(data2, { account: vm2.account });
   const range = ["24h", "this", "last"].includes(vm2.filters?.metricsRange) ? vm2.filters.metricsRange : "24h";
   const current2 = reviewOverviewMetrics(data2, { account: vm2.account, range, now: vm2.now || (/* @__PURE__ */ new Date()).toISOString() });
-  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["24h", "近 24 小时"], ["this", "本周"], ["last", "上周"]], range)}</select></label></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current2.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current2.hits))} / ${e(reviewNumber(current2.middle))} / ${e(reviewNumber(current2.flops))}</strong></article><article class="review-stat"><span>24h 阅读中位数</span><strong>${e(reviewNumber(current2.readsMedian))}</strong></article><article class="review-stat"><span>24h CTR 中位数</span><strong>${e(reviewNumber(current2.ctrMedian, "ctr"))}</strong></article><article class="review-stat"><span>24h 平均阅读时长</span><strong>${e(reviewDuration(current2.avgReadSeconds))}</strong></article><article class="review-stat"><span>24h 平均阅读完成率</span><strong>${e(reviewNumber(current2.completion, "completion_rate"))}</strong></article></div></section>`;
+  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["24h", "近 24 小时"], ["this", "本周"], ["last", "上周"]], range)}</select></label></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current2.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current2.hits))} / ${e(reviewNumber(current2.middle))} / ${e(reviewNumber(current2.flops))}</strong>${sampleSummary(current2.samples.judged)}</article><article class="review-stat"><span>观测阅读中位数</span><strong>${e(reviewNumber(current2.readsMedian))}</strong>${sampleSummary(current2.samples.readsMedian)}</article><article class="review-stat"><span>观测 CTR 中位数</span><strong>${e(reviewNumber(current2.ctrMedian, "ctr"))}</strong>${sampleSummary(current2.samples.ctrMedian)}</article><article class="review-stat"><span>平均阅读时长</span><strong>${e(reviewDuration(current2.avgReadSeconds))}</strong>${sampleSummary(current2.samples.avgReadSeconds)}</article><article class="review-stat"><span>平均阅读完成率</span><strong>${e(reviewNumber(current2.completion, "completion_rate"))}</strong>${sampleSummary(current2.samples.completion)}</article></div></section>`;
   return cards + panel("文章列表", articleLibrary(rows, vm2, data2), "", "review-articles-panel") + archives(data2, vm2, "", [], []);
 }
 function articleLibrary(rows, vm2, data2 = {}) {
@@ -12681,10 +12696,10 @@ function articleLibrary(rows, vm2, data2 = {}) {
   const cells = (row) => [
     ["发布时间", e(reviewDateTime(row.published_at) || "—")],
     ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>`],
-    ["24h 阅读", e(reviewNumber(row.reads_24h))],
+    ["阅读", `${e(reviewNumber(row.reads_24h))}${row.sample24h ? `<span class="review-note review-observation-age">发布后 ${e(row.sample24h.age_hours)} 小时</span>` : ""}`],
     ["判定", tag(row.verdict)]
   ];
-  return filters + `<div class="review-table-wrap"><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${["发布时间", "标题", "24h 阅读", "判定"].map((t) => `<th scope="col">${t}</th>`).join("")}</tr></thead><tbody>${selected.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body2]) => `<td data-label="${label3}">${body2}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  return filters + `<div class="review-table-wrap"><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${["发布时间", "标题", "阅读", "判定"].map((t) => `<th scope="col">${t}</th>`).join("")}</tr></thead><tbody>${selected.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body2]) => `<td data-label="${label3}">${body2}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 var sections = [["keep_topic", "保留选题"], ["drop_topic", "放弃选题"], ["title", "标题"], ["body", "正文"], ["audience", "读者"], ["checklist", "发布检查"]];
 var statuses2 = [["candidate", "待验证"], ["trial", "试用中"], ["kept", "有效"], ["dropped", "无效"], ["hold", "观察中"]];
@@ -12769,7 +12784,7 @@ function renderContentReviewContent(data2, vm2) {
   const header = `<div class="review-toolbar"><div class="review-account"><strong>内容复盘</strong><span class="review-version">v1.3</span><span class="review-note">${e(vm2.account)}</span></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>`;
   if (vm2.loading) return header + '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
   if (vm2.error) return header + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm2.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
-  const rows = exact24hArticles(data2, vm2.account);
+  const rows = enrichArticles(data2, { account: vm2.account });
   const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes"].some((key) => data2[key].length);
   const body2 = hasData ? overview(data2, vm2) : empty2("暂无内容复盘数据");
   return `${header}<div class="review-body"${vm2.article ? " inert" : ""}>${body2}</div>${drawer(data2, rows, vm2)}`;

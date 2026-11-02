@@ -313,9 +313,10 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
 @media (min-width:761px) {
   #content-review .review-articles-table th:first-child { width:150px; }
   #content-review .review-articles-table th:nth-child(2) { width:auto; }
-  #content-review .review-articles-table th:nth-child(3) { width:110px; }
+  #content-review .review-articles-table th:nth-child(3) { width:150px; }
   #content-review .review-articles-table th:nth-child(4) { width:85px; }
 }
+.content-review .review-observation-age { display:block; white-space:nowrap; }
 @media (max-width:760px) {
   #content-review .review-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
   #content-review .review-secondary-panel { padding:20px 18px; }

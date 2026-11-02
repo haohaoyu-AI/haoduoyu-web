@@ -1,8 +1,8 @@
 import {renderTrafficCard} from './review-traffic-card.mjs';
 import {e} from '../core/dom.mjs';
 import {day, finiteNumber, parseJson, reviewDateTime, shiftDay} from '../core/review-data.mjs';
-import {recentArticles} from '../../shared/review-analytics.mjs';
-import {exact24hArticles, reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
+import {enrichArticles, recentArticles} from '../../shared/review-analytics.mjs';
+import {reviewOverviewMetrics, reviewDuration} from '../core/review-overview-metrics.mjs';
 
 export const REVIEW_VIEWS = [['overview','总览'],['articles','文章库'],['playbook','手册']];
 const percentageKeys = new Set(['ctr','completion_rate','ctr_24h','completion_24h','hit_rate','flop_rate','median_ctr']);
@@ -126,11 +126,16 @@ function archives(data,vm) {
   return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="复盘资料">${REVIEW_SECTIONS.map(([id,label]) => `<button type="button" id="review-secondary-${id}" role="tab" data-review-secondary="${id}" aria-controls="review-secondary-panel" aria-selected="${selected === id}" tabindex="${selected === id ? '0' : '-1'}">${label}</button>`).join('')}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${bodies[selected]}</div></section>`;
 }
 
+function sampleSummary(sample) {
+  if (!sample?.count) return '';
+  const hours = sample.minHours === sample.maxHours ? `${sample.minHours}` : `${sample.minHours}–${sample.maxHours}`;
+  return `<span class="review-stat-sample">${e(sample.count)} 篇 · 发布后 ${e(hours)} 小时</span>`;
+}
 function overview(data,vm) {
-  const rows = exact24hArticles(data,vm.account);
+  const rows = enrichArticles(data,{account:vm.account});
   const range = ['24h','this','last'].includes(vm.filters?.metricsRange) ? vm.filters.metricsRange : '24h';
   const current = reviewOverviewMetrics(data,{account:vm.account,range,now:vm.now || new Date().toISOString()});
-  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options([['24h','近 24 小时'],['this','本周'],['last','上周']],range)}</select></label></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current.hits))} / ${e(reviewNumber(current.middle))} / ${e(reviewNumber(current.flops))}</strong></article><article class="review-stat"><span>24h 阅读中位数</span><strong>${e(reviewNumber(current.readsMedian))}</strong></article><article class="review-stat"><span>24h CTR 中位数</span><strong>${e(reviewNumber(current.ctrMedian,'ctr'))}</strong></article><article class="review-stat"><span>24h 平均阅读时长</span><strong>${e(reviewDuration(current.avgReadSeconds))}</strong></article><article class="review-stat"><span>24h 平均阅读完成率</span><strong>${e(reviewNumber(current.completion,'completion_rate'))}</strong></article></div></section>`;
+  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options([['24h','近 24 小时'],['this','本周'],['last','上周']],range)}</select></label></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current.hits))} / ${e(reviewNumber(current.middle))} / ${e(reviewNumber(current.flops))}</strong>${sampleSummary(current.samples.judged)}</article><article class="review-stat"><span>观测阅读中位数</span><strong>${e(reviewNumber(current.readsMedian))}</strong>${sampleSummary(current.samples.readsMedian)}</article><article class="review-stat"><span>观测 CTR 中位数</span><strong>${e(reviewNumber(current.ctrMedian,'ctr'))}</strong>${sampleSummary(current.samples.ctrMedian)}</article><article class="review-stat"><span>平均阅读时长</span><strong>${e(reviewDuration(current.avgReadSeconds))}</strong>${sampleSummary(current.samples.avgReadSeconds)}</article><article class="review-stat"><span>平均阅读完成率</span><strong>${e(reviewNumber(current.completion,'completion_rate'))}</strong>${sampleSummary(current.samples.completion)}</article></div></section>`;
   return cards + panel('文章列表',articleLibrary(rows,vm,data),'','review-articles-panel') + archives(data,vm,'',[],[]);
 }
 function articleLibrary(rows,vm,data = {}) {
@@ -141,10 +146,10 @@ function articleLibrary(rows,vm,data = {}) {
   const cells = row => [
     ['发布时间',e(reviewDateTime(row.published_at) || '—')],
     ['标题',`<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || '未命名文章')}</button>`],
-    ['24h 阅读',e(reviewNumber(row.reads_24h))],
+    ['阅读',`${e(reviewNumber(row.reads_24h))}${row.sample24h ? `<span class="review-note review-observation-age">发布后 ${e(row.sample24h.age_hours)} 小时</span>` : ''}`],
     ['判定',tag(row.verdict)]
   ];
-  return filters + `<div class="review-table-wrap"><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${['发布时间','标题','24h 阅读','判定'].map(t => `<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${selected.map(row => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label,body]) => `<td data-label="${label}">${body}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return filters + `<div class="review-table-wrap"><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${['发布时间','标题','阅读','判定'].map(t => `<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${selected.map(row => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label,body]) => `<td data-label="${label}">${body}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 const sections = [['keep_topic','保留选题'],['drop_topic','放弃选题'],['title','标题'],['body','正文'],['audience','读者'],['checklist','发布检查']];
 const statuses = [['candidate','待验证'],['trial','试用中'],['kept','有效'],['dropped','无效'],['hold','观察中']];
@@ -233,7 +238,7 @@ export function renderContentReviewContent(data,vm) {
   const header = `<div class="review-toolbar"><div class="review-account"><strong>内容复盘</strong><span class="review-version">v1.3</span><span class="review-note">${e(vm.account)}</span></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>`;
   if (vm.loading) return header + '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
   if (vm.error) return header + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
-  const rows = exact24hArticles(data,vm.account);
+  const rows = enrichArticles(data,{account:vm.account});
   const hasData = ['articles','snapshots','reports','playbooks','benchmarkAccounts','benchmarkArticles','notes'].some(key => data[key].length);
   const body = hasData ? overview(data,vm) : empty('暂无内容复盘数据');
   return `${header}<div class="review-body"${vm.article ? ' inert' : ''}>${body}</div>${drawer(data,rows,vm)}`;

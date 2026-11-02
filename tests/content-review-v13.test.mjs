@@ -27,8 +27,8 @@ function fixture() {
   ];
   const snapshots = [
     {id:'snap-a',article_id:'own-a',snapshot_date:'2026-11-02',age_hours:24,impressions:1100,fan_impressions:100,reads:1000,fan_reads:10,ctr:10,completion_rate:14.71,avg_read_seconds:65},
-    {id:'snap-b',article_id:'own-b',snapshot_date:'2026-11-02',age_hours:24,reads:0,ctr:0},
-    {id:'snap-old',article_id:'old',snapshot_date:'2026-10-27',age_hours:24,reads:5000,ctr:4},
+    {id:'snap-b',article_id:'own-b',snapshot_date:'2026-11-02',age_hours:23,reads:0,ctr:0},
+    {id:'snap-old',article_id:'old',snapshot_date:'2026-10-27',age_hours:36,reads:5000,ctr:4},
     {id:'snap-foreign',article_id:'foreign',snapshot_date:'2026-11-02',age_hours:24,reads:999999,ctr:99}
   ];
   const groups = ['keep_topic','drop_topic','title','body','audience','checklist'];
@@ -67,21 +67,23 @@ test('six KPIs follow the selected publication window and isolate accounts', () 
   assert.match(html,/data-review-filter="metricsRange"/);
   assert.equal(stat(html,'发文数'),'1篇');
   assert.equal(stat(html,'爆 / 中 / 扑'),'1 / 0 / 0');
-  assert.equal(stat(html,'24h 阅读中位数'),'1,000');
-  assert.equal(stat(html,'24h CTR 中位数'),'10.0%');
-  assert.equal(stat(html,'24h 平均阅读时长'),'1分05秒');
-  assert.equal(stat(html,'24h 平均阅读完成率'),'14.7%');
+  assert.equal(stat(html,'观测阅读中位数'),'1,000');
+  assert.equal(stat(html,'观测 CTR 中位数'),'10.0%');
+  assert.equal(stat(html,'平均阅读时长'),'1分05秒');
+  assert.equal(stat(html,'平均阅读完成率'),'14.7%');
+  assert.match(html,/class="review-stat-sample">1 篇 · 发布后 24 小时/);
   const thisWeek=htmlFor(fixture(),{filters:{range:'all',metricsRange:'this'}});
   assert.equal(stat(thisWeek,'发文数'),'1篇');
   assert.equal(stat(thisWeek,'爆 / 中 / 扑'),'— / — / —');
   const lastWeek=htmlFor(fixture(),{filters:{range:'all',metricsRange:'last'}});
   assert.equal(stat(lastWeek,'发文数'),'3篇');
   assert.equal(stat(lastWeek,'爆 / 中 / 扑'),'2 / 0 / 1');
-  assert.equal(stat(lastWeek,'24h CTR 中位数'),'4.0%');
+  assert.equal(stat(lastWeek,'观测 CTR 中位数'),'4.0%');
+  assert.match(lastWeek,/class="review-stat-sample">3 篇 · 发布后 23–36 小时/);
   assert.doesNotMatch(html,/FOREIGN_|HEALTH_MUST_HIDE|关键指标|近 7 天爆文数/);
   const unknown = htmlFor({articles:[{id:'u',account,title:'无观察',published_at:'2026-11-02T03:00:00Z'}]});
-  assert.equal(stat(unknown,'24h 阅读中位数'),'—');
-  assert.equal(stat(unknown,'24h CTR 中位数'),'—');
+  assert.equal(stat(unknown,'观测阅读中位数'),'—');
+  assert.equal(stat(unknown,'观测 CTR 中位数'),'—');
   assert.equal(stat(unknown,'爆 / 中 / 扑'),'— / — / —');
 });
 
@@ -91,7 +93,7 @@ test('article list hides benchmark articles and detail renders recorded traffic 
   const a=row(html,'own-a'), b=row(html,'own-b'), u=row(html,'unknown');
   assert.doesNotMatch(a,/review-reference|https:\/\/example\.com\/reference\/0/);
   assert.doesNotMatch(b,/review-reference|https:\/\/example\.com\/fallback/);
-  assert.match(b,/data-label="24h 阅读">0<\/td>/);
+  assert.match(b,/data-label="阅读">0<span[^>]*>发布后 23 小时<\/span><\/td>/);
   assert.doesNotMatch(u,/review-reference|review-sample-icon/);
   assert.doesNotMatch(a,/data-label="24h CTR"|FOREIGN_/);
   const detail=htmlFor(input,{article:'own-a'});
