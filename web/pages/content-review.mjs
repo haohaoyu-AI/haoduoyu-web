@@ -1,4 +1,5 @@
 import {renderTrafficCard} from './review-traffic-card.mjs';
+import {REVIEW_LIST_METRICS, formatReviewListMetric} from '../core/review-list-metrics.mjs';
 import {renderImitation} from './review-imitation.mjs';
 import {renderBenchmarkLibrary} from './review-benchmark-library.mjs';
 import {e} from '../core/dom.mjs';
@@ -148,15 +149,24 @@ function overview(data,vm) {
 function articleLibrary(rows,vm,data = {}) {
   const f = vm.filters || {}, range = f.range || '30d', today = day(vm.now || new Date().toISOString()), from = range === 'all' ? '' : shiftDay(today,range === '7d' ? -6 : -29);
   const selected = rows.filter(r => (!from || (day(r.published_at) && day(r.published_at) >= from && day(r.published_at) <= today)) && (!f.from || day(r.published_at) >= f.from && day(r.published_at)) && (!f.to || day(r.published_at) <= f.to && day(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
-  const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options([['7d','近 7 天'],['30d','近 30 天'],['all','全部时间']],range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options([['','全部判定'],['爆','爆'],['中','中'],['扑','扑']],f.verdict || '')}</select></label><span class="review-note">${selected.length} 篇</span></div>`;
+  const chosen = Array.isArray(vm.metricColumns) ? vm.metricColumns : ['reads'];
+  const columns = REVIEW_LIST_METRICS.filter(metric => chosen.includes(metric.key));
+  const picker = `<details class="review-columns-picker" data-review-columns-picker${vm.metricPickerOpen ? ' open' : ''}><summary data-review-columns-trigger>显示指标</summary><div class="review-columns-menu">${REVIEW_LIST_METRICS.map(metric => `<label><input type="checkbox" data-review-column="${e(metric.key)}"${chosen.includes(metric.key) ? ' checked' : ''}>${e(metric.label)}</label>`).join('')}</div></details>`;
+  const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options([['7d','近 7 天'],['30d','近 30 天'],['all','全部时间']],range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options([['','全部判定'],['爆','爆'],['中','中'],['扑','扑']],f.verdict || '')}</select></label>${picker}<span class="review-note">${selected.length} 篇</span></div>`;
   if (!selected.length) return filters + empty('当前筛选下没有文章');
-  const cells = row => { const observation = reviewListObservation(row,data.snapshots,vm.now || new Date().toISOString()); return [
+  const cells = row => { const observation = reviewListObservation(row,data.snapshots,vm.now || new Date().toISOString());
+    const age = observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} 小时</span>` : '';
+    const metrics = columns.map(metric => [metric.label,`${e(formatReviewListMetric(observation,metric.key))}${metric.key === 'reads' ? age : ''}`]);
+    const judgement = observation.kind === 'longtail' ? '<span class="review-tag">长尾</span>' : tag(row.verdict);
+    const supplement = chosen.includes('reads') ? '' : observation.kind === 'immature' ? '未满24h' : age;
+    return [
     ['发布时间',e(reviewDateTime(row.published_at) || '—')],
     ['标题',`<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || '未命名文章')}</button>${sampleLabel(row,data)}`],
-    ['阅读',observation.kind === 'immature' ? '未满24h' : `${e(reviewNumber(observation.reads))}${observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} 小时</span>` : ''}`],
-    ['判定',observation.kind === 'longtail' ? '<span class="review-tag">长尾</span>' : tag(row.verdict)]
+    ...metrics,
+    ['判定',`${judgement}${supplement}`]
   ]; };
-  return filters + `<div class="review-table-wrap"><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${['发布时间','标题','阅读','判定'].map(t => `<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${selected.map(row => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label,body]) => `<td data-label="${label}">${body}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const wide = columns.length > 1;
+  return filters + `<div class="review-table-wrap${wide ? ' review-columns-wide' : ''}"${wide ? ` style="--review-columns-min:${520 + columns.length * 140}px"` : ''}><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${['发布时间','标题',...columns.map(metric => metric.label),'判定'].map(t => `<th scope="col">${e(t)}</th>`).join('')}</tr></thead><tbody>${selected.map(row => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label,body]) => `<td data-label="${e(label)}">${body}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 const sections = [['keep_topic','保留选题'],['drop_topic','放弃选题'],['title','标题'],['body','正文'],['audience','读者'],['checklist','发布检查']];
 const statuses = [['candidate','待验证'],['trial','试用中'],['kept','有效'],['dropped','无效'],['hold','观察中']];

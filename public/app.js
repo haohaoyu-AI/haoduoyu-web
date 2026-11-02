@@ -12220,84 +12220,6 @@ function renderTrafficCard(snapshots2, articleId) {
   return `<section class="review-traffic-card" aria-label="文章流量数据">${snapshot ? `<div class="review-traffic-date">数据日期 ${e(snapshot.snapshot_date)}</div>` : ""}<dl class="review-traffic-primary">${primary.map(([label3, value, subLabel, subValue]) => `<div><dt>${e(label3)}</dt><dd>${e(value)}</dd><div class="review-traffic-fan">${e(subLabel)} <span>${e(subValue)}</span></div></div>`).join("")}</dl><dl class="review-traffic-secondary">${secondary.map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl></section>`;
 }
 
-// web/pages/review-imitation.mjs
-init_dom();
-function safeUrl(value) {
-  try {
-    const url = new URL(String(value));
-    return ["https:", "http:"].includes(url.protocol) ? url.href : "";
-  } catch {
-    return "";
-  }
-}
-function renderImitation(row, data2, account) {
-  if (!row || row.account !== account) return "";
-  const reference = row.reference_article_id == null ? null : (data2.benchmarkArticles || []).find((item) => item.account === account && String(item.id) === String(row.reference_article_id));
-  let value;
-  if (reference) {
-    const id2 = String(reference.id);
-    const query = new URLSearchParams({ page: "review", account, review_section: "benchmarks", review_benchmark: id2 });
-    value = `<a href="?${e(query.toString())}" data-review-benchmark="${e(id2)}">${e(reference.title || "未命名文章")}</a>`;
-  } else {
-    const title = String(row?.sample_title || "").trim();
-    const rawUrl = String(row?.sample_url || "").trim();
-    const url = safeUrl(rawUrl);
-    const label3 = title || (rawUrl ? "参考文章" : "自选题");
-    value = url ? `<a href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(label3)}</a>` : e(label3);
-  }
-  return `<div class="review-imitation"><span>仿</span><div>${value}</div></div>`;
-}
-
-// web/pages/review-benchmark-library.mjs
-init_dom();
-function safeUrl2(value) {
-  try {
-    const url = new URL(String(value));
-    return ["http:", "https:"].includes(url.protocol) ? url.href : "";
-  } catch {
-    return "";
-  }
-}
-function number(value) {
-  const n = finiteNumber(value);
-  if (n === null || n < 0) return "—";
-  return n >= 1e4 ? `${(n / 1e4).toFixed(1)} 万` : n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
-}
-function articleLink(article, account) {
-  const external2 = safeUrl2(article.url);
-  const local = `?page=review&account=${encodeURIComponent(account)}&review_article=${encodeURIComponent(article.id)}`;
-  return `<a href="${e(external2 || local)}"${external2 ? ' target="_blank" rel="noopener noreferrer"' : ""}>${e(article.title || "未命名文章")}</a>`;
-}
-function renderBenchmarkLibrary(data2 = {}, account = "") {
-  const accounts = new Map((data2.benchmarkAccounts || []).filter((item) => item.account === account).map((item) => [String(item.id), item]));
-  const ownArticles = (data2.articles || []).filter((item) => item.account === account);
-  const rows = (data2.benchmarkArticles || []).filter((item) => item.account === account && accounts.has(String(item.benchmark_account_id))).map((item) => ({ item, published: reviewDateTime(item.published_at) })).sort((a, b) => {
-    const dayOrder = b.published.slice(0, 10).localeCompare(a.published.slice(0, 10));
-    if (dayOrder) return dayOrder;
-    const aTimed = a.published.length > 10, bTimed = b.published.length > 10;
-    return Number(bTimed) - Number(aTimed) || (aTimed && bTimed ? Date.parse(b.item.published_at) - Date.parse(a.item.published_at) : 0) || String(a.item.id).localeCompare(String(b.item.id));
-  });
-  if (!rows.length) return '<section class="review-benchmark-library"><h3>爆文库</h3><p class="review-note">暂无爆文</p></section>';
-  const headers = ["发布时间", "账号", "标题", "阅读", "配图数", "收录日期", "已仿"];
-  const body2 = rows.map(({ item, published }) => {
-    const owner2 = accounts.get(String(item.benchmark_account_id));
-    const target = safeUrl2(item.url);
-    const title = e(item.title || "未命名文章");
-    const used = ownArticles.filter((article) => article.reference_article_id != null && String(article.reference_article_id) === String(item.id));
-    const cells = [
-      e(published || "未知"),
-      e(owner2.name || "未命名账号"),
-      target ? `<a href="${e(target)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title,
-      e(number(item.reads)),
-      e(number(item.image_count)),
-      e(reviewDateTime(item.collected_on) || "未知"),
-      used.length ? used.map((article) => articleLink(article, account)).join("") : "—"
-    ];
-    return `<tr id="review-benchmark-${e(encodeURIComponent(item.id))}" tabindex="-1">${cells.map((cell, index) => `<td data-label="${headers[index]}">${cell}</td>`).join("")}</tr>`;
-  }).join("");
-  return `<section class="review-benchmark-library"><h3>爆文库</h3><div class="review-benchmark-table-wrap"><table class="review-benchmark-table"><thead><tr>${headers.map((label3) => `<th scope="col">${label3}</th>`).join("")}</tr></thead><tbody>${body2}</tbody></table></div></section>`;
-}
-
 // shared/review-analytics.mjs
 var array = (value) => Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
 var id = (value) => String(value ?? "");
@@ -12588,6 +12510,104 @@ function reviewDuration(value) {
   return `${Math.floor(seconds / 60)}分${String(seconds % 60).padStart(2, "0")}秒`;
 }
 
+// web/core/review-list-metrics.mjs
+var REVIEW_LIST_METRICS = Object.freeze([
+  { key: "reads", label: "阅读" },
+  { key: "impressions", label: "展现量" },
+  { key: "fan_impressions", label: "粉丝展现量" },
+  { key: "fan_reads", label: "粉丝阅读量" },
+  { key: "ctr", label: "点击率" },
+  { key: "avg_read_seconds", label: "平均阅读时长" },
+  { key: "completion_rate", label: "平均阅读完成率" }
+]);
+function formatReviewListMetric(observation, key) {
+  if (!REVIEW_LIST_METRICS.some((metric) => metric.key === key)) return "—";
+  if (observation?.kind === "immature" && key === "reads") return "未满24h";
+  const number2 = finiteNumber(observation?.snapshot?.[key]);
+  if (number2 === null || number2 < 0) return "—";
+  if (key === "ctr" || key === "completion_rate") return number2 <= 100 ? `${number2.toFixed(1)}%` : "—";
+  if (key === "avg_read_seconds") return reviewDuration(number2);
+  return number2 >= 1e4 ? `${(number2 / 1e4).toFixed(1)} 万` : number2.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
+}
+
+// web/pages/review-imitation.mjs
+init_dom();
+function safeUrl(value) {
+  try {
+    const url = new URL(String(value));
+    return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+function renderImitation(row, data2, account) {
+  if (!row || row.account !== account) return "";
+  const reference = row.reference_article_id == null ? null : (data2.benchmarkArticles || []).find((item) => item.account === account && String(item.id) === String(row.reference_article_id));
+  let value;
+  if (reference) {
+    const id2 = String(reference.id);
+    const query = new URLSearchParams({ page: "review", account, review_section: "benchmarks", review_benchmark: id2 });
+    value = `<a href="?${e(query.toString())}" data-review-benchmark="${e(id2)}">${e(reference.title || "未命名文章")}</a>`;
+  } else {
+    const title = String(row?.sample_title || "").trim();
+    const rawUrl = String(row?.sample_url || "").trim();
+    const url = safeUrl(rawUrl);
+    const label3 = title || (rawUrl ? "参考文章" : "自选题");
+    value = url ? `<a href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(label3)}</a>` : e(label3);
+  }
+  return `<div class="review-imitation"><span>仿</span><div>${value}</div></div>`;
+}
+
+// web/pages/review-benchmark-library.mjs
+init_dom();
+function safeUrl2(value) {
+  try {
+    const url = new URL(String(value));
+    return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+function number(value) {
+  const n = finiteNumber(value);
+  if (n === null || n < 0) return "—";
+  return n >= 1e4 ? `${(n / 1e4).toFixed(1)} 万` : n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
+}
+function articleLink(article, account) {
+  const external2 = safeUrl2(article.url);
+  const local = `?page=review&account=${encodeURIComponent(account)}&review_article=${encodeURIComponent(article.id)}`;
+  return `<a href="${e(external2 || local)}"${external2 ? ' target="_blank" rel="noopener noreferrer"' : ""}>${e(article.title || "未命名文章")}</a>`;
+}
+function renderBenchmarkLibrary(data2 = {}, account = "") {
+  const accounts = new Map((data2.benchmarkAccounts || []).filter((item) => item.account === account).map((item) => [String(item.id), item]));
+  const ownArticles = (data2.articles || []).filter((item) => item.account === account);
+  const rows = (data2.benchmarkArticles || []).filter((item) => item.account === account && accounts.has(String(item.benchmark_account_id))).map((item) => ({ item, published: reviewDateTime(item.published_at) })).sort((a, b) => {
+    const dayOrder = b.published.slice(0, 10).localeCompare(a.published.slice(0, 10));
+    if (dayOrder) return dayOrder;
+    const aTimed = a.published.length > 10, bTimed = b.published.length > 10;
+    return Number(bTimed) - Number(aTimed) || (aTimed && bTimed ? Date.parse(b.item.published_at) - Date.parse(a.item.published_at) : 0) || String(a.item.id).localeCompare(String(b.item.id));
+  });
+  if (!rows.length) return '<section class="review-benchmark-library"><h3>爆文库</h3><p class="review-note">暂无爆文</p></section>';
+  const headers = ["发布时间", "账号", "标题", "阅读", "配图数", "收录日期", "已仿"];
+  const body2 = rows.map(({ item, published }) => {
+    const owner2 = accounts.get(String(item.benchmark_account_id));
+    const target = safeUrl2(item.url);
+    const title = e(item.title || "未命名文章");
+    const used = ownArticles.filter((article) => article.reference_article_id != null && String(article.reference_article_id) === String(item.id));
+    const cells = [
+      e(published || "未知"),
+      e(owner2.name || "未命名账号"),
+      target ? `<a href="${e(target)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title,
+      e(number(item.reads)),
+      e(number(item.image_count)),
+      e(reviewDateTime(item.collected_on) || "未知"),
+      used.length ? used.map((article) => articleLink(article, account)).join("") : "—"
+    ];
+    return `<tr id="review-benchmark-${e(encodeURIComponent(item.id))}" tabindex="-1">${cells.map((cell, index) => `<td data-label="${headers[index]}">${cell}</td>`).join("")}</tr>`;
+  }).join("");
+  return `<section class="review-benchmark-library"><h3>爆文库</h3><div class="review-benchmark-table-wrap"><table class="review-benchmark-table"><thead><tr>${headers.map((label3) => `<th scope="col">${label3}</th>`).join("")}</tr></thead><tbody>${body2}</tbody></table></div></section>`;
+}
+
 // web/core/review-list-observation.mjs
 function instant2(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day4(value)) return null;
@@ -12802,18 +12822,26 @@ function overview(data2, vm2) {
 function articleLibrary(rows, vm2, data2 = {}) {
   const f = vm2.filters || {}, range = f.range || "30d", today2 = day4(vm2.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay(today2, range === "7d" ? -6 : -29);
   const selected = rows.filter((r) => (!from || day4(r.published_at) && day4(r.published_at) >= from && day4(r.published_at) <= today2) && (!f.from || day4(r.published_at) >= f.from && day4(r.published_at)) && (!f.to || day4(r.published_at) <= f.to && day4(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
-  const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options2([["7d", "近 7 天"], ["30d", "近 30 天"], ["all", "全部时间"]], range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options2([["", "全部判定"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]], f.verdict || "")}</select></label><span class="review-note">${selected.length} 篇</span></div>`;
+  const chosen = Array.isArray(vm2.metricColumns) ? vm2.metricColumns : ["reads"];
+  const columns = REVIEW_LIST_METRICS.filter((metric) => chosen.includes(metric.key));
+  const picker = `<details class="review-columns-picker" data-review-columns-picker${vm2.metricPickerOpen ? " open" : ""}><summary data-review-columns-trigger>显示指标</summary><div class="review-columns-menu">${REVIEW_LIST_METRICS.map((metric) => `<label><input type="checkbox" data-review-column="${e(metric.key)}"${chosen.includes(metric.key) ? " checked" : ""}>${e(metric.label)}</label>`).join("")}</div></details>`;
+  const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options2([["7d", "近 7 天"], ["30d", "近 30 天"], ["all", "全部时间"]], range)}</select></label><label>表现判定<select class="input" data-review-filter="verdict">${options2([["", "全部判定"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]], f.verdict || "")}</select></label>${picker}<span class="review-note">${selected.length} 篇</span></div>`;
   if (!selected.length) return filters + empty2("当前筛选下没有文章");
   const cells = (row) => {
     const observation = reviewListObservation(row, data2.snapshots, vm2.now || (/* @__PURE__ */ new Date()).toISOString());
+    const age = observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} 小时</span>` : "";
+    const metrics2 = columns.map((metric) => [metric.label, `${e(formatReviewListMetric(observation, metric.key))}${metric.key === "reads" ? age : ""}`]);
+    const judgement = observation.kind === "longtail" ? '<span class="review-tag">长尾</span>' : tag(row.verdict);
+    const supplement = chosen.includes("reads") ? "" : observation.kind === "immature" ? "未满24h" : age;
     return [
       ["发布时间", e(reviewDateTime(row.published_at) || "—")],
       ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${sampleLabel(row, data2)}`],
-      ["阅读", observation.kind === "immature" ? "未满24h" : `${e(reviewNumber(observation.reads))}${observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} 小时</span>` : ""}`],
-      ["判定", observation.kind === "longtail" ? '<span class="review-tag">长尾</span>' : tag(row.verdict)]
+      ...metrics2,
+      ["判定", `${judgement}${supplement}`]
     ];
   };
-  return filters + `<div class="review-table-wrap"><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${["发布时间", "标题", "阅读", "判定"].map((t) => `<th scope="col">${t}</th>`).join("")}</tr></thead><tbody>${selected.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body2]) => `<td data-label="${label3}">${body2}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  const wide = columns.length > 1;
+  return filters + `<div class="review-table-wrap${wide ? " review-columns-wide" : ""}"${wide ? ` style="--review-columns-min:${520 + columns.length * 140}px"` : ""}><table class="review-table review-articles-table"><caption class="review-sr-only">文章表现，点击文章行查看详细指标与判定依据</caption><thead><tr>${["发布时间", "标题", ...columns.map((metric) => metric.label), "判定"].map((t) => `<th scope="col">${e(t)}</th>`).join("")}</tr></thead><tbody>${selected.map((row) => `<tr data-review-row="${e(row.id)}">${cells(row).map(([label3, body2]) => `<td data-label="${e(label3)}">${body2}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 var sections = [["keep_topic", "保留选题"], ["drop_topic", "放弃选题"], ["title", "标题"], ["body", "正文"], ["audience", "读者"], ["checklist", "发布检查"]];
 var statuses2 = [["candidate", "待验证"], ["trial", "试用中"], ["kept", "有效"], ["dropped", "无效"], ["hold", "观察中"]];
@@ -12906,9 +12934,21 @@ function renderContentReviewContent(data2, vm2) {
 }
 
 // web/review-controller.mjs
+var columnStorageKey = "haoduoyu.review.columns.v1";
+var REVIEW_METRIC_COLUMNS = Object.freeze(["reads", "impressions", "fan_impressions", "fan_reads", "ctr", "avg_read_seconds", "completion_rate"]);
+function readReviewColumnPreference(raw) {
+  try {
+    const parsed2 = JSON.parse(raw);
+    if (!Array.isArray(parsed2)) return ["reads"];
+    const selected = REVIEW_METRIC_COLUMNS.filter((key) => parsed2.includes(key));
+    return parsed2.length && !selected.length ? ["reads"] : selected;
+  } catch {
+    return ["reads"];
+  }
+}
 var resources = ["articles", "snapshots", "reports", "playbooks", "benchmark-accounts", "benchmark-articles", "notes", "account-health"];
 var data = normalizeReviewData(), sequence3 = 0, registered2 = false, identity4 = "", pageContext2;
-var vm = { account: "V字", view: "overview", secondary: "benchmarks", week: "this", date: "", start: "", end: "", periods: [], filters: {}, article: "", version: "", compare: "", loading: true, error: "" };
+var vm = { account: "V字", view: "overview", secondary: "benchmarks", week: "this", date: "", start: "", end: "", periods: [], filters: {}, metricColumns: readReviewColumnPreference(storage.get(columnStorageKey)), metricPickerOpen: false, article: "", version: "", compare: "", loading: true, error: "" };
 var root = () => typeof document === "undefined" ? null : document.querySelector("#content-review");
 function staleRead(message = "复盘资料在读取时发生变化，请重新读取。") {
   return Object.assign(new Error(message), { code: "READ_REVISION_CHANGED" });
@@ -12993,6 +13033,36 @@ function focusBenchmark(id2) {
   node2.scrollIntoView({ block: "start" });
   node2.focus({ preventScroll: true });
 }
+function positionReviewColumnsPicker() {
+  const picker = root()?.querySelector("[data-review-columns-picker]");
+  if (!picker?.open) return;
+  const trigger = picker.querySelector("[data-review-columns-trigger]");
+  const menu = picker.querySelector(".review-columns-menu");
+  if (!trigger || !menu) return;
+  const viewport = window.visualViewport;
+  const viewportTop = viewport?.offsetTop || 0;
+  let viewportBottom = viewportTop + (viewport?.height || window.innerHeight);
+  const nav2 = document.querySelector(".mobile-nav");
+  if (nav2 && nav2.getClientRects().length && getComputedStyle(nav2).visibility !== "hidden") {
+    const rect2 = nav2.getBoundingClientRect();
+    if (rect2.bottom > viewportTop && rect2.top < viewportBottom) viewportBottom = Math.min(viewportBottom, rect2.top);
+  }
+  const rect = trigger.getBoundingClientRect();
+  const gap = 8;
+  const above = Math.max(0, rect.top - viewportTop - gap);
+  const below = Math.max(0, viewportBottom - rect.bottom - gap);
+  const placeUp = menu.scrollHeight + 2 > below && above > below;
+  picker.dataset.reviewColumnsPlacement = placeUp ? "up" : "down";
+  menu.style.setProperty("--review-columns-max-height", `${Math.floor(placeUp ? above : below)}px`);
+}
+var columnPositionFrame = 0;
+function scheduleReviewColumnsPosition() {
+  if (columnPositionFrame || !root()?.querySelector("[data-review-columns-picker][open]")) return;
+  columnPositionFrame = requestAnimationFrame(() => {
+    columnPositionFrame = 0;
+    positionReviewColumnsPicker();
+  });
+}
 var returnFocusId = "", returnScroll = 0;
 function paintContentReviewPage() {
   const node2 = root();
@@ -13001,6 +13071,7 @@ function paintContentReviewPage() {
   const dialog = node2.querySelector('[role="dialog"]');
   for (const child of node2.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
   if (dialog) dialog.querySelector(".review-drawer-close")?.focus({ preventScroll: true });
+  if (vm.metricPickerOpen) positionReviewColumnsPicker();
 }
 async function loadContentReview(context) {
   registerEvents2();
@@ -13050,8 +13121,24 @@ function selectTab(view, focus = false) {
 function registerEvents2() {
   if (registered2 || typeof document === "undefined") return;
   registered2 = true;
+  document.addEventListener("toggle", (event) => {
+    const picker = event.target;
+    if (picker.matches?.("[data-review-columns-picker]") && root()?.contains(picker)) {
+      vm.metricPickerOpen = picker.open;
+      if (picker.open) positionReviewColumnsPicker();
+    }
+  }, true);
+  window.addEventListener("resize", scheduleReviewColumnsPosition, { passive: true });
+  document.addEventListener("scroll", scheduleReviewColumnsPosition, { capture: true, passive: true });
+  window.visualViewport?.addEventListener("resize", scheduleReviewColumnsPosition, { passive: true });
+  window.visualViewport?.addEventListener("scroll", scheduleReviewColumnsPosition, { passive: true });
   document.addEventListener("click", (event) => {
     const node2 = root();
+    const picker = node2?.querySelector("[data-review-columns-picker]");
+    if (picker?.open && !picker.contains(event.target)) {
+      picker.open = false;
+      vm.metricPickerOpen = false;
+    }
     const benchmarkLink = event.target.closest?.("a[data-review-benchmark]");
     if (benchmarkLink && node2?.contains(benchmarkLink)) {
       event.preventDefault();
@@ -13117,7 +13204,31 @@ function registerEvents2() {
   });
   document.addEventListener("change", (event) => {
     const target = event.target;
-    if (!root()?.contains(target) || vm.loading || vm.error || !target.dataset.reviewFilter) return;
+    const node2 = root();
+    if (!node2?.contains(target) || vm.loading || vm.error) return;
+    const column = target.dataset.reviewColumn;
+    if (column !== void 0) {
+      if (!REVIEW_METRIC_COLUMNS.includes(column)) return;
+      const selected = new Set(vm.metricColumns);
+      if (target.checked) selected.add(column);
+      else selected.delete(column);
+      vm.metricColumns = REVIEW_METRIC_COLUMNS.filter((key2) => selected.has(key2));
+      vm.metricPickerOpen = true;
+      storage.set(columnStorageKey, JSON.stringify(vm.metricColumns));
+      const scrollLeft = node2.querySelector(".review-table-wrap")?.scrollLeft || 0;
+      const scrollY = window.scrollY;
+      paintContentReviewPage();
+      const current2 = root();
+      const picker = current2?.querySelector("[data-review-columns-picker]");
+      if (picker) picker.open = true;
+      const table2 = current2?.querySelector(".review-table-wrap");
+      if (table2) table2.scrollLeft = scrollLeft;
+      current2?.querySelector(`[data-review-column="${column}"]`)?.focus({ preventScroll: true });
+      window.scrollTo({ top: scrollY, behavior: "instant" });
+      positionReviewColumnsPicker();
+      return;
+    }
+    if (!target.dataset.reviewFilter) return;
     const key = target.dataset.reviewFilter;
     vm.filters[key] = target.value;
     paintContentReviewPage();
@@ -13144,6 +13255,14 @@ function registerEvents2() {
           first?.focus();
         }
       }
+      return;
+    }
+    const picker = node2.querySelector("[data-review-columns-picker]");
+    if (event.key === "Escape" && picker?.open) {
+      event.preventDefault();
+      picker.open = false;
+      vm.metricPickerOpen = false;
+      picker.querySelector("[data-review-columns-trigger]")?.focus({ preventScroll: true });
       return;
     }
     if (event.target.matches("[data-review-secondary]") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {

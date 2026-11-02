@@ -1,9 +1,21 @@
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
+import {storage} from './core/storage.mjs';
+
+const columnStorageKey = 'haoduoyu.review.columns.v1';
+export const REVIEW_METRIC_COLUMNS = Object.freeze(['reads','impressions','fan_impressions','fan_reads','ctr','avg_read_seconds','completion_rate']);
+export function readReviewColumnPreference(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return ['reads'];
+    const selected = REVIEW_METRIC_COLUMNS.filter(key => parsed.includes(key));
+    return parsed.length && !selected.length ? ['reads'] : selected;
+  } catch { return ['reads']; }
+}
 
 const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
-let vm = {account:'V字',view:'overview',secondary:'benchmarks',week:'this',date:'',start:'',end:'',periods:[],filters:{},article:'',version:'',compare:'',loading:true,error:''};
+let vm = {account:'V字',view:'overview',secondary:'benchmarks',week:'this',date:'',start:'',end:'',periods:[],filters:{},metricColumns:readReviewColumnPreference(storage.get(columnStorageKey)),metricPickerOpen:false,article:'',version:'',compare:'',loading:true,error:''};
 const root = () => typeof document === 'undefined' ? null : document.querySelector('#content-review');
 function staleRead(message = '复盘资料在读取时发生变化，请重新读取。') {
   return Object.assign(new Error(message),{code:'READ_REVISION_CHANGED'});
@@ -85,6 +97,33 @@ function focusBenchmark(id) {
   node.scrollIntoView({block:'start'});
   node.focus({preventScroll:true});
 }
+function positionReviewColumnsPicker() {
+  const picker = root()?.querySelector('[data-review-columns-picker]');
+  if (!picker?.open) return;
+  const trigger = picker.querySelector('[data-review-columns-trigger]');
+  const menu = picker.querySelector('.review-columns-menu');
+  if (!trigger || !menu) return;
+  const viewport = window.visualViewport;
+  const viewportTop = viewport?.offsetTop || 0;
+  let viewportBottom = viewportTop + (viewport?.height || window.innerHeight);
+  const nav = document.querySelector('.mobile-nav');
+  if (nav && nav.getClientRects().length && getComputedStyle(nav).visibility !== 'hidden') {
+    const rect = nav.getBoundingClientRect();
+    if (rect.bottom > viewportTop && rect.top < viewportBottom) viewportBottom = Math.min(viewportBottom,rect.top);
+  }
+  const rect = trigger.getBoundingClientRect();
+  const gap = 8;
+  const above = Math.max(0,rect.top - viewportTop - gap);
+  const below = Math.max(0,viewportBottom - rect.bottom - gap);
+  const placeUp = menu.scrollHeight + 2 > below && above > below;
+  picker.dataset.reviewColumnsPlacement = placeUp ? 'up' : 'down';
+  menu.style.setProperty('--review-columns-max-height',`${Math.floor(placeUp ? above : below)}px`);
+}
+let columnPositionFrame = 0;
+function scheduleReviewColumnsPosition() {
+  if (columnPositionFrame || !root()?.querySelector('[data-review-columns-picker][open]')) return;
+  columnPositionFrame = requestAnimationFrame(() => { columnPositionFrame = 0; positionReviewColumnsPicker(); });
+}
 let returnFocusId = '', returnScroll = 0;
 export function paintContentReviewPage() {
   const node = root(); if (!node) return;
@@ -92,6 +131,7 @@ export function paintContentReviewPage() {
   const dialog = node.querySelector('[role="dialog"]');
   for (const child of node.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
   if (dialog) dialog.querySelector('.review-drawer-close')?.focus({preventScroll:true});
+  if (vm.metricPickerOpen) positionReviewColumnsPicker();
 }
 export async function loadContentReview(context) {
   registerEvents(); pageContext = context;
@@ -123,8 +163,21 @@ function selectTab(view,focus = false) {
 function registerEvents() {
   if (registered || typeof document === 'undefined') return;
   registered = true;
+  document.addEventListener('toggle',event => {
+    const picker = event.target;
+    if (picker.matches?.('[data-review-columns-picker]') && root()?.contains(picker)) {
+      vm.metricPickerOpen = picker.open;
+      if (picker.open) positionReviewColumnsPicker();
+    }
+  },true);
+  window.addEventListener('resize',scheduleReviewColumnsPosition,{passive:true});
+  document.addEventListener('scroll',scheduleReviewColumnsPosition,{capture:true,passive:true});
+  window.visualViewport?.addEventListener('resize',scheduleReviewColumnsPosition,{passive:true});
+  window.visualViewport?.addEventListener('scroll',scheduleReviewColumnsPosition,{passive:true});
   document.addEventListener('click',event => {
     const node = root();
+    const picker = node?.querySelector('[data-review-columns-picker]');
+    if (picker?.open && !picker.contains(event.target)) { picker.open = false; vm.metricPickerOpen = false; }
     const benchmarkLink = event.target.closest?.('a[data-review-benchmark]');
     if (benchmarkLink && node?.contains(benchmarkLink)) {
       event.preventDefault();
@@ -157,7 +210,30 @@ function registerEvents() {
   });
   document.addEventListener('change',event => {
     const target = event.target;
-    if (!root()?.contains(target) || vm.loading || vm.error || !target.dataset.reviewFilter) return;
+    const node = root();
+    if (!node?.contains(target) || vm.loading || vm.error) return;
+    const column = target.dataset.reviewColumn;
+    if (column !== undefined) {
+      if (!REVIEW_METRIC_COLUMNS.includes(column)) return;
+      const selected = new Set(vm.metricColumns);
+      if (target.checked) selected.add(column); else selected.delete(column);
+      vm.metricColumns = REVIEW_METRIC_COLUMNS.filter(key => selected.has(key));
+      vm.metricPickerOpen = true;
+      storage.set(columnStorageKey,JSON.stringify(vm.metricColumns));
+      const scrollLeft = node.querySelector('.review-table-wrap')?.scrollLeft || 0;
+      const scrollY = window.scrollY;
+      paintContentReviewPage();
+      const current = root();
+      const picker = current?.querySelector('[data-review-columns-picker]');
+      if (picker) picker.open = true;
+      const table = current?.querySelector('.review-table-wrap');
+      if (table) table.scrollLeft = scrollLeft;
+      current?.querySelector(`[data-review-column="${column}"]`)?.focus({preventScroll:true});
+      window.scrollTo({top:scrollY,behavior:'instant'});
+      positionReviewColumnsPicker();
+      return;
+    }
+    if (!target.dataset.reviewFilter) return;
     const key = target.dataset.reviewFilter;
     vm.filters[key] = target.value; paintContentReviewPage();
     root()?.querySelector(`[data-review-filter="${key}"]`)?.focus({preventScroll:true});
@@ -174,6 +250,11 @@ function registerEvents() {
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
       }
       return;
+    }
+    const picker = node.querySelector('[data-review-columns-picker]');
+    if (event.key === 'Escape' && picker?.open) {
+      event.preventDefault(); picker.open = false; vm.metricPickerOpen = false;
+      picker.querySelector('[data-review-columns-trigger]')?.focus({preventScroll:true}); return;
     }
     if (event.target.matches('[data-review-secondary]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
       event.preventDefault(); const ids = REVIEW_SECTIONS.map(([id]) => id), index = ids.indexOf(vm.secondary);
