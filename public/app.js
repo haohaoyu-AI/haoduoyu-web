@@ -12796,7 +12796,7 @@ function overview(data2, vm2) {
   const current2 = reviewOverviewMetrics(data2, { account: vm2.account, range, now: vm2.now || (/* @__PURE__ */ new Date()).toISOString() });
   const noSample = range !== "last" && current2.observedCount === 0;
   const value = (formatted) => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
-  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["24h", "近 24 小时"], ["this", "本周"], ["last", "上周"]], range)}</select></label></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current2.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current2.hits))} / ${e(reviewNumber(current2.middle))} / ${e(reviewNumber(current2.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current2.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current2.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current2.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current2.completion, "completion_rate"))}</article></div></section>`;
+  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["24h", "近 24 小时"], ["this", "本周"], ["last", "上周"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current2.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current2.hits))} / ${e(reviewNumber(current2.middle))} / ${e(reviewNumber(current2.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current2.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current2.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current2.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current2.completion, "completion_rate"))}</article></div></section>`;
   return cards + panel("文章列表", articleLibrary(rows, vm2, data2), "", "review-articles-panel") + archives(data2, vm2, "", [], []);
 }
 function articleLibrary(rows, vm2, data2 = {}) {
@@ -12857,6 +12857,8 @@ function playbook(data2, vm2) {
   const rules2 = Array.isArray(book.rules) ? book.rules : [];
   const lines = String(book.content_md || "").replace(/\r\n?/g, "\n").split("\n");
   const firstSection = lines.findIndex((line) => /^##\s/.test(line));
+  const titleLines = firstSection < 0 ? lines : lines.slice(0, firstSection);
+  const title = titleLines.map((line) => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || `规则手册 ${book.version}`;
   const content2 = (firstSection < 0 ? lines : lines.slice(0, firstSection)).filter((line) => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join("\n").trim();
   const intro = content2 ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content2)}</div>` : "";
   const groups = v13RuleGroups.map(([id2, label3]) => {
@@ -12865,7 +12867,7 @@ function playbook(data2, vm2) {
   }).join("");
   const ungrouped = rules2.filter((rule) => !v13RuleGroups.some(([id2]) => id2 === rule.section));
   const other = ungrouped.length ? `<details class="review-v13-rule-group" open><summary>其他 · ${ungrouped.length} 条</summary>${ungrouped.map((rule, index) => v13RuleRow(rule, index + 1)).join("")}</details>` : "";
-  return `<section class="review-v13-rules"><div class="review-v13-rule-meta"><h2>规则手册 ${e(book.version)}</h2><span class="review-note">生效于 ${e(day4(book.published_on) || "—")}</span><span class="review-note">共 ${rules2.length} 条规则</span></div>${intro}${groups}${other}</section>`;
+  return `<section class="review-v13-rules"><div class="review-v13-rule-meta"><h2>${e(title)}</h2><span class="review-note">生效于 ${e(day4(book.published_on) || "—")}</span><span class="review-note">共 ${rules2.length} 条规则</span></div>${intro}${groups}${other}</section>`;
 }
 function verdictBasis(row) {
   if (!row.verdict || !row.verdict_basis) return "";
@@ -12895,13 +12897,12 @@ function scopedReviewData(data2, account) {
 }
 function renderContentReviewContent(data2, vm2) {
   data2 = scopedReviewData(data2, vm2.account);
-  const header = `<div class="review-toolbar"><div class="review-account"><strong>内容复盘</strong><span class="review-version">v1.4</span><span class="review-note">${e(vm2.account)}</span></div><button class="btn text" type="button" data-review-action="refresh">刷新</button></div>`;
-  if (vm2.loading) return header + '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
-  if (vm2.error) return header + `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm2.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
+  if (vm2.loading) return '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
+  if (vm2.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm2.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data2, { account: vm2.account });
   const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes"].some((key) => data2[key].length);
-  const body2 = hasData ? overview(data2, vm2) : empty2("暂无内容复盘数据");
-  return `${header}<div class="review-body"${vm2.article ? " inert" : ""}>${body2}</div>${drawer(data2, rows, vm2)}`;
+  const body2 = hasData ? overview(data2, vm2) : empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>';
+  return `<div class="review-body"${vm2.article ? " inert" : ""}>${body2}</div>${drawer(data2, rows, vm2)}`;
 }
 
 // web/review-controller.mjs

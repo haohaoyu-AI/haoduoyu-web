@@ -1,5 +1,7 @@
 /* Read-only review views. All visual values use the shared token system. */
 body:has(#content-review .review-drawer) { overflow:hidden; }
+/* A filtered ancestor captures fixed positioning; release it while the drawer is open. */
+.shell:has(#content-review .review-drawer) { backdrop-filter:none; -webkit-backdrop-filter:none; }
 .content-review { width:100%; min-width:0; max-width:1000px; margin-inline:auto; color:var(--color-text); font-family:var(--font-family-ui); font-size:var(--font-size-14); line-height:var(--line-height-body); overflow-wrap:anywhere; }
 .content-review *, .content-review *::before, .content-review *::after { box-sizing:border-box; }
 .content-review [hidden] { display:none !important; }
@@ -58,6 +60,7 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
 .content-review .review-filters { display:flex; align-items:flex-end; flex-wrap:wrap; gap:var(--space-16); }
 .content-review .review-filters label { display:grid; gap:var(--space-6); min-width:var(--review-filter-min); color:var(--color-text-secondary); font-size:var(--font-size-12); }
 .content-review .review-filters .input { width:100%; font-size:var(--font-size-14); }
+.content-review .review-inline-refresh { margin-left:auto; }
 .content-review .review-overview-metrics > .review-filters { margin-bottom:var(--space-16); }
 .content-review .review-filters > .review-note { margin-left:auto; padding-bottom:var(--space-12); }
 .content-review .review-table-wrap { width:100%; max-width:100%; border:var(--review-line-width) solid var(--color-divider); border-radius:var(--radius-14); overflow:hidden; background:var(--color-white-a-4); }
