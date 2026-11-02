@@ -3,7 +3,7 @@ import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages
 
 const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
-let vm = {account:'V字',view:'overview',secondary:'accounts',week:'this',date:'',start:'',end:'',periods:[],filters:{},article:'',version:'',compare:'',loading:true,error:''};
+let vm = {account:'V字',view:'overview',secondary:'benchmarks',week:'this',date:'',start:'',end:'',periods:[],filters:{},article:'',version:'',compare:'',loading:true,error:''};
 const root = () => typeof document === 'undefined' ? null : document.querySelector('#content-review');
 function staleRead(message = '复盘资料在读取时发生变化，请重新读取。') {
   return Object.assign(new Error(message),{code:'READ_REVISION_CHANGED'});
@@ -61,7 +61,8 @@ export function reviewRoute(href,defaultAccount = vm.account) {
   const requested = p.get('tab') || (legacy === 'playbooks' ? 'playbook' : legacy);
   const view = REVIEW_VIEWS.some(([id]) => id === requested) ? requested : 'overview';
   const section = p.get('review_section');
-  const secondary = REVIEW_SECTIONS.some(([id]) => id === section) ? section : view === 'playbook' ? 'playbook' : 'accounts';
+  const secondary = REVIEW_SECTIONS.some(([id]) => id === section) ? section :
+    ['notes','playbook'].includes(section) || view === 'playbook' ? 'review' : 'benchmarks';
   return {account:p.get('account')?.trim() || defaultAccount,view,secondary,week:p.get('review_week') === 'last' ? 'last' : 'this',article:p.get('review_article') || '',version:p.get('review_version') || ''};
 }
 const route = () => reviewRoute(location.href);
