@@ -39,6 +39,7 @@ test('article drawer uses its selected account and snapshot', () => {
   assert.match(html, /role="dialog"/);
   assert.match(html, /数据日期 2026-10-02/);
   assert.match(html, /阅读量<\/dt><dd>12<\/dd>/);
+  assert.doesNotMatch(html, /原因全文/);
   assert.doesNotMatch(html, /999|2026-10-03/);
   assert.doesNotMatch(renderContentReviewContent(data, {...vm,article:'b'}), /review-traffic-card/);
 });

@@ -94,12 +94,12 @@ test('six KPIs follow the selected publication window and isolate accounts', () 
   assert.equal(stat(unknown,'爆 / 中 / 扑'),'— / — / —');
 });
 
-test('article list hides benchmark articles and detail renders recorded traffic fields', () => {
+test('article list links its references and detail renders recorded traffic fields', () => {
   const input=fixture(), html=htmlFor(input);
   for (const id of ['own-a','own-b','unknown']) assert.equal((row(html,id).match(/<td\b/g)||[]).length,4);
   const a=row(html,'own-a'), b=row(html,'own-b'), u=row(html,'unknown');
-  assert.doesNotMatch(a,/review-reference|https:\/\/example\.com\/reference\/0/);
-  assert.doesNotMatch(b,/review-reference|https:\/\/example\.com\/fallback/);
+  assert.match(a,/review-reference[\s\S]*https:\/\/example\.com\/reference\/0/);
+  assert.match(b,/review-reference[\s\S]*https:\/\/example\.com\/fallback/);
   assert.match(b,/data-label="阅读">0<span[^>]*>发布后 23 小时<\/span><\/td>/);
   assert.doesNotMatch(u,/review-reference|review-sample-icon/);
   assert.doesNotMatch(a,/data-label="24h CTR"|FOREIGN_/);
@@ -119,7 +119,7 @@ test('benchmark accounts show current-account features and hide sample articles'
   assert.equal((html.match(/class="review-v13-benchmark-group"/g)||[]).length,3);
   for (const name of names) assert.ok(html.includes(name),name);
   for (const feature of ['TOPIC_FEATURE','TITLE_FEATURE','STRUCTURE_FEATURE']) assert.ok(html.includes(feature));
-  assert.doesNotMatch(html,/class="review-v13-sample-row"|FOREIGN_|review-reference/);
+  assert.doesNotMatch(html,/class="review-v13-sample-row"|FOREIGN_/);
 });
 
 test('active manual shows all grouped rules without status controls and with complete text', () => {
@@ -144,5 +144,5 @@ test('hidden account-health data cannot create a visible panel and untrusted sam
   const html=htmlFor({articles:[{id:'x',account,title:'<img src=x onerror=alert(1)>',published_at:'2026-11-01',
     sample_title:'<script>BAD</script>',sample_url:'javascript:alert(1)'}]});
   assert.doesNotMatch(html,/<img|<script>|href="javascript:/);
-  assert.match(html,/&lt;img/); assert.doesNotMatch(html,/&lt;script&gt;/);
+  assert.match(html,/&lt;img/); assert.match(html,/&lt;script&gt;BAD&lt;\/script&gt;/);
 });

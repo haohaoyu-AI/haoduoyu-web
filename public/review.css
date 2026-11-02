@@ -57,6 +57,7 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
 .content-review .review-filters { display:flex; align-items:flex-end; flex-wrap:wrap; gap:var(--space-16); }
 .content-review .review-filters label { display:grid; gap:var(--space-6); min-width:var(--review-filter-min); color:var(--color-text-secondary); font-size:var(--font-size-12); }
 .content-review .review-filters .input { width:100%; font-size:var(--font-size-14); }
+.content-review .review-overview-metrics > .review-filters { margin-bottom:var(--space-16); }
 .content-review .review-filters > .review-note { margin-left:auto; padding-bottom:var(--space-12); }
 .content-review .review-table-wrap { width:100%; max-width:100%; border:var(--review-line-width) solid var(--color-divider); border-radius:var(--radius-14); overflow:hidden; background:var(--color-white-a-4); }
 .content-review .review-table { width:100%; table-layout:fixed; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:var(--font-size-14); }
@@ -317,6 +318,13 @@ body:has(#content-review .review-drawer) { overflow:hidden; }
   #content-review .review-articles-table th:nth-child(4) { width:85px; }
 }
 .content-review .review-observation-age { display:block; white-space:nowrap; }
+.content-review .review-account-link { color:var(--color-primary); text-decoration:underline; text-underline-offset:3px; }
+.content-review .review-account-link:hover { text-decoration-thickness:2px; }
+.content-review .review-account-link:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+.content-review .review-v13-account-features { display:grid; gap:16px; }
+.content-review .review-account-feature h4 { margin:0 0 6px; color:var(--color-text); font-size:14px; }
+.content-review .review-account-feature .review-markdown { overflow-wrap:anywhere; }
+.content-review .review-account-feature .review-markdown > * + * { margin-top:8px; }
 @media (max-width:760px) {
   #content-review .review-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
   #content-review .review-secondary-panel { padding:20px 18px; }

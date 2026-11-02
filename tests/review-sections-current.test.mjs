@@ -25,7 +25,9 @@ const html = secondary => renderContentReviewContent(data,vm(secondary));
 test('benchmark tab shows real account features without sample articles or other accounts', () => {
   const view = html('benchmarks');
   for (const text of ['对标账号','规则','对标甲','科技产业','提问式标题','分析结构']) assert.ok(view.includes(text),text);
-  assert.doesNotMatch(view,/对标爆文|复盘与规则|BENCHMARK_ARTICLE|FOREIGN_ACCOUNT|FOREIGN_FEATURE|review-v13-sample-row|review-reference/);
+  assert.doesNotMatch(view,/对标爆文|复盘与规则|FOREIGN_ACCOUNT|FOREIGN_FEATURE|review-v13-sample-row/);
+  const panel = view.split('id="review-secondary-panel"')[1];
+  assert.doesNotMatch(panel,/BENCHMARK_ARTICLE|review-reference/);
 });
 
 test('rules remain fully visible regardless of status and notes and daily summaries stay hidden', () => {

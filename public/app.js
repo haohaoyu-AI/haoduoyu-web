@@ -12624,13 +12624,16 @@ function chart(points, { small = false } = {}) {
   return `<div class="review-chart"><div class="review-chart-legend"><span class="reads">${small ? "阅读" : "阅读中位数"}</span><span class="ctr">${small ? "CTR" : "CTR 中位数"}</span>${small ? "" : '<span class="review-note">独立纵轴 · 悬停或聚焦查看当日篇数</span>'}</div><svg viewBox="0 0 ${width} ${bottom + 36}" role="img" aria-label="阅读和 CTR 趋势，两条线分别按各自纵轴绘制"><line class="review-axis" x1="${left}" x2="${right}" y1="${bottom}" y2="${bottom}"/>${lines}${dots}${hover}${labels}</svg><div class="review-chart-scale"><span>阅读轴 0 – ${e(reviewNumber(max("reads_24h")))}</span><span>CTR 轴 0 – ${e(reviewNumber(max("ctr_24h"), "ctr"))}</span></div></div>`;
 }
 function sampleFor(row, data2) {
-  const reference = (data2.benchmarkArticles || []).find((item) => String(item.id) === String(row.reference_article_id));
-  return reference ? { title: reference.title, url: reference.url, reads: reference.reads } : row.sample_title || row.sample_url ? { title: row.sample_title || "参考爆文", url: row.sample_url, reads: null } : null;
+  const reference = row.reference_article_id == null ? null : (data2.benchmarkArticles || []).find((item) => item.account === row.account && String(item.id) === String(row.reference_article_id));
+  const title = reference?.title || row.sample_title || "";
+  const url = safeReviewUrl(reference?.url) || safeReviewUrl(row.sample_url);
+  const reads = finiteNumber(reference?.reads);
+  return title || url ? { title, url, reads: reads !== null && reads >= 0 ? reads : null } : null;
 }
 function sampleLabel(row, data2) {
   const sample = sampleFor(row, data2);
   if (!sample) return "";
-  const label3 = `仿：${sample.title || "参考爆文"}${sample.reads == null ? "" : `（阅读 ${reviewNumber(sample.reads)}）`}`;
+  const label3 = `仿：${sample.title || "参考文章"}${sample.reads == null ? "" : `（阅读 ${reviewNumber(sample.reads)}）`}`;
   const href = safeReviewUrl(sample.url);
   return `<span class="review-reference">${href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(label3)}</a>` : e(label3)}</span>`;
 }
@@ -12663,12 +12666,15 @@ function v13Accounts(data2) {
     const rawPatterns = parseJson(account.title_patterns, []);
     const patterns = Array.isArray(rawPatterns) ? rawPatterns.filter((item) => typeof item === "string" && item.trim()) : [];
     const structure2 = String(account.structure_notes_md || "").trim();
+    const structureParts = structure2.includes("\n") ? [structure2] : structure2.split(/(?<=。)(?=\S)/u);
     const details = [
-      topic ? `<p><strong>选题方向：</strong>${e(topic)}</p>` : "",
-      patterns.length ? `<p><strong>标题特点：</strong>${patterns.map((item) => e(item)).join("、")}</p>` : "",
-      structure2 ? renderReviewMarkdown(structure2) : ""
+      topic ? `<section class="review-account-feature"><h4>选题方向</h4><div class="review-markdown">${renderReviewMarkdown(topic)}</div></section>` : "",
+      patterns.length ? `<section class="review-account-feature"><h4>标题特点</h4><div class="review-markdown">${patterns.map((item) => renderReviewMarkdown(item)).join("")}</div></section>` : "",
+      structure2 ? `<section class="review-account-feature"><h4>其他特点</h4><div class="review-markdown">${structureParts.map((part) => renderReviewMarkdown(part)).join("")}</div></section>` : ""
     ].join("");
-    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${e(account.name)}</h3></div><div class="review-v13-account-features review-markdown">${details || "<p>暂无特点记录</p>"}</div></section>`;
+    const profile = safeReviewUrl(account.profile_url);
+    const name = e(account.name || "未命名账号");
+    return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3></div><div class="review-v13-account-features">${details || "<p>暂无特点记录</p>"}</div></section>`;
   }).join("");
 }
 function archives(data2, vm2) {
@@ -12690,7 +12696,7 @@ function articleLibrary(rows, vm2, data2 = {}) {
   if (!selected.length) return filters + empty2("当前筛选下没有文章");
   const cells = (row) => [
     ["发布时间", e(reviewDateTime(row.published_at) || "—")],
-    ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>`],
+    ["标题", `<button type="button" class="review-title-button" data-review-article="${e(row.id)}" aria-haspopup="dialog">${e(row.title || "未命名文章")}</button>${sampleLabel(row, data2)}`],
     ["阅读", `${e(reviewNumber(row.reads_24h))}${row.sample24h ? `<span class="review-note review-observation-age">发布后 ${e(row.sample24h.age_hours)} 小时</span>` : ""}`],
     ["判定", tag(row.verdict)]
   ];
@@ -12760,7 +12766,7 @@ function drawer(data2, rows, vm2) {
   const row = rows.find((r) => String(r.id) === String(vm2.article));
   const close = '<button class="btn text review-drawer-close" type="button" data-review-action="close-article" aria-label="关闭文章详情">关闭 <span aria-hidden="true">×</span></button>';
   if (!row) return `<div class="review-drawer-overlay"><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1">${close}<h2 id="review-detail-title">未找到文章</h2><p>文章可能已移除或不属于当前账号。</p></aside></div>`;
-  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${e(reviewDateTime(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2><div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderTrafficCard(data2.snapshots, row.id)}${panel("原因全文", `<div class="review-markdown">${renderReviewMarkdown(articleReason(row, data2, vm2.account)) || "<p>—</p>"}</div>`)}</aside></div>`;
+  return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${e(reviewDateTime(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2><div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderTrafficCard(data2.snapshots, row.id)}</aside></div>`;
 }
 function renderContentReview() {
   return '<section id="content-review" class="content-review" aria-label="内容复盘"><p class="review-status" role="status" aria-live="polite">正在读取内容复盘…</p></section>';
