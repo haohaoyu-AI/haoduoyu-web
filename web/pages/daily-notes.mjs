@@ -303,7 +303,7 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
   find('[data-notes-action="login"]').hidden = !current.loaded || current.canEdit;
   find('#notes-entry-message').textContent = current.error; find('#notes-entry-message').hidden = !current.error;
   const items = current.ids.map(id => store.entry(id)).filter(Boolean);
-  const saved = items.filter(item => item.id !== active && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
+  const saved = items.filter(item => !item.deleted && item.id !== active && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const unpublished = find('#notes-unpublished');
   const nodes = new Map([...list.children, ...unpublished.children].filter(node => node.dataset.noteEntry).map(node => [node.dataset.noteEntry, node])), wanted = new Set(saved.map(item => item.id));
   for (const [id, node] of nodes) if (!wanted.has(id)) node.remove();
@@ -321,7 +321,7 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
   const composer = find('#notes-composer'), activeItem = active === 'legacy' ? legacy : store.entry(active);
   composer.hidden = !activeItem; composer.dataset.active = active;
   find('.notes-published').hidden = Boolean(activeItem); unpublished.hidden = Boolean(activeItem);
-  find('[data-notes-action="new"]').hidden = !canEdit || Boolean(activeItem);
+  find('[data-notes-action="new"]').hidden = !canEdit || current.date !== dailyNotesToday() || Boolean(activeItem);
   find('[data-notes-action="collapse"]').disabled = Boolean(activeItem?.pending || activeItem?.composing);
   const ordered = [...list.children].sort((a, b) => String(a.dataset.sortTime || '').localeCompare(String(b.dataset.sortTime || '')));
   list.append(...ordered);

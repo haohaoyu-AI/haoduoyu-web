@@ -3108,6 +3108,322 @@ var init_sync = __esm({
   }
 });
 
+// web/core/daily-notes-state.mjs
+function validDailyNotesDate(value) {
+  if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed2 = /* @__PURE__ */ new Date(value + "T00:00:00Z");
+  return Number.isFinite(parsed2.getTime()) && parsed2.toISOString().slice(0, 10) === value;
+}
+function dailyNotesToday() {
+  const parts2 = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(/* @__PURE__ */ new Date()).map((part) => [part.type, part.value]));
+  return parts2.year + "-" + parts2.month + "-" + parts2.day;
+}
+function setDailyNotesRouteCategory(value) {
+  routeCategory = value === "work" ? "work" : "life";
+}
+function dailyNotesRouteDate() {
+  return routeDate || dailyNotesToday();
+}
+function setDailyNotesRouteDate(value) {
+  routeDate = validDailyNotesDate(value) ? value : "";
+}
+function dailyNotesBytes(text) {
+  return new TextEncoder().encode(text).length;
+}
+function checkedPage(value, date) {
+  if (!value || value.date !== date || typeof value.text !== "string" || !Number.isSafeInteger(value.version) || value.version < 0 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES) throw new Error("碎碎念读取结果不完整，请重新核对。");
+  return value;
+}
+function createDailyNotesContext({
+  load,
+  put,
+  remove,
+  restore,
+  onChange = () => {
+  },
+  onSaved = () => {
+  },
+  uuid: uuid5 = () => crypto.randomUUID(),
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+  delay = 700
+}) {
+  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid: uuid5 } };
+  const pages = context.pages;
+  const emit = () => {
+    if (!context.disposed) onChange();
+  };
+  const page = (date) => {
+    if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
+    if (!pages.has(date)) pages.set(date, {
+      date,
+      loaded: false,
+      loading: false,
+      canEdit: false,
+      serverText: "",
+      draft: "",
+      version: 0,
+      updatedAt: null,
+      deleted: false,
+      dirty: false,
+      phase: "loading",
+      error: "",
+      remote: null,
+      pending: null,
+      timer: null,
+      sequence: 0,
+      writeEpoch: 0
+    });
+    return pages.get(date);
+  };
+  const stopTimer = (item) => {
+    if (item.timer !== null) clearTimer(item.timer);
+    item.timer = null;
+  };
+  const adopt = (item, value, preserve = false) => {
+    item.canEdit = value.can_edit;
+    item.serverText = value.deleted ? "" : value.text;
+    item.version = value.version;
+    item.updatedAt = value.updated_at;
+    item.deleted = value.deleted;
+    if (!preserve) item.draft = item.serverText;
+    item.dirty = item.draft !== item.serverText;
+    item.loaded = true;
+  };
+  function schedule(item) {
+    stopTimer(item);
+    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !["conflict", "unknown", "error", "oversize"].includes(item.phase)) {
+      item.timer = setTimer(() => {
+        item.timer = null;
+        void context.save(item.date);
+      }, delay);
+    }
+  }
+  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted === true : operation2.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation2.text);
+  function accepted(item, value, operation2) {
+    const keep = operation2.kind === "put" && item.draft !== operation2.text;
+    item.writeEpoch++;
+    adopt(item, value, keep);
+    item.remote = null;
+    item.pending = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    onSaved(item.date);
+    schedule(item);
+  }
+  function dispose() {
+    context.disposed = true;
+    for (const item of pages.values()) stopTimer(item);
+  }
+  Object.assign(context, { page, emit, stopTimer, adopt, schedule, matches: matches2, accepted, dispose });
+  return context;
+}
+function createReadingActions(context) {
+  const { page, emit, stopTimer, adopt, schedule } = context;
+  const { load } = context.options;
+  async function read(date) {
+    const item = page(date), sequence4 = ++item.sequence, writeEpoch = item.writeEpoch;
+    item.loading = true;
+    emit();
+    try {
+      const value = checkedPage(await load(date), date);
+      if (context.disposed || sequence4 !== item.sequence) return;
+      if (item.pending || writeEpoch !== item.writeEpoch) return;
+      if (["conflict", "unknown"].includes(item.phase)) {
+        item.remote = value;
+        item.canEdit = value.can_edit;
+      } else if (item.dirty && value.version !== item.version) {
+        item.remote = value;
+        item.canEdit = value.can_edit;
+        item.phase = "conflict";
+        item.error = "服务器已有新版本，草稿已保留，请核对后选择。";
+      } else {
+        adopt(item, value, item.dirty);
+        item.phase = item.dirty ? "dirty" : "saved";
+        item.error = "";
+      }
+    } catch (error) {
+      if (!context.disposed && sequence4 === item.sequence) {
+        item.error = error.message;
+        if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
+      }
+    } finally {
+      if (!context.disposed && sequence4 === item.sequence) {
+        item.loading = false;
+        emit();
+        schedule(item);
+      }
+    }
+  }
+  function edit(date, text, { composing = false } = {}) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || ["delete", "restore"].includes(item.pending?.kind)) return;
+    item.composing = composing;
+    item.draft = text;
+    item.dirty = text !== item.serverText;
+    stopTimer(item);
+    if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
+      if (!["conflict", "unknown"].includes(item.phase)) item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留，请缩短后再保存。";
+    } else if (!["conflict", "unknown"].includes(item.phase)) {
+      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
+      item.error = "";
+    }
+    emit();
+    if (!composing) schedule(item);
+  }
+  return { read, edit };
+}
+function createWritingActions(context) {
+  const { page, emit, stopTimer, matches: matches2, accepted } = context;
+  const { put, remove, restore, uuid: uuid5 } = context.options;
+  async function send(item, operation2) {
+    stopTimer(item);
+    item.pending = operation2;
+    item.phase = "saving";
+    item.error = "";
+    item.writeEpoch++;
+    emit();
+    try {
+      const raw = await (operation2.kind === "restore" ? restore(item.date, {
+        version: operation2.version,
+        save_id: operation2.saveId
+      }) : operation2.kind === "delete" ? remove(item.date, {
+        version: operation2.version,
+        save_id: operation2.saveId
+      }) : put(item.date, { text: operation2.text, version: operation2.version, save_id: operation2.saveId }));
+      if (context.disposed || item.pending !== operation2) return;
+      const value = checkedPage(raw, item.date);
+      if (!matches2(value, operation2)) throw new Error("保存响应需要重新核对。");
+      accepted(item, value, operation2);
+    } catch (error) {
+      if (context.disposed || item.pending !== operation2) return;
+      if (error.status === 409) {
+        item.pending = null;
+        item.phase = "conflict";
+        item.dirty = true;
+        item.error = "服务器已有新版本，草稿已保留，不会自动覆盖。";
+        emit();
+        await context.read(item.date);
+      } else if (error.status >= 400 && error.status < 500) {
+        item.pending = null;
+        item.phase = "error";
+        item.error = error.message;
+        if ([401, 403].includes(error.status)) item.canEdit = false;
+        emit();
+      } else {
+        item.phase = "unknown";
+        item.error = "正在核对保存结果，草稿已保留。";
+        emit();
+        await context.reconcile(item.date);
+      }
+    }
+  }
+  async function save(date) {
+    const item = page(date);
+    stopTimer(item);
+    if (context.disposed || !item.canEdit || !item.loaded || item.loading || item.pending || ["conflict", "unknown"].includes(item.phase) || !item.dirty) return;
+    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
+      item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留。";
+      emit();
+      return;
+    }
+    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid5() });
+  }
+  async function deletePage(date) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
+    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid5() });
+  }
+  async function retryPending(date) {
+    const item = page(date), operation2 = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation2?.retryReady || operation2.checking || !item.canEdit) return;
+    operation2.retryReady = false;
+    return send(item, operation2);
+  }
+  async function restorePage(date) {
+    const item = page(date);
+    if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
+    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid5() });
+  }
+  return { save, deletePage, restorePage, retryPending };
+}
+function createResolutionActions(context) {
+  const { page, emit, stopTimer, adopt, matches: matches2, accepted } = context;
+  const { load } = context.options;
+  async function reconcile(date) {
+    const item = page(date), operation2 = item.pending;
+    if (context.disposed || item.phase !== "unknown" || !operation2 || operation2.checking) return;
+    operation2.checking = true;
+    operation2.retryReady = false;
+    emit();
+    try {
+      const value = checkedPage(await load(date), date);
+      if (context.disposed || item.pending !== operation2) return;
+      item.canEdit = value.can_edit;
+      if (matches2(value, operation2)) accepted(item, value, operation2);
+      else if (value.version > operation2.version) {
+        item.remote = value;
+        item.pending = null;
+        item.phase = "conflict";
+        item.dirty = true;
+        item.error = "服务器已有不同的新版本，草稿已保留，不会自动覆盖。";
+      } else {
+        item.remote = value;
+        operation2.retryReady = value.can_edit && value.version === operation2.version;
+        item.error = operation2.retryReady ? "已核对服务器尚无新版本。可手动重试原保存，后续草稿仍会保留。" : "保存结果尚未确认，草稿已保留。请再次核对，暂不重复发送。";
+      }
+    } catch (error) {
+      if (!context.disposed && item.pending === operation2) item.error = "核对失败，草稿已保留：" + error.message;
+    } finally {
+      operation2.checking = false;
+      emit();
+    }
+  }
+  function useServer(date) {
+    const item = page(date);
+    if (!item.remote || item.pending || item.phase !== "conflict") return;
+    stopTimer(item);
+    adopt(item, item.remote);
+    item.remote = null;
+    item.phase = "saved";
+    item.error = "";
+    emit();
+  }
+  async function useDraft(date) {
+    const item = page(date);
+    if (!item.remote || item.pending || item.phase !== "conflict" || !item.remote.can_edit) return;
+    adopt(item, item.remote, true);
+    item.remote = null;
+    item.phase = item.dirty ? "dirty" : "saved";
+    item.error = "";
+    emit();
+    return context.save(date);
+  }
+  return { reconcile, useServer, useDraft };
+}
+function createDailyNotesStore(options3) {
+  const context = createDailyNotesContext(options3);
+  Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
+  const { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
+  return { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
+}
+var DAILY_NOTES_MAX_BYTES, routeDate, routeCategory, dailyNotesRouteCategory;
+var init_daily_notes_state = __esm({
+  "web/core/daily-notes-state.mjs"() {
+    DAILY_NOTES_MAX_BYTES = 65536;
+    routeDate = "", routeCategory = "life";
+    dailyNotesRouteCategory = () => routeCategory;
+  }
+});
+
 // web/offline/note-mutations.mjs
 function noteMutationRoute(path, options3, features) {
   const match = /^\/note-entries\/([a-f0-9-]{36})$/i.exec(path), method = (options3.method || "GET").toUpperCase();
@@ -3150,6 +3466,8 @@ function createNoteMutations(context) {
     active5();
     const stored = await cache2.entity("note-entry:" + route2.id), visible3 = offlineValue(stored);
     active5();
+    if (route2.method === "PUT" && body2.version === 0 && !visible3 && body2.date !== dailyNotesToday())
+      throw failure2("只能新增北京时间当天的碎碎念，草稿已保留。", "OFFLINE_NOTES_TODAY_ONLY");
     if (route2.method === "PUT" && body2.version === 0 && !visible3) {
       const existing = await cache2.entities();
       active5();
@@ -3215,6 +3533,7 @@ function createNoteMutations(context) {
 var uuid2, failure2;
 var init_note_mutations = __esm({
   "web/offline/note-mutations.mjs"() {
+    init_daily_notes_state();
     init_db();
     init_document();
     uuid2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -3242,7 +3561,9 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
       for (const row of clean) {
         const identity5 = row.kind === "legacy" ? row.category + ":" + row.date : row.id;
         const key = entityKey(owner2, "draft:" + row.kind + ":" + identity5 + ":" + draftOwner);
-        if (unresolved(row)) await tx.put("meta", { key, scope: owner2, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now() });
+        if (row.kind === "note_entry" && row.deleted === true && !row.pending) {
+          for (const old of await tx.getAll("meta")) if (old.scope === owner2 && old.draft_kind === "note_entry" && old.data.id === row.id) await tx.delete("meta", old.key);
+        } else if (unresolved(row)) await tx.put("meta", { key, scope: owner2, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now() });
         else if (row.kind === "note_entry") {
           await tx.delete("meta", key);
           for (const old of await tx.getAll("meta")) if (old.scope === owner2 && old.draft_kind === "note_entry" && old.data.id === row.id && old.data.draft === row.draft && JSON.stringify(old.data.labels || []) === JSON.stringify(row.labels || []) && !old.data.pending) await tx.delete("meta", old.key);
@@ -3264,7 +3585,16 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     const rows = await db.transaction(["meta"], "readonly", async (tx) => (await tx.getAll("meta")).filter((row) => row.scope === owner2 && row.draft_kind === kind).sort((a, b) => b.saved_at - a.saved_at).map((row) => row.data));
     return owner2 === getScope() && generation === getGeneration() ? rows : [];
   }
-  return { capture, list: list2, flush: () => Promise.all([...pending]) };
+  async function discardNote(id2) {
+    const owner2 = getScope(), generation = getGeneration();
+    if (!owner2) return;
+    await db.transaction(["meta"], "readwrite", async (tx) => {
+      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("Draft scope changed");
+      for (const row of await tx.getAll("meta")) if (row.scope === owner2 && row.draft_kind === "note_entry" && row.data.id === id2) await tx.delete("meta", row.key);
+      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("Draft scope changed");
+    });
+  }
+  return { capture, list: list2, discardNote, flush: () => Promise.all([...pending]) };
 }
 var fields, unresolved;
 var init_drafts = __esm({
@@ -3288,6 +3618,7 @@ var init_drafts = __esm({
       "phase",
       "pending",
       "remote",
+      "deleted",
       "localVersion",
       "durableText",
       "localBacked",
@@ -4401,6 +4732,7 @@ function createOfflineRuntime(options3) {
     localRead: async (path) => (await context.cache.read(path)).data,
     retainDrafts: drafts.capture,
     retainedDrafts: drafts.list,
+    discardNoteDraft: drafts.discardNote,
     flushDrafts: drafts.flush,
     subscribe(callback) {
       context.listeners.add(callback);
@@ -5127,320 +5459,10 @@ var storage = { get(key) {
   }
 } };
 
-// web/core/daily-notes-state.mjs
-var DAILY_NOTES_MAX_BYTES = 65536;
-function validDailyNotesDate(value) {
-  if (typeof value !== "string" || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed2 = /* @__PURE__ */ new Date(value + "T00:00:00Z");
-  return Number.isFinite(parsed2.getTime()) && parsed2.toISOString().slice(0, 10) === value;
-}
-function dailyNotesToday() {
-  const parts2 = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(/* @__PURE__ */ new Date()).map((part) => [part.type, part.value]));
-  return parts2.year + "-" + parts2.month + "-" + parts2.day;
-}
-var routeDate = "", routeCategory = "life";
-var dailyNotesRouteCategory = () => routeCategory;
-function setDailyNotesRouteCategory(value) {
-  routeCategory = value === "work" ? "work" : "life";
-}
-function dailyNotesRouteDate() {
-  return routeDate || dailyNotesToday();
-}
-function setDailyNotesRouteDate(value) {
-  routeDate = validDailyNotesDate(value) ? value : "";
-}
-function dailyNotesBytes(text) {
-  return new TextEncoder().encode(text).length;
-}
-function checkedPage(value, date) {
-  if (!value || value.date !== date || typeof value.text !== "string" || !Number.isSafeInteger(value.version) || value.version < 0 || typeof value.deleted !== "boolean" || typeof value.can_edit !== "boolean" || dailyNotesBytes(value.text) > DAILY_NOTES_MAX_BYTES) throw new Error("碎碎念读取结果不完整，请重新核对。");
-  return value;
-}
-function createDailyNotesContext({
-  load,
-  put,
-  remove,
-  restore,
-  onChange = () => {
-  },
-  onSaved = () => {
-  },
-  uuid: uuid5 = () => crypto.randomUUID(),
-  setTimer = setTimeout,
-  clearTimer = clearTimeout,
-  delay = 700
-}) {
-  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid: uuid5 } };
-  const pages = context.pages;
-  const emit = () => {
-    if (!context.disposed) onChange();
-  };
-  const page = (date) => {
-    if (!validDailyNotesDate(date)) throw new Error("请选择有效日期。");
-    if (!pages.has(date)) pages.set(date, {
-      date,
-      loaded: false,
-      loading: false,
-      canEdit: false,
-      serverText: "",
-      draft: "",
-      version: 0,
-      updatedAt: null,
-      deleted: false,
-      dirty: false,
-      phase: "loading",
-      error: "",
-      remote: null,
-      pending: null,
-      timer: null,
-      sequence: 0,
-      writeEpoch: 0
-    });
-    return pages.get(date);
-  };
-  const stopTimer = (item) => {
-    if (item.timer !== null) clearTimer(item.timer);
-    item.timer = null;
-  };
-  const adopt = (item, value, preserve = false) => {
-    item.canEdit = value.can_edit;
-    item.serverText = value.deleted ? "" : value.text;
-    item.version = value.version;
-    item.updatedAt = value.updated_at;
-    item.deleted = value.deleted;
-    if (!preserve) item.draft = item.serverText;
-    item.dirty = item.draft !== item.serverText;
-    item.loaded = true;
-  };
-  function schedule(item) {
-    stopTimer(item);
-    if (!context.disposed && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing && !["conflict", "unknown", "error", "oversize"].includes(item.phase)) {
-      item.timer = setTimer(() => {
-        item.timer = null;
-        void context.save(item.date);
-      }, delay);
-    }
-  }
-  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted === true : operation2.kind === "restore" ? value.deleted === false : value.deleted === false && value.text === operation2.text);
-  function accepted(item, value, operation2) {
-    const keep = operation2.kind === "put" && item.draft !== operation2.text;
-    item.writeEpoch++;
-    adopt(item, value, keep);
-    item.remote = null;
-    item.pending = null;
-    item.phase = item.dirty ? "dirty" : "saved";
-    item.error = "";
-    emit();
-    onSaved(item.date);
-    schedule(item);
-  }
-  function dispose() {
-    context.disposed = true;
-    for (const item of pages.values()) stopTimer(item);
-  }
-  Object.assign(context, { page, emit, stopTimer, adopt, schedule, matches: matches2, accepted, dispose });
-  return context;
-}
-function createReadingActions(context) {
-  const { page, emit, stopTimer, adopt, schedule } = context;
-  const { load } = context.options;
-  async function read(date) {
-    const item = page(date), sequence4 = ++item.sequence, writeEpoch = item.writeEpoch;
-    item.loading = true;
-    emit();
-    try {
-      const value = checkedPage(await load(date), date);
-      if (context.disposed || sequence4 !== item.sequence) return;
-      if (item.pending || writeEpoch !== item.writeEpoch) return;
-      if (["conflict", "unknown"].includes(item.phase)) {
-        item.remote = value;
-        item.canEdit = value.can_edit;
-      } else if (item.dirty && value.version !== item.version) {
-        item.remote = value;
-        item.canEdit = value.can_edit;
-        item.phase = "conflict";
-        item.error = "服务器已有新版本，草稿已保留，请核对后选择。";
-      } else {
-        adopt(item, value, item.dirty);
-        item.phase = item.dirty ? "dirty" : "saved";
-        item.error = "";
-      }
-    } catch (error) {
-      if (!context.disposed && sequence4 === item.sequence) {
-        item.error = error.message;
-        if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
-      }
-    } finally {
-      if (!context.disposed && sequence4 === item.sequence) {
-        item.loading = false;
-        emit();
-        schedule(item);
-      }
-    }
-  }
-  function edit(date, text, { composing = false } = {}) {
-    const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || ["delete", "restore"].includes(item.pending?.kind)) return;
-    item.composing = composing;
-    item.draft = text;
-    item.dirty = text !== item.serverText;
-    stopTimer(item);
-    if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
-      if (!["conflict", "unknown"].includes(item.phase)) item.phase = "oversize";
-      item.error = "文字超过 64 KiB，草稿已保留，请缩短后再保存。";
-    } else if (!["conflict", "unknown"].includes(item.phase)) {
-      item.phase = item.pending ? "saving" : item.dirty ? "dirty" : "saved";
-      item.error = "";
-    }
-    emit();
-    if (!composing) schedule(item);
-  }
-  return { read, edit };
-}
-function createWritingActions(context) {
-  const { page, emit, stopTimer, matches: matches2, accepted } = context;
-  const { put, remove, restore, uuid: uuid5 } = context.options;
-  async function send(item, operation2) {
-    stopTimer(item);
-    item.pending = operation2;
-    item.phase = "saving";
-    item.error = "";
-    item.writeEpoch++;
-    emit();
-    try {
-      const raw = await (operation2.kind === "restore" ? restore(item.date, {
-        version: operation2.version,
-        save_id: operation2.saveId
-      }) : operation2.kind === "delete" ? remove(item.date, {
-        version: operation2.version,
-        save_id: operation2.saveId
-      }) : put(item.date, { text: operation2.text, version: operation2.version, save_id: operation2.saveId }));
-      if (context.disposed || item.pending !== operation2) return;
-      const value = checkedPage(raw, item.date);
-      if (!matches2(value, operation2)) throw new Error("保存响应需要重新核对。");
-      accepted(item, value, operation2);
-    } catch (error) {
-      if (context.disposed || item.pending !== operation2) return;
-      if (error.status === 409) {
-        item.pending = null;
-        item.phase = "conflict";
-        item.dirty = true;
-        item.error = "服务器已有新版本，草稿已保留，不会自动覆盖。";
-        emit();
-        await context.read(item.date);
-      } else if (error.status >= 400 && error.status < 500) {
-        item.pending = null;
-        item.phase = "error";
-        item.error = error.message;
-        if ([401, 403].includes(error.status)) item.canEdit = false;
-        emit();
-      } else {
-        item.phase = "unknown";
-        item.error = "正在核对保存结果，草稿已保留。";
-        emit();
-        await context.reconcile(item.date);
-      }
-    }
-  }
-  async function save(date) {
-    const item = page(date);
-    stopTimer(item);
-    if (context.disposed || !item.canEdit || !item.loaded || item.loading || item.pending || ["conflict", "unknown"].includes(item.phase) || !item.dirty) return;
-    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
-      item.phase = "oversize";
-      item.error = "文字超过 64 KiB，草稿已保留。";
-      emit();
-      return;
-    }
-    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid5() });
-  }
-  async function deletePage(date) {
-    const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
-    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid5() });
-  }
-  async function retryPending(date) {
-    const item = page(date), operation2 = item.pending;
-    if (context.disposed || item.phase !== "unknown" || !operation2?.retryReady || operation2.checking || !item.canEdit) return;
-    operation2.retryReady = false;
-    return send(item, operation2);
-  }
-  async function restorePage(date) {
-    const item = page(date);
-    if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
-    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid5() });
-  }
-  return { save, deletePage, restorePage, retryPending };
-}
-function createResolutionActions(context) {
-  const { page, emit, stopTimer, adopt, matches: matches2, accepted } = context;
-  const { load } = context.options;
-  async function reconcile(date) {
-    const item = page(date), operation2 = item.pending;
-    if (context.disposed || item.phase !== "unknown" || !operation2 || operation2.checking) return;
-    operation2.checking = true;
-    operation2.retryReady = false;
-    emit();
-    try {
-      const value = checkedPage(await load(date), date);
-      if (context.disposed || item.pending !== operation2) return;
-      item.canEdit = value.can_edit;
-      if (matches2(value, operation2)) accepted(item, value, operation2);
-      else if (value.version > operation2.version) {
-        item.remote = value;
-        item.pending = null;
-        item.phase = "conflict";
-        item.dirty = true;
-        item.error = "服务器已有不同的新版本，草稿已保留，不会自动覆盖。";
-      } else {
-        item.remote = value;
-        operation2.retryReady = value.can_edit && value.version === operation2.version;
-        item.error = operation2.retryReady ? "已核对服务器尚无新版本。可手动重试原保存，后续草稿仍会保留。" : "保存结果尚未确认，草稿已保留。请再次核对，暂不重复发送。";
-      }
-    } catch (error) {
-      if (!context.disposed && item.pending === operation2) item.error = "核对失败，草稿已保留：" + error.message;
-    } finally {
-      operation2.checking = false;
-      emit();
-    }
-  }
-  function useServer(date) {
-    const item = page(date);
-    if (!item.remote || item.pending || item.phase !== "conflict") return;
-    stopTimer(item);
-    adopt(item, item.remote);
-    item.remote = null;
-    item.phase = "saved";
-    item.error = "";
-    emit();
-  }
-  async function useDraft(date) {
-    const item = page(date);
-    if (!item.remote || item.pending || item.phase !== "conflict" || !item.remote.can_edit) return;
-    adopt(item, item.remote, true);
-    item.remote = null;
-    item.phase = item.dirty ? "dirty" : "saved";
-    item.error = "";
-    emit();
-    return context.save(date);
-  }
-  return { reconcile, useServer, useDraft };
-}
-function createDailyNotesStore(options3) {
-  const context = createDailyNotesContext(options3);
-  Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
-  const { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
-  return { page, pages, read, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
-}
-
 // web/core/router.mjs
 init_constants();
 init_state();
+init_daily_notes_state();
 init_todos_state();
 function normalizeArticlePipelineFilters(filters) {
   const allowed = {
@@ -7577,6 +7599,7 @@ function createNotesEditorView() {
 }
 
 // web/core/note-entries-state.mjs
+init_daily_notes_state();
 init_document();
 var uuidPattern6 = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var blocked = (item) => ["conflict", "unknown"].includes(item.phase);
@@ -7908,7 +7931,7 @@ function createEntryEditingActions(context) {
   function start(date, { label: label3 = "", labels = label3 ? [label3] : [] } = {}) {
     const current2 = page(date);
     if (!validLabels(labels, context.category)) throw new Error("标签无效。");
-    if (context.disposed || !current2.loaded || !current2.canEdit) return;
+    if (context.disposed || !current2.loaded || !current2.canEdit || date !== dailyNotesToday()) return;
     const existing = entry(current2.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label3) return existing;
     const id2 = uuid5();
@@ -7960,7 +7983,7 @@ function createEntryRecoveryActions(context) {
     if (!raw || raw.category !== category || !validDailyNotesDate(raw.date) || !uuidPattern6.test(raw.id) || raw.label && !validNoteLabel(raw.label) || typeof raw.draft !== "string" || raw.draft.length > 262144 || context.disposed) return;
     const current2 = page(raw.date);
     let item = entry(raw.id);
-    if (item && (item.pending || item.composing || item.dirty)) return item;
+    if (item?.deleted || item && (item.pending || item.composing || item.dirty)) return item;
     const pendingDurable = item && raw.pending?.saveId && raw.pending.saveId === item.localOperation?.save_id;
     if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.labels || equalLabels(raw.labels, item.serverLabels)) && (!raw.pending || pendingDurable)) return item;
     if (!item) {
@@ -8101,6 +8124,12 @@ function createEntryWritingActions(context) {
     if (!item) return;
     stopTimer(item);
     if (context.disposed || !item.canEdit || item.deleted || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
+    if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
+      item.phase = "error";
+      item.error = "只能新增北京时间当天的碎碎念，草稿已保留。";
+      emit();
+      return;
+    }
     if (!persistedVersion(item) && !item.draft.trim()) return;
     if (context.multiLabels && !item.labelComplete && !equalLabels(item.labels, item.serverLabels)) {
       item.phase = "error";
@@ -8131,6 +8160,11 @@ function createEntryWritingActions(context) {
       stopTimer(item);
       const current2 = page(item.date);
       current2.ids = current2.ids.filter((value) => value !== id2);
+      item.deleted = true;
+      item.dirty = false;
+      item.draft = "";
+      item.phase = "saved";
+      emit();
       entries.delete(id2);
       if (current2.composerId === id2) current2.composerId = "";
       emit();
@@ -8306,6 +8340,7 @@ function createNoteEntriesStore(options3) {
 }
 
 // web/core/notes-month.mjs
+init_daily_notes_state();
 function validNoteMonth(month) {
   return typeof month === "string" && /^\d{4}-\d{2}$/.test(month) && validDailyNotesDate(month + "-01");
 }
@@ -8356,6 +8391,7 @@ function checkedNoteMonth(data2, month) {
 }
 
 // web/notes-month-controller.mjs
+init_daily_notes_state();
 function renderNotesMonthMarkup() {
   return '<details id="notes-month-panel" class="notes-month-panel"><summary>月历与历史</summary><div class="notes-month-controls"><button class="btn" type="button" data-notes-month-step="-1" aria-label="上个月">‹</button><label>月份 <input id="notes-month-input" class="input" type="month"></label><button class="btn" type="button" data-notes-month-step="1" aria-label="下个月">›</button><label>分类 <select id="notes-month-category" class="input"><option value="">全部</option><option value="life">生活</option><option value="work">工作</option></select></label><button class="btn text" type="button" data-notes-month-refresh>刷新</button></div><p id="notes-month-status" role="status" aria-live="polite"></p><div class="notes-month-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-month-grid" class="notes-month-grid"></div><h3 id="notes-month-day-title"></h3><div id="notes-month-history" class="notes-entry-list"></div></details>';
 }
@@ -8485,6 +8521,7 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity5 }) {
 
 // web/pages/daily-notes.mjs
 init_dom();
+init_daily_notes_state();
 function legacyEditorMarkup() {
   return '<article id="notes-legacy-card" class="note-entry note-entry-editing notes-legacy-card" hidden><div class="note-entry-head"><time id="notes-legacy-time" class="note-entry-time" hidden></time><span id="notes-legacy-status" class="note-entry-status" role="status" aria-live="polite"></span></div><p id="notes-message" class="notes-message" role="alert" hidden></p><div class="notes-sheet"><label for="notes-editor" class="sr-only">原有记录内容</label><textarea id="notes-editor" class="notes-editor" aria-label="原有记录或保留草稿，只读" readonly hidden></textarea><div id="notes-reader" class="notes-reader"></div><p id="notes-empty" hidden>这条记录没有文字。</p></div><div class="notes-footer"><span id="notes-detail" class="notes-detail"></span><button class="btn text" type="button" data-notes-action="export-legacy" hidden>导出保留的原有草稿</button><div id="notes-write-actions" class="notes-write-actions" hidden><button class="btn" type="button" data-notes-action="save">立即保存</button><button class="btn" type="button" data-notes-action="restore" hidden>恢复原有记录</button><button class="btn text" type="button" data-notes-action="delete">删除原有记录</button></div></div><div id="notes-delete-confirm" class="notes-confirm" hidden><p>删除原有记录？</p><button class="btn" type="button" data-notes-action="cancel-delete">取消</button><button class="btn" type="button" data-notes-action="confirm-delete">确认删除</button></div><div id="notes-resolution" class="notes-resolution" hidden><button class="btn" type="button" data-notes-action="check">核对服务器版本</button><button class="btn" type="button" data-notes-action="retry" hidden>重试同一保存</button><div id="notes-conflict-actions" hidden><p>服务器上的文字：</p><pre id="notes-remote"></pre><button class="btn" type="button" data-notes-action="use-server">采用服务器内容</button><button class="btn" type="button" data-notes-action="use-draft">用此草稿保存到新版本</button></div></div></article>';
 }
@@ -8734,7 +8771,7 @@ function paintNoteEntries(root2, store, current2, legacy, { drafts = [], confirm
   find("#notes-entry-message").textContent = current2.error;
   find("#notes-entry-message").hidden = !current2.error;
   const items = current2.ids.map((id2) => store.entry(id2)).filter(Boolean);
-  const saved = items.filter((item) => item.id !== active5 && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
+  const saved = items.filter((item) => !item.deleted && item.id !== active5 && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const unpublished = find("#notes-unpublished");
   const nodes = new Map([...list2.children, ...unpublished.children].filter((node2) => node2.dataset.noteEntry).map((node2) => [node2.dataset.noteEntry, node2])), wanted = new Set(saved.map((item) => item.id));
   for (const [id2, node2] of nodes) if (!wanted.has(id2)) node2.remove();
@@ -8756,7 +8793,7 @@ function paintNoteEntries(root2, store, current2, legacy, { drafts = [], confirm
   composer.dataset.active = active5;
   find(".notes-published").hidden = Boolean(activeItem);
   unpublished.hidden = Boolean(activeItem);
-  find('[data-notes-action="new"]').hidden = !canEdit || Boolean(activeItem);
+  find('[data-notes-action="new"]').hidden = !canEdit || current2.date !== dailyNotesToday() || Boolean(activeItem);
   find('[data-notes-action="collapse"]').disabled = Boolean(activeItem?.pending || activeItem?.composing);
   const ordered2 = [...list2.children].sort((a, b) => String(a.dataset.sortTime || "").localeCompare(String(b.dataset.sortTime || "")));
   list2.append(...ordered2);
@@ -8771,6 +8808,7 @@ function paintNoteEntries(root2, store, current2, legacy, { drafts = [], confirm
 // web/daily-notes-controller.mjs
 init_api();
 init_state();
+init_daily_notes_state();
 init_login();
 init_runtime();
 init_document();
@@ -8809,6 +8847,7 @@ var draftFields = [
   "phase",
   "pending",
   "remote",
+  "deleted",
   "localVersion",
   "durableText",
   "localBacked",
@@ -8850,6 +8889,21 @@ async function hydrateNotesDrafts(legacy, entries, category) {
   if (!active5()) return;
   for (const raw of entryDrafts) {
     if (raw.category !== category || seen.has(raw.id)) continue;
+    let current2;
+    try {
+      current2 = await apiNetwork("/note-entries/" + encodeURIComponent(raw.id), { headers: { "X-Note-Labels-Version": "3" } });
+    } catch {
+    }
+    if (!active5()) return;
+    if (current2?.id === raw.id && current2.deleted === true && current2.labels_version === 3) {
+      try {
+        await offline.discardNoteDraft(raw.id);
+      } catch {
+        notesDraftError = "已删除记录的本机草稿清理失败，请检查存储空间后重试。";
+      }
+      seen.add(raw.id);
+      continue;
+    }
     entries.restoreDraft(raw);
     seen.add(raw.id);
   }
@@ -9495,8 +9549,11 @@ async function handleEntryAction(target, entries) {
     notesConfirmEntry = "";
     paintDailyNotesPage();
   } else if (action === "confirm-delete") {
+    const view = editorViews.page(item.category, item.date), revision2 = view.revision;
     notesConfirmEntry = "";
     await entries.deleteEntry(id2);
+    if ((!entries.entry(id2) || entries.entry(id2).deleted && !entries.entry(id2).pending) && view.active === id2 && view.revision === revision2)
+      editorViews.activate(item.category, item.date, "");
     paintDailyNotesPage();
   } else if (action === "check") {
     if (item.phase === "unknown") await entries.reconcile(id2);
@@ -11504,6 +11561,7 @@ function trapMobileMenuFocus(event) {
 init_constants();
 init_dom();
 init_state();
+init_daily_notes_state();
 var mediaPages = /* @__PURE__ */ new Set(["review"]);
 function navigationLink(item, mobile = false) {
   const selected = item.id === state.page && (!item.category || item.category === dailyNotesRouteCategory());
@@ -11787,6 +11845,7 @@ function registerReminderEvents() {
 
 // web/pages/ai-reports.mjs
 init_dom();
+init_daily_notes_state();
 function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 汇报">
     <div>
@@ -11858,6 +11917,7 @@ function paintAiReports(items, error = "", loading = false, selectedDate2 = dail
 // web/ai-reports-controller.mjs
 init_api();
 init_state();
+init_daily_notes_state();
 var sequence2 = 0, registered = false, selectedDate = "", pageSession = null;
 function aiReportsYesterday(today2 = dailyNotesToday()) {
   const date = /* @__PURE__ */ new Date(today2 + "T00:00:00Z");
@@ -15449,6 +15509,7 @@ init_state();
 init_entry();
 init_modal();
 init_popover();
+init_daily_notes_state();
 async function handleClick(event) {
   closeMobileMenuOutside(event.target);
   closeMediaNavigation(event.target);

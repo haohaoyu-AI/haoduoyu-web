@@ -140,6 +140,7 @@ async function writeEntry(db,request,route,owner,env,origin) {
     }
     if(restore&&row.deleted_at===null||method==='DELETE'&&row.deleted_at!==null)
       throw fail(409,'VERSION_CONFLICT','删除状态已变化，请重新读取');
+    if(method==='PUT'&&!row&&input.date!==beijingDay(Date.now()))throw fail(400,'NOTES_TODAY_ONLY','只能新增北京时间当天的碎碎念');
     if(method==='PUT'&&!row||restore)await ensureDaySpace(store,owner,row?.category||input.category,row?.date||input.date);
     const changeSeq=(await store.get('SELECT revision FROM matrix_control WHERE id=1')).revision+1;
     if(!Number.isSafeInteger(changeSeq)||changeSeq<1)throw fail(503,'NOTES_REVISION','碎碎念版本需要私下核对，草稿尚未保存');

@@ -30,7 +30,7 @@ const notesIdentityNow = () => JSON.stringify([runtime.sessionEpoch, state.me?.i
   state.me?.publicBusiness === true, getOfflineRuntime()?.state.scope || '']);
 const notesVisible = () => state.page === 'notes' && notesIdentity === notesIdentityNow();
 const draftFields = ['id', 'date', 'draft', 'version', 'serverText', 'contentHash', 'label', 'labels', 'labelKnown', 'createdAt', 'updatedAt', 'dirty',
-  'phase', 'pending', 'remote', 'localVersion', 'durableText', 'localBacked', 'localQueued', 'recoveredBaseline'];
+  'phase', 'pending', 'remote', 'deleted', 'localVersion', 'durableText', 'localBacked', 'localQueued', 'recoveredBaseline'];
 const hydratedDrafts = new WeakMap();
 const hydrationReady = new WeakSet();
 const entryIdentities = new WeakMap();
@@ -64,6 +64,15 @@ async function hydrateNotesDrafts(legacy, entries, category) {
   if (!active()) return;
   for (const raw of entryDrafts) {
     if (raw.category !== category || seen.has(raw.id)) continue;
+    let current;
+    try { current = await apiNetwork('/note-entries/' + encodeURIComponent(raw.id), {headers:{'X-Note-Labels-Version':'3'}}); }
+    catch {} // An unavailable server or a genuinely new draft must remain recoverable.
+    if (!active()) return;
+    if (current?.id === raw.id && current.deleted === true && current.labels_version === 3) {
+      try { await offline.discardNoteDraft(raw.id); }
+      catch { notesDraftError = '已删除记录的本机草稿清理失败，请检查存储空间后重试。'; }
+      seen.add(raw.id); continue;
+    }
     entries.restoreDraft(raw); seen.add(raw.id);
   }
   const legacyDrafts = await offline.retainedDrafts('legacy');
@@ -537,7 +546,13 @@ async function handleEntryAction(target, entries) {
   else if (action === 'restore') await entries.restoreEntry(id);
   else if (action === 'delete') { notesConfirmEntry = id; paintDailyNotesPage(); }
   else if (action === 'cancel-delete') { notesConfirmEntry = ''; paintDailyNotesPage(); }
-  else if (action === 'confirm-delete') { notesConfirmEntry = ''; await entries.deleteEntry(id); paintDailyNotesPage(); }
+  else if (action === 'confirm-delete') {
+    const view = editorViews.page(item.category, item.date), revision = view.revision;
+    notesConfirmEntry = ''; await entries.deleteEntry(id);
+    if ((!entries.entry(id) || entries.entry(id).deleted && !entries.entry(id).pending) && view.active === id && view.revision === revision)
+      editorViews.activate(item.category, item.date, '');
+    paintDailyNotesPage();
+  }
   else if (action === 'check') { if (item.phase === 'unknown') await entries.reconcile(id); else await entries.readOne(id); }
   else if (action === 'retry') await entries.retryPending(id);
   else if (action === 'use-server') entries.useServer(id);

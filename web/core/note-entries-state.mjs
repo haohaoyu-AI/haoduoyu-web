@@ -1,4 +1,4 @@
-import {DAILY_NOTES_MAX_BYTES, dailyNotesBytes, validDailyNotesDate} from './daily-notes-state.mjs';
+import {DAILY_NOTES_MAX_BYTES, dailyNotesBytes, validDailyNotesDate, dailyNotesToday} from './daily-notes-state.mjs';
 import {documentState, documentValue, isLocalDocument} from '../offline/document.mjs';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -234,7 +234,7 @@ function createEntryEditingActions(context) {
   function start(date, {label = '', labels = label ? [label] : []} = {}) {
     const current = page(date);
     if (!validLabels(labels, context.category)) throw new Error('标签无效。');
-    if (context.disposed || !current.loaded || !current.canEdit) return;
+    if (context.disposed || !current.loaded || !current.canEdit || date !== dailyNotesToday()) return;
     const existing = entry(current.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label) return existing;
     const id = uuid();
@@ -275,7 +275,7 @@ function createEntryRecoveryActions(context) {
         typeof raw.draft !== 'string' || raw.draft.length > 262144 || context.disposed) return;
     const current = page(raw.date);
     let item = entry(raw.id);
-    if (item && (item.pending || item.composing || item.dirty)) return item;
+    if (item?.deleted || item && (item.pending || item.composing || item.dirty)) return item;
     const pendingDurable = item && raw.pending?.saveId && raw.pending.saveId === item.localOperation?.save_id;
     if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.labels || equalLabels(raw.labels, item.serverLabels)) && (!raw.pending || pendingDurable)) return item;
     if (!item) { item = makeEntry(raw.id, raw.date, current.canEdit); entries.set(item.id, item); }
@@ -360,6 +360,9 @@ function createEntryWritingActions(context) {
   async function save(id) {
     const item = entry(id); if (!item) return; stopTimer(item);
     if (context.disposed || !item.canEdit || item.deleted || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
+    if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
+      item.phase = 'error'; item.error = '只能新增北京时间当天的碎碎念，草稿已保留。'; emit(); return;
+    }
     if (!persistedVersion(item) && !item.draft.trim()) return;
     if (context.multiLabels && !item.labelComplete && !equalLabels(item.labels, item.serverLabels)) {
       item.phase = 'error'; item.error = '请联网核实完整标签后再保存，草稿已保留。'; emit(); return;
@@ -377,6 +380,7 @@ function createEntryWritingActions(context) {
     if (!item || context.disposed || !item.canEdit || item.pending || blocked(item) || item.deleted) return;
     if (!persistedVersion(item)) {
       stopTimer(item); const current = page(item.date); current.ids = current.ids.filter(value => value !== id);
+      item.deleted = true; item.dirty = false; item.draft = ''; item.phase = 'saved'; emit();
       entries.delete(id); if (current.composerId === id) current.composerId = ''; emit(); return;
     }
     return send(item, {kind: 'delete', version: persistedVersion(item), saveId: uuid()});

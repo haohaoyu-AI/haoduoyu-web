@@ -1,4 +1,5 @@
-import test from 'node:test';
+import test, {mock} from 'node:test';
+mock.timers.enable({apis: ['Date'], now: new Date('2026-10-24T08:42:00Z')});
 import assert from 'node:assert/strict';
 import {createNoteEntriesStore} from '../web/core/note-entries-state.mjs';
 import {noteEntryTime, renderDailyNotes} from '../web/pages/daily-notes.mjs';

@@ -1,3 +1,4 @@
+import {dailyNotesToday} from '../core/daily-notes-state.mjs';
 import {offlineValue} from './db.mjs';
 import {localDocument} from './document.mjs';
 
@@ -45,6 +46,8 @@ export function createNoteMutations(context) {
     active();
     const stored = await cache.entity('note-entry:' + route.id), visible = offlineValue(stored);
     active();
+    if (route.method === 'PUT' && body.version === 0 && !visible && body.date !== dailyNotesToday())
+      throw failure('只能新增北京时间当天的碎碎念，草稿已保留。', 'OFFLINE_NOTES_TODAY_ONLY');
     if (route.method === 'PUT' && body.version === 0 && !visible) {
       const existing = await cache.entities(); active();
       if (existing.filter(row => row.entity_id.startsWith('note-entry:') && (row.dirty ? row.local : row.server)?.category === body.category &&

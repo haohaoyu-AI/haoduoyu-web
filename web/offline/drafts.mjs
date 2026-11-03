@@ -1,7 +1,7 @@
 import {entityKey} from './db.mjs';
 
 const fields = ['kind', 'id', 'category', 'date', 'draft', 'version', 'serverText', 'contentHash', 'label', 'labels', 'labelKnown', 'createdAt', 'updatedAt',
-  'dirty', 'phase', 'pending', 'remote', 'localVersion', 'durableText', 'localBacked', 'localQueued', 'recoveredBaseline'];
+  'dirty', 'phase', 'pending', 'remote', 'deleted', 'localVersion', 'durableText', 'localBacked', 'localQueued', 'recoveredBaseline'];
 const unresolved = row => row.dirty || row.pending || ['unknown', 'conflict', 'error', 'oversize'].includes(row.phase);
 function safeDraft(row) {
   if (!row || !['legacy', 'note_entry'].includes(row.kind) || !['life', 'work'].includes(row.category) ||
@@ -24,7 +24,9 @@ export function createDraftJournal({db, getScope, getGeneration = () => 0, now =
       for (const row of clean) {
         const identity = row.kind === 'legacy' ? row.category + ':' + row.date : row.id;
         const key = entityKey(owner, 'draft:' + row.kind + ':' + identity + ':' + draftOwner);
-        if (unresolved(row)) await tx.put('meta', {key, scope: owner, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now()});
+        if (row.kind === 'note_entry' && row.deleted === true && !row.pending) {
+          for (const old of await tx.getAll('meta')) if (old.scope === owner && old.draft_kind === 'note_entry' && old.data.id === row.id) await tx.delete('meta', old.key);
+        } else if (unresolved(row)) await tx.put('meta', {key, scope: owner, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now()});
         else if (row.kind === 'note_entry') {
           await tx.delete('meta', key);
           for (const old of await tx.getAll('meta')) if (old.scope === owner && old.draft_kind === 'note_entry' &&
@@ -47,5 +49,14 @@ export function createDraftJournal({db, getScope, getGeneration = () => 0, now =
         .sort((a, b) => b.saved_at - a.saved_at).map(row => row.data));
     return owner === getScope() && generation === getGeneration() ? rows : [];
   }
-  return {capture, list, flush: () => Promise.all([...pending])};
+  async function discardNote(id) {
+    const owner = getScope(), generation = getGeneration();
+    if (!owner) return;
+    await db.transaction(['meta'], 'readwrite', async tx => {
+      if (owner !== getScope() || generation !== getGeneration()) throw new Error('Draft scope changed');
+      for (const row of await tx.getAll('meta')) if (row.scope === owner && row.draft_kind === 'note_entry' && row.data.id === id) await tx.delete('meta', row.key);
+      if (owner !== getScope() || generation !== getGeneration()) throw new Error('Draft scope changed');
+    });
+  }
+  return {capture, list, discardNote, flush: () => Promise.all([...pending])};
 }
