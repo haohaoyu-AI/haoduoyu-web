@@ -4,6 +4,7 @@ import {randomUUID} from 'node:crypto';
 import worker from '../dist/server/index.js';
 import {fixture} from './harness.mjs';
 import {traceRoute} from '../src/lib/request-trace.mjs';
+import {beijingDay} from '../src/lib/time.mjs';
 
 test('public future move uses the existing same-origin and public-write boundary',async t=>{
   const app=await fixture(t),session=await app.login();
@@ -34,4 +35,12 @@ test('public future move uses the existing same-origin and public-write boundary
   assert.equal((await app.db.prepare('SELECT count(*) AS n FROM matrix_todos WHERE user_id=? AND id=?').bind(owner,id).first()).n,1);
   assert.equal((await call(`/unscheduled-todos/${randomUUID()}/move`,{method:'POST',body:move,headers:origin,
     settings:{...env,PUBLIC_BUSINESS_MODE:'0'}})).status,401);
+  const completeId=randomUUID(), completePath=`/unscheduled-todos/${completeId}/complete-today`;
+  assert.equal(traceRoute('/api/v1'+completePath),'/api/v1/unscheduled-todos/{id}/complete-today');
+  assert.equal((await call('/unscheduled-todos',{method:'POST',body:{id:completeId,text:'synthetic completion'},headers:origin})).status,201);
+  const body={date:beijingDay(Date.now()),version:1};
+  assert.ok([401,403].includes((await call(completePath,{method:'POST',body,headers:{Origin:app.origin}})).status));
+  const result=await call(completePath,{method:'POST',body,headers:origin});
+  assert.equal(result.status,200);assert.equal(result.body.data.todo.completed,true);assert.equal(result.body.data.todo.date,body.date);
+  assert.equal((await call(completePath,{method:'POST',body,headers:origin})).status,200);
 });

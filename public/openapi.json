@@ -62,6 +62,37 @@
         }
       }
     },
+    "/api/v1/unscheduled-todos/{id}/complete-today": {
+      "post": {
+        "operationId": "completeUnscheduledTodoToday",
+        "summary": "完成未来待办并移至北京时间今天",
+        "description": "同一事务完成并移动到北京时间当天；跨午夜时拒绝并保留源项。成功后的同一请求可安全重放。",
+        "tags": ["业务数据"],
+        "security": [{"AdminSession": []}, {}],
+        "parameters": [
+          {"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},
+          {"$ref":"#/components/parameters/WorkbenchOrigin"},
+          {"$ref":"#/components/parameters/WorkbenchCsrf"},
+          {"$ref":"#/components/parameters/WorkbenchPublicWrite"}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["date","version"],"properties":{"date":{"type":"string","format":"date"},"version":{"type":"integer","minimum":1}}}}}
+        },
+        "responses": {
+          "200": {"description":"移动完成或安全重放；data 包含目标 todo 与已软删除的 source。","content":{"application/json":{"schema":{"type":"object","required":["data"],"properties":{"data":{"type":"object","required":["todo","source"],"properties":{"todo":{"type":"object"},"source":{"type":"object"}}}}}}}},
+          "400": {"$ref":"#/components/responses/Error400"},
+          "401": {"$ref":"#/components/responses/Error401"},
+          "403": {"$ref":"#/components/responses/Error403"},
+          "404": {"$ref":"#/components/responses/Error404"},
+          "409": {"$ref":"#/components/responses/Error409"},
+          "410": {"description":"相同标识的目标待办已删除，源项保留。"},
+          "415": {"$ref":"#/components/responses/Error415"},
+          "429": {"$ref":"#/components/responses/Error429"},
+          "503": {"description":"服务暂不可用；如写入结果不明，应先读回核对。"}
+        }
+      }
+    },
     "/health": {
       "get": {
         "operationId": "getHealth",

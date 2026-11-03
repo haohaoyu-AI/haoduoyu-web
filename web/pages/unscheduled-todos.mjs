@@ -2,6 +2,7 @@ import {api,apiNetwork} from '../core/api.mjs';
 import {$,e} from '../core/dom.mjs';
 import {runtime,state} from '../core/state.mjs';
 import {validTodoDate,mergeTodo,todosState,todoOwner} from '../core/todos-state.mjs';
+import {bjtDate} from '../core/format.mjs';
 import {getOfflineRuntime} from '../offline/runtime.mjs';
 import {toast} from '../ui/toast.mjs';
 
@@ -19,7 +20,7 @@ export function renderUnscheduledTodos() {
 <form id="todo-future-form" class="daily-todo-form"><label class="sr-only" for="todo-future-text">未来待办</label>
 <input id="todo-future-text" class="input" name="text" maxlength="500" required autocomplete="off" placeholder="还没确定日期的事" value="${e(v.draft)}">
 <button class="btn primary" type="submit" ${v.pending?'disabled':''}>添加</button></form>
-<p class="todo-future-help">选择日期后可移至当天的待办。</p>
+<p class="todo-future-help">勾选完成后移至今日待办（需联网）；也可选择日期移动。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
@@ -50,11 +51,12 @@ export function inputUnscheduledTodo(el) {
   if(el.id==='todo-future-text')current().draft=el.value;
   if(el.dataset?.futureDateId)current().dates[el.dataset.futureDateId]=el.value;
 }
-function moved(row,date,source,todo) {
+function moved(row,date,source,todo,complete = false) {
+  const completed=complete ? true : row.completed;
   return source?.id === row.id && source.text === row.text && source.version === row.version + 1 &&
-    source.completed === row.completed && typeof source.deleted_at === 'string' &&
+    source.completed === completed && typeof source.deleted_at === 'string' &&
     todo?.id === row.id && todo.date === date && todo.text === row.text && todo.deleted_at === null &&
-    Number.isSafeInteger(todo.version) && todo.version >= 1 && todo.completed === row.completed &&
+    Number.isSafeInteger(todo.version) && todo.version >= 1 && todo.completed === completed &&
     Number.isFinite(Date.parse(todo.created_at)) && Number.isFinite(Date.parse(todo.updated_at));
 }
 function unchanged(row,source) {
@@ -63,20 +65,20 @@ function unchanged(row,source) {
 }
 
 // Only a matching server tombstone and dated row can confirm an uncertain move.
-export async function verifyFutureMove(row,date,{readSource,readDay,guard = () => {}}) {
+export async function verifyFutureMove(row,date,{readSource,readDay,guard = () => {},complete = false}) {
   try {
     const source = await readSource(row.id); guard();
     const day = await readDay(date); guard();
     const todo = Array.isArray(day?.items) ? day.items.find(item => item.id === row.id) : null;
-    if (moved(row,date,source,todo)) return {state:'confirmed',source,todo};
-    const compatible = !todo || todo.date === date && todo.text === row.text && todo.completed === row.completed &&
+    if (moved(row,date,source,todo,complete)) return {state:'confirmed',source,todo};
+    const compatible = !todo || todo.date === date && todo.text === row.text && (complete || todo.completed === row.completed) &&
       todo.deleted_at === null && !todo.template_id;
     return unchanged(row,source) && day?.date === date && Array.isArray(day.items) && compatible ?
       {state:'retryable'} : {state:'unknown',source};
   } catch { return {state:'unknown'}; }
 }
 
-export async function planFutureMove(row,date,{checkReady,move,readSource,readDay,guard = () => {},priorUncertain = false}) {
+export async function planFutureMove(row,date,{checkReady,move,readSource,readDay,guard = () => {},priorUncertain = false,complete = false}) {
   if (!validTodoDate(date)) return {state:'not_started',reason:'请选择有效日期'};
   try { await checkReady(row); guard(); }
   catch (error) {
@@ -91,7 +93,7 @@ export async function planFutureMove(row,date,{checkReady,move,readSource,readDa
   }
   try {
     const result = await move(row.id,{date,version:row.version}); guard();
-    if (moved(row,date,result?.source,result?.todo)) return {state:'confirmed',...result};
+    if (moved(row,date,result?.source,result?.todo,complete)) return {state:'confirmed',...result};
   } catch (error) {
     if (error.staleSession) return {state:'unknown'};
     // A rate-limited request was rejected before mutation. Do not immediately
@@ -105,7 +107,7 @@ export async function planFutureMove(row,date,{checkReady,move,readSource,readDa
       } catch {}
     }
   }
-  const result = await verifyFutureMove(row,date,{readSource,readDay,guard});
+  const result = await verifyFutureMove(row,date,{readSource,readDay,guard,complete});
   return result.state === 'retryable' ? {state:'unknown'} : result;
 }
 
@@ -114,11 +116,12 @@ function timedNetwork(path,options = {}) {
   return apiNetwork(path,{...options,signal:controller.signal}).finally(() => clearTimeout(timer));
 }
 function formatMovedDate(date) { const [,month,day] = date.split('-'); return `${Number(month)}月${Number(day)}日`; }
-export async function scheduleUnscheduledTodo(id) {
+export async function scheduleUnscheduledTodo(id,{complete = false} = {}) {
   if (!visible()) return;
   const v=current(),key=v.owner,row=v.items.find(item=>item.id===id && !item.deleted_at && !item.deleted);
   if (!row || v.pending) return;
-  const unresolved = v.uncertain[id], original = unresolved?.row || structuredClone(row), date = unresolved?.date || v.dates[id] || '';
+  const unresolved = v.uncertain[id], original = unresolved?.row || structuredClone(row),
+    finishing = unresolved?.complete ?? complete, date = unresolved?.date || (finishing ? bjtDate() : v.dates[id] || '');
   v.pending=true; v.error=''; v.notice=''; paintUnscheduledTodos();
   const offline=getOfflineRuntime(), token=offline?.captureRateLimitContext();
   if (!offline || !token) {
@@ -133,7 +136,7 @@ export async function scheduleUnscheduledTodo(id) {
   };
   const readSource = sourceId => timedNetwork('/unscheduled-todos/'+encodeURIComponent(sourceId));
   const readDay = day => timedNetwork('/todos?date='+encodeURIComponent(day));
-  const services={guard,readSource,readDay,move:(sourceId,body)=>timedNetwork('/unscheduled-todos/'+encodeURIComponent(sourceId)+'/move',{method:'POST',body}),
+  const services={guard,readSource,readDay,complete:finishing,move:(sourceId,body)=>timedNetwork('/unscheduled-todos/'+encodeURIComponent(sourceId)+(finishing?'/complete-today':'/move'),{method:'POST',body}),
     async checkReady(item) {
       guard();
       const index=await timedNetwork('/workbench-snapshot/index?version=2'); guard();
@@ -173,7 +176,7 @@ export async function scheduleUnscheduledTodo(id) {
     } else if (result.state==='cancelled') {
       return;
     } else {
-      v.uncertain[id]={row:original,date};
+      v.uncertain[id]={row:original,date,complete:finishing};
       v.notice='移动结果尚未确认，请联网后点击“核实移动结果”。';
       toast(v.notice,true);
     }
@@ -198,5 +201,5 @@ async function change(id,method,body) {
   catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
   finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
 }
-export function toggleUnscheduledTodo(el) {return change(el.dataset.futureTodoId,'PATCH',{completed:el.checked});}
+export function toggleUnscheduledTodo(el) {return el.checked ? scheduleUnscheduledTodo(el.dataset.futureTodoId,{complete:true}) : change(el.dataset.futureTodoId,'PATCH',{completed:false});}
 export function deleteUnscheduledTodo(id) {return change(id,'DELETE',{});}

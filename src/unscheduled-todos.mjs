@@ -1,6 +1,7 @@
 import {bodyFor,fail,now} from './security.mjs';
 import {authenticateBusiness as authenticate,requireBusinessUser as requireUser,requireBusinessCsrf as requireCsrf} from './business-access.mjs';
 import {consistentRead,mutate,storeFor} from './storage.mjs';
+import {beijingDay} from './lib/time.mjs';
 
 const fields='id,text,completed,version,created_at,updated_at,deleted_at';
 const json=(data,status=200)=>Response.json({data},{status});
@@ -31,8 +32,8 @@ function inputFor(body,operation) {
       throw fail(400,'VALIDATION_ERROR','待办内容需要 1 至 500 个字符');
     return {id:idOf(body.id),text:body.text.trim()};
   }
-  exact(body,operation==='completed'?['completed','version']:operation==='move'?['date','version']:['version']);versionOf(body.version);
-  if(operation==='move')dateOf(body.date);
+  exact(body,operation==='completed'?['completed','version']:['move','complete-today'].includes(operation)?['date','version']:['version']);versionOf(body.version);
+  if(['move','complete-today'].includes(operation))dateOf(body.date);
   if(operation==='completed'&&typeof body.completed!=='boolean')throw fail(400,'VALIDATION_ERROR','完成状态需要为布尔值');
   return body;
 }
@@ -53,25 +54,33 @@ async function write(store,actor,operation,id,input) {
   }
   const current=await find(store,actor.id,id);
   if(!current)throw fail(404,'NOT_FOUND','待办不存在');
-  if(operation==='move') {
+  if(operation==='move'||operation==='complete-today') {
+    const complete=operation==='complete-today';
     const target=await store.get('SELECT id,date,text,completed,version,created_at,updated_at,deleted_at FROM matrix_todos WHERE user_id=? AND id=?',actor.id,id);
     const link=target&&await store.get('SELECT template_id FROM matrix_todo_template_links WHERE user_id=? AND todo_id=?',actor.id,id);
     if(target && target.deleted_at!==null)throw fail(410,'TODO_DELETED','目标日期中的同一待办已删除，请核对当前状态');
     if(target&&(target.date!==input.date||target.text!==current.text||link))
       throw fail(409,'IDEMPOTENCY_CONFLICT','已有同一标识的不同待办，请核对当前状态');
     if(current.deleted_at!==null) {
-      if(current.version===input.version+1 && target)return {replayed:true,response:json({todo:item(target),source:item(current)})};
+      if(current.version===input.version+1 && target && (!complete || Boolean(current.completed)&&Boolean(target.completed)))return {replayed:true,response:json({todo:item(target),source:item(current)})};
       throw fail(409,'VERSION_CONFLICT','未来待办已变更，请刷新后重试');
     }
     if(current.version!==input.version)throw fail(409,'VERSION_CONFLICT','待办已更新，请刷新后重试');
-    if(target&&Boolean(target.completed)!==Boolean(current.completed))
+    if(complete&&input.date!==beijingDay(Date.now()))throw fail(409,'TODO_DAY_CHANGED','北京时间日期已变化，请刷新后重新完成');
+    if(!complete&&target&&Boolean(target.completed)!==Boolean(current.completed))
       throw fail(409,'IDEMPOTENCY_CONFLICT','已有待办的完成状态不同，原未来待办仍保留');
     const stamp=now();
-    const todo=target||{id,date:input.date,text:current.text,completed:current.completed,version:1,created_at:stamp,updated_at:stamp,deleted_at:null};
-    if(!target)store.queue('INSERT INTO matrix_todos(user_id,id,date,text,completed,version,created_at,updated_at) VALUES(?,?,?,?,?,1,?,?)',actor.id,id,input.date,current.text,Number(current.completed),stamp,stamp);
-    store.queue('UPDATE matrix_unscheduled_todos SET deleted_at=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',stamp,stamp,actor.id,id,input.version);
+    const completed=complete?true:Boolean(current.completed);
+    const todo=target?(complete&&!target.completed?{...target,completed:1,version:target.version+1,updated_at:stamp}:target):
+      {id,date:input.date,text:current.text,completed,version:1,created_at:stamp,updated_at:stamp,deleted_at:null};
+    if(!target)store.queue('INSERT INTO matrix_todos(user_id,id,date,text,completed,version,created_at,updated_at) VALUES(?,?,?,?,?,1,?,?)',actor.id,id,input.date,current.text,Number(completed),stamp,stamp);
+    else if(complete&&!target.completed) {
+      store.queue('UPDATE matrix_todos SET completed=1,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',stamp,actor.id,id,target.version);
+      store.expectChange();
+    }
+    store.queue('UPDATE matrix_unscheduled_todos SET completed=?,deleted_at=?,version=version+1,updated_at=? WHERE user_id=? AND id=? AND version=? AND deleted_at IS NULL',Number(completed),stamp,stamp,actor.id,id,input.version);
     store.expectChange();
-    return {actor,response:json({todo:item(todo),source:item({...current,deleted_at:stamp,version:current.version+1,updated_at:stamp})})};
+    return {actor,response:json({todo:item(todo),source:item({...current,completed,deleted_at:stamp,version:current.version+1,updated_at:stamp})})};
   }
   if(operation==='completed'&&current.deleted_at!==null)throw fail(410,'TODO_DELETED','待办已删除，请使用恢复操作');
   const deleted=operation==='delete',restoring=operation==='restore';
@@ -103,11 +112,11 @@ export async function handleUnscheduledTodos(db,request,route,origin,initialRevi
     return json({items:rows.map(item)});
   },initialRevision);
   const first=await authenticate(storeFor(db),request,method==='GET'?'read':'write');requireUser(first);
-  const match=/^\/unscheduled-todos\/([^/]+)$/.exec(route),restore=/^\/unscheduled-todos\/([^/]+)\/restore$/.exec(route),move=/^\/unscheduled-todos\/([^/]+)\/move$/.exec(route);
-  const operation=method==='POST'&&route==='/unscheduled-todos'?'create':method==='PATCH'&&match?'completed':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&move?'move':null;
+  const match=/^\/unscheduled-todos\/([^/]+)$/.exec(route),restore=/^\/unscheduled-todos\/([^/]+)\/restore$/.exec(route),move=/^\/unscheduled-todos\/([^/]+)\/move$/.exec(route),complete=/^\/unscheduled-todos\/([^/]+)\/complete-today$/.exec(route);
+  const operation=method==='POST'&&route==='/unscheduled-todos'?'create':method==='PATCH'&&match?'completed':method==='DELETE'&&match?'delete':method==='POST'&&restore?'restore':method==='POST'&&move?'move':method==='POST'&&complete?'complete-today':null;
   if(!operation)throw fail(404,'NOT_FOUND','接口不存在');
   requireCsrf(request,first,origin);
-  const body=await bodyFor(request),id=operation==='create'?null:idOf((match||restore||move)[1]),input=inputFor(body,operation);
+  const body=await bodyFor(request),id=operation==='create'?null:idOf((match||restore||move||complete)[1]),input=inputFor(body,operation);
   return (await mutate(db,async store=>{
     const actor=await authenticate(store,request,'write');requireUser(actor);requireCsrf(request,actor,origin);
     return write(store,actor,operation,id,input);

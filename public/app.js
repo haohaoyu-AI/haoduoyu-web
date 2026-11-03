@@ -4935,6 +4935,7 @@ init_api();
 init_dom();
 init_state();
 init_todos_state();
+init_format();
 init_runtime();
 var cache = { owner: "", items: [], draft: "", loaded: false, loading: false, error: "", notice: "", pending: false, request: null, dates: {}, uncertain: {} };
 var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null, getOfflineRuntime()?.state.scope ?? null]);
@@ -4950,7 +4951,7 @@ function renderUnscheduledTodos() {
 <form id="todo-future-form" class="daily-todo-form"><label class="sr-only" for="todo-future-text">未来待办</label>
 <input id="todo-future-text" class="input" name="text" maxlength="500" required autocomplete="off" placeholder="还没确定日期的事" value="${e(v.draft)}">
 <button class="btn primary" type="submit" ${v.pending ? "disabled" : ""}>添加</button></form>
-<p class="todo-future-help">选择日期后可移至当天的待办。</p>
+<p class="todo-future-help">勾选完成后移至今日待办（需联网）；也可选择日期移动。</p>
 <p id="todo-future-status" class="daily-todo-status" role="status"></p><p id="todo-future-error" class="form-message" role="alert"></p>
 <ul id="todo-future-items" class="daily-todo-items"></ul></section>`;
 }
@@ -4994,29 +4995,30 @@ function inputUnscheduledTodo(el) {
   if (el.id === "todo-future-text") current().draft = el.value;
   if (el.dataset?.futureDateId) current().dates[el.dataset.futureDateId] = el.value;
 }
-function moved(row, date, source, todo) {
-  return source?.id === row.id && source.text === row.text && source.version === row.version + 1 && source.completed === row.completed && typeof source.deleted_at === "string" && todo?.id === row.id && todo.date === date && todo.text === row.text && todo.deleted_at === null && Number.isSafeInteger(todo.version) && todo.version >= 1 && todo.completed === row.completed && Number.isFinite(Date.parse(todo.created_at)) && Number.isFinite(Date.parse(todo.updated_at));
+function moved(row, date, source, todo, complete = false) {
+  const completed = complete ? true : row.completed;
+  return source?.id === row.id && source.text === row.text && source.version === row.version + 1 && source.completed === completed && typeof source.deleted_at === "string" && todo?.id === row.id && todo.date === date && todo.text === row.text && todo.deleted_at === null && Number.isSafeInteger(todo.version) && todo.version >= 1 && todo.completed === completed && Number.isFinite(Date.parse(todo.created_at)) && Number.isFinite(Date.parse(todo.updated_at));
 }
 function unchanged(row, source) {
   return source?.id === row.id && source.text === row.text && source.version === row.version && source.completed === row.completed && source.deleted_at === null;
 }
 async function verifyFutureMove(row, date, { readSource, readDay, guard = () => {
-} }) {
+}, complete = false }) {
   try {
     const source = await readSource(row.id);
     guard();
     const day6 = await readDay(date);
     guard();
     const todo = Array.isArray(day6?.items) ? day6.items.find((item) => item.id === row.id) : null;
-    if (moved(row, date, source, todo)) return { state: "confirmed", source, todo };
-    const compatible = !todo || todo.date === date && todo.text === row.text && todo.completed === row.completed && todo.deleted_at === null && !todo.template_id;
+    if (moved(row, date, source, todo, complete)) return { state: "confirmed", source, todo };
+    const compatible = !todo || todo.date === date && todo.text === row.text && (complete || todo.completed === row.completed) && todo.deleted_at === null && !todo.template_id;
     return unchanged(row, source) && day6?.date === date && Array.isArray(day6.items) && compatible ? { state: "retryable" } : { state: "unknown", source };
   } catch {
     return { state: "unknown" };
   }
 }
 async function planFutureMove(row, date, { checkReady, move, readSource, readDay, guard = () => {
-}, priorUncertain = false }) {
+}, priorUncertain = false, complete = false }) {
   if (!validTodoDate(date)) return { state: "not_started", reason: "请选择有效日期" };
   try {
     await checkReady(row);
@@ -5037,7 +5039,7 @@ async function planFutureMove(row, date, { checkReady, move, readSource, readDay
   try {
     const result2 = await move(row.id, { date, version: row.version });
     guard();
-    if (moved(row, date, result2?.source, result2?.todo)) return { state: "confirmed", ...result2 };
+    if (moved(row, date, result2?.source, result2?.todo, complete)) return { state: "confirmed", ...result2 };
   } catch (error) {
     if (error.staleSession) return { state: "unknown" };
     if (error.status === 429) return priorUncertain ? { state: "unknown" } : { state: "not_started", reason: error.message || "请求较多，请稍后重试" };
@@ -5050,7 +5052,7 @@ async function planFutureMove(row, date, { checkReady, move, readSource, readDay
       }
     }
   }
-  const result = await verifyFutureMove(row, date, { readSource, readDay, guard });
+  const result = await verifyFutureMove(row, date, { readSource, readDay, guard, complete });
   return result.state === "retryable" ? { state: "unknown" } : result;
 }
 function timedNetwork(path, options3 = {}) {
@@ -5061,11 +5063,11 @@ function formatMovedDate(date) {
   const [, month, day6] = date.split("-");
   return `${Number(month)}月${Number(day6)}日`;
 }
-async function scheduleUnscheduledTodo(id2) {
+async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
   if (!visible()) return;
   const v = current(), key = v.owner, row = v.items.find((item) => item.id === id2 && !item.deleted_at && !item.deleted);
   if (!row || v.pending) return;
-  const unresolved2 = v.uncertain[id2], original = unresolved2?.row || structuredClone(row), date = unresolved2?.date || v.dates[id2] || "";
+  const unresolved2 = v.uncertain[id2], original = unresolved2?.row || structuredClone(row), finishing = unresolved2?.complete ?? complete, date = unresolved2?.date || (finishing ? bjtDate() : v.dates[id2] || "");
   v.pending = true;
   v.error = "";
   v.notice = "";
@@ -5088,7 +5090,8 @@ async function scheduleUnscheduledTodo(id2) {
     guard,
     readSource,
     readDay,
-    move: (sourceId, body2) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId) + "/move", { method: "POST", body: body2 }),
+    complete: finishing,
+    move: (sourceId, body2) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId) + (finishing ? "/complete-today" : "/move"), { method: "POST", body: body2 }),
     async checkReady(item) {
       guard();
       const index = await timedNetwork("/workbench-snapshot/index?version=2");
@@ -5149,7 +5152,7 @@ async function scheduleUnscheduledTodo(id2) {
     } else if (result.state === "cancelled") {
       return;
     } else {
-      v.uncertain[id2] = { row: original, date };
+      v.uncertain[id2] = { row: original, date, complete: finishing };
       v.notice = "移动结果尚未确认，请联网后点击“核实移动结果”。";
       toast(v.notice, true);
     }
@@ -5211,7 +5214,7 @@ async function change(id2, method, body2) {
   }
 }
 function toggleUnscheduledTodo(el) {
-  return change(el.dataset.futureTodoId, "PATCH", { completed: el.checked });
+  return el.checked ? scheduleUnscheduledTodo(el.dataset.futureTodoId, { complete: true }) : change(el.dataset.futureTodoId, "PATCH", { completed: false });
 }
 function deleteUnscheduledTodo(id2) {
   return change(id2, "DELETE", {});
