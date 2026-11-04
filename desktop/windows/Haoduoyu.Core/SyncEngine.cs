@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace Haoduoyu.Core;
@@ -46,7 +47,7 @@ public sealed class SyncEngine
     public Task SaveDraftAsync(LocalDraft draft, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(draft);
-        if (string.IsNullOrWhiteSpace(draft.Key) || draft.BaseVersion < 0)
+        if (string.IsNullOrWhiteSpace(draft.Key) || draft.BaseVersion < 0 || draft.BaselineConfirmedRevision < 0)
             throw new ArgumentException("草稿标识或基线版本无效。");
         return MutateAsync(s => s.Drafts[draft.Key] = draft, cancellationToken);
     }
@@ -321,6 +322,19 @@ public sealed class SyncEngine
         {
             var data = JsonNode.Parse(dependency.RemoteJson ?? "null")?["data"] as JsonObject
                 ?? throw new InvalidDataException("依赖保存响应没有实体数据；子操作未发送。");
+            if (operation.Path.StartsWith("/api/v1/daily-notes/", StringComparison.Ordinal))
+            {
+                var legacy = LegacyVersionTarget(operation.Path); var restored = LegacyVersionTarget(dependency.Path);
+                if (operation.Method != "PUT" || legacy == null || legacy.Restore || dependency.Method != "POST" || restored == null || !restored.Restore ||
+                    legacy.Date != restored.Date || legacy.Category != restored.Category || data["date"]?.ToString() != legacy.Date ||
+                    data["category"] != null && data["category"]!.ToString() != legacy.Category ||
+                    data["text"] is not JsonValue text || !text.TryGetValue<string>(out _) ||
+                    data["deleted"] is not JsonValue deleted || !deleted.TryGetValue<bool>(out var isDeleted) || isDeleted ||
+                    data["version"] is not JsonValue legacyVersion || !legacyVersion.TryGetValue<long>(out var restoredVersion) ||
+                    restoredVersion < 1 || restoredVersion >= 9_007_199_254_740_991L)
+                    throw new InvalidDataException("旧日页恢复响应与原日期、分类或真实恢复版本不一致；续编请求未发送。");
+                return VersionedBody(operation, restoredVersion);
+            }
             var target = VersionTarget(operation.Path)
                 ?? throw new InvalidDataException("待修改记录路径或动作无法核验；子操作未发送。");
             if (target.Action != null && operation.Method != "POST")
@@ -366,13 +380,29 @@ public sealed class SyncEngine
                 remote = target.Resource == "todos" ? todo : source;
             }
             var version = EntityVersion(remote, target.Id);
-            var body = JsonNode.Parse(operation.BodyJson) as JsonObject ?? throw new InvalidDataException("待发送内容不是对象。");
-            if (body.ContainsKey("version")) throw new InvalidDataException("依赖版本请求不应自带猜测版本；子操作未发送。");
-            body["version"] = version;
-            return body.ToJsonString();
+            return VersionedBody(operation, version);
         }
         catch (Exception error) when (error is JsonException or InvalidOperationException or FormatException)
         { throw new InvalidDataException("依赖保存响应无法核验；子操作未发送。", error); }
+    }
+
+    private static string VersionedBody(PendingOperation operation, long version)
+    {
+        var body = JsonNode.Parse(operation.BodyJson) as JsonObject ?? throw new InvalidDataException("待发送内容不是对象。");
+        if (body.ContainsKey("version")) throw new InvalidDataException("依赖版本请求不应自带猜测版本；子操作未发送。");
+        body["version"] = version;
+        return body.ToJsonString();
+    }
+    private sealed record LegacyVersionRoute(string Date, string Category, bool Restore);
+    private static LegacyVersionRoute? LegacyVersionTarget(string path)
+    {
+        var parts = path.Split('?', 2);
+        if (!parts[0].StartsWith("/api/v1/daily-notes/", StringComparison.Ordinal) || parts.Length != 2 ||
+            parts[1] is not ("category=life" or "category=work")) return null;
+        var segments = parts[0][20..].Split('/');
+        if (segments.Length is not (1 or 2) || segments.Length == 2 && segments[1] != "restore" ||
+            !DateOnly.TryParseExact(segments[0], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)) return null;
+        return new(segments[0], parts[1][9..], segments.Length == 2);
     }
 
     private sealed record VersionRoute(string Resource, string Id, string? Action);

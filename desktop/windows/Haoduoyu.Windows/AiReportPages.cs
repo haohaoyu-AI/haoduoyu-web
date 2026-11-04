@@ -23,7 +23,7 @@ public sealed partial class MainWindow
     private async Task AiReportsAsync()
     {
         await FlushEditorAsync();
-        page.Children.Clear();heading.Text="AI汇报";page.Children.Add(heading);
+        ClearPage();heading.Text="AI汇报";page.Children.Add(heading);
         page.Children.Add(Label("正在核对汇报历史。汇报按提交时间分页；实际工作日期可能更早，需要完整读取后才能按日期筛选。"));
         var identity=currentIdentity;
         var first=await ReadAiReportHistoryPassAsync();
@@ -87,7 +87,7 @@ public sealed partial class MainWindow
     {
         await FlushEditorAsync();
         if(aiReportHistoryIdentity!=currentIdentity){await AiReportsAsync();return;}
-        currentPage="AI汇报";page.Children.Clear();heading.Text="AI汇报";page.Children.Add(heading);
+        currentPage="AI汇报";ClearPage();heading.Text="AI汇报";page.Children.Add(heading);
         page.Children.Add(Label("汇报正文按首行的有效 YYYY-MM-DD 日期归档；旧汇报没有该行时按实际提交时间的北京时间日期归档。原汇报只读，人工补充不会代表任何AI已经执行了任务。"));
         var toolbar=new WrapPanel();page.Children.Add(toolbar);
         var datePicker=new DatePicker {SelectedDate=aiReportDay,DisplayDateEnd=BeijingNow().Date,Margin=new Thickness(0,0,8,8),MinWidth=170};
@@ -154,7 +154,7 @@ public sealed partial class MainWindow
     }
     private async Task ShowAiReportAsync(JsonObject row)
     {
-        await FlushEditorAsync();currentPage="AI汇报";page.Children.Clear();heading.Text="AI汇报正文";page.Children.Add(heading);
+        await FlushEditorAsync();currentPage="AI汇报";ClearPage();heading.Text="AI汇报正文";page.Children.Add(heading);
         var(day,body)=SplitAiReport(Text(row,"content"));
         page.Children.Add(Label("署名："+Text(row,"author")));
         page.Children.Add(Label("工作日期："+(day??AiReportWorkDay(row))));
@@ -213,7 +213,7 @@ public sealed partial class MainWindow
         {
             if(immutable?.RemoteJson!=null&&Data(immutable.RemoteJson) is JsonObject receipt&&Text(receipt,"id")==id&&Text(receipt,"created_at").Length>0)
             {await ShowAiReportAsync(receipt);return;}
-            page.Children.Clear();heading.Text="原人工汇报稿（只读）";page.Children.Add(heading);
+            ClearPage();heading.Text="原人工汇报稿（只读）";page.Children.Add(heading);
             page.Children.Add(Label("此标识已有保存尝试。服务器上的汇报不可修改；未知原请求不会被替换或另建ID重发。"));
             page.Children.Add(Label("署名："+Text(values,"author")+"\n实际工作日期："+Text(values,"report_date")));
             page.Children.Add(new TextBox {Text=Text(values,"content"),IsReadOnly=true,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,MinHeight=300,MaxHeight=600,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
@@ -221,7 +221,7 @@ public sealed partial class MainWindow
             if(immutable!=null)page.Children.Add(Button("核对原保存",()=>InspectOperationAsync(immutable)));
             page.Children.Add(Button("返回汇报历史",AiReportsAsync));return;
         }
-        currentPage="AI汇报";page.Children.Clear();heading.Text="人工补充实际工作汇报";page.Children.Add(heading);
+        currentPage="AI汇报";ClearPage();heading.Text="人工补充实际工作汇报";page.Children.Add(heading);
         page.Children.Add(Label("请填写真实署名、实际工作日期和已发生的工作内容。此表单不会启动AI任务，也不会证明某个AI执行过工作。成功保存后原记录只读。"));
         page.Children.Add(Label("真实署名（必填，最多120个Unicode字符）"));var author=new TextBox {Text=Text(values,"author")};page.Children.Add(author);
         page.Children.Add(Label("实际工作日期（必填，不晚于今天）"));var date=new DatePicker {SelectedDate=DateTime.TryParseExact(Text(values,"report_date"),"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out var parsed)?parsed:null,DisplayDateEnd=BeijingNow().Date,Margin=new Thickness(0,0,0,12)};page.Children.Add(date);

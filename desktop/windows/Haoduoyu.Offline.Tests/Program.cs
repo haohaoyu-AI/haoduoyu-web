@@ -34,6 +34,18 @@ Check(result.Dates == 2 && result.Requests == api.Calls.Count && result.Records 
 Check(result.CacheEntries.Count > 200 && result.CacheEntries.All(x => JsonNode.Parse(x.Value)!["_local_complete"]!.GetValue<bool>()), "cache entries are partial or unmarked");
 Check(progress.Items.Last().Stage == "完整下载已核对" && progress.Items.All(x => x.Requests <= result.Requests && x.Bytes <= result.Bytes), "progress was missing or invalid");
 Check(api.Calls.All(x => x.Method == "GET" && x.Body is null && x.Operation == ""), "downloader issued a write");
+var recycle = Parsed(result, "/local/recycle/all")["data"]!;
+Check(recycle["format"]!.GetValue<string>() == "native-trash-v1" && recycle["complete"]!.GetValue<bool>() && recycle["scope_id"]!.GetValue<string>() == scope,
+    "recycle data was represented as an unverified server snapshot");
+var removed = recycle["data"]!.AsObject().SelectMany(x => x.Value!.AsArray()).ToArray();
+Check(removed.Length == 8 && removed.All(x => x!["deleted_at"] is not null && x["version"]!.GetValue<int>() == 7), "recycle data lost real source versions or included active records");
+Check(removed.Select(x => x!["entity_id"]!.GetValue<string>()).Distinct().Count() == removed.Length, "repeated global tombstones were not deduplicated");
+Check(!recycle.AsObject().ContainsKey("content_hash") && !recycle.AsObject().ContainsKey("manifest_hash") && !recycle.AsObject().ContainsKey("snapshot_format"),
+    "derived recycle cache kept a misleading original server hash or format");
+Check(recycle["data"]!["memo_groups"]!.AsArray().Count == 1 && recycle["data"]!["memos"]!.AsArray().Count == 1 &&
+    recycle["data"]!["memos"]![0]!["group_id"]!.GetValue<string>() == FakeApi.Id(4), "deleted memo parent metadata was lost");
+Check(api.Calls.Count(x => x.Path.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal)) == 2 &&
+    !result.CacheEntries.Keys.Any(x => x.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal)), "daily snapshots were omitted or duplicated as full cached payloads");
 Check(Parsed(result, "/api/v1/review/articles")["data"]!["items"]!.AsArray().Count == 101, "review pagination truncated at 100");
 Check(Parsed(result, "/api/v1/articles")["data"]!.AsArray().Count == 105, "all five legacy statuses or later pages were omitted");
 Check(Parsed(result, "/api/v1/articles")["data"]!.AsArray().Select(x => x!["status"]!.GetValue<string>()).Distinct().Count() == 5, "legacy default published filter hid drafts");
@@ -70,6 +82,33 @@ var realEmpty = worker["samples"]!.AsArray().Single(x => x!["name"]!.GetValue<st
 var emptyApi = new FakeApi(JsonNode.Parse(realEmpty)!.AsObject());
 var emptyResult = await Fetch(emptyApi);
 Check(emptyResult.Dates == 1 && emptyResult.ManifestHash == JsonNode.Parse(realEmpty)!["data"]!["manifest_hash"]!.GetValue<string>(), "actual Worker empty manifest did not verify");
+Check(Parsed(emptyResult, "/local/recycle/all")["data"]!["data"]!.AsObject().All(x => x.Value!.AsArray().Count == 0), "empty source snapshot fabricated deleted records");
+
+foreach (var field in new[] { "content_hash", "manifest_hash", "global_content_hash", "date_content_hash", "scope_id" })
+{
+    var badSnapshot = Api(); badSnapshot.Alter = (call, response) => call.Path.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal)
+        ? Edit(response, x => x["data"]![field] = new string('f', 64)) : response;
+    await Reject(async () => { await Fetch(badSnapshot); }, "invalid snapshot " + field + " was accepted");
+}
+foreach (var name in source["tampered_snapshots"]!.AsObject().Select(x => x.Key))
+{
+    var snapshot = source["tampered_snapshots"]![name]!;
+    var expectedDay = snapshot["data"]!["date"]!.GetValue<string>();
+    var badSnapshot = Api(); badSnapshot.Alter = (call, response) => call.Path == "/api/v1/workbench-snapshot?date=" + expectedDay + "&version=2"
+        ? response with { Json = snapshot.ToJsonString() } : response;
+    await Reject(async () => { await Fetch(badSnapshot); }, "tampered snapshot with valid outer source hash was accepted: " + name);
+}
+var missingSnapshot = Api(); missingSnapshot.Alter = (call, response) => call.Path == "/api/v1/workbench-snapshot?date=2026-11-05&version=2" ? new(404, "{\"error\":{\"code\":\"SYNTHETIC_MISSING\"}}") : response;
+await Reject(async () => { await Fetch(missingSnapshot); }, "missing promised date snapshot returned a partial recycle batch", 404);
+var partialSnapshot = Api(); partialSnapshot.Alter = (call, response) => call.Path.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal)
+    ? Edit(response, x => x["data"]!["complete"] = false) : response;
+await Reject(async () => { await Fetch(partialSnapshot); }, "incomplete source snapshot was accepted");
+using (var cancelled = new CancellationTokenSource())
+{
+    var cancellationApi = Api(); cancellationApi.Alter = (call, response) => { if (call.Path.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal)) cancelled.Cancel(); return response; };
+    await Reject(async () => { await Fetch(cancellationApi, cancellationToken: cancelled.Token); }, "snapshot cancellation returned a partial recycle batch");
+    Check(cancellationApi.Calls.Count == 3, "snapshot cancellation continued downloading later days");
+}
 
 foreach (var status in new[] { 403, 409, 413, 503, 206 })
 {
@@ -167,6 +206,14 @@ await Reject(async () => { await Fetch(Api(), new(MaxRequests: 3)); }, "request 
 await Reject(async () => { await Fetch(Api(), new(MaxRequests: 10001)); }, "higher-than-safe budget was accepted");
 var oversized = Api(); oversized.Alter = (_, response) => response with { Json = new string('x', WorkbenchApi.MaximumResponseBytes + 1) };
 await Reject(async () => { await Fetch(oversized); }, "oversized response was accepted");
+var largeReports = Api(); largeReports.Alter = (call, response) => call.Path == "/api/v1/ai-reports?offset=0"
+    ? Edit(response, x => { foreach (var row in x["data"]!["items"]!.AsArray()) row!["content"] = new string('x', 16384); }) : response;
+var largeReportResult = await Fetch(largeReports);
+Check(Parsed(largeReportResult, "/api/v1/ai-reports")["data"]!["items"]![0]!["content"]!.GetValue<string>().Length == 16384,
+    "legitimate bounded AI report page larger than 1 MiB was rejected");
+var oversizedReports = Api(); oversizedReports.Alter = (call, response) => call.Path == "/api/v1/ai-reports?offset=0"
+    ? response with { Json = new string('x', WorkbenchApi.MaximumAiReportsResponseBytes + 1) } : response;
+await Reject(async () => { await Fetch(oversizedReports); }, "AI report page over 4 MiB was accepted");
 var duplicateProperty = Api(); duplicateProperty.Alter = (_, response) => response with { Json = "{\"data\":{},\"data\":{}}" };
 await Reject(async () => { await Fetch(duplicateProperty); }, "duplicate JSON properties were accepted");
 var noArchives = Api(); noArchives.Alter = (call, response) => call.Path == "/api/v1/note-entries/labels"
@@ -182,7 +229,8 @@ using (var cancelled = new CancellationTokenSource())
 {
     var cancellationApi = Api(); cancellationApi.Alter = (call, response) => { if (call.Path.Contains("/review/articles/", StringComparison.Ordinal)) cancelled.Cancel(); return response; };
     await Reject(async () => { await Fetch(cancellationApi, cancellationToken: cancelled.Token); }, "mid-download cancellation returned a partial batch");
-    Check(cancellationApi.Calls.Count == 4, "cancelled download continued requesting");
+    Check(cancellationApi.Calls.Count(x => x.Path.Contains("/review/articles/", StringComparison.Ordinal)) == 1 &&
+        cancellationApi.Calls.Last().Path.Contains("/review/articles/", StringComparison.Ordinal), "cancelled download continued requesting");
 }
 
 // Integration: the single cache apply happens only after both barriers; failures preserve all state.
@@ -206,6 +254,8 @@ sealed class FakeApi(JsonObject index) : IRemoteApi
     private const long Revision = 7;
     private static readonly string[] ReviewKinds = ["articles", "snapshots", "reports", "playbooks", "benchmark-accounts", "benchmark-articles", "notes", "account-health"];
     private static readonly string[] Statuses = ["drafting", "illustrated", "draft_saved", "published", "failed"];
+    private static readonly JsonObject SnapshotFixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,
+        "Fixtures", "workbench-manifest-c30a8a9.json")))!.AsObject();
     public List<Call> Calls { get; } = [];
     public Func<Call, ApiResult, ApiResult>? Alter { get; set; }
     public static string Id(int number) => "00000000-0000-4000-8000-" + number.ToString("D12", System.Globalization.CultureInfo.InvariantCulture);
@@ -222,6 +272,11 @@ sealed class FakeApi(JsonObject index) : IRemoteApi
         var parts = path.Split('?', 2); var route = parts[0];
         var q = parts.Length == 1 ? new Dictionary<string, string>() : parts[1].Split('&').Select(x => x.Split('=', 2)).ToDictionary(x => x[0], x => Uri.UnescapeDataString(x[1]));
         if (route == "/api/v1/workbench-snapshot/index") return index.DeepClone().AsObject();
+        if (route == "/api/v1/workbench-snapshot")
+        {
+            var kind = index["data"]!["entities"]!.AsArray().Count == 0 ? "empty_snapshots" : "snapshots";
+            return SnapshotFixture[kind]![q["date"]]!.DeepClone().AsObject();
+        }
         if (route == "/api/v1/ai-reports")
         {
             if (q.Keys.Any(x => x != "offset")) throw new InvalidOperationException("AI reports do not accept revision or other query parameters");

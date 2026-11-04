@@ -1,0 +1,195 @@
+{
+  "kind": "synthetic-performance-observation",
+  "timestamp_utc": "2026-11-04T17:54:20.1278735+00:00",
+  "runtime": "10.0.14",
+  "os": "Debian GNU/Linux 13 (trixie)",
+  "processors": 4,
+  "server_gc": false,
+  "samples": 3,
+  "implementation": "Product structural snapshots and compact local encrypted JSON; projection algorithm unchanged",
+  "source_files_sha256": {
+    "Models.cs": "7274c03b3e007ee2e64d3acb815f4c2c6792f512d92615f73ce548d0019cffe7",
+    "AtomicWorkspaceStore.cs": "586811e89f2469f0d90c826f7540124248d64ba97db4a98686d9cffa629feffd",
+    "WorkspaceProjection.cs": "308c48cb25936277fe330519fe149baa5404e622a9080f7a90dd7ac3d81dd8b4"
+  },
+  "limitations": [
+    "Linux cloud CPU and GC observations; not a Windows device or interactive UI test",
+    "Synthetic 12000 review articles plus many date/detail caches; no production data or network",
+    "Legacy two-snapshot measurements reproduce the former call pattern, not the current asynchronous UI",
+    "Single-worker wall time includes awaiting a worker in this console and does not measure WPF responsiveness",
+    "Measurements are observations, not pass/fail tests"
+  ],
+  "results": [
+    {
+      "scenario": "12k_ascii_medium",
+      "row_count": 14620,
+      "cache_keys": 171,
+      "raw_cache_utf8_bytes": 9487708,
+      "serialized_workspace_utf8_bytes": 9863376,
+      "under_24MiB_download_limit": true,
+      "measurements": {
+        "snapshot": {
+          "min_ms": 0.011,
+          "median_ms": 0.0111,
+          "max_ms": 0.0157,
+          "median_allocated_bytes": 12456,
+          "max_gen2_collections": 0
+        },
+        "structural_copy_reference": {
+          "min_ms": 0.0211,
+          "median_ms": 0.0214,
+          "max_ms": 0.022,
+          "median_allocated_bytes": 12792,
+          "max_gen2_collections": 0
+        },
+        "project_todo_only": {
+          "min_ms": 124.2515,
+          "median_ms": 183.2019,
+          "max_ms": 201.0478,
+          "median_allocated_bytes": 50875312,
+          "max_gen2_collections": 0
+        },
+        "project_review_page_only": {
+          "min_ms": 188.8314,
+          "median_ms": 203.743,
+          "max_ms": 224.363,
+          "median_allocated_bytes": 70344680,
+          "max_gen2_collections": 1
+        },
+        "legacy_ui_two_snapshots_and_todo_project": {
+          "min_ms": 82.9992,
+          "median_ms": 86.2552,
+          "max_ms": 108.1556,
+          "median_allocated_bytes": 50915504,
+          "max_gen2_collections": 0
+        },
+        "single_snapshot_todo_projection_worker_wall": {
+          "min_ms": 67.9445,
+          "median_ms": 69.8615,
+          "max_ms": 72.6413,
+          "median_allocated_bytes": 50903512,
+          "max_gen2_collections": 0
+        }
+      },
+      "storage_probe": {
+        "serialized_bytes": 9863419,
+        "outcome": "fits_product_32MiB_plaintext_check; write_not_attempted",
+        "protector_calls": 0
+      }
+    },
+    {
+      "scenario": "12k_ascii_near_download_limit",
+      "row_count": 14620,
+      "cache_keys": 171,
+      "raw_cache_utf8_bytes": 22819708,
+      "serialized_workspace_utf8_bytes": 23222877,
+      "under_24MiB_download_limit": true,
+      "measurements": {
+        "snapshot": {
+          "min_ms": 0.0116,
+          "median_ms": 0.0123,
+          "max_ms": 0.0206,
+          "median_allocated_bytes": 12456,
+          "max_gen2_collections": 0
+        },
+        "structural_copy_reference": {
+          "min_ms": 0.0209,
+          "median_ms": 0.0214,
+          "max_ms": 0.0222,
+          "median_allocated_bytes": 13464,
+          "max_gen2_collections": 0
+        },
+        "project_todo_only": {
+          "min_ms": 69.1424,
+          "median_ms": 79.2157,
+          "max_ms": 80.321,
+          "median_allocated_bytes": 64052000,
+          "max_gen2_collections": 0
+        },
+        "project_review_page_only": {
+          "min_ms": 119.6895,
+          "median_ms": 129.0004,
+          "max_ms": 135.5702,
+          "median_allocated_bytes": 82644184,
+          "max_gen2_collections": 1
+        },
+        "legacy_ui_two_snapshots_and_todo_project": {
+          "min_ms": 68.5836,
+          "median_ms": 71.2214,
+          "max_ms": 71.7253,
+          "median_allocated_bytes": 64086960,
+          "max_gen2_collections": 0
+        },
+        "single_snapshot_todo_projection_worker_wall": {
+          "min_ms": 74.4467,
+          "median_ms": 88.738,
+          "max_ms": 100.4743,
+          "median_allocated_bytes": 64074680,
+          "max_gen2_collections": 0
+        }
+      },
+      "storage_probe": {
+        "serialized_bytes": 23222920,
+        "outcome": "fits_product_32MiB_plaintext_check; write_not_attempted",
+        "protector_calls": 0
+      }
+    },
+    {
+      "scenario": "12k_cjk_near_download_limit",
+      "row_count": 14620,
+      "cache_keys": 171,
+      "raw_cache_utf8_bytes": 22807588,
+      "serialized_workspace_utf8_bytes": 23210731,
+      "under_24MiB_download_limit": true,
+      "measurements": {
+        "snapshot": {
+          "min_ms": 0.0083,
+          "median_ms": 0.0092,
+          "max_ms": 0.0136,
+          "median_allocated_bytes": 12456,
+          "max_gen2_collections": 0
+        },
+        "structural_copy_reference": {
+          "min_ms": 0.0175,
+          "median_ms": 0.0181,
+          "max_ms": 0.0183,
+          "median_allocated_bytes": 12456,
+          "max_gen2_collections": 0
+        },
+        "project_todo_only": {
+          "min_ms": 80.692,
+          "median_ms": 92.6488,
+          "max_ms": 104.8594,
+          "median_allocated_bytes": 64034104,
+          "max_gen2_collections": 0
+        },
+        "project_review_page_only": {
+          "min_ms": 137.5211,
+          "median_ms": 151.3206,
+          "max_ms": 162.5772,
+          "median_allocated_bytes": 82952960,
+          "max_gen2_collections": 1
+        },
+        "legacy_ui_two_snapshots_and_todo_project": {
+          "min_ms": 74.7362,
+          "median_ms": 84.0341,
+          "max_ms": 95.2979,
+          "median_allocated_bytes": 64076208,
+          "max_gen2_collections": 0
+        },
+        "single_snapshot_todo_projection_worker_wall": {
+          "min_ms": 83.6281,
+          "median_ms": 84.6794,
+          "max_ms": 91.7836,
+          "median_allocated_bytes": 64063928,
+          "max_gen2_collections": 0
+        }
+      },
+      "storage_probe": {
+        "serialized_bytes": 23210774,
+        "outcome": "fits_product_32MiB_plaintext_check; write_not_attempted",
+        "protector_calls": 0
+      }
+    }
+  ]
+}

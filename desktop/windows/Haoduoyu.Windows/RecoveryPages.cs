@@ -130,7 +130,8 @@ public sealed partial class MainWindow
             }
             throw new InvalidOperationException("汇报核对超出100页读取上限。原请求保留，不能把未读页面当作不存在。");
         }
-        var path = operation.Path.EndsWith("/restore", StringComparison.Ordinal) ? operation.Path[..^8] : operation.Path;
+        var operationParts = operation.Path.Split('?', 2);
+        var path = operationParts[0].EndsWith("/restore", StringComparison.Ordinal) ? operationParts[0][..^8] : operationParts[0];
         if (path.EndsWith("/template", StringComparison.Ordinal)) path = path[..^9];
         if (path.StartsWith("/api/v1/unscheduled-todos/", StringComparison.Ordinal))
         {
@@ -165,8 +166,7 @@ public sealed partial class MainWindow
         else if (path.StartsWith("/api/v1/memos/groups/", StringComparison.Ordinal)) { path = "/api/v1/memos"; collection = "groups"; }
         else if (path.StartsWith("/api/v1/daily-notes/", StringComparison.Ordinal))
         {
-            var parts = path.Split('?', 2);
-            path = "/api/v1/daily-notes?date=" + parts[0].Split('/').Last() + (parts.Length > 1 ? "&" + parts[1] : "");
+            path = "/api/v1/daily-notes?date=" + path.Split('/').Last() + (operationParts.Length > 1 ? "&" + operationParts[1] : "");
         }
         var result = await ReadBoundAsync(path);
         if (!result.IsSuccess) throw new InvalidOperationException("远端读取未成功，不能处理冲突。原稿保留。HTTP " + result.StatusCode);
@@ -236,6 +236,15 @@ public sealed partial class MainWindow
         if (!Confirm("恢复此条已软删除的记录？原删除历史仍保留。")) return;
         var body = Obj(("version", Version(result)));
         if (operation.Path.StartsWith("/api/v1/todos/", StringComparison.Ordinal)) body["date"] = Text(JsonNode.Parse(operation.BodyJson), "date");
+        else if (operation.Path.StartsWith("/api/v1/unscheduled-todos/", StringComparison.Ordinal)) { }
+        else if (operation.Path.StartsWith("/api/v1/daily-notes/", StringComparison.Ordinal))
+        {
+            var parts = operation.Path.Split('?', 2);
+            if (parts.Length != 2 || parts[1] is not ("category=life" or "category=work"))
+                throw new InvalidOperationException("旧日页分类无法核实，原历史保留。");
+            body["save_id"] = Guid.NewGuid().ToString();
+            await QueueAsync("POST", parts[0] + "/restore?" + parts[1], body, operation.ResourceKey); return;
+        }
         else if (operation.Path.StartsWith("/api/v1/note-entries/", StringComparison.Ordinal) || operation.Path.StartsWith("/api/v1/memos/", StringComparison.Ordinal) || operation.Path.StartsWith("/api/v1/work-reminders/", StringComparison.Ordinal)) body["save_id"] = Guid.NewGuid().ToString();
         else throw new InvalidOperationException("此接口没有已验证的软删除恢复能力。");
         await QueueAsync("POST", operation.Path + "/restore", body, operation.ResourceKey);
@@ -282,6 +291,6 @@ public sealed partial class MainWindow
                 finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(clear); }
             }));
         }
-        page.Children.Add(Label("版本 0.1.0 开发候选。尚未安装到用户电脑；尚未验证旧版覆盖升级、实机中文输入法、断电恢复或正式签名分发。"));
+        page.Children.Add(Label("版本 0.2.0 开发候选。尚未安装到用户电脑；尚未验证旧版覆盖升级、实机中文输入法、断电恢复或正式签名分发。"));
     }
 }

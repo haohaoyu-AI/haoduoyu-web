@@ -1,0 +1,41 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "verified_at_utc": "2026-11-04T17:55:47.119913+00:00",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "production_business_requests": 0,
+  "regression_reproduced_before_fix": "Actual Unicode Worker receipt failed: note-literal-emoji-and-line-controls",
+  "fix": "Match source JSON.stringify(stable(row)): ordinal UTF-16 key sort and literal valid surrogate pairs; preserve original entity fields and CAS version rules.",
+  "unicode_worker": {
+    "fixture": "unicode-receipt-contract-c30a8a9.json",
+    "requests": 10,
+    "successful_mutations": 3,
+    "reads": 7,
+    "actual_receipt_hash_confirmations": 3,
+    "changed_content_rejections": 3,
+    "missing_receipt_unconfirmed": 3,
+    "assertions": 19,
+    "passed": true
+  },
+  "api_suite": {
+    "assertions": 165,
+    "passed": true
+  },
+  "previous_complete_worker_capture": {
+    "requests": 82,
+    "successful_mutations": 40,
+    "cas_rejections": 3,
+    "reads": 39,
+    "actual_receipt_hash_confirmations": 2,
+    "passed": true
+  },
+  "diff_whitespace_check_passed": true,
+  "boundary": "Isolated exact-source compiled Worker.fetch with temporary Miniflare D1, no production business calls or provider calls. Runtime disposed. Replay is portable .NET; this is not an interactive Windows validation or deployment.",
+  "files_sha256": {
+    "Haoduoyu.Api/Reconciliation.cs": "1dbf30bed402ed1c1cc359bc84f67c9544cc4f62cb0c05abf8dbe364ae89d369",
+    "Haoduoyu.Api.Tests/Program.cs": "f835d1db4da2421825993f1faea8502083e86cc7dca6173d745e93d2c4109167",
+    "Haoduoyu.Api.Tests/UnicodeReceiptContract.cs": "e0c9b902fdf167c6554c3fe8bb0070d97440a0c87a1d587792516048d7fb5009",
+    "Haoduoyu.Api.Tests/generate-unicode-receipt-contract.mjs": "7b5a4f3f4a3b27a26b50cc966923d219430f75346a0aecffdc7c0bd46d6fd332",
+    "Haoduoyu.Api.Tests/Fixtures/unicode-receipt-contract-c30a8a9.json": "bed5b2167f4a9679d64507c25d4cbf1db682e32af2367cc9752611c883e5b1e7"
+  }
+}

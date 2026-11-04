@@ -1,0 +1,108 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "generated_at": "2026-11-04T17:54:20.045Z",
+  "fixture": "Exact compiled c30 Worker.fetch + existing harness temporary Miniflare D1; outbound denied; no production records",
+  "samples": [
+    {
+      "name": "server-beijing-today",
+      "method": "GET",
+      "path": "/api/v1/todos",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-05\",\"today\":\"2026-11-05\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[]}}"
+    },
+    {
+      "name": "note-literal-emoji-and-line-controls-save",
+      "method": "PUT",
+      "path": "/api/v1/note-entries/412b0971-ee9e-4145-8d64-11fae9a82f1f",
+      "body_json": "{\"version\":0,\"save_id\":\"7a7ff623-2806-4e7a-8282-416a5d2c2397\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"412b0971-ee9e-4145-8d64-11fae9a82f1f\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\",\"version\":1,\"change_seq\":3,\"created_at\":\"2026-11-04T17:54:19.249Z\",\"updated_at\":\"2026-11-04T17:54:19.249Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"dbd251aa82218fbe3ef5c653c34b61df3071f3049a7d19a7cd32d0091b03169d\"}}"
+    },
+    {
+      "name": "note-literal-emoji-and-line-controls-receipt",
+      "method": "GET",
+      "path": "/api/v1/note-entries/operations/7a7ff623-2806-4e7a-8282-416a5d2c2397",
+      "status": 200,
+      "response_json": "{\"data\":{\"found\":true,\"id\":\"412b0971-ee9e-4145-8d64-11fae9a82f1f\",\"version\":1,\"deleted_at\":null,\"change_seq\":3,\"content_hash\":\"dbd251aa82218fbe3ef5c653c34b61df3071f3049a7d19a7cd32d0091b03169d\",\"labels_version\":3,\"labels\":[\"生活\"]}}"
+    },
+    {
+      "name": "note-literal-emoji-and-line-controls-entity",
+      "method": "GET",
+      "path": "/api/v1/note-entries/412b0971-ee9e-4145-8d64-11fae9a82f1f",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"412b0971-ee9e-4145-8d64-11fae9a82f1f\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\",\"version\":1,\"change_seq\":3,\"created_at\":\"2026-11-04T17:54:19.249Z\",\"updated_at\":\"2026-11-04T17:54:19.249Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[\"生活\"],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"dbd251aa82218fbe3ef5c653c34b61df3071f3049a7d19a7cd32d0091b03169d\"}}"
+    },
+    {
+      "name": "memo-group-literal-emoji-save",
+      "method": "PUT",
+      "path": "/api/v1/memos/groups/3a893862-22ab-474c-bd24-ff5efd2db946",
+      "body_json": "{\"version\":0,\"save_id\":\"cbc6e055-5a59-4458-8137-19a18ec2a7eb\",\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \",\"position\":0}",
+      "status": 200,
+      "response_json": "{\"data\":{\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&\",\"position\":0,\"id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"version\":1,\"change_seq\":4,\"created_at\":\"2026-11-04T17:54:19.620Z\",\"updated_at\":\"2026-11-04T17:54:19.620Z\",\"deleted_at\":null,\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-group-literal-emoji-receipt",
+      "method": "GET",
+      "path": "/api/v1/memos/operations/cbc6e055-5a59-4458-8137-19a18ec2a7eb",
+      "status": 200,
+      "response_json": "{\"data\":{\"found\":true,\"kind\":\"groups\",\"id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"version\":1,\"deleted_at\":null,\"change_seq\":4,\"entity_hash\":\"cee8924ba92a77d3b9fe2032d85eccfc587d8316bd2132bdd151a9dbdac4660d\"}}"
+    },
+    {
+      "name": "memo-group-literal-emoji-entity",
+      "method": "GET",
+      "path": "/api/v1/memos",
+      "status": 200,
+      "response_json": "{\"data\":{\"groups\":[{\"id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&\",\"position\":0,\"version\":1,\"change_seq\":4,\"created_at\":\"2026-11-04T17:54:19.620Z\",\"updated_at\":\"2026-11-04T17:54:19.620Z\",\"deleted_at\":null,\"active_note_count\":0}],\"notes\":[],\"can_edit\":true,\"draft_scope\":\"721ad747-a99a-a78a-9a8f-f11bf39b1a19\"}}"
+    },
+    {
+      "name": "memo-note-literal-emoji-and-line-controls-save",
+      "method": "PUT",
+      "path": "/api/v1/memos/notes/4132255e-161c-4658-9142-e215490058d0",
+      "body_json": "{\"version\":0,\"save_id\":\"a147a1c3-4d08-4a0f-b6e9-6cd278a4f42f\",\"group_id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \",\"body\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\",\"position\":0}",
+      "status": 200,
+      "response_json": "{\"data\":{\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&\",\"position\":0,\"group_id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"body\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\",\"id\":\"4132255e-161c-4658-9142-e215490058d0\",\"version\":1,\"change_seq\":5,\"created_at\":\"2026-11-04T17:54:19.912Z\",\"updated_at\":\"2026-11-04T17:54:19.912Z\",\"deleted_at\":null,\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-note-literal-emoji-and-line-controls-receipt",
+      "method": "GET",
+      "path": "/api/v1/memos/operations/a147a1c3-4d08-4a0f-b6e9-6cd278a4f42f",
+      "status": 200,
+      "response_json": "{\"data\":{\"found\":true,\"kind\":\"notes\",\"id\":\"4132255e-161c-4658-9142-e215490058d0\",\"version\":1,\"deleted_at\":null,\"change_seq\":5,\"entity_hash\":\"222ffef245e89bb87d4ba8b8cd058f8cd1bfa71befff212f370e70cfa2340586\"}}"
+    },
+    {
+      "name": "memo-note-literal-emoji-and-line-controls-entity",
+      "method": "GET",
+      "path": "/api/v1/memos/notes/4132255e-161c-4658-9142-e215490058d0",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"4132255e-161c-4658-9142-e215490058d0\",\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&\",\"position\":0,\"version\":1,\"change_seq\":5,\"created_at\":\"2026-11-04T17:54:19.912Z\",\"updated_at\":\"2026-11-04T17:54:19.912Z\",\"deleted_at\":null,\"group_id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"body\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\",\"can_edit\":true}}"
+    }
+  ],
+  "reconciliations": [
+    {
+      "name": "note-literal-emoji-and-line-controls",
+      "method": "PUT",
+      "path": "/api/v1/note-entries/412b0971-ee9e-4145-8d64-11fae9a82f1f",
+      "body_json": "{\"version\":0,\"save_id\":\"7a7ff623-2806-4e7a-8282-416a5d2c2397\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\"}",
+      "receipt_json": "{\"data\":{\"found\":true,\"id\":\"412b0971-ee9e-4145-8d64-11fae9a82f1f\",\"version\":1,\"deleted_at\":null,\"change_seq\":3,\"content_hash\":\"dbd251aa82218fbe3ef5c653c34b61df3071f3049a7d19a7cd32d0091b03169d\",\"labels_version\":3,\"labels\":[\"生活\"]}}",
+      "entity_json": "{\"data\":{\"id\":\"412b0971-ee9e-4145-8d64-11fae9a82f1f\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\",\"version\":1,\"change_seq\":3,\"created_at\":\"2026-11-04T17:54:19.249Z\",\"updated_at\":\"2026-11-04T17:54:19.249Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[\"生活\"],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"dbd251aa82218fbe3ef5c653c34b61df3071f3049a7d19a7cd32d0091b03169d\"}}"
+    },
+    {
+      "name": "memo-group-literal-emoji",
+      "method": "PUT",
+      "path": "/api/v1/memos/groups/3a893862-22ab-474c-bd24-ff5efd2db946",
+      "body_json": "{\"version\":0,\"save_id\":\"cbc6e055-5a59-4458-8137-19a18ec2a7eb\",\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \",\"position\":0}",
+      "receipt_json": "{\"data\":{\"found\":true,\"kind\":\"groups\",\"id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"version\":1,\"deleted_at\":null,\"change_seq\":4,\"entity_hash\":\"cee8924ba92a77d3b9fe2032d85eccfc587d8316bd2132bdd151a9dbdac4660d\"}}",
+      "entity_json": "{\"data\":{\"id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&\",\"position\":0,\"version\":1,\"change_seq\":4,\"created_at\":\"2026-11-04T17:54:19.620Z\",\"updated_at\":\"2026-11-04T17:54:19.620Z\",\"deleted_at\":null,\"active_note_count\":0}}"
+    },
+    {
+      "name": "memo-note-literal-emoji-and-line-controls",
+      "method": "PUT",
+      "path": "/api/v1/memos/notes/4132255e-161c-4658-9142-e215490058d0",
+      "body_json": "{\"version\":0,\"save_id\":\"a147a1c3-4d08-4a0f-b6e9-6cd278a4f42f\",\"group_id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \",\"body\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\",\"position\":0}",
+      "receipt_json": "{\"data\":{\"found\":true,\"kind\":\"notes\",\"id\":\"4132255e-161c-4658-9142-e215490058d0\",\"version\":1,\"deleted_at\":null,\"change_seq\":5,\"entity_hash\":\"222ffef245e89bb87d4ba8b8cd058f8cd1bfa71befff212f370e70cfa2340586\"}}",
+      "entity_json": "{\"data\":{\"id\":\"4132255e-161c-4658-9142-e215490058d0\",\"title\":\"合成🐟👩‍💻é \\\" \\\\ <>&\",\"position\":0,\"version\":1,\"change_seq\":5,\"created_at\":\"2026-11-04T17:54:19.912Z\",\"updated_at\":\"2026-11-04T17:54:19.912Z\",\"deleted_at\":null,\"group_id\":\"3a893862-22ab-474c-bd24-ff5efd2db946\",\"body\":\"合成🐟👩‍💻é \\\" \\\\ <>&  \\n第二行\\t制表符\",\"can_edit\":true}}"
+    }
+  ]
+}

@@ -139,6 +139,7 @@ public sealed partial class MainWindow : Window
     {
         await FlushEditorAsync();
         if (identity == currentIdentity && engine != null) return;
+        ClearPage();
         failedIdentity = identity;
         store?.Dispose(); store = null; engine = null;
         var next = new AtomicWorkspaceStore(root, WorkbenchApi.ServiceOrigin.ToString(), identity, protector);
@@ -227,7 +228,7 @@ public sealed partial class MainWindow : Window
 
     private async Task<JsonNode?> ReadAsync(string path)
     {
-        var local = ProjectedData(path, Engine.Snapshot.Cache.GetValueOrDefault(path));
+        var local = await ProjectedDataAsync(path);
         if (local is JsonObject && Flag(local, "_local_new")) return local;
         if (connected)
         {
@@ -235,20 +236,25 @@ public sealed partial class MainWindow : Window
             {
                 var result = await ReadBoundAsync(path);
                 if (!result.IsSuccess) throw new InvalidOperationException($"读取失败 HTTP {result.StatusCode}。请求号：{result.RequestId ?? "未返回"}。原缓存保留。");
-                var parsed = Data(result.Json) ?? throw new InvalidDataException("服务响应没有 data，原缓存保留。");
+                var parsed = await Task.Run(() => Data(result.Json)) ?? throw new InvalidDataException("服务响应没有 data，原缓存保留。");
                 await Task.Run(() => Engine.CacheAsync(path, result.Json));
-                return ProjectedData(path, result.Json) ?? parsed;
+                return await ProjectedDataAsync(path, result.Json) ?? parsed;
             }
             catch (ScopeGuardException error) { connected = false; Message(error.Message); }
             catch (Exception error) when (error is HttpRequestException or IOException or OperationCanceledException)
             { connected = false; Message("连接中断，显示本机已保存副本。" ); }
         }
-        return ProjectedData(path, Engine.Snapshot.Cache.GetValueOrDefault(path));
+        return local;
     }
-    private JsonNode? ProjectedData(string path, string? cached)
+    private Task<JsonNode?> ProjectedDataAsync(string path, string? cached = null)
     {
-        var projected = WorkspaceProjection.Project(path, cached, Engine.Snapshot);
-        return projected == null ? null : Data(projected);
+        var target = Engine;
+        return Task.Run(() =>
+        {
+            var snapshot = target.Snapshot;
+            var projected = WorkspaceProjection.Project(path, cached ?? snapshot.Cache.GetValueOrDefault(path), snapshot);
+            return projected == null ? null : Data(projected);
+        });
     }
     private async Task<ApiResult> ReadBoundAsync(string path)
     {
@@ -266,7 +272,7 @@ public sealed partial class MainWindow : Window
     private async Task NavigateAsync(string name)
     {
         await FlushEditorAsync(); currentPage = name;
-        page.Children.Clear(); heading.Text = name; page.Children.Add(heading);
+        ClearPage(); heading.Text = name; page.Children.Add(heading);
         var bar = new WrapPanel(); page.Children.Add(bar);
         if (new[] { "待办", "生活记录", "工作记录", "工作提醒", "数据复盘", "AI汇报", "回收站" }.Contains(name))
         {
@@ -311,7 +317,9 @@ public sealed partial class MainWindow : Window
         if (path.StartsWith("/api/v1/articles", StringComparison.Ordinal) && body["status"] is JsonValue) articleStatus = Text(body, "status");
         var related = Engine.Snapshot.Outbox.LastOrDefault(o => o.Path == path && o.Method == method &&
             o.Status is not (PendingStatus.Confirmed or PendingStatus.Superseded));
-        var restoring = Engine.Snapshot.Outbox.LastOrDefault(o => o.Path == path + "/restore" && o.Method == "POST" &&
+        var pathParts = path.Split('?', 2);
+        var restorePath = pathParts[0] + "/restore" + (pathParts.Length == 2 ? "?" + pathParts[1] : "");
+        var restoring = Engine.Snapshot.Outbox.LastOrDefault(o => o.Path == restorePath && o.Method == "POST" &&
             o.Status is not (PendingStatus.Confirmed or PendingStatus.Superseded));
         string? versionFrom = null;
         IReadOnlyList<string> dependencies = CreationDependencies(path, body);
@@ -346,31 +354,51 @@ public sealed partial class MainWindow : Window
 
     private async Task RebaseConfirmedDraftsAsync()
     {
-        foreach (var operation in Engine.Snapshot.Outbox.Where(o => o.Status == PendingStatus.Confirmed && o.RemoteJson != null))
+        foreach (var operation in Engine.Snapshot.Outbox.Where(o => o.Status == PendingStatus.Confirmed && o.RemoteJson != null).OrderBy(o => o.ConfirmedRevision))
         {
             if (!Engine.Snapshot.Drafts.TryGetValue(operation.ResourceKey, out var draft)) continue;
+            if (operation.ConfirmedRevision <= draft.BaselineConfirmedRevision) continue;
             var saved = JsonNode.Parse(draft.Text)?.AsObject();
             if (saved == null || saved["original"] is not JsonObject original || saved["values"] is not JsonObject values) continue;
             var kind = Text(saved, "kind");
             if (kind is not ("todo" or "template" or "note" or "legacy" or "memo" or "group" or "reminder" or "article")) continue;
-            (string method, string path, JsonObject body) prepared;
-            try { prepared = BuildSave(kind, original, values); }
-            catch (Exception error) when (error is ArgumentException or FormatException or InvalidOperationException)
-            { continue; } // An unfinished draft is preserved; invalid user input must not prevent opening the whole workspace.
-            var queuedBody = JsonNode.Parse(operation.BodyJson)?.AsObject();
-            if (prepared.method != operation.Method || prepared.path != operation.Path || queuedBody == null || Version(original) != Version(queuedBody)) continue;
+            var target = DraftTarget(kind, original);
+            var queuedBody = JsonNode.Parse(operation.RequestBodyJson)?.AsObject();
+            var targetParts = target.Path.Split('?', 2);
+            var ownRestore = operation.Method == "POST" && operation.Path == targetParts[0] + "/restore" + (targetParts.Length == 2 ? "?" + targetParts[1] : "");
+            if ((!ownRestore && (target.Method != operation.Method || target.Path != operation.Path)) || queuedBody == null || Version(original) != Version(queuedBody)) continue;
             var remote = Data(operation.RemoteJson!);
             if (remote is not JsonObject || Version(remote) <= Version(original)) continue;
             var serverAssignedArticle = kind == "article" && operation.Method == "POST" && operation.Path == "/api/v1/articles" && Version(original) == 0;
             if (kind != "legacy" && !serverAssignedArticle && Text(remote, "id") != Text(original, "id")) continue;
+            if (kind == "legacy" && Text(remote, "date") != Text(original, "date")) continue;
             var baseline = (JsonObject)remote.DeepClone();
             if (kind == "legacy") baseline["category"] = Text(original, "category");
             saved["original"] = baseline;
             // The current baseline must equal our confirmed request's exact base. Retain later
             // unsent values; an old receipt cannot roll a newer baseline back.
-            await SaveLocalDraftAsync(draft with { Text = saved.ToJsonString(), BaseVersion = Version(remote) });
+            await SaveLocalDraftAsync(draft with { Text = saved.ToJsonString(), BaseVersion = Version(remote), BaselineConfirmedRevision = operation.ConfirmedRevision });
         }
         await RebaseReviewDraftsAsync();
+    }
+
+    private static (string Method, string Path) DraftTarget(string kind, JsonObject original)
+    {
+        var id = Text(original, "id");
+        return kind switch
+        {
+            "todo" => ("POST", "/api/v1/todos"),
+            "template" when Version(original) == 0 => ("POST", "/api/v1/todo-templates"),
+            "template" => ("PATCH", "/api/v1/todo-templates/" + id),
+            "note" => ("PUT", "/api/v1/note-entries/" + id),
+            "legacy" => ("PUT", "/api/v1/daily-notes/" + Text(original, "date") + "?category=" + Text(original, "category")),
+            "group" => ("PUT", "/api/v1/memos/groups/" + id),
+            "memo" => ("PUT", "/api/v1/memos/notes/" + id),
+            "reminder" => ("PUT", "/api/v1/work-reminders/" + id),
+            "article" when Version(original) == 0 => ("POST", "/api/v1/articles"),
+            "article" => ("PUT", "/api/v1/articles/" + id),
+            _ => ("", "")
+        };
     }
 
     private Task SaveLocalDraftAsync(LocalDraft draft)
@@ -385,6 +413,18 @@ public sealed partial class MainWindow : Window
     {
         try { await previous; }
         catch (Exception) { /* A subsequent explicit save may recover from a previous failed disk attempt. */ }
+        if (target.Snapshot.Drafts.TryGetValue(draft.Key, out var previousDraft))
+        {
+            if (draft.BaselineConfirmedRevision < previousDraft.BaselineConfirmedRevision)
+            {
+                var saved = JsonNode.Parse(draft.Text)?.AsObject();
+                var confirmed = JsonNode.Parse(previousDraft.Text)?.AsObject();
+                if (saved == null || confirmed?["original"] is not JsonObject baseline || Text(saved, "kind") != Text(confirmed, "kind"))
+                    throw new InvalidDataException("较早编辑稿与已确认基线不匹配，原稿保留，未覆盖。");
+                saved["original"] = baseline.DeepClone();
+                draft = draft with { Text = saved.ToJsonString(), BaseVersion = previousDraft.BaseVersion, BaselineConfirmedRevision = previousDraft.BaselineConfirmedRevision };
+            }
+        }
         await Task.Run(() => target.SaveDraftAsync(draft));
     }
 
@@ -422,7 +462,10 @@ public sealed partial class MainWindow : Window
     {
         draftTimer.Stop();
         while (saveEditor != null && draftDirty) await saveEditor();
-        saveEditor = null;
+    }
+    private void ClearPage()
+    {
+        saveEditor = null; draftDirty = false; draftTimer.Stop(); page.Children.Clear();
     }
     private async Task SaveDraftSafelyAsync()
     {

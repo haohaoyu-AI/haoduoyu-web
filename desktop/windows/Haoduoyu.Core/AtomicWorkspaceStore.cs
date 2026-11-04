@@ -64,9 +64,12 @@ public sealed class AtomicWorkspaceStore : IWorkspaceStore, IDisposable
             if (File.Exists(FilePath)) await ReadFileAsync(FilePath, cancellationToken);
             else if (File.Exists(BackupPath)) throw new InvalidDataException("必须先恢复缺失的主工作区。");
             var plaintext = JsonSerializer.SerializeToUtf8Bytes(state, WorkspaceJson.Options);
-            if (plaintext.Length > MaxBytes) throw new InvalidDataException("本机工作区超过 32 MiB；原文件已保留。");
             byte[] encrypted;
-            try { encrypted = protector.Protect(plaintext); }
+            try
+            {
+                if (plaintext.Length > MaxBytes) throw new InvalidDataException("本机工作区超过 32 MiB；原文件已保留。");
+                encrypted = protector.Protect(plaintext);
+            }
             finally { CryptographicOperations.ZeroMemory(plaintext); }
             if (encrypted.Length > MaxBytes) throw new InvalidDataException("加密工作区超过容量限制；原文件已保留。");
             temp = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";

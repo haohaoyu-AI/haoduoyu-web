@@ -19,7 +19,7 @@ using Haoduoyu.Windows;
 
 namespace Haoduoyu.Windows.Tests;
 
-internal static class NativeWorkflowTests
+internal static partial class NativeWorkflowTests
 {
     internal static IReadOnlyList<(string Name, Action Run)> Cases =>
     [
@@ -29,7 +29,8 @@ internal static class NativeWorkflowTests
         ("Shown native window resumes known private profiles offline without crossing public or other-user drafts", () => RunWithDispatcher(OfflineProfilesAsync)),
         ("Shown native memo list projects queued parent/child operations, replacements and cancellation", () => RunWithDispatcher(QueuedDependencyWorkflowAsync)),
         ("Shown offline todo edits replace an unsent completion dependency after its create was confirmed", () => RunWithDispatcher(DerivedTodoCompletionReplacementAsync)),
-        ("Shown native review sub-entry restores unfinished Chinese input and fences server queue until confirmation", () => RunWithDispatcher(ReviewPendingSubentryAsync))
+        ("Shown native review sub-entry restores unfinished Chinese input and fences server queue until confirmation", () => RunWithDispatcher(ReviewPendingSubentryAsync)),
+        .. BaselineCases
     ];
 
     private static readonly BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;

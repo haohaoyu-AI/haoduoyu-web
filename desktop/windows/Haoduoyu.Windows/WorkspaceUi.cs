@@ -100,6 +100,18 @@ public sealed partial class MainWindow
     private IReadOnlyList<string> CreationDependencies(string path, JsonObject body)
     {
         var dependencies = new List<string>();
+        if (path == "/api/v1/todos" && Text(body, "template_id") is { Length: > 0 } template)
+        {
+            var parent = Engine.Snapshot.Outbox.LastOrDefault(o => o.Path == "/api/v1/todo-templates" && o.Method == "POST" &&
+                Text(JsonNode.Parse(o.BodyJson), "id") == template && o.Status is not (PendingStatus.Confirmed or PendingStatus.Superseded));
+            if (parent != null) dependencies.Add(parent.Id);
+        }
+        if (path.StartsWith("/api/v1/note-entries/", StringComparison.Ordinal) && body["labels"] is JsonArray labels)
+        {
+            var selectedLabels = labels.Select(label => label?.ToString()).ToHashSet(StringComparer.Ordinal);
+            dependencies.AddRange(Engine.Snapshot.Outbox.Where(o => o.Path == "/api/v1/note-entries/labels" && o.Method == "POST" &&
+                selectedLabels.Contains(Text(JsonNode.Parse(o.BodyJson), "name")) && o.Status is not (PendingStatus.Confirmed or PendingStatus.Superseded)).Select(o => o.Id));
+        }
         if (path.StartsWith("/api/v1/memos/notes/", StringComparison.Ordinal) && Text(body, "group_id") is { Length: > 0 } group)
         {
             var parent = Engine.Snapshot.Outbox.LastOrDefault(o => o.Status != PendingStatus.Superseded &&
@@ -144,12 +156,12 @@ public sealed partial class MainWindow
             if (connected) await SyncToPageAsync(currentPage); else await NavigateAsync(currentPage);
             return;
         }
-        if (Version(row) > 0)
+        var projectedOperation = Text(row, "_operation_id");
+        var parent = Engine.Snapshot.Outbox.SingleOrDefault(o => o.Id == projectedOperation && o.Status != PendingStatus.Superseded);
+        if (Version(row) > 0 && (parent == null || parent.Status == PendingStatus.Confirmed))
         {
             body["version"] = Version(row); await QueueAsync(method, path, body, path); return;
         }
-        var projectedOperation = Text(row, "_operation_id");
-        var parent = Engine.Snapshot.Outbox.SingleOrDefault(o => o.Id == projectedOperation && o.Status != PendingStatus.Superseded);
         parent ??= Engine.Snapshot.Outbox.LastOrDefault(o => Text(JsonNode.Parse(o.BodyJson), "id") == id && o.Method == "POST" && o.Status != PendingStatus.Superseded);
         if (parent == null) throw new InvalidOperationException("没有可核实的本机创建请求，不能猜测版本。原内容保留。");
         await FlushEditorAsync();

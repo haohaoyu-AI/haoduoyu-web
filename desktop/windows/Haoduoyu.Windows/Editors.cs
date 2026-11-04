@@ -28,7 +28,7 @@ public sealed partial class MainWindow
     private async Task EditAsync(string kind, JsonObject record, string key)
     {
         await FlushEditorAsync();
-        page.Children.Clear(); heading.Text = kind switch { "note" => "碎碎念", "legacy" => "旧版日页", "memo" => "备忘录", "article" => "文章记录", _ => "编辑记录" };
+        ClearPage(); heading.Text = kind switch { "note" => "碎碎念", "legacy" => "旧版日页", "memo" => "备忘录", "article" => "文章记录", _ => "编辑记录" };
         page.Children.Add(heading);
         var original = (JsonObject)record.DeepClone();
         var values = (JsonObject)record.DeepClone();

@@ -54,7 +54,7 @@ public sealed partial class MainWindow
     private async Task ContentReviewAsync()
     {
         await FlushEditorAsync();
-        page.Children.Clear(); heading.Text = "内容复盘"; page.Children.Add(heading);
+        ClearPage(); heading.Text = "内容复盘"; page.Children.Add(heading);
         var toolbar = new WrapPanel(); page.Children.Add(toolbar);
         var account = new TextBox { Text = reviewAccount, Width = 160, ToolTip = "现有内容复盘账号名称" };
         toolbar.Children.Add(account);
@@ -153,7 +153,7 @@ public sealed partial class MainWindow
         var path = "/api/v1/review/" + kind + "/" + Text(row, "id");
         var full = await ReadAsync(path);
         if (full is not JsonObject record) throw new InvalidOperationException("本机没有完整详情，请连接后读取。原记录不会用列表字段覆盖。");
-        await FlushEditorAsync(); page.Children.Clear(); heading.Text = ReviewKinds[kind]; page.Children.Add(heading);
+        await FlushEditorAsync(); ClearPage(); heading.Text = ReviewKinds[kind]; page.Children.Add(heading);
         var actionsBar = new WrapPanel(); page.Children.Add(actionsBar);
         actionsBar.Children.Add(Button("返回内容复盘", ContentReviewAsync));
         actionsBar.Children.Add(Button("编辑本机草稿", async () =>
@@ -230,7 +230,7 @@ public sealed partial class MainWindow
             original = saved["original"]!.DeepClone().AsObject(); values = saved["values"]!.DeepClone().AsObject();
         }
         var options = await LoadReviewOptionsAsync(ReviewFields(kind));
-        page.Children.Clear(); heading.Text = ReviewKinds[kind]; page.Children.Add(heading);
+        ClearPage(); heading.Text = ReviewKinds[kind]; page.Children.Add(heading);
         page.Children.Add(Label("先保存到本机加密草稿，点击保存才会排队。未知指标留空，真实为零才填 0；关联从现有资料选择。所有表格行和未编辑的嵌套资料都会保留。"));
         var hash = Text(original,"content_hash");
         if (hash.Length > 0) page.Children.Add(Label("本机草稿保留原读取版本：" + hash[..Math.Min(12,hash.Length)] + "。服务器出现更新时会停止并保留两份内容。"));
@@ -364,20 +364,19 @@ public sealed partial class MainWindow
 
     private async Task RebaseReviewDraftsAsync()
     {
-        foreach(var operation in Engine.Snapshot.Outbox.Where(o=>o.Status==PendingStatus.Confirmed&&o.RemoteJson!=null&&o.Path.StartsWith("/api/v1/review/",StringComparison.Ordinal)))
+        foreach(var operation in Engine.Snapshot.Outbox.Where(o=>o.Status==PendingStatus.Confirmed&&o.RemoteJson!=null&&o.Path.StartsWith("/api/v1/review/",StringComparison.Ordinal)).OrderBy(o=>o.ConfirmedRevision))
         {
             if(!Engine.Snapshot.Drafts.TryGetValue(operation.ResourceKey,out var draft))continue;
+            if(operation.ConfirmedRevision<=draft.BaselineConfirmedRevision)continue;
             var saved=JsonNode.Parse(draft.Text)?.AsObject();var kind=Text(saved,"kind");
             if(!kind.StartsWith("review:", StringComparison.Ordinal)||!ReviewFormLogic.Kinds.Contains(kind[7..])||saved?["original"] is not JsonObject original||saved["values"] is not JsonObject values)continue;
-            ReviewSave command;
-            try { command=BuildReviewSave(kind[7..],original,values); }
-            catch(Exception error) when(error is InvalidOperationException or ArgumentException or FormatException or OverflowException)
-            { continue; } // A later invalid draft is retained and must not prevent confirmation of other records.
-            var queuedBody=JsonNode.Parse(operation.BodyJson)?.AsObject();
-            if(command.Method!=operation.Method||command.Path!=operation.Path||queuedBody==null||Text(original,"content_hash")!=Text(queuedBody,"expected_hash"))continue;
+            var queuedBody=JsonNode.Parse(operation.RequestBodyJson)?.AsObject();
+            var targetPath="/api/v1/review/"+kind[7..]+"/"+Text(original,"id");
+            var targetMethod=Text(original,"content_hash").Length==0?"PUT":"PATCH";
+            if(targetMethod!=operation.Method||targetPath!=operation.Path||queuedBody==null||Text(original,"content_hash")!=Text(queuedBody,"expected_hash"))continue;
             if(Data(operation.RemoteJson!) is not JsonObject remote||Text(remote,"id")!=Text(original,"id")||Text(remote,"content_hash").Length!=64)continue;
             saved["original"]=remote.DeepClone();
-            await SaveLocalDraftAsync(draft with {Text=saved.ToJsonString()});
+            await SaveLocalDraftAsync(draft with {Text=saved.ToJsonString(),BaselineConfirmedRevision=operation.ConfirmedRevision});
         }
     }
 }

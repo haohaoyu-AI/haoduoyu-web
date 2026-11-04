@@ -24,6 +24,11 @@ if (args is ["--ai-report-contract", var aiFixturePath])
     await AiReportTests.ReplayAsync(aiFixturePath);
     return;
 }
+if (args is ["--unicode-receipt-contract", var unicodeFixturePath])
+{
+    await UnicodeReceiptContract.RunAsync(unicodeFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);

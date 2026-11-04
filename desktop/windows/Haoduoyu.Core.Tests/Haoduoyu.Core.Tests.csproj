@@ -6,5 +6,6 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup><Compile Remove="Performance/**/*.cs" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../Haoduoyu.Core/Haoduoyu.Core.csproj" /></ItemGroup>
 </Project>

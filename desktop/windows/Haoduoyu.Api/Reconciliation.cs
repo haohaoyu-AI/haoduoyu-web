@@ -1,7 +1,6 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Haoduoyu.Core;
 
@@ -55,7 +54,6 @@ public sealed partial class WorkbenchApi
 
 internal static class ReceiptVerifier
 {
-    private static readonly JsonSerializerOptions CanonicalJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     private static readonly string[] NoteFields = ["id", "category", "date", "text", "version", "change_seq", "created_at", "updated_at", "deleted_at"];
     private static readonly string[] MemoFields = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at"];
 
@@ -76,7 +74,9 @@ internal static class ReceiptVerifier
         if (fields.Any(field => !remote.AsObject().ContainsKey(field)))
             return new(ReconciliationOutcome.Unconfirmed, remoteJson, "当前实体字段不完整，无法确认原保存。");
         var projection = new JsonObject(fields.Order(StringComparer.Ordinal).Select(field => new KeyValuePair<string, JsonNode?>(field, remote[field]?.DeepClone())));
-        var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(projection.ToJsonString(CanonicalJson))));
+        var canonical = new StringBuilder();
+        WriteCanonical(canonical, projection);
+        var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString())));
         var receiptHash = receipt[isNote ? "content_hash" : "entity_hash"]?.GetValue<string>();
         if (hash != receiptHash || !JsonNode.DeepEquals(receipt["deleted_at"], remote["deleted_at"]) ||
             !JsonNode.DeepEquals(receipt["change_seq"], remote["change_seq"]))
@@ -100,5 +100,54 @@ internal static class ReceiptVerifier
         if (node is not JsonValue value) return null;
         if (value.TryGetValue<long>(out var number)) return number;
         return value.TryGetValue<int>(out var integer) ? integer : null;
+    }
+
+    // Source hashes JSON.stringify(stable(row)): ordinal UTF-16 keys, literal valid
+    // surrogate pairs, JSON escapes only for quotes, backslashes and control chars.
+    // System.Text.Json also escapes non-BMP characters under UnsafeRelaxedJsonEscaping,
+    // which produces equivalent JSON but different bytes from the saved receipt hash.
+    private static void WriteCanonical(StringBuilder output, JsonNode? value)
+    {
+        switch (value)
+        {
+            case null: output.Append("null"); break;
+            case JsonObject obj:
+                output.Append('{'); var first = true;
+                foreach (var field in obj.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                {
+                    if (!first) output.Append(','); first = false;
+                    Quote(output, field.Key); output.Append(':'); WriteCanonical(output, field.Value);
+                }
+                output.Append('}'); break;
+            case JsonValue scalar when scalar.TryGetValue<string>(out var text): Quote(output, text); break;
+            default: output.Append(value.ToJsonString()); break;
+        }
+    }
+
+    private static void Quote(StringBuilder output, string value)
+    {
+        output.Append('"');
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            switch (c)
+            {
+                case '"': output.Append("\\\""); break;
+                case '\\': output.Append("\\\\"); break;
+                case '\b': output.Append("\\b"); break;
+                case '\f': output.Append("\\f"); break;
+                case '\n': output.Append("\\n"); break;
+                case '\r': output.Append("\\r"); break;
+                case '\t': output.Append("\\t"); break;
+                default:
+                    if (char.IsHighSurrogate(c) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+                        output.Append(c).Append(value[++i]);
+                    else if (c < 32 || char.IsSurrogate(c))
+                        output.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+                    else output.Append(c);
+                    break;
+            }
+        }
+        output.Append('"');
     }
 }

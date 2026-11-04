@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text;
 using System.Text.Json.Nodes;
 using Haoduoyu.Core;
 
@@ -28,7 +29,11 @@ internal static class QueueChecks
             ("Composite version preparation rejects wrong paths resources identities and nested proofs", InvalidCompositeProof),
             ("Composite-derived actual request stays immutable through restart and explicit retry", CompositePreparedRestart),
             ("Todo create template association completion derives actual versions without changing link fields", TemplateVersionChain),
-            ("Template composite versions require exact active identity and version associations", InvalidTemplateVersionProof)
+            ("Template composite versions require exact active identity and version associations", InvalidTemplateVersionProof),
+            ("Structural snapshots detach all mutable containers and nested dependency lists", SnapshotIsolation),
+            ("Encrypted old escaped JSON loads and rewrites as compact Unicode without changing values", LegacyJsonCompatibility),
+            ("Legacy restore dependent edits use only the exact category and date's real version", LegacyRestoreVersion),
+            ("Legacy restore proof rejects wrong date category method and incomplete restored state", InvalidLegacyRestoreVersion)
         };
         var failures = 0;
         foreach (var (name, run) in tests)
@@ -60,10 +65,11 @@ internal static class QueueChecks
     private static async Task LegacySchema()
     {
         var id = Guid.NewGuid().ToString();
-        var state = JsonSerializer.Deserialize<WorkspaceState>("{\"Schema\":1,\"ScopeId\":\"scope\",\"Outbox\":[{\"Id\":\"" + id + "\",\"ResourceKey\":\"legacy\",\"Method\":\"PUT\",\"Path\":\"/api/v1/memos/groups/" + id + "\",\"BodyJson\":\"{}\",\"Status\":5}]}")!;
+        var state = JsonSerializer.Deserialize<WorkspaceState>("{\"Schema\":1,\"ScopeId\":\"scope\",\"Drafts\":{\"legacy\":{\"Key\":\"legacy\",\"Text\":\"old draft\"}},\"Outbox\":[{\"Id\":\"" + id + "\",\"ResourceKey\":\"legacy\",\"Method\":\"PUT\",\"Path\":\"/api/v1/memos/groups/" + id + "\",\"BodyJson\":\"{}\",\"Status\":5}]}")!;
         var engine = await Engine(new Store { State = state }, new Api());
         Check(engine.Snapshot.LocalRevision == 0 && engine.Snapshot.CacheRevisions.Count == 0 &&
-            engine.Snapshot.Outbox.Single().DependencyIds.Count == 0 && engine.Snapshot.Outbox.Single().ConfirmedRevision == 0,
+            engine.Snapshot.Outbox.Single().DependencyIds.Count == 0 && engine.Snapshot.Outbox.Single().ConfirmedRevision == 0 &&
+            engine.Snapshot.Drafts["legacy"].BaselineConfirmedRevision == 0,
             "old schema-one history was reinterpreted as a fresh confirmation");
     }
 
@@ -384,6 +390,96 @@ internal static class QueueChecks
             template = new { id = templateId, version = 21, text = "合成待办" }
         }
     });
+
+    private static async Task SnapshotIsolation()
+    {
+        var engine = await Engine(new Store(), new Api()); var parent = Operation("parent");
+        var child = Operation("child") with { DependencyIds = [parent.Id] };
+        await engine.QueueAsync(parent); await engine.QueueAsync(child);
+        await engine.SaveDraftAsync(new LocalDraft { Key = "draft", Text = "本机原稿", BaseVersion = 3 });
+        await engine.CacheAsync("cache", "{\"data\":\"<标签> & 中文 🐟\"}");
+        var detached = engine.Snapshot; var revision = detached.CacheRevisions["cache"];
+        detached.Cache["cache"] = "changed"; detached.CacheRevisions["cache"] = -1;
+        detached.Drafts["draft"] = detached.Drafts["draft"] with { Text = "changed" };
+        var dependency = detached.Outbox.Single(operation => operation.Id == child.Id).DependencyIds;
+        if (dependency is string[] array) array[0] = Guid.NewGuid().ToString();
+        else if (dependency is IList<string> list) list[0] = Guid.NewGuid().ToString();
+        else throw new InvalidOperationException("snapshot dependency test could not mutate the detached collection");
+        detached.Outbox[0] = detached.Outbox[0] with { BodyJson = "{}" };
+        var actual = engine.Snapshot;
+        Check(actual.Cache["cache"].Contains("中文") && actual.CacheRevisions["cache"] == revision && actual.Drafts["draft"].Text == "本机原稿" &&
+            actual.Outbox.Single(operation => operation.Id == child.Id).DependencyIds.Single() == parent.Id && actual.Outbox[0].BodyJson == parent.BodyJson,
+            "a public snapshot mutated live durable state through a shared dictionary/list");
+    }
+
+    private static async Task LegacyJsonCompatibility()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "haoduoyu-json-compat-" + Guid.NewGuid().ToString("N"));
+        var protector = new TestProtector();
+        try
+        {
+            using var store = new AtomicWorkspaceStore(root, "https://haoduoyu.xyz", "synthetic-json-compat", protector);
+            var text = "中文 🐟 <script>只作原样文字</script> & \"引号\" \\ 末尾";
+            var original = new WorkspaceState { ScopeId = store.ScopeId, Cache = { ["synthetic"] = JsonSerializer.Serialize(new { data = text }) },
+                Drafts = { ["draft"] = new LocalDraft { Key = "draft", Text = text } } };
+            var oldPlaintext = JsonSerializer.SerializeToUtf8Bytes(original);
+            Check(Encoding.UTF8.GetString(oldPlaintext).Contains("\\u"), "fixture did not use the previous escaped writer");
+            var oldFile = "HDYWS1\n"u8.ToArray().Concat(protector.Protect(oldPlaintext)).ToArray();
+            await File.WriteAllBytesAsync(store.FilePath, oldFile);
+            var loaded = await store.LoadAsync(); Check(loaded.Drafts["draft"].Text == text && loaded.Cache["synthetic"] == original.Cache["synthetic"], "old escaped Unicode JSON changed on load");
+            await store.SaveAsync(loaded);
+            var newFile = await File.ReadAllBytesAsync(store.FilePath); var rewritten = protector.Unprotect(newFile[7..]);
+            Check(Encoding.UTF8.GetString(rewritten).Contains("中文") && Encoding.UTF8.GetString(rewritten).Contains("<script>"), "local encrypted writer still expands Unicode/HTML characters");
+            var reloaded = await store.LoadAsync();
+            Check(reloaded.Drafts["draft"].Text == text && reloaded.Cache["synthetic"] == original.Cache["synthetic"] &&
+                (await File.ReadAllBytesAsync(store.BackupPath)).SequenceEqual(oldFile), "compact encrypted rewrite lost data or previous backup bytes");
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static async Task LegacyRestoreVersion()
+    {
+        foreach (var category in new[] { "life", "work" })
+        {
+            var parent = LegacyRestore(category); var api = new Api();
+            var engine = await Engine(new Store { State = new WorkspaceState { ScopeId = "scope", LocalRevision = 1, Outbox = [parent] } }, api);
+            var child = Derived("/api/v1/daily-notes/2026-11-04?category=" + category, "PUT",
+                JsonSerializer.Serialize(new { text = "恢复后离线续编", save_id = Guid.NewGuid().ToString() }), parent.Id, "legacy-child:" + category);
+            await engine.QueueAsync(child); var result = await engine.SyncAsync();
+            Check(result.Confirmed == 1 && SentVersion(api, child.Id) == 7 && engine.Snapshot.Outbox.Single(operation => operation.Id == child.Id).BodyJson == child.BodyJson,
+                "legacy continuation guessed a version or changed its original logical draft");
+        }
+    }
+    private static async Task InvalidLegacyRestoreVersion()
+    {
+        var valid = LegacyRestore("work");
+        var cases = new List<PendingOperation>
+        {
+            valid with { Path = "/api/v1/daily-notes/2026-11-03/restore?category=work" },
+            valid with { Path = "/api/v1/daily-notes/2026-11-04/restore?category=life" },
+            valid with { Path = "/api/v1/daily-notes/2026-11-04/restore" },
+            valid with { Method = "PUT" },
+            valid with { RemoteJson = JsonSerializer.Serialize(new { data = new { date = "2026-11-03", version = 7, text = "恢复", deleted = false } }) },
+            valid with { RemoteJson = JsonSerializer.Serialize(new { data = new { date = "2026-11-04", version = 7, text = "恢复", deleted = false, category = "life" } }) },
+            valid with { RemoteJson = JsonSerializer.Serialize(new { data = new { date = "2026-11-04", version = 0, text = "恢复", deleted = false } }) },
+            valid with { RemoteJson = JsonSerializer.Serialize(new { data = new { date = "2026-11-04", version = 7, text = "恢复", deleted = true } }) },
+            valid with { RemoteJson = JsonSerializer.Serialize(new { data = new { date = "2026-11-04", version = 7 } }) }
+        };
+        foreach (var parent in cases)
+        {
+            var api = new Api(); var engine = await Engine(new Store { State = new WorkspaceState { ScopeId = "scope", LocalRevision = 1, Outbox = [parent] } }, api);
+            var child = Derived("/api/v1/daily-notes/2026-11-04?category=work", "PUT", "{\"text\":\"离线续编\",\"save_id\":\"synthetic\"}", parent.Id, "legacy-invalid");
+            await engine.QueueAsync(child); var result = await engine.SyncAsync();
+            Check(api.Sent.Count == 0 && result.Blocked == 1 && engine.Snapshot.Outbox.Single(operation => operation.Id == child.Id).PreparedBodyJson == null,
+                "wrong legacy date/category or incomplete restore proof dispatched a write");
+        }
+    }
+    private static PendingOperation LegacyRestore(string category) => new()
+    {
+        Path = "/api/v1/daily-notes/2026-11-04/restore?category=" + category, Method = "POST", ResourceKey = "legacy-parent:" + category,
+        BodyJson = "{\"version\":6,\"save_id\":\"synthetic-parent\"}", Status = PendingStatus.Confirmed, ConfirmedRevision = 1, SendAttempts = 1,
+        RemoteJson = JsonSerializer.Serialize(new { data = new { date = "2026-11-04", text = "已恢复合成正文", version = 7, deleted = false, can_edit = true } })
+    };
 
     private static PendingOperation Derived(string path, string method, string body, string parent, string key) => new()
     { Path = path, Method = method, BodyJson = body, ResourceKey = key, DependencyIds = [parent], VersionFromDependencyId = parent };

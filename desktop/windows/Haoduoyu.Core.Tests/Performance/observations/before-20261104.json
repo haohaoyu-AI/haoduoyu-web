@@ -1,0 +1,170 @@
+{
+  "kind": "synthetic-performance-observation",
+  "timestamp_utc": "2026-11-04T17:47:50.3782519+00:00",
+  "runtime": "10.0.14",
+  "os": "Debian GNU/Linux 13 (trixie)",
+  "processors": 4,
+  "server_gc": false,
+  "samples": 3,
+  "limitations": [
+    "Linux cloud CPU and GC observations; not a Windows device or interactive UI test",
+    "Synthetic 12000 review articles plus many date/detail caches; no production data or network",
+    "Measurements are observations, not pass/fail tests",
+    "Structural copy reference is an isolated proposal measurement in this before report, not the former product implementation",
+    "Legacy two-snapshot measurement reproduces the former synchronous UI pattern, not the current asynchronous UI",
+    "No exact commit was attached to this earlier local measurement; use the stated implementation boundary"
+  ],
+  "results": [
+    {
+      "scenario": "12k_ascii_medium",
+      "row_count": 14620,
+      "cache_keys": 171,
+      "raw_cache_utf8_bytes": 9487708,
+      "serialized_workspace_utf8_bytes": 11774435,
+      "under_24MiB_download_limit": true,
+      "measurements": {
+        "snapshot": {
+          "min_ms": 64.9404,
+          "median_ms": 69.8474,
+          "max_ms": 69.9692,
+          "median_allocated_bytes": 30106984,
+          "max_gen2_collections": 0
+        },
+        "project_todo_only": {
+          "min_ms": 133.3115,
+          "median_ms": 183.5301,
+          "max_ms": 193.2327,
+          "median_allocated_bytes": 50875344,
+          "max_gen2_collections": 0
+        },
+        "project_review_page_only": {
+          "min_ms": 158.8669,
+          "median_ms": 192.1915,
+          "max_ms": 200.658,
+          "median_allocated_bytes": 70344680,
+          "max_gen2_collections": 1
+        },
+        "legacy_ui_two_snapshots_and_todo_project": {
+          "min_ms": 240.2038,
+          "median_ms": 390.9685,
+          "max_ms": 401.4291,
+          "median_allocated_bytes": 110946544,
+          "max_gen2_collections": 0
+        },
+        "structural_copy_reference": {
+          "min_ms": 0.0304,
+          "median_ms": 0.0304,
+          "max_ms": 0.1023,
+          "median_allocated_bytes": 13128,
+          "max_gen2_collections": 0
+        }
+      },
+      "storage_probe": {
+        "serialized_bytes": 11774478,
+        "outcome": "fits_product_32MiB_plaintext_check; write_not_attempted",
+        "protector_calls": 0
+      }
+    },
+    {
+      "scenario": "12k_ascii_near_download_limit",
+      "row_count": 14620,
+      "cache_keys": 171,
+      "raw_cache_utf8_bytes": 22819708,
+      "serialized_workspace_utf8_bytes": 25133935,
+      "under_24MiB_download_limit": true,
+      "measurements": {
+        "snapshot": {
+          "min_ms": 93.0728,
+          "median_ms": 100.8583,
+          "max_ms": 107.203,
+          "median_allocated_bytes": 70186152,
+          "max_gen2_collections": 0
+        },
+        "project_todo_only": {
+          "min_ms": 73.9392,
+          "median_ms": 74.2312,
+          "max_ms": 75.595,
+          "median_allocated_bytes": 64044728,
+          "max_gen2_collections": 0
+        },
+        "project_review_page_only": {
+          "min_ms": 116.335,
+          "median_ms": 117.944,
+          "max_ms": 123.1539,
+          "median_allocated_bytes": 82643752,
+          "max_gen2_collections": 1
+        },
+        "legacy_ui_two_snapshots_and_todo_project": {
+          "min_ms": 254.0782,
+          "median_ms": 254.4578,
+          "max_ms": 256.0914,
+          "median_allocated_bytes": 204430632,
+          "max_gen2_collections": 0
+        },
+        "structural_copy_reference": {
+          "min_ms": 0.0219,
+          "median_ms": 0.0367,
+          "max_ms": 0.0527,
+          "median_allocated_bytes": 12456,
+          "max_gen2_collections": 0
+        }
+      },
+      "storage_probe": {
+        "serialized_bytes": 25133978,
+        "outcome": "fits_product_32MiB_plaintext_check; write_not_attempted",
+        "protector_calls": 0
+      }
+    },
+    {
+      "scenario": "12k_cjk_near_download_limit",
+      "row_count": 14620,
+      "cache_keys": 171,
+      "raw_cache_utf8_bytes": 22807588,
+      "serialized_workspace_utf8_bytes": 44541641,
+      "under_24MiB_download_limit": true,
+      "measurements": {
+        "snapshot": {
+          "min_ms": 228.7073,
+          "median_ms": 229.7333,
+          "max_ms": 233.1877,
+          "median_allocated_bytes": 63676864,
+          "max_gen2_collections": 0
+        },
+        "project_todo_only": {
+          "min_ms": 69.0781,
+          "median_ms": 71.0442,
+          "max_ms": 74.4651,
+          "median_allocated_bytes": 64033688,
+          "max_gen2_collections": 0
+        },
+        "project_review_page_only": {
+          "min_ms": 129.0557,
+          "median_ms": 138.1248,
+          "max_ms": 139.0175,
+          "median_allocated_bytes": 82950632,
+          "max_gen2_collections": 1
+        },
+        "legacy_ui_two_snapshots_and_todo_project": {
+          "min_ms": 532.2766,
+          "median_ms": 537.2476,
+          "max_ms": 540.1078,
+          "median_allocated_bytes": 191399336,
+          "max_gen2_collections": 0
+        },
+        "structural_copy_reference": {
+          "min_ms": 0.0283,
+          "median_ms": 0.0289,
+          "max_ms": 0.0294,
+          "median_allocated_bytes": 14136,
+          "max_gen2_collections": 0
+        }
+      },
+      "storage_probe": {
+        "serialized_bytes": 44541684,
+        "outcome": "rejected_by_actual_product_size_check_before_ciphertext_write",
+        "protector_calls": 0
+      }
+    }
+  ],
+  "implementation": "Pre-optimization product serialized/deserialized entire workspace for each snapshot and escaped CJK in encrypted JSON"
+}

@@ -520,9 +520,9 @@
               "created_at": "2026-11-04T15:00:00.000Z",
               "updated_at": "2026-11-04T15:00:00.000Z",
               "deleted_at": null,
-              "text": "合成😀正文已更改",
+              "text": "合成😀正文\n第二行",
               "completed": 0,
-              "content_hash": "893e13e981906fc94dd064127ec4915c47f295dec254d5498c14ae06cd522576"
+              "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
             }
           ],
           "life_notes": [
@@ -670,6 +670,1615 @@
           "note_labels": []
         },
         "content_hash": "b50d742c3dbefa1e57bdae7d4b181bc8ebe3d584d2757c31f41806f2a67b2d9b"
+      }
+    }
+  },
+  "tampered_snapshots": {
+    "missing_row": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-04",
+        "date_content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3",
+        "data": {
+          "todos": [],
+          "life_notes": [
+            {
+              "entity_id": "legacy-life:2026-11-04",
+              "entity_type": "life_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-04",
+              "date": "2026-11-04",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+            }
+          ],
+          "work_notes": [],
+          "work_reminders": [
+            {
+              "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+              "entity_type": "work_reminder",
+              "source": "work_reminder",
+              "source_id": "00000000-0000-4000-8000-000000000003",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+            }
+          ],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "group_id": "00000000-0000-4000-8000-000000000004",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "99698feb544980ad80cca21176a1ad539603a2e802ecfc394e0a75a7a0b49a78"
+      }
+    },
+    "duplicate_row": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-04",
+        "date_content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3",
+        "data": {
+          "todos": [
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "source": "todo",
+              "source_id": "00000000-0000-4000-8000-000000000001",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+            },
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "source": "todo",
+              "source_id": "00000000-0000-4000-8000-000000000001",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+            }
+          ],
+          "life_notes": [
+            {
+              "entity_id": "legacy-life:2026-11-04",
+              "entity_type": "life_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-04",
+              "date": "2026-11-04",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+            }
+          ],
+          "work_notes": [],
+          "work_reminders": [
+            {
+              "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+              "entity_type": "work_reminder",
+              "source": "work_reminder",
+              "source_id": "00000000-0000-4000-8000-000000000003",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+            }
+          ],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "group_id": "00000000-0000-4000-8000-000000000004",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "bab67d582d474c88c9d31650dcc2315db6e5cef35054cfc0c3e85e37196f4807"
+      }
+    },
+    "missing_version": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-04",
+        "date_content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3",
+        "data": {
+          "todos": [
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "source": "todo",
+              "source_id": "00000000-0000-4000-8000-000000000001",
+              "date": "2026-11-04",
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+            }
+          ],
+          "life_notes": [
+            {
+              "entity_id": "legacy-life:2026-11-04",
+              "entity_type": "life_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-04",
+              "date": "2026-11-04",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+            }
+          ],
+          "work_notes": [],
+          "work_reminders": [
+            {
+              "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+              "entity_type": "work_reminder",
+              "source": "work_reminder",
+              "source_id": "00000000-0000-4000-8000-000000000003",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+            }
+          ],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "group_id": "00000000-0000-4000-8000-000000000004",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "b0132e16fecb949f78146b9cf1f8ef0c94593b398a606e8966ad6f0ac1bcb504"
+      }
+    },
+    "wrong_source": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-04",
+        "date_content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3",
+        "data": {
+          "todos": [
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "source": "unknown_source",
+              "source_id": "00000000-0000-4000-8000-000000000001",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+            }
+          ],
+          "life_notes": [
+            {
+              "entity_id": "legacy-life:2026-11-04",
+              "entity_type": "life_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-04",
+              "date": "2026-11-04",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+            }
+          ],
+          "work_notes": [],
+          "work_reminders": [
+            {
+              "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+              "entity_type": "work_reminder",
+              "source": "work_reminder",
+              "source_id": "00000000-0000-4000-8000-000000000003",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+            }
+          ],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "group_id": "00000000-0000-4000-8000-000000000004",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "4e035bde5a5d42ad712d79f2541d6445312fd29a4b2c648980aba45ce1cd4f49"
+      }
+    },
+    "global_version_conflict": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-05",
+        "date_content_hash": "061688a58cb01c93b2df9c4184bba1f067494e4ce47406e2583f0fd476184b8e",
+        "data": {
+          "todos": [
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+              "entity_type": "todo",
+              "source": "todo",
+              "source_id": "00000000-0000-4000-8000-000000000010",
+              "date": "2026-11-05",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "text": "合成😀正文\n第二行",
+              "completed": 0,
+              "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+            }
+          ],
+          "life_notes": [
+            {
+              "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+              "entity_type": "life_note",
+              "source": "note_entry",
+              "source_id": "00000000-0000-4000-8000-000000000002",
+              "date": "2026-11-05",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+            }
+          ],
+          "work_notes": [
+            {
+              "entity_id": "legacy-work:2026-11-05",
+              "entity_type": "work_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-05",
+              "date": "2026-11-05",
+              "category": "work",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+            }
+          ],
+          "work_reminders": [],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 8,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "group_id": "00000000-0000-4000-8000-000000000004",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "d88e0cf7e3c7ebe53d230877d4b35dae911e14ec1c649a3efdf171edf77d56ed"
+      }
+    },
+    "zero_version": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-04",
+        "date_content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3",
+        "data": {
+          "todos": [
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "source": "todo",
+              "source_id": "00000000-0000-4000-8000-000000000001",
+              "date": "2026-11-04",
+              "version": 0,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+            }
+          ],
+          "life_notes": [
+            {
+              "entity_id": "legacy-life:2026-11-04",
+              "entity_type": "life_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-04",
+              "date": "2026-11-04",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+            }
+          ],
+          "work_notes": [],
+          "work_reminders": [
+            {
+              "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+              "entity_type": "work_reminder",
+              "source": "work_reminder",
+              "source_id": "00000000-0000-4000-8000-000000000003",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+            }
+          ],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "group_id": "00000000-0000-4000-8000-000000000004",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "93527404b38fead9cdc07d7a73996e13ff947d7eacbf1d97e00cbf5a538c1709"
+      }
+    },
+    "missing_group_id": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-04",
+        "date_content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3",
+        "data": {
+          "todos": [
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "source": "todo",
+              "source_id": "00000000-0000-4000-8000-000000000001",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+            }
+          ],
+          "life_notes": [
+            {
+              "entity_id": "legacy-life:2026-11-04",
+              "entity_type": "life_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-04",
+              "date": "2026-11-04",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+            }
+          ],
+          "work_notes": [],
+          "work_reminders": [
+            {
+              "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+              "entity_type": "work_reminder",
+              "source": "work_reminder",
+              "source_id": "00000000-0000-4000-8000-000000000003",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+            }
+          ],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "ef9c4df58d0e385de84e1c1b3131f1e4f74787de9d17671ea7cf239aa376632c"
+      }
+    },
+    "missing_collection": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-04",
+        "date_content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3",
+        "data": {
+          "todos": [
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "source": "todo",
+              "source_id": "00000000-0000-4000-8000-000000000001",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+            }
+          ],
+          "life_notes": [
+            {
+              "entity_id": "legacy-life:2026-11-04",
+              "entity_type": "life_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-04",
+              "date": "2026-11-04",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+            }
+          ],
+          "work_reminders": [
+            {
+              "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+              "entity_type": "work_reminder",
+              "source": "work_reminder",
+              "source_id": "00000000-0000-4000-8000-000000000003",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+            }
+          ],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "group_id": "00000000-0000-4000-8000-000000000004",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "a7d68e2c2c86e0e4dabe7a077f7744964721fdf52a5c093d9bff77b99c9905bf"
       }
     }
   }

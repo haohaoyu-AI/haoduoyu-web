@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Encodings.Web;
 using System.Text.Json.Serialization;
 
 namespace Haoduoyu.Core;
@@ -11,6 +12,7 @@ public sealed record LocalDraft
     public string Text { get; init; } = "";
     public string Title { get; init; } = "";
     public long BaseVersion { get; init; }
+    public long BaselineConfirmedRevision { get; init; }
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;
 }
 
@@ -77,11 +79,19 @@ internal static class WorkspaceJson
     internal static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = false,
+        // Local encrypted JSON only: it is never emitted as HTML or a script. Avoid doubling CJK cache payloads.
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         Converters = { new JsonStringEnumConverter<PendingStatus>() }
     };
-    internal static WorkspaceState Clone(WorkspaceState state) =>
-        JsonSerializer.Deserialize<WorkspaceState>(JsonSerializer.SerializeToUtf8Bytes(state, Options), Options)
-        ?? throw new InvalidDataException("无法复制本机工作区。");
+    internal static WorkspaceState Clone(WorkspaceState state) => state with
+    {
+        // Cache strings and draft records contain only immutable strings/value types. Copy their containers,
+        // not megabytes of encoded JSON. Every externally reachable mutable collection is detached.
+        Cache = new Dictionary<string, string>(state.Cache, StringComparer.Ordinal),
+        CacheRevisions = new Dictionary<string, long>(state.CacheRevisions, StringComparer.Ordinal),
+        Drafts = new Dictionary<string, LocalDraft>(state.Drafts, StringComparer.Ordinal),
+        Outbox = state.Outbox.Select(operation => operation with { DependencyIds = operation.DependencyIds.ToArray() }).ToList()
+    };
 }
 
 // Only transport preflight checks that have definitely issued no request may throw this exception.

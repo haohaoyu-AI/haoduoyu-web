@@ -57,7 +57,7 @@ public sealed partial class MainWindow
     }
     private async Task TemplatesAsync()
     {
-        await FlushEditorAsync(); page.Children.Clear(); page.Children.Add(Label("常用事项 · 手动加入指定日期，不会自动生成"));
+        await FlushEditorAsync(); ClearPage(); page.Children.Add(Label("常用事项 · 手动加入指定日期，不会自动生成"));
         page.Children.Add(Button("＋ 新常用事项", () => NewEditorAsync("template", NewRecord(("text", "")), "/api/v1/todo-templates/")));
         var data = await ReadAsync("/api/v1/todo-templates"); Missing(data);
         List(Rows(data?["items"]).Select(row => (Text(row, "text"), "近 30 天完成 " + Text(row, "completed_days") + " 天 · " + Text(row, "habit_status") + LocalSuffix(row), (Func<Task>)(async () =>
@@ -116,7 +116,7 @@ public sealed partial class MainWindow
             Text(group, "active_note_count") + " 篇笔记 · v" + Version(group) + LocalSuffix(group), (Func<Task>)(async () =>
             {
                 if (await HandlePendingRecordAsync(group)) return;
-                await FlushEditorAsync(); page.Children.Clear(); page.Children.Add(Label(Text(group, "title")));
+                await FlushEditorAsync(); ClearPage(); page.Children.Add(Label(Text(group, "title")));
                 var path = "/api/v1/memos/groups/" + Text(group, "id");
                 if (EffectiveDeleted(group))
                 {

@@ -13,7 +13,7 @@ public sealed partial class MainWindow
     private async Task UnscheduledAsync()
     {
         await FlushEditorAsync();
-        page.Children.Clear(); heading.Text = "未安排待办"; page.Children.Add(heading);
+        ClearPage(); heading.Text = "未安排待办"; page.Children.Add(heading);
         page.Children.Add(Label("没有指定日期的事项保留在这里。可以安排到当前所选日期，或明确选择在北京时间今天完成；安排后会保留同一事项 ID。"));
         var bar = new WrapPanel();
         bar.Children.Add(Button("＋ 新未安排事项", () => PlanningDraftAsync("unscheduled")));
@@ -55,7 +55,7 @@ public sealed partial class MainWindow
     private async Task DeletedUnscheduledAsync()
     {
         await FlushEditorAsync();
-        page.Children.Clear(); heading.Text = "未安排事项 · 本机删除记录"; page.Children.Add(heading);
+        ClearPage(); heading.Text = "未安排事项 · 本机删除记录"; page.Children.Add(heading);
         page.Children.Add(Label("这里只列出本机已收到成功确认的软删除。其他设备的删除、未确认删除和已经移入日期清单的事项不在此列表。恢复前会在联网时读取当前实体版本。"));
         page.Children.Add(Button("返回未安排待办", UnscheduledAsync));
         var deleted = Engine.Snapshot.Outbox.Where(op => op.Status == PendingStatus.Confirmed && op.Method == "DELETE" &&
@@ -84,7 +84,7 @@ public sealed partial class MainWindow
     private async Task LabelsAsync()
     {
         await FlushEditorAsync();
-        page.Children.Clear(); heading.Text = "碎碎念标签"; page.Children.Add(heading);
+        ClearPage(); heading.Text = "碎碎念标签"; page.Children.Add(heading);
         page.Children.Add(Label("标签归档会隐藏该标签，记录正文保留；可在归档列表恢复。此页面不提供永久删除。生活、工作为内置标签。"));
         page.Children.Add(Button("＋ 新标签", () => PlanningDraftAsync("label-create")));
         var data = await ReadAsync("/api/v1/note-entries/labels"); Missing(data);
@@ -131,7 +131,7 @@ public sealed partial class MainWindow
         }
         var stableKey = key;
         var field = kind == "unscheduled" ? "text" : "name";
-        page.Children.Clear(); heading.Text = kind == "unscheduled" ? "新未安排事项" : "新标签"; page.Children.Add(heading);
+        ClearPage(); heading.Text = kind == "unscheduled" ? "新未安排事项" : "新标签"; page.Children.Add(heading);
         page.Children.Add(Label(kind == "unscheduled" ? "填写最多 500 字符。本机先保留稳定 ID 与草稿，再发送创建请求。" : "标签为 1–32 字，不能与生活、工作重名。修改先保存在本机草稿中。"));
         var input = new TextBox { Text = Text(values, field), MinHeight = 80, AcceptsReturn = kind == "unscheduled", TextWrapping = TextWrapping.Wrap };
         page.Children.Add(input);

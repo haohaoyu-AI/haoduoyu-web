@@ -108,3 +108,28 @@ the 1 MiB ceiling. No page is silently truncated to fit a client budget.
 node desktop/windows/Haoduoyu.Api.Tests/generate-ai-report-contract.mjs /path/to/isolated-worktree desktop/windows/Haoduoyu.Api.Tests/Fixtures/ai-report-contract-c30a8a9.json
 dotnet run --project desktop/windows/Haoduoyu.Api.Tests -- --ai-report-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/ai-report-contract-c30a8a9.json
 ```
+
+## Unicode save-receipt recovery regression
+
+`unicode-receipt-contract-c30a8a9.json` captures ten new real requests against the
+same exact isolated Worker and temporary D1: one Beijing-date read, plus creation,
+receipt and current-entity reads for a note, memo group and memo note. Synthetic
+contents include non-BMP emoji, a ZWJ sequence, accented text, quotes, backslashes,
+U+2028/U+2029 and supported line controls. It contains no session material or real
+user records, and the disposed runtime made zero external fetch attempts.
+
+This capture reproduced a receipt hash mismatch before the correction: even the
+relaxed .NET JSON encoder escapes surrogate pairs while the source's
+`JSON.stringify(stable(row))` emits valid pairs literally. The corrected verifier
+matches the source's ordinal key sorting and string quoting. Replay verifies all
+ten response schemas/mutations, three exact receipt hashes, three changed-content
+rejections and three missing-receipt unconfirmed outcomes: nineteen assertions.
+
+```sh
+node desktop/windows/Haoduoyu.Api.Tests/generate-unicode-receipt-contract.mjs /path/to/isolated-worktree desktop/windows/Haoduoyu.Api.Tests/Fixtures/unicode-receipt-contract-c30a8a9.json
+dotnet run --project desktop/windows/Haoduoyu.Api.Tests -- --unicode-receipt-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/unicode-receipt-contract-c30a8a9.json
+```
+
+`unicode-receipt-api-report.json` records exact hashes and targeted regression
+results. Earlier capture reports remain historical evidence for their original
+source versions.
