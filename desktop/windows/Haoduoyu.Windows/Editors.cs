@@ -56,7 +56,7 @@ public sealed partial class MainWindow
         if (kind == "article")
         {
             values = ArticlePipelineFormLogic.FormValues(values);
-            page.Children.Add(Label("流水线时间须显式填写时区（如 2026-01-01T18:30:00+08:00），按服务端毫秒精度保存。未知数字留空，真实零请填 0；原始结构、来源与待核清单在详情中只读保留。"));
+            page.Children.Add(Label("流水线时间须显式填写时区（如 2026-01-01T18:30:00+08:00），按服务端毫秒精度保存。未知数字留空，真实零请填 0；原始结构和来源保留，待核清单可在本页选择处理状态。"));
         }
         page.Children.Add(Label("修改会先保存在本机加密草稿中。Ctrl+S 保存本机草稿；点击下方按钮才会排队并同步。"));
         var controls = new Dictionary<string, Func<string>>();
@@ -118,6 +118,7 @@ public sealed partial class MainWindow
                 box.TextChanged += (_, _) => Changed(); page.Children.Add(box);
             }
         }
+        var writeArticleVerification = kind == "article" ? AddArticleVerificationEditor(original, values, Changed) : null;
         void Changed() { editorVersion++; draftDirty = true; draftTimer.Stop(); draftTimer.Start(); }
         JsonObject Current()
         {
@@ -130,6 +131,7 @@ public sealed partial class MainWindow
                 if (kind != "article" || !values.ContainsKey(name) || !string.Equals(text, Text(values, name), StringComparison.Ordinal)) value[name] = text;
             }
             if (kind == "note") value["labels"] = new JsonArray(labelChoices.Where(p => p.Value.IsChecked == true).Select(p => (JsonNode?)JsonValue.Create(p.Key)).ToArray());
+            writeArticleVerification?.Invoke(value);
             return value;
         }
         saveEditor = async () =>
@@ -158,7 +160,9 @@ public sealed partial class MainWindow
         }
         buttons.Children.Add(saveQueued);
         buttons.Children.Add(Button("保存本机草稿", async () => { draftDirty = true; await SaveDraftSafelyAsync(); }));
-        buttons.Children.Add(Button("导出文字副本", () => ExportTextAsync("好多鱼本机草稿.txt", string.Join("\n\n", controls.Select(x => x.Key + "\n" + x.Value())))));
+        buttons.Children.Add(Button("导出文字副本", () => ExportTextAsync("好多鱼本机草稿.txt", kind == "article"
+            ? Current().ToJsonString(ArticleReadableJson)
+            : string.Join("\n\n", controls.Select(x => x.Key + "\n" + x.Value())))));
         if (kind == "article") buttons.Children.Add(Button("查看流水线详情", () => ArticlePipelineDetailAsync(original, key)));
         buttons.Children.Add(Button("返回清单", () => NavigateAsync(currentPage)));
         page.Children.Add(buttons);

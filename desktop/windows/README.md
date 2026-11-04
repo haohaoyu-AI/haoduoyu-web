@@ -1,6 +1,6 @@
 # 好多鱼 Windows 独立工作台
 
-当前为 **0.8.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
+当前为 **0.9.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
 
 ## 已实现的核心路径
 
@@ -11,6 +11,7 @@
 - 备忘录分组与笔记、正文编辑、回收站恢复。
 - 工作提醒、文章台账及流水线原生表单、现有自媒体数据读取。文章可录入槽位、作者/配图者、存稿日期、系列号、字数/小标题/图数、生产标识、封面描述、草稿凭证和带时区的完成时间；未知数字保留 null，真实零值保留 0。完整生产资料只读详情区分原读取基线与本机稿，保留未知嵌套证据，不执行目录或链接。
 - 完整台账接口筛选：账号、平台、五种状态、关键词、发布起止、生产方式、推断题材、数据状态、槽位、作者、警告、明确待核与编号区间，以及指标/时间/耗时排序和分页。服务端模式保留原始分页与统计；本机模式重算投影派生信息，区分完整已准备基线与局部已知资料。未识别状态仍从只读发布对账查看。
+- 待核清单处理状态：在原文章编辑页选择已有条目，明确设为已处理或待处理，与标题、正文和流水线改动保存到同一草稿，使用同一原始版本与幂等请求。未知状态和条目来源保留；无清单时不猜测、创建或核销条目。已尝试请求继续受原 Unknown 围栏保护。
 - 完整只读发布对账：校验服务可见范围全部库存、状态/日期分组、公众号显式编号重复与已观察内部间隔；支持快照内的账号、日期、槽位、作者、状态、标题、警告及待核三态筛选和本地分页。排期、编号起点/目标未配置，不推断漏产。本机未决修改与服务快照分开，摘要不作为写入实体。
 - 内容复盘总览与趋势、八类持久复盘资源的原生创建与哈希 CAS 编辑，包括指标、报告、规则库及结构化子项、对标资料、笔记和账号健康。
 - AI 汇报完整分页历史、按实际日期筛选、原文阅读/导出与人工补充。稳定 UUID 追加保存，署名必填；已尝试或确认的原记录只读，不调用模型，也不自动生成完成报告。
@@ -20,7 +21,7 @@
 
 界面编译通过不等于以上路径均已完成实机或生产 API 验收。默认缓存已访问页面；“准备完整离线资料”会读取已确认工作区的日期索引、所有分页及详情，核对 hash、scope 和全局读取版本后一次性保存。取消、资料变化、坏响应或超过 24MiB/1000 日期等有界预算会整批停止并保留旧缓存，不能把局部页面称为完整。所有生产联网业务测试仍未执行。
 
-发布对账接口不接受查询参数，完整库存最多 4000 条/rows JSON 1MiB；含聚合的完整响应另限 4MiB。刷新全程成功后才缓存当次核实的账户集合、服务 scope 及本机观察时间；离线显示为已保存快照。完整资料准备同样纳入该库存及未知状态文章详情，前后对账不同则整批停止；读回一致不能消除无服务端事务修订号的 ABA/并发窗口。对账筛选仅作用于已核实快照；待核清单远端写入仍未实现。
+发布对账接口不接受查询参数，完整库存最多 4000 条/rows JSON 1MiB；含聚合的完整响应另限 4MiB。刷新全程成功后才缓存当次核实的账户集合、服务 scope 及本机观察时间；离线显示为已保存快照。完整资料准备同样纳入该库存及未知状态文章详情，前后对账不同则整批停止；读回一致不能消除无服务端事务修订号的 ABA/并发窗口。对账筛选仅作用于已核实快照；编辑待核清单须打开单独完整文章详情，摘要不能作为写入实体。
 
 台账关键词按源 SQLite ASCII 大小写规则及字面通配符处理，日期使用北京时间自然日或明确时区，指标 null 不补0、排序缺失恒末。服务端原始页不混本机意图；本机投影含 Queued/Unknown 并明确来源，只有带完整标记的全库存可称完整已准备基线，零散页/索引不冒充全量或完整编辑实体。派生警告、待核、题材与快照状态只读重算，不写回文章。仅 GET/articles 的有界 URI 容纳完整合法筛选，其他路线与写入预算保持。
 
@@ -42,7 +43,7 @@ Unknown 不等于失败：不自动重发。notes/memos 可按原 `save_id` 只�
 
 本候选版不持久化密码或会话 Cookie；账户退出程序后需重新登录，账户加密文件保留。DPAPI 通常绑定同一 Windows 用户，复制密文目录不是跨电脑可读导出。离开电脑前应显式导出需要迁移的纯文本，导出文件本身不加密。
 
-流水线字段修改沿用原文章 key、版本 CAS 和稳定持久请求，已尝试/Unknown 的请求不能借改稿换 ID 重放。日期必须真实有效，时间明确填写 Z 或 +08:00 等时区并按服务端毫秒精度保存；缺少版本号不会猜成新建。未完成输入仍可保存在加密草稿，非法或超出 256KiB 实际请求预算的内容不能进入队列。待核清单、样文、重跑和阻塞证据目前只读；显示不代表已勾选完成或向服务器保存。新流水线草稿应使用 0.5.0 继续编辑，旧候选不能录入这些新增字段；工作区仍读取 Schema1/2。
+流水线字段修改沿用原文章 key、版本 CAS 和稳定持久请求，已尝试/Unknown 的请求不能借改稿换 ID 重放。日期必须真实有效，时间明确填写 Z 或 +08:00 等时区并按服务端毫秒精度保存；缺少版本号不会猜成新建。未完成输入仍可保存在加密草稿，非法或超出 256KiB 实际请求预算的内容不能进入队列。待核清单仅允许显式修改已有条目的 done 布尔值，不增删、重排或改来源；六类 JSON 合计仍限 64KiB，公开写入还有服务端 16KiB 正文限制。样文、重跑和阻塞证据仍只读。条目的本机选择不等于服务器保存；文章没有精确收据接口，超时后 GET 到相同内容仍保留 Unknown，不自动确认或重发。新待核草稿须使用 0.9.0 或后续兼容版本继续编辑，旧候选不会采纳这些选择；工作区仍读取 Schema1/2。
 
 成功核对过的私有账号可在下次完全离线启动时继续原工作区编辑；“本机工作区”可切换已确认身份。身份配置同样使用 DPAPI，配置中不保存密码或 Cookie。联网发送仍必须重新登录原账号并核对 scope。新建父子记录按依赖顺序发送，子操作的 CAS 版本只从真实父回执获取；未发送请求可替换/取消并保留历史，已尝试请求不能借此换 ID 重放。
 
@@ -58,10 +59,12 @@ dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-pip
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-reconciliation-contract Haoduoyu.Api.Tests/Fixtures/article-reconciliation-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --todo-history-contract Haoduoyu.Api.Tests/Fixtures/todo-history-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-ledger-contract Haoduoyu.Api.Tests/Fixtures/article-ledger-contract-c30a8a9.json
+dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-verification-contract Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Profile.Tests --configuration Release
 dotnet run --project Haoduoyu.Offline.Tests --configuration Release
 dotnet run --project Haoduoyu.History.Tests --configuration Release
 dotnet run --project Haoduoyu.Ledger.Tests --configuration Release
+dotnet run --project Haoduoyu.Verification.Tests --configuration Release
 dotnet run --project Haoduoyu.Search.Tests --configuration Release
 dotnet run --project Haoduoyu.Archive.Tests --configuration Release
 dotnet build Haoduoyu.Windows --configuration Release

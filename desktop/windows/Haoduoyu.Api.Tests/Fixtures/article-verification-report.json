@@ -1,0 +1,67 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "desktop_base_commit": "b25051b0d8dd5a12039a8b2ed50ba38504ff4682",
+  "verified_at_utc": "2026-11-04T23:39:06.971017+00:00",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "production_business_requests": 0,
+  "commands_from": "Actual shared native ArticleVerificationFormLogic.SetDone and ArticlePipelineFormLogic.FormValues/Build",
+  "fixture": "article-verification-contract-c30a8a9.json",
+  "fixture_sha256": "ad649ca486fa7616642a92a776a55a4ef2c96154b803f3cc7202c84af0ca4e65",
+  "form_logic_sha256": {
+    "pipeline": "e8f77f4650f14afc89b6357bd7b1d12657937f7a50cb7fff87bdbe7462543a50",
+    "verification": "9f2a16129ef5e7e9fd0a80a658fbd2c68f3b1d7bc164bdd6f9b5f9ff163432bd"
+  },
+  "form_builder_assembly_sha256": "9906582b7b74078ddbf1e1da83d1f45886d802c9ce7aae19a627b70da495c15c",
+  "actual_worker_requests": 21,
+  "successful_read_responses": 7,
+  "successful_save_responses": 5,
+  "actual_committed_creates": 1,
+  "actual_committed_updates": 3,
+  "exact_idempotency_replays": 1,
+  "real_version_cas_conflicts": 1,
+  "real_different_body_idempotency_conflicts": 1,
+  "real_permission_or_budget_denials": 7,
+  "real_read_only_token_denials": 1,
+  "real_foreign_account_write_token_denials": 1,
+  "real_session_csrf_denials": 1,
+  "real_public_header_denials": 1,
+  "real_foreign_origin_denials": 1,
+  "real_public_foreign_record_hidden": 1,
+  "real_public_body_limit_denials": 1,
+  "actual_shared_form_rejections": 9,
+  "portable_contract_checks": 85,
+  "captured_generation_passed": true,
+  "current_shared_logic_replay_passed": true,
+  "release_api_build": {
+    "warnings": 0,
+    "errors": 0
+  },
+  "replay_command": "dotnet run --project desktop/windows/Haoduoyu.Api.Tests --configuration Release -- --article-verification-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json",
+  "coverage": [
+    "Actual shared SetDone + FormValues/Build full request, including simultaneous scalar edits",
+    "Complete object-array replacement retains metadata, item order, null/zero and non-boolean historical done values",
+    "Actual minimal verification-only PUT body preserves omitted scalar changes",
+    "Exact original key/body replay retains revision, audit and idempotency counts",
+    "Version and idempotency conflicts, read-only token, write-token scope, session CSRF, public header/origin/account/body budget reject without business persistence",
+    "Actual fixed-origin WorkbenchApi and SyncEngine with a detached memory-only store model a lost committed response; Unknown key/bytes retained, matching GET Unconfirmed, later sync/reopen no resend"
+  ],
+  "limits_preserved": {
+    "public_request_bytes": 16384,
+    "authenticated_request_bytes": 262144,
+    "pipeline_json_total_bytes": 65536,
+    "json_field_depth": 12,
+    "json_field_nodes": 4096
+  },
+  "limitations": [
+    "No exact GET article operation receipt exists; matching current content never confirms the original unknown request.",
+    "Idempotency replay reauthenticates actor/write/CSRF then returns actor+key historical response before current article-account authorization; no atomic expected-scope contract added."
+  ],
+  "boundary": "Exact isolated c30 compiled Worker.fetch and temporary Miniflare D1; harness setup/login and two actual API-issued temporary scoped keys remain in memory only. No source constraint, permission, limiter, proxy, quota or clock change. Every business request is isolated; all runtimes disposed. Portable lost-response test uses the real transport/engine and a synthetic HTTP handler plus detached memory store, not physical disk or device recovery.",
+  "files_sha256": {
+    "Haoduoyu.Windows/ArticleVerificationFormLogic.cs": "9f2a16129ef5e7e9fd0a80a658fbd2c68f3b1d7bc164bdd6f9b5f9ff163432bd",
+    "Haoduoyu.Windows/ArticlePipelineFormLogic.cs": "e8f77f4650f14afc89b6357bd7b1d12657937f7a50cb7fff87bdbe7462543a50",
+    "Haoduoyu.Api.Tests/ArticleVerificationContract.cs": "977ea547235b17f4ee05585c21b4677bc28f4209e74ab5fa7dc6f7f32e4fa537",
+    "Haoduoyu.Api.Tests/generate-article-verification-contract.mjs": "487995fbfd5775e62511e78245054be85e1a0d4584e185a08795ba67a9213180"
+  }
+}

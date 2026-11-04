@@ -37,6 +37,8 @@ public static class ArticlePipelineFormLogic
                 fields[name] = baseline[name]?.DeepClone();
         var body = new JsonObject();
         foreach (var name in Preserved) if (original.ContainsKey(name)) body[name] = original[name]?.DeepClone();
+        if (original.ContainsKey("verify_items") || value.ContainsKey("verify_items"))
+            body["verify_items"] = ArticleVerificationFormLogic.Merge(original, value);
         body["account_id"] = Content(fields, "account_id", "运营账号", 300, required: true);
         body["title"] = Content(fields, "title", "文章标题", 300, required: true);
         var status = Choice(fields, "status", "文章状态", ["drafting", "illustrated", "draft_saved", "published", "failed"], required: true)!;

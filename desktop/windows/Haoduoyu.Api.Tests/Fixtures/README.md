@@ -133,3 +133,37 @@ dotnet run --project desktop/windows/Haoduoyu.Api.Tests -- --unicode-receipt-con
 `unicode-receipt-api-report.json` records exact hashes and targeted regression
 results. Earlier capture reports remain historical evidence for their original
 source versions.
+
+## Native article verification writes
+
+`article-verification-contract-c30a8a9.json` captures actual commands from the shared
+`ArticleVerificationFormLogic.SetDone` and `ArticlePipelineFormLogic.FormValues/Build`
+against the exact compiled c30 Worker and temporary synthetic Miniflare D1. The
+21 responses cover seven reads, five successful save responses (including one exact
+idempotency replay), two version/idempotency conflicts, and seven permission/body
+budget denials. Native merged scalar edits and unknown nested metadata survive;
+the documented minimal verification-only body also preserves omitted scalars.
+
+The capture issues two temporary scoped keys through the existing isolated harness;
+only their non-secret permission categories are saved. No token, Cookie, CSRF material
+or real record is included. Source constraints, auth, permissions and normal limiters
+are unchanged, and the runtime is disposed. Nine actual shared-form negative vectors
+reject invalid positions, null/empty/malformed lists, reordered or changed metadata,
+non-boolean replacement state and invalid UTF-16 evidence.
+
+The portable replay also uses the actual fixed-origin transport and sync engine with
+an in-memory synthetic handler/store: a lost response leaves the immutable request
+Unknown; matching current GET content remains Unconfirmed, and later sync/reopening
+never resends or infers success. This is distinct from physical encrypted-file or
+Windows device recovery acceptance. No article exact-operation receipt API exists.
+Historical idempotency responses reauthenticate actor/write/CSRF before returning an
+actor+key match, without rerunning article-account authorization; the existing scope
+precheck remains, and no atomic expected-scope contract is claimed.
+
+```sh
+dotnet build desktop/windows/Haoduoyu.Api.Tests/Haoduoyu.Api.Tests.csproj --configuration Release
+node desktop/windows/Haoduoyu.Api.Tests/generate-article-verification-contract.mjs /path/to/isolated-worktree desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json desktop/windows/Haoduoyu.Api.Tests/bin/Release/net10.0/Haoduoyu.Api.Tests.dll dotnet
+dotnet run --project desktop/windows/Haoduoyu.Api.Tests --configuration Release -- --article-verification-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json
+```
+
+`article-verification-report.json` records final source/fixture hashes and counts.

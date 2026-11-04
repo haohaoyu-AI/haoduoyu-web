@@ -54,6 +54,16 @@ if (args is ["--article-ledger-contract", var articleLedgerFixturePath])
     await LedgerContract.RunAsync(articleLedgerFixturePath);
     return;
 }
+if (args is ["--article-verification-form-command"])
+{
+    await ArticleVerificationContract.BuildCommandAsync();
+    return;
+}
+if (args is ["--article-verification-contract", var verificationFixturePath])
+{
+    await ArticleVerificationContract.RunAsync(verificationFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);

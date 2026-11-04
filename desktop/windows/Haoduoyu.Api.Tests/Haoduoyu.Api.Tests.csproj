@@ -10,6 +10,7 @@
     <ProjectReference Include="../Haoduoyu.Api/Haoduoyu.Api.csproj" />
     <Compile Include="../Haoduoyu.Windows/ReviewFormLogic.cs" Link="SharedNativeReviewFormLogic.cs" />
     <Compile Include="../Haoduoyu.Windows/ArticlePipelineFormLogic.cs" Link="SharedNativeArticlePipelineFormLogic.cs" />
+    <Compile Include="../Haoduoyu.Windows/ArticleVerificationFormLogic.cs" Link="SharedNativeArticleVerificationFormLogic.cs" />
     <None Update="Fixtures/*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
