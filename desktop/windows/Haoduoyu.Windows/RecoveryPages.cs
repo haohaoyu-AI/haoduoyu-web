@@ -105,6 +105,11 @@ public sealed partial class MainWindow
     {
         var path = operation.Path.EndsWith("/restore", StringComparison.Ordinal) ? operation.Path[..^8] : operation.Path;
         if (path.EndsWith("/template", StringComparison.Ordinal)) path = path[..^9];
+        if (path.StartsWith("/api/v1/unscheduled-todos/", StringComparison.Ordinal))
+        {
+            if (path.EndsWith("/move", StringComparison.Ordinal)) path = path[..^5];
+            else if (path.EndsWith("/complete-today", StringComparison.Ordinal)) path = path[..^15];
+        }
         var id = operation.ResourceKey.Split('/').Last();
         string? collection = null;
         string FindDate()
@@ -119,7 +124,7 @@ public sealed partial class MainWindow
             foreach (var cached in Engine.Snapshot.Cache.Values)
             {
                 var data = Data(cached);
-                var row = Rows(data?["items"]).FirstOrDefault(r => Text(r, "id") == id);
+                var row = data is JsonObject obj ? Rows(obj["items"]).FirstOrDefault(r => Text(r, "id") == id) : null;
                 if (row != null && !string.IsNullOrEmpty(Text(row, "date"))) return Text(row, "date");
             }
             throw new InvalidOperationException("无法核实原记录日期，已保留原稿。请返回原日期清单读取，不能猜测今天。");
