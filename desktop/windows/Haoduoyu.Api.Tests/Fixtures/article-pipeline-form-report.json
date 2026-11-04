@@ -1,0 +1,38 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "desktop_base_commit": "64ef02a87951e940ffb89aa06ed93fbd761b5a16",
+  "verified_at_utc": "2026-11-04T22:23:33.874812+00:00",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "production_business_requests": 0,
+  "commands_from": "Actual shared native ArticlePipelineFormLogic.FormValues/Build",
+  "fixture": "article-pipeline-form-contract-c30a8a9.json",
+  "fixture_sha256": "8e41467794fdd910535a7c0995a84749536b86cd26661c46935b50ef0caa56f9",
+  "form_logic_sha256": "bcc021ba37cbd0de82550bb110c41da94e96f9058a6a69e0caa2e5d0fccea6dc",
+  "form_builder_assembly_sha256": "5a94744ca171b44d21f86ed48a1e88082678d39aa0b43d912b32095323234d20",
+  "requests": 11,
+  "successful_saves": 5,
+  "creates": 2,
+  "server_id_put_updates": 3,
+  "real_version_cas_conflicts": 1,
+  "reads": 5,
+  "invalid_forms_rejected": 27,
+  "captured_generation_passed": true,
+  "current_shared_logic_replay_passed": true,
+  "replay_command": "dotnet run --project desktop/windows/Haoduoyu.Api.Tests --configuration Release -- --article-pipeline-form-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-pipeline-form-contract-c30a8a9.json",
+  "boundary": "Actual shared native FormValues/Build -> exact c30a8a9 compiled Worker.fetch -> existing temporary Miniflare D1 harness; all runtimes disposed and zero external fetch attempts. C# replay rebuilds actual form values/requests and checks current route/response/mutation validators plus CAS unchanged readback. Not Windows interactive or production acceptance.",
+  "coverage": [
+    "server-assigned identity is used for later PUT, with original CAS version",
+    "zero/null remain distinct and JS-safe maximum integer roundtrips",
+    "sample/reruns/blockers/verify_items and draft_ref/timings unknown nested keys survive edits",
+    "warning and pending verification evidence is retained/read-only rather than guessed",
+    "explicit offsets normalize to JS millisecond UTC precision",
+    "missing/null versions, malformed original metadata and invalid nested Unicode reject before writes",
+    "individual legal fields whose escaped final request exceeds 256KiB reject locally"
+  ],
+  "files_sha256": {
+    "Haoduoyu.Windows/ArticlePipelineFormLogic.cs": "bcc021ba37cbd0de82550bb110c41da94e96f9058a6a69e0caa2e5d0fccea6dc",
+    "Haoduoyu.Api.Tests/ArticlePipelineContract.cs": "2029e8e34ea2d04c26566b034186ebc8d324263f4e38ac346b6aaeb2cf90adf8",
+    "Haoduoyu.Api.Tests/generate-article-pipeline-contract.mjs": "7898820bb2066ee6a262ce7bfd2ced471edecb6fdc4d70150cfa1acffe4847cc"
+  }
+}

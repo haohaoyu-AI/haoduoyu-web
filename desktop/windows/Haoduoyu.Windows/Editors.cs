@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
 using Haoduoyu.Core;
 
 namespace Haoduoyu.Windows;
@@ -21,7 +22,17 @@ public sealed partial class MainWindow
             new("url", "公开链接（仅已发布状态填写）"), new("published_at", "实际发布时间（ISO 8601，含时区）"),
             new("started_at", "生产开始时间（ISO 8601，含时区）"),
             new("production_mode", "生产方式", Choices: ["unknown", "automatic", "manual", "mixed"]),
-            new("summary", "摘要", true), new("notes", "备注", true)],
+            new("summary", "摘要", true), new("notes", "备注", true),
+            new("platform_article_id", "平台文章标识（未知留空）"),
+            new("slot", "槽位（未知留空）", Choices: ["zh1", "zh2", "tt1", "tt2", "zh3", "tt3", "gzh"]),
+            new("writer", "写作者（未知留空）", Choices: ["dedao", "gemini_web", "human", "other"]),
+            new("illustrator", "配图者（未知留空）", Choices: ["codex", "pil", "human"]),
+            new("run_dir", "流水线标识（仅文字，不会打开或执行）"), new("run_date", "存稿日期（YYYY-MM-DD，未知留空）"),
+            new("series_no", "系列编号（正整数，未知留空）"), new("char_count", "字数（非负整数，未知留空）"),
+            new("subheading_count", "小标题数（非负整数，未知留空）"), new("image_count", "图数（非负整数，未知留空）"),
+            new("cover_desc", "封面描述", true), new("finished_at", "流水线结束（ISO 8601，含时区）"),
+            new("draft_pgc_id", "头条草稿 pgc_id（未知留空）"), new("draft_appmsgid", "公众号草稿 appmsgid（未知留空）"),
+            new("draft_editor_url", "草稿编辑链接（仅文字，不会打开）")],
         _ => throw new InvalidOperationException("该记录没有可用编辑器。")
     };
 
@@ -41,6 +52,11 @@ public sealed partial class MainWindow
             page.Children.Add(Label($"已恢复本机草稿 · 基于版本 {saved.BaseVersion}；本次读取的远端版本 {Version(record)}。保存仍使用草稿原版本。"));
             if (saved.RecoveredAtRevision > 0 && kind == "article" && Version(original) == 0)
                 page.Children.Add(Label("此稿来自回退备份，可能漏掉后来已创建的服务器文章。可继续本机编辑和导出；创建前请从台账核对并打开实际服务器记录，不能直接再次创建。"));
+        }
+        if (kind == "article")
+        {
+            values = ArticlePipelineFormLogic.FormValues(values);
+            page.Children.Add(Label("流水线时间须显式填写时区（如 2026-01-01T18:30:00+08:00），按服务端毫秒精度保存。未知数字留空，真实零请填 0；原始结构、来源与待核清单在详情中只读保留。"));
         }
         page.Children.Add(Label("修改会先保存在本机加密草稿中。Ctrl+S 保存本机草稿；点击下方按钮才会排队并同步。"));
         var controls = new Dictionary<string, Func<string>>();
@@ -68,25 +84,36 @@ public sealed partial class MainWindow
             page.Children.Add(Label(field.Label));
             if (field.Name == "account_id" && Engine.Snapshot.Cache.TryGetValue("/api/v1/accounts", out var accountJson))
             {
-                var accounts = Rows(Data(accountJson)).Select(a => new KeyValuePair<string, string>(Text(a, "id"), Text(a, "name") + " · " + Text(a, "platform"))).ToArray();
-                var combo = new ComboBox { ItemsSource = accounts, DisplayMemberPath = "Value", SelectedValuePath = "Key", SelectedValue = Text(values, field.Name) };
+                var accounts = Rows(Data(accountJson)).Select(a => new KeyValuePair<string, string>(Text(a, "id"), Text(a, "name") + " · " + Text(a, "platform"))).ToList();
+                var selectedAccount = Text(values, field.Name);
+                if (selectedAccount.Length > 0 && accounts.All(account => account.Key != selectedAccount))
+                    accounts.Add(new(selectedAccount, "未在当前列表中核实 · " + selectedAccount));
+                var combo = new ComboBox { Tag = field.Name, ItemsSource = accounts, DisplayMemberPath = "Value", SelectedValuePath = "Key", SelectedValue = selectedAccount };
+                AutomationProperties.SetAutomationId(combo, kind + "-" + field.Name);
                 controls[field.Name] = () => combo.SelectedValue?.ToString() ?? "";
                 combo.SelectionChanged += (_, _) => Changed(); page.Children.Add(combo);
             }
             else if (field.Choices != null)
             {
-                string Name(string key) => key switch { "drafting" => "起草中", "illustrated" => "已配图", "draft_saved" => "草稿已存", "published" => "已发布", "failed" => "受阻", "automatic" => "自动化", "manual" => "人工", "mixed" => "人工与自动化", "unknown" => "未记录", _ => key };
-                var combo = new ComboBox { ItemsSource = field.Choices.Select(key => new KeyValuePair<string, string>(key, Name(key))).ToArray(),
-                    DisplayMemberPath = "Value", SelectedValuePath = "Key", SelectedValue = Text(values, field.Name), IsEditable = false };
+                string Name(string key) => key switch { "drafting" => "起草中", "illustrated" => "已配图", "draft_saved" => "草稿已存", "published" => "已发布", "failed" => "受阻", "automatic" => "自动化", "manual" => "人工", "mixed" => "人工与自动化", "unknown" => "未记录", "zh1" => "知乎 1", "zh2" => "知乎 2", "zh3" => "知乎 3", "tt1" => "头条 1", "tt2" => "头条 2", "tt3" => "头条 3", "gzh" => "公众号", "dedao" => "得到大脑", "gemini_web" => "Gemini", "human" => "本人", "other" => "其他", "codex" => "Codex", "pil" => "PIL", _ => key };
+                var currentChoice = Text(values, field.Name);
+                var choices = field.Choices.Select(key => new KeyValuePair<string, string>(key, Name(key))).ToList();
+                if (kind == "article") choices.Insert(0, new("", field.Name is "status" or "production_mode" ? "请选择（原值未知）" : "未标注"));
+                if (currentChoice.Length > 0 && !field.Choices.Contains(currentChoice, StringComparer.Ordinal))
+                    choices.Add(new(currentChoice, "不支持的原值 · " + currentChoice));
+                var combo = new ComboBox { Tag = field.Name, ItemsSource = choices,
+                    DisplayMemberPath = "Value", SelectedValuePath = "Key", SelectedValue = currentChoice, IsEditable = false };
+                AutomationProperties.SetAutomationId(combo, kind + "-" + field.Name);
                 controls[field.Name] = () => combo.SelectedValue?.ToString() ?? "";
                 combo.SelectionChanged += (_, _) => Changed(); page.Children.Add(combo);
             }
             else
             {
-                var box = new TextBox { Text = Text(values, field.Name), AcceptsReturn = field.Multiline,
+                var box = new TextBox { Tag = field.Name, Text = Text(values, field.Name), AcceptsReturn = field.Multiline,
                     TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = field.Multiline ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled,
                     MinHeight = field.Multiline ? kind is "note" or "legacy" or "memo" ? 300 : 90 : 40,
                     MaxHeight = field.Multiline ? 600 : 100, AcceptsTab = field.Multiline };
+                AutomationProperties.SetAutomationId(box, kind + "-" + field.Name);
                 controls[field.Name] = () => box.Text;
                 box.TextChanged += (_, _) => Changed(); page.Children.Add(box);
             }
@@ -99,7 +126,8 @@ public sealed partial class MainWindow
             {
                 var text = read();
                 _ = new UTF8Encoding(false, true).GetByteCount(text);
-                value[name] = text;
+                // Preserve unsupported original JSON types until the user actually changes the text.
+                if (kind != "article" || !values.ContainsKey(name) || !string.Equals(text, Text(values, name), StringComparison.Ordinal)) value[name] = text;
             }
             if (kind == "note") value["labels"] = new JsonArray(labelChoices.Where(p => p.Value.IsChecked == true).Select(p => (JsonNode?)JsonValue.Create(p.Key)).ToArray());
             return value;
@@ -131,6 +159,7 @@ public sealed partial class MainWindow
         buttons.Children.Add(saveQueued);
         buttons.Children.Add(Button("保存本机草稿", async () => { draftDirty = true; await SaveDraftSafelyAsync(); }));
         buttons.Children.Add(Button("导出文字副本", () => ExportTextAsync("好多鱼本机草稿.txt", string.Join("\n\n", controls.Select(x => x.Key + "\n" + x.Value())))));
+        if (kind == "article") buttons.Children.Add(Button("查看流水线详情", () => ArticlePipelineDetailAsync(original, key)));
         buttons.Children.Add(Button("返回清单", () => NavigateAsync(currentPage)));
         page.Children.Add(buttons);
         // Persist even an untouched new record's UUID, category, date and base version before it can be lost.
@@ -181,20 +210,7 @@ public sealed partial class MainWindow
                 versionBody["summary"] = Content("summary", 16384);
                 return ("PUT", "/api/v1/work-reminders/" + id, versionBody);
             case "article":
-                var body = new JsonObject();
-                foreach (var name in new[] { "account_id", "title", "url", "published_at", "started_at", "production_mode", "summary", "notes", "status", "platform_article_id", "slot", "writer", "illustrator", "run_dir", "run_date", "series_no", "char_count", "subheading_count", "image_count", "cover_desc", "draft_ref", "timings", "sample", "reruns", "blockers", "verify_items" })
-                    if (original.ContainsKey(name)) body[name] = original[name]?.DeepClone();
-                foreach (var name in Fields(kind).Select(f => f.Name)) body[name] = Text(value, name);
-                if (string.IsNullOrWhiteSpace(Text(body, "title")) || string.IsNullOrWhiteSpace(Text(body, "account_id"))) throw new InvalidOperationException("请填写标题与运营账号 ID。");
-                foreach (var name in new[] { "published_at", "started_at" })
-                    body[name] = string.IsNullOrWhiteSpace(Text(body, name)) ? null : DateTimeOffset.Parse(Text(body, name), System.Globalization.CultureInfo.InvariantCulture).ToString("O");
-                var published = Text(body, "status") == "published";
-                if (published && (!Uri.TryCreate(Text(body, "url"), UriKind.Absolute, out var url) || url.Scheme is not ("http" or "https") || body["published_at"] == null))
-                    throw new InvalidOperationException("已发布文章需要真实 HTTP/HTTPS 链接及含时区的发布时间。");
-                if (!published && (!string.IsNullOrWhiteSpace(Text(body, "url")) || body["published_at"] != null)) throw new InvalidOperationException("未发布状态请明确清空链接和发布时间。");
-                if (!published) body["url"] = null;
-                if (version > 0) body["version"] = version;
-                return version > 0 ? ("PUT", "/api/v1/articles/" + id, body) : ("POST", "/api/v1/articles", body);
+                return ArticlePipelineFormLogic.Build(original, value);
             default: throw new InvalidOperationException("不支持此编辑类型。");
         }
     }

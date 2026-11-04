@@ -1,6 +1,6 @@
 # 好多鱼 Windows 独立工作台
 
-当前为 **0.4.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
+当前为 **0.5.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
 
 ## 已实现的核心路径
 
@@ -8,7 +8,7 @@
 - 未安排待办、安排到指定日、今天完成、软删恢复。
 - 生活与工作多条碎碎念、旧日期日页独立保留、标签选择及创建/归档/恢复。
 - 备忘录分组与笔记、正文编辑、回收站恢复。
-- 工作提醒、文章台账表单、现有自媒体数据读取。
+- 工作提醒、文章台账及流水线原生表单、现有自媒体数据读取。文章可录入槽位、作者/配图者、存稿日期、系列号、字数/小标题/图数、生产标识、封面描述、草稿凭证和带时区的完成时间；未知数字保留 null，真实零值保留 0。完整生产资料只读详情区分原读取基线与本机稿，保留未知嵌套证据，不执行目录或链接。
 - 内容复盘总览与趋势、八类持久复盘资源的原生创建与哈希 CAS 编辑，包括指标、报告、规则库及结构化子项、对标资料、笔记和账号健康。
 - AI 汇报完整分页历史、按实际日期筛选、原文阅读/导出与人工补充。稳定 UUID 追加保存，署名必填；已尝试或确认的原记录只读，不调用模型，也不自动生成完成报告。
 - 本机草稿、离线业务清单与详情投影、完整资料准备、持久队列、版本冲突核对、保存回执确认、只读历史分区导出、显式本机备份恢复。
@@ -33,6 +33,8 @@ Unknown 不等于失败：不自动重发。notes/memos 可按原 `save_id` 只�
 
 本候选版不持久化密码或会话 Cookie；账户退出程序后需重新登录，账户加密文件保留。DPAPI 通常绑定同一 Windows 用户，复制密文目录不是跨电脑可读导出。离开电脑前应显式导出需要迁移的纯文本，导出文件本身不加密。
 
+流水线字段修改沿用原文章 key、版本 CAS 和稳定持久请求，已尝试/Unknown 的请求不能借改稿换 ID 重放。日期必须真实有效，时间明确填写 Z 或 +08:00 等时区并按服务端毫秒精度保存；缺少版本号不会猜成新建。未完成输入仍可保存在加密草稿，非法或超出 256KiB 实际请求预算的内容不能进入队列。待核清单、样文、重跑和阻塞证据目前只读；显示不代表已勾选完成或向服务器保存。新流水线草稿应使用 0.5.0 继续编辑，旧候选不能录入这些新增字段；工作区仍读取 Schema1/2。
+
 成功核对过的私有账号可在下次完全离线启动时继续原工作区编辑；“本机工作区”可切换已确认身份。身份配置同样使用 DPAPI，配置中不保存密码或 Cookie。联网发送仍必须重新登录原账号并核对 scope。新建父子记录按依赖顺序发送，子操作的 CAS 版本只从真实父回执获取；未发送请求可替换/取消并保留历史，已尝试请求不能借此换 ID 重放。
 
 ## 构建与定向检查
@@ -43,6 +45,7 @@ Unknown 不等于失败：不自动重发。notes/memos 可按原 `save_id` 只�
 dotnet run --project Haoduoyu.Core.Tests --configuration Release
 dotnet run --project Haoduoyu.Api.Tests --configuration Release
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --worker-contract Haoduoyu.Api.Tests/Fixtures/worker-contract-c30a8a9.json
+dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-pipeline-form-contract Haoduoyu.Api.Tests/Fixtures/article-pipeline-form-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Profile.Tests --configuration Release
 dotnet run --project Haoduoyu.Offline.Tests --configuration Release
 dotnet run --project Haoduoyu.Search.Tests --configuration Release

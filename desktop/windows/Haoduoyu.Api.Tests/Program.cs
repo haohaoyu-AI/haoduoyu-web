@@ -29,6 +29,16 @@ if (args is ["--unicode-receipt-contract", var unicodeFixturePath])
     await UnicodeReceiptContract.RunAsync(unicodeFixturePath);
     return;
 }
+if (args is ["--article-pipeline-form-command"])
+{
+    await ArticlePipelineContract.BuildCommandAsync();
+    return;
+}
+if (args is ["--article-pipeline-form-contract", var articlePipelineFixturePath])
+{
+    await ArticlePipelineContract.RunAsync(articlePipelineFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);
