@@ -188,16 +188,30 @@ public sealed partial class MainWindow : Window
         {
             try
             {
-                var result = await Engine.ReadRemoteAsync(path);
+                var result = await ReadBoundAsync(path);
                 if (!result.IsSuccess) throw new InvalidOperationException($"读取失败 HTTP {result.StatusCode}。请求号：{result.RequestId ?? "未返回"}。原缓存保留。");
                 var parsed = Data(result.Json) ?? throw new InvalidDataException("服务响应没有 data，原缓存保留。");
                 await Task.Run(() => Engine.CacheAsync(path, result.Json));
                 return parsed;
             }
+            catch (ScopeGuardException error) { connected = false; Message(error.Message); }
             catch (Exception error) when (error is HttpRequestException or IOException or OperationCanceledException)
             { connected = false; Message("连接中断，显示本机已保存副本。" ); }
         }
         return Engine.Snapshot.Cache.TryGetValue(path, out var cached) ? Data(cached) : null;
+    }
+    private async Task<ApiResult> ReadBoundAsync(string path)
+    {
+        var result = await Engine.ReadRemoteAsync(path);
+        if (!result.IsSuccess) return result;
+        var returnedScope = await api.ReadScopeIdAsync();
+        var returnedIdentity = api.PublicMode ? "public:" + returnedScope : "user:" + api.UserId + ":" + returnedScope;
+        if (returnedIdentity != currentIdentity)
+        {
+            connected = false;
+            throw new ScopeGuardException("读取期间工作区归属已变化；该响应未写入旧分区。请重新连接，旧缓存和草稿保留。");
+        }
+        return result;
     }
     private async Task NavigateAsync(string name)
     {

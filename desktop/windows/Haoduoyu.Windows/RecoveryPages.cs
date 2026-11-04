@@ -136,9 +136,9 @@ public sealed partial class MainWindow
             var parts = path.Split('?', 2);
             path = "/api/v1/daily-notes?date=" + parts[0].Split('/').Last() + (parts.Length > 1 ? "&" + parts[1] : "");
         }
-        var result = await Engine.ReadRemoteAsync(path);
+        var result = await ReadBoundAsync(path);
         if (!result.IsSuccess) throw new InvalidOperationException("远端读取未成功，不能处理冲突。原稿保留。HTTP " + result.StatusCode);
-        await Engine.CacheAsync(path, result.Json);
+        await Task.Run(() => Engine.CacheAsync(path, result.Json));
         if (collection != null)
         {
             var entity = Rows(Data(result.Json)?[collection]).FirstOrDefault(r => Text(r, "id") == id);
