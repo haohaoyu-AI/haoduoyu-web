@@ -63,12 +63,12 @@ function checkedCollection(value, category, date) {
 // A store belongs to one identity and category. A composer captures its day at creation;
 // neither navigation nor midnight can change the destination of an in-flight write.
 function createEntriesContext({category, load, loadEntry, loadOperation, put, remove, restore,
-  onChange = () => {}, onSaved = () => {}, uuid = () => crypto.randomUUID(),
+  onChange = () => {}, onSaved = () => {}, discardUnsent = async () => {}, prepareDelete = async () => null, finishDelete = async () => {}, uuid = () => crypto.randomUUID(),
   setTimer = setTimeout, clearTimer = clearTimeout, delay = 400, manualSave = false, multiLabels = false}) {
   if (!['life', 'work'].includes(category)) throw new Error('请选择有效分类。');
   const pages = new Map(), entries = new Map();
   const context = {category, pages, entries, multiLabels, disposed: false,
-    options: {load, loadEntry, loadOperation, put, remove, restore, onSaved, uuid}};
+    options: {load, loadEntry, loadOperation, put, remove, restore, onSaved, discardUnsent, prepareDelete, finishDelete, uuid}};
   const emit = () => { if (!context.disposed) onChange(); };
   const page = date => {
     if (!validDailyNotesDate(date)) throw new Error('请选择有效日期。');
@@ -245,7 +245,7 @@ function createEntryEditingActions(context) {
   }
   function edit(id, text, {composing = false} = {}) {
     const item = entry(id);
-    if (!item || context.disposed || !item.canEdit || item.deleted || ['delete', 'restore'].includes(item.pending?.kind)) return;
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || ['delete', 'restore'].includes(item.pending?.kind)) return;
     item.draft = text; item.composing = composing; item.dirty = text !== savedText(item) || !equalLabels(item.labels, item.serverLabels); stopTimer(item);
     if (dailyNotesBytes(text) > DAILY_NOTES_MAX_BYTES) {
       if (!blocked(item)) item.phase = 'oversize';
@@ -258,7 +258,7 @@ function createEntryEditingActions(context) {
   function relabelDraft(id, labels = []) {
     const item = entry(id);
     if (typeof labels === 'string') labels = labels ? [labels] : [];
-    if (!item || context.disposed || !item.canEdit || item.deleted || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) ||
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) ||
         !validLabels(labels, context.category)) return false;
     item.labels = [...labels]; item.label = labels[0] || '';
     item.dirty = item.draft !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
@@ -309,7 +309,7 @@ function createEntryRecoveryActions(context) {
 
 function createEntryWritingActions(context) {
   const {category, page, entry, entries, emit, stopTimer, adopt, schedule} = context;
-  const {put, remove, restore, uuid, onSaved} = context.options;
+  const {put, remove, restore, uuid, onSaved, discardUnsent, prepareDelete, finishDelete} = context.options;
   const matches = (value, operation) => value.version === operation.version + 1 &&
     (operation.kind === 'delete' ? value.deleted : operation.kind === 'restore' ? !value.deleted :
       !value.deleted && value.text === operation.text && (!operation.labels || [2,3].includes(value.labels_version) && equalLabels(value.labels, operation.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation.labels)) && (!operation.label || value.labels_version === 1 && value.label === operation.label) &&
@@ -338,7 +338,7 @@ function createEntryWritingActions(context) {
       const value = checkedEntry(raw, category, item.date, item.id);
       if (isLocalDocument(value)) { acceptedLocal(item, value, operation); return; }
       if (!matches(value, operation)) throw new Error('保存响应需要重新核对。');
-      accepted(item, value, operation);
+      accepted(item, value, operation); return value;
     } catch (error) {
       if (context.disposed || item.pending !== operation) return;
       if (localFailure(error)) {
@@ -359,7 +359,7 @@ function createEntryWritingActions(context) {
   }
   async function save(id) {
     const item = entry(id); if (!item) return; stopTimer(item);
-    if (context.disposed || !item.canEdit || item.deleted || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
+    if (context.disposed || !item.canEdit || item.deleted || item.discarding || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
     if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
       item.phase = 'error'; item.error = '只能新增北京时间当天的碎碎念，草稿已保留。'; emit(); return;
     }
@@ -377,13 +377,30 @@ function createEntryWritingActions(context) {
   }
   async function deleteEntry(id) {
     const item = entry(id);
-    if (!item || context.disposed || !item.canEdit || item.pending || blocked(item) || item.deleted) return;
+    if (!item || context.disposed || !item.canEdit || item.discarding || item.pending || blocked(item) || item.deleted) return;
     if (!persistedVersion(item)) {
-      stopTimer(item); const current = page(item.date); current.ids = current.ids.filter(value => value !== id);
-      item.deleted = true; item.dirty = false; item.draft = ''; item.phase = 'saved'; emit();
+      stopTimer(item); item.discarding = true; emit();
+      try { await discardUnsent(item); }
+      catch (error) {
+        item.discarding = false; item.phase = 'error'; item.error = '本机草稿未能清理，内容已保留：' + error.message; emit(); return;
+      }
+      if (context.disposed || entry(id) !== item) return;
+      const current = page(item.date); current.ids = current.ids.filter(value => value !== id);
       entries.delete(id); if (current.composerId === id) current.composerId = ''; emit(); return;
     }
-    return send(item, {kind: 'delete', version: persistedVersion(item), saveId: uuid()});
+    item.discarding = true; emit();
+    let prepared;
+    try { prepared = await prepareDelete(item); }
+    catch (error) {
+      item.discarding = false; item.phase = 'error'; item.error = '本机草稿未能核对，内容已保留：' + error.message; emit(); return;
+    }
+    if (context.disposed || entry(id) !== item) return;
+    item.discarding = false;
+    const result = await send(item, {kind: 'delete', version: persistedVersion(item), saveId: uuid()});
+    if (result && prepared) {
+      try { await finishDelete(prepared, result); }
+      catch { /* Deletion succeeded; retained local drafts remain recoverable. */ }
+    }
   }
   async function restoreEntry(id) {
     const item = entry(id);

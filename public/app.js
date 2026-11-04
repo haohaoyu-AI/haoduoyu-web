@@ -3541,10 +3541,81 @@ var init_note_mutations = __esm({
   }
 });
 
+// web/offline/retained-drafts.mjs
+function createDraftRevisionTracker() {
+  const revisions = /* @__PURE__ */ new WeakMap();
+  return (item) => {
+    const signature2 = JSON.stringify([item.draft, item.labels, item.label, item.dirty, item.composing]);
+    const previous = revisions.get(item);
+    const revision2 = previous ? previous.revision + Number(previous.signature !== signature2) : 0;
+    revisions.set(item, { signature: signature2, revision: revision2 });
+    return revision2;
+  };
+}
+function unchangedEntrySinceSnapshot(epochs, id2, current2, snapshotRevision, currentRevision) {
+  return epochs.has(id2) === Boolean(current2) && (!current2 || current2.writeEpoch === epochs.get(id2) && (snapshotRevision === void 0 || snapshotRevision === currentRevision));
+}
+function uniqueRetainedDrafts(rows) {
+  const seen = /* @__PURE__ */ new Set();
+  return rows.filter((row) => {
+    if (!row || typeof row !== "object") return true;
+    const key = signature(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function matchesDeletedEntry(row, value) {
+  if (row.kind !== "note_entry" || !value || value.id !== row.id || value.category !== row.category || value.date !== row.date || value.deleted !== true || value.can_edit !== true || typeof value.deleted_at !== "string" || !Number.isFinite(Date.parse(value.deleted_at)) || typeof value.created_at !== "string" || !Number.isFinite(Date.parse(value.created_at)) || typeof value.updated_at !== "string" || !Number.isFinite(Date.parse(value.updated_at)) || typeof value.content_hash !== "string" || !/^[a-f0-9]{64}$/i.test(value.content_hash) || !Number.isSafeInteger(value.version) || !Number.isSafeInteger(row.version) || value.version <= row.version || typeof value.text !== "string" || value.text !== row.draft || value.labels_version !== 3 || !Array.isArray(value.labels) || !Array.isArray(row.labels) || JSON.stringify(labels(value)) !== JSON.stringify(labels(row)) || row.pending || row.remote || row.localQueued || Number.isSafeInteger(row.localVersion) && row.localVersion > row.version || row.labelKnown === false || ["unknown", "conflict"].includes(row.phase)) return false;
+  return true;
+}
+async function visibleRetainedDrafts(rows, readEntry, active5 = () => true) {
+  const tombstones = /* @__PURE__ */ new Map();
+  const ids = [...new Set(rows.filter((row) => row?.kind === "note_entry" && /^[a-f0-9-]{36}$/i.test(row.id)).map((row) => row.id))];
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(6, ids.length) }, async () => {
+    while (active5() && next < ids.length) {
+      const id2 = ids[next++];
+      try {
+        tombstones.set(id2, await readEntry(id2));
+      } catch {
+      }
+    }
+  }));
+  return uniqueRetainedDrafts(rows.filter((row) => !row || !matchesDeletedEntry(row, tombstones.get(row.id))));
+}
+var labels, signature;
+var init_retained_drafts = __esm({
+  "web/offline/retained-drafts.mjs"() {
+    labels = (row) => Array.isArray(row.labels) ? [...row.labels].sort() : row.label ? [row.label] : [];
+    signature = (row) => JSON.stringify([
+      row.kind,
+      row.id || "",
+      row.category,
+      row.date,
+      row.draft,
+      Array.isArray(row.labels) ? labels(row) : null,
+      row.label ?? null,
+      row.pending ?? null,
+      row.remote ?? null,
+      row.phase ?? null,
+      row.version ?? null,
+      row.localVersion ?? null,
+      row.localQueued ?? null,
+      row.labelKnown ?? null
+    ]);
+  }
+});
+
 // web/offline/drafts.mjs
 function safeDraft(row) {
   if (!row || !["legacy", "note_entry"].includes(row.kind) || !["life", "work"].includes(row.category) || !/^\d{4}-\d{2}-\d{2}$/.test(row.date) || typeof row.draft !== "string" || row.draft.length > 262144 || row.kind === "note_entry" && !/^[a-f0-9-]{36}$/i.test(row.id)) throw new Error("本机草稿字段无效。");
   return Object.fromEntries(fields.filter((key) => row[key] !== void 0).map((key) => [key, structuredClone(row[key])]));
+}
+async function noteDigest(row) {
+  const value = JSON.stringify([row.id, row.category, row.date, row.draft, [...row.labels].sort()]);
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.now, draftOwner = crypto.randomUUID() }) {
   const pending = /* @__PURE__ */ new Set();
@@ -3552,21 +3623,21 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     const owner2 = getScope(), generation = getGeneration();
     if (!owner2) return;
     const clean = rows.map(safeDraft);
+    const digests = await Promise.all(clean.map((row) => eligible(row) ? noteDigest(row) : null));
     const active5 = () => {
       if (owner2 !== getScope() || generation !== getGeneration())
         throw Object.assign(new Error("身份范围已变化，旧草稿保持原范围。"), { code: "OFFLINE_SCOPE_CHANGED" });
     };
     await db.transaction(["meta"], "readwrite", async (tx) => {
       active5();
-      for (const row of clean) {
+      for (const [index, row] of clean.entries()) {
         const identity5 = row.kind === "legacy" ? row.category + ":" + row.date : row.id;
         const key = entityKey(owner2, "draft:" + row.kind + ":" + identity5 + ":" + draftOwner);
-        if (row.kind === "note_entry" && row.deleted === true && !row.pending) {
-          for (const old of await tx.getAll("meta")) if (old.scope === owner2 && old.draft_kind === "note_entry" && old.data.id === row.id) await tx.delete("meta", old.key);
-        } else if (unresolved(row)) await tx.put("meta", { key, scope: owner2, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now() });
+        const proof = digests[index] && await tx.get("meta", entityKey(owner2, "deleted-note-proof:" + digests[index]));
+        if (proof && row.version < proof.version) continue;
+        if (unresolved(row)) await tx.put("meta", { key, scope: owner2, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now(), write_id: crypto.randomUUID() });
         else if (row.kind === "note_entry") {
           await tx.delete("meta", key);
-          for (const old of await tx.getAll("meta")) if (old.scope === owner2 && old.draft_kind === "note_entry" && old.data.id === row.id && old.data.draft === row.draft && JSON.stringify(old.data.labels || []) === JSON.stringify(row.labels || []) && !old.data.pending) await tx.delete("meta", old.key);
         }
       }
       active5();
@@ -3579,27 +3650,98 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     });
     return work;
   }
-  async function list2(kind) {
+  async function records(kind) {
     const owner2 = getScope(), generation = getGeneration();
     if (!owner2) return [];
-    const rows = await db.transaction(["meta"], "readonly", async (tx) => (await tx.getAll("meta")).filter((row) => row.scope === owner2 && row.draft_kind === kind).sort((a, b) => b.saved_at - a.saved_at).map((row) => row.data));
+    const rows = await db.transaction(["meta"], "readonly", async (tx) => (await tx.getAll("meta")).filter((row) => row.scope === owner2 && row.draft_kind === kind).sort((a, b) => b.saved_at - a.saved_at));
     return owner2 === getScope() && generation === getGeneration() ? rows : [];
   }
-  async function discardNote(id2) {
+  async function list2(kind) {
+    return (await records(kind)).map((row) => row.data);
+  }
+  async function purgeVerified(snapshots2, tombstones, stillActive = () => true) {
     const owner2 = getScope(), generation = getGeneration();
     if (!owner2) return;
+    const active5 = () => {
+      if (owner2 !== getScope() || generation !== getGeneration() || !stillActive())
+        throw new Error("Draft cleanup was cancelled");
+    };
+    const candidates = [];
+    for (const snapshot of snapshots2) {
+      const value = tombstones.get(snapshot.data?.id);
+      if (snapshot.scope === owner2 && matchesDeletedEntry(snapshot.data, value))
+        candidates.push({ snapshot, value, digest: await noteDigest(snapshot.data) });
+    }
+    active5();
     await db.transaction(["meta"], "readwrite", async (tx) => {
-      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("Draft scope changed");
-      for (const row of await tx.getAll("meta")) if (row.scope === owner2 && row.draft_kind === "note_entry" && row.data.id === id2) await tx.delete("meta", row.key);
-      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("Draft scope changed");
+      active5();
+      for (const { snapshot, value, digest: digest2 } of candidates) {
+        active5();
+        const current2 = await tx.get("meta", snapshot.key);
+        if (!current2 || current2.scope !== owner2 || current2.draft_kind !== "note_entry" || JSON.stringify(current2) !== JSON.stringify(snapshot) || !matchesDeletedEntry(current2.data, value)) continue;
+        const key = entityKey(owner2, "deleted-note-proof:" + digest2);
+        const previous = await tx.get("meta", key);
+        await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
+        await tx.delete("meta", current2.key);
+      }
+      active5();
     });
   }
-  return { capture, list: list2, discardNote, flush: () => Promise.all([...pending]) };
+  async function purgeUserDeleted(raw, snapshots2, value, stillActive = () => true) {
+    const owner2 = getScope(), generation = getGeneration(), target = safeDraft(raw);
+    const evidenceRow = { ...target, draft: value?.text, labels: value?.labels };
+    if (!owner2 || !eligible(target) || !matchesDeletedEntry(evidenceRow, value) || value.version !== target.version + 1) return;
+    const digest2 = await noteDigest(target);
+    const active5 = () => {
+      if (owner2 !== getScope() || generation !== getGeneration() || !stillActive()) throw new Error("Draft cleanup was cancelled");
+    };
+    await db.transaction(["meta"], "readwrite", async (tx) => {
+      active5();
+      let removed4 = false;
+      for (const snapshot of snapshots2) {
+        const row = snapshot.data;
+        if (snapshot.scope !== owner2 || snapshot.draft_kind !== "note_entry" || !row || !eligible(row) || row.id !== target.id || row.category !== target.category || row.date !== target.date || row.version !== target.version || row.draft !== target.draft || JSON.stringify([...row.labels].sort()) !== JSON.stringify([...target.labels].sort())) continue;
+        const current2 = await tx.get("meta", snapshot.key);
+        if (current2 && JSON.stringify(current2) === JSON.stringify(snapshot)) {
+          await tx.delete("meta", current2.key);
+          removed4 = true;
+        }
+      }
+      if (removed4) {
+        const key = entityKey(owner2, "deleted-note-proof:" + digest2), previous = await tx.get("meta", key);
+        await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
+      }
+      active5();
+    });
+  }
+  async function discardUnsent(raw) {
+    const owner2 = getScope(), generation = getGeneration(), row = safeDraft(raw);
+    if (!owner2 || !eligible(row) || row.version !== 0 || (row.localVersion || 0) !== 0)
+      throw new Error("本机草稿状态需要重新核对，内容已保留。");
+    const digest2 = await noteDigest(row);
+    const active5 = () => {
+      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
+    };
+    await db.transaction(["meta"], "readwrite", async (tx) => {
+      active5();
+      for (const stored of await tx.getAll("meta")) {
+        const data2 = stored.data;
+        if (stored.scope !== owner2 || stored.draft_kind !== "note_entry" || !data2 || !eligible(data2) || data2.version !== 0 || (data2.localVersion || 0) !== 0 || data2.id !== row.id || data2.category !== row.category || data2.date !== row.date || data2.draft !== row.draft || JSON.stringify([...data2.labels].sort()) !== JSON.stringify([...row.labels].sort())) continue;
+        await tx.delete("meta", stored.key);
+      }
+      const key = entityKey(owner2, "deleted-note-proof:" + digest2);
+      const previous = await tx.get("meta", key);
+      await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, 1) });
+      active5();
+    });
+  }
+  return { capture, list: list2, records, purgeVerified, purgeUserDeleted, discardUnsent, flush: () => Promise.all([...pending]) };
 }
-var fields, unresolved;
+var fields, unresolved, eligible;
 var init_drafts = __esm({
   "web/offline/drafts.mjs"() {
     init_db();
+    init_retained_drafts();
     fields = [
       "kind",
       "id",
@@ -3626,6 +3768,7 @@ var init_drafts = __esm({
       "recoveredBaseline"
     ];
     unresolved = (row) => row.dirty || row.pending || ["unknown", "conflict", "error", "oversize"].includes(row.phase);
+    eligible = (row) => row.kind === "note_entry" && Array.isArray(row.labels) && Number.isSafeInteger(row.version) && row.version >= 0 && !row.pending && !row.remote && !row.localQueued && (!Number.isSafeInteger(row.localVersion) || row.localVersion <= row.version) && row.labelKnown !== false && !["unknown", "conflict"].includes(row.phase);
   }
 });
 
@@ -4732,7 +4875,10 @@ function createOfflineRuntime(options3) {
     localRead: async (path) => (await context.cache.read(path)).data,
     retainDrafts: drafts.capture,
     retainedDrafts: drafts.list,
-    discardNoteDraft: drafts.discardNote,
+    retainedDraftRecords: drafts.records,
+    purgeVerifiedNoteDrafts: drafts.purgeVerified,
+    purgeUserDeletedNoteDrafts: drafts.purgeUserDeleted,
+    discardUnsentNoteDraft: drafts.discardUnsent,
     flushDrafts: drafts.flush,
     subscribe(callback) {
       context.listeners.add(callback);
@@ -5651,7 +5797,7 @@ ${Object.entries(statusLabels).map(([key, label3]) => `<option value="${e(key)}"
 </select></label>`;
 }
 function filterChips(f) {
-  const labels = {
+  const labels2 = {
     platform: "平台",
     data_status: "数据状态",
     from: "发布自",
@@ -5675,7 +5821,7 @@ function filterChips(f) {
     has_pending_verify: boolChoices,
     ...articleChoices
   };
-  const chips = [["account", "账号", state.account ? accountName(state.account) : ""], ...Object.entries(labels).map(([key, label3]) => [key, label3, choices[key]?.[f[key]] || f[key]])].filter(([, , value]) => value);
+  const chips = [["account", "账号", state.account ? accountName(state.account) : ""], ...Object.entries(labels2).map(([key, label3]) => [key, label3, choices[key]?.[f[key]] || f[key]])].filter(([, , value]) => value);
   if (!chips.length) return "";
   return `<div class="selected-filters" aria-label="已选条件">${chips.map(([key, label3, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key)}"
 aria-label="移除${e(label3)}：${e(value)}">${e(label3)}：${e(value)} ×</button>`).join("")}
@@ -6137,7 +6283,7 @@ function renderKeys(keys) {
   }).join("")}</tbody></table></div>` : empty("暂无凭证", "供自动化工具按账号范围读取或录入数据。")}</section>`;
 }
 function auditLabel(action) {
-  const labels = [
+  const labels2 = [
     ["合并存稿", "PATCH /articles"],
     ["新增文章", "article.create", "POST /articles"],
     ["修改文章", "article.update", "PUT /articles/:id"],
@@ -6171,7 +6317,7 @@ function auditLabel(action) {
     ["初始化网站", "auth.bootstrap"]
   ];
   const route2 = String(action || "").replace(/^(PUT|DELETE) \/(articles|accounts|api-keys)\/[^/]+$/, "$1 /$2/:id");
-  return labels.find((row) => row.includes(route2))?.[0] || route2 || "未知操作";
+  return labels2.find((row) => row.includes(route2))?.[0] || route2 || "未知操作";
 }
 function renderSecurity() {
   return `<section class="card panel security-panel"><h2>登录与安全</h2><p class="muted security-context">当前登录：${e(state.me.username)}</p><form id="password-form"><div class="form-field"><label for="current-password">当前密码</label><input class="input" type="password" id="current-password" name="currentPassword" autocomplete="current-password" required></div><div class="form-field field-spaced"><label for="new-password">新密码</label><input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password" minlength="12" required><span class="hint">至少 12 位</span></div><div class="form-field field-spaced"><label for="confirm-password">再次输入新密码</label><input class="input" type="password" id="confirm-password" name="confirmPassword" autocomplete="new-password" minlength="12" required></div><p class="form-message" role="alert"></p><div class="form-actions"><button class="btn primary" type="submit">更新密码</button></div></form><div class="detail-section"><h3>数据导出</h3><a class="btn" href="/api/v1/export" download>${icon("download", 14)}导出发布记录 CSV</a></div></section>`;
@@ -7613,8 +7759,8 @@ var savedText = (item) => item.localBacked ? item.durableText : item.serverText;
 var savedPhase = (item) => item.localBacked ? item.localQueued ? "queued" : "cached" : item.version ? "saved" : "empty";
 var labelsOf = (value) => Array.isArray(value?.labels) ? value.labels : value?.label ? [value.label] : [];
 var equalLabels = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
-var validLabels = (labels) => Array.isArray(labels) && labels.every(validNoteLabel) && new Set(labels).size === labels.length;
-var validLegacyLabels = (labels, category) => validLabels(labels) && (category === "life" || labels.length === 0) && labels.every(validCustomNoteLabel);
+var validLabels = (labels2) => Array.isArray(labels2) && labels2.every(validNoteLabel) && new Set(labels2).size === labels2.length;
+var validLegacyLabels = (labels2, category) => validLabels(labels2) && (category === "life" || labels2.length === 0) && labels2.every(validCustomNoteLabel);
 var localFailure = (error) => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || "");
 function validNoteLabel(value) {
   return typeof value === "string" && value.isWellFormed() && value === value.trim().normalize("NFC") && [...value].length >= 1 && [...value].length <= 32 && !/[\u0000-\u001f\u007f]/.test(value);
@@ -7658,6 +7804,11 @@ function createEntriesContext({
   },
   onSaved = () => {
   },
+  discardUnsent = async () => {
+  },
+  prepareDelete = async () => null,
+  finishDelete = async () => {
+  },
   uuid: uuid5 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -7673,7 +7824,7 @@ function createEntriesContext({
     entries,
     multiLabels,
     disposed: false,
-    options: { load, loadEntry, loadOperation, put, remove, restore, onSaved, uuid: uuid5 }
+    options: { load, loadEntry, loadOperation, put, remove, restore, onSaved, discardUnsent, prepareDelete, finishDelete, uuid: uuid5 }
   };
   const emit = () => {
     if (!context.disposed) onChange();
@@ -7931,16 +8082,16 @@ function createEntryReadingActions(context) {
 function createEntryEditingActions(context) {
   const { page, entry, entries, emit, stopTimer, schedule, makeEntry } = context;
   const { uuid: uuid5 } = context.options;
-  function start(date, { label: label3 = "", labels = label3 ? [label3] : [] } = {}) {
+  function start(date, { label: label3 = "", labels: labels2 = label3 ? [label3] : [] } = {}) {
     const current2 = page(date);
-    if (!validLabels(labels, context.category)) throw new Error("标签无效。");
+    if (!validLabels(labels2, context.category)) throw new Error("标签无效。");
     if (context.disposed || !current2.loaded || !current2.canEdit || date !== dailyNotesToday()) return;
     const existing = entry(current2.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label3) return existing;
     const id2 = uuid5();
     if (!uuidPattern6.test(id2) || entries.has(id2)) throw new Error("暂时无法新建记录，请重试。");
     const item = makeEntry(id2, date, current2.canEdit);
-    item.labels = [...labels];
+    item.labels = [...labels2];
     item.label = item.labels[0] || "";
     item.labelKnown = true;
     item.labelComplete = true;
@@ -7952,7 +8103,7 @@ function createEntryEditingActions(context) {
   }
   function edit(id2, text, { composing = false } = {}) {
     const item = entry(id2);
-    if (!item || context.disposed || !item.canEdit || item.deleted || ["delete", "restore"].includes(item.pending?.kind)) return;
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || ["delete", "restore"].includes(item.pending?.kind)) return;
     item.draft = text;
     item.composing = composing;
     item.dirty = text !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
@@ -7967,12 +8118,12 @@ function createEntryEditingActions(context) {
     emit();
     if (!composing) schedule(item);
   }
-  function relabelDraft(id2, labels = []) {
+  function relabelDraft(id2, labels2 = []) {
     const item = entry(id2);
-    if (typeof labels === "string") labels = labels ? [labels] : [];
-    if (!item || context.disposed || !item.canEdit || item.deleted || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) || !validLabels(labels, context.category)) return false;
-    item.labels = [...labels];
-    item.label = labels[0] || "";
+    if (typeof labels2 === "string") labels2 = labels2 ? [labels2] : [];
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) || !validLabels(labels2, context.category)) return false;
+    item.labels = [...labels2];
+    item.label = labels2[0] || "";
     item.dirty = item.draft !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
     item.phase = item.dirty ? "dirty" : savedPhase(item);
     emit();
@@ -8044,7 +8195,7 @@ function createEntryRecoveryActions(context) {
 }
 function createEntryWritingActions(context) {
   const { category, page, entry, entries, emit, stopTimer, adopt, schedule } = context;
-  const { put, remove, restore, uuid: uuid5, onSaved } = context.options;
+  const { put, remove, restore, uuid: uuid5, onSaved, discardUnsent, prepareDelete, finishDelete } = context.options;
   const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted : operation2.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation2.text && (!operation2.labels || [2, 3].includes(value.labels_version) && equalLabels(value.labels, operation2.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation2.labels)) && (!operation2.label || value.labels_version === 1 && value.label === operation2.label) && (!operation2.expectedLabel || value.labels_version === 1 && value.label === operation2.expectedLabel));
   function accepted(item, value, operation2) {
     const preserve = operation2.kind === "put" && item.draft !== operation2.text;
@@ -8094,6 +8245,7 @@ function createEntryWritingActions(context) {
       }
       if (!matches2(value, operation2)) throw new Error("保存响应需要重新核对。");
       accepted(item, value, operation2);
+      return value;
     } catch (error) {
       if (context.disposed || item.pending !== operation2) return;
       if (localFailure(error)) {
@@ -8126,7 +8278,7 @@ function createEntryWritingActions(context) {
     const item = entry(id2);
     if (!item) return;
     stopTimer(item);
-    if (context.disposed || !item.canEdit || item.deleted || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
+    if (context.disposed || !item.canEdit || item.deleted || item.discarding || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
     if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
       item.phase = "error";
       item.error = "只能新增北京时间当天的碎碎念，草稿已保留。";
@@ -8158,22 +8310,49 @@ function createEntryWritingActions(context) {
   }
   async function deleteEntry(id2) {
     const item = entry(id2);
-    if (!item || context.disposed || !item.canEdit || item.pending || blocked(item) || item.deleted) return;
+    if (!item || context.disposed || !item.canEdit || item.discarding || item.pending || blocked(item) || item.deleted) return;
     if (!persistedVersion(item)) {
       stopTimer(item);
+      item.discarding = true;
+      emit();
+      try {
+        await discardUnsent(item);
+      } catch (error) {
+        item.discarding = false;
+        item.phase = "error";
+        item.error = "本机草稿未能清理，内容已保留：" + error.message;
+        emit();
+        return;
+      }
+      if (context.disposed || entry(id2) !== item) return;
       const current2 = page(item.date);
       current2.ids = current2.ids.filter((value) => value !== id2);
-      item.deleted = true;
-      item.dirty = false;
-      item.draft = "";
-      item.phase = "saved";
-      emit();
       entries.delete(id2);
       if (current2.composerId === id2) current2.composerId = "";
       emit();
       return;
     }
-    return send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid5() });
+    item.discarding = true;
+    emit();
+    let prepared;
+    try {
+      prepared = await prepareDelete(item);
+    } catch (error) {
+      item.discarding = false;
+      item.phase = "error";
+      item.error = "本机草稿未能核对，内容已保留：" + error.message;
+      emit();
+      return;
+    }
+    if (context.disposed || entry(id2) !== item) return;
+    item.discarding = false;
+    const result = await send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid5() });
+    if (result && prepared) {
+      try {
+        await finishDelete(prepared, result);
+      } catch {
+      }
+    }
   }
   async function restoreEntry(id2) {
     const item = entry(id2);
@@ -8641,7 +8820,7 @@ function paintSavedEntry(node2, item) {
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
 }
-function paintEntryEditor(node2, item, confirmId, labels, labelsVerified) {
+function paintEntryEditor(node2, item, confirmId, labels2, labelsVerified) {
   paintEntrySummary(node2, item);
   const find = (selector) => node2.querySelector(selector), editor = find("textarea");
   editor.dataset.date = item.date;
@@ -8654,7 +8833,7 @@ function paintEntryEditor(node2, item, confirmId, labels, labelsVerified) {
   fieldset.hidden = item.deleted;
   fieldset.disabled = !item.canEdit || !item.labelComplete || !labelsVerified || Boolean(item.pending);
   fieldset.title = item.labelComplete && labelsVerified ? "" : "请联网核实标签状态后再修改。";
-  const available = [.../* @__PURE__ */ new Set([...labels, ...item.labels || []])];
+  const available = [.../* @__PURE__ */ new Set([...labels2, ...item.labels || []])];
   if (JSON.stringify([...options3.querySelectorAll("input")].map((input) => input.value)) !== JSON.stringify(available)) {
     options3.replaceChildren(...available.map((value) => {
       const label3 = document.createElement("label"), input = document.createElement("input");
@@ -8692,7 +8871,7 @@ function paintEntryEditor(node2, item, confirmId, labels, labelsVerified) {
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
 var editorNodes = /* @__PURE__ */ new WeakMap();
-function paintActiveEditor(root2, store, active5, legacy, confirmId, labels, labelsVerified) {
+function paintActiveEditor(root2, store, active5, legacy, confirmId, labels2, labelsVerified) {
   const host = root2.querySelector("#notes-active-entry");
   if (!editorNodes.has(root2)) editorNodes.set(root2, /* @__PURE__ */ new Map());
   const nodes = editorNodes.get(root2), item = store.entry(active5);
@@ -8701,7 +8880,7 @@ function paintActiveEditor(root2, store, active5, legacy, confirmId, labels, lab
     if (!nodes.has(active5)) nodes.set(active5, createEntryElement(item, true));
     const node2 = nodes.get(active5);
     if (host.firstElementChild !== node2) host.replaceChildren(node2);
-    paintEntryEditor(node2, item, confirmId, labels, labelsVerified);
+    paintEntryEditor(node2, item, confirmId, labels2, labelsVerified);
   }
   root2.querySelector("#notes-legacy-card").hidden = active5 !== "legacy";
   paintDailyNotes(root2, legacy, { compatibility: true, editing: active5 === "legacy" });
@@ -8762,7 +8941,7 @@ function paintOtherLegacy(root2, list2, legacy, category) {
   exportButton.dataset.legacyCategory = category;
   exportButton.hidden = !draft;
 }
-function paintNoteEntries(root2, store, current2, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "", labels = [], labelsVerified = true } = {}) {
+function paintNoteEntries(root2, store, current2, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "", labels: labels2 = [], labelsVerified = true } = {}) {
   const find = (selector) => root2.querySelector(selector), list2 = find("#notes-entry-list");
   root2.dataset.date = current2.date;
   const dateInput = find("#notes-date");
@@ -8784,7 +8963,7 @@ function paintNoteEntries(root2, store, current2, legacy, { drafts = [], confirm
     paintSavedEntry(node2, item);
     node2.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
   }
-  paintActiveEditor(root2, store, active5, legacy, confirmId, labels, labelsVerified);
+  paintActiveEditor(root2, store, active5, legacy, confirmId, labels2, labelsVerified);
   paintLegacySummary(root2, legacy, active5);
   (retainedLegacy(legacy) ? unpublished : list2).append(root2.querySelector("#notes-legacy-saved"));
   root2.querySelector("#notes-legacy-saved").dataset.sortTime = legacy.updatedAt || "";
@@ -8816,6 +8995,7 @@ init_login();
 init_runtime();
 init_document();
 init_conflict_draft_guards();
+init_retained_drafts();
 var notesStore, entryStore, notesIdentity = "", notesEventsRegistered = false, notesConfirmDate = "", notesConfirmEntry = "", notesActiveCategory = "", notesRefreshPaused = false, notesDraftError = "", notesDraftRevision = 0;
 var notesView = "today", historyMonth = "", historyDate = "", historyDays = /* @__PURE__ */ new Map(), historySequence = 0;
 var historyActiveLoad = null;
@@ -8860,6 +9040,7 @@ var draftFields = [
 var hydratedDrafts = /* @__PURE__ */ new WeakMap();
 var hydrationReady = /* @__PURE__ */ new WeakSet();
 var entryIdentities = /* @__PURE__ */ new WeakMap();
+var entryDraftRevision = createDraftRevisionTracker();
 var sendFeedbackTimers = /* @__PURE__ */ new WeakMap();
 function scheduleSendFeedback(entries, expected) {
   for (const item of entries.entries.values()) {
@@ -8879,7 +9060,7 @@ function captureNotesDrafts(legacy, entries, category) {
   if (!offline || !hydrationReady.has(entries) || entryIdentities.get(entries) !== notesIdentityNow()) return;
   const rows = [];
   for (const [kind, values] of [["legacy", legacy.pages.values()], ["note_entry", entries.entries.values()]]) for (const item of values)
-    rows.push({ kind, category, ...Object.fromEntries(draftFields.filter((key) => item[key] !== void 0).map((key) => [key, item[key]])) });
+    if (!item.discarding) rows.push({ kind, category, ...Object.fromEntries(draftFields.filter((key) => item[key] !== void 0).map((key) => [key, item[key]])) });
   return offline.retainDrafts(rows);
 }
 async function hydrateNotesDrafts(legacy, entries, category) {
@@ -8888,33 +9069,25 @@ async function hydrateNotesDrafts(legacy, entries, category) {
   if (!offline || !active5()) return;
   const seen = hydratedDrafts.get(entries) || /* @__PURE__ */ new Set();
   hydratedDrafts.set(entries, seen);
-  const entryDrafts = await offline.retainedDrafts("note_entry");
+  const originals = new Map(entries.entries);
+  const epochs = new Map([...entries.entries].map(([id2, item]) => [id2, item.writeEpoch]));
+  const revisions = new Map([...entries.entries].map(([id2, item]) => [id2, entryDraftRevision(item)]));
+  const entryDrafts = await visibleArchive();
   if (!active5()) return;
   for (const raw of entryDrafts) {
-    if (raw.category !== category || seen.has(raw.id)) continue;
-    let current2;
-    try {
-      current2 = await apiNetwork("/note-entries/" + encodeURIComponent(raw.id), { headers: { "X-Note-Labels-Version": "3" } });
-    } catch {
-    }
-    if (!active5()) return;
-    if (current2?.id === raw.id && current2.deleted === true && current2.labels_version === 3) {
-      try {
-        await offline.discardNoteDraft(raw.id);
-      } catch {
-        notesDraftError = "已删除记录的本机草稿清理失败，请检查存储空间后重试。";
-      }
-      seen.add(raw.id);
-      continue;
-    }
+    if (!raw || raw.kind !== "note_entry" || raw.category !== category || seen.has(raw.id)) continue;
+    const current2 = entries.entries.get(raw.id);
+    if (current2 && originals.get(raw.id) !== current2) continue;
+    if (!unchangedEntrySinceSnapshot(epochs, raw.id, current2, revisions.get(raw.id), current2 && entryDraftRevision(current2))) continue;
     entries.restoreDraft(raw);
     seen.add(raw.id);
   }
   const legacyDrafts = await offline.retainedDrafts("legacy");
   if (!active5()) return;
   for (const raw of legacyDrafts) {
+    if (!raw) continue;
     const key = "legacy:" + raw.date;
-    if (raw.category !== category || seen.has(key)) continue;
+    if (!raw || raw.category !== category || seen.has(key)) continue;
     const item = legacy.page(raw.date);
     Object.assign(item, {
       draft: raw.draft,
@@ -8935,9 +9108,77 @@ async function archivedDrafts() {
   const offline = getOfflineRuntime();
   return offline ? [...await offline.retainedDrafts("legacy"), ...await offline.retainedDrafts("note_entry")] : [];
 }
+var visibleArchiveFlight = null, visibleArchiveSequence = 0, visibleArchiveTimer;
+function scheduleArchiveRefresh(expected, force = false) {
+  if (!force && !document.querySelector("#notes-retained-archive")) return;
+  clearTimeout(visibleArchiveTimer);
+  visibleArchiveTimer = setTimeout(async () => {
+    const revision2 = notesDraftRevision;
+    try {
+      await getOfflineRuntime()?.flushDrafts();
+    } catch {
+      return;
+    }
+    if (expected !== notesIdentityNow()) return;
+    if (revision2 !== notesDraftRevision) return scheduleArchiveRefresh(expected, true);
+    await showRetainedArchive();
+  }, 300);
+}
+async function visibleArchive() {
+  const identity5 = notesIdentityNow(), revision2 = notesDraftRevision;
+  if (visibleArchiveFlight?.identity === identity5 && visibleArchiveFlight.revision === revision2) return visibleArchiveFlight.promise;
+  const promise = (async () => {
+    const offline = getOfflineRuntime();
+    if (!offline) return [];
+    const snapshots2 = await offline.retainedDraftRecords("note_entry");
+    const controller = new AbortController(), tombstones = /* @__PURE__ */ new Map();
+    const active5 = () => !controller.signal.aborted && identity5 === notesIdentityNow();
+    const ids = [...new Set(snapshots2.map((row) => row.data?.id).filter((id2) => /^[a-f0-9-]{36}$/i.test(id2 || "")))];
+    let timer, next = 0;
+    await Promise.race([
+      Promise.all(Array.from({ length: Math.min(6, ids.length) }, async () => {
+        while (active5() && next < ids.length) {
+          const id2 = ids[next++];
+          try {
+            tombstones.set(id2, await apiNetwork(
+              "/note-entries/" + encodeURIComponent(id2),
+              { headers: { "X-Note-Labels-Version": "3" }, suppressAuthRedirect: true, signal: controller.signal }
+            ));
+          } catch {
+          }
+        }
+      })),
+      new Promise((resolve) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          resolve();
+        }, 2e3);
+      })
+    ]).finally(() => clearTimeout(timer));
+    if (active5()) {
+      try {
+        await offline.purgeVerifiedNoteDrafts(snapshots2, tombstones, active5);
+      } catch {
+      }
+    }
+    return identity5 === notesIdentityNow() ? uniqueRetainedDrafts(await archivedDrafts()) : [];
+  })();
+  visibleArchiveFlight = { identity: identity5, revision: revision2, promise };
+  try {
+    return await promise;
+  } finally {
+    if (visibleArchiveFlight?.promise === promise) visibleArchiveFlight = null;
+  }
+}
 async function showRetainedArchive() {
-  const expected = notesIdentityNow(), rows = await archivedDrafts(), root2 = document.querySelector("#daily-notes");
-  if (!root2 || !notesVisible() || expected !== notesIdentityNow() || !rows.length) return;
+  const expected = notesIdentityNow(), revision2 = notesDraftRevision, sequence4 = ++visibleArchiveSequence;
+  const rows = await visibleArchive(), root2 = document.querySelector("#daily-notes");
+  if (!root2 || !notesVisible() || expected !== notesIdentityNow() || sequence4 !== visibleArchiveSequence) return;
+  if (revision2 !== notesDraftRevision) return scheduleArchiveRefresh(expected, true);
+  if (!rows.length) {
+    root2.querySelector("#notes-retained-archive")?.remove();
+    return;
+  }
   let box = root2.querySelector("#notes-retained-archive");
   if (!box) {
     box = document.createElement("details");
@@ -8956,18 +9197,17 @@ async function showRetainedArchive() {
     box.append(body2);
     box.addEventListener("toggle", async () => {
       if (!box.open || expected !== notesIdentityNow()) return;
-      const current2 = await archivedDrafts();
-      if (expected !== notesIdentityNow()) return;
-      body2.replaceChildren(...current2.map((row) => {
-        const pre = document.createElement("pre");
-        pre.textContent = `${row.kind === "legacy" ? "原有记录" : "条目"} · ${row.category === "work" ? "工作" : "生活"} · ${row.date}
-${row.draft}`;
-        return pre;
-      }));
+      void showRetainedArchive();
     });
     root2.querySelector("#notes-drafts").after(box);
   }
   box.querySelector("summary").textContent = `本机保留草稿（${rows.length} 份，只读）`;
+  if (box.open) box.querySelector(".notes-retained-texts").replaceChildren(...rows.map((row) => {
+    const pre = document.createElement("pre");
+    pre.textContent = row && `${row.kind === "legacy" ? "原有记录" : "条目"} · ${row.category === "work" ? "工作" : "生活"} · ${row.date}
+${row.draft}`;
+    return pre;
+  }));
 }
 async function exportDraftArchive() {
   const expected = notesIdentityNow(), rows = await archivedDrafts();
@@ -9084,8 +9324,8 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
         return await noteRequest(path, options3);
       } catch (error) {
         if (error.code !== "NETWORK_UNAVAILABLE") throw error;
-        const body2 = options3.body || {}, labels = body2.labels;
-        if (labels)
+        const body2 = options3.body || {}, labels2 = body2.labels;
+        if (labels2)
           throw Object.assign(new Error("多标签修改需要联网，草稿已保留。"), { code: "OFFLINE_MULTI_LABEL", localNotSaved: true });
         const { labels: ignored, ...legacyBody } = body2;
         return request(path, { ...options3, offlineUnknown: true, body: legacyBody, headers: { "X-Note-Labels-Version": "1" } });
@@ -9094,6 +9334,7 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
     const suffix = (separator) => category === "work" ? separator + "category=work" : "";
     const changed4 = () => {
       if (expected !== notesIdentityNow()) return;
+      for (const item of entries.entries.values()) entryDraftRevision(item);
       scheduleSendFeedback(entries, expected);
       const revision2 = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
       if (!getOfflineRuntime()?.state.scope && [...entries.entries.values()].some((item) => item.dirty)) {
@@ -9109,6 +9350,8 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
         paintDailyNotesPage();
       });
       paintDailyNotesPage();
+      scheduleArchiveRefresh(expected);
+      return saved;
     };
     const readOnly = async () => {
       throw Object.assign(new Error("原有逐日记录只读，草稿可导出。"), { code: "LEGACY_READ_ONLY" });
@@ -9132,8 +9375,39 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
       put: (id2, body2, options3) => noteWrite("/note-entries/" + encodeURIComponent(id2), { ...options3, method: "PUT", body: body2 }),
       remove: (id2, body2, options3) => noteWrite("/note-entries/" + encodeURIComponent(id2), { ...options3, method: "DELETE", body: body2 }),
       restore: (id2, body2, options3) => noteRequest("/note-entries/" + encodeURIComponent(id2) + "/restore", { ...options3, method: "POST", body: body2 }),
+      prepareDelete: async (item) => {
+        const offline = getOfflineRuntime();
+        if (!offline?.state.scope || expected !== notesIdentityNow() || !hydrationReady.has(entries)) return null;
+        await offline.flushDrafts();
+        if (expected !== notesIdentityNow()) throw new Error("身份已变化");
+        const row = { kind: "note_entry", category, ...Object.fromEntries(
+          draftFields.filter((key) => item[key] !== void 0).map((key) => [key, structuredClone(item[key])])
+        ) };
+        return { row, snapshots: await offline.retainedDraftRecords("note_entry") };
+      },
+      finishDelete: async ({ row, snapshots: snapshots2 }, result) => {
+        const offline = getOfflineRuntime();
+        if (offline && expected === notesIdentityNow()) {
+          await offline.flushDrafts();
+          await offline.purgeUserDeletedNoteDrafts(row, snapshots2, result, () => expected === notesIdentityNow());
+          scheduleArchiveRefresh(expected, true);
+        }
+      },
+      discardUnsent: async (item) => {
+        const offline = getOfflineRuntime();
+        if (!offline?.state.scope || expected !== notesIdentityNow() || !hydrationReady.has(entries))
+          throw new Error("本机草稿暂不可用");
+        await offline.flushDrafts();
+        if (expected !== notesIdentityNow()) throw new Error("身份已变化");
+        await offline.discardUnsentNoteDraft({ kind: "note_entry", category, ...Object.fromEntries(
+          draftFields.filter((key) => item[key] !== void 0).map((key) => [key, item[key]])
+        ) });
+      },
       onChange: changed4,
-      onSaved: changed4
+      onSaved: () => {
+        changed4();
+        scheduleArchiveRefresh(expected, true);
+      }
     });
     entryIdentities.set(entries, expected);
     notesStores.set(category, legacy);
@@ -9441,8 +9715,8 @@ function applyHistoryMonth(root2, month, days, chosenDate) {
   root2.querySelector("#notes-history-month").value = month;
   monthOptions(dateSelect, dates, selected, "");
   monthOptions(root2.querySelector("#notes-history-week"), ["", ...weeks.map((_, index) => String(index + 1))], "", "全部周次");
-  const labels = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
-  monthOptions(labelSelect, labels, oldLabel, "全部标签");
+  const labels2 = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
+  monthOptions(labelSelect, labels2, oldLabel, "全部标签");
   paintHistoryRows(root2);
 }
 async function loadHistory(month = "", chosenDate = "") {
@@ -9706,11 +9980,11 @@ function registerDailyNotesEvents() {
     }
   });
   onOfflineRuntime((offline) => {
-    let signature = "";
+    let signature2 = "";
     offline.subscribe((value) => {
       const next = JSON.stringify([value.pending, value.conflicts, value.lastSuccess, value.phase]);
-      if (next === signature || value.phase === "syncing") return;
-      signature = next;
+      if (next === signature2 || value.phase === "syncing") return;
+      signature2 = next;
       if (notesVisible()) {
         for (const entries of entryStores.values())
           if (hydrationReady.has(entries)) void entries.read(dailyNotesRouteDate(), { localOnly: true });
@@ -9836,10 +10110,10 @@ function editFloatingNote(text, composing = false) {
   const item = floatingNoteEntry(true);
   if (item) entryStores.get(item.category).edit(item.id, text, { composing });
 }
-function labelFloatingNote(labels) {
+function labelFloatingNote(labels2) {
   const item = floatingNoteEntry(true);
   if (!item || !notesLabelsVerified) return false;
-  return entryStores.get(item.category).relabelDraft(item.id, labels);
+  return entryStores.get(item.category).relabelDraft(item.id, labels2);
 }
 async function sendFloatingNote() {
   const item = floatingNoteEntry(false), store = item && entryStores.get(item.category);
@@ -12809,10 +13083,10 @@ function chart(points, { small = false } = {}) {
     });
     flush();
   }
-  const labels = [.../* @__PURE__ */ new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].map((i) => `<text x="${x(i).toFixed(2)}" y="${bottom + 24}" text-anchor="${i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}">${e(String(points[i].date).slice(5))}</text>`).join("");
+  const labels2 = [.../* @__PURE__ */ new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].map((i) => `<text x="${x(i).toFixed(2)}" y="${bottom + 24}" text-anchor="${i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}">${e(String(points[i].date).slice(5))}</text>`).join("");
   const bandWidth = (right - left) / Math.max(points.length - 1, 1);
   const hover = small ? "" : points.map((p, i) => `<rect class="review-hover-band" x="${Math.max(left, x(i) - bandWidth / 2).toFixed(2)}" y="${top}" width="${(i === 0 || i === points.length - 1 ? bandWidth / 2 : bandWidth).toFixed(2)}" height="${height}" tabindex="0"><title>${e(p.date)} · 当日 ${e(p.count ?? 0)} 篇 · 阅读中位数 ${e(reviewNumber(p.reads_24h))} · CTR 中位数 ${e(reviewNumber(p.ctr_24h, "ctr"))}</title></rect>`).join("");
-  return `<div class="review-chart"><div class="review-chart-legend"><span class="reads">${small ? "阅读" : "阅读中位数"}</span><span class="ctr">${small ? "CTR" : "CTR 中位数"}</span>${small ? "" : '<span class="review-note">独立纵轴 · 悬停或聚焦查看当日篇数</span>'}</div><svg viewBox="0 0 ${width} ${bottom + 36}" role="img" aria-label="阅读和 CTR 趋势，两条线分别按各自纵轴绘制"><line class="review-axis" x1="${left}" x2="${right}" y1="${bottom}" y2="${bottom}"/>${lines}${dots}${hover}${labels}</svg><div class="review-chart-scale"><span>阅读轴 0 – ${e(reviewNumber(max("reads_24h")))}</span><span>CTR 轴 0 – ${e(reviewNumber(max("ctr_24h"), "ctr"))}</span></div></div>`;
+  return `<div class="review-chart"><div class="review-chart-legend"><span class="reads">${small ? "阅读" : "阅读中位数"}</span><span class="ctr">${small ? "CTR" : "CTR 中位数"}</span>${small ? "" : '<span class="review-note">独立纵轴 · 悬停或聚焦查看当日篇数</span>'}</div><svg viewBox="0 0 ${width} ${bottom + 36}" role="img" aria-label="阅读和 CTR 趋势，两条线分别按各自纵轴绘制"><line class="review-axis" x1="${left}" x2="${right}" y1="${bottom}" y2="${bottom}"/>${lines}${dots}${hover}${labels2}</svg><div class="review-chart-scale"><span>阅读轴 0 – ${e(reviewNumber(max("reads_24h")))}</span><span>CTR 轴 0 – ${e(reviewNumber(max("ctr_24h"), "ctr"))}</span></div></div>`;
 }
 function sampleFor(row, data2) {
   const reference = row.reference_article_id == null ? null : (data2.benchmarkArticles || []).find((item) => item.account === row.account && String(item.id) === String(row.reference_article_id));
@@ -12912,8 +13186,8 @@ function evidence(value) {
   if (value === null || value === void 0 || value === "") return "—";
   if (typeof value !== "object") return String(value);
   if (!value.metric) return "—";
-  const labels = { ctr: "CTR", ctr_24h: "CTR", reads: "阅读", reads_24h: "阅读", completion_rate: "完读率", completion_24h: "完读率", avg_read_seconds: "平均阅读时长" };
-  const key = value.metric, label3 = labels[key] || key;
+  const labels2 = { ctr: "CTR", ctr_24h: "CTR", reads: "阅读", reads_24h: "阅读", completion_rate: "完读率", completion_24h: "完读率", avg_read_seconds: "平均阅读时长" };
+  const key = value.metric, label3 = labels2[key] || key;
   return `命中 ${reviewNumber(value.n_with)} 篇，${label3} ${reviewNumber(value.with_median, key)}；未命中 ${reviewNumber(value.n_without)} 篇，${label3} ${reviewNumber(value.without_median, key)}`;
 }
 function ruleCard(rule, index = "", historical = false) {
@@ -13995,7 +14269,7 @@ function conflictEvidence(document2, conflict) {
 function queueRows(document2, queue, runtime2, refresh, requests) {
   const root2 = document2.createDocumentFragment();
   if (!queue.operations.length && !queue.conflicts.length) root2.append(textNode(document2, "p", "暂无待处理内容。"));
-  const labels = {
+  const labels2 = {
     queued: "等待同步",
     sending: "待同步",
     unknown: "结果待核对",
@@ -14007,7 +14281,7 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
     const item = textNode(
       document2,
       "p",
-      `${operation2.needs_upgrade ? "需新版" : labels[operation2.status] || "等待同步"} · ${readable(operation2.local)}`,
+      `${operation2.needs_upgrade ? "需新版" : labels2[operation2.status] || "等待同步"} · ${readable(operation2.local)}`,
       "offline-queue-row"
     );
     if (operation2.error) item.append(textNode(document2, "span", " · " + operation2.error));
@@ -14032,13 +14306,13 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
       continue;
     }
     if (conflict.resolution) {
-      const labels2 = {
+      const labels3 = {
         queued: "选择已存本机，正在核对线上结果。",
         conflict: "新保存有冲突，请核对下方的新比较内容。",
         blocked: "新保存暂未完成，原文与选择仍保留。",
         paused: "需联网核实后继续，原文与选择仍保留。"
       };
-      item.append(textNode(document2, "p", labels2[conflict.resolution.state] || "正在核对线上结果。"));
+      item.append(textNode(document2, "p", labels3[conflict.resolution.state] || "正在核对线上结果。"));
       root2.append(item);
       continue;
     }
@@ -14223,10 +14497,10 @@ function makeView(pip) {
   notesInput.placeholder = "写下一点想说的话…";
   notesInput.setAttribute("aria-label", "碎碎念内容");
   notesInput.rows = 5;
-  const labels = node(doc, "fieldset", "", "floating-labels");
-  labels.append(node(doc, "legend", "标签（可多选）"));
+  const labels2 = node(doc, "fieldset", "", "floating-labels");
+  labels2.append(node(doc, "legend", "标签（可多选）"));
   const options3 = node(doc, "div");
-  labels.append(options3);
+  labels2.append(options3);
   const noteMessage = node(doc, "p", "", "floating-message");
   noteMessage.setAttribute("role", "status");
   const noteActions = node(doc, "div", "", "floating-actions");
@@ -14239,7 +14513,7 @@ function makeView(pip) {
   retry.type = "button";
   retry.hidden = true;
   noteActions.append(send, check, retry);
-  notes.append(noteList, newNote, notesInput, labels, noteMessage, noteActions);
+  notes.append(noteList, newNote, notesInput, labels2, noteMessage, noteActions);
   main.append(head, tabs, offline, todo, notes);
   doc.body.replaceChildren(main);
   return {
@@ -14254,7 +14528,7 @@ function makeView(pip) {
     noteList,
     newNote,
     notesInput,
-    labels,
+    labels: labels2,
     options: options3,
     noteMessage,
     send,
@@ -15402,9 +15676,9 @@ async function submitAccountForm({ form, data: data2, values }) {
   const profile = String(data2.profile_url || "").trim();
   const body2 = id2 ? { name: data2.name.trim(), active: values.has("active") } : {};
   if (profile || id2 && (state.accountProfiles || []).some((row) => row.account_id === id2)) body2.profile_url = profile;
-  const signature = JSON.stringify(body2);
-  if (form.accountSaveSignature !== signature) {
-    form.accountSaveSignature = signature;
+  const signature2 = JSON.stringify(body2);
+  if (form.accountSaveSignature !== signature2) {
+    form.accountSaveSignature = signature2;
     form.accountSaveKey = crypto.randomUUID();
   }
   const saved = await api(id2 ? `/accounts/${encodeURIComponent(id2)}` : "/accounts", {

@@ -605,7 +605,7 @@ export function createOfflineRuntime(options) {
     },
     queue: context.queue, resolve: context.resolve, invalidate: context.invalidate, state: context.state,
     localRead: async path => (await context.cache.read(path)).data,
-    retainDrafts: drafts.capture, retainedDrafts: drafts.list, discardNoteDraft: drafts.discardNote, flushDrafts: drafts.flush,
+    retainDrafts: drafts.capture, retainedDrafts: drafts.list, retainedDraftRecords: drafts.records, purgeVerifiedNoteDrafts: drafts.purgeVerified, purgeUserDeletedNoteDrafts: drafts.purgeUserDeleted, discardUnsentNoteDraft: drafts.discardUnsent, flushDrafts: drafts.flush,
     subscribe(callback) { context.listeners.add(callback); callback({...context.state}); return () => context.listeners.delete(callback); }};
 }
 

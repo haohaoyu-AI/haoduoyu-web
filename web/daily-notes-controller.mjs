@@ -12,7 +12,7 @@ import {renderLogin} from './pages/login.mjs';
 import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
 import {isLocalDocument} from './offline/document.mjs';
 import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offline/conflict-draft-guards.mjs';
-import {createDraftRevisionTracker, unchangedEntrySinceSnapshot, uniqueRetainedDrafts, visibleRetainedDrafts} from './offline/retained-drafts.mjs';
+import {createDraftRevisionTracker, unchangedEntrySinceSnapshot, uniqueRetainedDrafts} from './offline/retained-drafts.mjs';
 
 let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
@@ -54,7 +54,7 @@ function captureNotesDrafts(legacy, entries, category) {
   if (!offline || !hydrationReady.has(entries) || entryIdentities.get(entries) !== notesIdentityNow()) return;
   const rows = [];
   for (const [kind, values] of [['legacy', legacy.pages.values()], ['note_entry', entries.entries.values()]]) for (const item of values)
-    rows.push({kind, category, ...Object.fromEntries(draftFields.filter(key => item[key] !== undefined).map(key => [key, item[key]]))});
+    if (!item.discarding) rows.push({kind, category, ...Object.fromEntries(draftFields.filter(key => item[key] !== undefined).map(key => [key, item[key]]))});
   return offline.retainDrafts(rows);
 }
 async function hydrateNotesDrafts(legacy, entries, category) {
@@ -108,16 +108,29 @@ async function visibleArchive() {
   const identity = notesIdentityNow(), revision = notesDraftRevision;
   if (visibleArchiveFlight?.identity === identity && visibleArchiveFlight.revision === revision) return visibleArchiveFlight.promise;
   const promise = (async () => {
-    const rows = await archivedDrafts();
-    const controller = new AbortController();
-    let timer;
-    const visible = await Promise.race([
-      visibleRetainedDrafts(rows, id => apiNetwork('/note-entries/' + encodeURIComponent(id),
-        {headers: {'X-Note-Labels-Version': '3'}, suppressAuthRedirect: true, signal: controller.signal}),
-        () => !controller.signal.aborted),
-      new Promise(resolve => { timer = setTimeout(() => { controller.abort(); resolve(uniqueRetainedDrafts(rows)); }, 2000); })
+    const offline = getOfflineRuntime();
+    if (!offline) return [];
+    const snapshots = await offline.retainedDraftRecords('note_entry');
+    const controller = new AbortController(), tombstones = new Map();
+    const active = () => !controller.signal.aborted && identity === notesIdentityNow();
+    const ids = [...new Set(snapshots.map(row => row.data?.id).filter(id => /^[a-f0-9-]{36}$/i.test(id || '')))];
+    let timer, next = 0;
+    await Promise.race([
+      Promise.all(Array.from({length: Math.min(6, ids.length)}, async () => {
+        while (active() && next < ids.length) {
+          const id = ids[next++];
+          try { tombstones.set(id, await apiNetwork('/note-entries/' + encodeURIComponent(id),
+            {headers: {'X-Note-Labels-Version': '3'}, suppressAuthRedirect: true, signal: controller.signal})); }
+          catch { /* Unverified drafts remain recoverable. */ }
+        }
+      })),
+      new Promise(resolve => { timer = setTimeout(() => { controller.abort(); resolve(); }, 2000); })
     ]).finally(() => clearTimeout(timer));
-    return identity === notesIdentityNow() ? visible : [];
+    if (active()) {
+      try { await offline.purgeVerifiedNoteDrafts(snapshots, tombstones, active); }
+      catch { /* Storage failure or changed identity leaves drafts intact. */ }
+    }
+    return identity === notesIdentityNow() ? uniqueRetainedDrafts(await archivedDrafts()) : [];
   })();
   visibleArchiveFlight = {identity, revision, promise};
   try { return await promise; } finally { if (visibleArchiveFlight?.promise === promise) visibleArchiveFlight = null; }
@@ -248,6 +261,32 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
       put: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body}),
       remove: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'DELETE', body}),
       restore: (id, body, options) => noteRequest('/note-entries/' + encodeURIComponent(id) + '/restore', {...options, method: 'POST', body}),
+      prepareDelete: async item => {
+        const offline = getOfflineRuntime();
+        if (!offline?.state.scope || expected !== notesIdentityNow() || !hydrationReady.has(entries)) return null;
+        await offline.flushDrafts();
+        if (expected !== notesIdentityNow()) throw new Error('身份已变化');
+        const row = {kind:'note_entry', category, ...Object.fromEntries(
+          draftFields.filter(key => item[key] !== undefined).map(key => [key, structuredClone(item[key])]))};
+        return {row, snapshots:await offline.retainedDraftRecords('note_entry')};
+      },
+      finishDelete: async ({row, snapshots}, result) => {
+        const offline = getOfflineRuntime();
+        if (offline && expected === notesIdentityNow()) {
+          await offline.flushDrafts();
+          await offline.purgeUserDeletedNoteDrafts(row, snapshots, result, () => expected === notesIdentityNow());
+          scheduleArchiveRefresh(expected, true);
+        }
+      },
+      discardUnsent: async item => {
+        const offline = getOfflineRuntime();
+        if (!offline?.state.scope || expected !== notesIdentityNow() || !hydrationReady.has(entries))
+          throw new Error('本机草稿暂不可用');
+        await offline.flushDrafts();
+        if (expected !== notesIdentityNow()) throw new Error('身份已变化');
+        await offline.discardUnsentNoteDraft({kind:'note_entry', category, ...Object.fromEntries(
+          draftFields.filter(key => item[key] !== undefined).map(key => [key, item[key]]))});
+      },
       onChange: changed, onSaved: () => { changed(); scheduleArchiveRefresh(expected, true); }
     });
     entryIdentities.set(entries, expected);

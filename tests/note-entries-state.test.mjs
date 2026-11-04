@@ -170,3 +170,35 @@ test('timestamp uses actual server creation in Shanghai and compatibility copy i
   assert.equal(noteEntryTime('2026-10-24T16:03:00Z'), '00:03'); assert.equal(noteEntryTime(null), '');
   assert.match(renderDailyNotes(), /原有记录/); assert.doesNotMatch(renderDailyNotes(), /未自动分析或分类/);
 });
+
+test('deleting holds input while local evidence is captured and preserves a composer if cleanup fails', async () => {
+  const gate = deferred(); let fail = true;
+  const store = createNoteEntriesStore({category:'life', manualSave:true,
+    load:async date => ({category:'life', date, can_edit:true, entries:[]}),
+    discardUnsent:async () => { await gate.promise; if (fail) throw Error('synthetic storage failure'); },
+  });
+  await store.read(day); const item = store.start(day); store.edit(item.id, 'keep this draft');
+  const deleting = store.deleteEntry(item.id);
+  store.edit(item.id, 'must not replace while deleting');
+  assert.equal(item.draft, 'keep this draft');
+  gate.resolve(); await deleting;
+  assert.equal(store.entry(item.id).draft, 'keep this draft');
+  assert.equal(item.phase, 'error');
+  fail = false; await store.deleteEntry(item.id);
+  assert.equal(store.entry(item.id), undefined);
+});
+
+test('confirmed server deletion invokes cleanup using evidence captured before request', async () => {
+  const id='00000000-0000-4000-8000-000000000001';
+  const original={id, category:'life', date:day, text:'server text', version:1, deleted:false, can_edit:true,
+    created_at:stamp, updated_at:stamp, content_hash:'a'.repeat(64), labels_version:3, labels:[]};
+  let order=[];
+  const store=createNoteEntriesStore({category:'life', manualSave:true, multiLabels:true,
+    load:async date => ({category:'life', date, can_edit:true, entries:[original]}),
+    prepareDelete:async item => {order.push('prepare'); return {draft:item.draft};},
+    remove:async () => {order.push('delete'); return {...original, deleted:true, version:2};},
+    finishDelete:async (captured, response) => {assert.equal(captured.draft,'unsaved edit'); assert.equal(response.deleted,true); order.push('finish');},
+  });
+  await store.read(day); store.edit(id, 'unsaved edit'); await store.deleteEntry(id);
+  assert.deepEqual(order,['prepare','delete','finish']);
+});
