@@ -51,6 +51,7 @@ try {
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.History.Tests/Haoduoyu.History.Tests.csproj', '--configuration', 'Release') -LogName 'todo-history-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Ledger.Tests/Haoduoyu.Ledger.Tests.csproj', '--configuration', 'Release') -LogName 'article-ledger-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Verification.Tests/Haoduoyu.Verification.Tests.csproj', '--configuration', 'Release') -LogName 'article-verification-tests.log'
+    Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.View.Tests/Haoduoyu.View.Tests.csproj', '--configuration', 'Release') -LogName 'article-ledger-view-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Search.Tests/Haoduoyu.Search.Tests.csproj', '--configuration', 'Release') -LogName 'local-search-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Archive.Tests/Haoduoyu.Archive.Tests.csproj', '--configuration', 'Release') -LogName 'history-archive-tests.log'
     Invoke-CheckedDotnet -Arguments @('build', 'Haoduoyu.Windows/Haoduoyu.Windows.csproj', '--configuration', 'Release', '-p:ContinuousIntegrationBuild=true') -LogName 'windows-build.log'
@@ -93,6 +94,7 @@ try {
         todo_history_tests = 'passed'
         article_ledger_tests = 'passed'
         article_verification_tests = 'passed'
+        article_ledger_view_tests = 'passed'
         synthetic_windows_tests = 'passed'
         windows_build = 'passed'
         windows_publish = 'passed'
@@ -122,7 +124,7 @@ try {
         production_api_acceptance = 'not_run'
         installed = $false
         published = $false
-        test_logs = @('core-tests.log', 'api-tests.log', 'worker-contract-tests.log', 'complete-read-contract-tests.log', 'native-form-contract-tests.log', 'ai-report-contract-tests.log', 'unicode-receipt-contract-tests.log', 'article-pipeline-form-contract-tests.log', 'article-reconciliation-contract-tests.log', 'todo-history-contract-tests.log', 'article-ledger-contract-tests.log', 'article-verification-contract-tests.log', 'offline-profile-tests.log', 'offline-download-tests.log', 'todo-history-tests.log', 'article-ledger-tests.log', 'article-verification-tests.log', 'local-search-tests.log', 'history-archive-tests.log', 'windows-build.log', 'windows-native-tests.log', 'windows-publish.log')
+        test_logs = @('core-tests.log', 'api-tests.log', 'worker-contract-tests.log', 'complete-read-contract-tests.log', 'native-form-contract-tests.log', 'ai-report-contract-tests.log', 'unicode-receipt-contract-tests.log', 'article-pipeline-form-contract-tests.log', 'article-reconciliation-contract-tests.log', 'todo-history-contract-tests.log', 'article-ledger-contract-tests.log', 'article-verification-contract-tests.log', 'offline-profile-tests.log', 'offline-download-tests.log', 'todo-history-tests.log', 'article-ledger-tests.log', 'article-verification-tests.log', 'article-ledger-view-tests.log', 'local-search-tests.log', 'history-archive-tests.log', 'windows-build.log', 'windows-native-tests.log', 'windows-publish.log')
     }
     $manifestPath = Join-Path $deliveryRoot 'package-manifest.json'
     $packageManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM

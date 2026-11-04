@@ -22,6 +22,7 @@ public sealed partial class MainWindow
     {
         articleLedgerIdentity = null; articleLedgerFilters = NewArticleLedgerFilters();
         articleLedgerPageSize = 50; articleLedgerServerMode = null; articlePage = 1; articleStatus = "published";
+        ResetArticleLedgerPreferences();
     }
     private ArticleLedgerQuery ArticleLedgerSelection(IReadOnlyDictionary<string, string>? fields = null, int? pageNumber = null, string? pageSize = null)
     {
@@ -40,6 +41,7 @@ public sealed partial class MainWindow
             articleLedgerIdentity = currentIdentity;
         }
         var identity = currentIdentity; var scope = Engine.Snapshot.ScopeId;
+        await LoadArticleLedgerPreferencesAsync(identity, scope);
         var query = ArticleLedgerSelection(); var path = query.ToPath();
         var serverMode = articleLedgerServerMode ?? connected;
         JsonObject? envelope; string? readError = null; var fresh = false;
@@ -83,6 +85,9 @@ public sealed partial class MainWindow
             ? $"本机文章未决 {pending} 项（全台账）；本机排队、草稿及未知结果未并入服务端筛选页的统计。打开记录后仍需核对原保存，不会解除围栏。"
             : $"本机文章未决 {pending} 项（全台账）。本机视图可能包含未同步意图，不代表服务器已确认；未下载资料不作为缺失或零指标。"));
         RenderArticleLedgerFilters(state, identity, scope);
+        var tableHost = new StackPanel();
+        JsonObject[] presentationRows = [];
+        RenderArticleLedgerViewControls(identity, scope, () => RenderArticleLedgerTable(tableHost, presentationRows, identity, scope));
         if (readError is { Length: > 0 }) page.Children.Add(Label(readError));
         if (envelope is null)
         {
@@ -120,7 +125,9 @@ public sealed partial class MainWindow
         var next = Button("下一页", async () =>
         { EnsureArticleLedgerOwner(identity, scope); articlePage = checked(articlePage + 1); await NavigateAsync("文章台账"); });
         next.IsEnabled = more && articlePage < int.MaxValue; paging.Children.Add(next);
-        List(rows.OfType<JsonObject>().Select(row => (Text(row, "title"), ArticleLedgerSubtitle(row), (Func<Task>)(() => OpenArticleLedgerRowAsync(row, identity, scope)))));
+        presentationRows = rows.OfType<JsonObject>().Select(row => (JsonObject)row.DeepClone()).ToArray();
+        page.Children.Add(tableHost);
+        RenderArticleLedgerTable(tableHost, presentationRows, identity, scope);
     }
 
     private void RenderArticleLedgerFilters(WorkspaceState state, string? identity, string scope)
