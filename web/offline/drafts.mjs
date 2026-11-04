@@ -24,13 +24,9 @@ export function createDraftJournal({db, getScope, getGeneration = () => 0, now =
       for (const row of clean) {
         const identity = row.kind === 'legacy' ? row.category + ':' + row.date : row.id;
         const key = entityKey(owner, 'draft:' + row.kind + ':' + identity + ':' + draftOwner);
-        if (row.kind === 'note_entry' && row.deleted === true && !row.pending) {
-          for (const old of await tx.getAll('meta')) if (old.scope === owner && old.draft_kind === 'note_entry' && old.data.id === row.id) await tx.delete('meta', old.key);
-        } else if (unresolved(row)) await tx.put('meta', {key, scope: owner, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now()});
+        if (unresolved(row)) await tx.put('meta', {key, scope: owner, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now()});
         else if (row.kind === 'note_entry') {
           await tx.delete('meta', key);
-          for (const old of await tx.getAll('meta')) if (old.scope === owner && old.draft_kind === 'note_entry' &&
-              old.data.id === row.id && old.data.draft === row.draft && JSON.stringify(old.data.labels || []) === JSON.stringify(row.labels || []) && !old.data.pending) await tx.delete('meta', old.key);
         }
       }
       active();

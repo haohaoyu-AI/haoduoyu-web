@@ -12,6 +12,7 @@ import {renderLogin} from './pages/login.mjs';
 import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
 import {isLocalDocument} from './offline/document.mjs';
 import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offline/conflict-draft-guards.mjs';
+import {createDraftRevisionTracker, unchangedEntrySinceSnapshot, uniqueRetainedDrafts, visibleRetainedDrafts} from './offline/retained-drafts.mjs';
 
 let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
@@ -34,6 +35,7 @@ const draftFields = ['id', 'date', 'draft', 'version', 'serverText', 'contentHas
 const hydratedDrafts = new WeakMap();
 const hydrationReady = new WeakSet();
 const entryIdentities = new WeakMap();
+const entryDraftRevision = createDraftRevisionTracker();
 const sendFeedbackTimers = new WeakMap();
 function scheduleSendFeedback(entries, expected) {
   for (const item of entries.entries.values()) {
@@ -60,26 +62,24 @@ async function hydrateNotesDrafts(legacy, entries, category) {
   const active = () => expected === notesIdentityNow();
   if (!offline || !active()) return;
   const seen = hydratedDrafts.get(entries) || new Set(); hydratedDrafts.set(entries, seen);
-  const entryDrafts = await offline.retainedDrafts('note_entry');
+  const originals = new Map(entries.entries);
+  const epochs = new Map([...entries.entries].map(([id, item]) => [id, item.writeEpoch]));
+  const revisions = new Map([...entries.entries].map(([id, item]) => [id, entryDraftRevision(item)]));
+  const entryDrafts = await visibleArchive();
   if (!active()) return;
   for (const raw of entryDrafts) {
-    if (raw.category !== category || seen.has(raw.id)) continue;
-    let current;
-    try { current = await apiNetwork('/note-entries/' + encodeURIComponent(raw.id), {headers:{'X-Note-Labels-Version':'3'}}); }
-    catch {} // An unavailable server or a genuinely new draft must remain recoverable.
-    if (!active()) return;
-    if (current?.id === raw.id && current.deleted === true && current.labels_version === 3) {
-      try { await offline.discardNoteDraft(raw.id); }
-      catch { notesDraftError = '已删除记录的本机草稿清理失败，请检查存储空间后重试。'; }
-      seen.add(raw.id); continue;
-    }
+    if (!raw || raw.kind !== 'note_entry' || raw.category !== category || seen.has(raw.id)) continue;
+    const current = entries.entries.get(raw.id);
+    if (current && originals.get(raw.id) !== current) continue;
+    if (!unchangedEntrySinceSnapshot(epochs, raw.id, current, revisions.get(raw.id), current && entryDraftRevision(current))) continue;
     entries.restoreDraft(raw); seen.add(raw.id);
   }
   const legacyDrafts = await offline.retainedDrafts('legacy');
   if (!active()) return;
   for (const raw of legacyDrafts) {
+    if (!raw) continue;
     const key = 'legacy:' + raw.date;
-    if (raw.category !== category || seen.has(key)) continue;
+    if (!raw || raw.category !== category || seen.has(key)) continue;
     const item = legacy.page(raw.date);
     Object.assign(item, {draft: raw.draft, dirty: true, canEdit: false, phase: raw.phase || 'error',
       pending: raw.pending || null, remote: raw.remote || null, error: '保留的原有草稿只读，可导出；不会自动上传。'});
@@ -92,9 +92,42 @@ async function archivedDrafts() {
   const offline = getOfflineRuntime();
   return offline ? [...await offline.retainedDrafts('legacy'), ...await offline.retainedDrafts('note_entry')] : [];
 }
+let visibleArchiveFlight = null, visibleArchiveSequence = 0, visibleArchiveTimer;
+function scheduleArchiveRefresh(expected, force = false) {
+  if (!force && !document.querySelector('#notes-retained-archive')) return;
+  clearTimeout(visibleArchiveTimer);
+  visibleArchiveTimer = setTimeout(async () => {
+    const revision = notesDraftRevision;
+    try { await getOfflineRuntime()?.flushDrafts(); } catch { return; }
+    if (expected !== notesIdentityNow()) return;
+    if (revision !== notesDraftRevision) return scheduleArchiveRefresh(expected, true);
+    await showRetainedArchive();
+  }, 300);
+}
+async function visibleArchive() {
+  const identity = notesIdentityNow(), revision = notesDraftRevision;
+  if (visibleArchiveFlight?.identity === identity && visibleArchiveFlight.revision === revision) return visibleArchiveFlight.promise;
+  const promise = (async () => {
+    const rows = await archivedDrafts();
+    const controller = new AbortController();
+    let timer;
+    const visible = await Promise.race([
+      visibleRetainedDrafts(rows, id => apiNetwork('/note-entries/' + encodeURIComponent(id),
+        {headers: {'X-Note-Labels-Version': '3'}, suppressAuthRedirect: true, signal: controller.signal}),
+        () => !controller.signal.aborted),
+      new Promise(resolve => { timer = setTimeout(() => { controller.abort(); resolve(uniqueRetainedDrafts(rows)); }, 2000); })
+    ]).finally(() => clearTimeout(timer));
+    return identity === notesIdentityNow() ? visible : [];
+  })();
+  visibleArchiveFlight = {identity, revision, promise};
+  try { return await promise; } finally { if (visibleArchiveFlight?.promise === promise) visibleArchiveFlight = null; }
+}
 async function showRetainedArchive() {
-  const expected = notesIdentityNow(), rows = await archivedDrafts(), root = document.querySelector('#daily-notes');
-  if (!root || !notesVisible() || expected !== notesIdentityNow() || !rows.length) return;
+  const expected = notesIdentityNow(), revision = notesDraftRevision, sequence = ++visibleArchiveSequence;
+  const rows = await visibleArchive(), root = document.querySelector('#daily-notes');
+  if (!root || !notesVisible() || expected !== notesIdentityNow() || sequence !== visibleArchiveSequence) return;
+  if (revision !== notesDraftRevision) return scheduleArchiveRefresh(expected, true);
+  if (!rows.length) { root.querySelector('#notes-retained-archive')?.remove(); return; }
   let box = root.querySelector('#notes-retained-archive');
   if (!box) {
     box = document.createElement('details'); box.id = 'notes-retained-archive'; box.className = 'notes-drafts';
@@ -104,17 +137,16 @@ async function showRetainedArchive() {
     const body = document.createElement('div'); body.className = 'notes-retained-texts'; box.append(body);
     box.addEventListener('toggle', async () => {
       if (!box.open || expected !== notesIdentityNow()) return;
-      const current = await archivedDrafts();
-      if (expected !== notesIdentityNow()) return;
-      body.replaceChildren(...current.map(row => {
-        const pre = document.createElement('pre'); pre.textContent =
-          `${row.kind === 'legacy' ? '原有记录' : '条目'} · ${row.category === 'work' ? '工作' : '生活'} · ${row.date}\n${row.draft}`;
-        return pre;
-      }));
+      void showRetainedArchive();
     });
     root.querySelector('#notes-drafts').after(box);
   }
   box.querySelector('summary').textContent = `本机保留草稿（${rows.length} 份，只读）`;
+  if (box.open) box.querySelector('.notes-retained-texts').replaceChildren(...rows.map(row => {
+    const pre = document.createElement('pre'); pre.textContent = row &&
+      `${row.kind === 'legacy' ? '原有记录' : '条目'} · ${row.category === 'work' ? '工作' : '生活'} · ${row.date}\n${row.draft}`;
+    return pre;
+  }));
 }
 async function exportDraftArchive() {
   const expected = notesIdentityNow(), rows = await archivedDrafts();
@@ -186,6 +218,7 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
     const suffix = separator => category === 'work' ? separator + 'category=work' : '';
     const changed = () => {
       if (expected !== notesIdentityNow()) return;
+      for (const item of entries.entries.values()) entryDraftRevision(item);
       scheduleSendFeedback(entries, expected);
       const revision = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
       if (!getOfflineRuntime()?.state.scope && [...entries.entries.values()].some(item => item.dirty)) {
@@ -199,6 +232,8 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
         notesDraftError = '草稿未能保存在本机，请保持页面打开并检查存储空间。'; paintDailyNotesPage();
       });
       paintDailyNotesPage();
+      scheduleArchiveRefresh(expected);
+      return saved;
     };
     const readOnly = async () => { throw Object.assign(new Error('原有逐日记录只读，草稿可导出。'), {code: 'LEGACY_READ_ONLY'}); };
     const legacy = createDailyNotesStore({delay: 400,
@@ -213,7 +248,7 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
       put: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body}),
       remove: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'DELETE', body}),
       restore: (id, body, options) => noteRequest('/note-entries/' + encodeURIComponent(id) + '/restore', {...options, method: 'POST', body}),
-      onChange: changed, onSaved: changed
+      onChange: changed, onSaved: () => { changed(); scheduleArchiveRefresh(expected, true); }
     });
     entryIdentities.set(entries, expected);
     notesStores.set(category, legacy); entryStores.set(category, entries);
