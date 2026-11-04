@@ -112,6 +112,12 @@ internal static partial class NativeWorkflowTests
                 await CloseAsync(window);
                 var previousCalls = handler.Calls;
                 window = await ShowAsync(root, handler);
+                Check(Field<string>(window, "currentIdentity") == "public:" + handler.Scope,
+                    "offline restart opened a different identity than the remembered synthetic public workspace");
+                Check(Field<string>(window, "currentPage") == "待办" && Field<DatePicker>(window, "date").SelectedDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) == Day,
+                    "offline restart selected a different native route or date than the cached synthetic todo path");
+                Check(Engine(window).Snapshot.Cache.TryGetValue("/api/v1/todos?date=" + Day, out var restoredCache) && restoredCache == cached,
+                    "offline restart did not restore the exact cached response in its expected identity and path");
                 Check(VisibleText(window).Contains("合成线上读取后保留的中文待办", StringComparison.Ordinal), "offline restart failed to open the remembered public cache");
                 Check(handler.Calls == previousCalls, "restart silently retried network requests");
                 Check(handler.WriteCalls == 0 && sockets.Connects == 0, "synthetic read workflow performed a write or opened a real socket");
@@ -439,6 +445,7 @@ internal static partial class NativeWorkflowTests
         window.Show();
         await UntilAsync(() => window.IsLoaded && Field<SyncEngine?>(window, "engine") != null, "synthetic native window did not initialize its injected workspace");
         await window.WaitForIdleAsync();
+        window.UpdateLayout(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); window.UpdateLayout();
         Check(window.IsVisible && new WindowInteropHelper(window).Handle != IntPtr.Zero, "workflow did not show an actual native window");
         Check(((SyntheticTestApplication)Application.Current).GuardedStartupCalls == 1, "production app startup was not intercepted by the synthetic host");
         Check(Path.GetFullPath(Field<string>(window, "root")) == Path.GetFullPath(root), "shown window escaped the injected synthetic data root");
@@ -465,6 +472,7 @@ internal static partial class NativeWorkflowTests
         window.UpdateLayout();
         candidates[0].List.SelectedItem = candidates[0].Item;
         await window.WaitForIdleAsync();
+        window.UpdateLayout(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); window.UpdateLayout();
     }
     private static SyncEngine Engine(MainWindow window) => Field<SyncEngine>(window, "engine");
     private static T Field<T>(object instance, string name)
