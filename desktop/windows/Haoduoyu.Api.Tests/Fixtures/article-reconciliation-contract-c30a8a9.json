@@ -1,0 +1,620 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "generated_at": "2026-11-04T22:42:17.488Z",
+  "fixture": "Exact compiled c30 Worker.fetch + existing temporary Miniflare D1; public/account-scoped reads only; synthetic direct-D1 setup; no constraints changed; runtimes disposed",
+  "samples": [
+    {
+      "name": "complete-empty-public-inventory",
+      "method": "GET",
+      "path": "/api/v1/article-reconciliation",
+      "status": 200,
+      "response_json": "{\"data\":{\"complete\":true,\"total\":0,\"counts\":{\"drafting\":0,\"illustrated\":0,\"draft_saved\":0,\"published\":0,\"failed\":0,\"unknown\":0},\"dates\":[],\"schedule\":{\"configured\":false,\"expected\":null,\"missing\":null,\"overdue\":null},\"rows\":[],\"insurance\":{\"basis\":\"explicit_gzh_slot\",\"recorded\":0,\"numbered\":0,\"unique_count\":0,\"highest\":null,\"lowest\":null,\"duplicate_numbers\":[],\"observed_gap_ranges\":[],\"start\":null,\"target\":null,\"sample_mapping\":\"unknown\",\"counts\":{\"drafting\":0,\"illustrated\":0,\"draft_saved\":0,\"published\":0,\"failed\":0,\"unknown\":0}}}}",
+      "allowed_accounts": [
+        "toutiao-haoduoyu"
+      ]
+    },
+    {
+      "name": "complete-public-accounts",
+      "method": "GET",
+      "path": "/api/v1/accounts",
+      "status": 200,
+      "response_json": "{\"data\":[{\"id\":\"toutiao-haoduoyu\",\"platform\":\"toutiao\",\"name\":\"好多鱼\",\"active\":1,\"created_at\":\"2026-11-04T22:42:16.778Z\"}]}"
+    },
+    {
+      "name": "complete-public-inventory",
+      "method": "GET",
+      "path": "/api/v1/article-reconciliation",
+      "status": 200,
+      "response_json": "{\"data\":{\"complete\":true,\"total\":6,\"counts\":{\"drafting\":1,\"illustrated\":0,\"draft_saved\":1,\"published\":1,\"failed\":1,\"unknown\":2},\"dates\":[{\"date\":\"2026-11-01\",\"count\":1},{\"date\":\"2026-11-02\",\"count\":1},{\"date\":\"2026-11-03\",\"count\":1},{\"date\":null,\"count\":3}],\"schedule\":{\"configured\":false,\"expected\":null,\"missing\":null,\"overdue\":null},\"rows\":[{\"id\":\"6e256fed-f99c-4532-951d-4eb9c851bf3d\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC D\",\"status\":\"failed\",\"slot\":\"tt1\",\"writer\":\"gemini_web\",\"run_date\":\"2026-11-03\",\"series_no\":200,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[\"CHAR_COUNT_OUT_OF_RANGE\",\"ENTERTAINMENT_IMAGES_TOO_FEW\"],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"missing_fields\":[]},{\"id\":\"328e3c17-658b-4208-b7b5-0596eaf5e54a\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC B\",\"status\":\"published\",\"slot\":\"gzh\",\"writer\":\"dedao\",\"run_date\":\"2026-11-02\",\"series_no\":4,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[],\"has_pending_verify\":false,\"verify_state\":\"complete\",\"missing_fields\":[]},{\"id\":\"88c57437-e061-4525-b94e-f3c7828b9d41\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC A\",\"status\":\"draft_saved\",\"slot\":\"gzh\",\"writer\":\"human\",\"run_date\":\"2026-11-01\",\"series_no\":4,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[\"DRAFT_CREDENTIAL_MISSING\"],\"has_pending_verify\":true,\"verify_state\":\"pending\",\"missing_fields\":[]},{\"id\":\"aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC E\",\"status\":null,\"slot\":\"gzh\",\"writer\":null,\"run_date\":null,\"series_no\":null,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"missing_fields\":[\"run_date\",\"status\",\"writer\",\"series_no\"]},{\"id\":\"be570790-25d1-4bf6-83b0-8035549d833e\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC C\",\"status\":null,\"slot\":\"gzh\",\"writer\":null,\"run_date\":null,\"series_no\":8,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"missing_fields\":[\"run_date\",\"status\",\"writer\"]},{\"id\":\"ef9c9ba6-6a2c-4fc8-bd62-aa330ce4835d\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC F\",\"status\":\"drafting\",\"slot\":\"zh1\",\"writer\":\"other\",\"run_date\":null,\"series_no\":99,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[],\"has_pending_verify\":false,\"verify_state\":\"complete\",\"missing_fields\":[\"run_date\"]}],\"insurance\":{\"basis\":\"explicit_gzh_slot\",\"recorded\":4,\"numbered\":3,\"unique_count\":2,\"highest\":8,\"lowest\":4,\"duplicate_numbers\":[{\"number\":4,\"article_ids\":[\"328e3c17-658b-4208-b7b5-0596eaf5e54a\",\"88c57437-e061-4525-b94e-f3c7828b9d41\"]}],\"observed_gap_ranges\":[{\"from\":5,\"to\":7}],\"start\":null,\"target\":null,\"sample_mapping\":\"unknown\",\"counts\":{\"drafting\":0,\"illustrated\":0,\"draft_saved\":1,\"published\":1,\"failed\":0,\"unknown\":2}}}}",
+      "allowed_accounts": [
+        "toutiao-haoduoyu"
+      ]
+    },
+    {
+      "name": "complete-owner-accounts",
+      "method": "GET",
+      "path": "/api/v1/accounts",
+      "status": 200,
+      "response_json": "{\"data\":[{\"id\":\"toutiao-haoduoyu\",\"platform\":\"toutiao\",\"name\":\"好多鱼\",\"active\":1,\"created_at\":\"2026-11-04T22:42:16.778Z\"},{\"id\":\"wechat-xiaoyuer\",\"platform\":\"wechat\",\"name\":\"小鱼儿真保鲜\",\"active\":1,\"created_at\":\"2026-11-04T22:42:16.778Z\"},{\"id\":\"zhihu-haoduoyu\",\"platform\":\"zhihu\",\"name\":\"好多鱼\",\"active\":1,\"created_at\":\"2026-11-04T22:42:16.778Z\"}]}"
+    },
+    {
+      "name": "complete-owner-inventory",
+      "method": "GET",
+      "path": "/api/v1/article-reconciliation",
+      "status": 200,
+      "response_json": "{\"data\":{\"complete\":true,\"total\":7,\"counts\":{\"drafting\":2,\"illustrated\":0,\"draft_saved\":1,\"published\":1,\"failed\":1,\"unknown\":2},\"dates\":[{\"date\":\"2026-11-01\",\"count\":1},{\"date\":\"2026-11-02\",\"count\":1},{\"date\":\"2026-11-03\",\"count\":1},{\"date\":null,\"count\":4}],\"schedule\":{\"configured\":false,\"expected\":null,\"missing\":null,\"overdue\":null},\"rows\":[{\"id\":\"6e256fed-f99c-4532-951d-4eb9c851bf3d\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC D\",\"status\":\"failed\",\"slot\":\"tt1\",\"writer\":\"gemini_web\",\"run_date\":\"2026-11-03\",\"series_no\":200,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[\"CHAR_COUNT_OUT_OF_RANGE\",\"ENTERTAINMENT_IMAGES_TOO_FEW\"],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"missing_fields\":[]},{\"id\":\"328e3c17-658b-4208-b7b5-0596eaf5e54a\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC B\",\"status\":\"published\",\"slot\":\"gzh\",\"writer\":\"dedao\",\"run_date\":\"2026-11-02\",\"series_no\":4,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[],\"has_pending_verify\":false,\"verify_state\":\"complete\",\"missing_fields\":[]},{\"id\":\"88c57437-e061-4525-b94e-f3c7828b9d41\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC A\",\"status\":\"draft_saved\",\"slot\":\"gzh\",\"writer\":\"human\",\"run_date\":\"2026-11-01\",\"series_no\":4,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[\"DRAFT_CREDENTIAL_MISSING\"],\"has_pending_verify\":true,\"verify_state\":\"pending\",\"missing_fields\":[]},{\"id\":\"0b414efc-a432-4ea4-9312-7f452af92a65\",\"account_id\":\"zhihu-haoduoyu\",\"title\":\"SYNTHETIC-PRIVATE-ACCOUNT-CANARY\",\"status\":\"drafting\",\"slot\":null,\"writer\":null,\"run_date\":null,\"series_no\":null,\"sample\":null,\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"missing_fields\":[\"run_date\",\"slot\",\"writer\"]},{\"id\":\"aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC E\",\"status\":null,\"slot\":\"gzh\",\"writer\":null,\"run_date\":null,\"series_no\":null,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"missing_fields\":[\"run_date\",\"status\",\"writer\",\"series_no\"]},{\"id\":\"be570790-25d1-4bf6-83b0-8035549d833e\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC C\",\"status\":null,\"slot\":\"gzh\",\"writer\":null,\"run_date\":null,\"series_no\":8,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"missing_fields\":[\"run_date\",\"status\",\"writer\"]},{\"id\":\"ef9c9ba6-6a2c-4fc8-bd62-aa330ce4835d\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC F\",\"status\":\"drafting\",\"slot\":\"zh1\",\"writer\":\"other\",\"run_date\":null,\"series_no\":99,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"warnings\":[],\"has_pending_verify\":false,\"verify_state\":\"complete\",\"missing_fields\":[\"run_date\"]}],\"insurance\":{\"basis\":\"explicit_gzh_slot\",\"recorded\":4,\"numbered\":3,\"unique_count\":2,\"highest\":8,\"lowest\":4,\"duplicate_numbers\":[{\"number\":4,\"article_ids\":[\"328e3c17-658b-4208-b7b5-0596eaf5e54a\",\"88c57437-e061-4525-b94e-f3c7828b9d41\"]}],\"observed_gap_ranges\":[{\"from\":5,\"to\":7}],\"start\":null,\"target\":null,\"sample_mapping\":\"unknown\",\"counts\":{\"drafting\":0,\"illustrated\":0,\"draft_saved\":1,\"published\":1,\"failed\":0,\"unknown\":2}}}}",
+      "allowed_accounts": [
+        "toutiao-haoduoyu",
+        "wechat-xiaoyuer",
+        "zhihu-haoduoyu"
+      ]
+    },
+    {
+      "name": "reconciliation-rejects-query",
+      "method": "GET",
+      "path": "/api/v1/article-reconciliation?date=2026-11-04",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"实际对账接口不接受隐式日期或排期参数\"},\"request_id\":\"b4da5877-ab90-40fb-ba85-46bb9787cf43\"}"
+    },
+    {
+      "name": "complete-null-status-detail",
+      "method": "GET",
+      "path": "/api/v1/articles/be570790-25d1-4bf6-83b0-8035549d833e",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"be570790-25d1-4bf6-83b0-8035549d833e\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成 PUBLIC C\",\"url\":null,\"platform_article_id\":null,\"published_at\":null,\"started_at\":null,\"production_mode\":\"unknown\",\"summary\":\"\",\"notes\":\"\",\"version\":1,\"created_at\":\"2026-11-04T00:00:00Z\",\"updated_at\":\"2026-11-04T00:00:00Z\",\"status\":null,\"slot\":\"gzh\",\"run_dir\":null,\"run_date\":null,\"series_no\":8,\"writer\":null,\"illustrator\":null,\"char_count\":null,\"subheading_count\":null,\"image_count\":null,\"cover_desc\":null,\"account_name\":\"好多鱼\",\"platform\":\"toutiao\",\"latest_metrics\":null,\"latest_as_of\":null,\"latest_collected_at\":null,\"duration_seconds\":null,\"sample\":{\"synthetic_future\":{\"zero\":0,\"nullable\":null,\"text\":\"原始样本 😀\",\"tiny\":1e-7,\"big\":100000000000000000000}},\"draft_ref\":null,\"timings\":null,\"reruns\":null,\"blockers\":null,\"verify_items\":[{\"done\":1,\"text\":\"合成未知状态\"}],\"topic\":\"entertainment\",\"topic_source\":\"inferred\",\"date_status\":\"not_published\",\"snapshot_status\":\"not_applicable\",\"missing_metrics\":[],\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"recorded_by\":null,\"last_modified_by\":null,\"observations\":[],\"nodes\":[{\"kind\":\"d1\",\"snapshot\":null,\"due_at\":null,\"status\":\"not_collected\"},{\"kind\":\"d3\",\"snapshot\":null,\"due_at\":null,\"status\":\"not_collected\"},{\"kind\":\"d7\",\"snapshot\":null,\"due_at\":null,\"status\":\"not_collected\"},{\"kind\":\"latest\",\"snapshot\":null,\"due_at\":null,\"status\":\"not_collected\"}],\"timeline\":[]}}"
+    }
+  ],
+  "filters": [
+    {
+      "filter": {},
+      "expected_ids": [
+        "6e256fed-f99c-4532-951d-4eb9c851bf3d",
+        "328e3c17-658b-4208-b7b5-0596eaf5e54a",
+        "88c57437-e061-4525-b94e-f3c7828b9d41",
+        "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+        "be570790-25d1-4bf6-83b0-8035549d833e",
+        "ef9c9ba6-6a2c-4fc8-bd62-aa330ce4835d"
+      ],
+      "expected_counts": {
+        "drafting": 1,
+        "illustrated": 0,
+        "draft_saved": 1,
+        "published": 1,
+        "failed": 1,
+        "unknown": 2
+      }
+    },
+    {
+      "filter": {
+        "AccountId": "toutiao-haoduoyu"
+      },
+      "expected_ids": [
+        "6e256fed-f99c-4532-951d-4eb9c851bf3d",
+        "328e3c17-658b-4208-b7b5-0596eaf5e54a",
+        "88c57437-e061-4525-b94e-f3c7828b9d41",
+        "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+        "be570790-25d1-4bf6-83b0-8035549d833e",
+        "ef9c9ba6-6a2c-4fc8-bd62-aa330ce4835d"
+      ],
+      "expected_counts": {
+        "drafting": 1,
+        "illustrated": 0,
+        "draft_saved": 1,
+        "published": 1,
+        "failed": 1,
+        "unknown": 2
+      }
+    },
+    {
+      "filter": {
+        "Status": "unknown"
+      },
+      "expected_ids": [
+        "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+        "be570790-25d1-4bf6-83b0-8035549d833e"
+      ],
+      "expected_counts": {
+        "drafting": 0,
+        "illustrated": 0,
+        "draft_saved": 0,
+        "published": 0,
+        "failed": 0,
+        "unknown": 2
+      }
+    },
+    {
+      "filter": {
+        "RunDate": "unknown"
+      },
+      "expected_ids": [
+        "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+        "be570790-25d1-4bf6-83b0-8035549d833e",
+        "ef9c9ba6-6a2c-4fc8-bd62-aa330ce4835d"
+      ],
+      "expected_counts": {
+        "drafting": 1,
+        "illustrated": 0,
+        "draft_saved": 0,
+        "published": 0,
+        "failed": 0,
+        "unknown": 2
+      }
+    },
+    {
+      "filter": {
+        "Slot": "gzh"
+      },
+      "expected_ids": [
+        "328e3c17-658b-4208-b7b5-0596eaf5e54a",
+        "88c57437-e061-4525-b94e-f3c7828b9d41",
+        "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+        "be570790-25d1-4bf6-83b0-8035549d833e"
+      ],
+      "expected_counts": {
+        "drafting": 0,
+        "illustrated": 0,
+        "draft_saved": 1,
+        "published": 1,
+        "failed": 0,
+        "unknown": 2
+      }
+    },
+    {
+      "filter": {
+        "Writer": "unknown"
+      },
+      "expected_ids": [
+        "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+        "be570790-25d1-4bf6-83b0-8035549d833e"
+      ],
+      "expected_counts": {
+        "drafting": 0,
+        "illustrated": 0,
+        "draft_saved": 0,
+        "published": 0,
+        "failed": 0,
+        "unknown": 2
+      }
+    },
+    {
+      "filter": {
+        "Query": "public a"
+      },
+      "expected_ids": [
+        "88c57437-e061-4525-b94e-f3c7828b9d41"
+      ],
+      "expected_counts": {
+        "drafting": 0,
+        "illustrated": 0,
+        "draft_saved": 1,
+        "published": 0,
+        "failed": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "filter": {
+        "HasWarnings": true
+      },
+      "expected_ids": [
+        "6e256fed-f99c-4532-951d-4eb9c851bf3d",
+        "88c57437-e061-4525-b94e-f3c7828b9d41"
+      ],
+      "expected_counts": {
+        "drafting": 0,
+        "illustrated": 0,
+        "draft_saved": 1,
+        "published": 0,
+        "failed": 1,
+        "unknown": 0
+      }
+    },
+    {
+      "filter": {
+        "HasPendingVerify": true
+      },
+      "expected_ids": [
+        "88c57437-e061-4525-b94e-f3c7828b9d41"
+      ],
+      "expected_counts": {
+        "drafting": 0,
+        "illustrated": 0,
+        "draft_saved": 1,
+        "published": 0,
+        "failed": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "filter": {
+        "HasPendingVerify": false
+      },
+      "expected_ids": [
+        "328e3c17-658b-4208-b7b5-0596eaf5e54a",
+        "ef9c9ba6-6a2c-4fc8-bd62-aa330ce4835d"
+      ],
+      "expected_counts": {
+        "drafting": 1,
+        "illustrated": 0,
+        "draft_saved": 0,
+        "published": 1,
+        "failed": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "filter": {
+        "PendingUnknownOnly": true
+      },
+      "expected_ids": [
+        "6e256fed-f99c-4532-951d-4eb9c851bf3d",
+        "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+        "be570790-25d1-4bf6-83b0-8035549d833e"
+      ],
+      "expected_counts": {
+        "drafting": 0,
+        "illustrated": 0,
+        "draft_saved": 0,
+        "published": 0,
+        "failed": 1,
+        "unknown": 2
+      }
+    },
+    {
+      "filter": {
+        "Slot": "gzh",
+        "Status": "unknown"
+      },
+      "expected_ids": [
+        "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+        "be570790-25d1-4bf6-83b0-8035549d833e"
+      ],
+      "expected_counts": {
+        "drafting": 0,
+        "illustrated": 0,
+        "draft_saved": 0,
+        "published": 0,
+        "failed": 0,
+        "unknown": 2
+      }
+    }
+  ],
+  "synthetic_source_reducer_case": {
+    "data": {
+      "complete": true,
+      "total": 6,
+      "counts": {
+        "drafting": 1,
+        "illustrated": 0,
+        "draft_saved": 1,
+        "published": 1,
+        "failed": 0,
+        "unknown": 3
+      },
+      "dates": [
+        {
+          "date": "2026-11-01",
+          "count": 1
+        },
+        {
+          "date": "2026-11-02",
+          "count": 1
+        },
+        {
+          "date": "2026-11-03",
+          "count": 1
+        },
+        {
+          "date": null,
+          "count": 3
+        }
+      ],
+      "schedule": {
+        "configured": false,
+        "expected": null,
+        "missing": null,
+        "overdue": null
+      },
+      "rows": [
+        {
+          "id": "6e256fed-f99c-4532-951d-4eb9c851bf3d",
+          "account_id": "toutiao-haoduoyu",
+          "title": "合成 PUBLIC D",
+          "status": "synthetic_future_status",
+          "slot": "tt1",
+          "writer": "gemini_web",
+          "run_date": "2026-11-03",
+          "series_no": 200,
+          "sample": {
+            "synthetic_future": {
+              "zero": 0,
+              "nullable": null,
+              "text": "原始样本 😀",
+              "tiny": 1e-7,
+              "big": 100000000000000000000
+            }
+          },
+          "warnings": [
+            "CHAR_COUNT_OUT_OF_RANGE",
+            "ENTERTAINMENT_IMAGES_TOO_FEW"
+          ],
+          "has_pending_verify": null,
+          "verify_state": "unknown",
+          "missing_fields": []
+        },
+        {
+          "id": "328e3c17-658b-4208-b7b5-0596eaf5e54a",
+          "account_id": "toutiao-haoduoyu",
+          "title": "合成 PUBLIC B",
+          "status": "published",
+          "slot": "gzh",
+          "writer": "dedao",
+          "run_date": "2026-11-02",
+          "series_no": 4,
+          "sample": {
+            "synthetic_future": {
+              "zero": 0,
+              "nullable": null,
+              "text": "原始样本 😀",
+              "tiny": 1e-7,
+              "big": 100000000000000000000
+            }
+          },
+          "warnings": [],
+          "has_pending_verify": false,
+          "verify_state": "complete",
+          "missing_fields": []
+        },
+        {
+          "id": "88c57437-e061-4525-b94e-f3c7828b9d41",
+          "account_id": "toutiao-haoduoyu",
+          "title": "合成 PUBLIC A",
+          "status": "draft_saved",
+          "slot": "gzh",
+          "writer": "human",
+          "run_date": "2026-11-01",
+          "series_no": 4,
+          "sample": {
+            "synthetic_future": {
+              "zero": 0,
+              "nullable": null,
+              "text": "原始样本 😀",
+              "tiny": 1e-7,
+              "big": 100000000000000000000
+            }
+          },
+          "warnings": [
+            "DRAFT_CREDENTIAL_MISSING"
+          ],
+          "has_pending_verify": true,
+          "verify_state": "pending",
+          "missing_fields": []
+        },
+        {
+          "id": "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+          "account_id": "toutiao-haoduoyu",
+          "title": "合成 PUBLIC E",
+          "status": null,
+          "slot": "gzh",
+          "writer": null,
+          "run_date": null,
+          "series_no": null,
+          "sample": {
+            "synthetic_future": {
+              "zero": 0,
+              "nullable": null,
+              "text": "原始样本 😀",
+              "tiny": 1e-7,
+              "big": 100000000000000000000
+            }
+          },
+          "warnings": [],
+          "has_pending_verify": null,
+          "verify_state": "unknown",
+          "missing_fields": [
+            "run_date",
+            "status",
+            "writer",
+            "series_no"
+          ]
+        },
+        {
+          "id": "be570790-25d1-4bf6-83b0-8035549d833e",
+          "account_id": "toutiao-haoduoyu",
+          "title": "合成 PUBLIC C",
+          "status": null,
+          "slot": "gzh",
+          "writer": null,
+          "run_date": null,
+          "series_no": 8,
+          "sample": {
+            "synthetic_future": {
+              "zero": 0,
+              "nullable": null,
+              "text": "原始样本 😀",
+              "tiny": 1e-7,
+              "big": 100000000000000000000
+            }
+          },
+          "warnings": [],
+          "has_pending_verify": null,
+          "verify_state": "unknown",
+          "missing_fields": [
+            "run_date",
+            "status",
+            "writer"
+          ]
+        },
+        {
+          "id": "ef9c9ba6-6a2c-4fc8-bd62-aa330ce4835d",
+          "account_id": "toutiao-haoduoyu",
+          "title": "合成 PUBLIC F",
+          "status": "drafting",
+          "slot": "zh1",
+          "writer": "other",
+          "run_date": null,
+          "series_no": 99,
+          "sample": {
+            "synthetic_future": {
+              "zero": 0,
+              "nullable": null,
+              "text": "原始样本 😀",
+              "tiny": 1e-7,
+              "big": 100000000000000000000
+            }
+          },
+          "warnings": [],
+          "has_pending_verify": false,
+          "verify_state": "complete",
+          "missing_fields": [
+            "run_date"
+          ]
+        }
+      ],
+      "insurance": {
+        "basis": "explicit_gzh_slot",
+        "recorded": 4,
+        "numbered": 3,
+        "unique_count": 2,
+        "highest": 8,
+        "lowest": 4,
+        "duplicate_numbers": [
+          {
+            "number": 4,
+            "article_ids": [
+              "328e3c17-658b-4208-b7b5-0596eaf5e54a",
+              "88c57437-e061-4525-b94e-f3c7828b9d41"
+            ]
+          }
+        ],
+        "observed_gap_ranges": [
+          {
+            "from": 5,
+            "to": 7
+          }
+        ],
+        "start": null,
+        "target": null,
+        "sample_mapping": "unknown",
+        "counts": {
+          "drafting": 0,
+          "illustrated": 0,
+          "draft_saved": 1,
+          "published": 1,
+          "failed": 0,
+          "unknown": 2
+        }
+      }
+    },
+    "unknown_ids": [
+      "6e256fed-f99c-4532-951d-4eb9c851bf3d",
+      "aa8eb9c7-2fee-4ab2-8af5-e3e58b535f7e",
+      "be570790-25d1-4bf6-83b0-8035549d833e"
+    ],
+    "not_an_http_response": true
+  },
+  "unicode_budget_case": {
+    "template": {
+      "id": "6e256fed-f99c-4532-951d-4eb9c851bf3d",
+      "account_id": "toutiao-haoduoyu",
+      "title": "合成 PUBLIC D",
+      "status": "drafting",
+      "slot": null,
+      "writer": null,
+      "run_date": null,
+      "series_no": null,
+      "sample": {
+        "synthetic_future": {
+          "zero": 0,
+          "nullable": null,
+          "text": "原始样本 😀",
+          "tiny": 1e-7,
+          "big": 100000000000000000000
+        }
+      },
+      "warnings": [],
+      "has_pending_verify": null,
+      "verify_state": "unknown",
+      "missing_fields": [
+        "run_date",
+        "slot",
+        "writer"
+      ]
+    },
+    "ids": [
+      "4fbafbe3-71f8-4671-bded-d93fba2e83c0",
+      "24fb4e0f-a5d7-4990-8c84-e58a995e4d3e",
+      "39d43c55-38d6-4430-bf3f-ac06ac1ff58b",
+      "781c7f3e-e972-41ed-82c6-80edd9f2cb91",
+      "993366a1-f5a2-4857-a189-d1adf29fbadf",
+      "7b322254-e4b7-415d-81bd-4198e33bcba6",
+      "9ff13804-a644-4890-87ec-c20b15949f98",
+      "2f8d2b4f-6210-40a1-9706-5a9ab7d4ae8f",
+      "c0e72739-24fc-4214-a1f3-c1a691e4047c",
+      "b0bb642d-79c4-490e-972d-938828fe19a7",
+      "a8a1c6df-e26b-4427-bb19-fcef9e0ef1a1",
+      "cf49626a-747d-479e-bae6-55012ff60410",
+      "c296df1b-c5d8-423c-94ca-b98050d48f2f",
+      "13e48f20-3236-4e8c-8c17-f524c46f2311",
+      "7a00011c-19fa-4938-beb6-9437c0c13311",
+      "9f65ec3e-21a0-45ac-aabe-864d2274c0e1",
+      "44270702-72e7-4ed2-8451-95e435ed54b8",
+      "6907fe38-2ec9-44da-a458-291c34a6e39b",
+      "e80b3b77-25b2-4933-a870-96a78cd3a025",
+      "1d6917f3-bbb4-49c9-b781-54f316c8e21b",
+      "212f137b-1742-4047-b040-f8a46b647b21",
+      "7d1e7207-6c4a-43fc-bf88-aa117c54a950",
+      "0bb365a7-4b5c-42fb-9913-346cfd60e009",
+      "7ead84e2-4325-4ee7-8b0d-ce2211a269c0"
+    ],
+    "repeats": 6000,
+    "source_js_rows_bytes": 1017121,
+    "summary_without_rows": {
+      "complete": true,
+      "total": 24,
+      "counts": {
+        "drafting": 24,
+        "illustrated": 0,
+        "draft_saved": 0,
+        "published": 0,
+        "failed": 0,
+        "unknown": 0
+      },
+      "dates": [
+        {
+          "date": null,
+          "count": 24
+        }
+      ],
+      "schedule": {
+        "configured": false,
+        "expected": null,
+        "missing": null,
+        "overdue": null
+      },
+      "insurance": {
+        "basis": "explicit_gzh_slot",
+        "recorded": 0,
+        "numbered": 0,
+        "unique_count": 0,
+        "highest": null,
+        "lowest": null,
+        "duplicate_numbers": [],
+        "observed_gap_ranges": [],
+        "start": null,
+        "target": null,
+        "sample_mapping": "unknown",
+        "counts": {
+          "drafting": 0,
+          "illustrated": 0,
+          "draft_saved": 0,
+          "published": 0,
+          "failed": 0,
+          "unknown": 0
+        }
+      }
+    }
+  }
+}

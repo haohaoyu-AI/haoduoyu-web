@@ -173,6 +173,7 @@ public sealed partial class MainWindow
     }
     private async Task ArticlesAsync(WrapPanel bar)
     {
+        bar.Children.Add(Button("查看发布对账", ArticleReconciliationAsync));
         foreach (var (value, label) in new[] { ("published", "已发布"), ("drafting", "起草中"), ("illustrated", "已配图"), ("draft_saved", "草稿已存"), ("failed", "受阻") })
         {
             var statusValue = value;

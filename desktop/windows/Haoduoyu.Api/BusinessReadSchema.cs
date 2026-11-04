@@ -110,7 +110,7 @@ internal static class BusinessReadSchema
                 Array(value["accounts"]); Array(value["trend"]); Array(value["publication_trend"]); Array(value["attention_articles"]); Array(value["due_reviews"]); Object(value["totals"]); Object(value["data_status"]);
             }
             else if (route == "/api/v1/article-reconciliation")
-            { var value = Object(data); True(value["complete"]); Integer(value["total"]); Rows(value["rows"], row => { Identifier(row["id"]); Text(row["title"]); }); Object(value["counts"]); Array(value["dates"]); Object(value["insurance"]); }
+                _ = ArticleReconciliation.Parse(result.Json);
             else if (route.StartsWith("/api/v1/review/", StringComparison.Ordinal)) Review(route, Object(data));
             else if (route.StartsWith("/api/v1/workbench-snapshot", StringComparison.Ordinal)) WorkbenchSnapshot(route, Object(data));
             else if (route.StartsWith("/api/v1/snapshot", StringComparison.Ordinal)) DailySnapshot(route, Object(data));
@@ -129,7 +129,7 @@ internal static class BusinessReadSchema
     private static void Article(JsonObject row, bool index)
     {
         Identifier(row["id"]); Identifier(row["account_id"]); Text(row["title"]); Text(row["platform"]);
-        if (!index) { Version(row["version"]); if (!row.ContainsKey("status")) Invalid(); if (row["status"] is not null) Choice(row["status"], "drafting", "illustrated", "draft_saved", "published", "failed"); }
+        if (!index) { Version(row["version"]); if (!row.ContainsKey("status")) Invalid(); if (row["status"] is not null) Text(row["status"]); }
     }
     private static void DatesPage(JsonObject value)
     { foreach (var date in Array(value["dates"])) Date(date); var more = Boolean(value["has_more"]); if (!value.ContainsKey("next_before") || more && value["next_before"] is null) Invalid(); if (value["next_before"] is not null) Date(value["next_before"]); }

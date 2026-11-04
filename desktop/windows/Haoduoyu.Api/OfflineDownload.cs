@@ -55,6 +55,11 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
             dateCount = days.Length;
             if (dateCount > limits.MaxDates) throw Incomplete("日期超过完整下载预算");
 
+            stage = "核对文章对账与运营账号";
+            var articleAccounts = await FetchArticleAccounts();
+            var (reconciliationEnvelope, reconciliation) = await GetReconciliation(articleAccounts);
+            var reconciliationObservedAt = clock().ToUniversalTime();
+
             stage = "核对离线回收站";
             await FetchRecycle(days, first, expectedScopeId);
 
@@ -63,7 +68,7 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
             stage = "下载 AI 汇报";
             await FetchAiReports();
             stage = "下载文章台账";
-            await FetchArticles();
+            await FetchArticles(reconciliation);
             stage = "下载日常资料";
             foreach (var day in days) await FetchDay(day, today);
             await FetchShared();
@@ -79,6 +84,11 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
                     }
 
             stage = "核对完整下载";
+            // The reconciliation route has no server revision. These bookends detect changed
+            // inventories; they do not turn the intervening reads into a transaction or prevent ABA.
+            var (_, lastReconciliation) = await GetReconciliation(articleAccounts);
+            if (!JsonNode.DeepEquals(reconciliation.Data, lastReconciliation.Data))
+                throw Incomplete("下载期间文章对账资料已变化");
             var barrier = Data(await Get("/api/v1/review/articles?offset=0&read_revision=" + Number(revision)));
             if (Revision(barrier) != revision) throw Incomplete("下载期间业务资料已变化");
             var last = VerifyIndex(await Get("/api/v1/workbench-snapshot/index?version=2"), expectedScopeId);
@@ -87,7 +97,15 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
                 BeijingDay(clock()) != today || last.ServerDay != first.ServerDay)
                 throw Incomplete("下载期间工作区、资料或日期已变化");
             cancellationToken.ThrowIfCancellationRequested();
+            reconciliationEnvelope["_local_reconciliation"] = new JsonObject
+            {
+                ["scope_id"] = expectedScopeId,
+                ["account_ids"] = new JsonArray(articleAccounts.Order(StringComparer.Ordinal).Select(x => (JsonNode?)JsonValue.Create(x)).ToArray()),
+                ["observed_at_utc"] = reconciliationObservedAt.ToString("O", CultureInfo.InvariantCulture)
+            };
+            Add("/api/v1/article-reconciliation", reconciliationEnvelope);
             stage = "完整下载已核对"; Report();
+            cancellationToken.ThrowIfCancellationRequested();
             return new(expectedScopeId, first.ManifestHash, new ReadOnlyDictionary<string, string>(cache),
                 dateCount, records.Count, requests, bytes);
         }
@@ -207,9 +225,28 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
                     throw Incomplete("删除记录原始时间无效");
         }
 
-        private async Task FetchArticles()
+        private async Task<HashSet<string>> FetchArticleAccounts()
+        {
+            const string path = "/api/v1/accounts";
+            var envelope = await Get(path); var rows = Array(Data(envelope));
+            CountRows("accounts", rows);
+            var ids = rows.Select(x => SafeId(Object(x), "id")).ToHashSet(StringComparer.Ordinal);
+            Add(path, envelope); return ids;
+        }
+
+        private async Task<(JsonObject Envelope, ArticleReconciliationSnapshot Snapshot)> GetReconciliation(IReadOnlySet<string> allowedAccounts)
+        {
+            ArticleReconciliationSnapshot? snapshot = null;
+            // Validate the original wire JSON so surrogate escaping cannot change the server's
+            // one-MiB row budget when native nodes are serialized again.
+            var envelope = await Get("/api/v1/article-reconciliation", raw => snapshot = ArticleReconciliation.Parse(raw, allowedAccounts));
+            return (envelope, snapshot ?? throw Incomplete("完整文章对账缺失"));
+        }
+
+        private async Task FetchArticles(ArticleReconciliationSnapshot reconciliation)
         {
             var rows = new JsonArray(); var ids = new HashSet<string>(StringComparer.Ordinal);
+            var inventory = reconciliation.Rows.ToDictionary(x => SafeId(x, "id"), StringComparer.Ordinal);
             foreach (var status in ArticleStatuses)
             {
                 long? total = null; long read = 0;
@@ -227,18 +264,49 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
                     foreach (var value in items)
                     {
                         var row = Object(value); var id = SafeId(row, "id");
-                        if (!ids.Add(id) || String(row["status"]) != status) throw Incomplete("文章跨页重复或状态不一致");
+                        if (!ids.Add(id) || String(row["status"]) != status || !inventory.TryGetValue(id, out var recorded))
+                            throw Incomplete("文章分页重复、状态不一致或不在完整对账中");
+                        VerifyArticleMetadata(recorded, row);
                         Record("articles/" + id);
                         var detailPath = "/api/v1/articles/" + id; var detailEnvelope = await Get(detailPath);
                         var detail = Object(Data(detailEnvelope));
-                        if (SafeId(detail, "id") != id || String(detail["status"]) != status) throw Incomplete("文章详情身份或状态已变化");
+                        VerifyArticleMetadata(recorded, detail);
+                        // Every list property is also present on the full detail route. Refuse
+                        // changes outside the reconciliation's smaller metadata projection too.
+                        if (row.Any(field => !detail.ContainsKey(field.Key) || !JsonNode.DeepEquals(field.Value, detail[field.Key])))
+                            throw Incomplete("文章列表与详情内容已变化");
                         Add(detailPath, detailEnvelope); rows.Add(row.DeepClone()); read++;
                     }
                     if (!more) { if (read != total) throw Incomplete("文章分页没有读全"); break; }
                 }
             }
+            foreach (var recorded in reconciliation.Rows)
+            {
+                var id = SafeId(recorded, "id");
+                var known = recorded["status"] is JsonValue status && status.TryGetValue<string>(out var text) && ArticleStatuses.Contains(text, StringComparer.Ordinal);
+                if (known)
+                {
+                    if (!ids.Contains(id)) throw Incomplete("文章分页缺少完整对账中的已知状态文章");
+                    continue;
+                }
+                // /articles defaults to published and only accepts the five known states.
+                // Null and future state strings therefore require explicit detail reads.
+                if (!ids.Add(id)) throw Incomplete("文章完整对账重复");
+                Record("articles/" + id);
+                var path = "/api/v1/articles/" + id; var envelope = await Get(path);
+                var detail = Object(Data(envelope)); VerifyArticleMetadata(recorded, detail);
+                Add(path, envelope); rows.Add(detail.DeepClone());
+            }
+            if (ids.Count != reconciliation.Total) throw Incomplete("文章台账与完整对账数量不一致");
             Add("/api/v1/articles", new JsonObject { ["data"] = rows,
                 ["meta"] = new JsonObject { ["total"] = rows.Count, ["has_more"] = false } });
+        }
+
+        private static void VerifyArticleMetadata(JsonObject recorded, JsonObject actual)
+        {
+            foreach (var field in new[] { "id", "account_id", "title", "status", "slot", "writer", "run_date", "series_no", "sample", "warnings", "has_pending_verify", "verify_state" })
+                if (!actual.ContainsKey(field) || !JsonNode.DeepEquals(recorded[field], actual[field]))
+                    throw Incomplete("文章对账与列表或详情元资料不一致");
         }
 
         private async Task FetchAiReports()
@@ -302,7 +370,7 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
             foreach (var (name, field, idField) in new[]
             {
                 ("todo-templates", "items", "id"), ("unscheduled-todos", "items", "id"),
-                ("accounts", "", "id"), ("account-profiles", "", "account_id"),
+                ("account-profiles", "", "account_id"),
                 ("observations", "", "id"), ("daily-metrics", "", "id")
             })
             {
@@ -344,7 +412,7 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
             }
         }
 
-        private async Task<JsonObject> Get(string path)
+        private async Task<JsonObject> Get(string path, Action<string>? validateRaw = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (++requests > limits.MaxRequests) throw Incomplete("请求次数超过完整下载预算");
@@ -352,7 +420,12 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
             cancellationToken.ThrowIfCancellationRequested();
             if (result.StatusCode != 200) throw new ApiCallException("完整下载中止，未替换任何本机资料（HTTP " + result.StatusCode + "）。", result.StatusCode, result.RequestId);
             var size = Encoding.UTF8.GetByteCount(result.Json); wireBytes += size;
-            var responseLimit = path.Split('?')[0] == "/api/v1/ai-reports" ? WorkbenchApi.MaximumAiReportsResponseBytes : WorkbenchApi.MaximumResponseBytes;
+            var responseLimit = path.Split('?')[0] switch
+            {
+                "/api/v1/ai-reports" => WorkbenchApi.MaximumAiReportsResponseBytes,
+                "/api/v1/article-reconciliation" when path == "/api/v1/article-reconciliation" => WorkbenchApi.MaximumReconciliationResponseBytes,
+                _ => WorkbenchApi.MaximumResponseBytes
+            };
             if (size > responseLimit || wireBytes > (long)limits.MaxCacheBytes * 4)
                 throw Incomplete("响应大小超过完整下载预算");
             try
@@ -360,6 +433,7 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
                 using var document = JsonDocument.Parse(result.Json); CheckProperties(document.RootElement);
                 var envelope = JsonNode.Parse(result.Json) as JsonObject ?? throw Incomplete("响应不是完整 JSON 对象");
                 if (envelope["data"] is not (JsonArray or JsonObject)) throw Incomplete("响应没有完整业务数据");
+                validateRaw?.Invoke(result.Json);
                 Report(); return envelope;
             }
             catch (JsonException error) { throw new InvalidDataException("完整下载响应损坏；本机原资料未改变。", error); }

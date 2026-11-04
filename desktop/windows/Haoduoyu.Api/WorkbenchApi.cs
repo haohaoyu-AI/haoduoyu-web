@@ -28,6 +28,7 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
     public static Uri ServiceOrigin { get; } = new("https://haoduoyu.xyz/");
     public const int MaximumResponseBytes = 1_048_576;
     public const int MaximumAiReportsResponseBytes = 4_194_304;
+    public const int MaximumReconciliationResponseBytes = 4_194_304;
     private readonly CookieContainer cookies = new();
     private readonly HttpClient client;
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -199,7 +200,12 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
         if (bodyJson is not null && Encoding.UTF8.GetByteCount(bodyJson) > MaximumResponseBytes)
             throw new ArgumentException("请求超过本机大小上限，请保留草稿。");
         using var request = new HttpRequestMessage(new HttpMethod(method), new Uri(ServiceOrigin, path));
-        var responseLimit = method == "GET" && path.Split('?')[0] == "/api/v1/ai-reports" ? MaximumAiReportsResponseBytes : MaximumResponseBytes;
+        var responseLimit = method == "GET" ? path.Split('?')[0] switch
+        {
+            "/api/v1/ai-reports" => MaximumAiReportsResponseBytes,
+            "/api/v1/article-reconciliation" => MaximumReconciliationResponseBytes,
+            _ => MaximumResponseBytes
+        } : MaximumResponseBytes;
         request.Headers.Add("Origin", ServiceOrigin.GetLeftPart(UriPartial.Authority));
         if (path.StartsWith("/api/v1/note-", StringComparison.Ordinal))
             request.Headers.Add("X-Note-Labels-Version", "3");

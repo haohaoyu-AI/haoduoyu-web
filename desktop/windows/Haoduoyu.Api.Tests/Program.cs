@@ -39,6 +39,11 @@ if (args is ["--article-pipeline-form-contract", var articlePipelineFixturePath]
     await ArticlePipelineContract.RunAsync(articlePipelineFixturePath);
     return;
 }
+if (args is ["--article-reconciliation-contract", var reconciliationFixturePath])
+{
+    await ReconciliationContract.RunAsync(reconciliationFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);

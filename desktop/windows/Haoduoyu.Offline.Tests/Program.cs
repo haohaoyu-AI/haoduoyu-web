@@ -47,8 +47,24 @@ Check(recycle["data"]!["memo_groups"]!.AsArray().Count == 1 && recycle["data"]![
 Check(api.Calls.Count(x => x.Path.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal)) == 2 &&
     !result.CacheEntries.Keys.Any(x => x.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal)), "daily snapshots were omitted or duplicated as full cached payloads");
 Check(Parsed(result, "/api/v1/review/articles")["data"]!["items"]!.AsArray().Count == 101, "review pagination truncated at 100");
-Check(Parsed(result, "/api/v1/articles")["data"]!.AsArray().Count == 105, "all five legacy statuses or later pages were omitted");
-Check(Parsed(result, "/api/v1/articles")["data"]!.AsArray().Select(x => x!["status"]!.GetValue<string>()).Distinct().Count() == 5, "legacy default published filter hid drafts");
+var allArticles = Parsed(result, "/api/v1/articles")["data"]!.AsArray();
+Check(allArticles.Count == 107, "known, null or future article states or later pages were omitted");
+Check(allArticles.Where(x => x!["status"] is not null).Select(x => x!["status"]!.GetValue<string>()).Distinct().Count() == 6, "legacy default published filter hid drafts or future states");
+Check(allArticles.Single(x => x!["id"]!.GetValue<string>() == FakeApi.Id(250000))!["status"] is null &&
+    allArticles.Single(x => x!["id"]!.GetValue<string>() == FakeApi.Id(260000))!["status"]!.GetValue<string>() == "future_state",
+    "null or unrecognized article states were invented or normalized");
+Check(allArticles.Single(x => x!["id"]!.GetValue<string>() == FakeApi.Id(260000))!["unknown_nested"]!["arr"]![0]!["unrecognized"]!.GetValue<string>() == "保留😀",
+    "future-state full details lost unknown nested original data");
+var reconciliation = Parsed(result, "/api/v1/article-reconciliation");
+Check(reconciliation["data"]!["total"]!.GetValue<int>() == 107 && reconciliation["data"]!["counts"]!["unknown"]!.GetValue<int>() == 2,
+    "complete reconciliation snapshot or unknown counts were omitted");
+Check(reconciliation["_local_reconciliation"]!["scope_id"]!.GetValue<string>() == scope &&
+    reconciliation["_local_reconciliation"]!["account_ids"]!.AsArray().Select(x => x!.GetValue<string>()).SequenceEqual(["synthetic-account"]) &&
+    DateTimeOffset.Parse(reconciliation["_local_reconciliation"]!["observed_at_utc"]!.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture) == at,
+    "reconciliation lost the observed account set, service scope or read time");
+Check(api.Calls.Count(x => x.Path == "/api/v1/accounts") == 1 && api.Calls.Count(x => x.Path == "/api/v1/article-reconciliation") == 2 &&
+    api.Calls.FindIndex(x => x.Path == "/api/v1/accounts") < api.Calls.FindIndex(x => x.Path == "/api/v1/article-reconciliation") &&
+    !api.Calls.Any(x => x.Path.StartsWith("/api/v1/article-reconciliation?", StringComparison.Ordinal)), "account-bound reconciliation bookends used a partial or implicit query");
 Check(Parsed(result, "/api/v1/review/notes")["data"]!["items"]![0]!["deleted_at"] is not null, "review tombstone was discarded");
 var reviewDetail = Parsed(result, "/api/v1/review/articles/" + FakeApi.Id(10000))["data"]!;
 Check(reviewDetail["unknown_nested"]!["zero"]!.GetValue<int>() == 0 && reviewDetail["unknown_nested"]!["missing"] is null &&
@@ -107,7 +123,8 @@ using (var cancelled = new CancellationTokenSource())
 {
     var cancellationApi = Api(); cancellationApi.Alter = (call, response) => { if (call.Path.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal)) cancelled.Cancel(); return response; };
     await Reject(async () => { await Fetch(cancellationApi, cancellationToken: cancelled.Token); }, "snapshot cancellation returned a partial recycle batch");
-    Check(cancellationApi.Calls.Count == 3, "snapshot cancellation continued downloading later days");
+    Check(cancellationApi.Calls.Count(x => x.Path.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal)) == 1 &&
+        cancellationApi.Calls.Last().Path.StartsWith("/api/v1/workbench-snapshot?date=", StringComparison.Ordinal), "snapshot cancellation continued downloading later days");
 }
 
 foreach (var status in new[] { 403, 409, 413, 503, 206 })
@@ -187,6 +204,51 @@ var oldStatus = Api(); oldStatus.Alter = (call, response) => call.Path.StartsWit
     ? Edit(response, x => x["data"]![0]!["status"] = "published") : response;
 await Reject(async () => { await Fetch(oldStatus); }, "wrong legacy status was accepted");
 
+// The complete reconciliation is the inventory authority; known-state pages cannot add,
+// omit or silently change its records. Unknown states are read through explicit details.
+var foreignReconciliation = Api(); foreignReconciliation.Alter = (call, response) => call.Path == "/api/v1/article-reconciliation"
+    ? Edit(response, x => x["data"]!["rows"]![0]!["account_id"] = "foreign-account") : response;
+await Reject(async () => { await Fetch(foreignReconciliation); }, "foreign account reconciliation was accepted");
+Check(!foreignReconciliation.Calls.Any(x => x.Path.StartsWith("/api/v1/articles?", StringComparison.Ordinal)), "invalid reconciliation fetched unrelated articles");
+var badReconciliationCount = Api(); badReconciliationCount.Alter = (call, response) => call.Path == "/api/v1/article-reconciliation"
+    ? Edit(response, x => x["data"]!["counts"]!["unknown"] = 0) : response;
+await Reject(async () => { await Fetch(badReconciliationCount); }, "invalid reconciliation aggregate was accepted");
+var extraPageArticle = Api(); extraPageArticle.Alter = (call, response) => call.Path == "/api/v1/articles?page=1&page_size=100&status=drafting"
+    ? Edit(response, x => x["data"]![0]!["id"] = FakeApi.Id(299999)) : response;
+await Reject(async () => { await Fetch(extraPageArticle); }, "known page contained an article absent from the full inventory");
+var missingKnownArticle = Api(); missingKnownArticle.Alter = (call, response) => call.Path == "/api/v1/articles?page=1&page_size=100&status=failed"
+    ? Edit(response, x => { x["data"] = new JsonArray(); x["meta"]!["total"] = 0; x["meta"]!["has_more"] = false; }) : response;
+await Reject(async () => { await Fetch(missingKnownArticle); }, "known-state page silently omitted an inventory article");
+var changedPageMetadata = Api(); changedPageMetadata.Alter = (call, response) => call.Path == "/api/v1/articles?page=1&page_size=100&status=drafting"
+    ? Edit(response, x => x["data"]![0]!["title"] = "分页期间改变的标题") : response;
+await Reject(async () => { await Fetch(changedPageMetadata); }, "reconciliation/list metadata disagreement was accepted");
+var changedDetailMetadata = Api(); changedDetailMetadata.Alter = (call, response) => call.Path == "/api/v1/articles/" + FakeApi.Id(200000)
+    ? Edit(response, x => x["data"]!["notes"] = "详情期间改变的正文") : response;
+await Reject(async () => { await Fetch(changedDetailMetadata); }, "list/detail content disagreement was accepted");
+var changedUnknown = Api(); changedUnknown.Alter = (call, response) => call.Path == "/api/v1/articles/" + FakeApi.Id(250000)
+    ? Edit(response, x => x["data"]!["status"] = "published") : response;
+await Reject(async () => { await Fetch(changedUnknown); }, "null-state detail changed state without being rejected");
+var missingUnknown = Api(); missingUnknown.Alter = (call, response) => call.Path == "/api/v1/articles/" + FakeApi.Id(260000)
+    ? new(404, "{\"error\":{\"code\":\"SYNTHETIC_MISSING\"}}") : response;
+await Reject(async () => { await Fetch(missingUnknown); }, "missing future-state detail returned a partial complete batch", 404);
+await Reject(async () => { await Fetch(Api(), new(MaxRequests: api.Calls.FindIndex(x => x.Path == "/api/v1/articles/" + FakeApi.Id(260000)))); },
+    "request budget exhausted while fetching unknown states returned a partial complete batch");
+var changedReconciliation = Api(); changedReconciliation.Alter = (call, response) => call.Path == "/api/v1/article-reconciliation" && call.Occurrence == 2
+    ? Edit(response, x => x["data"]!["rows"]![0]!["title"] = "完整下载期间改变的标题") : response;
+await Reject(async () => { await Fetch(changedReconciliation); }, "changed but structurally valid reconciliation bookend was accepted");
+var oversizedReconciliation = Api(); oversizedReconciliation.Alter = (call, response) => call.Path == "/api/v1/article-reconciliation"
+    ? response with { Json = new string('x', WorkbenchApi.MaximumReconciliationResponseBytes + 1) } : response;
+await Reject(async () => { await Fetch(oversizedReconciliation); }, "reconciliation envelope response budget was ignored");
+var largeReconciliationRows = Api(); largeReconciliationRows.Alter = (call, response) => call.Path == "/api/v1/article-reconciliation"
+    ? Edit(response, x => { foreach (var row in x["data"]!["rows"]!.AsArray()) row!["sample"] = new JsonObject { ["original"] = new string('x', 11000) }; }) : response;
+await Reject(async () => { await Fetch(largeReconciliationRows); }, "reconciliation rows larger than 1 MiB were accepted");
+using (var cancelled = new CancellationTokenSource())
+{
+    var cancellationApi = Api(); cancellationApi.Alter = (call, response) => { if (call.Path == "/api/v1/article-reconciliation" && call.Occurrence == 2) cancelled.Cancel(); return response; };
+    await Reject(async () => { await Fetch(cancellationApi, cancellationToken: cancelled.Token); }, "reconciliation barrier cancellation returned a partial batch");
+    Check(cancellationApi.Calls.Last().Path == "/api/v1/article-reconciliation", "reconciliation cancellation continued later barriers");
+}
+
 var finalRevision = Api(); finalRevision.Alter = (call, response) => call.Path == "/api/v1/review/articles?offset=0&read_revision=7" && call.Occurrence == 2
     ? new(409, "{\"error\":{\"code\":\"READ_REVISION_CHANGED\"}}") : response;
 await Reject(async () => { await Fetch(finalRevision); }, "final revision conflict returned a partial batch", 409);
@@ -239,6 +301,9 @@ var before = JsonSerializer.Serialize(engine.Snapshot);
 var applyFailure = Api(); applyFailure.Alter = finalRevision.Alter;
 await Reject(async () => { var partial = await Fetch(applyFailure); await engine.CacheBatchAsync(partial.CacheEntries); }, "failed download was applied");
 Check(JsonSerializer.Serialize(engine.Snapshot) == before && store.Saves == 0, "failed download changed a cache, draft, operation or revision");
+var reconciliationFailure = Api(); reconciliationFailure.Alter = changedReconciliation.Alter;
+await Reject(async () => { var partial = await Fetch(reconciliationFailure); await engine.CacheBatchAsync(partial.CacheEntries); }, "changed reconciliation was applied");
+Check(JsonSerializer.Serialize(engine.Snapshot) == before && store.Saves == 0, "reconciliation failure changed old cache, draft or pending operation");
 await engine.CacheBatchAsync(result.CacheEntries);
 Check(store.Saves == 1 && engine.Snapshot.LocalRevision == 1, "complete cache batch was not one atomic save");
 Check(engine.Snapshot.Drafts["synthetic-draft"].Text == "合成离线草稿" && engine.Snapshot.Outbox.Single().Status == PendingStatus.Unknown, "complete cache apply changed drafts or pending operations");
@@ -276,6 +341,35 @@ sealed class FakeApi(JsonObject index) : IRemoteApi
         {
             var kind = index["data"]!["entities"]!.AsArray().Count == 0 ? "empty_snapshots" : "snapshots";
             return SnapshotFixture[kind]![q["date"]]!.DeepClone().AsObject();
+        }
+        if (route == "/api/v1/article-reconciliation")
+        {
+            if (q.Count != 0) throw new InvalidOperationException("Reconciliation rejects all query parameters");
+            var rows = new JsonArray();
+            for (var status = 0; status < 7; status++)
+                for (var number = 0; number < (status == 0 ? 101 : 1); number++)
+                {
+                    var article = Legacy(status, number); var row = new JsonObject();
+                    foreach (var field in new[] { "id", "account_id", "title", "status", "slot", "writer", "run_date", "series_no", "sample", "warnings", "has_pending_verify", "verify_state" })
+                        row[field] = article[field]?.DeepClone();
+                    row["missing_fields"] = new JsonArray(new[] { "run_date", "status", "slot", "writer" }
+                        .Where(field => row[field] is null).Select(field => (JsonNode?)JsonValue.Create(field)).ToArray());
+                    rows.Add(row);
+                }
+            var counts = new JsonObject(Statuses.Concat(["unknown"]).Select((status, i) => KeyValuePair.Create<string, JsonNode?>(status, JsonValue.Create(i == 0 ? 101 : i == 5 ? 2 : 1))));
+            return Wrap(new JsonObject
+            {
+                ["complete"] = true, ["total"] = 107, ["rows"] = rows, ["counts"] = counts,
+                ["dates"] = new JsonArray(new JsonObject { ["date"] = null, ["count"] = 107 }),
+                ["schedule"] = new JsonObject { ["configured"] = false, ["expected"] = null, ["missing"] = null, ["overdue"] = null },
+                ["insurance"] = new JsonObject
+                {
+                    ["basis"] = "explicit_gzh_slot", ["recorded"] = 0, ["numbered"] = 0, ["unique_count"] = 0,
+                    ["highest"] = null, ["lowest"] = null, ["duplicate_numbers"] = new JsonArray(), ["observed_gap_ranges"] = new JsonArray(),
+                    ["start"] = null, ["target"] = null, ["sample_mapping"] = "unknown",
+                    ["counts"] = new JsonObject(Statuses.Concat(["unknown"]).Select(status => KeyValuePair.Create<string, JsonNode?>(status, JsonValue.Create(0))))
+                }
+            });
         }
         if (route == "/api/v1/ai-reports")
         {
@@ -351,7 +445,13 @@ sealed class FakeApi(JsonObject index) : IRemoteApi
             ["content_hash"] = new string('a', 64), ["deleted_at"] = kind == 6 ? "2026-11-04T15:00:00Z" : null };
         if (detail) row["unknown_nested"] = Unknown(); return row;
     }
-    private static JsonObject Legacy(int status, int number) => new() { ["id"] = Id(200000 + status * 10000 + number), ["status"] = Statuses[status], ["title"] = "合成旧文章" };
+    private static JsonObject Legacy(int status, int number) => new()
+    {
+        ["id"] = Id(200000 + status * 10000 + number), ["status"] = status < 5 ? Statuses[status] : status == 5 ? null : "future_state",
+        ["title"] = "合成旧文章", ["account_id"] = "synthetic-account", ["slot"] = null, ["writer"] = null,
+        ["run_date"] = null, ["series_no"] = null, ["sample"] = new JsonObject { ["original"] = "原始合成样本😀" },
+        ["warnings"] = new JsonArray(), ["has_pending_verify"] = null, ["verify_state"] = "unknown", ["notes"] = "原始合成记录"
+    };
     private static JsonObject Note(int number) => new() { ["id"] = Id(number), ["date"] = (number - 520000) / 10 == 1 ? "2026-11-04" : "2026-11-05",
         ["category"] = number % 10 == 1 ? "life" : "work", ["version"] = 1, ["text"] = "合成记录", ["unknown_nested"] = Unknown() };
     private static JsonObject Unknown() => new() { ["zero"] = 0, ["missing"] = null, ["arr"] = Rows(new JsonObject { ["unrecognized"] = "保留😀" }) };
