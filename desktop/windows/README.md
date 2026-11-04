@@ -1,6 +1,6 @@
 # 好多鱼 Windows 独立工作台
 
-当前为 **0.2.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
+当前为 **0.3.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
 
 ## 已实现的核心路径
 
@@ -12,6 +12,7 @@
 - 内容复盘总览与趋势、八类持久复盘资源的原生创建与哈希 CAS 编辑，包括指标、报告、规则库及结构化子项、对标资料、笔记和账号健康。
 - AI 汇报完整分页历史、按实际日期筛选、原文阅读/导出与人工补充。稳定 UUID 追加保存，署名必填；已尝试或确认的原记录只读，不调用模型，也不自动生成完成报告。
 - 本机草稿、离线业务清单与详情投影、完整资料准备、持久队列、版本冲突核对、保存回执确认、只读历史分区导出、显式本机备份恢复。
+- 当前身份的跨模块本机检索：缓存、草稿、原请求、实际冻结请求和远端响应证据分别标注，可预览、导出、回原模块或恢复本机稿。不会联网搜索或把缓存摘要作为完整正文。
 
 界面编译通过不等于以上路径均已完成实机或生产 API 验收。默认缓存已访问页面；“准备完整离线资料”会读取已确认工作区的日期索引、所有分页及详情，核对 hash、scope 和全局读取版本后一次性保存。取消、资料变化、坏响应或超过 24MiB/1000 日期等有界预算会整批停止并保留旧缓存，不能把局部页面称为完整。所有生产联网业务测试仍未执行。
 
@@ -22,6 +23,8 @@
 草稿停止输入约 350ms 后先加密保存到本机，切页/正常退出前等待保存完成。Ctrl+S 仅保存本机草稿；“保存并同步”先落盘原请求，再发送。中文组合输入没有自动远端提交。当前整个状态采用加密快照，容量上限 32MiB；超限停止并保留原件，尚无自动归档或大量数据性能保证。
 
 Unknown 不等于失败：不自动重发。notes/memos 可按原 `save_id` 只读核验回执、当前版本与内容 hash。其他未知结果需保守核对；服务端生成 ID 的新文章与无 CAS 的标签操作保持资源围栏，不能用新保存 ID 解除后再次创建/覆盖。409 的本地稿与远端稿分别保留，只在明确选择后创建新 CAS 操作。
+
+显式回退备份会把恢复的 Queued/InFlight 全部持久标为 Unknown：旧备份无法证明请求之后没有发送。恢复时保留损坏主文件、备份原件和草稿来源；来源标记不会被后续自动保存洗掉。恢复的新建文章稿仍可编辑与导出，但须先从台账核对服务器记录，不能直接再次 POST 创建；稳定 ID 的已有记录继续按原版本/hash 校验。
 
 每次发送前核对 scope，在线读取在替换本机缓存前也重核 scope；归属变化时保留原分区且停止替换。现服务端没有原子 expected-scope 前提，配置在多个请求之间变化的窗口仍存在。登录会话/CSRF 和原有服务器授权仍逐请求执行。快照身份服务不可用或超限会暂停发送，不能用旧身份猜测归属。
 
@@ -39,6 +42,7 @@ dotnet run --project Haoduoyu.Api.Tests --configuration Release
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --worker-contract Haoduoyu.Api.Tests/Fixtures/worker-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Profile.Tests --configuration Release
 dotnet run --project Haoduoyu.Offline.Tests --configuration Release
+dotnet run --project Haoduoyu.Search.Tests --configuration Release
 dotnet build Haoduoyu.Windows --configuration Release
 dotnet run --project Haoduoyu.Windows.Tests --configuration Release
 ./scripts/package-windows.ps1

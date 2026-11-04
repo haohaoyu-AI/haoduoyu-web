@@ -33,7 +33,8 @@ internal static partial class NativeWorkflowTests
         ("Shown native offline label creation is selectable in a new note and cancellation keeps dependent work unsent", () => RunWithDispatcher(OfflineLabelNoteDependencyAsync)),
         ("Shown native list virtualizes 5000 data rows and can select and render the last row", () => RunWithDispatcher(VirtualizedNativeListAsync)),
         .. BaselineCases,
-        .. RecoveryCases
+        .. RecoveryCases,
+        .. SearchCases
     ];
 
     private static readonly BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;

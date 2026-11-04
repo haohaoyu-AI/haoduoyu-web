@@ -57,13 +57,13 @@ public sealed partial class MainWindow : Window
         top.Children.Add(Button("回到公开工作区", PublicAsync));
         top.Children.Add(Button("本机工作区", ChooseOfflineProfileAsync));
         top.Children.Add(Button("准备离线资料", PrepareOfflineAsync));
-        var cancelNetwork = new Button { Content = "取消当前联网" };
-        cancelNetwork.Click += (_, _) => { actionCancellation?.Cancel(); Message("正在停止当前联网；已落盘的稿件和未确认请求会保留。"); };
+        var cancelNetwork = new Button { Content = "取消当前操作" };
+        cancelNetwork.Click += (_, _) => { actionCancellation?.Cancel(); Message("正在停止当前操作；已落盘的稿件和未确认请求会保留。"); };
         top.Children.Add(cancelNetwork);
         DockPanel.SetDock(top, Dock.Top); shell.Children.Add(top);
         DockPanel.SetDock(status, Dock.Bottom); shell.Children.Add(status);
         var nav = new StackPanel { Width = 170, Margin = new Thickness(16, 8, 0, 8) };
-        foreach (var name in new[] { "待办", "未安排", "生活记录", "工作记录", "标签", "备忘录", "工作提醒", "AI汇报", "文章台账", "内容复盘", "数据复盘", "回收站", "本机草稿", "同步中心", "本机与恢复" })
+        foreach (var name in new[] { "待办", "未安排", "生活记录", "工作记录", "标签", "备忘录", "工作提醒", "AI汇报", "文章台账", "内容复盘", "数据复盘", "回收站", "本机草稿", "本机检索", "同步中心", "本机与恢复" })
         {
             var target = name;
             nav.Children.Add(Button(name, () => NavigateAsync(target)));
@@ -79,6 +79,7 @@ public sealed partial class MainWindow : Window
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Save, (_, _) => Run(SaveDraftSafelyAsync)));
         InputBindings.Add(new KeyBinding(ApplicationCommands.Save, Key.S, ModifierKeys.Control));
         InputBindings.Add(new KeyBinding(new RelayCommand(() => Run(ConnectAsync)), Key.F5, ModifierKeys.None));
+        InputBindings.Add(new KeyBinding(new RelayCommand(() => Run(() => NavigateAsync("本机检索"))), Key.F, ModifierKeys.Control));
     }
 
     internal async Task WaitForIdleAsync()
@@ -113,7 +114,7 @@ public sealed partial class MainWindow : Window
         page.IsEnabled = false;
         try { await action(); }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
-        { Message("当前联网已取消。已落盘的草稿和未确认请求保留，未自动重放。"); }
+        { Message("当前操作已取消。已落盘的草稿和未确认请求保留，未自动重放。"); }
         catch (Exception error) { Message("操作未完成：" + SafeError(error)); }
         finally
         {
@@ -298,6 +299,7 @@ public sealed partial class MainWindow : Window
             case "AI汇报": await AiReportsAsync(); break;
             case "回收站": await RecycleAsync(); break;
             case "本机草稿": DraftsPage(); break;
+            case "本机检索": await LocalSearchAsync(); break;
             case "同步中心": SyncPage(); break;
             case "本机与恢复": RecoveryPage(); break;
         }

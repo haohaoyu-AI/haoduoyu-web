@@ -19,17 +19,23 @@ public sealed partial class MainWindow
                     var data = JsonNode.Parse(draft.Text)?.AsObject() ?? throw new InvalidDataException("草稿格式无法读取，已保留原文件。");
                     var choice = Choose("本机草稿", draft.Title, "继续编辑", "导出完整副本");
                     if (choice == "继续编辑")
-                    {
-                        if (Text(data, "kind") == "todo" && draft.BaseVersion > 0)
-                        { ShowText("已保存的创建稿", data["values"]?.ToJsonString(new() { WriteIndented = true }) ?? draft.Text); return; }
-                        if (Text(data, "kind") is "unscheduled" or "label-create") await PlanningDraftAsync(Text(data, "kind"), draft.Key);
-                        else if (Text(data, "kind") == "ai-report") await AiReportDraftAsync(draft.Key);
-                        else if (Text(data, "kind").StartsWith("review:", StringComparison.Ordinal)) await ReviewDraftAsync(Text(data, "kind"), draft.Key);
-                        else if (Text(data, "kind") == "history") ShowText("保留的本机历史稿", data["values"]?.ToJsonString(new() { WriteIndented = true }) ?? draft.Text);
-                        else await EditAsync(Text(data, "kind"), data["original"]!.DeepClone().AsObject(), draft.Key);
-                    }
+                        await ContinueDraftAsync(draft.Key);
                     else if (choice == "导出完整副本") await ExportTextAsync("好多鱼本机草稿.txt", draft.Text);
                 }))));
+    }
+    private async Task ContinueDraftAsync(string key)
+    {
+        if (!Engine.Snapshot.Drafts.TryGetValue(key, out var draft)) throw new InvalidOperationException("该本机稿已变化，请重新打开草稿清单。");
+        var data = JsonNode.Parse(draft.Text)?.AsObject() ?? throw new InvalidDataException("草稿格式无法读取，原件保留。");
+        var kind = Text(data, "kind");
+        if (kind == "todo" && draft.BaseVersion > 0)
+        { ShowText("已保存的创建稿", data["values"]?.ToJsonString(new() { WriteIndented = true }) ?? draft.Text); return; }
+        if (kind is "unscheduled" or "label-create") await PlanningDraftAsync(kind, draft.Key);
+        else if (kind == "ai-report") await AiReportDraftAsync(draft.Key);
+        else if (kind.StartsWith("review:", StringComparison.Ordinal)) await ReviewDraftAsync(kind, draft.Key);
+        else if (kind == "history") ShowText("保留的本机历史稿", data["values"]?.ToJsonString(new() { WriteIndented = true }) ?? draft.Text);
+        else if (data["original"] is JsonObject original) await EditAsync(kind, (JsonObject)original.DeepClone(), draft.Key);
+        else throw new InvalidDataException("草稿缺少原始版本，原件保留。");
     }
     private static string StatusLabel(PendingStatus value) => value switch
     {
@@ -304,7 +310,7 @@ public sealed partial class MainWindow
         ClearPage(); api.UsePublicMode(); connected = false; failedIdentity = identity;
         store?.Dispose(); store = null; engine = null; currentIdentity = null;
         using (var recovery = new AtomicWorkspaceStore(root, WorkbenchApi.ServiceOrigin.ToString(), identity, protector))
-            await recovery.RestoreBackupAsync();
+            await Task.Run(() => recovery.RestoreBackupAsync());
         await OpenWorkspaceAsync(identity); await NavigateAsync("本机草稿");
         Message("已恢复上一份加密快照，当前原件保留。恢复的待同步和在途请求均需只读核对，不会自动重发；旧新建文章稿需先核对台账。");
     }

@@ -43,7 +43,7 @@ internal static partial class NativeWorkflowTests
             {
                 Check(Field<string>(window, "currentIdentity") == secondIdentity && DraftText(Engine(window).Snapshot, noteKey) == "乙分区独有的中文恢复稿",
                     "synthetic recovery fixture did not start in the selected private B partition");
-                await ClickAsync(window, "本机恢复");
+                await ClickAsync(window, "本机与恢复");
                 var api = Field<WorkbenchApi>(window, "api"); api.BindScope(secondScope);
                 typeof(MainWindow).GetField("connected", Private)!.SetValue(window, true);
                 // Invoke the same post-confirmation body used by the real recovery button; do not automate a native MessageBox.
@@ -55,7 +55,7 @@ internal static partial class NativeWorkflowTests
                 Check((await File.ReadAllBytesAsync(secondPath)).SequenceEqual(secondPrimary), "settings recovery rewrote the other private business partition");
                 Check(Directory.GetFiles(root, "settings.bin.damaged-*").Any(path => File.ReadAllBytes(path).SequenceEqual(settingsPrimary)),
                     "settings recovery did not preserve the exact replaced configuration");
-                await ClickAsync(window, "本机恢复");
+                await ClickAsync(window, "本机与恢复");
                 await InvokeAsync(window, "RestoreWorkspaceBackupAsync");
                 var restored = Engine(window).Snapshot; var recoveredRevision = restored.BackupRecoveryRevision;
                 Check(Field<string>(window, "currentIdentity") == firstIdentity && recoveredRevision > 0 && restored.BackupRecoveredAt != null,
