@@ -21,13 +21,17 @@ public sealed partial class MainWindow
         page.Children.Add(Label("当前身份的加密历史档案。仅归档从未发出、已被替代且不再被引用的旧请求；最新记录、草稿、未决和已尝试/确认的证据继续保留。档案只读，不会导入可执行队列。"));
         page.Children.Add(Label("归档减小活动工作区中的历史正文，档案和备份仍占磁盘；请保全整个身份目录及 history 子目录。Windows 当前用户加密通常不能直接迁往其他用户或电脑。"));
         page.Children.Add(Button("预览可归档历史", PreviewHistoryArchiveAsync));
+        var archiveId = new TextBox { MaxLength = 36, ToolTip = "档案文件名中的 UUID；只在当前身份目录内核验" };
+        page.Children.Add(Label("可粘贴备份目录中的档案 ID 单独核验；有限扫描不代表其余文件缺失。"));
+        page.Children.Add(archiveId);
+        page.Children.Add(Button("按档案 ID 只读核验", () => OpenHistoryArchiveByIdAsync(archiveId.Text)));
         var target = Engine; var identity = currentIdentity; var archives = OpenHistoryArchiveStore();
         var files = (await Task.Run(() => archives.ListAsync(NetworkToken))).ToList();
         if (!ReferenceEquals(target, engine) || currentIdentity != identity) throw new InvalidOperationException("工作区已变化，本次档案列表未用于其他身份。");
         var references = target.Snapshot.HistoryArchives.ToDictionary(reference => reference.Id, StringComparer.Ordinal);
         foreach (var reference in references.Values)
             if (files.All(file => file.Id != reference.Id)) files.Add(new HistoryArchiveFile
-            { Id = reference.Id, FileName = reference.FileName, Bytes = reference.Bytes, Error = "索引中的档案文件未找到。请从私有完整目录备份核对；程序不会删除索引或重建空档案。" });
+            { Id = reference.Id, FileName = reference.FileName, Bytes = reference.Bytes });
         List(files.Select(file =>
         {
             var known = file.Id != null && references.TryGetValue(file.Id, out var reference) ? reference : null;
@@ -35,13 +39,25 @@ public sealed partial class MainWindow
             var subtitle = file.Error ?? (known == null ? "只读核对来源后可查看；不自动导入或删除" : known.CreatedAt.ToLocalTime().ToString("g") + " · 已登记") + " · " + ByteSize(file.Bytes);
             return (title, subtitle, (Func<Task>)(async () =>
             {
-                if (file.Error != null || file.Id == null) { ShowText("档案文件保留", file.FileName + "\n\n" + file.Error); return; }
+                if (file.Id == null) { ShowText("档案文件保留", file.FileName + "\n\n" + file.Error); return; }
                 var result = known == null
                     ? await Task.Run(() => archives.ReadUnindexedAsync(file.Id, NetworkToken))
                     : new HistoryArchiveReadResult { Reference = known, Document = await Task.Run(() => archives.ReadAsync(known, NetworkToken)) };
                 await ShowHistoryArchiveAsync(result.Reference, result.Document);
             }));
         }));
+    }
+
+    private async Task OpenHistoryArchiveByIdAsync(string input)
+    {
+        if (!Guid.TryParseExact(input.Trim(), "D", out var id) || id == Guid.Empty)
+            throw new InvalidOperationException("请输入档案文件名中的完整 UUID，不填写目录或文件路径。");
+        var canonical = id.ToString("D"); var archives = OpenHistoryArchiveStore();
+        var known = Engine.Snapshot.HistoryArchives.SingleOrDefault(reference => reference.Id == canonical);
+        var result = known == null
+            ? await Task.Run(() => archives.ReadUnindexedAsync(canonical, NetworkToken))
+            : new HistoryArchiveReadResult { Reference = known, Document = await Task.Run(() => archives.ReadAsync(known, NetworkToken)) };
+        await ShowHistoryArchiveAsync(result.Reference, result.Document);
     }
 
     private async Task PreviewHistoryArchiveAsync()
@@ -100,7 +116,7 @@ public sealed partial class MainWindow
             if (text.Length == 0) text = Text(body, "summary");
             if (text.Length > 0) return string.Concat(text.EnumerateRunes().Take(80).Select(rune => rune.ToString()));
         }
-        catch (JsonException) { }
+        catch (Exception error) when (error is JsonException or InvalidOperationException) { }
         return operation.Method + " " + operation.Path;
     }
     private static string ArchiveOperationText(PendingOperation operation) =>

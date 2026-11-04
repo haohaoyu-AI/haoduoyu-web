@@ -90,6 +90,11 @@ internal static partial class NativeWorkflowTests
                 await ClickAsync(window, "历史档案"); await SelectListItemAsync(window, reference.Id[..8]);
                 Check(VisibleText(window).Contains("此页只读", StringComparison.Ordinal), "opened encrypted archive did not identify itself as read-only evidence");
                 await ReadArchivedDialogAsync(window, oldBodies[0], history[0].BodyJson);
+                await ClickAsync(window, "返回历史档案");
+                Descendants(Field<StackPanel>(window, "page")).OfType<TextBox>().Single(box => !box.IsReadOnly).Text = reference.Id.ToUpperInvariant();
+                await ClickAsync(window, "按档案 ID 只读核验");
+                Check(VisibleText(window).Contains("此页只读", StringComparison.Ordinal), "the actual ID verification button did not open the current owner's canonicalized archive");
+                await ReadArchivedDialogAsync(window, oldBodies[1], history[1].BodyJson);
                 Check(Engine(window).Snapshot.Outbox.Count == 3 && Engine(window).Snapshot.Drafts[draftKey].Text == draft.Text,
                     "opening a historical original imported executable work or modified its separate current draft");
                 SaveEvidence(window, "archive-readonly-after-reopen.png");
@@ -97,6 +102,11 @@ internal static partial class NativeWorkflowTests
                 await ClickAsync(window, "历史档案");
                 Check(Engine(window).Snapshot.HistoryArchives.Count == 0 && !VisibleText(window).Contains(reference.Id[..8], StringComparison.Ordinal) &&
                     !VisibleText(window).Contains(oldBodies[0], StringComparison.Ordinal), "another private profile discovered or displayed A's archive");
+                Descendants(Field<StackPanel>(window, "page")).OfType<TextBox>().Single(box => !box.IsReadOnly).Text = reference.Id;
+                await ClickAsync(window, "按档案 ID 只读核验");
+                Check(Field<TextBlock>(window, "heading").Text == "历史档案" && Field<TextBlock>(window, "status").Text.StartsWith("操作未完成", StringComparison.Ordinal) &&
+                    !VisibleText(window).Contains("此页只读", StringComparison.Ordinal) && !VisibleText(window).Contains(oldBodies[0], StringComparison.Ordinal) &&
+                    !VisibleText(window).Contains(oldBodies[1], StringComparison.Ordinal), "entering A's archive ID while in B displayed foreign evidence or failed to reject the scoped read");
                 Check((await File.ReadAllBytesAsync(secondPath)).SequenceEqual(secondBytes) && DraftText(Engine(window).Snapshot, draftKey) == "乙私有草稿不可改写",
                     "archiving or reading A changed B's private workspace or same-key draft");
                 Check(handler.Calls == 0 && sockets.Connects == 0, "local history preview commit or reading issued HTTP or opened a real socket");
