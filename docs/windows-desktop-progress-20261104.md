@@ -27,3 +27,13 @@ API adapter 的最终定向合成套件 **108 项断言通过**，包括固定�
 Windows WPF 产品与 13 项 Windows 合成测试工程已由 Linux 官方 SDK 交叉编译成功，**0 警告、0 错误**。13 项 Windows 检查尚未在 Windows 运行，不计入已通过测试。原生每日待办、生活/工作记录、备忘录、工作提醒、文章表单、离线草稿/同步中心、未安排待办、标签及内容复盘页面为真实 C# 控件与受控请求；内容复盘报告/规则库/对标资料/健康目前只读，不能称全功能写入。具体完整性与剩余限制见 [Windows README](../desktop/windows/README.md)。没有启动或安装到用户电脑。
 
 独立 Windows 构建工作流另行保存并尝试正常写入；先可靠推送产品代码再验证工作流权限。若 GitHub 拒绝工作流写入或运行，不改权限、不换隐蔽发布路径，已推送代码仍保留，明天按正常路径恢复。
+
+## 阶段 3：Windows 首轮与实际 Worker 契约
+
+独立工作流写入已正常成功；`f23d69a1ecfe6e0ae4f726a63f4a62ca120d5f96` 的 Windows 运行 [41868873363](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/41868873363) 成功，强制 Core/API/13 项 Windows 原生合成检查、编译和自包含打包全部通过。这仍不是交互、真实关机或生产写入验收。
+
+额外隔离实测发现初轮模拟没有捕捉的挂载问题，已修为 `/api/v1/note-entries/labels` 与 `/api/v1/note-entries/month`；标签集合排序/NFC、`timings.finished_at` 的服务器规范化也有明确核对。非北京时间当天只读/编辑既有碎碎念，不新增或自动挪动历史新稿。
+
+`c30a8a9` 独立已知源的真实临时 Miniflare D1 + 编译 Worker 共 **53 请求**：40 成功写响应、3 个真实 CAS 409、10 次读取，全部通过 C# 桌面契约校验；另 2 次真实收据/实体哈希确认通过。临时数据全为新建合成记录、外联尝试 0、MF/D1 已销毁。常规 API 合成套件修正后 **112 项断言通过**。详情与精确源码哈希见[净化报告](../desktop/windows/Haoduoyu.Api.Tests/Fixtures/worker-contract-report.json)和[复跑说明](../desktop/windows/Haoduoyu.Api.Tests/Fixtures/README.md)。首轮历史包不作为最终使用包，修正后将走同一正常 Windows 工作流重建。
+
+首轮 artifact 正常下载回本环境被存储端点 **403 Forbidden** 拒绝，已停止该步骤，不换工具/路由，不重试。源码和远端 artifact 仍保留；没有成功的本地 ZIP、独立下载摘要核验或 Library 上传。具体状态与明天操作见[交接说明](windows-desktop-handoff-20261104.md)。

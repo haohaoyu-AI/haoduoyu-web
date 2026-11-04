@@ -86,7 +86,7 @@ public sealed partial class MainWindow
         page.Children.Clear(); heading.Text = "碎碎念标签"; page.Children.Add(heading);
         page.Children.Add(Label("标签归档会隐藏该标签，记录正文保留；可在归档列表恢复。此页面不提供永久删除。生活、工作为内置标签。"));
         page.Children.Add(Button("＋ 新标签", () => PlanningDraftAsync("label-create")));
-        var data = await ReadAsync("/api/v1/note-labels"); Missing(data);
+        var data = await ReadAsync("/api/v1/note-entries/labels"); Missing(data);
         if (data == null) return;
         var archived = Rows(data["archived_labels"]).Select(row => Text(row, "name")).ToHashSet(StringComparer.Ordinal);
         var active = new[] { "生活", "工作" }.Concat(Rows(data["labels"]).Select(row => Text(row, "name")))
@@ -95,13 +95,13 @@ public sealed partial class MainWindow
         List(active.Select(name => (name, "点击后可归档", (Func<Task>)(async () =>
         {
             if (Choose("标签", name, "归档标签") != "归档标签" || !Confirm("归档标签“" + name + "”？不会删除记录正文，可从归档标签恢复。")) return;
-            await QueueAsync("POST", "/api/v1/note-labels", Obj(("name", name), ("action", "archive"), ("save_id", Guid.NewGuid().ToString())), LabelResource(name));
+            await QueueAsync("POST", "/api/v1/note-entries/labels", Obj(("name", name), ("action", "archive"), ("save_id", Guid.NewGuid().ToString())), LabelResource(name));
         }))));
         page.Children.Add(Label("已归档标签"));
         List(archived.Order(StringComparer.Ordinal).Select(name => (name, "已归档 · 点击可恢复", (Func<Task>)(async () =>
         {
             if (Choose("已归档标签", name, "恢复标签") != "恢复标签" || !Confirm("恢复标签“" + name + "”？原记录正文保留。")) return;
-            await QueueAsync("POST", "/api/v1/note-labels", Obj(("name", name), ("action", "restore"), ("save_id", Guid.NewGuid().ToString())), LabelResource(name));
+            await QueueAsync("POST", "/api/v1/note-entries/labels", Obj(("name", name), ("action", "restore"), ("save_id", Guid.NewGuid().ToString())), LabelResource(name));
         }))));
     }
 
@@ -163,7 +163,7 @@ public sealed partial class MainWindow
                 if (name.Length == 0 || name.EnumerateRunes().Count() > 32 || name.Any(char.IsControl) || name is "生活" or "工作")
                     throw new InvalidOperationException("标签须为 1–32 字，不含控制字符，且不能与生活或工作重名。本机草稿保留。");
                 draftDirty = true;
-                await QueueAsync("POST", "/api/v1/note-labels", Obj(("name", name), ("save_id", Guid.NewGuid().ToString())), LabelResource(name));
+                await QueueAsync("POST", "/api/v1/note-entries/labels", Obj(("name", name), ("save_id", Guid.NewGuid().ToString())), LabelResource(name));
             }
         }));
         buttons.Children.Add(Button("保存本机草稿", async () => { draftDirty = true; await SaveDraftSafelyAsync(); }));

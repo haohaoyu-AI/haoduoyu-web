@@ -49,7 +49,7 @@ public sealed partial class MainWindow
         {
             PendingStatus.Unknown when operation.Path == "/api/v1/articles" && operation.Method == "POST" =>
                 new[] { "只读核对保存回执", "查看原请求和响应", "导出原请求" },
-            PendingStatus.Unknown when operation.Path == "/api/v1/note-labels" =>
+            PendingStatus.Unknown when operation.Path == "/api/v1/note-entries/labels" =>
                 new[] { "只读核对保存回执", "查看原请求和响应", "导出原请求" },
             PendingStatus.Unknown => new[] { "只读核对保存回执", "查看远端并保留原请求历史", "查看原请求和响应", "导出原请求" },
             PendingStatus.Conflict => new[] { "读取远端并处理冲突", "查看原请求和响应", "导出原请求" },

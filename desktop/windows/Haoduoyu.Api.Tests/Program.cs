@@ -4,6 +4,12 @@ using System.Text.Json.Nodes;
 using System.Text.Json;
 using Haoduoyu.Api;
 
+if (args is ["--worker-contract", var fixturePath])
+{
+    await WorkerContract.RunAsync(fixturePath);
+    return;
+}
+
 var passed = 0;
 var scope = new string('a', 64);
 var otherScope = new string('b', 64);
@@ -120,6 +126,21 @@ using (var api = new WorkbenchApi(new FakeHandler(request =>
     return Task.FromResult(Json("{\"data\":{\"entries\":[]}}"));
 }))) await api.GetDataAsync(ApiRequests.Notes("life", "2026-11-04"));
 
+using (var api = new WorkbenchApi(new FakeHandler(request =>
+{
+    Check(request.RequestUri!.AbsolutePath == "/api/v1/note-entries/labels" &&
+        request.Headers.GetValues("X-Note-Labels-Version").Single() == "3" &&
+        request.Headers.GetValues("X-Note-Labels-Archive").Single() == "1", "actual mounted labels path sends full version/archive protocol");
+    return Task.FromResult(Json("{\"data\":{\"labels\":[]}}"));
+}))) await api.GetDataAsync("/api/v1/note-entries/labels");
+using (var api = new WorkbenchApi(new FakeHandler(_ => Task.FromResult(Json("{\"data\":{\"days\":[]}}")))))
+{
+    await api.GetDataAsync("/api/v1/note-entries/month?month=2026-11");
+    Check(true, "actual mounted month path allowed");
+    await Throws<ArgumentException>(() => api.GetDataAsync("/api/v1/note-labels"), "unmounted labels alias rejected");
+    await Throws<ArgumentException>(() => api.GetDataAsync("/api/v1/note-month?month=2026-11"), "unmounted month alias rejected");
+}
+
 Check(ApiRequests.CreateTodo(id, "2026-11-04", "  synthetic  ").Body["text"]!.GetValue<string>() == "synthetic", "todo builder canonical trim");
 Check(ApiRequests.SaveNote(id, "life", "2026-11-04", "a\r\nb", 0, saveId).Body["text"]!.GetValue<string>() == "a\nb", "note builder LF normalization");
 Check(!ApiRequests.SaveNote(id, "life", "2026-11-04", "text", 1, saveId).Body.ContainsKey("labels"), "omitted labels preserve existing labels");
@@ -217,17 +238,17 @@ await Throws<JsonException>(() => { MutationVerifier.Validate("PATCH", "/api/v1/
 await Throws<JsonException>(() => { MutationVerifier.Validate("PUT", "/api/v1/review/notes/" + id, "{\"title\":\"text\"}", new JsonObject { ["id"] = id, ["title"] = "text", ["content_hash"] = scope, ["deleted_at"] = "2026-11-04T00:00:00.000Z" }); return Task.CompletedTask; }, "review deleted resource never confirms a save");
 
 var labelTime = "2026-11-04T00:00:00.000Z";
-MutationVerifier.Validate("POST", "/api/v1/note-labels", "{\"name\":\"synthetic\",\"action\":\"archive\"}", new JsonObject { ["name"] = "synthetic", ["archived_at"] = labelTime });
+MutationVerifier.Validate("POST", "/api/v1/note-entries/labels", "{\"name\":\"synthetic\",\"action\":\"archive\"}", new JsonObject { ["name"] = "synthetic", ["archived_at"] = labelTime });
 Check(true, "label archive requires a returned archive timestamp");
-MutationVerifier.Validate("POST", "/api/v1/note-labels", "{\"name\":\"synthetic\",\"action\":\"restore\"}", new JsonObject { ["name"] = "synthetic", ["archived_at"] = null });
+MutationVerifier.Validate("POST", "/api/v1/note-entries/labels", "{\"name\":\"synthetic\",\"action\":\"restore\"}", new JsonObject { ["name"] = "synthetic", ["archived_at"] = null });
 Check(true, "label restore requires explicit cleared archive timestamp");
-MutationVerifier.Validate("POST", "/api/v1/note-labels", "{\"name\":\"synthetic\",\"action\":\"delete\"}", new JsonObject { ["name"] = "synthetic", ["deleted"] = true, ["mode"] = "deleted" });
+MutationVerifier.Validate("POST", "/api/v1/note-entries/labels", "{\"name\":\"synthetic\",\"action\":\"delete\"}", new JsonObject { ["name"] = "synthetic", ["deleted"] = true, ["mode"] = "deleted" });
 Check(true, "custom label delete checks deleted result and mode");
-MutationVerifier.Validate("POST", "/api/v1/note-labels", "{\"name\":\"生活\",\"action\":\"delete\"}", new JsonObject { ["name"] = "生活", ["deleted"] = true, ["mode"] = "builtin-hidden" });
+MutationVerifier.Validate("POST", "/api/v1/note-entries/labels", "{\"name\":\"生活\",\"action\":\"delete\"}", new JsonObject { ["name"] = "生活", ["deleted"] = true, ["mode"] = "builtin-hidden" });
 Check(true, "built-in label delete checks hidden mode");
-await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/note-labels", "{\"name\":\"synthetic\",\"action\":\"archive\"}", new JsonObject { ["name"] = "synthetic", ["archived_at"] = null }); return Task.CompletedTask; }, "label name alone cannot confirm archive");
-await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/note-labels", "{\"name\":\"synthetic\",\"action\":\"restore\"}", new JsonObject { ["name"] = "synthetic" }); return Task.CompletedTask; }, "missing archive state cannot confirm restore");
-await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/note-labels", "{\"name\":\"synthetic\",\"action\":\"delete\"}", new JsonObject { ["name"] = "synthetic", ["deleted"] = false, ["mode"] = "deleted" }); return Task.CompletedTask; }, "label name alone cannot confirm delete");
+await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/note-entries/labels", "{\"name\":\"synthetic\",\"action\":\"archive\"}", new JsonObject { ["name"] = "synthetic", ["archived_at"] = null }); return Task.CompletedTask; }, "label name alone cannot confirm archive");
+await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/note-entries/labels", "{\"name\":\"synthetic\",\"action\":\"restore\"}", new JsonObject { ["name"] = "synthetic" }); return Task.CompletedTask; }, "missing archive state cannot confirm restore");
+await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/note-entries/labels", "{\"name\":\"synthetic\",\"action\":\"delete\"}", new JsonObject { ["name"] = "synthetic", ["deleted"] = false, ["mode"] = "deleted" }); return Task.CompletedTask; }, "label name alone cannot confirm delete");
 
 Console.WriteLine($"API transport: {passed} assertions passed; all HTTP handlers synthetic, no production data requests.");
 

@@ -24,7 +24,7 @@ internal static class RoutePolicy
         ("GET", "/todo-preferences", []), ("PATCH", "/todo-preferences", []),
         ("GET", "/note-entries", ["category", "date"]),
         ("GET", "/note-entries/dates", ["category", "before", "page_size"]),
-        ("GET", "/note-labels", []), ("POST", "/note-labels", []), ("GET", "/note-month", ["month"]),
+        ("GET", "/note-entries/labels", []), ("POST", "/note-entries/labels", []), ("GET", "/note-entries/month", ["month"]),
         ("GET", "/note-entries/(operations/)?" + Uuid, []),
         ("PUT", "/note-entries/" + Uuid, []), ("DELETE", "/note-entries/" + Uuid, []),
         ("POST", "/note-entries/" + Uuid + "/restore", []),

@@ -74,8 +74,10 @@ public sealed partial class MainWindow
     private async Task NotesAsync(WrapPanel bar, string category)
     {
         var day = Day;
-        bar.Children.Add(Button("＋ 新记录", () => NewEditorAsync("note", NewRecord(("category", category), ("date", day), ("text", "")), "/api/v1/note-entries/")));
-        _ = await ReadAsync("/api/v1/note-labels");
+        if (day == BeijingNow().ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture))
+            bar.Children.Add(Button("＋ 新记录", () => NewEditorAsync("note", NewRecord(("category", category), ("date", day), ("text", "")), "/api/v1/note-entries/")));
+        else page.Children.Add(Label("此日期可阅读、编辑已有记录；现服务规则只允许在北京时间当天新增碎碎念。历史新稿会保留，不会自动挪到今天。"));
+        _ = await ReadAsync("/api/v1/note-entries/labels");
         var data = await ReadAsync($"/api/v1/note-entries?category={category}&date={day}"); Missing(data);
         if (data != null && !Flag(data, "can_edit")) page.Children.Add(Label("当前服务身份只允许阅读。离线草稿可保留，服务器会独立检查写权限。"));
         List(Rows(data?["entries"]).Select(row => (Text(row, "text")[..Math.Min(100, Text(row, "text").Length)], Text(row, "updated_at") + " · v" + Version(row),

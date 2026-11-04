@@ -88,7 +88,7 @@ internal static class ReceiptVerifier
         {
             foreach (var pair in body.Where(pair => pair.Key is not ("version" or "save_id")))
             {
-                if (!JsonNode.DeepEquals(pair.Value, remote[pair.Key]))
+                if (!MutationVerifier.Equal(pair.Value, remote[pair.Key], pair.Key))
                     return new(ReconciliationOutcome.Conflict, remoteJson, "远端保存内容与原请求不一致，本地稿已保留。");
             }
         }

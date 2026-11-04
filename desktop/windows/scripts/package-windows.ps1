@@ -35,6 +35,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '无法启动 global.json 指定的官方 .NET SDK。' }
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Core.Tests/Haoduoyu.Core.Tests.csproj', '--configuration', 'Release') -LogName 'core-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Api.Tests/Haoduoyu.Api.Tests.csproj', '--configuration', 'Release') -LogName 'api-tests.log'
+    Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Api.Tests/Haoduoyu.Api.Tests.csproj', '--configuration', 'Release', '--', '--worker-contract', 'Haoduoyu.Api.Tests/Fixtures/worker-contract-c30a8a9.json') -LogName 'worker-contract-tests.log'
     Invoke-CheckedDotnet -Arguments @('build', 'Haoduoyu.Windows/Haoduoyu.Windows.csproj', '--configuration', 'Release', '-p:ContinuousIntegrationBuild=true') -LogName 'windows-build.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Windows.Tests/Haoduoyu.Windows.Tests.csproj', '--configuration', 'Release') -LogName 'windows-native-tests.log'
     Invoke-CheckedDotnet -Arguments @('publish', 'Haoduoyu.Windows/Haoduoyu.Windows.csproj', '--configuration', 'Release', '--runtime', 'win-x64', '--self-contained', 'true', '--output', $publishRoot, '-p:PublishSingleFile=false', '-p:PublishReadyToRun=false', '-p:DebugType=None', '-p:DebugSymbols=false', '-p:ContinuousIntegrationBuild=true') -LogName 'windows-publish.log'
@@ -58,6 +59,7 @@ try {
         native_ui = 'WPF'
         synthetic_core_tests = 'passed'
         synthetic_api_tests = 'passed'
+        synthetic_worker_contract_replay = 'passed'
         synthetic_windows_tests = 'passed'
         windows_build = 'passed'
         windows_publish = 'passed'
@@ -87,7 +89,7 @@ try {
         production_api_acceptance = 'not_run'
         installed = $false
         published = $false
-        test_logs = @('core-tests.log', 'api-tests.log', 'windows-build.log', 'windows-native-tests.log', 'windows-publish.log')
+        test_logs = @('core-tests.log', 'api-tests.log', 'worker-contract-tests.log', 'windows-build.log', 'windows-native-tests.log', 'windows-publish.log')
     }
     $manifestPath = Join-Path $deliveryRoot 'package-manifest.json'
     $packageManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM

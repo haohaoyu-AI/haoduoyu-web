@@ -199,7 +199,7 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
         request.Headers.Add("Origin", ServiceOrigin.GetLeftPart(UriPartial.Authority));
         if (path.StartsWith("/api/v1/note-", StringComparison.Ordinal))
             request.Headers.Add("X-Note-Labels-Version", "3");
-        if (path.StartsWith("/api/v1/note-labels", StringComparison.Ordinal))
+        if (path.Split('?')[0] == "/api/v1/note-entries/labels")
             request.Headers.Add("X-Note-Labels-Archive", "1");
         var cookieHeader = cookies.GetCookieHeader(ServiceOrigin);
         if (cookieHeader.Length > 0) request.Headers.Add("Cookie", cookieHeader);

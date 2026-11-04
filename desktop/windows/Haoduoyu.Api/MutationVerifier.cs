@@ -53,9 +53,9 @@ internal static class MutationVerifier
                 !SameOrNext(body, response)) Invalid();
             return;
         }
-        if (resource == "note-labels")
+        if (route == "/api/v1/note-entries/labels")
         {
-            if (!Equal(body["name"], response["name"], "name")) Invalid();
+            if (!Equal(body["name"], response["name"], "name", "labels")) Invalid();
             switch (body["action"]?.GetValue<string>())
             {
                 case "archive":
@@ -127,11 +127,23 @@ internal static class MutationVerifier
         return value.TryGetValue<int>(out var integer) ? integer : null;
     }
 
-    private static bool Equal(JsonNode? expected, JsonNode? actual, string field, string resource = "")
+    internal static bool Equal(JsonNode? expected, JsonNode? actual, string field, string resource = "")
     {
+        if (resource == "articles" && field == "timings" && expected is JsonObject expectedTimings && actual is JsonObject actualTimings)
+        {
+            return expectedTimings.Count == actualTimings.Count && expectedTimings.All(pair => actualTimings.ContainsKey(pair.Key) &&
+                (pair.Key == "finished_at" ? Equal(pair.Value, actualTimings[pair.Key], "finished_at") : JsonNode.DeepEquals(pair.Value, actualTimings[pair.Key])));
+        }
+        if (field == "labels" && expected is JsonArray expectedLabels && actual is JsonArray actualLabels)
+        {
+            static string CanonicalLabel(JsonNode? node) => (node?.GetValue<string>() ?? "").Trim().Normalize();
+            return expectedLabels.Select(CanonicalLabel).Order(StringComparer.Ordinal)
+                .SequenceEqual(actualLabels.Select(CanonicalLabel).Order(StringComparer.Ordinal), StringComparer.Ordinal);
+        }
         if (expected is JsonValue first && actual is JsonValue second && first.TryGetValue<string>(out var text) && second.TryGetValue<string>(out var saved))
         {
-            if (field is "published_at" or "started_at" or "as_of" or "collected_at" &&
+            if (field == "name" && resource == "labels") return text.Trim().Normalize() == saved;
+            if (field is "published_at" or "started_at" or "finished_at" or "as_of" or "collected_at" &&
                 DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var firstStamp) &&
                 DateTimeOffset.TryParse(saved, CultureInfo.InvariantCulture, DateTimeStyles.None, out var secondStamp))
                 return firstStamp.ToUnixTimeMilliseconds() == secondStamp.ToUnixTimeMilliseconds();

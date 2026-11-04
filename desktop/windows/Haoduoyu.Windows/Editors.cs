@@ -49,7 +49,7 @@ public sealed partial class MainWindow
             var selected = values["labels"] is JsonArray selectedArray ? selectedArray.Select(n => n?.ToString() ?? "").ToHashSet(StringComparer.Ordinal) :
                 new HashSet<string>([Text(original, "category") == "work" ? "工作" : "生活"], StringComparer.Ordinal);
             var names = new HashSet<string>(selected, StringComparer.Ordinal) { "生活", "工作" };
-            if (Engine.Snapshot.Cache.TryGetValue("/api/v1/note-labels", out var catalog))
+            if (Engine.Snapshot.Cache.TryGetValue("/api/v1/note-entries/labels", out var catalog))
                 foreach (var row in Rows(Data(catalog)?["labels"])) names.Add(Text(row, "name"));
             page.Children.Add(Label("标签（新标签可在侧栏“标签”中创建）"));
             var labelsPanel = new WrapPanel();

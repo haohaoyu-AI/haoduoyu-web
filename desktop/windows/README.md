@@ -33,6 +33,7 @@ Unknown 不等于失败：不自动重发。notes/memos 可按原 `save_id` 只�
 ```powershell
 dotnet run --project Haoduoyu.Core.Tests --configuration Release
 dotnet run --project Haoduoyu.Api.Tests --configuration Release
+dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --worker-contract Haoduoyu.Api.Tests/Fixtures/worker-contract-c30a8a9.json
 dotnet build Haoduoyu.Windows --configuration Release
 dotnet run --project Haoduoyu.Windows.Tests --configuration Release
 ./scripts/package-windows.ps1

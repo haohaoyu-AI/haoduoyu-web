@@ -1,0 +1,26 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "fixture_sha256": "b55f57a818515ce13cc1d223335d462d5af506a3ec130cfbda86308c3013decf",
+  "verified_at_utc": "2026-11-04T16:44:53.778544+00:00",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "worker_requests": 53,
+  "successful_mutations": 40,
+  "cas_rejections": 3,
+  "reads": 10,
+  "receipt_hash_confirmations": 2,
+  "api_synthetic_assertions": 112,
+  "api_synthetic_suite_passed": true,
+  "worker_contract_passed": true,
+  "verification_boundary": "Compiled Worker.fetch in Node with actual temporary Miniflare D1; captured responses verified by C# desktop validators. No production business request or interactive Windows acceptance.",
+  "files_sha256": {
+    "Haoduoyu.Api/WorkbenchApi.cs": "9b78a2df246dbfe02bf2be995b49da21ec882d47f7a0e59ea24db9423119d624",
+    "Haoduoyu.Api/RoutePolicy.cs": "92ce9bb77c5dca6cf92ed568898b807160e0f990d520167ecfa447cac68ec0f0",
+    "Haoduoyu.Api/MutationVerifier.cs": "b26dd0d35d3a13dda95184c5dd01a3007caadc6e5d1afdb372b3721e171704dc",
+    "Haoduoyu.Api/Reconciliation.cs": "5b153898bc239c6f6e514a94f11e422da2120fd7e2ea7e4d247713faf152675d",
+    "Haoduoyu.Api/ReviewMutationVerifier.cs": "0e29a9111efd18e5bfd03c30b3d890fa812425f928b3bc59bc29c95381e57423",
+    "Haoduoyu.Api.Tests/Program.cs": "ea056783f7d47a973c4ddba9bafde3fe15fbc9089378a7744ccdf6aeb74b64ae",
+    "Haoduoyu.Api.Tests/WorkerContract.cs": "a9018a71319dfa381a726133b986d66fbfd8b8afa7c3c005a8312ffda309297c",
+    "Haoduoyu.Api.Tests/generate-worker-contract.mjs": "e2c93605984caf0b2b04bfc4a5656bb12c55d68978f85044dc54c1b85e374c31"
+  }
+}
