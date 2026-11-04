@@ -205,8 +205,9 @@ public static class WorkspaceProjection
             (Flag(envelope, "_local_complete") || Number(read.Q("offset")) == 0 && data.ContainsKey("has_more") && !Flag(data, "has_more"));
         if (read.Kind.StartsWith("review:", StringComparison.Ordinal)) return data != null && ValidCollection(data["items"]) &&
             (Flag(envelope, "_local_complete") || Number(read.Q("offset")) == 0 && Number(read.Q("page")) <= 1 && data.ContainsKey("has_more") && !Flag(data, "has_more"));
-        return read.Kind == "article" && (ValidCollection(envelope["data"]) && read.Query.Count == 0 ||
-            Flag(envelope, "_local_complete") && (ValidCollection(envelope["data"]) || ValidCollection(data?["items"])));
+        // GET /articles without a status is a published read. Only the native complete
+        // inventory download may make absence authoritative across every lifecycle.
+        return read.Kind == "article" && read.Query.Count == 0 && FullArticleInventory(envelope);
     }
     private static bool ValidCollection(JsonNode? node, string identity = "id")
     {
@@ -431,6 +432,8 @@ public static class WorkspaceProjection
         var baseline = exact ?? envelopes.Where(e => CompatibleBaseline(read, e.Read))
             .OrderByDescending(e => e.Revision).Select(e => e.Envelope).FirstOrDefault();
         if (baseline == null && relevant.Length == 0) return null;
+        if (read.Kind == "article" && read.Mode == "list")
+            return RenderArticles(read, baseline, envelopes, relevant, state);
         var envelope = baseline == null ? new JsonObject() : (JsonObject)baseline.DeepClone();
         var dataObject = envelope["data"] as JsonObject;
         JsonNode? output;
@@ -505,6 +508,76 @@ public static class WorkspaceProjection
         var complete = read.Mode is "detail" or "singleton" ? output is JsonObject detail && !Flag(detail, "_local_incomplete") :
             authorities.Any(a => CompleteCovers(read, a.Read));
         envelope["data"] = output; Stamp(envelope, state, !complete); return envelope.ToJsonString();
+    }
+
+    private static bool FullArticleInventory(JsonObject envelope)
+    {
+        if (envelope["_local_complete"] is not JsonValue marked || !marked.TryGetValue<bool>(out var complete) || !complete ||
+            Flag(envelope, "_local_incomplete") || Flag(envelope, "_local_projection") || !ValidCollection(envelope["data"]) ||
+            envelope["data"] is not JsonArray rows || envelope["meta"] is not JsonObject meta ||
+            meta["total"] is not JsonValue total || !total.TryGetValue<long>(out var count) || count != rows.Count ||
+            meta["has_more"] is not JsonValue more || !more.TryGetValue<bool>(out var hasMore) || hasMore) return false;
+        return rows.Count <= 50000 && rows.OfType<JsonObject>().All(row =>
+            row.ContainsKey("status") && (row["status"] is null || row["status"] is JsonValue status && status.TryGetValue<string>(out _)) &&
+            row["account_id"] is JsonValue account && account.TryGetValue<string>(out var accountId) && !string.IsNullOrWhiteSpace(accountId) &&
+            row["title"] is JsonValue title && title.TryGetValue<string>(out var text) && !string.IsNullOrWhiteSpace(text) && !Flag(row, "_local_incomplete"));
+    }
+
+    private static string RenderArticles(Read read, JsonObject? baseline,
+        List<(Read Read, JsonObject Envelope, long Revision)> envelopes, Entity[] relevant, WorkspaceState state)
+    {
+        var query = ArticleLedgerQuery.Parse(read.Query);
+        var full = envelopes.Where(value => value.Read.Kind == "article" && value.Read.Mode == "list" && value.Read.Query.Count == 0 && FullArticleInventory(value.Envelope))
+            .OrderByDescending(value => value.Revision).FirstOrDefault();
+        var baselineComplete = full.Envelope != null;
+        var accounts = ArticleAccounts(state);
+        var rows = relevant.Select(entity =>
+        {
+            var row = (JsonObject)entity.Row.DeepClone(); var accountId = Text(row, "account_id");
+            if (accounts.TryGetValue(accountId, out var account))
+            { row["platform"] = account.Platform; row["account_name"] = account.Name; }
+            else if (Flag(row, "_local_new") || row["_local_request"] is JsonObject request && request.ContainsKey("account_id") &&
+                (row["_local_remote"] is not JsonObject remote || Text(remote, "account_id") != accountId))
+            {
+                // A moved article cannot retain the previous account's platform or inferred topic.
+                row.Remove("platform"); row.Remove("account_name"); row["_local_incomplete"] = true;
+            }
+            return row;
+        }).ToArray();
+        var page = query.Apply(rows); var complete = baselineComplete && page.UnknownCount == 0;
+        var envelope = (JsonObject)(full.Envelope ?? baseline ?? new JsonObject()).DeepClone();
+        var meta = page.Meta;
+        if (!complete) { meta["total"] = null; meta["unfiltered_total"] = null; }
+        if (baseline?["meta"] is JsonObject originalMeta) envelope["_local_ledger_server_meta"] = originalMeta.DeepClone();
+        envelope["data"] = page.Data; envelope["meta"] = meta;
+        envelope["_local_ledger"] = new JsonObject
+        {
+            ["baseline_complete"] = baselineComplete, ["complete"] = complete,
+            ["known_total"] = page.Total, ["known_unfiltered_total"] = page.UnfilteredTotal,
+            ["unknown_count"] = page.UnknownCount, ["baseline_revision"] = baselineComplete ? full.Revision : 0,
+            ["uncertain_count"] = state.Outbox.Count(operation => operation.Status is not (PendingStatus.Confirmed or PendingStatus.Superseded) &&
+                (operation.Path == "/api/v1/articles" || operation.Path.StartsWith("/api/v1/articles/", StringComparison.Ordinal)))
+        };
+        Stamp(envelope, state, !complete); return envelope.ToJsonString();
+    }
+
+    private static Dictionary<string, (string Platform, string Name)> ArticleAccounts(WorkspaceState state)
+    {
+        var accounts = new Dictionary<string, (string Platform, string Name)>(StringComparer.Ordinal);
+        if (!state.Cache.TryGetValue("/api/v1/accounts", out var raw)) return accounts;
+        try
+        {
+            var root = ParseEnvelope(raw, state.ScopeId);
+            if (root?["data"] is not JsonArray rows || rows.Count > 10000) return accounts;
+            foreach (var value in rows)
+            {
+                if (value is not JsonObject row || !ValidIdentity(row, "id") || Text(row, "name").Length == 0 ||
+                    Text(row, "platform") is not ("toutiao" or "zhihu" or "wechat" or "other") ||
+                    !accounts.TryAdd(Text(row, "id"), (Text(row, "platform"), Text(row, "name")))) return new(StringComparer.Ordinal);
+            }
+        }
+        catch (Exception error) when (error is JsonException or InvalidDataException or InvalidOperationException or ArgumentException) { return new(StringComparer.Ordinal); }
+        return accounts;
     }
     private static bool CompatibleBaseline(Read target, Read source)
     {

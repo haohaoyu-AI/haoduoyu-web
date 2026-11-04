@@ -142,6 +142,7 @@ public sealed partial class MainWindow : Window
         if (identity == currentIdentity && engine != null) return;
         ResetReconciliationView();
         ResetTodoHistoryView();
+        ResetArticleLedgerView();
         ClearPage();
         failedIdentity = identity;
         store?.Dispose(); store = null; engine = null;

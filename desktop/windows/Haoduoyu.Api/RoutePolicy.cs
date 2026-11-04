@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Haoduoyu.Core;
 
 namespace Haoduoyu.Api;
 
@@ -42,7 +43,7 @@ internal static class RoutePolicy
         ("GET", "/(accounts|account-profiles)", []),
         ("GET", "/ai-reports", ["offset"]),
         ("PUT", "/ai-reports/" + ReviewUuid, []),
-        ("GET", "/articles", ["page", "page_size", "account_id", "status", "q", "from", "to", "sort", "order", "platform", "fields"]),
+        ("GET", "/articles", ["page", "page_size", "limit", "offset", "account_id", "status", "q", "from", "to", "sort", "order", "platform", "fields", "mode", "topic", "data_status", "slot", "writer", "has_warnings", "has_pending_verify", "series_no_min", "series_no_max"]),
         ("POST", "/articles", []), ("PATCH", "/articles", []),
         ("GET", "/articles/" + Id, []), ("PUT", "/articles/" + Id, []),
         ("GET", "/article-reconciliation", []),
@@ -67,7 +68,8 @@ internal static class RoutePolicy
 
     internal static void Validate(string method, string path, bool allowAuthWrite)
     {
-        if (path.Length > 2048 || !path.StartsWith("/api/v1/", StringComparison.Ordinal) ||
+        var articleQuery = method == "GET" && path.Split('?')[0] == "/api/v1/articles";
+        if (path.Length > (articleQuery ? 8192 : 2048) || !path.StartsWith("/api/v1/", StringComparison.Ordinal) ||
             path.Any(char.IsControl) || path.Contains('#') || path.Contains('\\') || path.Contains(' '))
             throw new ArgumentException("该地址不在桌面业务接口范围内。", nameof(path));
         var split = path.Split('?', 2);
@@ -76,7 +78,7 @@ internal static class RoutePolicy
             throw new ArgumentException("登录操作不能加入业务待同步队列。", nameof(path));
         var rule = Rules.FirstOrDefault(rule => rule.Method == method && Regex.IsMatch(route, "\\A(?:" + rule.Pattern + ")\\z", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking));
         if (rule.Pattern is null) throw new ArgumentException("该操作不在桌面业务接口范围内。", nameof(path));
-        if (split.Length == 1) return;
+        if (split.Length == 1) { if (articleQuery) _ = ArticleLedgerQuery.Parse(path); return; }
         if (split[1].Length == 0) throw new ArgumentException("查询参数不完整。", nameof(path));
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var field in split[1].Split('&'))
@@ -87,11 +89,12 @@ internal static class RoutePolicy
             try
             {
                 var value = Uri.UnescapeDataString(pair[1]);
-                if (value.Any(char.IsControl)) throw new ArgumentException("查询参数含无效字符。", nameof(path));
+                if ((!articleQuery || pair[0] != "q") && value.Any(char.IsControl)) throw new ArgumentException("查询参数含无效字符。", nameof(path));
                 if (route == "/ai-reports" && !Regex.IsMatch(value, "\\A(?:0|[1-9][0-9]{0,8})\\z", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking))
                     throw new ArgumentException("汇报偏移须为规范的非负分页整数。", nameof(path));
             }
             catch (UriFormatException) { throw new ArgumentException("查询参数编码无效。", nameof(path)); }
         }
+        if (articleQuery) _ = ArticleLedgerQuery.Parse(path);
     }
 }

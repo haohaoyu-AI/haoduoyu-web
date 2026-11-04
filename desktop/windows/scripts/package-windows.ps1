@@ -44,9 +44,11 @@ try {
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Api.Tests/Haoduoyu.Api.Tests.csproj', '--configuration', 'Release', '--', '--article-pipeline-form-contract', 'Haoduoyu.Api.Tests/Fixtures/article-pipeline-form-contract-c30a8a9.json') -LogName 'article-pipeline-form-contract-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Api.Tests/Haoduoyu.Api.Tests.csproj', '--configuration', 'Release', '--', '--article-reconciliation-contract', 'Haoduoyu.Api.Tests/Fixtures/article-reconciliation-contract-c30a8a9.json') -LogName 'article-reconciliation-contract-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Api.Tests/Haoduoyu.Api.Tests.csproj', '--configuration', 'Release', '--', '--todo-history-contract', 'Haoduoyu.Api.Tests/Fixtures/todo-history-contract-c30a8a9.json') -LogName 'todo-history-contract-tests.log'
+    Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Api.Tests/Haoduoyu.Api.Tests.csproj', '--configuration', 'Release', '--', '--article-ledger-contract', 'Haoduoyu.Api.Tests/Fixtures/article-ledger-contract-c30a8a9.json') -LogName 'article-ledger-contract-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Profile.Tests/Haoduoyu.Profile.Tests.csproj', '--configuration', 'Release') -LogName 'offline-profile-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Offline.Tests/Haoduoyu.Offline.Tests.csproj', '--configuration', 'Release') -LogName 'offline-download-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.History.Tests/Haoduoyu.History.Tests.csproj', '--configuration', 'Release') -LogName 'todo-history-tests.log'
+    Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Ledger.Tests/Haoduoyu.Ledger.Tests.csproj', '--configuration', 'Release') -LogName 'article-ledger-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Search.Tests/Haoduoyu.Search.Tests.csproj', '--configuration', 'Release') -LogName 'local-search-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Archive.Tests/Haoduoyu.Archive.Tests.csproj', '--configuration', 'Release') -LogName 'history-archive-tests.log'
     Invoke-CheckedDotnet -Arguments @('build', 'Haoduoyu.Windows/Haoduoyu.Windows.csproj', '--configuration', 'Release', '-p:ContinuousIntegrationBuild=true') -LogName 'windows-build.log'
@@ -80,11 +82,13 @@ try {
         article_pipeline_form_contract = 'passed'
         article_reconciliation_contract = 'passed'
         todo_history_contract = 'passed'
+        article_ledger_contract = 'passed'
         offline_profile_tests = 'passed'
         offline_download_tests = 'passed'
         local_search_tests = 'passed'
         history_archive_tests = 'passed'
         todo_history_tests = 'passed'
+        article_ledger_tests = 'passed'
         synthetic_windows_tests = 'passed'
         windows_build = 'passed'
         windows_publish = 'passed'
@@ -114,7 +118,7 @@ try {
         production_api_acceptance = 'not_run'
         installed = $false
         published = $false
-        test_logs = @('core-tests.log', 'api-tests.log', 'worker-contract-tests.log', 'complete-read-contract-tests.log', 'native-form-contract-tests.log', 'ai-report-contract-tests.log', 'unicode-receipt-contract-tests.log', 'article-pipeline-form-contract-tests.log', 'article-reconciliation-contract-tests.log', 'todo-history-contract-tests.log', 'offline-profile-tests.log', 'offline-download-tests.log', 'todo-history-tests.log', 'local-search-tests.log', 'history-archive-tests.log', 'windows-build.log', 'windows-native-tests.log', 'windows-publish.log')
+        test_logs = @('core-tests.log', 'api-tests.log', 'worker-contract-tests.log', 'complete-read-contract-tests.log', 'native-form-contract-tests.log', 'ai-report-contract-tests.log', 'unicode-receipt-contract-tests.log', 'article-pipeline-form-contract-tests.log', 'article-reconciliation-contract-tests.log', 'todo-history-contract-tests.log', 'article-ledger-contract-tests.log', 'offline-profile-tests.log', 'offline-download-tests.log', 'todo-history-tests.log', 'article-ledger-tests.log', 'local-search-tests.log', 'history-archive-tests.log', 'windows-build.log', 'windows-native-tests.log', 'windows-publish.log')
     }
     $manifestPath = Join-Path $deliveryRoot 'package-manifest.json'
     $packageManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM

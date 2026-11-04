@@ -1,0 +1,60 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "desktop_base_commit": "4fec5d4f09a5647015a9ffd0f0328cf9cd050b38",
+  "verified_at_utc": "2026-11-04T23:26:31.327911+00:00",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "production_business_requests": 0,
+  "fixture": "article-ledger-contract-c30a8a9.json",
+  "fixture_sha256": "6037461103e6f82ce1c051cccb38c97be4e3d0fc131fbd87a2ed39aa19e9e3f0",
+  "actual_get_worker_requests": 77,
+  "successful_reads": 69,
+  "invalid_query_responses": 8,
+  "oracle_pages": 63,
+  "pure_apply_comparisons": 63,
+  "workspace_projection_comparisons": 63,
+  "sql_fast_path_pages": 15,
+  "js_fallback_pages": 48,
+  "native_contract_checks": 86,
+  "current_code_oracle_passed": true,
+  "baseline_api_assertions": 165,
+  "baseline_worker_requests": 82,
+  "baseline_worker_receipt_checks": 2,
+  "baseline_replays_after_final_schema_change_passed": true,
+  "release_api_build": {
+    "warnings": 0,
+    "errors": 0
+  },
+  "public_read_pacing_ms": 1100,
+  "database_constraints_changed": false,
+  "query_guards": {
+    "source_shared_parser_used_before_http": true,
+    "get_articles_uri_limit": 8192,
+    "other_routes_uri_limit": 2048,
+    "group_is_not_an_api_parameter": true,
+    "summary_index_rows_have_exactly_five_source_fields": true,
+    "raw_server_pages_preserve_server_totals": true,
+    "partial_projection_never_invents_complete_total": true,
+    "source_unfiltered_total_is_actor_scope_plus_status_not_account_query": true,
+    "valid_beyond_last_page_empty_results_retained": true
+  },
+  "coverage": [
+    "all published/draft statuses; platform/account/mode/topic/data_status/scalar pipeline filters",
+    "Beijing natural-day half-open boundaries and explicit timestamp inclusive upper bounds",
+    "raw legacy date/offset strings, null-last ascending/descending and locale identifier ties",
+    "SQL literal percent/underscore/exclamation/backslash and ASCII-only case folding, including non-ASCII distinction",
+    "single latest whole snapshot, zero versus absent metrics, and JS Math.round duration precision",
+    "seven source sorts in both directions, paging/offset aliases and index summaries",
+    "mismatched/duplicate/foreign server pages, derived cache rejection, bounded URI and zero-HTTP invalid query guards"
+  ],
+  "boundary": "Exact compiled c30 Worker.fetch and temporary Miniflare D1, with synthetic harness bootstrap/login and direct-D1 setup only. Captured business requests GET-only; 1.1s pacing respects the unchanged normal public-read limiter. C# compares every returned server row field and seven pagination fields through both current Core.Apply and WorkspaceProjection. This is isolated contract evidence, not production or interactive Windows acceptance. No constraints, permission, limiter, proxy or clock settings changed. All temporary runtimes disposed.",
+  "replay_command": "dotnet run --project desktop/windows/Haoduoyu.Api.Tests --configuration Release -- --article-ledger-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-ledger-contract-c30a8a9.json",
+  "files_sha256": {
+    "Haoduoyu.Core/ArticleLedgerQuery.cs": "53a3ac3895b742fbd0d6b7e86d2b1cf7d8f9845f95863677031bdff4da187861",
+    "Haoduoyu.Core/WorkspaceProjection.cs": "c31e4d0831852c74f73f2bf1b17d02bce7e7bc825303a0e8287ebcc4a15e961b",
+    "Haoduoyu.Api/RoutePolicy.cs": "cd2ff3ce33c922792182e1930ff36a88ac0dd127095128fc1e81eb126686ae56",
+    "Haoduoyu.Api/BusinessReadSchema.cs": "78968d262883c7ec8031ea05371244f05147e4d98c71b88b29fdef6bc73f6632",
+    "Haoduoyu.Api.Tests/LedgerContract.cs": "1e194e6d86c431621b72f44369f047826f27e855464f7a847dbfb60defc9f9dd",
+    "Haoduoyu.Api.Tests/generate-article-ledger-contract.mjs": "ae2d129d94f338743f5ce45090f9f1a654216afc6959d958f0ef72bb52bd1cb6"
+  }
+}

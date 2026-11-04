@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Haoduoyu.Core;
+using System.Text;
 
 namespace Haoduoyu.Api;
 
@@ -16,7 +17,7 @@ internal static class BusinessReadSchema
             var root = Object(JsonNode.Parse(result.Json)); var data = root["data"];
             var split = path.Split('?', 2); var route = split[0];
             var query = split.Length == 1 ? new Dictionary<string, string>() : split[1].Split('&').Select(part => part.Split('=', 2))
-                .ToDictionary(pair => pair[0], pair => Uri.UnescapeDataString(pair[1]), StringComparer.Ordinal);
+                .ToDictionary(pair => pair[0], pair => Uri.UnescapeDataString(pair[1].Replace('+', ' ')), StringComparer.Ordinal);
             string? Requested(string name) => query.GetValueOrDefault(name);
             if (route == "/api/v1/auth/me")
             {
@@ -95,9 +96,38 @@ internal static class BusinessReadSchema
             else if (route == "/api/v1/account-profiles") Rows(data, row => { Identifier(row["account_id"]); Text(row["profile_url"]); Text(row["platform_identity"]); });
             else if (route == "/api/v1/articles")
             {
-                Rows(data, row => Article(row, index: Requested("fields") == "index"));
-                var meta = Object(root["meta"]); Integer(meta["total"]); Integer(meta["unfiltered_total"]); Integer(meta["page"], 1); Integer(meta["offset"]); Boolean(meta["has_more"]);
-                if (Requested("page") is not null || Requested("page_size") is not null) Integer(meta["page_size"], 1, 200);
+                var querySpec = ArticleLedgerQuery.Parse(path); var index = Requested("fields") == "index";
+                var seen = new HashSet<string>(StringComparer.Ordinal); var items = Array(data);
+                foreach (var item in items)
+                {
+                    var row = Object(item); Article(row, index);
+                    if (!seen.Add(Text(row["id"]))) Invalid();
+                    Matches(row["account_id"], Requested("account_id")); Matches(row["platform"], Requested("platform"));
+                    if (index)
+                    {
+                        if (!row.Select(pair => pair.Key).ToHashSet(StringComparer.Ordinal).SetEquals(["id", "title", "account_id", "platform", "published_at"]) ||
+                            row["published_at"] is not null && (row["published_at"] is not JsonValue stamp || !stamp.TryGetValue<string>(out _))) Invalid();
+                    }
+                    else Matches(row["status"], querySpec.Status);
+                }
+                if (!index)
+                {
+                    var unpaged = ArticleLedgerQuery.Parse(query.Where(pair => pair.Key is not ("page" or "page_size" or "limit" or "offset"))
+                        .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal));
+                    var matching = unpaged.Apply(items.Select(item => item!.AsObject())).Data;
+                    if (!items.Select(item => Text(item!["id"])).SequenceEqual(matching.Select(item => Text(item!["id"])), StringComparer.Ordinal)) Invalid();
+                }
+                var meta = Object(root["meta"]); var total = Integer(meta["total"]); var unfiltered = Integer(meta["unfiltered_total"]);
+                var offset = Integer(meta["offset"]); var more = Boolean(meta["has_more"]); var page = Integer(meta["page"], 1);
+                if (unfiltered < total || offset != querySpec.Offset) Invalid();
+                if (querySpec.Paginated)
+                {
+                    var size = Integer(meta["page_size"], 1, 200);
+                    if (size != querySpec.PageSize || page != offset / size + 1 || items.Count != Math.Max(0, Math.Min(size, total - offset)) ||
+                        more != (offset + size < total) || Text(meta["pagination"]) != "offset") Invalid();
+                }
+                else if (page != 1 || offset != 0 || !meta.ContainsKey("page_size") || meta["page_size"] is not null ||
+                    items.Count != total || more || Text(meta["pagination"]) != "legacy") Invalid();
             }
             else if (route.StartsWith("/api/v1/articles/", StringComparison.Ordinal))
             { var value = Object(data); Article(value, index: false); Matches(value["id"], route.Split('/')[4]); }
@@ -235,4 +265,27 @@ internal static class BusinessReadSchema
     private static void Strings(JsonNode? node) { foreach (var value in Array(node)) Text(value); }
     private static void Matches(JsonNode? node, string? expected) { if (expected is not null && Text(node) != expected) Invalid(); }
     private static void Invalid() => throw new InvalidDataException();
+}
+
+/// <summary>Validate an exact server article page before caching or reopening it; never bless a local projection as a server page.</summary>
+public static class ArticleLedgerResponse
+{
+    public static JsonObject Validate(string path, string envelopeJson, IReadOnlySet<string>? allowedAccounts = null)
+    {
+        if (path.Split('?')[0] != "/api/v1/articles") throw new ArgumentException("这不是文章列表地址。", nameof(path));
+        RoutePolicy.Validate("GET", path, allowAuthWrite: false);
+        if (new UTF8Encoding(false, true).GetByteCount(envelopeJson) > WorkbenchApi.MaximumResponseBytes)
+            throw new InvalidDataException("上次服务端文章页超出读取上限，原件保留。");
+        BusinessReadSchema.Validate(path, new ApiResult(200, envelopeJson));
+        var root = JsonNode.Parse(envelopeJson)!.AsObject();
+        if (root.ContainsKey("_local_projection") || root.ContainsKey("_local_ledger") || root.ContainsKey("_local_complete"))
+            throw new InvalidDataException("本机投影或完整预下载不能冒充原始服务端文章页。");
+        if (allowedAccounts != null)
+        {
+            var allowed = new HashSet<string>(allowedAccounts, StringComparer.Ordinal);
+            foreach (var row in root["data"]!.AsArray())
+                if (!allowed.Contains(row!["account_id"]!.GetValue<string>())) throw new InvalidDataException("文章页包含未核对的运营账号，原缓存保留。");
+        }
+        return root;
+    }
 }

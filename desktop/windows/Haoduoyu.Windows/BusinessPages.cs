@@ -172,43 +172,6 @@ public sealed partial class MainWindow
             { if (!await CancelUnsentCreationAsync(row)) await QueueAsync("DELETE", path, Obj(("version", Version(row)), ("save_id", Guid.NewGuid().ToString())), path); }
         }))));
     }
-    private async Task ArticlesAsync(WrapPanel bar)
-    {
-        bar.Children.Add(Button("查看发布对账", ArticleReconciliationAsync));
-        foreach (var (value, label) in new[] { ("published", "已发布"), ("drafting", "起草中"), ("illustrated", "已配图"), ("draft_saved", "草稿已存"), ("failed", "受阻") })
-        {
-            var statusValue = value;
-            bar.Children.Add(Button((articleStatus == value ? "● " : "") + label, async () => { articleStatus = statusValue; articlePage = 1; await NavigateAsync("文章台账"); }));
-        }
-        bar.Children.Add(Button("＋ 新文章记录", () => NewEditorAsync("article", NewRecord(("title", ""), ("status", "drafting"), ("production_mode", "unknown")), "/api/v1/articles/new:")));
-        bar.Children.Add(Button("上一页", async () => { articlePage = Math.Max(1, articlePage - 1); await NavigateAsync("文章台账"); }));
-        bar.Children.Add(Button("下一页", async () => { articlePage++; await NavigateAsync("文章台账"); }));
-        var accounts = await ReadAsync("/api/v1/accounts");
-        page.Children.Add(Label("运营账号：" + string.Join("；", Rows(accounts).Select(a => Text(a, "name") + "（" + Text(a, "id") + "）"))));
-        var path = $"/api/v1/articles?page={articlePage}&page_size=50&status={articleStatus}";
-        var data = await ReadAsync(path); Missing(data);
-        page.Children.Add(Label("第 " + articlePage + " 页 · 每页最多 50 条"));
-        List(Rows(data is JsonArray ? data : data?["items"]).Select(row => (Text(row, "title"), Text(row, "account_name") + " · " + Text(row, "status") + LocalSuffix(row), (Func<Task>)(async () =>
-        {
-            if (Flag(row, "_local_new"))
-            {
-                if (await HandlePendingRecordAsync(row)) return;
-                var operationId = Text(row, "_operation_id");
-                var creation = Engine.Snapshot.Outbox.SingleOrDefault(o => o.Id == operationId);
-                if (creation == null || !Engine.Snapshot.Drafts.TryGetValue(creation.ResourceKey, out var draft))
-                    throw new InvalidOperationException("本机创建原稿未找到。原请求保留，请从同步中心核对，不能再新建一条。");
-                var saved = JsonNode.Parse(draft.Text)?.AsObject();
-                if (saved?["original"] is not JsonObject original || Text(saved, "kind") != "article")
-                    throw new InvalidDataException("本机文章原稿格式无法核实，已保留原件。");
-                await EditAsync("article", (JsonObject)original.DeepClone(), draft.Key); return;
-            }
-            var itemPath = "/api/v1/articles/" + Text(row, "id");
-            var full = await ReadAsync(itemPath);
-            if (full == null) throw new InvalidOperationException("本机没有完整文章字段。请连接后打开，避免截断原流水线信息。");
-            if (await HandlePendingRecordAsync(full)) return;
-            await EditAsync("article", full.AsObject(), itemPath);
-        }))));
-    }
     private async Task ReviewsAsync(WrapPanel bar)
     {
         var choice = Choose("数据复盘", "选择需要查看的数据。已访问页面会保存到本机，缺失指标保留为空。", "自媒体总览", "到期观察", "文章快照", "每日数据");

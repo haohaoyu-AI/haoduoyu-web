@@ -257,10 +257,11 @@ internal static class ProjectionChecks
     private static void ArticlePaging()
     {
         var state = NewState();
-        var rows = new JsonArray(Enumerable.Range(0, 6).Select(i => (JsonNode?)new JsonObject { ["id"] = "a" + i, ["title"] = "标题" + i, ["account_id"] = i % 2 == 0 ? "A" : "B", ["status"] = "draft", ["published_at"] = $"2026-11-{i + 1:00}", ["version"] = 7 }).ToArray());
-        Cache(state, "/api/v1/articles", new JsonObject { ["_local_complete"] = true, ["data"] = rows, ["meta"] = new JsonObject { ["total"] = 6 } }.ToJsonString(), 4);
-        var data = Data("/api/v1/articles?status=draft&account_id=A&page=2&page_size=2", state);
-        Equal(1, Items(data).Count()); Equal("a0", Text(Items(data).Single(), "id")); True(!Bool(data, "has_more"));
+        var rows = new JsonArray(Enumerable.Range(0, 6).Select(i => (JsonNode?)new JsonObject { ["id"] = "a" + i, ["title"] = "标题" + i, ["account_id"] = i % 2 == 0 ? "A" : "B", ["platform"] = "toutiao", ["status"] = "published", ["production_mode"] = "manual", ["published_at"] = $"2026-11-{i + 1:00}T00:00:00.000Z", ["version"] = 7, ["latest_metrics"] = null, ["latest_as_of"] = null }).ToArray());
+        Cache(state, "/api/v1/articles", new JsonObject { ["_local_complete"] = true, ["data"] = rows, ["meta"] = new JsonObject { ["total"] = 6, ["has_more"] = false } }.ToJsonString(), 4);
+        var page = Project("/api/v1/articles?status=published&account_id=A&page=2&page_size=2", state);
+        var data = page["data"]!.AsArray();
+        Equal(1, data.Count); Equal("a0", Text(data.Single(), "id")); True(!Bool(page["meta"], "has_more"));
         Equal(6, Data("/api/v1/articles", state).AsArray().Count);
     }
     private static void ReviewResources()

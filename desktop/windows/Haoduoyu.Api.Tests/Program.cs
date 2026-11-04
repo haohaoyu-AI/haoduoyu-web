@@ -49,6 +49,11 @@ if (args is ["--todo-history-contract", var todoHistoryFixturePath])
     await TodoHistoryContract.RunAsync(todoHistoryFixturePath);
     return;
 }
+if (args is ["--article-ledger-contract", var articleLedgerFixturePath])
+{
+    await LedgerContract.RunAsync(articleLedgerFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);
