@@ -1,0 +1,90 @@
+{
+  "schema": "haoduoyu-windows-delivery-v1",
+  "repository": "haohaoyu-AI/haoduoyu-web",
+  "branch": "desktop/native-workbench-20261104",
+  "product_source_commit": "5a7f89149d28c9d3eca4974db2f3b78fd729a89d",
+  "product_tree": "2f8d2b7d1cbe76a8f96d3938fc5fa1b5c882b0cb",
+  "workflow_blob": "0f8f45f1ae22cda22d33c3883412a57ff3b17748",
+  "ci": {
+    "run_id": 41872223894,
+    "job_id": 126722098668,
+    "url": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/41872223894",
+    "conclusion": "success",
+    "started_at": "2026-11-04T16:54:40Z",
+    "completed_at": "2026-11-04T16:56:02Z",
+    "platform": "windows-2022",
+    "sdk_requested": "10.0.403"
+  },
+  "checks": {
+    "core_synthetic": {
+      "cases": 14,
+      "status": "passed"
+    },
+    "api_synthetic": {
+      "assertions": 112,
+      "status": "passed"
+    },
+    "windows_native_synthetic": {
+      "cases": 13,
+      "status": "passed",
+      "boundary": "Current-runner DPAPI and synthetic files, compiled resources, unshown controls and draft helper properties; no physical Windows interactive acceptance."
+    },
+    "worker_contract": {
+      "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+      "requests": 53,
+      "successful_mutations": 40,
+      "real_cas_conflicts": 3,
+      "reads": 10,
+      "receipt_hash_confirmations": 2,
+      "external_fetch_attempts": 0,
+      "status": "passed",
+      "fixture_sha256": "b55f57a818515ce13cc1d223335d462d5af506a3ec130cfbda86308c3013decf"
+    }
+  },
+  "artifact": {
+    "id": 13344852388,
+    "name": "windows-desktop-evidence-5a7f89149d28c9d3eca4974db2f3b78fd729a89d",
+    "url": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/41872223894/artifacts/13344852388",
+    "bytes": 65322668,
+    "github_reported_outer_sha256": "3010a71df2273b352bd0974541b6240ffa3393ec9a1fa76d6a64097a6eb12fd9",
+    "created_at": "2026-11-04T16:55:59Z",
+    "expires_at": "2026-11-07T16:55:57Z",
+    "github_observed": "present_not_expired",
+    "locally_downloaded": false,
+    "inner_package_sha256": null,
+    "signed": false,
+    "kind": "self_contained_unsigned_portable_candidate"
+  },
+  "blocked_download": {
+    "action": "Normal gh run download into the cloud workspace",
+    "target_artifact_id": 13343906486,
+    "target_storage_host": "productionresultssa13.blob.core.windows.net",
+    "status": "denied_http_403",
+    "retried": false,
+    "alternate_download_route_used": false,
+    "network_or_security_settings_changed": false,
+    "outcome": "No package saved in the cloud workspace; Library upload not attempted. Final artifact metadata only was read."
+  },
+  "library_copy": {
+    "status": "not_created",
+    "reason": "Package download step stopped after HTTP 403"
+  },
+  "scope": {
+    "production_business_records_accessed": false,
+    "production_data_written": false,
+    "website_or_android_files_changed": false,
+    "user_computer_installed_or_modified": false,
+    "production_release_attempted": false,
+    "unknown_external_write_or_deployment": false,
+    "fully_accepted_complete_product": false
+  },
+  "remaining": [
+    "Old Windows source/installer identity/data format and upgrade compatibility unverified",
+    "Physical Windows IME, shutdown/restart, large-data performance and formal signing/distribution unverified",
+    "Some content-review resource write forms remain read-only",
+    "Cache covers visited pages; queued local entities are not projected into every business list/hierarchy",
+    "Private account sessions are memory-only; full private offline workspace resume after restart needs further work",
+    "Production exact Git source and production TLS/auth/API end-to-end acceptance not established"
+  ],
+  "handoff": "docs/windows-desktop-handoff-20261104.md"
+}

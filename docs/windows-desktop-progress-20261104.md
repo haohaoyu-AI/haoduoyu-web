@@ -37,3 +37,7 @@ Windows WPF 产品与 13 项 Windows 合成测试工程已由 Linux 官方 SDK �
 `c30a8a9` 独立已知源的真实临时 Miniflare D1 + 编译 Worker 共 **53 请求**：40 成功写响应、3 个真实 CAS 409、10 次读取，全部通过 C# 桌面契约校验；另 2 次真实收据/实体哈希确认通过。临时数据全为新建合成记录、外联尝试 0、MF/D1 已销毁。常规 API 合成套件修正后 **112 项断言通过**。详情与精确源码哈希见[净化报告](../desktop/windows/Haoduoyu.Api.Tests/Fixtures/worker-contract-report.json)和[复跑说明](../desktop/windows/Haoduoyu.Api.Tests/Fixtures/README.md)。首轮历史包不作为最终使用包，修正后将走同一正常 Windows 工作流重建。
 
 首轮 artifact 正常下载回本环境被存储端点 **403 Forbidden** 拒绝，已停止该步骤，不换工具/路由，不重试。源码和远端 artifact 仍保留；没有成功的本地 ZIP、独立下载摘要核验或 Library 上传。具体状态与明天操作见[交接说明](windows-desktop-handoff-20261104.md)。
+
+## 最终来源
+
+产品源 `5a7f89149d28c9d3eca4974db2f3b78fd729a89d` 已正常推送并回读；Windows [41872223894](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/41872223894) 成功。Core 14/14、常规 API 112 断言、Windows 原生 13/13、实际 Worker 53 请求及 2 回执/哈希回放、WPF 编译、自包含打包全部通过。最终 artifact `13344852388` 已由 GitHub 元数据确认存在；未尝试再次下载，Library 仍无副本。精确来源与边界见[最终交付证据](windows-desktop-evidence-20261104.json)。正式安装、生产发布、旧版覆盖升级和完整产品验收均未执行。
