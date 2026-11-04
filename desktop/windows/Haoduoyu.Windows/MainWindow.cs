@@ -430,15 +430,9 @@ public sealed partial class MainWindow : Window
 
     private ListBox List(IEnumerable<(string title, string subtitle, Func<Task> open)> rows)
     {
-        var items = rows.ToArray();
-        var list = new ListBox { MinHeight = 160, MaxHeight = 490 };
-        foreach (var row in items)
-        {
-            var panel = new StackPanel(); panel.Children.Add(new TextBlock { Text = row.title, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
-            panel.Children.Add(new TextBlock { Text = row.subtitle, Foreground = Brushes.SlateGray, FontSize = 12, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap });
-            var item = new ListBoxItem { Content = panel, Tag = row.open }; list.Items.Add(item);
-        }
-        list.SelectionChanged += (_, _) => { if (list.SelectedItem is ListBoxItem { Tag: Func<Task> open }) Run(open); };
+        var items = rows.Select(row => new WorkspaceListItem(row.title, row.subtitle, row.open)).ToArray();
+        var list = new ListBox { MinHeight = 160, MaxHeight = 490, ItemsSource = items };
+        list.SelectionChanged += (_, _) => { if (list.SelectedItem is WorkspaceListItem selected) Run(selected.Open); };
         page.Children.Add(list);
         if (items.Length == 0) page.Children.Add(Label("当前清单为空。"));
         return list;

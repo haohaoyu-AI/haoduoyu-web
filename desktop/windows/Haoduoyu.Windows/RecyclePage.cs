@@ -35,6 +35,7 @@ public sealed partial class MainWindow
         List(removed.Select(row => (RecycleTitle(row), "删除于 " + Text(row, "deleted_at") + " · v" + Version(row),
             (Func<Task>)(async () =>
             {
+                if (Text(row, "source") == "note_label") { await NavigateAsync("标签"); Message("请在标签管理中核对并恢复归档标签。"); return; }
                 if (!Confirm("恢复“" + RecycleTitle(row) + "”？使用快照中的真实版本；其他设备若已更改该记录，服务端会拒绝覆盖。")) return;
                 await RestoreSnapshotRecordAsync(row, collections);
             }))));
@@ -45,7 +46,7 @@ public sealed partial class MainWindow
         var kind = Text(row, "source") switch
         {
             "todo" => "每日待办", "unscheduled_todo" => "未安排事项", "legacy_daily_note" => "旧版日页",
-            "note_entry" => "碎碎念", "memo_group" => "备忘录分组", "memo_note" => "备忘录", "work_reminder" => "工作提醒", _ => "记录"
+            "note_entry" => "碎碎念", "memo_group" => "备忘录分组", "memo_note" => "备忘录", "work_reminder" => "工作提醒", "note_label" => "归档标签（在标签管理中恢复）", _ => "记录"
         };
         var identity = Text(row, "source_id");
         return kind + " · " + Text(row, "date") + " · " + identity[..Math.Min(8, identity.Length)];
@@ -80,13 +81,7 @@ public sealed partial class MainWindow
             var parent = Rows(collections["memo_groups"]).SingleOrDefault(g => Text(g, "source_id") == group);
             if (parent?["deleted_at"] != null)
             {
-                var restoring = Engine.Snapshot.Outbox.LastOrDefault(o => o.Path == "/api/v1/memos/groups/" + group + "/restore" &&
-                    o.Status is not (PendingStatus.Confirmed or PendingStatus.Superseded));
-                if (restoring == null) throw new InvalidOperationException("父分组仍在回收站，请先明确恢复该分组。当前内容与版本保留。");
-                var opId = Guid.NewGuid().ToString(); body["save_id"] = opId;
-                await QueuePreparedAsync(new PendingOperation { Id = opId, Method = "POST", Path = path + "/restore", ResourceKey = path,
-                    BodyJson = body.ToJsonString(), DependencyIds = [restoring.Id] });
-                if (connected) await SyncToPageAsync("回收站"); else await NavigateAsync("回收站");
+                Message("请先恢复并确认父分组，再刷新回收站。分组恢复会显示未单独删除的笔记；仅对仍留在回收站的笔记继续恢复，当前不猜测删除来源。");
                 return;
             }
         }

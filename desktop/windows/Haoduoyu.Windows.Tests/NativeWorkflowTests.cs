@@ -30,6 +30,8 @@ internal static partial class NativeWorkflowTests
         ("Shown native memo list projects queued parent/child operations, replacements and cancellation", () => RunWithDispatcher(QueuedDependencyWorkflowAsync)),
         ("Shown offline todo edits replace an unsent completion dependency after its create was confirmed", () => RunWithDispatcher(DerivedTodoCompletionReplacementAsync)),
         ("Shown native review sub-entry restores unfinished Chinese input and fences server queue until confirmation", () => RunWithDispatcher(ReviewPendingSubentryAsync)),
+        ("Shown native offline label creation is selectable in a new note and cancellation keeps dependent work unsent", () => RunWithDispatcher(OfflineLabelNoteDependencyAsync)),
+        ("Shown native list virtualizes 5000 data rows and can select and render the last row", () => RunWithDispatcher(VirtualizedNativeListAsync)),
         .. BaselineCases
     ];
 
@@ -249,6 +251,53 @@ internal static partial class NativeWorkflowTests
         Check(typeof(PendingOperation).GetProperty("DependencyIds") != null, "dependency metadata is missing from the durable operation contract");
         return restored;
     }
+    private static async Task OfflineLabelNoteDependencyAsync()
+    {
+        await WithDirectoryAsync(async root =>
+        {
+            using var sockets = new SocketProbe(); using var handler = new SyntheticOrigin(denyEveryRequest: true);
+            var window = await ShowAsync(root, handler);
+            try
+            {
+                const string name = "离线新建合成标签";
+                await ClickAsync(window, "标签"); await ClickAsync(window, "＋ 新标签");
+                Descendants(Field<StackPanel>(window, "page")).OfType<TextBox>().Single().Text = name;
+                await ClickAsync(window, "存入本机待同步队列");
+                var parent = Engine(window).Snapshot.Outbox.Single();
+                Check(parent.Path == "/api/v1/note-entries/labels" && parent.Method == "POST" && JsonNode.Parse(parent.BodyJson)?["name"]?.GetValue<string>() == name,
+                    "native label form did not persist the expected local create intent");
+                await ClickAsync(window, "生活记录"); await ClickAsync(window, "＋ 新记录");
+                var checkbox = Descendants(Field<StackPanel>(window, "page")).OfType<CheckBox>().SingleOrDefault(choice => choice.Content?.ToString() == name);
+                Check(checkbox != null, "a newly queued offline label was absent from the native note editor's choices");
+                checkbox!.IsChecked = true; BodyEditor(window).Text = "使用刚离线创建标签的中文合成记录。";
+                await ClickAsync(window, "保存到待同步队列");
+                var child = Engine(window).Snapshot.Outbox.Single(operation => operation.Path.StartsWith("/api/v1/note-entries/", StringComparison.Ordinal) && operation.Path != parent.Path);
+                Check(child.DependencyIds.Contains(parent.Id, StringComparer.Ordinal) && JsonNode.Parse(child.BodyJson)?["labels"] is JsonArray labels && labels.Any(label => label?.GetValue<string>() == name),
+                    "saving a note omitted its selected queued label or failed to retain the label-create dependency");
+                await Engine(window).CancelQueuedAsync(parent.Id);
+                var report = await Engine(window).SyncAsync();
+                Check(report.Confirmed == 0 && Engine(window).Snapshot.Outbox.Single(operation => operation.Id == child.Id).Status == PendingStatus.Queued && handler.Calls == 0,
+                    "cancelling an unsent label allowed its dependent note to reach the transport");
+                Check(Engine(window).Snapshot.Outbox.Single(operation => operation.Id == child.Id).BodyJson == child.BodyJson,
+                    "cancelling a label silently rewrote or removed the dependent note's original content");
+
+                // Existing todo versions also need the post-template receipt before a dependent completion can choose its true CAS version.
+                var todoId = Guid.NewGuid().ToString(); var templateId = Guid.NewGuid().ToString();
+                var todo = Object(("id", todoId), ("date", Day), ("text", "已有版本的合成待办"), ("version", 3), ("completed", false), ("deleted_at", null));
+                await Engine(window).CacheAsync("/api/v1/todos?date=" + Day, Wrap(Object(("date", Day), ("today", Day), ("completed_mode", "strike"), ("preferences_version", 0), ("items", new JsonArray(todo.DeepClone())))));
+                var link = new PendingOperation { Method = "POST", Path = "/api/v1/todos/" + todoId + "/template", ResourceKey = "/api/v1/todos/" + todoId,
+                    BodyJson = Object(("date", Day), ("version", 3), ("template_id", templateId), ("template_version", 0)).ToJsonString() };
+                await Engine(window).QueueAsync(link); todo["_operation_id"] = link.Id;
+                await InvokeAsync(window, "SetTodoCompletionAsync", todo, true);
+                var completion = Engine(window).Snapshot.Outbox.Single(operation => operation.Method == "PATCH" && operation.Path == "/api/v1/todos/" + todoId);
+                Check(completion.DependencyIds.Contains(link.Id, StringComparer.Ordinal) && completion.VersionFromDependencyId == link.Id &&
+                    !JsonNode.Parse(completion.BodyJson)!.AsObject().ContainsKey("version"), "completion after an unsent template link reused a stale positive todo version");
+                Check(handler.Calls == 0 && sockets.Connects == 0, "offline label/note and template/completion workflow performed a real request");
+                SaveEvidence(window, "offline-label-note-dependency.png");
+            }
+            finally { await CloseIfOpenAsync(window); }
+        });
+    }
     private static async Task DerivedTodoCompletionReplacementAsync()
     {
         await WithDirectoryAsync(async root =>
@@ -407,10 +456,13 @@ internal static partial class NativeWorkflowTests
     private static async Task SelectListItemAsync(MainWindow window, string text)
     {
         var page = Field<StackPanel>(window, "page");
-        var candidates = Descendants(page).OfType<ListBox>().SelectMany(list => list.Items.OfType<ListBoxItem>()
-            .Where(item => Descendants(item).OfType<TextBlock>().Any(block => block.Text.Contains(text, StringComparison.Ordinal)))
+        var candidates = Descendants(page).OfType<ListBox>().SelectMany(list => list.Items.Cast<object>()
+            .Where(item => item is WorkspaceListItem row ? row.Title.Contains(text, StringComparison.Ordinal) :
+                item is ListBoxItem container && Descendants(container).OfType<TextBlock>().Any(block => block.Text.Contains(text, StringComparison.Ordinal)))
             .Select(item => (List: list, Item: item))).ToArray();
         Check(candidates.Length == 1, "native list item cannot be selected unambiguously: " + text);
+        candidates[0].List.ScrollIntoView(candidates[0].Item);
+        window.UpdateLayout();
         candidates[0].List.SelectedItem = candidates[0].Item;
         await window.WaitForIdleAsync();
     }
@@ -444,7 +496,43 @@ internal static partial class NativeWorkflowTests
             if (!visited.Add(current)) continue;
             yield return current;
             foreach (var child in LogicalTreeHelper.GetChildren(current).OfType<DependencyObject>()) stack.Push(child);
+            if (current is Visual or System.Windows.Media.Media3D.Visual3D)
+                for (var index = 0; index < VisualTreeHelper.GetChildrenCount(current); index++) stack.Push(VisualTreeHelper.GetChild(current, index));
         }
+    }
+
+    private static async Task VirtualizedNativeListAsync()
+    {
+        await WithDirectoryAsync(async root =>
+        {
+            using var sockets = new SocketProbe(); using var handler = new SyntheticOrigin(denyEveryRequest: true);
+            var window = await ShowAsync(root, handler);
+            try
+            {
+                typeof(MainWindow).GetMethod("ClearPage", Private)!.Invoke(window, null);
+                const int count = 5000; var opened = -1;
+                var rows = Enumerable.Range(0, count).Select(index => ("合成虚拟清单 " + (index + 1), "只生成可见的原生行容器", (Func<Task>)(() => { opened = index; return Task.CompletedTask; })));
+                var list = (ListBox)(typeof(MainWindow).GetMethod("List", Private)!.Invoke(window, [rows])
+                    ?? throw new InvalidOperationException("Native list construction returned no ListBox."));
+                window.UpdateLayout(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); window.UpdateLayout();
+                Check(list.Items.Count == count && list.Items.Cast<object>().All(item => item is WorkspaceListItem && item is not UIElement),
+                    "native list still preconstructed a UIElement for every data row");
+                var generated = Enumerable.Range(0, count).Count(index => list.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem);
+                Check(generated > 0 && generated < count / 10, $"native virtualization generated {generated} row containers for {count} data rows before scrolling");
+                var last = list.Items[count - 1]; list.ScrollIntoView(last);
+                window.UpdateLayout(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); window.UpdateLayout();
+                await UntilAsync(() => list.ItemContainerGenerator.ContainerFromIndex(count - 1) is ListBoxItem &&
+                    VisibleText(window).Contains("合成虚拟清单 5000", StringComparison.Ordinal), "the last virtualized data row did not produce actual rendered native text");
+                list.SelectedItem = last; await window.WaitForIdleAsync();
+                Check(opened == count - 1, "selecting the last virtualized row did not execute that row's own native action");
+                var after = Enumerable.Range(0, count).Count(index => list.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem);
+                Check(after > 0 && after < count / 10, $"scrolling to the end expanded the native list to {after} containers");
+                Check(handler.Calls == 0 && sockets.Connects == 0, "rendering or scrolling a local synthetic list contacted a service");
+                SaveEvidence(window, "list-5000-virtualized-last-row.png");
+                Console.WriteLine($"Native list evidence: {count} data rows, {generated} initially generated containers, {after} after scrolling; no timing/framerate or real-user performance claim.");
+            }
+            finally { await CloseIfOpenAsync(window); }
+        });
     }
     private static async Task CloseAsync(MainWindow window)
     {

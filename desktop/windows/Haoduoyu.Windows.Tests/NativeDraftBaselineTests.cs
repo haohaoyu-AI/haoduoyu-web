@@ -39,7 +39,7 @@ internal static partial class NativeWorkflowTests
         Check(confirmed.Status == PendingStatus.Confirmed && confirmed.ConfirmedRevision > 0, "baseline fixture did not receive a real engine confirmation revision");
         await InvokeAsync(window, "RebaseConfirmedDraftsAsync");
         var saved = SavedAppDraft(engine, key);
-        Check(saved["original"]?["version"]?.GetValue<int>() == 3 && JsonNode.DeepEquals(saved["values"], later),
+        Check(JsonTestValue.Integer(saved["original"]?["version"]) == 3 && JsonNode.DeepEquals(saved["values"], later),
             "confirming an earlier queued request overwrote later unsent native values or failed to advance the base");
         Check(engine.Snapshot.Drafts[key].BaseVersion == 3 && BaselineWatermark(engine.Snapshot.Drafts[key]) == confirmed.ConfirmedRevision,
             "native baseline did not record the exact confirmed local revision");
@@ -68,18 +68,18 @@ internal static partial class NativeWorkflowTests
         var revision = engine.Snapshot.Outbox.Single().ConfirmedRevision;
         await InvokeAsync(window, "RebaseConfirmedDraftsAsync");
         var saved = SavedAppDraft(engine, key);
-        Check(saved["original"]?["id"]?.GetValue<string>() == serverId && saved["original"]?["version"]?.GetValue<int>() == 1 && JsonNode.DeepEquals(saved["values"], later),
+        Check(saved["original"]?["id"]?.GetValue<string>() == serverId && JsonTestValue.Integer(saved["original"]?["version"]) == 1 && JsonNode.DeepEquals(saved["values"], later),
             "article create confirmation lost later unfinished input or retained the client-only identity");
         Check(BaselineWatermark(engine.Snapshot.Drafts[key]) == revision, "article draft omitted its confirmed revision watermark");
         var repairedValues = (JsonObject)later.DeepClone(); repairedValues["started_at"] = null;
         var next = PrepareAppSave("article", saved["original"]!.AsObject(), repairedValues);
-        Check(next.Method == "PUT" && next.Path == "/api/v1/articles/" + serverId && next.Body["version"]?.GetValue<int>() == 1,
+        Check(next.Method == "PUT" && next.Path == "/api/v1/articles/" + serverId && JsonTestValue.Integer(next.Body["version"]) == 1,
             "continuing a confirmed article would issue another server-generated-ID POST");
         var latest = (JsonObject)later.DeepClone(); latest["notes"] = "旧编辑器稍后落盘的新备注，不得让已确认baseline倒退。";
         var staleEditor = AppDraft("article", key, original, latest);
         await InvokeAsync(window, "SaveLocalDraftAsync", staleEditor);
         var merged = SavedAppDraft(engine, key);
-        Check(merged["original"]?["id"]?.GetValue<string>() == serverId && merged["original"]?["version"]?.GetValue<int>() == 1 &&
+        Check(merged["original"]?["id"]?.GetValue<string>() == serverId && JsonTestValue.Integer(merged["original"]?["version"]) == 1 &&
             JsonNode.DeepEquals(merged["values"], latest) && BaselineWatermark(engine.Snapshot.Drafts[key]) == revision,
             "a stale editor save replaced a confirmed article identity/baseline or discarded its new values");
     });
@@ -212,7 +212,7 @@ internal static partial class NativeWorkflowTests
     private static LocalDraft AppDraft(string kind, string key, JsonObject original, JsonObject values) => new()
     {
         Key = key, Text = Object(("kind", kind), ("key", key), ("original", original.DeepClone()), ("values", values.DeepClone())).ToJsonString(),
-        Title = "仅合成验收稿件", BaseVersion = original["version"]?.GetValue<int>() ?? 0
+        Title = "仅合成验收稿件", BaseVersion = original["version"] is { } version ? JsonTestValue.Integer(version) : 0
     };
     private static PendingOperation PreparedOperation(string key, (string Method, string Path, JsonObject Body) prepared)
     {

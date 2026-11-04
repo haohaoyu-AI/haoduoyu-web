@@ -11,6 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using System.Xml.Linq;
 using Haoduoyu.Api;
 using Haoduoyu.Core;
 using Haoduoyu.Windows;
@@ -124,7 +125,20 @@ internal static class Program
     {
         Check(Application.Current == null, "test application was unexpectedly started earlier");
         application = new SyntheticTestApplication { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        application.InitializeComponent();
+        const string styles = "/Haoduoyu.Workbench;component/Styles.xaml";
+        // Load the exact compiled dictionary that the production App.xaml merges. Loading App.xaml
+        // into a subclass from another assembly is not supported by WPF's component assembly check.
+        using (var source = typeof(Program).Assembly.GetManifestResourceStream("Haoduoyu.Windows.Tests.ProductionApp.xaml")
+            ?? throw new InvalidDataException("The exact production App.xaml input is absent from the test assembly."))
+        {
+            var markup = XDocument.Load(source); XNamespace wpf = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+            Check(markup.Descendants(wpf + "ResourceDictionary.MergedDictionaries").Elements(wpf + "ResourceDictionary")
+                .Any(dictionary => dictionary.Attribute("Source")?.Value == styles), "production App.xaml does not merge the shared compiled style resource");
+        }
+        var compiledApp = Application.GetResourceStream(new Uri("/Haoduoyu.Workbench;component/App.xaml", UriKind.Relative))
+            ?? throw new InvalidDataException("Production App.xaml is not present as a compiled application resource.");
+        using (compiledApp.Stream) Check(compiledApp.Stream.Length > 0, "production compiled App.xaml is empty");
+        application.Resources.MergedDictionaries.Add((ResourceDictionary)Application.LoadComponent(new Uri(styles, UriKind.Relative)));
         Check(Application.Current == application, "compiled Application could not initialize");
         Check(application.MainWindow == null, "loading resources invoked real app startup");
         foreach (var type in new[] { typeof(Window), typeof(Button), typeof(TextBox), typeof(ListBox) })
@@ -132,6 +146,12 @@ internal static class Program
             Check(application.Resources[type] is Style style && style.TargetType == type,
                 $"compiled resource missing or invalid: {type.Name}");
         }
+        var windowStyle = (Style)application.Resources[typeof(Window)];
+        var buttonStyle = (Style)application.Resources[typeof(Button)];
+        Check(windowStyle.Setters.OfType<Setter>().Single(setter => setter.Property == Control.FontSizeProperty).Value is double size && size == 14,
+            "the compiled application window font size differs from the production design");
+        Check(buttonStyle.Setters.OfType<Setter>().Single(setter => setter.Property == FrameworkElement.MinHeightProperty).Value is double height && height == 38,
+            "the compiled application button minimum height differs from the production design");
     }
 
     private static void NativeWindowTree()
@@ -261,7 +281,7 @@ internal static class Program
         Check(result.Method == "PATCH" && result.Body["expected_hash"]?.GetValue<string>() == hash,
             "snapshot edit lost its exact hash precondition");
         Check(result.Body.ContainsKey("reads") && result.Body["reads"] == null &&
-            result.Body["impressions"]?.GetValue<long>() == 0 && result.Body["ctr"] == null,
+            JsonTestValue.Integer(result.Body["impressions"]) == 0 && result.Body["ctr"] == null,
             "unknown metric was converted to zero, or a real zero became unknown");
         Check(JsonNode.DeepEquals(result.Body["traffic_sources"], original["traffic_sources"]) && JsonNode.DeepEquals(before, original),
             "native structured snapshot form truncated existing nested traffic metrics or mutated its base version");
@@ -284,7 +304,7 @@ internal static class Program
         value["title"] = "修改后的合成标题"; value["notes"] = "用户明确编辑的新备注"; value["production_mode"] = "mixed";
         var result = BuildSave("article", original, value);
         Check(result.Method == "PUT" && result.Path == "/api/v1/articles/" + id, "article identity or CAS route changed");
-        Check(result.Body["version"]?.GetValue<long>() == 7, "article base version was replaced");
+        Check(JsonTestValue.Integer(result.Body["version"]) == 7, "article base version was replaced");
         Check(result.Body["title"]?.GetValue<string>() == "修改后的合成标题" &&
             result.Body["notes"]?.GetValue<string>() == "用户明确编辑的新备注" &&
             result.Body["production_mode"]?.GetValue<string>() == "mixed", "edited production fields were lost");
@@ -303,7 +323,7 @@ internal static class Program
             var result = BuildSave("legacy", original, edited);
             Check(result.Method == "PUT" && result.Path == "/api/v1/daily-notes/2026-10-30?category=" + category,
                 "legacy work and life records were merged");
-            Check(result.Body["version"]?.GetValue<long>() == 3 && result.Body["text"]?.GetValue<string>() == "合成编辑内容\n下一行",
+            Check(JsonTestValue.Integer(result.Body["version"]) == 3 && result.Body["text"]?.GetValue<string>() == "合成编辑内容\n下一行",
                 "legacy CAS or Unicode content changed");
         }
     }
@@ -316,7 +336,7 @@ internal static class Program
         var first = BuildSave("note", original, edited); var second = BuildSave("note", original, edited);
         Check(first.Path == "/api/v1/note-entries/" + id && second.Path == first.Path,
             "preparing another save regenerated the record identity");
-        Check(first.Body["version"]?.GetValue<long>() == 0 && first.Body["date"]?.GetValue<string>() == "2026-10-30" &&
+        Check(JsonTestValue.Integer(first.Body["version"]) == 0 && first.Body["date"]?.GetValue<string>() == "2026-10-30" &&
             first.Body["category"]?.GetValue<string>() == "work", "new record identity metadata was lost");
         Check(Guid.TryParse(first.Body["save_id"]?.GetValue<string>(), out _), "save intent is missing its distinct UUID");
     }

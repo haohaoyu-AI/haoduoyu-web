@@ -10,5 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Haoduoyu.Windows/Haoduoyu.Windows.csproj" />
+    <EmbeddedResource Include="../Haoduoyu.Windows/App.xaml" LogicalName="Haoduoyu.Windows.Tests.ProductionApp.xaml" />
   </ItemGroup>
 </Project>

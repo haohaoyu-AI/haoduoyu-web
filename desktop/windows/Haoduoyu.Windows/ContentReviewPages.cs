@@ -308,7 +308,7 @@ public sealed partial class MainWindow
         bar.Children.Add(Button("保存本机草稿",async()=>{draftDirty=true;await SaveDraftSafelyAsync();}));
         bar.Children.Add(Button("导出文字",()=>ExportTextAsync("好多鱼复盘草稿.txt",ReviewPlainText(Current()))));
         bar.Children.Add(Button("返回内容复盘",ContentReviewAsync));
-        page.Children.Add(bar);draftDirty=true;await saveEditor();
+        draftDirty=true;await saveEditor();
     }
     private async Task<Dictionary<string,List<ReviewArticleChoice>>> LoadReviewOptionsAsync(IReadOnlyList<ReviewFormField> fields)
     {
