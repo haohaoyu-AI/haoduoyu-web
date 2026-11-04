@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Haoduoyu.Core;
 
@@ -30,9 +31,10 @@ public sealed class SyncEngine
             var loaded = await store.LoadAsync(cancellationToken);
             if (loaded.ScopeId != store.ScopeId || loaded.Schema != 1)
                 throw new InvalidDataException("本机工作区身份或版本不匹配。");
+            OperationGraph.Validate(loaded);
             if (loaded.Outbox.Any(x => x.Status == PendingStatus.InFlight))
             {
-                loaded = loaded with { Outbox = loaded.Outbox.Select(x => x.Status == PendingStatus.InFlight
+                loaded = loaded with { LocalRevision = checked(loaded.LocalRevision + 1), Outbox = loaded.Outbox.Select(x => x.Status == PendingStatus.InFlight
                     ? x with { Status = PendingStatus.Unknown, Error = "上次退出时请求未确认。先核对远端，再处理原请求。" } : x).ToList() };
                 await store.SaveAsync(loaded, cancellationToken);
             }
@@ -56,7 +58,45 @@ public sealed class SyncEngine
     {
         if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("缓存标识不能为空。", nameof(key));
         ParseJson(json);
-        return MutateAsync(s => s.Cache[key] = json, cancellationToken);
+        return MutateAsync(s => { s.Cache[key] = json; s.CacheRevisions[key] = s.LocalRevision; }, cancellationToken);
+    }
+
+    public Task CacheBatchAsync(IReadOnlyDictionary<string, string> entries, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        var captured = entries.ToArray();
+        foreach (var (key, value) in captured)
+        {
+            if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("缓存标识不能为空。", nameof(entries));
+            ParseJson(value);
+        }
+        return MutateAsync(s =>
+        {
+            foreach (var (key, value) in captured) { s.Cache[key] = value; s.CacheRevisions[key] = s.LocalRevision; }
+        }, cancellationToken);
+    }
+
+    public Task CancelQueuedAsync(string operationId, CancellationToken cancellationToken = default) =>
+        MutateAsync(s =>
+        {
+            var index = FindQueued(s, operationId);
+            s.Outbox[index] = s.Outbox[index] with { Status = PendingStatus.Superseded,
+                SupersededById = null, Error = "已明确取消尚未发出的操作；原请求保留。依赖它的操作仍需处理。" };
+        }, cancellationToken);
+
+    public Task ReplaceQueuedAsync(string operationId, PendingOperation replacement, CancellationToken cancellationToken = default)
+    {
+        Validate(replacement);
+        return MutateAsync(s =>
+        {
+            var index = FindQueued(s, operationId); var original = s.Outbox[index];
+            if (replacement.Id == original.Id || s.Outbox.Any(x => x.Id == replacement.Id) || replacement.ResourceKey != original.ResourceKey ||
+                replacement.Method != original.Method || replacement.Path != original.Path)
+                throw new InvalidOperationException("替换未发送操作必须使用同一资源、方法、路径与新的操作标识。");
+            s.Outbox[index] = original with { Status = PendingStatus.Superseded,
+                SupersededById = replacement.Id, Error = "已明确替换未发送操作；原请求完整保留。" };
+            AddOperation(s, replacement);
+        }, cancellationToken);
     }
 
     public Task QueueAsync(PendingOperation operation, CancellationToken cancellationToken = default)
@@ -75,25 +115,42 @@ public sealed class SyncEngine
         try
         {
             // Freeze this run's eligible set. New user work belongs to the next explicit sync.
-            var ids = Snapshot.Outbox.Where(x => x.Status == PendingStatus.Queued).Select(x => x.Id).ToArray();
-            foreach (var id in ids)
+            var remaining = Snapshot.Outbox.Where(x => x.Status == PendingStatus.Queued).Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
+            while (remaining.Count > 0)
             {
+                var snapshot = Snapshot;
+                var id = snapshot.Outbox.FirstOrDefault(x => remaining.Contains(x.Id) &&
+                    x.Status == PendingStatus.Queued && OperationGraph.DependenciesConfirmed(snapshot, x))?.Id;
+                if (id == null) break; // Parent conflicts, cancellation or unknown results leave children queued.
+                remaining.Remove(id);
                 cancellationToken.ThrowIfCancellationRequested();
                 PendingOperation? sending = null;
+                var preparationBlocked = false;
                 await MutateAsync(s =>
                 {
                     var index = s.Outbox.FindIndex(x => x.Id == id && x.Status == PendingStatus.Queued);
-                    if (index < 0) return;
-                    sending = s.Outbox[index] with { Status = PendingStatus.InFlight, Error = null };
+                    if (index < 0 || !OperationGraph.DependenciesConfirmed(s, s.Outbox[index])) return;
+                    var candidate = s.Outbox[index];
+                    if (candidate.VersionFromDependencyId != null && candidate.PreparedBodyJson == null)
+                    {
+                        try { candidate = candidate with { PreparedBodyJson = PrepareVersionBody(s, candidate) }; }
+                        catch (InvalidDataException error)
+                        {
+                            preparationBlocked = true;
+                            s.Outbox[index] = candidate with { Status = PendingStatus.Blocked, Error = error.Message };
+                            return;
+                        }
+                    }
+                    sending = candidate with { Status = PendingStatus.InFlight, Error = null, SendAttempts = checked(candidate.SendAttempts + 1) };
                     s.Outbox[index] = sending;
                 }, cancellationToken);
-                if (sending == null) continue;
+                if (sending == null) { if (preparationBlocked) blocked++; continue; }
                 ApiResult? response = null;
                 string? failure = null;
                 var definitelyNotSent = false;
                 try
                 {
-                    response = await api.SendAsync(sending.Method, sending.Path, sending.BodyJson, sending.Id, cancellationToken);
+                    response = await api.SendAsync(sending.Method, sending.Path, sending.RequestBodyJson, sending.Id, cancellationToken);
                 }
                 catch (RequestNotSentException error)
                 {
@@ -115,6 +172,7 @@ public sealed class SyncEngine
                     s.Outbox[index] = s.Outbox[index] with
                     {
                         Status = next,
+                        ConfirmedRevision = next == PendingStatus.Confirmed ? s.LocalRevision : 0,
                         RemoteJson = response?.Json,
                         Error = next == PendingStatus.Confirmed ? null : failure ??
                             $"HTTP {response?.StatusCode}，{(next == PendingStatus.Conflict ? "版本冲突，已保留本地与远端内容。" : "需要核对后处理。")}" +
@@ -151,7 +209,7 @@ public sealed class SyncEngine
             var index = FindUnresolved(s, operationId);
             if (s.Outbox[index].Status is not (PendingStatus.Unknown or PendingStatus.Blocked))
                 throw new InvalidOperationException("只有未确认请求可由精确保存证据确认。");
-            s.Outbox[index] = s.Outbox[index] with { Status = PendingStatus.Confirmed,
+            s.Outbox[index] = s.Outbox[index] with { Status = PendingStatus.Confirmed, ConfirmedRevision = s.LocalRevision,
                 RemoteJson = verifiedRemoteJson, Error = null };
         }, cancellationToken);
     }
@@ -167,9 +225,9 @@ public sealed class SyncEngine
         {
             var index = FindUnresolved(s, operationId);
             var original = s.Outbox[index];
-            if (replacement != null && (replacement.Id == original.Id || replacement.ResourceKey != original.ResourceKey))
+            if (replacement != null && (replacement.Id == original.Id || s.Outbox.Any(x => x.Id == replacement.Id) || replacement.ResourceKey != original.ResourceKey))
                 throw new InvalidOperationException("冲突处理必须创建同一资源的新操作标识。");
-            s.Outbox[index] = original with { Status = PendingStatus.Superseded, RemoteJson = remoteJson,
+            s.Outbox[index] = original with { Status = PendingStatus.Superseded, SupersededById = replacement?.Id, RemoteJson = remoteJson,
                 Error = replacement == null ? "已明确采用远端状态；原请求保留。" : "已明确基于远端版本创建新操作；原请求保留。" };
             if (replacement != null) AddOperation(s, replacement);
         }, cancellationToken);
@@ -195,13 +253,23 @@ public sealed class SyncEngine
         await stateGate.WaitAsync(cancellationToken);
         try
         {
-            var next = Snapshot;
+            var current = Snapshot;
+            var next = current with { LocalRevision = checked(current.LocalRevision + 1) };
             update(next);
+            OperationGraph.Validate(next);
             await store.SaveAsync(next, cancellationToken);
             // A failed disk commit must not become visible or allow a network write.
             state = next;
         }
         finally { stateGate.Release(); }
+    }
+
+    private static int FindQueued(WorkspaceState s, string operationId)
+    {
+        var index = s.Outbox.FindIndex(x => x.Id == operationId);
+        if (index < 0 || !s.Outbox[index].CanEditQueued)
+            throw new InvalidOperationException("只有尚未发送的排队操作可取消或替换。已发出或未知请求必须先核对结果。");
+        return index;
     }
 
     private static int FindUnresolved(WorkspaceState s, string operationId)
@@ -219,18 +287,23 @@ public sealed class SyncEngine
         if (existing != null)
         {
             if (existing.ResourceKey == operation.ResourceKey && existing.Method == operation.Method &&
-                existing.Path == operation.Path && existing.BodyJson == operation.BodyJson) return;
+                existing.Path == operation.Path && existing.BodyJson == operation.BodyJson &&
+                existing.DependencyIds.SequenceEqual(operation.DependencyIds, StringComparer.Ordinal)) return;
             throw new InvalidOperationException("不能重复使用操作标识提交不同内容。");
         }
         if (s.Outbox.Any(x => x.ResourceKey == operation.ResourceKey &&
             x.Status is not (PendingStatus.Confirmed or PendingStatus.Superseded)))
             throw new InvalidOperationException("此内容已有未确认操作。新草稿已保留，请先处理原操作。");
-        s.Outbox.Add(operation with { Status = PendingStatus.Queued, Error = null, RemoteJson = null });
+        s.Outbox.Add(operation with { Status = PendingStatus.Queued, Error = null, RemoteJson = null, ConfirmedRevision = 0, SupersededById = null,
+            DependencyIds = operation.DependencyIds.ToArray(), SendAttempts = 0, PreparedBodyJson = null });
     }
 
     private static void Validate(PendingOperation operation)
     {
-        if (!Guid.TryParse(operation.Id, out var id) || id == Guid.Empty ||
+        if (!Guid.TryParseExact(operation.Id, "D", out var id) || id == Guid.Empty ||
+            operation.DependencyIds == null || operation.DependencyIds.Count > 64 || operation.SendAttempts != 0 ||
+            operation.PreparedBodyJson != null || operation.ConfirmedRevision != 0 || operation.SupersededById != null ||
+            operation.VersionFromDependencyId != null && !operation.DependencyIds.Contains(operation.VersionFromDependencyId, StringComparer.Ordinal) ||
             string.IsNullOrWhiteSpace(operation.ResourceKey) ||
             operation.Method is not ("POST" or "PUT" or "PATCH" or "DELETE") ||
             !operation.Path.StartsWith("/api/v1/", StringComparison.Ordinal) ||
@@ -238,6 +311,29 @@ public sealed class SyncEngine
             operation.Path.Contains('\\') || operation.Path.StartsWith("//", StringComparison.Ordinal))
             throw new ArgumentException("待同步操作格式无效。");
         ParseJson(operation.BodyJson);
+    }
+
+    private static string PrepareVersionBody(WorkspaceState state, PendingOperation operation)
+    {
+        var dependency = OperationGraph.ResolveConfirmed(state, operation.VersionFromDependencyId!);
+        if (dependency == null) throw new InvalidDataException("依赖操作尚未确认，不能生成写入版本。");
+        try
+        {
+            var remote = JsonNode.Parse(dependency.RemoteJson ?? "null")?["data"] as JsonObject;
+            if (remote == null || remote["version"] is not JsonValue versionNode ||
+                !versionNode.TryGetValue<long>(out var version) || version < 1 || version >= 9_007_199_254_740_991L)
+                throw new InvalidDataException("依赖保存响应没有真实有效版本；已停止子操作且未发送请求。");
+            var route = operation.Path.Split('?', 2)[0].TrimEnd('/').Split('/');
+            var targetId = route[^1];
+            if (!Guid.TryParseExact(targetId, "D", out _) || remote["id"]?.ToString() != targetId)
+                throw new InvalidDataException("依赖保存响应与待修改记录不匹配；子操作未发送。");
+            var body = JsonNode.Parse(operation.BodyJson) as JsonObject ?? throw new InvalidDataException("待发送内容不是对象。");
+            if (body.ContainsKey("version")) throw new InvalidDataException("依赖版本请求不应自带猜测版本；子操作未发送。");
+            body["version"] = version;
+            return body.ToJsonString();
+        }
+        catch (Exception error) when (error is JsonException or InvalidOperationException or FormatException)
+        { throw new InvalidDataException("依赖保存响应无法核验；子操作未发送。", error); }
     }
 
     private static void ParseJson(string json)

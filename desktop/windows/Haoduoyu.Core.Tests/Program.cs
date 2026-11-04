@@ -202,7 +202,9 @@ foreach (var (name, test) in tests)
     catch (Exception error) { failed++; Console.Error.WriteLine($"FAIL {name}: {error}"); }
 }
 Console.WriteLine($"Core safety checks: {tests.Length - failed}/{tests.Length} passed");
-return failed == 0 ? 0 : 1;
+var queueFailures = QueueChecks.Run();
+var projectionFailures = ProjectionChecks.Run();
+return failed + queueFailures + projectionFailures == 0 ? 0 : 1;
 
 static void Check(bool condition, string reason) { if (!condition) throw new Exception(reason); }
 static async Task Throws<T>(Func<Task> action) where T : Exception

@@ -26,12 +26,23 @@ public sealed record PendingOperation
     public string? RemoteJson { get; init; }
     public string? Error { get; init; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
+    public IReadOnlyList<string> DependencyIds { get; init; } = [];
+    public string? SupersededById { get; init; }
+    public long ConfirmedRevision { get; init; }
+    public int SendAttempts { get; init; }
+    public string? VersionFromDependencyId { get; init; }
+    public string? PreparedBodyJson { get; init; }
+    [JsonIgnore] public string RequestBodyJson => PreparedBodyJson ?? BodyJson;
+    [JsonIgnore] public bool CanEditQueued => Status == PendingStatus.Queued && SendAttempts == 0 &&
+        PreparedBodyJson == null && RemoteJson == null && Error == null;
 }
 
 public sealed record WorkspaceState
 {
     public int Schema { get; init; } = 1;
     public string ScopeId { get; init; } = "";
+    public long LocalRevision { get; init; }
+    public Dictionary<string, long> CacheRevisions { get; init; } = new();
     public Dictionary<string, string> Cache { get; init; } = new();
     public Dictionary<string, LocalDraft> Drafts { get; init; } = new();
     public List<PendingOperation> Outbox { get; init; } = new();

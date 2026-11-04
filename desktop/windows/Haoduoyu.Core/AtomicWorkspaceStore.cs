@@ -135,8 +135,10 @@ public sealed class AtomicWorkspaceStore : IWorkspaceStore, IDisposable
     {
         if (state.Schema != 1) throw new InvalidDataException("不支持此工作区版本；禁止降级写入。");
         if (state.ScopeId != ScopeId) throw new InvalidDataException("工作区与服务或登录身份不匹配。");
-        if (state.Cache == null || state.Drafts == null || state.Outbox == null)
+        if (state.Cache == null || state.Drafts == null || state.Outbox == null || state.CacheRevisions == null)
             throw new InvalidDataException("工作区字段缺失。");
+        if (state.LocalRevision < 0 || state.CacheRevisions.Any(entry => entry.Value < 0 || entry.Value > state.LocalRevision || !state.Cache.ContainsKey(entry.Key)))
+            throw new InvalidDataException("工作区本机序列无效。 ");
         if (state.Outbox.Any(x => x == null || !Guid.TryParse(x.Id, out var id) || id == Guid.Empty ||
             !Enum.IsDefined(x.Status) || string.IsNullOrWhiteSpace(x.ResourceKey)))
             throw new InvalidDataException("工作区存在无效待同步操作。");
@@ -145,6 +147,7 @@ public sealed class AtomicWorkspaceStore : IWorkspaceStore, IDisposable
             throw new InvalidDataException("同一内容存在多个未决操作，请保留原文件并检查。");
         if (state.Outbox.Select(x => x.Id).Distinct(StringComparer.Ordinal).Count() != state.Outbox.Count)
             throw new InvalidDataException("工作区存在重复操作标识。");
+        OperationGraph.Validate(state);
     }
 
     public void Dispose()
