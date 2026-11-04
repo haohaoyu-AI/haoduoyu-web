@@ -255,8 +255,7 @@ public sealed partial class MainWindow
         page.Children.Add(Button("恢复本机身份配置备份", async () =>
         {
             if (!Confirm("显式恢复上一份身份配置？损坏原件保留，所有业务分区不删除，也不会联网发送任何请求。")) return;
-            settings = SettingsFile.RestoreBackup(root, protector);
-            await OpenOfflineProfileAsync(OfflineProfiles.InitialIdentity(settings));
+            await RestoreSettingsBackupAsync();
         }));
         page.Children.Add(Label("独立数据目录：" + root));
         page.Children.Add(Label("本候选版本使用 Windows 当前用户 DPAPI 加密。请在应用退出后保全整个 NativeWorkbench/v1 目录。加密副本通常只能由同一 Windows 用户解密；迁移电脑前请逐份导出需要的文字。"));
@@ -265,11 +264,7 @@ public sealed partial class MainWindow
         {
             await FlushEditorAsync();
             if (!Confirm("恢复上一份加密快照？当前损坏或较新的主文件会保留为 damaged 副本。请先退出并复制整个目录；没有有效备份会停止。")) return;
-            var identity = failedIdentity ?? currentIdentity ?? "public:" + (settings.PublicScope ?? "unbound");
-            connected = false; store?.Dispose(); store = null; engine = null; currentIdentity = null;
-            using (var recovery = new AtomicWorkspaceStore(root, WorkbenchApi.ServiceOrigin.ToString(), identity, protector)) await recovery.RestoreBackupAsync();
-            await OpenWorkspaceAsync(identity); await NavigateAsync("本机草稿");
-            Message("已显式恢复上一份本机快照，损坏原件保留。旧在途操作按结果未知恢复，尚未联网写入。" );
+            await RestoreWorkspaceBackupAsync();
         }));
         page.Children.Add(Label("历史分区只读恢复（含首次未绑定的离线草稿）："));
         if (Directory.Exists(root)) foreach (var directory in Directory.GetDirectories(root))
@@ -291,6 +286,26 @@ public sealed partial class MainWindow
                 finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(clear); }
             }));
         }
-        page.Children.Add(Label("版本 0.2.0 开发候选。尚未安装到用户电脑；尚未验证旧版覆盖升级、实机中文输入法、断电恢复或正式签名分发。"));
+        page.Children.Add(Label("版本 0.3.0 开发候选。尚未安装到用户电脑；尚未验证旧版覆盖升级、实机中文输入法、断电恢复或正式签名分发。"));
+    }
+
+    private async Task RestoreSettingsBackupAsync()
+    {
+        await FlushEditorAsync();
+        api.UsePublicMode(); connected = false;
+        settings = SettingsFile.RestoreBackup(root, protector);
+        await OpenOfflineProfileAsync(OfflineProfiles.InitialIdentity(settings));
+    }
+
+    private async Task RestoreWorkspaceBackupAsync()
+    {
+        await FlushEditorAsync();
+        var identity = failedIdentity ?? currentIdentity ?? "public:" + (settings.PublicScope ?? "unbound");
+        ClearPage(); api.UsePublicMode(); connected = false; failedIdentity = identity;
+        store?.Dispose(); store = null; engine = null; currentIdentity = null;
+        using (var recovery = new AtomicWorkspaceStore(root, WorkbenchApi.ServiceOrigin.ToString(), identity, protector))
+            await recovery.RestoreBackupAsync();
+        await OpenWorkspaceAsync(identity); await NavigateAsync("本机草稿");
+        Message("已恢复上一份加密快照，当前原件保留。恢复的待同步和在途请求均需只读核对，不会自动重发；旧新建文章稿需先核对台账。");
     }
 }

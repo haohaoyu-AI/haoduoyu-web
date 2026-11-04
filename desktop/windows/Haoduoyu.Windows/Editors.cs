@@ -39,6 +39,8 @@ public sealed partial class MainWindow
             original = recovered["original"]?.DeepClone().AsObject() ?? throw new InvalidDataException("草稿缺少原始版本。");
             values = recovered["values"]?.DeepClone().AsObject() ?? throw new InvalidDataException("草稿缺少正文。");
             page.Children.Add(Label($"已恢复本机草稿 · 基于版本 {saved.BaseVersion}；本次读取的远端版本 {Version(record)}。保存仍使用草稿原版本。"));
+            if (saved.RecoveredAtRevision > 0 && kind == "article" && Version(original) == 0)
+                page.Children.Add(Label("此稿来自回退备份，可能漏掉后来已创建的服务器文章。可继续本机编辑和导出；创建前请从台账核对并打开实际服务器记录，不能直接再次创建。"));
         }
         page.Children.Add(Label("修改会先保存在本机加密草稿中。Ctrl+S 保存本机草稿；点击下方按钮才会排队并同步。"));
         var controls = new Dictionary<string, Func<string>>();
@@ -114,13 +116,19 @@ public sealed partial class MainWindow
             if (draftDirty) { draftTimer.Stop(); draftTimer.Start(); }
         };
         var buttons = new WrapPanel { Margin = new Thickness(0, 16, 0, 0) };
-        buttons.Children.Add(Button(connected ? "保存并同步" : "保存到待同步队列", async () =>
+        var saveQueued = Button(connected ? "保存并同步" : "保存到待同步队列", async () =>
         {
             var value = Current();
             var (method, path, body) = BuildSave(kind, original, value);
             draftDirty = true;
             await QueueAsync(method, path, body, key);
-        }));
+        });
+        if (kind == "article" && Version(original) == 0 && Engine.Snapshot.Drafts.TryGetValue(key, out var recoveredDraft) && recoveredDraft.RecoveredAtRevision > 0)
+        {
+            saveQueued.Content = "恢复稿创建待核对"; saveQueued.IsEnabled = false;
+            saveQueued.ToolTip = "请先从文章台账核对是否已有服务器记录。可继续保存本机草稿或导出原文。";
+        }
+        buttons.Children.Add(saveQueued);
         buttons.Children.Add(Button("保存本机草稿", async () => { draftDirty = true; await SaveDraftSafelyAsync(); }));
         buttons.Children.Add(Button("导出文字副本", () => ExportTextAsync("好多鱼本机草稿.txt", string.Join("\n\n", controls.Select(x => x.Key + "\n" + x.Value())))));
         buttons.Children.Add(Button("返回清单", () => NavigateAsync(currentPage)));

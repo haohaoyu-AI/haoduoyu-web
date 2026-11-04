@@ -47,9 +47,13 @@ public sealed class SyncEngine
     public Task SaveDraftAsync(LocalDraft draft, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(draft);
-        if (string.IsNullOrWhiteSpace(draft.Key) || draft.BaseVersion < 0 || draft.BaselineConfirmedRevision < 0)
+        if (string.IsNullOrWhiteSpace(draft.Key) || draft.BaseVersion < 0 || draft.BaselineConfirmedRevision < 0 || draft.RecoveredAtRevision < 0)
             throw new ArgumentException("草稿标识或基线版本无效。");
-        return MutateAsync(s => s.Drafts[draft.Key] = draft, cancellationToken);
+        return MutateAsync(s => s.Drafts[draft.Key] = draft with
+        {
+            RecoveredAtRevision = Math.Max(draft.RecoveredAtRevision,
+                s.Drafts.TryGetValue(draft.Key, out var existing) ? existing.RecoveredAtRevision : 0)
+        }, cancellationToken);
     }
 
     public Task RemoveDraftAsync(string key, CancellationToken cancellationToken = default) =>
@@ -284,6 +288,9 @@ public sealed class SyncEngine
 
     private static void AddOperation(WorkspaceState s, PendingOperation operation)
     {
+        if (operation.Method == "POST" && operation.Path.Split('?', 2)[0].TrimEnd('/') == "/api/v1/articles" &&
+            s.Drafts.TryGetValue(operation.ResourceKey, out var recoveredDraft) && recoveredDraft.RecoveredAtRevision > 0)
+            throw new InvalidOperationException("此新建文章草稿来自较旧备份，无法确定之后是否已保存并取得服务器文章标识。请先只读核对台账，找到后更新真实记录；草稿仍可编辑或导出。");
         var existing = s.Outbox.FirstOrDefault(x => x.Id == operation.Id);
         if (existing != null)
         {

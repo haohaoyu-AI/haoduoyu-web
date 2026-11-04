@@ -67,9 +67,10 @@ internal static class QueueChecks
         var id = Guid.NewGuid().ToString();
         var state = JsonSerializer.Deserialize<WorkspaceState>("{\"Schema\":1,\"ScopeId\":\"scope\",\"Drafts\":{\"legacy\":{\"Key\":\"legacy\",\"Text\":\"old draft\"}},\"Outbox\":[{\"Id\":\"" + id + "\",\"ResourceKey\":\"legacy\",\"Method\":\"PUT\",\"Path\":\"/api/v1/memos/groups/" + id + "\",\"BodyJson\":\"{}\",\"Status\":5}]}")!;
         var engine = await Engine(new Store { State = state }, new Api());
-        Check(engine.Snapshot.LocalRevision == 0 && engine.Snapshot.CacheRevisions.Count == 0 &&
+        Check(engine.Snapshot.LocalRevision == 0 && engine.Snapshot.BackupRecoveryRevision == 0 && engine.Snapshot.BackupRecoveredAt == null &&
+            engine.Snapshot.CacheRevisions.Count == 0 &&
             engine.Snapshot.Outbox.Single().DependencyIds.Count == 0 && engine.Snapshot.Outbox.Single().ConfirmedRevision == 0 &&
-            engine.Snapshot.Drafts["legacy"].BaselineConfirmedRevision == 0,
+            engine.Snapshot.Drafts["legacy"].BaselineConfirmedRevision == 0 && engine.Snapshot.Drafts["legacy"].RecoveredAtRevision == 0,
             "old schema-one history was reinterpreted as a fresh confirmation");
     }
 

@@ -310,6 +310,8 @@ public sealed partial class MainWindow : Window
     private async Task QueueAsync(string method, string path, JsonObject body, string resource)
     {
         await FlushEditorAsync();
+        if (method == "POST" && path == "/api/v1/articles" && Engine.Snapshot.Drafts.TryGetValue(resource, out var recoveredArticle) && recoveredArticle.RecoveredAtRevision > 0)
+            throw new InvalidOperationException("此文章稿来自回退备份，可能缺少后来已创建文章的回执。原稿可编辑和导出；请先从文章台账核对并打开服务器记录，不能再次创建。");
         if (method == "POST" && path == "/api/v1/articles" && Engine.Snapshot.Outbox.Any(o => o.ResourceKey == resource && o.Method == "POST" && o.Path == path && o.Status == PendingStatus.Confirmed))
             throw new InvalidOperationException("这份文章创建请求已确认。请从文章清单打开其服务器记录继续编辑；原稿已保留，不能再次创建。");
         var id = Guid.NewGuid().ToString();

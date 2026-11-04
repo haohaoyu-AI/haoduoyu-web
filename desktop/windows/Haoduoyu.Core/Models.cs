@@ -13,6 +13,7 @@ public sealed record LocalDraft
     public string Title { get; init; } = "";
     public long BaseVersion { get; init; }
     public long BaselineConfirmedRevision { get; init; }
+    public long RecoveredAtRevision { get; init; }
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;
 }
 
@@ -44,6 +45,10 @@ public sealed record WorkspaceState
     public int Schema { get; init; } = 1;
     public string ScopeId { get; init; } = "";
     public long LocalRevision { get; init; }
+    // A rollback can omit writes that happened after its snapshot, including operations absent from this file.
+    // Keep this provenance across later saves so callers can warn about old drafts before creating new requests.
+    public long BackupRecoveryRevision { get; init; }
+    public DateTimeOffset? BackupRecoveredAt { get; init; }
     public Dictionary<string, long> CacheRevisions { get; init; } = new();
     public Dictionary<string, string> Cache { get; init; } = new();
     public Dictionary<string, LocalDraft> Drafts { get; init; } = new();

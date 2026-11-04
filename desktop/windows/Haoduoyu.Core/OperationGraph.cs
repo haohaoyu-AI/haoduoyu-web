@@ -5,7 +5,12 @@ internal static class OperationGraph
 {
     internal static void Validate(WorkspaceState state)
     {
-        if (state.LocalRevision < 0 || state.Outbox == null) throw new InvalidDataException("工作区操作序列无效。");
+        if (state.LocalRevision < 0 || state.Outbox == null || state.BackupRecoveryRevision < 0 ||
+            state.BackupRecoveryRevision > state.LocalRevision ||
+            (state.BackupRecoveryRevision == 0) != (state.BackupRecoveredAt == null))
+            throw new InvalidDataException("工作区操作或备份恢复序列无效。");
+        if (state.Drafts == null || state.Drafts.Values.Any(draft => draft == null || draft.RecoveredAtRevision < 0 || draft.RecoveredAtRevision > state.LocalRevision))
+            throw new InvalidDataException("草稿的备份恢复序列无效。");
         var operations = new Dictionary<string, PendingOperation>(StringComparer.Ordinal);
         foreach (var operation in state.Outbox)
         {

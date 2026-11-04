@@ -32,7 +32,8 @@ internal static partial class NativeWorkflowTests
         ("Shown native review sub-entry restores unfinished Chinese input and fences server queue until confirmation", () => RunWithDispatcher(ReviewPendingSubentryAsync)),
         ("Shown native offline label creation is selectable in a new note and cancellation keeps dependent work unsent", () => RunWithDispatcher(OfflineLabelNoteDependencyAsync)),
         ("Shown native list virtualizes 5000 data rows and can select and render the last row", () => RunWithDispatcher(VirtualizedNativeListAsync)),
-        .. BaselineCases
+        .. BaselineCases,
+        .. RecoveryCases
     ];
 
     private static readonly BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;

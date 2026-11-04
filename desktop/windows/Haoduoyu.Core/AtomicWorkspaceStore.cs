@@ -63,24 +63,7 @@ public sealed class AtomicWorkspaceStore : IWorkspaceStore, IDisposable
             // Refuse to overwrite corrupt, unsupported or foreign state even when called directly.
             if (File.Exists(FilePath)) await ReadFileAsync(FilePath, cancellationToken);
             else if (File.Exists(BackupPath)) throw new InvalidDataException("必须先恢复缺失的主工作区。");
-            var plaintext = JsonSerializer.SerializeToUtf8Bytes(state, WorkspaceJson.Options);
-            byte[] encrypted;
-            try
-            {
-                if (plaintext.Length > MaxBytes) throw new InvalidDataException("本机工作区超过 32 MiB；原文件已保留。");
-                encrypted = protector.Protect(plaintext);
-            }
-            finally { CryptographicOperations.ZeroMemory(plaintext); }
-            if (encrypted.Length > MaxBytes) throw new InvalidDataException("加密工作区超过容量限制；原文件已保留。");
-            temp = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            await using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
-            {
-                await stream.WriteAsync(Header, cancellationToken);
-                await stream.WriteAsync(encrypted, cancellationToken);
-                await stream.FlushAsync(cancellationToken);
-                stream.Flush(flushToDisk: true);
-            }
+            temp = await WriteTemporaryAsync(state, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (File.Exists(FilePath)) File.Replace(temp, FilePath, BackupPath, ignoreMetadataErrors: false);
             else File.Move(temp, FilePath);
@@ -93,21 +76,77 @@ public sealed class AtomicWorkspaceStore : IWorkspaceStore, IDisposable
         }
     }
 
-    // Explicit recovery only: validates backup first and preserves the damaged primary for investigation.
+    // Explicit recovery only. A backup's Queued status cannot prove that its request was never sent:
+    // the newer damaged primary may have contained InFlight or Confirmed. Fence before installing it.
     public async Task RestoreBackupAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         await io.WaitAsync(cancellationToken);
+        string? temp = null;
         try
         {
-            await ReadFileAsync(BackupPath, cancellationToken);
-            var recovered = FilePath + ".recovery-" + Guid.NewGuid().ToString("N");
-            File.Copy(BackupPath, recovered, overwrite: false);
-            if (File.Exists(FilePath)) File.Replace(recovered, FilePath,
-                FilePath + ".damaged-" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), false);
-            else File.Move(recovered, FilePath);
+            var backup = await ReadFileAsync(BackupPath, cancellationToken);
+            var revision = checked(backup.LocalRevision + 1);
+            var recovered = backup with
+            {
+                LocalRevision = revision,
+                BackupRecoveryRevision = revision,
+                BackupRecoveredAt = DateTimeOffset.UtcNow,
+                Drafts = backup.Drafts.ToDictionary(entry => entry.Key,
+                    entry => entry.Value with { RecoveredAtRevision = revision }, StringComparer.Ordinal),
+                Outbox = backup.Outbox.Select(operation => operation.Status is PendingStatus.Queued or PendingStatus.InFlight
+                    ? operation with
+                    {
+                        Status = PendingStatus.Unknown,
+                        Error = "已从较旧备份恢复，不能确定此请求之后是否已经发送。请先只读核对远端，再处理原请求。" +
+                            (string.IsNullOrEmpty(operation.Error) ? "" : " 原记录：" + operation.Error)
+                    } : operation).ToList()
+            };
+            Validate(recovered);
+            temp = await WriteTemporaryAsync(recovered, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            // Keep both the original backup and the exact newer primary. Never replace either with a partial recovery.
+            if (File.Exists(FilePath)) File.Replace(temp, FilePath,
+                FilePath + ".damaged-" + Guid.NewGuid().ToString("N"), false);
+            else File.Move(temp, FilePath);
+            temp = null;
         }
-        finally { io.Release(); }
+        finally
+        {
+            if (temp != null) try { File.Delete(temp); } catch (IOException) { }
+            io.Release();
+        }
+    }
+
+    private async Task<string> WriteTemporaryAsync(WorkspaceState state, CancellationToken cancellationToken)
+    {
+        var plaintext = JsonSerializer.SerializeToUtf8Bytes(state, WorkspaceJson.Options);
+        byte[] encrypted;
+        try
+        {
+            if (plaintext.Length > MaxBytes) throw new InvalidDataException("本机工作区超过 32 MiB；原文件已保留。");
+            encrypted = protector.Protect(plaintext);
+        }
+        finally { CryptographicOperations.ZeroMemory(plaintext); }
+        if (encrypted.Length > MaxBytes) throw new InvalidDataException("加密工作区超过容量限制；原文件已保留。");
+        var temp = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            await using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await stream.WriteAsync(Header, cancellationToken);
+                await stream.WriteAsync(encrypted, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+                stream.Flush(flushToDisk: true);
+            }
+            return temp;
+        }
+        catch
+        {
+            try { File.Delete(temp); } catch (IOException) { }
+            throw;
+        }
     }
 
     private async Task<WorkspaceState> ReadFileAsync(string path, CancellationToken cancellationToken)
