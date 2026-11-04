@@ -32,6 +32,7 @@ public sealed record PendingOperation
     public IReadOnlyList<string> DependencyIds { get; init; } = [];
     public string? SupersededById { get; init; }
     public long ConfirmedRevision { get; init; }
+    public long RecoveredAtRevision { get; init; }
     public int SendAttempts { get; init; }
     public string? VersionFromDependencyId { get; init; }
     public string? PreparedBodyJson { get; init; }

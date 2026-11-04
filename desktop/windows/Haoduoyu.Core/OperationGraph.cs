@@ -16,7 +16,9 @@ internal static class OperationGraph
         {
             if (operation == null || !Guid.TryParseExact(operation.Id, "D", out var id) || id == Guid.Empty ||
                 !operations.TryAdd(operation.Id, operation) || !Enum.IsDefined(operation.Status) || string.IsNullOrWhiteSpace(operation.ResourceKey) || operation.DependencyIds == null ||
-                operation.DependencyIds.Count > 64 || operation.DependencyIds.Any(dependency => !Guid.TryParseExact(dependency, "D", out _)) || operation.ConfirmedRevision < 0 || operation.ConfirmedRevision > state.LocalRevision || operation.SendAttempts < 0)
+                operation.DependencyIds.Count > 64 || operation.DependencyIds.Any(dependency => !Guid.TryParseExact(dependency, "D", out _)) ||
+                operation.ConfirmedRevision < 0 || operation.ConfirmedRevision > state.LocalRevision || operation.RecoveredAtRevision < 0 ||
+                operation.RecoveredAtRevision > state.LocalRevision || operation.SendAttempts < 0)
                 throw new InvalidDataException("工作区操作或依赖标识无效。");
             if (operation.DependencyIds.Distinct(StringComparer.Ordinal).Count() != operation.DependencyIds.Count ||
                 operation.DependencyIds.Contains(operation.Id, StringComparer.Ordinal))

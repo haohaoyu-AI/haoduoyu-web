@@ -292,7 +292,7 @@ public sealed partial class MainWindow
                 finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(clear); }
             }));
         }
-        page.Children.Add(Label("版本 0.3.0 开发候选。尚未安装到用户电脑；尚未验证旧版覆盖升级、实机中文输入法、断电恢复或正式签名分发。"));
+        page.Children.Add(Label("版本 " + (typeof(App).Assembly.GetName().Version?.ToString(3) ?? "未知") + " 开发候选。尚未安装到用户电脑；尚未验证旧版覆盖升级、实机中文输入法、断电恢复或正式签名分发。"));
     }
 
     private async Task RestoreSettingsBackupAsync()
@@ -312,6 +312,6 @@ public sealed partial class MainWindow
         using (var recovery = new AtomicWorkspaceStore(root, WorkbenchApi.ServiceOrigin.ToString(), identity, protector))
             await Task.Run(() => recovery.RestoreBackupAsync());
         await OpenWorkspaceAsync(identity); await NavigateAsync("本机草稿");
-        Message("已恢复上一份加密快照，当前原件保留。恢复的待同步和在途请求均需只读核对，不会自动重发；旧新建文章稿需先核对台账。");
+        Message("已恢复上一份加密快照，当前原件保留。恢复的全部未决请求均需只读核对，不能直接重试；旧新建文章稿需先核对台账。");
     }
 }

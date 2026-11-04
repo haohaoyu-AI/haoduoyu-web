@@ -246,6 +246,8 @@ public sealed class SyncEngine
         return MutateAsync(s =>
         {
             var index = FindUnresolved(s, operationId);
+            if (s.Outbox[index].RecoveredAtRevision > 0)
+                throw new InvalidOperationException("此请求来自较旧备份，旧拒绝或冲突记录无法证明之后未曾保存。请先只读核对精确保存证据，不能直接重排恢复请求。");
             if (s.Outbox[index].Status == PendingStatus.Conflict)
                 throw new InvalidOperationException("版本冲突必须选择远端或显式新 CAS 保存，不能重试旧版本。");
             s.Outbox[index] = s.Outbox[index] with { Status = PendingStatus.Queued, RemoteJson = checkedRemoteJson,
@@ -310,7 +312,7 @@ public sealed class SyncEngine
     {
         if (!Guid.TryParseExact(operation.Id, "D", out var id) || id == Guid.Empty ||
             operation.DependencyIds == null || operation.DependencyIds.Count > 64 || operation.SendAttempts != 0 ||
-            operation.PreparedBodyJson != null || operation.ConfirmedRevision != 0 || operation.SupersededById != null ||
+            operation.PreparedBodyJson != null || operation.ConfirmedRevision != 0 || operation.RecoveredAtRevision != 0 || operation.SupersededById != null ||
             operation.VersionFromDependencyId != null && !operation.DependencyIds.Contains(operation.VersionFromDependencyId, StringComparer.Ordinal) ||
             string.IsNullOrWhiteSpace(operation.ResourceKey) ||
             operation.Method is not ("POST" or "PUT" or "PATCH" or "DELETE") ||

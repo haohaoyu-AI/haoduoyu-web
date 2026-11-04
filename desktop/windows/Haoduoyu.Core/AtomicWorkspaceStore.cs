@@ -76,7 +76,7 @@ public sealed class AtomicWorkspaceStore : IWorkspaceStore, IDisposable
         }
     }
 
-    // Explicit recovery only. A backup's Queued status cannot prove that its request was never sent:
+    // Explicit recovery only. A backup's unresolved status cannot prove that its request was never sent:
     // the newer damaged primary may have contained InFlight or Confirmed. Fence before installing it.
     public async Task RestoreBackupAsync(CancellationToken cancellationToken = default)
     {
@@ -94,10 +94,11 @@ public sealed class AtomicWorkspaceStore : IWorkspaceStore, IDisposable
                 BackupRecoveredAt = DateTimeOffset.UtcNow,
                 Drafts = backup.Drafts.ToDictionary(entry => entry.Key,
                     entry => entry.Value with { RecoveredAtRevision = revision }, StringComparer.Ordinal),
-                Outbox = backup.Outbox.Select(operation => operation.Status is PendingStatus.Queued or PendingStatus.InFlight
+                Outbox = backup.Outbox.Select(operation => operation.Status is not (PendingStatus.Confirmed or PendingStatus.Superseded)
                     ? operation with
                     {
                         Status = PendingStatus.Unknown,
+                        RecoveredAtRevision = revision,
                         Error = "已从较旧备份恢复，不能确定此请求之后是否已经发送。请先只读核对远端，再处理原请求。" +
                             (string.IsNullOrEmpty(operation.Error) ? "" : " 原记录：" + operation.Error)
                     } : operation).ToList()

@@ -10,7 +10,8 @@ internal static class RecoveryChecks
         var tests = new (string, Func<Task>)[]
         {
             ("Restoring an older Queued backup never replays requests from a damaged newer InFlight or Confirmed primary", RollbackNeverReplays),
-            ("A restored unknown parent still fences a child explicitly returned to Queued", UnknownParentFencesRetry),
+            ("Restored unknown operations cannot be directly returned to Queued, including dependent children", UnknownParentFencesRetry),
+            ("An older Blocked backup cannot retry a create that a newer damaged primary already confirmed", BlockedRollbackNeverReplays),
             ("Recovery provenance survives reopening and later draft-only saves without fabricating operation history", DraftOnlyProvenance),
             ("Recovered new article drafts remain editable but cannot create another server-assigned article after restart", RecoveredArticleFence),
             ("Backup recovery encryption and cancellation failures preserve both source files exactly", FailedRecoveryPreservesFiles),
@@ -69,11 +70,12 @@ internal static class RecoveryChecks
                     foreach (var original in expected.Outbox)
                     {
                         var actual = restored.Outbox.Single(operation => operation.Id == original.Id);
-                        var expectedStatus = original.Status is PendingStatus.Queued or PendingStatus.InFlight ? PendingStatus.Unknown : original.Status;
+                        var unresolved = original.Status is not (PendingStatus.Confirmed or PendingStatus.Superseded);
+                        var expectedStatus = unresolved ? PendingStatus.Unknown : original.Status;
                         Check(actual.Status == expectedStatus, "a recovered operation was reactivated or lost its unknown fence");
                         Check(Immutable(actual) == Immutable(original), "recovery changed operation identity, original/prepared request, receipts, attempts or dependencies");
-                        if (original.Status is PendingStatus.Queued or PendingStatus.InFlight)
-                            Check(!actual.CanEditQueued && actual.Error!.Contains("备份") &&
+                        if (unresolved)
+                            Check(actual.RecoveredAtRevision == restored.BackupRecoveryRevision && !actual.CanEditQueued && actual.Error!.Contains("备份") &&
                                 (original.Error == null || actual.Error.Contains(original.Error)), "recovery lost prior error or allowed queued replacement");
                         else Check(actual.Error == original.Error, "settled or already fenced history was changed");
                     }
@@ -105,13 +107,61 @@ internal static class RecoveryChecks
             await File.WriteAllTextAsync(store.FilePath, "damaged-newer"); await store.RestoreBackupAsync();
             var api = new FakeApi(); var engine = new SyncEngine(store, api); await engine.InitializeAsync();
             var child = engine.Snapshot.Outbox.Single(operation => operation.ResourceKey == "article-child");
-            await engine.RetryUnchangedAsync(child.Id, "{\"data\":null}");
+            await Throws<InvalidOperationException>(() => engine.RetryUnchangedAsync(child.Id, "{\"data\":null}"));
             var result = await engine.SyncAsync();
-            Check(api.Calls == 0 && result.Queued == 1, "child retry bypassed its unknown restored parent");
+            Check(api.Calls == 0 && result.Queued == 0, "child retry bypassed its unknown restored parent");
             var pending = engine.Snapshot.Outbox.Single(operation => operation.Id == child.Id);
-            Check(pending.Status == PendingStatus.Queued && !pending.CanEditQueued && pending.SendAttempts == child.SendAttempts,
+            Check(pending.Status == PendingStatus.Unknown && !pending.CanEditQueued && pending.SendAttempts == child.SendAttempts,
                 "explicit retry lost history or pretended the recovered child was never attempted");
             await Throws<InvalidOperationException>(() => engine.CancelQueuedAsync(child.Id));
+        });
+    }
+
+    private static async Task BlockedRollbackNeverReplays()
+    {
+        await WithDirectory(async root =>
+        {
+            var protector = new TestProtector(); string operationId; byte[] originalBackup;
+            var damagedPrimary = Encoding.UTF8.GetBytes("damaged-after-real-create-confirmation");
+            using (var store = Store(root, protector))
+            {
+                var blocked = new PendingOperation
+                {
+                    ResourceKey = "blocked-create-without-draft", Method = "POST", Path = "/api/v1/articles",
+                    BodyJson = "{\"title\":\"较旧拒绝记录后来已保存\",\"status\":\"draft\"}", Status = PendingStatus.Blocked,
+                    SendAttempts = 1, RemoteJson = "{\"error\":\"HTTP403-old\"}", Error = "HTTP403-old"
+                };
+                operationId = blocked.Id;
+                var backup = new WorkspaceState { ScopeId = store.ScopeId, LocalRevision = 3, Outbox = [blocked] };
+                await store.SaveAsync(backup);
+                await store.SaveAsync(backup with
+                {
+                    LocalRevision = 6,
+                    Outbox = [blocked with { Status = PendingStatus.Confirmed, SendAttempts = 2, ConfirmedRevision = 6,
+                        RemoteJson = "{\"data\":{\"id\":\"server-assigned-real-id\"}}", Error = null }]
+                });
+                originalBackup = await File.ReadAllBytesAsync(store.BackupPath);
+                await File.WriteAllBytesAsync(store.FilePath, damagedPrimary); await store.RestoreBackupAsync();
+                var api = new FakeApi(); var engine = new SyncEngine(store, api); await engine.InitializeAsync();
+                var recovered = engine.Snapshot.Outbox.Single();
+                Check(recovered.Status == PendingStatus.Unknown && recovered.RecoveredAtRevision == engine.Snapshot.BackupRecoveryRevision &&
+                    recovered.RemoteJson == blocked.RemoteJson && recovered.Error!.Contains(blocked.Error!) && Immutable(recovered) == Immutable(blocked),
+                    "old Blocked status or proof was treated as evidence that the later create never happened");
+                await Throws<InvalidOperationException>(() => engine.RetryUnchangedAsync(operationId, "{\"data\":null}"));
+                await engine.SyncAsync();
+                Check(api.Calls == 0 && engine.Snapshot.Outbox.Single().Status == PendingStatus.Unknown,
+                    "restored Blocked create was directly retried through the old rejection path");
+                Check((await File.ReadAllBytesAsync(store.BackupPath)).SequenceEqual(originalBackup) &&
+                    (await File.ReadAllBytesAsync(Directory.GetFiles(Path.GetDirectoryName(store.FilePath)!, "*.damaged-*").Single())).SequenceEqual(damagedPrimary),
+                    "Blocked recovery lost original backup or exact newer damaged primary");
+            }
+            using var reopened = Store(root, protector); var restartedApi = new FakeApi(); var restarted = new SyncEngine(reopened, restartedApi); await restarted.InitializeAsync();
+            await Throws<InvalidOperationException>(() => restarted.RetryUnchangedAsync(operationId, "{\"data\":null}"));
+            await restarted.SyncAsync(); Check(restartedApi.Calls == 0, "restart cleared the restored-request retry fence");
+            // A transport-verified exact receipt may still settle the original immutable operation without sending it.
+            await restarted.ConfirmReconciledAsync(operationId, "{\"data\":{\"id\":\"server-assigned-real-id\"}}");
+            Check(restarted.Snapshot.Outbox.Single().Status == PendingStatus.Confirmed && restartedApi.Calls == 0,
+                "restored unknown request could not be safely confirmed from exact read-only evidence");
         });
     }
 
@@ -258,7 +308,7 @@ internal static class RecoveryChecks
         };
     }
 
-    private static string Immutable(PendingOperation operation) => JsonSerializer.Serialize(operation with { Status = PendingStatus.Unknown, Error = null });
+    private static string Immutable(PendingOperation operation) => JsonSerializer.Serialize(operation with { Status = PendingStatus.Unknown, Error = null, RecoveredAtRevision = 0 });
     private static AtomicWorkspaceStore Store(string root, IStateProtector protector) => new(root, "https://haoduoyu.xyz", "synthetic-recovery", protector);
     private static void Check(bool value, string reason) { if (!value) throw new InvalidOperationException(reason); }
     private static async Task Throws<T>(Func<Task> action) where T : Exception

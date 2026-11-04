@@ -70,6 +70,7 @@ internal static class QueueChecks
         Check(engine.Snapshot.LocalRevision == 0 && engine.Snapshot.BackupRecoveryRevision == 0 && engine.Snapshot.BackupRecoveredAt == null &&
             engine.Snapshot.CacheRevisions.Count == 0 &&
             engine.Snapshot.Outbox.Single().DependencyIds.Count == 0 && engine.Snapshot.Outbox.Single().ConfirmedRevision == 0 &&
+            engine.Snapshot.Outbox.Single().RecoveredAtRevision == 0 &&
             engine.Snapshot.Drafts["legacy"].BaselineConfirmedRevision == 0 && engine.Snapshot.Drafts["legacy"].RecoveredAtRevision == 0,
             "old schema-one history was reinterpreted as a fresh confirmation");
     }
