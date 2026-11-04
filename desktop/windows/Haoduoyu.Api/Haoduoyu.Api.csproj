@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="../Haoduoyu.Core/Haoduoyu.Core.csproj" />
     <InternalsVisibleTo Include="Haoduoyu.Api.Tests" />
+    <InternalsVisibleTo Include="Haoduoyu.Windows.Tests" />
   </ItemGroup>
 </Project>

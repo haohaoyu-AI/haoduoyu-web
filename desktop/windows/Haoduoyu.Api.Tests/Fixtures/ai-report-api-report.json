@@ -1,0 +1,40 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "base_desktop_commit": "5c8b9399c96ee3316b0648bfb4c0e3b32df80b3d",
+  "verified_at_utc": "2026-11-04T17:43:44.770096+00:00",
+  "phase": "append-only AI work reports",
+  "synthetic_only": true,
+  "append_only": true,
+  "api_assertions": 165,
+  "api_suite_passed": true,
+  "actual_worker_requests": 6,
+  "create_replay_successes": 2,
+  "immutable_uuid_conflicts": 1,
+  "full_page_reads": 3,
+  "actual_worker_contract_passed": true,
+  "fixture": "ai-report-contract-c30a8a9.json",
+  "fixture_sha256": "1a17713ff7013d8509988dc2024d5d024f284f790ec1fb07b5b062c3e3cb7f6c",
+  "response_limit_bytes": {
+    "default": 1048576,
+    "only_GET_ai_reports": 4194304
+  },
+  "legal_escaped_100_record_page_above_2MiB_passed": true,
+  "above_4MiB_rejected_whole": true,
+  "external_fetch_attempts": 0,
+  "paid_provider_calls": 0,
+  "regressions": {
+    "worker_82_request_fixture_passed": true,
+    "shared_8_kind_forms_fixture_passed": true
+  },
+  "boundary": "Exact c30 compiled Worker.fetch with temporary synthetic Miniflare D1 and user-supplied synthetic author/content only. No provider/model or production business calls. No report editing, permanent deletion, invented detail GET, desktop installation or artifact download. Existing eight-kind native form logic unchanged.",
+  "files_sha256": {
+    "Haoduoyu.Api/WorkbenchApi.cs": "aa9b3dd1127bc090029a021ef027133ab20a12aed1328347540a205e6688550f",
+    "Haoduoyu.Api/RoutePolicy.cs": "34415f621a2e9e6f72b60c90c9c36ea11b79770daacd3996fe7f1948455de749",
+    "Haoduoyu.Api/BusinessReadSchema.cs": "2d3555ce1d579910687eb2153236d8121f21ba8e3a9b07be737194b69acae43b",
+    "Haoduoyu.Api/MutationVerifier.cs": "cfb7ce94ffeacfff15772cfb5d874a1cce14a109d73998861888e877bebfb86a",
+    "Haoduoyu.Api/ApiRequests.cs": "e83bbf81b05c43a8350195da0385aa5b555ac1387c1143731948b60ff3b1e049",
+    "Haoduoyu.Api.Tests/AiReportTests.cs": "7738f7628715ecc67ab4ce511258cfb414d25185f5ade841012b4ad092798547",
+    "Haoduoyu.Api.Tests/Program.cs": "818f76d362b51526a485c6117af409e545af69f5fe1ba2179cd8f0d816f49c14",
+    "Haoduoyu.Api.Tests/generate-ai-report-contract.mjs": "5bba3eb5ab827e9423b1e42817c08e3e420903f90997a2ecb189aebf937ee522"
+  }
+}

@@ -9,6 +9,21 @@ if (args is ["--worker-contract", var fixturePath])
     await WorkerContract.RunAsync(fixturePath);
     return;
 }
+if (args is ["--review-form-command"])
+{
+    await ReviewFormContract.BuildCommandAsync();
+    return;
+}
+if (args is ["--review-form-contract", var reviewFixturePath])
+{
+    await ReviewFormContract.RunAsync(reviewFixturePath);
+    return;
+}
+if (args is ["--ai-report-contract", var aiFixturePath])
+{
+    await AiReportTests.ReplayAsync(aiFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);
@@ -123,7 +138,7 @@ using (var api = new WorkbenchApi(new FakeHandler(async request =>
 using (var api = new WorkbenchApi(new FakeHandler(request =>
 {
     Check(request.Headers.GetValues("X-Note-Labels-Version").Single() == "3", "full note label protocol requested");
-    return Task.FromResult(Json("{\"data\":{\"entries\":[]}}"));
+    return Task.FromResult(Json("{\"data\":{\"category\":\"life\",\"date\":\"2026-11-04\",\"can_edit\":true,\"labels_version\":3,\"entries\":[]}}"));
 }))) await api.GetDataAsync(ApiRequests.Notes("life", "2026-11-04"));
 
 using (var api = new WorkbenchApi(new FakeHandler(request =>
@@ -131,9 +146,9 @@ using (var api = new WorkbenchApi(new FakeHandler(request =>
     Check(request.RequestUri!.AbsolutePath == "/api/v1/note-entries/labels" &&
         request.Headers.GetValues("X-Note-Labels-Version").Single() == "3" &&
         request.Headers.GetValues("X-Note-Labels-Archive").Single() == "1", "actual mounted labels path sends full version/archive protocol");
-    return Task.FromResult(Json("{\"data\":{\"labels\":[]}}"));
+    return Task.FromResult(Json("{\"data\":{\"labels_version\":3,\"labels\":[],\"archived_labels\":[]}}"));
 }))) await api.GetDataAsync("/api/v1/note-entries/labels");
-using (var api = new WorkbenchApi(new FakeHandler(_ => Task.FromResult(Json("{\"data\":{\"days\":[]}}")))))
+using (var api = new WorkbenchApi(new FakeHandler(_ => Task.FromResult(Json("{\"data\":{\"format\":\"haoduoyu-note-month-v1\",\"month\":\"2026-11\",\"complete\":true,\"labels_version\":3,\"days\":[]}}")))))
 {
     await api.GetDataAsync("/api/v1/note-entries/month?month=2026-11");
     Check(true, "actual mounted month path allowed");
@@ -201,7 +216,13 @@ var reviewLists = new Dictionary<string, string>
     ["notes"] = "offset=0&read_revision=4&include_deleted=0&account=V%E5%AD%97&from=2026-11-01&to=2026-11-04&kind=insight",
     ["account-health"] = "offset=0&read_revision=4&include_deleted=0&account=V%E5%AD%97&platform=toutiao&from=2026-11-01&to=2026-11-04"
 };
-using (var api = new WorkbenchApi(new FakeHandler(_ => Task.FromResult(Json("{\"data\":{\"items\":[]}}")))))
+using (var api = new WorkbenchApi(new FakeHandler(request =>
+{
+    var route = request.RequestUri!.AbsolutePath;
+    var payload = route.EndsWith("/overview", StringComparison.Ordinal) ? "{\"data\":{\"account\":\"V字\",\"current\":{},\"changes\":{},\"trend\":[],\"summary\":\"synthetic\"}}" :
+        route.Split('/').Length == 6 ? ReadSchemaTests.CapturedReviewDetail(route.Split('/')[4], id, scope) : "{\"data\":{\"items\":[],\"has_more\":false,\"read_revision\":0}}";
+    return Task.FromResult(Json(payload));
+})))
 {
     foreach (var pair in reviewLists)
     {
@@ -250,6 +271,8 @@ await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/n
 await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/note-entries/labels", "{\"name\":\"synthetic\",\"action\":\"restore\"}", new JsonObject { ["name"] = "synthetic" }); return Task.CompletedTask; }, "missing archive state cannot confirm restore");
 await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/note-entries/labels", "{\"name\":\"synthetic\",\"action\":\"delete\"}", new JsonObject { ["name"] = "synthetic", ["deleted"] = false, ["mode"] = "deleted" }); return Task.CompletedTask; }, "label name alone cannot confirm delete");
 
+passed += await ReadSchemaTests.RunAsync();
+passed += await AiReportTests.RunAsync();
 Console.WriteLine($"API transport: {passed} assertions passed; all HTTP handlers synthetic, no production data requests.");
 
 sealed class FakeHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> respond) : HttpMessageHandler

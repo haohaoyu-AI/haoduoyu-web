@@ -40,16 +40,19 @@ public sealed partial class MainWindow
                 ("version", data["preferences_version"]?.DeepClone() ?? JsonValue.Create(0))), "/api/v1/todo-preferences");
         }));
         var items = Rows(data?["items"]).Where(r => mode != "hide" || !Flag(r, "completed")).ToArray();
-        List(items.Select(row => ((Flag(row, "completed") ? "✓ " : "○ ") + Text(row, "text"), $"{day} · v{Version(row)}", (Func<Task>)(async () =>
+        List(items.Select(row => ((Flag(row, "completed") ? "✓ " : "○ ") + Text(row, "text"), $"{day} · v{Version(row)}" + LocalSuffix(row), (Func<Task>)(async () =>
         {
+            if (await HandlePendingRecordAsync(row)) return;
             var option = Choose("待办", Text(row, "text"), Flag(row, "completed") ? "标为未完成" : "标为完成", "删除此条", "添加为常用");
             var path = "/api/v1/todos/" + Text(row, "id");
-            if (option is "标为完成" or "标为未完成") await QueueAsync("PATCH", path, Obj(("completed", option == "标为完成"), ("version", Version(row))), path);
+            if (option is "标为完成" or "标为未完成") await SetTodoCompletionAsync(row, option == "标为完成");
             else if (option == "删除此条" && Confirm("只软删除当前日期的此条待办？原记录可按版本恢复。"))
-                await QueueAsync("DELETE", path, Obj(("date", day), ("version", Version(row))), path);
-            else if (option == "添加为常用") await QueueAsync("POST", path + "/template", Obj(("date", day), ("version", Version(row)),
+            {
+                if (!await CancelUnsentCreationAsync(row)) await QueueAsync("DELETE", path, Obj(("date", day), ("version", Version(row))), path);
+            }
+            else if (option == "添加为常用") await QueueVersionedRecordAsync("POST", path + "/template", Obj(("date", day),
                 ("template_id", Text(row, "template_id") is { Length: > 0 } template ? template : Guid.NewGuid().ToString()),
-                ("template_version", row["template_version"]?.DeepClone() ?? JsonValue.Create(0))), path);
+                ("template_version", row["template_version"]?.DeepClone() ?? JsonValue.Create(0))), row, "todo-template");
         }))));
     }
     private async Task TemplatesAsync()
@@ -57,13 +60,16 @@ public sealed partial class MainWindow
         await FlushEditorAsync(); page.Children.Clear(); page.Children.Add(Label("常用事项 · 手动加入指定日期，不会自动生成"));
         page.Children.Add(Button("＋ 新常用事项", () => NewEditorAsync("template", NewRecord(("text", "")), "/api/v1/todo-templates/")));
         var data = await ReadAsync("/api/v1/todo-templates"); Missing(data);
-        List(Rows(data?["items"]).Select(row => (Text(row, "text"), "近 30 天完成 " + Text(row, "completed_days") + " 天 · " + Text(row, "habit_status"), (Func<Task>)(async () =>
+        List(Rows(data?["items"]).Select(row => (Text(row, "text"), "近 30 天完成 " + Text(row, "completed_days") + " 天 · " + Text(row, "habit_status") + LocalSuffix(row), (Func<Task>)(async () =>
         {
+            if (await HandlePendingRecordAsync(row)) return;
             var option = Choose("常用事项", Text(row, "text"), "加入 " + Day, "改名", "删除常用");
             var path = "/api/v1/todo-templates/" + Text(row, "id");
             if (option == "改名") await EditAsync("template", row, path);
             else if (option == "删除常用" && Confirm("停用此常用事项？历史待办和完成记录保留。"))
-                await QueueAsync("DELETE", path, Obj(("version", Version(row))), path);
+            {
+                if (!await CancelUnsentCreationAsync(row)) await QueueAsync("DELETE", path, Obj(("version", Version(row))), path);
+            }
             else if (option != null)
             {
                 var id = Guid.NewGuid().ToString();
@@ -80,7 +86,7 @@ public sealed partial class MainWindow
         _ = await ReadAsync("/api/v1/note-entries/labels");
         var data = await ReadAsync($"/api/v1/note-entries?category={category}&date={day}"); Missing(data);
         if (data != null && !Flag(data, "can_edit")) page.Children.Add(Label("当前服务身份只允许阅读。离线草稿可保留，服务器会独立检查写权限。"));
-        List(Rows(data?["entries"]).Select(row => (Text(row, "text")[..Math.Min(100, Text(row, "text").Length)], Text(row, "updated_at") + " · v" + Version(row),
+        List(Rows(data?["entries"]).Select(row => (Text(row, "text")[..Math.Min(100, Text(row, "text").Length)], Text(row, "updated_at") + " · v" + Version(row) + LocalSuffix(row),
             (Func<Task>)(() => NoteActionsAsync(row)))));
         var legacy = await ReadAsync($"/api/v1/daily-notes?date={day}&category={category}");
         if (!string.IsNullOrEmpty(Text(legacy, "text")))
@@ -92,23 +98,27 @@ public sealed partial class MainWindow
     }
     private async Task NoteActionsAsync(JsonObject row)
     {
+        if (await HandlePendingRecordAsync(row)) return;
         var path = "/api/v1/note-entries/" + Text(row, "id");
         var choice = Choose("碎碎念", Text(row, "text"), "编辑本机草稿", "导出文字", "软删除");
         if (choice == "编辑本机草稿") await EditAsync("note", row, path);
         else if (choice == "导出文字") await ExportTextAsync("碎碎念.txt", Text(row, "text"));
         else if (choice == "软删除" && Confirm("软删除此条记录？原内容和删除请求会保留在本机历史中。"))
-            await QueueAsync("DELETE", path, Obj(("version", Version(row)), ("save_id", Guid.NewGuid().ToString())), path);
+        {
+            if (!await CancelUnsentCreationAsync(row)) await QueueAsync("DELETE", path, Obj(("version", Version(row)), ("save_id", Guid.NewGuid().ToString())), path);
+        }
     }
     private async Task MemosAsync(WrapPanel bar)
     {
         bar.Children.Add(Button("＋ 新分组", () => NewEditorAsync("group", NewRecord(("title", ""), ("position", 0)), "/api/v1/memos/groups/")));
         var data = await ReadAsync("/api/v1/memos"); Missing(data);
-        List(Rows(data?["groups"]).Select(group => (Text(group, "title") + (group["deleted_at"] == null ? "" : "（回收站）"),
-            Text(group, "active_note_count") + " 篇笔记 · v" + Version(group), (Func<Task>)(async () =>
+        List(Rows(data?["groups"]).Select(group => (Text(group, "title") + (!EffectiveDeleted(group) ? "" : "（回收站）"),
+            Text(group, "active_note_count") + " 篇笔记 · v" + Version(group) + LocalSuffix(group), (Func<Task>)(async () =>
             {
+                if (await HandlePendingRecordAsync(group)) return;
                 await FlushEditorAsync(); page.Children.Clear(); page.Children.Add(Label(Text(group, "title")));
                 var path = "/api/v1/memos/groups/" + Text(group, "id");
-                if (group["deleted_at"] != null)
+                if (EffectiveDeleted(group))
                 {
                     page.Children.Add(Button("恢复分组", () => QueueAsync("POST", path + "/restore", Obj(("version", Version(group)), ("save_id", Guid.NewGuid().ToString())), path)));
                 }
@@ -119,25 +129,30 @@ public sealed partial class MainWindow
                     page.Children.Add(Button("软删除分组", async () =>
                     {
                         if (Confirm("软删除分组“" + Text(group, "title") + "”及其当前 " + Text(group, "active_note_count") + " 篇活动笔记？已有单独删除的笔记不会随分组恢复。"))
+                        {
+                            if (await CancelUnsentCreationAsync(group)) return;
                             await QueueAsync("DELETE", path, Obj(("version", Version(group)), ("save_id", Guid.NewGuid().ToString()),
                                 ("confirm_title", Text(group, "title")), ("confirm_note_count", group["active_note_count"]?.DeepClone())), path);
+                        }
                     }));
                 }
                 List(Rows(data?["notes"]).Where(n => Text(n, "group_id") == Text(group, "id")).Select(note =>
-                    (Text(note, "title") + (note["deleted_at"] == null ? "" : "（回收站）"), "v" + Version(note), (Func<Task>)(async () =>
+                    (Text(note, "title") + (!EffectiveDeleted(note) ? "" : "（回收站）"), "v" + Version(note) + LocalSuffix(note), (Func<Task>)(async () =>
                     {
                         var notePath = "/api/v1/memos/notes/" + Text(note, "id");
-                        if (note["deleted_at"] != null)
+                        if (EffectiveDeleted(note))
                         {
                             if (Confirm("恢复这篇笔记？其父分组需要先恢复。")) await QueueAsync("POST", notePath + "/restore", Obj(("version", Version(note)), ("save_id", Guid.NewGuid().ToString())), notePath);
                             return;
                         }
                         var full = await ReadAsync(notePath);
                         if (full == null) throw new InvalidOperationException("本机没有此篇正文。请连接后读取，不能用空正文覆盖。");
+                        if (await HandlePendingRecordAsync(full)) return;
                         var choice = Choose("备忘录", Text(full, "title"), "编辑", "导出文字", "软删除");
                         if (choice == "编辑") await EditAsync("memo", full.AsObject(), notePath);
                         else if (choice == "导出文字") await ExportTextAsync("备忘录.txt", Text(full, "title") + "\n\n" + Text(full, "body"));
-                        else if (choice == "软删除" && Confirm("软删除此篇笔记？")) await QueueAsync("DELETE", notePath, Obj(("version", Version(full)), ("save_id", Guid.NewGuid().ToString())), notePath);
+                        else if (choice == "软删除" && Confirm("软删除此篇笔记？"))
+                        { if (!await CancelUnsentCreationAsync(full)) await QueueAsync("DELETE", notePath, Obj(("version", Version(full)), ("save_id", Guid.NewGuid().ToString())), notePath); }
                     }))));
             }))));
     }
@@ -146,29 +161,49 @@ public sealed partial class MainWindow
         var day = Day;
         bar.Children.Add(Button("＋ 新提醒", () => NewEditorAsync("reminder", NewRecord(("date", day), ("source_key", "desktop:" + Guid.NewGuid().ToString()), ("summary", "")), "/api/v1/work-reminders/")));
         var data = await ReadAsync("/api/v1/work-reminders?date=" + day); Missing(data);
-        List(Rows(data?["items"]).Select(row => (Text(row, "summary"), Text(row, "source_key") + " · v" + Version(row), (Func<Task>)(async () =>
+        List(Rows(data?["items"]).Select(row => (Text(row, "summary"), Text(row, "source_key") + " · v" + Version(row) + LocalSuffix(row), (Func<Task>)(async () =>
         {
+            if (await HandlePendingRecordAsync(row)) return;
             var path = "/api/v1/work-reminders/" + Text(row, "id");
             var choice = Choose("工作提醒", Text(row, "summary"), "编辑", "软删除");
             if (choice == "编辑") await EditAsync("reminder", row, path);
-            else if (choice == "软删除" && Confirm("软删除此提醒？")) await QueueAsync("DELETE", path, Obj(("version", Version(row)), ("save_id", Guid.NewGuid().ToString())), path);
+            else if (choice == "软删除" && Confirm("软删除此提醒？"))
+            { if (!await CancelUnsentCreationAsync(row)) await QueueAsync("DELETE", path, Obj(("version", Version(row)), ("save_id", Guid.NewGuid().ToString())), path); }
         }))));
     }
     private async Task ArticlesAsync(WrapPanel bar)
     {
+        foreach (var (value, label) in new[] { ("published", "已发布"), ("drafting", "起草中"), ("illustrated", "已配图"), ("draft_saved", "草稿已存"), ("failed", "受阻") })
+        {
+            var statusValue = value;
+            bar.Children.Add(Button((articleStatus == value ? "● " : "") + label, async () => { articleStatus = statusValue; articlePage = 1; await NavigateAsync("文章台账"); }));
+        }
         bar.Children.Add(Button("＋ 新文章记录", () => NewEditorAsync("article", NewRecord(("title", ""), ("status", "drafting"), ("production_mode", "unknown")), "/api/v1/articles/new:")));
         bar.Children.Add(Button("上一页", async () => { articlePage = Math.Max(1, articlePage - 1); await NavigateAsync("文章台账"); }));
         bar.Children.Add(Button("下一页", async () => { articlePage++; await NavigateAsync("文章台账"); }));
         var accounts = await ReadAsync("/api/v1/accounts");
         page.Children.Add(Label("运营账号：" + string.Join("；", Rows(accounts).Select(a => Text(a, "name") + "（" + Text(a, "id") + "）"))));
-        var path = $"/api/v1/articles?page={articlePage}&page_size=50";
+        var path = $"/api/v1/articles?page={articlePage}&page_size=50&status={articleStatus}";
         var data = await ReadAsync(path); Missing(data);
         page.Children.Add(Label("第 " + articlePage + " 页 · 每页最多 50 条"));
-        List(Rows(data is JsonArray ? data : data?["items"]).Select(row => (Text(row, "title"), Text(row, "account_name") + " · " + Text(row, "status"), (Func<Task>)(async () =>
+        List(Rows(data is JsonArray ? data : data?["items"]).Select(row => (Text(row, "title"), Text(row, "account_name") + " · " + Text(row, "status") + LocalSuffix(row), (Func<Task>)(async () =>
         {
+            if (Flag(row, "_local_new"))
+            {
+                if (await HandlePendingRecordAsync(row)) return;
+                var operationId = Text(row, "_operation_id");
+                var creation = Engine.Snapshot.Outbox.SingleOrDefault(o => o.Id == operationId);
+                if (creation == null || !Engine.Snapshot.Drafts.TryGetValue(creation.ResourceKey, out var draft))
+                    throw new InvalidOperationException("本机创建原稿未找到。原请求保留，请从同步中心核对，不能再新建一条。");
+                var saved = JsonNode.Parse(draft.Text)?.AsObject();
+                if (saved?["original"] is not JsonObject original || Text(saved, "kind") != "article")
+                    throw new InvalidDataException("本机文章原稿格式无法核实，已保留原件。");
+                await EditAsync("article", (JsonObject)original.DeepClone(), draft.Key); return;
+            }
             var itemPath = "/api/v1/articles/" + Text(row, "id");
             var full = await ReadAsync(itemPath);
             if (full == null) throw new InvalidOperationException("本机没有完整文章字段。请连接后打开，避免截断原流水线信息。");
+            if (await HandlePendingRecordAsync(full)) return;
             await EditAsync("article", full.AsObject(), itemPath);
         }))));
     }

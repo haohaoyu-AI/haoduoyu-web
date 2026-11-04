@@ -17,7 +17,7 @@ using Haoduoyu.Windows;
 
 namespace Haoduoyu.Windows.Tests;
 
-// No Application.Run, Window.Show, production request, existing client storage, or interactive dialog.
+// Synthetic tests only. Shown-window cases inject a temporary root and a socket-free HTTP handler.
 internal static class Program
 {
     private static App? application;
@@ -45,7 +45,7 @@ internal static class Program
             ("New note saves retain the original persisted record UUID", StableNewNoteIdentity),
             ("Review article edits keep hash guards, record UUID, nested data and original timestamp precision", ReviewArticleProperties),
             ("Review metrics keep unknown and zero distinct and reject impossible percentages", ReviewSnapshotProperties)
-        };
+        }.Concat(NativeWorkflowTests.Cases).ToArray();
         var failures = 0;
         foreach (var (name, run) in tests)
         {
@@ -57,8 +57,8 @@ internal static class Program
             }
         }
         Console.WriteLine($"Windows native synthetic checks: {tests.Length - failures}/{tests.Length} passed");
-        Console.WriteLine("Scope: current-runner DPAPI, synthetic temporary files, compiled WPF resources and unshown controls only. No interactive or production acceptance.");
-        // No dispatcher loop was started. Returning ends this isolated test process without invoking app startup/shutdown workflows.
+        Console.WriteLine("Scope: current-runner DPAPI, temporary synthetic files, compiled WPF controls and shown-window dispatcher workflows with fake HTTP only. No production, physical IME, power-loss or installation acceptance.");
+        // Shown-window cases close their own synthetic windows. No real app startup or user data root is used.
         return failures == 0 ? 0 : 1;
     }
 
@@ -123,7 +123,7 @@ internal static class Program
     private static void ResourcesLoad()
     {
         Check(Application.Current == null, "test application was unexpectedly started earlier");
-        application = new App { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        application = new SyntheticTestApplication { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         application.InitializeComponent();
         Check(Application.Current == application, "compiled Application could not initialize");
         Check(application.MainWindow == null, "loading resources invoked real app startup");
@@ -263,8 +263,8 @@ internal static class Program
         Check(result.Body.ContainsKey("reads") && result.Body["reads"] == null &&
             result.Body["impressions"]?.GetValue<long>() == 0 && result.Body["ctr"] == null,
             "unknown metric was converted to zero, or a real zero became unknown");
-        Check(!result.Body.ContainsKey("traffic_sources") && JsonNode.DeepEquals(before, original),
-            "native snapshot edit would erase unexposed nested traffic metrics");
+        Check(JsonNode.DeepEquals(result.Body["traffic_sources"], original["traffic_sources"]) && JsonNode.DeepEquals(before, original),
+            "native structured snapshot form truncated existing nested traffic metrics or mutated its base version");
         values["ctr"] = "101";
         Throws<InvalidOperationException>(() => BuildReviewSave("snapshots", original, values));
     }
@@ -466,4 +466,13 @@ internal static class Program
         Directory.CreateDirectory(root);
         try { action(root); } finally { Directory.Delete(root, recursive: true); }
     }
+}
+
+// WPF Application's constructor queues OnStartup for the first dispatcher pump, even without Run().
+// Keep the production App resources, but intercept startup before it could open the default user-data window.
+// Reference: dotnet/wpf PresentationFramework/System/Windows/Application.cs, Application constructor.
+internal sealed class SyntheticTestApplication : App
+{
+    internal int GuardedStartupCalls { get; private set; }
+    protected override void OnStartup(StartupEventArgs e) { GuardedStartupCalls++; }
 }

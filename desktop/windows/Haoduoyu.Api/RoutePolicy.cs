@@ -40,6 +40,8 @@ internal static class RoutePolicy
         ("PUT", "/work-reminders/" + Uuid, []), ("DELETE", "/work-reminders/" + Uuid, []),
         ("POST", "/work-reminders/" + Uuid + "/restore", []),
         ("GET", "/(accounts|account-profiles)", []),
+        ("GET", "/ai-reports", ["offset"]),
+        ("PUT", "/ai-reports/" + ReviewUuid, []),
         ("GET", "/articles", ["page", "page_size", "account_id", "status", "q", "from", "to", "sort", "order", "platform", "fields"]),
         ("POST", "/articles", []), ("PATCH", "/articles", []),
         ("GET", "/articles/" + Id, []), ("PUT", "/articles/" + Id, []),
@@ -85,6 +87,8 @@ internal static class RoutePolicy
             {
                 var value = Uri.UnescapeDataString(pair[1]);
                 if (value.Any(char.IsControl)) throw new ArgumentException("查询参数含无效字符。", nameof(path));
+                if (route == "/ai-reports" && !Regex.IsMatch(value, "\\A(?:0|[1-9][0-9]{0,8})\\z", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking))
+                    throw new ArgumentException("汇报偏移须为规范的非负分页整数。", nameof(path));
             }
             catch (UriFormatException) { throw new ArgumentException("查询参数编码无效。", nameof(path)); }
         }

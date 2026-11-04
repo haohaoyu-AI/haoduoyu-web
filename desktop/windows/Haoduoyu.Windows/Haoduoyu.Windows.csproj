@@ -7,11 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>Haoduoyu.Workbench</AssemblyName>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Haoduoyu.Windows.Tests" />
     <ProjectReference Include="../Haoduoyu.Core/Haoduoyu.Core.csproj" />
     <ProjectReference Include="../Haoduoyu.Api/Haoduoyu.Api.csproj" />
   </ItemGroup>

@@ -19,6 +19,14 @@ public static class ApiRequests
     public static string Reminders(string date) => Prefix + "work-reminders?date=" + Date(date);
     public static string NoteDates(string category, string? before = null) => Prefix + "note-entries/dates?category=" + Category(category) + "&page_size=100" + (before is null ? "" : "&before=" + Date(before));
     public static string MemoNote(string id) => Prefix + "memos/notes/" + Uuid(id);
+    public static ApiCommand AppendAiReport(string id, string author, string content)
+    {
+        author = PlainText(author.Replace("\r\n", "\n").Replace('\r', '\n').Trim(), 480);
+        content = PlainText(content.Replace("\r\n", "\n").Replace('\r', '\n').Trim(), 16_384);
+        if (author.Length == 0 || author.EnumerateRunes().Count() > 120 || author.Any(c => c is '\n' or '\t') || content.Length == 0)
+            throw new ArgumentException("请明确填写真实署名（1–120字）与实际工作内容（1–16KiB）。");
+        return new("PUT", Prefix + "ai-reports/" + Uuid(id), new JsonObject { ["author"] = author, ["content"] = content });
+    }
 
     public static ApiCommand CreateTodo(string id, string date, string text, string? templateId = null)
     {

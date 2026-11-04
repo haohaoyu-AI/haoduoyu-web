@@ -1,0 +1,61 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "base_desktop_commit": "5c8b9399c96ee3316b0648bfb4c0e3b32df80b3d",
+  "verified_at_utc": "2026-11-04T17:28:42.085573+00:00",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "api_assertions": 145,
+  "api_suite_passed": true,
+  "read_schema_checks": 33,
+  "worker": {
+    "fixture": "worker-contract-complete-reads-c30a8a9.json",
+    "sha256": "c19b1de0abf493c8d1f87a970f67ea9d105df4d0d4228bec5805fbb353013a9c",
+    "requests": 82,
+    "successful_mutations": 40,
+    "cas_rejections": 3,
+    "reads": 39,
+    "receipt_hash_confirmations": 2,
+    "passed": true
+  },
+  "native_forms": {
+    "fixture": "review-form-contract-c30a8a9.json",
+    "sha256": "9e9db6f2924b73d65c5cf5906b28c646ad76d6eb03e9358f5783abce8a555185",
+    "form_logic_sha256": "d8891e2c822ae77890b518dbc621f422059c92c7b2f62caf2d2b908b5d7b082a",
+    "commands_from": "Actual shared native ReviewFormLogic.New/Build",
+    "requests": 52,
+    "kinds": [
+      "account-health",
+      "articles",
+      "benchmark-accounts",
+      "benchmark-articles",
+      "notes",
+      "playbooks",
+      "reports",
+      "snapshots"
+    ],
+    "successful_saves": 25,
+    "hash_cas_rejections": 8,
+    "exact_no_ops": 9,
+    "reads": 19,
+    "invalid_forms_rejected": 15,
+    "passed": true
+  },
+  "boundary": "Actual shared native pure form New/Build -> compiled c30 Worker.fetch -> actual temporary Miniflare D1; C# regenerates commands and validates captured response schemas/mutations/receipts. No production business requests, no interactive Windows claim, no artifact download. All temporary runtimes disposed.",
+  "files_sha256": {
+    "Haoduoyu.Api/Haoduoyu.Api.csproj": "b005adcf642845a317dd027fe54570bb14bd975660b78f6200648f0cb61578ef",
+    "Haoduoyu.Api/WorkbenchApi.cs": "4acec7e3a7b0bbe822cc102e591314d6220b89ec6da83e28f866e1d6d222c07e",
+    "Haoduoyu.Api/BusinessReadSchema.cs": "9ef460aa4f5861ed9bd95aed2f5f1e1a8c03a3824ff0ddde4874873d73e519e5",
+    "Haoduoyu.Api/RoutePolicy.cs": "92ce9bb77c5dca6cf92ed568898b807160e0f990d520167ecfa447cac68ec0f0",
+    "Haoduoyu.Api/MutationVerifier.cs": "b26dd0d35d3a13dda95184c5dd01a3007caadc6e5d1afdb372b3721e171704dc",
+    "Haoduoyu.Api/Reconciliation.cs": "5b153898bc239c6f6e514a94f11e422da2120fd7e2ea7e4d247713faf152675d",
+    "Haoduoyu.Api/ReviewMutationVerifier.cs": "0e29a9111efd18e5bfd03c30b3d890fa812425f928b3bc59bc29c95381e57423",
+    "Haoduoyu.Api.Tests/Haoduoyu.Api.Tests.csproj": "de64f30039579329bb326f4d547db8fad2b406962e55847de2cce969667c3874",
+    "Haoduoyu.Api.Tests/Program.cs": "1c3a9908f3cac8385403632020de15c19926b48788b524dae52b4977a6a501c7",
+    "Haoduoyu.Api.Tests/ReadSchemaTests.cs": "ddd1f8f7e9fe8bff70665a0f549f8ab657b87be95b97b81362bc7bfe99849bbf",
+    "Haoduoyu.Api.Tests/WorkerContract.cs": "e7f42739588179e213779fa4d274337ad03dfcd1bae793337d1e410b68f3047a",
+    "Haoduoyu.Api.Tests/ReviewFormContract.cs": "b73d298afc97edb963abea35151132b6d04ee763ce958872810a42b45ec45f95",
+    "Haoduoyu.Api.Tests/generate-worker-contract.mjs": "7c17781ff2189fd863445423fb827b9c6012e3271c4282d7e0fe5e9e253585ad",
+    "Haoduoyu.Api.Tests/generate-review-form-contract.mjs": "66c4cbda67c362db424d02aa2d6152ca924b97b0624ecccca1ff37dff54603ba",
+    "Haoduoyu.Windows/ReviewFormLogic.cs": "d8891e2c822ae77890b518dbc621f422059c92c7b2f62caf2d2b908b5d7b082a"
+  }
+}

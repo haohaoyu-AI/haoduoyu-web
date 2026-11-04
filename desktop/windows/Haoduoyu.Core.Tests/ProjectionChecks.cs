@@ -27,6 +27,10 @@ internal static class ProjectionChecks
             ("malformed collection identities never authorize deletion", MalformedCollectionIdentities),
             ("old articles canonical data supports paging and filters", ArticlePaging),
             ("all review resources retain hashes and tombstone filtering", ReviewResources),
+            ("AI report canonical pages follow server time and ID ordering", AiReportPaging),
+            ("AI report queued replacement and unknown remain honest local creates", AiReportLocalCreate),
+            ("AI report raw confirmation requires matching immutable content", AiReportReceipts),
+            ("AI report fresh canonical state defeats stale receipt and immutable edits", AiReportCanonicalSafety),
             ("scope-marked cache cannot enter another partition", ScopeIsolation)
         };
         var failed = 0;
@@ -281,6 +285,106 @@ internal static class ProjectionChecks
         try { _ = WorkspaceProjection.Project("/api/v1/unscheduled-todos", null, blank); throw new Exception("blank partition accepted"); }
         catch (InvalidDataException) { }
     }
+
+    private static void AiReportPaging()
+    {
+        var state = NewState(); Cache(state, "/api/v1/ai-reports", AiReportCanonical(), 8);
+        var original = state.Cache["/api/v1/ai-reports"];
+        var first = Data("/api/v1/ai-reports?offset=0", state);
+        var second = Data("/api/v1/ai-reports?offset=100", state);
+        var third = Data("/api/v1/ai-reports?offset=200", state);
+        Equal(100, Items(first).Count()); Equal(100, Items(second).Count()); Equal(5, Items(third).Count());
+        // The newest timestamp belongs to the smallest ID; timestamp must dominate ID ordering.
+        Equal(ReportId(0), Text(Items(first).First(), "id"));
+        Equal(string.Join(',', new[] { 0, 3, 2, 1, 6, 5, 4 }.Select(ReportId)), string.Join(',', Items(first).Take(7).Select(row => Text(row, "id"))));
+        Equal(ReportId(102), Text(Items(second).First(), "id"));
+        Equal(string.Join(',', new[] { 200, 199, 204, 203, 202 }.Select(ReportId)), string.Join(',', Items(third).Select(row => Text(row, "id"))));
+        True(Bool(first, "has_more")); True(Bool(second, "has_more")); True(!Bool(third, "has_more"));
+        var ids = new[] { first, second, third }.SelectMany(page => Items(page).Select(row => Text(row, "id"))).ToArray();
+        Equal(205, ids.Distinct(StringComparer.Ordinal).Count());
+        Equal(original, state.Cache["/api/v1/ai-reports"]);
+        Equal(205, JsonNode.Parse(original)!["data"]!["items"]!.AsArray().Count);
+    }
+    private static void AiReportLocalCreate()
+    {
+        var state = NewState(); Cache(state, "/api/v1/ai-reports", AiReportCanonical(), 8);
+        var path = "/api/v1/ai-reports/" + ReportId(9001);
+        var old = Op("PUT", path, """{"author":"初稿署名","content":"旧本地稿"}""");
+        var replacement = Op("PUT", path, """{"author":"合成署名","content":"修改后的真实工作内容"}""", at: 2);
+        state.Outbox.Add(old with { Status = PendingStatus.Superseded, SupersededById = replacement.Id });
+        state.Outbox.Add(replacement);
+        var before = JsonSerializer.Serialize(state);
+        var row = Items(Data("/api/v1/ai-reports?offset=0", state)).First();
+        Equal(ReportId(9001), Text(row, "id")); Equal("修改后的真实工作内容", Text(row, "content")); Equal("合成署名", Text(row, "author"));
+        Equal(replacement.Id, Text(row, "_operation_id")); Equal("Queued", Text(row, "_local_status")); True(Bool(row, "_local_new"));
+        True(Text(row, "_local_created_at").Length > 0); NoInventedReportReceipt(row);
+        Equal(before, JsonSerializer.Serialize(state));
+        var remote = new JsonObject { ["id"] = ReportId(9001), ["author"] = "待核实远端署名", ["content"] = "待核实远端正文", ["created_at"] = "2026-11-04T00:00:03.456Z" };
+        state.Outbox[1] = replacement with { Status = PendingStatus.Unknown, RemoteJson = new JsonObject { ["data"] = remote }.ToJsonString() };
+        var unknownBefore = JsonSerializer.Serialize(state);
+        row = Items(Data("/api/v1/ai-reports?offset=0", state)).First();
+        Equal(ReportId(9001), Text(row, "id")); Equal("Unknown", Text(row, "_local_status")); True(Bool(row, "_local_new"));
+        Equal("修改后的真实工作内容", Text(row, "content")); Equal("修改后的真实工作内容", Text(row["_local_request"], "content"));
+        Equal("待核实远端正文", Text(row["_local_remote"], "content")); Equal(replacement.Id, Text(row, "_operation_id")); NoInventedReportReceipt(row);
+        Equal(unknownBefore, JsonSerializer.Serialize(state)); Equal(replacement.BodyJson, state.Outbox[1].BodyJson);
+    }
+    private static void AiReportReceipts()
+    {
+        var state = NewState(); var path = "/api/v1/ai-reports/" + ReportId(9100);
+        var operation = Op("PUT", path, """{"author":"合成署名","content":"确认的工作正文"}""", PendingStatus.Confirmed) with { ConfirmedRevision = 4 };
+        const string created = "2026-11-04T01:02:03.456Z";
+        var receipt = new JsonObject { ["id"] = ReportId(9100), ["author"] = "合成署名", ["content"] = "确认的工作正文", ["created_at"] = created };
+        state.Outbox.Add(operation with { RemoteJson = new JsonObject { ["data"] = receipt }.ToJsonString() });
+        var row = Items(Data("/api/v1/ai-reports?offset=0", state)).Single();
+        True(Bool(row, "_local_confirmed_preview")); Equal("Confirmed", Text(row, "_local_status")); Equal(created, Text(row, "created_at"));
+        Equal("确认的工作正文", Text(row, "content")); True(!Bool(row, "_local_incomplete")); True(row["content_hash"] == null); True(row["version"] == null);
+        var originalReceipt = state.Outbox[0].RemoteJson;
+        _ = Project("/api/v1/ai-reports?offset=0", state); Equal(originalReceipt, state.Outbox[0].RemoteJson);
+        var wrong = new JsonObject { ["id"] = ReportId(9100), ["author"] = "合成署名", ["content"] = "不匹配的远端正文", ["created_at"] = created };
+        state.Outbox[0] = operation with { RemoteJson = new JsonObject { ["data"] = wrong }.ToJsonString() };
+        row = Items(Data("/api/v1/ai-reports?offset=0", state)).Single();
+        True(Bool(row, "_local_incomplete")); True(!Bool(row, "_local_confirmed_preview"));
+        Equal("确认的工作正文", Text(row, "content")); Equal("确认的工作正文", Text(row["_local_request"], "content")); Equal("不匹配的远端正文", Text(row["_local_remote"], "content"));
+        True(row["content_hash"] == null); True(row["version"] == null);
+    }
+    private static void AiReportCanonicalSafety()
+    {
+        var state = NewState(); var kept = ReportId(9200); var removed = ReportId(9201);
+        var raw = new JsonObject { ["id"] = kept, ["author"] = "真实服务端署名", ["content"] = "真实服务端正文", ["created_at"] = "2026-11-04T01:02:03.456Z", ["content_hash"] = new string('a', 64) };
+        Cache(state, "/api/v1/ai-reports", new JsonObject { ["_local_complete"] = true, ["data"] = new JsonObject { ["items"] = new JsonArray(raw), ["has_more"] = false } }.ToJsonString(), 12);
+        var oldRow = new JsonObject { ["id"] = removed, ["author"] = "旧署名", ["content"] = "已删除正文", ["created_at"] = "2026-11-03T01:02:03.456Z", ["content_hash"] = new string('b', 64) };
+        Cache(state, "/api/v1/ai-reports?offset=0", new JsonObject { ["data"] = new JsonObject { ["items"] = new JsonArray(oldRow), ["has_more"] = false } }.ToJsonString(), 2);
+        state.Outbox.Add(Op("PUT", "/api/v1/ai-reports/" + removed, """{"author":"旧署名","content":"已删除正文"}""", PendingStatus.Confirmed) with
+        { ConfirmedRevision = 4, RemoteJson = new JsonObject { ["data"] = oldRow.DeepClone() }.ToJsonString() });
+        state.Outbox.Add(Op("PUT", "/api/v1/ai-reports/" + kept, """{"author":"旧署名","content":"旧回执正文"}""", PendingStatus.Confirmed) with
+        { ConfirmedRevision = 4, RemoteJson = new JsonObject { ["data"] = new JsonObject { ["id"] = kept, ["author"] = "旧署名", ["content"] = "旧回执正文", ["created_at"] = "2026-11-01T00:00:00.123Z" } }.ToJsonString() });
+        var row = Items(Data("/api/v1/ai-reports?offset=0", state)).Single();
+        Equal(kept, Text(row, "id")); Equal("真实服务端正文", Text(row, "content")); Equal(new string('a', 64), Text(row, "content_hash")); True(!Bool(row, "_local_confirmed_preview"));
+        var attempt = Op("PUT", "/api/v1/ai-reports/" + kept, """{"author":"改写尝试署名","content":"不得覆盖已存在正文"}""", at: 2);
+        state.Outbox.Add(attempt);
+        var immutableView = Data("/api/v1/ai-reports?offset=0", state);
+        row = Items(immutableView).Single(); Equal("真实服务端署名", Text(row, "author")); Equal("真实服务端正文", Text(row, "content")); Equal(new string('a', 64), Text(row, "content_hash"));
+        True(Bool(row, "_local_immutable_conflict")); Equal("不得覆盖已存在正文", Text(row["_local_request"], "content")); Equal(attempt.Id, Text(row, "_operation_id"));
+        var beforeDelete = immutableView.ToJsonString();
+        state.Outbox.Add(Op("DELETE", "/api/v1/ai-reports/" + kept, """{"expected_hash":"synthetic-only","save_id":"unsupported-delete"}""", at: 3));
+        state.Outbox.Add(Op("DELETE", "/api/v1/ai-reports/" + removed, "{}", at: 4));
+        Equal(beforeDelete, Data("/api/v1/ai-reports?offset=0", state).ToJsonString());
+        Equal(1, JsonNode.Parse(state.Cache["/api/v1/ai-reports"])!["data"]!["items"]!.AsArray().Count);
+    }
+
+    private static string ReportId(int number) => "00000000-0000-4000-8000-" + number.ToString("D12");
+    private static string AiReportCanonical()
+    {
+        var epoch = DateTimeOffset.Parse("2026-11-03T00:00:00Z");
+        var rows = new JsonArray(Enumerable.Range(0, 205).Select(i => (JsonNode?)new JsonObject
+        {
+            ["id"] = ReportId(204 - i), ["author"] = "合成服务端署名", ["content"] = "合成服务端工作内容" + i,
+            ["created_at"] = epoch.AddSeconds(i / 3).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'"), ["content_hash"] = i.ToString("x64")
+        }).ToArray());
+        return new JsonObject { ["_local_complete"] = true, ["data"] = new JsonObject { ["items"] = rows, ["has_more"] = false } }.ToJsonString();
+    }
+    private static void NoInventedReportReceipt(JsonObject row)
+    { True(!row.ContainsKey("created_at")); True(!row.ContainsKey("content_hash")); True(!row.ContainsKey("version")); }
 
     private static WorkspaceState NewState() => new() { ScopeId = "synthetic-partition", LocalRevision = 20 };
     private static void Cache(WorkspaceState state, string path, string json, long revision)

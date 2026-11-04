@@ -1,0 +1,3772 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "synthetic_only": true,
+  "commands_from": "Actual shared native ReviewFormLogic.New/Build",
+  "form_logic_sha256": "d8891e2c822ae77890b518dbc621f422059c92c7b2f62caf2d2b908b5d7b082a",
+  "form_builder_assembly_sha256": "e51436f37872f0da1d771092557af97434c1523e3c1f1482402c6cf53a9222a8",
+  "external_fetch_attempts": 0,
+  "generated_at": "2026-11-04T17:22:34.759Z",
+  "fixture": "Exact c30a8a9 compiled Worker.fetch + existing temporary Miniflare D1 harness; external services/fetch disabled",
+  "samples": [
+    {
+      "name": "native-form-server-beijing-today",
+      "method": "GET",
+      "path": "/api/v1/todos",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-05\",\"today\":\"2026-11-05\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[]}}"
+    },
+    {
+      "name": "native-form-complete-scope",
+      "method": "GET",
+      "path": "/api/v1/workbench-snapshot/index?version=2",
+      "status": 200,
+      "response_json": "{\"data\":{\"snapshot_format\":\"haoduoyu-workbench-snapshot-v2\",\"projection\":\"current\",\"complete\":true,\"scope_id\":\"93e735fabcb8a5be6d63903a74c3948562ad33351eef7990ea154aceaed397a9\",\"timezone\":\"Asia/Shanghai\",\"generated_at\":\"2026-11-04T17:22:26.234Z\",\"manifest_hash\":\"b64227a961ea5beb5d03a52acf8251a0dfff6ec0c47e65a2a5136862a48ae233\",\"global_content_hash\":\"2671a45ba1ee367b76aedd3bf0a60ac596a28bda3f82bed0dee64b51a4c85a63\",\"entities\":[],\"dates\":[],\"index_hash\":\"b64227a961ea5beb5d03a52acf8251a0dfff6ec0c47e65a2a5136862a48ae233\"}}"
+    },
+    {
+      "name": "benchmark-accounts-actual-form-create",
+      "method": "PUT",
+      "path": "/api/v1/review/benchmark-accounts/8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+      "body": {
+        "account": "V字",
+        "platform": "toutiao",
+        "name": "本次合成对标账号",
+        "profile_url": "https://example.invalid/synthetic-account",
+        "fans": 0,
+        "is_featured_author": false,
+        "posting_cadence": "每周两篇（合成）",
+        "topic_focus": "合成题材",
+        "title_patterns": [
+          "合成对话式",
+          "合成数字式"
+        ],
+        "structure_notes_md": "合成结构观察\n第二行"
+      },
+      "form": {
+        "kind": "benchmark-accounts",
+        "original": {
+          "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "account": "V字",
+          "platform": null,
+          "name": null,
+          "profile_url": null,
+          "fans": null,
+          "is_featured_author": null,
+          "posting_cadence": null,
+          "topic_focus": null,
+          "title_patterns": null,
+          "structure_notes_md": null
+        },
+        "values": {
+          "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "account": "V字",
+          "platform": "toutiao",
+          "name": "本次合成对标账号",
+          "profile_url": "https://example.invalid/synthetic-account",
+          "fans": 0,
+          "is_featured_author": false,
+          "posting_cadence": "每周两篇（合成）",
+          "topic_focus": "合成题材",
+          "title_patterns": [
+            "合成对话式",
+            "合成数字式"
+          ],
+          "structure_notes_md": "合成结构观察\n第二行"
+        }
+      },
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"account\":\"V字\",\"platform\":\"toutiao\",\"name\":\"本次合成对标账号\",\"profile_url\":\"https://example.invalid/synthetic-account\",\"fans\":0,\"is_featured_author\":false,\"posting_cadence\":\"每周两篇（合成）\",\"topic_focus\":\"合成题材\",\"title_patterns\":[\"合成对话式\",\"合成数字式\"],\"structure_notes_md\":\"合成结构观察\\n第二行\",\"created_at\":\"2026-11-04T17:22:26.657Z\",\"updated_at\":\"2026-11-04T17:22:26.657Z\",\"deleted_at\":null,\"content_hash\":\"f7023150a13e08bc0c2b33b2ff2a737251cc0a05cf80e5a3af6e64964ef7bfb4\"}}"
+    },
+    {
+      "name": "benchmark-accounts-actual-form-load-detail",
+      "method": "GET",
+      "path": "/api/v1/review/benchmark-accounts/8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"account\":\"V字\",\"platform\":\"toutiao\",\"name\":\"本次合成对标账号\",\"profile_url\":\"https://example.invalid/synthetic-account\",\"fans\":0,\"is_featured_author\":false,\"posting_cadence\":\"每周两篇（合成）\",\"topic_focus\":\"合成题材\",\"title_patterns\":[\"合成对话式\",\"合成数字式\"],\"structure_notes_md\":\"合成结构观察\\n第二行\",\"created_at\":\"2026-11-04T17:22:26.657Z\",\"updated_at\":\"2026-11-04T17:22:26.657Z\",\"deleted_at\":null,\"content_hash\":\"f7023150a13e08bc0c2b33b2ff2a737251cc0a05cf80e5a3af6e64964ef7bfb4\"}}"
+    },
+    {
+      "name": "benchmark-accounts-actual-form-edit",
+      "method": "PATCH",
+      "path": "/api/v1/review/benchmark-accounts/8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+      "body": {
+        "expected_hash": "f7023150a13e08bc0c2b33b2ff2a737251cc0a05cf80e5a3af6e64964ef7bfb4",
+        "account": "V字",
+        "platform": "toutiao",
+        "name": "本次合成对标账号",
+        "profile_url": "https://example.invalid/synthetic-account",
+        "fans": 0,
+        "is_featured_author": false,
+        "posting_cadence": "每周三篇（合成修改）",
+        "topic_focus": "合成题材",
+        "title_patterns": [
+          "合成对话式",
+          "合成数字式"
+        ],
+        "structure_notes_md": "合成结构观察\n第二行"
+      },
+      "form": {
+        "kind": "benchmark-accounts",
+        "original": {
+          "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "account": "V字",
+          "platform": "toutiao",
+          "name": "本次合成对标账号",
+          "profile_url": "https://example.invalid/synthetic-account",
+          "fans": 0,
+          "is_featured_author": false,
+          "posting_cadence": "每周两篇（合成）",
+          "topic_focus": "合成题材",
+          "title_patterns": [
+            "合成对话式",
+            "合成数字式"
+          ],
+          "structure_notes_md": "合成结构观察\n第二行",
+          "created_at": "2026-11-04T17:22:26.657Z",
+          "updated_at": "2026-11-04T17:22:26.657Z",
+          "deleted_at": null,
+          "content_hash": "f7023150a13e08bc0c2b33b2ff2a737251cc0a05cf80e5a3af6e64964ef7bfb4"
+        },
+        "values": {
+          "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "account": "V字",
+          "platform": "toutiao",
+          "name": "本次合成对标账号",
+          "profile_url": "https://example.invalid/synthetic-account",
+          "fans": 0,
+          "is_featured_author": false,
+          "posting_cadence": "每周三篇（合成修改）",
+          "topic_focus": "合成题材",
+          "title_patterns": [
+            "合成对话式",
+            "合成数字式"
+          ],
+          "structure_notes_md": "合成结构观察\n第二行",
+          "created_at": "2026-11-04T17:22:26.657Z",
+          "updated_at": "2026-11-04T17:22:26.657Z",
+          "deleted_at": null,
+          "content_hash": "f7023150a13e08bc0c2b33b2ff2a737251cc0a05cf80e5a3af6e64964ef7bfb4"
+        }
+      },
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"account\":\"V字\",\"platform\":\"toutiao\",\"name\":\"本次合成对标账号\",\"profile_url\":\"https://example.invalid/synthetic-account\",\"fans\":0,\"is_featured_author\":false,\"posting_cadence\":\"每周三篇（合成修改）\",\"topic_focus\":\"合成题材\",\"title_patterns\":[\"合成对话式\",\"合成数字式\"],\"structure_notes_md\":\"合成结构观察\\n第二行\",\"created_at\":\"2026-11-04T17:22:26.657Z\",\"updated_at\":\"2026-11-04T17:22:26.938Z\",\"deleted_at\":null,\"content_hash\":\"7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090\"}}"
+    },
+    {
+      "name": "benchmark-accounts-actual-form-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/benchmark-accounts/8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+      "body": {
+        "expected_hash": "7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090",
+        "account": "V字",
+        "platform": "toutiao",
+        "name": "本次合成对标账号",
+        "profile_url": "https://example.invalid/synthetic-account",
+        "fans": 0,
+        "is_featured_author": false,
+        "posting_cadence": "每周三篇（合成修改）",
+        "topic_focus": "合成题材",
+        "title_patterns": [
+          "合成对话式",
+          "合成数字式"
+        ],
+        "structure_notes_md": "合成结构观察\n第二行"
+      },
+      "form": {
+        "kind": "benchmark-accounts",
+        "original": {
+          "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "account": "V字",
+          "platform": "toutiao",
+          "name": "本次合成对标账号",
+          "profile_url": "https://example.invalid/synthetic-account",
+          "fans": 0,
+          "is_featured_author": false,
+          "posting_cadence": "每周三篇（合成修改）",
+          "topic_focus": "合成题材",
+          "title_patterns": [
+            "合成对话式",
+            "合成数字式"
+          ],
+          "structure_notes_md": "合成结构观察\n第二行",
+          "created_at": "2026-11-04T17:22:26.657Z",
+          "updated_at": "2026-11-04T17:22:26.938Z",
+          "deleted_at": null,
+          "content_hash": "7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090"
+        },
+        "values": {
+          "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "account": "V字",
+          "platform": "toutiao",
+          "name": "本次合成对标账号",
+          "profile_url": "https://example.invalid/synthetic-account",
+          "fans": 0,
+          "is_featured_author": false,
+          "posting_cadence": "每周三篇（合成修改）",
+          "topic_focus": "合成题材",
+          "title_patterns": [
+            "合成对话式",
+            "合成数字式"
+          ],
+          "structure_notes_md": "合成结构观察\n第二行",
+          "created_at": "2026-11-04T17:22:26.657Z",
+          "updated_at": "2026-11-04T17:22:26.938Z",
+          "deleted_at": null,
+          "content_hash": "7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090"
+        }
+      },
+      "no_op": true,
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"account\":\"V字\",\"platform\":\"toutiao\",\"name\":\"本次合成对标账号\",\"profile_url\":\"https://example.invalid/synthetic-account\",\"fans\":0,\"is_featured_author\":false,\"posting_cadence\":\"每周三篇（合成修改）\",\"topic_focus\":\"合成题材\",\"title_patterns\":[\"合成对话式\",\"合成数字式\"],\"structure_notes_md\":\"合成结构观察\\n第二行\",\"created_at\":\"2026-11-04T17:22:26.657Z\",\"updated_at\":\"2026-11-04T17:22:26.938Z\",\"deleted_at\":null,\"content_hash\":\"7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090\"}}"
+    },
+    {
+      "name": "benchmark-accounts-actual-form-real-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/review/benchmark-accounts/8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+      "body": {
+        "expected_hash": "f7023150a13e08bc0c2b33b2ff2a737251cc0a05cf80e5a3af6e64964ef7bfb4",
+        "account": "V字",
+        "platform": "toutiao",
+        "name": "本次合成对标账号",
+        "profile_url": "https://example.invalid/synthetic-account",
+        "fans": 0,
+        "is_featured_author": false,
+        "posting_cadence": "每周三篇（合成修改）",
+        "topic_focus": "合成题材",
+        "title_patterns": [
+          "合成对话式",
+          "合成数字式"
+        ],
+        "structure_notes_md": "合成结构观察\n第二行"
+      },
+      "form": {
+        "kind": "benchmark-accounts",
+        "original": {
+          "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "account": "V字",
+          "platform": "toutiao",
+          "name": "本次合成对标账号",
+          "profile_url": "https://example.invalid/synthetic-account",
+          "fans": 0,
+          "is_featured_author": false,
+          "posting_cadence": "每周两篇（合成）",
+          "topic_focus": "合成题材",
+          "title_patterns": [
+            "合成对话式",
+            "合成数字式"
+          ],
+          "structure_notes_md": "合成结构观察\n第二行",
+          "created_at": "2026-11-04T17:22:26.657Z",
+          "updated_at": "2026-11-04T17:22:26.657Z",
+          "deleted_at": null,
+          "content_hash": "f7023150a13e08bc0c2b33b2ff2a737251cc0a05cf80e5a3af6e64964ef7bfb4"
+        },
+        "values": {
+          "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "account": "V字",
+          "platform": "toutiao",
+          "name": "本次合成对标账号",
+          "profile_url": "https://example.invalid/synthetic-account",
+          "fans": 0,
+          "is_featured_author": false,
+          "posting_cadence": "每周三篇（合成修改）",
+          "topic_focus": "合成题材",
+          "title_patterns": [
+            "合成对话式",
+            "合成数字式"
+          ],
+          "structure_notes_md": "合成结构观察\n第二行",
+          "created_at": "2026-11-04T17:22:26.657Z",
+          "updated_at": "2026-11-04T17:22:26.657Z",
+          "deleted_at": null,
+          "content_hash": "f7023150a13e08bc0c2b33b2ff2a737251cc0a05cf80e5a3af6e64964ef7bfb4"
+        }
+      },
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"记录已删除或改变\"},\"request_id\":\"6babec89-8cff-4b8a-ae16-ce9fd606e092\"}"
+    },
+    {
+      "name": "benchmark-accounts-actual-filtered-list",
+      "method": "GET",
+      "path": "/api/v1/review/benchmark-accounts?account=V%E5%AD%97&offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[{\"id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"account\":\"V字\",\"platform\":\"toutiao\",\"name\":\"本次合成对标账号\",\"profile_url\":\"https://example.invalid/synthetic-account\",\"fans\":0,\"is_featured_author\":false,\"posting_cadence\":\"每周三篇（合成修改）\",\"topic_focus\":\"合成题材\",\"title_patterns\":[\"合成对话式\",\"合成数字式\"],\"structure_notes_md\":\"合成结构观察\\n第二行\",\"created_at\":\"2026-11-04T17:22:26.657Z\",\"updated_at\":\"2026-11-04T17:22:26.938Z\",\"deleted_at\":null,\"content_hash\":\"7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090\"}],\"has_more\":false,\"read_revision\":4}}"
+    },
+    {
+      "name": "benchmark-articles-actual-form-create",
+      "method": "PUT",
+      "path": "/api/v1/review/benchmark-articles/10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+      "body": {
+        "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+        "title": "本次合成对标文章",
+        "url": "https://example.invalid/synthetic-reference#retained",
+        "reads": 100000,
+        "published_at": "2026-11-04",
+        "title_pattern": "数字开头",
+        "topic": "合成选题",
+        "news_hook": "合成新闻切口",
+        "word_count": 0,
+        "image_count": 0,
+        "collected_on": "2026-11-05"
+      },
+      "form": {
+        "kind": "benchmark-articles",
+        "original": {
+          "id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "benchmark_account_id": null,
+          "title": null,
+          "url": null,
+          "reads": null,
+          "published_at": null,
+          "title_pattern": null,
+          "topic": null,
+          "news_hook": null,
+          "word_count": null,
+          "image_count": null,
+          "collected_on": null
+        },
+        "values": {
+          "id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "title": "本次合成对标文章",
+          "url": "https://example.invalid/synthetic-reference#retained",
+          "reads": 100000,
+          "published_at": "2026-11-04",
+          "title_pattern": "数字开头",
+          "topic": "合成选题",
+          "news_hook": "合成新闻切口",
+          "word_count": 0,
+          "image_count": 0,
+          "collected_on": "2026-11-05"
+        }
+      },
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"benchmark_account_id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"title\":\"本次合成对标文章\",\"url\":\"https://example.invalid/synthetic-reference#retained\",\"reads\":100000,\"published_at\":\"2026-11-04\",\"title_pattern\":\"数字开头\",\"topic\":\"合成选题\",\"news_hook\":\"合成新闻切口\",\"word_count\":0,\"image_count\":0,\"collected_on\":\"2026-11-05\",\"created_at\":\"2026-11-04T17:22:27.558Z\",\"updated_at\":\"2026-11-04T17:22:27.558Z\",\"deleted_at\":null,\"account\":\"V字\",\"used_by_article_ids\":[],\"content_hash\":\"454c5abd46759c903981e5dc15470c9ead159947f16da44c931fe3b4f8d56afc\"}}"
+    },
+    {
+      "name": "benchmark-articles-actual-form-load-detail",
+      "method": "GET",
+      "path": "/api/v1/review/benchmark-articles/10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"benchmark_account_id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"title\":\"本次合成对标文章\",\"url\":\"https://example.invalid/synthetic-reference#retained\",\"reads\":100000,\"published_at\":\"2026-11-04\",\"title_pattern\":\"数字开头\",\"topic\":\"合成选题\",\"news_hook\":\"合成新闻切口\",\"word_count\":0,\"image_count\":0,\"collected_on\":\"2026-11-05\",\"created_at\":\"2026-11-04T17:22:27.558Z\",\"updated_at\":\"2026-11-04T17:22:27.558Z\",\"deleted_at\":null,\"account\":\"V字\",\"used_by_article_ids\":[],\"content_hash\":\"454c5abd46759c903981e5dc15470c9ead159947f16da44c931fe3b4f8d56afc\"}}"
+    },
+    {
+      "name": "benchmark-articles-actual-form-edit",
+      "method": "PATCH",
+      "path": "/api/v1/review/benchmark-articles/10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+      "body": {
+        "expected_hash": "454c5abd46759c903981e5dc15470c9ead159947f16da44c931fe3b4f8d56afc",
+        "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+        "title": "本次合成对标文章",
+        "url": "https://example.invalid/synthetic-reference#retained",
+        "reads": 100000,
+        "published_at": "2026-11-04",
+        "title_pattern": "数字开头",
+        "topic": "合成选题修改",
+        "news_hook": "合成新闻切口",
+        "word_count": 0,
+        "image_count": 0,
+        "collected_on": "2026-11-05"
+      },
+      "form": {
+        "kind": "benchmark-articles",
+        "original": {
+          "id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "title": "本次合成对标文章",
+          "url": "https://example.invalid/synthetic-reference#retained",
+          "reads": 100000,
+          "published_at": "2026-11-04",
+          "title_pattern": "数字开头",
+          "topic": "合成选题",
+          "news_hook": "合成新闻切口",
+          "word_count": 0,
+          "image_count": 0,
+          "collected_on": "2026-11-05",
+          "created_at": "2026-11-04T17:22:27.558Z",
+          "updated_at": "2026-11-04T17:22:27.558Z",
+          "deleted_at": null,
+          "account": "V字",
+          "used_by_article_ids": [],
+          "content_hash": "454c5abd46759c903981e5dc15470c9ead159947f16da44c931fe3b4f8d56afc"
+        },
+        "values": {
+          "id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "title": "本次合成对标文章",
+          "url": "https://example.invalid/synthetic-reference#retained",
+          "reads": 100000,
+          "published_at": "2026-11-04",
+          "title_pattern": "数字开头",
+          "topic": "合成选题修改",
+          "news_hook": "合成新闻切口",
+          "word_count": 0,
+          "image_count": 0,
+          "collected_on": "2026-11-05",
+          "created_at": "2026-11-04T17:22:27.558Z",
+          "updated_at": "2026-11-04T17:22:27.558Z",
+          "deleted_at": null,
+          "account": "V字",
+          "used_by_article_ids": [],
+          "content_hash": "454c5abd46759c903981e5dc15470c9ead159947f16da44c931fe3b4f8d56afc"
+        }
+      },
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"benchmark_account_id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"title\":\"本次合成对标文章\",\"url\":\"https://example.invalid/synthetic-reference#retained\",\"reads\":100000,\"published_at\":\"2026-11-04\",\"title_pattern\":\"数字开头\",\"topic\":\"合成选题修改\",\"news_hook\":\"合成新闻切口\",\"word_count\":0,\"image_count\":0,\"collected_on\":\"2026-11-05\",\"created_at\":\"2026-11-04T17:22:27.558Z\",\"updated_at\":\"2026-11-04T17:22:27.896Z\",\"deleted_at\":null,\"account\":\"V字\",\"used_by_article_ids\":[],\"content_hash\":\"3523b0bc492e75c7af0d555174b87788d536f2433db0b61644415d7c26d92d40\"}}"
+    },
+    {
+      "name": "benchmark-articles-actual-form-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/benchmark-articles/10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+      "body": {
+        "expected_hash": "3523b0bc492e75c7af0d555174b87788d536f2433db0b61644415d7c26d92d40",
+        "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+        "title": "本次合成对标文章",
+        "url": "https://example.invalid/synthetic-reference#retained",
+        "reads": 100000,
+        "published_at": "2026-11-04",
+        "title_pattern": "数字开头",
+        "topic": "合成选题修改",
+        "news_hook": "合成新闻切口",
+        "word_count": 0,
+        "image_count": 0,
+        "collected_on": "2026-11-05"
+      },
+      "form": {
+        "kind": "benchmark-articles",
+        "original": {
+          "id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "title": "本次合成对标文章",
+          "url": "https://example.invalid/synthetic-reference#retained",
+          "reads": 100000,
+          "published_at": "2026-11-04",
+          "title_pattern": "数字开头",
+          "topic": "合成选题修改",
+          "news_hook": "合成新闻切口",
+          "word_count": 0,
+          "image_count": 0,
+          "collected_on": "2026-11-05",
+          "created_at": "2026-11-04T17:22:27.558Z",
+          "updated_at": "2026-11-04T17:22:27.896Z",
+          "deleted_at": null,
+          "account": "V字",
+          "used_by_article_ids": [],
+          "content_hash": "3523b0bc492e75c7af0d555174b87788d536f2433db0b61644415d7c26d92d40"
+        },
+        "values": {
+          "id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "title": "本次合成对标文章",
+          "url": "https://example.invalid/synthetic-reference#retained",
+          "reads": 100000,
+          "published_at": "2026-11-04",
+          "title_pattern": "数字开头",
+          "topic": "合成选题修改",
+          "news_hook": "合成新闻切口",
+          "word_count": 0,
+          "image_count": 0,
+          "collected_on": "2026-11-05",
+          "created_at": "2026-11-04T17:22:27.558Z",
+          "updated_at": "2026-11-04T17:22:27.896Z",
+          "deleted_at": null,
+          "account": "V字",
+          "used_by_article_ids": [],
+          "content_hash": "3523b0bc492e75c7af0d555174b87788d536f2433db0b61644415d7c26d92d40"
+        }
+      },
+      "no_op": true,
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"benchmark_account_id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"title\":\"本次合成对标文章\",\"url\":\"https://example.invalid/synthetic-reference#retained\",\"reads\":100000,\"published_at\":\"2026-11-04\",\"title_pattern\":\"数字开头\",\"topic\":\"合成选题修改\",\"news_hook\":\"合成新闻切口\",\"word_count\":0,\"image_count\":0,\"collected_on\":\"2026-11-05\",\"created_at\":\"2026-11-04T17:22:27.558Z\",\"updated_at\":\"2026-11-04T17:22:27.896Z\",\"deleted_at\":null,\"account\":\"V字\",\"used_by_article_ids\":[],\"content_hash\":\"3523b0bc492e75c7af0d555174b87788d536f2433db0b61644415d7c26d92d40\"}}"
+    },
+    {
+      "name": "benchmark-articles-actual-form-real-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/review/benchmark-articles/10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+      "body": {
+        "expected_hash": "454c5abd46759c903981e5dc15470c9ead159947f16da44c931fe3b4f8d56afc",
+        "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+        "title": "本次合成对标文章",
+        "url": "https://example.invalid/synthetic-reference#retained",
+        "reads": 100000,
+        "published_at": "2026-11-04",
+        "title_pattern": "数字开头",
+        "topic": "合成选题修改",
+        "news_hook": "合成新闻切口",
+        "word_count": 0,
+        "image_count": 0,
+        "collected_on": "2026-11-05"
+      },
+      "form": {
+        "kind": "benchmark-articles",
+        "original": {
+          "id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "title": "本次合成对标文章",
+          "url": "https://example.invalid/synthetic-reference#retained",
+          "reads": 100000,
+          "published_at": "2026-11-04",
+          "title_pattern": "数字开头",
+          "topic": "合成选题",
+          "news_hook": "合成新闻切口",
+          "word_count": 0,
+          "image_count": 0,
+          "collected_on": "2026-11-05",
+          "created_at": "2026-11-04T17:22:27.558Z",
+          "updated_at": "2026-11-04T17:22:27.558Z",
+          "deleted_at": null,
+          "account": "V字",
+          "used_by_article_ids": [],
+          "content_hash": "454c5abd46759c903981e5dc15470c9ead159947f16da44c931fe3b4f8d56afc"
+        },
+        "values": {
+          "id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "benchmark_account_id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+          "title": "本次合成对标文章",
+          "url": "https://example.invalid/synthetic-reference#retained",
+          "reads": 100000,
+          "published_at": "2026-11-04",
+          "title_pattern": "数字开头",
+          "topic": "合成选题修改",
+          "news_hook": "合成新闻切口",
+          "word_count": 0,
+          "image_count": 0,
+          "collected_on": "2026-11-05",
+          "created_at": "2026-11-04T17:22:27.558Z",
+          "updated_at": "2026-11-04T17:22:27.558Z",
+          "deleted_at": null,
+          "account": "V字",
+          "used_by_article_ids": [],
+          "content_hash": "454c5abd46759c903981e5dc15470c9ead159947f16da44c931fe3b4f8d56afc"
+        }
+      },
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"记录已删除或改变\"},\"request_id\":\"c6a1fccc-2691-431f-ba62-14cbe7a74a31\"}"
+    },
+    {
+      "name": "benchmark-articles-actual-filtered-list",
+      "method": "GET",
+      "path": "/api/v1/review/benchmark-articles?account=V%E5%AD%97&offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[{\"id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"benchmark_account_id\":\"8b6a303c-caf7-448a-b3df-f18cd5e015fc\",\"title\":\"本次合成对标文章\",\"url\":\"https://example.invalid/synthetic-reference#retained\",\"reads\":100000,\"published_at\":\"2026-11-04\",\"title_pattern\":\"数字开头\",\"topic\":\"合成选题修改\",\"news_hook\":\"合成新闻切口\",\"word_count\":0,\"image_count\":0,\"collected_on\":\"2026-11-05\",\"created_at\":\"2026-11-04T17:22:27.558Z\",\"updated_at\":\"2026-11-04T17:22:27.896Z\",\"deleted_at\":null,\"account\":\"V字\",\"used_by_article_ids\":[],\"content_hash\":\"3523b0bc492e75c7af0d555174b87788d536f2433db0b61644415d7c26d92d40\"}],\"has_more\":false,\"read_revision\":6}}"
+    },
+    {
+      "name": "playbooks-actual-form-create",
+      "method": "PUT",
+      "path": "/api/v1/review/playbooks/0ae30afe-8ab4-45a0-890e-cca694bca364",
+      "body": {
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "text": "只用于合成验证",
+            "status": "candidate",
+            "check": "manual",
+            "evidence_note": null,
+            "trials": 0,
+            "support_ids": [],
+            "counter_ids": []
+          }
+        ],
+        "changelog_md": "合成初版",
+        "sent_to_gemini_at": null
+      },
+      "form": {
+        "kind": "playbooks",
+        "original": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "draft",
+          "version": null,
+          "published_on": "2026-11-05",
+          "content_md": "",
+          "rules": [],
+          "changelog_md": "",
+          "sent_to_gemini_at": null
+        },
+        "values": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "draft",
+          "version": 1,
+          "published_on": "2026-11-05",
+          "content_md": "合成规则正文\n第二行",
+          "rules": [
+            {
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "text": "只用于合成验证",
+              "status": "candidate",
+              "check": "manual",
+              "evidence_note": null,
+              "trials": 0,
+              "support_ids": [],
+              "counter_ids": []
+            }
+          ],
+          "changelog_md": "合成初版",
+          "sent_to_gemini_at": null
+        }
+      },
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"0ae30afe-8ab4-45a0-890e-cca694bca364\",\"account\":\"V字\",\"status\":\"draft\",\"content_md\":\"合成规则正文\\n第二行\",\"rules\":[{\"check\":\"manual\",\"counter_ids\":[],\"evidence_note\":null,\"rule_id\":\"synthetic-rule\",\"section\":\"title\",\"status\":\"candidate\",\"support_ids\":[],\"text\":\"只用于合成验证\",\"trials\":0}],\"changelog_md\":\"合成初版\",\"sent_to_gemini_at\":null,\"version\":1,\"published_on\":\"2026-11-05\",\"created_at\":\"2026-11-04T17:22:28.567Z\",\"content_hash\":\"39e15c3df1d7bb4ecf2437ea8d5ba0d28cb3e56c0b9a681a88ec00cfebbe75da\"}}"
+    },
+    {
+      "name": "playbooks-actual-form-load-detail",
+      "method": "GET",
+      "path": "/api/v1/review/playbooks/0ae30afe-8ab4-45a0-890e-cca694bca364",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"0ae30afe-8ab4-45a0-890e-cca694bca364\",\"account\":\"V字\",\"status\":\"draft\",\"version\":1,\"published_on\":\"2026-11-05\",\"content_md\":\"合成规则正文\\n第二行\",\"rules\":[{\"check\":\"manual\",\"counter_ids\":[],\"evidence_note\":null,\"rule_id\":\"synthetic-rule\",\"section\":\"title\",\"status\":\"candidate\",\"support_ids\":[],\"text\":\"只用于合成验证\",\"trials\":0}],\"changelog_md\":\"合成初版\",\"sent_to_gemini_at\":null,\"created_at\":\"2026-11-04T17:22:28.567Z\",\"content_hash\":\"39e15c3df1d7bb4ecf2437ea8d5ba0d28cb3e56c0b9a681a88ec00cfebbe75da\"}}"
+    },
+    {
+      "name": "playbooks-actual-form-edit",
+      "method": "PATCH",
+      "path": "/api/v1/review/playbooks/0ae30afe-8ab4-45a0-890e-cca694bca364",
+      "body": {
+        "expected_hash": "39e15c3df1d7bb4ecf2437ea8d5ba0d28cb3e56c0b9a681a88ec00cfebbe75da",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null
+      },
+      "form": {
+        "kind": "playbooks",
+        "original": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "draft",
+          "version": 1,
+          "published_on": "2026-11-05",
+          "content_md": "合成规则正文\n第二行",
+          "rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "status": "candidate",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0
+            }
+          ],
+          "changelog_md": "合成初版",
+          "sent_to_gemini_at": null,
+          "created_at": "2026-11-04T17:22:28.567Z",
+          "content_hash": "39e15c3df1d7bb4ecf2437ea8d5ba0d28cb3e56c0b9a681a88ec00cfebbe75da"
+        },
+        "values": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "draft",
+          "version": 1,
+          "published_on": "2026-11-05",
+          "content_md": "合成规则正文\n第二行",
+          "rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "status": "candidate",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0
+            }
+          ],
+          "changelog_md": "合成修改记录",
+          "sent_to_gemini_at": null,
+          "created_at": "2026-11-04T17:22:28.567Z",
+          "content_hash": "39e15c3df1d7bb4ecf2437ea8d5ba0d28cb3e56c0b9a681a88ec00cfebbe75da"
+        }
+      },
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"0ae30afe-8ab4-45a0-890e-cca694bca364\",\"account\":\"V字\",\"status\":\"draft\",\"version\":1,\"published_on\":\"2026-11-05\",\"content_md\":\"合成规则正文\\n第二行\",\"rules\":[{\"check\":\"manual\",\"counter_ids\":[],\"evidence_note\":null,\"rule_id\":\"synthetic-rule\",\"section\":\"title\",\"status\":\"candidate\",\"support_ids\":[],\"text\":\"只用于合成验证\",\"trials\":0}],\"changelog_md\":\"合成修改记录\",\"sent_to_gemini_at\":null,\"created_at\":\"2026-11-04T17:22:28.567Z\",\"content_hash\":\"c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c\"}}"
+    },
+    {
+      "name": "playbooks-actual-form-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/playbooks/0ae30afe-8ab4-45a0-890e-cca694bca364",
+      "body": {
+        "expected_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null
+      },
+      "form": {
+        "kind": "playbooks",
+        "original": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "draft",
+          "version": 1,
+          "published_on": "2026-11-05",
+          "content_md": "合成规则正文\n第二行",
+          "rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "status": "candidate",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0
+            }
+          ],
+          "changelog_md": "合成修改记录",
+          "sent_to_gemini_at": null,
+          "created_at": "2026-11-04T17:22:28.567Z",
+          "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c"
+        },
+        "values": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "draft",
+          "version": 1,
+          "published_on": "2026-11-05",
+          "content_md": "合成规则正文\n第二行",
+          "rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "status": "candidate",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0
+            }
+          ],
+          "changelog_md": "合成修改记录",
+          "sent_to_gemini_at": null,
+          "created_at": "2026-11-04T17:22:28.567Z",
+          "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c"
+        }
+      },
+      "no_op": true,
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"0ae30afe-8ab4-45a0-890e-cca694bca364\",\"account\":\"V字\",\"status\":\"draft\",\"version\":1,\"published_on\":\"2026-11-05\",\"content_md\":\"合成规则正文\\n第二行\",\"rules\":[{\"check\":\"manual\",\"counter_ids\":[],\"evidence_note\":null,\"rule_id\":\"synthetic-rule\",\"section\":\"title\",\"status\":\"candidate\",\"support_ids\":[],\"text\":\"只用于合成验证\",\"trials\":0}],\"changelog_md\":\"合成修改记录\",\"sent_to_gemini_at\":null,\"created_at\":\"2026-11-04T17:22:28.567Z\",\"content_hash\":\"c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c\"}}"
+    },
+    {
+      "name": "playbooks-actual-form-real-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/review/playbooks/0ae30afe-8ab4-45a0-890e-cca694bca364",
+      "body": {
+        "expected_hash": "39e15c3df1d7bb4ecf2437ea8d5ba0d28cb3e56c0b9a681a88ec00cfebbe75da",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null
+      },
+      "form": {
+        "kind": "playbooks",
+        "original": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "draft",
+          "content_md": "合成规则正文\n第二行",
+          "rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "status": "candidate",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0
+            }
+          ],
+          "changelog_md": "合成初版",
+          "sent_to_gemini_at": null,
+          "version": 1,
+          "published_on": "2026-11-05",
+          "created_at": "2026-11-04T17:22:28.567Z",
+          "content_hash": "39e15c3df1d7bb4ecf2437ea8d5ba0d28cb3e56c0b9a681a88ec00cfebbe75da"
+        },
+        "values": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "draft",
+          "content_md": "合成规则正文\n第二行",
+          "rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "status": "candidate",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0
+            }
+          ],
+          "changelog_md": "合成修改记录",
+          "sent_to_gemini_at": null,
+          "version": 1,
+          "published_on": "2026-11-05",
+          "created_at": "2026-11-04T17:22:28.567Z",
+          "content_hash": "39e15c3df1d7bb4ecf2437ea8d5ba0d28cb3e56c0b9a681a88ec00cfebbe75da"
+        }
+      },
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"记录已改变，请读取最新内容再修改\"},\"request_id\":\"27f03ac3-85d6-4e9b-b271-f99b0769c126\"}"
+    },
+    {
+      "name": "playbooks-actual-filtered-list",
+      "method": "GET",
+      "path": "/api/v1/review/playbooks?account=V%E5%AD%97&offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[{\"id\":\"0ae30afe-8ab4-45a0-890e-cca694bca364\",\"account\":\"V字\",\"status\":\"draft\",\"version\":1,\"published_on\":\"2026-11-05\",\"content_md\":\"合成规则正文\\n第二行\",\"rules\":[{\"check\":\"manual\",\"counter_ids\":[],\"evidence_note\":null,\"rule_id\":\"synthetic-rule\",\"section\":\"title\",\"status\":\"candidate\",\"support_ids\":[],\"text\":\"只用于合成验证\",\"trials\":0}],\"changelog_md\":\"合成修改记录\",\"sent_to_gemini_at\":null,\"created_at\":\"2026-11-04T17:22:28.567Z\",\"content_hash\":\"c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c\"}],\"has_more\":false,\"read_revision\":8}}"
+    },
+    {
+      "name": "articles-actual-form-create",
+      "method": "PUT",
+      "path": "/api/v1/review/articles/66617d2c-7a92-4baf-9edf-63b8fceda67a",
+      "body": {
+        "platform": "toutiao",
+        "account": "V字",
+        "title": "本次合成我方文章",
+        "url": "https://example.invalid/synthetic-own-article#retained",
+        "published_at": "2026-11-04T00:00:00.000Z",
+        "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "topic_category": "合成题材",
+        "title_pattern": "合成标题形式",
+        "sample_title": "合成参考标题",
+        "sample_url": "https://example.invalid/synthetic-reference",
+        "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+        "image_count": 0,
+        "source_chat": "本地临时合成验证",
+        "playbook_version_used": 1,
+        "applied_rule_ids": [
+          "synthetic-rule"
+        ]
+      },
+      "form": {
+        "kind": "articles",
+        "original": {
+          "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "account": "V字",
+          "title": null,
+          "url": null,
+          "published_at": null,
+          "platform_article_id": null,
+          "topic_category": null,
+          "title_pattern": null,
+          "sample_title": null,
+          "sample_url": null,
+          "reference_article_id": null,
+          "image_count": null,
+          "source_chat": null,
+          "playbook_version_used": null,
+          "applied_rule_ids": null,
+          "platform": "toutiao"
+        },
+        "values": {
+          "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "account": "V字",
+          "title": "本次合成我方文章",
+          "url": "https://example.invalid/synthetic-own-article#retained",
+          "published_at": "2026-11-04 08:00:00",
+          "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "topic_category": "合成题材",
+          "title_pattern": "合成标题形式",
+          "sample_title": "合成参考标题",
+          "sample_url": "https://example.invalid/synthetic-reference",
+          "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "image_count": 0,
+          "source_chat": "本地临时合成验证",
+          "playbook_version_used": 1,
+          "applied_rule_ids": [
+            "synthetic-rule"
+          ],
+          "platform": "toutiao"
+        }
+      },
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"account\":\"V字\",\"platform\":\"toutiao\",\"platform_article_id\":\"synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"url\":\"https://example.invalid/synthetic-own-article#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"topic_category\":\"合成题材\",\"title_pattern\":\"合成标题形式\",\"sample_title\":\"合成参考标题\",\"sample_url\":\"https://example.invalid/synthetic-reference\",\"reference_article_id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"image_count\":0,\"source_chat\":\"本地临时合成验证\",\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"],\"title\":\"本次合成我方文章\",\"created_at\":\"2026-11-04T17:22:29.385Z\",\"updated_at\":\"2026-11-04T17:22:29.385Z\",\"content_hash\":\"52c8c49eda40c8d6fcfa5b480d29a6c8aa421124296c2b8b3bc8f0424255399c\"}}"
+    },
+    {
+      "name": "articles-actual-form-load-detail",
+      "method": "GET",
+      "path": "/api/v1/review/articles/66617d2c-7a92-4baf-9edf-63b8fceda67a",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"account\":\"V字\",\"platform\":\"toutiao\",\"platform_article_id\":\"synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"title\":\"本次合成我方文章\",\"url\":\"https://example.invalid/synthetic-own-article#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"topic_category\":\"合成题材\",\"title_pattern\":\"合成标题形式\",\"sample_title\":\"合成参考标题\",\"sample_url\":\"https://example.invalid/synthetic-reference\",\"reference_article_id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"image_count\":0,\"source_chat\":\"本地临时合成验证\",\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"],\"created_at\":\"2026-11-04T17:22:29.385Z\",\"updated_at\":\"2026-11-04T17:22:29.385Z\",\"content_hash\":\"52c8c49eda40c8d6fcfa5b480d29a6c8aa421124296c2b8b3bc8f0424255399c\",\"sample24h\":null,\"reads_24h\":null,\"ctr_24h\":null,\"completion_24h\":null,\"applied_rules\":[{\"check\":\"manual\",\"counter_ids\":[],\"evidence_note\":null,\"rule_id\":\"synthetic-rule\",\"section\":\"title\",\"status\":\"candidate\",\"support_ids\":[],\"text\":\"只用于合成验证\",\"trials\":0}],\"verdict\":null,\"reliable\":false,\"verdict_reliable\":false,\"verdict_basis\":{\"method\":\"fixed_thresholds\",\"sample_count\":0,\"sample_ids\":[],\"high_threshold\":1000,\"low_threshold\":100,\"high_inclusive\":true,\"low_inclusive\":true,\"ties\":\"never_split\",\"missing_reads\":true},\"snapshots\":[]}}"
+    },
+    {
+      "name": "articles-actual-form-edit",
+      "method": "PATCH",
+      "path": "/api/v1/review/articles/66617d2c-7a92-4baf-9edf-63b8fceda67a",
+      "body": {
+        "expected_hash": "52c8c49eda40c8d6fcfa5b480d29a6c8aa421124296c2b8b3bc8f0424255399c",
+        "account": "V字",
+        "title": "本次合成我方文章",
+        "url": "https://example.invalid/synthetic-own-article#retained",
+        "published_at": "2026-11-04T00:00:00.000Z",
+        "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "topic_category": "合成题材修改",
+        "title_pattern": "合成标题形式",
+        "sample_title": "合成参考标题",
+        "sample_url": "https://example.invalid/synthetic-reference",
+        "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+        "image_count": 0,
+        "source_chat": "本地临时合成验证",
+        "playbook_version_used": 1,
+        "applied_rule_ids": [
+          "synthetic-rule"
+        ]
+      },
+      "form": {
+        "kind": "articles",
+        "original": {
+          "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "account": "V字",
+          "platform": "toutiao",
+          "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "title": "本次合成我方文章",
+          "url": "https://example.invalid/synthetic-own-article#retained",
+          "published_at": "2026-11-04T00:00:00.000Z",
+          "topic_category": "合成题材",
+          "title_pattern": "合成标题形式",
+          "sample_title": "合成参考标题",
+          "sample_url": "https://example.invalid/synthetic-reference",
+          "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "image_count": 0,
+          "source_chat": "本地临时合成验证",
+          "playbook_version_used": 1,
+          "applied_rule_ids": [
+            "synthetic-rule"
+          ],
+          "created_at": "2026-11-04T17:22:29.385Z",
+          "updated_at": "2026-11-04T17:22:29.385Z",
+          "content_hash": "52c8c49eda40c8d6fcfa5b480d29a6c8aa421124296c2b8b3bc8f0424255399c",
+          "sample24h": null,
+          "reads_24h": null,
+          "ctr_24h": null,
+          "completion_24h": null,
+          "applied_rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "status": "candidate",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0
+            }
+          ],
+          "verdict": null,
+          "reliable": false,
+          "verdict_reliable": false,
+          "verdict_basis": {
+            "method": "fixed_thresholds",
+            "sample_count": 0,
+            "sample_ids": [],
+            "high_threshold": 1000,
+            "low_threshold": 100,
+            "high_inclusive": true,
+            "low_inclusive": true,
+            "ties": "never_split",
+            "missing_reads": true
+          },
+          "snapshots": []
+        },
+        "values": {
+          "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "account": "V字",
+          "platform": "toutiao",
+          "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "title": "本次合成我方文章",
+          "url": "https://example.invalid/synthetic-own-article#retained",
+          "published_at": "2026-11-04T00:00:00.000Z",
+          "topic_category": "合成题材修改",
+          "title_pattern": "合成标题形式",
+          "sample_title": "合成参考标题",
+          "sample_url": "https://example.invalid/synthetic-reference",
+          "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "image_count": 0,
+          "source_chat": "本地临时合成验证",
+          "playbook_version_used": 1,
+          "applied_rule_ids": [
+            "synthetic-rule"
+          ],
+          "created_at": "2026-11-04T17:22:29.385Z",
+          "updated_at": "2026-11-04T17:22:29.385Z",
+          "content_hash": "52c8c49eda40c8d6fcfa5b480d29a6c8aa421124296c2b8b3bc8f0424255399c",
+          "sample24h": null,
+          "reads_24h": null,
+          "ctr_24h": null,
+          "completion_24h": null,
+          "applied_rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "status": "candidate",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0
+            }
+          ],
+          "verdict": null,
+          "reliable": false,
+          "verdict_reliable": false,
+          "verdict_basis": {
+            "method": "fixed_thresholds",
+            "sample_count": 0,
+            "sample_ids": [],
+            "high_threshold": 1000,
+            "low_threshold": 100,
+            "high_inclusive": true,
+            "low_inclusive": true,
+            "ties": "never_split",
+            "missing_reads": true
+          },
+          "snapshots": []
+        }
+      },
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"account\":\"V字\",\"platform\":\"toutiao\",\"platform_article_id\":\"synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"title\":\"本次合成我方文章\",\"url\":\"https://example.invalid/synthetic-own-article#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"topic_category\":\"合成题材修改\",\"title_pattern\":\"合成标题形式\",\"sample_title\":\"合成参考标题\",\"sample_url\":\"https://example.invalid/synthetic-reference\",\"reference_article_id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"image_count\":0,\"source_chat\":\"本地临时合成验证\",\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"],\"created_at\":\"2026-11-04T17:22:29.385Z\",\"updated_at\":\"2026-11-04T17:22:29.706Z\",\"content_hash\":\"b6bc6419734bc4678d0cc599c2cbc9347a463ed653292f1c556d4328ab98c22d\"}}"
+    },
+    {
+      "name": "articles-actual-form-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/articles/66617d2c-7a92-4baf-9edf-63b8fceda67a",
+      "body": {
+        "expected_hash": "b6bc6419734bc4678d0cc599c2cbc9347a463ed653292f1c556d4328ab98c22d",
+        "account": "V字",
+        "title": "本次合成我方文章",
+        "url": "https://example.invalid/synthetic-own-article#retained",
+        "published_at": "2026-11-04T00:00:00.000Z",
+        "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "topic_category": "合成题材修改",
+        "title_pattern": "合成标题形式",
+        "sample_title": "合成参考标题",
+        "sample_url": "https://example.invalid/synthetic-reference",
+        "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+        "image_count": 0,
+        "source_chat": "本地临时合成验证",
+        "playbook_version_used": 1,
+        "applied_rule_ids": [
+          "synthetic-rule"
+        ]
+      },
+      "form": {
+        "kind": "articles",
+        "original": {
+          "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "account": "V字",
+          "platform": "toutiao",
+          "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "title": "本次合成我方文章",
+          "url": "https://example.invalid/synthetic-own-article#retained",
+          "published_at": "2026-11-04T00:00:00.000Z",
+          "topic_category": "合成题材修改",
+          "title_pattern": "合成标题形式",
+          "sample_title": "合成参考标题",
+          "sample_url": "https://example.invalid/synthetic-reference",
+          "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "image_count": 0,
+          "source_chat": "本地临时合成验证",
+          "playbook_version_used": 1,
+          "applied_rule_ids": [
+            "synthetic-rule"
+          ],
+          "created_at": "2026-11-04T17:22:29.385Z",
+          "updated_at": "2026-11-04T17:22:29.706Z",
+          "content_hash": "b6bc6419734bc4678d0cc599c2cbc9347a463ed653292f1c556d4328ab98c22d"
+        },
+        "values": {
+          "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "account": "V字",
+          "platform": "toutiao",
+          "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "title": "本次合成我方文章",
+          "url": "https://example.invalid/synthetic-own-article#retained",
+          "published_at": "2026-11-04T00:00:00.000Z",
+          "topic_category": "合成题材修改",
+          "title_pattern": "合成标题形式",
+          "sample_title": "合成参考标题",
+          "sample_url": "https://example.invalid/synthetic-reference",
+          "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "image_count": 0,
+          "source_chat": "本地临时合成验证",
+          "playbook_version_used": 1,
+          "applied_rule_ids": [
+            "synthetic-rule"
+          ],
+          "created_at": "2026-11-04T17:22:29.385Z",
+          "updated_at": "2026-11-04T17:22:29.706Z",
+          "content_hash": "b6bc6419734bc4678d0cc599c2cbc9347a463ed653292f1c556d4328ab98c22d"
+        }
+      },
+      "no_op": true,
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"account\":\"V字\",\"platform\":\"toutiao\",\"platform_article_id\":\"synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"title\":\"本次合成我方文章\",\"url\":\"https://example.invalid/synthetic-own-article#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"topic_category\":\"合成题材修改\",\"title_pattern\":\"合成标题形式\",\"sample_title\":\"合成参考标题\",\"sample_url\":\"https://example.invalid/synthetic-reference\",\"reference_article_id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"image_count\":0,\"source_chat\":\"本地临时合成验证\",\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"],\"created_at\":\"2026-11-04T17:22:29.385Z\",\"updated_at\":\"2026-11-04T17:22:29.706Z\",\"content_hash\":\"b6bc6419734bc4678d0cc599c2cbc9347a463ed653292f1c556d4328ab98c22d\"}}"
+    },
+    {
+      "name": "articles-actual-form-real-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/review/articles/66617d2c-7a92-4baf-9edf-63b8fceda67a",
+      "body": {
+        "expected_hash": "52c8c49eda40c8d6fcfa5b480d29a6c8aa421124296c2b8b3bc8f0424255399c",
+        "account": "V字",
+        "title": "本次合成我方文章",
+        "url": "https://example.invalid/synthetic-own-article#retained",
+        "published_at": "2026-11-04T00:00:00.000Z",
+        "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "topic_category": "合成题材修改",
+        "title_pattern": "合成标题形式",
+        "sample_title": "合成参考标题",
+        "sample_url": "https://example.invalid/synthetic-reference",
+        "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+        "image_count": 0,
+        "source_chat": "本地临时合成验证",
+        "playbook_version_used": 1,
+        "applied_rule_ids": [
+          "synthetic-rule"
+        ]
+      },
+      "form": {
+        "kind": "articles",
+        "original": {
+          "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "account": "V字",
+          "platform": "toutiao",
+          "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "url": "https://example.invalid/synthetic-own-article#retained",
+          "published_at": "2026-11-04T00:00:00.000Z",
+          "topic_category": "合成题材",
+          "title_pattern": "合成标题形式",
+          "sample_title": "合成参考标题",
+          "sample_url": "https://example.invalid/synthetic-reference",
+          "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "image_count": 0,
+          "source_chat": "本地临时合成验证",
+          "playbook_version_used": 1,
+          "applied_rule_ids": [
+            "synthetic-rule"
+          ],
+          "title": "本次合成我方文章",
+          "created_at": "2026-11-04T17:22:29.385Z",
+          "updated_at": "2026-11-04T17:22:29.385Z",
+          "content_hash": "52c8c49eda40c8d6fcfa5b480d29a6c8aa421124296c2b8b3bc8f0424255399c"
+        },
+        "values": {
+          "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "account": "V字",
+          "platform": "toutiao",
+          "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "url": "https://example.invalid/synthetic-own-article#retained",
+          "published_at": "2026-11-04T00:00:00.000Z",
+          "topic_category": "合成题材修改",
+          "title_pattern": "合成标题形式",
+          "sample_title": "合成参考标题",
+          "sample_url": "https://example.invalid/synthetic-reference",
+          "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+          "image_count": 0,
+          "source_chat": "本地临时合成验证",
+          "playbook_version_used": 1,
+          "applied_rule_ids": [
+            "synthetic-rule"
+          ],
+          "title": "本次合成我方文章",
+          "created_at": "2026-11-04T17:22:29.385Z",
+          "updated_at": "2026-11-04T17:22:29.385Z",
+          "content_hash": "52c8c49eda40c8d6fcfa5b480d29a6c8aa421124296c2b8b3bc8f0424255399c"
+        }
+      },
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"记录已改变，请读取最新内容再修改\"},\"request_id\":\"57954b34-97ef-4423-80b3-3f6d2c74535e\"}"
+    },
+    {
+      "name": "articles-actual-filtered-list",
+      "method": "GET",
+      "path": "/api/v1/review/articles?account=V%E5%AD%97&offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[{\"id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"account\":\"V字\",\"platform\":\"toutiao\",\"platform_article_id\":\"synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"title\":\"本次合成我方文章\",\"url\":\"https://example.invalid/synthetic-own-article#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"topic_category\":\"合成题材修改\",\"title_pattern\":\"合成标题形式\",\"sample_title\":\"合成参考标题\",\"sample_url\":\"https://example.invalid/synthetic-reference\",\"reference_article_id\":\"10be73ad-b5c3-4a03-9a2a-c2bff92193fe\",\"image_count\":0,\"source_chat\":\"本地临时合成验证\",\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"],\"created_at\":\"2026-11-04T17:22:29.385Z\",\"updated_at\":\"2026-11-04T17:22:29.706Z\",\"content_hash\":\"b6bc6419734bc4678d0cc599c2cbc9347a463ed653292f1c556d4328ab98c22d\",\"sample24h\":null,\"reads_24h\":null,\"ctr_24h\":null,\"completion_24h\":null,\"applied_rules\":[{\"check\":\"manual\",\"counter_ids\":[],\"evidence_note\":null,\"rule_id\":\"synthetic-rule\",\"section\":\"title\",\"status\":\"candidate\",\"support_ids\":[],\"text\":\"只用于合成验证\",\"trials\":0}],\"verdict\":null,\"reliable\":false,\"verdict_reliable\":false,\"verdict_basis\":{\"method\":\"fixed_thresholds\",\"sample_count\":0,\"sample_ids\":[],\"high_threshold\":1000,\"low_threshold\":100,\"high_inclusive\":true,\"low_inclusive\":true,\"ties\":\"never_split\",\"missing_reads\":true}}],\"has_more\":false,\"read_revision\":10}}"
+    },
+    {
+      "name": "snapshots-actual-form-create",
+      "method": "PUT",
+      "path": "/api/v1/review/snapshots/fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+      "body": {
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 0,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        }
+      },
+      "form": {
+        "kind": "snapshots",
+        "original": {
+          "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+          "article_id": null,
+          "snapshot_date": "2026-11-05",
+          "age_hours": null,
+          "source": "manual",
+          "impressions": null,
+          "fan_impressions": null,
+          "reads": null,
+          "fan_reads": null,
+          "ctr": null,
+          "completion_rate": null,
+          "avg_read_seconds": null,
+          "likes": null,
+          "comments": null,
+          "reposts": null,
+          "shares": null,
+          "favorites": null,
+          "revenue": null,
+          "traffic_sources": null,
+          "completion_curve": null,
+          "audience": null
+        },
+        "values": {
+          "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+          "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "snapshot_date": "2026-11-05",
+          "age_hours": 24,
+          "source": "manual",
+          "impressions": null,
+          "fan_impressions": null,
+          "reads": 0,
+          "fan_reads": 0,
+          "ctr": 0,
+          "completion_rate": 0,
+          "avg_read_seconds": 1e-7,
+          "likes": 0,
+          "comments": 0,
+          "reposts": 0,
+          "shares": 0,
+          "favorites": 0,
+          "revenue": 1e-29,
+          "traffic_sources": {
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "completion_curve": [
+            {
+              "synthetic_point": "start",
+              "value": 0
+            }
+          ],
+          "audience": {
+            "synthetic_unknown": {
+              "zero": 0
+            }
+          }
+        }
+      },
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044\",\"age_hours\":24,\"source\":\"manual\",\"impressions\":null,\"fan_impressions\":null,\"reads\":0,\"fan_reads\":0,\"ctr\":0,\"completion_rate\":0,\"avg_read_seconds\":1e-7,\"likes\":0,\"comments\":0,\"reposts\":0,\"shares\":0,\"favorites\":0,\"revenue\":1e-29,\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}},\"completion_curve\":[{\"synthetic_point\":\"start\",\"value\":0}],\"audience\":{\"synthetic_unknown\":{\"zero\":0}},\"article_id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"snapshot_date\":\"2026-11-05\",\"content_hash\":\"26f8e5a2c980b358846f5aa341c3cba378e658e0250154517d822b0906561c49\"}}"
+    },
+    {
+      "name": "snapshots-actual-form-load-detail",
+      "method": "GET",
+      "path": "/api/v1/review/snapshots/fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044\",\"article_id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"snapshot_date\":\"2026-11-05\",\"age_hours\":24,\"source\":\"manual\",\"impressions\":null,\"fan_impressions\":null,\"reads\":0,\"fan_reads\":0,\"ctr\":0,\"completion_rate\":0,\"avg_read_seconds\":1e-7,\"likes\":0,\"comments\":0,\"reposts\":0,\"shares\":0,\"favorites\":0,\"revenue\":1e-29,\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}},\"completion_curve\":[{\"synthetic_point\":\"start\",\"value\":0}],\"audience\":{\"synthetic_unknown\":{\"zero\":0}},\"content_hash\":\"26f8e5a2c980b358846f5aa341c3cba378e658e0250154517d822b0906561c49\"}}"
+    },
+    {
+      "name": "snapshots-actual-form-edit",
+      "method": "PATCH",
+      "path": "/api/v1/review/snapshots/fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+      "body": {
+        "expected_hash": "26f8e5a2c980b358846f5aa341c3cba378e658e0250154517d822b0906561c49",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 12,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        }
+      },
+      "form": {
+        "kind": "snapshots",
+        "original": {
+          "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+          "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "snapshot_date": "2026-11-05",
+          "age_hours": 24,
+          "source": "manual",
+          "impressions": null,
+          "fan_impressions": null,
+          "reads": 0,
+          "fan_reads": 0,
+          "ctr": 0,
+          "completion_rate": 0,
+          "avg_read_seconds": 1e-7,
+          "likes": 0,
+          "comments": 0,
+          "reposts": 0,
+          "shares": 0,
+          "favorites": 0,
+          "revenue": 1e-29,
+          "traffic_sources": {
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "completion_curve": [
+            {
+              "synthetic_point": "start",
+              "value": 0
+            }
+          ],
+          "audience": {
+            "synthetic_unknown": {
+              "zero": 0
+            }
+          },
+          "content_hash": "26f8e5a2c980b358846f5aa341c3cba378e658e0250154517d822b0906561c49"
+        },
+        "values": {
+          "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+          "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "snapshot_date": "2026-11-05",
+          "age_hours": 24,
+          "source": "manual",
+          "impressions": null,
+          "fan_impressions": null,
+          "reads": 12,
+          "fan_reads": 0,
+          "ctr": 0,
+          "completion_rate": 0,
+          "avg_read_seconds": 1e-7,
+          "likes": 0,
+          "comments": 0,
+          "reposts": 0,
+          "shares": 0,
+          "favorites": 0,
+          "revenue": 1e-29,
+          "traffic_sources": {
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "completion_curve": [
+            {
+              "synthetic_point": "start",
+              "value": 0
+            }
+          ],
+          "audience": {
+            "synthetic_unknown": {
+              "zero": 0
+            }
+          },
+          "content_hash": "26f8e5a2c980b358846f5aa341c3cba378e658e0250154517d822b0906561c49"
+        }
+      },
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044\",\"article_id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"snapshot_date\":\"2026-11-05\",\"age_hours\":24,\"source\":\"manual\",\"impressions\":null,\"fan_impressions\":null,\"reads\":12,\"fan_reads\":0,\"ctr\":0,\"completion_rate\":0,\"avg_read_seconds\":1e-7,\"likes\":0,\"comments\":0,\"reposts\":0,\"shares\":0,\"favorites\":0,\"revenue\":1e-29,\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}},\"completion_curve\":[{\"synthetic_point\":\"start\",\"value\":0}],\"audience\":{\"synthetic_unknown\":{\"zero\":0}},\"content_hash\":\"56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8\"}}"
+    },
+    {
+      "name": "snapshots-actual-form-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/snapshots/fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+      "body": {
+        "expected_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 12,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        }
+      },
+      "form": {
+        "kind": "snapshots",
+        "original": {
+          "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+          "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "snapshot_date": "2026-11-05",
+          "age_hours": 24,
+          "source": "manual",
+          "impressions": null,
+          "fan_impressions": null,
+          "reads": 12,
+          "fan_reads": 0,
+          "ctr": 0,
+          "completion_rate": 0,
+          "avg_read_seconds": 1e-7,
+          "likes": 0,
+          "comments": 0,
+          "reposts": 0,
+          "shares": 0,
+          "favorites": 0,
+          "revenue": 1e-29,
+          "traffic_sources": {
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "completion_curve": [
+            {
+              "synthetic_point": "start",
+              "value": 0
+            }
+          ],
+          "audience": {
+            "synthetic_unknown": {
+              "zero": 0
+            }
+          },
+          "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+        },
+        "values": {
+          "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+          "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "snapshot_date": "2026-11-05",
+          "age_hours": 24,
+          "source": "manual",
+          "impressions": null,
+          "fan_impressions": null,
+          "reads": 12,
+          "fan_reads": 0,
+          "ctr": 0,
+          "completion_rate": 0,
+          "avg_read_seconds": 1e-7,
+          "likes": 0,
+          "comments": 0,
+          "reposts": 0,
+          "shares": 0,
+          "favorites": 0,
+          "revenue": 1e-29,
+          "traffic_sources": {
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "completion_curve": [
+            {
+              "synthetic_point": "start",
+              "value": 0
+            }
+          ],
+          "audience": {
+            "synthetic_unknown": {
+              "zero": 0
+            }
+          },
+          "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+        }
+      },
+      "no_op": true,
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044\",\"article_id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"snapshot_date\":\"2026-11-05\",\"age_hours\":24,\"source\":\"manual\",\"impressions\":null,\"fan_impressions\":null,\"reads\":12,\"fan_reads\":0,\"ctr\":0,\"completion_rate\":0,\"avg_read_seconds\":1e-7,\"likes\":0,\"comments\":0,\"reposts\":0,\"shares\":0,\"favorites\":0,\"revenue\":1e-29,\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}},\"completion_curve\":[{\"synthetic_point\":\"start\",\"value\":0}],\"audience\":{\"synthetic_unknown\":{\"zero\":0}},\"content_hash\":\"56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8\"}}"
+    },
+    {
+      "name": "snapshots-actual-form-real-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/review/snapshots/fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+      "body": {
+        "expected_hash": "26f8e5a2c980b358846f5aa341c3cba378e658e0250154517d822b0906561c49",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 12,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        }
+      },
+      "form": {
+        "kind": "snapshots",
+        "original": {
+          "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+          "age_hours": 24,
+          "source": "manual",
+          "impressions": null,
+          "fan_impressions": null,
+          "reads": 0,
+          "fan_reads": 0,
+          "ctr": 0,
+          "completion_rate": 0,
+          "avg_read_seconds": 1e-7,
+          "likes": 0,
+          "comments": 0,
+          "reposts": 0,
+          "shares": 0,
+          "favorites": 0,
+          "revenue": 1e-29,
+          "traffic_sources": {
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "completion_curve": [
+            {
+              "synthetic_point": "start",
+              "value": 0
+            }
+          ],
+          "audience": {
+            "synthetic_unknown": {
+              "zero": 0
+            }
+          },
+          "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "snapshot_date": "2026-11-05",
+          "content_hash": "26f8e5a2c980b358846f5aa341c3cba378e658e0250154517d822b0906561c49"
+        },
+        "values": {
+          "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+          "age_hours": 24,
+          "source": "manual",
+          "impressions": null,
+          "fan_impressions": null,
+          "reads": 12,
+          "fan_reads": 0,
+          "ctr": 0,
+          "completion_rate": 0,
+          "avg_read_seconds": 1e-7,
+          "likes": 0,
+          "comments": 0,
+          "reposts": 0,
+          "shares": 0,
+          "favorites": 0,
+          "revenue": 1e-29,
+          "traffic_sources": {
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "completion_curve": [
+            {
+              "synthetic_point": "start",
+              "value": 0
+            }
+          ],
+          "audience": {
+            "synthetic_unknown": {
+              "zero": 0
+            }
+          },
+          "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+          "snapshot_date": "2026-11-05",
+          "content_hash": "26f8e5a2c980b358846f5aa341c3cba378e658e0250154517d822b0906561c49"
+        }
+      },
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"记录已改变，请读取最新内容再修改\"},\"request_id\":\"94597689-6b19-4125-ac67-ea4e55106316\"}"
+    },
+    {
+      "name": "snapshots-actual-filtered-list",
+      "method": "GET",
+      "path": "/api/v1/review/snapshots?account=V%E5%AD%97&offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[{\"id\":\"fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044\",\"article_id\":\"66617d2c-7a92-4baf-9edf-63b8fceda67a\",\"snapshot_date\":\"2026-11-05\",\"age_hours\":24,\"source\":\"manual\",\"impressions\":null,\"fan_impressions\":null,\"reads\":12,\"fan_reads\":0,\"ctr\":0,\"completion_rate\":0,\"avg_read_seconds\":1e-7,\"likes\":0,\"comments\":0,\"reposts\":0,\"shares\":0,\"favorites\":0,\"revenue\":1e-29,\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}},\"completion_curve\":[{\"synthetic_point\":\"start\",\"value\":0}],\"audience\":{\"synthetic_unknown\":{\"zero\":0}},\"content_hash\":\"56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8\"}],\"has_more\":false,\"read_revision\":12}}"
+    },
+    {
+      "name": "reports-actual-form-create",
+      "method": "PUT",
+      "path": "/api/v1/review/reports/4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+      "body": {
+        "account": "V字",
+        "period_type": "weekly",
+        "period_start": "2026-10-30",
+        "period_end": "2026-11-05",
+        "summary_md": "合成周复盘摘要\n第二段",
+        "verdicts": {
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+            "verdict": "中",
+            "reason": "只依据本次合成记录"
+          }
+        },
+        "findings": {
+          "verified": [
+            {
+              "rule_id": "synthetic-rule",
+              "synthetic_unknown": {
+                "kept": true
+              }
+            }
+          ],
+          "overturned": []
+        },
+        "metrics": {
+          "synthetic_unknown": {
+            "kept": true
+          },
+          "known_zero": 0
+        },
+        "playbook_version": 1
+      },
+      "form": {
+        "kind": "reports",
+        "original": {
+          "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+          "account": "V字",
+          "period_type": null,
+          "period_start": "2026-11-05",
+          "period_end": "2026-11-05",
+          "summary_md": "",
+          "verdicts": {},
+          "findings": {
+            "verified": [],
+            "overturned": []
+          },
+          "metrics": {},
+          "playbook_version": null
+        },
+        "values": {
+          "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+          "account": "V字",
+          "period_type": "weekly",
+          "period_start": "2026-10-30",
+          "period_end": "2026-11-05",
+          "summary_md": "合成周复盘摘要\n第二段",
+          "verdicts": {
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+              "verdict": "中",
+              "reason": "只依据本次合成记录"
+            }
+          },
+          "findings": {
+            "verified": [
+              {
+                "rule_id": "synthetic-rule",
+                "synthetic_unknown": {
+                  "kept": true
+                }
+              }
+            ],
+            "overturned": []
+          },
+          "metrics": {
+            "synthetic_unknown": {
+              "kept": true
+            },
+            "known_zero": 0
+          },
+          "playbook_version": 1
+        }
+      },
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d\",\"account\":\"V字\",\"verdicts\":{\"66617d2c-7a92-4baf-9edf-63b8fceda67a\":{\"reason\":\"只依据本次合成记录\",\"verdict\":\"中\"}},\"findings\":{\"overturned\":[],\"verified\":[{\"rule_id\":\"synthetic-rule\",\"synthetic_unknown\":{\"kept\":true}}]},\"summary_md\":\"合成周复盘摘要\\n第二段\",\"metrics\":{\"known_zero\":0,\"synthetic_unknown\":{\"kept\":true}},\"playbook_version\":1,\"period_type\":\"weekly\",\"period_start\":\"2026-10-30\",\"period_end\":\"2026-11-05\",\"created_at\":\"2026-11-04T17:22:31.182Z\",\"content_hash\":\"45f58d14270a76f9a5458e1453e785ba7bc78b03b21f6e1519b1b91616d69a57\"}}"
+    },
+    {
+      "name": "reports-actual-form-load-detail",
+      "method": "GET",
+      "path": "/api/v1/review/reports/4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d\",\"account\":\"V字\",\"period_type\":\"weekly\",\"period_start\":\"2026-10-30\",\"period_end\":\"2026-11-05\",\"verdicts\":{\"66617d2c-7a92-4baf-9edf-63b8fceda67a\":{\"reason\":\"只依据本次合成记录\",\"verdict\":\"中\"}},\"findings\":{\"overturned\":[],\"verified\":[{\"rule_id\":\"synthetic-rule\",\"synthetic_unknown\":{\"kept\":true}}]},\"summary_md\":\"合成周复盘摘要\\n第二段\",\"metrics\":{\"known_zero\":0,\"synthetic_unknown\":{\"kept\":true}},\"playbook_version\":1,\"created_at\":\"2026-11-04T17:22:31.182Z\",\"content_hash\":\"45f58d14270a76f9a5458e1453e785ba7bc78b03b21f6e1519b1b91616d69a57\"}}"
+    },
+    {
+      "name": "reports-actual-form-edit",
+      "method": "PATCH",
+      "path": "/api/v1/review/reports/4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+      "body": {
+        "expected_hash": "45f58d14270a76f9a5458e1453e785ba7bc78b03b21f6e1519b1b91616d69a57",
+        "account": "V字",
+        "period_type": "weekly",
+        "period_start": "2026-10-30",
+        "period_end": "2026-11-05",
+        "summary_md": "修改后的合成周复盘。",
+        "verdicts": {
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+            "reason": "只依据本次合成记录",
+            "verdict": "中"
+          }
+        },
+        "findings": {
+          "overturned": [],
+          "verified": [
+            {
+              "rule_id": "synthetic-rule",
+              "synthetic_unknown": {
+                "kept": true
+              }
+            }
+          ]
+        },
+        "metrics": {
+          "known_zero": 0,
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "playbook_version": 1
+      },
+      "form": {
+        "kind": "reports",
+        "original": {
+          "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+          "account": "V字",
+          "period_type": "weekly",
+          "period_start": "2026-10-30",
+          "period_end": "2026-11-05",
+          "verdicts": {
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+              "reason": "只依据本次合成记录",
+              "verdict": "中"
+            }
+          },
+          "findings": {
+            "overturned": [],
+            "verified": [
+              {
+                "rule_id": "synthetic-rule",
+                "synthetic_unknown": {
+                  "kept": true
+                }
+              }
+            ]
+          },
+          "summary_md": "合成周复盘摘要\n第二段",
+          "metrics": {
+            "known_zero": 0,
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "playbook_version": 1,
+          "created_at": "2026-11-04T17:22:31.182Z",
+          "content_hash": "45f58d14270a76f9a5458e1453e785ba7bc78b03b21f6e1519b1b91616d69a57"
+        },
+        "values": {
+          "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+          "account": "V字",
+          "period_type": "weekly",
+          "period_start": "2026-10-30",
+          "period_end": "2026-11-05",
+          "verdicts": {
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+              "reason": "只依据本次合成记录",
+              "verdict": "中"
+            }
+          },
+          "findings": {
+            "overturned": [],
+            "verified": [
+              {
+                "rule_id": "synthetic-rule",
+                "synthetic_unknown": {
+                  "kept": true
+                }
+              }
+            ]
+          },
+          "summary_md": "修改后的合成周复盘。",
+          "metrics": {
+            "known_zero": 0,
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "playbook_version": 1,
+          "created_at": "2026-11-04T17:22:31.182Z",
+          "content_hash": "45f58d14270a76f9a5458e1453e785ba7bc78b03b21f6e1519b1b91616d69a57"
+        }
+      },
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d\",\"account\":\"V字\",\"period_type\":\"weekly\",\"period_start\":\"2026-10-30\",\"period_end\":\"2026-11-05\",\"verdicts\":{\"66617d2c-7a92-4baf-9edf-63b8fceda67a\":{\"reason\":\"只依据本次合成记录\",\"verdict\":\"中\"}},\"findings\":{\"overturned\":[],\"verified\":[{\"rule_id\":\"synthetic-rule\",\"synthetic_unknown\":{\"kept\":true}}]},\"summary_md\":\"修改后的合成周复盘。\",\"metrics\":{\"known_zero\":0,\"synthetic_unknown\":{\"kept\":true}},\"playbook_version\":1,\"created_at\":\"2026-11-04T17:22:31.182Z\",\"content_hash\":\"209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f\"}}"
+    },
+    {
+      "name": "reports-actual-form-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/reports/4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+      "body": {
+        "expected_hash": "209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f",
+        "account": "V字",
+        "period_type": "weekly",
+        "period_start": "2026-10-30",
+        "period_end": "2026-11-05",
+        "summary_md": "修改后的合成周复盘。",
+        "verdicts": {
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+            "reason": "只依据本次合成记录",
+            "verdict": "中"
+          }
+        },
+        "findings": {
+          "overturned": [],
+          "verified": [
+            {
+              "rule_id": "synthetic-rule",
+              "synthetic_unknown": {
+                "kept": true
+              }
+            }
+          ]
+        },
+        "metrics": {
+          "known_zero": 0,
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "playbook_version": 1
+      },
+      "form": {
+        "kind": "reports",
+        "original": {
+          "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+          "account": "V字",
+          "period_type": "weekly",
+          "period_start": "2026-10-30",
+          "period_end": "2026-11-05",
+          "verdicts": {
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+              "reason": "只依据本次合成记录",
+              "verdict": "中"
+            }
+          },
+          "findings": {
+            "overturned": [],
+            "verified": [
+              {
+                "rule_id": "synthetic-rule",
+                "synthetic_unknown": {
+                  "kept": true
+                }
+              }
+            ]
+          },
+          "summary_md": "修改后的合成周复盘。",
+          "metrics": {
+            "known_zero": 0,
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "playbook_version": 1,
+          "created_at": "2026-11-04T17:22:31.182Z",
+          "content_hash": "209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f"
+        },
+        "values": {
+          "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+          "account": "V字",
+          "period_type": "weekly",
+          "period_start": "2026-10-30",
+          "period_end": "2026-11-05",
+          "verdicts": {
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+              "reason": "只依据本次合成记录",
+              "verdict": "中"
+            }
+          },
+          "findings": {
+            "overturned": [],
+            "verified": [
+              {
+                "rule_id": "synthetic-rule",
+                "synthetic_unknown": {
+                  "kept": true
+                }
+              }
+            ]
+          },
+          "summary_md": "修改后的合成周复盘。",
+          "metrics": {
+            "known_zero": 0,
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "playbook_version": 1,
+          "created_at": "2026-11-04T17:22:31.182Z",
+          "content_hash": "209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f"
+        }
+      },
+      "no_op": true,
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d\",\"account\":\"V字\",\"period_type\":\"weekly\",\"period_start\":\"2026-10-30\",\"period_end\":\"2026-11-05\",\"verdicts\":{\"66617d2c-7a92-4baf-9edf-63b8fceda67a\":{\"reason\":\"只依据本次合成记录\",\"verdict\":\"中\"}},\"findings\":{\"overturned\":[],\"verified\":[{\"rule_id\":\"synthetic-rule\",\"synthetic_unknown\":{\"kept\":true}}]},\"summary_md\":\"修改后的合成周复盘。\",\"metrics\":{\"known_zero\":0,\"synthetic_unknown\":{\"kept\":true}},\"playbook_version\":1,\"created_at\":\"2026-11-04T17:22:31.182Z\",\"content_hash\":\"209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f\"}}"
+    },
+    {
+      "name": "reports-actual-form-real-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/review/reports/4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+      "body": {
+        "expected_hash": "45f58d14270a76f9a5458e1453e785ba7bc78b03b21f6e1519b1b91616d69a57",
+        "account": "V字",
+        "period_type": "weekly",
+        "period_start": "2026-10-30",
+        "period_end": "2026-11-05",
+        "summary_md": "修改后的合成周复盘。",
+        "verdicts": {
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+            "reason": "只依据本次合成记录",
+            "verdict": "中"
+          }
+        },
+        "findings": {
+          "overturned": [],
+          "verified": [
+            {
+              "rule_id": "synthetic-rule",
+              "synthetic_unknown": {
+                "kept": true
+              }
+            }
+          ]
+        },
+        "metrics": {
+          "known_zero": 0,
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "playbook_version": 1
+      },
+      "form": {
+        "kind": "reports",
+        "original": {
+          "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+          "account": "V字",
+          "verdicts": {
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+              "reason": "只依据本次合成记录",
+              "verdict": "中"
+            }
+          },
+          "findings": {
+            "overturned": [],
+            "verified": [
+              {
+                "rule_id": "synthetic-rule",
+                "synthetic_unknown": {
+                  "kept": true
+                }
+              }
+            ]
+          },
+          "summary_md": "合成周复盘摘要\n第二段",
+          "metrics": {
+            "known_zero": 0,
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "playbook_version": 1,
+          "period_type": "weekly",
+          "period_start": "2026-10-30",
+          "period_end": "2026-11-05",
+          "created_at": "2026-11-04T17:22:31.182Z",
+          "content_hash": "45f58d14270a76f9a5458e1453e785ba7bc78b03b21f6e1519b1b91616d69a57"
+        },
+        "values": {
+          "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+          "account": "V字",
+          "verdicts": {
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+              "reason": "只依据本次合成记录",
+              "verdict": "中"
+            }
+          },
+          "findings": {
+            "overturned": [],
+            "verified": [
+              {
+                "rule_id": "synthetic-rule",
+                "synthetic_unknown": {
+                  "kept": true
+                }
+              }
+            ]
+          },
+          "summary_md": "修改后的合成周复盘。",
+          "metrics": {
+            "known_zero": 0,
+            "synthetic_unknown": {
+              "kept": true
+            }
+          },
+          "playbook_version": 1,
+          "period_type": "weekly",
+          "period_start": "2026-10-30",
+          "period_end": "2026-11-05",
+          "created_at": "2026-11-04T17:22:31.182Z",
+          "content_hash": "45f58d14270a76f9a5458e1453e785ba7bc78b03b21f6e1519b1b91616d69a57"
+        }
+      },
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"记录已改变，请读取最新内容再修改\"},\"request_id\":\"08a808d5-83b8-4c34-8d22-6892dc2190b2\"}"
+    },
+    {
+      "name": "reports-actual-filtered-list",
+      "method": "GET",
+      "path": "/api/v1/review/reports?account=V%E5%AD%97&offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[{\"id\":\"4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d\",\"account\":\"V字\",\"period_type\":\"weekly\",\"period_start\":\"2026-10-30\",\"period_end\":\"2026-11-05\",\"verdicts\":{\"66617d2c-7a92-4baf-9edf-63b8fceda67a\":{\"reason\":\"只依据本次合成记录\",\"verdict\":\"中\"}},\"findings\":{\"overturned\":[],\"verified\":[{\"rule_id\":\"synthetic-rule\",\"synthetic_unknown\":{\"kept\":true}}]},\"summary_md\":\"修改后的合成周复盘。\",\"metrics\":{\"known_zero\":0,\"synthetic_unknown\":{\"kept\":true}},\"playbook_version\":1,\"created_at\":\"2026-11-04T17:22:31.182Z\",\"content_hash\":\"209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f\"}],\"has_more\":false,\"read_revision\":14}}"
+    },
+    {
+      "name": "notes-actual-form-create",
+      "method": "PUT",
+      "path": "/api/v1/review/notes/a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+      "body": {
+        "account": "V字",
+        "note_date": "2026-11-05",
+        "kind": "insight",
+        "title": "本次合成复盘笔记",
+        "body_md": "合成洞察\n第二行",
+        "tags": [
+          "合成",
+          "保持"
+        ],
+        "related_article_ids": [
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+        ],
+        "related_rule_ids": [
+          "synthetic-rule"
+        ],
+        "decided_by": "本次合成执行者"
+      },
+      "form": {
+        "kind": "notes",
+        "original": {
+          "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+          "account": "V字",
+          "note_date": "2026-11-05",
+          "kind": null,
+          "title": null,
+          "body_md": null,
+          "tags": null,
+          "related_article_ids": null,
+          "related_rule_ids": null,
+          "decided_by": null
+        },
+        "values": {
+          "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+          "account": "V字",
+          "note_date": "2026-11-05",
+          "kind": "insight",
+          "title": "本次合成复盘笔记",
+          "body_md": "合成洞察\n第二行",
+          "tags": [
+            "合成",
+            "保持"
+          ],
+          "related_article_ids": [
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+          ],
+          "related_rule_ids": [
+            "synthetic-rule"
+          ],
+          "decided_by": "本次合成执行者"
+        }
+      },
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b\",\"account\":\"V字\",\"note_date\":\"2026-11-05\",\"kind\":\"insight\",\"title\":\"本次合成复盘笔记\",\"body_md\":\"合成洞察\\n第二行\",\"tags\":[\"合成\",\"保持\"],\"related_article_ids\":[\"66617d2c-7a92-4baf-9edf-63b8fceda67a\"],\"related_rule_ids\":[\"synthetic-rule\"],\"decided_by\":\"本次合成执行者\",\"created_at\":\"2026-11-04T17:22:31.967Z\",\"updated_at\":\"2026-11-04T17:22:31.967Z\",\"deleted_at\":null,\"content_hash\":\"a1b73975d6728622a7c55cad94219d576390f455ff37b7359070b7596a0e07ac\"}}"
+    },
+    {
+      "name": "notes-actual-form-load-detail",
+      "method": "GET",
+      "path": "/api/v1/review/notes/a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b\",\"account\":\"V字\",\"note_date\":\"2026-11-05\",\"kind\":\"insight\",\"title\":\"本次合成复盘笔记\",\"body_md\":\"合成洞察\\n第二行\",\"tags\":[\"合成\",\"保持\"],\"related_article_ids\":[\"66617d2c-7a92-4baf-9edf-63b8fceda67a\"],\"related_rule_ids\":[\"synthetic-rule\"],\"decided_by\":\"本次合成执行者\",\"created_at\":\"2026-11-04T17:22:31.967Z\",\"updated_at\":\"2026-11-04T17:22:31.967Z\",\"deleted_at\":null,\"content_hash\":\"a1b73975d6728622a7c55cad94219d576390f455ff37b7359070b7596a0e07ac\"}}"
+    },
+    {
+      "name": "notes-actual-form-edit",
+      "method": "PATCH",
+      "path": "/api/v1/review/notes/a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+      "body": {
+        "expected_hash": "a1b73975d6728622a7c55cad94219d576390f455ff37b7359070b7596a0e07ac",
+        "account": "V字",
+        "note_date": "2026-11-05",
+        "kind": "insight",
+        "title": "本次合成复盘笔记",
+        "body_md": "修改后的合成洞察",
+        "tags": [
+          "合成",
+          "保持"
+        ],
+        "related_article_ids": [
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+        ],
+        "related_rule_ids": [
+          "synthetic-rule"
+        ],
+        "decided_by": "本次合成执行者"
+      },
+      "form": {
+        "kind": "notes",
+        "original": {
+          "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+          "account": "V字",
+          "note_date": "2026-11-05",
+          "kind": "insight",
+          "title": "本次合成复盘笔记",
+          "body_md": "合成洞察\n第二行",
+          "tags": [
+            "合成",
+            "保持"
+          ],
+          "related_article_ids": [
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+          ],
+          "related_rule_ids": [
+            "synthetic-rule"
+          ],
+          "decided_by": "本次合成执行者",
+          "created_at": "2026-11-04T17:22:31.967Z",
+          "updated_at": "2026-11-04T17:22:31.967Z",
+          "deleted_at": null,
+          "content_hash": "a1b73975d6728622a7c55cad94219d576390f455ff37b7359070b7596a0e07ac"
+        },
+        "values": {
+          "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+          "account": "V字",
+          "note_date": "2026-11-05",
+          "kind": "insight",
+          "title": "本次合成复盘笔记",
+          "body_md": "修改后的合成洞察",
+          "tags": [
+            "合成",
+            "保持"
+          ],
+          "related_article_ids": [
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+          ],
+          "related_rule_ids": [
+            "synthetic-rule"
+          ],
+          "decided_by": "本次合成执行者",
+          "created_at": "2026-11-04T17:22:31.967Z",
+          "updated_at": "2026-11-04T17:22:31.967Z",
+          "deleted_at": null,
+          "content_hash": "a1b73975d6728622a7c55cad94219d576390f455ff37b7359070b7596a0e07ac"
+        }
+      },
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b\",\"account\":\"V字\",\"note_date\":\"2026-11-05\",\"kind\":\"insight\",\"title\":\"本次合成复盘笔记\",\"body_md\":\"修改后的合成洞察\",\"tags\":[\"合成\",\"保持\"],\"related_article_ids\":[\"66617d2c-7a92-4baf-9edf-63b8fceda67a\"],\"related_rule_ids\":[\"synthetic-rule\"],\"decided_by\":\"本次合成执行者\",\"created_at\":\"2026-11-04T17:22:31.967Z\",\"updated_at\":\"2026-11-04T17:22:32.209Z\",\"deleted_at\":null,\"content_hash\":\"b883adcafca05a8baca7d700d6f9b3be1e70da1d8393026f5ebb7d630ebab28a\"}}"
+    },
+    {
+      "name": "notes-actual-form-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/notes/a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+      "body": {
+        "expected_hash": "b883adcafca05a8baca7d700d6f9b3be1e70da1d8393026f5ebb7d630ebab28a",
+        "account": "V字",
+        "note_date": "2026-11-05",
+        "kind": "insight",
+        "title": "本次合成复盘笔记",
+        "body_md": "修改后的合成洞察",
+        "tags": [
+          "合成",
+          "保持"
+        ],
+        "related_article_ids": [
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+        ],
+        "related_rule_ids": [
+          "synthetic-rule"
+        ],
+        "decided_by": "本次合成执行者"
+      },
+      "form": {
+        "kind": "notes",
+        "original": {
+          "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+          "account": "V字",
+          "note_date": "2026-11-05",
+          "kind": "insight",
+          "title": "本次合成复盘笔记",
+          "body_md": "修改后的合成洞察",
+          "tags": [
+            "合成",
+            "保持"
+          ],
+          "related_article_ids": [
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+          ],
+          "related_rule_ids": [
+            "synthetic-rule"
+          ],
+          "decided_by": "本次合成执行者",
+          "created_at": "2026-11-04T17:22:31.967Z",
+          "updated_at": "2026-11-04T17:22:32.209Z",
+          "deleted_at": null,
+          "content_hash": "b883adcafca05a8baca7d700d6f9b3be1e70da1d8393026f5ebb7d630ebab28a"
+        },
+        "values": {
+          "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+          "account": "V字",
+          "note_date": "2026-11-05",
+          "kind": "insight",
+          "title": "本次合成复盘笔记",
+          "body_md": "修改后的合成洞察",
+          "tags": [
+            "合成",
+            "保持"
+          ],
+          "related_article_ids": [
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+          ],
+          "related_rule_ids": [
+            "synthetic-rule"
+          ],
+          "decided_by": "本次合成执行者",
+          "created_at": "2026-11-04T17:22:31.967Z",
+          "updated_at": "2026-11-04T17:22:32.209Z",
+          "deleted_at": null,
+          "content_hash": "b883adcafca05a8baca7d700d6f9b3be1e70da1d8393026f5ebb7d630ebab28a"
+        }
+      },
+      "no_op": true,
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b\",\"account\":\"V字\",\"note_date\":\"2026-11-05\",\"kind\":\"insight\",\"title\":\"本次合成复盘笔记\",\"body_md\":\"修改后的合成洞察\",\"tags\":[\"合成\",\"保持\"],\"related_article_ids\":[\"66617d2c-7a92-4baf-9edf-63b8fceda67a\"],\"related_rule_ids\":[\"synthetic-rule\"],\"decided_by\":\"本次合成执行者\",\"created_at\":\"2026-11-04T17:22:31.967Z\",\"updated_at\":\"2026-11-04T17:22:32.209Z\",\"deleted_at\":null,\"content_hash\":\"b883adcafca05a8baca7d700d6f9b3be1e70da1d8393026f5ebb7d630ebab28a\"}}"
+    },
+    {
+      "name": "notes-actual-form-real-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/review/notes/a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+      "body": {
+        "expected_hash": "a1b73975d6728622a7c55cad94219d576390f455ff37b7359070b7596a0e07ac",
+        "account": "V字",
+        "note_date": "2026-11-05",
+        "kind": "insight",
+        "title": "本次合成复盘笔记",
+        "body_md": "修改后的合成洞察",
+        "tags": [
+          "合成",
+          "保持"
+        ],
+        "related_article_ids": [
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+        ],
+        "related_rule_ids": [
+          "synthetic-rule"
+        ],
+        "decided_by": "本次合成执行者"
+      },
+      "form": {
+        "kind": "notes",
+        "original": {
+          "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+          "account": "V字",
+          "note_date": "2026-11-05",
+          "kind": "insight",
+          "title": "本次合成复盘笔记",
+          "body_md": "合成洞察\n第二行",
+          "tags": [
+            "合成",
+            "保持"
+          ],
+          "related_article_ids": [
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+          ],
+          "related_rule_ids": [
+            "synthetic-rule"
+          ],
+          "decided_by": "本次合成执行者",
+          "created_at": "2026-11-04T17:22:31.967Z",
+          "updated_at": "2026-11-04T17:22:31.967Z",
+          "deleted_at": null,
+          "content_hash": "a1b73975d6728622a7c55cad94219d576390f455ff37b7359070b7596a0e07ac"
+        },
+        "values": {
+          "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+          "account": "V字",
+          "note_date": "2026-11-05",
+          "kind": "insight",
+          "title": "本次合成复盘笔记",
+          "body_md": "修改后的合成洞察",
+          "tags": [
+            "合成",
+            "保持"
+          ],
+          "related_article_ids": [
+            "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+          ],
+          "related_rule_ids": [
+            "synthetic-rule"
+          ],
+          "decided_by": "本次合成执行者",
+          "created_at": "2026-11-04T17:22:31.967Z",
+          "updated_at": "2026-11-04T17:22:31.967Z",
+          "deleted_at": null,
+          "content_hash": "a1b73975d6728622a7c55cad94219d576390f455ff37b7359070b7596a0e07ac"
+        }
+      },
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"记录已删除或改变\"},\"request_id\":\"ec5790d9-b96c-4f5d-821d-f1fd0545e27e\"}"
+    },
+    {
+      "name": "notes-actual-filtered-list",
+      "method": "GET",
+      "path": "/api/v1/review/notes?account=V%E5%AD%97&offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[{\"id\":\"a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b\",\"account\":\"V字\",\"note_date\":\"2026-11-05\",\"kind\":\"insight\",\"title\":\"本次合成复盘笔记\",\"body_md\":\"修改后的合成洞察\",\"tags\":[\"合成\",\"保持\"],\"related_article_ids\":[\"66617d2c-7a92-4baf-9edf-63b8fceda67a\"],\"related_rule_ids\":[\"synthetic-rule\"],\"decided_by\":\"本次合成执行者\",\"created_at\":\"2026-11-04T17:22:31.967Z\",\"updated_at\":\"2026-11-04T17:22:32.209Z\",\"deleted_at\":null,\"content_hash\":\"b883adcafca05a8baca7d700d6f9b3be1e70da1d8393026f5ebb7d630ebab28a\"}],\"has_more\":false,\"read_revision\":16}}"
+    },
+    {
+      "name": "account-health-actual-form-create",
+      "method": "PUT",
+      "path": "/api/v1/review/account-health/76add02e-482c-45ca-a563-cc9d24e144cb",
+      "body": {
+        "account": "V字",
+        "platform": "toutiao",
+        "observed_on": "2026-11-05",
+        "impressions_per_day": 0,
+        "reads_per_day": 0,
+        "ctr": 0,
+        "since_date": "2026-10-30",
+        "platform_notice": {
+          "text": "合成平台通知",
+          "date": "2026-11-05"
+        },
+        "judgement": "normal",
+        "action": "仅合成记录，无真实操作",
+        "resume_on": null
+      },
+      "form": {
+        "kind": "account-health",
+        "original": {
+          "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+          "account": "V字",
+          "platform": null,
+          "observed_on": "2026-11-05",
+          "impressions_per_day": null,
+          "reads_per_day": null,
+          "ctr": null,
+          "since_date": null,
+          "platform_notice": null,
+          "judgement": null,
+          "action": null,
+          "resume_on": null
+        },
+        "values": {
+          "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+          "account": "V字",
+          "platform": "toutiao",
+          "observed_on": "2026-11-05",
+          "impressions_per_day": 0,
+          "reads_per_day": 0,
+          "ctr": 0,
+          "since_date": "2026-10-30",
+          "platform_notice": {
+            "text": "合成平台通知",
+            "date": "2026-11-05"
+          },
+          "judgement": "normal",
+          "action": "仅合成记录，无真实操作",
+          "resume_on": null
+        }
+      },
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"76add02e-482c-45ca-a563-cc9d24e144cb\",\"account\":\"V字\",\"platform\":\"toutiao\",\"observed_on\":\"2026-11-05\",\"impressions_per_day\":0,\"reads_per_day\":0,\"ctr\":0,\"since_date\":\"2026-10-30\",\"platform_notice\":{\"text\":\"合成平台通知\",\"date\":\"2026-11-05\"},\"judgement\":\"normal\",\"action\":\"仅合成记录，无真实操作\",\"resume_on\":null,\"created_at\":\"2026-11-04T17:22:32.763Z\",\"updated_at\":\"2026-11-04T17:22:32.763Z\",\"deleted_at\":null,\"content_hash\":\"3fdd82e19a56bd3ce64a1dd7b15dc8eb13f46718a072b70788389181bcb54ec5\"}}"
+    },
+    {
+      "name": "account-health-actual-form-load-detail",
+      "method": "GET",
+      "path": "/api/v1/review/account-health/76add02e-482c-45ca-a563-cc9d24e144cb",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"76add02e-482c-45ca-a563-cc9d24e144cb\",\"account\":\"V字\",\"platform\":\"toutiao\",\"observed_on\":\"2026-11-05\",\"impressions_per_day\":0,\"reads_per_day\":0,\"ctr\":0,\"since_date\":\"2026-10-30\",\"platform_notice\":{\"date\":\"2026-11-05\",\"text\":\"合成平台通知\"},\"judgement\":\"normal\",\"action\":\"仅合成记录，无真实操作\",\"resume_on\":null,\"created_at\":\"2026-11-04T17:22:32.763Z\",\"updated_at\":\"2026-11-04T17:22:32.763Z\",\"deleted_at\":null,\"content_hash\":\"3fdd82e19a56bd3ce64a1dd7b15dc8eb13f46718a072b70788389181bcb54ec5\"}}"
+    },
+    {
+      "name": "account-health-actual-form-edit",
+      "method": "PATCH",
+      "path": "/api/v1/review/account-health/76add02e-482c-45ca-a563-cc9d24e144cb",
+      "body": {
+        "expected_hash": "3fdd82e19a56bd3ce64a1dd7b15dc8eb13f46718a072b70788389181bcb54ec5",
+        "account": "V字",
+        "platform": "toutiao",
+        "observed_on": "2026-11-05",
+        "impressions_per_day": 0,
+        "reads_per_day": 0,
+        "ctr": 0,
+        "since_date": "2026-10-30",
+        "platform_notice": {
+          "date": "2026-11-05",
+          "text": "合成平台通知"
+        },
+        "judgement": "normal",
+        "action": "合成后续动作修改",
+        "resume_on": null
+      },
+      "form": {
+        "kind": "account-health",
+        "original": {
+          "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+          "account": "V字",
+          "platform": "toutiao",
+          "observed_on": "2026-11-05",
+          "impressions_per_day": 0,
+          "reads_per_day": 0,
+          "ctr": 0,
+          "since_date": "2026-10-30",
+          "platform_notice": {
+            "date": "2026-11-05",
+            "text": "合成平台通知"
+          },
+          "judgement": "normal",
+          "action": "仅合成记录，无真实操作",
+          "resume_on": null,
+          "created_at": "2026-11-04T17:22:32.763Z",
+          "updated_at": "2026-11-04T17:22:32.763Z",
+          "deleted_at": null,
+          "content_hash": "3fdd82e19a56bd3ce64a1dd7b15dc8eb13f46718a072b70788389181bcb54ec5"
+        },
+        "values": {
+          "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+          "account": "V字",
+          "platform": "toutiao",
+          "observed_on": "2026-11-05",
+          "impressions_per_day": 0,
+          "reads_per_day": 0,
+          "ctr": 0,
+          "since_date": "2026-10-30",
+          "platform_notice": {
+            "date": "2026-11-05",
+            "text": "合成平台通知"
+          },
+          "judgement": "normal",
+          "action": "合成后续动作修改",
+          "resume_on": null,
+          "created_at": "2026-11-04T17:22:32.763Z",
+          "updated_at": "2026-11-04T17:22:32.763Z",
+          "deleted_at": null,
+          "content_hash": "3fdd82e19a56bd3ce64a1dd7b15dc8eb13f46718a072b70788389181bcb54ec5"
+        }
+      },
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"76add02e-482c-45ca-a563-cc9d24e144cb\",\"account\":\"V字\",\"platform\":\"toutiao\",\"observed_on\":\"2026-11-05\",\"impressions_per_day\":0,\"reads_per_day\":0,\"ctr\":0,\"since_date\":\"2026-10-30\",\"platform_notice\":{\"text\":\"合成平台通知\",\"date\":\"2026-11-05\"},\"judgement\":\"normal\",\"action\":\"合成后续动作修改\",\"resume_on\":null,\"created_at\":\"2026-11-04T17:22:32.763Z\",\"updated_at\":\"2026-11-04T17:22:32.968Z\",\"deleted_at\":null,\"content_hash\":\"97bcd49fc65731ca53e73a3bb58d907f1d2201408a18132f99d72433c4a582ea\"}}"
+    },
+    {
+      "name": "account-health-actual-form-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/account-health/76add02e-482c-45ca-a563-cc9d24e144cb",
+      "body": {
+        "expected_hash": "97bcd49fc65731ca53e73a3bb58d907f1d2201408a18132f99d72433c4a582ea",
+        "account": "V字",
+        "platform": "toutiao",
+        "observed_on": "2026-11-05",
+        "impressions_per_day": 0,
+        "reads_per_day": 0,
+        "ctr": 0,
+        "since_date": "2026-10-30",
+        "platform_notice": {
+          "text": "合成平台通知",
+          "date": "2026-11-05"
+        },
+        "judgement": "normal",
+        "action": "合成后续动作修改",
+        "resume_on": null
+      },
+      "form": {
+        "kind": "account-health",
+        "original": {
+          "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+          "account": "V字",
+          "platform": "toutiao",
+          "observed_on": "2026-11-05",
+          "impressions_per_day": 0,
+          "reads_per_day": 0,
+          "ctr": 0,
+          "since_date": "2026-10-30",
+          "platform_notice": {
+            "text": "合成平台通知",
+            "date": "2026-11-05"
+          },
+          "judgement": "normal",
+          "action": "合成后续动作修改",
+          "resume_on": null,
+          "created_at": "2026-11-04T17:22:32.763Z",
+          "updated_at": "2026-11-04T17:22:32.968Z",
+          "deleted_at": null,
+          "content_hash": "97bcd49fc65731ca53e73a3bb58d907f1d2201408a18132f99d72433c4a582ea"
+        },
+        "values": {
+          "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+          "account": "V字",
+          "platform": "toutiao",
+          "observed_on": "2026-11-05",
+          "impressions_per_day": 0,
+          "reads_per_day": 0,
+          "ctr": 0,
+          "since_date": "2026-10-30",
+          "platform_notice": {
+            "text": "合成平台通知",
+            "date": "2026-11-05"
+          },
+          "judgement": "normal",
+          "action": "合成后续动作修改",
+          "resume_on": null,
+          "created_at": "2026-11-04T17:22:32.763Z",
+          "updated_at": "2026-11-04T17:22:32.968Z",
+          "deleted_at": null,
+          "content_hash": "97bcd49fc65731ca53e73a3bb58d907f1d2201408a18132f99d72433c4a582ea"
+        }
+      },
+      "no_op": true,
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"76add02e-482c-45ca-a563-cc9d24e144cb\",\"account\":\"V字\",\"platform\":\"toutiao\",\"observed_on\":\"2026-11-05\",\"impressions_per_day\":0,\"reads_per_day\":0,\"ctr\":0,\"since_date\":\"2026-10-30\",\"platform_notice\":{\"date\":\"2026-11-05\",\"text\":\"合成平台通知\"},\"judgement\":\"normal\",\"action\":\"合成后续动作修改\",\"resume_on\":null,\"created_at\":\"2026-11-04T17:22:32.763Z\",\"updated_at\":\"2026-11-04T17:22:32.968Z\",\"deleted_at\":null,\"content_hash\":\"97bcd49fc65731ca53e73a3bb58d907f1d2201408a18132f99d72433c4a582ea\"}}"
+    },
+    {
+      "name": "account-health-actual-form-real-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/review/account-health/76add02e-482c-45ca-a563-cc9d24e144cb",
+      "body": {
+        "expected_hash": "3fdd82e19a56bd3ce64a1dd7b15dc8eb13f46718a072b70788389181bcb54ec5",
+        "account": "V字",
+        "platform": "toutiao",
+        "observed_on": "2026-11-05",
+        "impressions_per_day": 0,
+        "reads_per_day": 0,
+        "ctr": 0,
+        "since_date": "2026-10-30",
+        "platform_notice": {
+          "text": "合成平台通知",
+          "date": "2026-11-05"
+        },
+        "judgement": "normal",
+        "action": "合成后续动作修改",
+        "resume_on": null
+      },
+      "form": {
+        "kind": "account-health",
+        "original": {
+          "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+          "account": "V字",
+          "platform": "toutiao",
+          "observed_on": "2026-11-05",
+          "impressions_per_day": 0,
+          "reads_per_day": 0,
+          "ctr": 0,
+          "since_date": "2026-10-30",
+          "platform_notice": {
+            "text": "合成平台通知",
+            "date": "2026-11-05"
+          },
+          "judgement": "normal",
+          "action": "仅合成记录，无真实操作",
+          "resume_on": null,
+          "created_at": "2026-11-04T17:22:32.763Z",
+          "updated_at": "2026-11-04T17:22:32.763Z",
+          "deleted_at": null,
+          "content_hash": "3fdd82e19a56bd3ce64a1dd7b15dc8eb13f46718a072b70788389181bcb54ec5"
+        },
+        "values": {
+          "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+          "account": "V字",
+          "platform": "toutiao",
+          "observed_on": "2026-11-05",
+          "impressions_per_day": 0,
+          "reads_per_day": 0,
+          "ctr": 0,
+          "since_date": "2026-10-30",
+          "platform_notice": {
+            "text": "合成平台通知",
+            "date": "2026-11-05"
+          },
+          "judgement": "normal",
+          "action": "合成后续动作修改",
+          "resume_on": null,
+          "created_at": "2026-11-04T17:22:32.763Z",
+          "updated_at": "2026-11-04T17:22:32.763Z",
+          "deleted_at": null,
+          "content_hash": "3fdd82e19a56bd3ce64a1dd7b15dc8eb13f46718a072b70788389181bcb54ec5"
+        }
+      },
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"记录已删除或改变\"},\"request_id\":\"f1d85de2-44e9-4de8-9b89-fc7b9dbf0687\"}"
+    },
+    {
+      "name": "account-health-actual-filtered-list",
+      "method": "GET",
+      "path": "/api/v1/review/account-health?account=V%E5%AD%97&offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[{\"id\":\"76add02e-482c-45ca-a563-cc9d24e144cb\",\"account\":\"V字\",\"platform\":\"toutiao\",\"observed_on\":\"2026-11-05\",\"impressions_per_day\":0,\"reads_per_day\":0,\"ctr\":0,\"since_date\":\"2026-10-30\",\"platform_notice\":{\"date\":\"2026-11-05\",\"text\":\"合成平台通知\"},\"judgement\":\"normal\",\"action\":\"合成后续动作修改\",\"resume_on\":null,\"created_at\":\"2026-11-04T17:22:32.763Z\",\"updated_at\":\"2026-11-04T17:22:32.968Z\",\"deleted_at\":null,\"content_hash\":\"97bcd49fc65731ca53e73a3bb58d907f1d2201408a18132f99d72433c4a582ea\"}],\"has_more\":false,\"read_revision\":18}}"
+    },
+    {
+      "name": "playbooks-legacy-default-detail",
+      "method": "GET",
+      "path": "/api/v1/review/playbooks/0ae30afe-8ab4-45a0-890e-cca694bca364",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"0ae30afe-8ab4-45a0-890e-cca694bca364\",\"account\":\"V字\",\"status\":\"active\",\"version\":1,\"published_on\":\"2026-11-05\",\"content_md\":\"合成规则正文\\n第二行\",\"rules\":[{\"check\":\"manual\",\"counter_ids\":[],\"evidence_note\":null,\"rule_id\":\"synthetic-rule\",\"section\":\"title\",\"support_ids\":[],\"text\":\"只用于合成验证\",\"trials\":0,\"status\":\"candidate\"}],\"changelog_md\":\"合成修改记录\",\"sent_to_gemini_at\":null,\"created_at\":\"2026-11-04T17:22:28.567Z\",\"content_hash\":\"b6f7138a1efdb3b8e6963bf7ab1e4645147d3a0a31789cbe8abf9d0f9816cc9c\"}}"
+    },
+    {
+      "name": "playbooks-legacy-default-actual-form-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/playbooks/0ae30afe-8ab4-45a0-890e-cca694bca364",
+      "body": {
+        "expected_hash": "b6f7138a1efdb3b8e6963bf7ab1e4645147d3a0a31789cbe8abf9d0f9816cc9c",
+        "account": "V字",
+        "status": "active",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0,
+            "status": "candidate"
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null
+      },
+      "form": {
+        "kind": "playbooks",
+        "original": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "active",
+          "version": 1,
+          "published_on": "2026-11-05",
+          "content_md": "合成规则正文\n第二行",
+          "rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0,
+              "status": "candidate"
+            }
+          ],
+          "changelog_md": "合成修改记录",
+          "sent_to_gemini_at": null,
+          "created_at": "2026-11-04T17:22:28.567Z",
+          "content_hash": "b6f7138a1efdb3b8e6963bf7ab1e4645147d3a0a31789cbe8abf9d0f9816cc9c"
+        },
+        "values": {
+          "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+          "account": "V字",
+          "status": "active",
+          "version": 1,
+          "published_on": "2026-11-05",
+          "content_md": "合成规则正文\n第二行",
+          "rules": [
+            {
+              "check": "manual",
+              "counter_ids": [],
+              "evidence_note": null,
+              "rule_id": "synthetic-rule",
+              "section": "title",
+              "support_ids": [],
+              "text": "只用于合成验证",
+              "trials": 0,
+              "status": "candidate"
+            }
+          ],
+          "changelog_md": "合成修改记录",
+          "sent_to_gemini_at": null,
+          "created_at": "2026-11-04T17:22:28.567Z",
+          "content_hash": "b6f7138a1efdb3b8e6963bf7ab1e4645147d3a0a31789cbe8abf9d0f9816cc9c"
+        }
+      },
+      "no_op": true,
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"0ae30afe-8ab4-45a0-890e-cca694bca364\",\"account\":\"V字\",\"status\":\"active\",\"version\":1,\"published_on\":\"2026-11-05\",\"content_md\":\"合成规则正文\\n第二行\",\"rules\":[{\"check\":\"manual\",\"counter_ids\":[],\"evidence_note\":null,\"rule_id\":\"synthetic-rule\",\"section\":\"title\",\"support_ids\":[],\"text\":\"只用于合成验证\",\"trials\":0}],\"changelog_md\":\"合成修改记录\",\"sent_to_gemini_at\":null,\"created_at\":\"2026-11-04T17:22:28.567Z\",\"content_hash\":\"b6f7138a1efdb3b8e6963bf7ab1e4645147d3a0a31789cbe8abf9d0f9816cc9c\"}}"
+    }
+  ],
+  "invalid_forms": [
+    {
+      "name": "percentage-over-100",
+      "kind": "snapshots",
+      "original": {
+        "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 12,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        },
+        "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+      },
+      "values": {
+        "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 12,
+        "fan_reads": 0,
+        "ctr": 101,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        },
+        "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+      },
+      "error": "点击率（%）须为有效非负数；未知时留空。"
+    },
+    {
+      "name": "negative-read-count",
+      "kind": "snapshots",
+      "original": {
+        "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 12,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        },
+        "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+      },
+      "values": {
+        "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": -1,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        },
+        "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+      },
+      "error": "阅读量须为有效非负数；未知时留空。"
+    },
+    {
+      "name": "fractional-integer-read-count",
+      "kind": "snapshots",
+      "original": {
+        "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 12,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        },
+        "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+      },
+      "values": {
+        "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 1.5,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        },
+        "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+      },
+      "error": "阅读量须为有效非负数；未知时留空。"
+    },
+    {
+      "name": "daily-summary-over-two-sentences",
+      "kind": "reports",
+      "original": {
+        "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+        "account": "V字",
+        "period_type": "weekly",
+        "period_start": "2026-10-30",
+        "period_end": "2026-11-05",
+        "verdicts": {
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+            "reason": "只依据本次合成记录",
+            "verdict": "中"
+          }
+        },
+        "findings": {
+          "overturned": [],
+          "verified": [
+            {
+              "rule_id": "synthetic-rule",
+              "synthetic_unknown": {
+                "kept": true
+              }
+            }
+          ]
+        },
+        "summary_md": "修改后的合成周复盘。",
+        "metrics": {
+          "known_zero": 0,
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "playbook_version": 1,
+        "created_at": "2026-11-04T17:22:31.182Z",
+        "content_hash": "209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f"
+      },
+      "values": {
+        "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+        "account": "V字",
+        "period_type": "daily",
+        "period_start": "2026-10-30",
+        "period_end": "2026-11-05",
+        "verdicts": {
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+            "reason": "只依据本次合成记录",
+            "verdict": "中"
+          }
+        },
+        "findings": {
+          "overturned": [],
+          "verified": [
+            {
+              "rule_id": "synthetic-rule",
+              "synthetic_unknown": {
+                "kept": true
+              }
+            }
+          ]
+        },
+        "summary_md": "第一句。第二句。第三句。",
+        "metrics": {
+          "known_zero": 0,
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "playbook_version": 1,
+        "created_at": "2026-11-04T17:22:31.182Z",
+        "content_hash": "209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f"
+      },
+      "error": "日复盘摘要最多两句，请保留完整草稿后精简。"
+    },
+    {
+      "name": "duplicate-rule-identities",
+      "kind": "playbooks",
+      "original": {
+        "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null,
+        "created_at": "2026-11-04T17:22:28.567Z",
+        "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c"
+      },
+      "values": {
+        "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          },
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null,
+        "created_at": "2026-11-04T17:22:28.567Z",
+        "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c"
+      },
+      "error": "规则编号不能重复。"
+    },
+    {
+      "name": "invalid-boolean",
+      "kind": "benchmark-accounts",
+      "original": {
+        "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+        "account": "V字",
+        "platform": "toutiao",
+        "name": "本次合成对标账号",
+        "profile_url": "https://example.invalid/synthetic-account",
+        "fans": 0,
+        "is_featured_author": false,
+        "posting_cadence": "每周三篇（合成修改）",
+        "topic_focus": "合成题材",
+        "title_patterns": [
+          "合成对话式",
+          "合成数字式"
+        ],
+        "structure_notes_md": "合成结构观察\n第二行",
+        "created_at": "2026-11-04T17:22:26.657Z",
+        "updated_at": "2026-11-04T17:22:26.938Z",
+        "deleted_at": null,
+        "content_hash": "7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090"
+      },
+      "values": {
+        "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+        "account": "V字",
+        "platform": "toutiao",
+        "name": "本次合成对标账号",
+        "profile_url": "https://example.invalid/synthetic-account",
+        "fans": 0,
+        "is_featured_author": "maybe",
+        "posting_cadence": "每周三篇（合成修改）",
+        "topic_focus": "合成题材",
+        "title_patterns": [
+          "合成对话式",
+          "合成数字式"
+        ],
+        "structure_notes_md": "合成结构观察\n第二行",
+        "created_at": "2026-11-04T17:22:26.657Z",
+        "updated_at": "2026-11-04T17:22:26.938Z",
+        "deleted_at": null,
+        "content_hash": "7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090"
+      },
+      "error": "请选择优质作者。"
+    },
+    {
+      "name": "guessed-article-reference",
+      "kind": "notes",
+      "original": {
+        "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+        "account": "V字",
+        "note_date": "2026-11-05",
+        "kind": "insight",
+        "title": "本次合成复盘笔记",
+        "body_md": "修改后的合成洞察",
+        "tags": [
+          "合成",
+          "保持"
+        ],
+        "related_article_ids": [
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a"
+        ],
+        "related_rule_ids": [
+          "synthetic-rule"
+        ],
+        "decided_by": "本次合成执行者",
+        "created_at": "2026-11-04T17:22:31.967Z",
+        "updated_at": "2026-11-04T17:22:32.209Z",
+        "deleted_at": null,
+        "content_hash": "b883adcafca05a8baca7d700d6f9b3be1e70da1d8393026f5ebb7d630ebab28a"
+      },
+      "values": {
+        "id": "a2b20608-ef1b-4dfd-b9e8-81fd7dc8fb1b",
+        "account": "V字",
+        "note_date": "2026-11-05",
+        "kind": "insight",
+        "title": "本次合成复盘笔记",
+        "body_md": "修改后的合成洞察",
+        "tags": [
+          "合成",
+          "保持"
+        ],
+        "related_article_ids": [
+          "not-a-record-uuid"
+        ],
+        "related_rule_ids": [
+          "synthetic-rule"
+        ],
+        "decided_by": "本次合成执行者",
+        "created_at": "2026-11-04T17:22:31.967Z",
+        "updated_at": "2026-11-04T17:22:32.209Z",
+        "deleted_at": null,
+        "content_hash": "b883adcafca05a8baca7d700d6f9b3be1e70da1d8393026f5ebb7d630ebab28a"
+      },
+      "error": "请选择有效的已有记录，不能猜测关联标识。"
+    },
+    {
+      "name": "invalid-calendar-time",
+      "kind": "articles",
+      "original": {
+        "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "account": "V字",
+        "platform": "toutiao",
+        "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "title": "本次合成我方文章",
+        "url": "https://example.invalid/synthetic-own-article#retained",
+        "published_at": "2026-11-04T00:00:00.000Z",
+        "topic_category": "合成题材修改",
+        "title_pattern": "合成标题形式",
+        "sample_title": "合成参考标题",
+        "sample_url": "https://example.invalid/synthetic-reference",
+        "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+        "image_count": 0,
+        "source_chat": "本地临时合成验证",
+        "playbook_version_used": 1,
+        "applied_rule_ids": [
+          "synthetic-rule"
+        ],
+        "created_at": "2026-11-04T17:22:29.385Z",
+        "updated_at": "2026-11-04T17:22:29.706Z",
+        "content_hash": "b6bc6419734bc4678d0cc599c2cbc9347a463ed653292f1c556d4328ab98c22d"
+      },
+      "values": {
+        "id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "account": "V字",
+        "platform": "toutiao",
+        "platform_article_id": "synthetic-66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "title": "本次合成我方文章",
+        "url": "https://example.invalid/synthetic-own-article#retained",
+        "published_at": "2026-02-30",
+        "topic_category": "合成题材修改",
+        "title_pattern": "合成标题形式",
+        "sample_title": "合成参考标题",
+        "sample_url": "https://example.invalid/synthetic-reference",
+        "reference_article_id": "10be73ad-b5c3-4a03-9a2a-c2bff92193fe",
+        "image_count": 0,
+        "source_chat": "本地临时合成验证",
+        "playbook_version_used": 1,
+        "applied_rule_ids": [
+          "synthetic-rule"
+        ],
+        "created_at": "2026-11-04T17:22:29.385Z",
+        "updated_at": "2026-11-04T17:22:29.706Z",
+        "content_hash": "b6bc6419734bc4678d0cc599c2cbc9347a463ed653292f1c556d4328ab98c22d"
+      },
+      "error": "时间请填有效日期或北京时间YYYY-MM-DD HH:mm:ss。"
+    },
+    {
+      "name": "missing-required-metrics-object",
+      "kind": "reports",
+      "original": {
+        "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+        "account": "V字",
+        "period_type": "weekly",
+        "period_start": "2026-10-30",
+        "period_end": "2026-11-05",
+        "verdicts": {
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+            "reason": "只依据本次合成记录",
+            "verdict": "中"
+          }
+        },
+        "findings": {
+          "overturned": [],
+          "verified": [
+            {
+              "rule_id": "synthetic-rule",
+              "synthetic_unknown": {
+                "kept": true
+              }
+            }
+          ]
+        },
+        "summary_md": "修改后的合成周复盘。",
+        "metrics": {
+          "known_zero": 0,
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "playbook_version": 1,
+        "created_at": "2026-11-04T17:22:31.182Z",
+        "content_hash": "209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f"
+      },
+      "values": {
+        "id": "4d0f0946-a8ec-43b1-a0d7-501ccddc2c3d",
+        "account": "V字",
+        "period_type": "weekly",
+        "period_start": "2026-10-30",
+        "period_end": "2026-11-05",
+        "verdicts": {
+          "66617d2c-7a92-4baf-9edf-63b8fceda67a": {
+            "reason": "只依据本次合成记录",
+            "verdict": "中"
+          }
+        },
+        "findings": {
+          "overturned": [],
+          "verified": [
+            {
+              "rule_id": "synthetic-rule",
+              "synthetic_unknown": {
+                "kept": true
+              }
+            }
+          ]
+        },
+        "summary_md": "修改后的合成周复盘。",
+        "metrics": null,
+        "playbook_version": 1,
+        "created_at": "2026-11-04T17:22:31.182Z",
+        "content_hash": "209d276ececebb47e7afa4447b1093894ca605219f4005e765eb32c20e48b93f"
+      },
+      "error": "请完成复盘指标。"
+    },
+    {
+      "name": "unknown-notice-field",
+      "kind": "account-health",
+      "original": {
+        "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+        "account": "V字",
+        "platform": "toutiao",
+        "observed_on": "2026-11-05",
+        "impressions_per_day": 0,
+        "reads_per_day": 0,
+        "ctr": 0,
+        "since_date": "2026-10-30",
+        "platform_notice": {
+          "date": "2026-11-05",
+          "text": "合成平台通知"
+        },
+        "judgement": "normal",
+        "action": "合成后续动作修改",
+        "resume_on": null,
+        "created_at": "2026-11-04T17:22:32.763Z",
+        "updated_at": "2026-11-04T17:22:32.968Z",
+        "deleted_at": null,
+        "content_hash": "97bcd49fc65731ca53e73a3bb58d907f1d2201408a18132f99d72433c4a582ea"
+      },
+      "values": {
+        "id": "76add02e-482c-45ca-a563-cc9d24e144cb",
+        "account": "V字",
+        "platform": "toutiao",
+        "observed_on": "2026-11-05",
+        "impressions_per_day": 0,
+        "reads_per_day": 0,
+        "ctr": 0,
+        "since_date": "2026-10-30",
+        "platform_notice": {
+          "text": "合成",
+          "unsupported": "blocked"
+        },
+        "judgement": "normal",
+        "action": "合成后续动作修改",
+        "resume_on": null,
+        "created_at": "2026-11-04T17:22:32.763Z",
+        "updated_at": "2026-11-04T17:22:32.968Z",
+        "deleted_at": null,
+        "content_hash": "97bcd49fc65731ca53e73a3bb58d907f1d2201408a18132f99d72433c4a582ea"
+      },
+      "error": "平台通知需要文字与可选日期。"
+    },
+    {
+      "name": "reserved-structured-key",
+      "kind": "snapshots",
+      "original": {
+        "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 12,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "synthetic_unknown": {
+            "kept": true
+          }
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        },
+        "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+      },
+      "values": {
+        "id": "fcfd8ef7-67b7-44dd-a7da-caa0e6ad4044",
+        "article_id": "66617d2c-7a92-4baf-9edf-63b8fceda67a",
+        "snapshot_date": "2026-11-05",
+        "age_hours": 24,
+        "source": "manual",
+        "impressions": null,
+        "fan_impressions": null,
+        "reads": 12,
+        "fan_reads": 0,
+        "ctr": 0,
+        "completion_rate": 0,
+        "avg_read_seconds": 1e-7,
+        "likes": 0,
+        "comments": 0,
+        "reposts": 0,
+        "shares": 0,
+        "favorites": 0,
+        "revenue": 1e-29,
+        "traffic_sources": {
+          "constructor": "blocked"
+        },
+        "completion_curve": [
+          {
+            "synthetic_point": "start",
+            "value": 0
+          }
+        ],
+        "audience": {
+          "synthetic_unknown": {
+            "zero": 0
+          }
+        },
+        "content_hash": "56213e3d8046625a13b9a5f10145bb0ee1a072342fb102a0fd16955f246917d8"
+      },
+      "error": "结构化字段包含保留名称。"
+    },
+    {
+      "name": "missing-required-benchmark-name",
+      "kind": "benchmark-accounts",
+      "original": {
+        "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+        "account": "V字",
+        "platform": "toutiao",
+        "name": "本次合成对标账号",
+        "profile_url": "https://example.invalid/synthetic-account",
+        "fans": 0,
+        "is_featured_author": false,
+        "posting_cadence": "每周三篇（合成修改）",
+        "topic_focus": "合成题材",
+        "title_patterns": [
+          "合成对话式",
+          "合成数字式"
+        ],
+        "structure_notes_md": "合成结构观察\n第二行",
+        "created_at": "2026-11-04T17:22:26.657Z",
+        "updated_at": "2026-11-04T17:22:26.938Z",
+        "deleted_at": null,
+        "content_hash": "7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090"
+      },
+      "values": {
+        "id": "8b6a303c-caf7-448a-b3df-f18cd5e015fc",
+        "account": "V字",
+        "platform": "toutiao",
+        "name": "",
+        "profile_url": "https://example.invalid/synthetic-account",
+        "fans": 0,
+        "is_featured_author": false,
+        "posting_cadence": "每周三篇（合成修改）",
+        "topic_focus": "合成题材",
+        "title_patterns": [
+          "合成对话式",
+          "合成数字式"
+        ],
+        "structure_notes_md": "合成结构观察\n第二行",
+        "created_at": "2026-11-04T17:22:26.657Z",
+        "updated_at": "2026-11-04T17:22:26.938Z",
+        "deleted_at": null,
+        "content_hash": "7d1f2987677e4fd180bba32545931d66e5d37469b4086f7f0561847e7a4be090"
+      },
+      "error": "请填写对标账号名称。"
+    },
+    {
+      "name": "unfinished-native-row-blocks-queue",
+      "kind": "playbooks",
+      "original": {
+        "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null,
+        "created_at": "2026-11-04T17:22:28.567Z",
+        "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c"
+      },
+      "values": {
+        "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null,
+        "created_at": "2026-11-04T17:22:28.567Z",
+        "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c",
+        "__native_pending_rules": {
+          "rule_id": "unsaved-synthetic-input"
+        }
+      },
+      "error": "请先完成或取消尚未确认的表格条目编辑；所有输入保留在本机草稿中。"
+    },
+    {
+      "name": "unknown-rule-field-kept-but-not-written",
+      "kind": "playbooks",
+      "original": {
+        "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null,
+        "created_at": "2026-11-04T17:22:28.567Z",
+        "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c"
+      },
+      "values": {
+        "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0,
+            "synthetic_future_field": "must-not-be-dropped"
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null,
+        "created_at": "2026-11-04T17:22:28.567Z",
+        "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c"
+      },
+      "error": "规则含当前服务尚不支持的字段；原稿完整保留，不会截断后写入。"
+    },
+    {
+      "name": "unknown-evidence-field-kept-but-not-written",
+      "kind": "playbooks",
+      "original": {
+        "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null,
+        "created_at": "2026-11-04T17:22:28.567Z",
+        "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c"
+      },
+      "values": {
+        "id": "0ae30afe-8ab4-45a0-890e-cca694bca364",
+        "account": "V字",
+        "status": "draft",
+        "version": 1,
+        "published_on": "2026-11-05",
+        "content_md": "合成规则正文\n第二行",
+        "rules": [
+          {
+            "check": "manual",
+            "counter_ids": [],
+            "evidence_note": null,
+            "rule_id": "synthetic-rule",
+            "section": "title",
+            "status": "candidate",
+            "support_ids": [],
+            "text": "只用于合成验证",
+            "trials": 0,
+            "evidence": {
+              "metric": "reads",
+              "with_median": 0,
+              "without_median": null,
+              "n_with": 1,
+              "n_without": 1,
+              "synthetic_future_field": "must-not-be-dropped"
+            }
+          }
+        ],
+        "changelog_md": "合成修改记录",
+        "sent_to_gemini_at": null,
+        "created_at": "2026-11-04T17:22:28.567Z",
+        "content_hash": "c5120460602283deb098bbeba25d24e4e5117e84dfde8351b7d3ee9099ba576c"
+      },
+      "error": "证据含当前服务尚不支持的字段；原稿保留。"
+    }
+  ]
+}

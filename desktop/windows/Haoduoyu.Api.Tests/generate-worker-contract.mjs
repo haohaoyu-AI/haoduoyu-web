@@ -7,7 +7,7 @@ import {resolve,dirname} from 'node:path';
 import {pathToFileURL} from 'node:url';
 
 const sourceCommit='c30a8a956715b6ea809db4b87c0f4fcddf8f61de';
-const [fixtureDirectory,outputPath]=process.argv.slice(2);
+const [fixtureDirectory,outputPath,mode]=process.argv.slice(2);
 if(!fixtureDirectory||!outputPath)throw new Error('Usage: node generate-worker-contract.mjs <isolated-source-worktree> <output.json>');
 const root=resolve(fixtureDirectory);
 assert.equal(execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceCommit,'Use the exact isolated source commit');
@@ -124,6 +124,21 @@ try {
   await call('review-snapshot-hash-no-op','PATCH','/api/v1/review/snapshots/'+snapshotId,{expected_hash:editedSnapshot.content_hash,reads:editedSnapshot.reads});
   const finalSnapshot=await call('review-snapshot-read-retains-unknown-json','GET','/api/v1/review/snapshots/'+snapshotId);
   assert.deepEqual(finalSnapshot.traffic_sources,{synthetic_unknown:{kept:true}});assert.equal(finalSnapshot.impressions,null);
+  if(mode==='--all-reads') {
+    const reads=[
+      '/api/v1/todos?date='+fixedDate,'/api/v1/todo-templates','/api/v1/todo-preferences','/api/v1/unscheduled-todos',
+      '/api/v1/unscheduled-todos/'+futureId,'/api/v1/note-entries?category=life&date='+fixedDate,'/api/v1/note-entries?category=work&date='+fixedDate,
+      '/api/v1/note-entries/dates?category=life&page_size=100','/api/v1/daily-notes/dates?category=work&page_size=100',
+      '/api/v1/daily-notes?category=life&date='+fixedDate,'/api/v1/daily-notes?category=work&date='+fixedDate,
+      '/api/v1/note-entries/labels','/api/v1/memos','/api/v1/work-reminders?date='+fixedDate,'/api/v1/accounts','/api/v1/account-profiles',
+      '/api/v1/articles?page=1&page_size=50&status=drafting','/api/v1/articles?page=1&page_size=50&status=published',
+      '/api/v1/articles/'+published.id,'/api/v1/observations','/api/v1/daily-metrics','/api/v1/due-reviews','/api/v1/overview','/api/v1/article-reconciliation',
+      '/api/v1/workbench-snapshot/index?version=2','/api/v1/workbench-snapshot?version=2&date='+fixedDate,
+      '/api/v1/snapshot/index?notes=all','/api/v1/snapshot?notes=all&date='+fixedDate,
+      '/api/v1/review/overview?account='+encodeURIComponent('V字')+'&range=7d&week=this'
+    ];
+    for(const path of reads)await call('complete-read-schema-'+(samples.length+1),'GET',path);
+  }
   assert.equal(externalFetchAttempts,0);
   await mkdir(dirname(resolve(outputPath)),{recursive:true});
   await writeFile(resolve(outputPath),JSON.stringify({source_commit:sourceCommit,synthetic_only:true,

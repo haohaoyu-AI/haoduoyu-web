@@ -1,0 +1,644 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "synthetic_only": true,
+  "fixture": "existing tests/harness.mjs temporary Miniflare D1 + compiled Worker.fetch; outboundService denied by harness; global fetch denies external hosts",
+  "external_fetch_attempts": 0,
+  "generated_at": "2026-11-04T17:18:33.870Z",
+  "samples": [
+    {
+      "name": "server-beijing-today",
+      "method": "GET",
+      "path": "/api/v1/todos",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-05\",\"today\":\"2026-11-05\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[]}}"
+    },
+    {
+      "name": "complete-v2-scope-index",
+      "method": "GET",
+      "path": "/api/v1/workbench-snapshot/index?version=2",
+      "status": 200,
+      "response_json": "{\"data\":{\"snapshot_format\":\"haoduoyu-workbench-snapshot-v2\",\"projection\":\"current\",\"complete\":true,\"scope_id\":\"3327df025f0cf5374f1b55d93cd5ef58c7d36f1796fda61c8fd74cdca0f3d620\",\"timezone\":\"Asia/Shanghai\",\"generated_at\":\"2026-11-04T17:18:25.417Z\",\"manifest_hash\":\"79b10edee5b2ef247ab73b7c7d0439280c0e866ce4cdae112f2a8f8dd6f02b7d\",\"global_content_hash\":\"37e195d9a12071dcf075a019808939e7a2ff18515beb59dc7ace6fe7bb6cade3\",\"entities\":[],\"dates\":[],\"index_hash\":\"79b10edee5b2ef247ab73b7c7d0439280c0e866ce4cdae112f2a8f8dd6f02b7d\"}}"
+    },
+    {
+      "name": "todo-create",
+      "method": "POST",
+      "path": "/api/v1/todos",
+      "body_json": "{\"id\":\"eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"date\":\"2026-11-05\",\"text\":\"本次合成待办\"}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"date\":\"2026-11-05\",\"text\":\"本次合成待办\",\"completed\":false,\"version\":1,\"created_at\":\"2026-11-04T17:18:25.714Z\",\"updated_at\":\"2026-11-04T17:18:25.714Z\",\"deleted_at\":null}}"
+    },
+    {
+      "name": "todo-complete",
+      "method": "PATCH",
+      "path": "/api/v1/todos/eac694a7-f018-4b99-93c0-bd5f94defbfd",
+      "body_json": "{\"completed\":true,\"version\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"date\":\"2026-11-05\",\"text\":\"本次合成待办\",\"completed\":true,\"version\":2,\"created_at\":\"2026-11-04T17:18:25.714Z\",\"updated_at\":\"2026-11-04T17:18:25.820Z\",\"deleted_at\":null}}"
+    },
+    {
+      "name": "todo-real-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/todos/eac694a7-f018-4b99-93c0-bd5f94defbfd",
+      "body_json": "{\"completed\":false,\"version\":1}",
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"待办已更新，请刷新后重试\"},\"request_id\":\"35148240-16f7-475f-b718-8e15b14a710b\"}"
+    },
+    {
+      "name": "todo-add-template-nested-response",
+      "method": "POST",
+      "path": "/api/v1/todos/eac694a7-f018-4b99-93c0-bd5f94defbfd/template",
+      "body_json": "{\"date\":\"2026-11-05\",\"version\":2,\"template_id\":\"a9e86034-f127-4a89-afa0-61cda805abc5\",\"template_version\":0}",
+      "status": 200,
+      "response_json": "{\"data\":{\"todo\":{\"id\":\"eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"date\":\"2026-11-05\",\"text\":\"本次合成待办\",\"completed\":true,\"version\":3,\"created_at\":\"2026-11-04T17:18:25.714Z\",\"updated_at\":\"2026-11-04T17:18:26.054Z\",\"deleted_at\":null,\"template_id\":\"a9e86034-f127-4a89-afa0-61cda805abc5\",\"template_version\":1,\"template_active\":true},\"template\":{\"id\":\"a9e86034-f127-4a89-afa0-61cda805abc5\",\"text\":\"本次合成待办\",\"version\":1,\"created_at\":\"2026-11-04T17:18:26.054Z\",\"updated_at\":\"2026-11-04T17:18:26.054Z\",\"completed_days\":1,\"habit_status\":\"todo\"}}}"
+    },
+    {
+      "name": "todo-soft-delete",
+      "method": "DELETE",
+      "path": "/api/v1/todos/eac694a7-f018-4b99-93c0-bd5f94defbfd",
+      "body_json": "{\"date\":\"2026-11-05\",\"version\":3}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"date\":\"2026-11-05\",\"text\":\"本次合成待办\",\"completed\":true,\"version\":4,\"created_at\":\"2026-11-04T17:18:25.714Z\",\"updated_at\":\"2026-11-04T17:18:26.174Z\",\"deleted_at\":\"2026-11-04T17:18:26.174Z\",\"template_id\":\"a9e86034-f127-4a89-afa0-61cda805abc5\",\"template_version\":1,\"template_active\":true}}"
+    },
+    {
+      "name": "todo-restore",
+      "method": "POST",
+      "path": "/api/v1/todos/eac694a7-f018-4b99-93c0-bd5f94defbfd/restore",
+      "body_json": "{\"date\":\"2026-11-05\",\"version\":4}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"date\":\"2026-11-05\",\"text\":\"本次合成待办\",\"completed\":true,\"version\":5,\"created_at\":\"2026-11-04T17:18:25.714Z\",\"updated_at\":\"2026-11-04T17:18:26.292Z\",\"deleted_at\":null,\"template_id\":\"a9e86034-f127-4a89-afa0-61cda805abc5\",\"template_version\":1,\"template_active\":true}}"
+    },
+    {
+      "name": "template-rename",
+      "method": "PATCH",
+      "path": "/api/v1/todo-templates/a9e86034-f127-4a89-afa0-61cda805abc5",
+      "body_json": "{\"version\":1,\"text\":\"合成模板改名\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"a9e86034-f127-4a89-afa0-61cda805abc5\",\"text\":\"合成模板改名\",\"version\":2,\"created_at\":\"2026-11-04T17:18:26.054Z\",\"updated_at\":\"2026-11-04T17:18:26.400Z\",\"completed_days\":1,\"habit_status\":\"todo\"}}"
+    },
+    {
+      "name": "template-soft-delete-no-version-response",
+      "method": "DELETE",
+      "path": "/api/v1/todo-templates/a9e86034-f127-4a89-afa0-61cda805abc5",
+      "body_json": "{\"version\":2}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"a9e86034-f127-4a89-afa0-61cda805abc5\",\"deleted\":true}}"
+    },
+    {
+      "name": "preference-hide",
+      "method": "PATCH",
+      "path": "/api/v1/todo-preferences",
+      "body_json": "{\"completed_mode\":\"hide\",\"version\":0}",
+      "status": 200,
+      "response_json": "{\"data\":{\"completed_mode\":\"hide\",\"version\":1}}"
+    },
+    {
+      "name": "preference-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/todo-preferences",
+      "body_json": "{\"completed_mode\":\"hide\",\"version\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"completed_mode\":\"hide\",\"version\":1}}"
+    },
+    {
+      "name": "future-create",
+      "method": "POST",
+      "path": "/api/v1/unscheduled-todos",
+      "body_json": "{\"id\":\"ae487c10-168a-4a9d-8593-19e54dd5c252\",\"text\":\"合成未来待办\"}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"ae487c10-168a-4a9d-8593-19e54dd5c252\",\"text\":\"合成未来待办\",\"completed\":false,\"version\":1,\"created_at\":\"2026-11-04T17:18:26.799Z\",\"updated_at\":\"2026-11-04T17:18:26.799Z\",\"deleted_at\":null}}"
+    },
+    {
+      "name": "future-move",
+      "method": "POST",
+      "path": "/api/v1/unscheduled-todos/ae487c10-168a-4a9d-8593-19e54dd5c252/move",
+      "body_json": "{\"date\":\"2026-11-05\",\"version\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"todo\":{\"id\":\"ae487c10-168a-4a9d-8593-19e54dd5c252\",\"date\":\"2026-11-05\",\"text\":\"合成未来待办\",\"completed\":false,\"version\":1,\"created_at\":\"2026-11-04T17:18:26.911Z\",\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":null},\"source\":{\"id\":\"ae487c10-168a-4a9d-8593-19e54dd5c252\",\"text\":\"合成未来待办\",\"completed\":false,\"version\":2,\"created_at\":\"2026-11-04T17:18:26.799Z\",\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":\"2026-11-04T17:18:26.911Z\"}}}"
+    },
+    {
+      "name": "label-create-v3",
+      "method": "POST",
+      "path": "/api/v1/note-entries/labels",
+      "body_json": "{\"name\":\"本次合成标签\",\"save_id\":\"c0edd06c-c2e6-4ac7-9353-1dfa2d0443d2\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"name\":\"本次合成标签\",\"created_at\":\"2026-11-04T17:18:27.016Z\",\"labels_version\":3}}"
+    },
+    {
+      "name": "note-v3-create-with-labels",
+      "method": "PUT",
+      "path": "/api/v1/note-entries/3362c4c2-b2b7-49db-8930-370ca5329084",
+      "body_json": "{\"version\":0,\"save_id\":\"dfde9cf6-83cd-4683-9413-6c697d979880\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文\\n第二行\",\"labels\":[\"生活\",\"本次合成标签\"]}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文\\n第二行\",\"version\":1,\"change_seq\":14,\"created_at\":\"2026-11-04T17:18:27.134Z\",\"updated_at\":\"2026-11-04T17:18:27.134Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[\"本次合成标签\",\"生活\"],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"7f4ec0815a81b3558fed7a9ccf336a2eaa17a9cbc1eefc9c6e0cdc03e1c8a003\"}}"
+    },
+    {
+      "name": "note-real-save-receipt",
+      "method": "GET",
+      "path": "/api/v1/note-entries/operations/dfde9cf6-83cd-4683-9413-6c697d979880",
+      "status": 200,
+      "response_json": "{\"data\":{\"found\":true,\"id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"version\":1,\"deleted_at\":null,\"change_seq\":14,\"content_hash\":\"7f4ec0815a81b3558fed7a9ccf336a2eaa17a9cbc1eefc9c6e0cdc03e1c8a003\",\"labels_version\":3,\"labels\":[\"本次合成标签\",\"生活\"]}}"
+    },
+    {
+      "name": "note-receipt-current-entity",
+      "method": "GET",
+      "path": "/api/v1/note-entries/3362c4c2-b2b7-49db-8930-370ca5329084",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文\\n第二行\",\"version\":1,\"change_seq\":14,\"created_at\":\"2026-11-04T17:18:27.134Z\",\"updated_at\":\"2026-11-04T17:18:27.134Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[\"本次合成标签\",\"生活\"],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"7f4ec0815a81b3558fed7a9ccf336a2eaa17a9cbc1eefc9c6e0cdc03e1c8a003\"}}"
+    },
+    {
+      "name": "note-v3-edit-preserve-labels",
+      "method": "PUT",
+      "path": "/api/v1/note-entries/3362c4c2-b2b7-49db-8930-370ca5329084",
+      "body_json": "{\"version\":1,\"save_id\":\"36ac524c-ba99-4b2a-b0b2-c08d20a0425d\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文修改\",\"labels\":[\"本次合成标签\",\"生活\"]}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文修改\",\"version\":2,\"change_seq\":15,\"created_at\":\"2026-11-04T17:18:27.134Z\",\"updated_at\":\"2026-11-04T17:18:27.494Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[\"本次合成标签\",\"生活\"],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"11c459d2181c81c32ebfad4fe3e9b8ae80f1313f4babc3b2f35591a3fd4a56d5\"}}"
+    },
+    {
+      "name": "note-real-cas-conflict",
+      "method": "PUT",
+      "path": "/api/v1/note-entries/3362c4c2-b2b7-49db-8930-370ca5329084",
+      "body_json": "{\"version\":1,\"save_id\":\"18a363e4-8d0a-4db9-af30-4793fedc9a2f\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"过期合成稿\"}",
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"该条记录已在其他位置更新，请保留草稿\"},\"request_id\":\"6a6d9179-7450-4597-ba05-be33f8329565\"}"
+    },
+    {
+      "name": "note-v3-read-current-labels",
+      "method": "GET",
+      "path": "/api/v1/note-entries/3362c4c2-b2b7-49db-8930-370ca5329084",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文修改\",\"version\":2,\"change_seq\":15,\"created_at\":\"2026-11-04T17:18:27.134Z\",\"updated_at\":\"2026-11-04T17:18:27.494Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[\"本次合成标签\",\"生活\"],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"11c459d2181c81c32ebfad4fe3e9b8ae80f1313f4babc3b2f35591a3fd4a56d5\"}}"
+    },
+    {
+      "name": "legacy-work-save",
+      "method": "PUT",
+      "path": "/api/v1/daily-notes/2026-11-05?category=work",
+      "body_json": "{\"version\":0,\"save_id\":\"53e7f79c-7dab-45b4-8ce7-5fc988a78996\",\"text\":\"独立合成工作日页\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-05\",\"text\":\"独立合成工作日页\",\"version\":1,\"updated_at\":\"2026-11-04T17:18:27.778Z\",\"deleted\":false,\"can_edit\":true}}"
+    },
+    {
+      "name": "legacy-life-save",
+      "method": "PUT",
+      "path": "/api/v1/daily-notes/2026-11-05?category=life",
+      "body_json": "{\"version\":0,\"save_id\":\"95ef07a7-7ce4-437c-b03e-bd699dc17b1f\",\"text\":\"独立合成生活日页\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-05\",\"text\":\"独立合成生活日页\",\"version\":1,\"updated_at\":\"2026-11-04T17:18:27.870Z\",\"deleted\":false,\"can_edit\":true}}"
+    },
+    {
+      "name": "label-archive",
+      "method": "POST",
+      "path": "/api/v1/note-entries/labels",
+      "body_json": "{\"name\":\"本次合成标签\",\"action\":\"archive\",\"save_id\":\"04c947c2-bb89-41ab-9633-e7b36220a899\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"name\":\"本次合成标签\",\"archived_at\":\"2026-11-04T17:18:27.986Z\",\"labels_version\":3}}"
+    },
+    {
+      "name": "label-restore",
+      "method": "POST",
+      "path": "/api/v1/note-entries/labels",
+      "body_json": "{\"name\":\"本次合成标签\",\"action\":\"restore\",\"save_id\":\"d27cf93c-ad59-4899-98fb-d6b7ccaea63b\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"name\":\"本次合成标签\",\"archived_at\":null,\"labels_version\":3}}"
+    },
+    {
+      "name": "label-delete-removes-associations",
+      "method": "POST",
+      "path": "/api/v1/note-entries/labels",
+      "body_json": "{\"name\":\"本次合成标签\",\"action\":\"delete\",\"save_id\":\"ffef0c47-2727-446d-8e96-3b7c81c7a275\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"name\":\"本次合成标签\",\"deleted\":true,\"mode\":\"deleted\",\"labels_version\":3}}"
+    },
+    {
+      "name": "note-label-delete-retains-text-and-increments-version",
+      "method": "GET",
+      "path": "/api/v1/note-entries/3362c4c2-b2b7-49db-8930-370ca5329084",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文修改\",\"version\":3,\"change_seq\":20,\"created_at\":\"2026-11-04T17:18:27.134Z\",\"updated_at\":\"2026-11-04T17:18:27.494Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[\"生活\"],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"5495f51c2e0e6be4be959674d2f158b670e483fd433773a8ce43c996b4d63ac3\"}}"
+    },
+    {
+      "name": "note-month-correct-mounted-path",
+      "method": "GET",
+      "path": "/api/v1/note-entries/month?month=2026-11",
+      "status": 200,
+      "response_json": "{\"data\":{\"format\":\"haoduoyu-note-month-v1\",\"month\":\"2026-11\",\"complete\":true,\"labels_version\":3,\"days\":[{\"date\":\"2026-11-05\",\"items\":[{\"entity_id\":\"legacy-life:2026-11-05\",\"source\":\"legacy_daily_note\",\"category\":\"life\",\"labels\":[\"生活\"],\"text\":\"独立合成生活日页\",\"created_at\":null,\"updated_at\":\"2026-11-04T17:18:27.870Z\"},{\"entity_id\":\"legacy-work:2026-11-05\",\"source\":\"legacy_daily_note\",\"category\":\"work\",\"labels\":[\"工作\"],\"text\":\"独立合成工作日页\",\"created_at\":null,\"updated_at\":\"2026-11-04T17:18:27.778Z\"},{\"entity_id\":\"note-entry:3362c4c2-b2b7-49db-8930-370ca5329084\",\"source\":\"note_entry\",\"category\":\"life\",\"labels\":[\"生活\"],\"text\":\"合成正文修改\",\"created_at\":\"2026-11-04T17:18:27.134Z\",\"updated_at\":\"2026-11-04T17:18:27.494Z\"}]}]}}"
+    },
+    {
+      "name": "memo-group-create",
+      "method": "PUT",
+      "path": "/api/v1/memos/groups/7f281a17-2a84-48dd-af6a-8715cdd9bde1",
+      "body_json": "{\"version\":0,\"save_id\":\"23f16c94-26eb-4226-af3a-4f8f0829b98e\",\"title\":\"本次合成分组\",\"position\":0}",
+      "status": 200,
+      "response_json": "{\"data\":{\"title\":\"本次合成分组\",\"position\":0,\"id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"version\":1,\"change_seq\":21,\"created_at\":\"2026-11-04T17:18:28.612Z\",\"updated_at\":\"2026-11-04T17:18:28.612Z\",\"deleted_at\":null,\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-note-create",
+      "method": "PUT",
+      "path": "/api/v1/memos/notes/89f31b34-dced-4063-9035-1d494f5af72b",
+      "body_json": "{\"version\":0,\"save_id\":\"bfe311e7-661f-42fd-8d21-2cbd79d666d3\",\"title\":\"合成笔记\",\"body\":\"合成笔记正文\\n第二行\",\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"position\":0}",
+      "status": 200,
+      "response_json": "{\"data\":{\"title\":\"合成笔记\",\"position\":0,\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"body\":\"合成笔记正文\\n第二行\",\"id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"version\":1,\"change_seq\":22,\"created_at\":\"2026-11-04T17:18:28.784Z\",\"updated_at\":\"2026-11-04T17:18:28.784Z\",\"deleted_at\":null,\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-real-save-receipt",
+      "method": "GET",
+      "path": "/api/v1/memos/operations/bfe311e7-661f-42fd-8d21-2cbd79d666d3",
+      "status": 200,
+      "response_json": "{\"data\":{\"found\":true,\"kind\":\"notes\",\"id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"version\":1,\"deleted_at\":null,\"change_seq\":22,\"entity_hash\":\"33280dba7883f66c0c0ac949120c50d1ff3d1a824b08ff040b2adee08590f948\"}}"
+    },
+    {
+      "name": "memo-receipt-current-entity",
+      "method": "GET",
+      "path": "/api/v1/memos/notes/89f31b34-dced-4063-9035-1d494f5af72b",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"title\":\"合成笔记\",\"position\":0,\"version\":1,\"change_seq\":22,\"created_at\":\"2026-11-04T17:18:28.784Z\",\"updated_at\":\"2026-11-04T17:18:28.784Z\",\"deleted_at\":null,\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"body\":\"合成笔记正文\\n第二行\",\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-note-edit",
+      "method": "PUT",
+      "path": "/api/v1/memos/notes/89f31b34-dced-4063-9035-1d494f5af72b",
+      "body_json": "{\"version\":1,\"save_id\":\"b3615e6e-982c-49ff-9da2-7808ded3d294\",\"title\":\"合成笔记改名\",\"body\":\"合成改稿\",\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"position\":0}",
+      "status": 200,
+      "response_json": "{\"data\":{\"title\":\"合成笔记改名\",\"position\":0,\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"body\":\"合成改稿\",\"id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"version\":2,\"change_seq\":23,\"created_at\":\"2026-11-04T17:18:28.784Z\",\"updated_at\":\"2026-11-04T17:18:28.986Z\",\"deleted_at\":null,\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-note-soft-delete",
+      "method": "DELETE",
+      "path": "/api/v1/memos/notes/89f31b34-dced-4063-9035-1d494f5af72b",
+      "body_json": "{\"version\":2,\"save_id\":\"4ac80396-4e97-4ecf-a1ac-f79ae79a72a7\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"title\":\"合成笔记改名\",\"position\":0,\"version\":3,\"change_seq\":24,\"created_at\":\"2026-11-04T17:18:28.784Z\",\"updated_at\":\"2026-11-04T17:18:29.126Z\",\"deleted_at\":\"2026-11-04T17:18:29.126Z\",\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"body\":\"合成改稿\",\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-note-restore",
+      "method": "POST",
+      "path": "/api/v1/memos/notes/89f31b34-dced-4063-9035-1d494f5af72b/restore",
+      "body_json": "{\"version\":3,\"save_id\":\"86051403-46e9-485c-999f-184502c8e84c\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"title\":\"合成笔记改名\",\"position\":0,\"version\":4,\"change_seq\":25,\"created_at\":\"2026-11-04T17:18:28.784Z\",\"updated_at\":\"2026-11-04T17:18:29.242Z\",\"deleted_at\":null,\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"body\":\"合成改稿\",\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-group-edit",
+      "method": "PUT",
+      "path": "/api/v1/memos/groups/7f281a17-2a84-48dd-af6a-8715cdd9bde1",
+      "body_json": "{\"version\":1,\"save_id\":\"3c4a13ef-4536-4639-8d53-cba28e53532c\",\"title\":\"合成分组改名\",\"position\":0}",
+      "status": 200,
+      "response_json": "{\"data\":{\"title\":\"合成分组改名\",\"position\":0,\"id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"version\":2,\"change_seq\":26,\"created_at\":\"2026-11-04T17:18:28.612Z\",\"updated_at\":\"2026-11-04T17:18:29.357Z\",\"deleted_at\":null,\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-group-soft-delete-with-count",
+      "method": "DELETE",
+      "path": "/api/v1/memos/groups/7f281a17-2a84-48dd-af6a-8715cdd9bde1",
+      "body_json": "{\"version\":2,\"save_id\":\"dcf4faa5-4688-4ee4-8e4e-504de10c5089\",\"confirm_title\":\"合成分组改名\",\"confirm_note_count\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"title\":\"合成分组改名\",\"position\":0,\"version\":3,\"change_seq\":27,\"created_at\":\"2026-11-04T17:18:28.612Z\",\"updated_at\":\"2026-11-04T17:18:29.466Z\",\"deleted_at\":\"2026-11-04T17:18:29.466Z\",\"can_edit\":true}}"
+    },
+    {
+      "name": "memo-group-restore",
+      "method": "POST",
+      "path": "/api/v1/memos/groups/7f281a17-2a84-48dd-af6a-8715cdd9bde1/restore",
+      "body_json": "{\"version\":3,\"save_id\":\"24a6bb14-3f26-426b-ae4b-8f19e35fe2d4\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"title\":\"合成分组改名\",\"position\":0,\"version\":4,\"change_seq\":28,\"created_at\":\"2026-11-04T17:18:28.612Z\",\"updated_at\":\"2026-11-04T17:18:29.569Z\",\"deleted_at\":null,\"can_edit\":true}}"
+    },
+    {
+      "name": "reminder-create",
+      "method": "PUT",
+      "path": "/api/v1/work-reminders/3528177f-eee1-47ea-bfcd-1a6f498e2a23",
+      "body_json": "{\"version\":0,\"save_id\":\"3aa54826-afe9-4ecd-b5cf-1f48c39806b8\",\"date\":\"2026-11-05\",\"source_key\":\"desktop-contract:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"summary\":\"合成提醒正文\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"date\":\"2026-11-05\",\"source_key\":\"desktop-contract:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"summary\":\"合成提醒正文\",\"version\":1,\"change_seq\":29,\"created_at\":\"2026-11-04T17:18:29.705Z\",\"updated_at\":\"2026-11-04T17:18:29.705Z\",\"deleted_at\":null,\"deleted\":false,\"can_edit\":true,\"content_hash\":\"2bfff5b60bcbe833a348196a25e335546cd5990fb6ae814cee0324452e28ad7e\"}}"
+    },
+    {
+      "name": "reminder-same-content-no-op",
+      "method": "PUT",
+      "path": "/api/v1/work-reminders/3528177f-eee1-47ea-bfcd-1a6f498e2a23",
+      "body_json": "{\"version\":1,\"save_id\":\"bd36ddff-3a6f-4cb2-a167-d0e1d1351e71\",\"date\":\"2026-11-05\",\"source_key\":\"desktop-contract:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"summary\":\"合成提醒正文\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"date\":\"2026-11-05\",\"source_key\":\"desktop-contract:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"summary\":\"合成提醒正文\",\"version\":1,\"change_seq\":29,\"created_at\":\"2026-11-04T17:18:29.705Z\",\"updated_at\":\"2026-11-04T17:18:29.705Z\",\"deleted_at\":null,\"deleted\":false,\"can_edit\":true,\"content_hash\":\"2bfff5b60bcbe833a348196a25e335546cd5990fb6ae814cee0324452e28ad7e\"}}"
+    },
+    {
+      "name": "reminder-soft-delete",
+      "method": "DELETE",
+      "path": "/api/v1/work-reminders/3528177f-eee1-47ea-bfcd-1a6f498e2a23",
+      "body_json": "{\"version\":1,\"save_id\":\"aa33d8e2-dec9-499c-a040-ec933d4b5595\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"date\":\"2026-11-05\",\"source_key\":\"desktop-contract:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"summary\":\"合成提醒正文\",\"version\":2,\"change_seq\":30,\"created_at\":\"2026-11-04T17:18:29.705Z\",\"updated_at\":\"2026-11-04T17:18:29.910Z\",\"deleted_at\":\"2026-11-04T17:18:29.910Z\",\"deleted\":true,\"can_edit\":true,\"content_hash\":\"3201f20d2f65b5399333f7146595098fc59235c54a33a68b5f572194e6dd836e\"}}"
+    },
+    {
+      "name": "reminder-restore",
+      "method": "POST",
+      "path": "/api/v1/work-reminders/3528177f-eee1-47ea-bfcd-1a6f498e2a23/restore",
+      "body_json": "{\"version\":2,\"save_id\":\"2a123d99-c080-49e0-b999-a2d838cb4b57\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"date\":\"2026-11-05\",\"source_key\":\"desktop-contract:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"summary\":\"合成提醒正文\",\"version\":3,\"change_seq\":31,\"created_at\":\"2026-11-04T17:18:29.705Z\",\"updated_at\":\"2026-11-04T17:18:30.049Z\",\"deleted_at\":null,\"deleted\":false,\"can_edit\":true,\"content_hash\":\"e7e3c186e66ac594cd6d3414f066fb1b0eacb3f14448c349b09a35d71f878295\"}}"
+    },
+    {
+      "name": "legacy-article-create",
+      "method": "POST",
+      "path": "/api/v1/articles",
+      "body_json": "{\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成旧图文记录\",\"status\":\"drafting\",\"url\":null,\"published_at\":null,\"started_at\":null,\"production_mode\":\"unknown\",\"summary\":\"合成摘要\",\"notes\":\"合成备注\"}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"e250ac9a-7099-4693-bb04-8783f9aebb8d\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成旧图文记录\",\"url\":null,\"published_at\":null,\"started_at\":null,\"production_mode\":\"unknown\",\"platform_article_id\":null,\"summary\":\"合成摘要\",\"notes\":\"合成备注\",\"status\":\"drafting\",\"slot\":null,\"run_dir\":null,\"run_date\":null,\"series_no\":null,\"writer\":null,\"illustrator\":null,\"char_count\":null,\"subheading_count\":null,\"image_count\":null,\"cover_desc\":null,\"version\":1,\"created_at\":\"2026-11-04T17:18:30.192Z\",\"updated_at\":\"2026-11-04T17:18:30.192Z\",\"account_name\":\"好多鱼\",\"platform\":\"toutiao\",\"latest_metrics\":null,\"latest_as_of\":null,\"latest_collected_at\":null,\"duration_seconds\":null,\"sample\":null,\"draft_ref\":null,\"timings\":null,\"reruns\":null,\"blockers\":null,\"verify_items\":null,\"topic\":\"entertainment\",\"topic_source\":\"inferred\",\"date_status\":\"not_published\",\"snapshot_status\":\"not_applicable\",\"missing_metrics\":[],\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\"}}"
+    },
+    {
+      "name": "legacy-article-edit",
+      "method": "PUT",
+      "path": "/api/v1/articles/e250ac9a-7099-4693-bb04-8783f9aebb8d",
+      "body_json": "{\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成旧图文记录\",\"status\":\"drafting\",\"url\":null,\"published_at\":null,\"started_at\":null,\"production_mode\":\"unknown\",\"summary\":\"修改后的合成摘要\",\"notes\":\"合成备注\",\"version\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"e250ac9a-7099-4693-bb04-8783f9aebb8d\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成旧图文记录\",\"url\":null,\"platform_article_id\":null,\"published_at\":null,\"started_at\":null,\"production_mode\":\"unknown\",\"summary\":\"修改后的合成摘要\",\"notes\":\"合成备注\",\"version\":2,\"created_at\":\"2026-11-04T17:18:30.192Z\",\"updated_at\":\"2026-11-04T17:18:30.410Z\",\"status\":\"drafting\",\"slot\":null,\"run_dir\":null,\"run_date\":null,\"series_no\":null,\"writer\":null,\"illustrator\":null,\"char_count\":null,\"subheading_count\":null,\"image_count\":null,\"cover_desc\":null,\"account_name\":\"好多鱼\",\"platform\":\"toutiao\",\"latest_metrics\":null,\"latest_as_of\":null,\"latest_collected_at\":null,\"duration_seconds\":null,\"sample\":null,\"draft_ref\":null,\"timings\":null,\"reruns\":null,\"blockers\":null,\"verify_items\":null,\"topic\":\"entertainment\",\"topic_source\":\"inferred\",\"date_status\":\"not_published\",\"snapshot_status\":\"not_applicable\",\"missing_metrics\":[],\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\"}}"
+    },
+    {
+      "name": "legacy-published-timestamps-url-and-nested-metadata",
+      "method": "POST",
+      "path": "/api/v1/articles",
+      "body_json": "{\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成已发布记录\",\"status\":\"published\",\"url\":\"https://EXAMPLE.invalid:443/synthetic#removed\",\"published_at\":\"2026-11-04T08:00:00.1234567+08:00\",\"started_at\":\"2026-11-04T07:00:00.0000000+08:00\",\"production_mode\":\"unknown\",\"summary\":\"  带空白的合成摘要  \",\"notes\":\"  合成备注  \",\"draft_ref\":{\"pgc_id\":\"synthetic-pgc\",\"provider_unknown\":{\"kept\":true}},\"timings\":{\"finished_at\":\"2026-11-04T07:30:00.0000000+08:00\",\"synthetic_unknown\":\"kept\"}}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"6c6c71c1-12cc-4cb3-80eb-b3d470af2884\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成已发布记录\",\"url\":\"https://example.invalid/synthetic\",\"published_at\":\"2026-11-04T00:00:00.123Z\",\"started_at\":\"2026-11-03T23:00:00.000Z\",\"production_mode\":\"unknown\",\"platform_article_id\":null,\"summary\":\"带空白的合成摘要\",\"notes\":\"合成备注\",\"status\":\"published\",\"slot\":null,\"run_dir\":null,\"run_date\":null,\"series_no\":null,\"writer\":null,\"illustrator\":null,\"char_count\":null,\"subheading_count\":null,\"image_count\":null,\"cover_desc\":null,\"version\":1,\"created_at\":\"2026-11-04T17:18:30.571Z\",\"updated_at\":\"2026-11-04T17:18:30.571Z\",\"account_name\":\"好多鱼\",\"platform\":\"toutiao\",\"latest_metrics\":null,\"latest_as_of\":null,\"latest_collected_at\":null,\"duration_seconds\":3600,\"sample\":null,\"draft_ref\":{\"pgc_id\":\"synthetic-pgc\",\"provider_unknown\":{\"kept\":true}},\"timings\":{\"finished_at\":\"2026-11-03T23:30:00.000Z\",\"synthetic_unknown\":\"kept\"},\"reruns\":null,\"blockers\":null,\"verify_items\":null,\"topic\":\"entertainment\",\"topic_source\":\"inferred\",\"date_status\":\"recorded\",\"snapshot_status\":\"not_collected\",\"missing_metrics\":[\"reads\",\"impressions\",\"likes\",\"comments\",\"favorites\",\"shares\",\"approvals\",\"reading_users\"],\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\"}}"
+    },
+    {
+      "name": "review-article-create",
+      "method": "PUT",
+      "path": "/api/v1/review/articles/0786d06f-c676-4ba6-bfb2-e501c0b91c5a",
+      "body_json": "{\"account\":\"V字\",\"platform\":\"toutiao\",\"title\":\"合成内容复盘文章\",\"url\":\"https://example.invalid/synthetic#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"image_count\":0,\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"]}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"0786d06f-c676-4ba6-bfb2-e501c0b91c5a\",\"account\":\"V字\",\"platform\":\"toutiao\",\"platform_article_id\":null,\"url\":\"https://example.invalid/synthetic#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"topic_category\":null,\"title_pattern\":null,\"sample_title\":null,\"sample_url\":null,\"reference_article_id\":null,\"image_count\":0,\"source_chat\":null,\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"],\"title\":\"合成内容复盘文章\",\"created_at\":\"2026-11-04T17:18:30.701Z\",\"updated_at\":\"2026-11-04T17:18:30.701Z\",\"content_hash\":\"cdbdab8098cbe99426a5a3d27e7367661922183522033511d36477eb232fccfd\"}}"
+    },
+    {
+      "name": "review-article-hash-patch",
+      "method": "PATCH",
+      "path": "/api/v1/review/articles/0786d06f-c676-4ba6-bfb2-e501c0b91c5a",
+      "body_json": "{\"expected_hash\":\"cdbdab8098cbe99426a5a3d27e7367661922183522033511d36477eb232fccfd\",\"title\":\"合成内容复盘改名\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"0786d06f-c676-4ba6-bfb2-e501c0b91c5a\",\"account\":\"V字\",\"platform\":\"toutiao\",\"platform_article_id\":null,\"title\":\"合成内容复盘改名\",\"url\":\"https://example.invalid/synthetic#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"topic_category\":null,\"title_pattern\":null,\"sample_title\":null,\"sample_url\":null,\"reference_article_id\":null,\"image_count\":0,\"source_chat\":null,\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"],\"created_at\":\"2026-11-04T17:18:30.701Z\",\"updated_at\":\"2026-11-04T17:18:30.787Z\",\"content_hash\":\"31f904d63f43b1868825a323071f2234cd8a6dae3706b7c61f0251849a30cfef\"}}"
+    },
+    {
+      "name": "review-article-hash-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/articles/0786d06f-c676-4ba6-bfb2-e501c0b91c5a",
+      "body_json": "{\"expected_hash\":\"31f904d63f43b1868825a323071f2234cd8a6dae3706b7c61f0251849a30cfef\",\"title\":\"合成内容复盘改名\"}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"0786d06f-c676-4ba6-bfb2-e501c0b91c5a\",\"account\":\"V字\",\"platform\":\"toutiao\",\"platform_article_id\":null,\"title\":\"合成内容复盘改名\",\"url\":\"https://example.invalid/synthetic#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"topic_category\":null,\"title_pattern\":null,\"sample_title\":null,\"sample_url\":null,\"reference_article_id\":null,\"image_count\":0,\"source_chat\":null,\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"],\"created_at\":\"2026-11-04T17:18:30.701Z\",\"updated_at\":\"2026-11-04T17:18:30.787Z\",\"content_hash\":\"31f904d63f43b1868825a323071f2234cd8a6dae3706b7c61f0251849a30cfef\"}}"
+    },
+    {
+      "name": "review-real-hash-cas-conflict",
+      "method": "PATCH",
+      "path": "/api/v1/review/articles/0786d06f-c676-4ba6-bfb2-e501c0b91c5a",
+      "body_json": "{\"expected_hash\":\"cdbdab8098cbe99426a5a3d27e7367661922183522033511d36477eb232fccfd\",\"title\":\"过期复盘修改\"}",
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"记录已改变，请读取最新内容再修改\"},\"request_id\":\"6785cb41-9373-48d3-97a2-2f8aaeb8fad3\"}"
+    },
+    {
+      "name": "review-snapshot-create-zero-and-null",
+      "method": "PUT",
+      "path": "/api/v1/review/snapshots/4715a592-51ab-41a9-be95-cbf2e8dafb45",
+      "body_json": "{\"article_id\":\"0786d06f-c676-4ba6-bfb2-e501c0b91c5a\",\"snapshot_date\":\"2026-11-05\",\"reads\":0,\"impressions\":null,\"ctr\":0,\"source\":\"manual\",\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}}}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"4715a592-51ab-41a9-be95-cbf2e8dafb45\",\"age_hours\":null,\"source\":\"manual\",\"impressions\":null,\"fan_impressions\":null,\"reads\":0,\"fan_reads\":null,\"ctr\":0,\"completion_rate\":null,\"avg_read_seconds\":null,\"likes\":null,\"comments\":null,\"reposts\":null,\"shares\":null,\"favorites\":null,\"revenue\":null,\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}},\"completion_curve\":null,\"audience\":null,\"article_id\":\"0786d06f-c676-4ba6-bfb2-e501c0b91c5a\",\"snapshot_date\":\"2026-11-05\",\"content_hash\":\"eef28819a662f99718b1d5b580655f3dc21c566677e261e5fb36364fc3f5b0f4\"}}"
+    },
+    {
+      "name": "review-snapshot-hash-patch",
+      "method": "PATCH",
+      "path": "/api/v1/review/snapshots/4715a592-51ab-41a9-be95-cbf2e8dafb45",
+      "body_json": "{\"expected_hash\":\"eef28819a662f99718b1d5b580655f3dc21c566677e261e5fb36364fc3f5b0f4\",\"reads\":12,\"ctr\":2.5}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"4715a592-51ab-41a9-be95-cbf2e8dafb45\",\"article_id\":\"0786d06f-c676-4ba6-bfb2-e501c0b91c5a\",\"snapshot_date\":\"2026-11-05\",\"age_hours\":null,\"source\":\"manual\",\"impressions\":null,\"fan_impressions\":null,\"reads\":12,\"fan_reads\":null,\"ctr\":2.5,\"completion_rate\":null,\"avg_read_seconds\":null,\"likes\":null,\"comments\":null,\"reposts\":null,\"shares\":null,\"favorites\":null,\"revenue\":null,\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}},\"completion_curve\":null,\"audience\":null,\"content_hash\":\"e23559e70c17beb4d34cbf8940f25beae58ff9c16b1b3e766cf214ba7a959b24\"}}"
+    },
+    {
+      "name": "review-snapshot-hash-no-op",
+      "method": "PATCH",
+      "path": "/api/v1/review/snapshots/4715a592-51ab-41a9-be95-cbf2e8dafb45",
+      "body_json": "{\"expected_hash\":\"e23559e70c17beb4d34cbf8940f25beae58ff9c16b1b3e766cf214ba7a959b24\",\"reads\":12}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"4715a592-51ab-41a9-be95-cbf2e8dafb45\",\"article_id\":\"0786d06f-c676-4ba6-bfb2-e501c0b91c5a\",\"snapshot_date\":\"2026-11-05\",\"age_hours\":null,\"source\":\"manual\",\"impressions\":null,\"fan_impressions\":null,\"reads\":12,\"fan_reads\":null,\"ctr\":2.5,\"completion_rate\":null,\"avg_read_seconds\":null,\"likes\":null,\"comments\":null,\"reposts\":null,\"shares\":null,\"favorites\":null,\"revenue\":null,\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}},\"completion_curve\":null,\"audience\":null,\"content_hash\":\"e23559e70c17beb4d34cbf8940f25beae58ff9c16b1b3e766cf214ba7a959b24\"}}"
+    },
+    {
+      "name": "review-snapshot-read-retains-unknown-json",
+      "method": "GET",
+      "path": "/api/v1/review/snapshots/4715a592-51ab-41a9-be95-cbf2e8dafb45",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"4715a592-51ab-41a9-be95-cbf2e8dafb45\",\"article_id\":\"0786d06f-c676-4ba6-bfb2-e501c0b91c5a\",\"snapshot_date\":\"2026-11-05\",\"age_hours\":null,\"source\":\"manual\",\"impressions\":null,\"fan_impressions\":null,\"reads\":12,\"fan_reads\":null,\"ctr\":2.5,\"completion_rate\":null,\"avg_read_seconds\":null,\"likes\":null,\"comments\":null,\"reposts\":null,\"shares\":null,\"favorites\":null,\"revenue\":null,\"traffic_sources\":{\"synthetic_unknown\":{\"kept\":true}},\"completion_curve\":null,\"audience\":null,\"content_hash\":\"e23559e70c17beb4d34cbf8940f25beae58ff9c16b1b3e766cf214ba7a959b24\"}}"
+    },
+    {
+      "name": "complete-read-schema-54",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-05",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-05\",\"today\":\"2026-11-05\",\"completed_mode\":\"hide\",\"preferences_version\":1,\"items\":[{\"id\":\"eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"date\":\"2026-11-05\",\"text\":\"本次合成待办\",\"completed\":true,\"version\":5,\"created_at\":\"2026-11-04T17:18:25.714Z\",\"updated_at\":\"2026-11-04T17:18:26.292Z\",\"deleted_at\":null,\"template_id\":\"a9e86034-f127-4a89-afa0-61cda805abc5\",\"template_version\":3,\"template_active\":false},{\"id\":\"ae487c10-168a-4a9d-8593-19e54dd5c252\",\"date\":\"2026-11-05\",\"text\":\"合成未来待办\",\"completed\":false,\"version\":1,\"created_at\":\"2026-11-04T17:18:26.911Z\",\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":null}]}}"
+    },
+    {
+      "name": "complete-read-schema-55",
+      "method": "GET",
+      "path": "/api/v1/todo-templates",
+      "status": 200,
+      "response_json": "{\"data\":{\"today\":\"2026-11-05\",\"window_start\":\"2026-10-07\",\"items\":[]}}"
+    },
+    {
+      "name": "complete-read-schema-56",
+      "method": "GET",
+      "path": "/api/v1/todo-preferences",
+      "status": 200,
+      "response_json": "{\"data\":{\"completed_mode\":\"hide\",\"version\":1}}"
+    },
+    {
+      "name": "complete-read-schema-57",
+      "method": "GET",
+      "path": "/api/v1/unscheduled-todos",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[]}}"
+    },
+    {
+      "name": "complete-read-schema-58",
+      "method": "GET",
+      "path": "/api/v1/unscheduled-todos/ae487c10-168a-4a9d-8593-19e54dd5c252",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"ae487c10-168a-4a9d-8593-19e54dd5c252\",\"text\":\"合成未来待办\",\"completed\":false,\"version\":2,\"created_at\":\"2026-11-04T17:18:26.799Z\",\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":\"2026-11-04T17:18:26.911Z\"}}"
+    },
+    {
+      "name": "complete-read-schema-59",
+      "method": "GET",
+      "path": "/api/v1/note-entries?category=life&date=2026-11-05",
+      "status": 200,
+      "response_json": "{\"data\":{\"category\":\"life\",\"date\":\"2026-11-05\",\"labels_version\":3,\"entries\":[{\"id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文修改\",\"version\":3,\"change_seq\":20,\"created_at\":\"2026-11-04T17:18:27.134Z\",\"updated_at\":\"2026-11-04T17:18:27.494Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[\"生活\"],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"5495f51c2e0e6be4be959674d2f158b670e483fd433773a8ce43c996b4d63ac3\"}],\"can_edit\":true}}"
+    },
+    {
+      "name": "complete-read-schema-60",
+      "method": "GET",
+      "path": "/api/v1/note-entries?category=work&date=2026-11-05",
+      "status": 200,
+      "response_json": "{\"data\":{\"category\":\"work\",\"date\":\"2026-11-05\",\"labels_version\":3,\"entries\":[],\"can_edit\":true}}"
+    },
+    {
+      "name": "complete-read-schema-61",
+      "method": "GET",
+      "path": "/api/v1/note-entries/dates?category=life&page_size=100",
+      "status": 200,
+      "response_json": "{\"data\":{\"dates\":[\"2026-11-05\"],\"has_more\":false,\"next_before\":null}}"
+    },
+    {
+      "name": "complete-read-schema-62",
+      "method": "GET",
+      "path": "/api/v1/daily-notes/dates?category=work&page_size=100",
+      "status": 200,
+      "response_json": "{\"data\":{\"dates\":[\"2026-11-05\"],\"has_more\":false,\"next_before\":null}}"
+    },
+    {
+      "name": "complete-read-schema-63",
+      "method": "GET",
+      "path": "/api/v1/daily-notes?category=life&date=2026-11-05",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-05\",\"text\":\"独立合成生活日页\",\"version\":1,\"updated_at\":\"2026-11-04T17:18:27.870Z\",\"deleted\":false,\"can_edit\":true}}"
+    },
+    {
+      "name": "complete-read-schema-64",
+      "method": "GET",
+      "path": "/api/v1/daily-notes?category=work&date=2026-11-05",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-05\",\"text\":\"独立合成工作日页\",\"version\":1,\"updated_at\":\"2026-11-04T17:18:27.778Z\",\"deleted\":false,\"can_edit\":true}}"
+    },
+    {
+      "name": "complete-read-schema-65",
+      "method": "GET",
+      "path": "/api/v1/note-entries/labels",
+      "status": 200,
+      "response_json": "{\"data\":{\"labels\":[],\"archived_labels\":[],\"labels_version\":3}}"
+    },
+    {
+      "name": "complete-read-schema-66",
+      "method": "GET",
+      "path": "/api/v1/memos",
+      "status": 200,
+      "response_json": "{\"data\":{\"groups\":[{\"id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"title\":\"合成分组改名\",\"position\":0,\"version\":4,\"change_seq\":28,\"created_at\":\"2026-11-04T17:18:28.612Z\",\"updated_at\":\"2026-11-04T17:18:29.569Z\",\"deleted_at\":null,\"active_note_count\":1}],\"notes\":[{\"id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"title\":\"合成笔记改名\",\"position\":0,\"version\":4,\"change_seq\":25,\"created_at\":\"2026-11-04T17:18:28.784Z\",\"updated_at\":\"2026-11-04T17:18:29.242Z\",\"deleted_at\":null,\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\"}],\"can_edit\":true,\"draft_scope\":\"7a669ce7-a938-b34b-3ed7-1f383fef47ac\"}}"
+    },
+    {
+      "name": "complete-read-schema-67",
+      "method": "GET",
+      "path": "/api/v1/work-reminders?date=2026-11-05",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-05\",\"items\":[{\"id\":\"3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"date\":\"2026-11-05\",\"source_key\":\"desktop-contract:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"summary\":\"合成提醒正文\",\"version\":3,\"change_seq\":31,\"created_at\":\"2026-11-04T17:18:29.705Z\",\"updated_at\":\"2026-11-04T17:18:30.049Z\",\"deleted_at\":null,\"deleted\":false,\"can_edit\":true,\"content_hash\":\"e7e3c186e66ac594cd6d3414f066fb1b0eacb3f14448c349b09a35d71f878295\"}],\"can_edit\":true}}"
+    },
+    {
+      "name": "complete-read-schema-68",
+      "method": "GET",
+      "path": "/api/v1/accounts",
+      "status": 200,
+      "response_json": "{\"data\":[{\"id\":\"toutiao-haoduoyu\",\"platform\":\"toutiao\",\"name\":\"好多鱼\",\"active\":1,\"created_at\":\"2026-11-04T17:18:25.201Z\"}]}"
+    },
+    {
+      "name": "complete-read-schema-69",
+      "method": "GET",
+      "path": "/api/v1/account-profiles",
+      "status": 200,
+      "response_json": "{\"data\":[]}"
+    },
+    {
+      "name": "complete-read-schema-70",
+      "method": "GET",
+      "path": "/api/v1/articles?page=1&page_size=50&status=drafting",
+      "status": 200,
+      "response_json": "{\"data\":[{\"id\":\"e250ac9a-7099-4693-bb04-8783f9aebb8d\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成旧图文记录\",\"url\":null,\"platform_article_id\":null,\"published_at\":null,\"started_at\":null,\"production_mode\":\"unknown\",\"summary\":\"修改后的合成摘要\",\"notes\":\"合成备注\",\"version\":2,\"created_at\":\"2026-11-04T17:18:30.192Z\",\"updated_at\":\"2026-11-04T17:18:30.410Z\",\"status\":\"drafting\",\"slot\":null,\"run_dir\":null,\"run_date\":null,\"series_no\":null,\"writer\":null,\"illustrator\":null,\"char_count\":null,\"subheading_count\":null,\"image_count\":null,\"cover_desc\":null,\"account_name\":\"好多鱼\",\"platform\":\"toutiao\",\"latest_metrics\":null,\"latest_as_of\":null,\"latest_collected_at\":null,\"duration_seconds\":null,\"sample\":null,\"draft_ref\":null,\"timings\":null,\"reruns\":null,\"blockers\":null,\"verify_items\":null,\"topic\":\"entertainment\",\"topic_source\":\"inferred\",\"date_status\":\"not_published\",\"snapshot_status\":\"not_applicable\",\"missing_metrics\":[],\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\"}],\"meta\":{\"total\":1,\"unfiltered_total\":1,\"page\":1,\"page_size\":50,\"offset\":0,\"has_more\":false,\"pagination\":\"offset\"}}"
+    },
+    {
+      "name": "complete-read-schema-71",
+      "method": "GET",
+      "path": "/api/v1/articles?page=1&page_size=50&status=published",
+      "status": 200,
+      "response_json": "{\"data\":[{\"id\":\"6c6c71c1-12cc-4cb3-80eb-b3d470af2884\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成已发布记录\",\"url\":\"https://example.invalid/synthetic\",\"platform_article_id\":null,\"published_at\":\"2026-11-04T00:00:00.123Z\",\"started_at\":\"2026-11-03T23:00:00.000Z\",\"production_mode\":\"unknown\",\"summary\":\"带空白的合成摘要\",\"notes\":\"合成备注\",\"version\":1,\"created_at\":\"2026-11-04T17:18:30.571Z\",\"updated_at\":\"2026-11-04T17:18:30.571Z\",\"status\":\"published\",\"slot\":null,\"run_dir\":null,\"run_date\":null,\"series_no\":null,\"writer\":null,\"illustrator\":null,\"char_count\":null,\"subheading_count\":null,\"image_count\":null,\"cover_desc\":null,\"account_name\":\"好多鱼\",\"platform\":\"toutiao\",\"latest_metrics\":null,\"latest_as_of\":null,\"latest_collected_at\":null,\"duration_seconds\":3600,\"sample\":null,\"draft_ref\":{\"pgc_id\":\"synthetic-pgc\",\"provider_unknown\":{\"kept\":true}},\"timings\":{\"finished_at\":\"2026-11-03T23:30:00.000Z\",\"synthetic_unknown\":\"kept\"},\"reruns\":null,\"blockers\":null,\"verify_items\":null,\"topic\":\"entertainment\",\"topic_source\":\"inferred\",\"date_status\":\"recorded\",\"snapshot_status\":\"not_collected\",\"missing_metrics\":[\"reads\",\"impressions\",\"likes\",\"comments\",\"favorites\",\"shares\",\"approvals\",\"reading_users\"],\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\"}],\"meta\":{\"total\":1,\"unfiltered_total\":1,\"page\":1,\"page_size\":50,\"offset\":0,\"has_more\":false,\"pagination\":\"offset\"}}"
+    },
+    {
+      "name": "complete-read-schema-72",
+      "method": "GET",
+      "path": "/api/v1/articles/6c6c71c1-12cc-4cb3-80eb-b3d470af2884",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"6c6c71c1-12cc-4cb3-80eb-b3d470af2884\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成已发布记录\",\"url\":\"https://example.invalid/synthetic\",\"platform_article_id\":null,\"published_at\":\"2026-11-04T00:00:00.123Z\",\"started_at\":\"2026-11-03T23:00:00.000Z\",\"production_mode\":\"unknown\",\"summary\":\"带空白的合成摘要\",\"notes\":\"合成备注\",\"version\":1,\"created_at\":\"2026-11-04T17:18:30.571Z\",\"updated_at\":\"2026-11-04T17:18:30.571Z\",\"status\":\"published\",\"slot\":null,\"run_dir\":null,\"run_date\":null,\"series_no\":null,\"writer\":null,\"illustrator\":null,\"char_count\":null,\"subheading_count\":null,\"image_count\":null,\"cover_desc\":null,\"account_name\":\"好多鱼\",\"platform\":\"toutiao\",\"latest_metrics\":null,\"latest_as_of\":null,\"latest_collected_at\":null,\"duration_seconds\":3600,\"sample\":null,\"draft_ref\":{\"pgc_id\":\"synthetic-pgc\",\"provider_unknown\":{\"kept\":true}},\"timings\":{\"finished_at\":\"2026-11-03T23:30:00.000Z\",\"synthetic_unknown\":\"kept\"},\"reruns\":null,\"blockers\":null,\"verify_items\":null,\"topic\":\"entertainment\",\"topic_source\":\"inferred\",\"date_status\":\"recorded\",\"snapshot_status\":\"not_collected\",\"missing_metrics\":[\"reads\",\"impressions\",\"likes\",\"comments\",\"favorites\",\"shares\",\"approvals\",\"reading_users\"],\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"recorded_by\":{\"actor\":\"public\",\"label\":\"公开业务编辑\",\"at\":\"2026-11-04T17:18:30.600Z\"},\"last_modified_by\":{\"actor\":\"public\",\"label\":\"公开业务编辑\",\"at\":\"2026-11-04T17:18:30.600Z\"},\"observations\":[],\"nodes\":[{\"kind\":\"d1\",\"snapshot\":null,\"due_at\":\"2026-11-05T00:00:00.123Z\",\"status\":\"not_due\"},{\"kind\":\"d3\",\"snapshot\":null,\"due_at\":\"2026-11-07T00:00:00.123Z\",\"status\":\"not_due\"},{\"kind\":\"d7\",\"snapshot\":null,\"due_at\":\"2026-11-11T00:00:00.123Z\",\"status\":\"not_due\"},{\"kind\":\"latest\",\"snapshot\":null,\"due_at\":null,\"status\":\"not_collected\"}],\"timeline\":[]}}"
+    },
+    {
+      "name": "complete-read-schema-73",
+      "method": "GET",
+      "path": "/api/v1/observations",
+      "status": 200,
+      "response_json": "{\"data\":[]}"
+    },
+    {
+      "name": "complete-read-schema-74",
+      "method": "GET",
+      "path": "/api/v1/daily-metrics",
+      "status": 200,
+      "response_json": "{\"data\":[]}"
+    },
+    {
+      "name": "complete-read-schema-75",
+      "method": "GET",
+      "path": "/api/v1/due-reviews",
+      "status": 200,
+      "response_json": "{\"data\":[]}"
+    },
+    {
+      "name": "complete-read-schema-76",
+      "method": "GET",
+      "path": "/api/v1/overview",
+      "status": 200,
+      "response_json": "{\"data\":{\"window\":{\"from\":\"2026-11-04\",\"to\":\"2026-11-04\",\"days\":1,\"period\":\"yesterday\",\"previous_from\":\"2026-11-03\",\"previous_to\":\"2026-11-03\",\"timezone\":\"Asia/Shanghai\",\"todayIncomplete\":false},\"accounts\":[{\"id\":\"toutiao-haoduoyu\",\"platform\":\"toutiao\",\"name\":\"好多鱼\",\"active\":1,\"created_at\":\"2026-11-04T17:18:25.201Z\",\"article_count\":1,\"period_metrics\":{},\"coverage\":{\"source\":\"missing\",\"days\":0,\"expected_days\":1,\"missing_dates\":[\"2026-11-04\"],\"metric_days\":{},\"label\":\"本期日数据未取得 · 缺 1 天 · 未完整取得：阅读、点赞、评论\",\"missing_metrics\":[\"reads\",\"likes\",\"comments\"]},\"previous_metrics\":{},\"previous_coverage\":{\"source\":\"missing\",\"days\":0,\"expected_days\":1,\"missing_dates\":[\"2026-11-03\"],\"metric_days\":{},\"label\":\"本期日数据未取得 · 缺 1 天 · 未完整取得：阅读、点赞、评论\",\"missing_metrics\":[\"reads\",\"likes\",\"comments\"]},\"comparisons\":{\"reads\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"impressions\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"likes\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"comments\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"favorites\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"shares\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"approvals\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"reading_users\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"}},\"last_updated\":\"2026-11-04T17:18:30.571Z\"}],\"trend\":[{\"date\":\"2026-11-04\",\"accounts\":[{\"account_id\":\"toutiao-haoduoyu\",\"metrics\":{},\"coverage\":{\"source\":\"missing\",\"days\":0,\"missing_dates\":[\"2026-11-04\"],\"metric_days\":{},\"label\":\"当日数据未取得\"}}]}],\"publication_trend\":[{\"date\":\"2026-11-04\",\"accounts\":[{\"account_id\":\"toutiao-haoduoyu\",\"count\":1}]}],\"publication_note\":\"本站已记录的发布量；日期待核实的记录不计入日期趋势。\",\"attention_articles\":[{\"id\":\"6c6c71c1-12cc-4cb3-80eb-b3d470af2884\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成已发布记录\",\"url\":\"https://example.invalid/synthetic\",\"platform_article_id\":null,\"published_at\":\"2026-11-04T00:00:00.123Z\",\"started_at\":\"2026-11-03T23:00:00.000Z\",\"production_mode\":\"unknown\",\"summary\":\"带空白的合成摘要\",\"notes\":\"合成备注\",\"version\":1,\"created_at\":\"2026-11-04T17:18:30.571Z\",\"updated_at\":\"2026-11-04T17:18:30.571Z\",\"status\":\"published\",\"slot\":null,\"run_dir\":null,\"run_date\":null,\"series_no\":null,\"writer\":null,\"illustrator\":null,\"char_count\":null,\"subheading_count\":null,\"image_count\":null,\"cover_desc\":null,\"account_name\":\"好多鱼\",\"platform\":\"toutiao\",\"latest_metrics\":null,\"latest_as_of\":null,\"latest_collected_at\":null,\"duration_seconds\":3600,\"sample\":null,\"draft_ref\":{\"pgc_id\":\"synthetic-pgc\",\"provider_unknown\":{\"kept\":true}},\"timings\":{\"finished_at\":\"2026-11-03T23:30:00.000Z\",\"synthetic_unknown\":\"kept\"},\"reruns\":null,\"blockers\":null,\"verify_items\":null,\"topic\":\"entertainment\",\"topic_source\":\"inferred\",\"date_status\":\"recorded\",\"snapshot_status\":\"not_collected\",\"missing_metrics\":[\"reads\",\"impressions\",\"likes\",\"comments\",\"favorites\",\"shares\",\"approvals\",\"reading_users\"],\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"period_metrics\":{},\"previous_metrics\":{},\"coverage\":{\"source\":\"missing\",\"days\":0,\"expected_days\":1,\"missing_dates\":[\"2026-11-04\"],\"metric_days\":{},\"label\":\"该文章 1 个自然日新增数据 · 缺 1 天\"},\"previous_coverage\":{\"source\":\"missing\",\"days\":0,\"expected_days\":0,\"missing_dates\":[],\"metric_days\":{},\"label\":\"文章在该周期尚未发布\"},\"comparisons\":{\"reads\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"impressions\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"likes\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"comments\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"favorites\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"shares\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"approvals\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"},\"reading_users\":{\"current\":null,\"previous\":null,\"delta\":null,\"percent\":null,\"comparable\":false,\"reason\":\"本期或上期该指标未取得，不能将缺失当作零\"}},\"attention\":{\"kind\":\"insufficient\",\"reason\":\"本期文章每日新增数据未取得，待积累\",\"baseline\":\"同账号、同发布年龄段、同长度完整日窗口；每篇历史文章最多一份，至少 5 篇，以中位数比较\",\"metric\":null,\"sample_size\":0,\"minimum_samples\":5,\"median\":null,\"current\":null,\"ratio\":null,\"age_band\":\"D0\"}}],\"due_reviews\":[],\"totals\":{\"article_count\":1,\"automatic_count\":0,\"unknown_mode_count\":1,\"median_duration_seconds\":3600},\"data_status\":{\"last_updated\":\"2026-11-04T17:18:30.571Z\",\"complete_accounts\":[],\"missing_accounts\":[\"toutiao-haoduoyu\"]},\"cumulative\":{\"article_count\":1,\"snapshot_count\":0,\"data_article_count\":0,\"no_snapshot_count\":1,\"missing_reads_count\":1,\"coverage\":0,\"totals\":{\"reads\":null,\"impressions\":null,\"likes\":null,\"comments\":null,\"favorites\":null,\"shares\":null,\"approvals\":null,\"reading_users\":null},\"metric_coverage\":{\"reads\":{\"recorded\":0,\"missing\":1},\"impressions\":{\"recorded\":0,\"missing\":1},\"likes\":{\"recorded\":0,\"missing\":1},\"comments\":{\"recorded\":0,\"missing\":1},\"favorites\":{\"recorded\":0,\"missing\":1},\"shares\":{\"recorded\":0,\"missing\":1},\"approvals\":{\"recorded\":0,\"missing\":1},\"reading_users\":{\"recorded\":0,\"missing\":1}},\"mean_reads\":null,\"median_reads\":null,\"as_of\":null,\"earliest_as_of\":null,\"collected_at\":null,\"unverified_date_count\":0,\"best_article\":null,\"metric_note\":\"各平台阅读为平台原字段相加，口径可能不同；likes 保留为点赞（知乎口径待核实），approvals 单独为赞同，互不替代。累计值为各篇最近快照之和，截至时间可能不同。\"},\"platform_comparison\":[{\"platform\":\"toutiao\",\"article_count\":1,\"snapshot_count\":0,\"data_article_count\":0,\"no_snapshot_count\":1,\"missing_reads_count\":1,\"coverage\":0,\"totals\":{\"reads\":null,\"impressions\":null,\"likes\":null,\"comments\":null,\"favorites\":null,\"shares\":null,\"approvals\":null,\"reading_users\":null},\"metric_coverage\":{\"reads\":{\"recorded\":0,\"missing\":1},\"impressions\":{\"recorded\":0,\"missing\":1},\"likes\":{\"recorded\":0,\"missing\":1},\"comments\":{\"recorded\":0,\"missing\":1},\"favorites\":{\"recorded\":0,\"missing\":1},\"shares\":{\"recorded\":0,\"missing\":1},\"approvals\":{\"recorded\":0,\"missing\":1},\"reading_users\":{\"recorded\":0,\"missing\":1}},\"mean_reads\":null,\"median_reads\":null,\"as_of\":null,\"earliest_as_of\":null,\"collected_at\":null,\"unverified_date_count\":0,\"best_article\":null}],\"top_articles\":[],\"top\":{\"limit\":5,\"platform\":null},\"series\":{\"name\":\"保险200篇\",\"planned\":200,\"highest_recorded\":null,\"recorded_count\":0,\"numbers\":[]},\"missing_articles\":[{\"id\":\"6c6c71c1-12cc-4cb3-80eb-b3d470af2884\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成已发布记录\",\"url\":\"https://example.invalid/synthetic\",\"platform_article_id\":null,\"published_at\":\"2026-11-04T00:00:00.123Z\",\"started_at\":\"2026-11-03T23:00:00.000Z\",\"production_mode\":\"unknown\",\"summary\":\"带空白的合成摘要\",\"notes\":\"合成备注\",\"version\":1,\"created_at\":\"2026-11-04T17:18:30.571Z\",\"updated_at\":\"2026-11-04T17:18:30.571Z\",\"status\":\"published\",\"slot\":null,\"run_dir\":null,\"run_date\":null,\"series_no\":null,\"writer\":null,\"illustrator\":null,\"char_count\":null,\"subheading_count\":null,\"image_count\":null,\"cover_desc\":null,\"account_name\":\"好多鱼\",\"platform\":\"toutiao\",\"latest_metrics\":null,\"latest_as_of\":null,\"latest_collected_at\":null,\"duration_seconds\":3600,\"sample\":null,\"draft_ref\":{\"pgc_id\":\"synthetic-pgc\",\"provider_unknown\":{\"kept\":true}},\"timings\":{\"finished_at\":\"2026-11-03T23:30:00.000Z\",\"synthetic_unknown\":\"kept\"},\"reruns\":null,\"blockers\":null,\"verify_items\":null,\"topic\":\"entertainment\",\"topic_source\":\"inferred\",\"date_status\":\"recorded\",\"snapshot_status\":\"not_collected\",\"missing_metrics\":[\"reads\",\"impressions\",\"likes\",\"comments\",\"favorites\",\"shares\",\"approvals\",\"reading_users\"],\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\"}]}}"
+    },
+    {
+      "name": "complete-read-schema-77",
+      "method": "GET",
+      "path": "/api/v1/article-reconciliation",
+      "status": 200,
+      "response_json": "{\"data\":{\"complete\":true,\"total\":2,\"counts\":{\"drafting\":1,\"illustrated\":0,\"draft_saved\":0,\"published\":1,\"failed\":0,\"unknown\":0},\"dates\":[{\"date\":null,\"count\":2}],\"schedule\":{\"configured\":false,\"expected\":null,\"missing\":null,\"overdue\":null},\"rows\":[{\"id\":\"6c6c71c1-12cc-4cb3-80eb-b3d470af2884\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成已发布记录\",\"status\":\"published\",\"slot\":null,\"writer\":null,\"run_date\":null,\"series_no\":null,\"sample\":null,\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"missing_fields\":[\"run_date\",\"slot\",\"writer\"]},{\"id\":\"e250ac9a-7099-4693-bb04-8783f9aebb8d\",\"account_id\":\"toutiao-haoduoyu\",\"title\":\"合成旧图文记录\",\"status\":\"drafting\",\"slot\":null,\"writer\":null,\"run_date\":null,\"series_no\":null,\"sample\":null,\"warnings\":[],\"has_pending_verify\":null,\"verify_state\":\"unknown\",\"missing_fields\":[\"run_date\",\"slot\",\"writer\"]}],\"insurance\":{\"basis\":\"explicit_gzh_slot\",\"recorded\":0,\"numbered\":0,\"unique_count\":0,\"highest\":null,\"lowest\":null,\"duplicate_numbers\":[],\"observed_gap_ranges\":[],\"start\":null,\"target\":null,\"sample_mapping\":\"unknown\",\"counts\":{\"drafting\":0,\"illustrated\":0,\"draft_saved\":0,\"published\":0,\"failed\":0,\"unknown\":0}}}}"
+    },
+    {
+      "name": "complete-read-schema-78",
+      "method": "GET",
+      "path": "/api/v1/workbench-snapshot/index?version=2",
+      "status": 200,
+      "response_json": "{\"data\":{\"snapshot_format\":\"haoduoyu-workbench-snapshot-v2\",\"projection\":\"current\",\"complete\":true,\"scope_id\":\"3327df025f0cf5374f1b55d93cd5ef58c7d36f1796fda61c8fd74cdca0f3d620\",\"timezone\":\"Asia/Shanghai\",\"generated_at\":\"2026-11-04T17:18:32.924Z\",\"manifest_hash\":\"398aa4d7c26e2bc9cf515c88ad7cec7606e1d6c5b7d315e0cb871a7c6d8b0bd6\",\"global_content_hash\":\"1bd709a5ca5a10f4b326093789393f5c4494b58873d144caf9810c2e70bbf15f\",\"entities\":[{\"entity_id\":\"legacy-life:2026-11-05\",\"entity_type\":\"life_note\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:27.870Z\",\"deleted_at\":null,\"content_hash\":\"a9de03b2394bbd15429c32b8666137d9a3633aeb20ba61616ba07cbb5d522a1d\"},{\"entity_id\":\"legacy-work:2026-11-05\",\"entity_type\":\"work_note\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:27.778Z\",\"deleted_at\":null,\"content_hash\":\"e82bd4d5261a906569d3a31e3e4f153afa3b2c043c7003a42242068dc8adbd62\"},{\"entity_id\":\"memo-group:7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"entity_type\":\"memo_group\",\"date\":null,\"updated_at\":\"2026-11-04T17:18:29.569Z\",\"deleted_at\":null,\"content_hash\":\"0b34c115c57fda26e8dda9f9d3ded4d970899cff7cec8f8c47937dfcace1477f\"},{\"entity_id\":\"memo-note:89f31b34-dced-4063-9035-1d494f5af72b\",\"entity_type\":\"memo_note\",\"date\":null,\"updated_at\":\"2026-11-04T17:18:29.242Z\",\"deleted_at\":null,\"content_hash\":\"eb939e43aedd13b8a3b319b4320ff8f500f2b1964e8ebcfa1a853469c687e846\"},{\"entity_id\":\"note-entry:3362c4c2-b2b7-49db-8930-370ca5329084\",\"entity_type\":\"life_note\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:27.494Z\",\"deleted_at\":null,\"content_hash\":\"03601837590a66d77e218563c16fd41cc89fd23796f1b38996b97cfa74445896\"},{\"entity_id\":\"todo:ae487c10-168a-4a9d-8593-19e54dd5c252\",\"entity_type\":\"todo\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":null,\"content_hash\":\"72e9315e181531e41dad2d17ce88294043c9feed1e4305086b4d767329e75e8d\"},{\"entity_id\":\"todo:eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"entity_type\":\"todo\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:26.292Z\",\"deleted_at\":null,\"content_hash\":\"30067e8d3748ebe1ff0f7bf9801b3c7fb4c1e09fe95bbe0b79f587cab160bf2c\"},{\"entity_id\":\"unscheduled_todo:ae487c10-168a-4a9d-8593-19e54dd5c252\",\"entity_type\":\"unscheduled_todo\",\"date\":null,\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":\"2026-11-04T17:18:26.911Z\",\"content_hash\":\"e5f4ef95a97f257a1594d22f67da7f36f90c3f5825713095e3a38ce56f345aca\"},{\"entity_id\":\"work-reminder:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"entity_type\":\"work_reminder\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:30.049Z\",\"deleted_at\":null,\"content_hash\":\"005ea0c97d9c026fc613f9ecb8eb78274c4a6940a4b3c378cd8862fdf854fb03\"}],\"dates\":[{\"date\":\"2026-11-05\",\"content_hash\":\"77f391e49be2b9d75d518f63888ee8c4e73f16573317b1d6f33781ac0bc040fd\"}],\"index_hash\":\"398aa4d7c26e2bc9cf515c88ad7cec7606e1d6c5b7d315e0cb871a7c6d8b0bd6\"}}"
+    },
+    {
+      "name": "complete-read-schema-79",
+      "method": "GET",
+      "path": "/api/v1/workbench-snapshot?version=2&date=2026-11-05",
+      "status": 200,
+      "response_json": "{\"data\":{\"snapshot_format\":\"haoduoyu-workbench-snapshot-v2\",\"projection\":\"current\",\"complete\":true,\"scope_id\":\"3327df025f0cf5374f1b55d93cd5ef58c7d36f1796fda61c8fd74cdca0f3d620\",\"timezone\":\"Asia/Shanghai\",\"generated_at\":\"2026-11-04T17:18:33.176Z\",\"manifest_hash\":\"398aa4d7c26e2bc9cf515c88ad7cec7606e1d6c5b7d315e0cb871a7c6d8b0bd6\",\"global_content_hash\":\"1bd709a5ca5a10f4b326093789393f5c4494b58873d144caf9810c2e70bbf15f\",\"entities\":[{\"entity_id\":\"legacy-life:2026-11-05\",\"entity_type\":\"life_note\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:27.870Z\",\"deleted_at\":null,\"content_hash\":\"a9de03b2394bbd15429c32b8666137d9a3633aeb20ba61616ba07cbb5d522a1d\"},{\"entity_id\":\"legacy-work:2026-11-05\",\"entity_type\":\"work_note\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:27.778Z\",\"deleted_at\":null,\"content_hash\":\"e82bd4d5261a906569d3a31e3e4f153afa3b2c043c7003a42242068dc8adbd62\"},{\"entity_id\":\"memo-group:7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"entity_type\":\"memo_group\",\"date\":null,\"updated_at\":\"2026-11-04T17:18:29.569Z\",\"deleted_at\":null,\"content_hash\":\"0b34c115c57fda26e8dda9f9d3ded4d970899cff7cec8f8c47937dfcace1477f\"},{\"entity_id\":\"memo-note:89f31b34-dced-4063-9035-1d494f5af72b\",\"entity_type\":\"memo_note\",\"date\":null,\"updated_at\":\"2026-11-04T17:18:29.242Z\",\"deleted_at\":null,\"content_hash\":\"eb939e43aedd13b8a3b319b4320ff8f500f2b1964e8ebcfa1a853469c687e846\"},{\"entity_id\":\"note-entry:3362c4c2-b2b7-49db-8930-370ca5329084\",\"entity_type\":\"life_note\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:27.494Z\",\"deleted_at\":null,\"content_hash\":\"03601837590a66d77e218563c16fd41cc89fd23796f1b38996b97cfa74445896\"},{\"entity_id\":\"todo:ae487c10-168a-4a9d-8593-19e54dd5c252\",\"entity_type\":\"todo\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":null,\"content_hash\":\"72e9315e181531e41dad2d17ce88294043c9feed1e4305086b4d767329e75e8d\"},{\"entity_id\":\"todo:eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"entity_type\":\"todo\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:26.292Z\",\"deleted_at\":null,\"content_hash\":\"30067e8d3748ebe1ff0f7bf9801b3c7fb4c1e09fe95bbe0b79f587cab160bf2c\"},{\"entity_id\":\"unscheduled_todo:ae487c10-168a-4a9d-8593-19e54dd5c252\",\"entity_type\":\"unscheduled_todo\",\"date\":null,\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":\"2026-11-04T17:18:26.911Z\",\"content_hash\":\"e5f4ef95a97f257a1594d22f67da7f36f90c3f5825713095e3a38ce56f345aca\"},{\"entity_id\":\"work-reminder:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"entity_type\":\"work_reminder\",\"date\":\"2026-11-05\",\"updated_at\":\"2026-11-04T17:18:30.049Z\",\"deleted_at\":null,\"content_hash\":\"005ea0c97d9c026fc613f9ecb8eb78274c4a6940a4b3c378cd8862fdf854fb03\"}],\"date\":\"2026-11-05\",\"date_content_hash\":\"77f391e49be2b9d75d518f63888ee8c4e73f16573317b1d6f33781ac0bc040fd\",\"data\":{\"todos\":[{\"entity_id\":\"todo:ae487c10-168a-4a9d-8593-19e54dd5c252\",\"entity_type\":\"todo\",\"source\":\"todo\",\"source_id\":\"ae487c10-168a-4a9d-8593-19e54dd5c252\",\"date\":\"2026-11-05\",\"version\":1,\"created_at\":\"2026-11-04T17:18:26.911Z\",\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":null,\"text\":\"合成未来待办\",\"completed\":0,\"content_hash\":\"72e9315e181531e41dad2d17ce88294043c9feed1e4305086b4d767329e75e8d\"},{\"entity_id\":\"todo:eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"entity_type\":\"todo\",\"source\":\"todo\",\"source_id\":\"eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"date\":\"2026-11-05\",\"version\":5,\"created_at\":\"2026-11-04T17:18:25.714Z\",\"updated_at\":\"2026-11-04T17:18:26.292Z\",\"deleted_at\":null,\"text\":\"本次合成待办\",\"completed\":1,\"content_hash\":\"30067e8d3748ebe1ff0f7bf9801b3c7fb4c1e09fe95bbe0b79f587cab160bf2c\"}],\"life_notes\":[{\"entity_id\":\"legacy-life:2026-11-05\",\"entity_type\":\"life_note\",\"source\":\"legacy_daily_note\",\"source_id\":\"2026-11-05\",\"date\":\"2026-11-05\",\"category\":\"life\",\"version\":1,\"change_seq\":17,\"created_at\":\"2026-11-04T17:18:27.870Z\",\"updated_at\":\"2026-11-04T17:18:27.870Z\",\"deleted_at\":null,\"text\":\"独立合成生活日页\",\"content_hash\":\"a9de03b2394bbd15429c32b8666137d9a3633aeb20ba61616ba07cbb5d522a1d\"},{\"entity_id\":\"note-entry:3362c4c2-b2b7-49db-8930-370ca5329084\",\"entity_type\":\"life_note\",\"source\":\"note_entry\",\"source_id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"date\":\"2026-11-05\",\"category\":\"life\",\"version\":3,\"change_seq\":20,\"created_at\":\"2026-11-04T17:18:27.134Z\",\"updated_at\":\"2026-11-04T17:18:27.494Z\",\"deleted_at\":null,\"text\":\"合成正文修改\",\"content_hash\":\"03601837590a66d77e218563c16fd41cc89fd23796f1b38996b97cfa74445896\"}],\"work_notes\":[{\"entity_id\":\"legacy-work:2026-11-05\",\"entity_type\":\"work_note\",\"source\":\"legacy_daily_note\",\"source_id\":\"2026-11-05\",\"date\":\"2026-11-05\",\"category\":\"work\",\"version\":1,\"change_seq\":16,\"created_at\":\"2026-11-04T17:18:27.778Z\",\"updated_at\":\"2026-11-04T17:18:27.778Z\",\"deleted_at\":null,\"text\":\"独立合成工作日页\",\"content_hash\":\"e82bd4d5261a906569d3a31e3e4f153afa3b2c043c7003a42242068dc8adbd62\"}],\"work_reminders\":[{\"entity_id\":\"work-reminder:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"entity_type\":\"work_reminder\",\"source\":\"work_reminder\",\"source_id\":\"3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"date\":\"2026-11-05\",\"version\":3,\"change_seq\":31,\"created_at\":\"2026-11-04T17:18:29.705Z\",\"updated_at\":\"2026-11-04T17:18:30.049Z\",\"deleted_at\":null,\"summary\":\"合成提醒正文\",\"source_key\":\"desktop-contract:3528177f-eee1-47ea-bfcd-1a6f498e2a23\",\"content_hash\":\"005ea0c97d9c026fc613f9ecb8eb78274c4a6940a4b3c378cd8862fdf854fb03\"}],\"memo_groups\":[{\"entity_id\":\"memo-group:7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"entity_type\":\"memo_group\",\"source\":\"memo_group\",\"source_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"date\":null,\"version\":4,\"change_seq\":28,\"created_at\":\"2026-11-04T17:18:28.612Z\",\"updated_at\":\"2026-11-04T17:18:29.569Z\",\"deleted_at\":null,\"title\":\"合成分组改名\",\"position\":0,\"content_hash\":\"0b34c115c57fda26e8dda9f9d3ded4d970899cff7cec8f8c47937dfcace1477f\"}],\"memos\":[{\"entity_id\":\"memo-note:89f31b34-dced-4063-9035-1d494f5af72b\",\"entity_type\":\"memo_note\",\"source\":\"memo_note\",\"source_id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"date\":null,\"version\":4,\"change_seq\":25,\"created_at\":\"2026-11-04T17:18:28.784Z\",\"updated_at\":\"2026-11-04T17:18:29.242Z\",\"deleted_at\":null,\"title\":\"合成笔记改名\",\"body\":\"合成改稿\",\"position\":0,\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"content_hash\":\"eb939e43aedd13b8a3b319b4320ff8f500f2b1964e8ebcfa1a853469c687e846\"}],\"unscheduled_todos\":[{\"entity_id\":\"unscheduled_todo:ae487c10-168a-4a9d-8593-19e54dd5c252\",\"entity_type\":\"unscheduled_todo\",\"source\":\"unscheduled_todo\",\"source_id\":\"ae487c10-168a-4a9d-8593-19e54dd5c252\",\"date\":null,\"version\":2,\"created_at\":\"2026-11-04T17:18:26.799Z\",\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"deleted_at\":\"2026-11-04T17:18:26.911Z\",\"content_hash\":\"e5f4ef95a97f257a1594d22f67da7f36f90c3f5825713095e3a38ce56f345aca\"}],\"note_labels\":[]},\"content_hash\":\"e76d6c73f1963a7f68029c00d7dfc2d64f20350794831ba1b806e23b75442a36\"}}"
+    },
+    {
+      "name": "complete-read-schema-80",
+      "method": "GET",
+      "path": "/api/v1/snapshot/index?notes=all",
+      "status": 200,
+      "response_json": "{\"data\":{\"snapshot_format\":\"haoduoyu-daily-snapshot-index-v2\",\"projection\":\"current\",\"scope_id\":\"ccc0918d71238fb2f95faa4dc0060bafbaab22f9bb3d835e29e3cfe44a1712a3\",\"timezone\":\"Asia/Shanghai\",\"complete\":true,\"dates\":[{\"date\":\"2026-11-04\",\"content_hash\":\"8f7fea5a5d8fdf75d2873ad9766f2b48068cf4c49a4868d6ba2fc58751cd3508\"},{\"date\":\"2026-11-05\",\"content_hash\":\"86ef09100772de8fcfb22deb3673fa85fe88d9f848e1425b5253dd76b2f3f8f9\"}],\"generated_at\":\"2026-11-04T17:18:33.421Z\",\"index_hash\":\"550f6843f8943fea22b44a5b477b236d974bdda4c3286cef0bd89d40e6e5a9bc\"}}"
+    },
+    {
+      "name": "complete-read-schema-81",
+      "method": "GET",
+      "path": "/api/v1/snapshot?notes=all&date=2026-11-05",
+      "status": 200,
+      "response_json": "{\"data\":{\"snapshot_format\":\"haoduoyu-daily-snapshot-v2\",\"projection\":\"current\",\"date\":\"2026-11-05\",\"scope_id\":\"ccc0918d71238fb2f95faa4dc0060bafbaab22f9bb3d835e29e3cfe44a1712a3\",\"timezone\":\"Asia/Shanghai\",\"data\":{\"todos\":[{\"completed\":0,\"created_at\":\"2026-11-04T17:18:26.911Z\",\"date\":\"2026-11-05\",\"id\":\"ae487c10-168a-4a9d-8593-19e54dd5c252\",\"text\":\"合成未来待办\",\"updated_at\":\"2026-11-04T17:18:26.911Z\",\"version\":1},{\"completed\":1,\"created_at\":\"2026-11-04T17:18:25.714Z\",\"date\":\"2026-11-05\",\"id\":\"eac694a7-f018-4b99-93c0-bd5f94defbfd\",\"text\":\"本次合成待办\",\"updated_at\":\"2026-11-04T17:18:26.292Z\",\"version\":5}],\"templates\":[],\"notes\":[{\"created_at\":\"2026-11-04T17:18:27.870Z\",\"date\":\"2026-11-05\",\"text\":\"独立合成生活日页\",\"updated_at\":\"2026-11-04T17:18:27.870Z\",\"version\":1}],\"work_notes\":[{\"created_at\":\"2026-11-04T17:18:27.778Z\",\"date\":\"2026-11-05\",\"text\":\"独立合成工作日页\",\"updated_at\":\"2026-11-04T17:18:27.778Z\",\"version\":1}],\"accounts\":[{\"active\":1,\"created_at\":\"2026-11-04T17:18:25.201Z\",\"id\":\"toutiao-haoduoyu\",\"name\":\"好多鱼\",\"platform\":\"toutiao\"}],\"articles\":[],\"observations\":[],\"daily_metrics\":[],\"habit30days\":{\"window_start\":\"2026-10-07\",\"window_end\":\"2026-11-05\",\"threshold\":21,\"templates\":[]}},\"generated_at\":\"2026-11-04T17:18:33.607Z\",\"content_hash\":\"86ef09100772de8fcfb22deb3673fa85fe88d9f848e1425b5253dd76b2f3f8f9\"}}"
+    },
+    {
+      "name": "complete-read-schema-82",
+      "method": "GET",
+      "path": "/api/v1/review/overview?account=V%E5%AD%97&range=7d&week=this",
+      "status": 200,
+      "response_json": "{\"data\":{\"account\":\"V字\",\"week\":\"this\",\"range\":\"7d\",\"today\":\"2026-11-05\",\"start\":\"2026-11-02\",\"end\":\"2026-11-08\",\"previousStart\":\"2026-10-26\",\"previousEnd\":\"2026-11-01\",\"rows\":[{\"id\":\"0786d06f-c676-4ba6-bfb2-e501c0b91c5a\",\"account\":\"V字\",\"platform\":\"toutiao\",\"platform_article_id\":null,\"title\":\"合成内容复盘改名\",\"url\":\"https://example.invalid/synthetic#retained\",\"published_at\":\"2026-11-04T00:00:00.000Z\",\"topic_category\":null,\"title_pattern\":null,\"sample_title\":null,\"sample_url\":null,\"reference_article_id\":null,\"image_count\":0,\"source_chat\":null,\"playbook_version_used\":1,\"applied_rule_ids\":[\"synthetic-rule\"],\"created_at\":\"2026-11-04T17:18:30.701Z\",\"updated_at\":\"2026-11-04T17:18:30.787Z\",\"content_hash\":\"31f904d63f43b1868825a323071f2234cd8a6dae3706b7c61f0251849a30cfef\",\"sample24h\":null,\"reads_24h\":null,\"ctr_24h\":null,\"completion_24h\":null,\"applied_rules\":[],\"verdict\":null,\"reliable\":false,\"verdict_reliable\":false,\"verdict_basis\":{\"method\":\"fixed_thresholds\",\"sample_count\":0,\"sample_ids\":[],\"high_threshold\":1000,\"low_threshold\":100,\"high_inclusive\":true,\"low_inclusive\":true,\"ties\":\"never_split\",\"missing_reads\":true}}],\"previousRows\":[],\"current\":{\"count\":1,\"published_count\":1,\"hits\":0,\"flops\":0,\"judged_count\":0,\"hit_rate\":null,\"flop_rate\":null,\"miss_rate\":null,\"median_ctr\":null,\"ctr_median\":null,\"ctr_count\":0,\"missing_24h_count\":1,\"reliable_count\":0,\"rate_denominator\":\"Articles in this publication week with valid reads_24h and a computed verdict; includes provisional fixed-threshold judgments.\"},\"previous\":{\"count\":0,\"published_count\":0,\"hits\":0,\"flops\":0,\"judged_count\":0,\"hit_rate\":null,\"flop_rate\":null,\"miss_rate\":null,\"median_ctr\":null,\"ctr_median\":null,\"ctr_count\":0,\"missing_24h_count\":0,\"reliable_count\":0,\"rate_denominator\":\"Articles in this publication week with valid reads_24h and a computed verdict; includes provisional fixed-threshold judgments.\"},\"changes\":{\"count\":{\"current\":1,\"previous\":0,\"delta\":1,\"unit\":\"count\"},\"published_count\":{\"current\":1,\"previous\":0,\"delta\":1,\"unit\":\"count\"},\"hits\":{\"current\":0,\"previous\":0,\"delta\":0,\"unit\":\"count\"},\"flops\":{\"current\":0,\"previous\":0,\"delta\":0,\"unit\":\"count\"},\"hit_rate\":{\"current\":null,\"previous\":null,\"delta\":null,\"unit\":\"percentage_points\"},\"flop_rate\":{\"current\":null,\"previous\":null,\"delta\":null,\"unit\":\"percentage_points\"},\"miss_rate\":{\"current\":null,\"previous\":null,\"delta\":null,\"unit\":\"percentage_points\"},\"median_ctr\":{\"current\":null,\"previous\":null,\"delta\":null,\"unit\":\"percentage_points\"},\"ctr_median\":{\"current\":null,\"previous\":null,\"delta\":null,\"unit\":\"percentage_points\"}},\"trend\":[{\"date\":\"2026-10-30\",\"count\":0,\"published_count\":0,\"reads_24h\":null,\"reads_24h_count\":0,\"ctr_24h\":null,\"ctr_24h_count\":0,\"completion_24h\":null,\"completion_24h_count\":0,\"reads_median\":null,\"ctr_median\":null,\"completion_median\":null},{\"date\":\"2026-10-31\",\"count\":0,\"published_count\":0,\"reads_24h\":null,\"reads_24h_count\":0,\"ctr_24h\":null,\"ctr_24h_count\":0,\"completion_24h\":null,\"completion_24h_count\":0,\"reads_median\":null,\"ctr_median\":null,\"completion_median\":null},{\"date\":\"2026-11-01\",\"count\":0,\"published_count\":0,\"reads_24h\":null,\"reads_24h_count\":0,\"ctr_24h\":null,\"ctr_24h_count\":0,\"completion_24h\":null,\"completion_24h_count\":0,\"reads_median\":null,\"ctr_median\":null,\"completion_median\":null},{\"date\":\"2026-11-02\",\"count\":0,\"published_count\":0,\"reads_24h\":null,\"reads_24h_count\":0,\"ctr_24h\":null,\"ctr_24h_count\":0,\"completion_24h\":null,\"completion_24h_count\":0,\"reads_median\":null,\"ctr_median\":null,\"completion_median\":null},{\"date\":\"2026-11-03\",\"count\":0,\"published_count\":0,\"reads_24h\":null,\"reads_24h_count\":0,\"ctr_24h\":null,\"ctr_24h_count\":0,\"completion_24h\":null,\"completion_24h_count\":0,\"reads_median\":null,\"ctr_median\":null,\"completion_median\":null},{\"date\":\"2026-11-04\",\"count\":1,\"published_count\":1,\"reads_24h\":null,\"reads_24h_count\":0,\"ctr_24h\":null,\"ctr_24h_count\":0,\"completion_24h\":null,\"completion_24h_count\":0,\"reads_median\":null,\"ctr_median\":null,\"completion_median\":null},{\"date\":\"2026-11-05\",\"count\":0,\"published_count\":0,\"reads_24h\":null,\"reads_24h_count\":0,\"ctr_24h\":null,\"ctr_24h_count\":0,\"completion_24h\":null,\"completion_24h_count\":0,\"reads_median\":null,\"ctr_median\":null,\"completion_median\":null}],\"alerts\":[{\"code\":\"missing_24h\",\"count\":1,\"last_snapshot_date\":null,\"days_since_snapshot\":null,\"message\":\"1 篇缺少已记录年龄 12–72 小时的快照；24h 指标暂缺。\"}],\"summary\":\"本周发布 1 篇，暂无有效 24h 阅读样本。\",\"conclusion\":\"本周尚未生成周报\",\"cards\":{\"each_prev_delta\":{\"count\":1,\"hit_rate\":null,\"miss_rate\":null,\"ctr_median\":null},\"count\":1,\"count_prev_delta\":1,\"hit_rate\":null,\"hit_rate_prev_delta\":null,\"miss_rate\":null,\"miss_rate_prev_delta\":null,\"ctr_median\":null,\"ctr_median_prev_delta\":null},\"read_revision\":38}}"
+    }
+  ],
+  "reconciliations": [
+    {
+      "name": "note-real-receipt-and-content-hash",
+      "method": "PUT",
+      "path": "/api/v1/note-entries/3362c4c2-b2b7-49db-8930-370ca5329084",
+      "body_json": "{\"version\":0,\"save_id\":\"dfde9cf6-83cd-4683-9413-6c697d979880\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文\\n第二行\",\"labels\":[\"生活\",\"本次合成标签\"]}",
+      "receipt_json": "{\"data\":{\"found\":true,\"id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"version\":1,\"deleted_at\":null,\"change_seq\":14,\"content_hash\":\"7f4ec0815a81b3558fed7a9ccf336a2eaa17a9cbc1eefc9c6e0cdc03e1c8a003\",\"labels_version\":3,\"labels\":[\"本次合成标签\",\"生活\"]}}",
+      "entity_json": "{\"data\":{\"id\":\"3362c4c2-b2b7-49db-8930-370ca5329084\",\"category\":\"life\",\"date\":\"2026-11-05\",\"text\":\"合成正文\\n第二行\",\"version\":1,\"change_seq\":14,\"created_at\":\"2026-11-04T17:18:27.134Z\",\"updated_at\":\"2026-11-04T17:18:27.134Z\",\"deleted_at\":null,\"labels_version\":3,\"labels\":[\"本次合成标签\",\"生活\"],\"deleted\":false,\"can_edit\":true,\"content_hash\":\"7f4ec0815a81b3558fed7a9ccf336a2eaa17a9cbc1eefc9c6e0cdc03e1c8a003\"}}"
+    },
+    {
+      "name": "memo-real-receipt-and-entity-hash",
+      "method": "PUT",
+      "path": "/api/v1/memos/notes/89f31b34-dced-4063-9035-1d494f5af72b",
+      "body_json": "{\"version\":0,\"save_id\":\"bfe311e7-661f-42fd-8d21-2cbd79d666d3\",\"title\":\"合成笔记\",\"body\":\"合成笔记正文\\n第二行\",\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"position\":0}",
+      "receipt_json": "{\"data\":{\"found\":true,\"kind\":\"notes\",\"id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"version\":1,\"deleted_at\":null,\"change_seq\":22,\"entity_hash\":\"33280dba7883f66c0c0ac949120c50d1ff3d1a824b08ff040b2adee08590f948\"}}",
+      "entity_json": "{\"data\":{\"id\":\"89f31b34-dced-4063-9035-1d494f5af72b\",\"title\":\"合成笔记\",\"position\":0,\"version\":1,\"change_seq\":22,\"created_at\":\"2026-11-04T17:18:28.784Z\",\"updated_at\":\"2026-11-04T17:18:28.784Z\",\"deleted_at\":null,\"group_id\":\"7f281a17-2a84-48dd-af6a-8715cdd9bde1\",\"body\":\"合成笔记正文\\n第二行\",\"can_edit\":true}}"
+    }
+  ]
+}

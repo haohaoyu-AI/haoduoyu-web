@@ -23,6 +23,7 @@ public sealed partial class MainWindow
                         if (Text(data, "kind") == "todo" && draft.BaseVersion > 0)
                         { ShowText("已保存的创建稿", data["values"]?.ToJsonString(new() { WriteIndented = true }) ?? draft.Text); return; }
                         if (Text(data, "kind") is "unscheduled" or "label-create") await PlanningDraftAsync(Text(data, "kind"), draft.Key);
+                        else if (Text(data, "kind") == "ai-report") await AiReportDraftAsync(draft.Key);
                         else if (Text(data, "kind").StartsWith("review:", StringComparison.Ordinal)) await ReviewDraftAsync(Text(data, "kind"), draft.Key);
                         else if (Text(data, "kind") == "history") ShowText("保留的本机历史稿", data["values"]?.ToJsonString(new() { WriteIndented = true }) ?? draft.Text);
                         else await EditAsync(Text(data, "kind"), data["original"]!.DeepClone().AsObject(), draft.Key);
@@ -47,6 +48,7 @@ public sealed partial class MainWindow
     {
         var options = operation.Status switch
         {
+            PendingStatus.Queued when operation.CanEditQueued => new[] { "取消尚未发送的操作", "查看原请求和响应", "导出原请求" },
             PendingStatus.Unknown when operation.Path == "/api/v1/articles" && operation.Method == "POST" =>
                 new[] { "只读核对保存回执", "查看原请求和响应", "导出原请求" },
             PendingStatus.Unknown when operation.Path == "/api/v1/note-entries/labels" =>
@@ -58,12 +60,20 @@ public sealed partial class MainWindow
             _ => new[] { "查看原请求和响应", "导出原请求" }
         };
         var choice = Choose("同步操作", StatusLabel(operation.Status) + "\n" + operation.Path, options);
-        if (choice == "查看原请求和响应") ShowText("保存原件", operation.BodyJson + "\n\n服务器响应\n" + operation.RemoteJson);
+        if (choice == "取消尚未发送的操作")
+        {
+            if (Confirm("只取消尚未发送的这项操作？原请求和草稿保留；依赖它的新记录会等待处理，不会提前发送。"))
+            {
+                await Engine.CancelQueuedAsync(operation.Id); await NavigateAsync("同步中心");
+            }
+        }
+        else if (choice == "查看原请求和响应") ShowText("保存原件", "本机原始意图\n" + operation.BodyJson +
+            "\n\n实际冻结请求\n" + operation.RequestBodyJson + "\n\n服务器响应\n" + operation.RemoteJson);
         else if (choice == "导出原请求") await ExportTextAsync("好多鱼保存请求.txt", JsonSerializer.Serialize(operation, new JsonSerializerOptions { WriteIndented = true }));
         else if (choice == "只读核对保存回执")
         {
             if (!connected) throw new InvalidOperationException("先连接原工作区后才能核对。原请求保留。");
-            var result = await api.ReconcileAsync(operation.Method, operation.Path, operation.BodyJson);
+            var result = await api.ReconcileAsync(operation.Method, operation.Path, operation.RequestBodyJson, NetworkToken);
             if (result.Outcome == ReconciliationOutcome.Confirmed && result.RemoteJson != null)
             {
                 await Engine.ConfirmReconciledAsync(operation.Id, result.RemoteJson);
@@ -103,6 +113,23 @@ public sealed partial class MainWindow
     }
     private async Task<string> ReadOperationEntityAsync(PendingOperation operation)
     {
+        if (operation.Path.StartsWith("/api/v1/ai-reports/", StringComparison.Ordinal))
+        {
+            var reportId = operation.Path.Split('/').Last();
+            for (var offset = 0; offset < 10000; offset += 100)
+            {
+                var reportPath = "/api/v1/ai-reports?offset=" + offset.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                var reportResult = await ReadBoundAsync(reportPath);
+                if (!reportResult.IsSuccess) throw new InvalidOperationException("汇报历史核对未完成。原请求保留。HTTP " + reportResult.StatusCode);
+                var reportData = Data(reportResult.Json);
+                if (reportData?["items"] is not JsonArray reportItems || reportData["has_more"] is not JsonValue more || !more.TryGetValue<bool>(out var hasMore))
+                    throw new InvalidDataException("汇报列表不完整，未确认原保存。");
+                var report = reportItems.OfType<JsonObject>().FirstOrDefault(r => Text(r, "id") == reportId);
+                if (report != null) return Obj(("data", report.DeepClone()), ("present_in_current_list", true)).ToJsonString();
+                if (!hasMore) return Obj(("data", null), ("present_in_current_list", false)).ToJsonString();
+            }
+            throw new InvalidOperationException("汇报核对超出100页读取上限。原请求保留，不能把未读页面当作不存在。");
+        }
         var path = operation.Path.EndsWith("/restore", StringComparison.Ordinal) ? operation.Path[..^8] : operation.Path;
         if (path.EndsWith("/template", StringComparison.Ordinal)) path = path[..^9];
         if (path.StartsWith("/api/v1/unscheduled-todos/", StringComparison.Ordinal))
@@ -215,6 +242,13 @@ public sealed partial class MainWindow
     }
     private void RecoveryPage()
     {
+        page.Children.Add(Button("选择本机离线工作区", ChooseOfflineProfileAsync));
+        page.Children.Add(Button("恢复本机身份配置备份", async () =>
+        {
+            if (!Confirm("显式恢复上一份身份配置？损坏原件保留，所有业务分区不删除，也不会联网发送任何请求。")) return;
+            settings = SettingsFile.RestoreBackup(root, protector);
+            await OpenOfflineProfileAsync(OfflineProfiles.InitialIdentity(settings));
+        }));
         page.Children.Add(Label("独立数据目录：" + root));
         page.Children.Add(Label("本候选版本使用 Windows 当前用户 DPAPI 加密。请在应用退出后保全整个 NativeWorkbench/v1 目录。加密副本通常只能由同一 Windows 用户解密；迁移电脑前请逐份导出需要的文字。"));
         page.Children.Add(Label("每次原子保存保留上一个 workspace.bin.bak。遇到损坏或未知格式会停止，不会清空。恢复会保留损坏原件。旧客户端和 Android 的数据目录均不会读取或覆盖。"));

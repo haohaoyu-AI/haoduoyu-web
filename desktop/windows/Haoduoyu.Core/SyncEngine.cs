@@ -319,14 +319,53 @@ public sealed class SyncEngine
         if (dependency == null) throw new InvalidDataException("依赖操作尚未确认，不能生成写入版本。");
         try
         {
-            var remote = JsonNode.Parse(dependency.RemoteJson ?? "null")?["data"] as JsonObject;
-            if (remote == null || remote["version"] is not JsonValue versionNode ||
-                !versionNode.TryGetValue<long>(out var version) || version < 1 || version >= 9_007_199_254_740_991L)
-                throw new InvalidDataException("依赖保存响应没有真实有效版本；已停止子操作且未发送请求。");
-            var route = operation.Path.Split('?', 2)[0].TrimEnd('/').Split('/');
-            var targetId = route[^1];
-            if (!Guid.TryParseExact(targetId, "D", out _) || remote["id"]?.ToString() != targetId)
-                throw new InvalidDataException("依赖保存响应与待修改记录不匹配；子操作未发送。");
+            var data = JsonNode.Parse(dependency.RemoteJson ?? "null")?["data"] as JsonObject
+                ?? throw new InvalidDataException("依赖保存响应没有实体数据；子操作未发送。");
+            var target = VersionTarget(operation.Path)
+                ?? throw new InvalidDataException("待修改记录路径或动作无法核验；子操作未发送。");
+            if (target.Action != null && operation.Method != "POST")
+                throw new InvalidDataException("依赖版本动作必须使用已核对的POST路径；子操作未发送。");
+            var parent = VersionTarget(dependency.Path);
+            if (parent != null && parent.Id != target.Id)
+                throw new InvalidDataException("依赖操作路径与待修改记录身份不匹配；子操作未发送。");
+            JsonObject remote;
+            if (parent is { Resource: "todos", Action: "template" })
+            {
+                if (dependency.Method != "POST" || target.Resource != "todos" || parent.Id != target.Id ||
+                    data["todo"] is not JsonObject linkedTodo || data["template"] is not JsonObject template ||
+                    JsonNode.Parse(dependency.RequestBodyJson) is not JsonObject linkBody ||
+                    linkBody["template_id"] is not JsonValue templateIdentity || !templateIdentity.TryGetValue<string>(out var templateId) ||
+                    !Guid.TryParseExact(templateId, "D", out _))
+                    throw new InvalidDataException("依赖响应不是已核对的待办常用关联结果；子操作未发送。");
+                _ = EntityVersion(linkedTodo, parent.Id);
+                var templateVersion = EntityVersion(template, templateId);
+                if (linkedTodo["template_id"] is not JsonValue linkedId || !linkedId.TryGetValue<string>(out var actualId) || actualId != templateId ||
+                    linkedTodo["template_version"] is not JsonValue linkedVersion || !linkedVersion.TryGetValue<long>(out var actualVersion) || actualVersion != templateVersion ||
+                    linkedTodo["template_active"] is not JsonValue active || !active.TryGetValue<bool>(out var isActive) || !isActive)
+                    throw new InvalidDataException("常用关联的身份、版本或启用状态不匹配；子操作未发送。");
+                remote = linkedTodo;
+            }
+            else if (data.ContainsKey("id"))
+            {
+                // Direct responses belong to their exact resource. Shared UUIDs do not make todo and unscheduled versions interchangeable.
+                var parentResource = parent?.Resource ?? dependency.Path.Split('?', 2)[0][8..].TrimEnd('/');
+                if (parentResource != target.Resource)
+                    throw new InvalidDataException("直接保存响应属于其他资源；子操作未发送。");
+                remote = data;
+            }
+            else
+            {
+                // Only the documented atomic unscheduled move can produce these two entity versions.
+                // Never recursively search arbitrary nested objects for a coincidentally matching UUID.
+                if (dependency.Method != "POST" || parent is not { Resource: "unscheduled-todos", Action: "move" or "complete-today" } ||
+                    parent.Id != target.Id || target.Resource is not ("todos" or "unscheduled-todos") ||
+                    data["source"] is not JsonObject source || data["todo"] is not JsonObject todo)
+                    throw new InvalidDataException("依赖响应不是已核对的未安排事项移动结果；子操作未发送。");
+                _ = EntityVersion(source, parent.Id);
+                _ = EntityVersion(todo, parent.Id);
+                remote = target.Resource == "todos" ? todo : source;
+            }
+            var version = EntityVersion(remote, target.Id);
             var body = JsonNode.Parse(operation.BodyJson) as JsonObject ?? throw new InvalidDataException("待发送内容不是对象。");
             if (body.ContainsKey("version")) throw new InvalidDataException("依赖版本请求不应自带猜测版本；子操作未发送。");
             body["version"] = version;
@@ -334,6 +373,31 @@ public sealed class SyncEngine
         }
         catch (Exception error) when (error is JsonException or InvalidOperationException or FormatException)
         { throw new InvalidDataException("依赖保存响应无法核验；子操作未发送。", error); }
+    }
+
+    private sealed record VersionRoute(string Resource, string Id, string? Action);
+    private static VersionRoute? VersionTarget(string path)
+    {
+        var route = path.Split('?', 2)[0];
+        if (!route.StartsWith("/api/v1/", StringComparison.Ordinal)) return null;
+        var segments = route[8..].Split('/');
+        if (segments.Length < 2) return null;
+        string? action = null;
+        var index = segments.Length - 1;
+        if (segments[index] is "move" or "complete-today" or "restore" or "template") { action = segments[index]; index--; }
+        if (index < 1 || !Guid.TryParseExact(segments[index], "D", out _)) return null;
+        var resource = string.Join('/', segments[..index]);
+        if (action is "move" or "complete-today" && resource != "unscheduled-todos") return null;
+        if (action == "template" && resource != "todos") return null;
+        return new VersionRoute(resource, segments[index], action);
+    }
+    private static long EntityVersion(JsonObject entity, string expectedId)
+    {
+        if (entity["id"] is not JsonValue identity || !identity.TryGetValue<string>(out var id) || id != expectedId ||
+            entity["version"] is not JsonValue versionNode || !versionNode.TryGetValue<long>(out var version) ||
+            version < 1 || version >= 9_007_199_254_740_991L)
+            throw new InvalidDataException("依赖保存响应的实体身份或真实版本无效；子操作未发送。");
+        return version;
     }
 
     private static void ParseJson(string json)

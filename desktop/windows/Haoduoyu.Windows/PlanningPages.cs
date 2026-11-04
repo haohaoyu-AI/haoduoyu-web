@@ -21,17 +21,17 @@ public sealed partial class MainWindow
         page.Children.Add(bar);
         var data = await ReadAsync("/api/v1/unscheduled-todos"); Missing(data);
         List(Rows(data?["items"]).Select(row =>
-            ((Flag(row, "completed") ? "✓ " : "○ ") + Text(row, "text"), "未安排日期 · v" + Version(row),
+            ((Flag(row, "completed") ? "✓ " : "○ ") + Text(row, "text"), "未安排日期 · v" + Version(row) + LocalSuffix(row),
                 (Func<Task>)(async () =>
                 {
+                    if (await HandlePendingRecordAsync(row)) return;
                     var path = "/api/v1/unscheduled-todos/" + ApiRequests.Uuid(Text(row, "id"));
                     var completeLabel = Flag(row, "completed") ? "标为未完成" : "标为完成（仍不安排日期）";
                     var day = Day;
                     var choice = Choose("未安排事项", Text(row, "text"), completeLabel, "安排到 " + day, "今天完成", "软删除");
                     if (choice == completeLabel)
                     {
-                        var command = ApiRequests.CompleteUnscheduledTodo(Text(row, "id"), Version(row), !Flag(row, "completed"));
-                        await QueueAsync(command.Method, command.Path, command.Body, path);
+                        await QueueVersionedRecordAsync("PATCH", path, Obj(("completed", !Flag(row, "completed"))), row, "future-after-create");
                     }
                     else if (choice == "安排到 " + day || choice == "今天完成")
                     {
@@ -40,11 +40,12 @@ public sealed partial class MainWindow
                         if (!Confirm(completeToday
                             ? "将该事项移到北京时间今天 " + target + " 并标为完成？未安排列表中的原项会软删除，原 ID 保留。"
                             : "将该事项安排到 " + target + "？未安排列表中的原项会软删除，原 ID 和当前完成状态保留。")) return;
-                        var command = ApiRequests.MoveUnscheduledTodo(Text(row, "id"), Version(row), target, completeToday);
-                        await QueueAsync(command.Method, command.Path, command.Body, path);
+                        await QueueVersionedRecordAsync("POST", path + (completeToday ? "/complete-today" : "/move"),
+                            Obj(("date", target)), row, "future-move");
                     }
                     else if (choice == "软删除" && Confirm("软删除此条未安排事项？本机保留删除请求和确认响应，可从本机删除记录恢复。"))
                     {
+                        if (await CancelUnsentCreationAsync(row)) return;
                         var command = ApiRequests.DeleteUnscheduledTodo(Text(row, "id"), Version(row));
                         await QueueAsync(command.Method, command.Path, command.Body, path);
                     }

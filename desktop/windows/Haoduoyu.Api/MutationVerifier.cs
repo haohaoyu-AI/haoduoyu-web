@@ -22,6 +22,15 @@ internal static class MutationVerifier
         }
         string? id = segments.Length > 4 ? segments[4] : body["id"]?.GetValue<string>();
         if (resource == "memos") id = segments[5];
+        if (resource == "ai-reports")
+        {
+            if (method != "PUT" || body.Count != 2 || body["author"] is not JsonValue author || !author.TryGetValue<string>(out var authorText) || string.IsNullOrWhiteSpace(authorText) ||
+                body["content"] is not JsonValue content || !content.TryGetValue<string>(out var contentText) || string.IsNullOrWhiteSpace(contentText) || response["id"]?.GetValue<string>() != id ||
+                !Equal(body["author"], response["author"], "author", "ai-reports") || !Equal(body["content"], response["content"], "content", "ai-reports") ||
+                !DateTimeOffset.TryParseExact(response["created_at"]?.GetValue<string>(), "yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out _)) Invalid();
+            return;
+        }
 
         if (resource == "unscheduled-todos" && segments.Length > 5 && segments[5] is "move" or "complete-today")
         {
@@ -142,6 +151,7 @@ internal static class MutationVerifier
         }
         if (expected is JsonValue first && actual is JsonValue second && first.TryGetValue<string>(out var text) && second.TryGetValue<string>(out var saved))
         {
+            if (resource == "ai-reports" && field is "author" or "content") return text.Replace("\r\n", "\n").Replace('\r', '\n').Trim() == saved;
             if (field == "name" && resource == "labels") return text.Trim().Normalize() == saved;
             if (field is "published_at" or "started_at" or "finished_at" or "as_of" or "collected_at" &&
                 DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var firstStamp) &&

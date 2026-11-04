@@ -1,0 +1,65 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "synthetic_only": true,
+  "append_only": true,
+  "paid_provider_calls": 0,
+  "external_fetch_attempts": 0,
+  "generated_at": "2026-11-04T17:37:55.788Z",
+  "fixture": "Existing harness temporary Miniflare D1 + exact compiled Worker.fetch; no production records, deletion or provider calls",
+  "samples": [
+    {
+      "name": "initial-complete-empty-page",
+      "method": "GET",
+      "path": "/api/v1/ai-reports?offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[],\"has_more\":false}}"
+    },
+    {
+      "name": "create-user-supplied-immutable-report",
+      "method": "PUT",
+      "path": "/api/v1/ai-reports/952280fd-51e0-41ad-ae6e-7060f2706a1f",
+      "body": {
+        "author": "  本次临时合成验证署名  ",
+        "content": "  2026-11-04\r\n本次工作：验证已有汇报的保存与重放，不调用任何写作模型。  "
+      },
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"952280fd-51e0-41ad-ae6e-7060f2706a1f\",\"author\":\"本次临时合成验证署名\",\"content\":\"2026-11-04\\n本次工作：验证已有汇报的保存与重放，不调用任何写作模型。\",\"created_at\":\"2026-11-04T17:37:55.555Z\"}}"
+    },
+    {
+      "name": "same-uuid-same-body-idempotent-replay",
+      "method": "PUT",
+      "path": "/api/v1/ai-reports/952280fd-51e0-41ad-ae6e-7060f2706a1f",
+      "body": {
+        "author": "  本次临时合成验证署名  ",
+        "content": "  2026-11-04\r\n本次工作：验证已有汇报的保存与重放，不调用任何写作模型。  "
+      },
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"952280fd-51e0-41ad-ae6e-7060f2706a1f\",\"author\":\"本次临时合成验证署名\",\"content\":\"2026-11-04\\n本次工作：验证已有汇报的保存与重放，不调用任何写作模型。\",\"created_at\":\"2026-11-04T17:37:55.555Z\"}}"
+    },
+    {
+      "name": "same-uuid-different-content-rejected",
+      "method": "PUT",
+      "path": "/api/v1/ai-reports/952280fd-51e0-41ad-ae6e-7060f2706a1f",
+      "body": {
+        "author": "  本次临时合成验证署名  ",
+        "content": "不同合成内容，不应覆盖原件"
+      },
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"IDEMPOTENCY_CONFLICT\",\"message\":\"汇报标识已用于其他内容\"},\"request_id\":\"8dcd3121-f05d-4748-876f-4abe853047c7\"}"
+    },
+    {
+      "name": "full-list-retains-original-content-and-hash",
+      "method": "GET",
+      "path": "/api/v1/ai-reports?offset=0",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[{\"id\":\"952280fd-51e0-41ad-ae6e-7060f2706a1f\",\"author\":\"本次临时合成验证署名\",\"content\":\"2026-11-04\\n本次工作：验证已有汇报的保存与重放，不调用任何写作模型。\",\"created_at\":\"2026-11-04T17:37:55.555Z\",\"content_hash\":\"e7b2312b94634dd5098b36cd37c78e7aab846912b1f2eaae61c61d004cefbb1f\"}],\"has_more\":false}}"
+    },
+    {
+      "name": "later-complete-empty-page",
+      "method": "GET",
+      "path": "/api/v1/ai-reports?offset=100",
+      "status": 200,
+      "response_json": "{\"data\":{\"items\":[],\"has_more\":false}}"
+    }
+  ]
+}

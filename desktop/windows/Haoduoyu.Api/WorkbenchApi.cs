@@ -27,6 +27,7 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
 {
     public static Uri ServiceOrigin { get; } = new("https://haoduoyu.xyz/");
     public const int MaximumResponseBytes = 1_048_576;
+    public const int MaximumAiReportsResponseBytes = 4_194_304;
     private readonly CookieContainer cookies = new();
     private readonly HttpClient client;
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -65,7 +66,9 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
         try
         {
             if (method != "GET") await CheckWriteScopeAsync(cancellationToken);
-            return await SendCoreAsync(method, path, bodyJson, operationId, cancellationToken);
+            var result = await SendCoreAsync(method, path, bodyJson, operationId, cancellationToken);
+            if (method == "GET" && result.IsSuccess) BusinessReadSchema.Validate(path, result);
+            return result;
         }
         finally { gate.Release(); }
     }
@@ -196,6 +199,7 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
         if (bodyJson is not null && Encoding.UTF8.GetByteCount(bodyJson) > MaximumResponseBytes)
             throw new ArgumentException("请求超过本机大小上限，请保留草稿。");
         using var request = new HttpRequestMessage(new HttpMethod(method), new Uri(ServiceOrigin, path));
+        var responseLimit = method == "GET" && path.Split('?')[0] == "/api/v1/ai-reports" ? MaximumAiReportsResponseBytes : MaximumResponseBytes;
         request.Headers.Add("Origin", ServiceOrigin.GetLeftPart(UriPartial.Authority));
         if (path.StartsWith("/api/v1/note-", StringComparison.Ordinal))
             request.Headers.Add("X-Note-Labels-Version", "3");
@@ -221,7 +225,7 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
                     catch (CookieException) { throw new ApiCallException("服务器会话响应无效。"); }
                 }
             }
-            if (response.Content.Headers.ContentLength > MaximumResponseBytes)
+            if (response.Content.Headers.ContentLength > responseLimit)
                 throw new ApiCallException("响应超过完整读取上限，未替换本机内容。", (int)response.StatusCode);
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var bytes = new MemoryStream();
@@ -230,7 +234,7 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
             {
                 var count = await stream.ReadAsync(buffer, cancellationToken);
                 if (count == 0) break;
-                if (bytes.Length + count > MaximumResponseBytes)
+                if (bytes.Length + count > responseLimit)
                     throw new ApiCallException("响应超过完整读取上限，未替换本机内容。", (int)response.StatusCode);
                 bytes.Write(buffer, 0, count);
             }

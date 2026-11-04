@@ -26,7 +26,7 @@ internal static class WorkerContract
             if (status is >= 200 and < 300)
             {
                 if (response["data"] is not (JsonObject or JsonArray)) throw new InvalidDataException(name + " lacks data");
-                if (method == "GET") reads++;
+                if (method == "GET") { BusinessReadSchema.Validate(resource, new Haoduoyu.Core.ApiResult(status, responseJson)); reads++; }
                 else
                 {
                     if (resource.StartsWith("/api/v1/review/", StringComparison.Ordinal)) ReviewMutationVerifier.ValidateRequest(method, bodyJson);

@@ -3,7 +3,9 @@
 This library calls the existing `https://haoduoyu.xyz` service from the native client.
 It does not render a remote website, deploy a Worker, install a browser, or migrate data.
 The production constructor fixes HTTPS, origin, allowed routes and methods, cookie handling,
-25-second timeout, no redirects, and a 1 MiB decompressed JSON response limit. Tests replace
+25-second timeout, no redirects, and a 1 MiB decompressed JSON response limit by default.
+Only the fixed-page `GET /ai-reports` route permits up to 4 MiB: 100 valid 16 KiB records
+can exceed 3 MiB after JSON escaping. Oversized responses are rejected whole. Tests replace
 the HTTP handler with an in-memory fake; they cannot change the service origin.
 
 The implementation was checked against source `c30a8a956715b6ea809db4b87c0f4fcddf8f61de`,
@@ -34,6 +36,13 @@ can reach the durable engine as confirmed. An incomplete or mismatched success r
 unknown; it does not clear the original intent. Timestamp, URL and text normalization
 follow the existing server contract where applicable.
 
+Successful business GETs pass `BusinessReadSchema` before reaching cache callers. It
+requires the route's explicit envelope, collection and identity/date/version fields;
+review entities must include their complete current contract fields. A partial 2xx,
+wrong collection type, unsafe version, or invalid identifier/date raises an IOException
+and cannot replace a previous cache. Valid empty collections remain valid. Unknown
+root, nested and pagination fields remain byte-for-byte in `ApiResult.Json`.
+
 Run the synthetic console suite:
 
 ```sh
@@ -45,3 +54,15 @@ the existing server's `stable` and `digest` functions over the exact fixture obj
 It catches differences in key sorting and JSON escaping. This suite verifies transport,
 scope checks and representative request shapes; it does not replace Windows UI, DPAPI,
 real TLS/cookie or production end-to-end acceptance.
+
+`Api.Tests` also links the same WPF-free `ReviewFormLogic.cs` that the native controls
+call. Captured fixtures in `Api.Tests/Fixtures` rebuild all eight review forms and check
+their real current-source Worker responses. See that directory's README for isolated
+generation and network-free replay commands.
+
+AI work reports use the existing append-only API: a user supplies the author and actual
+content, and a stable UUID identifies the immutable record. Same UUID and canonical body
+replays safely; different content conflicts. PUT responses are checked against the ID,
+author, content and creation timestamp without requiring the hash that this endpoint
+does not return on PUT. List reads require complete items and hashes. No provider or
+writing-model call, report editing, permanent deletion or invented detail GET is added.

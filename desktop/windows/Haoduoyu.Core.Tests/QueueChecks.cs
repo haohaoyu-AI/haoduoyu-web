@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Haoduoyu.Core;
 
 internal static class QueueChecks
@@ -22,7 +23,12 @@ internal static class QueueChecks
             ("Deferred todo versions come from real confirmed versions, including versions above one", PreparedRealVersion),
             ("Invalid parent entity/version proof blocks preparation without a child request", InvalidVersionProof),
             ("Prepared actual request bytes survive unknown results, restart and explicit retry", PreparedUnknownRestart),
-            ("Cancelling an unsent parent never dispatches its still-queued child", CancelledParent)
+            ("Cancelling an unsent parent never dispatches its still-queued child", CancelledParent),
+            ("Unscheduled create complete move chains derive distinct source and destination versions", CompositeVersionSources),
+            ("Composite version preparation rejects wrong paths resources identities and nested proofs", InvalidCompositeProof),
+            ("Composite-derived actual request stays immutable through restart and explicit retry", CompositePreparedRestart),
+            ("Todo create template association completion derives actual versions without changing link fields", TemplateVersionChain),
+            ("Template composite versions require exact active identity and version associations", InvalidTemplateVersionProof)
         };
         var failures = 0;
         foreach (var (name, run) in tests)
@@ -241,6 +247,161 @@ internal static class QueueChecks
         Check(api.Sent.Count == 0 && engine.Snapshot.Outbox.Single(x => x.Id == child.Id).Status == PendingStatus.Queued,
             "cancelled parent still allowed a dependent write");
     }
+    private static async Task CompositeVersionSources()
+    {
+        foreach (var action in new[] { "move", "complete-today" })
+        {
+            var id = Guid.NewGuid().ToString();
+            var create = new PendingOperation { ResourceKey = "future-create:" + id, Method = "POST", Path = "/api/v1/unscheduled-todos",
+                BodyJson = "{\"id\":\"" + id + "\",\"text\":\"合成未安排事项\"}" };
+            var complete = Derived("/api/v1/unscheduled-todos/" + id, "PATCH", "{\"completed\":true}", create.Id, "future-completed:" + id);
+            var move = Derived("/api/v1/unscheduled-todos/" + id + "/" + action, "POST", "{\"date\":\"2026-11-04\"}", complete.Id, "future-move:" + id);
+            var todo = Derived("/api/v1/todos/" + id, "PATCH", "{\"completed\":false}", move.Id, "moved-todo:" + id);
+            var restore = Derived("/api/v1/unscheduled-todos/" + id + "/restore", "POST", "{}", move.Id, "restore-source:" + id);
+            var replies = new Dictionary<string, string>
+            {
+                [create.Id] = DirectEntity(id, 1), [complete.Id] = DirectEntity(id, 2), [move.Id] = CompositeReceipt(id, 3, 8),
+                [todo.Id] = DirectEntity(id, 9), [restore.Id] = DirectEntity(id, 4)
+            };
+            var api = new Api { Reply = (operationId, _) => new ApiResult(200, replies[operationId]) };
+            var engine = await Engine(new Store(), api);
+            foreach (var operation in new[] { create, complete, move, todo, restore }) await engine.QueueAsync(operation);
+            var report = await engine.SyncAsync();
+            Check(report.Confirmed == 5 && api.Sent.Select(sent => sent.Id).SequenceEqual(new[] { create.Id, complete.Id, move.Id, todo.Id, restore.Id }),
+                "unscheduled dependency chain dispatched out of confirmation order");
+            Check(SentVersion(api, complete.Id) == 1 && SentVersion(api, move.Id) == 2 &&
+                SentVersion(api, todo.Id) == 8 && SentVersion(api, restore.Id) == 3,
+                "composite source and destination versions were guessed or interchanged");
+            Check(engine.Snapshot.Outbox.Single(operation => operation.Id == move.Id).BodyJson == "{\"date\":\"2026-11-04\"}",
+                "preparing an action-suffix route mutated its logical body");
+        }
+    }
+
+    private static async Task InvalidCompositeProof()
+    {
+        var id = Guid.NewGuid().ToString(); var other = Guid.NewGuid().ToString(); var valid = CompositeReceipt(id, 3, 8);
+        var cases = new List<(PendingOperation Parent, string ChildPath)>();
+        var parent = ConfirmedMove(id, "move", valid);
+        cases.Add((parent with { Path = "/api/v1/unscheduled-todos/" + other + "/move" }, "/api/v1/todos/" + id));
+        cases.Add((parent with { Path = "/api/v1/todos/" + id, Method = "PATCH" }, "/api/v1/todos/" + id));
+        cases.Add((parent with { Method = "PUT" }, "/api/v1/todos/" + id));
+        cases.Add((parent, "/api/v1/memos/notes/" + id));
+        cases.Add((parent, "/api/v1/todos/" + id + "/template"));
+        cases.Add((parent with { RemoteJson = "{\"data\":{\"unrelated\":{\"id\":\"" + id + "\",\"version\":8}}}" }, "/api/v1/todos/" + id));
+        foreach (var (branch, field, value) in new (string, string, JsonNode?)[]
+            { ("source", "id", JsonValue.Create(other)), ("todo", "id", JsonValue.Create(other)),
+              ("source", "version", JsonValue.Create(0)), ("todo", "version", JsonValue.Create("8")) })
+        {
+            var changed = JsonNode.Parse(valid)!.AsObject(); changed["data"]![branch]![field] = value;
+            cases.Add((parent with { RemoteJson = changed.ToJsonString() }, "/api/v1/todos/" + id));
+        }
+        foreach (var (proof, path) in cases)
+        {
+            var api = new Api(); var store = new Store { State = new WorkspaceState { ScopeId = "scope", LocalRevision = 1, Outbox = [proof] } };
+            var engine = await Engine(store, api); var child = Derived(path, "PATCH", "{\"completed\":false}", proof.Id, "child:" + Guid.NewGuid());
+            await engine.QueueAsync(child); var report = await engine.SyncAsync();
+            var actual = engine.Snapshot.Outbox.Single(operation => operation.Id == child.Id);
+            Check(api.Sent.Count == 0 && report.Blocked == 1 && actual.Status == PendingStatus.Blocked && actual.PreparedBodyJson == null,
+                "mismatched composite proof prepared or dispatched a child request");
+        }
+    }
+
+    private static async Task CompositePreparedRestart()
+    {
+        var id = Guid.NewGuid().ToString(); var parent = ConfirmedMove(id, "complete-today", CompositeReceipt(id, 3, 8));
+        var child = Derived("/api/v1/todos/" + id, "PATCH", "{\"completed\":false}", parent.Id, "moved-todo:" + id);
+        var store = new Store { State = new WorkspaceState { ScopeId = "scope", LocalRevision = 1, Outbox = [parent] } };
+        var api = new Api { ThrowOperationId = child.Id }; var engine = await Engine(store, api); await engine.QueueAsync(child); await engine.SyncAsync();
+        var actual = engine.Snapshot.Outbox.Single(operation => operation.Id == child.Id).RequestBodyJson;
+        Check(SentVersion(api, child.Id) == 8, "first composite request used the wrong branch version");
+        store.State = store.State with { Outbox = store.State.Outbox.Select(operation => operation.Id == parent.Id
+            ? operation with { RemoteJson = CompositeReceipt(id, 13, 18) } : operation).ToList() };
+        var restarted = await Engine(store, api); await restarted.RetryUnchangedAsync(child.Id, DirectEntity(id, 18));
+        api.ThrowOperationId = null; await restarted.SyncAsync();
+        Check(api.Sent.Where(sent => sent.Id == child.Id).All(sent => sent.Body == actual) &&
+            restarted.Snapshot.Outbox.Single(operation => operation.Id == child.Id).SendAttempts == 2,
+            "restarting regenerated an unknown request from newer composite versions");
+    }
+    private static async Task TemplateVersionChain()
+    {
+        var id = Guid.NewGuid().ToString(); var templateId = Guid.NewGuid().ToString(); var create = TodoCreate(id);
+        var linkBody = JsonSerializer.Serialize(new { date = "2026-11-04", template_id = templateId, template_version = 20 });
+        var link = Derived("/api/v1/todos/" + id + "/template", "POST", linkBody, create.Id, "link-template:" + id);
+        var complete = TodoCompletion(id, link.Id);
+        var api = new Api { Reply = (operationId, _) => new ApiResult(200, operationId == create.Id ? DirectEntity(id, 3) :
+            operationId == link.Id ? TemplateReceipt(id, templateId) : DirectEntity(id, 5)) };
+        var engine = await Engine(new Store(), api); await engine.QueueAsync(create); await engine.QueueAsync(link); await engine.QueueAsync(complete);
+        var result = await engine.SyncAsync();
+        Check(result.Confirmed == 3 && SentVersion(api, link.Id) == 3 && SentVersion(api, complete.Id) == 4,
+            "template association/completion versions were guessed or taken from template.version instead of todo.version");
+        using var actual = JsonDocument.Parse(api.Sent.Single(sent => sent.Id == link.Id).Body);
+        Check(actual.RootElement.GetProperty("template_id").GetString() == templateId &&
+            actual.RootElement.GetProperty("template_version").GetInt32() == 20 && actual.RootElement.GetProperty("date").GetString() == "2026-11-04" &&
+            engine.Snapshot.Outbox.Single(operation => operation.Id == link.Id).BodyJson == linkBody,
+            "version preparation changed the date/template fields or immutable logical request");
+    }
+
+    private static async Task InvalidTemplateVersionProof()
+    {
+        var id = Guid.NewGuid().ToString(); var templateId = Guid.NewGuid().ToString(); var otherId = Guid.NewGuid().ToString();
+        var response = TemplateReceipt(id, templateId);
+        var parent = new PendingOperation { Path = "/api/v1/todos/" + id + "/template", Method = "POST", ResourceKey = "confirmed-link:" + id,
+            BodyJson = JsonSerializer.Serialize(new { date = "2026-11-04", version = 3, template_id = templateId, template_version = 20 }),
+            Status = PendingStatus.Confirmed, RemoteJson = response, ConfirmedRevision = 1, SendAttempts = 1 };
+        var cases = new List<PendingOperation>
+        {
+            parent with { Path = "/api/v1/todos/" + otherId + "/template" }, parent with { Method = "PUT" },
+            parent with { RemoteJson = DirectEntity(id, 4) },
+            parent with { BodyJson = JsonSerializer.Serialize(new { template_id = otherId }) }
+        };
+        foreach (var (branch, field, value) in new (string, string, JsonNode?)[]
+            { ("todo", "id", JsonValue.Create(otherId)), ("template", "id", JsonValue.Create(otherId)),
+              ("todo", "template_id", JsonValue.Create(otherId)), ("todo", "template_version", JsonValue.Create(20)),
+              ("todo", "template_version", JsonValue.Create("21")), ("todo", "template_active", JsonValue.Create(false)),
+              ("template", "version", JsonValue.Create(0)) })
+        {
+            var changed = JsonNode.Parse(response)!.AsObject(); changed["data"]![branch]![field] = value;
+            cases.Add(parent with { RemoteJson = changed.ToJsonString() });
+        }
+        foreach (var proof in cases)
+        {
+            var api = new Api(); var store = new Store { State = new WorkspaceState { ScopeId = "scope", LocalRevision = 1, Outbox = [proof] } };
+            var engine = await Engine(store, api); var child = TodoCompletion(id, proof.Id); await engine.QueueAsync(child); var result = await engine.SyncAsync();
+            Check(result.Blocked == 1 && api.Sent.Count == 0 && engine.Snapshot.Outbox.Single(operation => operation.Id == child.Id).PreparedBodyJson == null,
+                "invalid template association proof dispatched a dependent request");
+        }
+        var wrongResource = await Engine(new Store { State = new WorkspaceState { ScopeId = "scope", LocalRevision = 1, Outbox = [parent] } }, new Api());
+        var wrongChild = Derived("/api/v1/unscheduled-todos/" + id, "PATCH", "{\"completed\":true}", parent.Id, "wrong-child");
+        await wrongResource.QueueAsync(wrongChild); await wrongResource.SyncAsync();
+        Check(wrongResource.Snapshot.Outbox.Single(operation => operation.Id == wrongChild.Id).Status == PendingStatus.Blocked,
+            "template todo proof was confused with an unscheduled record sharing its UUID");
+    }
+    private static string TemplateReceipt(string id, string templateId) => JsonSerializer.Serialize(new
+    {
+        data = new
+        {
+            todo = new { id, version = 4, text = "合成待办", date = "2026-11-04", completed = false, template_id = templateId, template_version = 21, template_active = true },
+            template = new { id = templateId, version = 21, text = "合成待办" }
+        }
+    });
+
+    private static PendingOperation Derived(string path, string method, string body, string parent, string key) => new()
+    { Path = path, Method = method, BodyJson = body, ResourceKey = key, DependencyIds = [parent], VersionFromDependencyId = parent };
+    private static PendingOperation ConfirmedMove(string id, string action, string response) => new()
+    { Path = "/api/v1/unscheduled-todos/" + id + "/" + action, Method = "POST", BodyJson = "{\"date\":\"2026-11-04\",\"version\":2}",
+        ResourceKey = "confirmed-move:" + id, Status = PendingStatus.Confirmed, RemoteJson = response, ConfirmedRevision = 1, SendAttempts = 1 };
+    private static string DirectEntity(string id, int version) => JsonSerializer.Serialize(new { data = new { id, version } });
+    private static string CompositeReceipt(string id, int sourceVersion, int todoVersion) => JsonSerializer.Serialize(new
+    {
+        data = new
+        {
+            source = new { id, version = sourceVersion, text = "合成未安排事项", completed = true, deleted_at = "2026-11-04T12:00:00Z" },
+            todo = new { id, version = todoVersion, text = "合成未安排事项", completed = true, date = "2026-11-04", deleted_at = (string?)null }
+        }
+    });
+    private static long SentVersion(Api api, string operationId)
+    { using var body = JsonDocument.Parse(api.Sent.First(sent => sent.Id == operationId).Body); return body.RootElement.GetProperty("version").GetInt64(); }
+
     private static PendingOperation TodoCreate(string id) => new()
     { ResourceKey = "/api/v1/todos/" + id, Method = "POST", Path = "/api/v1/todos", BodyJson = "{\"id\":\"" + id + "\",\"date\":\"2026-11-04\",\"text\":\"合成待办\"}" };
     private static PendingOperation TodoCompletion(string id, string parentId) => new()

@@ -9,7 +9,7 @@ namespace Haoduoyu.Windows;
 
 public sealed partial class MainWindow
 {
-    private string reviewAccount = "V字", reviewKind = "overview", reviewRange = "7d", reviewWeek = "this";
+    private string reviewAccount = "", reviewKind = "overview", reviewRange = "7d", reviewWeek = "this";
     private int reviewOffset;
     private long? reviewReadRevision;
     private static readonly Dictionary<string, string> ReviewKinds = new()
@@ -73,8 +73,7 @@ public sealed partial class MainWindow
             { reviewKind = selected; reviewOffset = 0; reviewReadRevision = null; await ContentReviewAsync(); }));
         }
         if (reviewKind == "overview") { await ReviewOverviewAsync(); return; }
-        if (reviewKind is "articles" or "snapshots")
-            page.Children.Add(Button("＋ " + (reviewKind == "articles" ? "录入复盘文章" : "录入指标快照"), () => ReviewDraftAsync("review:" + reviewKind)));
+        page.Children.Add(Button("＋ 新建" + ReviewKinds[reviewKind], () => ReviewDraftAsync("review:" + reviewKind)));
         var basePath = "/api/v1/review/" + reviewKind;
         var query = "offset=" + reviewOffset.ToString(CultureInfo.InvariantCulture);
         if (reviewAccount.Length > 0) query += "&account=" + Uri.EscapeDataString(reviewAccount);
@@ -99,7 +98,26 @@ public sealed partial class MainWindow
 
     private async Task ReviewOverviewAsync()
     {
-        if (reviewAccount.Length == 0) { page.Children.Add(Label("总览需要选择一个现有账号。可先在复盘文章清单查看账号名称。")); return; }
+        if (reviewAccount.Length == 0)
+        {
+            var records=await ReadAsync("/api/v1/review/articles?offset=0");
+            var accounts=Rows(records?["items"]).Select(row=>Text(row,"account")).Where(name=>name.Length>0).Distinct(StringComparer.Ordinal).ToArray();
+            if(accounts.Length>0)
+            {
+                page.Children.Add(Label("从实际读取的复盘文章中选择账号后查看总览。"));
+                var picker=new ComboBox {ItemsSource=accounts,MinWidth=220};page.Children.Add(picker);
+                page.Children.Add(Button("查看所选账号总览",async()=>
+                {
+                    if(picker.SelectedItem is not string selected)throw new InvalidOperationException("请先选择一个实际账号。");
+                    reviewAccount=selected;reviewOffset=0;reviewReadRevision=null;await ContentReviewAsync();
+                }));
+            }
+            else page.Children.Add(Label(records==null?"本机尚未保存可用复盘账号。连接后读取已有资料，或直接填写自己的原生记录。":"当前读取的复盘文章清单为空。填写真实账号和资料后即可开始复盘。"));
+            page.Children.Add(Button("录入复盘文章",()=>ReviewDraftAsync("review:articles")));
+            page.Children.Add(Button("新建复盘报告",()=>ReviewDraftAsync("review:reports")));
+            page.Children.Add(Button("新建写作规则库",()=>ReviewDraftAsync("review:playbooks")));
+            return;
+        }
         var choices = new WrapPanel(); page.Children.Add(choices);
         choices.Children.Add(Button(reviewWeek == "this" ? "● 本周" : "本周", async () => { reviewWeek = "this"; await ContentReviewAsync(); }));
         choices.Children.Add(Button(reviewWeek == "last" ? "● 上周" : "上周", async () => { reviewWeek = "last"; await ContentReviewAsync(); }));
@@ -138,12 +156,17 @@ public sealed partial class MainWindow
         await FlushEditorAsync(); page.Children.Clear(); heading.Text = ReviewKinds[kind]; page.Children.Add(heading);
         var actionsBar = new WrapPanel(); page.Children.Add(actionsBar);
         actionsBar.Children.Add(Button("返回内容复盘", ContentReviewAsync));
-        if (kind is "articles" or "snapshots") actionsBar.Children.Add(Button("编辑本机草稿", () => EditReviewAsync(kind, record, path)));
-        if (kind == "articles") actionsBar.Children.Add(Button("为此文章录入快照", () =>
+        actionsBar.Children.Add(Button("编辑本机草稿", async () =>
         {
+            if(await HandlePendingRecordAsync(record))return;
+            await EditReviewAsync(kind,record,path);
+        }));
+        if (kind == "articles") actionsBar.Children.Add(Button("为此文章录入快照", async () =>
+        {
+            if(await HandlePendingRecordAsync(record))return;
             var id = Guid.NewGuid().ToString();
-            return EditReviewAsync("snapshots", Obj(("id", id), ("article_id", Text(record, "id")), ("snapshot_date", Day), ("source", "manual")),
-                "/api/v1/review/snapshots/" + id);
+            var snapshot=ReviewFormLogic.New("snapshots",id,reviewAccount,Day);snapshot["article_id"]=Text(record,"id");
+            await EditReviewAsync("snapshots", snapshot,"/api/v1/review/snapshots/" + id);
         }));
         actionsBar.Children.Add(Button("导出文字副本", () => ExportTextAsync("好多鱼内容复盘.txt", ReviewPlainText(record))));
         var tree = new TreeView { Margin = new Thickness(0, 12, 0, 0), BorderThickness = new Thickness(0) };
@@ -181,23 +204,11 @@ public sealed partial class MainWindow
         };
     }
 
-    private sealed record ReviewField(string Name, string Label, string Type = "text", bool Required = false, bool Integer = false, double? Maximum = null);
-    private static ReviewField[] ReviewFields(string kind) => kind switch
-    {
-        "articles" => [new("account","账号名称",Required:true),new("title","文章标题",Required:true),new("url","公开文章链接"),new("published_at","发布时间（北京时间，可填日期或 YYYY-MM-DD HH:mm:ss）","time"),
-            new("platform_article_id","平台文章标识"),new("topic_category","题材分类"),new("title_pattern","标题形式"),new("sample_title","参考标题"),new("sample_url","参考文章链接"),
-            new("reference_article_id","关联的对标文章标识"),new("image_count","图片数量","number",Integer:true),new("source_chat","素材或讨论来源"),new("playbook_version_used","采用的规则库版本","number",Integer:true),
-            new("applied_rule_ids","采用的规则编号（每行一个，未知时留空）","lines")],
-        "snapshots" => [new("article_id","所属复盘文章","article",true),new("snapshot_date","快照日期","date",true),new("age_hours","发布后小时数","number",Integer:true),
-            new("source","数据来源","source"),new("impressions","展现量","number",Integer:true),new("fan_impressions","粉丝展现量","number",Integer:true),new("reads","阅读量","number",Integer:true),new("fan_reads","粉丝阅读量","number",Integer:true),
-            new("ctr","点击率（百分数）","number",Maximum:100),new("completion_rate","读完率（百分数）","number",Maximum:100),new("avg_read_seconds","平均阅读秒数","number"),
-            new("likes","点赞","number",Integer:true),new("comments","评论","number",Integer:true),new("reposts","转发","number",Integer:true),new("shares","分享","number",Integer:true),new("favorites","收藏","number",Integer:true),new("revenue","收益","number")],
-        _ => throw new InvalidOperationException("此类复盘记录当前提供阅读与导出。")
-    };
+    private static IReadOnlyList<ReviewFormField> ReviewFields(string kind) => ReviewFormLogic.Fields(kind);
     private Task ReviewDraftAsync(string kind, string? key = null)
     {
         var resource = kind.StartsWith("review:", StringComparison.Ordinal) ? kind[7..] : kind;
-        if (resource is not ("articles" or "snapshots")) throw new InvalidOperationException("草稿类型无法识别，原文保留。");
+        if (!ReviewFormLogic.Kinds.Contains(resource)) throw new InvalidOperationException("草稿类型无法识别，原文保留。");
         if (key != null && Engine.Snapshot.Drafts.TryGetValue(key, out var draft))
         {
             var saved = JsonNode.Parse(draft.Text)?.AsObject() ?? throw new InvalidDataException("复盘草稿格式损坏，原文件保留。");
@@ -205,8 +216,7 @@ public sealed partial class MainWindow
         }
         if (key != null) throw new InvalidOperationException("该本机草稿未找到，未创建替代记录。原分区文件保留。");
         var id = Guid.NewGuid().ToString();
-        var record = resource == "articles" ? Obj(("id", id), ("account", reviewAccount.Length == 0 ? "V字" : reviewAccount), ("platform", "toutiao")) :
-            Obj(("id", id), ("snapshot_date", Day), ("source", "manual"));
+        var record = ReviewFormLogic.New(resource, id, reviewAccount, Day);
         return EditReviewAsync(resource, record, "/api/v1/review/" + resource + "/" + id);
     }
     private async Task EditReviewAsync(string kind, JsonObject record, string key)
@@ -219,146 +229,137 @@ public sealed partial class MainWindow
             if (Text(saved,"kind") != "review:" + kind || Text(saved,"key") != key) throw new InvalidDataException("复盘草稿身份不一致。");
             original = saved["original"]!.DeepClone().AsObject(); values = saved["values"]!.DeepClone().AsObject();
         }
-        var articleOptions = new List<ReviewArticleChoice>();
-        if (kind == "snapshots")
-        {
-            var articles = await ReadAsync("/api/v1/review/articles?offset=0");
-            articleOptions.AddRange(Rows(articles?["items"]).Select(r => new ReviewArticleChoice(Text(r,"id"),Text(r,"title"))));
-            var selected = Text(values,"article_id");
-            if (selected.Length > 0 && articleOptions.All(a=>a.Id != selected)) articleOptions.Add(new ReviewArticleChoice(selected,"原记录所属文章（" + selected[..Math.Min(8,selected.Length)] + "）"));
-        }
-        page.Children.Clear(); heading.Text = kind == "articles" ? "复盘文章" : "指标快照"; page.Children.Add(heading);
-        page.Children.Add(Label("先保存在本机加密草稿，点击保存才会排队。未知指标留空；真实为零才填写 0。现有未编辑的分析、规则关联和嵌套数据会保留。"));
+        var options = await LoadReviewOptionsAsync(ReviewFields(kind));
+        page.Children.Clear(); heading.Text = ReviewKinds[kind]; page.Children.Add(heading);
+        page.Children.Add(Label("先保存到本机加密草稿，点击保存才会排队。未知指标留空，真实为零才填 0；关联从现有资料选择。所有表格行和未编辑的嵌套资料都会保留。"));
         var hash = Text(original,"content_hash");
         if (hash.Length > 0) page.Children.Add(Label("本机草稿保留原读取版本：" + hash[..Math.Min(12,hash.Length)] + "。服务器出现更新时会停止并保留两份内容。"));
-        var controls = new Dictionary<string, Func<string>>(); var generation = 0;
+        var controls = new Dictionary<string, Func<JsonNode?>>();
+        var pendingControls = new Dictionary<string,Func<JsonObject?>>(); var generation = 0;
+        void Changed() { generation++; draftDirty=true; draftTimer.Stop(); draftTimer.Start(); }
         foreach (var field in ReviewFields(kind))
         {
             page.Children.Add(Label(field.Label + (field.Required ? " *" : "")));
-            if (field.Type == "article")
+            if (field.Type is "strings" or "references" or "rules" or "verdicts" or "findings" or "metrics" or "object" or "structure" or "notice")
             {
-                var combo = new ComboBox { ItemsSource = articleOptions, DisplayMemberPath="Title", SelectedValuePath="Id", SelectedValue=Text(values,field.Name) };
-                controls[field.Name]=()=>combo.SelectedValue?.ToString()??"";
-                combo.SelectionChanged+=(_,_)=>Changed(); page.Children.Add(combo);
+                var editor=BuildReviewStructuredControl(field,values[field.Name],options,Changed,values["__native_pending_"+field.Name] as JsonObject);
+                page.Children.Add(editor.View);controls[field.Name]=editor.Read;pendingControls[field.Name]=editor.Pending;
             }
-            else if (field.Type == "date")
+            else if(field.Type=="reference")
             {
-                var picker=new DatePicker { SelectedDate=DateTime.TryParseExact(Text(values,field.Name),"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out var selected)?selected:null, Margin=new Thickness(0,4,0,12) };
-                controls[field.Name]=()=>picker.SelectedDate?.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture)??"";
-                picker.SelectedDateChanged+=(_,_)=>Changed(); page.Children.Add(picker);
+                var selected=Text(values,field.Name);
+                var references=options.GetValueOrDefault(field.ReferenceKind??"",[]).ToList();
+                if(selected.Length>0&&references.All(r=>r.Id!=selected))references.Add(new(selected,"原关联记录（"+selected[..Math.Min(8,selected.Length)]+"）"));
+                references.Insert(0,new("","未选择"));
+                var combo=new ComboBox {ItemsSource=references,DisplayMemberPath="Title",SelectedValuePath="Id",SelectedValue=selected};
+                controls[field.Name]=()=>JsonValue.Create(combo.SelectedValue?.ToString()??"");combo.SelectionChanged+=(_,_)=>Changed();page.Children.Add(combo);
             }
-            else if (field.Type == "source")
+            else if(field.Type is "choice" or "boolean")
             {
-                var combo = new ComboBox { ItemsSource=new[] {new ReviewArticleChoice("manual","手工录入"),new ReviewArticleChoice("toutiao_excel","头条导出表")},DisplayMemberPath="Title",SelectedValuePath="Id",SelectedValue=Text(values,field.Name) };
-                controls[field.Name]=()=>combo.SelectedValue?.ToString()??"";combo.SelectionChanged+=(_,_)=>Changed();page.Children.Add(combo);
+                var choices=field.Type=="boolean"?new[]{"true","false"}:field.Choices??[];
+                if(kind=="reports"&&field.Name=="period_type"&&Text(original,"period_type")!="three_day")choices=choices.Where(value=>value!="three_day").ToArray();
+                var rows=new[]{new ReviewArticleChoice("","未选择")}.Concat(choices.Select(value=>new ReviewArticleChoice(value,ReviewChoiceLabel(value)))).ToArray();
+                var combo=new ComboBox {ItemsSource=rows,DisplayMemberPath="Title",SelectedValuePath="Id",SelectedValue=Text(values,field.Name).ToLowerInvariant()};
+                controls[field.Name]=()=>JsonValue.Create(combo.SelectedValue?.ToString()??"");combo.SelectionChanged+=(_,_)=>Changed();page.Children.Add(combo);
+            }
+            else if(field.Type=="date")
+            {
+                var picker=new DatePicker {SelectedDate=DateTime.TryParseExact(Text(values,field.Name),"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out var selected)?selected:null,Margin=new Thickness(0,4,0,12)};
+                var readDate=ReviewDateInput(picker,Text(values,field.Name),Changed);
+                controls[field.Name]=()=>JsonValue.Create(readDate());page.Children.Add(picker);
             }
             else
             {
-                var text=field.Type=="lines"&&values[field.Name] is JsonArray lines?string.Join("\n",lines.Select(ReviewValue)):field.Type=="time"?ReviewTimeDisplay(values[field.Name]):Text(values,field.Name);
-                var box=new TextBox { Text=text, AcceptsReturn=field.Type=="lines",TextWrapping=TextWrapping.Wrap,MinHeight=field.Type=="lines"?90:40,MaxHeight=220,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
-                controls[field.Name]=()=>box.Text;box.TextChanged+=(_,_)=>Changed();page.Children.Add(box);
+                var text=field.Type=="time"?ReviewTimeDisplay(values[field.Name]):Text(values,field.Name);
+                var multiline=field.Type is "content" or "longtext";
+                var box=new TextBox {Text=text,AcceptsReturn=multiline,TextWrapping=TextWrapping.Wrap,MinHeight=multiline?150:40,MaxHeight=420,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};
+                controls[field.Name]=()=>JsonValue.Create(box.Text);box.TextChanged+=(_,_)=>Changed();page.Children.Add(box);
+                if(field.Type=="time")page.Children.Add(Label("可填日期或北京时间 YYYY-MM-DD HH:mm:ss；留空表示未取得。"));
             }
         }
-        void Changed(){generation++;draftDirty=true;draftTimer.Stop();draftTimer.Start();}
         JsonObject Current()
         {
             var current=(JsonObject)values.DeepClone();
-            foreach(var (name,read) in controls)
+            foreach(var(name,read)in controls)current[name]=read()?.DeepClone();
+            foreach(var(name,read)in pendingControls)
             {
-                var text=read();
-                try { _ = new UTF8Encoding(false,true).GetByteCount(text); }
-                catch(EncoderFallbackException) { throw new InvalidOperationException("输入中存在不完整的 Unicode 字符，请保留当前窗口并完成输入后再保存。"); }
-                current[name]=text;
+                var pending=read();var property="__native_pending_"+name;
+                if(pending==null)current.Remove(property);else current[property]=pending.DeepClone();
             }
-            return current;
+            // Reject incomplete UTF-16 before the JSON serializer could replace it in a durable draft.
+            ReviewEnsureUnicode(current);return current;
         }
         saveEditor=async()=>
         {
             var captured=generation;var value=Current();
             var saved=Obj(("kind","review:"+kind),("key",key),("original",original.DeepClone()),("values",value));
-            await SaveLocalDraftAsync(new LocalDraft {Key=key,Text=saved.ToJsonString(),Title=Text(value,"title") is {Length:>0}title?title:"指标快照 · "+Text(value,"snapshot_date"),BaseVersion=0});
+            var title=Text(value,"title");if(title.Length==0)title=Text(value,"name");if(title.Length==0)title=ReviewKinds[kind]+" · "+Text(value,"snapshot_date")+Text(value,"period_start")+Text(value,"observed_on");
+            await SaveLocalDraftAsync(new LocalDraft {Key=key,Text=saved.ToJsonString(),Title=title,BaseVersion=0});
             draftDirty=generation!=captured;if(draftDirty){draftTimer.Stop();draftTimer.Start();}
         };
         var bar=new WrapPanel {Margin=new Thickness(0,12,0,0)};page.Children.Add(bar);
         bar.Children.Add(Button(connected?"保存并同步":"存入本机待同步队列",async()=>
         {
-            var command=BuildReviewSave(kind,original,Current());draftDirty=true;
+            var value=Current();var command=BuildReviewSave(kind,original,value);draftDirty=true;
+            reviewKind=kind;reviewOffset=0;reviewReadRevision=null;currentPage="内容复盘";
+            if(Text(value,"account") is {Length:>0} account)reviewAccount=account;
             await QueueAsync(command.Method,command.Path,command.Body,key);
         }));
         bar.Children.Add(Button("保存本机草稿",async()=>{draftDirty=true;await SaveDraftSafelyAsync();}));
-        bar.Children.Add(Button("导出文字",()=>ExportTextAsync("好多鱼复盘草稿.txt",string.Join("\n\n",ReviewFields(kind).Select(f=>f.Label+"\n"+controls[f.Name]())))));
+        bar.Children.Add(Button("导出文字",()=>ExportTextAsync("好多鱼复盘草稿.txt",ReviewPlainText(Current()))));
         bar.Children.Add(Button("返回内容复盘",ContentReviewAsync));
-        draftDirty=true;await saveEditor();
+        page.Children.Add(bar);draftDirty=true;await saveEditor();
+    }
+    private async Task<Dictionary<string,List<ReviewArticleChoice>>> LoadReviewOptionsAsync(IReadOnlyList<ReviewFormField> fields)
+    {
+        var needed=new HashSet<string>(fields.Where(f=>f.ReferenceKind!=null).Select(f=>f.ReferenceKind!),StringComparer.Ordinal);
+        if(fields.Any(f=>f.Type is "rules" or "verdicts"))needed.Add("articles");
+        if(fields.Any(f=>f.Type is "rules" or "findings"))needed.Add("rules");
+        var result=new Dictionary<string,List<ReviewArticleChoice>>(StringComparer.Ordinal);
+        foreach(var target in needed)
+        {
+            var resource=target=="rules"?"playbooks":target;var choices=new List<ReviewArticleChoice>();long? revision=null;
+            for(var offset=0;offset<10000;offset+=100)
+            {
+                var path="/api/v1/review/"+resource+"?offset="+offset.ToString(CultureInfo.InvariantCulture);
+                if(reviewAccount.Length>0)path+="&account="+Uri.EscapeDataString(reviewAccount);
+                if(revision.HasValue)path+="&read_revision="+revision.Value.ToString(CultureInfo.InvariantCulture);
+                var data=await ReadAsync(path);if(data==null)break;
+                if(data["read_revision"] is JsonValue rev&&rev.TryGetValue<long>(out var number))revision=number;
+                foreach(var row in Rows(data["items"]))
+                {
+                    if(target=="rules")foreach(var rule in Rows(row["rules"]))
+                    {
+                        var ruleId=Text(rule,"rule_id");if(choices.All(c=>c.Id!=ruleId))choices.Add(new(ruleId,ruleId+" · "+Text(rule,"text")));
+                    }
+                    else choices.Add(new(Text(row,"id"),(Text(row,"title") is {Length:>0}title?title:Text(row,"name"))+" · "+Text(row,"account")));
+                }
+                if(!Flag(data,"has_more"))break;
+                if(offset==9900)throw new InvalidOperationException("关联资料超过本次完整选择上限，已保留草稿。请按具体账号筛选后重新打开。");
+            }
+            result[target]=choices;
+        }
+        return result;
+    }
+    private static string ReviewChoiceLabel(string value)=>value switch
+    {
+        "daily"=>"日复盘","weekly"=>"周复盘","three_day"=>"历史三日复盘","draft"=>"草稿","active"=>"使用中","archived"=>"已归档",
+        "insight"=>"观察洞见","decision"=>"决策","diagnosis"=>"诊断","account_health"=>"账号健康","normal"=>"正常","manual"=>"手工录入","toutiao_excel"=>"头条导出表","true"=>"是","false"=>"否",_=>value
+    };
+    private static void ReviewEnsureUnicode(JsonNode? value)
+    {
+        if(value is JsonValue scalar&&scalar.TryGetValue<string>(out var text))
+        {try{_=new UTF8Encoding(false,true).GetByteCount(text);}catch(EncoderFallbackException){throw new InvalidOperationException("输入中存在不完整的Unicode字符，请保持窗口并完成输入后再保存。");}}
+        else if(value is JsonObject obj)foreach(var(_,child)in obj)ReviewEnsureUnicode(child);
+        else if(value is JsonArray array)foreach(var child in array)ReviewEnsureUnicode(child);
     }
     private sealed record ReviewArticleChoice(string Id,string Title);
-    private static string ReviewTimeDisplay(JsonNode? value)
-    {
-        var text=value?.ToString()??"";
-        if(text.Length==10)return text;
-        return DateTimeOffset.TryParse(text,CultureInfo.InvariantCulture,DateTimeStyles.None,out var stamp)?stamp.ToOffset(TimeSpan.FromHours(8)).ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture):text;
-    }
+    private static string ReviewTimeDisplay(JsonNode? value) => ReviewFormLogic.TimeDisplay(value);
     private sealed record ReviewSave(string Method,string Path,JsonObject Body);
     private static ReviewSave BuildReviewSave(string kind,JsonObject original,JsonObject values)
     {
-        var id=Text(original,"id");if(!Guid.TryParseExact(id,"D",out _))throw new InvalidOperationException("本机记录缺少稳定标识，原稿保留。");
-        var body=new JsonObject();
-        var originalHash=Text(original,"content_hash");
-        if(originalHash.Length>0&&(originalHash.Length!=64||originalHash.Any(c=>!char.IsAsciiHexDigitLower(c))))throw new InvalidOperationException("原记录校验标识无效，已保留本机稿，请重新读取完整详情。");
-        var editing=originalHash.Length==64;
-        if(editing)body["expected_hash"]=Text(original,"content_hash");
-        else if(kind=="articles")body["platform"]="toutiao";
-        foreach(var field in ReviewFields(kind))
-        {
-            var fieldText = field.Type == "lines" && values[field.Name] is JsonArray array ? string.Join("\n",array.Select(ReviewValue)) : Text(values,field.Name);
-            var raw=fieldText.Replace("\r\n","\n").Replace('\r','\n').Trim();
-            var maximumBytes=field.Name switch { "account"=>120,"title" or "sample_title"=>2000,"platform_article_id" or "topic_category"=>240,"title_pattern"=>1000,_=>4096 };
-            int length;
-            try { length=new UTF8Encoding(false,true).GetByteCount(raw); }
-            catch(EncoderFallbackException) { throw new InvalidOperationException(field.Label+"含不完整的Unicode字符，请保留草稿后完成输入。"); }
-            if(raw.Any(ch=>ch<32&&ch is not '\n' and not '\t'||ch==127)||length>maximumBytes)throw new InvalidOperationException(field.Label+"内容过长或包含无效字符，原稿保留。");
-            if(field.Required&&raw.Length==0)throw new InvalidOperationException("请填写"+field.Label+"。");
-            JsonNode? value;
-            if(raw.Length==0)value=null;
-            else if(field.Type=="number")
-            {
-                if(!decimal.TryParse(raw,NumberStyles.AllowDecimalPoint,CultureInfo.InvariantCulture,out var number)||number<0||number>9007199254740991M||field.Integer&&decimal.Truncate(number)!=number||field.Maximum.HasValue&&number>(decimal)field.Maximum.Value)
-                    throw new InvalidOperationException(field.Label+"须为有效非负数；未知时留空。");
-                value=field.Integer?JsonValue.Create((long)number):JsonValue.Create(number);
-                if(field.Name=="playbook_version_used"&&number<1)throw new InvalidOperationException("规则库版本应从 1 开始。");
-            }
-            else if(field.Type=="date")
-            {
-                if(!DateOnly.TryParseExact(raw,"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out var date))throw new InvalidOperationException("请选择有效快照日期。");
-                value=JsonValue.Create(date.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture));
-            }
-            else if(field.Type=="time")
-            {
-                if(raw==ReviewTimeDisplay(original[field.Name])||raw==Text(original,field.Name))value=original[field.Name]?.DeepClone();
-                else if(DateOnly.TryParseExact(raw,"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out var date))value=JsonValue.Create(date.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture));
-                else if(DateTime.TryParseExact(raw,new[]{"yyyy-MM-dd HH:mm","yyyy-MM-dd HH:mm:ss"},CultureInfo.InvariantCulture,DateTimeStyles.None,out var local))value=JsonValue.Create(new DateTimeOffset(DateTime.SpecifyKind(local,DateTimeKind.Unspecified),TimeSpan.FromHours(8)).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'",CultureInfo.InvariantCulture));
-                else throw new InvalidOperationException("发布时间请填有效日期或北京时间 YYYY-MM-DD HH:mm:ss。");
-            }
-            else if(field.Type=="lines")
-            {
-                var lines=raw.Split('\n',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
-                if(lines.Distinct(StringComparer.Ordinal).Count()!=lines.Length||lines.Any(line=>Encoding.UTF8.GetByteCount(line)>120))throw new InvalidOperationException("规则编号不可重复，每条最多 120 字节。");
-                value=new JsonArray(lines.Select(line=>(JsonNode?)JsonValue.Create(line)).ToArray());
-            }
-            else
-            {
-                if(field.Name is "url" or "sample_url")
-                {
-                    if(!Uri.TryCreate(raw,UriKind.Absolute,out var url)||url.Scheme is not("http" or "https")||url.UserInfo.Length>0)throw new InvalidOperationException("请填写不含账号口令的HTTP/HTTPS链接。");
-                }
-                if(field.Name is "article_id" or "reference_article_id"&&!Guid.TryParseExact(raw,"D",out _))throw new InvalidOperationException("关联文章标识无效，请重新选择。");
-                if(field.Type=="source"&&raw is not("manual" or "toutiao_excel"))throw new InvalidOperationException("请选择已支持的数据来源。");
-                value=JsonValue.Create(raw);
-            }
-            body[field.Name]=value;
-        }
-        // PATCH changes only native form fields, retaining all unexposed nested analytics and provider data.
-        // PUT for new records uses the server defaults for nullable nested fields.
-        return new(editing?"PATCH":"PUT","/api/v1/review/"+kind+"/"+id,body);
+        var command = ReviewFormLogic.Build(kind, original, values);
+        return new(command.Method, command.Path, command.Body);
     }
 
     private async Task RebaseReviewDraftsAsync()
@@ -367,12 +368,13 @@ public sealed partial class MainWindow
         {
             if(!Engine.Snapshot.Drafts.TryGetValue(operation.ResourceKey,out var draft))continue;
             var saved=JsonNode.Parse(draft.Text)?.AsObject();var kind=Text(saved,"kind");
-            if(kind is not("review:articles" or "review:snapshots")||saved?["original"] is not JsonObject original||saved["values"] is not JsonObject values)continue;
+            if(!kind.StartsWith("review:", StringComparison.Ordinal)||!ReviewFormLogic.Kinds.Contains(kind[7..])||saved?["original"] is not JsonObject original||saved["values"] is not JsonObject values)continue;
             ReviewSave command;
             try { command=BuildReviewSave(kind[7..],original,values); }
             catch(Exception error) when(error is InvalidOperationException or ArgumentException or FormatException or OverflowException)
             { continue; } // A later invalid draft is retained and must not prevent confirmation of other records.
-            if(command.Method!=operation.Method||command.Path!=operation.Path||!JsonNode.DeepEquals(command.Body,JsonNode.Parse(operation.BodyJson)))continue;
+            var queuedBody=JsonNode.Parse(operation.BodyJson)?.AsObject();
+            if(command.Method!=operation.Method||command.Path!=operation.Path||queuedBody==null||Text(original,"content_hash")!=Text(queuedBody,"expected_hash"))continue;
             if(Data(operation.RemoteJson!) is not JsonObject remote||Text(remote,"id")!=Text(original,"id")||Text(remote,"content_hash").Length!=64)continue;
             saved["original"]=remote.DeepClone();
             await SaveLocalDraftAsync(draft with {Text=saved.ToJsonString()});

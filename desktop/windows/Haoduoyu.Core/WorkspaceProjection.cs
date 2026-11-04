@@ -114,7 +114,7 @@ public static class WorkspaceProjection
             segments.Length >= 3 && segments[1] is "groups" or "notes" ? new(segments[1] == "groups" ? "memo-group" : "memo-note", segments.Length > 3 ? segments[3] : "detail", segments[2], query) : new("", "unsupported", "", query);
         if (resource == "review") return segments.Length >= 2 && segments[1] != "overview" ?
             new("review:" + segments[1], segments.Length > 2 ? segments.Length > 3 ? segments[3] : "detail" : "list", segments.Length > 2 ? segments[2] : "", query) : new("", "unsupported", "", query);
-        var kind = resource switch { "todos" => "todo", "unscheduled-todos" => "unscheduled", "todo-templates" => "template", "todo-preferences" => "preference", "note-entries" => "note", "daily-notes" => "legacy", "work-reminders" => "reminder", "articles" => "article", _ => "" };
+        var kind = resource switch { "todos" => "todo", "unscheduled-todos" => "unscheduled", "todo-templates" => "template", "todo-preferences" => "preference", "note-entries" => "note", "daily-notes" => "legacy", "work-reminders" => "reminder", "articles" => "article", "ai-reports" => "ai-report", _ => "" };
         if (kind.Length == 0) return new("", "unsupported", "", query);
         if (kind == "preference") mode = "singleton";
         if (kind == "legacy" && segments.Length == 1) { mode = "detail"; id = query.GetValueOrDefault("date", ""); }
@@ -141,6 +141,7 @@ public static class WorkspaceProjection
         void Add(string kind, JsonObject row, string? forcedId = null)
         {
             if (kind is not ("legacy" or "preference") && !ValidIdentity(row, kind == "label" ? "name" : "id")) return;
+            if (kind == "ai-report" && !FullReportRow(row)) return;
             var id = forcedId ?? Text(row, kind == "label" ? "name" : "id");
             if (kind == "legacy") id = Category(read) + ":" + (Text(row, "date") is { Length: > 0 } day ? day : read.Id);
             if (kind == "preference") id = "preferences";
@@ -200,6 +201,8 @@ public static class WorkspaceProjection
         if (read.Kind == "note") return ValidCollection(data?["entries"]) && Text(data, "date") == read.Q("date") && Text(data, "category") == Category(read);
         if (read.Kind is "todo" or "reminder") return ValidCollection(data?["items"]) && Text(data, "date") == read.Q("date");
         if (read.Kind is "unscheduled" or "template") return ValidCollection(data?["items"]);
+        if (read.Kind == "ai-report") return data != null && ValidCollection(data["items"]) && Rows(data["items"]).All(FullReportRow) &&
+            (Flag(envelope, "_local_complete") || Number(read.Q("offset")) == 0 && data.ContainsKey("has_more") && !Flag(data, "has_more"));
         if (read.Kind.StartsWith("review:", StringComparison.Ordinal)) return data != null && ValidCollection(data["items"]) &&
             (Flag(envelope, "_local_complete") || Number(read.Q("offset")) == 0 && Number(read.Q("page")) <= 1 && data.ContainsKey("has_more") && !Flag(data, "has_more"));
         return read.Kind == "article" && (ValidCollection(envelope["data"]) && read.Query.Count == 0 ||
@@ -242,6 +245,8 @@ public static class WorkspaceProjection
     {
         var route = Parse(operation.Path);
         if (route.Mode == "unsupported" || JsonNode.Parse(operation.RequestBodyJson) is not JsonObject body) return null;
+        // Reports are immutable creates. This client deliberately exposes no report delete or same-ID update action.
+        if (route.Kind == "ai-report" && (operation.Method != "PUT" || route.Mode != "detail" || !Guid.TryParseExact(route.Id, "D", out _))) return null;
         var id = route.Id;
         if (route.Kind == "preference") id = "preferences";
         else if (route.Kind == "label") id = Text(body, "name").Normalize(NormalizationForm.FormC);
@@ -264,6 +269,21 @@ public static class WorkspaceProjection
             if (Version(baseline) is { } current && Version(remote) is { } saved && current > saved) return;
             if (Text(baseline, "content_hash") is { Length: > 0 } currentHash && Text(remote, "content_hash") is { Length: > 0 } savedHash && currentHash != savedHash &&
                 Text(command.Body, "expected_hash") != currentHash && Version(baseline) == null) return;
+            if (command.Kind == "ai-report" && (baseline != null && !Flag(baseline, "_local_new") &&
+                (!SameReportBody(command.Body, baseline) || Text(baseline, "created_at").Length > 0 && Text(baseline, "created_at") != Text(remote, "created_at")) || !FullReportReceipt(command, remote)))
+            {
+                // An unmatched raw response is not proof that this immutable create succeeded with the requested content.
+                // Keep known server text; otherwise retain a clearly incomplete local preview and both originals.
+                var uncertain = baseline == null ? Identity(command.Kind, id, command.Body, command.Route) : (JsonObject)baseline.DeepClone();
+                if (baseline == null) foreach (var field in new[] { "author", "content" }) uncertain[field] = command.Body[field]?.DeepClone();
+                uncertain.Remove("_local_confirmed_preview");
+                uncertain["_local_incomplete"] = true; uncertain["_local_receipt_only"] = true;
+                uncertain["_local_status"] = operation.Status.ToString(); uncertain["_operation_id"] = operation.Id;
+                uncertain["_local_request"] = command.Body.DeepClone(); uncertain["_local_remote"] = remote.DeepClone();
+                uncertain["_local_immutable_conflict"] = baseline != null;
+                entities[key] = new(command.Kind, id, uncertain, existing?.Revision ?? 0);
+                return;
+            }
             var confirmed = baseline == null ? Identity(command.Kind, id, command.Body, command.Route) : (JsonObject)baseline.DeepClone();
             foreach (var field in confirmed.Select(kv => kv.Key).Where(k => k.StartsWith("_local_", StringComparison.Ordinal) || k == "_operation_id").ToArray()) confirmed.Remove(field);
             foreach (var (name, value) in command.Body)
@@ -279,13 +299,29 @@ public static class WorkspaceProjection
                 confirmed["_local_status"] = operation.Status.ToString(); confirmed["_operation_id"] = operation.Id;
                 confirmed["_local_request"] = command.Body.DeepClone(); confirmed["_local_remote"] = remote.DeepClone();
             }
+            if (command.Kind == "ai-report")
+            {
+                confirmed["_local_confirmed_preview"] = true; confirmed["_local_status"] = operation.Status.ToString();
+                confirmed["_operation_id"] = operation.Id; confirmed["_local_request"] = command.Body.DeepClone();
+            }
             entities[key] = new(command.Kind, id, confirmed, operation.ConfirmedRevision);
+            return;
+        }
+        if (command.Kind == "ai-report" && baseline != null && !Flag(baseline, "_local_new") && !SameReportBody(command.Body, baseline))
+        {
+            var immutable = (JsonObject)baseline.DeepClone();
+            immutable.Remove("_local_confirmed_preview");
+            immutable["_local_status"] = operation.Status.ToString(); immutable["_operation_id"] = operation.Id;
+            immutable["_local_request"] = command.Body.DeepClone(); immutable["_local_remote"] = baseline.DeepClone();
+            immutable["_local_immutable_conflict"] = true; immutable["_local_new"] = false;
+            entities[key] = new(command.Kind, id, immutable, existing?.Revision ?? 0);
             return;
         }
         var local = baseline == null ? Identity(command.Kind, id, command.Body, command.Route) : (JsonObject)baseline.DeepClone();
         var isNew = baseline != null && Flag(baseline, "_local_new") || baseline == null &&
             (operation.Method == "POST" && command.Route.Mode == "list" || command.Body.ContainsKey("version") && Version(command.Body) == 0 ||
-             command.Kind.StartsWith("review:", StringComparison.Ordinal) && operation.Method == "PUT" && !command.Body.ContainsKey("expected_hash"));
+             command.Kind.StartsWith("review:", StringComparison.Ordinal) && operation.Method == "PUT" && !command.Body.ContainsKey("expected_hash") ||
+             command.Kind == "ai-report" && operation.Method == "PUT");
         foreach (var (name, value) in command.Body)
             if (!RequestControl(name)) local[name] = value?.DeepClone();
         if (baseline == null && command.Body.ContainsKey("version") && !command.Kind.StartsWith("review:", StringComparison.Ordinal)) local["version"] = command.Body["version"]?.DeepClone();
@@ -295,6 +331,7 @@ public static class WorkspaceProjection
         if (command.Kind == "label") ApplyLabelAction(local, command.Body, operation, confirmedResponse: false);
         local["_local_status"] = operation.Status.ToString(); local["_operation_id"] = operation.Id; local["_local_new"] = isNew;
         local["_local_request"] = command.Body.DeepClone();
+        if (command.Kind == "ai-report" && isNew) local["_local_created_at"] = operation.CreatedAt.ToString("O");
         if (baseline == null && !isNew) local["_local_incomplete"] = true;
         if (operation.Status is PendingStatus.Unknown or PendingStatus.Conflict or PendingStatus.Blocked)
             local["_local_remote"] = (remote ?? baseline)?.DeepClone();
@@ -302,8 +339,23 @@ public static class WorkspaceProjection
         entities[key] = new(command.Kind, id, local, existing?.Revision ?? 0);
     }
     private static bool RequestControl(string name) => name is "save_id" or "expected_hash" or "version" or "template_version" or "confirm_title" or "confirm_note_count" or "action";
+    private static bool SameReportBody(JsonObject request, JsonObject row) =>
+        request["author"] is JsonValue author && author.TryGetValue<string>(out var authorText) &&
+        request["content"] is JsonValue content && content.TryGetValue<string>(out var contentText) &&
+        row["author"] is JsonValue savedAuthor && savedAuthor.TryGetValue<string>(out var actualAuthor) &&
+        row["content"] is JsonValue savedContent && savedContent.TryGetValue<string>(out var actualContent) &&
+        authorText.Replace("\r\n", "\n").Replace('\r', '\n').Trim() == actualAuthor &&
+        contentText.Replace("\r\n", "\n").Replace('\r', '\n').Trim() == actualContent;
+    private static bool FullReportRow(JsonObject remote) => ValidIdentity(remote, "id") &&
+        remote["author"] is JsonValue author && author.TryGetValue<string>(out var authorText) && !string.IsNullOrWhiteSpace(authorText) &&
+        remote["content"] is JsonValue content && content.TryGetValue<string>(out var contentText) && !string.IsNullOrWhiteSpace(contentText) &&
+        remote["created_at"] is JsonValue stamp && stamp.TryGetValue<string>(out var created) &&
+        DateTimeOffset.TryParse(created, CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
+    private static bool FullReportReceipt(Command command, JsonObject remote) => Text(remote, "id") == command.Id && FullReportRow(remote) &&
+        SameReportBody(command.Body, remote);
     private static bool FullReceipt(Command command, JsonObject remote)
     {
+        if (command.Kind == "ai-report") return FullReportReceipt(command, remote);
         string[] required = command.Kind switch
         {
             "legacy" => ["date", "text", "version"], "preference" => ["completed_mode", "version"],
@@ -428,8 +480,8 @@ public static class WorkspaceProjection
                 output = dataObject?.DeepClone().AsObject() ?? new JsonObject();
                 var pageSize = read.Kind == "article" ? (int)Math.Clamp(Number(read.Q("page_size"), 50), 1, 100) : 100;
                 var page = Math.Clamp(Number(read.Q("page"), 1), 1, int.MaxValue / 100);
-                var offset = read.Kind == "article" ? (int)((page - 1) * pageSize) : read.Kind.StartsWith("review:", StringComparison.Ordinal) ? (int)Math.Clamp(Number(read.Q("offset"), (page - 1) * 100), 0, int.MaxValue) : 0;
-                var rows = read.Kind is "article" || read.Kind.StartsWith("review:", StringComparison.Ordinal) ? sorted.Skip(offset).Take(pageSize) : sorted;
+                var offset = read.Kind == "article" ? (int)((page - 1) * pageSize) : read.Kind == "ai-report" || read.Kind.StartsWith("review:", StringComparison.Ordinal) ? (int)Math.Clamp(Number(read.Q("offset"), (page - 1) * 100), 0, int.MaxValue) : 0;
+                var rows = read.Kind is "article" or "ai-report" || read.Kind.StartsWith("review:", StringComparison.Ordinal) ? sorted.Skip(offset).Take(pageSize) : sorted;
                 output[read.Kind == "note" ? "entries" : "items"] = Array(rows);
                 if (read.Kind == "todo")
                 {
@@ -442,7 +494,7 @@ public static class WorkspaceProjection
                 }
                 if (read.Kind is "note" or "reminder") output["date"] = read.Q("date");
                 if (read.Kind == "note") output["category"] = Category(read);
-                if (read.Kind == "article" || read.Kind.StartsWith("review:", StringComparison.Ordinal))
+                if (read.Kind is "article" or "ai-report" || read.Kind.StartsWith("review:", StringComparison.Ordinal))
                 {
                     output["has_more"] = sorted.Length > offset + pageSize || (!authorities.Any(a => a.Read.Kind == read.Kind && a.Read.Query.Count == 0) && Flag(dataObject, "has_more"));
                     output["_local_known_count"] = sorted.Length;
@@ -502,16 +554,22 @@ public static class WorkspaceProjection
     }
     private static IEnumerable<JsonObject> Sort(Read read, IEnumerable<JsonObject> rows)
     {
+        if (read.Kind == "ai-report") return rows.OrderByDescending(row =>
+        {
+            var value = Text(row, "created_at");
+            if (value.Length == 0) value = Text(row, "_local_created_at");
+            return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var time) ? time.UtcTicks : 0;
+        }).ThenByDescending(row => Text(row, "id"), StringComparer.Ordinal);
         var field = read.Q("sort"); var descending = read.Q("order") != "asc";
         if (field.Length == 0)
         {
             field = read.Kind switch { "article" or "review:articles" => "published_at", "review:snapshots" => "snapshot_date", "review:reports" => "period_start", "review:playbooks" => "version", "review:notes" => "note_date", "review:account-health" => "observed_on", "review:benchmark-articles" => "reads", "review:benchmark-accounts" => "name", "memo-group" or "memo-note" => "position", _ => "created_at" };
-            descending = read.Kind is "article" || read.Kind.StartsWith("review:", StringComparison.Ordinal) && read.Kind != "review:benchmark-accounts";
+            descending = read.Kind is "article" or "ai-report" || read.Kind.StartsWith("review:", StringComparison.Ordinal) && read.Kind != "review:benchmark-accounts";
         }
         var numeric = field is "version" or "reads" or "position";
         IOrderedEnumerable<JsonObject> ordered = numeric ? descending ? rows.OrderByDescending(r => Number(Text(r, field))) : rows.OrderBy(r => Number(Text(r, field))) :
             descending ? rows.OrderByDescending(r => Text(r, field), StringComparer.Ordinal) : rows.OrderBy(r => Text(r, field), StringComparer.Ordinal);
-        return ordered.ThenBy(r => Text(r, "id"), StringComparer.Ordinal);
+        return read.Kind == "ai-report" ? ordered.ThenByDescending(r => Text(r, "id"), StringComparer.Ordinal) : ordered.ThenBy(r => Text(r, "id"), StringComparer.Ordinal);
     }
     private static bool Matches(Read read, JsonObject row, Dictionary<string, Entity> entities, bool includeDeleted)
     {

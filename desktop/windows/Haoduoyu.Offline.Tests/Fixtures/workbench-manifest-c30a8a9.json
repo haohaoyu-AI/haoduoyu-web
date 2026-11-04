@@ -1,0 +1,676 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "synthetic_only": true,
+  "generator": "src/workbench-snapshot.mjs projectWorkbenchSnapshot + src/snapshot-budget.mjs snapshotBudget",
+  "initial": {
+    "data": {
+      "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+      "projection": "current",
+      "complete": true,
+      "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+      "timezone": "Asia/Shanghai",
+      "generated_at": "2026-11-04T16:42:48.934Z",
+      "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+      "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+      "entities": [
+        {
+          "entity_id": "legacy-life:2026-11-04",
+          "entity_type": "life_note",
+          "date": "2026-11-04",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+        },
+        {
+          "entity_id": "legacy-work:2026-11-05",
+          "entity_type": "work_note",
+          "date": "2026-11-05",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+        },
+        {
+          "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+          "entity_type": "memo_group",
+          "date": null,
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+        },
+        {
+          "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+          "entity_type": "memo_note",
+          "date": null,
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+        },
+        {
+          "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+          "entity_type": "life_note",
+          "date": "2026-11-05",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+        },
+        {
+          "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+          "entity_type": "note_label",
+          "date": null,
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": null,
+          "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+        },
+        {
+          "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+          "entity_type": "todo",
+          "date": "2026-11-04",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+        },
+        {
+          "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+          "entity_type": "todo",
+          "date": "2026-11-05",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": null,
+          "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+        },
+        {
+          "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+          "entity_type": "unscheduled_todo",
+          "date": null,
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+        },
+        {
+          "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+          "entity_type": "work_reminder",
+          "date": "2026-11-04",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+        }
+      ],
+      "dates": [
+        {
+          "date": "2026-11-04",
+          "content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3"
+        },
+        {
+          "date": "2026-11-05",
+          "content_hash": "061688a58cb01c93b2df9c4184bba1f067494e4ce47406e2583f0fd476184b8e"
+        }
+      ],
+      "index_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8"
+    }
+  },
+  "changed": {
+    "data": {
+      "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+      "projection": "current",
+      "complete": true,
+      "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+      "timezone": "Asia/Shanghai",
+      "generated_at": "2026-11-04T16:42:48.934Z",
+      "manifest_hash": "85eeb2b3d1a0659994e6d5246a77d6bdefa122881cbaf3494543cf2d4b8b0297",
+      "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+      "entities": [
+        {
+          "entity_id": "legacy-life:2026-11-04",
+          "entity_type": "life_note",
+          "date": "2026-11-04",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+        },
+        {
+          "entity_id": "legacy-work:2026-11-05",
+          "entity_type": "work_note",
+          "date": "2026-11-05",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+        },
+        {
+          "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+          "entity_type": "memo_group",
+          "date": null,
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+        },
+        {
+          "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+          "entity_type": "memo_note",
+          "date": null,
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+        },
+        {
+          "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+          "entity_type": "life_note",
+          "date": "2026-11-05",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+        },
+        {
+          "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+          "entity_type": "note_label",
+          "date": null,
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": null,
+          "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+        },
+        {
+          "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+          "entity_type": "todo",
+          "date": "2026-11-04",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+        },
+        {
+          "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+          "entity_type": "todo",
+          "date": "2026-11-05",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": null,
+          "content_hash": "893e13e981906fc94dd064127ec4915c47f295dec254d5498c14ae06cd522576"
+        },
+        {
+          "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+          "entity_type": "unscheduled_todo",
+          "date": null,
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+        },
+        {
+          "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+          "entity_type": "work_reminder",
+          "date": "2026-11-04",
+          "updated_at": "2026-11-04T15:00:00.000Z",
+          "deleted_at": "2026-11-04T16:00:00.000Z",
+          "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+        }
+      ],
+      "dates": [
+        {
+          "date": "2026-11-04",
+          "content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3"
+        },
+        {
+          "date": "2026-11-05",
+          "content_hash": "6e8ea77151f17ba31c8c3f0634c2c6275ef9dda19b14e4de55ab3fad952c0d1a"
+        }
+      ],
+      "index_hash": "85eeb2b3d1a0659994e6d5246a77d6bdefa122881cbaf3494543cf2d4b8b0297"
+    }
+  },
+  "snapshots": {
+    "2026-11-04": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-04",
+        "date_content_hash": "4a58ae5e5dea7dbe044602aa9d6ddbf0e732ca097db60f312af602cdb1aef7d3",
+        "data": {
+          "todos": [
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+              "entity_type": "todo",
+              "source": "todo",
+              "source_id": "00000000-0000-4000-8000-000000000001",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+            }
+          ],
+          "life_notes": [
+            {
+              "entity_id": "legacy-life:2026-11-04",
+              "entity_type": "life_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-04",
+              "date": "2026-11-04",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+            }
+          ],
+          "work_notes": [],
+          "work_reminders": [
+            {
+              "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+              "entity_type": "work_reminder",
+              "source": "work_reminder",
+              "source_id": "00000000-0000-4000-8000-000000000003",
+              "date": "2026-11-04",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+            }
+          ],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "group_id": "00000000-0000-4000-8000-000000000004",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "f7f46982f541ab3d092a37275f978d2030ae217e0a9acb3fe72381bade17288f"
+      }
+    },
+    "2026-11-05": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "80e918c99e02475bf143505950eec68a3fcbef9890b89d439acabe4830b986f8",
+        "global_content_hash": "d07aa6d5e409c3c26b04549c5f8cae722aa3eda04673c90f9a19f07b56912b58",
+        "entities": [
+          {
+            "entity_id": "legacy-life:2026-11-04",
+            "entity_type": "life_note",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ddc7b51e699fac8f22cf4a1034a5a949b7dbfe354354855ad161b7b37891196d"
+          },
+          {
+            "entity_id": "legacy-work:2026-11-05",
+            "entity_type": "work_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+          },
+          {
+            "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+            "entity_type": "memo_group",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+          },
+          {
+            "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+            "entity_type": "memo_note",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+          },
+          {
+            "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+            "entity_type": "life_note",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+          },
+          {
+            "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+            "entity_type": "note_label",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000001",
+            "entity_type": "todo",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "871d4f01e5d1e2e4b8f443f5976d3d254cdc2624ed5a95b355150e1e778d39bc"
+          },
+          {
+            "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+            "entity_type": "todo",
+            "date": "2026-11-05",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": null,
+            "content_hash": "aa25ea45eb0328429d149ed4596232ed1069525a1b399e0c4421a91d749e51b7"
+          },
+          {
+            "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+            "entity_type": "unscheduled_todo",
+            "date": null,
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+          },
+          {
+            "entity_id": "work-reminder:00000000-0000-4000-8000-000000000003",
+            "entity_type": "work_reminder",
+            "date": "2026-11-04",
+            "updated_at": "2026-11-04T15:00:00.000Z",
+            "deleted_at": "2026-11-04T16:00:00.000Z",
+            "content_hash": "35c618afe2e78a6701170118c9abbd826ff74ebd0d389f653b0ebbf31499d6ba"
+          }
+        ],
+        "date": "2026-11-05",
+        "date_content_hash": "061688a58cb01c93b2df9c4184bba1f067494e4ce47406e2583f0fd476184b8e",
+        "data": {
+          "todos": [
+            {
+              "entity_id": "todo:00000000-0000-4000-8000-000000000010",
+              "entity_type": "todo",
+              "source": "todo",
+              "source_id": "00000000-0000-4000-8000-000000000010",
+              "date": "2026-11-05",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "text": "合成😀正文已更改",
+              "completed": 0,
+              "content_hash": "893e13e981906fc94dd064127ec4915c47f295dec254d5498c14ae06cd522576"
+            }
+          ],
+          "life_notes": [
+            {
+              "entity_id": "note-entry:00000000-0000-4000-8000-000000000002",
+              "entity_type": "life_note",
+              "source": "note_entry",
+              "source_id": "00000000-0000-4000-8000-000000000002",
+              "date": "2026-11-05",
+              "category": "life",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "1cebe5e674bf069f0b419efd8b6ddd4273fcd8354e39c621153b3787d5bd87b3"
+            }
+          ],
+          "work_notes": [
+            {
+              "entity_id": "legacy-work:2026-11-05",
+              "entity_type": "work_note",
+              "source": "legacy_daily_note",
+              "source_id": "2026-11-05",
+              "date": "2026-11-05",
+              "category": "work",
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "e7d282432e1e4e4312ff2fdbfb478908f9325bd210d6e520fc4d90ca3062f24d"
+            }
+          ],
+          "work_reminders": [],
+          "memo_groups": [
+            {
+              "entity_id": "memo-group:00000000-0000-4000-8000-000000000004",
+              "entity_type": "memo_group",
+              "source": "memo_group",
+              "source_id": "00000000-0000-4000-8000-000000000004",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "af38206bc6e33a5755979b5e16c02818aff0a031201534e548d75ed9d99c3a96"
+            }
+          ],
+          "memos": [
+            {
+              "entity_id": "memo-note:00000000-0000-4000-8000-000000000005",
+              "entity_type": "memo_note",
+              "source": "memo_note",
+              "source_id": "00000000-0000-4000-8000-000000000005",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "group_id": "00000000-0000-4000-8000-000000000004",
+              "content_hash": "ad14a2403d0b07faa0a358c5e8db45d78973d5c44ca2cb131837f99f812b3122"
+            }
+          ],
+          "unscheduled_todos": [
+            {
+              "entity_id": "unscheduled_todo:00000000-0000-4000-8000-000000000006",
+              "entity_type": "unscheduled_todo",
+              "source": "unscheduled_todo",
+              "source_id": "00000000-0000-4000-8000-000000000006",
+              "date": null,
+              "version": 7,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": "2026-11-04T16:00:00.000Z",
+              "content_hash": "c3bec3e6e3e0443a02dd2c093c1e5644bbcfa556a15718a09748ac08e4eacdcb"
+            }
+          ],
+          "note_labels": [
+            {
+              "entity_id": "note-label:%E5%90%88%E6%88%90%F0%9F%98%80",
+              "entity_type": "note_label",
+              "source": "note_label",
+              "source_id": "%E5%90%88%E6%88%90%F0%9F%98%80",
+              "date": null,
+              "version": 1,
+              "created_at": "2026-11-04T15:00:00.000Z",
+              "updated_at": "2026-11-04T15:00:00.000Z",
+              "deleted_at": null,
+              "name": "合成😀",
+              "content_hash": "b7ae431c0f8fec611c5ea478382bcb76279078c25a4cc7b97021bc66ca1abdc2"
+            }
+          ]
+        },
+        "content_hash": "5456a8d93b78936e2d9f3d1f3d1087088e33438958559bd6bef6ec6c8e76cfd2"
+      }
+    }
+  },
+  "empty_snapshots": {
+    "2026-11-04": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "021e25d477cdb6a68600de5d9f43453d5b7ed66deb18faa510b0620474b478fc",
+        "global_content_hash": "ff020431256254636684b1227f45adf6e1d4822725d9fb27c3b86bba2d5358bb",
+        "entities": [],
+        "date": "2026-11-04",
+        "date_content_hash": "ff020431256254636684b1227f45adf6e1d4822725d9fb27c3b86bba2d5358bb",
+        "data": {
+          "todos": [],
+          "life_notes": [],
+          "work_notes": [],
+          "work_reminders": [],
+          "memo_groups": [],
+          "memos": [],
+          "unscheduled_todos": [],
+          "note_labels": []
+        },
+        "content_hash": "f6a8a904c560c756e20cb314d13b77f40b749a475a219300ba89c050fd5cb284"
+      }
+    },
+    "2026-11-05": {
+      "data": {
+        "snapshot_format": "haoduoyu-workbench-snapshot-v2",
+        "projection": "current",
+        "complete": true,
+        "scope_id": "1723718e2623fbd486b3c6e23b81470909a62e6f181a809be133b15b610cc30a",
+        "timezone": "Asia/Shanghai",
+        "generated_at": "2026-11-04T16:42:48.934Z",
+        "manifest_hash": "021e25d477cdb6a68600de5d9f43453d5b7ed66deb18faa510b0620474b478fc",
+        "global_content_hash": "ff020431256254636684b1227f45adf6e1d4822725d9fb27c3b86bba2d5358bb",
+        "entities": [],
+        "date": "2026-11-05",
+        "date_content_hash": "ff020431256254636684b1227f45adf6e1d4822725d9fb27c3b86bba2d5358bb",
+        "data": {
+          "todos": [],
+          "life_notes": [],
+          "work_notes": [],
+          "work_reminders": [],
+          "memo_groups": [],
+          "memos": [],
+          "unscheduled_todos": [],
+          "note_labels": []
+        },
+        "content_hash": "b50d742c3dbefa1e57bdae7d4b181bc8ebe3d584d2757c31f41806f2a67b2d9b"
+      }
+    }
+  }
+}
