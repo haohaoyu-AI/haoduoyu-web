@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: ['desktop/**']
-    paths: ['desktop/windows/**']
+    paths: ['desktop/windows/**', '.github/workflows/windows-desktop.yml']
 
 permissions:
   contents: read
