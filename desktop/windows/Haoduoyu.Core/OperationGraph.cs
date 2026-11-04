@@ -5,17 +5,18 @@ internal static class OperationGraph
 {
     internal static void Validate(WorkspaceState state)
     {
-        if (state.LocalRevision < 0 || state.Outbox == null || state.BackupRecoveryRevision < 0 ||
+        if (state.Schema is not (1 or 2) || state.LocalRevision < 0 || state.Outbox == null || state.BackupRecoveryRevision < 0 ||
             state.BackupRecoveryRevision > state.LocalRevision ||
             (state.BackupRecoveryRevision == 0) != (state.BackupRecoveredAt == null))
             throw new InvalidDataException("工作区操作或备份恢复序列无效。");
         if (state.Drafts == null || state.Drafts.Values.Any(draft => draft == null || draft.RecoveredAtRevision < 0 || draft.RecoveredAtRevision > state.LocalRevision))
             throw new InvalidDataException("草稿的备份恢复序列无效。");
         var operations = new Dictionary<string, PendingOperation>(StringComparer.Ordinal);
+        var semanticOperationIds = new HashSet<Guid>();
         foreach (var operation in state.Outbox)
         {
             if (operation == null || !Guid.TryParseExact(operation.Id, "D", out var id) || id == Guid.Empty ||
-                !operations.TryAdd(operation.Id, operation) || !Enum.IsDefined(operation.Status) || string.IsNullOrWhiteSpace(operation.ResourceKey) || operation.DependencyIds == null ||
+                !operations.TryAdd(operation.Id, operation) || !semanticOperationIds.Add(id) || !Enum.IsDefined(operation.Status) || string.IsNullOrWhiteSpace(operation.ResourceKey) || operation.DependencyIds == null ||
                 operation.DependencyIds.Count > 64 || operation.DependencyIds.Any(dependency => !Guid.TryParseExact(dependency, "D", out _)) ||
                 operation.ConfirmedRevision < 0 || operation.ConfirmedRevision > state.LocalRevision || operation.RecoveredAtRevision < 0 ||
                 operation.RecoveredAtRevision > state.LocalRevision || operation.SendAttempts < 0)
@@ -42,6 +43,7 @@ internal static class OperationGraph
             if (operation.SupersededById != null && operation.Status != PendingStatus.Superseded)
                 throw new InvalidDataException("只有已明确替换的历史操作可指向新操作。");
         }
+        ValidateArchives(state, semanticOperationIds);
         foreach (var operation in operations.Values)
         {
             foreach (var dependency in operation.DependencyIds)
@@ -70,6 +72,32 @@ internal static class OperationGraph
         if (visited != operations.Count) throw new InvalidDataException("操作依赖或替换关系形成循环，禁止发送。");
         void AddEdge(string dependant, string dependency)
         { counts[dependant]++; dependants[dependency].Add(dependant); }
+    }
+
+    private static void ValidateArchives(WorkspaceState state, IReadOnlySet<Guid> operationIds)
+    {
+        if (state.HistoryArchives == null || state.ArchivedOperationIds == null)
+            throw new InvalidDataException("工作区历史归档索引缺失。");
+        if (state.Schema == 1 && (state.HistoryArchives.Count != 0 || state.ArchivedOperationIds.Count != 0))
+            throw new InvalidDataException("含历史归档的工作区必须使用新版格式；禁止旧版读取后丢失操作标识。");
+        var references = new Dictionary<string, HistoryArchiveReference>(StringComparer.Ordinal);
+        var fileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var reference in state.HistoryArchives)
+        {
+            HistoryArchiveValidation.Reference(reference);
+            if (!references.TryAdd(reference.Id, reference) || !fileNames.Add(reference.FileName) || operationIds.Contains(Guid.Parse(reference.Id)))
+                throw new InvalidDataException("工作区历史归档标识或文件名重复。");
+        }
+        var counts = references.Keys.ToDictionary(id => id, _ => 0, StringComparer.Ordinal);
+        foreach (var (operationId, archiveId) in state.ArchivedOperationIds)
+        {
+            if (!Guid.TryParseExact(operationId, "D", out var id) || id == Guid.Empty || operationId != id.ToString("D") || operationIds.Contains(id) || references.ContainsKey(operationId) ||
+                archiveId == null || !references.ContainsKey(archiveId))
+                throw new InvalidDataException("历史操作标识重复、仍在活动队列或缺少归档文件引用。");
+            counts[archiveId]++;
+        }
+        if (references.Values.Any(reference => counts[reference.Id] != reference.Count))
+            throw new InvalidDataException("历史归档索引与原操作数量不一致。");
     }
 
     internal static bool DependenciesConfirmed(WorkspaceState state, PendingOperation operation) =>

@@ -61,7 +61,12 @@ public sealed class AtomicWorkspaceStore : IWorkspaceStore, IDisposable
         try
         {
             // Refuse to overwrite corrupt, unsupported or foreign state even when called directly.
-            if (File.Exists(FilePath)) await ReadFileAsync(FilePath, cancellationToken);
+            if (File.Exists(FilePath))
+            {
+                var existing = await ReadFileAsync(FilePath, cancellationToken);
+                if (existing.Schema == 2 && state.Schema == 1)
+                    throw new InvalidDataException("工作区已使用新版历史归档格式，不能降级写回；请使用新版客户端。");
+            }
             else if (File.Exists(BackupPath)) throw new InvalidDataException("必须先恢复缺失的主工作区。");
             temp = await WriteTemporaryAsync(state, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
@@ -176,7 +181,7 @@ public sealed class AtomicWorkspaceStore : IWorkspaceStore, IDisposable
 
     private void Validate(WorkspaceState state)
     {
-        if (state.Schema != 1) throw new InvalidDataException("不支持此工作区版本；禁止降级写入。");
+        if (state.Schema is not (1 or 2)) throw new InvalidDataException("不支持此工作区版本；禁止降级写入。");
         if (state.ScopeId != ScopeId) throw new InvalidDataException("工作区与服务或登录身份不匹配。");
         if (state.Cache == null || state.Drafts == null || state.Outbox == null || state.CacheRevisions == null)
             throw new InvalidDataException("工作区字段缺失。");

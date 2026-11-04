@@ -63,7 +63,7 @@ public sealed partial class MainWindow : Window
         DockPanel.SetDock(top, Dock.Top); shell.Children.Add(top);
         DockPanel.SetDock(status, Dock.Bottom); shell.Children.Add(status);
         var nav = new StackPanel { Width = 170, Margin = new Thickness(16, 8, 0, 8) };
-        foreach (var name in new[] { "待办", "未安排", "生活记录", "工作记录", "标签", "备忘录", "工作提醒", "AI汇报", "文章台账", "内容复盘", "数据复盘", "回收站", "本机草稿", "本机检索", "同步中心", "本机与恢复" })
+        foreach (var name in new[] { "待办", "未安排", "生活记录", "工作记录", "标签", "备忘录", "工作提醒", "AI汇报", "文章台账", "内容复盘", "数据复盘", "回收站", "本机草稿", "本机检索", "同步中心", "历史档案", "本机与恢复" })
         {
             var target = name;
             nav.Children.Add(Button(name, () => NavigateAsync(target)));
@@ -301,6 +301,7 @@ public sealed partial class MainWindow : Window
             case "本机草稿": DraftsPage(); break;
             case "本机检索": await LocalSearchAsync(); break;
             case "同步中心": SyncPage(); break;
+            case "历史档案": await HistoryArchivesAsync(); break;
             case "本机与恢复": RecoveryPage(); break;
         }
     }

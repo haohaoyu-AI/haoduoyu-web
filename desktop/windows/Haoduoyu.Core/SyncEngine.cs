@@ -30,7 +30,7 @@ public sealed class SyncEngine
         {
             if (state != null) return;
             var loaded = await store.LoadAsync(cancellationToken);
-            if (loaded.ScopeId != store.ScopeId || loaded.Schema != 1)
+            if (loaded.ScopeId != store.ScopeId || loaded.Schema is not (1 or 2))
                 throw new InvalidDataException("本机工作区身份或版本不匹配。");
             OperationGraph.Validate(loaded);
             if (loaded.Outbox.Any(x => x.Status == PendingStatus.InFlight))
@@ -79,6 +79,61 @@ public sealed class SyncEngine
         {
             foreach (var (key, value) in captured) { s.Cache[key] = value; s.CacheRevisions[key] = s.LocalRevision; }
         }, cancellationToken);
+    }
+
+    public HistoryArchivePlan CreateHistoryArchivePlan(int maxOperations = 500, int maxBytes = 4 * 1024 * 1024) =>
+        HistoryArchivePolicy.Plan(Snapshot, maxOperations, maxBytes);
+
+    public async Task<HistoryArchiveReference?> ArchiveSupersededHistoryAsync(HistoryArchivePlan plan, IHistoryArchiveStore archiveStore,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(archiveStore);
+        await stateGate.WaitAsync(cancellationToken);
+        try
+        {
+            var current = Snapshot;
+            if (plan.ScopeId != current.ScopeId || archiveStore.ScopeId != current.ScopeId || plan.BaseRevision != current.LocalRevision)
+                throw new InvalidOperationException("工作区或本机序列已变化，请重新预览历史归档。");
+            var fresh = HistoryArchivePolicy.Plan(current, plan.MaxOperations, plan.MaxBytes);
+            if (plan.CandidateIds == null || plan.RetainedReasons == null || plan.EncodedBytes != fresh.EncodedBytes ||
+                !plan.CandidateIds.SequenceEqual(fresh.CandidateIds, StringComparer.Ordinal) ||
+                plan.RetainedReasons.Count != fresh.RetainedReasons.Count ||
+                fresh.RetainedReasons.Any(reason => !plan.RetainedReasons.TryGetValue(reason.Key, out var count) || count != reason.Value))
+                throw new InvalidOperationException("历史归档计划与当前原记录不一致，请重新预览。");
+            if (fresh.CandidateIds.Count == 0) return null;
+            var ids = fresh.CandidateIds.ToHashSet(StringComparer.Ordinal);
+            string archiveId;
+            do { archiveId = Guid.NewGuid().ToString("D"); }
+            while (current.Outbox.Any(operation => operation.Id == archiveId) || current.ArchivedOperationIds.ContainsKey(archiveId) ||
+                current.HistoryArchives.Any(reference => reference.Id == archiveId));
+            var document = new HistoryArchiveDocument
+            {
+                Id = archiveId, ScopeId = current.ScopeId, CreatedAt = DateTimeOffset.UtcNow, SourceRevision = current.LocalRevision,
+                Operations = current.Outbox.Where(operation => ids.Contains(operation.Id))
+                    .Select(operation => operation with { DependencyIds = operation.DependencyIds.ToArray() }).ToArray()
+            };
+            // Keep the expected original bytes independent of a store implementation's returned objects.
+            var expected = JsonSerializer.SerializeToUtf8Bytes(document, WorkspaceJson.Options);
+            var reference = await archiveStore.WriteAsync(document, cancellationToken);
+            HistoryArchiveValidation.Reference(reference);
+            if (reference.Id != document.Id || reference.Count != document.Operations.Count || reference.CreatedAt != document.CreatedAt)
+                throw new InvalidDataException("历史归档写入引用与原文不一致；活动记录未移除。");
+            var readback = await archiveStore.ReadAsync(reference, cancellationToken);
+            if (readback == null || !JsonSerializer.SerializeToUtf8Bytes(readback, WorkspaceJson.Options).AsSpan().SequenceEqual(expected))
+                throw new InvalidDataException("历史归档回读与原始逐字段内容不一致；活动记录未移除。");
+            cancellationToken.ThrowIfCancellationRequested();
+            // Old clients reject schema 2 instead of silently dropping the archived-ID ledger on their next save.
+            var next = WorkspaceJson.Clone(current) with { Schema = 2, LocalRevision = checked(current.LocalRevision + 1) };
+            next.Outbox.RemoveAll(operation => ids.Contains(operation.Id));
+            next.HistoryArchives.Add(reference);
+            foreach (var id in ids) next.ArchivedOperationIds.Add(Guid.Parse(id).ToString("D"), reference.Id);
+            OperationGraph.Validate(next);
+            await store.SaveAsync(next, cancellationToken);
+            state = next;
+            return reference;
+        }
+        finally { stateGate.Release(); }
     }
 
     public Task CancelQueuedAsync(string operationId, CancellationToken cancellationToken = default) =>
@@ -290,6 +345,8 @@ public sealed class SyncEngine
 
     private static void AddOperation(WorkspaceState s, PendingOperation operation)
     {
+        if (s.ArchivedOperationIds.ContainsKey(Guid.Parse(operation.Id).ToString("D")))
+            throw new InvalidOperationException("此操作标识已归档，不能重新用于排队或提交不同内容。");
         if (operation.Method == "POST" && operation.Path.Split('?', 2)[0].TrimEnd('/') == "/api/v1/articles" &&
             s.Drafts.TryGetValue(operation.ResourceKey, out var recoveredDraft) && recoveredDraft.RecoveredAtRevision > 0)
             throw new InvalidOperationException("此新建文章草稿来自较旧备份，无法确定之后是否已保存并取得服务器文章标识。请先只读核对台账，找到后更新真实记录；草稿仍可编辑或导出。");
@@ -310,7 +367,7 @@ public sealed class SyncEngine
 
     private static void Validate(PendingOperation operation)
     {
-        if (!Guid.TryParseExact(operation.Id, "D", out var id) || id == Guid.Empty ||
+        if (!Guid.TryParseExact(operation.Id, "D", out var id) || id == Guid.Empty || operation.Id != id.ToString("D") ||
             operation.DependencyIds == null || operation.DependencyIds.Count > 64 || operation.SendAttempts != 0 ||
             operation.PreparedBodyJson != null || operation.ConfirmedRevision != 0 || operation.RecoveredAtRevision != 0 || operation.SupersededById != null ||
             operation.VersionFromDependencyId != null && !operation.DependencyIds.Contains(operation.VersionFromDependencyId, StringComparer.Ordinal) ||

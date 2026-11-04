@@ -20,6 +20,8 @@ public sealed partial class MainWindow
         { localSearchIdentity = currentIdentity; localSearchQuery = ""; localSearchOffset = 0; }
         currentPage = "本机检索"; ClearPage(); heading.Text = "本机检索"; page.Children.Add(heading);
         page.Children.Add(Label("仅检索当前工作区已保存在本机的业务资料、草稿与同步历史。多个词用空格分隔；未下载的资料不在检索范围内，不会联网查询。"));
+        if (Engine.Snapshot.HistoryArchives.Count > 0)
+            page.Children.Add(Label("已归档历史不在活动资料检索范围内，可从侧栏“历史档案”只读查看与导出。"));
         var input = new TextBox { Text = localSearchQuery, MaxLength = 1024, ToolTip = "最多256个Unicode字符，多个词需同时匹配" };
         page.Children.Add(input);
         async Task Submit()

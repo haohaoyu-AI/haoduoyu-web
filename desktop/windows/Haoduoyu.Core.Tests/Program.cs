@@ -146,7 +146,7 @@ var tests = new (string Name, Func<Task> Run)[]
         {
             var protector = new TestProtector();
             using var store = new AtomicWorkspaceStore(root, "https://haoduoyu.xyz", "owner", protector);
-            var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { Schema = 99, ScopeId = store.ScopeId }));
+            var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { Schema = 3, ScopeId = store.ScopeId }));
             var file = "HDYWS1\n"u8.ToArray().Concat(protector.Protect(bytes)).ToArray();
             await File.WriteAllBytesAsync(store.FilePath, file);
             await Throws<InvalidDataException>(() => store.LoadAsync());
@@ -205,7 +205,8 @@ Console.WriteLine($"Core safety checks: {tests.Length - failed}/{tests.Length} p
 var queueFailures = QueueChecks.Run();
 var projectionFailures = ProjectionChecks.Run();
 var recoveryFailures = RecoveryChecks.Run();
-return failed + queueFailures + projectionFailures + recoveryFailures == 0 ? 0 : 1;
+var archiveFailures = HistoryArchiveChecks.Run();
+return failed + queueFailures + projectionFailures + recoveryFailures + archiveFailures == 0 ? 0 : 1;
 
 static void Check(bool condition, string reason) { if (!condition) throw new Exception(reason); }
 static async Task Throws<T>(Func<Task> action) where T : Exception

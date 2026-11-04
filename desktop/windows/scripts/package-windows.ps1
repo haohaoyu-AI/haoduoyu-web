@@ -44,6 +44,7 @@ try {
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Profile.Tests/Haoduoyu.Profile.Tests.csproj', '--configuration', 'Release') -LogName 'offline-profile-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Offline.Tests/Haoduoyu.Offline.Tests.csproj', '--configuration', 'Release') -LogName 'offline-download-tests.log'
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Search.Tests/Haoduoyu.Search.Tests.csproj', '--configuration', 'Release') -LogName 'local-search-tests.log'
+    Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Archive.Tests/Haoduoyu.Archive.Tests.csproj', '--configuration', 'Release') -LogName 'history-archive-tests.log'
     Invoke-CheckedDotnet -Arguments @('build', 'Haoduoyu.Windows/Haoduoyu.Windows.csproj', '--configuration', 'Release', '-p:ContinuousIntegrationBuild=true') -LogName 'windows-build.log'
     $env:HDY_WINDOWS_TEST_EVIDENCE = $deliveryRoot
     Invoke-CheckedDotnet -Arguments @('run', '--project', 'Haoduoyu.Windows.Tests/Haoduoyu.Windows.Tests.csproj', '--configuration', 'Release') -LogName 'windows-native-tests.log'
@@ -75,6 +76,7 @@ try {
         offline_profile_tests = 'passed'
         offline_download_tests = 'passed'
         local_search_tests = 'passed'
+        history_archive_tests = 'passed'
         synthetic_windows_tests = 'passed'
         windows_build = 'passed'
         windows_publish = 'passed'
@@ -104,7 +106,7 @@ try {
         production_api_acceptance = 'not_run'
         installed = $false
         published = $false
-        test_logs = @('core-tests.log', 'api-tests.log', 'worker-contract-tests.log', 'complete-read-contract-tests.log', 'native-form-contract-tests.log', 'ai-report-contract-tests.log', 'unicode-receipt-contract-tests.log', 'offline-profile-tests.log', 'offline-download-tests.log', 'local-search-tests.log', 'windows-build.log', 'windows-native-tests.log', 'windows-publish.log')
+        test_logs = @('core-tests.log', 'api-tests.log', 'worker-contract-tests.log', 'complete-read-contract-tests.log', 'native-form-contract-tests.log', 'ai-report-contract-tests.log', 'unicode-receipt-contract-tests.log', 'offline-profile-tests.log', 'offline-download-tests.log', 'local-search-tests.log', 'history-archive-tests.log', 'windows-build.log', 'windows-native-tests.log', 'windows-publish.log')
     }
     $manifestPath = Join-Path $deliveryRoot 'package-manifest.json'
     $packageManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM

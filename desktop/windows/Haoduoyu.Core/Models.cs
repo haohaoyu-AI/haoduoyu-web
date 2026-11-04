@@ -54,6 +54,8 @@ public sealed record WorkspaceState
     public Dictionary<string, string> Cache { get; init; } = new();
     public Dictionary<string, LocalDraft> Drafts { get; init; } = new();
     public List<PendingOperation> Outbox { get; init; } = new();
+    public List<HistoryArchiveReference> HistoryArchives { get; init; } = new();
+    public Dictionary<string, string> ArchivedOperationIds { get; init; } = new();
 }
 
 public sealed record ApiResult(int StatusCode, string Json, string? RequestId = null)
@@ -96,7 +98,9 @@ internal static class WorkspaceJson
         Cache = new Dictionary<string, string>(state.Cache, StringComparer.Ordinal),
         CacheRevisions = new Dictionary<string, long>(state.CacheRevisions, StringComparer.Ordinal),
         Drafts = new Dictionary<string, LocalDraft>(state.Drafts, StringComparer.Ordinal),
-        Outbox = state.Outbox.Select(operation => operation with { DependencyIds = operation.DependencyIds.ToArray() }).ToList()
+        Outbox = state.Outbox.Select(operation => operation with { DependencyIds = operation.DependencyIds.ToArray() }).ToList(),
+        HistoryArchives = state.HistoryArchives.ToList(),
+        ArchivedOperationIds = new Dictionary<string, string>(state.ArchivedOperationIds, StringComparer.Ordinal)
     };
 }
 

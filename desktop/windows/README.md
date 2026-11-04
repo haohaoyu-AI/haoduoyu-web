@@ -1,6 +1,6 @@
 # 好多鱼 Windows 独立工作台
 
-当前为 **0.3.1 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
+当前为 **0.4.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
 
 ## 已实现的核心路径
 
@@ -13,6 +13,7 @@
 - AI 汇报完整分页历史、按实际日期筛选、原文阅读/导出与人工补充。稳定 UUID 追加保存，署名必填；已尝试或确认的原记录只读，不调用模型，也不自动生成完成报告。
 - 本机草稿、离线业务清单与详情投影、完整资料准备、持久队列、版本冲突核对、保存回执确认、只读历史分区导出、显式本机备份恢复。
 - 当前身份的跨模块本机检索：缓存、草稿、原请求、实际冻结请求和远端响应证据分别标注，可预览、导出、回原模块或恢复本机稿。不会联网搜索或把缓存摘要作为完整正文。
+- 可审阅的加密历史归档：只移出从未发送、已替代且不再被引用的旧历史，保留当前稿和请求证据；先写档读回核验，再提交活动状态。支持当前分区内只读发现未登记档案、查看与导出，不导回可执行队列。
 
 界面编译通过不等于以上路径均已完成实机或生产 API 验收。默认缓存已访问页面；“准备完整离线资料”会读取已确认工作区的日期索引、所有分页及详情，核对 hash、scope 和全局读取版本后一次性保存。取消、资料变化、坏响应或超过 24MiB/1000 日期等有界预算会整批停止并保留旧缓存，不能把局部页面称为完整。所有生产联网业务测试仍未执行。
 
@@ -20,7 +21,9 @@
 
 新目录为 `%LOCALAPPDATA%\Haoduoyu\NativeWorkbench\v1`，不猜测或迁移旧客户端路径。每个服务源、身份及服务端 scope 单独分区；公开与登录账户不共用队列。首次离线未绑定草稿和历史分区可在“本机与恢复”只读查看/导出，不自动迁移到新身份。
 
-草稿停止输入约 350ms 后先加密保存到本机，切页/正常退出前等待保存完成。Ctrl+S 仅保存本机草稿；“保存并同步”先落盘原请求，再发送。中文组合输入没有自动远端提交。当前整个状态采用加密快照，容量上限 32MiB；超限停止并保留原件，尚无自动归档或大量数据性能保证。
+草稿停止输入约 350ms 后先加密保存到本机，切页/正常退出前等待保存完成。Ctrl+S 仅保存本机草稿；“保存并同步”先落盘原请求，再发送。中文组合输入没有自动远端提交。当前整个状态采用加密快照，容量上限 32MiB；超限停止并保留原件。历史归档需用户显式预览确认，仍不自动归档，也不处理已尝试/确认或必须保留的证据；不承诺无限规模。
+
+首次归档将工作区数据升级到 Schema2，新版可读取 Schema1/2，旧候选会拒绝新格式以免丢失归档 ID 索引。原主文件按原子备份保留，档案在当前身份目录的 history 子目录，备份应包含整个目录。归档缩减活动文件正文，磁盘总占用可能增加。每批最多 1000 条/4MiB 编码历史，单档最多 8MiB；超限/损坏/取消不提前移除活动原文。已有档案不参与活动检索，可从“历史档案”只读打开。
 
 Unknown 不等于失败：不自动重发。notes/memos 可按原 `save_id` 只读核验回执、当前版本与内容 hash。其他未知结果需保守核对；服务端生成 ID 的新文章与无 CAS 的标签操作保持资源围栏，不能用新保存 ID 解除后再次创建/覆盖。409 的本地稿与远端稿分别保留，只在明确选择后创建新 CAS 操作。
 
@@ -43,6 +46,7 @@ dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --worker-cont
 dotnet run --project Haoduoyu.Profile.Tests --configuration Release
 dotnet run --project Haoduoyu.Offline.Tests --configuration Release
 dotnet run --project Haoduoyu.Search.Tests --configuration Release
+dotnet run --project Haoduoyu.Archive.Tests --configuration Release
 dotnet build Haoduoyu.Windows --configuration Release
 dotnet run --project Haoduoyu.Windows.Tests --configuration Release
 ./scripts/package-windows.ps1

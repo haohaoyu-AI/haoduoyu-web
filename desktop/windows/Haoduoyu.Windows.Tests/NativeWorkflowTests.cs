@@ -34,7 +34,8 @@ internal static partial class NativeWorkflowTests
         ("Shown native list virtualizes 5000 data rows and can select and render the last row", () => RunWithDispatcher(VirtualizedNativeListAsync)),
         .. BaselineCases,
         .. RecoveryCases,
-        .. SearchCases
+        .. SearchCases,
+        .. ArchiveCases
     ];
 
     private static readonly BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
