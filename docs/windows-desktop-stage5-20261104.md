@@ -4,6 +4,14 @@
 
 本轮另正常只读复核线上公开静态 `/openapi.json` 与 `/app.js`（不使用登录态、不读业务记录）：OpenAPI 836155 B、SHA256 `db16b231b41c6012c1cf7b1c2c2f8bdcf447924a791b2ce5766f0263e3ce698d`，与已知 c30 文档逐字节相同；app.js 840488 B、SHA256 `7886640de4fc2cef911fe92f1851b06b07dac1c120ee850492670d09fac0505e`，整包不同，因此仍不据此证明生产 Git SHA。公开界面继续包含本轮草稿凭证、完成时间与流水线表单字段。
 
+## 已核实的交付节点
+
+候选 **0.5.0**，精确受测源 **`087e06b200bc1c409fcb5cd6f5f524fa4360feeb`** 已正常推送并以 ls-remote 精确回读。[Windows CI 41925080258](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/41925080258) 于 **2026-11-04 22:27:15 UTC** 成功完成，包含编译、自包含 win-x64 发布、打包与上传。已测桌面树 **`c23fb53b060c7737b8d7d61e45625548e7efacb8`**，工作流 blob **`0f8f45f1ae22cda22d33c3883412a57ff3b17748`**；后续仅文档提交不改变两者。
+
+实际 Windows 日志确认 Core **80/80**、档案 **33/33（0跳过）**、API **165** 项、身份 **85** 项、完整离线下载 **114** 项、检索 **35/35**、Windows **33/33（20组显示窗口）** 全部通过；本轮流水线真实表单契约的 **11 请求/27 拒绝**及此前 Worker53/82、八类共享表单52、AI汇报6、Unicode收据10请求/19断言回归全部通过。所有业务样本和 HTTP 都隔离合成，不代表真实生产、用户设备或物理输入法验收。
+
+[0.5.0 候选与日志 artifact](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/41925080258/artifacts/13368109127)，ID `13368109127`，**66,359,224 B**，期限到 **2026-11-07T22:27:10Z**；GitHub 报告外层 artifact SHA256 **`283f00c53283a246ad5e5d8d0c3a267d0edf1e5be1966264002d3bb1af910aef`**。正常 CI 日志报告内层 `Haoduoyu.Workbench-win-x64-087e06b200bc.zip` SHA256 **`5fc972568aa56995e5493cd2dcbb3bc8c9bb70c7cbac5915fc03c890f52cabb0`**；二者不能混用。包未下载、未本地独立复算、未创建 Library 副本，未签名、未安装、未正式发布。完整来源、检查及停止边界见[第五阶段机器证据](windows-desktop-stage5-evidence-20261104.json)。永久保全依赖远端源分支，三天 artifact 不作为唯一备份。
+
 ## 本轮选择与边界
 
 网站 `web/pages/articles.mjs`、`web/pages/article-form.mjs` 和 `src/article-pipeline-fields.mjs` 已支持槽位、作者、配图者、存稿日期、系列号、字数/小标题/图数、生产目录、草稿凭证及完成时间。原生 0.4.0 的 `Editors.cs` 只暴露基础字段，虽然提交时保留隐藏流水线字段，用户不能独立录入或查看这些资料。本轮优先补齐这一业务闭环。
@@ -18,7 +26,7 @@
 
 共享真实表单 → 已知源 Worker/临时 Miniflare D1 已实跑 **11 个请求**：**5 次成功保存（2 创建/3 服务器ID PUT）**、**1 次真实版本 CAS 冲突且前后读回完全不变**、**5 次读取**；**27 个无效表单全部拒绝**，零外联、零生产请求。证据为 `Haoduoyu.Api.Tests/Fixtures/article-pipeline-form-report.json` 及可重建的 fixture/生成器。共享纯逻辑 SHA256 `bcc021ba37cbd0de82550bb110c41da94e96f9058a6a69e0caa2e5d0fccea6dc`。
 
-新增两组实际显示窗口流程：中文流水线续编、非法日期仍保存草稿、关开、零/null、未知嵌套字段、详情只读和离线 PUT；合成 409/超时后原请求/远端/较新草稿保全、Unknown 不重放及重开围栏。Windows.Tests 整树 Release 跨编译 **零警告/零错误**，预计 **33 个顶层检查/20 组显示窗口**；**仍待本阶段精确源正常 Windows CI 实跑，不把跨编译计为 Windows 33/33**。编译或 runner 窗口回归不能替代用户设备中文输入法、休眠、真正断电与旧版迁移验收。最终精确源与实际 CI 结果待完成后补齐。
+新增两组实际显示窗口流程：中文流水线续编、非法日期仍保存草稿、关开、零/null、未知嵌套字段、详情只读和离线 PUT；合成 409/超时后原请求/远端/较新草稿保全、Unknown 不重放及重开围栏。Windows.Tests 整树 Release 跨编译 **零警告/零错误**，其后上述精确源在正常 Windows CI 实跑 **33/33（20组显示窗口）通过**，包括这两组新增流程。编译或 runner 窗口回归不能替代用户设备中文输入法、休眠、真正断电与旧版迁移验收。
 
 ## 仍存在的业务差距
 
