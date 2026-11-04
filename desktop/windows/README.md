@@ -1,10 +1,11 @@
 # 好多鱼 Windows 独立工作台
 
-当前为 **0.6.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
+当前为 **0.7.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
 
 ## 已实现的核心路径
 
 - 每日待办、日期历史、完成显示偏好、软删恢复、常用事项。
+- 待办周/月历史：自然周跨月、月份导航、北京时间今天、完成状态筛选、每日预览、范围及已知条目统计，点击日期复用单日操作。缺日显示未知；未决删除与 Queued/Unknown 仍标本机意图，不冒充服务端已确认，也不受日常隐藏完成项偏好影响。
 - 未安排待办、安排到指定日、今天完成、软删恢复。
 - 生活与工作多条碎碎念、旧日期日页独立保留、标签选择及创建/归档/恢复。
 - 备忘录分组与笔记、正文编辑、回收站恢复。
@@ -18,7 +19,9 @@
 
 界面编译通过不等于以上路径均已完成实机或生产 API 验收。默认缓存已访问页面；“准备完整离线资料”会读取已确认工作区的日期索引、所有分页及详情，核对 hash、scope 和全局读取版本后一次性保存。取消、资料变化、坏响应或超过 24MiB/1000 日期等有界预算会整批停止并保留旧缓存，不能把局部页面称为完整。所有生产联网业务测试仍未执行。
 
-发布对账接口不接受查询参数，完整库存最多 4000 条/rows JSON 1MiB；含聚合的完整响应另限 4MiB。刷新全程成功后才缓存当次核实的账户集合、服务 scope 及本机观察时间；离线显示为已保存快照。完整资料准备同样纳入该库存及未知状态文章详情，前后对账不同则整批停止；读回一致不能消除无服务端事务修订号的 ABA/并发窗口。筛选仅作用于已核实快照，文章台账原有在线筛选的完全等价、待办周月汇总与待核清单写入仍未实现。
+发布对账接口不接受查询参数，完整库存最多 4000 条/rows JSON 1MiB；含聚合的完整响应另限 4MiB。刷新全程成功后才缓存当次核实的账户集合、服务 scope 及本机观察时间；离线显示为已保存快照。完整资料准备同样纳入该库存及未知状态文章详情，前后对账不同则整批停止；读回一致不能消除无服务端事务修订号的 ABA/并发窗口。筛选仅作用于已核实快照，文章台账原有在线筛选的完全等价与待核清单写入仍未实现。
+
+待办日历只显式刷新当前周/月范围，逐日 GET 后核对全局应用修订号与 service scope，全部通过才一次保存。最多31日、8MiB网络JSON、12MiB本机编码缓存和5000行；单日网络1MiB保持，本机解析4MiB仅容纳缓存Unicode转义。取消、429、坏日或期间变化保留整批旧缓存；缺失日期不自动补零。不同日期可能来自多次读取，统计标为本机视图。外部owner配置缺逐请求原子scope前提的既有竞态仍未消除。
 
 ## 本机数据与同步
 
@@ -50,8 +53,10 @@ dotnet run --project Haoduoyu.Api.Tests --configuration Release
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --worker-contract Haoduoyu.Api.Tests/Fixtures/worker-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-pipeline-form-contract Haoduoyu.Api.Tests/Fixtures/article-pipeline-form-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-reconciliation-contract Haoduoyu.Api.Tests/Fixtures/article-reconciliation-contract-c30a8a9.json
+dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --todo-history-contract Haoduoyu.Api.Tests/Fixtures/todo-history-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Profile.Tests --configuration Release
 dotnet run --project Haoduoyu.Offline.Tests --configuration Release
+dotnet run --project Haoduoyu.History.Tests --configuration Release
 dotnet run --project Haoduoyu.Search.Tests --configuration Release
 dotnet run --project Haoduoyu.Archive.Tests --configuration Release
 dotnet build Haoduoyu.Windows --configuration Release

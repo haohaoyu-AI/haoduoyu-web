@@ -29,6 +29,7 @@ public sealed partial class MainWindow
     private async Task TodosAsync(WrapPanel bar)
     {
         var day = Day;
+        bar.Children.Add(Button("查看周/月历史", OpenTodoHistoryFromDayAsync));
         bar.Children.Add(Button("＋ 新待办", () => NewEditorAsync("todo", NewRecord(("date", day), ("text", "")), "/api/v1/todos/")));
         bar.Children.Add(Button("常用事项", TemplatesAsync));
         var data = await ReadAsync("/api/v1/todos?date=" + day); Missing(data);

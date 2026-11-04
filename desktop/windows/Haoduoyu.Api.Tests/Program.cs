@@ -44,6 +44,11 @@ if (args is ["--article-reconciliation-contract", var reconciliationFixturePath]
     await ReconciliationContract.RunAsync(reconciliationFixturePath);
     return;
 }
+if (args is ["--todo-history-contract", var todoHistoryFixturePath])
+{
+    await TodoHistoryContract.RunAsync(todoHistoryFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);

@@ -1,0 +1,53 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "desktop_base_commit": "7f183a0705b2d696f6149730b934a47d5ee21c7e",
+  "verified_at_utc": "2026-11-04T23:02:45.533493+00:00",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "production_business_requests": 0,
+  "fixture": "todo-history-contract-c30a8a9.json",
+  "fixture_sha256": "77246760a5b19b719a8224c3897a1911bfcd1ddcefb34ccad7fabd217c209886",
+  "actual_get_worker_requests": 14,
+  "successful_reads": 12,
+  "invalid_query_responses": 2,
+  "actual_response_native_range_replay": 11,
+  "source_contract_checks": 25,
+  "model_checks": 19,
+  "download_checks": 25,
+  "total_history_checks": 44,
+  "generation_and_current_code_replay_passed": true,
+  "history_suite_passed": true,
+  "release_api_build": {
+    "warnings": 0,
+    "errors": 0
+  },
+  "loader_limits": {
+    "max_dates": 31,
+    "max_total_wire_bytes": 8388608,
+    "max_encoded_cache_bytes": 12582912,
+    "max_rows": 5000,
+    "single_wire_response_bytes": 1048576,
+    "single_day_cache_bytes": 4194304
+  },
+  "loader_properties": {
+    "get_only": true,
+    "no_engine_or_store_dependency": true,
+    "returns_complete_staged_batch_only": true,
+    "caller_must_apply_one_atomic_cache_batch": true,
+    "scope_and_global_revision_bookends": true,
+    "same_server_today_and_preferences_across_dates": true,
+    "cross_beijing_midnight_rejected": true,
+    "cross_date_duplicate_uuid_rejected": true,
+    "rate_limit_does_not_retry": true,
+    "scope_metadata_is_server_scope_not_local_partition_hash": true,
+    "business_data_has_no_fabricated_scope_or_revision": true
+  },
+  "boundary": "Existing exact c30 compiled Worker.fetch and temporary Miniflare D1 harness, with synthetic bootstrap/login and direct-D1 setup only. Captured business contracts are GET-only; source response replay uses the actual native Core.ParseDay and Api.TodoHistoryDownload. Additional loader failures use IRemoteApi fakes and never touch an engine/store or real records. Windows interactive acceptance remains separate. All temporary runtimes disposed; no artifact downloads, deployment or device installation.",
+  "files_sha256": {
+    "Haoduoyu.Core/TodoHistory.cs": "a9a7d3994f260c23e9e6fa352bb93c81b7775c36bff16031eabe730c4336b711",
+    "Haoduoyu.Api/TodoHistoryDownload.cs": "62ce9ad40b4018c3e90c3c46d17baee912ac7c8ed8aa4803ba3f1b2e38d3305c",
+    "Haoduoyu.History.Tests/HistoryDownloadChecks.cs": "ea8360eae8a38df64c9984a23371ab90561e616376edc4da84168ada6713faa4",
+    "Haoduoyu.Api.Tests/TodoHistoryContract.cs": "d1586b0c22cbdab2c983bafc5609405e72ef4b66acf17077d84b2b64b10c6aba",
+    "Haoduoyu.Api.Tests/generate-todo-history-contract.mjs": "da9dcc1b5f0d5adb909e1309a3802fa235c42e7fd39736253760aca13626f504"
+  }
+}
