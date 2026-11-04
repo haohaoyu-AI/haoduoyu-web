@@ -39,7 +39,7 @@ public sealed partial class MainWindow
             $" · {(result.Complete ? "匹配" : "当前找到")} {result.TotalMatches} 条 · 第 {offset / 50 + 1} 页"));
         var paging = new WrapPanel(); page.Children.Add(paging);
         if (offset > 0) paging.Children.Add(Button("上一页", async () => { localSearchOffset = Math.Max(0, offset - 50); await LocalSearchAsync(); }));
-        if (result.HasMore && offset < 10000) paging.Children.Add(Button("下一页", async () => { localSearchOffset = offset + 50; await LocalSearchAsync(); }));
+        if (result.HasMore && offset + 50 < result.TotalMatches) paging.Children.Add(Button("下一页", async () => { localSearchOffset = offset + 50; await LocalSearchAsync(); }));
         List(result.Items.Select(hit => (hit.Title.Length > 0 ? hit.Title : SearchKindName(hit.Kind),
             SearchKindName(hit.Kind) + " · " + SearchOriginName(hit) + SearchCategoryName(hit.Category) + (hit.Date is { Length: > 0 } foundDay ? " · " + foundDay : "") + (hit.Deleted ? " · 删除/归档来源" : "") + "\n" + hit.Snippet,
             (Func<Task>)(() => OpenSearchHitAsync(hit)))));
