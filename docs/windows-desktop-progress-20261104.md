@@ -17,3 +17,13 @@
 复跑：`dotnet run --project desktop/windows/Haoduoyu.Core.Tests/Haoduoyu.Core.Tests.csproj --configuration Release`。SDK 版本在 `desktop/windows/global.json` 固定；`bin/obj/artifacts` 不提交。云端沙箱首次 NuGet 命名互斥初始化失败，经正常工具自动审核授权执行官方 SDK 后测试通过，未修改安全设置或 SDK。
 
 此阶段只证明上述核心测试，不证明 Windows 交互、DPAPI、真实 API、旧版迁移、性能或正式发布通过。后续界面与 API 文件在通过各自定向检查后分阶段提交并回读远端；未提交文件不属于已可靠远端保存的成果。
+
+## 阶段 2：受控 API 与原生界面候选
+
+阶段 1 核心源码已远端保存为 `0fcf3c817b3069401a6187df1354d9bc0a93e79d`，正常 `git ls-remote` 精确回读一致。
+
+API adapter 的最终定向合成套件 **108 项断言通过**，包括固定服务源、路由白名单、拒绝重定向、Cookie/CSRF、scope 变化发送前停止、标签协议、正文和成功响应核对、哈希 CAS 内容复盘、超限/网络失败及保存回执。没有访问生产业务 API。
+
+Windows WPF 产品与 13 项 Windows 合成测试工程已由 Linux 官方 SDK 交叉编译成功，**0 警告、0 错误**。13 项 Windows 检查尚未在 Windows 运行，不计入已通过测试。原生每日待办、生活/工作记录、备忘录、工作提醒、文章表单、离线草稿/同步中心、未安排待办、标签及内容复盘页面为真实 C# 控件与受控请求；内容复盘报告/规则库/对标资料/健康目前只读，不能称全功能写入。具体完整性与剩余限制见 [Windows README](../desktop/windows/README.md)。没有启动或安装到用户电脑。
+
+独立 Windows 构建工作流另行保存并尝试正常写入；先可靠推送产品代码再验证工作流权限。若 GitHub 拒绝工作流写入或运行，不改权限、不换隐蔽发布路径，已推送代码仍保留，明天按正常路径恢复。
