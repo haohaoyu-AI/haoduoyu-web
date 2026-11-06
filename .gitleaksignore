@@ -221,3 +221,50 @@ d8e00419d8f1667c2eb50861ddc3adf4647d194d:.ci/public-assets.json:generic-api-key:
 
 # Same reviewed SYNTHETIC identity echoed in original proof only; exact historical evidence.
 f51c30f4f2ca1dc20ba97eaf3b66ddc4b1d6459c:docs/workbench-round4-secret-evidence.json:generic-api-key:36
+
+# Approved 2026-11-06: 43 exact historical public-content hashes and synthetic
+# idempotency keys, independently recomputed or traced to randomUUID().
+# No path-wide or rule-wide exclusions; full-history scanning is unchanged.
+179056839dd91cfb12fc1c01b5526cc040b7c1e5:.ci/public-assets.json:generic-api-key:10
+179056839dd91cfb12fc1c01b5526cc040b7c1e5:.ci/public-assets.json:generic-api-key:5
+1e8ccea2377adb52b4265546fd1432ee654c7882:.ci/public-assets.json:generic-api-key:16
+3a2f33a08c356eb042b8f626ae51c8110be4e79d:.ci/public-assets.json:generic-api-key:10
+3a2f33a08c356eb042b8f626ae51c8110be4e79d:.ci/public-assets.json:generic-api-key:16
+3a2f33a08c356eb042b8f626ae51c8110be4e79d:.ci/public-assets.json:generic-api-key:5
+46dabbf8f62fa7c2ee3965d0f059ab41b62986fd:tests/oct28-small-fix-projection.mjs:generic-api-key:13
+5b05495ff90088d0a9dd1c050a4cb4872dadb6d7:.ci/public-assets.json:generic-api-key:10
+5b05495ff90088d0a9dd1c050a4cb4872dadb6d7:.ci/public-assets.json:generic-api-key:5
+5f354ad52d76c3aff429f917a887c9f9cd14595b:.ci/public-assets.json:generic-api-key:16
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:1198
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:123
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:1590
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:1952
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:2362
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:3170
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:3563
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:392
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:3956
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:4349
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:5135
+74fffd595dd46373a90a2dd5e731925f17d70234:desktop/windows/Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json:generic-api-key:804
+778a5710fbb56f26c186f3c752dd998fd1df795e:.ci/public-assets.json:generic-api-key:10
+778a5710fbb56f26c186f3c752dd998fd1df795e:.ci/public-assets.json:generic-api-key:5
+79187ef36fba24f187d6cf6cf60230fd5939497d:.ci/public-assets.json:generic-api-key:10
+81c129954230208ad2d297eac7b82dad4bd4d3ea:desktop/windows/Haoduoyu.Api.Tests/Fixtures/worker-contract-report.json:generic-api-key:17
+8817fe75aaf974b19e4410bf01f1e31b7e67a511:.ci/public-assets.json:generic-api-key:10
+8817fe75aaf974b19e4410bf01f1e31b7e67a511:.ci/public-assets.json:generic-api-key:5
+b729c782b9f7d7a63631b2cd133959d96098fe54:.ci/public-assets.json:generic-api-key:10
+b729c782b9f7d7a63631b2cd133959d96098fe54:.ci/public-assets.json:generic-api-key:16
+b729c782b9f7d7a63631b2cd133959d96098fe54:tests/oct28-small-fix-projection.mjs:generic-api-key:13
+bcb0dc48ae67797023b5c53162e3d4bbf44ac2d2:.ci/public-assets.json:generic-api-key:16
+c4844eff758458e7174427b62c891ee55c78a743:.ci/public-assets.json:generic-api-key:16
+c4d64898f0ca264990157287ef0e23079bde1231:.ci/public-assets.json:generic-api-key:10
+c4d64898f0ca264990157287ef0e23079bde1231:.ci/public-assets.json:generic-api-key:5
+f98d2b9913e2f673a854b3b90629e78461111a3e:.ci/public-assets.json:generic-api-key:10
+f98d2b9913e2f673a854b3b90629e78461111a3e:.ci/public-assets.json:generic-api-key:16
+f98d2b9913e2f673a854b3b90629e78461111a3e:.ci/public-assets.json:generic-api-key:5
+ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixtures/ai-report-api-report.json:generic-api-key:31
+ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixtures/ai-report-api-report.json:generic-api-key:35
+ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixtures/stage2-api-form-report.json:generic-api-key:45
+ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixtures/stage2-api-form-report.json:generic-api-key:46
+ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixtures/stage2-api-form-report.json:generic-api-key:52
