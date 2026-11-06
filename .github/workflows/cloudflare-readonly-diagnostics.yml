@@ -1,0 +1,36 @@
+name: Inspect existing Cloudflare Worker
+on:
+  workflow_dispatch:
+    inputs:
+      expected_current_version:
+        description: Exact current 100% production Worker version UUID to inspect
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: haoduoyu-cloudflare-production
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: cloudflare-production
+    steps:
+      - name: Checkout reviewed diagnostic controls
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Inspect configuration with GET requests only
+        env:
+          RELEASE_OPERATION: inspect
+          EXPECTED_CURRENT_VERSION: ${{ inputs.expected_current_version }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
+        run: node .github/scripts/cloudflare-publish.mjs
