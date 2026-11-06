@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {publishExistingWorker,versionSnapshot,main} from '../.github/scripts/cloudflare-publish.mjs';
+import {readFile} from 'node:fs/promises';
+import {publishExistingWorker,diagnoseExistingWorker,versionSnapshot,main} from '../.github/scripts/cloudflare-publish.mjs';
 
 // Fixtures follow Cloudflare's stable version GET API and official SDK types:
 // https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/versions/methods/get/
@@ -29,6 +30,13 @@ function version(id=OLD) {
     script_runtime:{compatibility_date:'2026-07-30',compatibility_flags:['nodejs_compat'],usage_model:'standard',
       limits:{cpu_ms:50},exports:{default:{type:'worker',state:'created',cache:{enabled:false}}}}}};
 }
+test('D1 database_id alias must match the retained database id',()=>{
+  const original=version(),aliased=clone(original);
+  aliased.resources.bindings[0].database_id=aliased.resources.bindings[0].id;
+  assert.deepEqual(versionSnapshot(aliased,OLD),versionSnapshot(original,OLD));
+  aliased.resources.bindings[0].database_id=OTHER;
+  assert.throws(()=>versionSnapshot(aliased,OLD));
+});
 function mockCloudflare(hook=()=>{}) {
   const old=version(),candidate=version(NEW),calls=[];
   const state={latest:OLD,active:OLD,deploymentId:DEPLOYMENT,hasAssets:false,versions:new Map([[OLD,old],[NEW,candidate]]),
@@ -114,6 +122,25 @@ test('documented optional usage_model is neither invented nor required',async()=
   for(const item of mock.state.versions.values())delete item.resources.script_runtime.usage_model;
   const report=await run(mock);assert.equal(report.status,'deployed');
   assert.ok(!Object.hasOwn(mock.metadata,'usage_model'));
+});
+test('null and empty nonversioned lists are equivalent without writing settings',async()=>{
+  const mock=mockCloudflare(({path,method,state})=>{
+    if(method==='GET'&&path==='/script-settings')return Response.json({success:true,result:{...state.settings,
+      tags:null,tail_consumers:null,streaming_tail_consumers:null}});
+  });
+  mock.state.settings.tags=[];
+  const report=await run(mock);assert.equal(report.status,'deployed');
+  for(const key of ['tags','tail_consumers','streaming_tail_consumers'])assert.ok(!Object.hasOwn(mock.metadata,key));
+});
+test('empty placement metadata preserves an existing worker without smart placement',async()=>{
+  const mock=mockCloudflare(({path,method,state})=>{
+    if(method!=='GET'||path!=='/settings')return;
+    const current=state.versions.get(state.active).resources;
+    return Response.json({success:true,result:{bindings:current.bindings,...current.script_runtime,placement:{},...state.settings}});
+  });
+  for(const item of mock.state.versions.values())delete item.resources.script.placement_mode;
+  const report=await run(mock);assert.equal(report.status,'deployed');
+  assert.ok(!Object.hasOwn(mock.metadata,'placement'));
 });
 
 test('native assets without a binding, or missing assets metadata, prevent a code-only upload',async()=>{
@@ -261,4 +288,196 @@ test('CLI rejects an unapproved workflow before reading a Worker or credential-d
     output:value=>output.push(value)});
   assert.equal(read,false);assert.equal(contacted,false);assert.equal(report.status,'blocked');
   assert.equal(output.length,1);assert.deepEqual(JSON.parse(output[0]),report);privateFree(report);
+});
+
+test('documented D1 id and database_id forms preserve the same existing database through deployment',async()=>{
+  for(const variant of ['database_id','both']) {
+    const mock=mockCloudflare(),binding=mock.state.versions.get(NEW).resources.bindings[0];
+    binding.database_id=binding.id;if(variant==='database_id')delete binding.id;
+    const report=await run(mock);assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
+    assert.deepEqual(mock.metadata.bindings.find(item=>item.name==='DB'),{name:'DB',type:'inherit'});
+    assert.ok(!JSON.stringify(mock.metadata).includes(binding.database_id));privateFree(report);
+  }
+});
+
+test('D1 aliases cannot conceal a different, missing or malformed database identity',async()=>{
+  for(const patch of [{database_id:OTHER},{database_id:null},{id:null,database_id:OLD},
+    {id:undefined,database_id:undefined}]) {
+    const mock=mockCloudflare();Object.assign(mock.state.versions.get(OLD).resources.bindings[0],patch);
+    const report=await run(mock);assert.equal(report.status,'blocked');assert.equal(report.code,'UNSUPPORTED_BINDINGS');
+    assert.equal(writes(mock).length,0);privateFree(report);
+  }
+});
+
+test('a documented midnight UTC compatibility date is the same runtime date, not a configuration change',async()=>{
+  const mock=mockCloudflare();mock.state.versions.get(OLD).resources.script_runtime.compatibility_date+='T00:00:00Z';
+  const report=await run(mock);assert.equal(report.status,'deployed');assert.equal(writes(mock).length,2);
+  assert.equal(mock.metadata.compatibility_date,'2026-07-30');privateFree(report);
+});
+
+test('date normalization rejects offsets, non-midnight times, invalid dates and real date changes',async()=>{
+  for(const date of ['2026-07-30T00:00:01Z','2026-07-30T00:00:00+00:00','2026-02-30',
+    '2026-13-01','2026-07-30T00:00:00.000Z']) {
+    const mock=mockCloudflare();mock.state.versions.get(OLD).resources.script_runtime.compatibility_date=date;
+    const report=await run(mock);assert.equal(report.status,'blocked');assert.equal(writes(mock).length,0);privateFree(report);
+  }
+  const mock=mockCloudflare(({path,state})=>path==='/settings'?Response.json({success:true,result:{
+    bindings:version().resources.bindings,...version().resources.script_runtime,
+    compatibility_date:'2026-07-31T00:00:00Z',placement:{mode:'smart'},...state.settings}}):undefined);
+  const report=await run(mock);assert.equal(report.status,'blocked');assert.equal(report.code,'CONFIGURATION_CHANGED');
+  assert.equal(writes(mock).length,0);privateFree(report);
+});
+
+
+test('preflight reports only fixed validation locations, never API field names or values',async()=>{
+  for(const [change,location] of [
+    [mock=>{mock.state.versions.get(OLD)[SENTINEL]=SENTINEL;},'version.fields'],
+    [mock=>{mock.state.versions.get(OLD).resources.bindings[0][SENTINEL]=SENTINEL;},'binding.d1.fields'],
+    [mock=>{mock.state.versions.get(OLD).resources.script_runtime.compatibility_date=SENTINEL;},'runtime.compatibility_date'],
+    [mock=>{mock.state.versions.get(OLD).resources.script_runtime.exports[SENTINEL]={type:SENTINEL};},'runtime.exports.names'],
+    [mock=>{mock.state.versions.get(OLD).resources.script.named_handlers=[{name:SENTINEL}];},'script.named_handlers'],
+    [mock=>{mock.state.settings[SENTINEL]=SENTINEL;},'script_settings.fields']
+  ]) {
+    const mock=mockCloudflare();change(mock);const report=await run(mock);
+    assert.equal(report.status,'blocked');assert.equal(report.code,'UNSUPPORTED_CONFIGURATION');
+    assert.equal(report.check,location);assert.equal(writes(mock).length,0);privateFree(report);
+  }
+});
+
+test('diagnostics inspect a valid production shape using GET only and never publish',async()=>{
+  const mock=mockCloudflare(),report=await diagnoseExistingWorker(config,{request:mock.request});
+  assert.equal(report.status,'diagnosed');assert.equal(report.code,'PREFLIGHT_VALID');
+  assert.equal(report.shapes.version.resources.bindings.items[0].id.value_type,'string');
+  assert.equal(report.shapes.version.resources.bindings.items[0].database_id.value_type,'missing');
+  assert.equal(report.shapes.version.resources.script_runtime.limits.value_type,'object');
+  assert.equal(mock.calls.length,6);assert.ok(mock.calls.every(call=>call.method==='GET'));
+  assert.equal(writes(mock).length,0);assert.equal(mock.state.active,OLD);assert.equal(mock.state.latest,OLD);
+  privateFree(report);
+});
+
+test('diagnostics expose documented-field types and the exact failed check, without API names or values',async()=>{
+  const mock=mockCloudflare(),old=mock.state.versions.get(OLD);
+  old[SENTINEL]=SENTINEL;
+  old.resources.bindings[0].database_id=OLD;
+  old.resources.bindings[0].name=SENTINEL;
+  old.resources.script_runtime.compatibility_date=SENTINEL;
+  old.resources.script_runtime.limits=null;
+  old.resources.script_runtime.exports[SENTINEL]={type:SENTINEL};
+  mock.state.settings.tags=[SENTINEL];
+  const report=await diagnoseExistingWorker(config,{request:mock.request});
+  assert.equal(report.status,'diagnosed');assert.equal(report.code,'UNSUPPORTED_CONFIGURATION');
+  assert.equal(report.check,'version.fields');assert.equal(report.shapes.version.unrecognized_field_count,1);
+  assert.equal(report.shapes.version.resources.bindings.items[0].database_id.value_type,'string');
+  assert.equal(report.shapes.version.resources.script_runtime.compatibility_date.value_type,'string');
+  assert.equal(report.shapes.version.resources.script_runtime.limits.value_type,'null');
+  assert.equal(report.shapes.version.resources.script_runtime.exports.unrecognized_field_count,1);
+  assert.equal(report.shapes.script_settings.tags.value_type,'array');
+  assert.ok(!Object.hasOwn(report.shapes.script_settings.tags,'items'));
+  assert.ok(mock.calls.every(call=>call.method==='GET'));assert.equal(writes(mock).length,0);privateFree(report);
+});
+
+test('diagnostic HTTP and input failures never disclose responses or authorize a write',async()=>{
+  const mock=mockCloudflare(()=>Response.json({success:false,errors:[{message:SENTINEL}]},{status:403}));
+  const report=await diagnoseExistingWorker(config,{request:mock.request});
+  assert.equal(report.status,'blocked');assert.equal(report.code,'API_HTTP_403');
+  assert.ok(mock.calls.every(call=>call.method==='GET'));assert.equal(writes(mock).length,0);privateFree(report);
+  let contacted=false;
+  const invalid=await diagnoseExistingWorker({...config,workerName:'unapproved-worker'},
+    {request:()=>{contacted=true;assert.fail('Invalid input must not contact Cloudflare');}});
+  assert.equal(invalid.status,'blocked');assert.equal(contacted,false);privateFree(invalid);
+});
+
+test('an unknown diagnostic operation is rejected before file or network access',async()=>{
+  let contacted=false,read=false;
+  const report=await main({GITHUB_REPOSITORY:'haohaoyu-AI/haoduoyu-web',GITHUB_REF:'refs/heads/main',
+    GITHUB_EVENT_NAME:'workflow_dispatch',TARGET_COMMIT:'947bc782ea70e7808f6e7de523e5977818b292df',
+    LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:OLD,RELEASE_OPERATION:SENTINEL},
+    {read:()=>{read=true;},request:()=>{contacted=true;},output:()=>{}});
+  assert.equal(report.status,'blocked');assert.equal(read,false);assert.equal(contacted,false);privateFree(report);
+});
+
+const inspectEnv={GITHUB_REPOSITORY:'haohaoyu-AI/haoduoyu-web',GITHUB_REF:'refs/heads/main',
+  GITHUB_EVENT_NAME:'workflow_dispatch',RELEASE_OPERATION:'inspect',EXPECTED_CURRENT_VERSION:OLD,
+  CLOUDFLARE_ACCOUNT_ID:config.accountId,CLOUDFLARE_WORKER_NAME:config.workerName,CLOUDFLARE_API_TOKEN:SENTINEL};
+
+test('inspection CLI needs no old source commit, Worker file or release approval and cannot publish',async()=>{
+  const mock=mockCloudflare(),output=[];
+  const report=await main(inspectEnv,{request:mock.request,
+    read:()=>assert.fail('Inspection must not read or rebuild a Worker'),output:value=>output.push(value)});
+  assert.equal(report.status,'diagnosed');assert.equal(report.code,'PREFLIGHT_VALID');
+  assert.equal(mock.calls.length,6);assert.ok(mock.calls.every(call=>call.method==='GET'&&call.body===undefined));
+  assert.equal(mock.state.active,OLD);assert.equal(mock.state.latest,OLD);
+  assert.equal(output.length,1);assert.deepEqual(JSON.parse(output[0]),report);privateFree(report);
+});
+
+test('inspection cannot run under another repository, branch or event',async()=>{
+  for(const patch of [{GITHUB_REPOSITORY:'someone/else'},{GITHUB_REF:'refs/heads/feature'},
+    {GITHUB_EVENT_NAME:'pull_request_target'}]) {
+    const report=await main({...inspectEnv,...patch},{
+      read:()=>assert.fail('No Worker read allowed'),request:()=>assert.fail('No API request allowed'),output:()=>{}});
+    assert.equal(report.status,'blocked');assert.equal(report.code,'RELEASE_INPUT_REJECTED');privateFree(report);
+  }
+});
+
+test('inspection validates the exact target, full version, token and timeout before any API request',async()=>{
+  const target={accountId:config.accountId,workerName:config.workerName,expectedCurrentVersion:OLD,token:SENTINEL};
+  for(const patch of [{accountId:'wrong'},{workerName:'other'},{expectedCurrentVersion:'50af6df9'},
+    {token:''},{token:'bad\nheader'}]) {
+    const report=await diagnoseExistingWorker({...target,...patch},{request:()=>assert.fail('No API request allowed')});
+    assert.equal(report.status,'blocked');privateFree(report);
+  }
+  for(const timeoutMs of [0,-1,60001,NaN]) {
+    const report=await diagnoseExistingWorker(target,{timeoutMs,request:()=>assert.fail('No API request allowed')});
+    assert.equal(report.status,'blocked');assert.equal(report.code,'INVALID_TIMEOUT');privateFree(report);
+  }
+});
+
+test('inspection refuses a stale production version and unknown settings without entering the write path',async()=>{
+  for(const mutate of [mock=>{mock.state.latest=OTHER;},mock=>{mock.state.active=OTHER;},
+    mock=>{mock.state.settings[SENTINEL]=true;}]) {
+    const mock=mockCloudflare();mutate(mock);
+    const report=await main(inspectEnv,{request:mock.request,read:()=>assert.fail('No file read allowed'),output:()=>{}});
+    assert.equal(report.status,'diagnosed');assert.notEqual(report.code,'PREFLIGHT_VALID');
+    assert.ok(mock.calls.every(call=>call.method==='GET'));assert.equal(writes(mock).length,0);privateFree(report);
+  }
+});
+
+test('production snapshot remains rejected for publish until its explicit CI and artifact gates are approved',async()=>{
+  for(const RELEASE_OPERATION of [undefined,'publish']) {
+    const report=await main({...inspectEnv,RELEASE_OPERATION,LOCAL_UPLOAD_STOPPED:'true',
+      TARGET_COMMIT:'75c22677ffc1fe2d939a2d422c27460afdeb6534',WORKER_PATH:'source/dist/server/index.js'},
+    {read:()=>assert.fail('Unapproved source must not be read'),request:()=>assert.fail('No network allowed'),output:()=>{}});
+    assert.equal(report.status,'blocked');assert.equal(report.code,'RELEASE_INPUT_REJECTED');privateFree(report);
+  }
+});
+
+test('diagnostic output bounds array inspection and never traverses user values or field names',async()=>{
+  const mock=mockCloudflare(),old=mock.state.versions.get(OLD);
+  old.resources.bindings=Array.from({length:300},()=>({name:SENTINEL,type:'json',json:{[SENTINEL]:SENTINEL}}));
+  const report=await diagnoseExistingWorker(config,{request:mock.request});
+  const bindings=report.shapes.version.resources.bindings;
+  assert.equal(bindings.items.length,256);assert.equal(bindings.truncated,true);
+  assert.deepEqual(bindings.items[0].json,{value_type:'object'});
+  assert.equal(report.code,'UNSUPPORTED_BINDINGS');assert.equal(writes(mock).length,0);privateFree(report);
+});
+
+test('independent diagnostic workflow references existing credentials and contains no release or source-build step',async()=>{
+  const yaml=await readFile(new URL('../.github/workflows/cloudflare-readonly-diagnostics.yml',import.meta.url),'utf8');
+  assert.match(yaml,/workflow_dispatch:/);assert.match(yaml,/contents: read/);
+  assert.match(yaml,/environment: cloudflare-production/);
+  assert.match(yaml,/group: haoduoyu-cloudflare-production/);assert.match(yaml,/cancel-in-progress: false/);
+  assert.match(yaml,/RELEASE_OPERATION: inspect/);assert.match(yaml,/persist-credentials: false/);
+  assert.match(yaml,/secrets\.CLOUDFLARE_API_TOKEN/);
+  assert.doesNotMatch(yaml,/pull_request_target|contents: write|actions: write|id-token:|npm |wrangler|curl |target_commit/);
+  assert.equal((yaml.match(/^\s+run:/gm)||[]).length,1);
+});
+
+
+test('diagnostic metadata cannot collide with a documented type field',async()=>{
+  const mock=mockCloudflare(),report=await diagnoseExistingWorker(config,{request:mock.request});
+  const binding=report.shapes.version.resources.bindings.items[0];
+  const exported=report.shapes.version.resources.script_runtime.exports.default;
+  assert.equal(binding.value_type,'object');assert.deepEqual(binding.type,{value_type:'string'});
+  assert.equal(exported.value_type,'object');assert.deepEqual(exported.type,{value_type:'string'});
+  assert.equal(writes(mock).length,0);privateFree(report);
 });
