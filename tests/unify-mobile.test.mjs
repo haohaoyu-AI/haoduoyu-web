@@ -66,7 +66,7 @@ function browser({width=390,search='?page=todos',shell=true}={}) {
 
 test('phone bottom navigation includes AI reports separately from the settings menu',()=>{
   const app=browser(),html=app.run('mobileNavigation()');
-  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['todos','notes','memos','reminders','review','ai-reports']);
+  assert.deepEqual([...html.matchAll(/data-nav="([^"]+)"/g)].map(match=>match[1]),['todos','notes','review','ai-reports']);
   assert.doesNotMatch(html,/<details|data-nav="settings"|data-nav="articles"/);
   assert.match(app.run('mobileSettingsMenu()'),/data-nav="settings"/);
   assert.doesNotMatch(app.run('mobileSettingsMenu()'),/data-nav="ai-reports"/);
@@ -166,7 +166,7 @@ test('mobile-only stylesheet covers safe area, touch inputs, bottom drawers and 
   const css=await readFile(new URL('../public/mobile.css',import.meta.url),'utf8');
   await transform(css,{loader:'css'});
   assert.match(css,/@media \(max-width:767px\)/);assert.match(css,/@media \(min-width:768px\) and \(max-width:1199px\)/);
-  assert.match(css,/grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
+  assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
   assert.match(css,/\.media-page-tabs \{ display:none; \}/);
   assert.match(css,/env\(safe-area-inset-bottom\)/);assert.match(css,/min-height:44px/);
   assert.match(css,/\.icon-button\.inline-info\s*\{\s*width:44px; min-width:44px; height:44px; min-height:44px/);

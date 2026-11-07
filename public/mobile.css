@@ -45,7 +45,7 @@
   .shell.menu-open::after { content:""; position:fixed; inset:0; z-index:25; background:rgba(20,22,20,.2); }
   .mobile-bar:has(.mobile-settings-menu:not([hidden])) .mobile-settings-trigger { position:relative; z-index:36; }
   .mobile-nav.workbench-navigation {
-    position:fixed; z-index:20; inset:auto 0 0; display:grid; grid-template-columns:repeat(6,minmax(0,1fr));
+    position:fixed; z-index:20; inset:auto 0 0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
     width:100%; max-width:100%; box-sizing:border-box; gap:0; margin:0;
     min-height:var(--mobile-nav-height); padding:var(--space-4,4px)
       max(var(--space-4,4px),env(safe-area-inset-right)) calc(var(--space-4,4px) + env(safe-area-inset-bottom))

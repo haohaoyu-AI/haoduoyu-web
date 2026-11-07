@@ -35,7 +35,7 @@ test('report reading page has no report entry controls and offers date navigatio
   }
   assert.match(html, /data-ai-daily-tab="reminders" aria-pressed="true"/);
   assert.match(html, /data-ai-daily-panel="reports" hidden/);
-  assert.doesNotMatch(html, /账号优化|当天工作提醒/);
+  assert.doesNotMatch(html, /账号优化|当天工作提醒|前一天 AI 汇报/);
 });
 
 test('report reading distinguishes declared work dates from submission time and escapes text', () => {
@@ -54,7 +54,7 @@ test('report reading distinguishes declared work dates from submission time and 
     const html = elements.get('#ai-report-list').innerHTML;
     assert.match(html, /<h3 class="ai-report-author ai-report-author--other">其他作者<\/h3>/);
     assert.doesNotMatch(html, /2026-10-29/);
-    assert.match(html, /<h3 class="ai-report-author ai-report-author--grok">Grok bot<\/h3>/);
+    assert.doesNotMatch(html, /<h3[^>]*>Grok bot<\/h3>/);
     assert.doesNotMatch(html, /<h3[^>]*>(?:Gemini|GPT)<\/h3>/);
     assert.match(html, /title="提交于 2026\/10\/30 11:00（北京时间）"/);
     assert.match(html, /<strong class="ai-report-author ai-report-author--other">dot小鱼：<\/strong><\/p><div class="ai-report-markdown"><p>完成/);

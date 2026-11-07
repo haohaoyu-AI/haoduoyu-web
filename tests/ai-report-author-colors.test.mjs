@@ -35,7 +35,7 @@ test('color remains on author names through rerenders without altering reports o
       for (const [index, author] of authors.entries()) {
         assert.ok(html.includes(`<strong class="ai-report-author ai-report-author--${classes[index]}">${author}：</strong>`));
       }
-      assert.match(html, /<h3 class="ai-report-author ai-report-author--grok">Grok bot<\/h3>/);
+      assert.doesNotMatch(html, /<h3[^>]*>Grok bot<\/h3>/);
       assert.equal((html.match(/<div class="ai-report-markdown"><p><strong>重点<\/strong><\/p><ul><li>保留原文<\/li><\/ul><\/div>/g) || []).length, 3);
       assert.doesNotMatch(html, /style="[^"]*color|<h3[^>]*>(?:GPT|Gemini)<\/h3>/);
     }
