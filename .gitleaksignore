@@ -268,3 +268,9 @@ ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixt
 ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixtures/stage2-api-form-report.json:generic-api-key:45
 ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixtures/stage2-api-form-report.json:generic-api-key:46
 ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixtures/stage2-api-form-report.json:generic-api-key:52
+
+# Exact restored-source public content hashes, independently recomputed.
+34bff302e128c92f46f00e76d59f9b44b9b7242e:.ci/public-assets.json:generic-api-key:5
+34bff302e128c92f46f00e76d59f9b44b9b7242e:.ci/public-assets.json:generic-api-key:10
+34bff302e128c92f46f00e76d59f9b44b9b7242e:.ci/public-assets.json:generic-api-key:16
+34bff302e128c92f46f00e76d59f9b44b9b7242e:tests/oct28-small-fix-projection.mjs:generic-api-key:13

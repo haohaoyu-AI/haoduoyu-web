@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {releases,productionRestore,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
+const commit='34bff302e128c92f46f00e76d59f9b44b9b7242e';
+const baseline='50af6df9-88b4-4b50-a5e7-50eb2cdceda7';
+const tree='c5cf2a0d2c766a45d6cd436d18148752d3a84621';
+const env={GITHUB_REPOSITORY:repository,GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',
+  TARGET_COMMIT:commit,LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:baseline};
+test('production restore is pinned to one source tree, artifact and current production version',()=>{
+  assert.equal(validateRequest(env),productionRestore);
+  assert.equal(productionRestore.tree,tree);assert.equal(productionRestore.bytes,2664854);
+  assert.equal(productionRestore.sha256,'f5eec94ba40eecdf97ae350b3fa98ed8f6af72fd1bdcb72b321fa27c0da23b84');
+  for(const [key,value] of Object.entries({GITHUB_REPOSITORY:'other/repo',GITHUB_REF:'refs/heads/other',GITHUB_EVENT_NAME:'push',
+    TARGET_COMMIT:'main',LOCAL_UPLOAD_STOPPED:'false',EXPECTED_CURRENT_VERSION:'83512373-c500-47c3-a451-7dde59d2174b'}))
+    assert.throws(()=>validateRequest({...env,[key]:value}));
+  assert.throws(()=>verifyWorker(Buffer.alloc(2664854),commit));
+});
+test('restored source identity is checked through a read-only exact-commit lookup',async()=>{
+  const good={sha:commit,tree:{sha:tree}};
+  const request=async(url,options)=>{
+    assert.equal(url,`https://api.github.com/repos/${repository}/git/commits/${commit}`);
+    assert.equal(options.method,undefined);assert.equal(options.redirect,'error');return Response.json(good);
+  };
+  assert.equal(await verifyEligibility(commit,{request}),productionRestore);
+  for(const data of [{sha:'0'.repeat(40),tree:{sha:tree}},{sha:commit,tree:{sha:'0'.repeat(40)}},{sha:commit}])
+    await assert.rejects(verifyEligibility(commit,{request:async()=>Response.json(data)}));
+  await assert.rejects(verifyEligibility(commit,{request:async()=>new Response('',{status:403})}));
+  await assert.rejects(verifyEligibility('main',{request}));
+});
+test('historical releases retain their exact successful Foundation CI gate',async()=>{
+  for(const old of Object.keys(releases).filter(key=>key!==commit)){
+    const good={id:releases[old].ci,head_sha:old,status:'completed',conclusion:'success',path:'.github/workflows/ci.yml',
+      event:'push',repository:{full_name:repository}};
+    assert.equal(await verifyEligibility(old,{request:async()=>Response.json(good)}),releases[old]);
+    await assert.rejects(verifyEligibility(old,{request:async()=>Response.json({...good,conclusion:'failure'})}));
+  }
+});
+test('manual restore preserves scan, build, byte checks, secret scope and production concurrency',async()=>{
+  const yaml=await readFile(new URL('../.github/workflows/cloudflare-manual-release.yml',import.meta.url),'utf8');
+  assert.match(yaml,/workflow_dispatch:/);assert.doesNotMatch(yaml,/^  (?:push|pull_request|workflow_run|schedule):/m);
+  assert.match(yaml,/environment: cloudflare-production/);assert.match(yaml,/cancel-in-progress: false/);
+  assert.match(yaml,/contents: read/);assert.match(yaml,/actions: read/);assert.match(yaml,/fetch-depth: 0/);
+  assert.equal((yaml.match(/persist-credentials: false/g)||[]).length,2);
+  for(const step of ['uses: ./.github/actions/gitleaks','npm ci --ignore-scripts','npm run build','npm run check:artifacts',
+    'node --test tests/cloudflare-production-restore.test.mjs tests/cloudflare-publish.test.mjs','Verify accepted Worker bytes'])
+    assert.ok(yaml.indexOf(step)>0&&yaml.indexOf(step)<yaml.indexOf('CLOUDFLARE_API_TOKEN:'),step);
+  assert.doesNotMatch(yaml,/continue-on-error|wrangler (?:login|secret|d1)|migrations apply|secret put|contents: write/);
+  const scan=await readFile(new URL('../.github/actions/gitleaks/action.yml',import.meta.url),'utf8');
+  assert.match(scan,/--all --full-history -m --root/);assert.match(scan,/--ignore-gitleaks-allow/);
+});
