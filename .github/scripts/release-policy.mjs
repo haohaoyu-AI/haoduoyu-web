@@ -17,13 +17,12 @@ export const productionRestore=Object.freeze({
   baseline:'fb304eb0-304b-4b69-98ea-bbf02a2d2e0d',
   bytes:2668750,sha256:'0484226a6f547616e21d6c864cb0d3d2d257cadafff35e2dced7e3fc156dfcde',
   label:'production-ai-report-author-colors-20261107'});
-// Preserve the preceding exact artifact as a rollback, but never infer its
-// future baseline. Pin baseline to the confirmed new production version UUID
-// in a separate reviewed controls update after the forward release succeeds.
+// Preserve the preceding exact artifact as a rollback from the independently
+// verified production version created by release run 42379879450.
 export const previousProductionRelease=Object.freeze({
   commit:'81cd30a2276c058668ff48198be1bc3d116d9839',
   tree:'3c2c20c6e4e80ddb09e1d5876a1925ef9679ca2c',
-  baseline:null,
+  baseline:'1daf9321-97ff-49f3-ae75-dbed5e5039b0',
   originalBaseline:'b086dec1-050d-4aeb-a59a-8a82c633d3ef',
   bytes:2668225,sha256:'c3a217454f9459bf18cd902ec7c3b758755e67811cad38ed9175d2578cd270b9',
   label:'production-reminder-markdown-20261107'});

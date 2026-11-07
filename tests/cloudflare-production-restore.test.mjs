@@ -28,15 +28,17 @@ test('restored source identity is checked through a read-only exact-commit looku
   await assert.rejects(verifyEligibility(commit,{request:async()=>new Response('',{status:403})}));
   await assert.rejects(verifyEligibility('main',{request}));
 });
-test('previous production rollback retains its exact source and artifact but rejects an unknown future baseline',async()=>{
+test('previous production rollback retains its exact source and artifact and requires the verified new baseline',async()=>{
   const previous='81cd30a2276c058668ff48198be1bc3d116d9839';
   const previousTree='3c2c20c6e4e80ddb09e1d5876a1925ef9679ca2c';
-  assert.deepEqual(previousProductionRelease,{commit:previous,tree:previousTree,baseline:null,
+  const rollbackBaseline='1daf9321-97ff-49f3-ae75-dbed5e5039b0';
+  assert.deepEqual(previousProductionRelease,{commit:previous,tree:previousTree,baseline:rollbackBaseline,
     originalBaseline:'b086dec1-050d-4aeb-a59a-8a82c633d3ef',bytes:2668225,
     sha256:'c3a217454f9459bf18cd902ec7c3b758755e67811cad38ed9175d2578cd270b9',
     label:'production-reminder-markdown-20261107'});
+  assert.equal(validateRequest({...env,TARGET_COMMIT:previous,EXPECTED_CURRENT_VERSION:rollbackBaseline}),previousProductionRelease);
   for(const version of [baseline,previousProductionRelease.originalBaseline,'11111111-1111-4111-8111-111111111111'])
-    assert.throws(()=>validateRequest({...env,TARGET_COMMIT:previous,EXPECTED_CURRENT_VERSION:version}),/baseline must be pinned/);
+    assert.throws(()=>validateRequest({...env,TARGET_COMMIT:previous,EXPECTED_CURRENT_VERSION:version}),/exact independently verified baseline/);
   assert.equal(await verifyEligibility(previous,{request:async()=>Response.json({sha:previous,tree:{sha:previousTree}})}),
     previousProductionRelease);
   await assert.rejects(verifyEligibility(previous,{request:async()=>Response.json({sha:previous,tree:{sha:tree}})}));
