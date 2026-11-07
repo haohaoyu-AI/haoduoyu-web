@@ -52,6 +52,7 @@ public sealed partial class MainWindow
     }
     private async Task InspectOperationAsync(PendingOperation operation)
     {
+        if (IsTemplateArchiveOperation(operation)) { await InspectTemplateArchiveOperationAsync(operation); return; }
         var options = operation.Status switch
         {
             PendingStatus.Queued when operation.CanEditQueued => new[] { "取消尚未发送的操作", "查看原请求和响应", "导出原请求" },

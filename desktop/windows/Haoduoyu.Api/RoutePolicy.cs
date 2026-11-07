@@ -8,6 +8,7 @@ internal static class RoutePolicy
     private const string Id = "[A-Za-z0-9_-]{1,160}";
     private const string Uuid = "[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}";
     private const string ReviewUuid = "[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}";
+    private const string TemplateUuid = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}";
     private const string ReviewResources = "(articles|snapshots|reports|playbooks|benchmark-accounts|benchmark-articles|notes|account-health)";
     private static readonly (string Method, string Pattern, string[] Query)[] Rules =
     [
@@ -20,7 +21,8 @@ internal static class RoutePolicy
         ("POST", "/unscheduled-todos", []), ("PATCH", "/unscheduled-todos/" + Uuid, []),
         ("DELETE", "/unscheduled-todos/" + Uuid, []),
         ("POST", "/unscheduled-todos/" + Uuid + "/(restore|move|complete-today)", []),
-        ("GET", "/todo-templates", []), ("POST", "/todo-templates", []),
+        ("GET", "/todo-templates", ["archived"]), ("POST", "/todo-templates", []),
+        ("POST", "/todo-templates/" + TemplateUuid + "/(archive|restore)", []),
         ("PATCH", "/todo-templates/" + Uuid, []), ("DELETE", "/todo-templates/" + Uuid, []),
         ("GET", "/todo-preferences", []), ("PATCH", "/todo-preferences", []),
         ("GET", "/note-entries", ["category", "date"]),
@@ -72,6 +74,7 @@ internal static class RoutePolicy
     {
         var articleQuery = method == "GET" && path.Split('?')[0] == "/api/v1/articles";
         var mediaQuery = method == "GET" && path.Split('?')[0] is "/api/v1/overview" or "/api/v1/due-reviews" or "/api/v1/observations" or "/api/v1/daily-metrics";
+        var templateQuery = method == "GET" && path.Split('?')[0] == "/api/v1/todo-templates";
         if (path.Length > (articleQuery ? 8192 : 2048) || !path.StartsWith("/api/v1/", StringComparison.Ordinal) ||
             path.Any(char.IsControl) || path.Contains('#') || path.Contains('\\') || path.Contains(' '))
             throw new ArgumentException("该地址不在桌面业务接口范围内。", nameof(path));
@@ -85,6 +88,7 @@ internal static class RoutePolicy
         {
             if (articleQuery) _ = ArticleLedgerQuery.Parse(path);
             if (mediaQuery) _ = MediaReviewQuery.Parse(path);
+            if (templateQuery) _ = TemplateArchive.ParseListPath(path);
             return;
         }
         if (split[1].Length == 0) throw new ArgumentException("查询参数不完整。", nameof(path));
@@ -105,5 +109,6 @@ internal static class RoutePolicy
         }
         if (articleQuery) _ = ArticleLedgerQuery.Parse(path);
         if (mediaQuery) _ = MediaReviewQuery.Parse(path);
+        if (templateQuery) _ = TemplateArchive.ParseListPath(path);
     }
 }

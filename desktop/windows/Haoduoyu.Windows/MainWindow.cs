@@ -144,6 +144,7 @@ public sealed partial class MainWindow : Window
         ResetTodoHistoryView();
         ResetNoteHistoryView();
         ResetMediaReviewView();
+        ResetTemplateArchiveView();
         ResetArticleLedgerView();
         ClearPage();
         failedIdentity = identity;
@@ -293,6 +294,7 @@ public sealed partial class MainWindow : Window
         switch (name)
         {
             case "待办": await TodosAsync(bar); break;
+            case "常用事项": await TemplatesAsync(); break;
             case "待办日历": await TodoHistoryAsync(); break;
             case "碎碎念月历": await NoteHistoryAsync(); break;
             case "未安排": await UnscheduledAsync(); break;

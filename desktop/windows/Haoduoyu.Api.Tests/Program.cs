@@ -74,6 +74,11 @@ if (args is ["--media-review-contract", var mediaReviewFixturePath])
     await MediaReviewContract.RunAsync(mediaReviewFixturePath);
     return;
 }
+if (args is ["--template-archive-contract", var templateArchiveFixturePath])
+{
+    await TemplateArchiveContract.RunAsync(templateArchiveFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);

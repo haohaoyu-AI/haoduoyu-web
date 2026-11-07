@@ -43,6 +43,13 @@ public static class ApiRequests
     public static ApiCommand CreateTemplate(string id, string text) => new("POST", Prefix + "todo-templates", new JsonObject { ["id"] = Uuid(id), ["text"] = ShortText(text) });
     public static ApiCommand RenameTemplate(string id, long version, string text) => new("PATCH", Prefix + "todo-templates/" + Uuid(id), new JsonObject { ["version"] = Version(version, 1), ["text"] = ShortText(text) });
     public static ApiCommand DeleteTemplate(string id, long version) => new("DELETE", Prefix + "todo-templates/" + Uuid(id), new JsonObject { ["version"] = Version(version, 1) });
+    public static ApiCommand TemplateArchive(string id, long version, bool archive = true)
+    {
+        var canonical = Uuid(id);
+        if (canonical[14] is < '1' or > '8' || !"89ab".Contains(canonical[19]))
+            throw new ArgumentException("模板归档需要正式接口支持的 UUID。", nameof(id));
+        return new("POST", Prefix + "todo-templates/" + canonical + (archive ? "/archive" : "/restore"), new JsonObject { ["version"] = Version(version, 1) });
+    }
     public static ApiCommand Preference(string mode, long version) => new("PATCH", Prefix + "todo-preferences", new JsonObject { ["completed_mode"] = mode is "hide" or "strike" ? mode : throw new ArgumentException("显示模式无效。"), ["version"] = Version(version) });
     public static ApiCommand SaveNote(string id, string category, string date, string text, long version, string saveId, IEnumerable<string>? labels = null)
     {

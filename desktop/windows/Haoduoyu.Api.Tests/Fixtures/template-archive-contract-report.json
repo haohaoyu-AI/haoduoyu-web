@@ -1,0 +1,151 @@
+{
+  "stage": 13,
+  "recorded_at_utc": "2026-11-07T10:01:22.374259+00:00",
+  "source_commit": "34bff302e128c92f46f00e76d59f9b44b9b7242e",
+  "source_is_reviewed_candidate_not_verified_production_sha": true,
+  "fixture_file": "template-archive-contract-34bff302.json",
+  "fixture_sha256": "5f9fd016eff96f183df731d4fe3e308094855d7a79ac5950fb680d0c6003be72",
+  "fixture_bytes": 124417,
+  "synthetic_only": true,
+  "production_business_requests": 0,
+  "external_fetch_attempts": 0,
+  "source_capture": {
+    "actual_worker_requests": 89,
+    "successful_reads": 21,
+    "successful_mutations": 21,
+    "dedicated_archive_restore_successes": 12,
+    "source_error_responses": 47,
+    "source_semantic_assertions": 13,
+    "public_requests": 10,
+    "public_write_attempts": 8,
+    "source_unchanged": true,
+    "permissions_constraints_limiter_clock_unchanged": true
+  },
+  "native_replay": {
+    "captured_business_http_responses": 83,
+    "successful_reads": 21,
+    "successful_mutations": 21,
+    "captured_source_errors": 41,
+    "source_400_paths_rejected_before_native_http": 6,
+    "additional_synthetic_write_scope_gets": 61,
+    "total_synthetic_http_handler_calls_for_captured_replay": 144,
+    "portable_checks_passed": 282,
+    "malformed_200_action_rejections": 16,
+    "malformed_200_list_rejections": 5,
+    "automatic_unknown_reconciliation_http_calls": 0,
+    "network_budget_bytes_unchanged": 1048576
+  },
+  "tests": {
+    "portable": {
+      "exit_code": 0,
+      "count": 282,
+      "log_sha256": "64da5204ba2f12b903f88f8166b825d18afc909cc14423799474f6cd214ad636",
+      "last_lines": [
+        "PASS template archive contract archive Unknown has no exact-operation receipt; automatic reconciliation sends no request and preserves original identity/body",
+        "PASS template archive contract simulated lost delivery requires both list observations; current-state match is not proof of the original operation",
+        "PASS template archive contract shared list items are detached and cannot mutate cached baseline",
+        "PASS template archive contract legal Unicode source fits unchanged network budget while escaped local JSON is larger",
+        "PASS template archive contract semantic budget reopens valid escaped Unicode local cache",
+        "PASS template archive contract fixed-origin transport preserves Unicode source unchanged",
+        "PASS template archive contract network body above original 1MiB ceiling is rejected whole",
+        "Template archive source contract: 89 actual Worker requests, 21 accepted reads, 21 accepted mutations (12 dedicated archive/restore responses), 41 captured source denials, 6 pre-HTTP restrictions, 16 malformed action and 5 malformed list rejections, 282 checks passed; exact candidate 34bff302, temporary synthetic D1 only, zero external fetch attempts."
+      ],
+      "final_frozen_core_rebuilt": true,
+      "command": "dotnet run --no-restore --project desktop/windows/Haoduoyu.Api.Tests -c Release -- --template-archive-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/template-archive-contract-34bff302.json"
+    },
+    "api_regression": {
+      "exit_code": 0,
+      "count": 165,
+      "log_sha256": "cfddd26e46b7297d3c194c3d4e6d4a7b0620881ce1209504a13d2fbd91409305",
+      "last_lines": [
+        "PASS AI report offset follows exact source bound: 1000000000",
+        "PASS incomplete AI report page never replaces cache",
+        "PASS incomplete AI report page never replaces cache",
+        "PASS incomplete AI report page never replaces cache",
+        "PASS legal fully escaped AI report page can exceed two MiB",
+        "PASS route-specific bounded cap preserves the entire legal AI report page",
+        "PASS AI report page above four MiB is rejected whole",
+        "API transport: 165 assertions passed; all HTTP handlers synthetic, no production data requests."
+      ],
+      "command": "dotnet run --no-build --project desktop/windows/Haoduoyu.Api.Tests -c Release"
+    },
+    "legacy_worker_regression": {
+      "exit_code": 0,
+      "count": 82,
+      "log_sha256": "fd29fe09ec49ca467d1eccccba4f74bc6f0a221006cbfb0ae384c33204abc7b2",
+      "last_lines": [
+        "PASS Worker contract complete-read-schema-78 (HTTP 200)",
+        "PASS Worker contract complete-read-schema-79 (HTTP 200)",
+        "PASS Worker contract complete-read-schema-80 (HTTP 200)",
+        "PASS Worker contract complete-read-schema-81 (HTTP 200)",
+        "PASS Worker contract complete-read-schema-82 (HTTP 200)",
+        "PASS Worker receipt note-real-receipt-and-content-hash",
+        "PASS Worker receipt memo-real-receipt-and-entity-hash",
+        "Actual Worker contract: 40 successful mutation responses validated, 3 real CAS rejections, 39 reads, 2 actual receipt/hash confirmations; source c30a8a9, synthetic temporary Miniflare D1 only, zero external fetch attempts."
+      ],
+      "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+      "successful_mutations": 40,
+      "cas_rejections": 3,
+      "reads": 39,
+      "receipt_confirmations": 2,
+      "command": "dotnet run --no-build --project desktop/windows/Haoduoyu.Api.Tests -c Release -- --worker-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/worker-contract-complete-reads-c30a8a9.json"
+    },
+    "official_source_tests": {
+      "exit_code": 0,
+      "count": 16,
+      "log_sha256": "847f3b3f503fd3af65c02c55e65be50cc6a2277241169ba3ce4915fd16e967bc",
+      "last_lines": [
+        "ℹ tests 16",
+        "ℹ suites 0",
+        "ℹ pass 16",
+        "ℹ fail 0",
+        "ℹ cancelled 0",
+        "ℹ skipped 0",
+        "ℹ todo 0",
+        "ℹ duration_ms 42481.805182"
+      ],
+      "files": [
+        "tests/todo-notes-archives.test.mjs",
+        "tests/public-business.test.mjs"
+      ],
+      "command": "node --test tests/todo-notes-archives.test.mjs tests/public-business.test.mjs"
+    }
+  },
+  "source_hashes": {
+    "src/todo-templates.mjs": "ae4b740e19221cd8fdc2137f0aeb1606ae49a4a986dbbb22a671b3d21a403732",
+    "src/todos.mjs": "8e87d53031b6f9f3e510de25733cacbeea6b9049a8a871123da5108f1c3de6bc",
+    "src/business-access.mjs": "14ac390e37013ab810ddcec96e0857986bd3a087aa17906771e971d4641f0693",
+    "src/public-business.mjs": "2b3e1496961ce660f6d87539488841aa6eaad6fa163c1286a3eb0ed4d58f5bc8",
+    "src/storage.mjs": "53acc6c04579ee02b8a06086338a0d4b52281e3a56c016293a1b6174fdea6bf1",
+    "src/business-snapshot.mjs": "647b58ee46b44af28fd90f61cdb5e8598dbd4ddc7c69e1211e95530728cb8317",
+    "src/snapshot-projection.mjs": "47ed973356193b645e8aea0f74c9186fece6f64bf367330b2e38d6ac166d1cbe",
+    "drizzle/0019_todo_notes_archives.sql": "5666cdc6f6b84f7e33457e4c4b45a0ed26d6acc5cbefcebaf29912cb11de97ec",
+    "public/openapi.json": "db16b231b41c6012c1cf7b1c2c2f8bdcf447924a791b2ce5766f0263e3ce698d",
+    "package-lock.json": "f6c5d8fc66382f328a990a70de714a7061664877ea06612cf2effc9aa51953bc",
+    "dist/server/index.js": "f5eec94ba40eecdf97ae350b3fa98ed8f6af72fd1bdcb72b321fa27c0da23b84"
+  },
+  "desktop_code_hashes": {
+    "desktop/windows/Haoduoyu.Core/TemplateArchive.cs": "05cf07eb20990517db6226e0621748c3e0cb0f948be2a6c94712834b2a8fe1c1",
+    "desktop/windows/Haoduoyu.Core/WorkspaceProjection.cs": "818824d5d1b06c6ac0ec1d79ece55e9b114ddc6ec5fe029bbb6fa9ebcd666e63",
+    "desktop/windows/Haoduoyu.Core/SyncEngine.cs": "144e51c78a20a66086e4a46df79c4242d211acde4a0e61cf6fe4c0ef6d1d66da",
+    "desktop/windows/Haoduoyu.Api/RoutePolicy.cs": "76f1f2de984dedd94a551c602bd7643d54e69c9c41343c6c8b23f01f9590c410",
+    "desktop/windows/Haoduoyu.Api/ApiRequests.cs": "ba6deac28f64147cdc7092c922bf9e861dfd82051244be9418a07627816ccf1e",
+    "desktop/windows/Haoduoyu.Api/BusinessReadSchema.cs": "2a31a0f86b717256eab6a1b3ba1adff969c6ec647946feadb7694f30d226a1f4",
+    "desktop/windows/Haoduoyu.Api/MutationVerifier.cs": "9d96e622241287f28ca0151f7a6b3545239a5de5b349edd0b5c342eb69718fea",
+    "desktop/windows/Haoduoyu.Api/TemplateArchiveMutationVerifier.cs": "2d41d67653883ffae8e510ecb176c0d757ad6ae2ef2d2102ba3df1f2fd96b8f2",
+    "desktop/windows/Haoduoyu.Api/Reconciliation.cs": "1dbf30bed402ed1c1cc359bc84f67c9544cc4f62cb0c05abf8dbe364ae89d369",
+    "desktop/windows/Haoduoyu.Api/WorkbenchApi.cs": "c234b6e42feabef8ab37dba9a237d510ffe931b1d05ae5e9fdb8bf15feb7ba4e",
+    "desktop/windows/Haoduoyu.Api.Tests/TemplateArchiveContract.cs": "69012c5f83e042873d222b6a5f8b11b2c59fac2cffa3ebc47dfa3958bfcb8cad",
+    "desktop/windows/Haoduoyu.Api.Tests/generate-template-archive-contract.mjs": "3ed64b15c19582254938f9519ea1dcea3d813d5e8315dfd0d118688f81feefb9"
+  },
+  "evidence_and_limits": [
+    "All 89 source samples are actual Worker.fetch calls. Six real source 400 samples are additionally rejected before native transport; they are not extra source captures.",
+    "GET/denial/no-op before/after evidence records revision, audit count, idempotency row count and SHA256 of all synthetic template/todo/link rows; concurrent identical requests advance revision exactly once.",
+    "Owner/private/public/key/Origin/CSRF/disabled-mode permission behavior is established by captured real synthetic Worker responses. Native fake transport establishes DTO and request behavior, not backend permission logic.",
+    "Unknown response loss is a clearly labelled delivery simulation. Matching independent active/archive reads are current-state evidence only, not an exact-operation receipt or confirmation; automatic reconciliation makes zero HTTP calls.",
+    "The highest allowed request version MAX_SAFE_INTEGER-1 is captured as valid syntax with stale CAS 409; this does not claim a successful mutation at the numeric upper boundary.",
+    "Synthetic mutated-200 and Unicode cases are native validation tests, not actual Worker payload claims; Windows engine/cache behavior is verified separately by assigned agents.",
+    "No deployment, user installation, production business request, artifact download or historical Forbidden CI log retry. Production exact SHA and real Windows/signature/installation acceptance remain separate."
+  ],
+  "report_status": "final_shared_core_freeze_rebuilt_and_replayed"
+}

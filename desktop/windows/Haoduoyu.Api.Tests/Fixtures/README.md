@@ -248,3 +248,8 @@ is a local replay of historical synthetic responses, not new business writes.
 node desktop/windows/Haoduoyu.Api.Tests/generate-media-review-contract.mjs /path/to/isolated-worktree desktop/windows/Haoduoyu.Api.Tests/Fixtures/media-review-contract-c30a8a9.json
 dotnet run --project desktop/windows/Haoduoyu.Api.Tests --configuration Release -- --media-review-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/media-review-contract-c30a8a9.json
 ```
+
+Stage 13 uses a separate reviewed source candidate for template archive/restore:
+see [template-archive-README.md](template-archive-README.md), its fixed `34bff302`
+fixture and `template-archive-contract-report.json`. This does not identify the
+currently deployed Worker or change any earlier c30 evidence.

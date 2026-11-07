@@ -20,6 +20,11 @@ internal static class MutationVerifier
             ReviewMutationVerifier.Validate(method, path, body, response);
             return;
         }
+        if (resource == "todo-templates" && segments.Length > 5 && segments[5] is "archive" or "restore")
+        {
+            TemplateArchiveMutationVerifier.Validate(method, path, body, response);
+            return;
+        }
         string? id = segments.Length > 4 ? segments[4] : body["id"]?.GetValue<string>();
         if (resource == "memos") id = segments[5];
         if (resource == "ai-reports")

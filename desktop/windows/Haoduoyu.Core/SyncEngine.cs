@@ -269,6 +269,8 @@ public sealed class SyncEngine
             var index = FindUnresolved(s, operationId);
             if (s.Outbox[index].Status is not (PendingStatus.Unknown or PendingStatus.Blocked))
                 throw new InvalidOperationException("只有未确认请求可由精确保存证据确认。");
+            if (IsTemplateArchiveAction(s.Outbox[index]))
+                throw new InvalidOperationException("模板归档接口没有精确保存收据。两张列表仅供只读核对，不能据当前状态确认原请求。");
             s.Outbox[index] = s.Outbox[index] with { Status = PendingStatus.Confirmed, ConfirmedRevision = s.LocalRevision,
                 RemoteJson = verifiedRemoteJson, Error = null };
         }, cancellationToken);
@@ -285,6 +287,8 @@ public sealed class SyncEngine
         {
             var index = FindUnresolved(s, operationId);
             var original = s.Outbox[index];
+            if (original.Status == PendingStatus.Unknown && IsTemplateArchiveAction(original))
+                throw new InvalidOperationException("模板归档结果尚未确认，当前列表不能解除原请求围栏或替换为新写入。原请求和草稿保留。");
             if (replacement != null && (replacement.Id == original.Id || s.Outbox.Any(x => x.Id == replacement.Id) || replacement.ResourceKey != original.ResourceKey))
                 throw new InvalidOperationException("冲突处理必须创建同一资源的新操作标识。");
             s.Outbox[index] = original with { Status = PendingStatus.Superseded, SupersededById = replacement?.Id, RemoteJson = remoteJson,
@@ -305,6 +309,8 @@ public sealed class SyncEngine
                 throw new InvalidOperationException("此请求来自较旧备份，旧拒绝或冲突记录无法证明之后未曾保存。请先只读核对精确保存证据，不能直接重排恢复请求。");
             if (s.Outbox[index].Status == PendingStatus.Conflict)
                 throw new InvalidOperationException("版本冲突必须选择远端或显式新 CAS 保存，不能重试旧版本。");
+            if (s.Outbox[index].Status == PendingStatus.Unknown && IsTemplateArchiveAction(s.Outbox[index]))
+                throw new InvalidOperationException("模板归档结果尚未确认，列表中的相同状态不能证明原保存结果，不能直接重排原请求。");
             s.Outbox[index] = s.Outbox[index] with { Status = PendingStatus.Queued, RemoteJson = checkedRemoteJson,
                 Error = "已明确要求重试同一不可变请求。" };
         }, cancellationToken);
@@ -386,7 +392,8 @@ public sealed class SyncEngine
         if (dependency == null) throw new InvalidDataException("依赖操作尚未确认，不能生成写入版本。");
         try
         {
-            var data = JsonNode.Parse(dependency.RemoteJson ?? "null")?["data"] as JsonObject
+            var receipt = JsonNode.Parse(dependency.RemoteJson ?? "null") as JsonObject;
+            var data = receipt?["data"] as JsonObject
                 ?? throw new InvalidDataException("依赖保存响应没有实体数据；子操作未发送。");
             if (operation.Path.StartsWith("/api/v1/daily-notes/", StringComparison.Ordinal))
             {
@@ -408,6 +415,8 @@ public sealed class SyncEngine
             var parent = VersionTarget(dependency.Path);
             if (parent != null && parent.Id != target.Id)
                 throw new InvalidDataException("依赖操作路径与待修改记录身份不匹配；子操作未发送。");
+            if (target.Resource == "todo-templates" && (target.Action is "archive" or "restore" || parent is { Resource: "todo-templates", Action: "archive" or "restore" }))
+                return PrepareTemplateVersionBody(state, operation, dependency, target, parent, receipt!, data);
             JsonObject remote;
             if (parent is { Resource: "todos", Action: "template" })
             {
@@ -459,6 +468,55 @@ public sealed class SyncEngine
         body["version"] = version;
         return body.ToJsonString();
     }
+    private static string PrepareTemplateVersionBody(WorkspaceState state, PendingOperation operation, PendingOperation dependency,
+        VersionRoute target, VersionRoute? parent, JsonObject receipt, JsonObject data)
+    {
+        const long maximumSafeInteger = 9_007_199_254_740_991L;
+        var key = "/api/v1/todo-templates/" + Guid.Parse(target.Id).ToString("D");
+        if (operation.Path.Contains('?') || dependency.Path.Contains('?') || operation.ResourceKey != dependency.ResourceKey ||
+            !string.Equals(operation.ResourceKey, key, StringComparison.OrdinalIgnoreCase) ||
+            receipt.TryGetPropertyValue("_local_scope_id", out var scope) && (scope is not JsonValue scopeValue || !scopeValue.TryGetValue<string>(out var scopeId) || scopeId != state.ScopeId) ||
+            data.ContainsKey("_local_incomplete") || data.ContainsKey("_local_scope_id"))
+            throw new InvalidDataException("模板依赖不属于同一记录、工作区或完整保存收据；子操作未发送。");
+        var body = JsonNode.Parse(operation.BodyJson) as JsonObject ?? throw new InvalidDataException("模板子操作内容无效。");
+        if (target.Action is "archive" or "restore" ? operation.Method != "POST" || body.Count != 0 :
+            target.Action != null || operation.Method is not ("PATCH" or "DELETE"))
+            throw new InvalidDataException("模板依赖动作或请求字段不符合接口；子操作未发送。");
+        TemplateArchive.ValidateRecord(data, parent?.Action is "archive" ? true : parent?.Action is "restore" ? false : null,
+            requireExplicitArchive: parent?.Action is "archive" or "restore");
+        var version = EntityVersion(data, target.Id);
+        var parentBody = JsonNode.Parse(dependency.RequestBodyJson) as JsonObject ?? throw new InvalidDataException("模板前置请求缺少原始对象。");
+        if (dependency.Path == "/api/v1/todo-templates" && dependency.Method == "POST")
+        {
+            if (parentBody.Count != 2 || parentBody["id"] is not JsonValue identity || !identity.TryGetValue<string>(out var id) ||
+                !Guid.TryParseExact(id, "D", out var createdId) || createdId != Guid.Parse(target.Id) ||
+                parentBody["text"] is not JsonValue text || !text.TryGetValue<string>(out var createdText) || createdText.Length > 500 || createdText.Contains('\0') ||
+                data["text"]?.GetValue<string>() != createdText.Trim())
+                throw new InvalidDataException("模板创建收据与原标识或正文不一致；子操作未发送。");
+        }
+        else
+        {
+            if (parent is not { Resource: "todo-templates" } || parent.Id != target.Id ||
+                (parent.Action is "archive" or "restore" ? dependency.Method != "POST" || parentBody.Count != 1 :
+                parent.Action != null || dependency.Method != "PATCH" || parentBody.Count != 2 || !parentBody.ContainsKey("text")))
+                throw new InvalidDataException("模板版本前置操作不是已核实的创建、修改或归档动作；子操作未发送。");
+            if (!TemplateVersion(parentBody["version"], out var requestedVersion) ||
+                requestedVersion < 1 || requestedVersion >= maximumSafeInteger ||
+                (parent!.Action is "archive" or "restore" ? version != requestedVersion && version != requestedVersion + 1 : version != requestedVersion + 1))
+                throw new InvalidDataException("模板收据版本与前置请求不一致；子操作未发送。");
+            if (dependency.Method == "PATCH" && (parentBody["text"] is not JsonValue text || !text.TryGetValue<string>(out var changedText) || changedText.Length > 500 || changedText.Contains('\0') || data["text"]?.GetValue<string>() != changedText.Trim()))
+                throw new InvalidDataException("模板修改收据正文与前置请求不一致；子操作未发送。");
+        }
+        return VersionedBody(operation, version);
+    }
+    private static bool TemplateVersion(JsonNode? node, out long version)
+    {
+        version = 0;
+        if (node is not JsonValue number || number.GetValueKind() != JsonValueKind.Number ||
+            !decimal.TryParse(number.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ||
+            value != decimal.Truncate(value) || value < 1 || value >= 9_007_199_254_740_991L) return false;
+        version = (long)value; return true;
+    }
     private sealed record LegacyVersionRoute(string Date, string Category, bool Restore);
     private static LegacyVersionRoute? LegacyVersionTarget(string path)
     {
@@ -480,13 +538,16 @@ public sealed class SyncEngine
         if (segments.Length < 2) return null;
         string? action = null;
         var index = segments.Length - 1;
-        if (segments[index] is "move" or "complete-today" or "restore" or "template") { action = segments[index]; index--; }
+        if (segments[index] is "move" or "complete-today" or "restore" or "template" or "archive") { action = segments[index]; index--; }
         if (index < 1 || !Guid.TryParseExact(segments[index], "D", out _)) return null;
         var resource = string.Join('/', segments[..index]);
         if (action is "move" or "complete-today" && resource != "unscheduled-todos") return null;
         if (action == "template" && resource != "todos") return null;
-        return new VersionRoute(resource, segments[index], action);
+        if (action == "archive" && resource != "todo-templates") return null;
+        return new VersionRoute(resource, resource == "todo-templates" ? Guid.Parse(segments[index]).ToString("D") : segments[index], action);
     }
+    private static bool IsTemplateArchiveAction(PendingOperation operation) => operation.Method == "POST" &&
+        VersionTarget(operation.Path) is { Resource: "todo-templates", Action: "archive" or "restore" };
     private static long EntityVersion(JsonObject entity, string expectedId)
     {
         if (entity["id"] is not JsonValue identity || !identity.TryGetValue<string>(out var id) || id != expectedId ||

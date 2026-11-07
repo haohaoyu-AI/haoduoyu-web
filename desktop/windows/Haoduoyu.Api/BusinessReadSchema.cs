@@ -34,10 +34,7 @@ internal static class BusinessReadSchema
             else if (route.StartsWith("/api/v1/unscheduled-todos/", StringComparison.Ordinal))
             { var value = Object(data); Todo(value, dated: false); Matches(value["id"], route.Split('/')[4]); }
             else if (route == "/api/v1/todo-templates")
-            {
-                var value = Object(data); Date(value["today"]); Date(value["window_start"]);
-                Rows(value["items"], row => { Uuid(row["id"]); Text(row["text"]); Version(row["version"]); Integer(row["completed_days"], 0, 30); Choice(row["habit_status"], "todo", "habit"); });
-            }
+                TemplateArchive.ValidateList(path, result.Json);
             else if (route == "/api/v1/todo-preferences")
             { var value = Object(data); Choice(value["completed_mode"], "strike", "hide"); Integer(value["version"]); }
             else if (route == "/api/v1/note-entries/labels")

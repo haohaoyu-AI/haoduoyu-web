@@ -51,33 +51,18 @@ public sealed partial class MainWindow
             {
                 if (!await CancelUnsentCreationAsync(row)) await QueueAsync("DELETE", path, Obj(("date", day), ("version", Version(row))), path);
             }
-            else if (option == "添加为常用") await QueueVersionedRecordAsync("POST", path + "/template", Obj(("date", day),
-                ("template_id", Text(row, "template_id") is { Length: > 0 } template ? template : Guid.NewGuid().ToString()),
-                ("template_version", row["template_version"]?.DeepClone() ?? JsonValue.Create(0))), row, "todo-template");
-        }))));
-    }
-    private async Task TemplatesAsync()
-    {
-        await FlushEditorAsync(); ClearPage(); page.Children.Add(Label("常用事项 · 手动加入指定日期，不会自动生成"));
-        page.Children.Add(Button("＋ 新常用事项", () => NewEditorAsync("template", NewRecord(("text", "")), "/api/v1/todo-templates/")));
-        var data = await ReadAsync("/api/v1/todo-templates"); Missing(data);
-        List(Rows(data?["items"]).Select(row => (Text(row, "text"), "近 30 天完成 " + Text(row, "completed_days") + " 天 · " + Text(row, "habit_status") + LocalSuffix(row), (Func<Task>)(async () =>
-        {
-            if (await HandlePendingRecordAsync(row)) return;
-            var option = Choose("常用事项", Text(row, "text"), "加入 " + Day, "改名", "删除常用");
-            var path = "/api/v1/todo-templates/" + Text(row, "id");
-            if (option == "改名") await EditAsync("template", row, path);
-            else if (option == "删除常用" && Confirm("停用此常用事项？历史待办和完成记录保留。"))
+            else if (option == "添加为常用")
             {
-                if (!await CancelUnsentCreationAsync(row)) await QueueAsync("DELETE", path, Obj(("version", Version(row))), path);
-            }
-            else if (option != null)
-            {
-                var id = Guid.NewGuid().ToString();
-                await QueueAsync("POST", "/api/v1/todos", Obj(("id", id), ("date", Day), ("text", Text(row, "text")), ("template_id", Text(row, "id"))), "/api/v1/todos/" + id);
+                if (Text(row, "template_id").Length > 0 && (Flag(row, "_local_template_archived") || Text(row, "_local_template_status") is "Queued" or "InFlight" or "Unknown" or "Conflict" or "Blocked" ||
+                    row["template_active"] is JsonValue templateState && templateState.TryGetValue<bool>(out var active) && !active))
+                    throw new InvalidOperationException("此待办关联的模板已归档或停用。请到常用事项核对并恢复原模板；不会换一个标识绕开状态。历史关联已保留。");
+                await QueueVersionedRecordAsync("POST", path + "/template", Obj(("date", day),
+                    ("template_id", Text(row, "template_id") is { Length: > 0 } template ? template : Guid.NewGuid().ToString()),
+                    ("template_version", row["template_version"]?.DeepClone() ?? JsonValue.Create(0))), row, "todo-template");
             }
         }))));
     }
+    private Task TemplatesAsync() => TemplateArchiveAsync();
     private async Task NotesAsync(WrapPanel bar, string category)
     {
         var day = Day;

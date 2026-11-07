@@ -63,6 +63,7 @@ public static class WorkspaceProjection
             Apply(operation, command, entities, authorities, state);
         }
         ApplyLabelVisibility(entities);
+        ApplyTemplateAvailability(entities);
         return Render(read, exact, envelopes, entities, authorities, state);
     }
 
@@ -116,6 +117,8 @@ public static class WorkspaceProjection
             new("review:" + segments[1], segments.Length > 2 ? segments.Length > 3 ? segments[3] : "detail" : "list", segments.Length > 2 ? segments[2] : "", query) : new("", "unsupported", "", query);
         var kind = resource switch { "todos" => "todo", "unscheduled-todos" => "unscheduled", "todo-templates" => "template", "todo-preferences" => "preference", "note-entries" => "note", "daily-notes" => "legacy", "work-reminders" => "reminder", "articles" => "article", "ai-reports" => "ai-report", _ => "" };
         if (kind.Length == 0) return new("", "unsupported", "", query);
+        if (kind == "template" && mode == "list" && !(query.Count == 0 || query.Count == 1 && query.GetValueOrDefault("archived") == "1"))
+            return new("", "unsupported", "", query);
         if (kind == "preference") mode = "singleton";
         if (kind == "legacy" && segments.Length == 1) { mode = "detail"; id = query.GetValueOrDefault("date", ""); }
         if (kind == "note" && id == "labels") { kind = "label"; mode = "labels"; id = ""; }
@@ -147,6 +150,13 @@ public static class WorkspaceProjection
             if (kind == "preference") id = "preferences";
             if (id.Length == 0) return;
             var copy = (JsonObject)row.DeepClone();
+            // An omitted active archived_at is an explicit active scope, never an invitation
+            // to inherit an older archived timestamp when equal-version records are merged.
+            if (kind == "template" && read.Mode == "list" && !copy.ContainsKey("archived_at"))
+            {
+                if (read.Q("archived") == "1") { copy["_local_archived"] = true; copy["_local_incomplete"] = true; }
+                else copy["archived_at"] = null;
+            }
             if (kind == "legacy") { copy["category"] = Category(read); if (Text(copy, "date").Length == 0) copy["date"] = read.Id; }
             var key = Key(kind, id); members.Add(key);
             var candidate = new Entity(kind, id, copy, revision);
@@ -200,7 +210,8 @@ public static class WorkspaceProjection
         if (read.Kind == "preference") return data != null && ValidDetail(read, data);
         if (read.Kind == "note") return ValidCollection(data?["entries"]) && Text(data, "date") == read.Q("date") && Text(data, "category") == Category(read);
         if (read.Kind is "todo" or "reminder") return ValidCollection(data?["items"]) && Text(data, "date") == read.Q("date");
-        if (read.Kind is "unscheduled" or "template") return ValidCollection(data?["items"]);
+        if (read.Kind == "template") return TemplateArchive.CompleteList(envelope, read.Q("archived") == "1");
+        if (read.Kind == "unscheduled") return ValidCollection(data?["items"]);
         if (read.Kind == "ai-report") return data != null && ValidCollection(data["items"]) && Rows(data["items"]).All(FullReportRow) &&
             (Flag(envelope, "_local_complete") || Number(read.Q("offset")) == 0 && data.ContainsKey("has_more") && !Flag(data, "has_more"));
         if (read.Kind.StartsWith("review:", StringComparison.Ordinal)) return data != null && ValidCollection(data["items"]) &&
@@ -258,6 +269,8 @@ public static class WorkspaceProjection
     }
     private static void Apply(PendingOperation operation, Command command, Dictionary<string, Entity> entities, List<Authority> authorities, WorkspaceState state)
     {
+        if (command.Kind == "template" && command.Route.Mode is "archive" or "restore")
+        { ApplyTemplateArchive(operation, command, entities, authorities, state); return; }
         var remote = Remote(operation);
         var id = operation.Status == PendingStatus.Confirmed && command.Kind == "article" && Text(remote, "id").Length > 0 ? Text(remote, "id") : command.Id;
         var key = Key(command.Kind, id); entities.TryGetValue(key, out var existing);
@@ -340,6 +353,83 @@ public static class WorkspaceProjection
         entities[key] = new(command.Kind, id, local, existing?.Revision ?? 0);
     }
     private static bool RequestControl(string name) => name is "save_id" or "expected_hash" or "version" or "template_version" or "confirm_title" or "confirm_note_count" or "action";
+
+    private static void ApplyTemplateArchive(PendingOperation operation, Command command, Dictionary<string, Entity> entities, List<Authority> authorities, WorkspaceState state)
+    {
+        var pendingDependency = operation.VersionFromDependencyId != null && operation.PreparedBodyJson == null && command.Body.Count == 0 && operation.Status != PendingStatus.Confirmed;
+        long? version = command.Body["version"] is JsonValue requested && requested.TryGetValue<long>(out var requestedVersion) ? requestedVersion : null;
+        if (operation.Method != "POST" || !pendingDependency && (command.Body.Count != 1 || version is null or < 1 or >= 9_007_199_254_740_991))
+            throw new InvalidDataException("模板归档意图不符合单版本请求合同；原队列未改变。");
+        var archived = command.Route.Mode == "archive"; var key = Key("template", command.Id); entities.TryGetValue(key, out var existing);
+        var baseline = existing?.Row; var remote = Remote(operation);
+        if (operation.Status == PendingStatus.Confirmed)
+        {
+            var authorityRevision = authorities.Where(a => Covers(a, "template", baseline ?? Identity("template", command.Id, command.Body, command.Route), entities)).Select(a => a.Revision).DefaultIfEmpty(0).Max();
+            if (operation.ConfirmedRevision == 0 || operation.ConfirmedRevision <= Math.Max(existing?.Revision ?? 0, authorityRevision)) return;
+            var full = false;
+            try
+            {
+                if (remote != null)
+                {
+                    TemplateArchive.ValidateRecord(remote, archived, true);
+                    full = Text(remote, "id") == command.Id && Version(remote) is { } saved && (saved == version || saved == version + 1);
+                }
+            }
+            catch (InvalidDataException) { }
+            if (full && remote != null && !(Version(baseline) is { } current && Version(remote) < current))
+            {
+                var confirmed = baseline == null ? new JsonObject() : (JsonObject)baseline.DeepClone();
+                var wasDeleted = baseline != null && Deleted(baseline);
+                foreach (var field in confirmed.Select(pair => pair.Key).Where(name => name.StartsWith("_local_", StringComparison.Ordinal) || name == "_operation_id").ToArray()) confirmed.Remove(field);
+                foreach (var (name, value) in remote) confirmed[name] = value?.DeepClone();
+                // Archive restoration never revives a previously soft-deleted template.
+                if (wasDeleted) { confirmed["_local_deleted"] = true; confirmed["_local_incomplete"] = true; }
+                entities[key] = new("template", command.Id, confirmed, operation.ConfirmedRevision); return;
+            }
+            var uncertain = baseline == null ? Identity("template", command.Id, command.Body, command.Route) : (JsonObject)baseline.DeepClone();
+            uncertain["_local_incomplete"] = true; uncertain["_local_receipt_only"] = true;
+            uncertain["_local_status"] = operation.Status.ToString(); uncertain["_operation_id"] = operation.Id;
+            uncertain["_local_request"] = command.Body.DeepClone(); uncertain["_local_remote"] = remote?.DeepClone();
+            entities[key] = new("template", command.Id, uncertain, existing?.Revision ?? 0); return;
+        }
+        var local = baseline == null ? Identity("template", command.Id, command.Body, command.Route) : (JsonObject)baseline.DeepClone();
+        // Keep provenance bounded. Original sequential requests remain separately in the outbox.
+        var provenance = remote ?? baseline;
+        while (provenance?["_local_remote"] is JsonObject previous) provenance = previous;
+        local.Remove("_local_remote"); local.Remove("_local_request");
+        local["_local_archived"] = archived; local["_local_archive_action"] = command.Route.Mode;
+        local["_local_status"] = operation.Status.ToString(); local["_operation_id"] = operation.Id;
+        local["_local_request"] = command.Body.DeepClone(); local["_local_remote"] = provenance?.DeepClone();
+        if (baseline == null) { if (version != null) local["version"] = version.Value; local["_local_incomplete"] = true; }
+        if (pendingDependency) { local["_local_dependency_pending"] = true; local["_local_incomplete"] = true; }
+        entities[key] = new("template", command.Id, local, existing?.Revision ?? 0);
+    }
+
+    private static void ApplyTemplateAvailability(Dictionary<string, Entity> entities)
+    {
+        foreach (var todo in entities.Values.Where(entity => entity.Kind == "todo"))
+        {
+            var id = Text(todo.Row, "template_id"); if (id.Length == 0 || !entities.TryGetValue(Key("template", id), out var template)) continue;
+            var pendingAction = Text(template.Row, "_local_archive_action").Length > 0;
+            var active = !Deleted(template.Row) && !Archived(template.Row) && !pendingAction;
+            if (!active)
+            {
+                todo.Row["template_active"] = false; todo.Row["_local_template_active"] = false;
+                todo.Row["_local_template_archived"] = Archived(template.Row) || pendingAction;
+            }
+            else
+            {
+                var wasActive = todo.Row["template_active"] is JsonValue flag && flag.TryGetValue<bool>(out var value) ? value : (bool?)null;
+                var templateVersion = Version(template.Row); var linkVersion = todo.Row["template_version"] is JsonValue linked && linked.TryGetValue<long>(out var version) ? version : (long?)null;
+                var sufficientlyNew = templateVersion != null && linkVersion != null && templateVersion >= linkVersion &&
+                    (template.Revision > todo.Revision || template.Revision >= todo.Revision && templateVersion > linkVersion);
+                // Preserve a newer server-side unavailable link. A local restore is intent, not proof.
+                if (wasActive == true || sufficientlyNew)
+                { todo.Row["template_active"] = true; todo.Row["_local_template_active"] = true; todo.Row["_local_template_archived"] = false; }
+            }
+            if (template.Row["_local_status"] != null) todo.Row["_local_template_status"] = template.Row["_local_status"]!.DeepClone();
+        }
+    }
     private static bool SameReportBody(JsonObject request, JsonObject row) =>
         request["author"] is JsonValue author && author.TryGetValue<string>(out var authorText) &&
         request["content"] is JsonValue content && content.TryGetValue<string>(out var contentText) &&
@@ -507,6 +597,7 @@ public static class WorkspaceProjection
         }
         var complete = read.Mode is "detail" or "singleton" ? output is JsonObject detail && !Flag(detail, "_local_incomplete") :
             authorities.Any(a => CompleteCovers(read, a.Read));
+        if (read.Kind == "template" && Rows(output?["items"]).Any(row => Flag(row, "_local_incomplete"))) complete = false;
         envelope["data"] = output; Stamp(envelope, state, !complete); return envelope.ToJsonString();
     }
 
@@ -585,6 +676,7 @@ public static class WorkspaceProjection
         if (target.Mode == "detail") return target.Id == source.Id && (target.Kind != "legacy" || Category(target) == Category(source));
         if (target.Mode == "dates") return Category(target) == Category(source);
         if (target.Mode == "month") return target.Q("month") == source.Q("month");
+        if (target.Kind == "template") return (target.Q("archived") == "1") == (source.Q("archived") == "1");
         if (target.Kind is "todo" or "note" or "reminder") return target.Q("date") == source.Q("date") && (target.Kind != "note" || Category(target) == Category(source));
         return true;
     }
@@ -647,6 +739,7 @@ public static class WorkspaceProjection
     private static bool Matches(Read read, JsonObject row, Dictionary<string, Entity> entities, bool includeDeleted)
     {
         if (!includeDeleted && Deleted(row) && read.Q("include_deleted") != "1") return false;
+        if (read.Kind == "template" && read.Mode == "list" && Archived(row) != (read.Q("archived") == "1")) return false;
         if (read.Kind == "legacy" && CategoryOf(row) != Category(read)) return false;
         if (read.Kind == "note" && read.Mode is not ("detail" or "month") && CategoryOf(row) != Category(read)) return false;
         foreach (var name in new[] { "date", "category", "account_id", "platform", "status", "article_id", "benchmark_account_id", "collected_on", "period_type", "kind" })

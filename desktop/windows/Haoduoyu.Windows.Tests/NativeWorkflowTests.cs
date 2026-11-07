@@ -43,7 +43,8 @@ internal static partial class NativeWorkflowTests
         .. ArticleVerificationCases,
         .. ArticleLedgerViewCases,
         .. NoteHistoryCases,
-        .. MediaReviewCases
+        .. MediaReviewCases,
+        .. TemplateArchiveCases
     ];
 
     private static readonly BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
