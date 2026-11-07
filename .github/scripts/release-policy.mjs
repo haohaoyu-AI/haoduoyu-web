@@ -12,11 +12,11 @@ export const releases=Object.freeze({
     ci:40269439403,bytes:1269372,sha256:'61e30101b744f56bfe10418cb536b661e9bac5ca8270041b510f6222434c4149',label:'round5-rollback'})
 });
 export const productionRestore=Object.freeze({
-  commit:'ed3d75e8a66475f643e51dd3c00144346dea01b3',
-  tree:'e18867699263a4d715742b8f23ec763f8f61e68b',
-  baseline:'0f9c5efc-3077-48ca-b3bb-da65a2aedf50',
-  bytes:2668038,sha256:'d791b86e627b68c53d566cab18aae1221bce11a9081f6d47a50826a5109aa354',
-  label:'production-markdown-20261107'});
+  commit:'b27c5a728baab322f0e67f35b4a2fda0881b334e',
+  tree:'b13297604aba122fc0174894e504c8b33fda447f',
+  baseline:'e297ec11-46ab-42b0-a1c7-e2d4917ce1d9',
+  bytes:2668201,sha256:'9c15be0078ac231ab51cd628d36956103fce2e6cbdb4c126842151a5b10e3004',
+  label:'production-sw-update-recovery-20261107'});
 const acceptedRelease=commit=>commit===productionRestore.commit?productionRestore:releases[commit];
 export function validateRequest(env) {
   if(env.GITHUB_REPOSITORY!==repository||env.GITHUB_REF!=='refs/heads/main'||env.GITHUB_EVENT_NAME!=='workflow_dispatch')
