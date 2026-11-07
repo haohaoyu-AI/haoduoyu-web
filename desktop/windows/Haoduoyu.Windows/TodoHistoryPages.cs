@@ -146,6 +146,8 @@ public sealed partial class MainWindow
                 var text = Text(item, "text"); var preview = string.Concat(text.EnumerateRunes().Take(80).Select(rune => rune.ToString()));
                 panel.Children.Add(new TextBlock { Text = (Flag(item, "completed") ? "✓ " : "○ ") + preview + LocalSuffix(item),
                     TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap, Margin = new Thickness(0, 3, 0, 0), ToolTip = text + LocalSuffix(item) });
+                panel.Children.Add(new TextBlock { Text = TodoNotePreview(item), TextTrimming = TextTrimming.CharacterEllipsis,
+                    TextWrapping = TextWrapping.NoWrap, Margin = new Thickness(0, 2, 0, 2) });
             }
             if (day.FilteredCount > 4) panel.Children.Add(new TextBlock { Text = $"还有 {day.FilteredCount - 4} 项，打开日期查看", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 0) });
             if (day.UncertainCount > 0) panel.Children.Add(new TextBlock { Text = $"本机未决 {day.UncertainCount} 项", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 0) });
@@ -158,6 +160,20 @@ public sealed partial class MainWindow
             AutomationProperties.SetAutomationId(button, "todo-history-day-" + key);
             Grid.SetColumn(button, (firstColumn + index) % 7); Grid.SetRow(button, 1 + (firstColumn + index) / 7); grid.Children.Add(button);
         }
+        page.Children.Add(Label("按日待办与备注原文（只读）· 点击查看本机来源，不会联网、修改待办或排入保存请求。"));
+        var noteRows = view.Days.SelectMany(day => day.Items.Select(item => (Day: day.Date, Item: item))).ToArray();
+        var noteList = List(noteRows.Select(entry => ($"{entry.Day:yyyy-MM-dd} · " + Text(entry.Item, "text"), TodoNotePreview(entry.Item) + LocalSuffix(entry.Item),
+            (Func<Task>)(() =>
+            {
+                EnsureTodoHistoryOwner(identity, scope);
+                if (!ReferenceEquals(target, engine)) throw new InvalidOperationException("原待办日历工作区已变化，未显示旧资料。");
+                var note = TodoNoteReadSafe(entry.Item);
+                ShowText("待办历史备注 · 只读原文", "原日期：" + entry.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "\n待办原文：" + Text(entry.Item, "text") +
+                    "\n备注来源：" + TodoNoteSourceName(note.Source) + LocalSuffix(entry.Item) + "\n" + (note.Known ? "备注原文（含明确空串）：\n" + note.Note : "备注未取得，不能当作空串。") +
+                    "\n\n保留字段（只读副本，不是原始备份或可重放请求）：\n" + entry.Item.ToJsonString(ArticleReadableJson));
+                return Task.CompletedTask;
+            }))));
+        AutomationProperties.SetAutomationId(noteList, "todo-history-note-records");
     }
 
     private async Task OpenTodoHistoryDayAsync(DateOnly selected, string? identity, string scope)
@@ -230,7 +246,10 @@ public sealed partial class MainWindow
             days.Add(Obj(("date", day.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)), ("complete", day.Complete),
                 ("has_baseline", day.HasBaseline), ("issue", day.Issue), ("known_total", day.Total), ("known_done", day.Done),
                 ("known_open", day.Open), ("filtered_count", day.FilteredCount), ("uncertain_operations", day.UncertainCount),
-                ("items", new JsonArray(day.Items.Select(row => (JsonNode?)row.DeepClone()).ToArray()))));
+                ("items", new JsonArray(day.Items.Select(row => (JsonNode?)row.DeepClone()).ToArray())),
+                ("note_entries", new JsonArray(day.Entries.Select(entry => (JsonNode?)Obj(("id", entry.Id), ("date", entry.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+                    ("text", entry.Text), ("completed", entry.Completed), ("note", entry.NoteKnown ? entry.Note : null), ("note_known", entry.NoteKnown),
+                    ("note_source", entry.NoteSource))).ToArray()))));
         return Obj(("source", "当前身份筛选后的本机待办日历副本，包含本机意图；范围统计不随筛选改变，不是服务端实时或同一瞬间快照，也不是可导入请求"),
             ("range_start", view.Range.Start.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)), ("range_end", view.Range.End.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
             ("view", view.Range.Period.ToString()), ("complete", view.Complete), ("covered_days", view.CoveredDays), ("known_total", view.Total),

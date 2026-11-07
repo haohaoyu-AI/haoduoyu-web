@@ -41,10 +41,11 @@ public sealed partial class MainWindow
                 ("version", data["preferences_version"]?.DeepClone() ?? JsonValue.Create(0))), "/api/v1/todo-preferences");
         }));
         var items = Rows(data?["items"]).Where(r => mode != "hide" || !Flag(r, "completed")).ToArray();
-        List(items.Select(row => ((Flag(row, "completed") ? "✓ " : "○ ") + Text(row, "text"), $"{day} · v{Version(row)}" + LocalSuffix(row), (Func<Task>)(async () =>
+        List(items.Select(row => ((Flag(row, "completed") ? "✓ " : "○ ") + Text(row, "text"), $"{day} · v{Version(row)}" + LocalSuffix(row) + " · " + TodoNotePreview(row), (Func<Task>)(async () =>
         {
-            if (await HandlePendingRecordAsync(row)) return;
-            var option = Choose("待办", Text(row, "text"), Flag(row, "completed") ? "标为未完成" : "标为完成", "删除此条", "添加为常用");
+            var option = Choose("待办", Text(row, "text") + "\n" + TodoNotePreview(row), "查看或编辑备注", Flag(row, "completed") ? "标为未完成" : "标为完成", "删除此条", "添加为常用");
+            if (option == "查看或编辑备注") { await TodoNoteAsync(row); return; }
+            if (option is null || await HandlePendingRecordAsync(row)) return;
             var path = "/api/v1/todos/" + Text(row, "id");
             if (option is "标为完成" or "标为未完成") await SetTodoCompletionAsync(row, option == "标为完成");
             else if (option == "删除此条" && Confirm("只软删除当前日期的此条待办？原记录可按版本恢复。"))

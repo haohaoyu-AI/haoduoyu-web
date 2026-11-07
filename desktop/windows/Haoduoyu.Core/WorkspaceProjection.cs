@@ -271,6 +271,8 @@ public static class WorkspaceProjection
     {
         if (command.Kind == "template" && command.Route.Mode is "archive" or "restore")
         { ApplyTemplateArchive(operation, command, entities, authorities, state); return; }
+        if (command.Kind == "todo" && command.Route.Mode == "note")
+        { ApplyTodoNote(operation, command, entities, authorities, state); return; }
         var remote = Remote(operation);
         var id = operation.Status == PendingStatus.Confirmed && command.Kind == "article" && Text(remote, "id").Length > 0 ? Text(remote, "id") : command.Id;
         var key = Key(command.Kind, id); entities.TryGetValue(key, out var existing);
@@ -353,6 +355,80 @@ public static class WorkspaceProjection
         entities[key] = new(command.Kind, id, local, existing?.Revision ?? 0);
     }
     private static bool RequestControl(string name) => name is "save_id" or "expected_hash" or "version" or "template_version" or "confirm_title" or "confirm_note_count" or "action";
+
+    private static void ApplyTodoNote(PendingOperation operation, Command command, Dictionary<string, Entity> entities, List<Authority> authorities, WorkspaceState state)
+    {
+        var note = TodoNotes.ValidateText(TodoNotes.Text(command.Body["note"]));
+        var pendingDependency = operation.VersionFromDependencyId != null && operation.PreparedBodyJson == null && command.Body.Count == 1 && operation.Status != PendingStatus.Confirmed;
+        long? version = command.Body["version"] == null ? null : TodoNotes.Integer(command.Body["version"], 1);
+        if (operation.Method != "PATCH" || !pendingDependency && (command.Body.Count != 2 || version == null || version >= 9_007_199_254_740_991))
+            throw new InvalidDataException("待办备注意图不符合精确 note/version 合同；原请求未改变。");
+        var key = Key("todo", command.Id); entities.TryGetValue(key, out var existing); var baseline = existing?.Row;
+        DateOnly? date = operation.TodoNoteDate == null ? null : TodoNotes.Date(JsonValue.Create(operation.TodoNoteDate));
+        if (baseline?["date"] != null)
+        {
+            var knownDate = TodoNotes.Date(baseline["date"]);
+            if (date != null && date != knownDate) throw new InvalidDataException("备注意图原日期与已知待办不一致；原缓存和队列未改变。");
+            date ??= knownDate;
+        }
+        JsonObject? remote = null;
+        if (operation.RemoteJson != null)
+        { var envelope = TodoNotes.Envelope(operation.RemoteJson, state.ScopeId); remote = envelope["data"] as JsonObject; }
+        if (operation.Status == PendingStatus.Confirmed)
+        {
+            var authorityRevision = authorities.Where(authority => Covers(authority, "todo", baseline ?? Identity("todo", command.Id, command.Body, command.Route), entities)).Select(authority => authority.Revision).DefaultIfEmpty(0).Max();
+            if (operation.ConfirmedRevision == 0) return;
+            var newerObservation = operation.ConfirmedRevision <= Math.Max(existing?.Revision ?? 0, authorityRevision);
+            var full = false;
+            try
+            {
+                if (remote != null && date != null && version != null)
+                {
+                    TodoNotes.ValidateRecord(remote, command.Id, date);
+                    var actual = remote.ContainsKey("note") ? TodoNotes.ValidateText(TodoNotes.Text(remote["note"])) : "";
+                    full = Version(remote) == version + 1 && actual == note && (baseline == null || !Deleted(baseline));
+                }
+            }
+            catch (InvalidDataException) { }
+            if (newerObservation)
+            {
+                // A later GET may omit empty notes too. A verified clear receipt for that exact
+                // todo version can retain known-empty provenance without replacing newer fields.
+                if (full && remote != null && note.Length == 0 && baseline != null && !baseline.ContainsKey("note") && Version(remote) == Version(baseline))
+                {
+                    var enriched = (JsonObject)baseline.DeepClone(); enriched["note"] = ""; enriched["_local_note_source"] = "confirmed-clear";
+                    entities[key] = new("todo", command.Id, enriched, existing!.Revision);
+                }
+                return;
+            }
+            if (full && remote != null && !(Version(baseline) is { } current && Version(remote) < current))
+            {
+                var confirmed = baseline == null ? new JsonObject() : (JsonObject)baseline.DeepClone();
+                foreach (var field in confirmed.Select(pair => pair.Key).Where(name => name.StartsWith("_local_", StringComparison.Ordinal) || name == "_operation_id").ToArray()) confirmed.Remove(field);
+                foreach (var (field, value) in remote) confirmed[field] = value?.DeepClone();
+                // Only this action proves that omitted note means an explicit clear.
+                confirmed["note"] = note; confirmed["_local_note_source"] = !remote.ContainsKey("note") ? "confirmed-clear" : "confirmed";
+                entities[key] = new("todo", command.Id, confirmed, operation.ConfirmedRevision); return;
+            }
+            var uncertain = baseline == null ? Identity("todo", command.Id, command.Body, command.Route) : (JsonObject)baseline.DeepClone();
+            uncertain["_local_incomplete"] = true; uncertain["_local_receipt_only"] = true;
+            uncertain["_local_status"] = operation.Status.ToString(); uncertain["_operation_id"] = operation.Id;
+            uncertain["_local_request"] = command.Body.DeepClone(); uncertain["_local_remote"] = remote?.DeepClone();
+            entities[key] = new("todo", command.Id, uncertain, existing?.Revision ?? 0); return;
+        }
+        var local = baseline == null ? Identity("todo", command.Id, command.Body, command.Route) : (JsonObject)baseline.DeepClone();
+        var before = TodoNotes.ReadNote(local); var sourceKnown = before.Source == "local-intent" ? before.BaselineKnown : before.Known;
+        var sourceNote = before.Source == "local-intent" ? before.BaselineNote : before.Known ? before.Note : null;
+        local["note"] = note; local["_local_note_source"] = "local-intent"; local["_local_note_baseline_known"] = sourceKnown; local["_local_note_baseline"] = sourceNote;
+        local["_local_note_operation_id"] = operation.Id;
+        local["_local_status"] = operation.Status.ToString(); local["_operation_id"] = operation.Id; local["_local_request"] = command.Body.DeepClone();
+        var provenance = remote ?? baseline; while (provenance?["_local_remote"] is JsonObject previous) provenance = previous;
+        local["_local_remote"] = provenance?.DeepClone();
+        if (date != null) local["date"] = date.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (baseline == null || pendingDependency || operation.TodoNoteDate == null) local["_local_incomplete"] = true;
+        if (pendingDependency) local["_local_dependency_pending"] = true;
+        entities[key] = new("todo", command.Id, local, existing?.Revision ?? 0);
+    }
 
     private static void ApplyTemplateArchive(PendingOperation operation, Command command, Dictionary<string, Entity> entities, List<Authority> authorities, WorkspaceState state)
     {

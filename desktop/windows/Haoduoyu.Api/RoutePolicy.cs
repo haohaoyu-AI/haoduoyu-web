@@ -16,6 +16,7 @@ internal static class RoutePolicy
         ("POST", "/auth/(login|logout)", []),
         ("GET", "/todos", ["date"]), ("POST", "/todos", []),
         ("PATCH", "/todos/" + Uuid, []), ("DELETE", "/todos/" + Uuid, []),
+        ("PATCH", "/todos/" + TemplateUuid + "/note", []),
         ("POST", "/todos/" + Uuid + "/(restore|template)", []),
         ("GET", "/unscheduled-todos", []), ("GET", "/unscheduled-todos/" + Uuid, []),
         ("POST", "/unscheduled-todos", []), ("PATCH", "/unscheduled-todos/" + Uuid, []),

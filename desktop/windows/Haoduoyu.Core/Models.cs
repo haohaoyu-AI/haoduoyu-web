@@ -36,6 +36,8 @@ public sealed record PendingOperation
     public int SendAttempts { get; init; }
     public string? VersionFromDependencyId { get; init; }
     public string? PreparedBodyJson { get; init; }
+    // Context for the private todo-note action, never a field in its HTTP request body.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? TodoNoteDate { get; init; }
     [JsonIgnore] public string RequestBodyJson => PreparedBodyJson ?? BodyJson;
     [JsonIgnore] public bool CanEditQueued => Status == PendingStatus.Queued && SendAttempts == 0 &&
         PreparedBodyJson == null && RemoteJson == null && Error == null;

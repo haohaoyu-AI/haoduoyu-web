@@ -43,6 +43,28 @@ public sealed class TodoHistoryDay
 
 public sealed record TodoHistoryFilter(string Query = "", bool? Completed = null);
 
+public sealed class TodoHistoryItem
+{
+    private readonly JsonObject data;
+    internal TodoHistoryItem(JsonObject row)
+    {
+        data = (JsonObject)row.DeepClone(); Id = TodoNotes.Text(row["id"]); Date = TodoNotes.Date(row["date"]);
+        Text = TodoNotes.Text(row["text"]); Completed = TodoHistory.Completed(row);
+        var note = TodoNotes.ReadNote(row); Note = note.Note; NoteKnown = note.Known; NoteSource = note.Source;
+        BaselineNote = note.BaselineNote; BaselineNoteKnown = note.BaselineKnown;
+    }
+    public string Id { get; }
+    public DateOnly Date { get; }
+    public string Text { get; }
+    public bool Completed { get; }
+    public string Note { get; }
+    public bool NoteKnown { get; }
+    public string NoteSource { get; }
+    public string? BaselineNote { get; }
+    public bool BaselineNoteKnown { get; }
+    public JsonObject Data => (JsonObject)data.DeepClone();
+}
+
 public sealed class TodoHistoryDayView
 {
     private readonly JsonObject[] items;
@@ -59,6 +81,7 @@ public sealed class TodoHistoryDayView
     public bool Complete { get; }
     public string? Issue { get; }
     public IReadOnlyList<JsonObject> Items => Array.AsReadOnly(items.Select(row => (JsonObject)row.DeepClone()).ToArray());
+    public IReadOnlyList<TodoHistoryItem> Entries => Array.AsReadOnly(items.Select(row => new TodoHistoryItem(row)).ToArray());
     public int Total { get; }
     public int Done { get; }
     public int Open { get; }
@@ -229,7 +252,7 @@ public static class TodoHistory
             { issues[date] = "本机待办投影无法核实"; complete.Remove(date); }
             rangeItems = checked(rangeItems + all.Count); if (rangeItems > MaximumRangeItems) throw Invalid("历史范围条目超过预算");
             var filtered = all.Where(row => (filter.Completed is null || Completed(row) == filter.Completed) &&
-                Text(row["text"]).Contains(filter.Query, StringComparison.OrdinalIgnoreCase)).ToArray();
+                (Text(row["text"]).Contains(filter.Query, StringComparison.OrdinalIgnoreCase) || TodoNotes.ReadNote(row).Note.Contains(filter.Query, StringComparison.OrdinalIgnoreCase))).ToArray();
             var baselineRows = originalRows.Where(row => !Deleted(row)).ToArray();
             days.Add(new(date, baseline != null, complete.Contains(date), issues.GetValueOrDefault(date), all.ToArray(), filtered, baselineRows,
                 pendingByDay.GetValueOrDefault(date)?.Count ?? 0, observations.GetValueOrDefault(date)));
@@ -259,7 +282,7 @@ public static class TodoHistory
         {
             if (!TodoOperation(operation, out var id)) continue;
             var body = Body(operation.RequestBodyJson); DateOnly date;
-            var found = TryDate(body?["date"], out date) || knownDates.TryGetValue(id, out date) ||
+            var found = TryDate(JsonValue.Create(operation.TodoNoteDate), out date) || TryDate(body?["date"], out date) || knownDates.TryGetValue(id, out date) ||
                 TryRemoteDate(operation.RemoteJson, id, state.ScopeId, out date) ||
                 state.Drafts.TryGetValue(operation.ResourceKey, out var draft) && TryDate(Body(draft.Text)?["date"], out date) ||
                 TryCachedDate(state, id, out date);
@@ -359,6 +382,7 @@ public static class TodoHistory
     {
         Uuid(row["id"]); if (date != null && Date(row["date"]) != date) throw Invalid("待办条目日期不一致");
         ValidateText(row["text"]); _ = Completed(row); _ = Integer(row["version"], 1);
+        if (row.ContainsKey("note")) _ = TodoNotes.ValidateText(Text(row["note"]));
         _ = Stamp(row["created_at"]); _ = Stamp(row["updated_at"]);
         if (!row.ContainsKey("deleted_at")) throw Invalid("待办删除状态缺失");
         if (row["deleted_at"] != null) _ = Stamp(row["deleted_at"]);

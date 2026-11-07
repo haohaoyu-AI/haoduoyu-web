@@ -151,7 +151,7 @@ public sealed class SyncEngine
         {
             var index = FindQueued(s, operationId); var original = s.Outbox[index];
             if (replacement.Id == original.Id || s.Outbox.Any(x => x.Id == replacement.Id) || replacement.ResourceKey != original.ResourceKey ||
-                replacement.Method != original.Method || replacement.Path != original.Path)
+                replacement.Method != original.Method || replacement.Path != original.Path || IsTodoNoteAction(original) && replacement.TodoNoteDate != original.TodoNoteDate)
                 throw new InvalidOperationException("替换未发送操作必须使用同一资源、方法、路径与新的操作标识。");
             s.Outbox[index] = original with { Status = PendingStatus.Superseded,
                 SupersededById = replacement.Id, Error = "已明确替换未发送操作；原请求完整保留。" };
@@ -191,15 +191,17 @@ public sealed class SyncEngine
                     var index = s.Outbox.FindIndex(x => x.Id == id && x.Status == PendingStatus.Queued);
                     if (index < 0 || !OperationGraph.DependenciesConfirmed(s, s.Outbox[index])) return;
                     var candidate = s.Outbox[index];
-                    if (candidate.VersionFromDependencyId != null && candidate.PreparedBodyJson == null)
+                    try
                     {
-                        try { candidate = candidate with { PreparedBodyJson = PrepareVersionBody(s, candidate) }; }
-                        catch (InvalidDataException error)
-                        {
-                            preparationBlocked = true;
-                            s.Outbox[index] = candidate with { Status = PendingStatus.Blocked, Error = error.Message };
-                            return;
-                        }
+                        if (IsTodoNoteAction(candidate)) ValidateTodoNoteOperation(candidate);
+                        if (candidate.VersionFromDependencyId != null && candidate.PreparedBodyJson == null)
+                            candidate = candidate with { PreparedBodyJson = PrepareVersionBody(s, candidate) };
+                    }
+                    catch (InvalidDataException error)
+                    {
+                        preparationBlocked = true;
+                        s.Outbox[index] = candidate with { Status = PendingStatus.Blocked, Error = error.Message };
+                        return;
                     }
                     sending = candidate with { Status = PendingStatus.InFlight, Error = null, SendAttempts = checked(candidate.SendAttempts + 1) };
                     s.Outbox[index] = sending;
@@ -208,9 +210,16 @@ public sealed class SyncEngine
                 ApiResult? response = null;
                 string? failure = null;
                 var definitelyNotSent = false;
+                var invalidTodoNoteReceipt = false;
                 try
                 {
                     response = await api.SendAsync(sending.Method, sending.Path, sending.RequestBodyJson, sending.Id, cancellationToken);
+                    if (response.IsSuccess && IsTodoNoteAction(sending))
+                    {
+                        try { ValidateTodoNoteReceipt(sending, response.Json, store.ScopeId); }
+                        catch (InvalidDataException)
+                        { invalidTodoNoteReceipt = true; failure = "待办备注成功响应与原标识、日期、版本或原文不一致；结果尚未确认，原请求和草稿保留。"; }
+                    }
                 }
                 catch (RequestNotSentException error)
                 {
@@ -222,7 +231,7 @@ public sealed class SyncEngine
                     // A request may have reached the server even if no response was received.
                     failure = error is OperationCanceledException ? "请求已中断，保存结果尚未确认。" : "网络中断，保存结果尚未确认。";
                 }
-                var next = definitelyNotSent ? PendingStatus.Blocked : response?.IsSuccess == true ? PendingStatus.Confirmed :
+                var next = definitelyNotSent ? PendingStatus.Blocked : response?.IsSuccess == true ? invalidTodoNoteReceipt ? PendingStatus.Unknown : PendingStatus.Confirmed :
                     response?.StatusCode == 409 ? PendingStatus.Conflict :
                     response?.StatusCode is >= 400 and < 500 ? PendingStatus.Blocked : PendingStatus.Unknown;
                 await MutateAsync(s =>
@@ -271,6 +280,8 @@ public sealed class SyncEngine
                 throw new InvalidOperationException("只有未确认请求可由精确保存证据确认。");
             if (IsTemplateArchiveAction(s.Outbox[index]))
                 throw new InvalidOperationException("模板归档接口没有精确保存收据。两张列表仅供只读核对，不能据当前状态确认原请求。");
+            if (IsTodoNoteAction(s.Outbox[index]))
+                throw new InvalidOperationException("待办备注没有精确保存收据。当前待办内容或版本相同，不能确认原请求已经提交。");
             s.Outbox[index] = s.Outbox[index] with { Status = PendingStatus.Confirmed, ConfirmedRevision = s.LocalRevision,
                 RemoteJson = verifiedRemoteJson, Error = null };
         }, cancellationToken);
@@ -289,6 +300,8 @@ public sealed class SyncEngine
             var original = s.Outbox[index];
             if (original.Status == PendingStatus.Unknown && IsTemplateArchiveAction(original))
                 throw new InvalidOperationException("模板归档结果尚未确认，当前列表不能解除原请求围栏或替换为新写入。原请求和草稿保留。");
+            if (original.Status == PendingStatus.Unknown && IsTodoNoteAction(original))
+                throw new InvalidOperationException("待办备注结果尚未确认，当前记录不能解除原请求围栏或替换为新保存。原请求和草稿保留。");
             if (replacement != null && (replacement.Id == original.Id || s.Outbox.Any(x => x.Id == replacement.Id) || replacement.ResourceKey != original.ResourceKey))
                 throw new InvalidOperationException("冲突处理必须创建同一资源的新操作标识。");
             s.Outbox[index] = original with { Status = PendingStatus.Superseded, SupersededById = replacement?.Id, RemoteJson = remoteJson,
@@ -311,6 +324,8 @@ public sealed class SyncEngine
                 throw new InvalidOperationException("版本冲突必须选择远端或显式新 CAS 保存，不能重试旧版本。");
             if (s.Outbox[index].Status == PendingStatus.Unknown && IsTemplateArchiveAction(s.Outbox[index]))
                 throw new InvalidOperationException("模板归档结果尚未确认，列表中的相同状态不能证明原保存结果，不能直接重排原请求。");
+            if (s.Outbox[index].Status == PendingStatus.Unknown && IsTodoNoteAction(s.Outbox[index]))
+                throw new InvalidOperationException("待办备注结果尚未确认，读取到相同内容和版本不能证明原保存结果，不能直接重排原请求。");
             s.Outbox[index] = s.Outbox[index] with { Status = PendingStatus.Queued, RemoteJson = checkedRemoteJson,
                 Error = "已明确要求重试同一不可变请求。" };
         }, cancellationToken);
@@ -361,6 +376,7 @@ public sealed class SyncEngine
         {
             if (existing.ResourceKey == operation.ResourceKey && existing.Method == operation.Method &&
                 existing.Path == operation.Path && existing.BodyJson == operation.BodyJson &&
+                existing.TodoNoteDate == operation.TodoNoteDate &&
                 existing.DependencyIds.SequenceEqual(operation.DependencyIds, StringComparer.Ordinal)) return;
             throw new InvalidOperationException("不能重复使用操作标识提交不同内容。");
         }
@@ -384,6 +400,7 @@ public sealed class SyncEngine
             operation.Path.Contains('\\') || operation.Path.StartsWith("//", StringComparison.Ordinal))
             throw new ArgumentException("待同步操作格式无效。");
         ParseJson(operation.BodyJson);
+        if (IsTodoNoteAction(operation)) ValidateTodoNoteOperation(operation);
     }
 
     private static string PrepareVersionBody(WorkspaceState state, PendingOperation operation)
@@ -410,9 +427,11 @@ public sealed class SyncEngine
             }
             var target = VersionTarget(operation.Path)
                 ?? throw new InvalidDataException("待修改记录路径或动作无法核验；子操作未发送。");
-            if (target.Action != null && operation.Method != "POST")
-                throw new InvalidDataException("依赖版本动作必须使用已核对的POST路径；子操作未发送。");
+            if (target.Action != null && (target is { Resource: "todos", Action: "note" } ? operation.Method != "PATCH" : operation.Method != "POST"))
+                throw new InvalidDataException("依赖版本动作的方法与正式接口不一致；子操作未发送。");
             var parent = VersionTarget(dependency.Path);
+            if (target is { Resource: "todos", Action: "note" })
+                return PrepareTodoNoteVersionBody(state, operation, dependency, parent, receipt!, data);
             if (parent != null && parent.Id != target.Id)
                 throw new InvalidDataException("依赖操作路径与待修改记录身份不匹配；子操作未发送。");
             if (target.Resource == "todo-templates" && (target.Action is "archive" or "restore" || parent is { Resource: "todo-templates", Action: "archive" or "restore" }))
@@ -538,16 +557,108 @@ public sealed class SyncEngine
         if (segments.Length < 2) return null;
         string? action = null;
         var index = segments.Length - 1;
-        if (segments[index] is "move" or "complete-today" or "restore" or "template" or "archive") { action = segments[index]; index--; }
+        if (segments[index] is "move" or "complete-today" or "restore" or "template" or "archive" or "note") { action = segments[index]; index--; }
         if (index < 1 || !Guid.TryParseExact(segments[index], "D", out _)) return null;
         var resource = string.Join('/', segments[..index]);
         if (action is "move" or "complete-today" && resource != "unscheduled-todos") return null;
         if (action == "template" && resource != "todos") return null;
         if (action == "archive" && resource != "todo-templates") return null;
+        if (action == "note" && resource != "todos") return null;
         return new VersionRoute(resource, resource == "todo-templates" ? Guid.Parse(segments[index]).ToString("D") : segments[index], action);
     }
     private static bool IsTemplateArchiveAction(PendingOperation operation) => operation.Method == "POST" &&
         VersionTarget(operation.Path) is { Resource: "todo-templates", Action: "archive" or "restore" };
+    private static bool IsTodoNoteAction(PendingOperation operation)
+    {
+        var parts = operation.Path.Split('?', 2)[0].Split('/');
+        return operation.Method == "PATCH" && parts.Length == 6 && parts[0].Length == 0 &&
+            parts[1] == "api" && parts[2] == "v1" && parts[3] == "todos" && parts[5] == "note";
+    }
+    private sealed record TodoNoteTarget(string Id, DateOnly Date);
+    private static TodoNoteTarget ValidateTodoNoteOperation(PendingOperation operation)
+    {
+        try
+        {
+            var parts = operation.Path.Split('/');
+            if (!IsTodoNoteAction(operation) || operation.Path.Contains('?') || operation.Path.Contains('#') ||
+                parts.Length != 6 || operation.ResourceKey != TodoNotes.ResourceKey(parts[4]) ||
+                !DateOnly.TryParseExact(operation.TodoNoteDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                throw new InvalidDataException("待办备注缺少原始日期或同一待办标识；未发送写入。");
+            var body = TodoNotes.Envelope(operation.BodyJson, null); var deferred = operation.VersionFromDependencyId != null;
+            if (body.Count != (deferred ? 1 : 2) || !body.ContainsKey("note") ||
+                !deferred && !TemplateVersion(body["version"], out _))
+                throw new InvalidDataException("待办备注只接受原文及真实版本；日期和其他字段不能进入请求正文。");
+            var note = TodoNotes.ValidateText(TodoNotes.Text(body["note"]));
+            if (operation.PreparedBodyJson != null)
+            {
+                var sent = TodoNotes.Envelope(operation.PreparedBodyJson, null);
+                if (sent.Count != 2 || !TemplateVersion(sent["version"], out _) || TodoNotes.Text(sent["note"]) != note)
+                    throw new InvalidDataException("待办备注冻结请求与原始意图不一致；未发送写入。");
+            }
+            return new(parts[4].ToLowerInvariant(), date);
+        }
+        catch (Exception error) when (error is JsonException or InvalidOperationException or ArgumentException or FormatException or OverflowException)
+        { throw new InvalidDataException("待办备注请求或原日期无法核实；原请求及草稿保留。", error); }
+    }
+    private static void ValidateTodoNoteReceipt(PendingOperation operation, string json, string scope)
+    {
+        try
+        {
+            var target = ValidateTodoNoteOperation(operation); var request = TodoNotes.Envelope(operation.RequestBodyJson, null);
+            if (request.Count != 2 || !TemplateVersion(request["version"], out var requestedVersion))
+                throw new InvalidDataException("待办备注缺少已经冻结的真实请求版本。");
+            var receipt = TodoNotes.Envelope(json, scope);
+            if (receipt["data"] is not JsonObject row) throw new InvalidDataException("待办备注保存响应缺少完整待办。");
+            TodoNotes.ValidateRecord(row, target.Id, target.Date);
+            var note = row.ContainsKey("note") ? TodoNotes.Text(row["note"]) : "";
+            if (TodoNotes.Integer(row["version"], 1) != requestedVersion + 1 || note != TodoNotes.Text(request["note"]))
+                throw new InvalidDataException("待办备注回执版本或精确原文不匹配。");
+        }
+        catch (Exception error) when (error is JsonException or InvalidOperationException or ArgumentException or FormatException or OverflowException)
+        { throw new InvalidDataException("待办备注保存响应无法核实；原请求及草稿保留。", error); }
+    }
+    private static string PrepareTodoNoteVersionBody(WorkspaceState state, PendingOperation operation, PendingOperation dependency,
+        VersionRoute? parent, JsonObject receipt, JsonObject data)
+    {
+        var target = ValidateTodoNoteOperation(operation);
+        if (operation.ResourceKey != dependency.ResourceKey || dependency.Path.Contains('?') || dependency.Path.Contains('#') ||
+            receipt.TryGetPropertyValue("_local_scope_id", out var markedScope) && (markedScope is not JsonValue scopeValue || !scopeValue.TryGetValue<string>(out var scopeId) || scopeId != state.ScopeId))
+            throw new InvalidDataException("待办备注前置回执不属于同一资源或工作区；子操作未发送。");
+        TodoNotes.ValidateRecord(data, target.Id, target.Date);
+        var version = EntityVersion(data, target.Id);
+        var body = TodoNotes.Envelope(dependency.RequestBodyJson, null);
+        if (dependency.Method == "POST" && dependency.Path == "/api/v1/todos")
+        {
+            if (body.Count != (body.ContainsKey("template_id") ? 4 : 3) ||
+                TodoNotes.ResourceKey(TodoNotes.Text(body["id"])) != operation.ResourceKey || TodoNotes.Date(body["date"]) != target.Date ||
+                body["text"] is not JsonValue text || !text.TryGetValue<string>(out var createdText) || createdText.Length is < 1 or > 500 || createdText.Contains('\0') ||
+                createdText.Trim() != TodoNotes.Text(data["text"]) ||
+                body.ContainsKey("template_id") && TodoNotes.ResourceKey(TodoNotes.Text(body["template_id"])) != TodoNotes.ResourceKey(TodoNotes.Text(data["template_id"])))
+                throw new InvalidDataException("待办创建回执与原标识、日期、事项或模板关联不一致；备注未发送。");
+        }
+        else
+        {
+            if (parent is not { Resource: "todos" } || !Guid.TryParseExact(parent.Id, "D", out var parentId) || parentId != Guid.Parse(target.Id))
+                throw new InvalidDataException("待办备注前置路径不属于同一待办；子操作未发送。");
+            if (parent.Action == "note" && dependency.Method == "PATCH")
+                ValidateTodoNoteReceipt(dependency, dependency.RemoteJson!, state.ScopeId);
+            else if (parent.Action == null && dependency.Method == "PATCH")
+            {
+                if (body.Count != 2 || !TemplateVersion(body["version"], out var priorVersion) || version != priorVersion + 1 ||
+                    body["completed"] is not JsonValue completed || !completed.TryGetValue<bool>(out var expected) ||
+                    data["completed"] is not JsonValue actual || !actual.TryGetValue<bool>(out var value) || value != expected)
+                    throw new InvalidDataException("待办完成回执与原请求及真实版本不一致；备注未发送。");
+            }
+            else if (parent.Action == "restore" && dependency.Method == "POST")
+            {
+                if (body.Count != 2 || TodoNotes.Date(body["date"]) != target.Date || !TemplateVersion(body["version"], out var priorVersion) ||
+                    version != priorVersion && version != priorVersion + 1)
+                    throw new InvalidDataException("待办恢复回执与原日期或真实版本不一致；备注未发送。");
+            }
+            else throw new InvalidDataException("待办备注仅能依赖已核实的创建、完成、恢复或备注保存；子操作未发送。");
+        }
+        return VersionedBody(operation, version);
+    }
     private static long EntityVersion(JsonObject entity, string expectedId)
     {
         if (entity["id"] is not JsonValue identity || !identity.TryGetValue<string>(out var id) || id != expectedId ||

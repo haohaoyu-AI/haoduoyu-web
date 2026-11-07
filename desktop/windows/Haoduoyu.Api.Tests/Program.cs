@@ -79,6 +79,11 @@ if (args is ["--template-archive-contract", var templateArchiveFixturePath])
     await TemplateArchiveContract.RunAsync(templateArchiveFixturePath);
     return;
 }
+if (args is ["--todo-note-contract", var todoNoteFixturePath])
+{
+    await TodoNoteContract.RunAsync(todoNoteFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);

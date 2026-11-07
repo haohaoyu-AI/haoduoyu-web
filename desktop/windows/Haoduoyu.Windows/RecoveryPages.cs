@@ -30,7 +30,8 @@ public sealed partial class MainWindow
         var kind = Text(data, "kind");
         if (kind == "todo" && draft.BaseVersion > 0)
         { ShowText("已保存的创建稿", data["values"]?.ToJsonString(new() { WriteIndented = true }) ?? draft.Text); return; }
-        if (kind is "unscheduled" or "label-create") await PlanningDraftAsync(kind, draft.Key);
+        if (kind == "todo-note") await ContinueTodoNoteDraftAsync(draft.Key);
+        else if (kind is "unscheduled" or "label-create") await PlanningDraftAsync(kind, draft.Key);
         else if (kind == "ai-report") await AiReportDraftAsync(draft.Key);
         else if (kind.StartsWith("review:", StringComparison.Ordinal)) await ReviewDraftAsync(kind, draft.Key);
         else if (kind == "history") ShowText("保留的本机历史稿", data["values"]?.ToJsonString(new() { WriteIndented = true }) ?? draft.Text);
@@ -52,6 +53,7 @@ public sealed partial class MainWindow
     }
     private async Task InspectOperationAsync(PendingOperation operation)
     {
+        if (IsTodoNoteOperation(operation)) { await InspectTodoNoteOperationAsync(operation); return; }
         if (IsTemplateArchiveOperation(operation)) { await InspectTemplateArchiveOperationAsync(operation); return; }
         var options = operation.Status switch
         {

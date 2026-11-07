@@ -53,7 +53,7 @@ public static class WorkspaceSearch
     private static readonly HashSet<string> ReviewKinds = new(StringComparer.Ordinal)
     { "articles", "snapshots", "reports", "playbooks", "benchmark-accounts", "benchmark-articles", "notes", "account-health" };
     private static readonly HashSet<string> DraftKinds = new(StringComparer.Ordinal)
-    { "todo", "unscheduled", "template", "note", "legacy", "memo", "group", "reminder", "article", "ai-report", "label", "label-create" };
+    { "todo", "todo-note", "unscheduled", "template", "note", "legacy", "memo", "group", "reminder", "article", "ai-report", "label", "label-create" };
     private sealed record Route(string Kind, string Id, string Mode, string? Date, string? Category);
     private sealed record Candidate(WorkspaceSearchHit Hit, string Text, long Version);
 
@@ -125,6 +125,11 @@ public static class WorkspaceSearch
                 if (document == null || !OwnScope(document.RootElement) || !Record()) continue;
                 var root = document.RootElement;
                 var kind = String(root, "kind");
+                if (kind == "todo-note")
+                {
+                    try { var noteDraft = TodoNotes.ParseDraft(draft); route = route with { Date = noteDraft.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) }; }
+                    catch (Exception error) when (error is InvalidDataException or ArgumentException or JsonException or InvalidOperationException) { limitations.Add("invalid-todo-note-draft"); continue; }
+                }
                 if (kind == "label-create") kind = "label";
                 if (!(kind == "history" || DraftKinds.Contains(kind) || kind.StartsWith("review:", StringComparison.Ordinal) && ReviewKinds.Contains(kind[7..])) || kind != route.Kind)
                 { limitations.Add("invalid-local-source"); continue; }
@@ -143,6 +148,7 @@ public static class WorkspaceSearch
                 cancellationToken.ThrowIfCancellationRequested();
                 var route = ParseRoute(operation.Path, cacheRead: false);
                 if (route == null) continue;
+                if (route.Kind == "todo-note" && operation.TodoNoteDate != null) route = route with { Date = operation.TodoNoteDate };
                 AddOperation(operation, route, operation.BodyJson, "request");
                 if (!stopped && operation.PreparedBodyJson is { } prepared && prepared != operation.BodyJson)
                     AddOperation(operation, route, prepared, "prepared-request");
@@ -390,6 +396,7 @@ public static class WorkspaceSearch
             _ => []
         };
         if (query.Keys.Any(name => !allowedQuery.Contains(name, StringComparer.Ordinal))) return null;
+        if (!cacheRead && kind == "todo" && segments.Length == 3 && segments[2] == "note" && Guid.TryParseExact(segments[1], "D", out _)) return new("todo-note", segments[1], "detail", date, null);
         if (cacheRead && segments.Length > 1 && kind is "todo" or "template" or "legacy" or "reminder" or "ai-report") return null;
         if (segments.Length == 2 && kind == "note" && segments[1] == "labels") return new("label", "", "labels", date, category);
         if (segments.Length == 2 && segments[1] is "dates" or "month" or "operations") return null;
@@ -406,6 +413,8 @@ public static class WorkspaceSearch
 
     private static Route? DraftRoute(string key)
     {
+        if (key.StartsWith("/local/todo-note/", StringComparison.Ordinal) && Guid.TryParseExact(key[17..], "D", out _))
+            return new("todo-note", key[17..], "detail", null, null);
         if (key.StartsWith("/local/label-create/", StringComparison.Ordinal) && Guid.TryParseExact(key[20..], "D", out _))
             return new("label", "", "detail", null, null);
         if (key.StartsWith("/local/history/", StringComparison.Ordinal) && Guid.TryParseExact(key[15..], "D", out _))

@@ -253,3 +253,8 @@ Stage 13 uses a separate reviewed source candidate for template archive/restore:
 see [template-archive-README.md](template-archive-README.md), its fixed `34bff302`
 fixture and `template-archive-contract-report.json`. This does not identify the
 currently deployed Worker or change any earlier c30 evidence.
+
+Stage 14 adds the separate private todo-note contract and its unchanged source
+candidate. See [todo-note-README.md](todo-note-README.md),
+`todo-note-contract-34bff302.json` and `todo-note-contract-report.json` for
+raw-text/clear/replay semantics, private-session limits and exact capture counts.

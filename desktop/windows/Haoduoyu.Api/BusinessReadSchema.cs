@@ -136,7 +136,7 @@ internal static class BusinessReadSchema
     }
 
     private static void Todo(JsonObject row, bool dated)
-    { Uuid(row["id"]); Version(row["version"]); Text(row["text"]); Boolean(row["completed"]); if (dated) Date(row["date"]); NullableStamp(row, "deleted_at"); }
+    { Uuid(row["id"]); Version(row["version"]); Text(row["text"]); Boolean(row["completed"]); if (dated) Date(row["date"]); NullableStamp(row, "deleted_at"); if (dated && row.ContainsKey("note")) _ = TodoNotes.ValidateText(Text(row["note"], empty: true)); }
     private static void Note(JsonObject row)
     { Uuid(row["id"]); Version(row["version"]); Category(row["category"]); Date(row["date"]); Text(row["text"], empty: true); Boolean(row["can_edit"]); Boolean(row["deleted"]); Strings(row["labels"]); Hash(row["content_hash"]); }
     private static void Memo(JsonObject row, bool body)

@@ -1,0 +1,2319 @@
+{
+  "source_commit": "34bff302e128c92f46f00e76d59f9b44b9b7242e",
+  "synthetic_only": true,
+  "production_business_requests": 0,
+  "external_fetch_attempts": 0,
+  "generated_at": "2026-11-07T10:21:53.498Z",
+  "source_hashes": {
+    "src/todos.mjs": "8e87d53031b6f9f3e510de25733cacbeea6b9049a8a871123da5108f1c3de6bc",
+    "src/business-access.mjs": "14ac390e37013ab810ddcec96e0857986bd3a087aa17906771e971d4641f0693",
+    "src/public-business.mjs": "2b3e1496961ce660f6d87539488841aa6eaad6fa163c1286a3eb0ed4d58f5bc8",
+    "src/security.mjs": "cf6a7bda2a12118123661dee169d1872f78725554700d331629115dc5bed5e9d",
+    "src/storage.mjs": "53acc6c04579ee02b8a06086338a0d4b52281e3a56c016293a1b6174fdea6bf1",
+    "src/business-snapshot.mjs": "647b58ee46b44af28fd90f61cdb5e8598dbd4ddc7c69e1211e95530728cb8317",
+    "src/snapshot-projection.mjs": "47ed973356193b645e8aea0f74c9186fece6f64bf367330b2e38d6ac166d1cbe",
+    "drizzle/0019_todo_notes_archives.sql": "5666cdc6f6b84f7e33457e4c4b45a0ed26d6acc5cbefcebaf29912cb11de97ec",
+    "package-lock.json": "f6c5d8fc66382f328a990a70de714a7061664877ea06612cf2effc9aa51953bc",
+    "dist/server/index.js": "f5eec94ba40eecdf97ae350b3fa98ed8f6af72fd1bdcb72b321fa27c0da23b84"
+  },
+  "users": {
+    "owner": "1a2b7ad5-af4c-44b4-817a-69490c73ce20",
+    "other": "6be49485-763a-45dd-ac83-f57bb66d1f24"
+  },
+  "ids": {
+    "todo": "74018803-86da-43d2-b39a-388b28319dde",
+    "template": "da96daef-a7df-4f7c-995c-e874207765e5",
+    "other_todo": "3edbc9b9-6518-4f06-8632-01b257bad464",
+    "deleted_todo": "0bc2024d-b64c-4956-b97a-a9ad595265c0",
+    "concurrent_completion_todo": "2d85568a-5868-4815-bfd8-da7ff1549468"
+  },
+  "date": "2026-11-07",
+  "samples": [
+    {
+      "name": "owner-empty-get",
+      "method": "GET",
+      "path": "/api/v1/todos",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[]}}",
+      "before": {
+        "revision": 4,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_templates_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_template_links_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "after": {
+        "revision": 4,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_templates_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_template_links_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-create-template",
+      "method": "POST",
+      "path": "/api/v1/todo-templates",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"text\":\"合成备注关联模板\"}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"text\":\"合成备注关联模板\",\"version\":1,\"created_at\":\"2026-11-07T10:21:32.673Z\",\"updated_at\":\"2026-11-07T10:21:32.673Z\",\"completed_days\":0,\"habit_status\":\"todo\"}}",
+      "before": {
+        "revision": 4,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_templates_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_template_links_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "after": {
+        "revision": 5,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-create-linked-todo",
+      "method": "POST",
+      "path": "/api/v1/todos",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\"}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"completed\":false,\"version\":1,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:32.982Z\",\"deleted_at\":null,\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 5,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "after": {
+        "revision": 6,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "123aacf59e1c4492569de1f6834c9a365a6711d2fb4137bb5dcac1157e68d27e",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-baseline-get",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":1,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:32.982Z\",\"deleted_at\":null,\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}]}}",
+      "before": {
+        "revision": 6,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "123aacf59e1c4492569de1f6834c9a365a6711d2fb4137bb5dcac1157e68d27e",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 6,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "123aacf59e1c4492569de1f6834c9a365a6711d2fb4137bb5dcac1157e68d27e",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-save-v1",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"  合成未完成原因\\r\\n组合 é 🐟\\t尾空白 \\r \",\"version\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":2,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:33.585Z\",\"deleted_at\":null,\"note\":\"  合成未完成原因\\r\\n组合 é 🐟\\t尾空白 \\r \",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 6,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "123aacf59e1c4492569de1f6834c9a365a6711d2fb4137bb5dcac1157e68d27e",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 7,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "876c911244d565728ca2cf52dd20ba65675446e57b7a502c981d60f5ede04223",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-after-save-get",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":2,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:33.585Z\",\"deleted_at\":null,\"note\":\"  合成未完成原因\\r\\n组合 é 🐟\\t尾空白 \\r \",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}]}}",
+      "before": {
+        "revision": 7,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "876c911244d565728ca2cf52dd20ba65675446e57b7a502c981d60f5ede04223",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 7,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "876c911244d565728ca2cf52dd20ba65675446e57b7a502c981d60f5ede04223",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-replay-v1",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"  合成未完成原因\\r\\n组合 é 🐟\\t尾空白 \\r \",\"version\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":2,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:33.585Z\",\"deleted_at\":null,\"note\":\"  合成未完成原因\\r\\n组合 é 🐟\\t尾空白 \\r \",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 7,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "876c911244d565728ca2cf52dd20ba65675446e57b7a502c981d60f5ede04223",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 7,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "876c911244d565728ca2cf52dd20ba65675446e57b7a502c981d60f5ede04223",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-same-text-current-v2",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"  合成未完成原因\\r\\n组合 é 🐟\\t尾空白 \\r \",\"version\":2}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":3,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:34.353Z\",\"deleted_at\":null,\"note\":\"  合成未完成原因\\r\\n组合 é 🐟\\t尾空白 \\r \",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 7,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "876c911244d565728ca2cf52dd20ba65675446e57b7a502c981d60f5ede04223",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 8,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "34cdc5aa27d3c2bf167bb3249b6d24f7b139208ad1af1ad0fd52718b5e5914cc",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-stale-version-v1-same-text",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"  合成未完成原因\\r\\n组合 é 🐟\\t尾空白 \\r \",\"version\":1}",
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"待办已更新，请刷新后重试\"},\"request_id\":\"918b73a8-a498-4ef6-b895-ceb96f573ef4\"}",
+      "before": {
+        "revision": 8,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "34cdc5aa27d3c2bf167bb3249b6d24f7b139208ad1af1ad0fd52718b5e5914cc",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 8,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "34cdc5aa27d3c2bf167bb3249b6d24f7b139208ad1af1ad0fd52718b5e5914cc",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-old-version-different-text",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"不可覆盖\",\"version\":2}",
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"待办已更新，请刷新后重试\"},\"request_id\":\"ef2ad855-6a88-4549-b4a3-c4123c630331\"}",
+      "before": {
+        "revision": 8,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "34cdc5aa27d3c2bf167bb3249b6d24f7b139208ad1af1ad0fd52718b5e5914cc",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 8,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "34cdc5aa27d3c2bf167bb3249b6d24f7b139208ad1af1ad0fd52718b5e5914cc",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-clear-v3",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\",\"version\":3}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":4,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:35.097Z\",\"deleted_at\":null,\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 8,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "34cdc5aa27d3c2bf167bb3249b6d24f7b139208ad1af1ad0fd52718b5e5914cc",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 9,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "5f31c4e5c8a539a985be589976d033143f2811037216421a4c1fa8b26386957c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-clear-replay-v3",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\",\"version\":3}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":4,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:35.097Z\",\"deleted_at\":null,\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 9,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "5f31c4e5c8a539a985be589976d033143f2811037216421a4c1fa8b26386957c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 9,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "5f31c4e5c8a539a985be589976d033143f2811037216421a4c1fa8b26386957c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-after-clear-get",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":4,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:35.097Z\",\"deleted_at\":null,\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}]}}",
+      "before": {
+        "revision": 9,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "5f31c4e5c8a539a985be589976d033143f2811037216421a4c1fa8b26386957c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 9,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "5f31c4e5c8a539a985be589976d033143f2811037216421a4c1fa8b26386957c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-whitespace-v4",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\" \\t\\r\\n \",\"version\":4}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":5,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:35.865Z\",\"deleted_at\":null,\"note\":\" \\t\\r\\n \",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 9,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "5f31c4e5c8a539a985be589976d033143f2811037216421a4c1fa8b26386957c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 10,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "bdac0956fc3ec805eac16dbc6cf78328955ec8d79c1d26a8f815ae5e5c18413c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-after-whitespace-get",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":5,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:35.865Z\",\"deleted_at\":null,\"note\":\" \\t\\r\\n \",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}]}}",
+      "before": {
+        "revision": 10,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "bdac0956fc3ec805eac16dbc6cf78328955ec8d79c1d26a8f815ae5e5c18413c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 10,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "bdac0956fc3ec805eac16dbc6cf78328955ec8d79c1d26a8f815ae5e5c18413c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-limit4000-v5",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟\",\"version\":5}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":6,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:36.481Z\",\"deleted_at\":null,\"note\":\"中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 10,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "bdac0956fc3ec805eac16dbc6cf78328955ec8d79c1d26a8f815ae5e5c18413c",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 11,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "8b1407c16c3d8294f0a544b863451a237e915a6ef05100608adfc83e3376fef1",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-short-before-concurrent-v6",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"合成并发起点\",\"version\":6}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":7,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:36.780Z\",\"deleted_at\":null,\"note\":\"合成并发起点\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 11,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "8b1407c16c3d8294f0a544b863451a237e915a6ef05100608adfc83e3376fef1",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 12,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "19c87dcba63a9aa24235697af1f3739f033dfa0a26c73e0201b36f1b281b4619",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "concurrent-different-b",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"并发正文 B\",\"version\":7}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":8,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:37.453Z\",\"deleted_at\":null,\"note\":\"并发正文 B\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 12,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "19c87dcba63a9aa24235697af1f3739f033dfa0a26c73e0201b36f1b281b4619",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 13,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "122bcdb8a61df3c586f757b1fb7c291f193324f21edc1277c7e94410fa1dbc89",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false,
+      "concurrent": true
+    },
+    {
+      "name": "concurrent-different-a",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"并发正文 A\",\"version\":7}",
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"待办已更新，请刷新后重试\"},\"request_id\":\"be693529-c951-47aa-ae99-e626fa344d45\"}",
+      "before": {
+        "revision": 12,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "19c87dcba63a9aa24235697af1f3739f033dfa0a26c73e0201b36f1b281b4619",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 13,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "122bcdb8a61df3c586f757b1fb7c291f193324f21edc1277c7e94410fa1dbc89",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false,
+      "concurrent": true
+    },
+    {
+      "name": "owner-after-different-concurrent-get",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":8,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:37.453Z\",\"deleted_at\":null,\"note\":\"并发正文 B\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}]}}",
+      "before": {
+        "revision": 13,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "122bcdb8a61df3c586f757b1fb7c291f193324f21edc1277c7e94410fa1dbc89",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 13,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "122bcdb8a61df3c586f757b1fb7c291f193324f21edc1277c7e94410fa1dbc89",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "concurrent-identical-a",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"合成同文并发\",\"version\":8}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":9,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:38.701Z\",\"deleted_at\":null,\"note\":\"合成同文并发\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 13,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "122bcdb8a61df3c586f757b1fb7c291f193324f21edc1277c7e94410fa1dbc89",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 14,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "3d28150905a9f4580675cdaa74dc0266f7f8369645d07e61b23104d013659b30",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "concurrent-identical-b",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"合成同文并发\",\"version\":8}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":false,\"version\":9,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:38.701Z\",\"deleted_at\":null,\"note\":\"合成同文并发\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 13,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "122bcdb8a61df3c586f757b1fb7c291f193324f21edc1277c7e94410fa1dbc89",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 14,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "3d28150905a9f4580675cdaa74dc0266f7f8369645d07e61b23104d013659b30",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-complete-v9",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"version\":9,\"completed\":true}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":true,\"version\":10,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:39.349Z\",\"deleted_at\":null,\"note\":\"合成同文并发\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 14,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "3d28150905a9f4580675cdaa74dc0266f7f8369645d07e61b23104d013659b30",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 15,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "b8c528ea828ded472df1940f1d69ad14ac323bb9263c6e46fb21fe7d53ce98e3",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-history-after-complete",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":true,\"version\":10,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:39.349Z\",\"deleted_at\":null,\"note\":\"合成同文并发\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}]}}",
+      "before": {
+        "revision": 15,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "b8c528ea828ded472df1940f1d69ad14ac323bb9263c6e46fb21fe7d53ce98e3",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 15,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "b8c528ea828ded472df1940f1d69ad14ac323bb9263c6e46fb21fe7d53ce98e3",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-note-after-complete-v10",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"已完成后备注仍保留原日期\",\"version\":10}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":true,\"version\":11,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:40.077Z\",\"deleted_at\":null,\"note\":\"已完成后备注仍保留原日期\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":1,\"template_active\":true}}",
+      "before": {
+        "revision": 15,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "b8c528ea828ded472df1940f1d69ad14ac323bb9263c6e46fb21fe7d53ce98e3",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 16,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "b434780353acef27286a35e145ab723946fdc3505aa91ad5ec592207d2723214",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-archive-linked-template",
+      "method": "POST",
+      "path": "/api/v1/todo-templates/da96daef-a7df-4f7c-995c-e874207765e5/archive",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"version\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"text\":\"合成备注关联模板\",\"version\":2,\"created_at\":\"2026-11-07T10:21:32.673Z\",\"updated_at\":\"2026-11-07T10:21:40.489Z\",\"archived_at\":\"2026-11-07T10:21:40.489Z\",\"completed_days\":1,\"habit_status\":\"todo\"}}",
+      "before": {
+        "revision": 16,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "b434780353acef27286a35e145ab723946fdc3505aa91ad5ec592207d2723214",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 17,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "b434780353acef27286a35e145ab723946fdc3505aa91ad5ec592207d2723214",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-note-after-template-archive-v11",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"模板归档不丢原关联\",\"version\":11}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":true,\"version\":12,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:40.827Z\",\"deleted_at\":null,\"note\":\"模板归档不丢原关联\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":2,\"template_active\":false}}",
+      "before": {
+        "revision": 17,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "b434780353acef27286a35e145ab723946fdc3505aa91ad5ec592207d2723214",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 18,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "10532b24378b754d780cdbad758fc81eba303ea6f23a55974410a04a39d44969",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "unknown-before-get",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":true,\"version\":12,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:40.827Z\",\"deleted_at\":null,\"note\":\"模板归档不丢原关联\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":2,\"template_active\":false}]}}",
+      "before": {
+        "revision": 18,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "10532b24378b754d780cdbad758fc81eba303ea6f23a55974410a04a39d44969",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 18,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "10532b24378b754d780cdbad758fc81eba303ea6f23a55974410a04a39d44969",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "unknown-note-v12-simulated-response-loss",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"合成丢失回执备注\",\"version\":12}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":true,\"version\":13,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:41.934Z\",\"deleted_at\":null,\"note\":\"合成丢失回执备注\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":2,\"template_active\":false}}",
+      "before": {
+        "revision": 18,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "10532b24378b754d780cdbad758fc81eba303ea6f23a55974410a04a39d44969",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false,
+      "simulated_response_not_delivered_to_caller": true
+    },
+    {
+      "name": "unknown-current-get",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":true,\"version\":13,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:41.934Z\",\"deleted_at\":null,\"note\":\"合成丢失回执备注\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":2,\"template_active\":false}]}}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-4001-units",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"e5f2c773-6432-4a58-a3a0-c8f3ac2d16e1\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-2001-astral",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"a2f512c2-2bbf-4613-9cde-f19ce0816868\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-lone-high",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\\ud800\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"b90d4570-cc74-45cc-8967-45566e9570ba\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-lone-low",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\\udc00\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"843f368f-5bf1-42e6-a40a-f323674590ef\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-nul",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\\u0000\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"9991f8ce-573e-42fd-849b-727a50e49c08\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-soh",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\\u0001\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"a57b15e4-7b0c-428f-9f29-a29a2b41563f\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-backspace",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\\b\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"e12b2f80-0182-4194-ad9b-148c96be49f0\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-vertical-tab",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\\u000b\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"6ec18c2f-b760-4855-a5fe-973f25111b32\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-form-feed",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\\f\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"07f93413-6cdd-4578-ad96-b827289d37f2\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-shift-out",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\\u000e\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"5b0a18c2-40ab-4875-a092-19c2b4fa6e6c\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-unit-separator",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\\u001f\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"0c5ef4fb-c4c2-4961-b02d-98107472a316\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-delete",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"a6fdc77b-23e1-46f7-8f42-daf02cdc42cd\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-null",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":null,\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"d29ec4b9-ad11-49db-8c27-c452b702c7de\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-number",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":7,\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"01972852-5ceb-4c2d-80d1-826ee1cfbb57\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-boolean",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":false,\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"c462ef23-a13c-4549-b5e5-e7d4263093ae\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-array",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":[],\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"de542a0a-6a35-455b-a43a-bdc277275630\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-note-object",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":{},\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"532b9dff-ac09-4241-95bf-7067c991f158\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-version-zero",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"无效版本\",\"version\":0}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"4bea395d-eea5-491c-972f-af83476e4903\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-version-negative",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"无效版本\",\"version\":-1}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"37d26bbe-34a6-4b3e-90ea-c1d7e94915f4\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-version-fraction",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"无效版本\",\"version\":1.5}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"67a5dbf7-c3dd-42f4-be14-ef6e6ba2a600\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-version-string",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"无效版本\",\"version\":\"13\"}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"401cba2f-be4b-49fc-ab53-db893bbd5cf6\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-version-null",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"无效版本\",\"version\":null}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"f0f627b2-10ad-4d89-aead-67c906bc64ed\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-version-max-safe",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"无效版本\",\"version\":9007199254740991}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"8dd85cc5-dbff-4047-9194-30f2885ddfe4\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-version-unsafe",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"无效版本\",\"version\":9007199254740992}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"备注或版本无效\"},\"request_id\":\"a43e9eeb-6e0b-41d5-a292-63b3a75a278b\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-body-missing-note",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"请求字段不符合待办接口要求\"},\"request_id\":\"61b5a410-5eca-4712-9d1d-91c4ae3d7c6c\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-body-missing-version",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\"}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"请求字段不符合待办接口要求\"},\"request_id\":\"91470b74-5cab-42c9-aed0-62b2dad652a0\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-body-extra-date",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\",\"version\":13,\"date\":\"2026-11-07\"}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"请求字段不符合待办接口要求\"},\"request_id\":\"d271965f-fca6-478c-9aa1-d0dccbc58da5\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-body-extra-save-id",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\",\"version\":13,\"save_id\":\"ff94d984-95c3-4c08-af6d-78ac2652e5ae\"}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"请求字段不符合待办接口要求\"},\"request_id\":\"680f31dd-c740-4f3b-a033-01633a33478e\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-body-extra-text",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\",\"version\":13,\"text\":\"不能改事项\"}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"请求字段不符合待办接口要求\"},\"request_id\":\"e9d89391-7746-4853-9932-a5df70bee6b9\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "max-safe-minus-one-valid-but-stale",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"合法数值但旧版本\",\"version\":9007199254740990}",
+      "status": 409,
+      "response_json": "{\"error\":{\"code\":\"VERSION_CONFLICT\",\"message\":\"待办已更新，请刷新后重试\"},\"request_id\":\"cf17c024-055d-4878-8998-eabbe933dec5\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-query",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"待办写入不接受查询参数\"},\"request_id\":\"cb72de67-2dbb-4420-913f-cd13b520908e\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "invalid-uuid",
+      "method": "PATCH",
+      "path": "/api/v1/todos/00000000-0000-0000-0000-000000000000/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\",\"version\":13}",
+      "status": 400,
+      "response_json": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"待办标识需要使用 UUID\"},\"request_id\":\"d20ecf6d-53ad-45a4-a7ba-ac0e6bb07841\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "wrong-method-post",
+      "method": "POST",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"\",\"version\":13}",
+      "status": 404,
+      "response_json": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"接口不存在\"},\"request_id\":\"fa30a2ab-8ce1-4e73-9cf7-ff2554d64bfa\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "wrong-method-get",
+      "method": "GET",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 404,
+      "response_json": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"接口不存在\"},\"request_id\":\"efdc7106-e1b3-4e2e-a31a-05be7135019e\"}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "other-create-own-todo",
+      "method": "POST",
+      "path": "/api/v1/todos",
+      "auth_kind": "other",
+      "public_mode": "1",
+      "body_json": "{\"id\":\"3edbc9b9-6518-4f06-8632-01b257bad464\",\"date\":\"2026-11-07\",\"text\":\"仅另一个私有账号可见\"}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"3edbc9b9-6518-4f06-8632-01b257bad464\",\"date\":\"2026-11-07\",\"text\":\"仅另一个私有账号可见\",\"completed\":false,\"version\":1,\"created_at\":\"2026-11-07T10:21:50.050Z\",\"updated_at\":\"2026-11-07T10:21:50.050Z\",\"deleted_at\":null}}",
+      "before": {
+        "revision": 19,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "6c6ffc1186806affec42243c9980579c10036c5921f39c104a2b9d616e85806c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 20,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "38b7001a2704592085642fbd48fafa3503dfa2e4710580954ffd037a7ab6920c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "other-cannot-note-owner",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "other",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"不应越权\",\"version\":13}",
+      "status": 404,
+      "response_json": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"待办不存在\"},\"request_id\":\"654397ff-a1c2-4131-a7c8-f22a955b8ca2\"}",
+      "before": {
+        "revision": 20,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "38b7001a2704592085642fbd48fafa3503dfa2e4710580954ffd037a7ab6920c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 20,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "38b7001a2704592085642fbd48fafa3503dfa2e4710580954ffd037a7ab6920c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-cannot-note-other",
+      "method": "PATCH",
+      "path": "/api/v1/todos/3edbc9b9-6518-4f06-8632-01b257bad464/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"不应越权\",\"version\":1}",
+      "status": 404,
+      "response_json": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"待办不存在\"},\"request_id\":\"4365b178-b75b-494c-a76d-b7cb5487bf18\"}",
+      "before": {
+        "revision": 20,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "38b7001a2704592085642fbd48fafa3503dfa2e4710580954ffd037a7ab6920c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 20,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "38b7001a2704592085642fbd48fafa3503dfa2e4710580954ffd037a7ab6920c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-create-deleted-todo",
+      "method": "POST",
+      "path": "/api/v1/todos",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"id\":\"0bc2024d-b64c-4956-b97a-a9ad595265c0\",\"date\":\"2026-11-07\",\"text\":\"合成软删事项\"}",
+      "status": 201,
+      "response_json": "{\"data\":{\"id\":\"0bc2024d-b64c-4956-b97a-a9ad595265c0\",\"date\":\"2026-11-07\",\"text\":\"合成软删事项\",\"completed\":false,\"version\":1,\"created_at\":\"2026-11-07T10:21:50.957Z\",\"updated_at\":\"2026-11-07T10:21:50.957Z\",\"deleted_at\":null}}",
+      "before": {
+        "revision": 20,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "38b7001a2704592085642fbd48fafa3503dfa2e4710580954ffd037a7ab6920c",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 21,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "9a72cd8b617034d09ad9c49eb4dc9553f2d4059a68ac56efa8856e0d968133a6",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "owner-delete-todo",
+      "method": "DELETE",
+      "path": "/api/v1/todos/0bc2024d-b64c-4956-b97a-a9ad595265c0",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"date\":\"2026-11-07\",\"version\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"0bc2024d-b64c-4956-b97a-a9ad595265c0\",\"date\":\"2026-11-07\",\"text\":\"合成软删事项\",\"completed\":false,\"version\":2,\"created_at\":\"2026-11-07T10:21:50.957Z\",\"updated_at\":\"2026-11-07T10:21:51.263Z\",\"deleted_at\":\"2026-11-07T10:21:51.263Z\"}}",
+      "before": {
+        "revision": 21,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "9a72cd8b617034d09ad9c49eb4dc9553f2d4059a68ac56efa8856e0d968133a6",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "deleted-todo-note-denied",
+      "method": "PATCH",
+      "path": "/api/v1/todos/0bc2024d-b64c-4956-b97a-a9ad595265c0/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"不应恢复\",\"version\":2}",
+      "status": 404,
+      "response_json": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"待办不存在\"},\"request_id\":\"da353892-278b-4a66-b7d9-9dd888fbbf38\"}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-missing-csrf",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"权限拒绝不得保存\",\"version\":13}",
+      "status": 403,
+      "response_json": "{\"error\":{\"code\":\"CSRF\",\"message\":\"安全校验已失效，请刷新后重试\"},\"request_id\":\"6b76dc83-21b8-4bfc-b937-4d7201839d4d\"}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "owner-foreign-origin",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"权限拒绝不得保存\",\"version\":13}",
+      "status": 403,
+      "response_json": "{\"error\":{\"code\":\"CSRF\",\"message\":\"请求来源校验失败，请刷新后重试\"},\"request_id\":\"fb1bf3a0-9b95-4559-bb91-f08ad0b168b2\"}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "key-denied",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "key",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"权限拒绝不得保存\",\"version\":13}",
+      "status": 403,
+      "response_json": "{\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"此操作仅限网站管理员\"},\"request_id\":\"4550b0b3-b06e-4a5c-97e4-8515b1e0a0cb\"}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "key-with-session-denied",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "key-and-owner",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"权限拒绝不得保存\",\"version\":13}",
+      "status": 403,
+      "response_json": "{\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"此操作仅限网站管理员\"},\"request_id\":\"b6f7b5af-1884-42be-9d8a-eae8f6490383\"}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "expired-session-no-public-fallback",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "expired",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"权限拒绝不得保存\",\"version\":13}",
+      "status": 401,
+      "response_json": "{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"请先登录\"},\"request_id\":\"88a7a9a1-311f-488d-ab75-cf8759e409d5\"}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "malformed-session-no-public-fallback",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "malformed",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"权限拒绝不得保存\",\"version\":13}",
+      "status": 401,
+      "response_json": "{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"请先登录\"},\"request_id\":\"9a4e6010-10d0-4189-8e70-487ca61b71bf\"}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "public-note-not-allowlisted",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "public",
+      "public_mode": "1",
+      "body_json": "{\"note\":\"权限拒绝不得保存\",\"version\":13}",
+      "status": 401,
+      "response_json": "{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"请先登录\"},\"request_id\":\"0eb1f345-07ba-4506-867e-f603fad01cdd\"}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "public-mode-disabled-note-denied",
+      "method": "PATCH",
+      "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+      "auth_kind": "public",
+      "public_mode": "0",
+      "body_json": "{\"note\":\"权限拒绝不得保存\",\"version\":13}",
+      "status": 401,
+      "response_json": "{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"请先登录\"},\"request_id\":\"7f8ab473-94ae-4944-837d-5d5965e8cb34\"}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "public-can-read-existing-note",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "public",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":true,\"version\":13,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:41.934Z\",\"deleted_at\":null,\"note\":\"合成丢失回执备注\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":2,\"template_active\":false}]}}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "final-owner-history",
+      "method": "GET",
+      "path": "/api/v1/todos?date=2026-11-07",
+      "auth_kind": "owner",
+      "public_mode": "1",
+      "status": 200,
+      "response_json": "{\"data\":{\"date\":\"2026-11-07\",\"today\":\"2026-11-07\",\"completed_mode\":\"strike\",\"preferences_version\":0,\"items\":[{\"id\":\"74018803-86da-43d2-b39a-388b28319dde\",\"date\":\"2026-11-07\",\"text\":\"备注不能覆盖的原事项\",\"completed\":true,\"version\":13,\"created_at\":\"2026-11-07T10:21:32.982Z\",\"updated_at\":\"2026-11-07T10:21:41.934Z\",\"deleted_at\":null,\"note\":\"合成丢失回执备注\",\"template_id\":\"da96daef-a7df-4f7c-995c-e874207765e5\",\"template_version\":2,\"template_active\":false}]}}",
+      "before": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 22,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "ef59f5a9c42b2b3b0a3fcf868b2a96200f5c157ec24e302d0eb5f3733bf9acad",
+        "todo_templates_sha256": "f477e57afd7a0ce49054a0c5093a5ae22a1410887dd9f94214473d32ab19ab4b",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "expected_no_change": true
+    },
+    {
+      "name": "concurrent-completion-before-note-replay",
+      "method": "PATCH",
+      "path": "/api/v1/todos/2d85568a-5868-4815-bfd8-da7ff1549468",
+      "auth_kind": "owner",
+      "public_mode": "0",
+      "source_runtime_id": "appended-isolated-runtime",
+      "body_json": "{\"version\":1,\"completed\":true}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"2d85568a-5868-4815-bfd8-da7ff1549468\",\"date\":\"2026-11-07\",\"text\":\"独立条件重放事项\",\"completed\":true,\"version\":2,\"created_at\":\"2026-11-07T10:32:38.259Z\",\"updated_at\":\"2026-11-07T10:32:38.510Z\",\"deleted_at\":null,\"note\":\"完成动作前后逐字相同的合成备注\"}}",
+      "before": {
+        "revision": 2,
+        "audit": 2,
+        "idempotency": 0,
+        "todos_sha256": "dd2ab5a9d572e92e6d78608fd95136a8b5c65127661e9be472ccffd57443978d",
+        "todo_templates_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_template_links_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "after": {
+        "revision": 3,
+        "audit": 2,
+        "idempotency": 0,
+        "todos_sha256": "06c4e71a8f000862ce7fbc9d8976c4b0b694f43c5bf49a85a0fb310c0a217c9d",
+        "todo_templates_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_template_links_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "expected_no_change": false
+    },
+    {
+      "name": "note-replay-after-other-write",
+      "method": "PATCH",
+      "path": "/api/v1/todos/2d85568a-5868-4815-bfd8-da7ff1549468/note",
+      "auth_kind": "owner",
+      "public_mode": "0",
+      "source_runtime_id": "appended-isolated-runtime",
+      "body_json": "{\"note\":\"完成动作前后逐字相同的合成备注\",\"version\":1}",
+      "status": 200,
+      "response_json": "{\"data\":{\"id\":\"2d85568a-5868-4815-bfd8-da7ff1549468\",\"date\":\"2026-11-07\",\"text\":\"独立条件重放事项\",\"completed\":true,\"version\":2,\"created_at\":\"2026-11-07T10:32:38.259Z\",\"updated_at\":\"2026-11-07T10:32:38.510Z\",\"deleted_at\":null,\"note\":\"完成动作前后逐字相同的合成备注\"}}",
+      "before": {
+        "revision": 3,
+        "audit": 2,
+        "idempotency": 0,
+        "todos_sha256": "06c4e71a8f000862ce7fbc9d8976c4b0b694f43c5bf49a85a0fb310c0a217c9d",
+        "todo_templates_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_template_links_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "after": {
+        "revision": 3,
+        "audit": 2,
+        "idempotency": 0,
+        "todos_sha256": "06c4e71a8f000862ce7fbc9d8976c4b0b694f43c5bf49a85a0fb310c0a217c9d",
+        "todo_templates_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "todo_template_links_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "expected_no_change": true
+    }
+  ],
+  "checks": [
+    "normal session preserves exact CRLF whitespace decomposed Unicode and original todo/link fields",
+    "same text at current version still increments exactly once",
+    "clear response omits note rather than returning null or retaining previous text",
+    "whitespace-only note remains exact and present",
+    "4000 UTF16 boundary is not a 4000-byte or 4000-rune limit",
+    "concurrent different notes permit one CAS commit and reject the other",
+    "concurrent identical notes commit once and replay the same version-plus-one result",
+    "note preserves association while linkedItem legitimately reflects separately archived template state",
+    "matching current GET is not a save receipt and does not confirm or resend Unknown",
+    "public GET may read existing note while private PATCH remains denied",
+    "zero non-loopback fetch attempts",
+    "independent same-resource completion advances version while preserving an already matching note",
+    "real conditional note replay may return completion changed by another valid write, without another commit"
+  ],
+  "unknown_operation": {
+    "operation_id": "515dd393-7747-428e-9109-9ecc0a529cbf",
+    "method": "PATCH",
+    "path": "/api/v1/todos/74018803-86da-43d2-b39a-388b28319dde/note",
+    "body_json": "{\"note\":\"合成丢失回执备注\",\"version\":12}",
+    "status": "Unknown",
+    "retries": 0,
+    "explanation": "Successful source response is captured but deliberately withheld from a simulated caller. This is not a real network failure or an original-operation receipt."
+  },
+  "public_requests": 3,
+  "concurrency": {
+    "different": {
+      "before": {
+        "revision": 12,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "19c87dcba63a9aa24235697af1f3739f033dfa0a26c73e0201b36f1b281b4619",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 13,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "122bcdb8a61df3c586f757b1fb7c291f193324f21edc1277c7e94410fa1dbc89",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "successes": 1,
+      "conflicts": 1
+    },
+    "identical": {
+      "before": {
+        "revision": 13,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "122bcdb8a61df3c586f757b1fb7c291f193324f21edc1277c7e94410fa1dbc89",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "after": {
+        "revision": 14,
+        "audit": 4,
+        "idempotency": 0,
+        "todos_sha256": "3d28150905a9f4580675cdaa74dc0266f7f8369645d07e61b23104d013659b30",
+        "todo_templates_sha256": "2ad4e019a25b3a32e2c698ea64999d6b731481f7ec4979717d369c6655e5bad1",
+        "todo_template_links_sha256": "f099c6794c94f4c501d5c01c60a23c9b7fe963385db36ee0cb27d8314b74aa94"
+      },
+      "successes": 2,
+      "commits": 1
+    }
+  },
+  "fixture": "Exact candidate compiled Worker.fetch, official bootstrap and real synthetic logins/key issuance, temporary Miniflare D1 disposed. No credentials captured; permissions/constraints/limiter/clock/source unchanged. Unknown delivery loss is explicit simulation; current GET is not exact-operation confirmation.",
+  "additional_runtimes": [
+    {
+      "id": "appended-isolated-runtime",
+      "owner": "adeb6316-384b-4618-ad6b-2a15a780cc37",
+      "date": "2026-11-07",
+      "synthetic_only": true,
+      "normal_session_login": true,
+      "direct_setup": "One independent todo at version 1 with an already matching note; no permissions/constraints/limiter/clock changes."
+    }
+  ],
+  "appended_at": "2026-11-07T10:32:39.063Z"
+}

@@ -59,6 +59,7 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
         CancellationToken cancellationToken = default)
     {
         RoutePolicy.Validate(method, path, allowAuthWrite: false);
+        if (IsTodoNote(method, path)) TodoNoteMutationVerifier.ValidateRequest(path, bodyJson);
         if (method != "GET" && path.StartsWith("/api/v1/review/", StringComparison.Ordinal))
             ReviewMutationVerifier.ValidateRequest(method, bodyJson);
         if (!string.IsNullOrEmpty(operationId) && !Guid.TryParseExact(operationId, "D", out _))
@@ -66,6 +67,7 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
         await gate.WaitAsync(cancellationToken);
         try
         {
+            if (IsTodoNote(method, path)) RequireTodoNoteSession();
             if (method != "GET") await CheckWriteScopeAsync(cancellationToken);
             var result = await SendCoreAsync(method, path, bodyJson, operationId, cancellationToken);
             if (method == "GET" && result.IsSuccess) BusinessReadSchema.Validate(path, result);
@@ -197,6 +199,7 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         RoutePolicy.Validate(method, path, allowAuthWrite: true);
+        if (IsTodoNote(method, path)) RequireTodoNoteSession();
         if (bodyJson is not null && Encoding.UTF8.GetByteCount(bodyJson) > MaximumResponseBytes)
             throw new ArgumentException("请求超过本机大小上限，请保留草稿。");
         using var request = new HttpRequestMessage(new HttpMethod(method), new Uri(ServiceOrigin, path));
@@ -269,6 +272,15 @@ public sealed partial class WorkbenchApi : IRemoteApi, IDisposable
     {
         foreach (Cookie cookie in cookies.GetCookies(ServiceOrigin)) cookie.Expired = true;
         csrfToken = null; expectedScopeId = null; UserId = null; Username = null; PublicMode = true;
+    }
+
+    private static bool IsTodoNote(string method, string path) => method == "PATCH" && path.StartsWith("/api/v1/todos/", StringComparison.Ordinal) && path.EndsWith("/note", StringComparison.Ordinal);
+    private void RequireTodoNoteSession()
+    {
+        var session = cookies.GetCookies(ServiceOrigin)["matrix_session"];
+        if (PublicMode || string.IsNullOrEmpty(UserId) || string.IsNullOrEmpty(csrfToken) || session is null || session.Expired ||
+            session.Value.Length != 64 || session.Value.Any(c => !Uri.IsHexDigit(c)))
+            throw new ScopeGuardException("待办备注需要登录原管理账号后保存；本机备注草稿与待同步操作已保留。");
     }
 
     public static JsonNode? DataOrThrow(ApiResult result)

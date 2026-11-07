@@ -1,0 +1,186 @@
+{
+  "stage": 14,
+  "report_status": "final_shared_core_freeze_rebuilt_and_replayed",
+  "recorded_at_utc": "2026-11-07T10:34:30.964949+00:00",
+  "source_commit": "34bff302e128c92f46f00e76d59f9b44b9b7242e",
+  "source_is_reviewed_candidate_not_verified_production_sha": true,
+  "fixture_file": "todo-note-contract-34bff302.json",
+  "fixture_sha256": "397d6236b2c51fad589b831510ff9a61503ed8644f6041087cc01719939dc01f",
+  "fixture_bytes": 159384,
+  "synthetic_only": true,
+  "production_business_requests": 0,
+  "external_fetch_attempts": 0,
+  "source_capture": {
+    "actual_worker_requests": 82,
+    "successful_reads": 11,
+    "successful_mutations": 23,
+    "dedicated_note_successes": 15,
+    "source_error_responses": 48,
+    "semantic_assertions": 13,
+    "public_requests": 3,
+    "public_note_patch_attempts_denied": 2,
+    "tracked_source_unchanged": true,
+    "permissions_constraints_limiter_clock_unchanged": true,
+    "original_80_sample_values_unchanged": true,
+    "original_80_samples_canonical_json_sha256": "c858c0378dccbc724b3261e6d9b8a4e8d9b420ad25c231631651a94fbad010d1",
+    "canonical_json_hash_algorithm": "UTF8 of Python json.dumps(samples,ensure_ascii=False,sort_keys=True,separators=(comma,colon))",
+    "additional_identified_temporary_runtimes": [
+      {
+        "id": "appended-isolated-runtime",
+        "owner": "adeb6316-384b-4618-ad6b-2a15a780cc37",
+        "date": "2026-11-07",
+        "synthetic_only": true,
+        "normal_session_login": true,
+        "direct_setup": "One independent todo at version 1 with an already matching note; no permissions/constraints/limiter/clock changes."
+      }
+    ]
+  },
+  "native_replay": {
+    "captured_business_http_responses": 49,
+    "successful_reads": 11,
+    "successful_mutations": 23,
+    "captured_source_errors": 15,
+    "actual_source_error_inputs_rejected_before_native_http": 33,
+    "supporting_synthetic_private_auth_gets": 49,
+    "supporting_synthetic_write_scope_gets": 38,
+    "captured_replay_total_fake_http_calls": 136,
+    "checks_passed": 237,
+    "malformed_200_action_rejections": 21,
+    "malformed_200_dated_todo_note_get_rejections": 4,
+    "automatic_unknown_reconciliation_http_calls": 0,
+    "network_budget_bytes_unchanged": 1048576,
+    "raw_ill_formed_utf16_request_rejected_before_json_http_encoding": true
+  },
+  "source_hashes": {
+    "src/todos.mjs": "8e87d53031b6f9f3e510de25733cacbeea6b9049a8a871123da5108f1c3de6bc",
+    "src/business-access.mjs": "14ac390e37013ab810ddcec96e0857986bd3a087aa17906771e971d4641f0693",
+    "src/public-business.mjs": "2b3e1496961ce660f6d87539488841aa6eaad6fa163c1286a3eb0ed4d58f5bc8",
+    "src/security.mjs": "cf6a7bda2a12118123661dee169d1872f78725554700d331629115dc5bed5e9d",
+    "src/storage.mjs": "53acc6c04579ee02b8a06086338a0d4b52281e3a56c016293a1b6174fdea6bf1",
+    "src/business-snapshot.mjs": "647b58ee46b44af28fd90f61cdb5e8598dbd4ddc7c69e1211e95530728cb8317",
+    "src/snapshot-projection.mjs": "47ed973356193b645e8aea0f74c9186fece6f64bf367330b2e38d6ac166d1cbe",
+    "drizzle/0019_todo_notes_archives.sql": "5666cdc6f6b84f7e33457e4c4b45a0ed26d6acc5cbefcebaf29912cb11de97ec",
+    "package-lock.json": "f6c5d8fc66382f328a990a70de714a7061664877ea06612cf2effc9aa51953bc",
+    "dist/server/index.js": "f5eec94ba40eecdf97ae350b3fa98ed8f6af72fd1bdcb72b321fa27c0da23b84"
+  },
+  "tests": {
+    "portable": {
+      "exit_code": 0,
+      "count": 237,
+      "log_sha256": "df2a43b68b7aff34af4cd1ed5ad44f0015d7a999eaf17d88c71e9999d9ef12a5",
+      "last_lines": [
+        "PASS todo note contract private-only guard protects original request with no business write: cancelled before send",
+        "PASS todo note contract synthetic lexical compatibility follows Number.isSafeInteger for 1.0",
+        "PASS todo note contract synthetic lexical compatibility follows Number.isSafeInteger for 1e0",
+        "PASS todo note contract duplicate JSON fields are rejected before HTTP",
+        "PASS todo note contract ill-formed raw UTF16 request is rejected before any JSON/HTTP encoder can replace its bytes",
+        "PASS todo note contract builder keeps exact original string and explicit empty clear",
+        "PASS todo note contract lost acknowledgement is explicitly simulated; current GET does not change Unknown or retry identity",
+        "Todo note source contract: 82 actual Worker captures; 49 native business HTTP replays (11 reads/23 successful mutations/15 source errors), 33 native pre-HTTP rejections, 15 dedicated note successes, 21 malformed HTTP 200 rejections, 237 checks passed; zero production or external requests."
+      ],
+      "final_frozen_core_rebuilt": true,
+      "command": "dotnet run --no-restore --project desktop/windows/Haoduoyu.Api.Tests -c Release -- --todo-note-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/todo-note-contract-34bff302.json"
+    },
+    "official_source_tests": {
+      "exit_code": 0,
+      "count": 2,
+      "log_sha256": "832c2cedf0155182349c2dcb6b2bf783071b007d72f9c36cd98db0206eab3812",
+      "last_lines": [
+        "ℹ tests 2",
+        "ℹ suites 0",
+        "ℹ pass 2",
+        "ℹ fail 0",
+        "ℹ cancelled 0",
+        "ℹ skipped 0",
+        "ℹ todo 0",
+        "ℹ duration_ms 22650.232976"
+      ],
+      "command": "node --test tests/todo-notes-archives.test.mjs"
+    },
+    "api_regression": {
+      "exit_code": 0,
+      "count": 165,
+      "log_sha256": "cfddd26e46b7297d3c194c3d4e6d4a7b0620881ce1209504a13d2fbd91409305",
+      "last_lines": [
+        "PASS AI report offset follows exact source bound: 1000000000",
+        "PASS incomplete AI report page never replaces cache",
+        "PASS incomplete AI report page never replaces cache",
+        "PASS incomplete AI report page never replaces cache",
+        "PASS legal fully escaped AI report page can exceed two MiB",
+        "PASS route-specific bounded cap preserves the entire legal AI report page",
+        "PASS AI report page above four MiB is rejected whole",
+        "API transport: 165 assertions passed; all HTTP handlers synthetic, no production data requests."
+      ]
+    },
+    "legacy_worker_regression": {
+      "exit_code": 0,
+      "count": 82,
+      "log_sha256": "fd29fe09ec49ca467d1eccccba4f74bc6f0a221006cbfb0ae384c33204abc7b2",
+      "last_lines": [
+        "PASS Worker contract complete-read-schema-78 (HTTP 200)",
+        "PASS Worker contract complete-read-schema-79 (HTTP 200)",
+        "PASS Worker contract complete-read-schema-80 (HTTP 200)",
+        "PASS Worker contract complete-read-schema-81 (HTTP 200)",
+        "PASS Worker contract complete-read-schema-82 (HTTP 200)",
+        "PASS Worker receipt note-real-receipt-and-content-hash",
+        "PASS Worker receipt memo-real-receipt-and-entity-hash",
+        "Actual Worker contract: 40 successful mutation responses validated, 3 real CAS rejections, 39 reads, 2 actual receipt/hash confirmations; source c30a8a9, synthetic temporary Miniflare D1 only, zero external fetch attempts."
+      ],
+      "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+      "successful_mutations": 40,
+      "cas_rejections": 3,
+      "reads": 39,
+      "receipt_confirmations": 2
+    },
+    "stage13_template_regression": {
+      "exit_code": 0,
+      "count": 282,
+      "log_sha256": "64da5204ba2f12b903f88f8166b825d18afc909cc14423799474f6cd214ad636",
+      "last_lines": [
+        "PASS template archive contract archive Unknown has no exact-operation receipt; automatic reconciliation sends no request and preserves original identity/body",
+        "PASS template archive contract simulated lost delivery requires both list observations; current-state match is not proof of the original operation",
+        "PASS template archive contract shared list items are detached and cannot mutate cached baseline",
+        "PASS template archive contract legal Unicode source fits unchanged network budget while escaped local JSON is larger",
+        "PASS template archive contract semantic budget reopens valid escaped Unicode local cache",
+        "PASS template archive contract fixed-origin transport preserves Unicode source unchanged",
+        "PASS template archive contract network body above original 1MiB ceiling is rejected whole",
+        "Template archive source contract: 89 actual Worker requests, 21 accepted reads, 21 accepted mutations (12 dedicated archive/restore responses), 41 captured source denials, 6 pre-HTTP restrictions, 16 malformed action and 5 malformed list rejections, 282 checks passed; exact candidate 34bff302, temporary synthetic D1 only, zero external fetch attempts."
+      ]
+    },
+    "source_append_proof": {
+      "exit_code": 0,
+      "count": 2,
+      "log_sha256": "8f4ed7c60a4108a05c83d3e918cfccc7ba7d2be63a3b4045b64818ec75ccaeae",
+      "last_lines": [
+        "Preserved all original 80 sample values; appended 2 actual exact-source session requests in a separately identified temporary D1 runtime."
+      ],
+      "command": "node desktop/windows/Haoduoyu.Api.Tests/generate-todo-note-contract.mjs /workspace/haoduoyu-template-archive-fixture desktop/windows/Haoduoyu.Api.Tests/Fixtures/todo-note-contract-34bff302.json --append-completion-replay"
+    }
+  },
+  "desktop_code_hashes": {
+    "desktop/windows/Haoduoyu.Core/TodoNotes.cs": "378bad6bce45e9bec728eebc0191e59ea0c998e82793d2f8db22d239e41a4308",
+    "desktop/windows/Haoduoyu.Core/WorkspaceProjection.cs": "a767d1d264fe0ee5e83a9f4089a48475fa8b2c87a4bfa637100f63c550acdd0e",
+    "desktop/windows/Haoduoyu.Core/TodoHistory.cs": "4433978b394023c6177a49c4935d4ad148054b3681a575b274fdc68ed209e6ba",
+    "desktop/windows/Haoduoyu.Core/WorkspaceSearch.cs": "017828b163a32d33df692063c2952fd5575c5547431b96c79b5c16b1031f409b",
+    "desktop/windows/Haoduoyu.Core/Models.cs": "840e9c6b24490411a4edd8e2f9bd50db899411d2141f40c72235fbec04a94511",
+    "desktop/windows/Haoduoyu.Core/SyncEngine.cs": "add9df6db6e348c1c465f7b1b003815265a72ff22de135e543651a3f9c62f627",
+    "desktop/windows/Haoduoyu.Api/RoutePolicy.cs": "0bb4a80622482a2276c49b21a4e13aa36594cc577062b341dd27d29fb43ec256",
+    "desktop/windows/Haoduoyu.Api/ApiRequests.cs": "7e2147ac72099dada5011c22d77f2af74ca14cbfb691f8cfc00e4cefc60ff146",
+    "desktop/windows/Haoduoyu.Api/BusinessReadSchema.cs": "e125d07034ad9579e7e4764eb298cad86e66b1dcdd91bfba594b4b1a3c73128d",
+    "desktop/windows/Haoduoyu.Api/MutationVerifier.cs": "b43bd07e31384318592f80f11d7d73a053fef85e5ab67d3cbf53b2a1e2a58ee4",
+    "desktop/windows/Haoduoyu.Api/TodoNoteMutationVerifier.cs": "20b1b2cfb18b69088ec80b3dfa58850bba9016694af39df291488d9762d57665",
+    "desktop/windows/Haoduoyu.Api/WorkbenchApi.cs": "9bf9289f4af308346f5bb92fcebff685f8f3193dad7cebd5672aef906ae01b1b",
+    "desktop/windows/Haoduoyu.Api/Reconciliation.cs": "1dbf30bed402ed1c1cc359bc84f67c9544cc4f62cb0c05abf8dbe364ae89d369",
+    "desktop/windows/Haoduoyu.Api.Tests/TodoNoteContract.cs": "f21b88b97a6cf90d73b8dcb3d47714997d13a90c6e05111c4d31efc44c0d4450",
+    "desktop/windows/Haoduoyu.Api.Tests/generate-todo-note-contract.mjs": "58ad8f58d764cf07164f1931cb33037f2cce3d7b6e674d064ee9afaf00cad6fd"
+  },
+  "evidence_and_limits": [
+    "All 82 samples are real Worker.fetch calls against temporary synthetic D1. 49 business responses replay through the desktop; 33 actual source invalid-input/path/method errors are rejected before native HTTP, not added to source count. Original 80 sample values remain unchanged; two appended captures identify their separate fresh runtime.",
+    "Private native authentication uses synthetic session material and normal auth/me restoration. Captured backend auth_kind proves original source permissions; fake replay validates DTO/headers, not a backend permission grant.",
+    "Notes preserve exact UTF16 text; clear omits note only for explicitly empty request. Response version must equal request+1, including no-write conditional replay. Unknown cannot auto-confirm from matching current content.",
+    "Concurrent cases use aggregate one-commit evidence; individual conflict windows may include another request commit and are not labelled globally unchanged.",
+    "Delivery loss is a labelled simulation, not a real failed connection. Malformed responses and numeric lexical compatibility are synthetic native negatives/compatibility cases.",
+    "API validates full current DTO shape, stable UUID and exact note/request+1. Current fields may legitimately reflect a different same-resource operation. Real completion-v1-to-v2 followed by old-v1 matching-note conditional replay returns completed=true without another commit; non-note baseline-equality restrictions would incorrectly reject it. Core/UI still check the original immutable date and identity.",
+    "No production business requests, migrations, deployments, device installs, artifact downloads or denied historical CI-log retries. Candidate exact source is not proof of production exact SHA; Windows/signature/runtime acceptance remains separate."
+  ]
+}

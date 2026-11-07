@@ -145,6 +145,7 @@ public sealed partial class MainWindow : Window
         ResetNoteHistoryView();
         ResetMediaReviewView();
         ResetTemplateArchiveView();
+        ResetTodoNoteView();
         ResetArticleLedgerView();
         ClearPage();
         failedIdentity = identity;
@@ -395,6 +396,7 @@ public sealed partial class MainWindow : Window
             await SaveLocalDraftAsync(draft with { Text = saved.ToJsonString(), BaseVersion = Version(remote), BaselineConfirmedRevision = operation.ConfirmedRevision });
         }
         await RebaseReviewDraftsAsync();
+        await RebaseTodoNoteDraftsAsync();
     }
 
     private static (string Method, string Path) DraftTarget(string kind, JsonObject original)
@@ -403,6 +405,7 @@ public sealed partial class MainWindow : Window
         return kind switch
         {
             "todo" => ("POST", "/api/v1/todos"),
+            "todo-note" => ("PATCH", "/api/v1/todos/" + id + "/note"),
             "template" when Version(original) == 0 => ("POST", "/api/v1/todo-templates"),
             "template" => ("PATCH", "/api/v1/todo-templates/" + id),
             "note" => ("PUT", "/api/v1/note-entries/" + id),

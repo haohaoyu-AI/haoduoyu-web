@@ -60,7 +60,7 @@ public sealed partial class MainWindow
     private static string SearchCategoryName(string? category) => category switch { "work" => " · 工作", "life" => " · 生活", _ => "" };
     private static string SearchKindName(string kind) => kind switch
     {
-        "todo" => "待办", "unscheduled" => "未安排事项", "template" => "常用事项", "note" => "碎碎念",
+        "todo" => "待办", "todo-note" => "待办备注", "unscheduled" => "未安排事项", "template" => "常用事项", "note" => "碎碎念",
         "legacy" => "旧版日页", "memo" => "备忘录", "group" => "备忘录分组", "reminder" => "工作提醒",
         "article" => "文章台账", "ai-report" => "AI汇报", "label" => "标签", "history" => "保留的历史稿",
         _ => kind.StartsWith("review:", StringComparison.Ordinal) ? "内容复盘" : "本机资料"
@@ -106,7 +106,7 @@ public sealed partial class MainWindow
         if (hit.Kind == "template") { currentPage = "待办"; return TemplatesAsync(); }
         var module = hit.Kind switch
         {
-            "todo" or "template" => "待办", "unscheduled" => "未安排", "note" or "legacy" => hit.Category == "work" ? "工作记录" : "生活记录",
+            "todo" or "todo-note" or "template" => "待办", "unscheduled" => "未安排", "note" or "legacy" => hit.Category == "work" ? "工作记录" : "生活记录",
             "memo" or "group" => "备忘录", "reminder" => "工作提醒", "article" => "文章台账", "ai-report" => "AI汇报", "label" => "标签",
             _ => hit.Kind.StartsWith("review:", StringComparison.Ordinal) ? "内容复盘" : "本机草稿"
         };

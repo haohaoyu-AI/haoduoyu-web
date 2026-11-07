@@ -1,10 +1,11 @@
 # 好多鱼 Windows 独立工作台
 
-当前为 **0.13.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
+当前为 **0.14.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
 
 ## 已实现的核心路径
 
 - 每日待办、日期历史、完成显示偏好、软删恢复、常用事项。
+- 私有待办备注：原生原文编辑、独立加密草稿、自动保存、离线续编、清空前输入恢复及只读导出；日期历史和本机检索显示备注及实际来源。备注与创建稿分开，仍共用原待办的请求围栏，正文、日期、完成状态和模板关联不随备注输入改写。
 - 常用事项的活动/归档列表、显式归档/恢复、原生详情与本机来源。归档保留历史待办和关联，归档模板不用于新待办；两张列表独立缓存与投影，不把普通快照中的缺席当作删除。旧软删除操作及其原请求不改成归档。
 - 待办周/月历史：自然周跨月、月份导航、北京时间今天、完成状态筛选、每日预览、范围及已知条目统计，点击日期复用单日操作。缺日显示未知；未决删除与 Queued/Unknown 仍标本机意图，不冒充服务端已确认，也不受日常隐藏完成项偏好影响。
 - 未安排待办、安排到指定日、今天完成、软删恢复。
@@ -38,6 +39,10 @@
 数据复盘各页面单独读取精确查询，切页先查看当前身份的本机副本，显式应用/刷新才联网；不借其他查询或账号的资料补齐。总览平台筛选只影响累计榜，已录文章总数不是本期产量。源日数据的整体账号优先规则和关注判断沿用服务端结果，不在本机重算业务聚合。四类GET仍限单响应1MiB，不为无分页接口虚构分页；坏响应、取消、超限或归属变化保全旧缓存。快照响应不含账号字段，账号筛选依赖正式服务端查询与工作区校验；四次独立读取不称跨页面事务快照。条目只读导出带来源；打开原文章必须独立取得完整版本并保留原草稿与Unknown围栏。旧统计接口没有CAS/精确收据，不新增猜测写表单。
 
 模板归档依据另行核实的固定候选源34bff302；当前生产Worker精确SHA与迁移状态仍未知。新操作仅POST UUID/archive或restore，正文严格只有正安全整数version且小于MAX_SAFE_INTEGER，使用原模板资源键；同状态幂等可返回同版本或下一版本，归档恢复的archived_at:null不作为软删除恢复。写入超时仍保留Unknown，不凭两张列表的当前状态确认、重放或换键。同步中心提供两列表只读核对及原请求导出；归档没有精确保存收据，Unknown/恢复请求及归档冲突仍保守阻止进一步写入，不能宣称已自动解决。列表联网仍限单响应1MiB，坏响应/取消/归属变化保全原副本。
+
+待办备注也依据固定候选34bff302，只允许原登录管理会话写入，公开身份只读；客户端在任何备注请求或scope读取前拦截公开/失效会话，服务端授权仍独立执行。正式正文仅note/version，原日期单独保存在本机TodoNoteDate；保持原空白、CR/LF和Unicode，不自动整理。4000个UTF-16单位是发送上限，超长未完成稿可先存本机；不静默截断粘贴。旧副本缺备注字段保持未取得，只有已核验清空响应可证明明确空串。合法清空响应省略note，客户端不会补回旧备注；条件重放可带回其他端最新完成状态，客户端采用已核验的当前记录。
+
+备注没有精确保存收据，Unknown、冲突和备份恢复仍保留原ID、正文、版本和日期，不能据相同当前文字确认或重发。明确未发出的Blocked且无远端响应、非恢复请求，可在原账号重新登录、只读核对原日期并明确确认后，保持同一请求重排；不自动发送，也不放开Unknown。工作区Schema1/2不变，新增日期字段仅用于新备注请求；含新备注请求或独立备注稿时使用0.14.0或后续兼容候选继续，切换旧版前先保全整个私有目录。旧版不会理解新动作，元数据缺失时新版拒绝发送而不猜日期。
 
 “准备完整离线资料”沿用已核实business snapshot的活动模板范围；归档集合不包含在该快照内，须在常用事项页显式读取/核对后单独离线保存。普通完整准备不会据活动列表缺席清除已保存归档集合，也不据此宣称归档历史已全量准备。旧候选不识别新的归档动作和状态；有新归档未决请求时应使用0.13.0或后续兼容候选继续，先保全整个私有目录再切换版本。
 
@@ -77,12 +82,14 @@ dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-ver
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --note-history-contract Haoduoyu.Api.Tests/Fixtures/note-history-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --media-review-contract Haoduoyu.Api.Tests/Fixtures/media-review-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --template-archive-contract Haoduoyu.Api.Tests/Fixtures/template-archive-contract-34bff302.json
+dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --todo-note-contract Haoduoyu.Api.Tests/Fixtures/todo-note-contract-34bff302.json
 dotnet run --project Haoduoyu.Profile.Tests --configuration Release
 dotnet run --project Haoduoyu.Offline.Tests --configuration Release
 dotnet run --project Haoduoyu.History.Tests --configuration Release
 dotnet run --project Haoduoyu.Notes.Tests --configuration Release
 dotnet run --project Haoduoyu.Media.Tests --configuration Release
 dotnet run --project Haoduoyu.Template.Tests --configuration Release
+dotnet run --project Haoduoyu.TodoNotes.Tests --configuration Release
 dotnet run --project Haoduoyu.Ledger.Tests --configuration Release
 dotnet run --project Haoduoyu.Verification.Tests --configuration Release
 dotnet run --project Haoduoyu.View.Tests --configuration Release

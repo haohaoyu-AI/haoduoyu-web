@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
+using Haoduoyu.Core;
 
 namespace Haoduoyu.Api;
 
@@ -35,6 +36,8 @@ public static class ApiRequests
         return new("POST", Prefix + "todos", body);
     }
     public static ApiCommand CompleteTodo(string id, long version, bool completed) => new("PATCH", Prefix + "todos/" + Uuid(id), new JsonObject { ["version"] = Version(version, 1), ["completed"] = completed });
+    public static ApiCommand TodoNote(string id, long version, string note) => new("PATCH", TodoNotes.Path(id),
+        new JsonObject { ["note"] = TodoNotes.ValidateText(note), ["version"] = Version(version, 1) });
     public static ApiCommand DeleteTodo(string id, string date, long version, bool restore = false) => new(restore ? "POST" : "DELETE", Prefix + "todos/" + Uuid(id) + (restore ? "/restore" : ""), new JsonObject { ["date"] = Date(date), ["version"] = Version(version, 1) });
     public static ApiCommand CreateUnscheduledTodo(string id, string text) => new("POST", Prefix + "unscheduled-todos", new JsonObject { ["id"] = Uuid(id), ["text"] = ShortText(text) });
     public static ApiCommand CompleteUnscheduledTodo(string id, long version, bool completed) => new("PATCH", Prefix + "unscheduled-todos/" + Uuid(id), new JsonObject { ["version"] = Version(version, 1), ["completed"] = completed });

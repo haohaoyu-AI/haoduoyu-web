@@ -15,6 +15,11 @@ internal static class MutationVerifier
         var route = path.Split('?')[0];
         var segments = route.Split('/');
         var resource = segments[3];
+        if (resource == "todos" && segments.Length > 5 && segments[5] == "note")
+        {
+            TodoNoteMutationVerifier.Validate(method, path, body, response);
+            return;
+        }
         if (resource == "review")
         {
             ReviewMutationVerifier.Validate(method, path, body, response);
