@@ -103,6 +103,7 @@ export function paintAiDailyReminders(data, error = '', loading = false) {
   root.querySelector('#ai-reminder-status').textContent = error || (loading ? '正在读取工作提醒…' : '');
   const items = data?.items || [];
   root.querySelector('#ai-reminder-list').innerHTML = items.length ? items.map(row =>
-    `<article class="card field-spaced" style="overflow-wrap:anywhere"><p>${e(row.summary).replace(/\n/g, '<br>')}</p></article>`).join('') :
+    `<article class="card field-spaced" style="overflow-wrap:anywhere">` +
+    `<div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join('') :
     loading || error ? '' : '<p>暂无工作提醒</p>';
 }

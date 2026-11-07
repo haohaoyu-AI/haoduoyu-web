@@ -12540,7 +12540,7 @@ function paintAiDailyReminders(data2, error = "", loading = false) {
   if (!root2) return;
   root2.querySelector("#ai-reminder-status").textContent = error || (loading ? "正在读取工作提醒…" : "");
   const items = data2?.items || [];
-  root2.querySelector("#ai-reminder-list").innerHTML = items.length ? items.map((row) => `<article class="card field-spaced" style="overflow-wrap:anywhere"><p>${e(row.summary).replace(/\n/g, "<br>")}</p></article>`).join("") : loading || error ? "" : "<p>暂无工作提醒</p>";
+  root2.querySelector("#ai-reminder-list").innerHTML = items.length ? items.map((row) => `<article class="card field-spaced" style="overflow-wrap:anywhere"><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join("") : loading || error ? "" : "<p>暂无工作提醒</p>";
 }
 
 // web/ai-reports-controller.mjs
