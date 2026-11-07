@@ -144,8 +144,20 @@ function overview(data,vm) {
   const noSample = range !== 'last' && current.observedCount === 0;
   const value = formatted => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
   const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options([['this','本周'],['last','上周']],range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current.hits))} / ${e(reviewNumber(current.middle))} / ${e(reviewNumber(current.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current.ctrMedian,'ctr'))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current.completion,'completion_rate'))}</article></div></section>`;
-  const articlePanel = `<section class="review-panel review-articles-panel"><div class="review-panel-head"><h2>文章列表</h2><button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏显示</button></div>${articleLibrary(rows,vm,data)}</section>`;
+  const articlePanel = articleListPanel(rows,vm,data);
   return cards + articlePanel + archives(data,vm,'',[],[]);
+}
+function articleListPanel(rows,vm,data) {
+  const expanded = Boolean(vm.articlesExpanded);
+  const toggle = `<button type="button" class="review-articles-toggle" data-review-action="toggle-articles"
+aria-expanded="${expanded}" aria-controls="review-article-library"><span>文章列表</span>
+<span class="review-article-count">${rows.length} 篇</span><span class="review-article-toggle-label">${expanded ? '收起 ↑' : '展开 ↓'}</span></button>`;
+  const dock = `<div class="review-collapse-dock"><button class="btn" type="button" data-review-action="toggle-articles"
+aria-expanded="${expanded}" aria-controls="review-article-library">收起文章列表 ↑</button></div>`;
+  return `<section class="review-panel review-articles-panel" data-review-articles-expanded="${expanded}">
+<div class="review-panel-head"><h2 class="review-articles-heading">文章列表</h2>${toggle}
+<button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏显示</button></div>
+<div id="review-article-library" class="review-article-library">${articleLibrary(rows,vm,data)}</div>${dock}</section>`;
 }
 function articleLibrary(rows,vm,data = {}) {
   const f = vm.filters || {}, range = f.range || '30d', today = day(vm.now || new Date().toISOString()), from = range === 'all' ? '' : shiftDay(today,range === '7d' ? -6 : -29);

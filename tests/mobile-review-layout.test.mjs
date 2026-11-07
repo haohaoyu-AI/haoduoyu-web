@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const css = await readFile(new URL('../public/mobile.css',import.meta.url),'utf8');
-const block = css.slice(css.indexOf('/* Phone review'));
+const block = css.slice(css.indexOf('/* Phone review'),css.indexOf('/* The article collection'));
 
 test('compact review overrides stay inside the phone breakpoint and scoped to article review', () => {
   assert.match(block, /@media \(max-width:767px\)/);
   assert.equal((block.match(/@media/g) || []).length,1);
-  assert.match(block, /review-articles-panel > \.review-filters \{\s*display:grid; grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(block, /review-articles-panel \.review-article-library > \.review-filters \{\s*display:grid; grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(block, /review-filters \.input \{ min-width:0; padding-inline:10px 28px/);
   assert.match(block, /review-columns-menu \{ left:0; right:auto;/);
   assert.doesNotMatch(block, /line-clamp|text-overflow:ellipsis|overflow:hidden/);

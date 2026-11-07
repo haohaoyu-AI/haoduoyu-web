@@ -13530,8 +13530,20 @@ function overview(data2, vm2) {
   const noSample = range !== "last" && current2.observedCount === 0;
   const value = (formatted) => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
   const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["this", "本周"], ["last", "上周"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current2.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current2.hits))} / ${e(reviewNumber(current2.middle))} / ${e(reviewNumber(current2.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current2.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current2.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current2.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current2.completion, "completion_rate"))}</article></div></section>`;
-  const articlePanel = `<section class="review-panel review-articles-panel"><div class="review-panel-head"><h2>文章列表</h2><button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏显示</button></div>${articleLibrary(rows, vm2, data2)}</section>`;
+  const articlePanel = articleListPanel(rows, vm2, data2);
   return cards + articlePanel + archives(data2, vm2, "", [], []);
+}
+function articleListPanel(rows, vm2, data2) {
+  const expanded = Boolean(vm2.articlesExpanded);
+  const toggle = `<button type="button" class="review-articles-toggle" data-review-action="toggle-articles"
+aria-expanded="${expanded}" aria-controls="review-article-library"><span>文章列表</span>
+<span class="review-article-count">${rows.length} 篇</span><span class="review-article-toggle-label">${expanded ? "收起 ↑" : "展开 ↓"}</span></button>`;
+  const dock = `<div class="review-collapse-dock"><button class="btn" type="button" data-review-action="toggle-articles"
+aria-expanded="${expanded}" aria-controls="review-article-library">收起文章列表 ↑</button></div>`;
+  return `<section class="review-panel review-articles-panel" data-review-articles-expanded="${expanded}">
+<div class="review-panel-head"><h2 class="review-articles-heading">文章列表</h2>${toggle}
+<button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏显示</button></div>
+<div id="review-article-library" class="review-article-library">${articleLibrary(rows, vm2, data2)}</div>${dock}</section>`;
 }
 function articleLibrary(rows, vm2, data2 = {}) {
   const f = vm2.filters || {}, range = f.range || "30d", today2 = day4(vm2.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay(today2, range === "7d" ? -6 : -29);
@@ -13662,7 +13674,25 @@ function readReviewColumnPreference(raw) {
 }
 var resources = ["articles", "snapshots", "reports", "playbooks", "benchmark-accounts", "benchmark-articles", "notes", "account-health"];
 var data = normalizeReviewData(), sequence3 = 0, registered2 = false, identity4 = "", pageContext2;
-var vm = { account: "V字", view: "overview", secondary: "benchmarks", week: "this", date: "", start: "", end: "", periods: [], filters: {}, metricColumns: readReviewColumnPreference(storage.get(columnStorageKey)), metricPickerOpen: false, article: "", version: "", compare: "", loading: true, error: "" };
+var vm = {
+  account: "V字",
+  view: "overview",
+  secondary: "benchmarks",
+  week: "this",
+  date: "",
+  start: "",
+  end: "",
+  periods: [],
+  filters: {},
+  metricColumns: readReviewColumnPreference(storage.get(columnStorageKey)),
+  metricPickerOpen: false,
+  articlesExpanded: false,
+  article: "",
+  version: "",
+  compare: "",
+  loading: true,
+  error: ""
+};
 var root = () => typeof document === "undefined" ? null : document.querySelector("#content-review");
 function staleRead(message = "复盘资料在读取时发生变化，请重新读取。") {
   return Object.assign(new Error(message), { code: "READ_REVISION_CHANGED" });
@@ -13793,11 +13823,25 @@ async function toggleReviewFullscreen() {
     if (document.fullscreenElement === node2) await document.exitFullscreen().catch(() => {
     });
   } else {
+    vm.articlesExpanded = true;
+    paintContentReviewPage();
     node2.classList.add("review-list-fullscreen");
     if (node2.requestFullscreen) await node2.requestFullscreen().catch(() => {
     });
   }
   syncReviewFullscreen();
+}
+async function toggleArticleList() {
+  const node2 = root();
+  if (!node2 || vm.loading || vm.error) return;
+  const expanded = !vm.articlesExpanded;
+  if (!expanded && node2.classList.contains("review-list-fullscreen")) await toggleReviewFullscreen();
+  vm.articlesExpanded = expanded;
+  vm.metricPickerOpen = false;
+  paintContentReviewPage();
+  const button2 = root()?.querySelector(".review-articles-toggle");
+  button2?.focus({ preventScroll: true });
+  if (!expanded) root()?.querySelector(".review-articles-panel")?.scrollIntoView({ block: "start", behavior: "instant" });
 }
 function paintContentReviewPage() {
   const node2 = root();
@@ -13817,6 +13861,7 @@ async function loadContentReview(context) {
   if (identity4 !== currentIdentity2) {
     data = normalizeReviewData();
     vm.filters = {};
+    vm.articlesExpanded = false;
     identity4 = currentIdentity2;
   }
   vm = { ...vm, ...requested, loading: true, error: "" };
@@ -13897,6 +13942,10 @@ function registerEvents2() {
     if (event.target.closest?.("a")) return;
     const target = event.target.closest?.("button,[data-review-row]");
     if (!target || !node2?.contains(target)) return;
+    if (target.dataset.reviewAction === "toggle-articles") {
+      void toggleArticleList();
+      return;
+    }
     if (target.dataset.reviewAction === "toggle-fullscreen") {
       void toggleReviewFullscreen();
       return;

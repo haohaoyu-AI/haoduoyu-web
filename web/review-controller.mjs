@@ -15,7 +15,11 @@ export function readReviewColumnPreference(raw) {
 
 const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
-let vm = {account:'V字',view:'overview',secondary:'benchmarks',week:'this',date:'',start:'',end:'',periods:[],filters:{},metricColumns:readReviewColumnPreference(storage.get(columnStorageKey)),metricPickerOpen:false,article:'',version:'',compare:'',loading:true,error:''};
+let vm = {
+  account:'V字',view:'overview',secondary:'benchmarks',week:'this',date:'',start:'',end:'',periods:[],filters:{},
+  metricColumns:readReviewColumnPreference(storage.get(columnStorageKey)),metricPickerOpen:false,articlesExpanded:false,
+  article:'',version:'',compare:'',loading:true,error:'',
+};
 const root = () => typeof document === 'undefined' ? null : document.querySelector('#content-review');
 function staleRead(message = '复盘资料在读取时发生变化，请重新读取。') {
   return Object.assign(new Error(message),{code:'READ_REVISION_CHANGED'});
@@ -139,10 +143,22 @@ async function toggleReviewFullscreen() {
     node.classList.remove('review-list-fullscreen');
     if (document.fullscreenElement === node) await document.exitFullscreen().catch(() => {});
   } else {
+    vm.articlesExpanded = true; paintContentReviewPage();
     node.classList.add('review-list-fullscreen');
     if (node.requestFullscreen) await node.requestFullscreen().catch(() => {});
   }
   syncReviewFullscreen();
+}
+async function toggleArticleList() {
+  const node = root();
+  if (!node || vm.loading || vm.error) return;
+  const expanded = !vm.articlesExpanded;
+  if (!expanded && node.classList.contains('review-list-fullscreen')) await toggleReviewFullscreen();
+  vm.articlesExpanded = expanded; vm.metricPickerOpen = false;
+  paintContentReviewPage();
+  const button = root()?.querySelector('.review-articles-toggle');
+  button?.focus({preventScroll:true});
+  if (!expanded) root()?.querySelector('.review-articles-panel')?.scrollIntoView({block:'start',behavior:'instant'});
 }
 export function paintContentReviewPage() {
   const node = root(); if (!node) return;
@@ -157,7 +173,9 @@ export async function loadContentReview(context) {
   registerEvents(); pageContext = context;
   const [{apiNetwork},{state,runtime}] = await Promise.all([import('./core/api.mjs'),import('./core/state.mjs')]);
   const requested = route(), currentIdentity = `${runtime.sessionEpoch}:${state.me?.id || ''}:${requested.account}`;
-  if (identity !== currentIdentity) { data = normalizeReviewData(); vm.filters = {}; identity = currentIdentity; }
+  if (identity !== currentIdentity) {
+    data = normalizeReviewData(); vm.filters = {}; vm.articlesExpanded = false; identity = currentIdentity;
+  }
   vm = {...vm,...requested,loading:true,error:''}; paintContentReviewPage();
   const ticket = ++sequence, epoch = runtime.sessionEpoch;
   const current = () => ticket === sequence && epoch === runtime.sessionEpoch && state.page === 'review' && route().account === requested.account && Boolean(root());
@@ -215,6 +233,7 @@ function registerEvents() {
     if (event.target.closest?.('a')) return;
     const target = event.target.closest?.('button,[data-review-row]');
     if (!target || !node?.contains(target)) return;
+    if (target.dataset.reviewAction === 'toggle-articles') { void toggleArticleList(); return; }
     if (target.dataset.reviewAction === 'toggle-fullscreen') { void toggleReviewFullscreen(); return; }
     if (target.dataset.reviewAction === 'show-health') {
       vm.view = 'overview'; vm.secondary = 'attention'; vm.article = '';
