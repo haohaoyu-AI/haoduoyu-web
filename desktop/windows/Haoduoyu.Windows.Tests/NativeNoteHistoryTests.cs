@@ -243,7 +243,23 @@ internal static partial class NativeWorkflowTests
                 Check(!Descendants(Field<StackPanel>(window, "page")).OfType<TextBox>().Any(box => box.AcceptsReturn && !box.IsReadOnly) &&
                     Engine(window).Snapshot.Drafts.Count == untouched.Drafts.Count && origin.WriteCalls == 0,
                     "a legacy monthly summary without a version became a guessed zero-version daily-note write");
-                await NoteMonthClickAsync(window, "note-history-open-day"); await ClickAsync(window, "打开旧版日页");
+                await NoteMonthClickAsync(window, "note-history-open-day");
+                var legacyCopy = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                _ = window.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+                {
+                    Window? dialog = null;
+                    try
+                    {
+                        dialog = Application.Current.Windows.OfType<Window>().Single(candidate => candidate != window && candidate.IsVisible && candidate.Owner == window);
+                        var body = Descendants(dialog).OfType<TextBox>().Single();
+                        Check(dialog.Title == "旧版日页 · 只读摘要" && body.IsReadOnly && body.Text.Contains("缺少版本的旧日页摘要", StringComparison.Ordinal) &&
+                            body.Text.Contains("不会使用猜测版本0", StringComparison.Ordinal), "the native legacy summary dialog omitted readonly original text or its missing-version fence");
+                        legacyCopy.SetResult();
+                    }
+                    catch (Exception error) { legacyCopy.SetException(error); }
+                    finally { if (dialog?.IsVisible == true) dialog.Close(); }
+                });
+                await ClickAsync(window, "打开旧版日页"); await legacyCopy.Task;
                 Check(Field<string>(window, "currentPage") == "工作记录" && !Descendants(Field<StackPanel>(window, "page")).OfType<TextBox>().Any(box => box.AcceptsReturn && !box.IsReadOnly) &&
                     Engine(window).Snapshot.Drafts.Count == untouched.Drafts.Count && Engine(window).Snapshot.Outbox.Count == 1 && origin.Paths.Count == 0,
                     "the existing daily-page entry bypassed the month summary's missing-version guard or guessed a version-zero legacy save");
@@ -256,9 +272,19 @@ internal static partial class NativeWorkflowTests
                     "full detail preparation forked the draft key rebased version four onto version seven or overwrote the local text");
                 await ClickAsync(window, "碎碎念月历"); await SetNoteMonthAsync(window, "2026-11");
                 await SelectNoteMonthItemAsync(window, item => item.EntityId == unknownSource["entity_id"]!.GetValue<string>());
-                await NoteMonthClickAsync(window, "note-history-edit-prepare");
+                var inspectedUnknown = false;
+                ExerciseOwnedDialog(window, "读取完整记录后编辑", dialog =>
+                {
+                    var description = string.Join("\n", Descendants(dialog).OfType<TextBlock>().Select(block => block.Text));
+                    var options = Descendants(dialog).OfType<Button>().Select(button => button.Content?.ToString()).ToArray();
+                    Check(dialog.Title == "同步操作" && description.Contains(unknownKey, StringComparison.Ordinal) && description.Contains("结果未知", StringComparison.Ordinal) &&
+                        options.Contains("只读核对保存回执", StringComparer.Ordinal) && options.Contains("查看原请求和响应", StringComparer.Ordinal) &&
+                        !options.Contains("取消尚未发送的操作", StringComparer.Ordinal), "the recovered month request did not show its original unknown-result inspector and readonly evidence options");
+                    inspectedUnknown = true;
+                });
+                await window.WaitForIdleAsync();
                 var stillUnknown = Engine(window).Snapshot.Outbox.Single();
-                Check(stillUnknown.Id == unknown.Id && stillUnknown.BodyJson == unknown.BodyJson && stillUnknown.Status == PendingStatus.Unknown &&
+                Check(inspectedUnknown && stillUnknown.Id == unknown.Id && stillUnknown.BodyJson == unknown.BodyJson && stillUnknown.Status == PendingStatus.Unknown &&
                     stillUnknown.SendAttempts == 1 && stillUnknown.RecoveredAtRevision == recoveryRevision && !stillUnknown.CanEditQueued && origin.WriteCalls == 0,
                     "monthly summary preparation released a restored unknown-result fence or changed its exact attempted request");
                 var retryRefused = false;
