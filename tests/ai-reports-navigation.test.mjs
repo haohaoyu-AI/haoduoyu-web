@@ -52,12 +52,12 @@ test('report reading distinguishes declared work dates from submission time and 
       {author:'旧记录', content:'2026-02-30\n原文保留', created_at:'2026-10-30T03:00:00Z'}
     ], '', false, '2026-10-29');
     const html = elements.get('#ai-report-list').innerHTML;
-    assert.match(html, /<h3>其他作者<\/h3>/);
+    assert.match(html, /<h3 class="ai-report-author ai-report-author--other">其他作者<\/h3>/);
     assert.doesNotMatch(html, /2026-10-29/);
-    assert.match(html, /<h3>Grok bot<\/h3>/);
-    assert.doesNotMatch(html, /<h3>(?:Gemini|GPT)<\/h3>/);
+    assert.match(html, /<h3 class="ai-report-author ai-report-author--grok">Grok bot<\/h3>/);
+    assert.doesNotMatch(html, /<h3[^>]*>(?:Gemini|GPT)<\/h3>/);
     assert.match(html, /title="提交于 2026\/10\/30 11:00（北京时间）"/);
-    assert.match(html, /<strong>dot小鱼：<\/strong><\/p><div class="ai-report-markdown"><p>完成/);
+    assert.match(html, /<strong class="ai-report-author ai-report-author--other">dot小鱼：<\/strong><\/p><div class="ai-report-markdown"><p>完成/);
     assert.match(html, /2026-02-30<br>原文保留/);
     assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.doesNotMatch(html, /<script>/);
@@ -79,7 +79,7 @@ test('report author is emphasized above four escaped, line-separated items', () 
       created_at: '2026-10-30T03:00:00Z'
     }]);
     const html = elements.get('#ai-report-list').innerHTML;
-    assert.match(html, /<strong>ChatGPT-dot小鱼：<\/strong><\/p><div class="ai-report-markdown"><ol start="1">/);
+    assert.match(html, /<strong class="ai-report-author ai-report-author--gpt">ChatGPT-dot小鱼：<\/strong><\/p><div class="ai-report-markdown"><ol start="1">/);
     assert.match(html, /<li>3\. &lt;script&gt;alert\(1\)&lt;\/script&gt;<\/li>|<li>&lt;script&gt;alert\(1\)&lt;\/script&gt;<\/li>/);
     assert.doesNotMatch(html, /<script>/);
     assert.doesNotMatch(html, /\*\*ChatGPT-dot/);
@@ -95,7 +95,7 @@ test('AI daily keeps original authors and renders unmatched reports separately',
     paintAiReports(authors.map((author, i) => ({author, content: `内容 ${i}`, created_at:'2026-10-30T03:00:00Z'})), '', false, '2024-02-29');
     const html = elements.get('#ai-report-list').innerHTML;
     for (const author of authors) assert.match(html, new RegExp(author));
-    assert.match(html, /<h3>其他作者<\/h3>[\s\S]*另一位作者/);
+    assert.match(html, /<h3 class="ai-report-author ai-report-author--other">其他作者<\/h3>[\s\S]*另一位作者/);
     assert.match(elements.get('#ai-report-calendar').innerHTML, /data-ai-report-select="2024-02-29"/);
     assert.doesNotMatch(elements.get('#ai-report-calendar').innerHTML, /2024-02-30/);
     paintAiDailyReminders({items:[{summary:'今日 <script>提醒</script>\n第二行'}]});
