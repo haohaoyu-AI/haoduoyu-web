@@ -7,9 +7,13 @@ import {ARTICLE_PIPELINE_FIELDS,LEGACY_ARTICLE_PIPELINE_DEFAULTS} from '../src/a
 // and the exact empty private tables on these historical paired fixtures.
 export function legacyBackupEnvelope(value) {
   const result=structuredClone(value),backup=result.data;
-  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14','haoduoyu-matrix-d1-v15'].includes(backup?.data?.format)) return result;
+  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14','haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16'].includes(backup?.data?.format)) return result;
   const checksum=data=>createHash('sha256').update(JSON.stringify(stable(data))).digest('hex');
   assert.equal(backup.sha256,checksum(backup.data));
+  if(backup.data.format==='haoduoyu-matrix-d1-v16') {
+    stripEmptyReviewTables(backup.data);
+    backup.data.format='haoduoyu-matrix-d1-v15';
+  }
   if(backup.data.format==='haoduoyu-matrix-d1-v15') {
     assert.deepEqual(backup.data.tables.todos,[], 'legacy projection cannot hide todos');
     assert.deepEqual(backup.data.tables.todo_templates,[], 'legacy projection cannot hide templates');
@@ -72,4 +76,16 @@ export function legacyBackupEnvelope(value) {
   backup.data.format='haoduoyu-matrix-d1-v1';
   backup.sha256=checksum(backup.data);
   return result;
+}
+
+// Historical fixtures may remove only empty newer review collections. Never hide
+// real history merely to make an old-format restore assertion pass.
+export function stripEmptyReviewTables(data) {
+  for(const name of Object.keys(data.tables).filter(name=>name.startsWith('review_')||name.startsWith('openai_review_'))) {
+    assert.deepEqual(data.tables[name],[],'historical projection cannot hide review history: '+name);
+    delete data.tables[name];
+  }
+  for(const row of data.tables.todos||[]) {assert.equal(row.note,'');delete row.note;}
+  for(const row of data.tables.todo_templates||[]) {assert.equal(row.archived_at,null);delete row.archived_at;}
+  return data;
 }

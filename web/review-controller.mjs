@@ -1,3 +1,4 @@
+import {loadOpenAiReview, paintOpenAiReview} from './openai-review-controller.mjs';
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
 import {storage} from './core/storage.mjs';
@@ -164,12 +165,15 @@ export function paintContentReviewPage() {
   const node = root(); if (!node) return;
   node.innerHTML = renderContentReviewContent(data,vm);
   syncReviewFullscreen();
+  paintOpenAiReview();
   const dialog = node.querySelector('[role="dialog"]');
   for (const child of node.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
   if (dialog) dialog.querySelector('.review-drawer-close')?.focus({preventScroll:true});
   if (vm.metricPickerOpen) positionReviewColumnsPicker();
 }
+function stateForOpenAiAccount() { return route().account === 'V字'; }
 export async function loadContentReview(context) {
+  if (stateForOpenAiAccount()) void loadOpenAiReview();
   registerEvents(); pageContext = context;
   const [{apiNetwork},{state,runtime}] = await Promise.all([import('./core/api.mjs'),import('./core/state.mjs')]);
   const requested = route(), currentIdentity = `${runtime.sessionEpoch}:${state.me?.id || ''}:${requested.account}`;

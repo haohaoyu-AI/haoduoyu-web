@@ -30,6 +30,9 @@ for(const kind of ['groups','notes','operations']) dynamic.push([
 for(const kind of ['groups','notes']) dynamic.push([
   new RegExp('^/api/v1/memos/'+kind+'/[^/]+/restore$'),'/api/v1/memos/'+kind+'/{id}/restore',
 ]);
+for (const path of ['/api/v1/openai-review/config','/api/v1/openai-review/runs']) {paths.push(path);routes.set(path,path);}
+dynamic.push([/^\/api\/v1\/openai-review\/runs\/[^/]+$/,'/api/v1/openai-review/runs/{id}']);
+dynamic.push([/^\/api\/v1\/openai-review\/runs\/[^/]+\/release$/,'/api/v1/openai-review/runs/{id}/release']);
 const labels = new Set([...paths, ...dynamic.map(([, label]) => label), 'unmatched', 'unmatched-api', 'unmatched-static']);
 const safeMethod = method => methods.has(method) ? method : 'OTHER';
 

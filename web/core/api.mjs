@@ -52,6 +52,7 @@ function apiFailure(path, response, payload, epoch, identity, suppressAuthRedire
   const error = new Error(message);
   error.status = response.status;
   error.code = payload.error?.code;
+  if (error.code === 'OPENAI_REVIEW_IN_FLIGHT' && typeof payload.error?.run_id === 'string') error.run_id = payload.error.run_id;
   if (response.status === 429) {
     const serverTime = Date.parse(response.serverDate);
     error.retryAfterMs = retryAfterDelay(parseRetryAfter(response.retryAfter, Number.isFinite(serverTime) ? serverTime : Date.now()));

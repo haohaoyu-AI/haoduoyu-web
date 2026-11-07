@@ -45,7 +45,13 @@ function updateRoute(push = false) {
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
+  else if (state.page === "ai-reports" && state.aiDailyDate) u.searchParams.set("date", state.aiDailyDate);
   else u.searchParams.delete("date");
+  if (state.page === "ai-reports") {
+    u.searchParams.set("ai_tab", state.aiDailyTab || "reminders");
+    if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
+    else u.searchParams.delete("openai_run");
+  } else { u.searchParams.delete("ai_tab"); u.searchParams.delete("openai_run"); }
   if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
   else u.searchParams.delete("todo_panel");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
@@ -70,6 +76,9 @@ function readRoute() {
   if (state.page === "notes") {
     setDailyNotesRouteDate(params.get("date")); setDailyNotesRouteCategory(params.get("notes_category"));
   }
+  state.aiDailyTab = ["reminders", "reports", "openai"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reminders";
+  state.aiDailyDate = state.page === "ai-reports" && validTodoDate(params.get("date")) ? params.get("date") : "";
+  state.openAiRun = state.page === "ai-reports" && /^[a-zA-Z0-9-]{1,80}$/.test(params.get("openai_run") || "") ? params.get("openai_run") : "";
   state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";
   if (state.memoView === "trash") { state.page = "settings"; state.memoView = ""; }
   state.reminderDate = state.page === "reminders" && validTodoDate(params.get("date")) ? params.get("date") : "";

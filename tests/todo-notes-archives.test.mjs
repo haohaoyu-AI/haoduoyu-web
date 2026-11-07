@@ -38,7 +38,7 @@ test('notes and archived templates preserve history, protect versions, and appea
   assert.equal(snapshot.status,200);
   assert.equal((await req('/todos','POST',{id:randomUUID(),date:'2026-11-06',text:template.text,template_id:template.id})).status,404);
   const backup=await exportBackup(app.db);
-  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v15');
+  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v16');
   assert.equal(backup.data.tables.todos[0].note,'未完成：等待回复');
   assert.ok(backup.data.tables.todo_templates[0].archived_at);
   const target=await fixture(t,{bootstrap:false});
@@ -47,6 +47,11 @@ test('notes and archived templates preserve history, protect versions, and appea
   const restoredTemplate=await target.db.prepare('SELECT archived_at FROM matrix_todo_templates WHERE id=?').bind(template.id).first();
   assert.equal(restoredTodo.note,'未完成：等待回复'); assert.equal(restoredTemplate.archived_at,archived.data.archived_at);
   const old=structuredClone(backup.data); old.format='haoduoyu-matrix-d1-v14';
+  // This historical fixture may omit only verified-empty review collections.
+  for(const name of Object.keys(old.tables).filter(name=>name.startsWith('review_')||name.startsWith('openai_review_'))) {
+    assert.deepEqual(old.tables[name],[],'legacy fixture cannot hide review history: '+name);
+    delete old.tables[name];
+  }
   for(const row of old.tables.todos)delete row.note;
   for(const row of old.tables.todo_templates)delete row.archived_at;
   const legacyTarget=await fixture(t,{bootstrap:false});

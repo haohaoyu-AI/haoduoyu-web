@@ -48,9 +48,186 @@ const v11Columns={...v10Columns,note_entry_label_overrides:['user_id','entry_id'
 const v12Columns={...v11Columns,note_entry_label_sets:['user_id','entry_id','labels_json']};
 const v13Columns={...v12Columns,note_label_archives:['user_id','name','archived_at']};
 const v14Columns={...v13Columns,ai_reports:['user_id','id','author','content','created_at']};
-const columns={...v14Columns,todos:[...v14Columns.todos,'note'],todo_templates:[...v14Columns.todo_templates,'archived_at']};
+const v15Columns={...v14Columns,todos:[...v14Columns.todos,'note'],todo_templates:[...v14Columns.todo_templates,'archived_at']};
+const reviewColumns={
+  "review_articles": [
+    "user_id",
+    "id",
+    "account",
+    "platform",
+    "platform_article_id",
+    "title",
+    "url",
+    "published_at",
+    "topic_category",
+    "title_pattern",
+    "sample_title",
+    "sample_url",
+    "reference_article_id",
+    "image_count",
+    "source_chat",
+    "created_at",
+    "updated_at",
+    "playbook_version_used",
+    "applied_rule_ids_json"
+  ],
+  "review_snapshots": [
+    "user_id",
+    "id",
+    "article_id",
+    "snapshot_date",
+    "age_hours",
+    "source",
+    "impressions",
+    "fan_impressions",
+    "reads",
+    "fan_reads",
+    "ctr",
+    "completion_rate",
+    "avg_read_seconds",
+    "likes",
+    "comments",
+    "reposts",
+    "shares",
+    "favorites",
+    "revenue",
+    "traffic_sources_json",
+    "completion_curve_json",
+    "audience_json"
+  ],
+  "review_reports": [
+    "user_id",
+    "id",
+    "account",
+    "period_type",
+    "period_start",
+    "period_end",
+    "verdicts_json",
+    "findings_json",
+    "summary_md",
+    "metrics_json",
+    "playbook_version",
+    "created_at"
+  ],
+  "review_playbooks": [
+    "user_id",
+    "id",
+    "account",
+    "version",
+    "published_on",
+    "content_md",
+    "status",
+    "rules_json",
+    "changelog_md",
+    "sent_to_gemini_at",
+    "created_at"
+  ],
+  "review_benchmark_accounts": [
+    "user_id",
+    "id",
+    "account",
+    "platform",
+    "name",
+    "profile_url",
+    "fans",
+    "is_featured_author",
+    "posting_cadence",
+    "topic_focus",
+    "title_patterns_json",
+    "structure_notes_md",
+    "created_at",
+    "updated_at",
+    "deleted_at"
+  ],
+  "review_benchmark_articles": [
+    "user_id",
+    "id",
+    "benchmark_account_id",
+    "title",
+    "url",
+    "reads",
+    "published_at",
+    "title_pattern",
+    "topic",
+    "news_hook",
+    "word_count",
+    "image_count",
+    "collected_on",
+    "created_at",
+    "updated_at",
+    "deleted_at"
+  ],
+  "review_notes": [
+    "user_id",
+    "id",
+    "account",
+    "note_date",
+    "kind",
+    "title",
+    "body_md",
+    "tags_json",
+    "related_article_ids_json",
+    "related_rule_ids_json",
+    "decided_by",
+    "created_at",
+    "updated_at",
+    "deleted_at"
+  ],
+  "review_account_health": [
+    "user_id",
+    "id",
+    "account",
+    "platform",
+    "observed_on",
+    "impressions_per_day",
+    "reads_per_day",
+    "ctr",
+    "since_date",
+    "platform_notice_json",
+    "judgement",
+    "action",
+    "resume_on",
+    "created_at",
+    "updated_at",
+    "deleted_at"
+  ],
+  "openai_review_config": [
+    "user_id",
+    "account",
+    "instructions",
+    "version",
+    "updated_at"
+  ],
+  "openai_review_runs": [
+    "user_id",
+    "id",
+    "account",
+    "status",
+    "mode",
+    "requested_mode",
+    "beijing_date",
+    "created_at",
+    "completed_at",
+    "released_at",
+    "model",
+    "instruction_version",
+    "instructions",
+    "baseline_run_id",
+    "source_revision",
+    "source_manifest_json",
+    "source_data_json",
+    "input_json",
+    "report_markdown",
+    "summary_json",
+    "error_code",
+    "error_message",
+    "provider_response_id",
+    "provider_calls"
+  ]
+};
+const columns={...v15Columns,...reviewColumns};
 const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','daily_work_notes','memo_groups','memo_notes',
-  'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports']);
+  'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports',...Object.keys(reviewColumns)]);
 const backupTable=name=>privateTables.has(name)||name==='account_profiles'?'matrix_'+name:name;
 const v4Columns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>name!=='daily_notes'));
 const legacyColumns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>!privateTables.has(name)));
@@ -62,7 +239,7 @@ const versionColumns=new Map([
   ['haoduoyu-matrix-d1-v1',legacyColumns],['haoduoyu-matrix-d1-v2',v2Columns],
   ['haoduoyu-matrix-d1-v3',v3Columns],['haoduoyu-matrix-d1-v4',v4Columns],
   ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',v6Columns],['haoduoyu-matrix-d1-v7',v7Columns],['haoduoyu-matrix-d1-v8',v8Columns],
-  ['haoduoyu-matrix-d1-v9',v9Columns],['haoduoyu-matrix-d1-v10',v10Columns],['haoduoyu-matrix-d1-v11',v11Columns],['haoduoyu-matrix-d1-v12',v12Columns],['haoduoyu-matrix-d1-v13',v13Columns],['haoduoyu-matrix-d1-v14',v14Columns],['haoduoyu-matrix-d1-v15',columns],
+  ['haoduoyu-matrix-d1-v9',v9Columns],['haoduoyu-matrix-d1-v10',v10Columns],['haoduoyu-matrix-d1-v11',v11Columns],['haoduoyu-matrix-d1-v12',v12Columns],['haoduoyu-matrix-d1-v13',v13Columns],['haoduoyu-matrix-d1-v14',v14Columns],['haoduoyu-matrix-d1-v15',v15Columns],['haoduoyu-matrix-d1-v16',columns],
 ]);
 function validateMemos(tables,sourceRevision) {
   const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
@@ -200,7 +377,7 @@ export async function exportBackup(db,{todoUserId}={}) {
       tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
         ...(scoped?[todoUserId]:[]));
     }
-    return {format:'haoduoyu-matrix-d1-v15',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
+    return {format:'haoduoyu-matrix-d1-v16',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
   });
   return {data,sha256:digest(JSON.stringify(stable(data)))};
 }
@@ -212,14 +389,14 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
   const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
   const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
-  const currentFormat=backup.data.format==='haoduoyu-matrix-d1-v15';
+  const currentFormat=['haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16'].includes(backup.data.format);
   const sourceRevision=(hasSourceRevision||currentFormat)?backup.data.source_revision:0;
   if((hasSourceRevision||currentFormat)&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
     throw fail(400,'INVALID_BACKUP','备份修订号无效');
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
   const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],daily_work_notes:[],memo_groups:[],memo_notes:[],
-    note_entries:[],work_reminders:[],account_profiles:[],unscheduled_todos:[],note_labels:[],note_entry_labels:[],note_entry_label_overrides:[],note_entry_label_sets:[],note_label_archives:[],ai_reports:[],...supplied};
+    note_entries:[],work_reminders:[],account_profiles:[],unscheduled_todos:[],note_labels:[],note_entry_labels:[],note_entry_label_overrides:[],note_entry_label_sets:[],note_label_archives:[],ai_reports:[],...Object.fromEntries(Object.keys(reviewColumns).map(name=>[name,[]])),...supplied};
   for(const [name,fields] of Object.entries(expected)) {
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {

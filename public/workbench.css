@@ -756,3 +756,28 @@ body.floating-workbench {
 #notes-history:has(.notes-calendar-grid:not([hidden])) .notes-calendar-summary { margin-bottom:10px; }
 #notes-history:has(.notes-calendar-grid:not([hidden])) #notes-history-status:not(:empty) { margin:0 0 14px; }
 #notes-history:has(.notes-calendar-grid:not([hidden])) #notes-history-status:empty { display:none; }
+
+/* Private OpenAI review controls keep their own state outside article disclosure. */
+.openai-review-panel { margin-block:16px; }
+.openai-review-heading,.openai-run-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.openai-review-heading h2,.openai-run-heading h3 { margin:0; }
+.openai-review-heading a,.openai-run-heading time { font-size:13px; }
+.openai-review-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.openai-review-panel [role="status"]:empty { display:none; }
+.openai-review-panel p,.openai-run p { overflow-wrap:anywhere; }
+#openai-settings { max-width:960px; min-width:0; }
+#openai-instructions-form>label { display:block; font-weight:600; margin-top:20px; }
+.openai-instructions { display:block; width:100%; min-height:360px; resize:vertical; line-height:1.7; }
+.openai-latest { margin-top:24px; }
+.openai-latest pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; max-height:480px; overflow:auto; }
+.openai-run { margin-bottom:16px; overflow-wrap:anywhere; min-width:0; }
+.openai-run:focus { outline:2px solid currentColor; outline-offset:3px; }
+.openai-run pre { overflow:auto; max-width:100%; }
+.ai-daily-tabs { flex-wrap:wrap; }
+@media (max-width:767px) {
+  .openai-review-panel { padding:16px; }
+  .openai-review-actions .btn { min-height:44px; }
+  .openai-instructions { font-size:16px; min-height:400px; }
+  .openai-review-heading { align-items:flex-start; }
+  .ai-daily-tabs .btn { min-height:44px; white-space:nowrap; }
+}

@@ -1,12 +1,15 @@
-import {api} from './core/api.mjs';
+import {OPENAI_TABS, openAiOwnerSession, readOpenAiRuns} from './core/openai-review-state.mjs';
+import {updateRoute} from './core/router.mjs';
+import {api, apiNetwork} from './core/api.mjs';
 import {runtime,state} from './core/state.mjs';
 import {dailyNotesToday,validDailyNotesDate} from './core/daily-notes-state.mjs';
-import {paintAiReports,paintAiDailyReminders,paintAiCalendar,reportDay} from './pages/ai-reports.mjs';
+import {paintAiReports,paintAiDailyReminders,paintAiCalendar,paintOpenAiDiary,reportDay} from './pages/ai-reports.mjs';
 
 let sequence = 0, registered = false, selectedDate = '', visibleMonth = '', pageSession = null;
 
 function selectDailyTab(name) {
-  if (!['reminders','reports'].includes(name)) return;
+  if (!OPENAI_TABS.includes(name)) return;
+  state.aiDailyTab = name;
   const root = document.querySelector('#ai-reports');
   if (!root) return;
   for (const button of root.querySelectorAll('[data-ai-daily-tab]'))
@@ -57,13 +60,18 @@ export async function readAllAiReports(read, current = () => true) {
 export async function loadAiReports({resetDate = false} = {}) {
   registerAiReportEvents();
   const session = runtime.sessionEpoch;
-  if (pageSession !== session || resetDate) { pageSession = session; selectedDate = dailyNotesToday(); visibleMonth = selectedDate.slice(0,7); }
+  if (pageSession !== session || resetDate) {
+    pageSession = session;
+    selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
+    visibleMonth = selectedDate.slice(0,7);
+  }
   if (!selectedDate) selectedDate = dailyNotesToday();
   if (!visibleMonth) visibleMonth = selectedDate.slice(0,7);
   const ticket = ++sequence, date = selectedDate;
   const current = () => ticket === sequence && session === runtime.sessionEpoch && state.page === 'ai-reports';
   paintAiReports([], '', true, date, visibleMonth);
   paintAiDailyReminders(null, '', true);
+  selectDailyTab(state.aiDailyTab || 'reminders');
   const report = readAllAiReports(api, current).then(items => {
     if (current() && items) paintAiReports(reportsForDailyDate(items, date), '', false, date, visibleMonth);
   }).catch(error => {
@@ -74,7 +82,7 @@ export async function loadAiReports({resetDate = false} = {}) {
   }).catch(error => {
     if (current()) paintAiDailyReminders(null, error.message || '提醒读取失败，请稍后重试');
   });
-  await Promise.all([report, reminders]);
+  await Promise.all([report, reminders, loadOpenAiDiary(date, current)]);
 }
 
 function moveMonth(offset) {
@@ -90,11 +98,30 @@ function registerAiReportEvents() {
   document.addEventListener('click', event => {
     if (state.page !== 'ai-reports') return;
     const tab = event.target.closest?.('[data-ai-daily-tab]')?.dataset.aiDailyTab;
-    if (tab) selectDailyTab(tab);
+    if (tab) {
+      selectDailyTab(tab); updateRoute();
+      if (tab === 'openai') void loadAiReports();
+    } else if (event.target.closest?.('[data-openai-diary-refresh]')) void loadAiReports();
     else if (event.target.closest?.('[data-ai-report-month]')) moveMonth(Number(event.target.closest('[data-ai-report-month]').dataset.aiReportMonth));
     else {
       const day = event.target.closest?.('[data-ai-report-select]')?.dataset.aiReportSelect;
-      if (day && validDailyNotesDate(day)) { selectedDate = day; visibleMonth = day.slice(0,7); void loadAiReports(); }
+      if (day && validDailyNotesDate(day)) { selectedDate = day; visibleMonth = day.slice(0,7);
+        state.aiDailyDate = day; state.openAiRun = ''; updateRoute(); void loadAiReports(); }
     }
   });
+}
+
+async function loadOpenAiDiary(date, current) {
+  if (state.aiDailyTab !== 'openai') return;
+  const owner = openAiOwnerSession(state.me);
+  paintOpenAiDiary([], {owner, loading: owner});
+  if (!owner) return;
+  try {
+    const items = await readOpenAiRuns(path => apiNetwork(path, {suppressAuthRedirect: true}), date, current);
+    if (!current() || !items) return;
+    paintOpenAiDiary(items);
+    if (state.openAiRun) document.getElementById('openai-run-' + state.openAiRun)?.focus({preventScroll: false});
+  } catch (error) {
+    if (current()) paintOpenAiDiary([], {error: error.message || '分析记录读取失败，请刷新重试。'});
+  }
 }

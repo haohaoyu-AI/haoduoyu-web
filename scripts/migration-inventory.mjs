@@ -14,12 +14,14 @@ const v10RestoredTables = Object.freeze([...v9RestoredTables, 'unscheduled_todos
 const v11RestoredTables = Object.freeze([...v10RestoredTables, 'note_entry_label_overrides']);
 const v12RestoredTables = Object.freeze([...v11RestoredTables, 'note_entry_label_sets']);
 const v13RestoredTables = Object.freeze([...v12RestoredTables, 'note_label_archives']);
-export const restoredTables = Object.freeze([...v13RestoredTables, 'ai_reports']);
+const v14RestoredTables = Object.freeze([...v13RestoredTables, 'ai_reports']);
+const reviewRestoredTables = Object.freeze([...v14RestoredTables,'review_articles','review_snapshots','review_reports','review_playbooks','review_benchmark_accounts','review_benchmark_articles','review_notes','review_account_health']);
+export const restoredTables = Object.freeze([...reviewRestoredTables,'openai_review_config','openai_review_runs']);
 export const resetTables = Object.freeze(['sessions', 'login_attempts', 'control']);
 const tableSets = new Map([['haoduoyu-matrix-d1-v6', v6RestoredTables], ['haoduoyu-matrix-d1-v7', v7RestoredTables],
   ['haoduoyu-matrix-d1-v8', v8RestoredTables], ['haoduoyu-matrix-d1-v9', v9RestoredTables],
   ['haoduoyu-matrix-d1-v10', v10RestoredTables], ['haoduoyu-matrix-d1-v11', v11RestoredTables],
-  ['haoduoyu-matrix-d1-v12', v12RestoredTables], ['haoduoyu-matrix-d1-v13', v13RestoredTables], ['haoduoyu-matrix-d1-v14', restoredTables]]);
+  ['haoduoyu-matrix-d1-v12', v12RestoredTables], ['haoduoyu-matrix-d1-v13', v13RestoredTables], ['haoduoyu-matrix-d1-v14', v14RestoredTables], ['haoduoyu-matrix-d1-v15', v14RestoredTables], ['haoduoyu-matrix-d1-v16', restoredTables]]);
 const checksum = rows => digest(JSON.stringify(rows.map(row => JSON.stringify(stable(row))).sort()));
 const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 
@@ -28,7 +30,9 @@ const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 export async function createSourceInventory(db) {
   return consistentRead(db, async (store, sourceRevision) => {
     const schema = (await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'matrix_%'").all()).results;
-    const restored = schema.some(row => row.name === 'matrix_ai_reports') ? restoredTables :
+    const restored = schema.some(row => row.name === 'matrix_openai_review_runs') ? restoredTables :
+      schema.some(row => row.name === 'matrix_review_notes') ? reviewRestoredTables :
+      schema.some(row => row.name === 'matrix_ai_reports') ? v14RestoredTables :
       schema.some(row => row.name === 'matrix_note_label_archives') ? v13RestoredTables :
       schema.some(row => row.name === 'matrix_note_entry_label_sets') ? v12RestoredTables :
       schema.some(row => row.name === 'matrix_note_entry_label_overrides') ? v11RestoredTables :
@@ -75,7 +79,20 @@ export async function verifyRestoredInventory(db, backup, sourceInventory) {
   const restored = tableSets.get(backup.data.format);
   for (const name of restored) {
     const actual = target.tables[name], expected = sourceInventory.tables[name];
-    if (actual.count !== expected.count || actual.sha256 !== expected.sha256) fail();
+    if (actual.count !== expected.count) fail();
+    // Older backups predate additive columns (e.g. todo notes in v15). Compare
+    // their exact original projection; restore already validates the columns.
+    if (actual.sha256 !== expected.sha256) {
+      const original=backup.data.tables[name];
+      if (!original.length) fail();
+      const fields=Object.keys(original[0]);
+      const rows=(await db.prepare('SELECT * FROM matrix_'+name).all()).results;
+      const defaults=name==='todos'?{note:''}:name==='todo_templates'?{archived_at:null}:{};
+      for(const row of rows)for(const field of Object.keys(row).filter(field=>!fields.includes(field))) {
+        if(!Object.hasOwn(defaults,field)||row[field]!==defaults[field])fail();
+      }
+      if (checksum(rows.map(row=>Object.fromEntries(fields.map(field=>[field,row[field]])))) !== expected.sha256) fail();
+    }
   }
   for (const name of restoredTables.filter(name => !restored.includes(name))) {
     if (target.tables[name] && target.tables[name].count !== 0) fail();

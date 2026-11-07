@@ -1,3 +1,4 @@
+import {openAiSettingsPage, loadOpenAiSettings} from './openai-settings-controller.mjs';
 import { beginPageRequests, isRequestAbort } from "./core/requests.mjs";
 import { api } from "./core/api.mjs";
 import { retryUntil } from "./core/retry-after.mjs";
@@ -35,7 +36,7 @@ import {renderContentReview} from "./pages/content-review.mjs";
 import {loadContentReview, paintContentReviewPage} from "./review-controller.mjs";
 function mainContent() {
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
-    state.me?.publicBusiness ? {todo: settingsTabs.todo} :
+    state.me?.publicBusiness ? {todo: settingsTabs.todo, openai: settingsTabs.openai} :
       Object.fromEntries(Object.entries(settingsTabs).filter(([key]) => key !== "workspace"))), state.settingsTab,
     "设置分类", "tab", "page-tabs") : ""}${state.page === "settings" && state.me?.publicBusiness ?
     '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${state.page === "settings" ? '<section class="card panel" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
@@ -56,7 +57,7 @@ function reuseShell() {
 }
 function renderShell() {
   redirectMobileArticlePage();
-  if (state.page === "settings" && (state.settingsTab === "workspace" || state.me?.publicBusiness && state.settingsTab !== "todo"))
+  if (state.page === "settings" && (state.settingsTab === "workspace" || state.me?.publicBusiness && !["todo", "openai"].includes(state.settingsTab)))
     state.settingsTab = "todo";
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -130,6 +131,7 @@ function pageLoading(page) {
   if (page === "reminders") return renderWorkReminders();
   if (page === "ai-reports") return renderAiReports();
   if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
+  if (page === "settings" && state.settingsTab === "openai") return openAiSettingsPage();
   return skeleton();
 }
 function setPageBody(html, page) {
@@ -141,7 +143,7 @@ function setPageBody(html, page) {
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
-  else if (page === "reminders" || page === "ai-reports") return;
+  else if (page === "reminders" || page === "ai-reports" || page === "settings" && state.settingsTab === "openai") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
@@ -196,6 +198,7 @@ async function renderPage() {
         break;
       case "settings":
         if (state.settingsTab === "workspace") break;
+        else if (state.settingsTab === "openai") { await loadOpenAiSettings(); }
         else if (state.settingsTab === "todo") { await loadTodoPreferences(context); html = renderTodoSettings(); }
         else if (state.settingsTab === "keys") {
           data = await api("/api-keys", { context });

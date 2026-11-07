@@ -1,3 +1,4 @@
+import {stripEmptyReviewTables} from './todo-backup-projection.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -12,7 +13,7 @@ import {legacyBackupEnvelope} from './todo-backup-projection.mjs';
 const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
 function versionData(input,version) {
-  const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  const data=stripEmptyReviewTables(structuredClone(input));data.format='haoduoyu-matrix-d1-v'+version;
   for(const row of data.tables.todos)delete row.note;
   for(const row of data.tables.todo_templates)delete row.archived_at;
   for(const [introduced,name] of [[14,'ai_reports'],[13,'note_label_archives'],[12,'note_entry_label_sets'],[11,'note_entry_label_overrides']]) {
@@ -61,7 +62,7 @@ test('v7 HTTP backup scopes template tables while operator restore preserves del
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v15');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v16');
   for(const name of ['todos','todo_templates','todo_template_links']) {
     assert.equal(http.data.tables[name].length,1);
     assert.equal(http.data.tables[name][0].user_id,source.owner);

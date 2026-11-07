@@ -181,7 +181,7 @@ export async function applyArticleMigration(db,options={}) {
 
 export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
   const journal=JSON.parse(await readFile(new URL('drizzle/meta/_journal.json',root),'utf8'));
-  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives'],'Unreviewed local migration journal');
+  assert.deepEqual(journal.entries.map(entry=>entry.tag),[...legacyTags,articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives',openaiReviewMigrationTag],'Unreviewed local migration journal');
   await db.prepare('CREATE TABLE IF NOT EXISTS __fixture_migrations(name TEXT PRIMARY KEY)').run();
   const migrated=await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='matrix_control'").first();
   if(migrated)await db.prepare('INSERT OR IGNORE INTO __fixture_migrations(name) VALUES(?)').bind(journal.entries[0].tag).run();
@@ -190,7 +190,7 @@ export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
     if(entry.tag===articleMigrationTag)await applyArticleMigration(db);
     else {
       const sql=await readFile(new URL('drizzle/'+entry.tag+'.sql',root),'utf8');
-      const statements=entry.tag===reviewLegacyExtensionsMigrationTag?validateReviewLegacyExtensionsMigrationSource(entry.tag,sql):entry.tag===reviewResourcesMigrationTag?validateReviewResourcesMigrationSource(entry.tag,sql):entry.tag===reviewAttributionMigrationTag?validateReviewAttributionMigrationSource(entry.tag,sql):entry.tag===reviewMigrationTag?validateReviewMigrationSource(entry.tag,sql):entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):entry.tag===labelSetsMigrationTag?validateLabelSetsMigrationSource(entry.tag,sql):entry.tag===labelArchivesMigrationTag?validateLabelArchivesMigrationSource(entry.tag,sql):entry.tag===aiReportsMigrationTag?validateAiReportsMigrationSource(entry.tag,sql):split(sql);
+      const statements=entry.tag===openaiReviewMigrationTag?validateOpenaiReviewMigrationSource(entry.tag,sql):entry.tag===reviewLegacyExtensionsMigrationTag?validateReviewLegacyExtensionsMigrationSource(entry.tag,sql):entry.tag===reviewResourcesMigrationTag?validateReviewResourcesMigrationSource(entry.tag,sql):entry.tag===reviewAttributionMigrationTag?validateReviewAttributionMigrationSource(entry.tag,sql):entry.tag===reviewMigrationTag?validateReviewMigrationSource(entry.tag,sql):entry.tag===labelMigrationTag?validateLabelMigrationSource(entry.tag,sql):entry.tag===labelSetsMigrationTag?validateLabelSetsMigrationSource(entry.tag,sql):entry.tag===labelArchivesMigrationTag?validateLabelArchivesMigrationSource(entry.tag,sql):entry.tag===aiReportsMigrationTag?validateAiReportsMigrationSource(entry.tag,sql):split(sql);
       if(entry.tag==='0019_todo_notes_archives') assert.deepEqual(statements,["ALTER TABLE `matrix_todos` ADD `note` text NOT NULL DEFAULT '';",'ALTER TABLE `matrix_todo_templates` ADD `archived_at` text;']);
       for(const statement of statements) {
         if(entry.tag==='0019_todo_notes_archives')continue;
@@ -205,4 +205,19 @@ export async function applyLocalSchemaMigrations(db,{through=Infinity}={}) {
         db.prepare('INSERT INTO __fixture_migrations(name) VALUES(?)').bind(entry.tag)]);
     }
   }
+}
+
+export const openaiReviewMigrationTag='0020_openai_review';
+export const openaiReviewMigrationSha256='079b2c417c72849b45e9e74522ec6005e61518a30974a1439c02e42dbede7d65';
+export function validateOpenaiReviewMigrationSource(tag,sql) {
+  assert.equal(tag,openaiReviewMigrationTag);
+  assert.equal(hash(sql),openaiReviewMigrationSha256,'OpenAI review migration differs from reviewed additive source');
+  const statements=split(sql);
+  assert.equal(statements.length,4);
+  assert.equal(statements.filter(value=>value.startsWith('CREATE TABLE')).length,2);
+  for(const statement of statements) {
+    assert.match(statement,/^CREATE (?:TABLE|(?:UNIQUE )?INDEX) `matrix_openai_review_/);
+    assert.ok(!/\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b/i.test(statement));
+  }
+  return statements;
 }
