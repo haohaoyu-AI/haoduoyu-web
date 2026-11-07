@@ -21,7 +21,7 @@ export const productionRestore=Object.freeze({
 export const previousProductionRelease=Object.freeze({
   commit:'2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d',
   tree:'f8e1477888e347365f1b6de25813bb2f388dfc15',
-  baseline:'c2029c32-a700-45d4-b9e8-cb7a065338b0',
+  baseline:'3bd46508-c1fd-4845-af7d-93afc85b7d31',
   originalBaseline:'c2029c32-a700-45d4-b9e8-cb7a065338b0',
   bytes:2671740,sha256:'9b03bc4b799d9ed6445e96766b2702cf4b068b38b1f7b36ac1486025dcdfa8f7',
   label:'production-mobile-calendar-20261108'});

@@ -31,7 +31,7 @@ test('restored source identity is checked through a read-only exact-commit looku
 test('previous production rollback retains its exact source and artifact and requires the independently verified new baseline',async()=>{
   const previous='2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d';
   const previousTree='f8e1477888e347365f1b6de25813bb2f388dfc15';
-  const rollbackBaseline='c2029c32-a700-45d4-b9e8-cb7a065338b0';
+  const rollbackBaseline='3bd46508-c1fd-4845-af7d-93afc85b7d31';
   assert.deepEqual(previousProductionRelease,{commit:previous,tree:previousTree,baseline:rollbackBaseline,
     originalBaseline:'c2029c32-a700-45d4-b9e8-cb7a065338b0',bytes:2671740,
     sha256:'9b03bc4b799d9ed6445e96766b2702cf4b068b38b1f7b36ac1486025dcdfa8f7',
