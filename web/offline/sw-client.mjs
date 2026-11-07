@@ -72,7 +72,7 @@ export async function startServiceWorker({
     page.location.reload();
   }
   function notice() {
-    const waiting = registration?.waiting;
+    const waiting = registration?.waiting, previousActive = registration?.active;
     if (!waiting || !registration.active || button) return;
     button = document.createElement('button');
     button.type = 'button';
@@ -81,12 +81,15 @@ export async function startServiceWorker({
     button.setAttribute('aria-label', '有新版本，点此更新');
     button.setAttribute('aria-live', 'polite');
     listen(button, 'click', updateAction(page, button, () => {
-      const update = registration.waiting || (waiting.state === 'activated' ? waiting : null);
+      // A later release can replace the worker captured when this notice appeared.
+      const active = registration.active;
+      const newerActive = active !== previousActive && ['activating', 'activated'].includes(active?.state) ? active : null;
+      const update = registration.waiting || newerActive || (waiting.state === 'activated' ? waiting : null);
       if (destroyed || !update || update.state === 'redundant') return false;
+      // An already active shell only needs navigation after drafts have been saved.
+      if (update.state !== 'activated') update.postMessage({ type: 'HAODUOYU_SHELL_ACTIVATE' });
       optedIn = true;
       listen(update, 'statechange', () => { if (update.state === 'activated') reload(); });
-      try { update.postMessage({ type: 'HAODUOYU_SHELL_ACTIVATE' }); }
-      catch (error) { optedIn = false;throw error; }
       if (update.state === 'activated') reload();
       return true;
     }));

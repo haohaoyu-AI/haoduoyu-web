@@ -16471,7 +16471,7 @@ async function startServiceWorker({
     page.location.reload();
   }
   function notice() {
-    const waiting = registration?.waiting;
+    const waiting = registration?.waiting, previousActive = registration?.active;
     if (!waiting || !registration.active || button2) return;
     button2 = document2.createElement("button");
     button2.type = "button";
@@ -16480,18 +16480,15 @@ async function startServiceWorker({
     button2.setAttribute("aria-label", "有新版本，点此更新");
     button2.setAttribute("aria-live", "polite");
     listen(button2, "click", updateAction(page, button2, () => {
-      const update = registration.waiting || (waiting.state === "activated" ? waiting : null);
+      const active5 = registration.active;
+      const newerActive = active5 !== previousActive && ["activating", "activated"].includes(active5?.state) ? active5 : null;
+      const update = registration.waiting || newerActive || (waiting.state === "activated" ? waiting : null);
       if (destroyed || !update || update.state === "redundant") return false;
+      if (update.state !== "activated") update.postMessage({ type: "HAODUOYU_SHELL_ACTIVATE" });
       optedIn = true;
       listen(update, "statechange", () => {
         if (update.state === "activated") reload();
       });
-      try {
-        update.postMessage({ type: "HAODUOYU_SHELL_ACTIVATE" });
-      } catch (error) {
-        optedIn = false;
-        throw error;
-      }
       if (update.state === "activated") reload();
       return true;
     }));
