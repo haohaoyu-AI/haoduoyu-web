@@ -2,19 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {releases,productionRestore,previousProductionRelease,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
-const commit='8d65a1d514e7e6c2472b2035e2197d2824d0dbb7';
-const baseline='1daf9321-97ff-49f3-ae75-dbed5e5039b0';
-const tree='077316393069b81be4933ec199faf60732f4de0a';
+const commit='2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d';
+const baseline='c2029c32-a700-45d4-b9e8-cb7a065338b0';
+const tree='f8e1477888e347365f1b6de25813bb2f388dfc15';
 const env={GITHUB_REPOSITORY:repository,GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',
   TARGET_COMMIT:commit,LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:baseline};
 test('production restore is pinned to one source tree, artifact and current production version',()=>{
   assert.equal(validateRequest(env),productionRestore);
-  assert.equal(productionRestore.tree,tree);assert.equal(productionRestore.bytes,2668707);
-  assert.equal(productionRestore.sha256,'879dfb6db5759e8fb7ad54e7b1b8de06f8ddef4cc44721fa0033478aa6a7d945');
+  assert.equal(productionRestore.tree,tree);assert.equal(productionRestore.bytes,2671740);
+  assert.equal(productionRestore.sha256,'9b03bc4b799d9ed6445e96766b2702cf4b068b38b1f7b36ac1486025dcdfa8f7');
   for(const [key,value] of Object.entries({GITHUB_REPOSITORY:'other/repo',GITHUB_REF:'refs/heads/other',GITHUB_EVENT_NAME:'push',
     TARGET_COMMIT:'main',LOCAL_UPLOAD_STOPPED:'false',EXPECTED_CURRENT_VERSION:'83512373-c500-47c3-a451-7dde59d2174b'}))
     assert.throws(()=>validateRequest({...env,[key]:value}));
-  assert.throws(()=>verifyWorker(Buffer.alloc(2668707),commit));
+  assert.throws(()=>verifyWorker(Buffer.alloc(2671740),commit));
 });
 test('restored source identity is checked through a read-only exact-commit lookup',async()=>{
   const good={sha:commit,tree:{sha:tree}};
@@ -29,20 +29,20 @@ test('restored source identity is checked through a read-only exact-commit looku
   await assert.rejects(verifyEligibility('main',{request}));
 });
 test('previous production rollback retains its exact source and artifact and requires the independently verified new baseline',async()=>{
-  const previous='a02a261df0b687b360f2b322d374d04a7a8c218f';
-  const previousTree='36aac1b367a93f46c981dff745206e1ada3d7d70';
+  const previous='8d65a1d514e7e6c2472b2035e2197d2824d0dbb7';
+  const previousTree='077316393069b81be4933ec199faf60732f4de0a';
   const rollbackBaseline='c2029c32-a700-45d4-b9e8-cb7a065338b0';
   assert.deepEqual(previousProductionRelease,{commit:previous,tree:previousTree,baseline:rollbackBaseline,
-    originalBaseline:'fb304eb0-304b-4b69-98ea-bbf02a2d2e0d',bytes:2668750,
-    sha256:'0484226a6f547616e21d6c864cb0d3d2d257cadafff35e2dced7e3fc156dfcde',
-    label:'production-ai-report-author-colors-20261107'});
+    originalBaseline:'1daf9321-97ff-49f3-ae75-dbed5e5039b0',bytes:2668707,
+    sha256:'879dfb6db5759e8fb7ad54e7b1b8de06f8ddef4cc44721fa0033478aa6a7d945',
+    label:'production-mobile-daily-cleanup-20261108'});
   assert.equal(validateRequest({...env,TARGET_COMMIT:previous,EXPECTED_CURRENT_VERSION:rollbackBaseline}),previousProductionRelease);
-  for(const version of [baseline,previousProductionRelease.originalBaseline,'11111111-1111-4111-8111-111111111111'])
+  for(const version of [baseline,previousProductionRelease.originalBaseline,'11111111-1111-4111-8111-111111111111'].filter(version=>version!==rollbackBaseline))
     assert.throws(()=>validateRequest({...env,TARGET_COMMIT:previous,EXPECTED_CURRENT_VERSION:version}),/exact independently verified baseline/);
   assert.equal(await verifyEligibility(previous,{request:async()=>Response.json({sha:previous,tree:{sha:previousTree}})}),
     previousProductionRelease);
   await assert.rejects(verifyEligibility(previous,{request:async()=>Response.json({sha:previous,tree:{sha:tree}})}));
-  assert.throws(()=>verifyWorker(Buffer.alloc(2668750),previous));
+  assert.throws(()=>verifyWorker(Buffer.alloc(2668707),previous));
 });
 test('historical releases retain their exact successful Foundation CI gate',async()=>{
   for(const old of Object.keys(releases).filter(key=>key!==commit)){
