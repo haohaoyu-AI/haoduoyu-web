@@ -63,7 +63,7 @@ public sealed partial class MainWindow : Window
         DockPanel.SetDock(top, Dock.Top); shell.Children.Add(top);
         DockPanel.SetDock(status, Dock.Bottom); shell.Children.Add(status);
         var nav = new StackPanel { Width = 170, Margin = new Thickness(16, 8, 0, 8) };
-        foreach (var name in new[] { "待办", "待办日历", "未安排", "生活记录", "工作记录", "标签", "备忘录", "工作提醒", "AI汇报", "文章台账", "发布对账", "内容复盘", "数据复盘", "回收站", "本机草稿", "本机检索", "同步中心", "历史档案", "本机与恢复" })
+        foreach (var name in new[] { "待办", "待办日历", "未安排", "生活记录", "工作记录", "碎碎念月历", "标签", "备忘录", "工作提醒", "AI汇报", "文章台账", "发布对账", "内容复盘", "数据复盘", "回收站", "本机草稿", "本机检索", "同步中心", "历史档案", "本机与恢复" })
         {
             var target = name;
             nav.Children.Add(Button(name, () => NavigateAsync(target)));
@@ -142,6 +142,7 @@ public sealed partial class MainWindow : Window
         if (identity == currentIdentity && engine != null) return;
         ResetReconciliationView();
         ResetTodoHistoryView();
+        ResetNoteHistoryView();
         ResetArticleLedgerView();
         ClearPage();
         failedIdentity = identity;
@@ -292,6 +293,7 @@ public sealed partial class MainWindow : Window
         {
             case "待办": await TodosAsync(bar); break;
             case "待办日历": await TodoHistoryAsync(); break;
+            case "碎碎念月历": await NoteHistoryAsync(); break;
             case "未安排": await UnscheduledAsync(); break;
             case "标签": await LabelsAsync(); break;
             case "生活记录": case "工作记录": await NotesAsync(bar, name == "生活记录" ? "life" : "work"); break;

@@ -48,13 +48,7 @@ internal static class BusinessReadSchema
             }
             else if (route == "/api/v1/note-entries/month")
             {
-                var value = Object(data); Matches(value["format"], "haoduoyu-note-month-v1"); True(value["complete"]);
-                var month = Text(value["month"]); if (month.Length != 7) Invalid(); Date(JsonValue.Create(month + "-01")); Matches(value["month"], Requested("month"));
-                Rows(value["days"], day =>
-                {
-                    Date(day["date"]); if (!Text(day["date"]).StartsWith(month + "-", StringComparison.Ordinal)) Invalid();
-                    Rows(day["items"], row => { Identifier(row["entity_id"]); Choice(row["source"], "note_entry", "legacy_daily_note"); Category(row["category"]); Text(row["text"], empty: true); Strings(row["labels"]); Stamp(row["updated_at"]); });
-                });
+                NoteHistory.ValidateSource(result.Json, Requested("month") ?? throw new InvalidDataException());
             }
             else if (route is "/api/v1/note-entries/dates" or "/api/v1/daily-notes/dates") DatesPage(Object(data));
             else if (route.StartsWith("/api/v1/note-entries/operations/", StringComparison.Ordinal) || route.StartsWith("/api/v1/memos/operations/", StringComparison.Ordinal))

@@ -1,6 +1,6 @@
 # 好多鱼 Windows 独立工作台
 
-当前为 **0.10.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
+当前为 **0.11.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
 
 ## 已实现的核心路径
 
@@ -8,6 +8,7 @@
 - 待办周/月历史：自然周跨月、月份导航、北京时间今天、完成状态筛选、每日预览、范围及已知条目统计，点击日期复用单日操作。缺日显示未知；未决删除与 Queued/Unknown 仍标本机意图，不冒充服务端已确认，也不受日常隐藏完成项偏好影响。
 - 未安排待办、安排到指定日、今天完成、软删恢复。
 - 生活与工作多条碎碎念、旧日期日页独立保留、标签选择及创建/归档/恢复。
+- 碎碎念月历史：原生月历、来源/标签/正文筛选、按日阅读及只读副本导出。完整空日、未读取日期与本机未决删除分开，草稿单独标识；月摘要缺少版本，须读取独立完整记录后才能编辑，仍使用原草稿和请求围栏。
 - 备忘录分组与笔记、正文编辑、回收站恢复。
 - 工作提醒、文章台账及流水线原生表单、现有自媒体数据读取。文章可录入槽位、作者/配图者、存稿日期、系列号、字数/小标题/图数、生产标识、封面描述、草稿凭证和带时区的完成时间；未知数字保留 null，真实零值保留 0。完整生产资料只读详情区分原读取基线与本机稿，保留未知嵌套证据，不执行目录或链接。
 - 完整台账接口筛选：账号、平台、五种状态、关键词、发布起止、生产方式、推断题材、数据状态、槽位、作者、警告、明确待核与编号区间，以及指标/时间/耗时排序和分页。服务端模式保留原始分页与统计；本机模式重算投影派生信息，区分完整已准备基线与局部已知资料。未识别状态仍从只读发布对账查看。
@@ -29,6 +30,8 @@
 视图和列配置单独保存在当前身份哈希目录的 `ledger-views.bin`，使用同一 Windows 用户 DPAPI、原子替换和 `.bak`；不改工作区 Schema1/2 或身份配置 Schema2。设置只含白名单查询和布局，不含业务快照或凭证；普通保存和布局调整不联网、不改缓存、草稿、队列或服务端总量。损坏、未知版本、错分区或主文件缺失而备份存在时保留原件并停止保存，可显式仅恢复视图配置备份；完整私有目录备份应包含此文件及备份。旧候选会忽略这些独立配置，不负责呈现新表格布局。
 
 待办日历只显式刷新当前周/月范围，逐日 GET 后核对全局应用修订号与 service scope，全部通过才一次保存。最多31日、8MiB网络JSON、12MiB本机编码缓存和5000行；单日网络1MiB保持，本机解析4MiB仅容纳缓存Unicode转义。取消、429、坏日或期间变化保留整批旧缓存；缺失日期不自动补零。不同日期可能来自多次读取，统计标为本机视图。外部owner配置缺逐请求原子scope前提的既有竞态仍未消除。
+
+碎碎念月历只显式刷新当前月的 `note-entries/month`，保持服务端完整读取2000行/1MiB上限和标签版本3；413、坏响应、取消或身份变化都不替换旧缓存。本机编码读取另限8MiB/10000行以容纳合法Unicode转义和未决意图，不扩大网络预算。没有准确完整月副本时仅显示已知记录，未知日期不算空日；草稿与基线数量分开，不把Queued/Unknown当服务器保存。月原文没有版本/hash，月份点击先只读，完整详情与已有草稿均保持原键和原版本。旧日页摘要也不会被猜为版本0。
 
 ## 本机数据与同步
 
@@ -63,9 +66,11 @@ dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-rec
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --todo-history-contract Haoduoyu.Api.Tests/Fixtures/todo-history-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-ledger-contract Haoduoyu.Api.Tests/Fixtures/article-ledger-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-verification-contract Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json
+dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --note-history-contract Haoduoyu.Api.Tests/Fixtures/note-history-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Profile.Tests --configuration Release
 dotnet run --project Haoduoyu.Offline.Tests --configuration Release
 dotnet run --project Haoduoyu.History.Tests --configuration Release
+dotnet run --project Haoduoyu.Notes.Tests --configuration Release
 dotnet run --project Haoduoyu.Ledger.Tests --configuration Release
 dotnet run --project Haoduoyu.Verification.Tests --configuration Release
 dotnet run --project Haoduoyu.View.Tests --configuration Release

@@ -167,3 +167,39 @@ dotnet run --project desktop/windows/Haoduoyu.Api.Tests --configuration Release 
 ```
 
 `article-verification-report.json` records final source/fixture hashes and counts.
+
+## Native note month history
+
+`note-history-contract-c30a8a9.json` captures nineteen actual business GET responses
+from the same exact compiled c30 Worker and a fresh temporary Miniflare D1. The
+existing harness performs synthetic bootstrap/login; direct D1 setup uses existing
+schemas and leaves constraints, permissions and limiters unchanged. Every captured
+GET checks that all synthetic note business tables are unchanged. Session material
+and real user records are absent; outbound services are disabled and the runtime is
+disposed after capture.
+
+The capture covers all four legacy/new life/work sources on a real leap day, multiple
+same-day entries, multi-label and archived-label content, a blank new note, an empty
+legacy note that stays excluded, soft deletion, complete empty months, and detail
+reads that supply actual edit versions separately from the month summaries. Label
+version 2 and the omitted-header fallback remain valid server responses but fail the
+native full-label source validator. Empty full-label sets and work notes carrying
+only custom labels remain valid. Five malformed queries return 400. Exactly 2,000
+items succeed; 2,001 items, excess raw text bytes and excess complete-envelope bytes
+each return an explicit 413 with no partial month payload.
+
+Replay uses the actual fixed-origin `WorkbenchApi`, the shared
+`NoteHistory.ValidateSource/ParseBaseline` and `NoteHistoryResponse.Validate` rather
+than a second schema implementation. Local projection envelopes cannot become full
+source baselines. Unicode regression checks distinguish the unchanged 1 MiB network
+limit from the larger local JSON encoding budget. `note-history-report.json` records
+the exact evidence hashes and measured checks. Current replay passes 77 checks,
+including sixteen malformed-success rejections and a state-preservation check with
+the actual history model; the ordinary 165-assertion API suite and earlier 82-response
+Worker read/write capture also pass. Physical Windows cache encryption,
+interactive rendering and device acceptance remain separate checks.
+
+```sh
+node desktop/windows/Haoduoyu.Api.Tests/generate-note-history-contract.mjs /path/to/isolated-worktree desktop/windows/Haoduoyu.Api.Tests/Fixtures/note-history-contract-c30a8a9.json
+dotnet run --project desktop/windows/Haoduoyu.Api.Tests --configuration Release -- --note-history-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/note-history-contract-c30a8a9.json
+```

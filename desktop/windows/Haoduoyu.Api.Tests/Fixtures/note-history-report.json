@@ -1,0 +1,68 @@
+{
+  "source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "desktop_base_commit": "c72be46e324ac362df0d1e9039434298d403e8b7",
+  "verified_at_utc": "2026-11-07T09:32:18Z",
+  "synthetic_only": true,
+  "external_fetch_attempts": 0,
+  "production_business_requests": 0,
+  "fixture": "note-history-contract-c30a8a9.json",
+  "fixture_sha256": "1a1dc2df6409845cfb6d67cf87284801e91c941875adb940aadf5d13f90feeb7",
+  "source_hashes": {
+    "src/note-month.mjs": "ac98a5db009bfa44cb3aeb53d028bc1157399003bb8e962e7e111c0c7e1d0dcf",
+    "src/note-entries.mjs": "6e15550a62036df768414c73628681b6af51d393fe9aa2098da8b142e9eabffa",
+    "src/note-entry-validation.mjs": "7722345e648be29c90d0963a13a535aded2d2793e47778392083c8ad470c2e84",
+    "dist/server/index.js": "37ba68bd4caa58f0d151a6d51c1d22bcf2c5c225572fec54188b663c73a8fc29"
+  },
+  "actual_get_worker_requests": 19,
+  "accepted_native_reads": 9,
+  "older_label_protocol_native_rejections": 2,
+  "invalid_query_responses": 5,
+  "local_query_rejections_before_http": 2,
+  "whole_month_limit_responses": 3,
+  "malformed_success_transport_rejections": 16,
+  "contract_checks": 77,
+  "normal_api_assertions": 165,
+  "prior_worker_contract_responses": 82,
+  "prior_worker_receipt_confirmations": 2,
+  "generation_and_current_code_replay_passed": true,
+  "normal_api_suite_passed": true,
+  "prior_worker_complete_reads_compatibility_passed": true,
+  "release_api_build": {
+    "warnings": 0,
+    "errors": 0
+  },
+  "limits": {
+    "month_source_rows": 2000,
+    "month_wire_bytes": 1048576,
+    "month_semantic_dto_bytes": 1048576,
+    "local_encoded_month_bytes": 8388608
+  },
+  "properties": {
+    "get_only_business_capture": true,
+    "every_get_preserves_synthetic_business_tables": true,
+    "all_four_sources": true,
+    "leap_day_and_complete_empty_month": true,
+    "blank_new_note_preserved_empty_legacy_excluded": true,
+    "soft_deleted_excluded": true,
+    "archived_multi_and_empty_labels_preserved": true,
+    "work_custom_labels_are_not_category_defaults": true,
+    "month_summaries_have_no_invented_write_versions_or_permissions": true,
+    "older_protocol_does_not_replace_labels3_baseline": true,
+    "row_and_both_byte_limits_fail_entire_month": true,
+    "source_and_projected_envelopes_are_distinct": true,
+    "shared_model_build_preserves_cache_drafts_outbox": true,
+    "unknown_legal_metadata_preserved": true,
+    "unicode_local_cache_round_trip_with_unchanged_wire_cap": true
+  },
+  "boundary": "Existing exact c30 compiled Worker.fetch and temporary Miniflare D1, normal synthetic harness bootstrap/login and direct D1 setup only. Business capture is GET-only; constraints, permissions and limiters unchanged. Every captured read compares synthetic business-table digests before/after. Current portable replay uses actual Core NoteHistory and fixed-origin WorkbenchApi with synthetic handlers; it opens no production socket and creates no queued work. No production mutation, deployment, installation, artifact or denied historical log download. Physical Windows DPAPI/device and interactive acceptance remain separate.",
+  "files_sha256": {
+    "Haoduoyu.Core/NoteHistory.cs": "5308747eb8b090c88a63b17b4790cbfb8a128ab1ab458d19cf6ab19526e01bd4",
+    "Haoduoyu.Api/BusinessReadSchema.cs": "4dcf050569182abe43f6ded961e38679f01813e5805d9467dcc5bfa3b15cd8de",
+    "Haoduoyu.Api/NoteHistoryResponse.cs": "c5dfbdb00ae5798f51aca49c85604b4cc486a127bedbb48bdddb03adaf8ca337",
+    "Haoduoyu.Api.Tests/NoteHistoryContract.cs": "69f9d5390830e03fddacab72e34a78abea03c06b7f8ae31c754b1aef05167c28",
+    "Haoduoyu.Api.Tests/generate-note-history-contract.mjs": "23e68cea42a6f1e2f97262326d78f59d9cd55dd2ba9abd69c87a5ad15107838c"
+  },
+  "notes_history_core_checks": 80,
+  "final_core_freeze_replay_checks": 77,
+  "final_core_freeze_normal_api_assertions": 165
+}

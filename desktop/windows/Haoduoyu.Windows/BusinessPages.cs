@@ -81,6 +81,7 @@ public sealed partial class MainWindow
     private async Task NotesAsync(WrapPanel bar, string category)
     {
         var day = Day;
+        bar.Children.Add(Button("查看碎碎念月历史", OpenNoteHistoryFromDayAsync));
         if (day == BeijingNow().ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture))
             bar.Children.Add(Button("＋ 新记录", () => NewEditorAsync("note", NewRecord(("category", category), ("date", day), ("text", "")), "/api/v1/note-entries/")));
         else page.Children.Add(Label("此日期可阅读、编辑已有记录；现服务规则只允许在北京时间当天新增碎碎念。历史新稿会保留，不会自动挪到今天。"));
@@ -94,7 +95,7 @@ public sealed partial class MainWindow
         {
             legacy!["category"] = category;
             page.Children.Add(Label("旧版日期日页（独立来源，保留原文）"));
-            page.Children.Add(Button("打开旧版日页", () => EditAsync("legacy", legacy!.AsObject(), $"/api/v1/daily-notes/{day}?category={category}")));
+            page.Children.Add(Button("打开旧版日页", () => OpenLegacyNoteFromDayAsync(legacy!.AsObject(), day, category)));
         }
     }
     private async Task NoteActionsAsync(JsonObject row)

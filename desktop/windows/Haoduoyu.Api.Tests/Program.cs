@@ -64,6 +64,11 @@ if (args is ["--article-verification-contract", var verificationFixturePath])
     await ArticleVerificationContract.RunAsync(verificationFixturePath);
     return;
 }
+if (args is ["--note-history-contract", var noteHistoryFixturePath])
+{
+    await NoteHistoryContract.RunAsync(noteHistoryFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);
