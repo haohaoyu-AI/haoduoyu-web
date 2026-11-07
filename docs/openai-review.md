@@ -1,6 +1,6 @@
 # OpenAI API cumulative V字 review
 
-This feature is a separate private, manual analysis flow. It does not schedule daily work, publish articles, modify source records, or write to the legacy deletable AI-report collection. Every explicit run creates a separate Beijing-day record; days without runs remain empty.
+This feature is a separate manual analysis flow. In the explicitly enabled public-business workspace, visitors can trigger analysis, read its safe diary views and edit its complete instructions without administrator login. It does not schedule daily work, publish articles, modify source records, or write to the legacy deletable AI-report collection. Every explicit run creates a separate Beijing-day record; days without runs remain empty.
 
 ## Server configuration and authentication
 
@@ -9,7 +9,9 @@ This feature is a separate private, manual analysis flow. It does not schedule d
 - `OPENAI_REVIEW_MODEL`: explicit Responses-compatible model identifier. There is no guessed default or configurable provider URL.
 - Existing `SITE_ORIGIN`, session authentication and CSRF checks still apply.
 
-All `/api/v1/openai-review/*` routes require that owner's authenticated session. Every write requires same-origin CSRF. Public-business mode, `X-Public-Business`, general API keys and other users do not grant this capability. Configuration reports `configured` only when key and model are syntactically present. `connectivity: "untested"` does **not** promise current secret connectivity; `last_success_at` records historical successful analysis. Changing the server key is not treated as a new verified connection.
+When `PUBLIC_BUSINESS_MODE=1`, `/api/v1/openai-review/*` accepts an anonymous actor scoped only to the configured owner and V字. Public writes require the exact site origin and `X-Public-Business: 1`; these checks are not visitor authentication. Valid owner sessions still require CSRF, valid other-owner sessions and all Bearer headers are rejected, and expired or malformed cookies recover as anonymous only in public mode. When public mode is off, the owner's authenticated session remains mandatory. This actor never grants account, key, backup or other administrator access.
+
+Public access means any visitor can use the shared analysis quota, view reports and change instructions affecting later analyses and cumulative conclusions. The operation limits below are not a dollar budget or a guarantee against abuse. Configuration reports `configured` only when key and model are syntactically present. `connectivity: "untested"` does **not** promise current secret connectivity; `last_success_at` records historical successful analysis. Changing the server key is not treated as a new verified connection.
 
 The only outbound endpoint is `https://api.openai.com/v1/responses`, with redirect refusal, `store:false` and explicit model. No real provider call or secret configuration is part of local tests.
 
@@ -45,7 +47,7 @@ A bounded function tool reads only that pinned capture or this owner's earlier s
 - At most4 provider calls per run,45seconds per call,6000 output tokens per call; no transport retry. At most3 historical tool calls, one each round,5 results and48KiB per tool result. Tool queries that cannot fit report truncation explicitly.
 - An unknown/timeout or process interruption keeps the single owner/account lock. After5minutes, a still-running record is presented as uncertain on read without mutating or redispatching it. Provider5xx and408 results are conservative uncertain outcomes. Provider rejection, incomplete structured output or exhausted analysis budget records a failed run, without checkpoint advancement.
 - Explicit release acknowledges the outcome may already have been billed. It keeps an uncertain record, sets `released_at` and frees the lock. It does not fetch, retry, or generate another report. A separate explicit new-run click is required. Late output from a released run cannot update the summary or report.
-- Releasing an absent UUID inserts a failed operational cancellation receipt. This solves transport failure before reservation: a delayed original POST can never later dispatch that cancelled ID. Repeated release/replay returns the same receipt. Live nonstale or successful runs cannot be released.
+- Releasing an absent UUID inserts a failed operational cancellation receipt. This solves transport failure before reservation: a delayed original POST can never later dispatch that cancelled ID. Repeated release/replay returns the same receipt. New cancellation receipts have separate durable limits of 20 per Beijing day and a 30-second interval. A rate rejection retains the pending ID for read-only checks. Live nonstale or successful runs cannot be released; a run older than five minutes cannot dispatch another provider round.
 - A successful provider response followed by unknown database-save outcome is not automatically called again. Read the existing UUID first. Logs/API errors contain safe fixed messages only.
 
 D1 documents a2,000,000-byte maximum row/string/BLOB; the1.5MiB claim bound plus final output leaves margin. Source: https://developers.cloudflare.com/d1/platform/limits/ (checked2026-11-08). Responses continuation: https://developers.openai.com/api/docs/guides/function-calling and https://developers.openai.com/api/docs/guides/migrate-to-responses?api-mode=responses .
@@ -54,6 +56,6 @@ D1 documents a2,000,000-byte maximum row/string/BLOB; the1.5MiB claim bound plus
 
 Migration `drizzle/0020_openai_review.sql` is additive: two tables and two indexes, including the partial unique unresolved-run lock. No runtime DDL is permitted. Apply the exact reviewed migration to the intended D1 only through the separately guarded operator release procedure. The existing Worker-only deployment inherits bindings and does not itself apply migrations. Deploying routes before the migration is not a complete rollout. Configure secrets/model only through the authorized private environment setup, then separately approve any real paid smoke analysis. Never put keys in instructions, examples, commit logs, backup data or browser fields.
 
-Backup formatv16 includes existing eight review source tables and the two new private analysis tables, preserving historical v1–v15 restore compatibility. The former v15 omitted review source tables; tests explicitly cover the repaired v16 owner-scoped export/restore. Active/uncertain rows restore still fenced: recovery is explicit, not replay.
+Backup formatv16 includes existing eight review source tables and the two new analysis tables, preserving historical v1–v15 restore compatibility. Backup access remains administrator-only. The former v15 omitted review source tables; tests explicitly cover the repaired v16 owner-scoped export/restore. Active/uncertain rows restore still fenced: recovery is explicit, not replay.
 
 Local mocked validation: `node --test tests/openai-review.test.mjs tests/openai-review-migration-backup.test.mjs`, full `npm test`, build and migration inventory gates. No production connectivity can be inferred from mocked tests.

@@ -1,5 +1,7 @@
 export const OPENAI_TABS = Object.freeze(['reminders', 'reports', 'openai']);
-export const openAiOwnerSession = me => Boolean(me?.id && !me.publicBusiness);
+// /auth/me supplies either the existing public-business identity or a signed-in session.
+// The server remains authoritative for the configured access mode and permissions.
+export const openAiSessionAvailable = me => Boolean(me?.id);
 export const openAiRunActive = run => ['running'].includes(run?.status);
 export const openAiRunFinished = run => ['succeeded', 'failed'].includes(run?.status) || Boolean(run?.released_at);
 export function openAiRunDay(run) {

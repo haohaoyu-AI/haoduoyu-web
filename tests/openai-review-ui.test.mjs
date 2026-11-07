@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {openAiRunDay, openAiDiaryLink, openAiRunsForDate, readOpenAiRuns, openAiOwnerSession,
+import {openAiRunDay, openAiDiaryLink, openAiRunsForDate, readOpenAiRuns, openAiSessionAvailable,
   openAiDraft, editOpenAiDraft, saveOpenAiDraft} from '../web/core/openai-review-state.mjs';
 import {createOpenAiRunner} from '../web/core/openai-review-runner.mjs';
 import {openAiReviewTimeout} from '../web/openai-review-controller.mjs';
@@ -9,6 +9,8 @@ import {renderOpenAiRun, renderOpenAiSettings, renderOpenAiReviewPanel, openAiRu
 import {renderContentReviewContent} from '../web/pages/content-review.mjs';
 import {normalizeReviewData} from '../web/core/review-data.mjs';
 import {state} from '../web/core/state.mjs';
+import {apiNetwork} from '../web/core/api.mjs';
+import {paintOpenAiDiary} from '../web/pages/ai-reports.mjs';
 import {readRoute, updateRoute} from '../web/core/router.mjs';
 const saved = {account:'V字',version:1,instructions:'完整指令',configured:true,model:'fixture-model'};
 const completed = {id:'run-1',status:'succeeded',created_at:'2026-11-07T17:00:00Z',report_markdown:'# 结果\n- 有效',model:'fixture-model'};
@@ -53,12 +55,13 @@ test('diary Markdown and metadata escape script, URL, attribute and internal-fie
   assert.match(html,/2026\/11\/08 01:00:00（北京时间）/);
 });
 
-test('public, absent and nonconfigured sessions cannot render a paid action or prompt editor',()=>{
-  assert.equal(openAiOwnerSession({id:'owner',publicBusiness:true}),false);
-  assert.equal(openAiOwnerSession(null),false);
-  assert.equal(openAiOwnerSession({id:'owner',publicBusiness:false}),true);
+test('public-business and signed-in sessions use OpenAI while absent and nonconfigured sessions remain gated',()=>{
+  assert.equal(openAiSessionAvailable({id:'public-business',publicBusiness:true}),true);
+  assert.equal(openAiSessionAvailable({publicBusiness:true}),false);
+  assert.equal(openAiSessionAvailable(null),false);
+  assert.equal(openAiSessionAvailable({id:'owner',publicBusiness:false}),true);
   for(const html of [renderOpenAiReviewPanel({owner:false}),renderOpenAiSettings({owner:false})]) {
-    assert.match(html,/管理员登录/);assert.doesNotMatch(html,/<textarea|data-openai-action="(?:start|full)"/);
+    assert.match(html,/>登录<\/a>/);assert.doesNotMatch(html,/<textarea|data-openai-action="(?:start|full)"/);
   }
   const html=renderOpenAiReviewPanel({owner:true,config:{...saved,configured:false}});
   assert.match(html,/尚未配置/);assert.match(html,/data-openai-action="start"\s+disabled/);
@@ -189,7 +192,7 @@ test('AI module and date deep links survive router normalization and browser nav
   } finally { Object.assign(globalThis,previous); }
 });
 
-test('private operations bypass offline transport and do not alter global public-business permissions',async()=>{
+test('OpenAI operations bypass offline transport and do not alter global public-business permissions',async()=>{
   const files=await Promise.all(['web/openai-review-controller.mjs','web/openai-settings-controller.mjs'].map(path=>readFile(path,'utf8')));
   for(const source of files) {assert.match(source,/apiNetwork/);assert.match(source,/suppressAuthRedirect: true/);assert.doesNotMatch(source,/outbox|offlineRequest/);}
   const controller=await readFile('web/controller.mjs','utf8');
@@ -254,4 +257,77 @@ test('paid analysis timeout allows four provider rounds plus overhead without ex
     ['/openai-review/runs/run-1',{}],['/openai-review/config',{}],['/openai-review/config',{method:'PATCH'}],
     ['/openai-review/runs/run-1/release',{method:'POST'}]
   ]) assert.equal(openAiReviewTimeout(path,options),75000);
+});
+
+
+test('public review offers 求助API without settings links and preserves the independent editable instructions',()=>{
+  const owner=openAiSessionAvailable({id:'public-business',publicBusiness:true});
+  for(const busy of [false,true]) {
+    const html=renderOpenAiReviewPanel({owner,config:saved,busy});
+    assert.match(html,/data-openai-action="start"[\s\S]*?>求助API<\/button>/);
+    assert.doesNotMatch(html,/管理员|分析指令与设置|page=settings|一键 OpenAI 分析/);
+    assert.match(html,/<details class="openai-review-options"><summary>更多分析选项<\/summary>[\s\S]*?data-openai-action="full"[\s\S]*?<\/details>/);
+  }
+  const settings=renderOpenAiSettings({owner,draft:openAiDraft(saved)});
+  assert.match(settings,/<textarea[^>]*id="openai-instructions"[\s\S]*?>完整指令<\/textarea>/);
+  assert.match(settings,/保存指令/);assert.doesNotMatch(settings,/仅管理员|管理员登录|page=login/);
+});
+
+test('public diary still renders only the safe report view and does not request login',()=>{
+  const previous=globalThis.document,nodes=new Map();
+  globalThis.document={querySelector:()=>({querySelector(selector){
+    if(!nodes.has(selector))nodes.set(selector,{});return nodes.get(selector);
+  }})};
+  try {
+    paintOpenAiDiary([{...completed,pending_verification:'INTERNAL',report_markdown:'<script>bad</script>'}],
+      {owner:openAiSessionAvailable({id:'public-business',publicBusiness:true})});
+    const html=nodes.get('#openai-diary-list').innerHTML;
+    assert.match(html,/&lt;script&gt;bad&lt;\/script&gt;/);
+    assert.doesNotMatch(html,/<script>|INTERNAL|page=login|管理员/);
+  } finally {globalThis.document=previous;}
+});
+
+test('public OpenAI writes use the existing same-origin header; private sessions retain CSRF and genuine auth errors',async()=>{
+  const previous={fetch:globalThis.fetch,me:state.me},calls=[];
+  globalThis.fetch=async(url,options)=>{calls.push({url,options});return new Response(JSON.stringify({data:saved}),{status:200});};
+  try {
+    state.me={id:'public-business',publicBusiness:true};
+    for(const [path,method,body] of [
+      ['/openai-review/config','GET',undefined],['/openai-review/config','PATCH',{instructions:'new',version:1}],
+      ['/openai-review/runs','POST',{run_id:'synthetic',mode:'incremental'}],
+      ['/openai-review/runs/synthetic/release','POST',{acknowledgement:'provider_outcome_unknown_no_automatic_retry'}]
+    ]) {
+      await apiNetwork(path,{method,body,suppressAuthRedirect:true});
+      const {options}=calls.at(-1);
+      assert.equal(options.credentials,'same-origin');
+      assert.equal(options.headers['X-Public-Business'],method==='GET'?undefined:'1');
+      assert.equal(options.headers['X-CSRF-Token'],undefined);assert.equal(options.headers.Authorization,undefined);
+    }
+    state.me={id:'signed-in',csrfToken:'synthetic-csrf'};
+    await apiNetwork('/openai-review/config',{method:'PATCH',body:{instructions:'private',version:1},suppressAuthRedirect:true});
+    assert.equal(calls.at(-1).options.headers['X-CSRF-Token'],'synthetic-csrf');
+    assert.equal(calls.at(-1).options.headers['X-Public-Business'],undefined);
+    for(const status of [401,403]) {
+      let attempts=0;
+      globalThis.fetch=async()=>{attempts++;return new Response(JSON.stringify({error:{code:'FORBIDDEN',message:'真实权限错误'}}),{status});};
+      await assert.rejects(apiNetwork('/openai-review/config',{suppressAuthRedirect:true}),error=>error.status===status&&error.message==='真实权限错误');
+      assert.equal(attempts,1);assert.equal(state.me.publicBusiness,undefined);
+    }
+  } finally {globalThis.fetch=previous.fetch;state.me=previous.me;}
+});
+
+test('public recovery throttling keeps its request and permits only GET checks until explicit retry',async()=>{
+  const calls=[],{runner}=fixture(async(path,options)=>{
+    calls.push({path,method:options?.method||'GET'});
+    if(options?.method==='POST')throw Object.assign(new Error('取消请求过多'),{status:429,code:'OPENAI_REVIEW_RECOVERY_RATE_LIMIT'});
+    throw Object.assign(new Error('not found'),{status:404});
+  });
+  runner.adopt({...completed,status:'uncertain'});
+  await runner.release();assert.equal(runner.state.pendingId,completed.id);
+  assert.match(runner.state.error,/取消请求过多.*稍后只读核查状态/);
+  await runner.start();assert.equal(calls.length,1);
+  await runner.recover();assert.deepEqual(calls.map(x=>x.method),['POST','GET']);
+  const running=fixture(async()=>{assert.fail('normal running release must not send a request');}).runner;
+  running.adopt({...completed,status:'running'});await running.release();
+  assert.doesNotMatch(renderOpenAiReviewPanel({owner:true,config:saved,...running.state}),/data-openai-action="release"/);
 });

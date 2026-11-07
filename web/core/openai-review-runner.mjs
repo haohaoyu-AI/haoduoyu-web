@@ -60,7 +60,11 @@ export function createOpenAiRunner({request, storage, key, onChange = () => {}, 
       accept(await request('/openai-review/runs/' + encodeURIComponent(state.pendingId) + '/release', {
         method: 'POST', body: {acknowledgement: 'provider_outcome_unknown_no_automatic_retry'}
       }));
-    } catch (error) { state.error = error.message || '解除结果尚未确认，请核查状态。'; }
+    } catch (error) {
+      state.error = error.message || '解除结果尚未确认，请核查状态。';
+      if (['OPENAI_REVIEW_RECOVERY_RATE_LIMIT', 'OPENAI_REVIEW_PUBLIC_RATE_LIMIT'].includes(error.code))
+        state.error += ' 请稍后只读核查状态，不会自动重复提交。';
+    }
     finally { state.busy = false; change(); }
   }
   return {state, start, recover, release, adopt(run) { accept(run); change(); }, dispose() { active = false; }};

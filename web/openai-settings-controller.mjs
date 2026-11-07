@@ -1,6 +1,6 @@
 import {apiNetwork} from './core/api.mjs';
 import {runtime, state} from './core/state.mjs';
-import {openAiOwnerSession, openAiDraft, editOpenAiDraft, saveOpenAiDraft} from './core/openai-review-state.mjs';
+import {openAiSessionAvailable, openAiDraft, editOpenAiDraft, saveOpenAiDraft} from './core/openai-review-state.mjs';
 import {renderOpenAiSettings} from './pages/openai-review.mjs';
 
 let session = '', vm = {}, registered = false, sequence = 0;
@@ -21,7 +21,7 @@ function retain() {
 }
 function reset() {
   if (session === identity()) return;
-  session = identity(); vm = {owner: openAiOwnerSession(state.me), loading: false, draft: null, error: ''};
+  session = identity(); vm = {owner: openAiSessionAvailable(state.me), loading: false, draft: null, error: ''};
 }
 function paint() {
   if (session !== identity() || state.page !== 'settings' || state.settingsTab !== 'openai') return;

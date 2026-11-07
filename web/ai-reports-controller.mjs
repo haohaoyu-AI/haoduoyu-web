@@ -1,4 +1,4 @@
-import {OPENAI_TABS, openAiOwnerSession, readOpenAiRuns} from './core/openai-review-state.mjs';
+import {OPENAI_TABS, openAiSessionAvailable, readOpenAiRuns} from './core/openai-review-state.mjs';
 import {updateRoute} from './core/router.mjs';
 import {api, apiNetwork} from './core/api.mjs';
 import {runtime,state} from './core/state.mjs';
@@ -113,7 +113,7 @@ function registerAiReportEvents() {
 
 async function loadOpenAiDiary(date, current) {
   if (state.aiDailyTab !== 'openai') return;
-  const owner = openAiOwnerSession(state.me);
+  const owner = openAiSessionAvailable(state.me);
   paintOpenAiDiary([], {owner, loading: owner});
   if (!owner) return;
   try {

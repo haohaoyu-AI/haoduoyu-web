@@ -2,7 +2,7 @@ import {e} from '../core/dom.mjs';
 import {renderSafeMarkdown} from '../core/safe-markdown.mjs';
 import {openAiDiaryLink, openAiRunActive} from '../core/openai-review-state.mjs';
 
-export const openAiLogin = '<p class="hint">请先<a href="?page=login">管理员登录</a>，再查看或使用 OpenAI API。</p>';
+export const openAiLogin = '<p class="hint">请先<a href="?page=login">登录</a>，再查看或使用 OpenAI API。</p>';
 const timestamp = value => {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('zh-CN', {
@@ -37,8 +37,7 @@ export function renderOpenAiRun(run) {
     ${openAiRunActive(run) ? '<p role="status">分析进行中。可在复盘页核查状态，无需再次发起。</p>' : ''}</article>`;
 }
 export function renderOpenAiReviewPanel(vm = {}) {
-  const header = '<div class="openai-review-heading"><h2>OpenAI API 复盘</h2>' +
-    '<a href="?page=settings&amp;tab=openai">分析指令与设置</a></div>';
+  const header = '<div class="openai-review-heading"><h2>OpenAI API 复盘</h2></div>';
   if (!vm.owner) return header + openAiLogin;
   const busy = vm.loading || vm.busy, disabled = busy || !vm.config?.configured || Boolean(vm.pendingId);
   const status = vm.loading ? '正在读取分析配置…' : !vm.config ? '暂时无法读取配置。' :
@@ -46,8 +45,9 @@ export function renderOpenAiReviewPanel(vm = {}) {
   return header + `<p class="hint">首次分析全部已登记文章和指标；之后结合最新摘要，比较新增文章、数据变化与历史统计。</p>
     <p class="hint">${e(status)}${vm.config?.model ? ' · ' + e(vm.config.model) : ''}</p>
     <div class="openai-review-actions"><button class="btn primary" type="button" data-openai-action="start"
-    ${disabled ? 'disabled' : ''}>${vm.busy ? '正在处理…' : '一键 OpenAI 分析'}</button>
-    <button class="btn" type="button" data-openai-action="full" ${disabled ? 'disabled' : ''}>重新全量分析</button>
+    ${disabled ? 'disabled' : ''} aria-busy="${Boolean(vm.busy)}">求助API</button>
+    <details class="openai-review-options"><summary>更多分析选项</summary>
+    <button class="btn" type="button" data-openai-action="full" ${disabled ? 'disabled' : ''}>重新全量分析</button></details>
     ${vm.pendingId ? `<button class="btn" type="button" data-openai-action="check" ${busy ? 'disabled' : ''}>核查状态</button>` : ''}
     ${vm.pendingId && (vm.notFound || vm.run?.status === 'uncertain') ?
       `<button class="btn" type="button" data-openai-action="release" ${busy ? 'disabled' : ''}>结束本次状态核查</button>` : ''}
@@ -62,7 +62,7 @@ export function renderOpenAiSettings(vm = {}) {
   const status = vm.loading ? '正在读取…' : !draft ? '配置读取失败。' :
     draft.saved.configured ? '可发起分析' : '尚未配置 OpenAI API';
   return `<section id="openai-settings" class="card panel"><h2>OpenAI API</h2><p class="hint">${e(status)}</p>
-    <p class="hint">仅管理员可编辑。密钥由服务器管理，此处不显示或录入密钥。</p>
+    <p class="hint">密钥由服务器管理，此处不显示或录入密钥。</p>
     ${draft ? renderInstructions(draft) : ''}<p role="alert">${e(vm.error || '')}</p>
     ${!draft && !vm.loading ? '<button class="btn" type="button" data-openai-action="reload-settings">重新读取</button>' : ''}</section>`;
 }

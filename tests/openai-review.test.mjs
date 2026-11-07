@@ -34,9 +34,9 @@ function fixture(t) {
 }
 const start=(app,id=randomUUID(),mode='incremental')=>app.call('runs','POST',{run_id:id,mode});
 
-test('owner session only: public mode, other owners, explicit auth headers and CSRF cannot grant paid access',async t=>{
+test('explicit identities stay strict: other owners, bearer headers and invalid CSRF never fall back to public access',async t=>{
   const app=fixture(t),a=app.article();app.snapshot(a);
-  for(const headers of [{},{Origin:'http://localhost','X-Public-Business':'1'},{Cookie:'matrix_session=invalid'}, {...app.auth,Authorization:''},{...app.auth,Authorization:'Bearer hdy_'+randomBytes(32).toString('hex')}]){
+  for(const headers of [{...app.auth,Authorization:''},{...app.auth,Authorization:'Bearer hdy_'+randomBytes(32).toString('hex')}]){
     assert.ok([401,403].includes((await app.call('config','GET',undefined,headers)).status));
     assert.ok([401,403].includes((await app.call('runs','POST',{run_id:randomUUID(),mode:'incremental'},headers)).status));
   }
@@ -44,6 +44,10 @@ test('owner session only: public mode, other owners, explicit auth headers and C
   assert.equal((await app.call('runs','POST',{run_id:randomUUID(),mode:'full'},{...app.auth,Origin:'https://wrong.invalid'})).status,403);
   const other=randomUUID(),token=randomBytes(32).toString('hex');app.sql.prepare('INSERT INTO matrix_users(id,username,password_hash,created_at) VALUES(?,?,?,?)').run(other,'other','x',new Date().toISOString());app.sql.prepare('INSERT INTO matrix_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(digest(token),other,new Date(Date.now()+60000).toISOString());
   assert.equal((await app.call('config','GET',undefined,{Cookie:'matrix_session='+token})).status,403);
+  const foreignHeaders={Origin:'http://localhost','X-Public-Business':'1',Cookie:'matrix_session='+token,'X-CSRF-Token':csrfFor(token)};
+  assert.equal((await app.call('config','PATCH',{instructions:'x',version:0},foreignHeaders)).status,403);
+  assert.equal((await app.call('runs','POST',{run_id:randomUUID(),mode:'full'},foreignHeaders)).status,403);
+  assert.equal((await app.call('runs/'+randomUUID()+'/release','POST',{acknowledgement:'provider_outcome_unknown_no_automatic_retry'},foreignHeaders)).status,403);
   assert.equal(app.requests.length,0);
 });
 
@@ -154,11 +158,124 @@ test('historical capture retrieval recovers deleted evidence by explicit success
   await start(app);assert.ok(JSON.parse(app.requests.at(-1).body.input.find(item=>item.type==='function_call_output').output).error);
 });
 
-test('HTTP routing does not expose OpenAI configuration through public-business mode',async t=>{
+test('HTTP routing opens only the requested OpenAI module and never elevates public requests to administration',async t=>{
   const app=fixture(t),worker=(await import('../src/worker.mjs')).default;
   for(const method of ['GET','PATCH']) {
     const request=new Request('http://localhost/api/v1/openai-review/config',{method,headers:{Origin:'http://localhost','Content-Type':'application/json','X-Public-Business':'1'},body:method==='PATCH'?JSON.stringify({instructions:'unauthorized',version:0}):undefined});
-    const response=await worker.fetch(request,{...app.env,SITE_ORIGIN:'http://localhost',DB:app.db});assert.equal(response.status,401);assert.ok(response.headers.get('X-Request-Id'));
+    const response=await worker.fetch(request,{...app.env,SITE_ORIGIN:'http://localhost',DB:app.db});assert.equal(response.status,200);assert.ok(response.headers.get('X-Request-Id'));
+  }
+  for(const [path,method,body] of [['api-keys','GET'],['backup','GET'],['auth/password','PUT',{currentPassword:'x',newPassword:'y'}]]) {
+    const request=new Request('http://localhost/api/v1/'+path,{method,headers:{Origin:'http://localhost','Content-Type':'application/json','X-Public-Business':'1'},body:body?JSON.stringify(body):undefined});
+    assert.equal((await worker.fetch(request,{...app.env,SITE_ORIGIN:'http://localhost',DB:app.db})).status,401);
   }
   assert.equal(app.requests.length,0);
+});
+
+
+const publicHeaders={Origin:'http://localhost','X-Public-Business':'1'};
+const publicStart=(app,id=randomUUID(),mode='incremental',settings=app.env)=>app.call('runs','POST',{run_id:id,mode},publicHeaders,settings);
+const releaseAck={acknowledgement:'provider_outcome_unknown_no_automatic_retry'};
+
+test('public mode supports full prompt edit, paid-run mock and safe diary while private mode rejects anonymous access',async t=>{
+  const app=fixture(t);app.article('Public authorized V article');app.article('Other account canary','Other');
+  const config=await app.call('config','GET',undefined,{});assert.equal(config.status,200);assert.equal(config.data.account,'V字');
+  const saved=await app.call('config','PATCH',{instructions:'公开编辑的新完整指令',version:0},publicHeaders);assert.equal(saved.status,200);assert.equal(saved.data.version,1);
+  assert.equal((await app.call('config','PATCH',{instructions:'过期版本',version:0},publicHeaders)).error.code,'VERSION_CONFLICT');
+  const run=await publicStart(app);assert.equal(run.data.status,'succeeded');assert.equal(run.data.instruction_version,1);assert.equal(app.requests.length,1);
+  const list=await app.call('runs','GET',undefined,{}),detail=await app.call('runs/'+run.data.id,'GET',undefined,{});assert.equal(list.data.items.length,1);assert.deepEqual(detail.data,run.data);
+  for(const raw of ['source_manifest_json','source_data_json','input_json','summary_json','cumulative_summary','internal-only-pending-canary',app.secret,'Other account canary'])assert.ok(!JSON.stringify(list).includes(raw));
+  const evidence=JSON.parse(app.requests[0].body.input[1].content);assert.equal(evidence.changes.articles.upserted.length,1);assert.equal(evidence.changes.articles.upserted[0].title,'Public authorized V article');
+  const audits=app.sql.prepare("SELECT actor FROM matrix_audit WHERE action LIKE 'openai-review.%'").all();assert.ok(audits.length>=3);assert.ok(audits.every(row=>row.actor==='public-openai-review:'+app.owner));
+  const privateEnv={...app.env,PUBLIC_BUSINESS_MODE:'0'};
+  for(const path of ['config','runs','runs/'+run.data.id])assert.equal((await app.call(path,'GET',undefined,{},privateEnv)).status,401);
+  assert.equal((await app.call('config','PATCH',{instructions:'unauthorized',version:1},publicHeaders,privateEnv)).status,401);
+  assert.equal((await publicStart(app,randomUUID(),'incremental',privateEnv)).status,401);
+  assert.equal((await app.call('runs/'+randomUUID()+'/release','POST',releaseAck,publicHeaders,privateEnv)).status,401);
+  assert.equal((await app.call('config','GET',undefined,app.auth,privateEnv)).status,200);
+});
+
+test('every public write requires exact same origin and explicit public header, and missing config never calls provider',async t=>{
+  const app=fixture(t);app.article();
+  for(const headers of [{},{Origin:'http://localhost'},{'X-Public-Business':'1'},{...publicHeaders,Origin:'https://wrong.invalid'},{...publicHeaders,Origin:'null'},{...publicHeaders,'X-Public-Business':'0'}]) {
+    for(const [path,method,body] of [['config','PATCH',{instructions:'x',version:0}],['runs','POST',{run_id:randomUUID(),mode:'full'}],['runs/'+randomUUID()+'/release','POST',releaseAck]])assert.equal((await app.call(path,method,body,headers)).status,403);
+  }
+  for(const field of ['OPENAI_API_KEY','OPENAI_REVIEW_MODEL']) {
+    const env={...app.env,[field]:undefined};assert.equal((await app.call('config','GET',undefined,{},env)).data.configured,false);
+    assert.equal((await publicStart(app,randomUUID(),'full',env)).error.code,'OPENAI_REVIEW_NOT_CONFIGURED');
+  }
+  const key='hdy_'+randomBytes(32).toString('hex');app.sql.prepare('INSERT INTO matrix_api_keys(id,name,token_hash,account_ids_json,permissions_json,created_at) VALUES(?,?,?,?,?,?)').run(randomUUID(),'business key',digest(key),'[]','["read","write"]',new Date().toISOString());
+  for(const path of ['config','runs'])assert.equal((await app.call(path,'GET',undefined,{Authorization:'Bearer '+key})).status,403);
+  assert.equal((await app.call('config','PATCH',{instructions:'x',version:0},{...publicHeaders,Authorization:'Bearer '+key})).status,403);
+  assert.equal(app.requests.length,0);assert.equal(app.sql.prepare('SELECT count(*) n FROM matrix_openai_review_runs').get().n,0);
+});
+
+test('public cancellation has durable daily and interval bounds, idempotent replay, and fences late originals',async t=>{
+  const app=fixture(t);app.article();app.advance(3600000);const ids=[];
+  for(let i=0;i<20;i++) {
+    const id=randomUUID();ids.push(id);const cancelled=await app.call('runs/'+id+'/release','POST',releaseAck,publicHeaders);assert.equal(cancelled.status,200);assert.ok(cancelled.data.released_at);
+    assert.deepEqual((await app.call('runs/'+id+'/release','POST',releaseAck,publicHeaders)).data,cancelled.data);
+    assert.deepEqual((await publicStart(app,id,'full')).data,cancelled.data);
+    if(i===0)assert.equal((await app.call('runs/'+randomUUID()+'/release','POST',releaseAck,publicHeaders)).error.code,'OPENAI_REVIEW_RECOVERY_RATE_LIMIT');
+    app.advance(31000);
+  }
+  const extra=await app.call('runs/'+randomUUID()+'/release','POST',releaseAck,publicHeaders);assert.equal(extra.status,429);assert.equal(extra.error.code,'OPENAI_REVIEW_RECOVERY_RATE_LIMIT');
+  assert.equal(app.sql.prepare('SELECT count(*) n FROM matrix_openai_review_runs').get().n,20);assert.equal(app.requests.length,0);
+  assert.equal((await publicStart(app)).data.status,'succeeded','unstarted cancellation quota is separate from paid quota');
+  assert.equal(app.requests.length,1);
+});
+
+test('public release cannot kill an active or successful run; uncertain release and duplicate retries never double-charge',async t=>{
+  const app=fixture(t);app.article();let unblock,entered;const began=new Promise(resolve=>{entered=resolve;});const blocked=new Promise(resolve=>{unblock=resolve;});app.provider(async()=>{entered();await blocked;return providerResponse();});
+  const id=randomUUID(),pending=publicStart(app,id);await began;
+  assert.equal((await app.call('runs/'+id+'/release','POST',releaseAck,publicHeaders)).error.code,'OPENAI_REVIEW_NOT_RELEASABLE');
+  assert.equal((await app.call('runs/'+randomUUID()+'/release','POST',releaseAck,publicHeaders)).data.status,'failed');
+  assert.equal((await app.call('runs/'+id,'GET',undefined,{})).data.status,'running','cancelling an unrelated unknown UUID never releases another run');
+  assert.equal((await publicStart(app,id)).status,202);assert.equal((await publicStart(app)).error.run_id,id);unblock();const complete=await pending;assert.equal(complete.data.status,'succeeded');
+  assert.equal((await app.call('runs/'+id+'/release','POST',releaseAck,publicHeaders)).status,409);assert.equal(app.requests.length,1);
+  app.advance(31000);app.provider(async()=>{throw Error('lost response');});const unknown=await publicStart(app);assert.equal(unknown.data.status,'uncertain');
+  const count=app.requests.length;assert.equal((await app.call('runs/'+unknown.data.id+'/release','POST',releaseAck,publicHeaders)).data.status,'uncertain');
+  assert.equal((await publicStart(app,unknown.data.id)).data.status,'uncertain');assert.equal(app.requests.length,count);
+});
+
+test('stale run cannot dispatch another provider round even without an explicit release',async t=>{
+  const app=fixture(t),id=app.article();app.provider(async()=>{app.advance(300001);return Response.json({status:'completed',output:[{type:'function_call',name:'lookup_review_evidence',call_id:'stale_call',arguments:JSON.stringify({source_run_id:null,kind:'articles',ids:[id],query:'',reason:'history check',limit:1})}]});});
+  const run=await publicStart(app);assert.equal(run.data.status,'uncertain');assert.equal(app.requests.length,1);
+  assert.equal((await publicStart(app)).error.run_id,run.data.id);
+});
+
+test('public paid requests retain persistent twenty-per-day and thirty-second shared quota',async t=>{
+  const app=fixture(t);app.article();app.advance(3600000);
+  for(let i=0;i<20;i++) {
+    const run=await publicStart(app);assert.equal(run.data.status,'succeeded');
+    if(i===0)assert.equal((await publicStart(app)).error.code,'OPENAI_REVIEW_RATE_LIMIT');
+    app.advance(31000);
+  }
+  assert.equal((await publicStart(app)).error.code,'OPENAI_REVIEW_RATE_LIMIT');assert.equal(app.requests.length,20);
+});
+
+
+test('expired or malformed cookies recover as anonymous only in public mode, without treating valid foreign identity as anonymous',async t=>{
+  const app=fixture(t);app.article();
+  const expired=randomBytes(32).toString('hex');app.sql.prepare('INSERT INTO matrix_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(digest(expired),app.owner,'2000-01-01T00:00:00.000Z');
+  for(const cookie of ['matrix_session=invalid','matrix_session='+expired]) {
+    const headers={...publicHeaders,Cookie:cookie};
+    assert.equal((await app.call('config','GET',undefined,headers)).status,200);
+    assert.equal((await app.call('runs','POST',{run_id:randomUUID(),mode:'full'},{Cookie:cookie,Origin:'http://localhost'})).status,403);
+    assert.equal((await app.call('config','GET',undefined,headers,{...app.env,PUBLIC_BUSINESS_MODE:'0'})).status,401);
+  }
+  const result=await app.call('runs','POST',{run_id:randomUUID(),mode:'incremental'},{...publicHeaders,Cookie:'matrix_session='+expired});assert.equal(result.data.status,'succeeded');
+  const validOwnerWithoutCsrf={...publicHeaders,Cookie:app.auth.Cookie};
+  assert.equal((await app.call('config','PATCH',{instructions:'x',version:1},validOwnerWithoutCsrf)).status,403,'valid owner session still needs actual session CSRF, not the public header');
+  for(const extra of [{model:'not-allowed'},{api_key:'not-allowed'}])assert.equal((await app.call('config','PATCH',{instructions:'x',version:1,...extra},publicHeaders)).status,400);
+});
+
+test('public cancellation atomically fences an original POST still waiting for its request body',async t=>{
+  const app=fixture(t);app.article();const id=randomUUID();let controller,calls=0;
+  const stream=new ReadableStream({start(value){controller=value;}});
+  const req=new Request('http://localhost/api/v1/openai-review/runs',{method:'POST',headers:{...publicHeaders,'Content-Type':'application/json'},body:stream,duplex:'half'});
+  const pending=handleOpenaiReview(app.db,req,'/openai-review/runs',app.env,'http://localhost',undefined,{clock:()=>Date.parse('2026-11-07T15:59:00.000Z'),request:async()=>{calls++;return providerResponse();}});
+  await new Promise(resolve=>setTimeout(resolve,0));
+  const cancelled=await app.call('runs/'+id+'/release','POST',releaseAck,publicHeaders);assert.equal(cancelled.data.status,'failed');
+  controller.enqueue(new TextEncoder().encode(JSON.stringify({run_id:id,mode:'full'})));controller.close();
+  const result=await (await pending).json();assert.deepEqual(result.data,cancelled.data);assert.equal(calls,0);assert.equal(app.requests.length,0);
 });

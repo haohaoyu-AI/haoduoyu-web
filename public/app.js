@@ -5652,7 +5652,7 @@ async function loadReconciliation(context) {
 
 // web/core/openai-review-state.mjs
 var OPENAI_TABS = Object.freeze(["reminders", "reports", "openai"]);
-var openAiOwnerSession = (me) => Boolean(me?.id && !me.publicBusiness);
+var openAiSessionAvailable = (me) => Boolean(me?.id);
 var openAiRunActive = (run2) => ["running"].includes(run2?.status);
 var openAiRunFinished = (run2) => ["succeeded", "failed"].includes(run2?.status) || Boolean(run2?.released_at);
 function openAiRunDay(run2) {
@@ -5815,7 +5815,7 @@ function renderSafeMarkdown(value) {
 
 // web/pages/openai-review.mjs
 init_dom();
-var openAiLogin = '<p class="hint">请先<a href="?page=login">管理员登录</a>，再查看或使用 OpenAI API。</p>';
+var openAiLogin = '<p class="hint">请先<a href="?page=login">登录</a>，再查看或使用 OpenAI API。</p>';
 var timestamp3 = (value) => {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("zh-CN", {
@@ -5855,15 +5855,16 @@ function renderOpenAiRun(run2) {
     ${openAiRunActive(run2) ? '<p role="status">分析进行中。可在复盘页核查状态，无需再次发起。</p>' : ""}</article>`;
 }
 function renderOpenAiReviewPanel(vm4 = {}) {
-  const header = '<div class="openai-review-heading"><h2>OpenAI API 复盘</h2><a href="?page=settings&amp;tab=openai">分析指令与设置</a></div>';
+  const header = '<div class="openai-review-heading"><h2>OpenAI API 复盘</h2></div>';
   if (!vm4.owner) return header + openAiLogin;
   const busy = vm4.loading || vm4.busy, disabled = busy || !vm4.config?.configured || Boolean(vm4.pendingId);
   const status = vm4.loading ? "正在读取分析配置…" : !vm4.config ? "暂时无法读取配置。" : vm4.config.configured ? "可发起分析" : "尚未配置 OpenAI API，暂不能发起分析。";
   return header + `<p class="hint">首次分析全部已登记文章和指标；之后结合最新摘要，比较新增文章、数据变化与历史统计。</p>
     <p class="hint">${e(status)}${vm4.config?.model ? " · " + e(vm4.config.model) : ""}</p>
     <div class="openai-review-actions"><button class="btn primary" type="button" data-openai-action="start"
-    ${disabled ? "disabled" : ""}>${vm4.busy ? "正在处理…" : "一键 OpenAI 分析"}</button>
-    <button class="btn" type="button" data-openai-action="full" ${disabled ? "disabled" : ""}>重新全量分析</button>
+    ${disabled ? "disabled" : ""} aria-busy="${Boolean(vm4.busy)}">求助API</button>
+    <details class="openai-review-options"><summary>更多分析选项</summary>
+    <button class="btn" type="button" data-openai-action="full" ${disabled ? "disabled" : ""}>重新全量分析</button></details>
     ${vm4.pendingId ? `<button class="btn" type="button" data-openai-action="check" ${busy ? "disabled" : ""}>核查状态</button>` : ""}
     ${vm4.pendingId && (vm4.notFound || vm4.run?.status === "uncertain") ? `<button class="btn" type="button" data-openai-action="release" ${busy ? "disabled" : ""}>结束本次状态核查</button>` : ""}
     ${!vm4.config && !vm4.loading ? '<button class="btn" type="button" data-openai-action="reload">重新读取</button>' : ""}</div>
@@ -5876,7 +5877,7 @@ function renderOpenAiSettings(vm4 = {}) {
   const draft = vm4.draft;
   const status = vm4.loading ? "正在读取…" : !draft ? "配置读取失败。" : draft.saved.configured ? "可发起分析" : "尚未配置 OpenAI API";
   return `<section id="openai-settings" class="card panel"><h2>OpenAI API</h2><p class="hint">${e(status)}</p>
-    <p class="hint">仅管理员可编辑。密钥由服务器管理，此处不显示或录入密钥。</p>
+    <p class="hint">密钥由服务器管理，此处不显示或录入密钥。</p>
     ${draft ? renderInstructions(draft) : ""}<p role="alert">${e(vm4.error || "")}</p>
     ${!draft && !vm4.loading ? '<button class="btn" type="button" data-openai-action="reload-settings">重新读取</button>' : ""}</section>`;
 }
@@ -5924,7 +5925,7 @@ function retain() {
 function reset() {
   if (session === identity4()) return;
   session = identity4();
-  vm = { owner: openAiOwnerSession(state.me), loading: false, draft: null, error: "" };
+  vm = { owner: openAiSessionAvailable(state.me), loading: false, draft: null, error: "" };
 }
 function paint() {
   if (session !== identity4() || state.page !== "settings" || state.settingsTab !== "openai") return;
@@ -12990,7 +12991,7 @@ function registerAiReportEvents() {
 }
 async function loadOpenAiDiary(date, current3) {
   if (state.aiDailyTab !== "openai") return;
-  const owner2 = openAiOwnerSession(state.me);
+  const owner2 = openAiSessionAvailable(state.me);
   paintOpenAiDiary([], { owner: owner2, loading: owner2 });
   if (!owner2) return;
   try {
@@ -14108,6 +14109,8 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
       }));
     } catch (error) {
       state2.error = error.message || "解除结果尚未确认，请核查状态。";
+      if (["OPENAI_REVIEW_RECOVERY_RATE_LIMIT", "OPENAI_REVIEW_PUBLIC_RATE_LIMIT"].includes(error.code))
+        state2.error += " 请稍后只读核查状态，不会自动重复提交。";
     } finally {
       state2.busy = false;
       change2();
@@ -14144,7 +14147,7 @@ function reset2() {
   clearTimeout(timer);
   timer = null;
   session2 = identity5();
-  vm2 = { owner: openAiOwnerSession(state.me), config: null, loading: false, error: "" };
+  vm2 = { owner: openAiSessionAvailable(state.me), config: null, loading: false, error: "" };
   if (!vm2.owner) {
     runner = null;
     return;
@@ -14191,6 +14194,7 @@ async function loadOpenAiReview() {
   const ticket = ++loadSequence, captured = session2;
   const fresh = () => ticket === loadSequence && captured === identity5();
   vm2.loading = true;
+  vm2.config = null;
   vm2.error = "";
   paintOpenAiReview();
   try {
@@ -14708,7 +14712,7 @@ function mainContent() {
     "设置分类",
     "tab",
     "page-tabs"
-  ) : ""}${state.page === "settings" && state.me?.publicBusiness ? '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${state.page === "settings" ? '<section class="card panel" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
+  ) : ""}${state.page === "settings" && state.me?.publicBusiness && state.settingsTab !== "openai" ? '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${state.page === "settings" ? '<section class="card panel" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");

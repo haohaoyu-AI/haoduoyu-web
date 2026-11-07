@@ -38,7 +38,7 @@ function mainContent() {
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented("settings-tab", Object.entries(
     state.me?.publicBusiness ? {todo: settingsTabs.todo, openai: settingsTabs.openai} :
       Object.fromEntries(Object.entries(settingsTabs).filter(([key]) => key !== "workspace"))), state.settingsTab,
-    "设置分类", "tab", "page-tabs") : ""}${state.page === "settings" && state.me?.publicBusiness ?
+    "设置分类", "tab", "page-tabs") : ""}${state.page === "settings" && state.me?.publicBusiness && state.settingsTab !== "openai" ?
     '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${state.page === "settings" ? '<section class="card panel" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {

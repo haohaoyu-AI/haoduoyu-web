@@ -1,6 +1,6 @@
 import {apiNetwork} from './core/api.mjs';
 import {runtime, state} from './core/state.mjs';
-import {openAiOwnerSession} from './core/openai-review-state.mjs';
+import {openAiSessionAvailable} from './core/openai-review-state.mjs';
 import {createOpenAiRunner} from './core/openai-review-runner.mjs';
 import {renderOpenAiReviewPanel} from './pages/openai-review.mjs';
 
@@ -19,7 +19,7 @@ async function read(path, options = {}) {
 function reset() {
   if (session === identity()) return;
   runner?.dispose(); clearTimeout(timer); timer = null; session = identity();
-  vm = {owner: openAiOwnerSession(state.me), config: null, loading: false, error: ''};
+  vm = {owner: openAiSessionAvailable(state.me), config: null, loading: false, error: ''};
   if (!vm.owner) { runner = null; return; }
   const captured = session;
   runner = createOpenAiRunner({request: read, key: `haoduoyu.openai.run.v1:${state.me.id}:V字`,
@@ -49,7 +49,7 @@ export async function loadOpenAiReview() {
   if (!vm.owner) { paintOpenAiReview(); return; }
   const ticket = ++loadSequence, captured = session;
   const fresh = () => ticket === loadSequence && captured === identity();
-  vm.loading = true; vm.error = ''; paintOpenAiReview();
+  vm.loading = true; vm.config = null; vm.error = ''; paintOpenAiReview();
   try {
     const config = await read('/openai-review/config');
     if (!fresh()) return;

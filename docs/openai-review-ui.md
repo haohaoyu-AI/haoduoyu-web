@@ -1,12 +1,12 @@
 # OpenAI API frontend
 
-The V字 content review overview contains its own analysis panel outside the article disclosure. Existing metric filters, rows, fullscreen and collapse controls are unchanged. The entry is also available when no articles have been registered; the backend rejects an empty initial input before any provider call.
+The V字 content review overview contains the 求助API button outside the article disclosure, on both mobile and desktop. It has no settings shortcut. Full baseline re-analysis remains inside a collapsed 更多分析选项 disclosure. Existing metric filters, rows, fullscreen and collapse controls are unchanged. The entry is also available when no articles have been registered; the backend rejects an empty initial input before any provider call.
 
-## Private access and truthful status
+## Public access and truthful status
 
-Public business mode shows an administrator login link. Private configuration and analysis records are requested only for a signed-in non-public session. The backend's owner check is authoritative; a non-owner session cannot load the configuration or enable a paid action. Configuration availability means key plus explicit model are configured, not that connectivity has been tested. No key input or credential value appears in the UI.
+Public business mode allows the analysis button, safe diary views and complete instruction editor without an administrator login link. Private mode still requires a signed-in session. The backend remains authoritative; a valid non-owner session cannot load the workspace or enable a paid action. Configuration availability means key plus explicit model are configured, not that connectivity has been tested. No key input or credential value appears in the UI.
 
-All OpenAI operations use apiNetwork with local auth redirect suppression. None uses the offline mutation queue. Server owner/CSRF checks remain required. Other public business permissions are unchanged.
+All OpenAI operations use apiNetwork with local auth redirect suppression. None uses the offline mutation queue. Public writes use the existing same-origin public header; owner sessions retain CSRF checks. Other public business and administrator permissions are unchanged.
 
 ## Request recovery
 
@@ -14,11 +14,11 @@ A run UUID is persisted under the owner ID and V字 before POST. A storage failu
 
 An existing in-flight run returned by the server is adopted. An explicit known preflight rejection may clear the local request because the backend guarantees no reservation/provider dispatch occurred. Unknown outcomes never silently clear the request. Local state and async rendering are isolated by owner, public-session status, and session epoch. Backend uniqueness remains the authority across browser tabs/devices.
 
-An uncertain run or a missing request ID can be explicitly ended only after a warning that the API may already have charged. The release endpoint must return a persisted server receipt before local state unlocks. For a missing ID, backend cancellation prevents a delayed original POST from dispatching. Releasing never automatically starts another analysis.
+An uncertain run or a missing request ID can be explicitly ended only after a warning that the API may already have charged. The release endpoint must return a persisted server receipt before local state unlocks. For a missing ID, backend cancellation prevents a delayed original POST from dispatching. Recovery rate limits retain the pending ID and explain read-only checking. A normal running record cannot be released. Releasing never automatically starts another analysis.
 
 ## Instructions
 
-Settings has a separate OpenAI API tab, including a public login-only entry. Editing is local until explicit Save. PATCH sends the saved version, and a conflict keeps the user's exact text. Reading the latest server version shows it beside the local edit. The user must explicitly accept the new base version before saving their edited text. Unconfirmed edits are retained per owner in localStorage and beforeunload warns; failed storage additionally guards click navigation. No private draft is restored for anonymous visitors or a different owner.
+Settings has a separate editable OpenAI API tab, available in public mode without administrator login. Each analysis still reads the latest saved instructions. Editing is local until explicit Save. PATCH sends the saved version, and a conflict keeps the user's exact text. Reading the latest server version shows it beside the local edit. The user must explicitly accept the new base version before saving their edited text. Unconfirmed edits are retained under the current session identity in localStorage and beforeunload warns; failed storage additionally guards click navigation. Public and signed-in identities use distinct local draft keys. Local drafts are device-local convenience storage, not an authenticated privacy boundary.
 
 ## Diary
 
