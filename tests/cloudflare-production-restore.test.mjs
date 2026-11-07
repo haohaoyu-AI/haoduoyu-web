@@ -74,17 +74,17 @@ test('manual restore preserves scan, build, byte checks, secret scope and produc
 });
 
 test('OpenAI review pins exact approved source, artifact and migrated production baseline',async()=>{
-  const current='430d4d02b46ef300754d7ff5a45d42c1063459c8';
-  const sourceTree='b8b2503c0dbfa7ffb5d9a70dc6c7d9942cd2109e';
-  const baseline='b7d3727a-5962-4eb0-97e1-80b36a0fabfe';
-  assert.deepEqual(openaiReviewRelease,{commit:current,tree:sourceTree,baseline,bytes:2759021,
-    sha256:'1f4c11ebe3da303478b7515daabe40e6d6738c153464203e51bafa46ef8cbe25',label:'production-openai-review-20261108'});
+  const current='fcd8185cfc8f134db75280ad54d2645cd061ecf8';
+  const sourceTree='c06e9df8fce5974850ea4e97fdda36ff942ade5e';
+  const baseline='5a5946e4-38eb-414f-8a6a-2a9bc25a27c7';
+  assert.deepEqual(openaiReviewRelease,{commit:current,tree:sourceTree,baseline,bytes:2761598,
+    sha256:'02e823e86e7465951cbf350caae1af81e700d241c0cffc0832a30172105b012a',label:'production-openai-public-20261108'});
   assert.equal(validateRequest({...env,TARGET_COMMIT:current,EXPECTED_CURRENT_VERSION:baseline}),openaiReviewRelease);
   for(const wrong of [productionRestore.baseline,previousProductionRelease.baseline,'11111111-1111-4111-8111-111111111111'])
     assert.throws(()=>validateRequest({...env,TARGET_COMMIT:current,EXPECTED_CURRENT_VERSION:wrong}));
   assert.equal(await verifyEligibility(current,{request:async()=>Response.json({sha:current,tree:{sha:sourceTree}})}),openaiReviewRelease);
   await assert.rejects(verifyEligibility(current,{request:async()=>Response.json({sha:current,tree:{sha:tree}})}));
-  assert.throws(()=>verifyWorker(Buffer.alloc(2759021),current));
+  assert.throws(()=>verifyWorker(Buffer.alloc(2761598),current));
 });
 test('OpenAI release inherits every current production gate and adds feature contracts without migration or configuration actions',async()=>{
   const y=await readFile(new URL('../.github/workflows/cloudflare-manual-release.yml',import.meta.url),'utf8');
