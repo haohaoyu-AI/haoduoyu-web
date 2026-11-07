@@ -25,7 +25,15 @@ export const previousProductionRelease=Object.freeze({
   originalBaseline:'808dbbdd-1a51-428d-9d92-54954dc05526',
   bytes:2675441,sha256:'cc810985a976267f027bfc917477e8994c9577cdeea43e224a5805ba86ac241a',
   label:'production-mobile-review-20261108'});
-const acceptedRelease=commit=>commit===productionRestore.commit?productionRestore:
+// Exact feature source; its additive D1 schema was applied separately before release.
+export const openaiReviewRelease=Object.freeze({
+  commit:'430d4d02b46ef300754d7ff5a45d42c1063459c8',
+  tree:'b8b2503c0dbfa7ffb5d9a70dc6c7d9942cd2109e',
+  baseline:'b7d3727a-5962-4eb0-97e1-80b36a0fabfe',
+  bytes:2759021,sha256:'1f4c11ebe3da303478b7515daabe40e6d6738c153464203e51bafa46ef8cbe25',
+  label:'production-openai-review-20261108'});
+const acceptedRelease=commit=>commit===openaiReviewRelease.commit?openaiReviewRelease:
+  commit===productionRestore.commit?productionRestore:
   commit===previousProductionRelease.commit?previousProductionRelease:releases[commit];
 export function validateRequest(env) {
   if(env.GITHUB_REPOSITORY!==repository||env.GITHUB_REF!=='refs/heads/main'||env.GITHUB_EVENT_NAME!=='workflow_dispatch')

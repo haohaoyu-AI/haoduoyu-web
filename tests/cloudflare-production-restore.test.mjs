@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {releases,productionRestore,previousProductionRelease,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
+import {releases,productionRestore,previousProductionRelease,openaiReviewRelease,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
 const commit='b35dd510aec0fe67a88aa02edabcd73bfda9b33f';
 const baseline='3bd46508-c1fd-4845-af7d-93afc85b7d31';
 const tree='6b3daff954b41ce78654d3832863dab800a1494a';
@@ -58,7 +58,7 @@ test('manual restore preserves scan, build, byte checks, secret scope and produc
   assert.match(yaml,/environment: cloudflare-production/);assert.match(yaml,/cancel-in-progress: false/);
   assert.match(yaml,/contents: read/);assert.match(yaml,/actions: read/);assert.match(yaml,/fetch-depth: 0/);
   assert.equal((yaml.match(/persist-credentials: false/g)||[]).length,2);
-  const sharedCondition=`if: inputs.target_commit == '${commit}' || inputs.target_commit == '${previousProductionRelease.commit}'`;
+  const sharedCondition=`if: inputs.target_commit == '${commit}' || inputs.target_commit == '${previousProductionRelease.commit}' || inputs.target_commit == '${openaiReviewRelease.commit}'`;
   assert.equal(yaml.split(sharedCondition).length-1,6,'artifact, Markdown, update recovery, author color, navigation and calendar gates cover both exact sources');
   assert.ok(yaml.includes(`          - ${previousProductionRelease.commit}\n`),'previous exact source stays available after its baseline is pinned');
   assert.ok(yaml.includes(`- name: Verify AI report author colors\n        ${sharedCondition}\n`));
@@ -71,4 +71,27 @@ test('manual restore preserves scan, build, byte checks, secret scope and produc
   assert.doesNotMatch(yaml,/continue-on-error|wrangler (?:login|secret|d1)|migrations apply|secret put|contents: write/);
   const scan=await readFile(new URL('../.github/actions/gitleaks/action.yml',import.meta.url),'utf8');
   assert.match(scan,/--all --full-history -m --root/);assert.match(scan,/--ignore-gitleaks-allow/);
+});
+
+test('OpenAI review pins exact approved source, artifact and migrated production baseline',async()=>{
+  const current='430d4d02b46ef300754d7ff5a45d42c1063459c8';
+  const sourceTree='b8b2503c0dbfa7ffb5d9a70dc6c7d9942cd2109e';
+  const baseline='b7d3727a-5962-4eb0-97e1-80b36a0fabfe';
+  assert.deepEqual(openaiReviewRelease,{commit:current,tree:sourceTree,baseline,bytes:2759021,
+    sha256:'1f4c11ebe3da303478b7515daabe40e6d6738c153464203e51bafa46ef8cbe25',label:'production-openai-review-20261108'});
+  assert.equal(validateRequest({...env,TARGET_COMMIT:current,EXPECTED_CURRENT_VERSION:baseline}),openaiReviewRelease);
+  for(const wrong of [productionRestore.baseline,previousProductionRelease.baseline,'11111111-1111-4111-8111-111111111111'])
+    assert.throws(()=>validateRequest({...env,TARGET_COMMIT:current,EXPECTED_CURRENT_VERSION:wrong}));
+  assert.equal(await verifyEligibility(current,{request:async()=>Response.json({sha:current,tree:{sha:sourceTree}})}),openaiReviewRelease);
+  await assert.rejects(verifyEligibility(current,{request:async()=>Response.json({sha:current,tree:{sha:tree}})}));
+  assert.throws(()=>verifyWorker(Buffer.alloc(2759021),current));
+});
+test('OpenAI release inherits every current production gate and adds feature contracts without migration or configuration actions',async()=>{
+  const y=await readFile(new URL('../.github/workflows/cloudflare-manual-release.yml',import.meta.url),'utf8');
+  const c=openaiReviewRelease.commit;
+  assert.ok(y.includes(`default: ${c}`));assert.ok(y.includes(`          - ${c}\n`));
+  assert.equal(y.split(`inputs.target_commit == '${c}'`).length-1,8);
+  const feature='node --test tests/openai-review.test.mjs tests/openai-review-ui.test.mjs tests/openai-review-migration-backup.test.mjs';
+  assert.ok(y.includes(feature));assert.ok(y.indexOf(feature)<y.indexOf('CLOUDFLARE_API_TOKEN:'));
+  assert.doesNotMatch(y,/cloudflare-d1-openai|openai-migration|d1 database|migrations apply|secret put|OPENAI_API_KEY:|OPENAI_REVIEW_MODEL:/);
 });
