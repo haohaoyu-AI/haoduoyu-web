@@ -274,3 +274,19 @@ ff7cd64584b4c54776d70b653d332c15d57292c5:desktop/windows/Haoduoyu.Api.Tests/Fixt
 34bff302e128c92f46f00e76d59f9b44b9b7242e:.ci/public-assets.json:generic-api-key:10
 34bff302e128c92f46f00e76d59f9b44b9b7242e:.ci/public-assets.json:generic-api-key:16
 34bff302e128c92f46f00e76d59f9b44b9b7242e:tests/oct28-small-fix-projection.mjs:generic-api-key:13
+
+# Exact historical Windows report content digests, independently recomputed
+# from their recorded source Git blobs. No path/rule-wide or future exclusions.
+29505120897e7d38d48db74c83c7247ed186e591:docs/windows-desktop-stage13-evidence-20261107.json:generic-api-key:23
+a73c74cd943048623d779378cefe35d89995ec7a:desktop/windows/Haoduoyu.Api.Tests/Fixtures/template-archive-contract-34bff302.json:generic-api-key:10
+a73c74cd943048623d779378cefe35d89995ec7a:desktop/windows/Haoduoyu.Api.Tests/Fixtures/template-archive-contract-34bff302.json:generic-api-key:16
+a73c74cd943048623d779378cefe35d89995ec7a:desktop/windows/Haoduoyu.Api.Tests/Fixtures/template-archive-contract-report.json:generic-api-key:117
+a73c74cd943048623d779378cefe35d89995ec7a:desktop/windows/Haoduoyu.Api.Tests/Fixtures/template-archive-contract-report.json:generic-api-key:123
+a73c74cd943048623d779378cefe35d89995ec7a:desktop/windows/Haoduoyu.Api.Tests/Fixtures/template-archive-contract-report.json:generic-api-key:132
+a73c74cd943048623d779378cefe35d89995ec7a:desktop/windows/Haoduoyu.Api.Tests/Fixtures/template-archive-contract-report.json:generic-api-key:137
+c7cadcb1e1ccd94968c7a5b3cc3929c548181cef:docs/windows-desktop-stage14-evidence-20261107.json:generic-api-key:26
+c7cadcb1e1ccd94968c7a5b3cc3929c548181cef:docs/windows-desktop-stage14-evidence-20261107.json:generic-api-key:28
+fc9b122b03ba5b224a4a2eac11e668bc4482499d:desktop/windows/Haoduoyu.Api.Tests/Fixtures/todo-note-contract-34bff302.json:generic-api-key:9
+fc9b122b03ba5b224a4a2eac11e668bc4482499d:desktop/windows/Haoduoyu.Api.Tests/Fixtures/todo-note-contract-report.json:generic-api-key:168
+fc9b122b03ba5b224a4a2eac11e668bc4482499d:desktop/windows/Haoduoyu.Api.Tests/Fixtures/todo-note-contract-report.json:generic-api-key:172
+fc9b122b03ba5b224a4a2eac11e668bc4482499d:desktop/windows/Haoduoyu.Api.Tests/Fixtures/todo-note-contract-report.json:generic-api-key:56

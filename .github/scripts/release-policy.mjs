@@ -12,12 +12,23 @@ export const releases=Object.freeze({
     ci:40269439403,bytes:1269372,sha256:'61e30101b744f56bfe10418cb536b661e9bac5ca8270041b510f6222434c4149',label:'round5-rollback'})
 });
 export const productionRestore=Object.freeze({
+  commit:'a02a261df0b687b360f2b322d374d04a7a8c218f',
+  tree:'36aac1b367a93f46c981dff745206e1ada3d7d70',
+  baseline:'fb304eb0-304b-4b69-98ea-bbf02a2d2e0d',
+  bytes:2668750,sha256:'0484226a6f547616e21d6c864cb0d3d2d257cadafff35e2dced7e3fc156dfcde',
+  label:'production-ai-report-author-colors-20261107'});
+// Preserve the preceding exact artifact as a rollback, but never infer its
+// future baseline. Pin baseline to the confirmed new production version UUID
+// in a separate reviewed controls update after the forward release succeeds.
+export const previousProductionRelease=Object.freeze({
   commit:'81cd30a2276c058668ff48198be1bc3d116d9839',
   tree:'3c2c20c6e4e80ddb09e1d5876a1925ef9679ca2c',
-  baseline:'b086dec1-050d-4aeb-a59a-8a82c633d3ef',
+  baseline:null,
+  originalBaseline:'b086dec1-050d-4aeb-a59a-8a82c633d3ef',
   bytes:2668225,sha256:'c3a217454f9459bf18cd902ec7c3b758755e67811cad38ed9175d2578cd270b9',
   label:'production-reminder-markdown-20261107'});
-const acceptedRelease=commit=>commit===productionRestore.commit?productionRestore:releases[commit];
+const acceptedRelease=commit=>commit===productionRestore.commit?productionRestore:
+  commit===previousProductionRelease.commit?previousProductionRelease:releases[commit];
 export function validateRequest(env) {
   if(env.GITHUB_REPOSITORY!==repository||env.GITHUB_REF!=='refs/heads/main'||env.GITHUB_EVENT_NAME!=='workflow_dispatch')
     deny('Release requires this repository, main branch and manual workflow_dispatch.');
@@ -26,6 +37,8 @@ export function validateRequest(env) {
     deny('An explicitly verified current production version UUID is required.');
   const release=acceptedRelease(env.TARGET_COMMIT);
   if(!release)deny('Target commit is not an explicitly approved release or rollback.');
+  if(release.tree&&!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(release.baseline||''))
+    deny('The exact production rollback baseline must be pinned before this release can run.');
   if(release.baseline&&env.EXPECTED_CURRENT_VERSION!==release.baseline)
     deny('The production restore requires its exact independently verified baseline version.');
   return release;
