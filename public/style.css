@@ -571,6 +571,10 @@ progress::-moz-progress-bar { background:var(--ink-2); }
 .ai-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .25rem; max-width: 32rem; margin: 1rem auto 1.5rem; text-align: center; }
 .ai-calendar-grid > span { padding: .5rem 0; }
 .ai-calendar-grid button[aria-current="date"] { background: #a45042; color: white; border-radius: 50%; }
+.ai-report-author--gpt { color:#146c54; }
+.ai-report-author--grok { color:#9a4b16; }
+.ai-report-author--gemini { color:#5b4ab2; }
+.ai-report-author--other { color:#315f8c; }
 .ai-report-markdown { min-width:0; overflow-wrap:anywhere; line-height:var(--line-height-prose); }
 .ai-report-markdown > * + * { margin-top:.65rem; }
 .ai-report-markdown :is(ul,ol) { padding-left:1.5rem; }
