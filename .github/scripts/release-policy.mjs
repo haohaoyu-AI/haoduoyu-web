@@ -21,7 +21,7 @@ export const productionRestore=Object.freeze({
 export const previousProductionRelease=Object.freeze({
   commit:'8d65a1d514e7e6c2472b2035e2197d2824d0dbb7',
   tree:'077316393069b81be4933ec199faf60732f4de0a',
-  baseline:'c2029c32-a700-45d4-b9e8-cb7a065338b0',
+  baseline:'808dbbdd-1a51-428d-9d92-54954dc05526',
   originalBaseline:'1daf9321-97ff-49f3-ae75-dbed5e5039b0',
   bytes:2668707,sha256:'879dfb6db5759e8fb7ad54e7b1b8de06f8ddef4cc44721fa0033478aa6a7d945',
   label:'production-mobile-daily-cleanup-20261108'});
