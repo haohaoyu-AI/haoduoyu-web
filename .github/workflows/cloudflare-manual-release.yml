@@ -6,10 +6,10 @@ on:
         description: Exact accepted source commit (production restore or historical release)
         required: true
         type: choice
-        default: 2627fc1f52e426169a5c8bc9939c5d74e8c7a24d
+        default: b35dd510aec0fe67a88aa02edabcd73bfda9b33f
         options:
+          - b35dd510aec0fe67a88aa02edabcd73bfda9b33f
           - 2627fc1f52e426169a5c8bc9939c5d74e8c7a24d
-          - 2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d
           - 947bc782ea70e7808f6e7de523e5977818b292df
           - 16ff80ef2d857676d81b7c219110c820de5af72b
       expected_current_version:
@@ -67,35 +67,35 @@ jobs:
         working-directory: source
         run: npm run build
       - name: Verify restored source artifacts
-        if: inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d'
+        if: inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d'
         working-directory: source
         run: npm run check:artifacts
       - name: Verify safe Markdown for reports and daily reminders
-        if: inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d'
+        if: inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d'
         working-directory: source
         run: node --test tests/ai-report-markdown.test.mjs tests/ai-reports-navigation.test.mjs tests/ai-reminder-markdown.test.mjs
       - name: Verify update recovery and draft preservation
-        if: inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d'
+        if: inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d'
         working-directory: source
         run: node --test tests/sw-update-recovery.test.mjs tests/unify-service-worker.test.mjs tests/unify-memo-controller-refresh.test.mjs
       - name: Verify AI report author colors
-        if: inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d'
+        if: inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d'
         working-directory: source
         run: node --test tests/ai-report-author-colors.test.mjs
       - name: Verify mobile navigation cleanup
-        if: inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d'
+        if: inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d'
         working-directory: source
         run: node --test --test-name-pattern='phone bottom navigation|mobile-only stylesheet' tests/unify-mobile.test.mjs
       - name: Verify compact phone calendar layout and navigation
-        if: inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d' || inputs.target_commit == '2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d'
+        if: inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f' || inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d'
         working-directory: source
         run: |
           node --test tests/mobile-calendar-layout.test.mjs
           node --test --test-name-pattern='compact phone calendar' tests/daily-todos-ui.test.mjs
       - name: Verify compact mobile article review
-        if: inputs.target_commit == '2627fc1f52e426169a5c8bc9939c5d74e8c7a24d'
+        if: inputs.target_commit == 'b35dd510aec0fe67a88aa02edabcd73bfda9b33f'
         working-directory: source
-        run: node --test tests/mobile-review-layout.test.mjs
+        run: node --test tests/mobile-review-layout.test.mjs tests/mobile-review-collapse.test.mjs
       - name: Verify production release guards
         run: node --test tests/cloudflare-production-restore.test.mjs tests/cloudflare-publish.test.mjs
       - name: Verify accepted Worker bytes

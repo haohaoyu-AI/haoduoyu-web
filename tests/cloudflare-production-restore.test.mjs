@@ -2,19 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {releases,productionRestore,previousProductionRelease,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
-const commit='2627fc1f52e426169a5c8bc9939c5d74e8c7a24d';
-const baseline='808dbbdd-1a51-428d-9d92-54954dc05526';
-const tree='449c3df468d03f9ee1534451fcf4b7f8d8bf4b82';
+const commit='b35dd510aec0fe67a88aa02edabcd73bfda9b33f';
+const baseline='3bd46508-c1fd-4845-af7d-93afc85b7d31';
+const tree='6b3daff954b41ce78654d3832863dab800a1494a';
 const env={GITHUB_REPOSITORY:repository,GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',
   TARGET_COMMIT:commit,LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:baseline};
 test('production restore is pinned to one source tree, artifact and current production version',()=>{
   assert.equal(validateRequest(env),productionRestore);
-  assert.equal(productionRestore.tree,tree);assert.equal(productionRestore.bytes,2675441);
-  assert.equal(productionRestore.sha256,'cc810985a976267f027bfc917477e8994c9577cdeea43e224a5805ba86ac241a');
+  assert.equal(productionRestore.tree,tree);assert.equal(productionRestore.bytes,2680619);
+  assert.equal(productionRestore.sha256,'f5271840e542b7d133b5e996a198e1c0a8387ef3ca6c4d45cdb5193dbfffa2eb');
   for(const [key,value] of Object.entries({GITHUB_REPOSITORY:'other/repo',GITHUB_REF:'refs/heads/other',GITHUB_EVENT_NAME:'push',
     TARGET_COMMIT:'main',LOCAL_UPLOAD_STOPPED:'false',EXPECTED_CURRENT_VERSION:'83512373-c500-47c3-a451-7dde59d2174b'}))
     assert.throws(()=>validateRequest({...env,[key]:value}));
-  assert.throws(()=>verifyWorker(Buffer.alloc(2675441),commit));
+  assert.throws(()=>verifyWorker(Buffer.alloc(2680619),commit));
 });
 test('restored source identity is checked through a read-only exact-commit lookup',async()=>{
   const good={sha:commit,tree:{sha:tree}};
@@ -29,20 +29,20 @@ test('restored source identity is checked through a read-only exact-commit looku
   await assert.rejects(verifyEligibility('main',{request}));
 });
 test('previous production rollback retains its exact source and artifact and requires the independently verified new baseline',async()=>{
-  const previous='2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d';
-  const previousTree='f8e1477888e347365f1b6de25813bb2f388dfc15';
+  const previous='2627fc1f52e426169a5c8bc9939c5d74e8c7a24d';
+  const previousTree='449c3df468d03f9ee1534451fcf4b7f8d8bf4b82';
   const rollbackBaseline='3bd46508-c1fd-4845-af7d-93afc85b7d31';
   assert.deepEqual(previousProductionRelease,{commit:previous,tree:previousTree,baseline:rollbackBaseline,
-    originalBaseline:'c2029c32-a700-45d4-b9e8-cb7a065338b0',bytes:2671740,
-    sha256:'9b03bc4b799d9ed6445e96766b2702cf4b068b38b1f7b36ac1486025dcdfa8f7',
-    label:'production-mobile-calendar-20261108'});
+    originalBaseline:'808dbbdd-1a51-428d-9d92-54954dc05526',bytes:2675441,
+    sha256:'cc810985a976267f027bfc917477e8994c9577cdeea43e224a5805ba86ac241a',
+    label:'production-mobile-review-20261108'});
   assert.equal(validateRequest({...env,TARGET_COMMIT:previous,EXPECTED_CURRENT_VERSION:rollbackBaseline}),previousProductionRelease);
   for(const version of [baseline,previousProductionRelease.originalBaseline,'11111111-1111-4111-8111-111111111111'].filter(version=>version!==rollbackBaseline))
     assert.throws(()=>validateRequest({...env,TARGET_COMMIT:previous,EXPECTED_CURRENT_VERSION:version}),/exact independently verified baseline/);
   assert.equal(await verifyEligibility(previous,{request:async()=>Response.json({sha:previous,tree:{sha:previousTree}})}),
     previousProductionRelease);
   await assert.rejects(verifyEligibility(previous,{request:async()=>Response.json({sha:previous,tree:{sha:tree}})}));
-  assert.throws(()=>verifyWorker(Buffer.alloc(2671740),previous));
+  assert.throws(()=>verifyWorker(Buffer.alloc(2675441),previous));
 });
 test('historical releases retain their exact successful Foundation CI gate',async()=>{
   for(const old of Object.keys(releases).filter(key=>key!==commit)){
