@@ -18,7 +18,7 @@
     "artifact_downloaded": false,
     "job_logs_read": false
   },
-  "product_source_commit": null,
+  "product_source_commit": "dcc0591fafda3861533b6662eacb7ae3396f5fb9",
   "local_validation": {
     "sdk": "10.0.403",
     "host": "Linux x64",
@@ -58,11 +58,18 @@
   "new_native_window_cases": 2,
   "native_window_cases_run_on_linux": false,
   "windows_ci": {
-    "run_id": null,
-    "status": "not_started",
-    "conclusion": null,
+    "run_id": 42411724579,
+    "job_id": 128521106271,
+    "head_sha": "dcc0591fafda3861533b6662eacb7ae3396f5fb9",
+    "status": "completed",
+    "conclusion": "success",
     "job_logs_read": false,
-    "artifacts_downloaded": false
+    "artifacts_downloaded": false,
+    "all_returned_steps_success": true,
+    "run_updated_at": "2026-11-07T20:38:59Z",
+    "artifact_id": 13589294807,
+    "artifact_metadata_bytes": 68833387,
+    "artifact_expires_at": "2026-11-10T20:38:54Z"
   },
   "validation_limits": [
     "Existing Forbidden job-log and artifact 403 stop boundaries retained; no alternate route attempted.",
@@ -73,5 +80,17 @@
   "code_review": {
     "blocking_findings": 0,
     "followup": "Connected-flag observation and asynchronous flush-failure coverage strengthened; second midnight during an awaited page read remains a dynamic test gap."
+  },
+  "local_tested_commit": "2991805185785eadef998051a9f18c17f6c3d1a7",
+  "desktop_tree": "494be509373067866c64f3f9d713098d42657fae",
+  "root_source_tree": "db7b8c54e01d69853badbe641d137ce63f6a318f",
+  "local_tested_and_published_source_tree_equal": true,
+  "publication": {
+    "user_explicit_approval_received": true,
+    "git_cli_attempt_exit": 128,
+    "git_cli_failure": "Authentication unavailable: could not read Username for https://github.com",
+    "method": "Existing connected GitHub app; identical source tree and expected-parent non-force fast-forward",
+    "remote_head_readback": "dcc0591fafda3861533b6662eacb7ae3396f5fb9",
+    "no_force_push": true
   }
 }
