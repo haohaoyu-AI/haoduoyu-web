@@ -12348,6 +12348,96 @@ function registerReminderEvents() {
   });
 }
 
+// web/core/safe-markdown.mjs
+init_dom();
+function safeLink(value) {
+  try {
+    if (/[\u0000-\u0020\u007f]/.test(value)) return "";
+    const url = new URL(value);
+    return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+function inlineToken(part) {
+  const link = part.match(/^\[([^\[\]\n]+)\]\(([^()\n]+)\)$/);
+  if (link) {
+    const href = safeLink(link[2]);
+    return href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(link[1])}</a>` : e(part);
+  }
+  if (part.startsWith("**") || part.startsWith("__")) return `<strong>${e(part.slice(2, -2))}</strong>`;
+  if (part.startsWith("`")) return `<code>${e(part.slice(1, -1))}</code>`;
+  return `<em>${e(part.slice(1, -1))}</em>`;
+}
+function inline(value) {
+  const text = String(value);
+  const tokens = /\[[^\[\]\n]+\]\([^()\n]+\)|\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`/g;
+  let output = "", offset = 0;
+  for (const match of text.matchAll(tokens)) {
+    output += e(text.slice(offset, match.index)) + inlineToken(match[0]);
+    offset = match.index + match[0].length;
+  }
+  return output + e(text.slice(offset));
+}
+function renderSafeMarkdown(value) {
+  const lines = String(value ?? "").replace(/\r\n?/g, "\n").split("\n");
+  let out = "", list2 = "", paragraph = [], code = false;
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      out += "<p>" + paragraph.map(inline).join("<br>") + "</p>";
+      paragraph = [];
+    }
+  };
+  const closeList = () => {
+    if (list2) {
+      out += `</${list2}>`;
+      list2 = "";
+    }
+  };
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) {
+      flushParagraph();
+      closeList();
+      out += code ? "</code></pre>" : "<pre><code>";
+      code = !code;
+      continue;
+    }
+    if (code) {
+      out += e(line) + "\n";
+      continue;
+    }
+    const item = line.match(/^\s*(?:(- |\* |\+ )|([0-9]{1,8})[.)] )(.*)$/);
+    if (item) {
+      flushParagraph();
+      const type = item[2] ? "ol" : "ul";
+      if (list2 !== type) {
+        closeList();
+        list2 = type;
+        out += type === "ol" ? `<ol start="${Number(item[2])}">` : "<ul>";
+      }
+      out += `<li>${inline(item[3])}</li>`;
+      continue;
+    }
+    closeList();
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      const level = Math.min(heading[1].length + 2, 6);
+      out += `<h${level}>${inline(heading[2])}</h${level}>`;
+      continue;
+    }
+    if (!line.trim()) {
+      flushParagraph();
+      continue;
+    }
+    paragraph.push(line);
+  }
+  flushParagraph();
+  closeList();
+  if (code) out += "</code></pre>";
+  return out;
+}
+
 // web/pages/ai-reports.mjs
 init_dom();
 init_daily_notes_state();
@@ -12438,7 +12528,7 @@ function paintAiReports(items, error = "", loading = false, selectedDate2 = dail
     const stamp2 = validDate ? `${submissionDay} ${timeFormatter.format(date)}（北京时间）` : String(row.created_at ?? "未知");
     const author = String(row.author ?? "");
     const group = reportGroup(author);
-    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp2)}"><p><strong>${e(author)}：</strong><br><br>${e(body2).replace(/\n/g, "<br>")}</p></article>`);
+    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp2)}"><p><strong>${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body2)}</div></article>`);
   }
   for (const [name, entries] of Object.entries(groups)) {
     if (name !== "其他作者" || entries.length) rows.push(`<section>${name === "Gemini" || name === "GPT" ? "" : `<h3>${name}</h3>`}${entries.length ? entries.join("") : "<p>暂无汇报</p>"}</section>`);
@@ -13272,7 +13362,7 @@ function safeReviewUrl(value) {
     return "";
   }
 }
-function inline(text) {
+function inline2(text) {
   return String(text).split(/(\[[^\]\n]+\]\([^\)\n]+\)|\*\*[^*\n]+\*\*|`[^`\n]+`)/g).map((part) => {
     const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (link) {
@@ -13307,7 +13397,7 @@ function renderReviewMarkdown(value) {
         out += "<ul>";
         list2 = true;
       }
-      out += `<li>${inline(item[1])}</li>`;
+      out += `<li>${inline2(item[1])}</li>`;
       continue;
     }
     if (list2) {
@@ -13317,8 +13407,8 @@ function renderReviewMarkdown(value) {
     const heading = line.match(/^(#{1,4})\s+(.+)$/);
     if (heading) {
       const h = Math.min(heading[1].length + 1, 5);
-      out += `<h${h}>${inline(heading[2])}</h${h}>`;
-    } else if (line.trim()) out += /^>\s?/.test(line) ? `<blockquote>${inline(line.replace(/^>\s?/, ""))}</blockquote>` : `<p>${inline(line)}</p>`;
+      out += `<h${h}>${inline2(heading[2])}</h${h}>`;
+    } else if (line.trim()) out += /^>\s?/.test(line) ? `<blockquote>${inline2(line.replace(/^>\s?/, ""))}</blockquote>` : `<p>${inline2(line)}</p>`;
   }
   return out + (list2 ? "</ul>" : "") + (code ? "</code></pre>" : "");
 }

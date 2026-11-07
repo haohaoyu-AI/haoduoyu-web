@@ -57,7 +57,7 @@ test('report reading distinguishes declared work dates from submission time and 
     assert.match(html, /<h3>Grok bot<\/h3>/);
     assert.doesNotMatch(html, /<h3>(?:Gemini|GPT)<\/h3>/);
     assert.match(html, /title="提交于 2026\/10\/30 11:00（北京时间）"/);
-    assert.match(html, /<strong>dot小鱼：<\/strong><br><br>完成/);
+    assert.match(html, /<strong>dot小鱼：<\/strong><\/p><div class="ai-report-markdown"><p>完成/);
     assert.match(html, /2026-02-30<br>原文保留/);
     assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.doesNotMatch(html, /<script>/);
@@ -79,7 +79,8 @@ test('report author is emphasized above four escaped, line-separated items', () 
       created_at: '2026-10-30T03:00:00Z'
     }]);
     const html = elements.get('#ai-report-list').innerHTML;
-    assert.ok(html.includes('<strong>ChatGPT-dot\u5c0f\u9c7c\uff1a</strong><br><br>1. First<br>2. Second<br>3. &lt;script&gt;alert(1)&lt;/script&gt;<br>4. Fourth'));
+    assert.match(html, /<strong>ChatGPT-dot小鱼：<\/strong><\/p><div class="ai-report-markdown"><ol start="1">/);
+    assert.match(html, /<li>3\. &lt;script&gt;alert\(1\)&lt;\/script&gt;<\/li>|<li>&lt;script&gt;alert\(1\)&lt;\/script&gt;<\/li>/);
     assert.doesNotMatch(html, /<script>/);
     assert.doesNotMatch(html, /\*\*ChatGPT-dot/);
   } finally { globalThis.document = originalDocument; }

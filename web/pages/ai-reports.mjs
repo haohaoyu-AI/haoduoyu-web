@@ -1,5 +1,6 @@
 import {e} from '../core/dom.mjs';
 import {dailyNotesToday} from '../core/daily-notes-state.mjs';
+import {renderSafeMarkdown} from '../core/safe-markdown.mjs';
 
 export function renderAiReports() {
   return `<section id="ai-reports" aria-label="AI 日报">
@@ -88,7 +89,7 @@ export function paintAiReports(items, error = '', loading = false, selectedDate 
     const author = String(row.author ?? '');
     const group = reportGroup(author);
     groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp)}">` +
-      `<p><strong>${e(author)}：</strong><br><br>${e(body).replace(/\n/g, '<br>')}</p></article>`);
+      `<p><strong>${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body)}</div></article>`);
   }
   for (const [name, entries] of Object.entries(groups)) {
     if (name !== '其他作者' || entries.length) rows.push(`<section>${name === 'Gemini' || name === 'GPT' ? '' : `<h3>${name}</h3>`}${entries.length ? entries.join('') : '<p>暂无汇报</p>'}</section>`);
