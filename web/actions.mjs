@@ -1,3 +1,5 @@
+import {openFloatingWorkbench} from "./floating-workbench.mjs";
+import {deleteUnscheduledTodo,scheduleUnscheduledTodo} from "./pages/unscheduled-todos.mjs";
 import { cancelModalRequests } from "./core/requests.mjs";
 import { navigate, publishedArticleLinks, reloadFilteredPage, renderPage, renderShell, renderMediaOverview } from "./controller.mjs";
 import { api } from "./core/api.mjs";
@@ -14,10 +16,10 @@ import { dashboardInfoBody, renderDashboard } from "./pages/dashboard.mjs";
 import { articleDetail } from "./pages/detail.mjs";
 import { renderLogin } from "./pages/login.mjs";
 import { reviewModal, reviewRecordsModal } from "./pages/reviews.mjs";
-import { accountModal, keyModal } from "./pages/settings.mjs";
+import { keyModal } from "./pages/settings.mjs";
 import { moveTodoDate, moveTodoMonth, refreshTodos, selectTodoDate, setTodoPanel, retryTodoCreate } from "./pages/todos.mjs";
-import { cancelTodoTemplateEdit, editTodoTemplate, useTodoTemplate, writeTodoTemplate } from "./pages/todo-templates.mjs";
-import { changeTodoTemplate, deleteTodo, openTodoMenu, restoreTodo } from "./pages/todo-actions.mjs";
+import { cancelTodoTemplateEdit, editTodoTemplate, useTodoTemplate, writeTodoTemplate, archiveTodoTemplate } from "./pages/todo-templates.mjs";
+import { changeTodoTemplate, deleteTodo, openTodoMenu, openTodoNote, restoreTodo } from "./pages/todo-actions.mjs";
 import { field, formEnd, renderSnapshot } from "./ui/components.mjs";
 import { replacePageContent } from "./ui/entry.mjs";
 import { setMenu } from "./ui/menu.mjs";
@@ -27,7 +29,6 @@ import { toast } from "./ui/toast.mjs";
 import {requestMemoTool} from "./memos-controller.mjs";
 function actionMissingList({ target }) {
   state.filters = { ...defaultFilters(), status: "published", data_status: target.dataset.status || "incomplete" };
-  state.account = "";
   state.listPage = 1;
   navigate("articles");
   return;
@@ -76,13 +77,6 @@ function actionSettingsTab({ target, action }) {
 async function actionArticleFilter({ action }) {
   cancelModalRequests();
   runtime.modalRequestVersion++;
-  if (runtime.searchTimer) {
-    clearTimeout(runtime.searchTimer);
-    runtime.searchTimer = null;
-    const version = runtime.renderVersion + 1;
-    await renderPage();
-    if (version !== runtime.renderVersion || state.page !== "articles" || $("#overlay").firstChild) return;
-  }
   const trigger = $("[data-action=article-filter]");
   if (trigger) popover(trigger, articleFilterPanel(), { label: "文章筛选" });
   return;
@@ -136,7 +130,7 @@ function actionAllTop({ target, event, action }) {
   state.filters = { ...defaultFilters(), status: "published",
     platform: action === "all-top" ? state.topPlatform : target.dataset.platform,
      ...action === "all-top" ? { sort: "reads", order: "desc" } : {} };
-  state.account = "";
+  if (action !== "all-top") state.account = "";
   state.listPage = 1;
   navigate("articles");
   return;
@@ -237,14 +231,6 @@ async function actionReviewTab({ target, action }) {
   }
   return;
 }
-function actionNewAccount({}) {
-  accountModal();
-  return;
-}
-function actionEditAccount({ id }) {
-  accountModal(id);
-  return;
-}
 function actionNewKey({}) {
   keyModal();
   return;
@@ -292,7 +278,7 @@ function actionResetFilters({}) {
 }
 const actions = {
   "media-menu": ({event}) => {
-    event.preventDefault(); navigate('dashboard');
+    event.preventDefault(); navigate('review');
   },
   "notes-menu": ({event}) => {
     if (state.page !== 'notes') {
@@ -303,19 +289,25 @@ const actions = {
   "media-records": reviewRecordsModal,
   "article-verify-retry": retryArticleVerification,
   "article-verify-refresh": refreshArticleVerification,
+  "todo-floating": openFloatingWorkbench,
   "todo-menu": openTodoMenu,
+  "todo-note": openTodoNote,
   "todo-delete": ({ target }) => deleteTodo(target.dataset),
   "todo-restore": ({ target }) => restoreTodo(target.dataset),
   "todo-make-template": ({ target }) => changeTodoTemplate(target.dataset),
   "todo-remove-template": ({ target }) => changeTodoTemplate(target.dataset, true),
   "todo-template-use": ({ id }) => useTodoTemplate(id),
   "todo-template-edit": ({ id }) => editTodoTemplate(id),
+  "todo-template-archive": ({ id }) => archiveTodoTemplate(id),
+  "todo-template-restore-archive": ({ id }) => archiveTodoTemplate(id, true),
   "todo-template-delete": ({ id }) => writeTodoTemplate(id, undefined, true),
   "memo-tools": ({target}) => {
     if (target.dataset.tool === "trash") navigate("settings", "workspace");
     else { requestMemoTool(target.dataset.tool); navigate("memos"); }
   },
   "todo-panel": ({target}) => setTodoPanel(target.dataset.panel),
+  "todo-future-delete": ({id}) => deleteUnscheduledTodo(id),
+  "todo-future-schedule": ({id}) => scheduleUnscheduledTodo(id),
   "todo-retry-add": retryTodoCreate,
   "todo-panel-close": () => setTodoPanel(""),
   "todo-template-cancel": cancelTodoTemplateEdit,
@@ -361,8 +353,6 @@ const actions = {
   "review-article": actionReviewArticle,
   "new-review": actionNewReview,
   "review-tab": actionReviewTab,
-  "new-account": actionNewAccount,
-  "edit-account": actionEditAccount,
   "new-key": actionNewKey,
   "select-account": actionSelectAccount,
   "record-detail": actionRecordDetail,

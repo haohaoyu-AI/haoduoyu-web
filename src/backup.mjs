@@ -3,9 +3,10 @@ import { consistentRead,ensureControl,statement } from './storage.mjs';
 import { stable } from './security.mjs';
 import {ARTICLE_PIPELINE_FIELDS,LEGACY_ARTICLE_PIPELINE_DEFAULTS,validateArticlePipelineFields} from './article-pipeline-fields.mjs';
 import {normalizeAccountProfile} from './account-profiles.mjs';
-import {NOTE_ENTRY_LIMITS,noteEntryId,noteEntryCategory} from './note-entry-validation.mjs';
+import {NOTE_ENTRY_LIMITS,noteEntryId,noteEntryCategory,noteLabel} from './note-entry-validation.mjs';
 import {WORK_REMINDER_LIMITS,workReminderId,workReminderSourceKey,workReminderSummary} from './work-reminders.mjs';
 import {snapshotDate} from './business-snapshot.mjs';
+import {reportText} from './ai-reports.mjs';
 
 // Explicit columns/order prevent a supplied backup from injecting identifiers.
 // Sessions and throttle windows are intentionally not restored: restored users
@@ -37,9 +38,19 @@ const workbenchColumns={
   work_reminders:['user_id','id','date','source_key','summary','version','change_seq','created_at','updated_at','deleted_at'],
   account_profiles:['account_id','profile_url','platform_identity','created_at','updated_at'],
 };
-const columns={...v8Columns,...workbenchColumns};
+const v9Columns={...v8Columns,...workbenchColumns};
+const v10Columns={...v9Columns,
+  unscheduled_todos:['user_id','id','text','completed','version','created_at','updated_at','deleted_at'],
+  note_labels:['user_id','name','created_at'],
+  note_entry_labels:['user_id','entry_id','label'],
+};
+const v11Columns={...v10Columns,note_entry_label_overrides:['user_id','entry_id','labels_json']};
+const v12Columns={...v11Columns,note_entry_label_sets:['user_id','entry_id','labels_json']};
+const v13Columns={...v12Columns,note_label_archives:['user_id','name','archived_at']};
+const v14Columns={...v13Columns,ai_reports:['user_id','id','author','content','created_at']};
+const columns={...v14Columns,todos:[...v14Columns.todos,'note'],todo_templates:[...v14Columns.todo_templates,'archived_at']};
 const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','daily_work_notes','memo_groups','memo_notes',
-  'note_entries','work_reminders']);
+  'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports']);
 const backupTable=name=>privateTables.has(name)||name==='account_profiles'?'matrix_'+name:name;
 const v4Columns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>name!=='daily_notes'));
 const legacyColumns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>!privateTables.has(name)));
@@ -51,7 +62,7 @@ const versionColumns=new Map([
   ['haoduoyu-matrix-d1-v1',legacyColumns],['haoduoyu-matrix-d1-v2',v2Columns],
   ['haoduoyu-matrix-d1-v3',v3Columns],['haoduoyu-matrix-d1-v4',v4Columns],
   ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',v6Columns],['haoduoyu-matrix-d1-v7',v7Columns],['haoduoyu-matrix-d1-v8',v8Columns],
-  ['haoduoyu-matrix-d1-v9',columns],
+  ['haoduoyu-matrix-d1-v9',v9Columns],['haoduoyu-matrix-d1-v10',v10Columns],['haoduoyu-matrix-d1-v11',v11Columns],['haoduoyu-matrix-d1-v12',v12Columns],['haoduoyu-matrix-d1-v13',v13Columns],['haoduoyu-matrix-d1-v14',v14Columns],['haoduoyu-matrix-d1-v15',columns],
 ]);
 function validateMemos(tables,sourceRevision) {
   const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
@@ -121,6 +132,66 @@ function validateWorkbench(tables,sourceRevision) {
     ids.add(row.account_id);urls.add(row.profile_url);identities.add(row.platform_identity);
   }
 }
+function validateNewWorkbench(tables) {
+  const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+  const stamp=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v)&&
+    Number.isFinite(Date.parse(v))&&new Date(v).toISOString()===v;
+  const users=new Set(tables.users.map(row=>row.id));
+  const invalid=()=>{throw fail(400,'INVALID_BACKUP','未定日期待办或碎碎念标签无效');};
+  const todos=new Set();
+  for(const row of tables.unscheduled_todos) {
+    const key=JSON.stringify([row.user_id,row.id]);
+    if(!uuid.test(row.user_id)||!uuid.test(row.id)||!users.has(row.user_id)||todos.has(key)||
+      typeof row.text!=='string'||!row.text.isWellFormed()||!row.text.trim()||row.text!==row.text.trim()||row.text.length>500||
+      ![0,1].includes(row.completed)||!Number.isSafeInteger(row.version)||row.version<1||
+      !stamp(row.created_at)||!stamp(row.updated_at)||row.updated_at<row.created_at||
+      row.deleted_at!==null&&(!stamp(row.deleted_at)||row.deleted_at<row.created_at||row.deleted_at>row.updated_at))invalid();
+    todos.add(key);
+  }
+  const names=new Set(),counts=new Map(),links=new Set(),entries=new Map(tables.note_entries.map(row=>[JSON.stringify([row.user_id,row.id]),row]));
+  for(const row of tables.note_labels) {
+    const key=JSON.stringify([row.user_id,row.name]),count=(counts.get(row.user_id)||0)+1;
+    if(!users.has(row.user_id)||!uuid.test(row.user_id)||typeof row.name!=='string'||!row.name.isWellFormed()||
+      row.name!==row.name.trim().normalize('NFC')||![...row.name].length||[...row.name].length>32||
+      /[\u0000-\u001f\u007f]/.test(row.name)||['生活','工作'].includes(row.name)||!stamp(row.created_at)||names.has(key)||count>200)invalid();
+    names.add(key);counts.set(row.user_id,count);
+  }
+  for(const row of tables.note_entry_labels) {
+    const key=JSON.stringify([row.user_id,row.entry_id]),entry=entries.get(key);
+    if(!entry||entry.category!=='life'||links.has(key)||!names.has(JSON.stringify([row.user_id,row.label])))invalid();
+    links.add(key);
+  }
+  const overrides=new Set();
+  for(const row of tables.note_entry_label_overrides) {
+    const key=JSON.stringify([row.user_id,row.entry_id]),entry=entries.get(key);
+    if(!entry||entry.category!=='life'||overrides.has(key)||typeof row.labels_json!=='string')invalid();
+    let values;try { values=JSON.parse(row.labels_json); if(!Array.isArray(values)||values.length>200||new Set(values).size!==values.length||values.some(value=>noteLabel(value)!==value||!names.has(JSON.stringify([row.user_id,value]))))invalid(); } catch {invalid();}
+    overrides.add(key);
+  }
+  const archives=new Set();
+  for(const row of tables.note_label_archives) {
+    const key=JSON.stringify([row.user_id,row.name]);
+    try {
+      if(!uuid.test(row.user_id)||!users.has(row.user_id)||archives.has(key)||
+        noteLabel(row.name,true)!==row.name||!stamp(row.archived_at)||
+        !['\u751f\u6d3b','\u5de5\u4f5c'].includes(row.name)&&!names.has(key))invalid();
+    } catch {invalid();}
+    archives.add(key);
+  }
+  const sets=new Set();
+  for(const row of tables.note_entry_label_sets) {
+    const key=JSON.stringify([row.user_id,row.entry_id]);
+    if(!entries.has(key)||sets.has(key)||typeof row.labels_json!=='string')invalid();
+    try {
+      const values=JSON.parse(row.labels_json);
+      if(!Array.isArray(values)||values.length>202||new Set(values).size!==values.length||values.some(value=>{
+        if(['生活','工作'].includes(value))return false;
+        return noteLabel(value)!==value||!names.has(JSON.stringify([row.user_id,value]));
+      }))invalid();
+    } catch {invalid();}
+    sets.add(key);
+  }
+}
 export async function exportBackup(db,{todoUserId}={}) {
   const data=await consistentRead(db,async(store,sourceRevision)=>{
     const tables={};
@@ -129,7 +200,7 @@ export async function exportBackup(db,{todoUserId}={}) {
       tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
         ...(scoped?[todoUserId]:[]));
     }
-    return {format:'haoduoyu-matrix-d1-v9',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
+    return {format:'haoduoyu-matrix-d1-v15',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
   });
   return {data,sha256:digest(JSON.stringify(stable(data)))};
 }
@@ -138,38 +209,58 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   if(!allowEmptyRestore) throw fail(403,'RESTORE_DISABLED','恢复只允许在显式指定的空隔离数据库执行');
   if(!versionColumns.has(backup?.data?.format)||backup.sha256!==digest(JSON.stringify(stable(backup.data)))) throw fail(400,'INVALID_BACKUP','备份格式或校验和无效');
   const expected=versionColumns.get(backup.data.format);
-  const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9'].includes(backup.data.format);
-  const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9'].includes(backup.data.format);
-  const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9'].includes(backup.data.format);
-  const sourceRevision=hasSourceRevision?backup.data.source_revision:0;
-  if(hasSourceRevision&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
+  const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
+  const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
+  const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
+  const currentFormat=backup.data.format==='haoduoyu-matrix-d1-v15';
+  const sourceRevision=(hasSourceRevision||currentFormat)?backup.data.source_revision:0;
+  if((hasSourceRevision||currentFormat)&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
     throw fail(400,'INVALID_BACKUP','备份修订号无效');
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
   const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],daily_work_notes:[],memo_groups:[],memo_notes:[],
-    note_entries:[],work_reminders:[],account_profiles:[],...supplied};
+    note_entries:[],work_reminders:[],account_profiles:[],unscheduled_todos:[],note_labels:[],note_entry_labels:[],note_entry_label_overrides:[],note_entry_label_sets:[],note_label_archives:[],ai_reports:[],...supplied};
   for(const [name,fields] of Object.entries(expected)) {
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {
       if(!row||Object.keys(row).sort().join(',')!==[...fields].sort().join(',')||fields.some(field=>row[field]!==null&&!['string','number'].includes(typeof row[field]))||
-        name==='todo_template_links'&&hasTodoTombstones&&![0,1].includes(row.created_with_todo)||
+        name==='todo_template_links'&&(hasTodoTombstones||currentFormat)&&![0,1].includes(row.created_with_todo)||
         ['daily_notes','daily_work_notes'].includes(name)&&(!Number.isSafeInteger(row.version)||row.version<1||!Number.isSafeInteger(row.change_seq)||row.change_seq<1))
         throw fail(400,'INVALID_BACKUP','备份列格式无效');
       if(name==='articles') {
-        if((row.url===null||row.published_at===null)&&!hasPipeline)throw fail(400,'INVALID_BACKUP','旧文章备份的链接和发布时间不得为空');
-        if(hasPipeline)try{validateArticlePipelineFields(row);}catch{throw fail(400,'INVALID_BACKUP','文章流水线备份无效');}
+        if((row.url===null||row.published_at===null)&&!hasPipeline&&!currentFormat)throw fail(400,'INVALID_BACKUP','旧文章备份的链接和发布时间不得为空');
+        if(hasPipeline||currentFormat)try{validateArticlePipelineFields(row);}catch{throw fail(400,'INVALID_BACKUP','文章流水线备份无效');}
       }
     }
   }
   if([...tables.daily_notes,...tables.daily_work_notes].some(row=>row.change_seq>sourceRevision))throw fail(400,'INVALID_BACKUP','碎碎念变更号超过源修订号');
   validateMemos(tables,sourceRevision);
   validateWorkbench(tables,sourceRevision);
+  validateNewWorkbench(tables);
+  const reportIds=new Set(),reportUsers=new Set(tables.users.map(row=>row.id));
+  for(const row of tables.ai_reports) {
+    const key=JSON.stringify([row.user_id,row.id]);
+    try {
+      if(!reportUsers.has(row.user_id)||!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(row.id)||reportIds.has(key)||
+        reportText(row.author,'author')!==row.author||reportText(row.content,'content')!==row.content||
+        typeof row.created_at!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(row.created_at)||
+        !Number.isFinite(Date.parse(row.created_at))||new Date(row.created_at).toISOString()!==row.created_at)throw Error();
+    } catch {throw fail(400,'INVALID_BACKUP','AI 汇报数据无效');}
+    reportIds.add(key);
+  }
   // Validate the exact historic columns before introducing compatibility defaults.
-  if(!hasTodoTombstones) {
+  if(!hasTodoTombstones&&!currentFormat) {
     tables.todos=tables.todos.map(row=>({...row,deleted_at:null}));
     tables.todo_template_links=tables.todo_template_links.map(row=>({...row,created_with_todo:1}));
   }
-  if(!hasPipeline)tables.articles=tables.articles.map(row=>({...LEGACY_ARTICLE_PIPELINE_DEFAULTS,...row}));
+  if(!hasPipeline&&!currentFormat)tables.articles=tables.articles.map(row=>({...LEGACY_ARTICLE_PIPELINE_DEFAULTS,...row}));
+  if(!currentFormat) {
+    tables.todos=tables.todos.map(row=>({...row,note:''}));
+    tables.todo_templates=tables.todo_templates.map(row=>({...row,archived_at:null}));
+  }
+  if(tables.todos.some(row=>typeof row.note!=='string'||!row.note.isWellFormed()||row.note.length>4000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(row.note)) ||
+    tables.todo_templates.some(row=>row.archived_at!==null&&(typeof row.archived_at!=='string'||!Number.isFinite(Date.parse(row.archived_at))||new Date(row.archived_at).toISOString()!==row.archived_at)))
+    throw fail(400,'INVALID_BACKUP','待办备注或归档日期无效');
   for(const name of Object.keys(columns)) {
     const count=await statement(db,`SELECT count(*) AS n FROM ${backupTable(name)}`).first();
     if(count.n) throw fail(409,'RESTORE_NOT_EMPTY','恢复目标必须为空，禁止覆盖现有数据');

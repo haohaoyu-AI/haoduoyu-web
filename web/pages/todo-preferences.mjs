@@ -1,9 +1,9 @@
 import { api } from "../core/api.mjs";
-import { $ } from "../core/dom.mjs";
+import { $, e } from "../core/dom.mjs";
 import { isRequestAbort } from "../core/requests.mjs";
 import { state } from "../core/state.mjs";
 import { todoDay, todoOwner, todoSessionActive, todosState } from "../core/todos-state.mjs";
-import { paintTodos, setTodoNotice } from "./todos.mjs";
+import { paintTodos } from "./todos.mjs";
 function todoPreferences() {
   todoDay();
   return todosState.preferences;
@@ -24,16 +24,33 @@ function renderTodoPreferences() {
   return `<div class="todo-list-options"><label for="todo-completed-mode">完成后</label>
 <select id="todo-completed-mode" class="input" ${prefs.pending || !prefs.loaded ? "disabled" : ""}>
 <option value="strike" ${mode === "strike" ? "selected" : ""}>划线显示</option>
-<option value="hide" ${mode === "hide" ? "selected" : ""}>隐藏已完成</option></select></div>`;
+<option value="hide" ${mode === "hide" ? "selected" : ""}>隐藏已完成</option></select>
+<p id="todo-preferences-error" class="form-message" role="alert">${e(prefs.error)}</p></div>`;
 }
 function paintTodoPreferences() {
   const input = $("#todo-completed-mode"), prefs = todoPreferences();
   if (!input) return;
   input.value = todoCompletedMode();
   input.disabled = Boolean(prefs.pending) || !prefs.loaded;
+  const error = $("#todo-preferences-error");
+  if (error) error.textContent = prefs.error;
+}
+async function loadTodoPreferences(context) {
+  const prefs = todoPreferences(), owner = todoOwner();
+  try {
+    const saved = await api("/todo-preferences", { context });
+    if (!todoSessionActive(owner)) return;
+    receiveTodoPreferences(saved.completed_mode, saved.version);
+    prefs.error = "";
+  } catch (error) {
+    if (todoSessionActive(owner) && !isRequestAbort(error) && !error.staleSession) prefs.error = error.message;
+  } finally {
+    if (todoSessionActive(owner)) paintTodoPreferences();
+  }
 }
 async function changeTodoCompletedMode(mode) {
-  if (!state.me || state.page !== "todos" || !["strike", "hide"].includes(mode)) return;
+  if (!state.me || !(state.page === "todos" || state.page === "settings" && state.settingsTab === "todo") ||
+    !["strike", "hide"].includes(mode)) return;
   const prefs = todoPreferences(), owner = todoOwner();
   if (prefs.pending || !prefs.loaded || mode === prefs.mode) {
     paintTodoPreferences();
@@ -42,12 +59,12 @@ async function changeTodoCompletedMode(mode) {
   prefs.pending = mode;
   prefs.error = "";
   paintTodos();
+  paintTodoPreferences();
   try {
     const saved = await api("/todo-preferences", { method: "PATCH", body: { completed_mode: mode, version: prefs.version } });
     if (!todoSessionActive(owner)) return;
     prefs.mode = saved.completed_mode;
     prefs.version = saved.version;
-    setTodoNotice(todoDay(), "已保存");
   } catch (error) {
     if (!todoSessionActive(owner) || isRequestAbort(error) || error.staleSession) return;
     prefs.error = error.message;
@@ -66,9 +83,10 @@ async function changeTodoCompletedMode(mode) {
     if (todoSessionActive(owner)) {
       prefs.pending = null;
       paintTodos();
+      paintTodoPreferences();
     }
   }
 }
 export {
-  changeTodoCompletedMode, paintTodoPreferences, receiveTodoPreferences, renderTodoPreferences, todoCompletedMode, todoPreferences
+  changeTodoCompletedMode, loadTodoPreferences, paintTodoPreferences, receiveTodoPreferences, renderTodoPreferences, todoCompletedMode, todoPreferences
 };

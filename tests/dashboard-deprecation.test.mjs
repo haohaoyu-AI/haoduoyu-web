@@ -58,7 +58,7 @@ function contract(path, result) {
 test('dashboard deprecation changes only the two OpenAPI additions and one success expression', async () => {
   const spec = JSON.parse(await readFile(new URL('../public/openapi.json', import.meta.url), 'utf8'));
   const projected = traceDocument(articlePipelineSpec(spec)), operation = projected.paths['/api/v1/dashboard'].get;
-  assert.equal(spec.info.version, '1.1.0');assert.equal(operation.deprecated, true);
+  assert.equal(spec.info.version, '1.2.0');assert.equal(operation.deprecated, true);
   assert.deepEqual(operation.responses['200'].headers, {Deprecation: DEPRECATION_HEADER});
   assert.deepEqual(dashboardSpec(projected), JSON.parse(old('public/openapi.json')));
   const source = await readFile(new URL('../src/worker.mjs', import.meta.url), 'utf8');

@@ -24,6 +24,20 @@ test('calendar presents selected-day plans and completed rows without changing t
   assert.doesNotMatch(c.run('renderTodos()'),/data-todo-id="history-completed"/);
 });
 
+test('a direct future view starts without showing the dated todo editor',()=>{
+  const c=client({search:'?page=todos&todo_panel=future'});c.run('readRoute()');
+  assert.equal(c.run('state.todoPanel'),'future');const html=c.run('renderTodos()');
+  assert.match(html, /id="todo-main" hidden/);assert.match(html, /id="todo-future"[^>]*>/);
+  assert.doesNotMatch(html, /id="todo-future"[^>]*hidden/);
+});
+
+test('opening history from a direct future link reads the selected date',async()=>{
+  const c=client({search:'?page=todos&date=2027-01-01&todo_panel=future'});
+  c.run("readRoute();paintTodos=()=>{};let todoLoads=0;loadTodos=async()=>{todoLoads++}");
+  await c.run("setTodoPanel('history')");
+  assert.equal(c.run('todoLoads'),1);assert.equal(c.run('state.todoDate'),'2027-01-01');
+});
+
 test('today-added is based on acknowledged linked items and clears after actual soft deletion',()=>{
   const c=client();
   c.run("templateState().items=[{id:'common',text:'常用'}];todoDay().adding=true;todoDay().submitting={template_id:'common'}");
@@ -457,7 +471,7 @@ test('pending completion requests cannot be duplicated and can be undone after s
   assert.equal(c.run('calls[1].options.body.version'), 2);
   assert.equal(c.run('calls[1].options.body.completed'), false);
   assert.equal(c.run('todoDay().items[0].completed'), false);
-  assert.match(c.run('renderTodos()'), /已保存/, 'successful completion change has visible confirmation');
+  assert.doesNotMatch(c.run('todoStatus(todoDay())'), /已保存/, 'routine completion does not add a save banner');
 });
 
 test('completion and undo respond before the network and roll back to saved state after a failure', async () => {
@@ -695,9 +709,16 @@ test('navigation reuses the shell within one session and rebuilds it after the u
       classList: {toggle(_name, current) {this.current = current;}},
       setAttribute(name, value) {this[name] = value;}, removeAttribute(name) {delete this[name];},
     }));
+    const shellClasses = new Set(['menu-open']);
     const shell = {
       dataset: {session: '0', user: 'synthetic-todo-user'},
-      classList: {toggle() {}}, querySelectorAll: () => links,
+      classList: {
+        contains(name) {return shellClasses.has(name);},
+        toggle(name, force = !shellClasses.has(name)) {
+          if (force) shellClasses.add(name);else shellClasses.delete(name);
+          return force;
+        },
+      }, querySelectorAll: () => links,
     };
     const main = {innerHTML: ''};
     c.nodes.set('.shell', shell);
@@ -708,6 +729,7 @@ test('navigation reuses the shell within one session and rebuilds it after the u
     });
     c.run("state.page='todos';let renders=0;renderPage=()=>{renders++};renderShell()");
     assert.equal(appWrites, 0, change);
+    assert.equal(shell.classList.contains('menu-open'), false, 'shell reuse also closes the real navigation menu state');
     assert.match(main.innerHTML, /每日待办/);
     assert.equal(links[0].classList.current, false);
     assert.equal(links[1].classList.current, true);
@@ -783,13 +805,13 @@ test('soft deletion is optimistic and single-submit, failure restores the row, a
   c.put('original', item('recover-me', '2026-10-23', {completed:true}));
   c.run(`paintTodos=()=>{};todoDay().items=[original];todoDay().loaded=true;receiveTodoPreferences('strike',0);
     let calls=[],rejectDelete;api=(path,options)=>{calls.push({path,options});return new Promise((_,reject)=>rejectDelete=reject)};
-    let deletion=deleteTodo({id:original.id,date:original.date})`);
+    let __todoFixtureDeletion=deleteTodo({id:original.id,date:original.date})`);
   await c.run('deleteTodo({id:original.id,date:original.date})');
   assert.doesNotMatch(c.run('renderTodos()'), /data-todo-id="recover-me"/);
   assert.match(c.run('renderTodos()'), /删除中/);
   assert.equal(c.run('calls.length'), 1);
   c.run("rejectDelete(new Error('Synthetic delete failed'))");
-  await c.run('deletion');
+  await c.run('__todoFixtureDeletion');
   assert.match(c.run('renderTodos()'), /data-todo-id="recover-me"/);
   assert.match(c.run('renderTodos()'), /Synthetic delete failed/);
   c.run(`api=async(path,options)=>{calls.push({path,options});return {...original,deleted_at:'2026-10-23T09:00:00Z',version:2}}`);
@@ -817,10 +839,10 @@ test('late delete results and failures cannot leak into another owner or a diffe
     c.put('original', item('private-removal', '2026-10-23'));
     c.run(`paintTodos=()=>{};todoDay().items=[original];let finish,reject;
       api=()=>new Promise((resolve,failed)=>{finish=resolve;reject=failed});
-      let deletion=deleteTodo({id:original.id,date:original.date});
+      let __todoFixtureDeletion=deleteTodo({id:original.id,date:original.date});
       resetSessionIndexes();state.me={id:'new-delete-owner'};state.todoDate='2026-10-24';todoDay().draft='Keep new draft'`);
     c.run(fail?"reject(new Error('old private deletion error'))":"finish({...original,deleted_at:'2026-10-23T09:00:00Z',version:2})");
-    await c.run('deletion');
+    await c.run('__todoFixtureDeletion');
     assert.equal(c.run('todoDay().items.length'),0);
     assert.equal(c.run('todoDay().removals.size'),0);
     assert.equal(c.run('todoDay().error'),'');

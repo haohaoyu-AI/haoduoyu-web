@@ -5,6 +5,7 @@ function todoOwner() {
   return JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null]);
 }
 function resetTodos() {
+  if (typeof window !== "undefined" && typeof Event === "function") window.dispatchEvent(new Event("haoduoyu-todos-reset"));
   todosState.owner = todoOwner();
   todosState.days.clear();
   todosState.today = bjtDate();

@@ -12,7 +12,7 @@ function templateUnavailable(store, day, id) {
 }
 function inlineTodoTemplateContent(store) {
   const day = todoDay(), label = day.date === bjtDate() ? "今日已添加" : "当日已添加";
-  const status = store.loading && !store.loaded ? '<span class="todo-template-inline-status" role="status">正在读取常用待办…</span>' : "";
+  const status = "";
   const error = store.error ? `<p class="form-message" role="alert">${e(store.error)}
 <button class="btn text small" data-action="todo-reload">重新读取</button></p>` : "";
   return status + error + store.items.map(item => {
@@ -46,6 +46,7 @@ function todoTemplateRows(store) {
 <div class="todo-template-line"><button class="todo-template-use" data-action="todo-template-use" data-id="${e(item.id)}"
 aria-label="添加：${e(item.text)}" ${templateUnavailable(store, day, item.id) ? "disabled" : ""}>${e(item.text)}</button>
 <button class="btn text small" data-action="todo-template-edit" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>改名</button>
+<button class="btn text small" data-action="todo-template-archive" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>归档</button>
 <button class="btn text small" data-action="todo-template-delete" data-id="${e(item.id)}" ${store.pending.has(item.id) ? "disabled" : ""}>删除</button></div>
 <p class="todo-template-added" data-template-added ${added(item.id) ? "" : "hidden"}>${addedLabel}</p>
 <p class="todo-template-progress"><span data-template-status>${item.habit_status === "habit" ? "习惯" : "待办"}</span> ·
@@ -58,18 +59,25 @@ function todoTemplateEditor(store) {
 <input id="todo-template-edit-text" class="input" name="text" maxlength="500" required value="${e(store.editDraft)}">
 <button class="btn" type="submit">保存</button><button class="btn text" type="button" data-action="todo-template-cancel">取消</button></form>`;
 }
-function renderTodoTemplates() {
+function renderTodoTemplates(floatingControl = "") {
   const store = templateState();
-  return `<section id="todo-templates" class="daily-todo-templates todo-view" ${state.todoPanel === "templates" ? "" : "hidden"}>
-<div class="todo-view-head"><h2>常用待办</h2><button class="btn" data-action="todo-panel-close">‹ 返回今日待办</button></div>
+  return `<section id="todo-templates" class="daily-todo-templates todo-view" aria-label="常用待办" ${state.todoPanel === "templates" ? "" : "hidden"}>
+<div class="todo-view-head">${floatingControl}</div>
 <div class="todo-template-content">
 <form id="todo-template-form" class="todo-template-form" ${store.editing ? "hidden" : ""}>
 <label for="todo-template-text" class="sr-only">新建常用待办</label>
 <input id="todo-template-text" class="input" name="text" maxlength="500" required placeholder="新建常用待办" value="${e(store.draft)}">
 <button class="btn" type="submit">保存</button></form><div id="todo-template-editor">${todoTemplateEditor(store)}</div>
 <p id="todo-template-feedback" class="form-message" role="alert">${e(store.error)}</p>
-<p id="todo-template-status" class="daily-todo-status" role="status">${store.loading ? "正在读取…" : ""}</p>
-<ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul></div></section>`;
+<p id="todo-template-status" class="daily-todo-status" role="status"></p>
+<ul id="todo-template-items" class="todo-template-items">${todoTemplateRows(store)}</ul>
+<details><summary>已归档的常用待办</summary><div id="todo-template-archived">${archivedRows(store)}</div></details></div></section>`;
+}
+function archivedRows(store) {
+  if (store.archiveError) return `<p role="status">${e(store.archiveError)}</p>`;
+  return (store.archived || []).map(item => `<div class="todo-template-line"><span>${e(item.text)}</span>
+<button class="btn text small" data-action="todo-template-restore-archive" data-id="${e(item.id)}"
+${store.pending.has(item.id) ? 'disabled' : ''}>恢复</button></div>`).join('') || '<p>暂无归档</p>';
 }
 function syncTemplateForm(root, id, value, pending) {
   const input = $(id, root);
@@ -97,7 +105,7 @@ function paintTodoTemplates() {
   syncTemplateForm(root, "#todo-template-text", store.draft, store.adding);
   syncTemplateForm(root, "#todo-template-edit-text", store.editDraft, store.pending.has(store.editing?.id));
   for (const [id, html] of Object.entries({ "todo-template-items": todoTemplateRows(store),
-    "todo-template-feedback": e(store.error), "todo-template-status": store.loading ? "正在读取…" : "" })) {
+    "todo-template-feedback": e(store.error), "todo-template-status": "", "todo-template-archived": archivedRows(store) })) {
     const node = $("#" + id, root);
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }
@@ -119,9 +127,13 @@ async function loadTodoTemplates({ ensure = false } = {}) {
   paintTodoTemplates();
   try {
     const data = await api("/todo-templates");
+    let archived;
+    try { archived=await api("/todo-templates?archived=1"); store.archiveError=''; }
+    catch { store.archiveError='归档列表暂时不可用，请联网后重试。'; }
     if (!templateReadActive(store, owner, sequence, version, date)) return;
     if (revision !== store.revision) return loadTodoTemplates();
     store.items = data.items;
+    if (archived) store.archived = archived.items;
     store.loaded = true;
   } catch (error) {
     if (templateReadActive(store, owner, sequence, version, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
@@ -131,6 +143,20 @@ async function loadTodoTemplates({ ensure = false } = {}) {
       paintTodoTemplates();
     }
   }
+}
+async function archiveTodoTemplate(id, restore=false) {
+  const store=templateState(),owner=store.owner,item=(restore ? store.archived || [] : store.items).find(row=>row.id===id);
+  if(!item||store.pending.has(id))return;
+  store.pending.add(id); store.revision++; store.error=''; paintTodoTemplates();
+  try {
+    const saved=await api(`/todo-templates/${encodeURIComponent(id)}/${restore?'restore':'archive'}`,{method:'POST',body:{version:item.version}});
+    if(!templateSessionActive(owner))return;
+    if(restore) { store.archived=(store.archived || []).filter(row=>row.id!==id); mergeTodoTemplate(saved); }
+    else { store.items=store.items.filter(row=>row.id!==id); store.archived=[...(store.archived || []),saved]; }
+    await loadTodoTemplates();
+    await loadTodos();
+  } catch(error) { if(templateSessionActive(owner)) store.error=error.status===404 ? '常用待办可能仍在同步，请稍后重试。' : error.message; }
+  finally { if(templateSessionActive(owner)) { store.pending.delete(id); store.revision++; paintTodoTemplates(); } }
 }
 function inputTodoTemplate(target) {
   if (target.id === "todo-template-text") templateState().draft = target.value;
@@ -249,5 +275,5 @@ function refreshOpenTodoTemplates() {
 }
 export {
   cancelTodoTemplateEdit, editTodoTemplate, inputTodoTemplate, loadTodoTemplates, paintTodoTemplates, refreshOpenTodoTemplates,
-  renderInlineTodoTemplates, renderTodoTemplates, submitTodoTemplateEdit, submitTodoTemplateForm, useTodoTemplate, writeTodoTemplate
+  renderInlineTodoTemplates, renderTodoTemplates, submitTodoTemplateEdit, submitTodoTemplateForm, useTodoTemplate, writeTodoTemplate, archiveTodoTemplate
 };

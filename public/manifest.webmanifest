@@ -1,0 +1,14 @@
+{
+  "id": "/",
+  "name": "好多鱼",
+  "short_name": "好多鱼",
+  "lang": "zh-CN",
+  "start_url": "/?page=todos",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#faf6f1",
+  "theme_color": "#e8c3ae",
+  "icons": [
+    {"src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}
+  ]
+}

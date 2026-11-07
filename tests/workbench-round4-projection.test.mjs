@@ -5,6 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {projectWorkbenchRound4,round4AddedModules,round4DocumentSpec,round4DocumentDocs} from './workbench-round4-projection.mjs';
 import {projectWorkbenchRound5} from './workbench-round5-projection.mjs';
+import {projectedChangedFiles} from './unify-stage1-projection.mjs';
 
 const root=new URL('../',import.meta.url),hash=value=>createHash('sha256').update(value).digest('hex');
 const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -22,18 +23,7 @@ test('round-four production files and three new frontend modules are pinned; unr
     assert.throws(()=>projectWorkbenchRound4(file,current+'\n/* unauthorized change */\n'),/approved workbench delta/);
   }
   const roots=['db','drizzle','public','scripts','src','web'];
-  const changed=execFileSync('git',['diff','--name-only',delta.baseline,'--',...roots],{cwd:root,encoding:'utf8'});
-  const added=execFileSync('git',['ls-files','--others','--exclude-standard','--',...roots],{cwd:root,encoding:'utf8'});
-  const round5=JSON.parse(await read('tests/workbench-round5-delta.json'));
-  const inventory=[];
-  for(const file of new Set((changed+'\n'+added).trim().split('\n').filter(Boolean))) {
-    if(round5.files[file]&&!delta.files[file]) {
-      let prior='';
-      try {prior=before(file);}catch(error) {assert.equal(error.status,128,'only files absent from the earlier baseline may project empty');}
-      assert.equal(projectWorkbenchRound5(file,await read(file)),prior,'round-five-only additions preserve the earlier production inventory: '+file);
-    }else inventory.push(file);
-  }
-  inventory.sort();
+  const inventory=projectedChangedFiles(delta.baseline,roots,projectWorkbenchRound5);
   assert.deepEqual(inventory,Object.keys(delta.files).sort(),'only explicitly pinned production changes are accepted');
 });
 

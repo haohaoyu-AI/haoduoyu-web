@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {projectWorkbenchRound6Badge,round6BadgePaths} from './workbench-round6-badge-projection.mjs';
+import {projectUnifyStage1History} from './unify-stage1-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 const hash=value=>createHash('sha256').update(value).digest('hex');
@@ -12,6 +13,7 @@ export const round6AddedModules=[];
 export function projectWorkbenchRound6(file,source) {
   const delta=manifest(),entry=delta.files[file];
   if(entry&&hash(source)===entry.before)return source;
+  source=projectUnifyStage1History(file,source);
   if(round6BadgePaths.includes(file))source=projectWorkbenchRound6Badge(file,source);
   if(!entry)return source;
   assert.equal(hash(source),entry.after,'exact approved workbench delta (round 6): '+file);

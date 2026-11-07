@@ -12,6 +12,7 @@ export const approvedSourceCommits=Object.freeze([
   '947bc782ea70e7808f6e7de523e5977818b292df',
   '16ff80ef2d857676d81b7c219110c820de5af72b'
 ]);
+export const reviewedBadgeSourceCommit='3a87479d30ac4cf2b9bc484a51106713fa4c510f';
 
 export async function currentSourceCommit() {
   const {stdout}=await execute('git',['rev-parse','HEAD'],{cwd:root,timeout:10000});
@@ -20,6 +21,16 @@ export async function currentSourceCommit() {
 
 export async function buildApprovedWorker(commit) {
   assert.ok(approvedSourceCommits.includes(commit),'Only the two fixed approved source commits are executable fixtures');
+  return buildHistoricalWorker(commit);
+}
+
+export async function buildReviewedBadgeWorker() {
+  return buildHistoricalWorker(reviewedBadgeSourceCommit);
+}
+
+async function buildHistoricalWorker(commit) {
+  assert.ok([...approvedSourceCommits,reviewedBadgeSourceCommit].includes(commit),
+    'Only the fixed approved releases and independently reviewed badge checkpoint are executable fixtures');
   const temporary=await mkdtemp(join(tmpdir(),'haoduoyu-release-fixture-'));
   try {
     const source=join(temporary,'source'),archive=join(temporary,'source.tar');

@@ -4,7 +4,7 @@ export function noteDraftNeedsAttention(item) {
 }
 export function noteEditorCanCollapse(item) {
   return Boolean(item && item.loaded && !item.loading && !item.composing && !noteDraftNeedsAttention(item) &&
-    (item.version > 0 || item.phase === 'empty' && !item.draft.trim()));
+    (item.version > 0 || item.localBacked && item.localVersion > 0 || item.phase === 'empty' && !item.draft.trim()));
 }
 
 // Presentation state only. Drafts, writes, versions and retry receipts stay in the existing stores.
@@ -28,13 +28,8 @@ export function createNotesEditorView() {
   function sync(category, date, items, legacy, {focused = false, composing = false} = {}) {
     const view = page(category, date), item = view.active === 'legacy' ? legacy : items.find(value => value.id === view.active);
     if (view.active && !item) activate(category, date, '');
-    else if (view.collapseRequested && noteEditorCanCollapse(item) && !composing && (!focused || view.explicit)) {
+    else if (view.collapseRequested && (noteEditorCanCollapse(item) || view.explicit && item && !item.pending) && !composing && (!focused || view.explicit)) {
       activate(category, date, '');
-    }
-    if (!view.active) {
-      const draft = items.find(noteDraftNeedsAttention);
-      if (draft) activate(category, date, draft.id);
-      else if (noteDraftNeedsAttention(legacy)) activate(category, date, 'legacy');
     }
     return view;
   }

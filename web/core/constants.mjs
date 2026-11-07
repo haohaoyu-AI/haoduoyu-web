@@ -7,18 +7,15 @@ const writerLabels = { dedao: "得到大脑", gemini_web: "Gemini", human: "本�
 const illustratorLabels = { codex: "Codex", pil: "PIL", human: "本人" };
 const metrics = { reads: "阅读", impressions: "展现", likes: "点赞", comments: "评论", favorites: "收藏", shares: "分享", approvals: "赞同", reading_users: "阅读人数" };
 const nav = [
-  { id: "dashboard", label: "数据总览", icon: "grid" },
-  { id: "articles", label: "文章详情", icon: "articles" },
-  { id: "reviews", label: "数据", icon: "chart" },
+  { id: "review", label: "内容复盘", icon: "chart" },
   { id: "todos", label: "每日待办", icon: "check" },
   { id: "notes", label: "碎碎念", icon: "edit" },
-  { id: "memos", label: "备忘录", icon: "articles" },
-  { id: "reminders", label: "工作提醒", icon: "calendar" },
+  { id: "ai-reports", label: "AI 日报", icon: "calendar" },
   { id: "settings", label: "设置", icon: "settings" }
 ];
-const settingsTabs = { workspace: "工作台", accounts: "账号", keys: "AI 授权", security: "安全", log: "操作日志" };
-const legacyPages = { management: "accounts", accounts: "accounts", keys: "keys" };
-const defaultFilters = () => ({ q: "", mode: "", from: "", to: "", sort: "published_at", order: "desc", group: "", platform: "", topic: "",
+const settingsTabs = { workspace: "回收站", todo: "待办切换", keys: "AI 授权", security: "安全", log: "操作日志" };
+const legacyPages = { management: "workspace", accounts: "workspace", keys: "keys" };
+const defaultFilters = () => ({ mode: "", from: "", to: "", sort: "published_at", order: "desc", group: "", platform: "", topic: "",
   data_status: "", status: "published", slot: "", writer: "", has_warnings: "", has_pending_verify: "", series_no_min: "", series_no_max: "" });
 const articleColumns = { reads: ["阅读", "reads"], likes: ["点赞", "likes"], comments: ["评论", "comments"], as_of: ["数据截至", "latest_as_of"],
    approvals: ["赞同", "approvals"], mode: ["生产方式", ""], duration: ["耗时", "duration"], published: ["发布日期",

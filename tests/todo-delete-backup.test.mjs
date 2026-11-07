@@ -12,6 +12,14 @@ const sign=data=>({data,sha256:digest(JSON.stringify(stable(data)))});
 const rows=async(db,table)=>(await db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()).results;
 function olderData(input,version) {
   const data=structuredClone(input);data.format='haoduoyu-matrix-d1-v'+version;
+  for(const row of data.tables.todos)delete row.note;
+  for(const row of data.tables.todo_templates)delete row.archived_at;
+  for(const [introduced,name] of [[14,'ai_reports'],[13,'note_label_archives'],[12,'note_entry_label_sets'],[11,'note_entry_label_overrides']]) {
+    if(version<introduced) { assert.deepEqual(data.tables[name],[],'historical fixture cannot hide new data: '+name);delete data.tables[name]; }
+  }
+  if(version<10)for(const name of ['unscheduled_todos','note_labels','note_entry_labels']) {
+    assert.deepEqual(data.tables[name],[],'historical fixture cannot hide new data: '+name);delete data.tables[name];
+  }
   if(version<9)for(const name of ['note_entries','work_reminders','account_profiles']) {
     assert.deepEqual(data.tables[name],[],'historical fixture cannot hide workbench data: '+name);delete data.tables[name];
   }
@@ -54,7 +62,7 @@ test('v7 backup scopes preferences to the session and preserves deleted todos th
     {DB:source.db,SITE_ORIGIN:source.origin});
   assert.equal(response.status,200);
   const http=(await response.json()).data;
-  assert.equal(http.data.format,'haoduoyu-matrix-d1-v9');
+  assert.equal(http.data.format,'haoduoyu-matrix-d1-v15');
   assert.equal(http.data.tables.todo_preferences.length,1);
   assert.equal(http.data.tables.todo_preferences[0].user_id,source.owner);
   assert.equal(http.data.tables.todo_preferences[0].completed_mode,'hide');
@@ -85,7 +93,7 @@ test('v1 through v3 restore exact old todo rows with null deletion time and no i
     assert.deepEqual(await rows(target.db,'matrix_todo_preferences'),[]);
     const restored=await rows(target.db,'matrix_todos');
     assert.ok(restored.every(row=>row.deleted_at===null));
-    if(version>1) assert.deepEqual(restored,data.tables.todos.map(row=>({...row,deleted_at:null})));
+    if(version>1) assert.deepEqual(restored,data.tables.todos.map(row=>({...row,deleted_at:null,note:''})));
     const links=await rows(target.db,'matrix_todo_template_links');
     assert.equal(links.length,version===3?2:0);
     assert.ok(links.every(row=>row.created_with_todo===1));

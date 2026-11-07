@@ -3,35 +3,26 @@ import {e, icon} from '../core/dom.mjs';
 import {state} from '../core/state.mjs';
 import {storage} from '../core/storage.mjs';
 import {dailyNotesRouteCategory} from '../core/daily-notes-state.mjs';
+import {isMobileLayout} from '../core/router.mjs';
 
-const mediaPages = new Set(['dashboard', 'articles', 'reviews']);
+const mediaPages = new Set(['review']);
 function navigationLink(item, mobile = false) {
   const selected = item.id === state.page && (!item.category || item.category === dailyNotesRouteCategory());
-  const query = item.id === 'settings' ? '&amp;tab=workspace' : item.category ? '&amp;notes_category=' + item.category : '';
+  const query = item.id === 'settings' ? '&amp;tab=workspace' : item.id === 'review' ?
+    '&amp;account=' + encodeURIComponent(item.account || state.account || 'V字') :
+    item.category ? '&amp;notes_category=' + item.category : '';
   return `<a href="?page=${e(item.id)}${query}" data-nav="${e(item.id)}" ${item.category ? `data-notes-category="${item.category}"` : ''}
 title="${e(item.label)}"
 class="${mobile ? 'mobile-nav-item' : 'nav-item'}${selected ? ' active' : ''}" aria-label="${e(item.label)}"
 ${selected ? 'aria-current="page"' : ''}>${icon(item.icon, 18)}<span class="nav-label">${e(item.label)}</span></a>`;
 }
 export function mediaNavigation(mobile = false) {
-  const active = mediaPages.has(state.page), name = mobile ? 'mobile-nav-item' : 'nav-item';
-  return `<a href="?page=dashboard" data-nav="dashboard" class="${name} media-link${active ? ' active' : ''}"
-aria-label="好多鱼图文" ${active ? 'aria-current="page"' : ''}>${icon('articles',18)}<span class="nav-label">好多鱼图文</span></a>`;
+  const account = state.account || 'V字';
+  return navigationLink({id:'review',icon:'chart',label:mobile ? '复盘' : '内容复盘',account},mobile);
 }
-export function renderMediaTabs() {
-  if (!mediaPages.has(state.page)) return '';
-  return '<nav class="media-page-tabs" aria-label="图文页面">' +
-    [['dashboard','数据总览'],['articles','文章详情']].map(([page,label]) =>
-      `<a href="?page=${page}" data-nav="${page}" class="btn media-page-tab${state.page === page ? ' active' : ''}"
-${state.page === page ? 'aria-current="page"' : ''}>${label}</a>`).join('') + '</nav>';
-}
+export function renderMediaTabs() { return ''; }
 export function notesNavigation(mobile = false) {
-  const active = state.page === 'notes', name = mobile ? 'mobile-notes-nav' : 'notes-nav';
-  return `<details class="${name}${active ? ' active' : ''}" ${!mobile && active ? 'open' : ''}>
-<summary ${mobile ? 'data-action="notes-menu"' : ''} title="碎碎念" aria-label="碎碎念" aria-expanded="${!mobile && active}">
-${icon('edit', 18)}<span class="nav-label">碎碎念</span></summary><div class="notes-subnav">
-${['life', 'work'].map(category => navigationLink({id:'notes',category,icon:'edit',label:category === 'work' ? '工作碎碎念' : '生活碎碎念'})).join('')}
-</div></details>`;
+  return navigationLink({id:'notes',icon:'edit',label:'碎碎念'}, mobile);
 }
 export function sidebarNavigation() {
   return mediaNavigation() + nav.filter(item => !mediaPages.has(item.id) && item.id !== 'settings')
@@ -39,12 +30,18 @@ export function sidebarNavigation() {
 }
 export function settingsNavigation() { return navigationLink(nav.find(item => item.id === 'settings')); }
 export function mobileNavigation() {
-  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${mediaNavigation(true)}${nav
-    .filter(item => !mediaPages.has(item.id)).map(item => item.id === 'notes' ? notesNavigation(true) : navigationLink(item, true)).join('')}</nav>`;
+  const items = [['todos','待办'],['notes','碎碎念']];
+  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id,label]) =>
+    navigationLink({...nav.find(item => item.id === id),label},true))
+    .join('')}${mediaNavigation(true)}${navigationLink(nav.find(item => item.id === 'ai-reports'),true)}</nav>`;
+}
+export function mobileSettingsMenu() {
+  return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
+${settingsNavigation()}${state.me?.publicBusiness ? '' : `<button class="btn text" data-action="logout">${icon('logout',18)}退出登录</button>`}</nav>`;
 }
 export function syncWorkbenchNavigation() {
   const active = mediaPages.has(state.page);
-  for (const link of document.querySelectorAll('.media-link')) {
+  for (const link of document.querySelectorAll('[data-nav=review]')) {
     link.classList.toggle('active',active);
     if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
   }
@@ -78,9 +75,9 @@ function readSidebarWidth() {
   return sidebarPreference;
 }
 export function sidebarWidthLimits(viewport, shellWidth) {
-  if (viewport <= 760) return null;
-  const min = viewport <= 1100 ? 88 : 200;
-  return {min, max: Math.max(min, Math.min(420, Math.floor(shellWidth - (viewport <= 1100 ? 420 : 540))))};
+  if (viewport < 768) return null;
+  const min = viewport < 1200 ? 88 : 200;
+  return {min, max: Math.max(min, Math.min(420, Math.floor(shellWidth - (viewport < 1200 ? 420 : 540))))};
 }
 export function renderSidebarResizer() {
   return '<div id="sidebar-resizer" class="sidebar-resizer" role="separator" tabindex="0" aria-orientation="vertical" ' +
@@ -93,7 +90,7 @@ function applySidebarWidth(value = readSidebarWidth(), persist = false) {
   const limits = sidebarWidthLimits(window.innerWidth, shell.clientWidth);
   handle.hidden = !limits;
   if (!limits) { shell.style.removeProperty('--sidebar-w'); delete shell.dataset.sidebarExpanded; return null; }
-  const fallback = window.innerWidth <= 1100 ? 88 : 232;
+  const fallback = window.innerWidth < 1200 ? 88 : 232;
   const width = Math.round(Math.max(limits.min, Math.min(limits.max, value ?? fallback)));
   shell.style.setProperty('--sidebar-w', width + 'px'); shell.dataset.sidebarExpanded = String(width >= 200);
   for (const [name, number] of Object.entries({min: limits.min, max: limits.max, now: width}))
@@ -112,7 +109,7 @@ function finishSidebarDrag(cancel = false) {
 }
 function startSidebarDrag(event) {
   const handle = event.target.closest?.('#sidebar-resizer');
-  if (!handle || event.button !== 0 || event.isPrimary === false || window.innerWidth <= 760) return;
+  if (!handle || event.button !== 0 || event.isPrimary === false || window.innerWidth < 768) return;
   event.preventDefault(); finishSidebarDrag();
   const shell = handle.closest('.shell');
   sidebarDrag = {handle, shell, pointer: event.pointerId, x: event.clientX,
@@ -149,5 +146,43 @@ export function setupSidebarResize() {
   document.addEventListener('pointercancel', event => { if (event.pointerId === sidebarDrag?.pointer) finishSidebarDrag(true); });
   document.addEventListener('lostpointercapture', event => { if (event.pointerId === sidebarDrag?.pointer) finishSidebarDrag(); });
   document.addEventListener('keydown', keySidebarResize, true);
-  window.addEventListener('resize', () => { finishSidebarDrag(true); applySidebarWidth(); });
+  window.addEventListener('resize', () => { finishSidebarDrag(true); applySidebarWidth(); syncMobileViewport(); });
+}
+
+let mobileViewportEvents = false;
+function keepMobileInputVisible() {
+  const field = document.activeElement, viewport = window.visualViewport;
+  if (!isMobileLayout() || !viewport || !field?.matches?.('input,textarea,select,[contenteditable="true"]')) return;
+  requestAnimationFrame(() => {
+    if (document.activeElement !== field || !field.isConnected) return;
+    const rect = field.getBoundingClientRect(), top = viewport.offsetTop || 0;
+    if (rect.bottom > top + viewport.height - 16 || rect.top < top + 12) field.scrollIntoView?.({block:'nearest'});
+  });
+}
+export function syncMobileViewport() {
+  const root = document.documentElement;
+  if (!root?.style?.setProperty) return;
+  if (!isMobileLayout()) {
+    for (const key of ['height','top','keyboard']) root.style.removeProperty('--mobile-viewport-' + key);
+    delete root.dataset.mobileKeyboard;
+    return;
+  }
+  const viewport = window.visualViewport, height = viewport?.height || window.innerHeight, top = viewport?.offsetTop || 0;
+  if (!Number.isFinite(height) || height <= 0) return;
+  const editing = document.activeElement?.matches?.('input,textarea,select,[contenteditable="true"]');
+  const keyboard = editing ? Math.max(0,(window.innerHeight || height) - height - top) : 0;
+  root.style.setProperty('--mobile-viewport-height',Math.round(height) + 'px');
+  root.style.setProperty('--mobile-viewport-top',Math.round(top) + 'px');
+  root.style.setProperty('--mobile-viewport-keyboard',Math.round(keyboard) + 'px');
+  root.dataset.mobileKeyboard = String(keyboard > 80);
+  keepMobileInputVisible();
+}
+export function setupMobileViewport() {
+  syncMobileViewport();
+  if (mobileViewportEvents) return;
+  mobileViewportEvents = true;
+  window.visualViewport?.addEventListener('resize',syncMobileViewport);
+  window.visualViewport?.addEventListener('scroll',syncMobileViewport);
+  document.addEventListener('focusin',syncMobileViewport);
+  document.addEventListener('focusout',() => requestAnimationFrame(syncMobileViewport));
 }
