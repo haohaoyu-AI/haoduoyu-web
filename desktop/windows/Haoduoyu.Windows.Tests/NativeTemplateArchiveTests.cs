@@ -63,8 +63,24 @@ internal static partial class NativeWorkflowTests
                 Field<DatePicker>(window, "date").SelectedDate = DateTime.ParseExact(fixture.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture);
                 await window.WaitForIdleAsync(); await InvokeAsync(window, "NavigateAsync", "待办");
                 var historyTodo = JsonNode.Parse(history.Json)!["data"]!["items"]![0]!;
-                Check(VisibleText(window).Contains(historyTodo["text"]!.GetValue<string>(), StringComparison.Ordinal) && historyTodo["completed"]!.GetValue<bool>() &&
-                    historyTodo["template_id"]!.GetValue<string>() == fixture.Template && Engine(window).Snapshot.Cache[history.Path] == history.Json,
+                var historyState = Engine(window).Snapshot;
+                var projectedHistory = WorkspaceProjection.Project(history.Path, historyState.Cache[history.Path], historyState)
+                    ?? throw new InvalidOperationException("The dated history did not produce a current-partition projection.");
+                var displayedTodo = JsonNode.Parse(projectedHistory)!["data"]!["items"]!.AsArray().OfType<JsonObject>()
+                    .Single(row => row["id"]!.GetValue<string>() == fixture.Todo);
+                Check(Field<string>(window, "currentPage") == "待办" && Field<DatePicker>(window, "date").SelectedDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) == fixture.Date &&
+                    displayedTodo["text"]!.GetValue<string>() == historyTodo["text"]!.GetValue<string>() && displayedTodo["completed"]!.GetValue<bool>() &&
+                    displayedTodo["template_id"]!.GetValue<string>() == fixture.Template, "the shown history selected a different dated todo or changed its completed original and template link");
+                var historyList = Descendants(Field<StackPanel>(window, "page")).OfType<ListBox>().Single();
+                var historyItem = historyList.Items.Cast<WorkspaceListItem>().Single(item => item.Title == "✓ " + displayedTodo["text"]!.GetValue<string>());
+                Check(historyItem.Subtitle.StartsWith(fixture.Date + " · ", StringComparison.Ordinal), "the native history item does not represent the projected todo date");
+                // Reading Items is immediate; its recycled visual container is created only after layout. Do not select it, which opens the todo action menu.
+                historyList.ScrollIntoView(historyItem); window.UpdateLayout(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); window.UpdateLayout();
+                Check(historyList.ItemContainerGenerator.ContainerFromItem(historyItem) is ListBoxItem &&
+                    VisibleText(window).Contains(historyTodo["text"]!.GetValue<string>(), StringComparison.Ordinal) && historyTodo["completed"]!.GetValue<bool>() &&
+                    historyTodo["template_id"]!.GetValue<string>() == fixture.Template && Engine(window).Snapshot.Cache[history.Path] == history.Json &&
+                    JsonSerializer.Serialize(Engine(window).Snapshot.Outbox) == JsonSerializer.Serialize(new[] { queued, unknown }) &&
+                    (await File.ReadAllBytesAsync(path)).SequenceEqual(bytes),
                     "the shown dated todo history lost its completed original text or linked template when template archive state changed locally");
                 await OpenTemplatePageAsync(window); await SetTemplateTabAsync(window, true);
                 SaveEvidence(window, "template-archive-private-offline.png");
@@ -331,6 +347,7 @@ internal static partial class NativeWorkflowTests
         internal Dictionary<string, TemplateSample> Samples { get; } = root["samples"]!.AsArray().OfType<JsonObject>().ToDictionary(sample => sample["name"]!.GetValue<string>(),
             sample => new TemplateSample(sample["name"]!.GetValue<string>(), sample["path"]!.GetValue<string>(), sample["method"]!.GetValue<string>(), sample["body_json"]?.GetValue<string>(), sample["response_json"]!.GetValue<string>(), sample["status"]!.GetValue<int>()), StringComparer.Ordinal);
         internal string Template => root["ids"]!["template"]!.GetValue<string>();
+        internal string Todo => root["ids"]!["todo"]!.GetValue<string>();
         internal string KeepActive => root["ids"]!["keep_active"]!.GetValue<string>();
         internal string DeletedTemplate => root["ids"]!["deleted_template"]!.GetValue<string>();
         internal string Date => root["date"]!.GetValue<string>();
