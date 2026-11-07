@@ -166,3 +166,9 @@ Python从该提交原始OpenAPI Git blob独立复算，239665字节内容与已�
 Gitleaks8.30.1扫描222内容提交，仅命中`4984fa2c395cd67b1238134fb6fc48e420b913e5`的`.ci/public-assets.json:5`、`:10`与`tests/account-profiles.test.mjs:26`。前两项从该提交公开文档Git blob独立复算SHA256；第三项为含`SYNTHETIC`字样的公开主页规范化测试期望值，经本地规范化函数复算一致，不作为认证凭据。逐项文件、类型与证据见`docs/workbench-round4-secret-evidence.json`。仅追加3条精确历史指纹，不改扫描规则、范围、未来提交或Git历史。
 
 原证据JSON复述同一合成主页标识也产生1条命中：`f51c30f4f2ca1dc20ba97eaf3b66ddc4b1d6459c:docs/workbench-round4-secret-evidence.json:generic-api-key:36`。已从该历史JSON独立解析，确认与先前规范化测试期望值逐字相同；当前证据改为引用原测试位置，仅为这条历史回显追加精确指纹，不删除历史或修改规则。
+
+## 2026-11-08 手机日历发布控制合并的公开摘要复核
+
+发布控制合并提交 `60d85e83acb2650aa5e4dee88e30d94c38346807` 的全历史 `-m` 扫描在 `.ci/public-assets.json` 第 5、10 行重新报告两个 `generic-api-key` 命中。两处分别是公开 `public/api-docs.html`（19720 bytes）和 `public/openapi.json`（359108 bytes）的内容 SHA256，而非凭据。执行者与独立审查者均从该精确提交的 Git blobs 复算并与资源清单精确匹配；三个文件相对第一 parent 均无变化，命中来自第二 parent 的合并比较。
+
+独立审查通过后，仅追加上述提交、路径、规则、行的两个不可变历史指纹。未豁免目录、路径、规则或未来提交，保留全历史扫描与原失败记录：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42386734008>。原始扫描为 515 commits、93.34 MB、2 条告警；不能描述为原始零命中。
