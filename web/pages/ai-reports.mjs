@@ -56,6 +56,11 @@ export function reportGroup(author) {
   return '其他作者';
 }
 
+export function reportAuthorClass(author) {
+  const colors = {'Grok bot': 'grok', Gemini: 'gemini', GPT: 'gpt', '其他作者': 'other'};
+  return `ai-report-author ai-report-author--${colors[reportGroup(author)]}`;
+}
+
 export function paintAiCalendar(selectedDate, visibleMonth = selectedDate.slice(0,7)) {
   const root = document.querySelector('#ai-reports');
   if (!root) return;
@@ -89,10 +94,13 @@ export function paintAiReports(items, error = '', loading = false, selectedDate 
     const author = String(row.author ?? '');
     const group = reportGroup(author);
     groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp)}">` +
-      `<p><strong>${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body)}</div></article>`);
+      `<p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p>` +
+      `<div class="ai-report-markdown">${renderSafeMarkdown(body)}</div></article>`);
   }
   for (const [name, entries] of Object.entries(groups)) {
-    if (name !== '其他作者' || entries.length) rows.push(`<section>${name === 'Gemini' || name === 'GPT' ? '' : `<h3>${name}</h3>`}${entries.length ? entries.join('') : '<p>暂无汇报</p>'}</section>`);
+    if (name === '其他作者' && !entries.length) continue;
+    const heading = name === 'Gemini' || name === 'GPT' ? '' : `<h3 class="${reportAuthorClass(name)}">${name}</h3>`;
+    rows.push(`<section>${heading}${entries.length ? entries.join('') : '<p>暂无汇报</p>'}</section>`);
   }
   root.querySelector('#ai-report-list').innerHTML = loading || error ? '' : rows.join('');
 }
