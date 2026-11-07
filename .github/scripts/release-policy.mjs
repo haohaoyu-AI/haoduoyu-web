@@ -12,11 +12,11 @@ export const releases=Object.freeze({
     ci:40269439403,bytes:1269372,sha256:'61e30101b744f56bfe10418cb536b661e9bac5ca8270041b510f6222434c4149',label:'round5-rollback'})
 });
 export const productionRestore=Object.freeze({
-  commit:'34bff302e128c92f46f00e76d59f9b44b9b7242e',
-  tree:'c5cf2a0d2c766a45d6cd436d18148752d3a84621',
-  baseline:'50af6df9-88b4-4b50-a5e7-50eb2cdceda7',
-  bytes:2664854,sha256:'f5eec94ba40eecdf97ae350b3fa98ed8f6af72fd1bdcb72b321fa27c0da23b84',
-  label:'production-restored-75c22677'});
+  commit:'ed3d75e8a66475f643e51dd3c00144346dea01b3',
+  tree:'e18867699263a4d715742b8f23ec763f8f61e68b',
+  baseline:'0f9c5efc-3077-48ca-b3bb-da65a2aedf50',
+  bytes:2668038,sha256:'d791b86e627b68c53d566cab18aae1221bce11a9081f6d47a50826a5109aa354',
+  label:'production-markdown-20261107'});
 const acceptedRelease=commit=>commit===productionRestore.commit?productionRestore:releases[commit];
 export function validateRequest(env) {
   if(env.GITHUB_REPOSITORY!==repository||env.GITHUB_REF!=='refs/heads/main'||env.GITHUB_EVENT_NAME!=='workflow_dispatch')
@@ -42,7 +42,7 @@ export async function verifyCI(commit,{request=fetch,token}={}) {
     deny('The exact approved Foundation CI run has not succeeded for this commit.');
   return release;
 }
-// This one production-source recovery uses the full-history scan and exact build
+// This reviewed production-source candidate uses the full-history scan and exact build
 // in the release job, rather than the unrelated historical quality-test gate.
 // All other releases retain their exact successful Foundation CI requirement.
 export async function verifyEligibility(commit,{request=fetch,token}={}) {
