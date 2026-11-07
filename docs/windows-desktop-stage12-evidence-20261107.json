@@ -1,0 +1,111 @@
+{
+  "repository": "haohaoyu-AI/haoduoyu-web",
+  "branch": "desktop/native-workbench-20261104",
+  "observed_at_utc": "2026-11-07T09:52:54.808702+00:00",
+  "contract_source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "production_exact_source_commit": null,
+  "workflow_blob": "0f8f45f1ae22cda22d33c3883412a57ff3b17748",
+  "source_push_and_ls_remote_matched": true,
+  "production_business_requests": 0,
+  "installed": false,
+  "deployed": false,
+  "published": false,
+  "physical_windows_acceptance": "not_run",
+  "log_access": {
+    "historical_job": 126950036657,
+    "normal_api_result": "redirected job log storage returned Forbidden; no readable log obtained",
+    "stopped": true,
+    "retry_or_alternative_route_attempted": false
+  },
+  "artifact_access": {
+    "historical_artifact": 13343906486,
+    "normal_download_result": "redirected storage returned HTTP403",
+    "stopped": true,
+    "download_retry_or_alternative_route_attempted": false,
+    "new_artifact_downloaded": false,
+    "inner_zip_sha256_independently_verified": false
+  },
+  "schema": "haoduoyu-windows-stage12-evidence-v1",
+  "candidate_version": "0.12.0",
+  "tested_source_commit": "af37821c67a40046872084939a181c1937b12acf",
+  "desktop_tree": "f063e5862eaa3d431e237d80da99bffe9899e7a9",
+  "files_sha256": {
+    "Haoduoyu.Core/MediaReview.cs": "9ebfa88fa0733f10d915465f1a31cabba930337c26f780327498168964455a45",
+    "Haoduoyu.Api/MediaReviewResponse.cs": "a186659004af36e7db520266b2e621efae53c155b49f69105e74477534a863a9",
+    "Haoduoyu.Api/RoutePolicy.cs": "70f388843fe8bdb5074e1b22fb924bd3f4279dc35cc0494605d508b29d666dd3",
+    "Haoduoyu.Api/BusinessReadSchema.cs": "e4ea1f76de1bab612c3e7da487d798de1861b9c955a8e53634beb208707ccbe8",
+    "Haoduoyu.Windows/MediaReviewPages.cs": "9ac1a5069d2d1490b116f6d83eac15e294608aff38bf9c169b30dc21df9d2204",
+    "Haoduoyu.Media.Tests/Program.cs": "e60b011257c6714a85710c83fa236565d9864ddaa7888a96c723decbfd86be89",
+    "Haoduoyu.Windows.Tests/NativeMediaReviewTests.cs": "8d381d8027328598653af61357956a4805dafbb0f2777abfd64fd292a7f30996",
+    "scripts/package-windows.ps1": "3f44d39a8710e2fdbc015e65cb7baae981f2042050f6a87c2c07922d8b663578"
+  },
+  "ci": {
+    "run_id": 42361196709,
+    "status": "completed",
+    "conclusion": "success",
+    "checks": null,
+    "normal_job_log_test_counts_verified": false,
+    "normal_job_log_inner_zip_sha256_verified": false,
+    "observation_mode": "Normal run/job/step and artifact metadata only; no denied log or artifact download requests",
+    "expected_from_source": {
+      "native_checks": 51,
+      "shown_window_groups": 38
+    },
+    "url": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42361196709",
+    "job_id": 128370056612,
+    "started_at_utc": "2026-11-07T09:48:47Z",
+    "runner": "windows-2022",
+    "attempt": 1,
+    "completed_at_utc": "2026-11-07T09:52:14Z",
+    "all_step_metadata_success": true,
+    "tests_package_step": {
+      "started_at_utc": "2026-11-07T09:48:58Z",
+      "completed_at_utc": "2026-11-07T09:52:10Z",
+      "conclusion": "success"
+    }
+  },
+  "artifact": {
+    "id": 13569722540,
+    "name": "windows-desktop-evidence-af37821c67a40046872084939a181c1937b12acf",
+    "size_in_bytes": 68168306,
+    "github_outer_archive_digest": "sha256:9ec5a8bc95cddc2a6322e1a39906b4fd38816b14c4f702ff6b662bf6ffcdf30d",
+    "created_at_utc": "2026-11-07T09:52:11Z",
+    "expires_at_utc": "2026-11-10T09:52:10Z",
+    "downloaded": false,
+    "inner_zip_bytes_independently_verified": false
+  },
+  "local_validation": {
+    "core_model_checks_passed": 105,
+    "media_contract_checks_passed": 108,
+    "actual_synthetic_get_requests": 24,
+    "ordinary_api_checks_passed": 165,
+    "prior_worker_responses_passed": 82,
+    "prior_worker_receipt_checks_passed": 2,
+    "note_month_compatibility_checks_passed": 77,
+    "note_month_core_checks_passed": 80,
+    "windows_tests_release_crossbuild_warnings": 0,
+    "windows_tests_release_crossbuild_errors": 0,
+    "static_boundaries_passed": true,
+    "diff_check_passed": true
+  },
+  "fixture_sha256": "5b55b6839c0d9d522e6e1e789a26b0ac9f9879e18a2bdc809175fa3d2a2602fe",
+  "fixture_report": "desktop/windows/Haoduoyu.Api.Tests/Fixtures/media-review-report.json",
+  "properties": {
+    "native_four_readonly_tabs": true,
+    "exact_query_and_identity_scoped_cache": true,
+    "explicit_refresh_only": true,
+    "cumulative_and_daily_metrics_separate": true,
+    "server_aggregates_not_recomputed": true,
+    "top_platform_affects_ranking_only": true,
+    "zero_missing_and_historical_null_separate": true,
+    "account_overall_not_added_to_article_details": true,
+    "same_article_due_nodes_not_deduplicated": true,
+    "full_article_read_before_original_draft_editor": true,
+    "unknown_and_recovered_requests_fenced": true,
+    "failure_cancel_scope_or_page_change_preserves_prior_state": true,
+    "new_non_cas_write_forms": false,
+    "new_network_limit_bytes": 1048576,
+    "observations_account_field_not_fabricated": true,
+    "cross_route_atomic_snapshot_claimed": false
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "repository": "haohaoyu-AI/haoduoyu-web",
+  "branch": "desktop/native-workbench-20261104",
+  "observed_at_utc": "2026-11-07T09:49:54.446989+00:00",
+  "contract_source_commit": "c30a8a956715b6ea809db4b87c0f4fcddf8f61de",
+  "production_exact_source_commit": null,
+  "workflow_blob": "0f8f45f1ae22cda22d33c3883412a57ff3b17748",
+  "source_push_and_ls_remote_matched": true,
+  "production_business_requests": 0,
+  "installed": false,
+  "deployed": false,
+  "published": false,
+  "physical_windows_acceptance": "not_run",
+  "log_access": {
+    "historical_job": 126950036657,
+    "normal_api_result": "redirected job log storage returned Forbidden; no readable log obtained",
+    "stopped": true,
+    "retry_or_alternative_route_attempted": false
+  },
+  "artifact_access": {
+    "historical_artifact": 13343906486,
+    "normal_download_result": "redirected storage returned HTTP403",
+    "stopped": true,
+    "download_retry_or_alternative_route_attempted": false,
+    "new_artifact_downloaded": false,
+    "inner_zip_sha256_independently_verified": false
+  },
+  "schema": "haoduoyu-windows-stage11-evidence-v1",
+  "candidate_version": "0.11.0",
+  "tested_source_commit": "209382c6ee85af478170ce8a925f4b770f3e1e8d",
+  "desktop_tree": "237e97a525e5ec027f8bce14924f162fa602342d",
+  "files_sha256": {
+    "Haoduoyu.Core/NoteHistory.cs": "5308747eb8b090c88a63b17b4790cbfb8a128ab1ab458d19cf6ab19526e01bd4",
+    "Haoduoyu.Api/NoteHistoryResponse.cs": "c5dfbdb00ae5798f51aca49c85604b4cc486a127bedbb48bdddb03adaf8ca337",
+    "Haoduoyu.Api/BusinessReadSchema.cs": "4dcf050569182abe43f6ded961e38679f01813e5805d9467dcc5bfa3b15cd8de",
+    "Haoduoyu.Windows/NoteHistoryPages.cs": "e68ad25ccd16ccad5bdd55b3e564cec21bc963085ee0b7c2267ff78e517da2b3",
+    "Haoduoyu.Windows/BusinessPages.cs": "50952a613284b5086638251a4b214b55b89924b9f68b2cb55dfea15179c9ad4f",
+    "Haoduoyu.Notes.Tests/Program.cs": "7624c6748ec72affbcd1d86046565c9150d5962e33c296c54d24e608e6f1895a",
+    "Haoduoyu.Windows.Tests/NativeNoteHistoryTests.cs": "c55bd4f5ea8f0838ac9a5ca120d5fd887094bca1db6cbf7153afe1df881e44c0"
+  },
+  "ci": {
+    "run_id": 42361048362,
+    "status": "completed",
+    "conclusion": "success",
+    "checks": null,
+    "normal_job_log_test_counts_verified": false,
+    "normal_job_log_inner_zip_sha256_verified": false,
+    "observation_mode": "Normal run/job/step and artifact metadata only; no denied log or artifact download requests",
+    "expected_from_source": {
+      "native_checks": 48,
+      "shown_window_groups": 35
+    },
+    "job_id": 128369319025,
+    "url": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42361048362",
+    "runner": "windows-2022",
+    "attempt": 1,
+    "started_at_utc": "2026-11-07T09:45:15Z",
+    "completed_at_utc": "2026-11-07T09:48:44Z",
+    "all_step_metadata_success": true,
+    "tests_package_step": {
+      "started_at_utc": "2026-11-07T09:45:27Z",
+      "completed_at_utc": "2026-11-07T09:48:37Z",
+      "conclusion": "success"
+    }
+  },
+  "artifact": {
+    "id": 13570151294,
+    "name": "windows-desktop-evidence-209382c6ee85af478170ce8a925f4b770f3e1e8d",
+    "size_in_bytes": 67726354,
+    "github_outer_archive_digest": "sha256:3296efc0d9fb0baa2a2fa33aa3bb4ba7fc4da53297a26d4e9c1d6328f7746136",
+    "created_at_utc": "2026-11-07T09:48:40Z",
+    "expires_at_utc": "2026-11-10T09:48:38Z",
+    "downloaded": false,
+    "inner_zip_bytes_independently_verified": false
+  },
+  "local_validation": {
+    "note_history_core_checks_passed": 80,
+    "note_history_source_contract_checks_passed": 77,
+    "actual_synthetic_get_requests": 19,
+    "ordinary_api_checks_passed": 165,
+    "isolated_base_plus_test_hotfix_crossbuild_warnings": 0,
+    "isolated_base_plus_test_hotfix_crossbuild_errors": 0
+  },
+  "original_source_commit": "ad539b1369da19bbf10c3cfbe11bd44f596ab098",
+  "cancelled_initial_ci": {
+    "run_id": 42360160182,
+    "job_id": 128366639668,
+    "status": "completed",
+    "conclusion": "cancelled",
+    "completed_at_utc": "2026-11-07T09:40:15Z",
+    "reason": "Static review proved two new tests open modal dialogs without arranging dismissal; cancellation normal and confirmed. Test fix asserts original read-only/Unknown details then closes the owned dialogs; product fence and queue assertions unchanged. No claim about exact inaccessible log stop point."
+  },
+  "fixture_sha256": "1a1dc2df6409845cfb6d67cf87284801e91c941875adb940aadf5d13f90feeb7"
+}

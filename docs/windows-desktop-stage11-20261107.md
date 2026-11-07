@@ -1,5 +1,7 @@
 # Windows第十一阶段：碎碎念月历史与标签筛选
 
+后续核验：产品源ad539b1的两处新增窗口测试缺少modal关闭，已单独在 `209382c6ee85af478170ce8a925f4b770f3e1e8d` 修正，测试内容与队列围栏断言保留；该精确源[Windows CI42361048362](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42361048362)于2026-11-07T09:48:44Z成功结束，全部步骤元数据成功。原CI42360160182已正常取消，不猜不可读日志中的停点。见[阶段11机器证据](windows-desktop-stage11-evidence-20261107.json)。后续已找到新的模板归档候选源码，原文“缺合同”记录为当时发现，接续以[新合同审计](windows-desktop-template-archive-contract-20261107.md)为准。
+
 本轮由用户明确恢复，沿用 `desktop/native-workbench-20261104`。恢复前远端和工作区均为 `c72be46e324ac362df0d1e9039434298d403e8b7`；恢复检查已单独推送并精确回读 `197e55a2d38598b93eac9acd5dfbd9f21330d03b`。本轮0.11.0只改原生客户端、隔离验证和交接，不改网站、后端、Android或真实数据。
 
 ## 契约与选择
