@@ -47,7 +47,8 @@ internal static partial class NativeWorkflowTests
         .. TemplateArchiveCases,
         .. TodoNoteCases,
         .. DayRolloverCases,
-        .. TextExportCases
+        .. TextExportCases,
+        .. MemoCountCases
     ];
 
     private static readonly BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;

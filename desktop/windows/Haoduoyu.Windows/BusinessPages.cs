@@ -101,10 +101,11 @@ public sealed partial class MainWindow
         bar.Children.Add(Button("＋ 新分组", () => NewEditorAsync("group", NewRecord(("title", ""), ("position", 0)), "/api/v1/memos/groups/")));
         var data = await ReadAsync("/api/v1/memos"); Missing(data);
         List(Rows(data?["groups"]).Select(group => (Text(group, "title") + (!EffectiveDeleted(group) ? "" : "（回收站）"),
-            Text(group, "active_note_count") + " 篇笔记 · v" + Version(group) + LocalSuffix(group), (Func<Task>)(async () =>
+            MemoGroupCounts.Read(group).Description + " · v" + Version(group) + LocalSuffix(group), (Func<Task>)(async () =>
             {
                 if (await HandlePendingRecordAsync(group)) return;
                 await FlushEditorAsync(); ClearPage(); page.Children.Add(Label(Text(group, "title")));
+                page.Children.Add(Label(MemoGroupCounts.Read(group).Description + "。本机已知数量不是实时服务端总数，未确认操作仍显示为本机意图。"));
                 var path = "/api/v1/memos/groups/" + Text(group, "id");
                 if (EffectiveDeleted(group))
                 {
@@ -116,11 +117,15 @@ public sealed partial class MainWindow
                     page.Children.Add(Button("分组改名", () => EditAsync("group", group, path)));
                     page.Children.Add(Button("软删除分组", async () =>
                     {
-                        if (Confirm("软删除分组“" + Text(group, "title") + "”及其当前 " + Text(group, "active_note_count") + " 篇活动笔记？已有单独删除的笔记不会随分组恢复。"))
+                        var counts = MemoGroupCounts.Read(group);
+                        var localNew = Flag(group, "_local_new") && Version(group) == 0;
+                        var serverCount = localNew ? (long?)null : counts.RequireServerDeleteCount();
+                        var question = localNew ? "取消尚未发送的新分组“" + Text(group, "title") + "”？原稿和子笔记保留，依赖它的笔记会等待处理。" :
+                            "软删除分组“" + Text(group, "title") + "”及服务端副本中的 " + serverCount + " 篇活动笔记？" + counts.Description +
+                            "。未决改动和其他设备可能使数量变化，服务器将重新核对并拒绝过时确认；已有单独删除的笔记不会随分组恢复。";
+                        if (Confirm(question))
                         {
-                            if (await CancelUnsentCreationAsync(group)) return;
-                            await QueueAsync("DELETE", path, Obj(("version", Version(group)), ("save_id", Guid.NewGuid().ToString()),
-                                ("confirm_title", Text(group, "title")), ("confirm_note_count", group["active_note_count"]?.DeepClone())), path);
+                            await DeleteMemoGroupConfirmedAsync(group);
                         }
                     }));
                 }
@@ -143,6 +148,14 @@ public sealed partial class MainWindow
                         { if (!await CancelUnsentCreationAsync(full)) await QueueAsync("DELETE", notePath, Obj(("version", Version(full)), ("save_id", Guid.NewGuid().ToString())), notePath); }
                     }))));
             }))));
+    }
+    private async Task DeleteMemoGroupConfirmedAsync(JsonObject group)
+    {
+        if (await CancelUnsentCreationAsync(group)) return;
+        var path = "/api/v1/memos/groups/" + Text(group, "id");
+        var count = MemoGroupCounts.Read(group).RequireServerDeleteCount();
+        await QueueAsync("DELETE", path, Obj(("version", Version(group)), ("save_id", Guid.NewGuid().ToString()),
+            ("confirm_title", Text(group, "title")), ("confirm_note_count", count)), path);
     }
     private async Task RemindersAsync(WrapPanel bar)
     {

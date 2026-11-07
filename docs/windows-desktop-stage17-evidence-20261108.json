@@ -1,0 +1,57 @@
+{
+  "schema": "haoduoyu-windows-stage17-evidence-v1",
+  "repository": "haohaoyu-AI/haoduoyu-web",
+  "branch": "desktop/native-workbench-20261104",
+  "candidate_version": "0.17.0",
+  "base_commit": "55618366bb4143916266884409837794f75cab0d",
+  "product_source_commit": null,
+  "local_validation": {
+    "sdk": "10.0.403",
+    "host": "Linux x64",
+    "core_checks_passed": 125,
+    "memo_group_count_checks_included": 8,
+    "atomic_export_checks_included": 14,
+    "atomic_export_checks_skipped": 0,
+    "windows_test_project_cross_build": {
+      "configuration": "Release",
+      "succeeded": true,
+      "warnings": 0,
+      "errors": 0,
+      "elapsed_seconds": 5.25
+    },
+    "static_boundaries_passed": true,
+    "diff_check_passed": true
+  },
+  "new_native_window_cases": 2,
+  "native_window_cases_run_on_linux": false,
+  "code_review": {
+    "blocking_findings": 0,
+    "followup_cases_added": [
+      "Confirmed deletion logical action retains server count instead of projected count",
+      "Cancelling an unsent local group retains queued child request and nonempty child draft",
+      "Missing server count with a nonempty draft preserves complete state"
+    ],
+    "win32_confirmation_dialog_automated": false
+  },
+  "windows_ci": {
+    "run_id": null,
+    "status": "not_started",
+    "conclusion": null,
+    "job_logs_read": false,
+    "artifacts_downloaded": false
+  },
+  "contracts_unchanged": {
+    "memo_group_id_for_existing_note": "immutable",
+    "server_delete_count_replaced_with_local_count": false,
+    "backend_or_website_edited": false,
+    "workspace_schema_changed": false,
+    "unknown_fences_changed": false
+  },
+  "validation_limits": [
+    "Known local rows are not guaranteed complete; copied server counts are not real-time observations.",
+    "Server CAS title and count validation remains authoritative; no cross-device transaction snapshot is claimed.",
+    "Physical Windows UI/IME/scaling/sleep/power-loss, production exact Worker and migration, signing and installation remain unverified.",
+    "Windows CI metadata cannot independently establish test-detail counts or package bytes.",
+    "Existing Forbidden log and artifact 403 stop boundaries retained."
+  ]
+}

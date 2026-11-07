@@ -210,7 +210,8 @@ var templateArchiveSyncFailures = TemplateArchiveSyncChecks.Run();
 var todoNoteSyncFailures = TodoNoteSyncChecks.Run();
 var beijingDayFailures = BeijingDayChecks.Run();
 var atomicTextExportFailures = await AtomicTextExportChecks.RunAsync();
-return failed + queueFailures + projectionFailures + recoveryFailures + archiveFailures + templateArchiveSyncFailures + todoNoteSyncFailures + beijingDayFailures + atomicTextExportFailures == 0 ? 0 : 1;
+var memoGroupCountFailures = MemoGroupCountChecks.Run();
+return failed + queueFailures + projectionFailures + recoveryFailures + archiveFailures + templateArchiveSyncFailures + todoNoteSyncFailures + beijingDayFailures + atomicTextExportFailures + memoGroupCountFailures == 0 ? 0 : 1;
 
 static void Check(bool condition, string reason) { if (!condition) throw new Exception(reason); }
 static async Task Throws<T>(Func<Task> action) where T : Exception
