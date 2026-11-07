@@ -506,11 +506,18 @@ public sealed partial class MainWindow : Window
         Dialog(title, box).ShowDialog();
     }
     private bool Confirm(string text) => MessageBox.Show(this, text, "请核对", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
-    private Task ExportTextAsync(string name, string value)
+    private async Task ExportTextAsync(string name, string value)
     {
         var dialog = new SaveFileDialog { FileName = name, Filter = "纯文本 (*.txt)|*.txt", AddExtension = true, OverwritePrompt = true };
-        if (dialog.ShowDialog(this) == true) { File.WriteAllText(dialog.FileName, value, new System.Text.UTF8Encoding(false)); Message("已按所选路径导出纯文本。文件未加密，请自行保管。" ); }
-        return Task.CompletedTask;
+        if (dialog.ShowDialog(this) == true) await ExportTextToPathAsync(dialog.FileName, value);
+    }
+    private async Task ExportTextToPathAsync(string path, string value)
+    {
+        // Do not flush the editor here: exporting can be the user's recovery route after
+        // the encrypted workspace disk failed. The caller already captured its exact text.
+        var cancellation = NetworkToken;
+        await Task.Run(() => AtomicTextExport.WriteAsync(path, value, cancellation));
+        Message("已完整导出纯文本；原文件仅在写入完成后替换。文件未加密，请自行保管。");
     }
     private async Task FlushEditorAsync()
     {

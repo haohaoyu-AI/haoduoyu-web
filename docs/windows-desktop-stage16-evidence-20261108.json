@@ -1,0 +1,56 @@
+{
+  "schema": "haoduoyu-windows-stage16-evidence-v1",
+  "repository": "haohaoyu-AI/haoduoyu-web",
+  "branch": "desktop/native-workbench-20261104",
+  "candidate_version": "0.16.0",
+  "base_commit": "909f254820d22b568e1c4c66e3f04adaa353aedd",
+  "product_source_commit": null,
+  "local_validation": {
+    "sdk": "10.0.403",
+    "host": "Linux x64",
+    "core_checks_passed": 117,
+    "atomic_text_export_checks_included": 14,
+    "atomic_text_export_checks_skipped": 0,
+    "beijing_day_checks_included": 6,
+    "windows_test_project_cross_build": {
+      "configuration": "Release",
+      "succeeded": true,
+      "warnings": 0,
+      "errors": 0,
+      "elapsed_seconds": 16.54
+    },
+    "static_boundaries_passed": true,
+    "diff_check_passed": true
+  },
+  "new_native_window_cases": 2,
+  "native_window_cases_run_on_linux": false,
+  "code_review": {
+    "blocking_findings": 0,
+    "unverified_native_ui_boundaries": [
+      "Win32 file selection and overwrite confirmation",
+      "User clicks cancellation during an in-progress write",
+      "Cleanup failure message in an actual window"
+    ]
+  },
+  "windows_ci": {
+    "run_id": null,
+    "status": "not_started",
+    "conclusion": null,
+    "job_logs_read": false,
+    "artifacts_downloaded": false
+  },
+  "unchanged_business_contracts": {
+    "memo_group_id_for_existing_note": "immutable in fixed c30a8a9 and current source; cross-group PUT forbidden",
+    "backend_or_website_edited": false,
+    "unknown_request_fences_changed": false,
+    "workspace_schema_changed": false
+  },
+  "validation_limits": [
+    "No cross-process inode-level compare-and-swap; ordinary metadata-change detection is not an adversarial directory race guarantee.",
+    "Data is flushed before atomic rename; physical power loss and filesystem durability remain unverified.",
+    "Exported text and temporary files are plaintext; cleanup failures explicitly report possible residue.",
+    "Windows CI result and step metadata do not independently prove per-test detail counts or portable package bytes.",
+    "Existing Forbidden log and artifact 403 stop boundaries retained.",
+    "No production business requests, deployment, installation, signing, public release or schema migration."
+  ]
+}
