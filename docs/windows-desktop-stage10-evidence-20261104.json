@@ -1,6 +1,6 @@
 {
   "schema": "haoduoyu-windows-stage10-evidence-v1",
-  "observed_at_utc": "2026-11-05T00:01:42Z",
+  "observed_at_utc": "2026-11-07T09:21:42Z",
   "repository": "haohaoyu-AI/haoduoyu-web",
   "branch": "desktop/native-workbench-20261104",
   "candidate_version": "0.10.0",
@@ -26,7 +26,7 @@
     "normal_job_log_test_counts_verified": false,
     "normal_job_log_inner_zip_sha256_verified": false,
     "metadata_only_terminal_observation": true,
-    "detailed_log_review": "Not performed: user requested immediate pause for insufficient quota",
+    "detailed_log_review": "Resumed normal log access produced empty CLI output; normal job log API redirected to blob storage and returned Forbidden. Stopped; no retry or alternative route.",
     "expected_checks_from_source": {
       "core": {
         "passed": 80,
@@ -98,7 +98,16 @@
       "article_verification_portable_contract_checks": 85,
       "article_ledger_view_model_and_store_checks": 36
     },
-    "checks": null
+    "checks": null,
+    "log_access_blocker": {
+      "job_log_api": "GET /repos/haohaoyu-AI/haoduoyu-web/actions/jobs/126950036657/logs",
+      "redirect_host": "productionresultssa11.blob.core.windows.net",
+      "redirect_path_suffix": "/logs/job/job-logs.txt",
+      "result": "Forbidden",
+      "outcome": "access denied; no readable job log obtained",
+      "retry_or_alternative_route_attempted": false,
+      "artifact_download_attempted": false
+    }
   },
   "recovery": {
     "all_restored_nonterminal_operations_become_unknown": true,
@@ -135,7 +144,18 @@
     },
     "invalid_foreign_and_sensitive_sources_explicitly_excluded": true
   },
-  "artifact": null,
+  "artifact": {
+    "id": 13374617310,
+    "name": "windows-desktop-evidence-931f7fbc667f77683708420f3defb82b70dc7a21",
+    "url": "https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/41937636529/artifacts/13374617310",
+    "bytes": 67436904,
+    "github_reported_outer_sha256": "f022f77c16c93ca737bf4ead5a7c788e2ae0dad4ab2fb18387207f75c3b151d8",
+    "expires_at_utc": "2026-11-08T00:00:24Z",
+    "metadata_only_observation": true,
+    "download_attempted": false,
+    "local_independent_hash_verification": false,
+    "library_copy_created": false
+  },
   "candidate_zip": null,
   "download_stop_boundary": {
     "earlier_run_id": 41868873363,
@@ -702,6 +722,9 @@
     "ci_watch_process_stopped": true,
     "new_ci_runs_started_after_pause": 0,
     "deployment_install_or_artifact_download": false,
-    "resume_instructions": "docs/windows-desktop-paused-20261105.md"
+    "resume_instructions": "docs/windows-desktop-paused-20261105.md",
+    "historical_pause_record": true,
+    "is_currently_paused": false,
+    "resume_authorized_at_utc_date": "2026-11-07"
   }
 }

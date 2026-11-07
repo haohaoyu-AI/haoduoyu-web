@@ -1,0 +1,25 @@
+# Windows桌面端恢复记录（2026-11-07）
+
+用户明确恢复独立Windows客户端云端开发。继续使用原生.NET/WPF，不把完成度口头估计作为验收；不依赖用户电脑、不部署、不安装、不公开发布或改真实记录。
+
+## 已核实基线
+
+远端分支 `desktop/native-workbench-20261104` 与工作区均为 `c72be46e324ac362df0d1e9039434298d403e8b7`，工作区初始干净。产品受测源 `931f7fbc667f77683708420f3defb82b70dc7a21`，桌面树 `cc2482586abd7f3ce4b3f14c00decf88321be596`，工作流blob `0f8f45f1ae22cda22d33c3883412a57ff3b17748`。已检查仓库及相关.agents目录，没有找到适用的AGENTS.md/SKILL.md；云端运行技能已读取，环境恢复正常。
+
+既有[CI41937636529](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/41937636529)已结束且全部步骤成功，精确源同上。Artifact13374617310仅元数据核实：67,436,904 B、GitHub外层SHA256 `f022f77c16c93ca737bf4ead5a7c788e2ae0dad4ab2fb18387207f75c3b151d8`，保留到2026-11-08T00:00:24Z。没有下载或独立验字节。
+
+## 具体访问阻塞
+
+正常gh job/run日志命令退出0但内容为空。随后正常只读job日志API `/repos/haohaoyu-AI/haoduoyu-web/actions/jobs/126950036657/logs` 重定向到 `productionresultssa11.blob.core.windows.net/.../logs/job/job-logs.txt` 返回Forbidden，已停止，不重试或换路线。没有取得可读成功日志；45原生检查、32显示窗口及其他细项、内层ZIP摘要继续保持未逐项核实。该拒绝不同于CI失败，不可据此捏造失败或通过细项。
+
+此前artifact13343906486下载HTTP403的停止边界继续有效：不下载新旧artifact、不换工具、权限、代理或路线绕过。源码正常Git分支保存仍可进行。
+
+## 新基线与开发选择
+
+正常无登录复核公开OpenAPI仍为SHA256 `db16b231b41c6012c1cf7b1c2c2f8bdcf447924a791b2ce5766f0263e3ce698d`；线上app.js已变为 `8cb0dc0eddec1a8552dac3591f7ec57ad24d75ff00e075e0fa310beeeccf756d`。正常只读fetch取得主干 `928195f518cf1bdc2e624699091e05256686a932`，没有合并或覆盖桌面/Android文件，也未证明生产精确Git SHA。
+
+线上前端新增模板归档/恢复及待办转碎碎念调用，但当前找到的主干和已知c30源没有这些写接口。暂不猜测或实现其写入。桌面已有的备忘录、提醒、复盘等业务继续保留，不能只因新网站隐藏导航就删除用户能力。
+
+本轮优先补齐契约明确的碎碎念月历史和标签筛选：GET `/note-entries/month?month=YYYY-MM`，已知源c30提供完整月DTO、labels版本3、2000行/1MiB整体上限。计划原生月历、按日阅读、已知标签/正文筛选与导出；月份摘要无version/hash，编辑前必须取得独立完整记录，并保留原草稿和Unknown围栏。后续实现与验证将另存阶段交接；此恢复节点不宣称新增功能已通过。
+
+其他实际剩余：旧数据复盘仍主要泛化只读表；模板新写合同未明；工作提醒没有定时触发合同；备忘录不可跨组移动；旧账号更新无CAS；签名、可信更新、旧数据迁移和真实Windows验收尚未完成。
