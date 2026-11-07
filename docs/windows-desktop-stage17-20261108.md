@@ -17,3 +17,9 @@
 新增2组Show/Dispatcher流程：本机2篇与服务端副本1篇分开显示、取消后的本机重算；确认后的实际删除逻辑生成confirm_note_count=服务端1而非本机2，保留原版本和子请求；取消新建父组保留Queued子请求和非空中文子稿、不生成DELETE；缺数分组带非空中文草稿时在弹确认前阻断并保持全状态。测试调用Win32确认之后的同一逻辑，不自动化实际确认框，不把源码或Linux交叉编译当作真实WPF运行。
 
 本地125条Core检查通过，新增部分8/8；最终Windows.Tests Release交叉编译零警告零错误。精确源、编译时间和Windows CI结果见相邻机器证据。仍只读观察CI步骤/产物元数据，不读取已拒日志或下载新旧产物；真实账号、生产精确Worker/迁移、签名、安装、中文IME、缩放、休眠和断电验收仍独立未完成。
+
+## 精确保存
+
+本地受测34cbbd5fab2d6a5f595f602463276db96d4411fa经既有GitHub连接器、expected-parent非force快进保存为产品46b10013e8d851449beefe9dad393185154ff23e，正常ls-remote及fetch回读一致。整仓树92bf0331912f3702d3a80ffa6041435ec643a684、桌面树e19627bc5ebcbd6c8b9963327876fb3cbfcc9ef8与本地受测源完全一致。最终Windows.Tests Release编译5.25秒零警告零错误。精确源CI为[42413651403](https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42413651403)，终态以相邻机器证据为准。
+
+正常只读终态：精确head46b1001的run42413651403、windows-x64和全部步骤completed/success，更新时间2026-11-07T21:03:48Z。产物13590851205仅元数据68,891,410字节，保留至2026-11-10T21:03:44Z。仍未下载产物、未读受拒job日志；测试细项及内层包摘要未独立读验。该终态交接只改docs，产品桌面树不变。

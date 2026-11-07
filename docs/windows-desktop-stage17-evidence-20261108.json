@@ -4,7 +4,7 @@
   "branch": "desktop/native-workbench-20261104",
   "candidate_version": "0.17.0",
   "base_commit": "55618366bb4143916266884409837794f75cab0d",
-  "product_source_commit": null,
+  "product_source_commit": "46b10013e8d851449beefe9dad393185154ff23e",
   "local_validation": {
     "sdk": "10.0.403",
     "host": "Linux x64",
@@ -34,11 +34,18 @@
     "win32_confirmation_dialog_automated": false
   },
   "windows_ci": {
-    "run_id": null,
-    "status": "not_started",
-    "conclusion": null,
+    "run_id": 42413651403,
+    "status": "completed",
+    "conclusion": "success",
     "job_logs_read": false,
-    "artifacts_downloaded": false
+    "artifacts_downloaded": false,
+    "job_id": 128526939900,
+    "head_sha": "46b10013e8d851449beefe9dad393185154ff23e",
+    "all_returned_steps_success": true,
+    "run_updated_at": "2026-11-07T21:03:48Z",
+    "artifact_id": 13590851205,
+    "artifact_metadata_bytes": 68891410,
+    "artifact_expires_at": "2026-11-10T21:03:44Z"
   },
   "contracts_unchanged": {
     "memo_group_id_for_existing_note": "immutable",
@@ -53,5 +60,10 @@
     "Physical Windows UI/IME/scaling/sleep/power-loss, production exact Worker and migration, signing and installation remain unverified.",
     "Windows CI metadata cannot independently establish test-detail counts or package bytes.",
     "Existing Forbidden log and artifact 403 stop boundaries retained."
-  ]
+  ],
+  "local_tested_commit": "34cbbd5fab2d6a5f595f602463276db96d4411fa",
+  "desktop_tree": "e19627bc5ebcbd6c8b9963327876fb3cbfcc9ef8",
+  "root_source_tree": "92bf0331912f3702d3a80ffa6041435ec643a684",
+  "local_tested_and_published_source_tree_equal": true,
+  "remote_head_readback": "46b10013e8d851449beefe9dad393185154ff23e"
 }
