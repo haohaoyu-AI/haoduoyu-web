@@ -208,7 +208,8 @@ var recoveryFailures = RecoveryChecks.Run();
 var archiveFailures = HistoryArchiveChecks.Run();
 var templateArchiveSyncFailures = TemplateArchiveSyncChecks.Run();
 var todoNoteSyncFailures = TodoNoteSyncChecks.Run();
-return failed + queueFailures + projectionFailures + recoveryFailures + archiveFailures + templateArchiveSyncFailures + todoNoteSyncFailures == 0 ? 0 : 1;
+var beijingDayFailures = BeijingDayChecks.Run();
+return failed + queueFailures + projectionFailures + recoveryFailures + archiveFailures + templateArchiveSyncFailures + todoNoteSyncFailures + beijingDayFailures == 0 ? 0 : 1;
 
 static void Check(bool condition, string reason) { if (!condition) throw new Exception(reason); }
 static async Task Throws<T>(Func<Task> action) where T : Exception

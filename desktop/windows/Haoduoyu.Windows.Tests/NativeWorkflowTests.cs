@@ -45,7 +45,8 @@ internal static partial class NativeWorkflowTests
         .. NoteHistoryCases,
         .. MediaReviewCases,
         .. TemplateArchiveCases,
-        .. TodoNoteCases
+        .. TodoNoteCases,
+        .. DayRolloverCases
     ];
 
     private static readonly BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -449,11 +450,11 @@ internal static partial class NativeWorkflowTests
         settings = Apply("Select", settings, selected);
         assembly.GetType("Haoduoyu.Windows.SettingsFile", throwOnError: true)!.GetMethod("Write", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(null, [root, settings, new WindowsProtector()]);
     }
-    private static async Task<MainWindow> ShowAsync(string root, SyntheticOrigin handler)
+    private static async Task<MainWindow> ShowAsync(string root, SyntheticOrigin handler, TimeProvider? clock = null)
     {
         Check(Application.Current is SyntheticTestApplication, "shown-window tests require the guarded application startup host");
         var api = new WorkbenchApi(new NonOwningHandler(handler));
-        var window = new MainWindow(root, api) { Title = "好多鱼 · 纯合成原生验收", ShowInTaskbar = false };
+        var window = new MainWindow(root, api, clock) { Title = "好多鱼 · 纯合成原生验收", ShowInTaskbar = false };
         Application.Current.MainWindow = window;
         window.Show();
         await UntilAsync(() => window.IsLoaded && Field<SyncEngine?>(window, "engine") != null, "synthetic native window did not initialize its injected workspace");

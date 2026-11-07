@@ -10,7 +10,7 @@ namespace Haoduoyu.Windows;
 
 public sealed partial class MainWindow
 {
-    private DateTime aiReportDay=BeijingNow().Date;
+    private DateTime aiReportDay;
     private List<JsonObject> aiReportHistory=[];
     private string? aiReportHistoryIdentity;
     private int aiReportViewPage;
@@ -252,7 +252,7 @@ public sealed partial class MainWindow
         bar.Children.Add(Button("返回汇报历史",AiReportsAsync));draftDirty=true;await saveEditor();
     }
     private sealed record AiReportCommand(string Path,JsonObject Body);
-    private static AiReportCommand BuildAiReportCommand(JsonObject original,JsonObject values)
+    private AiReportCommand BuildAiReportCommand(JsonObject original,JsonObject values)
     {
         var id=Text(original,"id");if(!Guid.TryParseExact(id,"D",out var uuid)||uuid.ToString("D")!=id)throw new InvalidOperationException("汇报必须保留原始稳定标识。");
         if(Text(original,"created_at").Length>0||Text(original,"content_hash").Length>0)throw new InvalidOperationException("已提交汇报不可改写；请保留原文并明确另存新的人工稿。");

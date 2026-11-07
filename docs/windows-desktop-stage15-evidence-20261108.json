@@ -1,0 +1,77 @@
+{
+  "schema": "haoduoyu-windows-stage15-evidence-v1",
+  "observed_at_utc": "2026-11-07T20:26:30Z",
+  "repository": "haohaoyu-AI/haoduoyu-web",
+  "branch": "desktop/native-workbench-20261104",
+  "candidate_version": "0.15.0",
+  "resume_remote_and_local_commit": "c7cadcb1e1ccd94968c7a5b3cc3929c548181cef",
+  "resume_worktree_clean": true,
+  "prior_product_commit": "fc9b122b03ba5b224a4a2eac11e668bc4482499d",
+  "prior_ci": {
+    "run_id": 42364695346,
+    "job_id": 128380177862,
+    "job_conclusion": "success",
+    "all_returned_steps_success": true,
+    "artifact_id": 13571123158,
+    "artifact_metadata_bytes": 68791215,
+    "artifact_expires_at": "2026-11-10T10:41:03Z",
+    "artifact_downloaded": false,
+    "job_logs_read": false
+  },
+  "product_source_commit": null,
+  "local_validation": {
+    "sdk": "10.0.403",
+    "host": "Linux x64",
+    "core_checks_passed": 103,
+    "beijing_day_checks_included": 6,
+    "ordinary_api_checks_passed": 165,
+    "profile_checks_passed": 85,
+    "offline_prepare_checks_passed": 136,
+    "todo_history_checks_passed": 44,
+    "note_month_checks_passed": 80,
+    "media_review_checks_passed": 105,
+    "template_checks_passed": 76,
+    "todo_note_checks_passed": 81,
+    "ledger_checks_passed": 20,
+    "verification_checks_passed": 24,
+    "view_checks_passed": 36,
+    "search_checks_passed": 35,
+    "archive_checks_passed": 33,
+    "archive_checks_skipped": 0,
+    "ai_report_worker_contract": {
+      "create_replay_saves": 2,
+      "immutable_uuid_conflicts": 1,
+      "page_reads": 3,
+      "external_fetch_attempts": 0
+    },
+    "windows_test_project_cross_build": {
+      "configuration": "Release",
+      "succeeded": true,
+      "warnings": 0,
+      "errors": 0,
+      "elapsed_seconds": 5.52
+    },
+    "static_boundaries_passed": true,
+    "diff_check_passed": true,
+    "setup_notes": "SDK installed from official Microsoft source into task-owned directory. Dotnet/NuGet caches redirected to writable task directories. Some initial parallel dotnet run builds returned no diagnostics; affected projects subsequently built single-node and their DLLs executed successfully. No source gate or warning policy disabled."
+  },
+  "new_native_window_cases": 2,
+  "native_window_cases_run_on_linux": false,
+  "windows_ci": {
+    "run_id": null,
+    "status": "not_started",
+    "conclusion": null,
+    "job_logs_read": false,
+    "artifacts_downloaded": false
+  },
+  "validation_limits": [
+    "Existing Forbidden job-log and artifact 403 stop boundaries retained; no alternate route attempted.",
+    "Windows CI status and step metadata do not independently prove per-test counts or portable package bytes.",
+    "No production account or business data requests, deployment, installation, public release, schema migration, TLS exception or permissions expansion.",
+    "Physical Windows sleep/wake, IME, scaling, power loss, old client migration, signing and trusted distribution remain unverified."
+  ],
+  "code_review": {
+    "blocking_findings": 0,
+    "followup": "Connected-flag observation and asynchronous flush-failure coverage strengthened; second midnight during an awaited page read remains a dynamic test gap."
+  }
+}

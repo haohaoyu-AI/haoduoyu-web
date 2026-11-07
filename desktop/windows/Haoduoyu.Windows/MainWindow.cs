@@ -22,7 +22,12 @@ public sealed partial class MainWindow : Window
     private readonly StackPanel page = new() { Margin = new Thickness(24) };
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(20, 10, 20, 10) };
     private readonly TextBlock heading = new() { FontSize = 26, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16) };
-    private readonly DatePicker date = new() { SelectedDate = BeijingNow().Date, MinWidth = 160, Margin = new Thickness(0, 0, 8, 8) };
+    private readonly DatePicker date = new() { MinWidth = 160, Margin = new Thickness(0, 0, 8, 8) };
+    private readonly TimeProvider clock;
+    private readonly BeijingDayTracker dayTracker;
+    private readonly DispatcherTimer dayTimer = new() { Interval = TimeSpan.FromSeconds(30) };
+    private readonly Border dayNotice = new() { Visibility = Visibility.Collapsed, Background = Brushes.LightGoldenrodYellow, Padding = new Thickness(20, 8, 20, 8) };
+    private readonly TextBlock dayNoticeText = new() { TextWrapping = TextWrapping.Wrap, MaxWidth = 680, VerticalAlignment = VerticalAlignment.Center };
     private readonly SemaphoreSlim actions = new(1, 1);
     private readonly DispatcherTimer draftTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private AtomicWorkspaceStore? store;
@@ -41,11 +46,15 @@ public sealed partial class MainWindow : Window
 
     public MainWindow() : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Haoduoyu", "NativeWorkbench", "v1"), new WorkbenchApi()) { }
 
-    internal MainWindow(string dataRoot, WorkbenchApi transport)
+    internal MainWindow(string dataRoot, WorkbenchApi transport, TimeProvider? timeProvider = null)
     {
         if (!Path.IsPathFullyQualified(dataRoot)) throw new ArgumentException("工作区目录必须为明确的绝对路径。", nameof(dataRoot));
         root = Path.GetFullPath(dataRoot);
         api = transport ?? throw new ArgumentNullException(nameof(transport));
+        clock = timeProvider ?? TimeProvider.System;
+        dayTracker = new BeijingDayTracker(clock.GetUtcNow());
+        date.SelectedDate = dayTracker.CurrentDay.ToDateTime(TimeOnly.MinValue);
+        aiReportDay = date.SelectedDate.Value;
         Title = "好多鱼 · 独立工作台（开发候选）";
         Width = 1280; Height = 850; MinWidth = 940; MinHeight = 620;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -61,6 +70,13 @@ public sealed partial class MainWindow : Window
         cancelNetwork.Click += (_, _) => { actionCancellation?.Cancel(); Message("正在停止当前操作；已落盘的稿件和未确认请求会保留。"); };
         top.Children.Add(cancelNetwork);
         DockPanel.SetDock(top, Dock.Top); shell.Children.Add(top);
+        var noticeBar = new WrapPanel();
+        noticeBar.Children.Add(dayNoticeText);
+        noticeBar.Children.Add(Button("打开今天待办", OpenBeijingTodayAsync));
+        noticeBar.Children.Add(Button("继续原日期", () => { dayNotice.Visibility = Visibility.Collapsed; return Task.CompletedTask; }));
+        dayNotice.Child = noticeBar;
+        System.Windows.Automation.AutomationProperties.SetAutomationId(dayNotice, "beijing-day-notice");
+        DockPanel.SetDock(dayNotice, Dock.Top); shell.Children.Add(dayNotice);
         DockPanel.SetDock(status, Dock.Bottom); shell.Children.Add(status);
         var nav = new StackPanel { Width = 170, Margin = new Thickness(16, 8, 0, 8) };
         foreach (var name in new[] { "待办", "待办日历", "未安排", "生活记录", "工作记录", "碎碎念月历", "标签", "备忘录", "工作提醒", "AI汇报", "文章台账", "发布对账", "内容复盘", "数据复盘", "回收站", "本机草稿", "本机检索", "同步中心", "历史档案", "本机与恢复" })
@@ -73,8 +89,12 @@ public sealed partial class MainWindow : Window
         shell.Children.Add(new ScrollViewer { Content = page, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         Content = shell;
         draftTimer.Tick += async (_, _) => { draftTimer.Stop(); await SaveDraftSafelyAsync(); };
-        date.SelectedDateChanged += (_, _) => { if (!suppressDate) Run(() => NavigateAsync(currentPage)); };
+        date.SelectedDateChanged += (_, _) => { UpdateBeijingDayNoticeText(); if (!suppressDate) Run(() => NavigateAsync(currentPage)); };
         Closing += OnClosing;
+        Closed += (_, _) => dayTimer.Stop();
+        Activated += OnWindowActivated;
+        dayTimer.Tick += (_, _) => RefreshBeijingDayNotice();
+        dayTimer.Start();
         Loaded += (_, _) => Run(InitializeAsync);
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Save, (_, _) => Run(SaveDraftSafelyAsync)));
         InputBindings.Add(new KeyBinding(ApplicationCommands.Save, Key.S, ModifierKeys.Control));
@@ -89,7 +109,29 @@ public sealed partial class MainWindow : Window
         await draftWrites;
     }
 
-    private static DateTimeOffset BeijingNow() => DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(8));
+    private DateTimeOffset BeijingNow() => clock.GetUtcNow().ToOffset(TimeSpan.FromHours(8));
+    private void OnWindowActivated(object? sender, EventArgs e) => RefreshBeijingDayNotice();
+    private void RefreshBeijingDayNotice()
+    {
+        if (closing || !dayTracker.Observe(clock.GetUtcNow())) return;
+        UpdateBeijingDayNoticeText();
+        dayNotice.Visibility = Visibility.Visible;
+    }
+    private void UpdateBeijingDayNoticeText() => dayNoticeText.Text =
+        "北京时间日期已变为 " + dayTracker.CurrentDay.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) +
+        "。当前所选日期仍为 " + Day + "；原页面与草稿保留，未自动刷新或同步。";
+    private async Task OpenBeijingTodayAsync()
+    {
+        // A failed flush must leave both the editor and its original date intact.
+        await FlushEditorAsync();
+        var today = BeijingNow().Date;
+        suppressDate = true;
+        try { date.SelectedDate = today; } finally { suppressDate = false; }
+        await NavigateAsync("待办");
+        // Midnight can occur while navigation is waiting for a read. Keep a newer notice visible.
+        RefreshBeijingDayNotice();
+        if (Day == dayTracker.CurrentDay.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)) dayNotice.Visibility = Visibility.Collapsed;
+    }
     private string Day => (date.SelectedDate ?? BeijingNow().Date).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     private SyncEngine Engine => engine ?? throw new InvalidOperationException("本机工作区尚未打开。");
     private static string Text(JsonNode? node, string key) => node?[key]?.ToString() ?? "";
