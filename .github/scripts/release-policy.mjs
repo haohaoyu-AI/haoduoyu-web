@@ -12,20 +12,19 @@ export const releases=Object.freeze({
     ci:40269439403,bytes:1269372,sha256:'61e30101b744f56bfe10418cb536b661e9bac5ca8270041b510f6222434c4149',label:'round5-rollback'})
 });
 export const productionRestore=Object.freeze({
+  commit:'8d65a1d514e7e6c2472b2035e2197d2824d0dbb7',
+  tree:'077316393069b81be4933ec199faf60732f4de0a',
+  baseline:'1daf9321-97ff-49f3-ae75-dbed5e5039b0',
+  bytes:2668707,sha256:'879dfb6db5759e8fb7ad54e7b1b8de06f8ddef4cc44721fa0033478aa6a7d945',
+  label:'production-mobile-daily-cleanup-20261108'});
+// Pin rollback baseline only after the new production version is independently verified.
+export const previousProductionRelease=Object.freeze({
   commit:'a02a261df0b687b360f2b322d374d04a7a8c218f',
   tree:'36aac1b367a93f46c981dff745206e1ada3d7d70',
-  baseline:'fb304eb0-304b-4b69-98ea-bbf02a2d2e0d',
+  baseline:null,
+  originalBaseline:'fb304eb0-304b-4b69-98ea-bbf02a2d2e0d',
   bytes:2668750,sha256:'0484226a6f547616e21d6c864cb0d3d2d257cadafff35e2dced7e3fc156dfcde',
   label:'production-ai-report-author-colors-20261107'});
-// Preserve the preceding exact artifact as a rollback from the independently
-// verified production version created by release run 42379879450.
-export const previousProductionRelease=Object.freeze({
-  commit:'81cd30a2276c058668ff48198be1bc3d116d9839',
-  tree:'3c2c20c6e4e80ddb09e1d5876a1925ef9679ca2c',
-  baseline:'1daf9321-97ff-49f3-ae75-dbed5e5039b0',
-  originalBaseline:'b086dec1-050d-4aeb-a59a-8a82c633d3ef',
-  bytes:2668225,sha256:'c3a217454f9459bf18cd902ec7c3b758755e67811cad38ed9175d2578cd270b9',
-  label:'production-reminder-markdown-20261107'});
 const acceptedRelease=commit=>commit===productionRestore.commit?productionRestore:
   commit===previousProductionRelease.commit?previousProductionRelease:releases[commit];
 export function validateRequest(env) {

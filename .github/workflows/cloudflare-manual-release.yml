@@ -6,10 +6,10 @@ on:
         description: Exact accepted source commit (production restore or historical release)
         required: true
         type: choice
-        default: a02a261df0b687b360f2b322d374d04a7a8c218f
+        default: 8d65a1d514e7e6c2472b2035e2197d2824d0dbb7
         options:
+          - 8d65a1d514e7e6c2472b2035e2197d2824d0dbb7
           - a02a261df0b687b360f2b322d374d04a7a8c218f
-          - 81cd30a2276c058668ff48198be1bc3d116d9839
           - 947bc782ea70e7808f6e7de523e5977818b292df
           - 16ff80ef2d857676d81b7c219110c820de5af72b
       expected_current_version:
@@ -67,21 +67,25 @@ jobs:
         working-directory: source
         run: npm run build
       - name: Verify restored source artifacts
-        if: inputs.target_commit == 'a02a261df0b687b360f2b322d374d04a7a8c218f' || inputs.target_commit == '81cd30a2276c058668ff48198be1bc3d116d9839'
+        if: inputs.target_commit == '8d65a1d514e7e6c2472b2035e2197d2824d0dbb7' || inputs.target_commit == 'a02a261df0b687b360f2b322d374d04a7a8c218f'
         working-directory: source
         run: npm run check:artifacts
       - name: Verify safe Markdown for reports and daily reminders
-        if: inputs.target_commit == 'a02a261df0b687b360f2b322d374d04a7a8c218f' || inputs.target_commit == '81cd30a2276c058668ff48198be1bc3d116d9839'
+        if: inputs.target_commit == '8d65a1d514e7e6c2472b2035e2197d2824d0dbb7' || inputs.target_commit == 'a02a261df0b687b360f2b322d374d04a7a8c218f'
         working-directory: source
         run: node --test tests/ai-report-markdown.test.mjs tests/ai-reports-navigation.test.mjs tests/ai-reminder-markdown.test.mjs
       - name: Verify update recovery and draft preservation
-        if: inputs.target_commit == 'a02a261df0b687b360f2b322d374d04a7a8c218f' || inputs.target_commit == '81cd30a2276c058668ff48198be1bc3d116d9839'
+        if: inputs.target_commit == '8d65a1d514e7e6c2472b2035e2197d2824d0dbb7' || inputs.target_commit == 'a02a261df0b687b360f2b322d374d04a7a8c218f'
         working-directory: source
         run: node --test tests/sw-update-recovery.test.mjs tests/unify-service-worker.test.mjs tests/unify-memo-controller-refresh.test.mjs
       - name: Verify AI report author colors
-        if: inputs.target_commit == 'a02a261df0b687b360f2b322d374d04a7a8c218f'
+        if: inputs.target_commit == '8d65a1d514e7e6c2472b2035e2197d2824d0dbb7' || inputs.target_commit == 'a02a261df0b687b360f2b322d374d04a7a8c218f'
         working-directory: source
         run: node --test tests/ai-report-author-colors.test.mjs
+      - name: Verify mobile navigation cleanup
+        if: inputs.target_commit == '8d65a1d514e7e6c2472b2035e2197d2824d0dbb7'
+        working-directory: source
+        run: node --test --test-name-pattern='phone bottom navigation|mobile-only stylesheet' tests/unify-mobile.test.mjs
       - name: Verify production release guards
         run: node --test tests/cloudflare-production-restore.test.mjs tests/cloudflare-publish.test.mjs
       - name: Verify accepted Worker bytes
