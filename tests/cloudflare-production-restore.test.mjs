@@ -2,19 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {releases,productionRestore,repository,validateRequest,verifyEligibility,verifyWorker} from '../.github/scripts/release-policy.mjs';
-const commit='b27c5a728baab322f0e67f35b4a2fda0881b334e';
-const baseline='e297ec11-46ab-42b0-a1c7-e2d4917ce1d9';
-const tree='b13297604aba122fc0174894e504c8b33fda447f';
+const commit='81cd30a2276c058668ff48198be1bc3d116d9839';
+const baseline='b086dec1-050d-4aeb-a59a-8a82c633d3ef';
+const tree='3c2c20c6e4e80ddb09e1d5876a1925ef9679ca2c';
 const env={GITHUB_REPOSITORY:repository,GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',
   TARGET_COMMIT:commit,LOCAL_UPLOAD_STOPPED:'true',EXPECTED_CURRENT_VERSION:baseline};
 test('production restore is pinned to one source tree, artifact and current production version',()=>{
   assert.equal(validateRequest(env),productionRestore);
-  assert.equal(productionRestore.tree,tree);assert.equal(productionRestore.bytes,2668201);
-  assert.equal(productionRestore.sha256,'9c15be0078ac231ab51cd628d36956103fce2e6cbdb4c126842151a5b10e3004');
+  assert.equal(productionRestore.tree,tree);assert.equal(productionRestore.bytes,2668225);
+  assert.equal(productionRestore.sha256,'c3a217454f9459bf18cd902ec7c3b758755e67811cad38ed9175d2578cd270b9');
   for(const [key,value] of Object.entries({GITHUB_REPOSITORY:'other/repo',GITHUB_REF:'refs/heads/other',GITHUB_EVENT_NAME:'push',
     TARGET_COMMIT:'main',LOCAL_UPLOAD_STOPPED:'false',EXPECTED_CURRENT_VERSION:'83512373-c500-47c3-a451-7dde59d2174b'}))
     assert.throws(()=>validateRequest({...env,[key]:value}));
-  assert.throws(()=>verifyWorker(Buffer.alloc(2668201),commit));
+  assert.throws(()=>verifyWorker(Buffer.alloc(2668225),commit));
 });
 test('restored source identity is checked through a read-only exact-commit lookup',async()=>{
   const good={sha:commit,tree:{sha:tree}};
