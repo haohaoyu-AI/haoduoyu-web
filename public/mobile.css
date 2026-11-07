@@ -181,3 +181,48 @@
     display:block; margin-top:12px; color:var(--ink-2); font-size:12px; line-height:1.6;
   }
 }
+
+/* Phone review keeps the full article content in compact cards, even when
+   several metrics are selected. Desktop tables retain their existing layout. */
+@media (max-width:767px) {
+  #content-review .review-articles-panel { padding:12px; }
+  #content-review .review-articles-panel .review-panel-head { margin-bottom:12px; gap:8px; }
+  #content-review .review-articles-panel > .review-filters {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; margin-bottom:12px;
+  }
+  #content-review .review-articles-panel > .review-filters > label { min-width:0; gap:4px; }
+  #content-review .review-articles-panel > .review-filters .input { min-width:0; padding-inline:10px 28px; }
+  #content-review .review-articles-panel .review-columns-picker { min-width:0; justify-self:start; }
+  #content-review .review-articles-panel .review-columns-picker > summary { min-height:44px; padding-inline:10px; white-space:nowrap; }
+  #content-review .review-articles-panel .review-columns-menu { left:0; right:auto; max-width:calc(100vw - 64px); }
+  #content-review .review-articles-panel .review-columns-menu > label { min-height:44px; }
+  #content-review .review-articles-panel > .review-filters > .review-note {
+    width:auto; margin:0; padding:0; align-self:center; justify-self:end;
+  }
+  #content-review .review-articles-panel .review-table-wrap { overflow:visible; border:0; background:transparent; }
+  #content-review .review-articles-panel .review-articles-table { display:block; width:100%; min-width:0; }
+  #content-review .review-articles-panel .review-articles-table thead { display:none; }
+  #content-review .review-articles-panel .review-articles-table tbody { display:grid; gap:8px; }
+  #content-review .review-articles-panel .review-articles-table tbody tr {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 12px; height:auto; margin:0; padding:12px;
+    background:var(--color-white-a-74); border:1px solid var(--color-divider); border-radius:12px;
+  }
+  #content-review .review-articles-panel .review-articles-table td {
+    display:block; grid-column:auto; min-width:0; padding:0; border:0; font-size:13px; line-height:1.5; overflow-wrap:anywhere;
+  }
+  #content-review .review-articles-panel .review-articles-table td::before {
+    content:attr(data-label); display:inline; margin:0 6px 0 0; color:var(--color-text-secondary); font-size:11px;
+  }
+  #content-review .review-articles-panel .review-articles-table td[data-label="发布时间"] {
+    grid-column:1 / -1; color:var(--color-text-secondary); font-size:12px; white-space:normal;
+  }
+  #content-review .review-articles-panel .review-articles-table td[data-label="标题"] { grid-column:1 / -1; margin:0; }
+  #content-review .review-articles-panel .review-articles-table td[data-label="发布时间"]::before,
+  #content-review .review-articles-panel .review-articles-table td[data-label="标题"]::before { content:none; }
+  #content-review .review-articles-panel .review-articles-table td[data-label="判定"]:empty { display:none; }
+  #content-review .review-articles-panel .review-articles-table .review-title-button { width:100%; min-height:44px; font-size:15px; line-height:22px; }
+  #content-review .review-articles-panel .review-articles-table .review-reference { margin-top:4px; font-size:12px; }
+  #content-review .review-articles-panel .review-articles-table .review-observation-age { white-space:normal; font-size:11px; }
+  #content-review.review-list-fullscreen { padding:12px; padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+  #content-review.review-list-fullscreen .review-articles-panel { min-height:calc(100dvh - 24px); }
+}
