@@ -887,3 +887,25 @@ test('delete and restore conflicts refresh open common counters after reading th
     assert.equal(c.run('calls.filter(path=>path===\"refresh-common\").length'),1,operation);
   }
 });
+
+test('compact phone calendar keeps repeated month/week date navigation and day drafts intact', () => {
+  const c=client({search:'?page=todos&date=2026-12-31&todo_panel=history',mobile:true});
+  c.run("readRoute();todoDay().draft='未提交的日计划';loadTodos=()=>{};paintTodos=()=>{}");
+  for(let i=0;i<4;i++) {
+    c.run("todosState.calendarView='week';moveTodoMonth(1)");
+    assert.equal(c.run('todoDate()'),'2027-01-07');
+    assert.match(c.run('todoCalendar(todoDate())'),/data-date="2027-01-07"[^>]*aria-pressed="true"/);
+    c.run('moveTodoMonth(-1)');
+    assert.equal(c.run('todoDate()'),'2026-12-31');
+    assert.equal(c.run('todoDay().draft'),'未提交的日计划');
+    c.run("todosState.calendarView='month';moveTodoMonth(1)");
+    assert.equal(c.run('todosState.calendarMonth'),'2027-01');
+    assert.equal(c.run('todoDate()'),'2026-12-31');
+    c.run('moveTodoMonth(-1)');
+    assert.equal((c.run('todoCalendar(todoDate())').match(/data-action="todo-calendar-date"/g)||[]).length,31);
+  }
+  c.run('selectTodoDate(bjtDate())');
+  assert.match(c.run('todoCalendar(todoDate())'),/aria-current="date"/);
+  assert.equal(c.run('todoDate()'),'2026-10-23');
+  assert.equal(c.run("todoDay('2026-12-31').draft"),'未提交的日计划');
+});

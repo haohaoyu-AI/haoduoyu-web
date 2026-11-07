@@ -138,3 +138,46 @@
   .modal:not(.drawer) { max-width:calc(100vw - 32px); max-height:calc(100dvh - 32px); }
   .drawer { width:min(560px,calc(100vw - 48px)); }
 }
+
+/* Phone calendar is a date picker, not a horizontally clipped task board.
+   Task text stays in the selected day's existing list below it. */
+@media (max-width:767px) {
+  #todo-floating-toolbar { display:none; }
+  #todo-history .daily-todo-calendar { width:100%; margin-inline:0; gap:12px; }
+  #todo-history .todo-calendar-sidebar {
+    grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:6px 8px; padding:12px;
+  }
+  #todo-history .todo-calendar-sidebar label:nth-of-type(1) { grid-column:1; grid-row:1; margin:0; }
+  #todo-history .todo-calendar-sidebar label:nth-of-type(3) { grid-column:2; grid-row:1; margin:0; }
+  #todo-history .todo-calendar-sidebar .input { padding-inline:8px; }
+  #todo-calendar-month-input { grid-column:1; grid-row:2; }
+  #todo-calendar-status { grid-column:2; grid-row:2; }
+  #todo-history label[for="todo-calendar-week"], #todo-calendar-week { display:none; }
+  #todo-history .todo-calendar-head { flex-direction:column; align-items:stretch; gap:8px; margin-bottom:12px; }
+  #todo-history .todo-calendar-navigation { display:grid; grid-template-columns:44px minmax(0,1fr) 44px auto; gap:4px; }
+  #todo-history #todo-calendar-month { min-width:0; font-size:16px; }
+  #todo-history .todo-calendar-navigation .btn { padding-inline:12px; }
+  #todo-history .todo-calendar-views { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+  #todo-history .todo-calendar-stats { grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px; margin-bottom:12px; }
+  #todo-history .todo-calendar-stats span { padding:8px 2px; text-align:center; gap:4px; }
+  #todo-history .todo-calendar-stats small { font-size:10px; }
+  #todo-history .todo-calendar-stats strong { font-size:16px; }
+  #todo-history .todo-calendar-scroll { overflow:visible; }
+  #todo-history .todo-calendar-grid { min-width:0; width:100%; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
+  #todo-history .todo-calendar-weekday { font-size:12px; padding:4px 0; }
+  #todo-history .todo-calendar-day {
+    min-width:0; min-height:58px; padding:6px 0; gap:0; border-radius:10px; text-align:center;
+  }
+  #todo-history .todo-calendar-day-head { flex-direction:column; justify-content:center; gap:4px; }
+  #todo-history .todo-calendar-day-head strong { font-size:16px; line-height:20px; }
+  #todo-history .todo-calendar-day-head small { font-size:10px; line-height:14px; white-space:nowrap; min-height:14px; }
+  #todo-history .todo-calendar-task, #todo-history .todo-calendar-more { display:none; }
+  #todo-history .todo-calendar-day.is-today strong { text-decoration:underline; text-underline-offset:3px; }
+  #todo-history .todo-calendar-day.is-selected { background:var(--accent); color:var(--color-white); }
+  #todo-history .todo-calendar-day.is-selected small { color:var(--color-white); }
+  #todo-history .todo-calendar-day:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  #todo-history .todo-calendar-main::after {
+    content:"点选日期，在下方查看当天待办 · 下划线为今天";
+    display:block; margin-top:12px; color:var(--ink-2); font-size:12px; line-height:1.6;
+  }
+}
