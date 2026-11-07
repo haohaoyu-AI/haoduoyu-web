@@ -11,5 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="../Haoduoyu.Windows/Haoduoyu.Windows.csproj" />
     <EmbeddedResource Include="../Haoduoyu.Windows/App.xaml" LogicalName="Haoduoyu.Windows.Tests.ProductionApp.xaml" />
+    <Content Include="../Haoduoyu.Api.Tests/Fixtures/media-review-contract-c30a8a9.json" Link="Fixtures/media-review-contract-c30a8a9.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

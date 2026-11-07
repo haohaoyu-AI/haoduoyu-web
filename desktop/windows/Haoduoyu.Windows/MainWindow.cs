@@ -143,6 +143,7 @@ public sealed partial class MainWindow : Window
         ResetReconciliationView();
         ResetTodoHistoryView();
         ResetNoteHistoryView();
+        ResetMediaReviewView();
         ResetArticleLedgerView();
         ClearPage();
         failedIdentity = identity;

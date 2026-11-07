@@ -173,31 +173,6 @@ public sealed partial class MainWindow
             { if (!await CancelUnsentCreationAsync(row)) await QueueAsync("DELETE", path, Obj(("version", Version(row)), ("save_id", Guid.NewGuid().ToString())), path); }
         }))));
     }
-    private async Task ReviewsAsync(WrapPanel bar)
-    {
-        var choice = Choose("数据复盘", "选择需要查看的数据。已访问页面会保存到本机，缺失指标保留为空。", "自媒体总览", "到期观察", "文章快照", "每日数据");
-        var path = choice switch { "文章快照" => "/api/v1/observations", "每日数据" => "/api/v1/daily-metrics", "到期观察" => "/api/v1/due-reviews", _ => "/api/v1/overview" };
-        var data = await ReadAsync(path); Missing(data);
-        page.Children.Add(Label(choice ?? "自媒体总览"));
-        if (data is JsonArray array)
-        {
-            var rows = array.OfType<JsonObject>().Select(row => row.ToDictionary(kv => kv.Key, kv => kv.Value?.ToString() ?? "未取得")).ToArray();
-            var grid = new DataGrid { IsReadOnly = true, AutoGenerateColumns = false, MaxHeight = 500, CanUserAddRows = false };
-            foreach (var key in rows.SelectMany(r => r.Keys).Distinct().Where(k => k is not "metrics_json" and not "note"))
-                grid.Columns.Add(new DataGridTextColumn { Header = key, Binding = new System.Windows.Data.Binding("[" + key + "]") });
-            grid.ItemsSource = rows; page.Children.Add(grid);
-        }
-        else if (data is JsonObject overview)
-        {
-            foreach (var (key, value) in overview)
-            {
-                page.Children.Add(Label(key));
-                if (value is JsonValue) page.Children.Add(Label(value.ToString()));
-                else if (value is JsonArray values)
-                    List(values.OfType<JsonObject>().Select(r => (string.Join(" · ", r.Where(kv => kv.Value is JsonValue).Select(kv => kv.Key + " " + kv.Value)), "", (Func<Task>)(() => { ShowText(key, r.ToJsonString(new() { WriteIndented = true })); return Task.CompletedTask; }))));
-                else if (value is JsonObject obj) foreach (var (name, number) in obj) page.Children.Add(Label(name + "：" + (number?.ToString() ?? "未取得")));
-            }
-        }
-        bar.Children.Add(Button("导出本机数据副本", () => ExportTextAsync("好多鱼复盘数据.txt", data?.ToJsonString(new() { WriteIndented = true }) ?? "本机没有此数据")));
-    }
+    private Task ReviewsAsync(WrapPanel bar) => MediaReviewAsync();
+
 }

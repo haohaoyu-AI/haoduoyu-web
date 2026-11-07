@@ -203,3 +203,48 @@ interactive rendering and device acceptance remain separate checks.
 node desktop/windows/Haoduoyu.Api.Tests/generate-note-history-contract.mjs /path/to/isolated-worktree desktop/windows/Haoduoyu.Api.Tests/Fixtures/note-history-contract-c30a8a9.json
 dotnet run --project desktop/windows/Haoduoyu.Api.Tests --configuration Release -- --note-history-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/note-history-contract-c30a8a9.json
 ```
+
+## Native read-only media review
+
+`media-review-contract-c30a8a9.json` captures twenty-four actual GET responses from
+the exact compiled c30 Worker and a fresh temporary Miniflare D1. Existing synthetic
+bootstrap/login and direct D1 setup use the normal schemas. The capture changes no
+permissions, constraints, limiters, clock, revision or server cache machinery. Every
+business GET compares synthetic business, audit and control-table digests before and
+after. It contains no session material or real user records, makes zero external
+fetch attempts, and disposes the temporary runtime.
+
+The eighteen successful responses include empty/default, seven-day and thirty-day
+overview windows; selected-account reads; top-platform/limit changes that affect only
+ranking; true zeros, missing likes versus approvals, partial and mixed coverage,
+historical-median attention, and separate daily increments versus latest cumulative
+snapshots. Due lists preserve three `(article id, kind)` targets for one article: a
+snapshot collected before its target does not complete it. Observation lists use
+account/article filters; daily lists preserve account-level and article-level rows,
+inclusive date ranges and complete empty results. One linked article detail supplies
+actual observations, nodes, timeline and edit version separately from the overview.
+
+Six invalid date/range/period/top queries really return 400 from the source. Five
+additional unsupported or duplicate queries are rejected before native HTTP only;
+the fixture does not claim server rejection for parameters the old server ignores.
+The exact route/query parser is shared with native controls and the transport; this
+does not add pagination to the three unpaged lists. Payloads above the unchanged
+1 MiB network limit fail whole and cannot replace an old exact-query cache.
+
+Replay uses `MediaReviewQuery`, `MediaReview.Parse/ValidateSource`,
+`MediaReviewResponse.Validate` and the actual fixed-origin `WorkbenchApi`. It checks
+raw DTO preservation, native zero-request query rejection, malformed-success
+rejection and legal Unicode cache encoding. Native summary rows remain read-only;
+no non-CAS observation/daily write form or inferred metric write is introduced.
+Two additional synthetic compatibility checks retain explicit historical metric
+null separately from an absent key and true zero. They do not alter the captured
+Worker responses or claim that current metric writes accept null.
+`media-review-report.json` records exact hashes and measured validation results.
+The current contract replay passes 108 checks; the ordinary 165-assertion API suite
+and earlier 82-response Worker capture plus two receipt checks also pass. The latter
+is a local replay of historical synthetic responses, not new business writes.
+
+```sh
+node desktop/windows/Haoduoyu.Api.Tests/generate-media-review-contract.mjs /path/to/isolated-worktree desktop/windows/Haoduoyu.Api.Tests/Fixtures/media-review-contract-c30a8a9.json
+dotnet run --project desktop/windows/Haoduoyu.Api.Tests --configuration Release -- --media-review-contract desktop/windows/Haoduoyu.Api.Tests/Fixtures/media-review-contract-c30a8a9.json
+```

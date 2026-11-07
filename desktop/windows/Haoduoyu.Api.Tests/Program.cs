@@ -69,6 +69,11 @@ if (args is ["--note-history-contract", var noteHistoryFixturePath])
     await NoteHistoryContract.RunAsync(noteHistoryFixturePath);
     return;
 }
+if (args is ["--media-review-contract", var mediaReviewFixturePath])
+{
+    await MediaReviewContract.RunAsync(mediaReviewFixturePath);
+    return;
+}
 
 var passed = 0;
 var scope = new string('a', 64);

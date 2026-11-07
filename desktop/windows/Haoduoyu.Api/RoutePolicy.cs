@@ -47,8 +47,10 @@ internal static class RoutePolicy
         ("POST", "/articles", []), ("PATCH", "/articles", []),
         ("GET", "/articles/" + Id, []), ("PUT", "/articles/" + Id, []),
         ("GET", "/article-reconciliation", []),
-        ("GET", "/(overview|due-reviews|observations|daily-metrics)",
-            ["account_id", "article_id", "from", "to", "date", "period", "days", "stage", "status", "page", "page_size", "sort", "order"]),
+        ("GET", "/overview", ["account_id", "period", "top_n", "top_platform"]),
+        ("GET", "/due-reviews", ["account_id"]),
+        ("GET", "/observations", ["account_id", "article_id"]),
+        ("GET", "/daily-metrics", ["account_id", "from", "to"]),
         ("POST", "/(observations|daily-metrics|review-logs)", []),
         ("GET", "/review/overview", ["account", "range", "week"]),
         ("GET", "/review/articles", ["offset", "read_revision", "page", "verdict", "account", "from", "to"]),
@@ -69,6 +71,7 @@ internal static class RoutePolicy
     internal static void Validate(string method, string path, bool allowAuthWrite)
     {
         var articleQuery = method == "GET" && path.Split('?')[0] == "/api/v1/articles";
+        var mediaQuery = method == "GET" && path.Split('?')[0] is "/api/v1/overview" or "/api/v1/due-reviews" or "/api/v1/observations" or "/api/v1/daily-metrics";
         if (path.Length > (articleQuery ? 8192 : 2048) || !path.StartsWith("/api/v1/", StringComparison.Ordinal) ||
             path.Any(char.IsControl) || path.Contains('#') || path.Contains('\\') || path.Contains(' '))
             throw new ArgumentException("该地址不在桌面业务接口范围内。", nameof(path));
@@ -78,7 +81,12 @@ internal static class RoutePolicy
             throw new ArgumentException("登录操作不能加入业务待同步队列。", nameof(path));
         var rule = Rules.FirstOrDefault(rule => rule.Method == method && Regex.IsMatch(route, "\\A(?:" + rule.Pattern + ")\\z", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking));
         if (rule.Pattern is null) throw new ArgumentException("该操作不在桌面业务接口范围内。", nameof(path));
-        if (split.Length == 1) { if (articleQuery) _ = ArticleLedgerQuery.Parse(path); return; }
+        if (split.Length == 1)
+        {
+            if (articleQuery) _ = ArticleLedgerQuery.Parse(path);
+            if (mediaQuery) _ = MediaReviewQuery.Parse(path);
+            return;
+        }
         if (split[1].Length == 0) throw new ArgumentException("查询参数不完整。", nameof(path));
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var field in split[1].Split('&'))
@@ -96,5 +104,6 @@ internal static class RoutePolicy
             catch (UriFormatException) { throw new ArgumentException("查询参数编码无效。", nameof(path)); }
         }
         if (articleQuery) _ = ArticleLedgerQuery.Parse(path);
+        if (mediaQuery) _ = MediaReviewQuery.Parse(path);
     }
 }

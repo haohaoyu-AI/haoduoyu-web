@@ -125,14 +125,8 @@ internal static class BusinessReadSchema
             }
             else if (route.StartsWith("/api/v1/articles/", StringComparison.Ordinal))
             { var value = Object(data); Article(value, index: false); Matches(value["id"], route.Split('/')[4]); }
-            else if (route == "/api/v1/observations") Rows(data, row => { Identifier(row["id"]); Identifier(row["article_id"]); Stamp(row["as_of"]); Object(row["metrics"]); });
-            else if (route == "/api/v1/daily-metrics") Rows(data, row => { Identifier(row["id"]); Identifier(row["account_id"]); Date(row["date"]); Object(row["metrics"]); });
-            else if (route == "/api/v1/due-reviews") Rows(data, row => { Identifier(row["id"]); Text(row["title"]); Choice(row["due_kind"], "d1", "d3", "d7"); Stamp(row["due_at"]); });
-            else if (route == "/api/v1/overview")
-            {
-                var value = Object(data); var window = Object(value["window"]); Date(window["from"]); Date(window["to"]);
-                Array(value["accounts"]); Array(value["trend"]); Array(value["publication_trend"]); Array(value["attention_articles"]); Array(value["due_reviews"]); Object(value["totals"]); Object(value["data_status"]);
-            }
+            else if (route is "/api/v1/observations" or "/api/v1/daily-metrics" or "/api/v1/due-reviews" or "/api/v1/overview")
+                MediaReview.ValidateSource(path, result.Json);
             else if (route == "/api/v1/article-reconciliation")
                 _ = ArticleReconciliation.Parse(result.Json);
             else if (route.StartsWith("/api/v1/review/", StringComparison.Ordinal)) Review(route, Object(data));

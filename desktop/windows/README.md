@@ -1,6 +1,6 @@
 # 好多鱼 Windows 独立工作台
 
-当前为 **0.11.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
+当前为 **0.12.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
 
 ## 已实现的核心路径
 
@@ -16,6 +16,7 @@
 - 待核清单处理状态：在原文章编辑页选择已有条目，明确设为已处理或待处理，与标题、正文和流水线改动保存到同一草稿，使用同一原始版本与幂等请求。未知状态和条目来源保留；无清单时不猜测、创建或核销条目。已尝试请求继续受原 Unknown 围栏保护。
 - 完整只读发布对账：校验服务可见范围全部库存、状态/日期分组、公众号显式编号重复与已观察内部间隔；支持快照内的账号、日期、槽位、作者、状态、标题、警告及待核三态筛选和本地分页。排期、编号起点/目标未配置，不推断漏产。本机未决修改与服务快照分开，摘要不作为写入实体。
 - 内容复盘总览与趋势、八类持久复盘资源的原生创建与哈希 CAS 编辑，包括指标、报告、规则库及结构化子项、对标资料、笔记和账号健康。
+- 数据复盘四个原生页面：按账号和昨天/近7日/近30个完整自然日读取总览，累计榜 Top N/平台筛选、到期D1/D3/D7节点、文章累计快照、每日数据起止筛选。累计快照、本期新增、指标覆盖、上期比较、关注原因和真实逐日表分别显示；来源未取得、空值和真实零保留，账号整体日数据不与文章明细相加。
 - AI 汇报完整分页历史、按实际日期筛选、原文阅读/导出与人工补充。稳定 UUID 追加保存，署名必填；已尝试或确认的原记录只读，不调用模型，也不自动生成完成报告。
 - 本机草稿、离线业务清单与详情投影、完整资料准备、持久队列、版本冲突核对、保存回执确认、只读历史分区导出、显式本机备份恢复。
 - 当前身份的跨模块本机检索：缓存、草稿、原请求、实际冻结请求和远端响应证据分别标注，可预览、导出、回原模块或恢复本机稿。不会联网搜索或把缓存摘要作为完整正文。
@@ -32,6 +33,8 @@
 待办日历只显式刷新当前周/月范围，逐日 GET 后核对全局应用修订号与 service scope，全部通过才一次保存。最多31日、8MiB网络JSON、12MiB本机编码缓存和5000行；单日网络1MiB保持，本机解析4MiB仅容纳缓存Unicode转义。取消、429、坏日或期间变化保留整批旧缓存；缺失日期不自动补零。不同日期可能来自多次读取，统计标为本机视图。外部owner配置缺逐请求原子scope前提的既有竞态仍未消除。
 
 碎碎念月历只显式刷新当前月的 `note-entries/month`，保持服务端完整读取2000行/1MiB上限和标签版本3；413、坏响应、取消或身份变化都不替换旧缓存。本机编码读取另限8MiB/10000行以容纳合法Unicode转义和未决意图，不扩大网络预算。没有准确完整月副本时仅显示已知记录，未知日期不算空日；草稿与基线数量分开，不把Queued/Unknown当服务器保存。月原文没有版本/hash，月份点击先只读，完整详情与已有草稿均保持原键和原版本。旧日页摘要也不会被猜为版本0。
+
+数据复盘各页面单独读取精确查询，切页先查看当前身份的本机副本，显式应用/刷新才联网；不借其他查询或账号的资料补齐。总览平台筛选只影响累计榜，已录文章总数不是本期产量。源日数据的整体账号优先规则和关注判断沿用服务端结果，不在本机重算业务聚合。四类GET仍限单响应1MiB，不为无分页接口虚构分页；坏响应、取消、超限或归属变化保全旧缓存。快照响应不含账号字段，账号筛选依赖正式服务端查询与工作区校验；四次独立读取不称跨页面事务快照。条目只读导出带来源；打开原文章必须独立取得完整版本并保留原草稿与Unknown围栏。旧统计接口没有CAS/精确收据，不新增猜测写表单。
 
 ## 本机数据与同步
 
@@ -67,10 +70,12 @@ dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --todo-histor
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-ledger-contract Haoduoyu.Api.Tests/Fixtures/article-ledger-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --article-verification-contract Haoduoyu.Api.Tests/Fixtures/article-verification-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --note-history-contract Haoduoyu.Api.Tests/Fixtures/note-history-contract-c30a8a9.json
+dotnet run --project Haoduoyu.Api.Tests --configuration Release -- --media-review-contract Haoduoyu.Api.Tests/Fixtures/media-review-contract-c30a8a9.json
 dotnet run --project Haoduoyu.Profile.Tests --configuration Release
 dotnet run --project Haoduoyu.Offline.Tests --configuration Release
 dotnet run --project Haoduoyu.History.Tests --configuration Release
 dotnet run --project Haoduoyu.Notes.Tests --configuration Release
+dotnet run --project Haoduoyu.Media.Tests --configuration Release
 dotnet run --project Haoduoyu.Ledger.Tests --configuration Release
 dotnet run --project Haoduoyu.Verification.Tests --configuration Release
 dotnet run --project Haoduoyu.View.Tests --configuration Release
