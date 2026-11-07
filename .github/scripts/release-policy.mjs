@@ -17,11 +17,11 @@ export const productionRestore=Object.freeze({
   baseline:'1daf9321-97ff-49f3-ae75-dbed5e5039b0',
   bytes:2668707,sha256:'879dfb6db5759e8fb7ad54e7b1b8de06f8ddef4cc44721fa0033478aa6a7d945',
   label:'production-mobile-daily-cleanup-20261108'});
-// Pin rollback baseline only after the new production version is independently verified.
+// The exact previous artifact is available from the independently verified mobile release.
 export const previousProductionRelease=Object.freeze({
   commit:'a02a261df0b687b360f2b322d374d04a7a8c218f',
   tree:'36aac1b367a93f46c981dff745206e1ada3d7d70',
-  baseline:null,
+  baseline:'c2029c32-a700-45d4-b9e8-cb7a065338b0',
   originalBaseline:'fb304eb0-304b-4b69-98ea-bbf02a2d2e0d',
   bytes:2668750,sha256:'0484226a6f547616e21d6c864cb0d3d2d257cadafff35e2dced7e3fc156dfcde',
   label:'production-ai-report-author-colors-20261107'});
