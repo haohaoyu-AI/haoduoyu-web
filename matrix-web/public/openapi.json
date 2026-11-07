@@ -1,0 +1,3215 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "好多鱼图文矩阵 API",
+    "version": "1.0.0",
+    "description": "私有账号矩阵统计站。公开文档不授予数据权限。人类使用管理员会话；AI使用管理员签发的账号范围Bearer key。默认三日窗口为Asia/Shanghai今天及前两天；累计快照与实际日报分开保存；缺失不补零。无公开注册、模型登录、文章删除或自动平台采数。所有业务JSON成功响应为data、失败为error；公开文档和CSV为原始内容。JSON请求体上限256KB。"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "与当前文档相同来源；生产由HTTPS反向代理提供。"
+    }
+  ],
+  "tags": [
+    {
+      "name": "公开"
+    },
+    {
+      "name": "业务数据"
+    },
+    {
+      "name": "管理员"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "服务健康（无业务数据）",
+        "description": "",
+        "tags": [
+          "公开"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Health"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "summary": "公开OpenAPI 3.1文档",
+        "description": "本响应为OpenAPI文档原文，不包裹data，也不含真实业务数据或凭证。",
+        "tags": [
+          "公开"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1原始JSON。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "openapi",
+                    "info",
+                    "paths"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      }
+    },
+    "/api-docs": {
+      "get": {
+        "operationId": "getApiDocs",
+        "summary": "公开接口说明页面",
+        "description": "",
+        "tags": [
+          "公开"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "公开说明HTML，无经营数据。",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login",
+        "summary": "管理员账号密码登录",
+        "description": "只允许与SITE_ORIGIN一致的Origin。成功设置HttpOnly、SameSite=Strict的matrix_session cookie；生产含Secure。连续失败10次后在15分钟窗口内限流，无公开注册。",
+        "tags": [
+          "公开"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminIdentity"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "matrix_session；HttpOnly；SameSite=Strict；生产Secure；7天。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "description": "管理员会话写入必须与生产SITE_ORIGIN完全一致；Bearer调用不需要。登录同样要求正确Origin。",
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "summary": "退出并使当前会话失效",
+        "description": "",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "logged_out": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "logged_out"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "getCurrentAdmin",
+        "summary": "读取当前管理员及CSRF token",
+        "description": "",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminIdentity"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password": {
+      "put": {
+        "operationId": "changePassword",
+        "summary": "修改管理员密码并撤销该用户所有会话",
+        "description": "密码长度12至256字符；完成后需要重新登录。",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "changed": {
+                          "type": "boolean",
+                          "const": true
+                        },
+                        "login_required": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "changed",
+                        "login_required"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts": {
+      "get": {
+        "operationId": "listAccounts",
+        "summary": "列出授权范围内的运营账号",
+        "description": "",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Account"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAccount",
+        "summary": "管理员创建运营账号",
+        "description": "",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Account"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{id}": {
+      "put": {
+        "operationId": "updateAccount",
+        "summary": "管理员修改账号名称或启用状态",
+        "description": "停用账号仍可查询与修正历史文章及复盘，但禁止创建新文章或从其他账号迁入文章。",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Account"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/RecordId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/articles": {
+      "get": {
+        "operationId": "listArticles",
+        "summary": "检索已发布文章",
+        "description": "没有分页；所有结果均受账号范围限制。latest_metrics来自最大as_of的累计快照，不代表三日发生量。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Article"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountFilter"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "标题/概况/备注检索。"
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual",
+                "automatic",
+                "mixed",
+                "unknown"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              ]
+            },
+            "description": "起始发布日期或带时区时间；日期以北京时间00:00起。"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              ]
+            },
+            "description": "截至发布日期或时间；日期包含当日，时间按实现边界过滤。"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published_at",
+                "reads",
+                "duration"
+              ],
+              "default": "published_at"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "desc",
+                "asc"
+              ],
+              "default": "desc"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createArticle",
+        "summary": "登记实际已发布文章",
+        "description": "URL全局去重；同平台platform_article_id也去重。首次version=1，未知制作方式为unknown。 停用账号返回409 ACCOUNT_INACTIVE。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Article"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/articles/{id}": {
+      "get": {
+        "operationId": "getArticle",
+        "summary": "文章详情及累计快照历史",
+        "description": "包含observations与真实审计来源的recorded_by/last_modified_by；审计不足则null。列表及新建/更新文章响应不含登记者字段。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ArticleDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RecordId"
+          }
+        ]
+      },
+      "put": {
+        "operationId": "updateArticle",
+        "summary": "按当前version更新文章",
+        "description": "先GET当前version。冲突后回读并合并授权变更，不要强行覆盖。新账号也必须在token授权范围内。没有删除API。 停用账号内历史修正允许；迁入停用账号返回409 ACCOUNT_INACTIVE。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Article"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/RecordId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observations": {
+      "get": {
+        "operationId": "listObservations",
+        "summary": "读取授权文章的累计快照",
+        "description": "",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Observation"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ArticleFilter"
+          },
+          {
+            "$ref": "#/components/parameters/AccountFilter"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createObservation",
+        "summary": "追加实际采集的累计快照",
+        "description": "Append-only。kind是复盘阶段标签，不证明准点采集；保留真实as_of和collected_at。不得把多份累计值相加成区间量。没有更新/删除API。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Observation"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservationCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/daily-metrics": {
+      "get": {
+        "operationId": "listDailyMetrics",
+        "summary": "读取真实自然日发生量",
+        "description": "",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DailyMetric"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountFilter"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "北京时间起始日期（含）。"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "北京时间结束日期（含）。"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "upsertDailyMetrics",
+        "summary": "按账号/文章范围/日期回填或更正日报",
+        "description": "无论新建还是更正均返回201。省略article_id为账号整体；同一范围和日期保持同一id并替换metrics/source。不能把累计快照当日增量。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DailyMetric"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DailyMetricCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard": {
+      "get": {
+        "operationId": "getDashboard",
+        "summary": "最近三个北京时间自然日的驾驶舱",
+        "description": "今天及前两天；今天未结束。日报汇总逐日优先账号整体，再回退已录入文章，避免重复计算；coverage表示缺日和指标覆盖。没有日报就不推算累计值。top_articles按最新累计reads排序，totals为已登记文章总数，均受账号范围限制。",
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {
+            "ApiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Dashboard"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountFilter"
+          }
+        ]
+      }
+    },
+    "/api/v1/api-keys": {
+      "get": {
+        "operationId": "listApiKeys",
+        "summary": "管理员读取key元数据（无token/hash）",
+        "description": "",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ApiKeyMetadata"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createApiKey",
+        "summary": "管理员签发限定账号及权限的key",
+        "description": "原始token只在本响应出现一次。仅保存hash；此接口不提供幂等重放。key不能访问管理员专用接口。",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApiKeyCreated"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys/{id}": {
+      "delete": {
+        "operationId": "revokeApiKey",
+        "summary": "管理员撤销key",
+        "description": "撤销后该Bearer token立即失效；不存在或已撤销返回404。",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "revoked": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "revoked"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "#/components/parameters/RecordId"
+          }
+        ]
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "listAudit",
+        "summary": "管理员读取最近200条审计记录",
+        "description": "",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AuditRecord"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      }
+    },
+    "/api/v1/export": {
+      "get": {
+        "operationId": "exportArticles",
+        "summary": "管理员导出全部文章CSV",
+        "description": "UTF-8 BOM CSV；仅管理员。包括账号、平台、标题、链接、时间、耗时、方式、概况、备注；防止公式前缀执行。",
+        "tags": [
+          "管理员"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "全部文章CSV文件。",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "attachment; filename=\"haoduoyu-articles.csv\""
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "AdminSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "matrix_session",
+        "description": "管理员密码登录得到；写入必须同Origin且携带X-CSRF-Token。"
+      },
+      "ApiToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "hdy_<opaque-token>",
+        "description": "管理员签发，限定account_ids与read/write。GET须read，POST/PUT须write；不能访问管理员专用接口。token只在创建时显示。"
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "description": "业务/账号写入的可选幂等键；按调用者隔离。同key同方法/路径/规范化JSON重放返回原结果；不同请求返回409。保持稳定直到确认该事件已保存。此机制不覆盖登录、密码、key管理。",
+        "schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,160}$",
+          "maxLength": 160
+        }
+      },
+      "Origin": {
+        "name": "Origin",
+        "in": "header",
+        "required": false,
+        "description": "管理员会话写入必须与生产SITE_ORIGIN完全一致；Bearer调用不需要。登录同样要求正确Origin。",
+        "schema": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "CsrfToken": {
+        "name": "X-CSRF-Token",
+        "in": "header",
+        "required": false,
+        "description": "管理员会话写入必填，取自GET /api/v1/auth/me或登录响应；Bearer调用不需要。",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RecordId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "不透明记录 ID；使用 API 返回值。",
+          "minLength": 1
+        }
+      },
+      "AccountFilter": {
+        "name": "account_id",
+        "in": "query",
+        "required": false,
+        "description": "限定当前已授权的一个账号；省略时仍只返回token授权范围。",
+        "schema": {
+          "type": "string",
+          "description": "不透明记录 ID；使用 API 返回值。",
+          "minLength": 1
+        }
+      },
+      "ArticleFilter": {
+        "name": "article_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "不透明记录 ID；使用 API 返回值。",
+          "minLength": 1
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "稳定的机器可读错误码。"
+              },
+              "message": {
+                "type": "string",
+                "description": "供用户理解的错误信息。"
+              },
+              "details": {}
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Metrics": {
+        "type": "object",
+        "properties": {
+          "reads": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "平台阅读次数；不可当作去重人数。",
+            "maximum": 9007199254740991
+          },
+          "impressions": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "平台作品展现次数；送达量不可冒充展现。",
+            "maximum": 9007199254740991
+          },
+          "likes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "平台点赞/喜欢，与知乎赞同分别保留。",
+            "maximum": 9007199254740991
+          },
+          "comments": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "平台原始评论计数。",
+            "maximum": 9007199254740991
+          },
+          "favorites": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "平台原始收藏计数。",
+            "maximum": 9007199254740991
+          },
+          "shares": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "平台原始分享计数。",
+            "maximum": 9007199254740991
+          },
+          "approvals": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "知乎赞同等明确对应此口径的计数。",
+            "maximum": 9007199254740991
+          },
+          "reading_users": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "平台阅读人数，与阅读次数分别保留。",
+            "maximum": 9007199254740991
+          }
+        },
+        "additionalProperties": false,
+        "description": "仅包含实际取得的原始指标。缺失键省略；真实零值可填0。返回空对象表示未取得数据。不得混入百分比、约数或推算值。"
+      },
+      "MetricsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          {
+            "minProperties": 1
+          }
+        ],
+        "description": "至少一个非负安全整数。未知值必须省略，不接受null/小数/缩写。"
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "toutiao",
+              "zhihu",
+              "wechat",
+              "other"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "active": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "platform",
+          "name",
+          "active",
+          "created_at"
+        ]
+      },
+      "AccountCreate": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "toutiao",
+              "zhihu",
+              "wechat",
+              "other"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "platform",
+          "name"
+        ]
+      },
+      "AccountUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "active": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          }
+        },
+        "description": "只允许修改显示名或启用状态；未给的字段保留原值，不能修改平台。"
+      },
+      "ArticleCreate": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "description": "完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment。相同链接不能重复登记。",
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "platform_article_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "同一平台文章标识不能重复登记。",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "published_at": {
+            "type": "string",
+            "description": "实际发布时间，不得在未来。",
+            "format": "date-time"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "实际制作开始时间，不得晚于发布时间；未知省略或null。",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "production_mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "automatic",
+              "mixed",
+              "unknown"
+            ],
+            "default": "unknown"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 20000
+          }
+        },
+        "required": [
+          "account_id",
+          "title",
+          "url",
+          "published_at"
+        ]
+      },
+      "ArticleUpdate": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "description": "完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment。相同链接不能重复登记。",
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "platform_article_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "同一平台文章标识不能重复登记。",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "published_at": {
+            "type": "string",
+            "description": "实际发布时间，不得在未来。",
+            "format": "date-time"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "实际制作开始时间，不得晚于发布时间；未知省略或null。",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "production_mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "automatic",
+              "mixed",
+              "unknown"
+            ],
+            "default": "unknown"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "description": "先GET最新版本再提交。未给字段保留原值。已有日报时不能直接变更所属账号。",
+        "required": [
+          "version"
+        ]
+      },
+      "Article": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "description": "完整 HTTP(S) 链接，不含登录凭据；保存时去掉 fragment。相同链接不能重复登记。",
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "platform_article_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "同一平台文章标识不能重复登记。",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "published_at": {
+            "type": "string",
+            "description": "实际发布时间，不得在未来。",
+            "format": "date-time"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "实际制作开始时间，不得晚于发布时间；未知省略或null。",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "production_mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "automatic",
+              "mixed",
+              "unknown"
+            ],
+            "default": "unknown"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "toutiao",
+              "zhihu",
+              "wechat",
+              "other"
+            ]
+          },
+          "latest_metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Metrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "description": "实际开始至发布时间的秒数；开始时间未知则null。"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "account_id",
+          "title",
+          "url",
+          "platform_article_id",
+          "published_at",
+          "started_at",
+          "production_mode",
+          "summary",
+          "notes",
+          "id",
+          "version",
+          "created_at",
+          "updated_at",
+          "account_name",
+          "platform",
+          "latest_metrics",
+          "latest_as_of",
+          "duration_seconds"
+        ]
+      },
+      "ArticleDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Article"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "observations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Observation"
+                }
+              },
+              "recorded_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RecorderIdentity"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "从授权文章真实审计历史推导；不足则null。仅详情响应包含，不根据production_mode猜测。"
+              },
+              "last_modified_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RecorderIdentity"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "从授权文章真实审计历史推导；不足则null。仅详情响应包含，不根据production_mode猜测。"
+              }
+            },
+            "required": [
+              "observations",
+              "recorded_by",
+              "last_modified_by"
+            ]
+          }
+        ]
+      },
+      "ObservationCreate": {
+        "type": "object",
+        "properties": {
+          "article_id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "as_of": {
+            "type": "string",
+            "description": "平台数据截至时间，须在文章发布后，且不晚于采集时间或当前时间。",
+            "format": "date-time"
+          },
+          "collected_at": {
+            "type": "string",
+            "description": "实际采集时间，默认服务器当前时间，不得在未来。",
+            "format": "date-time"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "latest",
+              "d1",
+              "d3",
+              "d7"
+            ]
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/MetricsInput"
+          },
+          "source": {
+            "type": "string",
+            "description": "真实数据来源，不能用模型估算替代。",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "article_id",
+          "as_of",
+          "kind",
+          "metrics",
+          "source"
+        ]
+      },
+      "Observation": {
+        "type": "object",
+        "properties": {
+          "article_id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "as_of": {
+            "type": "string",
+            "description": "平台数据截至时间，须在文章发布后，且不晚于采集时间或当前时间。",
+            "format": "date-time"
+          },
+          "collected_at": {
+            "type": "string",
+            "description": "实际采集时间，默认服务器当前时间，不得在未来。",
+            "format": "date-time"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "latest",
+              "d1",
+              "d3",
+              "d7"
+            ]
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          "source": {
+            "type": "string",
+            "description": "真实数据来源，不能用模型估算替代。",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "article_id",
+          "as_of",
+          "collected_at",
+          "kind",
+          "metrics",
+          "source",
+          "note",
+          "id",
+          "created_at"
+        ]
+      },
+      "DailyMetricCreate": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "article_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "不透明记录 ID；使用 API 返回值。",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "date": {
+            "type": "string",
+            "description": "Asia/Shanghai 自然日；不得为未来日期。文章明细不得早于其发布日期。",
+            "format": "date"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/MetricsInput"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "description": "省略或null article_id表示账号整体；指定文章则必须属于所选账号。每个范围/日期更新同一记录。",
+        "required": [
+          "account_id",
+          "date",
+          "metrics",
+          "source"
+        ]
+      },
+      "DailyMetric": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "article_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "不透明记录 ID；使用 API 返回值。",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "date": {
+            "type": "string",
+            "description": "Asia/Shanghai 自然日；不得为未来日期。文章明细不得早于其发布日期。",
+            "format": "date"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "account_id",
+          "article_id",
+          "date",
+          "metrics",
+          "source",
+          "id",
+          "updated_at"
+        ]
+      },
+      "Coverage": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "account",
+              "articles",
+              "mixed",
+              "missing"
+            ]
+          },
+          "days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "missing_dates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "label": {
+            "type": "string"
+          },
+          "metric_days": {
+            "type": "object",
+            "properties": {
+              "reads": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "impressions": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "likes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "comments": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "favorites": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "shares": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "approvals": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "reading_users": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              }
+            },
+            "additionalProperties": false
+          },
+          "article_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "文章明细回退时已录入的文章数。"
+          }
+        },
+        "required": [
+          "source",
+          "days",
+          "missing_dates",
+          "label",
+          "metric_days"
+        ]
+      },
+      "DashboardAccount": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "toutiao",
+              "zhihu",
+              "wechat",
+              "other"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "active": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "article_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "period_metrics": {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          },
+          "last_updated": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "platform",
+          "name",
+          "active",
+          "created_at",
+          "article_count",
+          "period_metrics",
+          "coverage",
+          "last_updated"
+        ]
+      },
+      "Dashboard": {
+        "type": "object",
+        "properties": {
+          "window": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string",
+                "format": "date"
+              },
+              "to": {
+                "type": "string",
+                "format": "date"
+              },
+              "timezone": {
+                "type": "string",
+                "const": "Asia/Shanghai"
+              },
+              "todayIncomplete": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "timezone",
+              "todayIncomplete"
+            ]
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardAccount"
+            }
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "article_count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "筛选账号下已登记文章总数，不是三日发文量。"
+              },
+              "automatic_count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "仅production_mode=automatic的文章数；mixed不合并进来。"
+              },
+              "unknown_mode_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "median_duration_seconds": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "article_count",
+              "automatic_count",
+              "unknown_mode_count",
+              "median_duration_seconds"
+            ]
+          },
+          "top_articles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Article"
+            }
+          },
+          "due_reviews": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "不透明记录 ID；使用 API 返回值。",
+                  "minLength": 1
+                },
+                "title": {
+                  "type": "string"
+                },
+                "account_id": {
+                  "type": "string",
+                  "description": "不透明记录 ID；使用 API 返回值。",
+                  "minLength": 1
+                },
+                "account_name": {
+                  "type": "string"
+                },
+                "due_kind": {
+                  "type": "string",
+                  "enum": [
+                    "d1",
+                    "d3",
+                    "d7"
+                  ]
+                },
+                "due_at": {
+                  "type": "string",
+                  "description": "发布时间加1/3/7天的复盘目标时间。",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "account_id",
+                "account_name",
+                "due_kind",
+                "due_at"
+              ]
+            }
+          },
+          "trend": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "accounts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "account_id": {
+                        "type": "string",
+                        "description": "不透明记录 ID；使用 API 返回值。",
+                        "minLength": 1
+                      },
+                      "metrics": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/components/schemas/Metrics"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "coverage": {
+                        "$ref": "#/components/schemas/Coverage"
+                      }
+                    },
+                    "required": [
+                      "account_id",
+                      "metrics",
+                      "coverage"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "date",
+                "accounts"
+              ]
+            }
+          }
+        },
+        "required": [
+          "window",
+          "accounts",
+          "totals",
+          "top_articles",
+          "due_reviews",
+          "trend"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "maxLength": 256,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ]
+      },
+      "AdminIdentity": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "csrfToken": {
+            "type": "string",
+            "description": "仅供当前管理员会话写入使用；不是API key。"
+          }
+        },
+        "required": [
+          "username",
+          "csrfToken"
+        ]
+      },
+      "PasswordChange": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true,
+            "maxLength": 256
+          },
+          "newPassword": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true,
+            "minLength": 12,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      },
+      "ApiKeyCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "account_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "不透明记录 ID；使用 API 返回值。",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "name",
+          "account_ids",
+          "permissions"
+        ]
+      },
+      "ApiKeyMetadata": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "account_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "不透明记录 ID；使用 API 返回值。",
+              "minLength": 1
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write"
+              ]
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "account_ids",
+          "permissions",
+          "created_at",
+          "revoked_at",
+          "last_used_at"
+        ]
+      },
+      "ApiKeyCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "account_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "不透明记录 ID；使用 API 返回值。",
+              "minLength": 1
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write"
+              ]
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "token": {
+            "type": "string",
+            "description": "仅此次创建返回原始Bearer token；服务只保存hash，不得写入日志。",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "account_ids",
+          "permissions",
+          "created_at",
+          "token"
+        ]
+      },
+      "AuditRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "不透明记录 ID；使用 API 返回值。",
+            "minLength": 1
+          },
+          "actor": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "actor",
+          "action",
+          "entity_id",
+          "detail",
+          "created_at"
+        ]
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "application": {
+            "type": "string",
+            "const": "haoduoyu-matrix"
+          }
+        },
+        "required": [
+          "status",
+          "application"
+        ]
+      },
+      "RecorderIdentity": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "string",
+            "description": "真实审计actor标识。"
+          },
+          "label": {
+            "type": "string",
+            "description": "供界面显示的登记者或修改者名称。"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "真实审计时间，UTC ISO。"
+          }
+        },
+        "required": [
+          "actor",
+          "label",
+          "at"
+        ]
+      }
+    },
+    "responses": {
+      "Error400": {
+        "description": "请求无效：INVALID_JSON、VALIDATION、VALIDATION_ERROR、INVALID_PASSWORD。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error401": {
+        "description": "认证失败：UNAUTHORIZED；登录使用INVALID_CREDENTIALS。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error403": {
+        "description": "FORBIDDEN：操作/账号范围不足或仅管理员允许；CSRF：Origin或会话CSRF失败；修改密码可返回INVALID_CREDENTIALS。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error404": {
+        "description": "NOT_FOUND：接口或记录不存在。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error409": {
+        "description": "冲突：VERSION_CONFLICT、ARTICLE_EXISTS、ARTICLE_HAS_DAILY_METRICS、ACCOUNT_INACTIVE、IDEMPOTENCY_CONFLICT、DUPLICATE；密码并发修改为CONFLICT。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error413": {
+        "description": "BODY_TOO_LARGE：JSON请求体超过256KB。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error415": {
+        "description": "CONTENT_TYPE：请求体不是application/json。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error422": {
+        "description": "METRIC_OVERFLOW：指标汇总超过安全整数范围。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error429": {
+        "description": "RATE_LIMITED：登录失败次数过多。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "Retry-After": {
+            "description": "重试等待秒数。",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "Error500": {
+        "description": "INTERNAL_ERROR：内部异常；响应不包含内部堆栈或凭证。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}
