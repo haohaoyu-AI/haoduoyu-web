@@ -12,19 +12,19 @@ export const releases=Object.freeze({
     ci:40269439403,bytes:1269372,sha256:'61e30101b744f56bfe10418cb536b661e9bac5ca8270041b510f6222434c4149',label:'round5-rollback'})
 });
 export const productionRestore=Object.freeze({
+  commit:'2627fc1f52e426169a5c8bc9939c5d74e8c7a24d',
+  tree:'449c3df468d03f9ee1534451fcf4b7f8d8bf4b82',
+  baseline:'808dbbdd-1a51-428d-9d92-54954dc05526',
+  bytes:2675441,sha256:'cc810985a976267f027bfc917477e8994c9577cdeea43e224a5805ba86ac241a',
+  label:'production-mobile-review-20261108'});
+// The exact previous artifact is available from the independently verified mobile release.
+export const previousProductionRelease=Object.freeze({
   commit:'2eec9fdfeee3b79d8a9e8d20a51f8e1fd3dc387d',
   tree:'f8e1477888e347365f1b6de25813bb2f388dfc15',
   baseline:'c2029c32-a700-45d4-b9e8-cb7a065338b0',
+  originalBaseline:'c2029c32-a700-45d4-b9e8-cb7a065338b0',
   bytes:2671740,sha256:'9b03bc4b799d9ed6445e96766b2702cf4b068b38b1f7b36ac1486025dcdfa8f7',
   label:'production-mobile-calendar-20261108'});
-// The exact previous artifact is available from the independently verified mobile release.
-export const previousProductionRelease=Object.freeze({
-  commit:'8d65a1d514e7e6c2472b2035e2197d2824d0dbb7',
-  tree:'077316393069b81be4933ec199faf60732f4de0a',
-  baseline:'808dbbdd-1a51-428d-9d92-54954dc05526',
-  originalBaseline:'1daf9321-97ff-49f3-ae75-dbed5e5039b0',
-  bytes:2668707,sha256:'879dfb6db5759e8fb7ad54e7b1b8de06f8ddef4cc44721fa0033478aa6a7d945',
-  label:'production-mobile-daily-cleanup-20261108'});
 const acceptedRelease=commit=>commit===productionRestore.commit?productionRestore:
   commit===previousProductionRelease.commit?previousProductionRelease:releases[commit];
 export function validateRequest(env) {
