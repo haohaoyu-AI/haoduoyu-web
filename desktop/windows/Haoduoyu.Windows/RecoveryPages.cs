@@ -9,6 +9,7 @@ namespace Haoduoyu.Windows;
 
 public sealed partial class MainWindow
 {
+    private long historyRecoveryEpoch;
     private void DraftsPage()
     {
         page.Children.Add(Label("草稿保存在当前 Windows 用户的独立加密分区。服务器已保存并不自动删除本机草稿。"));
@@ -260,6 +261,7 @@ public sealed partial class MainWindow
     }
     private void RecoveryPage()
     {
+        historyRecoveryEpoch++;
         page.Children.Add(Button("选择本机离线工作区", ChooseOfflineProfileAsync));
         page.Children.Add(Button("恢复本机身份配置备份", async () =>
         {
@@ -276,26 +278,65 @@ public sealed partial class MainWindow
             await RestoreWorkspaceBackupAsync();
         }));
         page.Children.Add(Label("历史分区只读恢复（含首次未绑定的离线草稿）："));
-        if (Directory.Exists(root)) foreach (var directory in Directory.GetDirectories(root))
-        {
-            var path = Path.Combine(directory, "workspace.bin");
-            if (!File.Exists(path)) continue;
-            var label = Path.GetFileName(directory);
-            page.Children.Add(Button("只读查看 " + label[..Math.Min(12, label.Length)], async () =>
-            {
-                var bytes = await File.ReadAllBytesAsync(path);
-                if (bytes.Length < 7 || !bytes.AsSpan(0, 7).SequenceEqual("HDYWS1\n"u8)) throw new InvalidDataException("分区格式不受支持，原文件保留。");
-                var clear = protector.Unprotect(bytes[7..]);
-                try
-                {
-                    var data = JsonNode.Parse(clear)?.AsObject() ?? throw new InvalidDataException("分区无法读取。");
-                    ShowText("历史分区（只读，不会发送其队列）", data.ToJsonString(new() { WriteIndented = true }));
-                    if (Confirm("将该历史分区导出为未加密的纯文本恢复副本？不会自动导入或发送旧队列。")) await ExportTextAsync("好多鱼历史分区.txt", data.ToJsonString(new() { WriteIndented = true }));
-                }
-                finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(clear); }
-            }));
-        }
+        var history = new StackPanel();
+        history.Children.Add(Label("清单只读发现最多 1000 个目录项；不会锁定工作区、导入或发送历史队列。"));
+        page.Children.Add(Button("读取历史分区清单（只读）", () => LoadHistoryPartitionsAsync(history)));
+        page.Children.Add(history);
         page.Children.Add(Label("版本 " + (typeof(App).Assembly.GetName().Version?.ToString(3) ?? "未知") + " 开发候选。尚未安装到用户电脑；尚未验证旧版覆盖升级、实机中文输入法、断电恢复或正式签名分发。"));
+    }
+
+    private async Task LoadHistoryPartitionsAsync(StackPanel target)
+    {
+        var cancellation = NetworkToken;
+        var owner = (engine, store, currentIdentity, failedIdentity, currentPage, historyRecoveryEpoch);
+        var found = await Task.Run(() => ReadOnlyWorkspaceRecovery.Discover(root, cancellation), cancellation);
+        cancellation.ThrowIfCancellationRequested();
+        if (!page.Children.Contains(target) || owner != (engine, store, currentIdentity, failedIdentity, currentPage, historyRecoveryEpoch)) return;
+        target.Children.Clear();
+        target.Children.Add(Label(found.Complete
+            ? $"已完成有界发现：检查 {found.ExaminedEntries} 个目录项，找到 {found.Partitions.Count} 个候选分区。"
+            : $"仅部分清单：已检查 {found.ExaminedEntries} 个目录项，不能视为全部分区。"));
+        if (found.Error != null) target.Children.Add(Label(found.Error));
+        foreach (var partition in found.Partitions)
+        {
+            if (partition.Error != null)
+                target.Children.Add(Label(partition.ScopeId + " · " + partition.Error));
+            else target.Children.Add(Button("只读查看 " + partition.ScopeId, () => OpenHistoryPartitionAsync(partition.ScopeId)));
+        }
+    }
+
+    private async Task OpenHistoryPartitionAsync(string scopeId)
+    {
+        var cancellation = NetworkToken;
+        var owner = (engine, store, currentIdentity, failedIdentity, currentPage, historyRecoveryEpoch);
+        var snapshot = await Task.Run(() => ReadOnlyWorkspaceRecovery.ReadAsync(root, scopeId, protector, cancellation), cancellation);
+        cancellation.ThrowIfCancellationRequested();
+        if (owner != (engine, store, currentIdentity, failedIdentity, currentPage, historyRecoveryEpoch)) return;
+        var export = CreateHistorySnapshotDialog(snapshot).ShowDialog() == true;
+        cancellation.ThrowIfCancellationRequested();
+        if (export && owner == (engine, store, currentIdentity, failedIdentity, currentPage, historyRecoveryEpoch) &&
+            Confirm("将完整历史分区原始 JSON 导出为未加密的纯文本恢复副本？包含未知字段；不会自动导入或发送旧队列。"))
+            await ExportTextAsync("好多鱼历史分区.txt", snapshot.OriginalJson);
+    }
+
+    private Window CreateHistorySnapshotDialog(RecoverySnapshot snapshot)
+    {
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        panel.Children.Add(Label("历史分区 " + snapshot.ScopeId + "（只读，不会导入或发送其队列）"));
+        panel.Children.Add(Label(snapshot.PreviewTruncated
+            ? "仅预览：最多 256 Ki 字符，正文未完整显示。可显式导出完整原始 JSON，包含未知字段。"
+            : "原始 JSON 只读副本，包含未知字段。导出不会导入或发送队列。"));
+        panel.Children.Add(new TextBox { Name = "HistorySnapshotPreview", Text = snapshot.Preview, IsReadOnly = true,
+            AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, Height = 420,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto });
+        var dialog = Dialog("历史分区原件（只读）", panel);
+        // Do not enter Run again while this modal read action owns the action gate. Closing the
+        // preview with this result continues the original action into confirmation and file picking.
+        var export = new Button { Content = "导出完整原始 JSON（未加密）" };
+        export.Click += (_, _) => dialog.DialogResult = true;
+        panel.Children.Add(export);
+        panel.Children.Add(new Button { Content = "关闭预览", IsCancel = true });
+        return dialog;
     }
 
     private async Task RestoreSettingsBackupAsync()

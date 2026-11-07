@@ -1,0 +1,61 @@
+{
+  "schema": "haoduoyu-windows-stage18-evidence-v1",
+  "observed_at_utc": "2026-11-07T21:22:49Z",
+  "repository": "haohaoyu-AI/haoduoyu-web",
+  "branch": "desktop/native-workbench-20261104",
+  "candidate_version": "0.18.0",
+  "base_commit": "f08654ac803faf7468e79cd863adc8ee5f5dc99c",
+  "product_source_commit": null,
+  "local_validation": {
+    "sdk": "10.0.403",
+    "host": "Linux x64",
+    "core_checks_passed": 134,
+    "readonly_recovery_checks_included": 9,
+    "readonly_recovery_checks_skipped": 0,
+    "memo_count_checks_included": 8,
+    "atomic_export_checks_included": 14,
+    "atomic_export_checks_skipped": 0,
+    "windows_test_project_cross_build": {
+      "configuration": "Release",
+      "succeeded": true,
+      "warnings": 0,
+      "errors": 0,
+      "elapsed_seconds": 17.41
+    },
+    "static_boundaries_passed": true,
+    "diff_check_passed": true
+  },
+  "new_native_window_cases": 2,
+  "native_window_cases_run_on_linux": false,
+  "readonly_recovery_limits": {
+    "ciphertext_max_bytes": 33554432,
+    "plaintext_max_bytes": 33554432,
+    "discovery_max_entries_including_unrelated": 1000,
+    "display_max_utf16_units_including_worst_case_crlf": 262144,
+    "full_original_json_retained": true,
+    "unknown_fields_retained": true,
+    "operation_graph_loaded_or_executed": false,
+    "normal_atomic_workspace_store_changed": false
+  },
+  "code_review": {
+    "blocking_findings": 0,
+    "followup_added": "Budget preview for possible WPF CR/LF normalization; dense newline checks; exact original export equality retained."
+  },
+  "windows_ci": {
+    "run_id": null,
+    "status": "not_started",
+    "conclusion": null,
+    "job_logs_read": false,
+    "artifacts_downloaded": false
+  },
+  "validation_limits": [
+    "Linux directory-handle pinning is not equivalent to Windows final-path checks; discovery is not a cross-time directory transaction snapshot.",
+    "Arbitrary malicious ancestor-directory replacement is not claimed eliminated.",
+    "Windows 8.3 aliases, ancestor junctions and redirected AppData can be conservatively refused; compatibility not physically tested.",
+    "Win32 file picker, confirmation and accepting export through the entire preview interaction are not automated.",
+    "Deterministic stream injection covers bounded growth/truncation/cancellation, not all physical filesystem races.",
+    "Windows CI aggregate metadata does not independently establish per-test counts, symlink skip details or portable package bytes.",
+    "Existing Forbidden logs and artifact 403 stop boundaries retained.",
+    "No production business requests, deployment, signing, installation, schema migration or public release."
+  ]
+}
