@@ -1,0 +1,30 @@
+{
+  "stage": "phase2b-20261108",
+  "date_utc": "2026-11-08",
+  "purpose": "development and isolated synthetic-data acceptance candidate, not a released client",
+  "previous_phase2": "withdrawn after independently reproduced repaint-before-capture tail loss",
+  "shared_tests": 92,
+  "additional_android_host_tests": 7,
+  "all_tests": 99,
+  "failures": 0,
+  "original_source_provenance": "pass; original HTML/CSS unchanged",
+  "esbuild_version": "0.28.2",
+  "two_build_working_directories": "all 13 asset bytes identical",
+  "site_script": {
+    "bytes": 759732,
+    "sha256": "155522bc24ab610a45bc77e72976d353635162cf87dc3406873660d2fe4da09c"
+  },
+  "manifest_sha256": "0303e9eab153b65adb5b419ea4fb52c47e591007c2bdd37e855c7ab60da34aff",
+  "independent_resume_regression": "pass without test-driven repaint after resume; second close does not resurrect consumed draft",
+  "additional_consumption_cases": "exact revision proof covers successful/failed close, awaited runtime and late consumption; newer or different raw text is preserved",
+  "real_browser": "not passed",
+  "actual_android_or_windows_runtime": "not run",
+  "screenshots": null,
+  "remaining_boundaries": [
+    "Original detached DOM or changed identity fails closed; memory snapshot is not durable or visible recovery",
+    "Conflicting DOM versions are guarded while their original editors remain alive; force reload is not recovery",
+    "Real IndexedDB/WebView immediately-close-and-reopen acceptance required",
+    "No file export, full backup restore, AI execution, migration or production communication"
+  ],
+  "data": "synthetic tests only; no real user data or credentials"
+}

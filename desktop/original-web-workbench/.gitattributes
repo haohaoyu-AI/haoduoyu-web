@@ -1,0 +1,5 @@
+# Keep source review stable across Windows checkouts.
+* text=auto eol=lf
+# These immutable frontend bytes are hash-pinned. Never normalize them.
+bundle/site/* -text
+bundle/source-build-manifest.json -text

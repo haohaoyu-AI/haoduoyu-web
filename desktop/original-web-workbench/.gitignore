@@ -1,0 +1,7 @@
+.nuget/
+.nuget-http/
+.dotnet-home/
+**/bin/
+**/obj/
+artifacts/
+*.binlog

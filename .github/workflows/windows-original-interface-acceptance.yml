@@ -1,0 +1,51 @@
+# LOCAL REVIEW PROPOSAL ONLY. Exact source/workflow/SDK/action/artifact scope needs approval.
+# Proposed destination: haohaoyu-AI/haoduoyu-web, branch desktop/original-interface-webview2.
+# Proposed activation path: .github/workflows/windows-original-interface-acceptance.yml.
+name: Original-interface Windows acceptance
+on:
+  workflow_dispatch:
+  push:
+    branches: ['desktop/original-interface-webview2']
+    paths: ['desktop/original-web-workbench/**', 'local-ui/**', '.github/workflows/windows-original-interface-acceptance.yml']
+permissions:
+  contents: read
+concurrency:
+  group: windows-original-ui-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  shown-webview2:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: desktop/original-web-workbench
+    steps:
+      - name: Checkout exact source without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # official v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Install official pinned .NET SDK in disposable runner
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # official v5.4.0
+        with:
+          dotnet-version: '10.0.403'
+      - name: Use official SHA-pinned Node tooling for shared source
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # official v4.4.0
+        with:
+          node-version: '24'
+      - name: Rebuild and test reviewed shared source without changing frozen bundle
+        run: ./scripts/test-shared-rebuild.ps1
+      - name: Query installed WebView2 then run synthetic shown-host acceptance
+        run: ./staging/windows-acceptance/run-ci.ps1
+      - name: Retain only allowlisted synthetic PNG JSON and text evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # official v6.0.0
+        with:
+          name: windows-original-ui-synthetic-evidence-${{ github.sha }}
+          path: desktop/original-web-workbench/artifacts/windows-acceptance/evidence/**
+          if-no-files-found: error
+          retention-days: 3
+          include-hidden-files: false
+# No website deploy, old desktop build, installer, runtime install, user data or write permission.

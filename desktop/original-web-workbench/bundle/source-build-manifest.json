@@ -1,0 +1,232 @@
+{
+  "build": "standalone-original-interface",
+  "sourceBaseline": "b752bfe",
+  "originalShell": "9ee30aaf90e1117f092292da432619cecbc62abd63443b5bd4c8b06d92e9d59a",
+  "unchangedAssets": {
+    "index.html": "62fed328254a0b9d032947142e0c0c743bdbfc954b195b4b31ea33b1a1d2669d",
+    "favicon.svg": "3e8f3efa9f1c0001145ff4f7f1f736c0feb815182e2a448b00f0d7b73238cb6b",
+    "manifest.webmanifest": "b13e69559fb1b5a5d54a14bfc3fb59427b96c15860219ca2cd97f907d5d4d281",
+    "tokens.css": "9613bcbaba412086d86e006f8178dcc23682f35bcaf515d9e43f7bc78b75af02",
+    "style.css": "6dbdbd2ad3cfc6bb438bee6182a8ef8ebdf46d8da4af5b5aeb8553c6a6d6a668",
+    "memos.css": "2b655731e5de30606deb9b3183d579b5f01d76f736ca625bdb04453e258ed897",
+    "glass.css": "a7ad93ee19f0d2584e953aacb3a10927a468c1a02ca6e54e2b2d1b1150223433",
+    "workbench.css": "b9f554f5fc31f1c23ddd04e7b9f1f1e7eef14f860007c2fb96161b631ed8829c",
+    "mobile.css": "eb089be233e9f58555b6a1aa4543abbd3fae22418829be65d2e628a1511beead",
+    "sw-update.css": "8a9500d0a0b8cdb2543704b28e1dba99b029afb0af3725434b3448bd3239cd23",
+    "offline.css": "ceb710bb10d345409d0437274dc1dd79c5152b1de874c7c10f290edc0f21ed7c",
+    "review.css": "c350acaecce804c56820bb689d67cfd18be12bd7808b912cf8098297114331b9"
+  },
+  "scriptSha256": "155522bc24ab610a45bc77e72976d353635162cf87dc3406873660d2fe4da09c",
+  "sourceAliases": {
+    "core/api.mjs": "local/client.mjs",
+    "offline/runtime.mjs": "local/runtime.mjs"
+  },
+  "nonvisualSemanticPatches": [
+    {
+      "file": "pages/todos.mjs",
+      "before": "const todoObservers = new Set();",
+      "after": "import {localComposerRequestSnapshot,localComposerUnchanged} from \"../local/runtime.mjs\";\nconst todoObservers = new Set();"
+    },
+    {
+      "file": "pages/todos.mjs",
+      "before": "  const owner = todoOwner(), submittedDraft = day.draft;",
+      "after": "  const owner = todoOwner(), submittedDraft = day.draft;\n  const localDraftSnapshot = templateId ? null : localComposerRequestSnapshot(request,\"todo\",day.date);"
+    },
+    {
+      "file": "pages/todos.mjs",
+      "before": "const item = await api(\"/todos\", { method: \"POST\", body: request });",
+      "after": "const item = await api(\"/todos\", { method: \"POST\", body: request, localDraftSnapshot });"
+    },
+    {
+      "file": "pages/todos.mjs",
+      "before": "if (day.draft === submittedDraft && submittedDraft.trim() === request.text) day.draft = \"\";",
+      "after": "if (localComposerUnchanged(localDraftSnapshot) && day.draft === submittedDraft && submittedDraft.trim() === request.text) day.draft = \"\";"
+    },
+    {
+      "file": "pages/todos.mjs",
+      "before": "import { loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos } from \"./unscheduled-todos.mjs\";",
+      "after": "import {localEditorPaintValue} from \"../local/lifecycle.mjs\";\nimport { loadUnscheduledTodos, paintUnscheduledTodos, renderUnscheduledTodos } from \"./unscheduled-todos.mjs\";"
+    },
+    {
+      "file": "pages/todos.mjs",
+      "before": "if (input && input.value !== day.draft) input.value = day.draft;",
+      "after": "if (input && input.value !== day.draft) input.value = localEditorPaintValue(input,day.draft);"
+    },
+    {
+      "file": "offline/ui.mjs",
+      "before": "const title = textNode(document, 'h2', '同步状态');",
+      "after": "const title = textNode(document, 'h2', '本机保存状态');"
+    },
+    {
+      "file": "offline/ui.mjs",
+      "before": "details.append(textNode(document, 'h3', '待提交队列'));",
+      "after": "details.append(textNode(document, 'p', '这是独立本机版本，没有线上同步或上传。'));"
+    },
+    {
+      "file": "core/todos-state.mjs",
+      "before": "const todosState =",
+      "after": "import {bindLocalComposer} from \"../local/runtime.mjs\";\nconst todosState ="
+    },
+    {
+      "file": "core/todos-state.mjs",
+      "before": "  return todosState.days.get(date);",
+      "after": "  const day = todosState.days.get(date);\n  if (!day.localDraftBound) { bindLocalComposer(day,\"draft\",\"todo\",date); day.localDraftBound = true; }\n  return day;"
+    },
+    {
+      "file": "pages/unscheduled-todos.mjs",
+      "before": "const cache={owner:",
+      "after": "import {bindLocalComposer,localComposerRequestSnapshot,localComposerUnchanged} from \"../local/runtime.mjs\";\nconst cache={owner:"
+    },
+    {
+      "file": "pages/unscheduled-todos.mjs",
+      "before": "if(cache.owner!==key)Object.assign(cache,{owner:key,items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},uncertain:{}});",
+      "after": "if(cache.owner!==key){Object.assign(cache,{owner:key,items:[],loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},uncertain:{}});bindLocalComposer(cache,'draft','future');}"
+    },
+    {
+      "file": "pages/unscheduled-todos.mjs",
+      "before": "  const submitted=v.request;v.pending=true;",
+      "after": "  const submitted=v.request,localDraftSnapshot=localComposerRequestSnapshot(v.request,'future');v.pending=true;"
+    },
+    {
+      "file": "pages/unscheduled-todos.mjs",
+      "before": "api('/unscheduled-todos',{method:'POST',body:submitted})",
+      "after": "api('/unscheduled-todos',{method:'POST',body:submitted,localDraftSnapshot})"
+    },
+    {
+      "file": "pages/unscheduled-todos.mjs",
+      "before": "if(v.draft.trim()===text)v.draft='';",
+      "after": "if(localComposerUnchanged(localDraftSnapshot)&&v.draft.trim()===text)v.draft='';"
+    },
+    {
+      "file": "pages/unscheduled-todos.mjs",
+      "before": "if(input&&input.value.trim()===text)input.value='';",
+      "after": "if(input&&localComposerUnchanged(localDraftSnapshot)&&input.value.trim()===text)input.value='';"
+    },
+    {
+      "file": "pages/unscheduled-todos.mjs",
+      "before": "import {api,apiNetwork} from '../core/api.mjs';",
+      "after": "import {localEditorPaintValue} from \"../local/lifecycle.mjs\";\nimport {api,apiNetwork} from '../core/api.mjs';"
+    },
+    {
+      "file": "pages/unscheduled-todos.mjs",
+      "before": "if(input&&document.activeElement!==input&&input.value!==v.draft)input.value=v.draft;",
+      "after": "if(input&&document.activeElement!==input&&input.value!==v.draft)input.value=localEditorPaintValue(input,v.draft);"
+    },
+    {
+      "file": "pages/unscheduled-todos.mjs",
+      "before": "勾选完成后移至今日待办（需联网）；也可选择日期移动。",
+      "after": "勾选完成后移至今日待办；也可选择日期移动。"
+    },
+    {
+      "file": "controller.mjs",
+      "before": "后台会自动同步；如有冲突，可在这里查看和处理。",
+      "after": "内容只保存在本机，不会上传网站。"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "  window.addEventListener('haoduoyu:before-refresh', event => {",
+      "after": "  window.addEventListener('haoduoyu:capture-current-editors', event => {\n    const detail = event.detail, expected = notesIdentity, root = document.querySelector('#daily-notes');\n    if (!detail?.localSnapshot || expected !== notesIdentityNow()) return;\n    for (const field of root?.querySelectorAll('[data-note-entry-editor],#notes-editor') || []) {\n      const raw = detail.snapshot(field), category = raw.dataset.category, legacy = raw.id === 'notes-editor';\n      const id = legacy ? raw.dataset.date : raw.dataset.noteEntryEditor;\n      const store = (legacy ? notesStores : entryStores).get(category);\n      detail.stage({field,key:JSON.stringify([legacy ? 'legacy' : 'entry',expected,category,id]),\n        valid:() => Boolean(store && notesIdentityNow() === expected && notesIdentity === expected &&\n          (legacy ? notesStores : entryStores).get(category) === store && document.querySelector('#daily-notes') === root),\n        apply:value => store.edit(id,value.value,{composing:value.composing})});\n    }\n  });\n  window.addEventListener('haoduoyu:before-refresh', event => {"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "      if (field) entryStores.get(field.dataset.category)?.edit(field.dataset.noteEntryEditor, field.value,\n        {composing: field.dataset.composing === 'true'});",
+      "after": "      if (!event.detail.localSnapshot) {\n      if (field) entryStores.get(field.dataset.category)?.edit(field.dataset.noteEntryEditor, field.value,\n        {composing: field.dataset.composing === 'true'});\n      }"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "export function floatingNotesSnapshot() {",
+      "after": "// Local close capture binds the exact existing store/item without selecting or creating.\nexport function captureLocalFloatingNote(detail, field, composing) {\n  const expected = notesIdentity, category = floatingNoteCategory, selectedId = floatingNoteId, selectedDate = floatingNoteDate;\n  const store = entryStores.get(category), item = selectedFloatingEntry(store, selectedId, selectedDate);\n  const raw = detail.snapshot(field), id = item?.id;\n  detail.stage({field,key:JSON.stringify(['entry',expected,category,id || 'empty-floating']),composing,\n    valid:() => expected === notesIdentityNow() && expected === notesIdentity && store === entryStores.get(category) &&\n      selectedId === floatingNoteId && selectedDate === floatingNoteDate && category === floatingNoteCategory &&\n      Boolean(item || raw.value === ''),\n    apply:value => { if (item) store.edit(id,value.value,{composing:value.composing}); }});\n}\nexport function floatingNotesSnapshot() {"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "import {api, apiNetwork} from './core/api.mjs';",
+      "after": "import {api, apiNetwork} from './core/api.mjs';\nimport {toast} from './ui/toast.mjs';"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "async function exportDraftArchive() {",
+      "after": "async function exportDraftArchive() {\n  return toast(\"当前版本暂不支持文件导出，草稿仍保留。\",true);"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "function exportLegacyDraft(item, category) {",
+      "after": "function exportLegacyDraft(item, category) {\n  return toast(\"当前版本暂不支持文件导出，草稿仍保留。\",true);"
+    },
+    {
+      "file": "memos-controller.mjs",
+      "before": "function preserveMemosBeforeRefresh(event) {",
+      "after": "function captureLocalMemos(event) {\n  const detail = event.detail, store = memoStore, expected = memoIdentity, root = document.querySelector('#memos');\n  if (!detail?.localSnapshot || expected !== currentIdentity() || !store?.state.canEdit) return;\n  const noteId = store.state.noteId;\n  for (const field of root?.querySelectorAll('#memo-title,#memo-body') || []) {\n    const raw = detail.snapshot(field), key = raw.id === 'memo-title' ? 'title' : 'body';\n    detail.stage({field,key:JSON.stringify(['memo',expected,noteId,key]),\n      valid:() => store === memoStore && expected === currentIdentity() && store.state.noteId === noteId &&\n        document.querySelector('#memos') === root,\n      apply:value => store.edit(key,value.value,{composing:value.composing,retainPrivate:true})});\n  }\n}\nfunction preserveMemosBeforeRefresh(event) {"
+    },
+    {
+      "file": "memos-controller.mjs",
+      "before": "  window.addEventListener('haoduoyu:before-refresh', preserveMemosBeforeRefresh);",
+      "after": "  window.addEventListener('haoduoyu:capture-current-editors', captureLocalMemos);\n  window.addEventListener('haoduoyu:before-refresh', preserveMemosBeforeRefresh);"
+    },
+    {
+      "file": "memos-controller.mjs",
+      "before": "({field, value: field.value, readOnly: field.readOnly, composing: field.dataset.composing === 'true'}));",
+      "after": "({field, value: event.detail.localSnapshot ? event.detail.snapshot(field).value : field.value, readOnly: field.readOnly, composing: event.detail.localSnapshot ? event.detail.snapshot(field).composing : field.dataset.composing === 'true'}));"
+    },
+    {
+      "file": "memos-controller.mjs",
+      "before": "    for (const {field, value} of fields) store.edit(field.id === 'memo-title' ? 'title' : 'body', value, {composing, retainPrivate: true});",
+      "after": "    if (!event.detail.localSnapshot) for (const {field, value} of fields) store.edit(field.id === 'memo-title' ? 'title' : 'body', value, {composing, retainPrivate: true});"
+    },
+    {
+      "file": "memos-controller.mjs",
+      "before": "durable: true,",
+      "after": "durable: true, online: () => true,"
+    },
+    {
+      "file": "pages/memos.mjs",
+      "before": "import {e} from '../core/dom.mjs';",
+      "after": "import {localEditorPaintValue} from \"../local/lifecycle.mjs\";\nimport {e} from '../core/dom.mjs';"
+    },
+    {
+      "file": "pages/memos.mjs",
+      "before": "input.value = item[field] || '';",
+      "after": "input.value = localEditorPaintValue(input,item[field] || '');"
+    },
+    {
+      "file": "pages/daily-notes.mjs",
+      "before": "import {e} from '../core/dom.mjs';",
+      "after": "import {localEditorPaintValue} from \"../local/lifecycle.mjs\";\nimport {e} from '../core/dom.mjs';"
+    },
+    {
+      "file": "pages/daily-notes.mjs",
+      "before": "  editor.value = text;",
+      "after": "  editor.value = localEditorPaintValue(editor,text);"
+    },
+    {
+      "file": "floating-workbench.mjs",
+      "before": "checkFloatingNote, editFloatingNote, floatingNotesSnapshot",
+      "after": "checkFloatingNote, editFloatingNote, captureLocalFloatingNote, floatingNotesSnapshot"
+    },
+    {
+      "file": "floating-workbench.mjs",
+      "before": "  const beforeRefresh = event => {",
+      "after": "  const captureCurrent = event => {\n    if (!active() || !event.detail?.localSnapshot) return;\n    event.detail.captureDocument(view.doc,[view.notesInput]);\n    if (tab === 'notes') captureLocalFloatingNote(event.detail,view.notesInput,composing);\n    else if (event.detail.snapshot(view.notesInput).value) event.detail.fail(new Error('浮窗隐藏的碎碎念输入尚未采集，请打开碎碎念后重试。'));\n    else event.detail.protect(view.notesInput);\n  };\n  window.addEventListener('haoduoyu:capture-current-editors',captureCurrent);\n  const beforeRefresh = event => {"
+    },
+    {
+      "file": "floating-workbench.mjs",
+      "before": "    if (tab === 'notes' && view.notesInput.value !== (current?.draft || '')) editFloatingNote(view.notesInput.value);",
+      "after": "    if (!event.detail.localSnapshot && tab === 'notes' && view.notesInput.value !== (current?.draft || '')) editFloatingNote(view.notesInput.value);"
+    },
+    {
+      "file": "floating-workbench.mjs",
+      "before": "    alive = false; clearInterval(timer);",
+      "after": "    window.removeEventListener('haoduoyu:capture-current-editors',captureCurrent);\n    alive = false; clearInterval(timer);"
+    },
+    {
+      "file": "floating-workbench.mjs",
+      "before": "import {bjtDate} from './core/format.mjs';",
+      "after": "import {localEditorPaintValue} from \"./local/lifecycle.mjs\";\nimport {bjtDate} from './core/format.mjs';"
+    },
+    {
+      "file": "floating-workbench.mjs",
+      "before": "    view.notesInput.value = text;",
+      "after": "    view.notesInput.value = localEditorPaintValue(view.notesInput,text);"
+    }
+  ],
+  "networkTransportIncluded": false
+}
