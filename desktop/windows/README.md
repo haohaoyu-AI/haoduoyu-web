@@ -109,7 +109,7 @@ Core/API/profile/download 测试只使用临时合成数据与 fake HTTP handler
 
 ## 每用户安装器候选路径（待Windows实跑）
 
-0.19.0增加独立MSI源码和云端Windows构建/合成验收步骤，保留原便携ZIP。当前本机只验证源码、PowerShell解析、C#取消夹具编译和WPF交叉编译。精确源299332a的首次云端Windows CI42442449697中，客户端测试/便携包步骤成功，但新MSI阶段后运行失败；随后获准的本次失败日志确认MSI已构建，但安装验收脚本的ProductCode读取返回null，在开始安装前失败。读取已改为显式索引属性派发，本机30项回归通过，修复版Windows验收待跑，不能称为已验收安装包。
+0.19.0增加独立MSI源码和云端Windows构建/合成验收步骤，保留原便携ZIP。当前本机只验证源码、PowerShell解析、C#取消夹具编译和WPF交叉编译。精确源299332a的首次云端Windows CI42442449697中，客户端测试/便携包步骤成功，但新MSI阶段后运行失败；随后获准的本次失败日志确认MSI已构建，但安装验收脚本的ProductCode读取返回null，在开始安装前失败。读取改为显式索引属性派发后，022cde6的云端测试已越过该处，原生窗口65项及安装器30项通过；旧版合成夹具安装返回0后，单个HKCU卸载键登记探针断言失败。现改为当前用户非托管MSI登记API查询，仍需修复版Windows实跑，不能称为已验收安装包。
 
 安装目标固定为 `%LOCALAPPDATA%\Programs\Haoduoyu\NativeWorkbench`，开始菜单及系统应用列表可卸载。私有数据仍在 `%LOCALAPPDATA%\Haoduoyu\NativeWorkbench\v1`，不由MSI接管、迁移或删除。安装器无提权、后台更新、自动启动客户端或自动关闭编辑器，请自行关闭客户端后维护。候选未签名，Windows信任与正式分发仍待验收。
 

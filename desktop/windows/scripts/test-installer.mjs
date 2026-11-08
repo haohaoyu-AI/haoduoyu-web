@@ -190,6 +190,174 @@ test('MSI property reads use an indexed property getter and keep identity/scope 
   }
 });
 
+test('MSI registration checks use the exact current-user API before preflight, not an ARP registry key', () => {
+  const qa = readFileSync(join(desktopRoot, 'scripts/test-installer-windows.ps1'), 'utf8');
+  const helper = readFileSync(join(desktopRoot, 'installer/Fixtures/MsiCancellation.cs'), 'utf8');
+  assert.doesNotMatch(qa, /function Product-Key|CurrentVersion\\Uninstall|Win32_Product|MsiQueryProductState/);
+  assert.match(qa, /function Get-RegistrationState\(\[string\]\$Code\) \{ return \[NativeInstallerRegistration\]::GetState\(\$Code\) \}/);
+  assert.equal((qa.match(/Add-Type -Path/g) || []).length, 1);
+  assert.ok(qa.indexOf('Add-Type -Path') < qa.indexOf('(Is-Registered $candidate.product_code)'));
+  assert.match(helper, /EntryPoint = "MsiGetProductInfoExW"/);
+  assert.match(helper, /return GetState\(productCode, GetProductInfo\);/);
+  assert.match(helper, /read\(code, null, UserUnmanaged, "State", value, ref characters\)/);
+  assert.doesNotMatch(helper, /RegistryKey|MsiEnumProducts|MsiQueryProductState/);
+});
+
+test('PowerShell compiles and exercises exact MSI registration states and cleanup with no Windows APIs', t => {
+  // Compile the actual helper with an internal synthetic reader. Never call its native entry point,
+  // and extract only parsed functions/finally code rather than executing the installation script.
+  const script = String.raw`
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+$source = Get-Content -LiteralPath $env:HDY_INSTALLER_HELPER -Raw
+Add-Type -TypeDefinition ($source + @'
+public static class SyntheticRegistrationRegression {
+    private const string Code = "{12345678-90AB-CDEF-1234-567890ABCDEF}";
+    private static uint Result;
+    private static string Value;
+    private static uint Length;
+    private static int Calls;
+    private static bool ThrowRead;
+    private static uint Read(string code, string sid, uint context, string property, StringBuilder value, ref uint characters) {
+        Calls++;
+        if (code != Code || sid != null || context != 2 || property != "State" || characters != 2 || value.Capacity != 2)
+            throw new Exception("Query changed the exact product, current user, USERUNMANAGED context, property or bounded buffer.");
+        if (ThrowRead) throw new InvalidOperationException("Synthetic native reader failure.");
+        value.Append(Value); characters = Length;
+        return Result;
+    }
+    private static void Set(uint result, string value, uint length) { Result = result; Value = value; Length = length; Calls = 0; ThrowRead = false; }
+    private static NativeInstallerRegistrationState Query(string code) { return NativeInstallerRegistration.GetState(code, Read); }
+    public static void Run() {
+        foreach (string code in new [] { Code, Code.ToLowerInvariant(), Code.Substring(1, 36), Code.Substring(1, 36).ToLowerInvariant() }) {
+            Set(0, "5", 1);
+            if (Query(code) != NativeInstallerRegistrationState.Installed || Calls != 1) throw new Exception("Installed/canonical GUID regression.");
+        }
+        Set(0, "1", 1);
+        if (Query(Code) != NativeInstallerRegistrationState.Advertised || Calls != 1) throw new Exception("Advertised is not installed or absent.");
+        Set(1605, "5", 1);
+        if (Query(Code) != NativeInstallerRegistrationState.Absent || Calls != 1) throw new Exception("Only ERROR_UNKNOWN_PRODUCT proves absence.");
+        foreach (uint error in new uint[] { 5, 87, 234, 1608, 1610, 1612, 1627, 9999 }) {
+            Set(error, "5", 1);
+            try { Query(Code); throw new Exception("API error was accepted: " + error); }
+            catch (Win32Exception ex) {
+                if (ex.NativeErrorCode != error || !ex.Message.Contains(Code) || !ex.Message.Contains("current-user USERUNMANAGED")) throw;
+            }
+            if (Calls != 1) throw new Exception("API error caused a retry/context fallback.");
+        }
+        foreach (string value in new [] { "", "0", "2", "3", "4", "-1", "05", " 5", "5 ", "500" }) {
+            Set(0, value, (uint)value.Length);
+            try { Query(Code); throw new Exception("Unexpected state was accepted."); }
+            catch (InvalidOperationException ex) { if (!ex.Message.Contains("Unexpected MSI State")) throw; }
+        }
+        foreach (uint length in new uint[] { 0, 2, uint.MaxValue }) {
+            Set(0, "5", length);
+            try { Query(Code); throw new Exception("Invalid state length was accepted."); }
+            catch (InvalidOperationException ex) { if (!ex.Message.Contains("Unexpected MSI State")) throw; }
+        }
+        foreach (string code in new [] { null, "", " ", Guid.Empty.ToString("D"), Guid.Empty.ToString("B"), Code + " ", " " + Code, Code.Replace("-", ""), "(" + Code.Substring(1, 36) + ")", "not-a-product", Code + Code }) {
+            Set(0, "5", 1);
+            try { Query(code); throw new Exception("Invalid/ambiguous product GUID was accepted."); }
+            catch (ArgumentException ex) { if (ex.ParamName != "productCode") throw; }
+            if (Calls != 0) throw new Exception("Invalid identity reached native reader.");
+        }
+        Set(0, "5", 1); ThrowRead = true;
+        try { Query(Code); throw new Exception("Native exception was swallowed."); }
+        catch (InvalidOperationException ex) { if (ex.Message != "Synthetic native reader failure.") throw; }
+        var native = typeof(NativeInstallerRegistration).GetMethod("GetProductInfo", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var import = (DllImportAttribute)Attribute.GetCustomAttribute(native, typeof(DllImportAttribute));
+        if (import.Value != "msi.dll" || import.EntryPoint != "MsiGetProductInfoExW" || import.CharSet != CharSet.Unicode || !import.ExactSpelling)
+            throw new Exception("Incorrect native API binding.");
+    }
+}
+'@)
+[SyntheticRegistrationRegression]::Run()
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:HDY_INSTALLER_TEST_SCRIPT, [ref]$tokens, [ref]$errors)
+if (@($errors).Count) { throw ($errors | Out-String) }
+foreach ($name in @('Is-Registered', 'Assert-True')) {
+    $functions = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $false))
+    if ($functions.Count -ne 1) { throw "Expected exactly one $name function." }
+    . ([scriptblock]::Create($functions[0].Extent.Text))
+}
+$candidate = @{ product_code = '12345678-90AB-CDEF-1234-567890ABCDEF' }
+$older = @{ product_code = '22345678-90AB-CDEF-1234-567890ABCDEF' }
+function Get-RegistrationState([string]$Code) {
+    if (-not $script:states.ContainsKey($Code)) { throw 'Queried a product outside the exact test identities.' }
+    $script:queries.Add($Code)
+    if ($script:states[$Code] -eq 'error') { throw 'Synthetic registration query failure.' }
+    return [NativeInstallerRegistrationState]$script:states[$Code]
+}
+function Invoke-Msi {
+    param([string]$Operation, [string]$Target, [string]$Name)
+    if ($Operation -ne '/x' -or $Target -notin @(('{' + $candidate.product_code + '}'), ('{' + $older.product_code + '}'))) { throw 'Cleanup requested an unexpected operation/product.' }
+    $code = $Target.Substring(1, 36)
+    if ($Name -cne ('cleanup-' + $code)) { throw 'Cleanup changed the exact product identity.' }
+    $script:uninstalls.Add($code)
+    if ($script:uninstallFailure -eq $code) { throw 'Synthetic uninstall failure.' }
+    if ($script:leaveRegistered -ne $code) { $script:states[$code] = 'Absent' }
+}
+function Save-Evidence { $script:saved = $true }
+function Reset-SyntheticState([string]$CandidateState, [string]$OlderState) {
+    $script:states = @{ $candidate.product_code = $CandidateState; $older.product_code = $OlderState }
+    $script:queries = [Collections.Generic.List[string]]::new()
+    $script:uninstalls = [Collections.Generic.List[string]]::new()
+    $script:uninstallFailure = ''; $script:leaveRegistered = ''; $script:saved = $false
+    $script:report = [ordered]@{ status = 'failed'; cleanup = 'not_run' }
+}
+foreach ($state in @('Absent', 'Installed')) {
+    Reset-SyntheticState $state 'Absent'
+    $actual = Is-Registered $candidate.product_code
+    if ($actual -isnot [bool] -or $actual -ne ($state -eq 'Installed')) { throw 'Registration boolean conflated absence and installation.' }
+}
+foreach ($state in @('Advertised', 'error')) {
+    Reset-SyntheticState $state 'Absent'
+    try { $null = Is-Registered $candidate.product_code; throw 'Registration assertion treated advertisement/query error as absence or success.' }
+    catch {
+        $expected = if ($state -eq 'Advertised') { 'advertised, not installed' } else { 'Synthetic registration query failure.' }
+        if (-not $_.Exception.Message.Contains($expected)) { throw }
+    }
+}
+$lifecycle = @($ast.EndBlock.Statements | Where-Object { $_ -is [System.Management.Automation.Language.TryStatementAst] -and $null -ne $_.Finally })
+if ($lifecycle.Count -ne 1) { throw 'Expected one top-level lifecycle cleanup.' }
+$finally = $lifecycle[0].Finally.Extent.Text
+$cleanup = [scriptblock]::Create($finally.Substring(1, $finally.Length - 2))
+Reset-SyntheticState 'Installed' 'Advertised'
+. $cleanup
+if ($script:uninstalls.Count -ne 2 -or $script:queries.Count -ne 4 -or $report.cleanup -ne 'completed_or_not_needed' -or -not $saved) { throw ('Cleanup missed an installed/advertised exact test product or failed to verify absence: ' + ($report | ConvertTo-Json)) }
+Reset-SyntheticState 'Absent' 'Absent'
+. $cleanup
+if ($script:uninstalls.Count -ne 0 -or $report.cleanup -ne 'completed_or_not_needed') { throw 'Cleanup tried uninstalling absent products.' }
+foreach ($failure in @('query', 'uninstall', 'still-registered')) {
+    Reset-SyntheticState 'Installed' 'Installed'
+    if ($failure -eq 'query') { $script:states[$candidate.product_code] = 'error' }
+    elseif ($failure -eq 'uninstall') { $script:uninstallFailure = $candidate.product_code }
+    else { $script:leaveRegistered = $candidate.product_code }
+    . $cleanup
+    if ($report.cleanup -ne 'failed' -or $report.cleanup_errors.Count -ne 1 -or -not $saved) { throw 'Cleanup concealed registration/uninstall failure or did not save evidence.' }
+    if ($script:uninstalls -notcontains $older.product_code -or $script:states[$older.product_code] -ne 'Absent') { throw 'One product failure skipped cleanup of the other exact product.' }
+    if ($failure -eq 'query' -and $script:uninstalls -contains $candidate.product_code) { throw 'Unknown registration allowed an uninstall.' }
+}
+Reset-SyntheticState 'error' 'Absent'
+$report.status = 'passed'
+try { . $cleanup; throw 'Cleanup failure left a successful run.' }
+catch { if (-not $_.Exception.Message.Contains('MSI cleanup failed')) { throw } }
+if (-not $saved) { throw 'Cleanup failed without saving evidence.' }
+'MSI registration and cleanup synthetic regression passed; no Windows API or installation was run.'
+`;
+  const result = spawnSync(process.env.HDY_PWSH || 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], {
+    encoding:'utf8', timeout:60_000,
+    env:{...process.env, HDY_INSTALLER_TEST_SCRIPT:join(desktopRoot, 'scripts/test-installer-windows.ps1'), HDY_INSTALLER_HELPER:join(desktopRoot, 'installer/Fixtures/MsiCancellation.cs')},
+  });
+  if (result.error?.code === 'ENOENT' && !process.env.HDY_PWSH && process.platform !== 'win32') {
+    t.skip('PowerShell unavailable; set HDY_PWSH to an official PowerShell 7 executable. Runtime regression not counted as passed.');
+    return;
+  }
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /MSI registration and cleanup synthetic regression passed/);
+});
+
 test('PowerShell executes the real MSI property reader against synthetic indexed properties without Windows APIs', t => {
   // Extract only the reader's parsed function definition. Never dot-source the installation script.
   const script = String.raw`

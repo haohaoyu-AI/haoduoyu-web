@@ -43,3 +43,19 @@ WiX4.0.6从官方NuGet私有恢复并核对CLI版本；Linux不是受支持的MS
 准确失败为test-installer-windows.ps1第132行：Read-MsiProperty读取ProductCode返回null后调用Trim，报“You cannot call a method on a null-valued expression.”。发生在首个安装调用前，因此不能报告安装、取消、升级、卸载或路径门禁已动态通过。现已对Record.StringData带索引COM属性读取作最小兼容修正，保留身份及scope校验，不给缺失ProductCode补默认值；修复版Windows验证待执行。
 
 修复只改此前批准文件中的两个脚本：以显式GetProperty取StringData索引1，必需属性缺行、空值或非字符串立即失败；仅ALLUSERS允许缺失，真实1/2等值保留给原scope断言拒绝。Node新增静态约束及官方PowerShell实际回归：AST仅加载该函数，合成indexed-property对象覆盖正常身份、缺失/空/异常和关闭view路径，不运行COM、WindowsAPI或整个安装脚本。本机30/30通过、0失败、0跳过，三份PS解析0错误，隔离及diff检查通过。旧函数负对照会因接受缺失必需属性失败；这不等于在Linux重现Windows COM内部null派发。下一次精确源Windows CI仍需验证真实MSI路径。
+
+## 修复版上传及第二次Windows CI终态
+
+用户明确批准修复后的同5文件上传并重新运行临时Windows测试后，非force保存为022cde638a7213f4bf92245e54885efce26ea33e，fetch回读一致。整仓树a4362d7bc6ec8edc3ffacd9e1bfda1873c4c3e12与本机30项通过的12331d3完全相同。
+
+自动CI42443996728、job128618986639于2026-11-08T03:51:33Z明确completed/failure；本次job摘要steps为null、独立步骤接口返回空数组，无法确认故障细分位置。不能假定仍是旧ProductCode问题，亦不宣称此次MSI构建或安装通过。产物13603131711只读元数据124,563,388字节、保留至2026-11-11T03:51:27Z，未下载。旧的单job日志许可不扩到新job，因此未读128618986639日志、未重复CI；需要本次具体错误后再定向处理。用户设备无操作，未改网站、生产或签名发布。
+
+## 第二个job的单次批准日志诊断
+
+用户明确批准读取job128618986639后，正常接口读取成功；未读其他job或下载产物。日志确认修复版身份及scope读取已越过、Node/PowerShell30项和Windows原生65项通过，DLL和三个MSI构建命令完成。实际安装QA继续经过既有程序/菜单目录、三处junction拒绝、机器范围拒绝及首次进度取消的断言，随后install-synthetic-older返回0，但测试仅查询HKCU卸载项的Is-Registered判断false，报“Older synthetic fixture is not registered for the current user.”。
+
+直接证据不能证明是真实安装未登记、不同登记位置还是探针误判，尚未走到该夹具完整载荷核对。现优先将登记探针改为准确ProductCode的Windows Installer当前用户非托管上下文查询，区分不存在、已广告、已安装及API错误，避免凭一个ARP注册表位置猜测；不放松产品原生所有权/链接门禁及完整载荷/数据保全检查。修复及下一次Windows实跑待记。
+
+登记探针现已在原CI夹具加入只读MsiGetProductInfoExW helper，严格规范化非空GUID，SID=null仅当前用户、context2仅USERUNMANAGED、只读State。仅1605返回不存在，状态1广告与5已安装分别处理，其余错误或异常值停止。广告不会通过安装成功断言，预检遇广告同样停止；清理本次初始不存在的准确测试product时同时处理广告/安装状态，每产品异常记录后仍检查另一产品。未改真正嵌入MSI的C++所有权门禁。
+
+新增静态约束和官方PowerShell实际编译C#/提取脚本回归，注入合成查询、不调用WindowsAPI，验证GUID、SID/context/property、1605/1/5、错误拒绝及清理分支。本机32/32通过、0失败、0跳过；三个PS解析0错误，C#夹具仅编译、XML良构、源码隔离及diff检查通过。此结果不证明旧次安装的实际登记或修复版Windows API已通过，仍需下一次精确源临时Windows CI。

@@ -48,8 +48,14 @@ $report = [ordered]@{
     error = $null
 }
 function Save-Evidence { $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $evidencePath -Encoding utf8NoBOM }
-function Product-Key([string]$Code) { return "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{$Code}" }
-function Is-Registered([string]$Code) { return Test-Path -LiteralPath (Product-Key $Code) }
+function Get-RegistrationState([string]$Code) { return [NativeInstallerRegistration]::GetState($Code) }
+function Is-Registered([string]$Code) {
+    $state = Get-RegistrationState $Code
+    if ($state -eq [NativeInstallerRegistrationState]::Advertised) {
+        throw "MSI product {$Code} is advertised, not installed, for the current user (USERUNMANAGED)."
+    }
+    return $state -eq [NativeInstallerRegistrationState]::Installed
+}
 function Assert-True([bool]$Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
 function Assert-Data {
     Assert-True (Test-Path -LiteralPath $marker -PathType Leaf) 'Installer deleted the synthetic user-data marker.'
@@ -121,6 +127,7 @@ function Read-MsiProperty {
 Save-Evidence
 try {
     # These preflight failures never clean up unrelated installation/data directories or registrations.
+    Add-Type -Path (Join-Path $PSScriptRoot '../installer/Fixtures/MsiCancellation.cs')
     Assert-True (-not (Test-Path -LiteralPath $installRoot)) 'Pre-existing installation path: refuse to touch it.'
     Assert-True (-not (Test-Path -LiteralPath $menuRoot)) 'Pre-existing Start Menu folder: refuse to touch it.'
     Assert-True (-not (Test-Path -LiteralPath $vendorRoot)) 'Pre-existing synthetic vendor-program root: refuse to alter it.'
@@ -195,7 +202,6 @@ try {
     Assert-NoPayload
     Assert-True (-not (Is-Registered $candidate.product_code)) 'Rejected machine-scope install registered a product.'
 
-    Add-Type -Path (Join-Path $PSScriptRoot '../installer/Fixtures/MsiCancellation.cs')
     $cancelExit = [NativeInstallerCancellation]::CancelAtFirstProgress($CandidateMsi)
     $steps.Add(@{ name = 'cancel-first-msi-progress'; exit_code = $cancelExit; progress_callbacks = [NativeInstallerCancellation]::ProgressCallbacks })
     Assert-True ($cancelExit -eq 1602 -and [NativeInstallerCancellation]::ProgressCallbacks -gt 0) 'MSI cancellation did not return ERROR_INSTALL_USEREXIT.'
@@ -274,13 +280,17 @@ try {
 }
 catch { $report.status = 'failed'; $report.error = $_.Exception.Message; throw }
 finally {
-    # Only remove products this test found absent initially and explicitly attempted to install. Never force-delete payloads.
+    # Only inspect the exact test products found absent initially. Never force-delete payloads.
     $cleanupErrors = [Collections.Generic.List[string]]::new()
     foreach ($code in @($candidate.product_code, $older.product_code)) {
-        if (Is-Registered $code) {
-            try { Invoke-Msi -Operation '/x' -Target ('{' + $code + '}') -Name ('cleanup-' + $code) }
-            catch { $cleanupErrors.Add($_.Exception.Message) }
+        try {
+            # Advertised is not installed, but it is still a registration to remove.
+            if ((Get-RegistrationState $code) -ne [NativeInstallerRegistrationState]::Absent) {
+                Invoke-Msi -Operation '/x' -Target ('{' + $code + '}') -Name ('cleanup-' + $code)
+                Assert-True ((Get-RegistrationState $code) -eq [NativeInstallerRegistrationState]::Absent) "Cleanup left registration for {$code}."
+            }
         }
+        catch { $cleanupErrors.Add($_.Exception.Message) }
     }
     $report.cleanup = if ($cleanupErrors.Count -eq 0) { 'completed_or_not_needed' } else { 'failed' }
     if ($cleanupErrors.Count -gt 0) { $report.cleanup_errors = @($cleanupErrors) }
