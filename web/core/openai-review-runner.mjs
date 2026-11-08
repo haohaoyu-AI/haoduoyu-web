@@ -1,4 +1,4 @@
-import {openAiRunFinished} from './openai-review-state.mjs';
+import {openAiRunFinished, openAiPendingRunUncertain} from './openai-review-state.mjs';
 import {openAiStartTime} from './openai-review-progress.mjs';
 
 // The persisted request identity is written before any paid request. Recovery is GET-only.
@@ -56,7 +56,7 @@ export function createOpenAiRunner({request, storage, key, onChange = () => {}, 
       }
       // Explicit preflight rejections have not created a run or called the provider.
       if (['OPENAI_NOT_CONFIGURED', 'OPENAI_REVIEW_NOT_CONFIGURED', 'FORBIDDEN', 'UNAUTHORIZED',
-        'OPENAI_REVIEW_RATE_LIMIT', 'OPENAI_REVIEW_INPUT_LIMIT', 'OPENAI_REVIEW_NO_DATA',
+        'OPENAI_REVIEW_RATE_LIMIT', 'OPENAI_REVIEW_INPUT_LIMIT', 'OPENAI_REVIEW_NO_DATA', 'OPENAI_REVIEW_INVALID_KEY_FORMAT',
         'OPENAI_REVIEW_SOURCE_INVALID', 'VALIDATION_ERROR'].includes(error.code)) {
         try { storage.removeItem(key); } catch { /* Leave the retained request intact on storage failure. */ }
         state.pendingId = ''; state.error = error.message;
@@ -83,7 +83,7 @@ export function createOpenAiRunner({request, storage, key, onChange = () => {}, 
 function createObserver({state, request, active, accept, change}) {
   let observing = false;
   return async function observe() {
-    if (!active() || observing || state.operation !== 'start' || !state.pendingId || state.run?.status === 'uncertain') return;
+    if (!active() || observing || state.operation !== 'start' || !state.pendingId || openAiPendingRunUncertain(state)) return;
     const id = state.pendingId; observing = true;
     try {
       const run = await request('/openai-review/runs/' + encodeURIComponent(id));

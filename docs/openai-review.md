@@ -13,7 +13,7 @@ When `PUBLIC_BUSINESS_MODE=1`, `/api/v1/openai-review/*` accepts an anonymous ac
 
 Public access means any visitor can use the shared analysis quota, view reports and change instructions affecting later analyses and cumulative conclusions. The operation limits below are not a dollar budget or a guarantee against abuse. Configuration reports `configured` only when key and model are syntactically present. `connectivity: "untested"` does **not** promise current secret connectivity; `last_success_at` records historical successful analysis. Changing the server key is not treated as a new verified connection.
 
-The only outbound endpoint is `https://api.openai.com/v1/responses`, with redirect refusal, `store:false` and explicit model. No real provider call or secret configuration is part of local tests.
+The only outbound endpoint is `https://api.openai.com/v1/responses`, with `redirect:'manual'` and rejection of 3xx (never following Location), `store:false` and explicit model. No real provider call or secret configuration is part of local tests.
 
 ## API contract
 
@@ -63,3 +63,23 @@ Local mocked validation: `node --test tests/openai-review.test.mjs tests/openai-
 ## Model documentation
 
 Verified official API catalog: https://developers.openai.com/api/docs/models/gpt-6.1-sol , https://developers.openai.com/api/docs/models/gpt-6.1-terra and https://developers.openai.com/api/docs/models/gpt-6-astra . Astra is GPT-6, not a fabricated GPT-6.1 identifier. Each supports Responses, function calling and structured outputs. No additional provider call is made merely to populate the selector.
+
+
+## Runtime incident fix and safe failure diagnostics (2026-11-08)
+
+The original provider call used `redirect:'error'`. Under this repository's Workers runtime (`compatibility_date: 2026-07-30`, flags `nodejs_compat`, `global_fetch_strictly_public`, `enable_request_signal`), real workerd rejects this option locally before dispatch. The dispatch-intent count had already been committed, and the old catch converted the local TypeError to UNKNOWN. Node tests with an injected response never exercised this runtime validation.
+
+`tests/openai-review-runtime.test.mjs` now uses real workerd through Miniflare and the exact checked-in runtime file. Verified locally with Node v24.22.1, Miniflare 4.20260730.0 and workerd 1.20260730.1. Every outbound request is intercepted by an in-memory handler; no internet/provider request or real credential is used. It verifies the old option produces a TypeError with zero outbound calls, the corrected manual mode succeeds through both default and injected native fetch, 301/302/303/307/308 never follow Location, and the real AbortSignal/response stream path works. The production worker uses the same source/options and checked-in runtime profile, but these local checks do not verify production bindings, account entitlement, network connectivity or actual billing.
+
+Official runtime documentation: https://developers.cloudflare.com/workers/runtime-apis/request/ . Workers does not implement redirect error mode; manual mode preserves redirect refusal without forwarding Authorization to a redirect destination.
+
+A separate UI regression was reproduced after releasing an uncertain historical record. Observation had checked the historical status without matching the new pending ID. Both observation gates now stop only when the current pending ID itself is uncertain. New submissions get GET-only progress checks; no POST retry or automatic release was added.
+
+Failure diagnostics use existing storage only, with no migration or new endpoint:
+
+- Existing run `error_code` and safe Chinese `error_message` distinguish local preparation, uncertain dispatch registration, connection, timeout, response reading, and incomplete response. A received HTTP status is appended as a validated integer. GET views expose only a known error code and the fixed safe description, never provider request/response IDs or usage.
+- Config reads distinguish absent key from invalid key format using a fixed configuration error. Accepted key syntax is the existing 20–512 length range restricted to printable ASCII, with no trimming. Invalid format fails before claim/provider dispatch; no key value, fragment or length is exposed.
+- Existing `openai-review.finished` audit detail stores at most four whitelisted diagnostic entries with round number, phase, timeout flag, HTTP status, bounded request/response IDs, known response status/incomplete reason and nonnegative bounded integer usage fields actually returned by the provider. Unknown fields and secret-shaped IDs are omitted. Raw errors, provider messages, authentication headers and model input/output are never diagnostic fields.
+- Existing `provider_response_id` preserves the last actually observed response even when a later round fails. It is not necessarily the failed round's response ID and is not evidence that an unknown later call is retrievable. The audit entry identifies the exact round that supplied each ID. Token/HTTP metadata is neither a complete report nor an exact bill.
+- Audit evidence and final run state commit together. A hard interruption before final persistence can still leave diagnostics unavailable. This patch does not add durable background execution or promise survival after browser disconnect.
+- Connection, timeout, response-read and dispatch-registration uncertainty continue to retain the unresolved lock. Reads remain side-effect-free; explicit release still never invokes the provider. No time limit, model, token budget, provider-call limit or automatic retry policy changed.

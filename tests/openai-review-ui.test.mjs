@@ -133,7 +133,7 @@ test('storage failure prevents API calls, dispose prevents later events exposing
 });
 
 test('explicit preflight rejection unlocks; unknown rejection remains guarded',async()=>{
-  for(const code of ['OPENAI_REVIEW_NOT_CONFIGURED','OPENAI_REVIEW_NO_DATA','OPENAI_REVIEW_INPUT_LIMIT','OPENAI_REVIEW_RATE_LIMIT']) {
+  for(const code of ['OPENAI_REVIEW_NOT_CONFIGURED','OPENAI_REVIEW_INVALID_KEY_FORMAT','OPENAI_REVIEW_NO_DATA','OPENAI_REVIEW_INPUT_LIMIT','OPENAI_REVIEW_RATE_LIMIT']) {
     const {runner}=fixture(async()=>{throw Object.assign(new Error(code),{code});});
     await runner.start();assert.equal(runner.state.pendingId,'');assert.equal(runner.state.error,code);
   }
@@ -349,6 +349,38 @@ test('model selection is sent once with persisted request ID; GET observations n
   assert.equal(runner.state.pendingId,'');
 });
 
+test('a released uncertain history cannot suppress GET observation of a new run',async()=>{
+  const {openAiPendingRunUncertain}=await import('../web/core/openai-review-state.mjs');
+  let finishPost;const calls=[];
+  const {runner}=fixture(async(path,options)=>{
+    calls.push({path,method:options?.method||'GET'});
+    if(options?.method==='POST')return new Promise(resolve=>{finishPost=resolve;});
+    return {...completed,status:'running',stage:'awaiting_provider',provider_calls:1};
+  });
+  runner.adopt({...completed,id:'previous-run',status:'uncertain',released_at:'2026-11-08T03:22:56.555Z'});
+  const pending=runner.start();
+  assert.equal(runner.state.run.id,'previous-run');
+  assert.equal(openAiPendingRunUncertain(runner.state),false);
+  const {renderOpenAiReviewStatus}=await import('../web/pages/openai-review.mjs');
+  const firstPaint=renderOpenAiReviewStatus(runner.state);
+  assert.match(firstPaint,/请求已发出，等待服务器确认/);
+  assert.doesNotMatch(firstPaint,/<strong>结果待确认|用时 /);
+  assert.match(firstPaint,/data-openai-elapsed/);
+  await runner.observe();await runner.start();
+  assert.deepEqual(calls.map(call=>call.method),['POST','GET']);
+  assert.equal(calls[1].path,'/openai-review/runs/'+completed.id);
+  assert.equal(runner.state.run.stage,'awaiting_provider');
+  // Once this new ID itself becomes uncertain, stop observation and preserve its lock.
+  runner.adopt({...completed,status:'uncertain'});
+  assert.equal(openAiPendingRunUncertain(runner.state),true);
+  await runner.observe();await runner.start();assert.equal(calls.length,2);
+  finishPost({...completed,status:'uncertain'});await pending;
+  assert.equal(runner.state.pendingId,completed.id);
+  const source=await readFile('web/openai-review-controller.mjs','utf8');
+  const schedule=source.slice(source.indexOf('function scheduleCheck'),source.indexOf('export async function loadOpenAiReview'));
+  assert.match(schedule,/openAiPendingRunUncertain\(runner\?\.state\)/);
+});
+
 test('late GET cannot resurrect a completed request and a confirmed GET result survives POST transport failure',async()=>{
   let finishPost,finishGet;
   const {runner}=fixture((path,options)=>new Promise(resolve=>{
@@ -466,4 +498,12 @@ test('report completion event only refreshes current session and reports tab thr
   assert.match(listener,/state.page !== 'ai-diagnosis'/);assert.match(listener,/state.diagnosisTab !== 'reports'/);
   assert.match(listener,/void loadAiDiagnosis\(\)/);assert.doesNotMatch(listener,/POST|setInterval|setTimeout/);
   assert.match(source,/ticket === sequence && epoch === runtime.sessionEpoch/);
+});
+
+
+test('invalid private configuration is visible without displaying or requesting its value',()=>{
+  const config={...saved,configured:false,configuration_error:'OPENAI_REVIEW_INVALID_KEY_FORMAT',configuration_error_message:'服务器密钥配置格式无效，未调用 API'};
+  const html=renderOpenAiReviewPanel({owner:true,config});
+  assert.match(html,/配置格式无效/);assert.doesNotMatch(html,/尚未配置 OpenAI API/);
+  assert.match(html,/data-openai-action="start"\s+disabled/);
 });

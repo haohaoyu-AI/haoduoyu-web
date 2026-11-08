@@ -1,6 +1,6 @@
 import {apiNetwork} from './core/api.mjs';
 import {runtime, state} from './core/state.mjs';
-import {openAiSessionAvailable, openAiPendingRunSettled} from './core/openai-review-state.mjs';
+import {openAiSessionAvailable, openAiPendingRunSettled, openAiPendingRunUncertain} from './core/openai-review-state.mjs';
 import {createOpenAiRunner} from './core/openai-review-runner.mjs';
 import {renderOpenAiReviewPanel} from './pages/openai-review.mjs';
 import {createOpenAiElapsedClock} from './core/openai-review-progress.mjs';
@@ -52,7 +52,7 @@ export function paintOpenAiReview() {
 }
 function scheduleCheck() {
   clearTimeout(timer); timer = null;
-  if (document.visibilityState === 'hidden' || runner?.state.run?.status === 'uncertain') return;
+  if (document.visibilityState === 'hidden' || openAiPendingRunUncertain(runner?.state)) return;
   if (!current() || state.page !== 'ai-diagnosis' || state.diagnosisTab !== 'help' || !runner?.state.pendingId ||
       (runner.state.busy && runner.state.operation !== 'start') || vm.error) return;
   timer = setTimeout(() => {

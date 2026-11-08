@@ -6,9 +6,11 @@ import {beijingDay} from './lib/time.mjs';
 import {reviewDate} from './content-review-validation.mjs';
 import {REVIEW_ACCOUNT,DEFAULT_REVIEW_INSTRUCTIONS,captureReviewSources,buildReviewInput,evidenceFromCapture,bytes} from './openai-review-data.mjs';
 import {runReviewProvider} from './openai-review-provider.mjs';
+import {safeReviewDiagnostics,lastReviewResponseId} from './openai-review-diagnostics.mjs';
 
 const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 const staleMs=5*60000;
+const keyFormatMessage='服务器密钥配置格式无效，未调用 API；请通过私有配置检查，勿在页面或聊天中填写密钥';
 // Selection is bounded to documented API IDs and the server's existing default.
 // Listing a model does not assert this account has provider access to it.
 const reviewModels=Object.freeze([
@@ -25,7 +27,8 @@ const json=(data,status=200)=>Response.json({data},{status,headers:{'Cache-Contr
 const invalid=message=>{throw fail(400,'VALIDATION_ERROR',message);};
 export function openaiReviewSettings(env) {
   const key=env.OPENAI_API_KEY,model=env.OPENAI_REVIEW_MODEL;
-  return {key:typeof key==='string'&&key.length>=20&&key.length<=512&&!/[\x00-\x20\x7f]/.test(key)?key:null,
+  const validKey=typeof key==='string'&&/^[\x21-\x7e]{20,512}$/.test(key);
+  return {key:validKey?key:null,keyFormatInvalid:key!==undefined&&key!==null&&key!==''&&!validKey,
     model:typeof model==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/.test(model)?model:null};
 }
 // This public actor is local to OpenAI review. It is never registered as a
@@ -73,12 +76,15 @@ function runView(row,at=Date.now()) {
   const elapsed=Math.max(0,end-Date.parse(row.created_at));
   return {id:row.id,account:row.account,status,stage,elapsed_ms:Number.isFinite(elapsed)?elapsed:0,provider_calls:row.provider_calls??0,mode:row.mode,baseline_run_id:row.baseline_run_id??null,beijing_date:row.beijing_date,created_at:row.created_at,completed_at:row.completed_at,
     report_markdown:row.report_markdown,model:row.model,instruction_version:row.instruction_version,released_at:row.released_at??null,
+    error_code:Object.hasOwn(failureMessages,row.error_code)?row.error_code:null,
     error_message:stale?'执行结果尚未确认，请只读查看记录；不会自动重新调用 API':row.error_message??null};
 }
 async function configView(store,owner,settings) {
   const saved=await store.get('SELECT instructions,version FROM matrix_openai_review_config WHERE user_id=? AND account=?',owner,REVIEW_ACCOUNT);
   const last=await store.get("SELECT completed_at FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status='succeeded' ORDER BY completed_at DESC,id DESC LIMIT 1",owner,REVIEW_ACCOUNT);
-  return {account:REVIEW_ACCOUNT,instructions:saved?.instructions??DEFAULT_REVIEW_INSTRUCTIONS,version:saved?.version??0,configured:Boolean(settings.key&&settings.model),model:settings.model,default_model:settings.model,supported_models:supportedModels(settings),model_access:'unverified',connectivity:'untested',last_success_at:last?.completed_at??null};
+  return {account:REVIEW_ACCOUNT,instructions:saved?.instructions??DEFAULT_REVIEW_INSTRUCTIONS,version:saved?.version??0,configured:Boolean(settings.key&&settings.model),
+    configuration_error:settings.keyFormatInvalid?'OPENAI_REVIEW_INVALID_KEY_FORMAT':null,configuration_error_message:settings.keyFormatInvalid?keyFormatMessage:null,
+    model:settings.model,default_model:settings.model,supported_models:supportedModels(settings),model_access:'unverified',connectivity:'untested',last_success_at:last?.completed_at??null};
 }
 function instructionsFor(value,key) {
   if(typeof value!=='string'||!value.isWellFormed()||!value.trim()||bytes(value)>32768||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value))invalid('完整指令须为非空文本，最多 32 KiB');
@@ -90,17 +96,23 @@ const failureMessages={
   OPENAI_REVIEW_PROVIDER_RATE_LIMIT:'API 暂时限流，本次未得到可用报告',
   OPENAI_REVIEW_PROVIDER_REJECTED:'API 未接受本次请求，请检查模型与配置',
   OPENAI_REVIEW_PROVIDER_UNKNOWN:'API 执行结果尚未确认，可能已经计费；只读核查前不会自动重试',
+  OPENAI_REVIEW_LOCAL_PREPARATION:'本地请求准备失败，尚未发起 API 请求，请检查服务器配置',
+  OPENAI_REVIEW_DISPATCH_UNCONFIRMED:'调用登记状态尚未确认，未继续发起 API 请求；请只读核查，不会自动重试',
+  OPENAI_REVIEW_PROVIDER_CONNECTION:'连接阶段异常，未取得完整响应；无法确认 API 是否已接收或计费，不会自动重试',
+  OPENAI_REVIEW_PROVIDER_TIMEOUT:'等待 API 响应超时，结果及费用尚未确认；不会自动重试',
+  OPENAI_REVIEW_PROVIDER_READ:'响应读取阶段异常，未取得完整报告；费用尚未确认，不会自动重试',
+  OPENAI_REVIEW_PROVIDER_INCOMPLETE:'API 已返回未完成的响应，未取得完整报告；本次未推进累计摘要',
   OPENAI_REVIEW_INVALID_OUTPUT:'API 已响应，但未返回完整有效报告；本次未推进累计摘要',
   OPENAI_REVIEW_BUDGET:'本次已达到安全处理限额，未生成完整报告；累计摘要未推进',
 };
-async function finish(db,owner,id,changes,actorName) {
+async function finish(db,owner,id,changes,actorName,diagnostics=[]) {
   return mutate(db,async store=>{
     const current=await store.get('SELECT * FROM matrix_openai_review_runs WHERE user_id=? AND id=?',owner,id);
     if(!current||current.status!=='running'||current.released_at)return {replayed:true,row:current};
     const fields=Object.keys(changes);
     store.queue('UPDATE matrix_openai_review_runs SET '+fields.map(field=>field+'=?').join(',')+" WHERE user_id=? AND id=? AND status='running' AND released_at IS NULL",...fields.map(field=>changes[field]),owner,id);
     store.expectChange();
-    store.audit(actorName,'openai-review.finished',id,{status:changes.status});
+    store.audit(actorName,'openai-review.finished',id,{status:changes.status,...(diagnostics.length?{provider_diagnostics:diagnostics}:{})});
     return {row:{...current,...changes}};
   });
 }
@@ -169,6 +181,7 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
     if(Object.hasOwn(input,'model')&&!supportedModels(settings).some(model=>model.id===input.model))invalid('请选择受支持的模型；不能填写自定义模型或地址');
     const active=await store.get("SELECT id FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status IN ('running','uncertain') AND released_at IS NULL LIMIT 1",owner,REVIEW_ACCOUNT);
     if(active)return {replayed:true,conflict:active.id};
+    if(settings.keyFormatInvalid)throw fail(503,'OPENAI_REVIEW_INVALID_KEY_FORMAT',keyFormatMessage);
     if(!settings.key||!settings.model)throw fail(503,'OPENAI_REVIEW_NOT_CONFIGURED','服务器尚未同时配置 OpenAI Key 和模型；未调用 API');
     const at=clock(),created=new Date(at).toISOString(),date=beijingDay(at);
     const recent=await store.get("SELECT created_at FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND (error_code IS NULL OR error_code<>'OPENAI_REVIEW_CANCELLED_BEFORE_START') ORDER BY created_at DESC LIMIT 1",owner,REVIEW_ACCOUNT);
@@ -219,9 +232,12 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
       }});
   } catch(error) {
     const code=Object.hasOwn(failureMessages,error.reviewCode)?error.reviewCode:'OPENAI_REVIEW_PROVIDER_UNKNOWN',uncertain=error.uncertain!==false;
-    const done=await finish(db,owner,row.id,{status:uncertain?'uncertain':'failed',completed_at:new Date(clock()).toISOString(),error_code:code,error_message:failureMessages[code]},reserved.actor.actor);
+    const diagnostics=safeReviewDiagnostics(error.provider_diagnostics,settings.key),http=diagnostics.at(-1)?.http_status;
+    const done=await finish(db,owner,row.id,{status:uncertain?'uncertain':'failed',completed_at:new Date(clock()).toISOString(),error_code:code,
+      error_message:failureMessages[code]+(http?`（HTTP ${http}）`:''),provider_response_id:lastReviewResponseId(diagnostics)},reserved.actor.actor,diagnostics);
     return json(runView(done.row,clock()));
   }
-  const saved=await finish(db,owner,row.id,{status:'succeeded',completed_at:new Date(clock()).toISOString(),report_markdown:output.report_markdown,summary_json:JSON.stringify({cumulative_summary:output.cumulative_summary,pending_verification:output.pending_verification}),provider_response_id:output.provider_response_id},reserved.actor.actor);
+  const diagnostics=safeReviewDiagnostics(output.provider_diagnostics,settings.key);
+  const saved=await finish(db,owner,row.id,{status:'succeeded',completed_at:new Date(clock()).toISOString(),report_markdown:output.report_markdown,summary_json:JSON.stringify({cumulative_summary:output.cumulative_summary,pending_verification:output.pending_verification}),provider_response_id:lastReviewResponseId(diagnostics)},reserved.actor.actor,diagnostics);
   return json(runView(saved.row,clock()),201);
 }

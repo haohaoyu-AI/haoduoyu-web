@@ -43,8 +43,9 @@ export function renderOpenAiReviewPanel(vm = {}) {
   if (!vm.owner) return header + openAiLogin;
   const busy = vm.loading || vm.busy, disabled = busy || !vm.config?.configured || Boolean(vm.pendingId);
   const status = vm.loading ? '正在读取分析配置…' : !vm.config ? '暂时无法读取配置。' :
+    vm.config.configuration_error_message || (
     vm.config.configured ? vm.pendingId || vm.busy ? '本次请求处理中或等待核查' : '可发起分析' :
-      '尚未配置 OpenAI API，暂不能发起分析。';
+      '尚未配置 OpenAI API，暂不能发起分析。');
   const selectedModel = vm.pendingId && vm.run?.id === vm.pendingId && vm.run.model ||
     vm.selectedModel || vm.config?.default_model || vm.config?.model;
   return header + `<p class="hint">${e(status)}</p>
@@ -80,7 +81,7 @@ export function renderOpenAiSettings(vm = {}) {
   if (!vm.owner) return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2>${openAiLogin}</section>`;
   const draft = vm.draft;
   const status = vm.loading ? '正在读取…' : !draft ? '配置读取失败。' :
-    draft.saved.configured ? '可发起分析' : '尚未配置 OpenAI API';
+    draft.saved.configuration_error_message || (draft.saved.configured ? '可发起分析' : '尚未配置 OpenAI API');
   return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2><p class="hint">${e(status)}</p>
     <p class="hint">密钥由服务器管理，此处不显示或录入密钥。<a href="?page=ai-diagnosis">前往AI诊断</a></p>
     ${draft ? renderInstructions(draft) : ''}<p role="alert">${e(vm.error || '')}</p>

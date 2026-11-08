@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {randomUUID,randomBytes} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {handleOpenaiReview} from '../src/openai-review.mjs';
+import {handleOpenaiReview,openaiReviewSettings} from '../src/openai-review.mjs';
 import {runReviewProvider} from '../src/openai-review-provider.mjs';
+import {safeReviewDiagnostics} from '../src/openai-review-diagnostics.mjs';
 import {captureReviewSources,buildReviewInput,evidenceFromCapture} from '../src/openai-review-data.mjs';
 import {storeFor} from '../src/storage.mjs';
 import {digest,csrfFor} from '../src/security.mjs';
@@ -63,7 +64,7 @@ test('editable complete prompt optimistic version and honest readiness; exact sa
   const row=app.sql.prepare('SELECT * FROM matrix_openai_review_runs').get();assert.equal(row.instructions,saved.data.instructions);assert.equal(row.instruction_version,1);assert.equal(app.requests[0].body.input[0].content,saved.data.instructions);
   const config=(await app.call('config')).data;assert.equal(config.connectivity,'untested');assert.ok(config.last_success_at);
   assert.ok(!JSON.stringify(result).includes('pending'));assert.ok(!JSON.stringify(result).includes('cumulative_summary'));assert.ok(!JSON.stringify(row).includes(app.secret));
-  assert.equal(app.requests[0].url,'https://api.openai.com/v1/responses');assert.equal(app.requests[0].body.store,false);assert.equal(app.requests[0].init.redirect,'error');
+  assert.equal(app.requests[0].url,'https://api.openai.com/v1/responses');assert.equal(app.requests[0].body.store,false);assert.equal(app.requests[0].init.redirect,'manual');
 });
 
 test('baseline includes every scoped article/snapshot; increment uses cumulative summary plus changed/deleted rows',async t=>{
@@ -130,8 +131,8 @@ test('bounded historical tools replay complete output, scope IDs, and keep histo
 });
 
 test('provider output validation fails closed on incomplete JSON, secret echo and unbounded tool calls',async()=>{
-  for(const response of [Response.json({status:'incomplete',output:[]}),providerResponse('secret-key-for-test'),Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'not json'}]}]})]) {
-    await assert.rejects(runReviewProvider({key:'secret-key-for-test',model:'gpt-test',instructions:'x',input:{},beforeCall:async()=>{},lookup:async()=>{},request:async()=>response}),error=>error.reviewCode==='OPENAI_REVIEW_INVALID_OUTPUT'&&error.uncertain===false);
+  for(const [response,code] of [[Response.json({status:'incomplete',output:[]}),'OPENAI_REVIEW_PROVIDER_INCOMPLETE'],[providerResponse('secret-key-for-test'),'OPENAI_REVIEW_INVALID_OUTPUT'],[Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'not json'}]}]}),'OPENAI_REVIEW_INVALID_OUTPUT']]) {
+    await assert.rejects(runReviewProvider({key:'secret-key-for-test',model:'gpt-test',instructions:'x',input:{},beforeCall:async()=>{},lookup:async()=>{},request:async()=>response}),error=>error.reviewCode===code&&error.uncertain===false);
   }
   let calls=0;await assert.rejects(runReviewProvider({key:'x',model:'gpt-test',instructions:'x',input:{},beforeCall:async()=>{},lookup:async()=>({items:[]}),request:async()=>{calls++;return Response.json({status:'completed',output:[{type:'function_call',name:'lookup_review_evidence',call_id:'x',arguments:JSON.stringify({source_run_id:null,kind:'articles',ids:[],query:'x',reason:'x',limit:1})}]});}}),error=>error.reviewCode==='OPENAI_REVIEW_BUDGET');assert.equal(calls,4);
 });
@@ -278,4 +279,84 @@ test('public cancellation atomically fences an original POST still waiting for i
   const cancelled=await app.call('runs/'+id+'/release','POST',releaseAck,publicHeaders);assert.equal(cancelled.data.status,'failed');
   controller.enqueue(new TextEncoder().encode(JSON.stringify({run_id:id,mode:'full'})));controller.close();
   const result=await (await pending).json();assert.deepEqual(result.data,cancelled.data);assert.equal(calls,0);assert.equal(app.requests.length,0);
+});
+
+test('provider diagnostics distinguish preparation, dispatch, transport, body reads and timeouts without raw errors',async()=>{
+  const base={key:'synthetic-key',model:'gpt-test',instructions:'x',input:{},lookup:async()=>({}),beforeCall:async()=>{}};
+  const canary='RAW_EXCEPTION_MUST_NOT_PERSIST';
+  const cases=[
+    [{...base,key:'synthetic-key-鱼'},'OPENAI_REVIEW_LOCAL_PREPARATION','prepare_request',false],
+    [{...base,beforeCall:async()=>{throw new Error(canary);}},'OPENAI_REVIEW_DISPATCH_UNCONFIRMED','before_dispatch',true],
+    [{...base,request:async()=>{throw new TypeError(canary);}},'OPENAI_REVIEW_PROVIDER_CONNECTION','fetch',true],
+    [{...base,request:async()=>({ok:true,status:200,headers:new Headers({'x-request-id':'req_body'}),body:{getReader(){return {read:async()=>{throw new Error(canary);},releaseLock(){}};}}})},'OPENAI_REVIEW_PROVIDER_READ','read_body',true],
+    [{...base,timeoutMs:5,request:async(_url,{signal})=>new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new DOMException(canary,'AbortError'))))},'OPENAI_REVIEW_PROVIDER_TIMEOUT','fetch',true],
+  ];
+  for(const [config,code,phase,uncertain] of cases) {
+    let requests=0;
+    const request=config.request;
+    await assert.rejects(runReviewProvider({...config,request:async(...args)=>{requests++;if(!request)assert.fail('must fail before fetch');return request(...args);}}),error=>{
+      assert.equal(error.reviewCode,code);assert.equal(error.uncertain,uncertain);
+      assert.equal(error.provider_diagnostics[0].phase,phase);
+      assert.ok(!JSON.stringify(error).includes(canary));
+      return true;
+    });
+    assert.equal(requests,['prepare_request','before_dispatch'].includes(phase)?0:1);
+  }
+});
+
+test('invalid private key characters fail configuration before reservation and are never trimmed or disclosed',async t=>{
+  const app=fixture(t);app.article();
+  for(const suffix of ['\n','\r',' ','\t','\u0000','\u007f','\u0080','鱼']) {
+    const env={...app.env,OPENAI_API_KEY:app.secret+suffix};
+    assert.equal(openaiReviewSettings(env).key,null);
+    const result=await app.call('runs','POST',{run_id:randomUUID(),mode:'full'},app.auth,env);
+    assert.equal(result.error.code,'OPENAI_REVIEW_INVALID_KEY_FORMAT');
+    const config=(await app.call('config','GET',undefined,app.auth,env)).data;
+    assert.equal(config.configuration_error,'OPENAI_REVIEW_INVALID_KEY_FORMAT');assert.match(config.configuration_error_message,/格式无效/);
+    assert.ok(!JSON.stringify([result,config]).includes(app.secret));
+  }
+  assert.equal(app.requests.length,0);assert.equal(app.sql.prepare('SELECT count(*) n FROM matrix_openai_review_runs').get().n,0);
+});
+
+test('failure metadata and received response ID survive incomplete output without advancing checkpoint or leaking to public views',async t=>{
+  const app=fixture(t);app.article();
+  const usage={input_tokens:123,output_tokens:6000,total_tokens:6123,input_tokens_details:{cached_tokens:12},output_tokens_details:{reasoning_tokens:5900},unapproved:'NEVER_SAVE'};
+  app.provider(async()=>Response.json({id:'resp_incomplete',status:'incomplete',incomplete_details:{reason:'max_output_tokens'},usage,output:[],secret:'NEVER_SAVE'},
+    {headers:{'x-request-id':'req_incomplete','x-private-header':'NEVER_SAVE'}}));
+  const result=await start(app),id=result.data.id;
+  assert.equal(result.data.status,'failed');assert.equal(result.data.error_code,'OPENAI_REVIEW_PROVIDER_INCOMPLETE');
+  assert.match(result.data.error_message,/未完成.*HTTP 200/);
+  const row=app.sql.prepare('SELECT * FROM matrix_openai_review_runs WHERE id=?').get(id);
+  assert.equal(row.provider_response_id,'resp_incomplete');assert.equal(row.summary_json,null);assert.equal(row.report_markdown,'');
+  const audit=JSON.parse(app.sql.prepare("SELECT detail_json FROM matrix_audit WHERE action='openai-review.finished' AND entity_id=?").get(id).detail_json);
+  assert.deepEqual(audit.provider_diagnostics,[{round:1,phase:'response_status',timeout:false,http_status:200,request_id:'req_incomplete',response_id:'resp_incomplete',response_status:'incomplete',incomplete_reason:'max_output_tokens',usage:{input_tokens:123,output_tokens:6000,total_tokens:6123,input_tokens_details:{cached_tokens:12},output_tokens_details:{reasoning_tokens:5900}}}]);
+  assert.ok(!JSON.stringify(audit).includes('NEVER_SAVE'));
+  for(const view of [result,await app.call('runs/'+id),await app.call('runs')]) {
+    assert.doesNotMatch(JSON.stringify(view),/req_incomplete|resp_incomplete|provider_diagnostics|reasoning_tokens|NEVER_SAVE/);
+  }
+  assert.equal(app.requests.length,1);
+});
+
+test('later transport failure preserves earlier response metadata and locks the original run without another dispatch',async t=>{
+  const app=fixture(t),id=app.article();let rounds=0;
+  app.provider(async()=>{
+    if(++rounds===2)throw Error('PRIVATE_TRANSPORT_ERROR');
+    return Response.json({id:'resp_first_round',status:'completed',usage:{input_tokens:20,output_tokens:40,total_tokens:60},output:[{type:'function_call',name:'lookup_review_evidence',call_id:'call_first',arguments:JSON.stringify({source_run_id:null,kind:'articles',ids:[id],query:'',reason:'Verify',limit:1})}]},{headers:{'x-request-id':'req_first_round'}});
+  });
+  const result=await start(app),run=result.data;
+  assert.equal(run.status,'uncertain');assert.equal(run.error_code,'OPENAI_REVIEW_PROVIDER_CONNECTION');
+  assert.match(run.error_message,/连接阶段异常/);
+  assert.equal(app.sql.prepare('SELECT provider_response_id FROM matrix_openai_review_runs WHERE id=?').get(run.id).provider_response_id,'resp_first_round');
+  const audit=JSON.parse(app.sql.prepare("SELECT detail_json FROM matrix_audit WHERE action='openai-review.finished' AND entity_id=?").get(run.id).detail_json);
+  assert.equal(audit.provider_diagnostics.length,2);assert.equal(audit.provider_diagnostics[0].response_id,'resp_first_round');
+  assert.equal(audit.provider_diagnostics[1].phase,'fetch');assert.ok(!JSON.stringify(audit).includes('PRIVATE_TRANSPORT_ERROR'));
+  assert.equal((await start(app)).error.run_id,run.id);
+  assert.equal((await app.call('runs/'+run.id)).data.status,'uncertain');assert.equal(app.requests.length,2);
+});
+
+test('diagnostic allowlist rejects secret-shaped IDs, unknown fields, unsafe usage and excess rounds',()=>{
+  const value={round:1,phase:'fetch',timeout:false,http_status:200,request_id:'req_synthetic-private-key',response_id:'resp_sk-test',response_status:'untrusted_status',incomplete_reason:'untrusted_reason',message:'NEVER_SAVE',headers:{Authorization:'NEVER_SAVE'},usage:{input_tokens:-1,output_tokens:Infinity,total_tokens:1.5,input_tokens_details:{cached_tokens:3,secret:'NEVER_SAVE'},output_tokens_details:{reasoning_tokens:1000000001}}};
+  const safe=safeReviewDiagnostics([value,...Array.from({length:8},(_,i)=>({...value,round:i+2}))],'synthetic-private-key');
+  assert.equal(safe.length,4);assert.deepEqual(safe[0],{round:1,phase:'fetch',timeout:false,http_status:200,usage:{input_tokens_details:{cached_tokens:3}}});
+  assert.ok(!JSON.stringify(safe).includes('NEVER_SAVE'));assert.equal(safeReviewDiagnostics([{round:1,phase:'unknown'}]).length,0);
 });

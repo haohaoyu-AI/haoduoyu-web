@@ -4,6 +4,9 @@ export const OPENAI_TABS = Object.freeze(['reminders', 'reports']);
 export const openAiSessionAvailable = me => Boolean(me?.id);
 export const openAiRunActive = run => ['running'].includes(run?.status);
 export const openAiRunFinished = run => ['succeeded', 'failed'].includes(run?.status) || Boolean(run?.released_at);
+// An older released record must not stop observation of a newly submitted ID.
+export const openAiPendingRunUncertain = vm => Boolean(vm?.pendingId &&
+  vm.run?.id === vm.pendingId && vm.run.status === 'uncertain');
 export function openAiPendingRunSettled(previous, next) {
   const run = next.run;
   return Boolean(previous.pendingId && run?.id === previous.pendingId &&
