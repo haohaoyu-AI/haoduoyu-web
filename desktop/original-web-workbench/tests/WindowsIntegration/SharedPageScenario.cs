@@ -58,7 +58,10 @@ internal static class SharedPageScenario
             var selector=family=="note" ? "#notes-active-entry [data-note-entry-editor]" : family=="future" ? "#todo-future-text" : "#todo-text";
             if (family=="note")
             {
-                await Wait(window,"document.querySelector('[data-notes-action=new]') && !document.querySelector('[data-notes-action=new]').disabled");
+                // The original new-entry button starts hidden (not disabled) until
+                // its asynchronous page/store read completes. Do not click a hidden
+                // control before the real user-facing create action is ready.
+                await Wait(window,"(()=>{const b=document.querySelector('[data-notes-action=new]');return b && b.getClientRects().length && !b.disabled})()");
                 await Script(window,"document.querySelector('[data-notes-action=new]').click()");
             }
             await Editable(window,selector);
