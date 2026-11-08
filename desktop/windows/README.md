@@ -1,6 +1,6 @@
 # 好多鱼 Windows 独立工作台
 
-当前为 **0.18.0 开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
+当前为 **0.19.0 源码开发候选**，使用 .NET 10 / WPF 原生控件、HttpClient 和 Windows 当前用户 DPAPI。本地程序不嵌入浏览器，不下载并运行远程界面。现有网站、Worker、数据库迁移、Android 和旧 Windows 安装均未改动。
 
 ## 已实现的核心路径
 
@@ -71,7 +71,7 @@ Unknown 不等于失败：不自动重发。notes/memos 可按原 `save_id` 只�
 
 ## 构建与定向检查
 
-微软官方 SDK `10.0.403` 由 `global.json` 固定，无额外 NuGet 产品依赖。Linux 可交叉编译；实际运行 WPF 和 DPAPI 必须 Windows。
+微软官方 SDK `10.0.403` 由 `global.json` 固定，客户端无额外 NuGet 产品依赖。MSI构建另从官方NuGet私有工具目录恢复固定WiX 4.0.6，仅在云端Windows构建机使用。Linux 可交叉编译；实际运行 WPF 和 DPAPI 必须 Windows。
 
 ```powershell
 dotnet run --project Haoduoyu.Core.Tests --configuration Release
@@ -105,6 +105,18 @@ dotnet run --project Haoduoyu.Windows.Tests --configuration Release
 
 Core/API/profile/download 测试只使用临时合成数据与 fake HTTP handler。共享原生表单逻辑另与已知 c30 Worker 源及临时合成 D1 回放。Windows.Tests 检查当前 runner 的 DPAPI、合成文件、编译资源和实际 Show/Dispatcher 窗口流程；窗口注入临时目录与假 HTTP，不启动默认用户工作区、不实际联网，不等同实体中文输入法与关机验收。静态 `node scripts/verify-boundaries.mjs` 仅验证源码隔离等模式，不替代动态检查。
 
-打包脚本要求精确已提交源码，输出 `win-x64` 自包含便携候选 ZIP、逐文件 SHA256、源提交、独立包 manifest 与测试日志。不安装、不签名、不建 GitHub Release、不推送生产。签名/正式分发、旧版覆盖升级、实机中文输入法、真实断电恢复和重要资料规模验收仍待核实。现有无 CAS 的旧统计写接口不增加猜测表单，使用现代复盘的受保护原生表单；没有静默永久删除或自动更新。
+便携打包脚本要求精确已提交源码，输出 `win-x64` 自包含便携候选 ZIP、逐文件 SHA256、源提交、独立包 manifest 与测试日志。便携脚本不安装、不签名、不建 GitHub Release、不推送生产。签名/正式分发、真实旧版升级、实机中文输入法、真实断电恢复和重要资料规模验收仍待核实。现有无 CAS 的旧统计写接口不增加猜测表单，使用现代复盘的受保护原生表单；没有静默永久删除或自动更新。
+
+## 每用户安装器候选路径（待Windows实跑）
+
+0.19.0增加独立MSI源码和云端Windows构建/合成验收步骤，保留原便携ZIP。当前本机只验证源码、PowerShell解析、C#取消夹具编译和WPF交叉编译；尚未构建或运行真实MSI，不能称为已验收安装包。
+
+安装目标固定为 `%LOCALAPPDATA%\Programs\Haoduoyu\NativeWorkbench`，开始菜单及系统应用列表可卸载。私有数据仍在 `%LOCALAPPDATA%\Haoduoyu\NativeWorkbench\v1`，不由MSI接管、迁移或删除。安装器无提权、后台更新、自动启动客户端或自动关闭编辑器，请自行关闭客户端后维护。候选未签名，Windows信任与正式分发仍待验收。
+
+实际MSI嵌入只读原生安全门，独立核对当前用户已登记的同族安装及固定位置；首次遇到既有便携目录或菜单目录拒绝接管，检查路径链、子目录链接与硬链接，在文件变动前再次检查。它不删除旧目录，也不宣称消除恶意并发换路径竞态。重定向AppData、短路径别名、锁文件和真实旧载荷升级尚未验收。
+
+云端验收脚本仅允许GitHub托管的临时Windows runner；不在用户电脑运行。计划检查真实MSI安装、明确取消、升级/降级/同版本维护、卸载、文件哈希及私有数据/非owned额外文件保留，并对旧便携目录、junction及硬链接作拒绝检查。旧版/同版本夹具复用候选载荷，只改变MSI版本/身份，不代表真实旧客户端或数据迁移，也未覆盖新版本新增文件名与非owned文件同名碰撞。升级中取消和完整用户交互仍待验收。
+
+只有正常Windows CI的真实编译、ICE和MSI运行全部通过后，才能报告合成安装候选可用；用户真机、签名与生产账号验收另行进行。
 
 继续工作应检出独立分支 `desktop/native-workbench-20261104`，先核对远端 SHA 和本地未提交改动。发布受阻时保留该分支及交付包，不修改网站生产发布门禁或安全设置。

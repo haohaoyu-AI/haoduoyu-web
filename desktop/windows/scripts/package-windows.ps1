@@ -146,6 +146,11 @@ try {
     $packageManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
     $manifestHash = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
     @("$zipHash  $zipName", "$manifestHash  package-manifest.json") | Set-Content -LiteralPath (Join-Path $deliveryRoot 'SHA256SUMS.txt') -Encoding ascii
+    if ($env:GITHUB_OUTPUT) {
+        # Paths are local outputs only; the next step builds MSI from this exact publish directory.
+        "publish-root=$publishRoot" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+        "delivery-root=$deliveryRoot" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+    }
     Write-Output "可移植候选包：$zipPath"
     Write-Output "源提交：$sourceCommit"
     Write-Output "SHA256：$zipHash"

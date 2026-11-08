@@ -1,0 +1,70 @@
+{
+  "schema": "haoduoyu-windows-stage19-source-evidence-v1",
+  "observed_at_utc": "2026-11-07T22:06:45.795431+00:00",
+  "repository": "haohaoyu-AI/haoduoyu-web",
+  "branch": "desktop/native-workbench-20261104",
+  "candidate_version": "0.19.0",
+  "base_commit": "1bbab1ba960c12f9622658e168791f6de1cae320",
+  "status": "local_source_candidate_windows_msi_not_built",
+  "local_validation": {
+    "host": "Linux x64",
+    "sdk": "10.0.403",
+    "installer_node_checks_passed": 28,
+    "installer_node_checks_skipped": 0,
+    "powershell_scripts_parsed": 3,
+    "powershell_parse_errors": 0,
+    "actual_powershell_path_separator_regression": "passed",
+    "csharp_cancellation_fixture": "compiled_only_windows_api_not_invoked",
+    "xml": "well_formed_only",
+    "windows_test_project_cross_build": {
+      "succeeded": true,
+      "warnings": 0,
+      "errors": 0,
+      "elapsed_seconds": 28.39
+    },
+    "static_boundaries_passed": true,
+    "diff_check_passed": true
+  },
+  "tooling": {
+    "wix": {
+      "package": "wix",
+      "version": "4.0.6",
+      "observed_cli_version": "4.0.6+73c89738",
+      "source": "official NuGet",
+      "windows_msi_compilation": false
+    },
+    "powershell_source_parser": "official NuGet PowerShell 7.5.4"
+  },
+  "delivery": {
+    "portable_zip_retained": true,
+    "unsigned_per_user_msi_source_added": true,
+    "program_path": "%LOCALAPPDATA%\\Programs\\Haoduoyu\\NativeWorkbench",
+    "data_path": "%LOCALAPPDATA%\\Haoduoyu\\NativeWorkbench\\v1",
+    "data_owned_or_migrated": false,
+    "user_device_installation": false,
+    "automatic_updates": false,
+    "elevation": false,
+    "production_changes": false
+  },
+  "review": {
+    "known_blocking_source_findings": 0,
+    "previous_install_directory_ownership_finding": "actual embedded MSI readonly native gates added; requires Windows dynamic validation"
+  },
+  "windows_ci": {
+    "new_source_run": "not_started_source_not_published",
+    "native_guard_compilation": "not_run",
+    "ice_validation": "not_run",
+    "msi_build": "not_run",
+    "synthetic_install_upgrade_cancel_uninstall": "not_run",
+    "logs_read": false,
+    "artifacts_downloaded": false
+  },
+  "validation_limits": [
+    "Linux source parsing and static checks are not Windows C++/DLL/MSI execution.",
+    "Older and same-version fixtures reuse the candidate payload, changing MSI metadata only; not real old binaries, data migration or different payload compatibility.",
+    "New-version payload filenames colliding with non-owned existing files are not covered.",
+    "Cancellation during upgrade, interactive flow, locked files and redirected AppData remain unverified.",
+    "Repeated path checks do not eliminate malicious check-to-use races.",
+    "No user-device, signing, public-release, production-account or real-data acceptance."
+  ]
+}

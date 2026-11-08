@@ -16,7 +16,7 @@ concurrency:
 jobs:
   windows-x64:
     runs-on: windows-2022
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         shell: pwsh
@@ -33,7 +33,13 @@ jobs:
         with:
           dotnet-version: '10.0.403'
       - name: Run synthetic tests and create portable Windows package
+        id: portable
         run: ./scripts/package-windows.ps1
+      - name: Build unsigned per-user MSI and verify on disposable hosted runner
+        env:
+          HDY_PUBLISH_ROOT: ${{ steps.portable.outputs.publish-root }}
+          HDY_DELIVERY_ROOT: ${{ steps.portable.outputs.delivery-root }}
+        run: ./scripts/package-installer.ps1 -PublishRoot $env:HDY_PUBLISH_ROOT -DeliveryRoot $env:HDY_DELIVERY_ROOT
       - name: Preserve package and exact-source evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
