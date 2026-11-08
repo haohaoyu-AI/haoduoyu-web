@@ -5657,6 +5657,7 @@ var OPENAI_TABS = Object.freeze(["reminders", "reports"]);
 var openAiSessionAvailable = (me) => Boolean(me?.id);
 var openAiRunActive = (run2) => ["running"].includes(run2?.status);
 var openAiRunFinished = (run2) => ["succeeded", "failed"].includes(run2?.status) || Boolean(run2?.released_at);
+var openAiPendingRunUncertain = (vm4) => Boolean(vm4?.pendingId && vm4.run?.id === vm4.pendingId && vm4.run.status === "uncertain");
 function openAiPendingRunSettled(previous, next) {
   const run2 = next.run;
   return Boolean(previous.pendingId && run2?.id === previous.pendingId && ["succeeded", "failed", "cancelled", "uncertain"].includes(run2.status) && (previous.run?.id !== run2.id || previous.run?.status !== run2.status));
@@ -5931,7 +5932,7 @@ function renderOpenAiReviewPanel(vm4 = {}) {
   const header = '<div class="openai-review-heading"><h2>求助API</h2></div>';
   if (!vm4.owner) return header + openAiLogin;
   const busy = vm4.loading || vm4.busy, disabled = busy || !vm4.config?.configured || Boolean(vm4.pendingId);
-  const status = vm4.loading ? "正在读取分析配置…" : !vm4.config ? "暂时无法读取配置。" : vm4.config.configured ? vm4.pendingId || vm4.busy ? "本次请求处理中或等待核查" : "可发起分析" : "尚未配置 OpenAI API，暂不能发起分析。";
+  const status = vm4.loading ? "正在读取分析配置…" : !vm4.config ? "暂时无法读取配置。" : vm4.config.configuration_error_message || (vm4.config.configured ? vm4.pendingId || vm4.busy ? "本次请求处理中或等待核查" : "可发起分析" : "尚未配置 OpenAI API，暂不能发起分析。");
   const selectedModel = vm4.pendingId && vm4.run?.id === vm4.pendingId && vm4.run.model || vm4.selectedModel || vm4.config?.default_model || vm4.config?.model;
   return header + `<p class="hint">${e(status)}</p>
     <label for="openai-model">模型</label>
@@ -5963,7 +5964,7 @@ function renderOpenAiReviewStatus(vm4) {
 function renderOpenAiSettings(vm4 = {}) {
   if (!vm4.owner) return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2>${openAiLogin}</section>`;
   const draft = vm4.draft;
-  const status = vm4.loading ? "正在读取…" : !draft ? "配置读取失败。" : draft.saved.configured ? "可发起分析" : "尚未配置 OpenAI API";
+  const status = vm4.loading ? "正在读取…" : !draft ? "配置读取失败。" : draft.saved.configuration_error_message || (draft.saved.configured ? "可发起分析" : "尚未配置 OpenAI API");
   return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2><p class="hint">${e(status)}</p>
     <p class="hint">密钥由服务器管理，此处不显示或录入密钥。<a href="?page=ai-diagnosis">前往AI诊断</a></p>
     ${draft ? renderInstructions(draft) : ""}<p role="alert">${e(vm4.error || "")}</p>
@@ -6496,6 +6497,7 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
         "OPENAI_REVIEW_RATE_LIMIT",
         "OPENAI_REVIEW_INPUT_LIMIT",
         "OPENAI_REVIEW_NO_DATA",
+        "OPENAI_REVIEW_INVALID_KEY_FORMAT",
         "OPENAI_REVIEW_SOURCE_INVALID",
         "VALIDATION_ERROR"
       ].includes(error.code)) {
@@ -6543,7 +6545,7 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
 function createObserver({ state: state2, request, active: active5, accept, change: change2 }) {
   let observing = false;
   return async function observe() {
-    if (!active5() || observing || state2.operation !== "start" || !state2.pendingId || state2.run?.status === "uncertain") return;
+    if (!active5() || observing || state2.operation !== "start" || !state2.pendingId || openAiPendingRunUncertain(state2)) return;
     const id2 = state2.pendingId;
     observing = true;
     try {
@@ -6628,7 +6630,7 @@ function paintOpenAiReview() {
 function scheduleCheck() {
   clearTimeout(timer);
   timer = null;
-  if (document.visibilityState === "hidden" || runner?.state.run?.status === "uncertain") return;
+  if (document.visibilityState === "hidden" || openAiPendingRunUncertain(runner?.state)) return;
   if (!current2() || state.page !== "ai-diagnosis" || state.diagnosisTab !== "help" || !runner?.state.pendingId || runner.state.busy && runner.state.operation !== "start" || vm2.error) return;
   timer = setTimeout(() => {
     if (document.visibilityState !== "hidden" && current2() && state.page === "ai-diagnosis" && state.diagnosisTab === "help" && document.querySelector("#openai-review-panel"))
