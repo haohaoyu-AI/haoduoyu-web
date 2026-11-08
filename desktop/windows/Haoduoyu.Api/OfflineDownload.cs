@@ -20,10 +20,10 @@ public sealed record OfflineDownloadResult(string ScopeId, string ManifestHash,
 public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limits = null,
     Func<DateTimeOffset>? clock = null)
 {
-    public Task<OfflineDownloadResult> FetchAsync(string expectedScopeId,
+    public Task<OfflineDownloadResult> FetchAsync(string expectedScopeId, string cacheScopeId,
         IProgress<OfflineDownloadProgress>? progress = null, CancellationToken cancellationToken = default)
         => new Download(api, limits ?? new(), clock ?? (() => DateTimeOffset.UtcNow), progress, cancellationToken)
-            .FetchAsync(expectedScopeId);
+            .FetchAsync(expectedScopeId, cacheScopeId);
 
     private sealed class Download(IRemoteApi api, OfflineDownloadLimits limits, Func<DateTimeOffset> clock,
         IProgress<OfflineDownloadProgress>? progress, CancellationToken cancellationToken)
@@ -39,10 +39,11 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
         private long bytes, wireBytes;
         private string stage = "核对工作区";
 
-        public async Task<OfflineDownloadResult> FetchAsync(string expectedScopeId)
+        public async Task<OfflineDownloadResult> FetchAsync(string expectedScopeId, string cacheScopeId)
         {
             ArgumentNullException.ThrowIfNull(api);
             if (!HashValue(expectedScopeId)) throw Incomplete("缺少已确认的服务工作区身份");
+            if (string.IsNullOrWhiteSpace(cacheScopeId)) throw Incomplete("缺少本机缓存分区身份");
             if (limits.MaxCacheBytes is < 1 or > 24 * 1024 * 1024 || limits.MaxDates is < 1 or > 1000 ||
                 limits.MaxRows is < 1 or > 50000 || limits.MaxRequests is < 1 or > 10000)
                 throw new ArgumentOutOfRangeException(nameof(limits), "下载预算只能在安全上限内设置。");
@@ -71,6 +72,7 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
             await FetchArticles(reconciliation);
             stage = "下载日常资料";
             foreach (var day in days) await FetchDay(day, today);
+            var templateLists = await FetchTemplateLists(today, expectedScopeId, cacheScopeId);
             await FetchShared();
             stage = "下载账号复盘总览";
             foreach (var account in accounts.Order(StringComparer.Ordinal))
@@ -84,6 +86,13 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
                     }
 
             stage = "核对完整下载";
+            // Archived templates are outside the business manifest. Independently reread each
+            // full list; compare business data, not local observation timestamps or request IDs.
+            foreach (var (path, firstList) in templateLists)
+            {
+                var (_, lastList) = await GetTemplateList(path, today);
+                if (!JsonNode.DeepEquals(firstList.Data, lastList.Data)) throw Incomplete("下载期间常用事项活动或归档列表已变化");
+            }
             // The reconciliation route has no server revision. These bookends detect changed
             // inventories; they do not turn the intervening reads into a transaction or prevent ABA.
             var (_, lastReconciliation) = await GetReconciliation(articleAccounts);
@@ -369,7 +378,7 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
         {
             foreach (var (name, field, idField) in new[]
             {
-                ("todo-templates", "items", "id"), ("unscheduled-todos", "items", "id"),
+                ("unscheduled-todos", "items", "id"),
                 ("account-profiles", "", "account_id"),
                 ("observations", "", "id"), ("daily-metrics", "", "id")
             })
@@ -410,6 +419,43 @@ public sealed class OfflineDownload(IRemoteApi api, OfflineDownloadLimits? limit
                 if (detail["body"] is not JsonValue body || !body.TryGetValue<string>(out _)) throw Incomplete("备忘录正文缺失");
                 Add(detailPath, detailEnvelope);
             }
+        }
+
+        private async Task<Dictionary<string, TemplateArchiveList>> FetchTemplateLists(string today, string serviceScope, string cacheScope)
+        {
+            var lists = new Dictionary<string, TemplateArchiveList>(StringComparer.Ordinal);
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var archived in new[] { false, true })
+            {
+                var path = TemplateArchive.ListPath(archived);
+                var (envelope, list) = await GetTemplateList(path, today);
+                foreach (var row in list.Items)
+                {
+                    var id = String(row["id"]);
+                    if (!ids.Add(id)) throw Incomplete("常用事项活动及归档列表包含相同模板");
+                    if (ids.Count > TemplateArchive.MaximumItems) throw Incomplete("常用事项两列表超过本机预览行数预算");
+                    Record("todo-templates/" + id.ToLowerInvariant());
+                }
+                envelope["_local_scope_id"] = cacheScope;
+                envelope["_local_template_archive"] = new JsonObject
+                {
+                    ["scope_id"] = cacheScope, ["service_scope_id"] = serviceScope, ["query_path"] = path,
+                    ["observed_at_utc"] = clock().ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)
+                };
+                Add(path, envelope); lists.Add(path, list);
+            }
+            return lists;
+        }
+
+        private async Task<(JsonObject Envelope, TemplateArchiveList List)> GetTemplateList(string path, string today)
+        {
+            TemplateArchiveList? list = null;
+            var envelope = await Get(path, raw => list = TemplateArchive.ParseList(path, raw));
+            if (envelope.Any(field => field.Key.StartsWith("_local_", StringComparison.Ordinal) || field.Key == "_operation_id"))
+                throw Incomplete("模板网络响应包含本机来源标记");
+            if (list is null || list.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) != today)
+                throw Incomplete("模板统计日期已变化或来源过期");
+            return (envelope, list);
         }
 
         private async Task<JsonObject> Get(string path, Action<string>? validateRaw = null)

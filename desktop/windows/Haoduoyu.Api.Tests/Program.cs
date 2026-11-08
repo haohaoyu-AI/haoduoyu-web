@@ -333,6 +333,7 @@ await Throws<JsonException>(() => { MutationVerifier.Validate("POST", "/api/v1/n
 
 passed += await ReadSchemaTests.RunAsync();
 passed += await AiReportTests.RunAsync();
+passed += await OfflineArchiveDownloadChecks.RunAsync();
 Console.WriteLine($"API transport: {passed} assertions passed; all HTTP handlers synthetic, no production data requests.");
 
 sealed class FakeHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> respond) : HttpMessageHandler

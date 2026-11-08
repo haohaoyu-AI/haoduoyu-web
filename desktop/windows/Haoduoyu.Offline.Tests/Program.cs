@@ -25,7 +25,7 @@ ApiResult Edit(ApiResult result, Action<JsonObject> edit)
 FakeApi Api() => new(initialIndex);
 Task<OfflineDownloadResult> Fetch(FakeApi api, OfflineDownloadLimits? limits = null, Func<DateTimeOffset>? clock = null,
     IProgress<OfflineDownloadProgress>? progress = null, CancellationToken cancellationToken = default)
-    => new OfflineDownload(api, limits, clock ?? (() => at)).FetchAsync(scope, progress, cancellationToken);
+    => new OfflineDownload(api, limits, clock ?? (() => at)).FetchAsync(scope, "synthetic-workspace", progress, cancellationToken);
 
 Check(source["synthetic_only"]!.GetValue<bool>() && source["source_commit"]!.GetValue<string>() == "c30a8a956715b6ea809db4b87c0f4fcddf8f61de", "fixture provenance mismatch");
 var api = Api(); var progress = new CaptureProgress(); var result = await Fetch(api, progress: progress);
@@ -134,7 +134,7 @@ foreach (var status in new[] { 403, 409, 413, 503, 206 })
     Check(failing.Calls.All(x => x.Method == "GET"), "failed download attempted a write");
 }
 var wrongScope = Api();
-await Reject(async () => { await new OfflineDownload(wrongScope, clock: () => at).FetchAsync(new string('f', 64)); }, "wrong initial scope was accepted");
+await Reject(async () => { await new OfflineDownload(wrongScope, clock: () => at).FetchAsync(new string('f', 64), "synthetic-workspace"); }, "wrong initial scope was accepted");
 Check(wrongScope.Calls.Count == 2, "wrong initial scope fetched unrelated business records");
 
 foreach (var field in new[] { "manifest_hash", "index_hash", "global_content_hash" })
@@ -295,6 +295,96 @@ using (var cancelled = new CancellationTokenSource())
         cancellationApi.Calls.Last().Path.Contains("/review/articles/", StringComparison.Ordinal), "cancelled download continued requesting");
 }
 
+// Independent template memberships are full lists outside the business manifest, not inferred from it.
+var activePath = TemplateArchive.ListPath(false); var archivedPath = TemplateArchive.ListPath(true);
+var activeTemplate = Parsed(result, activePath); var archivedTemplate = Parsed(result, archivedPath);
+foreach (var path in new[] { activePath, archivedPath })
+{
+    var envelope = Parsed(result, path); var metadata = envelope["_local_template_archive"]!;
+    var parsed = TemplateArchive.ParseCachedList(path, envelope.ToJsonString(), "synthetic-workspace");
+    Check(parsed.Items.Count == 1 && envelope["_local_complete"]!.GetValue<bool>() &&
+        metadata["scope_id"]!.GetValue<string>() == "synthetic-workspace" && metadata["service_scope_id"]!.GetValue<string>() == scope &&
+        metadata["query_path"]!.GetValue<string>() == path && DateTimeOffset.Parse(metadata["observed_at_utc"]!.GetValue<string>()) == at,
+        "complete template cache lost independent provenance, local/service scope distinction or actual observation time");
+    Check(api.Calls.Count(call => call.Path == path) == 2, "template membership lacked its final independent readback");
+}
+Check(activeTemplate["data"]!["items"]![0]!["id"]!.GetValue<string>() != archivedTemplate["data"]!["items"]![0]!["id"]!.GetValue<string>() &&
+    !Parsed(result, "/api/v1/workbench-snapshot/index?version=2")["data"]!["entities"]!.AsArray()
+        .Any(row => row!.ToJsonString().Contains(archivedTemplate["data"]!["items"]![0]!["id"]!.GetValue<string>(), StringComparison.Ordinal)),
+    "archive membership was merged into active authority or the original hashed manifest");
+var emptyTemplates = Api(); emptyTemplates.Alter = (call, response) => call.Path == activePath || call.Path == archivedPath
+    ? Edit(response, root => root["data"]!["items"] = new JsonArray()) : response;
+var emptyTemplateResult = await Fetch(emptyTemplates);
+Check(result.Records == emptyTemplateResult.Records + 2 && result.Requests == emptyTemplateResult.Requests &&
+    TemplateArchive.ParseCachedList(archivedPath, emptyTemplateResult.CacheEntries[archivedPath], "synthetic-workspace").Items.Count == 0,
+    "template rereads double counted entities or explicit empty archive was not retained as complete");
+var lateMetadata = Api(); lateMetadata.Alter = (call, response) => call.Path == archivedPath && call.Occurrence == 2
+    ? Edit(response, root => root["request_id"] = "a different request wrapper is not business content") : response;
+_ = await Fetch(lateMetadata); checks++;
+await Reject(async () => { await new OfflineDownload(Api(), clock: () => at).FetchAsync(scope, " "); }, "missing local cache owner was accepted");
+await Reject(async () => { await Fetch(Api(), new(MaxRequests: result.Requests - 1)); }, "template rereads escaped request budget");
+await Reject(async () => { await Fetch(Api(), new(MaxRows: checked((int)result.Records - 1))); }, "archived templates escaped total entity budget");
+await Reject(async () => { await Fetch(Api(), new(MaxCacheBytes: checked((int)result.Bytes - 1))); }, "archive metadata escaped the cache byte budget");
+var manyTemplates = Api();
+int archivedCount = 4300;
+manyTemplates.Alter = (call, response) =>
+{
+    if (call.Path != activePath && call.Path != archivedPath) return response;
+    var archived = call.Path == archivedPath; var count = archived ? archivedCount : 5700;
+    var rows = new JsonArray();
+    for (var index = 0; index < count; index++)
+    {
+        var row = new JsonObject { ["id"] = (index + (archived ? 5700 : 0)).ToString("x8") + "-0000-4000-8000-000000000000",
+            ["text"] = "x", ["version"] = 1, ["created_at"] = "2026-11-05T00:00:00Z", ["updated_at"] = "2026-11-05T00:00:00Z",
+            ["completed_days"] = 0, ["habit_status"] = "todo" };
+        if (archived) row["archived_at"] = "2026-11-05T00:00:00Z";
+        rows.Add(row);
+    }
+    var envelope = JsonNode.Parse(response.Json)!; envelope["data"]!["items"] = rows;
+    var json = envelope.ToJsonString();
+    if (System.Text.Encoding.UTF8.GetByteCount(json) > WorkbenchApi.MaximumResponseBytes) throw new InvalidOperationException("combined template row fixture unexpectedly exceeded original wire ceiling");
+    return response with { Json = json };
+};
+var maximumTemplates = await Fetch(manyTemplates);
+Check(maximumTemplates.Records == emptyTemplateResult.Records + TemplateArchive.MaximumItems,
+    "independent template memberships did not honor the existing combined 10000-row model ceiling");
+archivedCount++;
+await Reject(async () => { await Fetch(manyTemplates); }, "two individually valid under-1MiB lists exceeded the combined template model row ceiling");
+
+var templateFailures = new List<(string Name, Func<Call, ApiResult, ApiResult> Alter)>
+{
+    ("missing archived items", (call, response) => call.Path == archivedPath ? Edit(response, root => root["data"]!.AsObject().Remove("items")) : response),
+    ("duplicate archive UUID", (call, response) => call.Path == archivedPath ? Edit(response, root => root["data"]!["items"]!.AsArray().Add(root["data"]!["items"]![0]!.DeepClone())) : response),
+    ("same UUID in both full lists", (call, response) => call.Path == archivedPath ? Edit(response, root => root["data"]!["items"]![0]!["id"] = activeTemplate["data"]!["items"]![0]!["id"]!.GetValue<string>().ToUpperInvariant()) : response),
+    ("active row in archive", (call, response) => call.Path == archivedPath ? Edit(response, root => root["data"]!["items"]![0]!.AsObject().Remove("archived_at")) : response),
+    ("archived row in active", (call, response) => call.Path == activePath ? Edit(response, root => root["data"]!["items"]![0]!["archived_at"] = "2026-11-04T12:00:00Z") : response),
+    ("missing real template version", (call, response) => call.Path == archivedPath ? Edit(response, root => root["data"]!["items"]![0]!.AsObject().Remove("version")) : response),
+    ("stale archive window", (call, response) => call.Path == archivedPath ? Edit(response, root => { root["data"]!["today"] = "2026-11-04"; root["data"]!["window_start"] = "2026-10-06"; }) : response),
+    ("false local provenance from network", (call, response) => call.Path == archivedPath ? Edit(response, root => root["_local_scope_id"] = "synthetic-workspace") : response),
+    ("projected archive response", (call, response) => call.Path == archivedPath ? Edit(response, root => root["_local_complete"] = true) : response),
+    ("archive change at readback", (call, response) => call.Path == archivedPath && call.Occurrence == 2 ? Edit(response, root => root["data"]!["items"]![0]!["text"] = "changed archive") : response),
+    ("active change at readback", (call, response) => call.Path == activePath && call.Occurrence == 2 ? Edit(response, root => root["data"]!["items"]![0]!["text"] = "changed active") : response),
+    ("archive authentication expired", (call, response) => call.Path == archivedPath ? response with { StatusCode = 401 } : response),
+    ("archive reread throttled", (call, response) => call.Path == archivedPath && call.Occurrence == 2 ? response with { StatusCode = 429 } : response),
+    ("archive over 1MiB", (call, response) => call.Path == archivedPath ? response with { Json = new string('x', WorkbenchApi.MaximumResponseBytes + 1) } : response)
+};
+foreach (var failure in templateFailures)
+{
+    var failedApi = Api(); failedApi.Alter = failure.Alter;
+    var keptStore = new MemoryStore(); var kept = new SyncEngine(keptStore, failedApi); await kept.InitializeAsync();
+    var original = JsonSerializer.Serialize(kept.Snapshot);
+    await Reject(async () => { var batch = await Fetch(failedApi); await kept.CacheBatchAsync(batch.CacheEntries); }, failure.Name + " returned a partial successful batch");
+    Check(keptStore.Saves == 0 && JsonSerializer.Serialize(kept.Snapshot) == original && failedApi.Calls.All(call => call.Method == "GET"),
+        failure.Name + " changed old cache, original draft or unknown request");
+}
+foreach (var occurrence in new[] { 1, 2 })
+{
+    using var cancellation = new CancellationTokenSource(); var interrupted = Api();
+    interrupted.Alter = (call, response) => { if (call.Path == archivedPath && call.Occurrence == occurrence) cancellation.Cancel(); return response; };
+    await Reject(async () => { await Fetch(interrupted, cancellationToken: cancellation.Token); }, "archive cancellation returned partial batch");
+    Check(interrupted.Calls.Last().Path == archivedPath && interrupted.Calls.Last().Occurrence == occurrence, "archive cancellation continued requests");
+}
+
 // Integration: the single cache apply happens only after both barriers; failures preserve all state.
 var store = new MemoryStore(); var engine = new SyncEngine(store, Api()); await engine.InitializeAsync();
 var before = JsonSerializer.Serialize(engine.Snapshot);
@@ -308,6 +398,9 @@ await engine.CacheBatchAsync(result.CacheEntries);
 Check(store.Saves == 1 && engine.Snapshot.LocalRevision == 1, "complete cache batch was not one atomic save");
 Check(engine.Snapshot.Drafts["synthetic-draft"].Text == "合成离线草稿" && engine.Snapshot.Outbox.Single().Status == PendingStatus.Unknown, "complete cache apply changed drafts or pending operations");
 Check(result.CacheEntries.Keys.All(key => engine.Snapshot.CacheRevisions[key] == 1), "batch cache entries have mixed revisions");
+Check(TemplateArchive.ProjectList(true, engine.Snapshot)?["_local_incomplete"]?.GetValue<bool>() == false &&
+    TemplateArchive.ProjectList(true, engine.Snapshot)?["data"]?["items"]?.AsArray().Count == 1,
+    "atomic offline batch cannot be reopened as the same local owner's complete archived membership");
 Console.WriteLine($"PASS {checks} synthetic complete offline download checks; real-source manifest hashes, all pages/statuses, isolation, barriers, cancellation and budgets; no sockets or real user data.");
 
 sealed class CaptureProgress : IProgress<OfflineDownloadProgress>
@@ -424,7 +517,17 @@ sealed class FakeApi(JsonObject index) : IRemoteApi
         if (route == "/api/v1/note-entries/labels") return Wrap(new JsonObject { ["labels"] = Rows(new JsonObject { ["name"] = "合成标签" }), ["archived_labels"] = Rows(new JsonObject { ["name"] = "合成归档" }) });
         if (route.StartsWith("/api/v1/note-entries/", StringComparison.Ordinal)) return Wrap(Note(int.Parse(route[^12..], System.Globalization.CultureInfo.InvariantCulture)));
         if (route == "/api/v1/daily-notes") return Wrap(new JsonObject { ["date"] = day, ["text"] = "合成旧日页", ["version"] = 0, ["deleted"] = false });
-        if (route == "/api/v1/todo-templates") return Wrap(new JsonObject { ["items"] = Rows(new JsonObject { ["id"] = Id(600000), ["text"] = "合成模板" }) });
+        if (route == "/api/v1/todo-templates")
+        {
+            if (q.Count != 0 && (q.Count != 1 || q.GetValueOrDefault("archived") != "1")) throw new InvalidOperationException("Templates only support separate full active/archived reads");
+            var fixture = JsonNode.Parse(File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "Fixtures", "template-archive-contract-34bff302.json")))!;
+            var name = q.ContainsKey("archived") ? "owner-paired-archived" : "owner-paired-active";
+            var sample = fixture["samples"]!.AsArray().Single(row => row!["name"]!.GetValue<string>() == name)!;
+            var envelope = JsonNode.Parse(sample["response_json"]!.GetValue<string>())!.AsObject();
+            // Exact-source record shapes, with only the list's calendar rebased to this older manifest fixture.
+            envelope["data"]!["today"] = "2026-11-05"; envelope["data"]!["window_start"] = "2026-10-07";
+            return envelope;
+        }
         if (route == "/api/v1/unscheduled-todos") return Wrap(new JsonObject { ["items"] = Rows(new JsonObject { ["id"] = Id(600001), ["text"] = "合成未来事项" }) });
         if (route == "/api/v1/accounts") return Wrap(Rows(new JsonObject { ["id"] = "synthetic-account", ["name"] = "合成运营账号" }));
         if (route == "/api/v1/account-profiles") return Wrap(Rows(new JsonObject { ["account_id"] = "synthetic-account", ["profile_url"] = "https://example.invalid/synthetic" }));
@@ -465,7 +568,7 @@ sealed class MemoryStore : IWorkspaceStore
     public int Saves { get; private set; }
     private WorkspaceState state = new()
     {
-        ScopeId = "synthetic-workspace", Cache = new() { ["old"] = "{\"data\":{\"keep\":true}}" },
+        ScopeId = "synthetic-workspace", Cache = new() { ["old"] = "{\"data\":{\"keep\":true}}", [TemplateArchive.ListPath(false)] = "{\"data\":{\"old_active\":true}}", [TemplateArchive.ListPath(true)] = "{\"data\":{\"old_archived\":true}}" },
         Drafts = new() { ["synthetic-draft"] = new() { Key = "synthetic-draft", Text = "合成离线草稿" } },
         Outbox = [new() { ResourceKey = "/api/v1/todos/" + FakeApi.Id(900000), Path = "/api/v1/todos/" + FakeApi.Id(900000),
             Method = "PATCH", BodyJson = "{\"completed\":true,\"version\":1}", Status = PendingStatus.Unknown }]

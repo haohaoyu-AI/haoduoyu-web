@@ -10,5 +10,6 @@
     <ProjectReference Include="../Haoduoyu.Api/Haoduoyu.Api.csproj" />
     <Content Include="Fixtures/workbench-manifest-c30a8a9.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../Haoduoyu.Api.Tests/Fixtures/worker-contract-c30a8a9.json" Link="Fixtures/worker-contract-c30a8a9.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../Haoduoyu.Api.Tests/Fixtures/template-archive-contract-34bff302.json" Link="Fixtures/template-archive-contract-34bff302.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

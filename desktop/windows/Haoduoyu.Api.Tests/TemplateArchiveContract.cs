@@ -83,6 +83,19 @@ internal static class TemplateArchiveContract
         var active = Data("owner-paired-active"); var archived = Data("owner-paired-archived");
         Check(active["items"]!.AsArray().Any(row => row!["id"]!.GetValue<string>() == keep) && active["items"]!.AsArray().All(row => row!["id"]!.GetValue<string>() != target) &&
             archived["items"]!.AsArray().Single()!["id"]!.GetValue<string>() == target, "independent active and archived memberships retain different templates");
+        foreach (var name in new[] { "owner-paired-active", "owner-paired-archived", "owner-archived-before" })
+        {
+            var sample = Sample(name); var listPath = sample["path"]!.GetValue<string>(); var cached = Envelope(name);
+            cached["_local_complete"] = true; cached["_local_scope_id"] = "synthetic-local-partition";
+            cached["_local_template_archive"] = new JsonObject { ["query_path"] = listPath, ["scope_id"] = "synthetic-local-partition",
+                ["service_scope_id"] = Scope, ["observed_at_utc"] = "2026-11-07T03:00:00.000Z" };
+            Check(JsonNode.DeepEquals(TemplateArchive.ParseCachedList(listPath, cached.ToJsonString(), "synthetic-local-partition").Data, Data(name)),
+                "separate cached parser retains exact-source full or empty membership and distinct local/service provenance: " + name);
+            var denied = false;
+            using (var api = new WorkbenchApi(new CapturedTransport("GET", listPath, null, cached.ToJsonString(), 200)))
+                try { await api.SendAsync("GET", listPath, null, ""); } catch (ApiCallException) { denied = true; }
+            Check(denied, "actual transport does not accept cached completeness metadata from the network: " + name);
+        }
         var history = Data("owner-history-after-archive")["items"]!.AsArray().Single(row => row!["id"]!.GetValue<string>() == todo)!;
         Check(history["template_id"]!.GetValue<string>() == target && history["template_active"]!.GetValue<bool>() == false &&
             history["completed"]!.GetValue<bool>() && history["text"]!.GetValue<string>() == "必须保留的合成历史正文", "archive retains completed history text and inactive original link");

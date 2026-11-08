@@ -59,7 +59,7 @@ public sealed partial class MainWindow
         {
             try
             {
-                TemplateArchive.ValidateList(path, raw, scope);
+                _ = TemplateArchive.ParseCachedList(path, raw, scope);
                 var source = JsonNode.Parse(raw) as JsonObject; var meta = source?["_local_template_archive"] as JsonObject;
                 body.Children.Add(Label(meta is null ? "此旧副本未记录读取时间，不能推断为刚刚取得。" : "本机读取时间：" + Text(meta, "observed_at_utc") + "；两列表可能来自不同时间。"));
                 body.Children.Add(Label("来源统计窗口：" + Text(source?["data"], "window_start") + " 至 " + Text(source?["data"], "today") + "；完成天数由来源记录，未取得时不补零。"));

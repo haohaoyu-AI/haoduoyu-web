@@ -80,6 +80,24 @@ Reject(() => TemplateArchive.ValidateRecord(Active(1), false, true), "restore re
 Reject(() => TemplateArchive.ParseList(TemplateArchive.ListPath(true), List(true, Active(1)), Scope), "archive list accepted missing timestamp");
 Reject(() => TemplateArchive.ParseList(TemplateArchive.ListPath(false), source.Replace("\"version\":1", "\"version\":1,\"version\":1", StringComparison.Ordinal)), "duplicate JSON key accepted");
 
+foreach (var archived in new[] { false, true })
+{
+    var path = TemplateArchive.ListPath(archived); var cache = JsonNode.Parse(List(archived, Record(7, archived)))!.AsObject();
+    cache["_local_complete"] = true;
+    cache["_local_template_archive"] = new JsonObject { ["scope_id"] = Scope, ["service_scope_id"] = new string('a', 64),
+        ["query_path"] = path, ["observed_at_utc"] = Stamp };
+    var raw = cache.ToJsonString();
+    Check(TemplateArchive.ParseCachedList(path, raw, Scope).Items.Count == 1, "complete offline cache rejected by its dedicated parser");
+    Reject(() => TemplateArchive.ParseList(path, raw, Scope), "local download marker was accepted as a wire baseline");
+    Reject(() => TemplateArchive.ParseCachedList(path, raw, "another-local-owner"), "cached source crossed the real local owner boundary");
+    Reject(() => TemplateArchive.ParseCachedList(TemplateArchive.ListPath(!archived), raw, Scope), "cached source used the other membership query");
+    foreach (var marker in new JsonNode?[] { JsonValue.Create(false), JsonValue.Create("true"), null })
+    { cache["_local_complete"] = marker; Reject(() => TemplateArchive.ParseCachedList(path, cache.ToJsonString(), Scope), "invalid cache completeness flag was ignored"); }
+    cache["_local_complete"] = true; cache["_local_projection"] = true;
+    Reject(() => TemplateArchive.ParseCachedList(path, cache.ToJsonString(), Scope), "cached parser broadly accepted local projection metadata");
+    Reject(() => TemplateArchive.ParseCachedList(path, raw.Replace("\"_local_complete\":true", "\"_local_complete\":true,\"_local_complete\":true", StringComparison.Ordinal), Scope), "cached parser normalized away a duplicate field");
+}
+
 foreach (var reverse in new[] { false, true })
 {
     var state = State(reverse); var before = JsonSerializer.Serialize(state);
@@ -153,8 +171,13 @@ var foreign = State(); var other = JsonNode.Parse(foreign.Cache[TemplateArchive.
 var foreignBefore = JsonSerializer.Serialize(foreign); Reject(() => Project(false, foreign), "foreign cached archive scope accepted"); Check(JsonSerializer.Serialize(foreign) == foreignBefore, "foreign cache rejection changed state");
 var escaped = Record(1); escaped["future_large"] = new string('<', 960000); var escapedRaw = List(false, escaped);
 Check(escapedRaw.Length > TemplateArchive.MaximumSourceBytes && TemplateArchive.ParseList(TemplateArchive.ListPath(false), escapedRaw).Items.Count == 1, "legal source HTML escaping enlarged network semantic budget or was rejected");
+var escapedCache = JsonNode.Parse(escapedRaw)!.AsObject(); escapedCache["_local_complete"] = true;
+Check(TemplateArchive.ParseCachedList(TemplateArchive.ListPath(false), escapedCache.ToJsonString(), Scope).Items[0]["future_large"]!.GetValue<string>() == new string('<', 960000),
+    "cached completeness parsing changed unknown text or confused JSON escaping with the unchanged semantic source budget");
 var tooLarge = Active(1); tooLarge["future_large"] = new string('a', TemplateArchive.MaximumSourceBytes);
 Reject(() => TemplateArchive.ParseList(TemplateArchive.ListPath(false), List(false, tooLarge)), "semantic source budget was bypassed");
+var oversizedCache = JsonNode.Parse(List(false, (JsonObject)tooLarge.DeepClone()))!.AsObject(); oversizedCache["_local_complete"] = true;
+Reject(() => TemplateArchive.ParseCachedList(TemplateArchive.ListPath(false), oversizedCache.ToJsonString(), Scope), "cached completeness parsing enlarged semantic source budget");
 var receiptBudget = State(); receiptBudget.Outbox.Add(Action(1, "archive", PendingStatus.Unknown) with { RemoteJson = new string('x', TemplateArchive.MaximumLocalBytes) });
 Reject(() => Project(false, receiptBudget), "retained receipt bytes bypassed aggregate local budget");
 var multiGrowth = State();

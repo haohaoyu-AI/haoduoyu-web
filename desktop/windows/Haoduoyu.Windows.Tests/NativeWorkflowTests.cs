@@ -46,6 +46,7 @@ internal static partial class NativeWorkflowTests
         .. NoteHistoryCases,
         .. MediaReviewCases,
         .. TemplateArchiveCases,
+        .. OfflineArchiveCases,
         .. TodoNoteCases,
         .. DayRolloverCases,
         .. TextExportCases,

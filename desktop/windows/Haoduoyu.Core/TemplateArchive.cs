@@ -35,6 +35,13 @@ public static class TemplateArchive
         _ => throw new ArgumentException("模板列表仅支持活动列表及 archived=1 归档列表。", nameof(path))
     };
     public static void ValidateList(string path, string envelopeJson, string? expectedScope = null) => _ = ParseList(path, envelopeJson, expectedScope);
+    // Only persisted downloads may carry this completeness marker. Keep the wire parser strict.
+    public static TemplateArchiveList ParseCachedList(string path, string envelopeJson, string? expectedScope = null)
+    {
+        var root = Envelope(envelopeJson, expectedScope);
+        if (root.Remove("_local_complete", out var complete) && !Boolean(complete)) throw Invalid("模板缓存尚未完整读取");
+        return ParseList(path, root.ToJsonString(), expectedScope);
+    }
     public static TemplateArchiveList ParseList(string path, string envelopeJson, string? expectedScope = null)
     {
         var archived = ParseListPath(path);
@@ -85,9 +92,7 @@ public static class TemplateArchive
     {
         try
         {
-            var copy = (JsonObject)envelope.DeepClone();
-            if (copy.Remove("_local_complete", out var complete) && !Boolean(complete)) return false;
-            _ = ParseList(ListPath(archived), copy.ToJsonString()); return true;
+            _ = ParseCachedList(ListPath(archived), envelope.ToJsonString()); return true;
         }
         catch (Exception error) when (error is InvalidDataException or JsonException or ArgumentException or InvalidOperationException) { return false; }
     }

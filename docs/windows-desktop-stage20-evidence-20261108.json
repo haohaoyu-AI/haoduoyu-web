@@ -1,0 +1,96 @@
+{
+  "schema": "haoduoyu-windows-stage20-source-evidence-v1",
+  "observed_at_utc": "2026-11-08T06:49:10.727729+00:00",
+  "repository": "haohaoyu-AI/haoduoyu-web",
+  "branch": "desktop/native-workbench-20261104",
+  "base_commit": "c9bde68fd765a4e372590d9e3982ca09b3f5ee75",
+  "candidate_version": "0.20.0",
+  "status": "local_validation_passed_hosted_windows_pending",
+  "feature": "complete offline preparation includes independently fetched active and archived template collections",
+  "local_validation": {
+    "host": "Linux x64",
+    "sdk": "10.0.403",
+    "passed": {
+      "Core": 134,
+      "API": 175,
+      "Template": 96,
+      "Offline": 182,
+      "fixed_34bff302_contract": 288
+    },
+    "total": 1418,
+    "core_initial_environment_exit": 137,
+    "core_final_retry_test_process_heap_limit_mib": 512,
+    "core_recovery_safety_skipped": 0,
+    "windows_test_project_cross_build": {
+      "succeeded": true,
+      "warnings": 0,
+      "errors": 0,
+      "elapsed_seconds": 16.05
+    },
+    "new_shown_wpf_workflows_compiled_not_run": 3,
+    "static_boundaries_passed": true,
+    "diff_check_passed": true,
+    "expanded_passed": {
+      "Profile": 85,
+      "History": 44,
+      "Notes": 80,
+      "Media": 105,
+      "TodoNotes": 81,
+      "Ledger": 20,
+      "Verification": 24,
+      "View": 36,
+      "Search": 35,
+      "Archive": 33
+    },
+    "expanded_total": 543,
+    "expanded_archive_skipped": 0,
+    "owner_pending_transport_checks": "4 Linux actual-API checks passed: pending/release success and pending/cancel; no delay or real socket"
+  },
+  "scope": {
+    "user_device_installation": false,
+    "production_changes": false,
+    "website_backend_android_changes": false,
+    "artifact_downloaded": false,
+    "unauthorized_job_logs_read": false,
+    "real_identity_or_data_used": false
+  },
+  "windows_ci": {
+    "status": "not_yet_submitted_for_stage20",
+    "prior_stage19_run_id": 42445325659,
+    "prior_stage19_head_sha": "e4bb78dbba2df2c2f09fec6233ca94116fcd28d5",
+    "prior_success_does_not_validate_new_source": true
+  },
+  "limits": [
+    "Independent list bookends detect changes; not a transactional read and do not prevent ABA",
+    "Fixed candidate contract is not proof of deployed production Worker or migrations",
+    "Shown WPF, DPAPI, native MSI, portable package require new exact-source Windows CI",
+    "Unsigned candidate; user-device flow, true old-payload migration and production account remain unverified"
+  ],
+  "changed_source_sha256": {
+    "desktop/windows/Haoduoyu.Api.Tests/OfflineArchiveDownloadChecks.cs": "49f2c2c8178eb27795a75ebd803dd90179663a03788be15ca35d8cd76c7dcddc",
+    "desktop/windows/Haoduoyu.Api.Tests/OfflineArchiveOrigin.cs": "e3809a976979aead26b82d1ba6e3f6f48ecab5cd395333acc9ea44495295f7d1",
+    "desktop/windows/Haoduoyu.Api.Tests/Program.cs": "91d600800121b7b75cedbc04044549b2f7471b5ca45f860462f31f077ba9ff2d",
+    "desktop/windows/Haoduoyu.Api.Tests/TemplateArchiveContract.cs": "c948a842810fb1e6ac7bb812c0fccb3795433d5acf7e16b2387b55e827d6d91d",
+    "desktop/windows/Haoduoyu.Api/OfflineDownload.cs": "a29c7c9b7288ad206513fe1c503564ec253a3b676ec2d7e8f7a89b0392a8e59b",
+    "desktop/windows/Haoduoyu.Core/TemplateArchive.cs": "d04e1875a89178f32206bd4d0eb7d21099d10187d5d9b773c9e53ca9429b71cd",
+    "desktop/windows/Haoduoyu.Offline.Tests/Haoduoyu.Offline.Tests.csproj": "72626bf52e7a0788756c1e905d5a20772e3c09cc97ead0dae43d52ad4334c99f",
+    "desktop/windows/Haoduoyu.Offline.Tests/Program.cs": "a11c45fb668988878b46b1ca32137700a8beee262fb7cb504b4911ba583501d2",
+    "desktop/windows/Haoduoyu.Template.Tests/Program.cs": "81889950cf3a237dfe3fb2bf89bb121fc09a8f3a8b72e8fb6cbbcb85ae2aae95",
+    "desktop/windows/Haoduoyu.Windows.Tests/Haoduoyu.Windows.Tests.csproj": "7ed5e68cd43136e770334294481240a0f94738b94f9601d2483555941c21cbbd",
+    "desktop/windows/Haoduoyu.Windows.Tests/NativeOfflineArchiveTests.cs": "8305b4670a5a0b77c9de3ace2d2c9df7928ed7b4bef2eb46080916ce4e58e04b",
+    "desktop/windows/Haoduoyu.Windows.Tests/NativeWorkflowTests.cs": "ce1457edc0cb7cf123deffc581be4a804eb253bcfd7a2f53e36372fc0a57c6cb",
+    "desktop/windows/Haoduoyu.Windows/Haoduoyu.Windows.csproj": "6a238d2ac1f641ca07d2063d2a707ca0f9576591056b45a8d50c0ac684836394",
+    "desktop/windows/Haoduoyu.Windows/TemplateArchivePages.cs": "9e8fbf557e270c62ee778c8fd4471001f6315f9f1dc267385e72decfe587e4a6",
+    "desktop/windows/Haoduoyu.Windows/WorkspaceUi.cs": "45e509be4de6e0458b58b821a329ac1c0b28cadfe8cc44fbc03986b37bd8405b",
+    "desktop/windows/README.md": "5c1aebb23a060cf69db684aa3f4d9eefc11e3d89308cf84c5c2b4836d5245afe",
+    "docs/windows-desktop-handoff-20261104.md": "c4b1a897afe92a39cb556c7088cc2528a39fc3bdb38bfe01b16a00f553407233",
+    "docs/windows-desktop-resume-20261107.md": "4c1d57f79876a17cf3f006b87953b41d2921f6aafbfab614d9274485db9f2bcd",
+    "docs/windows-desktop-stage20-20261108.md": "f47dd28f683158f31322e086aa7382ccf029f1cfd1ceb1304085019a618f8104"
+  },
+  "review": {
+    "production_blockers_found": 0,
+    "owner_test_idle_helper_flaw": "corrected before upload; await only injected workspace Task during held request, then release held request before idle wait",
+    "new_native_tests_runtime": "not run on Linux",
+    "owner_test_timeout_false_positive": "Synthetic held-reply task and linked token must remain pending before and after both owner swaps; successful reply after explicit release is checked. WPF runtime remains pending."
+  }
+}

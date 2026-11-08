@@ -39,15 +39,25 @@ public sealed partial class MainWindow
         await FlushEditorAsync();
         if (!connected || currentIdentity == null || api.ExpectedScopeId == null)
             throw new InvalidOperationException("请先登录或连接当前工作区并核对身份，再准备完整离线资料。");
-        var target = Engine; var identity = currentIdentity; var expectedScope = api.ExpectedScopeId;
+        var target = Engine; var workspace = store; var identity = currentIdentity; var expectedScope = api.ExpectedScopeId;
+        var scope = target.Snapshot.ScopeId; var cancellation = NetworkToken;
+        void Guard()
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (!connected || identity != currentIdentity || !ReferenceEquals(target, engine) || !ReferenceEquals(workspace, store) ||
+                target.Snapshot.ScopeId != scope || api.ExpectedScopeId != expectedScope || TemplateArchiveTransportIdentity(expectedScope) != identity)
+                throw new InvalidOperationException("工作区已变化，本次资料未用于其他分区。");
+        }
+        Guard();
         var progress = new Progress<OfflineDownloadProgress>(p => Message($"{p.Stage} · {p.Requests} 次读取，{p.Records} 条记录，{p.Dates} 个日期。可取消；未完成时不会替换旧资料。"));
-        var downloaded = await new OfflineDownload(api).FetchAsync(expectedScope, progress, NetworkToken);
-        if (identity != currentIdentity || downloaded.ScopeId != expectedScope)
+        var downloaded = await new OfflineDownload(api, clock: () => clock.GetUtcNow()).FetchAsync(expectedScope, scope, progress, cancellation);
+        Guard();
+        if (downloaded.ScopeId != expectedScope)
             throw new InvalidOperationException("工作区已变化，本次资料未写入任何分区。");
-        NetworkToken.ThrowIfCancellationRequested();
-        await Task.Run(() => target.CacheBatchAsync(downloaded.CacheEntries));
+        await Task.Run(() => target.CacheBatchAsync(downloaded.CacheEntries, cancellation), cancellation);
+        Guard();
         await NavigateAsync(currentPage);
-        Message($"离线资料已完整核对并原子保存：{downloaded.Dates} 个日期、{downloaded.Records} 条记录。草稿和待同步请求保留。");
+        Message($"离线资料已完整核对并原子保存：{downloaded.Dates} 个日期、{downloaded.Records} 条记录，含活动与归档常用事项的独立完整列表。草稿和待同步请求保留。");
     }
 
     private static string LocalSuffix(JsonNode? row)
