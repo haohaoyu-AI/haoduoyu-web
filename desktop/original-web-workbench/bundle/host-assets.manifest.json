@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "bundleId": "original-ui-0303e9eab153b65adb5b",
+  "bundleId": "original-ui-1a3c78876033459d466f",
   "entryPoint": "index.html",
   "assets": [
     {
       "path": "app.js",
-      "size": 759732,
-      "sha256": "155522bc24ab610a45bc77e72976d353635162cf87dc3406873660d2fe4da09c"
+      "size": 759767,
+      "sha256": "fe3dbb391a4eed1565029dde68d3767ba5c224b8642c766d33f0d10a24aa71e9"
     },
     {
       "path": "favicon.svg",

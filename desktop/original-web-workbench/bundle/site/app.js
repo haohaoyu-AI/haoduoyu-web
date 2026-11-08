@@ -6576,6 +6576,7 @@ function createEntryWritingActions(context) {
     const preserve = operation.kind === "put" && item.draft !== operation.text;
     item.writeEpoch++;
     adopt(item, value, preserve);
+    delete item.recoveredBaseline;
     item.remote = null;
     item.pending = null;
     item.phase = item.dirty ? "dirty" : "saved";

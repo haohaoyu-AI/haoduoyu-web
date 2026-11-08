@@ -16,7 +16,7 @@
     "offline.css": "ceb710bb10d345409d0437274dc1dd79c5152b1de874c7c10f290edc0f21ed7c",
     "review.css": "c350acaecce804c56820bb689d67cfd18be12bd7808b912cf8098297114331b9"
   },
-  "scriptSha256": "155522bc24ab610a45bc77e72976d353635162cf87dc3406873660d2fe4da09c",
+  "scriptSha256": "fe3dbb391a4eed1565029dde68d3767ba5c224b8642c766d33f0d10a24aa71e9",
   "sourceAliases": {
     "core/api.mjs": "local/client.mjs",
     "offline/runtime.mjs": "local/runtime.mjs"
@@ -53,6 +53,16 @@
       "after": "if (input && input.value !== day.draft) input.value = localEditorPaintValue(input,day.draft);"
     },
     {
+      "file": "core/todos-state.mjs",
+      "before": "const todosState =",
+      "after": "import {bindLocalComposer} from \"../local/runtime.mjs\";\nconst todosState ="
+    },
+    {
+      "file": "core/todos-state.mjs",
+      "before": "  return todosState.days.get(date);",
+      "after": "  const day = todosState.days.get(date);\n  if (!day.localDraftBound) { bindLocalComposer(day,\"draft\",\"todo\",date); day.localDraftBound = true; }\n  return day;"
+    },
+    {
       "file": "offline/ui.mjs",
       "before": "const title = textNode(document, 'h2', '同步状态');",
       "after": "const title = textNode(document, 'h2', '本机保存状态');"
@@ -63,14 +73,9 @@
       "after": "details.append(textNode(document, 'p', '这是独立本机版本，没有线上同步或上传。'));"
     },
     {
-      "file": "core/todos-state.mjs",
-      "before": "const todosState =",
-      "after": "import {bindLocalComposer} from \"../local/runtime.mjs\";\nconst todosState ="
-    },
-    {
-      "file": "core/todos-state.mjs",
-      "before": "  return todosState.days.get(date);",
-      "after": "  const day = todosState.days.get(date);\n  if (!day.localDraftBound) { bindLocalComposer(day,\"draft\",\"todo\",date); day.localDraftBound = true; }\n  return day;"
+      "file": "controller.mjs",
+      "before": "后台会自动同步；如有冲突，可在这里查看和处理。",
+      "after": "内容只保存在本机，不会上传网站。"
     },
     {
       "file": "pages/unscheduled-todos.mjs",
@@ -118,41 +123,6 @@
       "after": "勾选完成后移至今日待办；也可选择日期移动。"
     },
     {
-      "file": "controller.mjs",
-      "before": "后台会自动同步；如有冲突，可在这里查看和处理。",
-      "after": "内容只保存在本机，不会上传网站。"
-    },
-    {
-      "file": "daily-notes-controller.mjs",
-      "before": "  window.addEventListener('haoduoyu:before-refresh', event => {",
-      "after": "  window.addEventListener('haoduoyu:capture-current-editors', event => {\n    const detail = event.detail, expected = notesIdentity, root = document.querySelector('#daily-notes');\n    if (!detail?.localSnapshot || expected !== notesIdentityNow()) return;\n    for (const field of root?.querySelectorAll('[data-note-entry-editor],#notes-editor') || []) {\n      const raw = detail.snapshot(field), category = raw.dataset.category, legacy = raw.id === 'notes-editor';\n      const id = legacy ? raw.dataset.date : raw.dataset.noteEntryEditor;\n      const store = (legacy ? notesStores : entryStores).get(category);\n      detail.stage({field,key:JSON.stringify([legacy ? 'legacy' : 'entry',expected,category,id]),\n        valid:() => Boolean(store && notesIdentityNow() === expected && notesIdentity === expected &&\n          (legacy ? notesStores : entryStores).get(category) === store && document.querySelector('#daily-notes') === root),\n        apply:value => store.edit(id,value.value,{composing:value.composing})});\n    }\n  });\n  window.addEventListener('haoduoyu:before-refresh', event => {"
-    },
-    {
-      "file": "daily-notes-controller.mjs",
-      "before": "      if (field) entryStores.get(field.dataset.category)?.edit(field.dataset.noteEntryEditor, field.value,\n        {composing: field.dataset.composing === 'true'});",
-      "after": "      if (!event.detail.localSnapshot) {\n      if (field) entryStores.get(field.dataset.category)?.edit(field.dataset.noteEntryEditor, field.value,\n        {composing: field.dataset.composing === 'true'});\n      }"
-    },
-    {
-      "file": "daily-notes-controller.mjs",
-      "before": "export function floatingNotesSnapshot() {",
-      "after": "// Local close capture binds the exact existing store/item without selecting or creating.\nexport function captureLocalFloatingNote(detail, field, composing) {\n  const expected = notesIdentity, category = floatingNoteCategory, selectedId = floatingNoteId, selectedDate = floatingNoteDate;\n  const store = entryStores.get(category), item = selectedFloatingEntry(store, selectedId, selectedDate);\n  const raw = detail.snapshot(field), id = item?.id;\n  detail.stage({field,key:JSON.stringify(['entry',expected,category,id || 'empty-floating']),composing,\n    valid:() => expected === notesIdentityNow() && expected === notesIdentity && store === entryStores.get(category) &&\n      selectedId === floatingNoteId && selectedDate === floatingNoteDate && category === floatingNoteCategory &&\n      Boolean(item || raw.value === ''),\n    apply:value => { if (item) store.edit(id,value.value,{composing:value.composing}); }});\n}\nexport function floatingNotesSnapshot() {"
-    },
-    {
-      "file": "daily-notes-controller.mjs",
-      "before": "import {api, apiNetwork} from './core/api.mjs';",
-      "after": "import {api, apiNetwork} from './core/api.mjs';\nimport {toast} from './ui/toast.mjs';"
-    },
-    {
-      "file": "daily-notes-controller.mjs",
-      "before": "async function exportDraftArchive() {",
-      "after": "async function exportDraftArchive() {\n  return toast(\"当前版本暂不支持文件导出，草稿仍保留。\",true);"
-    },
-    {
-      "file": "daily-notes-controller.mjs",
-      "before": "function exportLegacyDraft(item, category) {",
-      "after": "function exportLegacyDraft(item, category) {\n  return toast(\"当前版本暂不支持文件导出，草稿仍保留。\",true);"
-    },
-    {
       "file": "memos-controller.mjs",
       "before": "function preserveMemosBeforeRefresh(event) {",
       "after": "function captureLocalMemos(event) {\n  const detail = event.detail, store = memoStore, expected = memoIdentity, root = document.querySelector('#memos');\n  if (!detail?.localSnapshot || expected !== currentIdentity() || !store?.state.canEdit) return;\n  const noteId = store.state.noteId;\n  for (const field of root?.querySelectorAll('#memo-title,#memo-body') || []) {\n    const raw = detail.snapshot(field), key = raw.id === 'memo-title' ? 'title' : 'body';\n    detail.stage({field,key:JSON.stringify(['memo',expected,noteId,key]),\n      valid:() => store === memoStore && expected === currentIdentity() && store.state.noteId === noteId &&\n        document.querySelector('#memos') === root,\n      apply:value => store.edit(key,value.value,{composing:value.composing,retainPrivate:true})});\n  }\n}\nfunction preserveMemosBeforeRefresh(event) {"
@@ -198,6 +168,36 @@
       "after": "  editor.value = localEditorPaintValue(editor,text);"
     },
     {
+      "file": "daily-notes-controller.mjs",
+      "before": "  window.addEventListener('haoduoyu:before-refresh', event => {",
+      "after": "  window.addEventListener('haoduoyu:capture-current-editors', event => {\n    const detail = event.detail, expected = notesIdentity, root = document.querySelector('#daily-notes');\n    if (!detail?.localSnapshot || expected !== notesIdentityNow()) return;\n    for (const field of root?.querySelectorAll('[data-note-entry-editor],#notes-editor') || []) {\n      const raw = detail.snapshot(field), category = raw.dataset.category, legacy = raw.id === 'notes-editor';\n      const id = legacy ? raw.dataset.date : raw.dataset.noteEntryEditor;\n      const store = (legacy ? notesStores : entryStores).get(category);\n      detail.stage({field,key:JSON.stringify([legacy ? 'legacy' : 'entry',expected,category,id]),\n        valid:() => Boolean(store && notesIdentityNow() === expected && notesIdentity === expected &&\n          (legacy ? notesStores : entryStores).get(category) === store && document.querySelector('#daily-notes') === root),\n        apply:value => store.edit(id,value.value,{composing:value.composing})});\n    }\n  });\n  window.addEventListener('haoduoyu:before-refresh', event => {"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "      if (field) entryStores.get(field.dataset.category)?.edit(field.dataset.noteEntryEditor, field.value,\n        {composing: field.dataset.composing === 'true'});",
+      "after": "      if (!event.detail.localSnapshot) {\n      if (field) entryStores.get(field.dataset.category)?.edit(field.dataset.noteEntryEditor, field.value,\n        {composing: field.dataset.composing === 'true'});\n      }"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "export function floatingNotesSnapshot() {",
+      "after": "// Local close capture binds the exact existing store/item without selecting or creating.\nexport function captureLocalFloatingNote(detail, field, composing) {\n  const expected = notesIdentity, category = floatingNoteCategory, selectedId = floatingNoteId, selectedDate = floatingNoteDate;\n  const store = entryStores.get(category), item = selectedFloatingEntry(store, selectedId, selectedDate);\n  const raw = detail.snapshot(field), id = item?.id;\n  detail.stage({field,key:JSON.stringify(['entry',expected,category,id || 'empty-floating']),composing,\n    valid:() => expected === notesIdentityNow() && expected === notesIdentity && store === entryStores.get(category) &&\n      selectedId === floatingNoteId && selectedDate === floatingNoteDate && category === floatingNoteCategory &&\n      Boolean(item || raw.value === ''),\n    apply:value => { if (item) store.edit(id,value.value,{composing:value.composing}); }});\n}\nexport function floatingNotesSnapshot() {"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "import {api, apiNetwork} from './core/api.mjs';",
+      "after": "import {api, apiNetwork} from './core/api.mjs';\nimport {toast} from './ui/toast.mjs';"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "async function exportDraftArchive() {",
+      "after": "async function exportDraftArchive() {\n  return toast(\"当前版本暂不支持文件导出，草稿仍保留。\",true);"
+    },
+    {
+      "file": "daily-notes-controller.mjs",
+      "before": "function exportLegacyDraft(item, category) {",
+      "after": "function exportLegacyDraft(item, category) {\n  return toast(\"当前版本暂不支持文件导出，草稿仍保留。\",true);"
+    },
+    {
       "file": "floating-workbench.mjs",
       "before": "checkFloatingNote, editFloatingNote, floatingNotesSnapshot",
       "after": "checkFloatingNote, editFloatingNote, captureLocalFloatingNote, floatingNotesSnapshot"
@@ -226,6 +226,11 @@
       "file": "floating-workbench.mjs",
       "before": "    view.notesInput.value = text;",
       "after": "    view.notesInput.value = localEditorPaintValue(view.notesInput,text);"
+    },
+    {
+      "file": "core/note-entries-state.mjs",
+      "before": "    item.writeEpoch++; adopt(item, value, preserve); item.remote = null; item.pending = null;",
+      "after": "    item.writeEpoch++; adopt(item, value, preserve); delete item.recoveredBaseline; item.remote = null; item.pending = null;"
     }
   ],
   "networkTransportIncluded": false

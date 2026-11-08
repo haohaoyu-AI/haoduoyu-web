@@ -1,5 +1,10 @@
 // Auditable nonvisual adapters. Original website files are never edited.
 export const draftTransforms = [
+  // Only a checked, matching authoritative acknowledgement supersedes the
+  // recovered baseline. Do not retire it for queued/cache-only local documents.
+  ['core/note-entries-state.mjs',
+    "    item.writeEpoch++; adopt(item, value, preserve); item.remote = null; item.pending = null;",
+    "    item.writeEpoch++; adopt(item, value, preserve); delete item.recoveredBaseline; item.remote = null; item.pending = null;"],
   ['core/todos-state.mjs', 'const todosState =', 'import {bindLocalComposer} from "../local/runtime.mjs";\nconst todosState ='],
   ['core/todos-state.mjs', '  return todosState.days.get(date);', '  const day = todosState.days.get(date);\n  if (!day.localDraftBound) { bindLocalComposer(day,"draft","todo",date); day.localDraftBound = true; }\n  return day;'],
   ['pages/todos.mjs', 'const todoObservers = new Set();', 'import {localComposerRequestSnapshot,localComposerUnchanged} from "../local/runtime.mjs";\nconst todoObservers = new Set();'],

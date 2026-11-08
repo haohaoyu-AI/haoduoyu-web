@@ -1,5 +1,5 @@
 {
-  "sourceManifestSha256": "0303e9eab153b65adb5b419ea4fb52c47e591007c2bdd37e855c7ab60da34aff",
-  "sourceCheckpoint": "/workspace/scratch/e49e34e074a9/android-original-ui/checkpoints/phase2b-20261108/site",
+  "sourceManifestSha256": "1a3c78876033459d466f2717b5e6e1b5a1f7a484b661f6b405c03553600e1ee9",
+  "sourceCheckpoint": "local-ui/build/site",
   "copyMethod": "byte-for-byte, all file digests verified"
 }
