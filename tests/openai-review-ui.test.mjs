@@ -37,7 +37,7 @@ test('OpenAI diary uses actual Beijing run date and keeps all same-day runs in s
   },'2026-11-08');
   assert.equal(result.length,2);
   assert.deepEqual(paths,['/openai-review/runs?offset=0&date=2026-11-08','/openai-review/runs?offset=1&date=2026-11-08']);
-  assert.match(openAiDiaryLink(completed),/ai_tab=openai&date=2026-11-08&openai_run=run-1/);
+  assert.match(openAiDiaryLink(completed),/diagnosis_tab=reports&date=2026-11-08&openai_run=run-1/);
 });
 
 test('diary invalid pagination and stale reads never present incomplete success', async () => {
@@ -68,10 +68,10 @@ test('public-business and signed-in sessions use OpenAI while absent and nonconf
   assert.doesNotMatch(html,/已连接|已连通|api[_-]?key.*input/i);
 });
 
-test('one-click entry stays outside the collapsed article list and only appears for V字',()=>{
+test('content review no longer contains a duplicate API entry',()=>{
   const vm={account:'V字',filters:{},secondary:'benchmarks'},data=normalizeReviewData({articles:[{id:'article',account:'V字',title:'示例'}]});
   const html=renderContentReviewContent(data,vm);
-  assert.ok(html.indexOf('id="openai-review-panel"') < html.indexOf('data-review-articles-expanded'));
+  assert.doesNotMatch(html,/id="openai-review-panel"/);
   assert.match(html,/data-review-articles-expanded="false"/);
   assert.doesNotMatch(renderContentReviewContent(data,{...vm,account:'其他'}),/id="openai-review-panel"/);
 });
@@ -184,10 +184,10 @@ test('AI module and date deep links survive router normalization and browser nav
   globalThis.history={replaceState(_state,_title,url){globalThis.location=new URL(url);}};
   globalThis.window={matchMedia:()=>({matches:false})};globalThis.localStorage=memory();
   try {
-    readRoute();updateRoute();assert.equal(state.aiDailyTab,'openai');assert.equal(state.aiDailyDate,'2026-11-08');
-    assert.equal(location.searchParams.get('ai_tab'),'openai');assert.equal(location.searchParams.get('date'),'2026-11-08');
+    readRoute();updateRoute();assert.equal(state.page,'ai-diagnosis');assert.equal(state.diagnosisTab,'reports');assert.equal(state.aiDailyDate,'2026-11-08');
+    assert.equal(location.searchParams.get('diagnosis_tab'),'reports');assert.equal(location.searchParams.get('date'),'2026-11-08');
     assert.equal(location.searchParams.get('openai_run'),'run-1');
-    state.aiDailyDate='2026-10-01';updateRoute();assert.equal(location.searchParams.get('ai_tab'),'openai');
+    state.aiDailyDate='2026-10-01';updateRoute();assert.equal(location.searchParams.get('diagnosis_tab'),'reports');
     state.page='review';updateRoute();assert.equal(location.searchParams.has('ai_tab'),false);
   } finally { Object.assign(globalThis,previous); }
 });
@@ -233,7 +233,7 @@ test('prior successful record is explicitly historical while the current request
     error:'请求结果尚未确认，请核查状态。不会自动重复提交。'});
   assert.match(html,/最近记录：分析完成/);
   assert.match(html,/请求结果尚未确认/);
-  assert.match(html,/在 AI 日报查看这条记录/);
+  assert.match(html,/在诊断报告查看这条记录/);
   assert.match(html,/data-openai-action="start"\s+disabled/);
 });
 
@@ -242,10 +242,10 @@ test('uncertain diary records explain billing uncertainty, retain escaped server
     error_message:'API 执行结果尚未确认，可能已经计费；不会自动重试 <script>bad</script>'});
   assert.match(html,/结果待确认/);assert.match(html,/可能已经计费/);assert.match(html,/不会自动重试/);
   assert.match(html,/&lt;script&gt;bad&lt;\/script&gt;/);assert.doesNotMatch(html,/<script>/);
-  assert.match(html,/href="\?page=review&amp;account=V%E5%AD%97#openai-review-panel">前往复盘页核查状态/);
+  assert.match(html,/href="\?page=ai-diagnosis&amp;diagnosis_tab=help">前往求助API核查状态/);
   const missing=renderOpenAiRun({...completed,status:'uncertain',report_markdown:''});
   assert.match(missing,/API 执行结果尚未确认，可能已经计费；不会自动重试。/);
-  assert.doesNotMatch(renderOpenAiRun(completed),/可能已经计费|前往复盘页核查状态/);
+  assert.doesNotMatch(renderOpenAiRun(completed),/可能已经计费|前往求助API核查状态/);
 });
 
 
@@ -266,7 +266,8 @@ test('public review offers 求助API without settings links and preserves the in
     const html=renderOpenAiReviewPanel({owner,config:saved,busy});
     assert.match(html,/data-openai-action="start"[\s\S]*?>求助API<\/button>/);
     assert.doesNotMatch(html,/管理员|分析指令与设置|page=settings|一键 OpenAI 分析/);
-    assert.match(html,/<details class="openai-review-options"><summary>更多分析选项<\/summary>[\s\S]*?data-openai-action="full"[\s\S]*?<\/details>/);
+    assert.doesNotMatch(html,/data-openai-action="full"|更多分析选项/);
+    assert.match(html,/id="openai-model"/);
   }
   const settings=renderOpenAiSettings({owner,draft:openAiDraft(saved)});
   assert.match(settings,/<textarea[^>]*id="openai-instructions"[\s\S]*?>完整指令<\/textarea>/);
@@ -330,4 +331,139 @@ test('public recovery throttling keeps its request and permits only GET checks u
   const running=fixture(async()=>{assert.fail('normal running release must not send a request');}).runner;
   running.adopt({...completed,status:'running'});await running.release();
   assert.doesNotMatch(renderOpenAiReviewPanel({owner:true,config:saved,...running.state}),/data-openai-action="release"/);
+});
+
+test('model selection is sent once with persisted request ID; GET observations never repeat POST',async()=>{
+  let completePost; const calls=[];
+  const {runner}=fixture(async(path,options)=>{
+    calls.push({path,options});
+    if(options?.method === 'POST') return new Promise(resolve=>{completePost=resolve;});
+    return {...completed,status:'running',stage:'awaiting_provider',provider_calls:1,report_markdown:''};
+  });
+  const pending=runner.start('incremental','gpt-6.1-sol');
+  await runner.observe(); await runner.start('incremental','gpt-6-astra');
+  assert.equal(calls.filter(x=>x.options?.method==='POST').length,1);
+  assert.equal(calls[0].options.body.model,'gpt-6.1-sol');
+  assert.equal(runner.state.run.stage,'awaiting_provider');
+  completePost(completed); await pending;
+  assert.equal(runner.state.pendingId,'');
+});
+
+test('late GET cannot resurrect a completed request and a confirmed GET result survives POST transport failure',async()=>{
+  let finishPost,finishGet;
+  const {runner}=fixture((path,options)=>new Promise(resolve=>{
+    if(options?.method==='POST') finishPost=resolve; else finishGet=resolve;
+  }));
+  const post=runner.start(), get=runner.observe();
+  finishPost(completed); await post;
+  finishGet({...completed,status:'running'}); await get;
+  assert.equal(runner.state.run.status,'succeeded');assert.equal(runner.state.pendingId,'');
+  let rejectPost;
+  const other=fixture((path,options)=>options?.method==='POST' ? new Promise((_,reject)=>{rejectPost=reject;}) : Promise.resolve(completed));
+  const pending=other.runner.start(); await other.runner.observe();rejectPost(new Error('transport'));await pending;
+  assert.equal(other.runner.state.run.status,'succeeded');assert.equal(other.runner.state.error,'');
+});
+
+test('observation is single-flight, early404 is harmless, disposal prevents late adoption',async()=>{
+  let finishGet,finishPost,calls=0;
+  const {runner,storage,key}=fixture((path,options)=>{
+    calls++;
+    return new Promise(resolve=>{if(options?.method==='POST')finishPost=resolve;else finishGet=resolve;});
+  });
+  const post=runner.start(),get=runner.observe();await runner.observe();assert.equal(calls,2);
+  runner.dispose();finishGet(completed);finishPost(completed);await Promise.all([post,get]);
+  assert.equal(storage.getItem(key),completed.id);
+});
+
+test('AI diagnosis navigation is available on mobile and desktop and old API diary is removed',async()=>{
+  const {sidebarNavigation,mobileNavigation}=await import('../web/ui/workbench.mjs');
+  const {renderAiReports}=await import('../web/pages/ai-reports.mjs');
+  const {renderAiDiagnosis}=await import('../web/ai-diagnosis-controller.mjs');
+  state.page='ai-diagnosis';
+  for(const html of [sidebarNavigation(),mobileNavigation()]) assert.match(html,/data-nav="ai-diagnosis"[^>]*aria-current="page"/);
+  assert.doesNotMatch(renderAiReports(),/data-ai-daily-tab="openai"|openai-diary-list/);
+  const html=renderAiDiagnosis();
+  assert.match(html,/data-diagnosis-tab="help">求助API/);
+  assert.match(html,/data-diagnosis-tab="reports">诊断报告/);
+  assert.match(html,/id="ai-report-calendar"/);
+});
+
+test('diagnosis routes preserve calendar date and record through Back/Forward and legacy trigger redirect',()=>{
+  const previous={location:globalThis.location,history:globalThis.history,window:globalThis.window,localStorage:globalThis.localStorage};
+  const entries=['https://example.test/?page=review&account=V%E5%AD%97#openai-review-panel'];let index=0;
+  globalThis.location=new URL(entries[0]);globalThis.localStorage=memory();
+  globalThis.window={matchMedia:()=>({matches:true})};
+  globalThis.history={replaceState(_,__,url){entries[index]=String(url);globalThis.location=new URL(url);},
+    pushState(_,__,url){entries.splice(++index);entries[index]=String(url);globalThis.location=new URL(url);}};
+  try {
+    readRoute();updateRoute();assert.equal(state.page,'ai-diagnosis');assert.equal(state.diagnosisTab,'help');assert.equal(location.hash,'');
+    state.diagnosisTab='reports';state.aiDailyDate='2026-11-08';state.openAiRun='run-1';updateRoute(true);
+    state.diagnosisTab='help';updateRoute(true);
+    globalThis.location=new URL(entries[--index]);readRoute();assert.equal(state.diagnosisTab,'reports');
+    assert.equal(state.aiDailyDate,'2026-11-08');assert.equal(state.openAiRun,'run-1');
+    globalThis.location=new URL(entries[++index]);readRoute();assert.equal(state.diagnosisTab,'help');
+  } finally {Object.assign(globalThis,previous);}
+});
+
+test('progress shows only durable stages, no percentage, and uncertainty stops animation',async()=>{
+  const {openAiReviewFeedback,openAiElapsed}=await import('../web/core/openai-review-progress.mjs');
+  const {renderOpenAiReviewStatus}=await import('../web/pages/openai-review.mjs');
+  const vm={pendingId:'run-1',operation:'start',startedAt:100,run:{...completed,status:'running',stage:'preparing',provider_calls:0}};
+  assert.match(openAiReviewFeedback(vm).title,/准备/);
+  assert.match(openAiReviewFeedback({...vm,run:{...vm.run,stage:'awaiting_provider',provider_calls:1}}).title,/已登记调用/);
+  const html=renderOpenAiReviewStatus(vm);assert.match(html,/<progress aria-label=/);assert.doesNotMatch(html,/value=|\d+%/);
+  const uncertain={...vm,run:{...vm.run,status:'uncertain'}};
+  assert.doesNotMatch(renderOpenAiReviewStatus(uncertain),/<progress|data-openai-elapsed/);
+  assert.equal(openAiElapsed(1000,62000),'1分1秒');
+  const modelHtml=renderOpenAiReviewPanel({owner:true,config:{...saved,supported_models:[{id:'gpt-6.1-sol',label:'GPT-6.1 Sol'},{id:'gpt-6-astra',label:'GPT-6 Astra'}]},selectedModel:'gpt-6-astra'});
+  assert.match(modelHtml,/value="gpt-6-astra"\s+selected/);assert.doesNotMatch(modelHtml,/gpt-6.1-astra/);
+});
+
+test('completed duration remains static in help and diary, with timestamp fallback and no uncertain duration claim',async()=>{
+  const {openAiCompletedElapsed}=await import('../web/core/openai-review-progress.mjs');
+  const {renderOpenAiReviewStatus}=await import('../web/pages/openai-review.mjs');
+  const run={...completed,elapsed_ms:61500};
+  assert.equal(openAiCompletedElapsed(run),'1分1秒');
+  assert.equal(openAiCompletedElapsed({...completed,completed_at:'2026-11-07T17:02:03Z'}),'2分3秒');
+  assert.equal(openAiCompletedElapsed({...run,status:'uncertain'}),'');
+  assert.equal(openAiCompletedElapsed({...run,elapsed_ms:-1}),'');
+  assert.equal(openAiCompletedElapsed(completed),'');
+  for(const html of [renderOpenAiReviewStatus({run}),renderOpenAiRun(run)]) {
+    assert.match(html,/用时 1分1秒/);assert.doesNotMatch(html,/data-openai-elapsed|<progress/);
+  }
+});
+
+test('help does not show server default as the selected model and polling guards hidden documents',async()=>{
+  const html=renderOpenAiReviewPanel({owner:true,selectedModel:'gpt-6.1-sol',config:{...saved,model:'gpt-6.1-terra',
+    supported_models:[{id:'gpt-6.1-sol',label:'Sol'},{id:'gpt-6.1-terra',label:'Terra'}]}});
+  assert.match(html,/value="gpt-6.1-sol"\s+selected/);assert.doesNotMatch(html,/可发起分析 · gpt-6.1-terra/);
+  const source=await readFile('web/openai-review-controller.mjs','utf8');
+  const schedule=source.slice(source.indexOf('function scheduleCheck'),source.indexOf('export async function loadOpenAiReview'));
+  assert.match(schedule,/visibilityState === 'hidden'/);assert.match(schedule,/visibilityState !== 'hidden'/);
+});
+
+test('settling an active request notifies report refresh once without a repeated POST',async()=>{
+  const {openAiPendingRunSettled}=await import('../web/core/openai-review-state.mjs');
+  let prior={},finishPost,refreshes=0,posts=0;
+  const runner=createOpenAiRunner({storage:memory(),key:'completion-refresh',uuid:()=>completed.id,
+    request:async(path,options)=>{
+      if(options?.method==='POST') {posts++;return new Promise(resolve=>{finishPost=resolve;});}
+      return {...completed,status:'running',provider_calls:1,stage:'awaiting_provider'};
+    },onChange(next){if(openAiPendingRunSettled(prior,next))refreshes++;prior={...next};}});
+  const pending=runner.start();await runner.observe();assert.equal(refreshes,0);
+  finishPost(completed);await pending;assert.equal(refreshes,1);assert.equal(posts,1);
+  runner.adopt(completed);assert.equal(refreshes,1);
+  assert.equal(openAiPendingRunSettled({pendingId:'other'}, {run:completed}),false);
+  const uncertain={...completed,status:'uncertain'};
+  assert.equal(openAiPendingRunSettled({pendingId:completed.id,run:{...completed,status:'running'}},{run:uncertain}),true);
+  assert.equal(openAiPendingRunSettled({pendingId:completed.id,run:uncertain},{run:uncertain}),false);
+});
+
+test('report completion event only refreshes current session and reports tab through the stale-safe loader',async()=>{
+  const source=await readFile('web/ai-diagnosis-controller.mjs','utf8');
+  const listener=source.slice(source.indexOf("document.addEventListener('openai-run-settled'"),source.indexOf("document.addEventListener('click'"));
+  assert.match(listener,/sessionEpoch !== runtime.sessionEpoch/);assert.match(listener,/userId !== state.me\?\.id/);
+  assert.match(listener,/state.page !== 'ai-diagnosis'/);assert.match(listener,/state.diagnosisTab !== 'reports'/);
+  assert.match(listener,/void loadAiDiagnosis\(\)/);assert.doesNotMatch(listener,/POST|setInterval|setTimeout/);
+  assert.match(source,/ticket === sequence && epoch === runtime.sessionEpoch/);
 });

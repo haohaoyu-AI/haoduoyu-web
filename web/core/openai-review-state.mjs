@@ -1,9 +1,15 @@
-export const OPENAI_TABS = Object.freeze(['reminders', 'reports', 'openai']);
+export const OPENAI_TABS = Object.freeze(['reminders', 'reports']);
 // /auth/me supplies either the existing public-business identity or a signed-in session.
 // The server remains authoritative for the configured access mode and permissions.
 export const openAiSessionAvailable = me => Boolean(me?.id);
 export const openAiRunActive = run => ['running'].includes(run?.status);
 export const openAiRunFinished = run => ['succeeded', 'failed'].includes(run?.status) || Boolean(run?.released_at);
+export function openAiPendingRunSettled(previous, next) {
+  const run = next.run;
+  return Boolean(previous.pendingId && run?.id === previous.pendingId &&
+    ['succeeded', 'failed', 'cancelled', 'uncertain'].includes(run.status) &&
+    (previous.run?.id !== run.id || previous.run?.status !== run.status));
+}
 export function openAiRunDay(run) {
   const date = new Date(run?.created_at);
   if (!Number.isFinite(date.getTime())) return '';
@@ -13,7 +19,7 @@ export function openAiRunDay(run) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 export function openAiDiaryLink(run) {
-  const query = new URLSearchParams({page: 'ai-reports', ai_tab: 'openai', date: openAiRunDay(run)});
+  const query = new URLSearchParams({page: 'ai-diagnosis', diagnosis_tab: 'reports', date: openAiRunDay(run)});
   if (run?.id) query.set('openai_run', run.id);
   return '?' + query;
 }

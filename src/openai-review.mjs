@@ -9,6 +9,18 @@ import {runReviewProvider} from './openai-review-provider.mjs';
 
 const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 const staleMs=5*60000;
+// Selection is bounded to documented API IDs and the server's existing default.
+// Listing a model does not assert this account has provider access to it.
+const reviewModels=Object.freeze([
+  {id:'gpt-6.1-sol',label:'GPT-6.1 Sol'},
+  {id:'gpt-6.1-terra',label:'GPT-6.1 Terra'},
+  {id:'gpt-6-astra',label:'GPT-6 Astra'},
+]);
+function supportedModels(settings) {
+  const catalog=reviewModels.map(model=>({...model,access:'unverified'}));
+  if(settings.model&&!catalog.some(model=>model.id===settings.model))catalog.push({id:settings.model,label:settings.model,access:'unverified'});
+  return catalog;
+}
 const json=(data,status=200)=>Response.json({data},{status,headers:{'Cache-Control':'no-store'}});
 const invalid=message=>{throw fail(400,'VALIDATION_ERROR',message);};
 export function openaiReviewSettings(env) {
@@ -53,14 +65,20 @@ async function limitRecoveryReceipts(store,owner,at) {
 
 function runView(row,at=Date.now()) {
   const stale=row.status==='running'&&at-Date.parse(row.created_at)>=staleMs;
-  return {id:row.id,account:row.account,status:stale?'uncertain':row.status,mode:row.mode,baseline_run_id:row.baseline_run_id??null,beijing_date:row.beijing_date,created_at:row.created_at,completed_at:row.completed_at,
+  const status=stale?'uncertain':row.status;
+  // provider_calls is a durable dispatch-intent marker committed BEFORE fetch.
+  // It cannot prove acceptance or expose the provider's internal thinking.
+  const stage=status==='running'?(row.provider_calls>0?'awaiting_provider':'preparing'):status;
+  const end=row.completed_at?Date.parse(row.completed_at):at;
+  const elapsed=Math.max(0,end-Date.parse(row.created_at));
+  return {id:row.id,account:row.account,status,stage,elapsed_ms:Number.isFinite(elapsed)?elapsed:0,provider_calls:row.provider_calls??0,mode:row.mode,baseline_run_id:row.baseline_run_id??null,beijing_date:row.beijing_date,created_at:row.created_at,completed_at:row.completed_at,
     report_markdown:row.report_markdown,model:row.model,instruction_version:row.instruction_version,released_at:row.released_at??null,
     error_message:stale?'执行结果尚未确认，请只读查看记录；不会自动重新调用 API':row.error_message??null};
 }
 async function configView(store,owner,settings) {
   const saved=await store.get('SELECT instructions,version FROM matrix_openai_review_config WHERE user_id=? AND account=?',owner,REVIEW_ACCOUNT);
   const last=await store.get("SELECT completed_at FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status='succeeded' ORDER BY completed_at DESC,id DESC LIMIT 1",owner,REVIEW_ACCOUNT);
-  return {account:REVIEW_ACCOUNT,instructions:saved?.instructions??DEFAULT_REVIEW_INSTRUCTIONS,version:saved?.version??0,configured:Boolean(settings.key&&settings.model),model:settings.model,connectivity:'untested',last_success_at:last?.completed_at??null};
+  return {account:REVIEW_ACCOUNT,instructions:saved?.instructions??DEFAULT_REVIEW_INSTRUCTIONS,version:saved?.version??0,configured:Boolean(settings.key&&settings.model),model:settings.model,default_model:settings.model,supported_models:supportedModels(settings),model_access:'unverified',connectivity:'untested',last_success_at:last?.completed_at??null};
 }
 function instructionsFor(value,key) {
   if(typeof value!=='string'||!value.isWellFormed()||!value.trim()||bytes(value)>32768||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value))invalid('完整指令须为非空文本，最多 32 KiB');
@@ -144,10 +162,11 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
     })).response;
   }
   if(route!=='/openai-review/runs'||method!=='POST')throw fail(404,'NOT_FOUND','接口不存在');
-  if(Object.keys(input).sort().join(',')!=='mode,run_id'||!uuid.test(input.run_id)||!['full','incremental'].includes(input.mode))invalid('分析需要唯一 UUID run_id 和明确的 mode');
+  if(!['mode,run_id','mode,model,run_id'].includes(Object.keys(input).sort().join(','))||!uuid.test(input.run_id)||!['full','incremental'].includes(input.mode)||Object.hasOwn(input,'model')&&typeof input.model!=='string')invalid('分析需要唯一 UUID run_id、明确的 mode 和可选的受支持 model');
   const reserved=await mutate(db,async store=>{
     const actor=await reviewActor(store,request,owner,env,origin,true),old=await store.get('SELECT * FROM matrix_openai_review_runs WHERE user_id=? AND id=?',owner,input.run_id);
-    if(old){if(old.error_code!=='OPENAI_REVIEW_CANCELLED_BEFORE_START'&&old.requested_mode!==input.mode)throw fail(409,'IDEMPOTENCY_CONFLICT','该运行标识已用于不同请求');return {replayed:true,row:old};}
+    if(old){if(old.error_code!=='OPENAI_REVIEW_CANCELLED_BEFORE_START'&&(old.requested_mode!==input.mode||Object.hasOwn(input,'model')&&old.model!==input.model))throw fail(409,'IDEMPOTENCY_CONFLICT','该运行标识已用于不同请求');return {replayed:true,row:old};}
+    if(Object.hasOwn(input,'model')&&!supportedModels(settings).some(model=>model.id===input.model))invalid('请选择受支持的模型；不能填写自定义模型或地址');
     const active=await store.get("SELECT id FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status IN ('running','uncertain') AND released_at IS NULL LIMIT 1",owner,REVIEW_ACCOUNT);
     if(active)return {replayed:true,conflict:active.id};
     if(!settings.key||!settings.model)throw fail(503,'OPENAI_REVIEW_NOT_CONFIGURED','服务器尚未同时配置 OpenAI Key 和模型；未调用 API');
@@ -166,7 +185,7 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
     const sourceJson=JSON.stringify(source),inputJson=JSON.stringify(built.input);
     if(sourceJson.includes(settings.key)||/\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{16,}/.test(sourceJson))throw fail(409,'OPENAI_REVIEW_SOURCE_INVALID','复盘资料疑似包含凭据，请先移除后再分析');
     const revision=(await store.get('SELECT revision FROM matrix_control WHERE id=1')).revision;
-    const row={user_id:owner,id:input.run_id,account:REVIEW_ACCOUNT,status:'running',mode:built.mode,requested_mode:input.mode,beijing_date:date,created_at:created,completed_at:null,model:settings.model,instruction_version:version,instructions,baseline_run_id:baseline?.id??null,source_revision:revision,source_manifest_json:JSON.stringify(built.manifest),source_data_json:sourceJson,input_json:inputJson,report_markdown:'',summary_json:null,error_code:null,error_message:null,provider_response_id:null,provider_calls:0,released_at:null};
+    const row={user_id:owner,id:input.run_id,account:REVIEW_ACCOUNT,status:'running',mode:built.mode,requested_mode:input.mode,beijing_date:date,created_at:created,completed_at:null,model:input.model??settings.model,instruction_version:version,instructions,baseline_run_id:baseline?.id??null,source_revision:revision,source_manifest_json:JSON.stringify(built.manifest),source_data_json:sourceJson,input_json:inputJson,report_markdown:'',summary_json:null,error_code:null,error_message:null,provider_response_id:null,provider_calls:0,released_at:null};
     // D1 has a 2 MB row/string/BLOB limit. Keep combined captured input,
     // manifest and final output comfortably below it, not merely each column.
     if(bytes(row)>1536*1024)throw fail(413,'OPENAI_REVIEW_INPUT_LIMIT','运行资料超过安全存储上限，未调用 API');

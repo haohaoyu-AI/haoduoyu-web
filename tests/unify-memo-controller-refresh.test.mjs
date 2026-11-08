@@ -15,7 +15,7 @@ test('the actual memo controller defers local hydration until the foreground loa
   const context = vm.createContext({AbortController, AbortSignal, DOMException, Headers, URL, URLSearchParams, Intl,
     document: {body, activeElement: body, querySelector: () => null, querySelectorAll: () => [], addEventListener() {}},
     window: {addEventListener() {}}, location: {href: 'http://localhost/?page=memos', search: '?page=memos'},
-    localStorage: {getItem() {}}, requestAnimationFrame() {}, setTimeout, clearTimeout,
+    localStorage: {getItem() {}}, requestAnimationFrame() {}, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
     __memoRefreshFixtureStore: store,
   });
   new vm.Script(source).runInContext(context);

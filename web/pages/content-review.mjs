@@ -145,7 +145,7 @@ function overview(data,vm) {
   const value = formatted => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
   const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options([['this','本周'],['last','上周']],range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current.hits))} / ${e(reviewNumber(current.middle))} / ${e(reviewNumber(current.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current.ctrMedian,'ctr'))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current.completion,'completion_rate'))}</article></div></section>`;
   const articlePanel = articleListPanel(rows,vm,data);
-  return cards + (vm.account === 'V字' ? '<section class="review-panel openai-review-panel" id="openai-review-panel"></section>' : '') +
+  return cards +
     articlePanel + archives(data,vm,'',[],[]);
 }
 function articleListPanel(rows,vm,data) {
@@ -272,7 +272,7 @@ export function renderContentReviewContent(data,vm) {
   if (vm.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data,{account:vm.account});
   const hasData = ['articles','snapshots','reports','playbooks','benchmarkAccounts','benchmarkArticles','notes'].some(key => data[key].length);
-  const noDataPanel = vm.account === 'V字' ? '<section class="review-panel openai-review-panel" id="openai-review-panel"></section>' : '';
+  const noDataPanel = '';
   const body = hasData ? overview(data,vm) : noDataPanel + empty('暂无内容复盘数据') +
     '<button class="btn text" type="button" data-review-action="refresh">刷新</button>';
   return `<div class="review-body"${vm.article ? ' inert' : ''}>${body}</div>${drawer(data,rows,vm)}`;

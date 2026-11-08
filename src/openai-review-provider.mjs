@@ -23,7 +23,7 @@ export async function runReviewProvider({key,model,instructions,input,lookup,bef
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
     try {
       response=await request(endpoint,{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal,redirect:'error'});
-      if(!response.ok) {await response.body?.cancel();throw providerFailure(response.status===401||response.status===403?'OPENAI_REVIEW_PROVIDER_AUTH':response.status===429?'OPENAI_REVIEW_PROVIDER_RATE_LIMIT':'OPENAI_REVIEW_PROVIDER_REJECTED',response.status>=500||response.status===408);}
+      if(!response.ok) {try {await response.body?.cancel();} catch { /* Cleanup failure must not erase the known HTTP outcome. */ }throw providerFailure(response.status===401||response.status===403?'OPENAI_REVIEW_PROVIDER_AUTH':response.status===429?'OPENAI_REVIEW_PROVIDER_RATE_LIMIT':'OPENAI_REVIEW_PROVIDER_REJECTED',response.status>=500||response.status===408);}
       data=await boundedJson(response);
     } catch(error) {if(error.reviewCode)throw error;throw providerFailure('OPENAI_REVIEW_PROVIDER_UNKNOWN',true);}
     finally {clearTimeout(timer);}

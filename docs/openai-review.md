@@ -1,4 +1,4 @@
-# OpenAI API cumulative V字 review
+# AI诊断: cumulative V字 review
 
 This feature is a separate manual analysis flow. In the explicitly enabled public-business workspace, visitors can trigger analysis, read its safe diary views and edit its complete instructions without administrator login. It does not schedule daily work, publish articles, modify source records, or write to the legacy deletable AI-report collection. Every explicit run creates a separate Beijing-day record; days without runs remain empty.
 
@@ -6,7 +6,7 @@ This feature is a separate manual analysis flow. In the explicitly enabled publi
 
 - `DAILY_NOTES_OWNER_ID`: exact existing website owner UUID.
 - `OPENAI_API_KEY`: server secret, never a browser setting or repository value.
-- `OPENAI_REVIEW_MODEL`: explicit Responses-compatible model identifier. There is no guessed default or configurable provider URL.
+- `OPENAI_REVIEW_MODEL`: explicit Responses-compatible default model identifier. There is no guessed default or configurable provider URL. Each new request may select one supported model; it does not alter the environment variable.
 - Existing `SITE_ORIGIN`, session authentication and CSRF checks still apply.
 
 When `PUBLIC_BUSINESS_MODE=1`, `/api/v1/openai-review/*` accepts an anonymous actor scoped only to the configured owner and V字. Public writes require the exact site origin and `X-Public-Business: 1`; these checks are not visitor authentication. Valid owner sessions still require CSRF, valid other-owner sessions and all Bearer headers are rejected, and expired or malformed cookies recover as anonymous only in public mode. When public mode is off, the owner's authenticated session remains mandatory. This actor never grants account, key, backup or other administrator access.
@@ -19,14 +19,14 @@ The only outbound endpoint is `https://api.openai.com/v1/responses`, with redire
 
 All successful results use the existing `{data: ...}` wrapper and no-store caching.
 
-- `GET /openai-review/config`: `{account,instructions,version,configured,model,connectivity,last_success_at}`. An unsaved default has version0. First run saves it as version1 atomically with its claim.
+- `GET /openai-review/config`: `{account,instructions,version,configured,model,default_model,supported_models,model_access,connectivity,last_success_at}`. The bounded catalog lists GPT-6.1 Sol (`gpt-6.1-sol`), GPT-6.1 Terra (`gpt-6.1-terra`), GPT-6 Astra (`gpt-6-astra`) and the configured server default if different. Model access is `unverified`; documentation availability is not account entitlement. An unsaved default has version0. First run saves it as version1 atomically with its claim.
 - `PATCH /openai-review/config`: `{instructions,version}`. Complete nonempty UTF-8 text, up to32KiB; optimistic exact version required. Returns the new config view. Every run pins exact saved text/version.
-- `POST /openai-review/runs`: `{run_id: lower-case UUID, mode:"incremental"|"full"}`. First incremental request becomes a full baseline. Returns completed view, or existing persisted view on replay. The client persists the UUID before submission and never auto-reposts uncertain requests.
+- `POST /openai-review/runs`: `{run_id: lower-case UUID, mode:"incremental"|"full", model?: supported model ID}`. The selected model is pinned for every provider round and historical record. Reusing a UUID with a different explicit model is an idempotency conflict. First incremental request becomes a full baseline. Returns completed view, or existing persisted view on replay. The client persists the UUID before submission and never auto-reposts uncertain requests.
 - `GET /openai-review/runs?date=YYYY-MM-DD&offset=0`: newest-first `{items,has_more}`, 50 items per page. `date` is the persisted Beijing day. Multiple records per day are retained.
 - `GET /openai-review/runs/:id`: safe run view. A404 establishes absence only at that read, not that a delayed original request cannot later arrive.
 - `POST /openai-review/runs/:id/release`: `{acknowledgement:"provider_outcome_unknown_no_automatic_retry"}`. Explicit uncertainty recovery described below, never a provider call.
 
-Safe run view: `id, account, status, mode, baseline_run_id, beijing_date, created_at, completed_at, report_markdown, model, instruction_version, released_at, error_message`. Status is `running|succeeded|failed|uncertain`. It never returns raw captured source, the hidden cumulative summary, pending-verification fields, credential material or raw provider errors.
+Safe run view: `id, account, status, mode, baseline_run_id, beijing_date, created_at, completed_at, report_markdown, model, instruction_version, released_at, error_message, stage, elapsed_ms, provider_calls`. Status is `running|succeeded|failed|uncertain`. `stage` derives only from durable state: preparing, awaiting_provider, succeeded, failed or uncertain. The provider call count is a pre-dispatch intent marker, not confirmation that OpenAI received or billed a request. Completed elapsed time is fixed. It never returns raw captured source, the hidden cumulative summary, pending-verification fields, credential material or raw provider errors.
 
 Different unresolved UUID returns409 `OPENAI_REVIEW_IN_FLIGHT` with the existing `error.run_id`. Same UUID replays without dispatching. Deterministic pre-claim rejection codes include `OPENAI_REVIEW_NOT_CONFIGURED`, `OPENAI_REVIEW_NO_DATA`, `OPENAI_REVIEW_INPUT_LIMIT`, `OPENAI_REVIEW_SOURCE_INVALID`, `OPENAI_REVIEW_BASELINE_INVALID`, `OPENAI_REVIEW_RATE_LIMIT` and validation errors. Network/database outcomes are not safe automatic retry signals.
 
@@ -59,3 +59,7 @@ Migration `drizzle/0020_openai_review.sql` is additive: two tables and two index
 Backup formatv16 includes existing eight review source tables and the two new analysis tables, preserving historical v1–v15 restore compatibility. Backup access remains administrator-only. The former v15 omitted review source tables; tests explicitly cover the repaired v16 owner-scoped export/restore. Active/uncertain rows restore still fenced: recovery is explicit, not replay.
 
 Local mocked validation: `node --test tests/openai-review.test.mjs tests/openai-review-migration-backup.test.mjs`, full `npm test`, build and migration inventory gates. No production connectivity can be inferred from mocked tests.
+
+## Model documentation
+
+Verified official API catalog: https://developers.openai.com/api/docs/models/gpt-6.1-sol , https://developers.openai.com/api/docs/models/gpt-6.1-terra and https://developers.openai.com/api/docs/models/gpt-6-astra . Astra is GPT-6, not a fabricated GPT-6.1 identifier. Each supports Responses, function calling and structured outputs. No additional provider call is made merely to populate the selector.

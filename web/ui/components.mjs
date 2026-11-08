@@ -16,7 +16,8 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
-  if (["notes", "memos", "reminders", "ai-reports"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
+  if (["notes", "memos", "reminders", "ai-reports", "ai-diagnosis"].includes(state.page) ||
+      state.page === "settings" && state.settingsTab === "workspace") return "";
   if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}\
 <button class="icon-button" data-action="refresh" \
 title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button>`;
@@ -39,6 +40,7 @@ function accountFilter() {
   state.account)}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "ai-diagnosis") return '<div class="heading-left"><h1>AI诊断</h1></div>';
   if (state.page === "ai-reports") return '<div class="heading-left"><h1>AI 日报</h1></div>';
   if (state.page === "reminders") return '<div class="heading-left"><h1>每日工作提醒</h1></div>';
   if (state.page === "memos") return '<div class="heading-left"><h1>' +

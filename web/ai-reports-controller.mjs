@@ -82,7 +82,7 @@ export async function loadAiReports({resetDate = false} = {}) {
   }).catch(error => {
     if (current()) paintAiDailyReminders(null, error.message || '提醒读取失败，请稍后重试');
   });
-  await Promise.all([report, reminders, loadOpenAiDiary(date, current)]);
+  await Promise.all([report, reminders]);
 }
 
 function moveMonth(offset) {
@@ -109,19 +109,4 @@ function registerAiReportEvents() {
         state.aiDailyDate = day; state.openAiRun = ''; updateRoute(); void loadAiReports(); }
     }
   });
-}
-
-async function loadOpenAiDiary(date, current) {
-  if (state.aiDailyTab !== 'openai') return;
-  const owner = openAiSessionAvailable(state.me);
-  paintOpenAiDiary([], {owner, loading: owner});
-  if (!owner) return;
-  try {
-    const items = await readOpenAiRuns(path => apiNetwork(path, {suppressAuthRedirect: true}), date, current);
-    if (!current() || !items) return;
-    paintOpenAiDiary(items);
-    if (state.openAiRun) document.getElementById('openai-run-' + state.openAiRun)?.focus({preventScroll: false});
-  } catch (error) {
-    if (current()) paintOpenAiDiary([], {error: error.message || '分析记录读取失败，请刷新重试。'});
-  }
 }

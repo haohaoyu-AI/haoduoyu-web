@@ -1,4 +1,6 @@
 import {openAiSettingsPage, loadOpenAiSettings} from './openai-settings-controller.mjs';
+import {renderAiDiagnosis, loadAiDiagnosis} from './ai-diagnosis-controller.mjs';
+import {stopOpenAiReviewTimers} from './openai-review-controller.mjs';
 import { beginPageRequests, isRequestAbort } from "./core/requests.mjs";
 import { api } from "./core/api.mjs";
 import { retryUntil } from "./core/retry-after.mjs";
@@ -129,6 +131,7 @@ function pageLoading(page) {
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
   if (page === "reminders") return renderWorkReminders();
+  if (page === "ai-diagnosis") return renderAiDiagnosis();
   if (page === "ai-reports") return renderAiReports();
   if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
   if (page === "settings" && state.settingsTab === "openai") return openAiSettingsPage();
@@ -143,7 +146,7 @@ function setPageBody(html, page) {
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
-  else if (page === "reminders" || page === "ai-reports" || page === "settings" && state.settingsTab === "openai") return;
+  else if (page === "reminders" || page === "ai-reports" || page === "ai-diagnosis" || page === "settings" && state.settingsTab === "openai") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
@@ -164,6 +167,7 @@ function renderMediaOverview(data) {
   return publishedArticleLinks(renderDashboardSummary(data));
 }
 async function renderPage() {
+  stopOpenAiReviewTimers();
   if (redirectMobileArticlePage()) { renderShell(); return; }
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -189,6 +193,9 @@ async function renderPage() {
         break;
       case "reminders":
         await loadWorkReminders();
+        break;
+      case "ai-diagnosis":
+        await loadAiDiagnosis();
         break;
       case "ai-reports":
         await loadAiReports({resetDate:true});
