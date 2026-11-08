@@ -1,11 +1,11 @@
 {
   "schema": "haoduoyu-windows-stage19-source-evidence-v1",
-  "observed_at_utc": "2026-11-08T03:52:07.490799+00:00",
+  "observed_at_utc": "2026-11-08T04:12:24.165257+00:00",
   "repository": "haohaoyu-AI/haoduoyu-web",
   "branch": "desktop/native-workbench-20261104",
   "candidate_version": "0.19.0",
   "base_commit": "1bbab1ba960c12f9622658e168791f6de1cae320",
-  "status": "registration_probe_fixed_locally_pending_windows_retry",
+  "status": "hosted_windows_synthetic_msi_validation_passed_unsigned_candidate",
   "local_validation": {
     "host": "Linux x64",
     "sdk": "10.0.403",
@@ -156,6 +156,34 @@
     "local_node_checks_skipped": 0,
     "powershell_parser_errors": 0,
     "native_windows_api_called_locally": false,
-    "windows_retry": "pending"
+    "windows_retry": "run_and_job_completed_success",
+    "negative_controls_detected": 12
+  },
+  "latest_product_source_commit": "e4bb78dbba2df2c2f09fec6233ca94116fcd28d5",
+  "latest_root_source_tree": "8ce44ad00be4d77891962fbb76a5c0337b50a57c",
+  "latest_windows_tree": "eef9adb21db7c6e6ba3c5b18c02fb4bf036fc1d9",
+  "windows_final": {
+    "run_id": 42445325659,
+    "job_id": 128622931219,
+    "head_sha": "e4bb78dbba2df2c2f09fec6233ca94116fcd28d5",
+    "status": "completed",
+    "conclusion": "success",
+    "run_updated_at": "2026-11-08T04:10:41Z",
+    "job_conclusion": "success",
+    "workflow_client_and_msi_steps_required_without_continue_on_error": true,
+    "acceptance": "configured hosted synthetic build and installation QA completed through required workflow",
+    "step_metadata_limitation": "job and steps wrappers still return stale checkout in_progress and later pending despite completed/success; individual step summaries not independently reliable",
+    "logs_read": false,
+    "artifacts_downloaded": false,
+    "artifact_id": 13603119129,
+    "artifact_metadata_bytes": 128333100,
+    "artifact_expires_at": "2026-11-11T04:10:36Z",
+    "artifact_metadata_digest": "sha256:e1b1c127cf9c44c076a277997264fa1a9b07e75d081bf4815a65c56fea065ee3",
+    "local_tested_commit": "bfd83c71d4e724d541202bc4135c3aecd73bf9f9",
+    "source_tree_equal_to_local_tested": true,
+    "physical_user_device_acceptance": false,
+    "signing_or_public_release": false,
+    "real_old_payload_or_data_migration_acceptance": false,
+    "package_bytes_or_inner_manifests_independently_inspected": false
   }
 }

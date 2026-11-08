@@ -59,3 +59,13 @@ WiX4.0.6从官方NuGet私有恢复并核对CLI版本；Linux不是受支持的MS
 登记探针现已在原CI夹具加入只读MsiGetProductInfoExW helper，严格规范化非空GUID，SID=null仅当前用户、context2仅USERUNMANAGED、只读State。仅1605返回不存在，状态1广告与5已安装分别处理，其余错误或异常值停止。广告不会通过安装成功断言，预检遇广告同样停止；清理本次初始不存在的准确测试product时同时处理广告/安装状态，每产品异常记录后仍检查另一产品。未改真正嵌入MSI的C++所有权门禁。
 
 新增静态约束和官方PowerShell实际编译C#/提取脚本回归，注入合成查询、不调用WindowsAPI，验证GUID、SID/context/property、1605/1/5、错误拒绝及清理分支。本机32/32通过、0失败、0跳过；三个PS解析0错误，C#夹具仅编译、XML良构、源码隔离及diff检查通过。此结果不证明旧次安装的实际登记或修复版Windows API已通过，仍需下一次精确源临时Windows CI。
+
+## 最终精确源Windows合成安装验收通过
+
+登记API修复和同批交接经expected-parent非force保存为e4bb78dbba2df2c2f09fec6233ca94116fcd28d5，fetch及ls-remote回读一致。整仓树8ce44ad00be4d77891962fbb76a5c0337b50a57c与本机32项通过的bfd83c7完整相同；Windows产品树eef9adb21db7c6e6ba3c5b18c02fb4bf036fc1d9。另在临时副本做12种故意错误负对照，均被回归检测，不修改原源文件。
+
+自动Windows CI42445325659及job128622931219于2026-11-08T04:10:41Z均明确completed/success。工作流中的客户端测试/便携包及MSI构建/临时托管安装验收均为必需步骤、没有continue-on-error，故支持本轮配置的合成安装、取消、升级/维护/拒绝和卸载检查整流程通过。job/step接口却仍给checkout in_progress、后续pending的明显旧摘要；单个步骤终态不据此另作精确判断。没有读取未授权的本次成功job日志，runner内每项计数、MSI字节及内层manifest未独立检查。
+
+交付证据产物13603119129仅核对元数据128,333,100字节，保留至2026-11-11T04:10:36Z；元数据digest为sha256:e1b1c127cf9c44c076a277997264fa1a9b07e75d081bf4815a65c56fea065ee3，未下载，不当作独立计算包哈希。可回到精确运行：https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42445325659 。本次通过的是未签名候选的临时Windows合成验收；仍不等同实体用户电脑、交互SmartScreen、锁文件、真实旧载荷升级或数据迁移验收。用户电脑未安装，未签名、公开发布或部署网站。
+
+本终态交接仅改docs，不修改已通过CI的Windows产品树，也不为文档再次触发Windows CI。README保留产品提交当时“待实跑”的历史说明，本节为后续实际结果。
