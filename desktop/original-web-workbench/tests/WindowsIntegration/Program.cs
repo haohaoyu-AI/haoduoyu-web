@@ -130,7 +130,17 @@ internal static class Program
                 var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 window.Closed += (_, _) => closed.TrySetResult();
                 if(immediateClose) lastInputToCloseMs=System.Diagnostics.Stopwatch.GetElapsedTime(SharedPageScenario.LastInputAt).TotalMilliseconds;
-                window.Close(); await closed.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                window.Close();
+                try { await closed.Task.WaitAsync(TimeSpan.FromSeconds(15)); }
+                catch (TimeoutException) when (phase.StartsWith("close-", StringComparison.Ordinal))
+                {
+                    string retryEvidence;
+                    try { retryEvidence = await window.Core.ExecuteScriptAsync("JSON.stringify(window.retryProbe || null)").WaitAsync(TimeSpan.FromSeconds(2)); }
+                    catch (Exception probeError) { retryEvidence = "unavailable: " + probeError.GetType().Name; }
+                    throw new TimeoutException("Final close timed out. Visible=" + window.IsVisible +
+                        "; closeInProgress=" + window.CloseInProgress + "; previousFailure=" + window.CloseFailure +
+                        "; syntheticRetryProbe=" + retryEvidence);
+                }
                 if(lastInputToCloseMs>100) throw new Exception("Last input to native close exceeded 100 ms; do not claim before-debounce acceptance.");
                 Console.WriteLine("PASS graceful close and legacy sentinel preserved");
                 File.WriteAllText(Path.Combine(root, phase+"-result.json"), JsonSerializer.Serialize(new { passed = true, phase,

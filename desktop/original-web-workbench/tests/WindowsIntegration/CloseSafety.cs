@@ -27,8 +27,11 @@ internal static class CloseSafety
         try
         {
             window.Close();
-            await WaitUntil(() => dismissed && window.CloseFailure is not null, TimeSpan.FromSeconds(15));
-            await Task.Delay(300);
+            // PostMessage only queues IDOK. The modal loop can continue to dispatch
+            // async continuations before MessageBox.Show returns and the host's
+            // finally block releases its close guard. Never substitute a sleep for
+            // observing the host's actual completion of that failed attempt.
+            await WaitUntil(() => dismissed && window.CloseFailure is not null && !window.CloseInProgress, TimeSpan.FromSeconds(15));
             if (!window.IsVisible) throw new Exception("Unsafe close: failure did not retain window.");
             if (mode != "missing" && await window.Core.ExecuteScriptAsync("Boolean(closeProbe.requested && closeProbe.requested===closeProbe.resumed)") != "true")
                 throw new Exception("Failure did not resume the same close request.");
@@ -36,7 +39,7 @@ internal static class CloseSafety
         }
         finally { timer.Stop(); }
         // Finish only after a distinct successful close handshake; no forced data cleanup.
-        if(mode!="actual-storage-failed") await window.Core.ExecuteScriptAsync("window.haoduoyuLocalLifecycle={requestFlush(){return true},status(){return {state:'complete'}},resume(){return true}}");
+        if(mode!="actual-storage-failed") await window.Core.ExecuteScriptAsync("window.retryProbe={requested:null,statusCalls:0}; window.haoduoyuLocalLifecycle={requestFlush(id){retryProbe.requested=id;return id!==closeProbe.requested},status(){retryProbe.statusCalls++;return {state:'complete'}},resume(){return true}}");
     }
     private static async Task WaitUntil(Func<bool> predicate, TimeSpan timeout)
     {

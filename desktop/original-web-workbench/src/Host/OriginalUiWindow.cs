@@ -29,6 +29,8 @@ internal sealed class OriginalUiWindow : Window
     private bool closeAuthorized;
     private bool flushingClose;
     internal string? CloseFailure { get; private set; }
+    // Observable to the integration harness; it does not authorize or trigger a close.
+    internal bool CloseInProgress => flushingClose;
 
 
     internal OriginalUiWindow(AssetCatalog assets, string profileDirectory)
