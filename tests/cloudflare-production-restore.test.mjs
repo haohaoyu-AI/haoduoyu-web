@@ -74,24 +74,24 @@ test('manual restore preserves scan, build, byte checks, secret scope and produc
 });
 
 test('OpenAI review pins exact approved source, artifact and migrated production baseline',async()=>{
-  const current='fcd8185cfc8f134db75280ad54d2645cd061ecf8';
-  const sourceTree='c06e9df8fce5974850ea4e97fdda36ff942ade5e';
-  const baseline='5a5946e4-38eb-414f-8a6a-2a9bc25a27c7';
-  assert.deepEqual(openaiReviewRelease,{commit:current,tree:sourceTree,baseline,bytes:2761598,
-    sha256:'02e823e86e7465951cbf350caae1af81e700d241c0cffc0832a30172105b012a',label:'production-openai-public-20261108'});
+  const current='86eb686ed524daee757050f1fc38adafb3bbd426';
+  const sourceTree='7f01ee60efec241facbca1a6fcdcc867d0d2c205';
+  const baseline='a2776497-2a9b-41de-8c31-212a2065efe9';
+  assert.deepEqual(openaiReviewRelease,{commit:current,tree:sourceTree,baseline,bytes:2776503,
+    sha256:'84bc54926b5ed2062e65ae64b039c9f6122dc18f5764c47e702d2ec169a6fc35',label:'production-ai-diagnosis-20261108'});
   assert.equal(validateRequest({...env,TARGET_COMMIT:current,EXPECTED_CURRENT_VERSION:baseline}),openaiReviewRelease);
   for(const wrong of [productionRestore.baseline,previousProductionRelease.baseline,'11111111-1111-4111-8111-111111111111'])
     assert.throws(()=>validateRequest({...env,TARGET_COMMIT:current,EXPECTED_CURRENT_VERSION:wrong}));
   assert.equal(await verifyEligibility(current,{request:async()=>Response.json({sha:current,tree:{sha:sourceTree}})}),openaiReviewRelease);
   await assert.rejects(verifyEligibility(current,{request:async()=>Response.json({sha:current,tree:{sha:tree}})}));
-  assert.throws(()=>verifyWorker(Buffer.alloc(2761598),current));
+  assert.throws(()=>verifyWorker(Buffer.alloc(2776503),current));
 });
 test('OpenAI release inherits every current production gate and adds feature contracts without migration or configuration actions',async()=>{
   const y=await readFile(new URL('../.github/workflows/cloudflare-manual-release.yml',import.meta.url),'utf8');
   const c=openaiReviewRelease.commit;
   assert.ok(y.includes(`default: ${c}`));assert.ok(y.includes(`          - ${c}\n`));
   assert.equal(y.split(`inputs.target_commit == '${c}'`).length-1,8);
-  const feature='node --test tests/openai-review.test.mjs tests/openai-review-ui.test.mjs tests/openai-review-migration-backup.test.mjs';
+  const feature='node --test tests/openai-review.test.mjs tests/openai-review-ui.test.mjs tests/openai-review-migration-backup.test.mjs tests/openai-review-model-progress.test.mjs';
   assert.ok(y.includes(feature));assert.ok(y.indexOf(feature)<y.indexOf('CLOUDFLARE_API_TOKEN:'));
   assert.doesNotMatch(y,/cloudflare-d1-openai|openai-migration|d1 database|migrations apply|secret put|OPENAI_API_KEY:|OPENAI_REVIEW_MODEL:/);
 });

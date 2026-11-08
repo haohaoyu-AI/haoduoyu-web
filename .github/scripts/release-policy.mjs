@@ -27,11 +27,11 @@ export const previousProductionRelease=Object.freeze({
   label:'production-mobile-review-20261108'});
 // Exact feature source; its additive D1 schema was applied separately before release.
 export const openaiReviewRelease=Object.freeze({
-  commit:'fcd8185cfc8f134db75280ad54d2645cd061ecf8',
-  tree:'c06e9df8fce5974850ea4e97fdda36ff942ade5e',
-  baseline:'5a5946e4-38eb-414f-8a6a-2a9bc25a27c7',
-  bytes:2761598,sha256:'02e823e86e7465951cbf350caae1af81e700d241c0cffc0832a30172105b012a',
-  label:'production-openai-public-20261108'});
+  commit:'86eb686ed524daee757050f1fc38adafb3bbd426',
+  tree:'7f01ee60efec241facbca1a6fcdcc867d0d2c205',
+  baseline:'a2776497-2a9b-41de-8c31-212a2065efe9',
+  bytes:2776503,sha256:'84bc54926b5ed2062e65ae64b039c9f6122dc18f5764c47e702d2ec169a6fc35',
+  label:'production-ai-diagnosis-20261108'});
 const acceptedRelease=commit=>commit===openaiReviewRelease.commit?openaiReviewRelease:
   commit===productionRestore.commit?productionRestore:
   commit===previousProductionRelease.commit?previousProductionRelease:releases[commit];
