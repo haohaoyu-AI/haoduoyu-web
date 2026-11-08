@@ -100,10 +100,23 @@ function Assert-Outside {
     Assert-True ((Get-FileHash -LiteralPath $outsideMarker -Algorithm SHA256).Hash -eq $outsideHash) 'MSI modified an external junction-target file.'
 }
 function Read-MsiProperty {
-    param($Database, [string]$Name)
+    param($Database, [string]$Name, [switch]$Optional)
     $view = $Database.OpenView(('SELECT `Value` FROM `Property` WHERE `Property` = ''{0}''' -f $Name))
-    try { $view.Execute(); $record = $view.Fetch(); if ($null -ne $record) { return $record.StringData(1) }; return '' }
-    finally { $view.Close() }
+    try {
+        $null = $view.Execute()
+        $record = $view.Fetch()
+        if ($null -eq $record) {
+            if ($Optional) { return '' }
+            throw "Required MSI property '$Name' is missing."
+        }
+        # StringData is an indexed COM property, not a method. Request PROPERTYGET explicitly
+        # instead of relying on PowerShell's method-style COM dispatch.
+        $value = $record.GetType().InvokeMember('StringData', [Reflection.BindingFlags]::GetProperty, $null, $record, @([int]1))
+        if ($value -isnot [string]) { throw "MSI property '$Name' did not return a string." }
+        if (-not $Optional -and $value.Length -eq 0) { throw "Required MSI property '$Name' is empty." }
+        return $value
+    }
+    finally { $null = $view.Close() }
 }
 Save-Evidence
 try {
@@ -132,7 +145,7 @@ try {
     Assert-True ((Read-MsiProperty $database 'ProductCode').Trim('{}') -eq $candidate.product_code) 'MSI ProductCode does not match source evidence.'
     Assert-True ((Read-MsiProperty $database 'UpgradeCode').Trim('{}') -eq $candidate.upgrade_code) 'MSI UpgradeCode does not match source evidence.'
     Assert-True ((Read-MsiProperty $database 'ProductVersion') -eq $candidate.version) 'MSI version does not match source evidence.'
-    Assert-True ((Read-MsiProperty $database 'ALLUSERS') -eq '') 'MSI unexpectedly requests per-machine installation.'
+    Assert-True ((Read-MsiProperty $database 'ALLUSERS' -Optional) -eq '') 'MSI unexpectedly requests per-machine installation.'
     Assert-True ((Read-MsiProperty $database 'MSIRESTARTMANAGERCONTROL') -eq 'Disable') 'MSI may automatically close an application.'
     Assert-True ((Read-MsiProperty $database 'REBOOT') -eq 'ReallySuppress') 'MSI may automatically reboot.'
     $steps.Add(@{ name = 'msi-database-identity-and-scope'; result = 'passed' })

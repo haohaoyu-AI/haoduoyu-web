@@ -24,4 +24,22 @@
 
 Linux本机Node安装器检查28/28、0跳过；官方PowerShell7.5.4解析三个脚本零错误，实际单反斜杠/嵌套路径回归通过；C#取消夹具仅编译、未调用WindowsAPI，XML仅良构检查。完整Windows.Tests Release交叉编译28.39秒，0警告、0错误。隔离检查及diff --check通过。
 
-WiX4.0.6从官方NuGet私有恢复并核对CLI版本；Linux不是受支持的MSI构建环境，未据其尝试结果宣称成功。本轮原生C++ DLL、WiX/ICE、MSI生成及合成安装均未运行。源码未发布，因此尚无0.19.0精确源Windows CI；不得称为可下载安装包或已完成安装验收。现有日志及产物访问限制保持，不换路线下载或读取；未安装用户电脑、签名、发布Release或部署网站。
+WiX4.0.6从官方NuGet私有恢复并核对CLI版本；Linux不是受支持的MSI构建环境，未据其尝试结果宣称成功。发布前本机未运行原生C++ DLL、WiX/ICE、MSI生成及合成安装。随后的精确源云端运行及失败终态见下；不得称为可下载安装包或已完成安装验收。现有日志及产物访问限制保持，不换路线下载或读取；未安装用户电脑、签名、发布Release或部署网站。
+
+## 精确源发布与首次Windows CI失败
+
+用户明确同意上传此前列出的14个文件并在临时Windows测试。非force、expected-parent保存为299332a77e4d50e1c80ce5d1252eb3909078940d，fetch回读一致；整仓树7101262a043d63bfac6d00ea422b5f3c6b9446ca与本机受测cc3ad8d完整一致。
+
+自动Windows CI42442449697、job128614349349于2026-11-08T03:27:45Z明确completed/failure。客户端合成测试和便携包步骤已success；进入新MSI步骤后运行结束，但两种只读步骤摘要仍返回MSI in_progress/无conclusion，不能据此定位C++、WiX/ICE、MSI生成或安装哪一层失败，也不能断言后续安装动作成功或未发生。已保留产物13602726007，元数据122,980,962字节、保留至2026-11-11T03:27:40Z，大小不证明内含已验收MSI。
+
+未读取受限job日志、未下载产物、未重跑CI或猜改源码。下一步需获得本次失败日志的可用诊断结果后再修复与定向测试；旧产物及日志访问停止边界继续保持。用户设备没有安装或修改。
+
+## 单次批准的失败日志诊断
+
+用户随后明确只批准读取本次job128614349349的失败日志，不批准其他日志或下载包。正常日志接口本次成功读取；未请求其他日志或产物字节。
+
+日志确认Windows原生合成检查65/65通过；恢复9/9和原子导出14/14均0跳过，安装器Node检查28/28。原生防护DLL编译、候选及两个夹具MSI构建命令均成功返回，构建脚本默认WiX/ICE验证未关闭。仍未独立检查MSI字节或具体ICE清单。
+
+准确失败为test-installer-windows.ps1第132行：Read-MsiProperty读取ProductCode返回null后调用Trim，报“You cannot call a method on a null-valued expression.”。发生在首个安装调用前，因此不能报告安装、取消、升级、卸载或路径门禁已动态通过。现已对Record.StringData带索引COM属性读取作最小兼容修正，保留身份及scope校验，不给缺失ProductCode补默认值；修复版Windows验证待执行。
+
+修复只改此前批准文件中的两个脚本：以显式GetProperty取StringData索引1，必需属性缺行、空值或非字符串立即失败；仅ALLUSERS允许缺失，真实1/2等值保留给原scope断言拒绝。Node新增静态约束及官方PowerShell实际回归：AST仅加载该函数，合成indexed-property对象覆盖正常身份、缺失/空/异常和关闭view路径，不运行COM、WindowsAPI或整个安装脚本。本机30/30通过、0失败、0跳过，三份PS解析0错误，隔离及diff检查通过。旧函数负对照会因接受缺失必需属性失败；这不等于在Linux重现Windows COM内部null派发。下一次精确源Windows CI仍需验证真实MSI路径。

@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {resolve, join, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import {generateInstaller, checkVersion, wixVersion, upgradeCode} from './generate-installer.mjs';
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -176,4 +177,130 @@ test('PowerShell publish and installed inventory normalize a single separator, n
     assert.ok(source.includes(".Replace('\\', '/')"), file);
     assert.ok(!source.includes(".Replace('\\\\', '/')"), file);
   }
+});
+
+test('MSI property reads use an indexed property getter and keep identity/scope checks mandatory', () => {
+  const qa = readFileSync(join(desktopRoot, 'scripts/test-installer-windows.ps1'), 'utf8');
+  assert.match(qa, /InvokeMember\('StringData', \[Reflection.BindingFlags\]::GetProperty,/);
+  assert.doesNotMatch(qa, /\$record\.StringData\(/);
+  assert.equal((qa.match(/Read-MsiProperty \$database '[^']+' -Optional/g) || []).length, 1);
+  assert.match(qa, /\(Read-MsiProperty \$database 'ALLUSERS' -Optional\) -eq ''/);
+  for (const property of ['ProductCode', 'UpgradeCode', 'ProductVersion', 'MSIRESTARTMANAGERCONTROL', 'REBOOT']) {
+    assert.ok(qa.includes(`Read-MsiProperty $database '${property}')`), property);
+  }
+});
+
+test('PowerShell executes the real MSI property reader against synthetic indexed properties without Windows APIs', t => {
+  // Extract only the reader's parsed function definition. Never dot-source the installation script.
+  const script = String.raw`
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:HDY_INSTALLER_TEST_SCRIPT, [ref]$tokens, [ref]$errors)
+if (@($errors).Count) { throw ($errors | Out-String) }
+$functions = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Read-MsiProperty' }, $false))
+if ($functions.Count -ne 1) { throw 'Expected exactly one MSI property reader.' }
+. ([scriptblock]::Create($functions[0].Extent.Text))
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.CompilerServices;
+public sealed class SyntheticMsiRecord {
+    public string Value;
+    public bool ReturnNull;
+    public bool FailRead;
+    public int LastIndex;
+    [IndexerName("StringData")]
+    public string this[int index] {
+        get {
+            LastIndex = index;
+            if (index != 1) throw new Exception("Wrong field index.");
+            if (FailRead) throw new Exception("Synthetic property read failure.");
+            return ReturnNull ? null : Value;
+        }
+    }
+}
+public sealed class SyntheticMsiView {
+    public SyntheticMsiRecord Record;
+    public string FailAt;
+    public int Executions;
+    public int Closes;
+    public void Execute() { Executions++; if (FailAt == "Execute") throw new Exception("Synthetic execute failure."); }
+    public SyntheticMsiRecord Fetch() { if (FailAt == "Fetch") throw new Exception("Synthetic fetch failure."); return Record; }
+    public void Close() { Closes++; }
+}
+public sealed class SyntheticMsiDatabase {
+    public SyntheticMsiView View = new SyntheticMsiView();
+    public string LastQuery;
+    public SyntheticMsiView OpenView(string query) { LastQuery = query; return View; }
+}
+'@
+function New-SyntheticDatabase($Value, [switch]$Missing) {
+    $database = [SyntheticMsiDatabase]::new()
+    if (-not $Missing) {
+        $database.View.Record = [SyntheticMsiRecord]::new()
+        $database.View.Record.ReturnNull = $null -eq $Value
+        $database.View.Record.Value = $Value
+    }
+    return $database
+}
+function Assert-Closed($Database) {
+    if ($Database.View.Executions -ne 1 -or $Database.View.Closes -ne 1) { throw 'View must execute once and close once, including failures.' }
+}
+function Assert-ReadFailure($Database, [string]$Name, [string]$Expected, [switch]$Optional) {
+    try { $null = Read-MsiProperty $Database $Name -Optional:$Optional; throw 'Reader unexpectedly accepted invalid evidence.' }
+    catch { if (-not $_.Exception.Message.Contains($Expected)) { throw } }
+    Assert-Closed $Database
+}
+$values = [ordered]@{
+    ProductCode = '{11111111-1111-1111-1111-111111111111}'
+    UpgradeCode = '{22222222-2222-2222-2222-222222222222}'
+    ProductVersion = '0.19.0'
+    MSIRESTARTMANAGERCONTROL = 'Disable'
+    REBOOT = 'ReallySuppress'
+}
+foreach ($name in $values.Keys) {
+    $database = New-SyntheticDatabase $values[$name]
+    $value = Read-MsiProperty $database $name
+    if ($value -isnot [string] -or $value -cne $values[$name]) { throw "Wrong property value: $name" }
+    if ($name -in @('ProductCode', 'UpgradeCode') -and $value.Trim('{}') -cne $values[$name].Substring(1, 36)) { throw 'Identity cannot be compared.' }
+    if ($database.View.Record.LastIndex -ne 1) { throw 'Did not read MSI field 1.' }
+    $expectedQuery = 'SELECT ' + [char]96 + 'Value' + [char]96 + ' FROM ' + [char]96 + 'Property' + [char]96 + ' WHERE ' + [char]96 + 'Property' + [char]96 + " = '$name'"
+    if ($database.LastQuery -cne $expectedQuery) { throw 'Wrong property query.' }
+    Assert-Closed $database
+    Assert-ReadFailure (New-SyntheticDatabase -Missing) $name "Required MSI property '$name' is missing."
+    Assert-ReadFailure (New-SyntheticDatabase '') $name "Required MSI property '$name' is empty."
+    Assert-ReadFailure (New-SyntheticDatabase $null) $name "MSI property '$name' did not return a string."
+}
+# Only absence/empty string is optional; a present machine-scope value must survive for the caller to reject.
+foreach ($value in @('', '1', '2')) {
+    $database = New-SyntheticDatabase $value
+    if ((Read-MsiProperty $database 'ALLUSERS' -Optional) -cne $value) { throw 'Optional property was replaced by a default.' }
+    Assert-Closed $database
+}
+$database = New-SyntheticDatabase -Missing
+if ((Read-MsiProperty $database 'ALLUSERS' -Optional) -cne '') { throw 'Missing ALLUSERS is not empty.' }
+Assert-Closed $database
+Assert-ReadFailure (New-SyntheticDatabase -Missing) 'ALLUSERS' "Required MSI property 'ALLUSERS' is missing."
+Assert-ReadFailure (New-SyntheticDatabase $null) 'ALLUSERS' "MSI property 'ALLUSERS' did not return a string." -Optional
+foreach ($failure in @('Execute', 'Fetch')) {
+    $database = New-SyntheticDatabase 'unused'
+    $database.View.FailAt = $failure
+    Assert-ReadFailure $database 'ProductCode' ("Synthetic " + $failure.ToLowerInvariant() + ' failure.')
+}
+$database = New-SyntheticDatabase 'unused'
+$database.View.Record.FailRead = $true
+Assert-ReadFailure $database 'ProductCode' 'Synthetic property read failure.'
+'MSI property reader synthetic regression passed; no COM, Windows API or installation was run.'
+`;
+  const result = spawnSync(process.env.HDY_PWSH || 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], {
+    encoding:'utf8', timeout:60_000,
+    env:{...process.env, HDY_INSTALLER_TEST_SCRIPT:join(desktopRoot, 'scripts/test-installer-windows.ps1')},
+  });
+  if (result.error?.code === 'ENOENT' && !process.env.HDY_PWSH && process.platform !== 'win32') {
+    t.skip('PowerShell unavailable; set HDY_PWSH to an official PowerShell 7 executable. Runtime regression not counted as passed.');
+    return;
+  }
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /MSI property reader synthetic regression passed/);
 });

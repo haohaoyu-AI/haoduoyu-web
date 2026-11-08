@@ -1,11 +1,11 @@
 {
   "schema": "haoduoyu-windows-stage19-source-evidence-v1",
-  "observed_at_utc": "2026-11-07T22:06:45.795431+00:00",
+  "observed_at_utc": "2026-11-08T03:30:14.106606+00:00",
   "repository": "haohaoyu-AI/haoduoyu-web",
   "branch": "desktop/native-workbench-20261104",
   "candidate_version": "0.19.0",
   "base_commit": "1bbab1ba960c12f9622658e168791f6de1cae320",
-  "status": "local_source_candidate_windows_msi_not_built",
+  "status": "published_first_attempt_failed_property_reader_fixed_locally_pending_windows_retry",
   "local_validation": {
     "host": "Linux x64",
     "sdk": "10.0.403",
@@ -51,13 +51,33 @@
     "previous_install_directory_ownership_finding": "actual embedded MSI readonly native gates added; requires Windows dynamic validation"
   },
   "windows_ci": {
-    "new_source_run": "not_started_source_not_published",
-    "native_guard_compilation": "not_run",
-    "ice_validation": "not_run",
-    "msi_build": "not_run",
-    "synthetic_install_upgrade_cancel_uninstall": "not_run",
-    "logs_read": false,
-    "artifacts_downloaded": false
+    "run_id": 42442449697,
+    "job_id": 128614349349,
+    "head_sha": "299332a77e4d50e1c80ce5d1252eb3909078940d",
+    "status": "completed",
+    "conclusion": "failure",
+    "run_updated_at": "2026-11-08T03:27:45Z",
+    "client_synthetic_tests_and_portable_step": "success",
+    "msi_step_last_returned_status": "in_progress",
+    "msi_step_last_returned_conclusion": null,
+    "step_metadata_inconsistent_with_completed_failed_job": true,
+    "native_guard_compilation": "command_completed_in_authorized_job_log",
+    "ice_validation": "default_wix_validation_not_disabled_build_commands_completed",
+    "msi_build": "candidate_and_two_fixture_build_commands_completed_in_authorized_job_log",
+    "synthetic_install_upgrade_cancel_uninstall": "not_reached_before_metadata_reader_failure",
+    "failure_reason": "test-installer-windows.ps1 line 132 invokes Trim on null returned by Read-MsiProperty(ProductCode); no installation step reached",
+    "logs_read": true,
+    "artifacts_downloaded": false,
+    "artifact_id": 13602726007,
+    "artifact_metadata_bytes": 122980962,
+    "artifact_expires_at": "2026-11-11T03:27:40Z",
+    "artifact_metadata_digest": "sha256:a61b56356a04f20529caecd92d7e27cf8cc97a6887cebb8ae3af823a3c42f315",
+    "authorized_log_scope": "job 128614349349 only; read once after explicit user approval",
+    "windows_native_synthetic_checks_passed": 65,
+    "recovery_checks_passed": 9,
+    "recovery_checks_skipped": 0,
+    "atomic_export_checks_passed": 14,
+    "atomic_export_checks_skipped": 0
   },
   "validation_limits": [
     "Linux source parsing and static checks are not Windows C++/DLL/MSI execution.",
@@ -66,5 +86,25 @@
     "Cancellation during upgrade, interactive flow, locked files and redirected AppData remain unverified.",
     "Repeated path checks do not eliminate malicious check-to-use races.",
     "No user-device, signing, public-release, production-account or real-data acceptance."
-  ]
+  ],
+  "product_source_commit": "299332a77e4d50e1c80ce5d1252eb3909078940d",
+  "root_source_tree": "7101262a043d63bfac6d00ea422b5f3c6b9446ca",
+  "local_tested_commit": "cc3ad8de15ab1fa10cf85c77006f8df4943b8d02",
+  "local_tested_and_published_source_tree_equal": true,
+  "property_reader_remediation": {
+    "changed_product_files": [
+      "desktop/windows/scripts/test-installer-windows.ps1",
+      "desktop/windows/scripts/test-installer.mjs"
+    ],
+    "indexed_property_getter": "explicit Type.InvokeMember StringData GetProperty index 1",
+    "required_properties": "missing row, empty string and non-string rejected",
+    "optional_property": "ALLUSERS only; present values preserved for scope rejection",
+    "local_node_checks_passed": 30,
+    "local_node_checks_failed": 0,
+    "local_node_checks_skipped": 0,
+    "actual_official_powershell": "7.5.4 AST-extracted function plus synthetic indexed property objects",
+    "com_or_windows_api_run_locally": false,
+    "old_reader_negative_control": "rejects old implementation accepting missing required evidence; not a reproduction of internal COM null dispatch",
+    "windows_retry": "pending"
+  }
 }
