@@ -67,6 +67,7 @@ internal static class SharedPageScenario
             await Editable(window,selector);
             var id=family=="note" ? await ReadString(window,"document.querySelector("+J(selector)+").dataset.noteEntryEditor") : "";
             if (family=="todo") route += "&date="+await ReadString(window,"document.querySelector('#todo-form').dataset.date");
+            if (family=="note") route += "&date="+await ReadString(window,"document.querySelector('#notes-date').value");
             var prefix="SYNTHETIC Windows "+family+" draft 初始内容";
             var suffix=" 最后几字保留验证";
             state=new Draft(family,route,selector,prefix+suffix,id,await RowCount(window,family));
@@ -100,19 +101,40 @@ internal static class SharedPageScenario
         var form=family=="todo" ? "#todo-form" : family=="future" ? "#todo-future-form" : "";
         if (family=="note")
         {
-            await Script(window,"document.querySelector("+J(state.Selector)+").closest('[data-note-entry]').querySelector('[data-note-entry-action=save]').click()");
+            try
+            {
+            await ClickVisible(window,state.Selector+" ~ .note-entry-actions [data-note-entry-action=save]");
             var article="[data-note-entry="+J(state.RecordId)+"]";
-            await Wait(window,"document.querySelector("+J(article)+")?.querySelector('.note-entry-status')?.dataset.phase==='saved'");
-            await Script(window,"document.querySelector("+J(article)+").querySelector('[data-note-entry-action=edit]').click()");
+            await SavedNote(window,article,state.Text);
+            Console.WriteLine("PASS actual recovered note first submit shows exact saved text");
+            await ClickVisible(window,article+".note-entry-saved [data-note-entry-action=edit]");
             await Editable(window,state.Selector);
             await Script(window,"document.querySelector("+J(state.Selector)+").focus();document.querySelector("+J(state.Selector)+").select()");
             state=state with {Text=state.Text+" 已通过真实编辑"};
             await Insert(window,state.Text);
-            await Script(window,"document.querySelector("+J(state.Selector)+").closest('[data-note-entry]').querySelector('[data-note-entry-action=save]').click()");
-            await Wait(window,"document.querySelector("+J(article)+")?.querySelector('.note-entry-status')?.dataset.phase==='saved'");
+            await Wait(window,"document.querySelector("+J(state.Selector)+").value==="+J(state.Text));
+            await ClickVisible(window,state.Selector+" ~ .note-entry-actions [data-note-entry-action=save]");
+            await SavedNote(window,article,state.Text);
+            Console.WriteLine("PASS actual note second edit/submit shows exact saved text; checking offline reload next");
             await Navigate(window,state.Route);
-            await Wait(window,"[...document.querySelectorAll("+J(article+" .note-entry-reader")+")].some(x=>x.textContent==="+J(state.Text)+")");
+            await SavedNote(window,article,state.Text);
             if (await RowCount(window,family)!=state.Rows) throw new Exception("Note create/edit/reload duplicated records.");
+            }
+            catch (Exception ex)
+            {
+                string observations;
+                try { observations = await DescribeNotePage(window).WaitAsync(TimeSpan.FromSeconds(3)); }
+                catch (Exception probeError) { observations = "unavailable: " + probeError.GetType().Name; }
+                // Failure-only capture. Never insert evidence work between the seed's
+                // final input and native Close, and never turn a failed assertion green.
+                try
+                {
+                    window.Width = 1280; await Capture(window,Path.Combine(root,phase+"-1280.png")).WaitAsync(TimeSpan.FromSeconds(5));
+                    window.Width = 430; await Capture(window,Path.Combine(root,phase+"-430.png")).WaitAsync(TimeSpan.FromSeconds(5));
+                }
+                catch (Exception captureError) { Console.WriteLine("Note failure capture unavailable: " + captureError.GetType().Name); }
+                throw new InvalidOperationException("Actual note scenario failed; synthetic DOM observations: " + observations, ex);
+            }
         }
         else
         {
@@ -127,6 +149,33 @@ internal static class SharedPageScenario
         return false;
     }
     private static string J(string value)=>JsonSerializer.Serialize(value);
+    private static Task SavedNote(OriginalUiWindow window,string article,string expected)=>Wait(window,
+        "(()=>{const n=document.querySelector("+J(article+".note-entry-saved")+");return n && n.getClientRects().length && "+
+        "n.querySelector('.note-entry-status')?.dataset.phase==='saved' && n.querySelector('.note-entry-reader')?.textContent==="+J(expected)+"})()");
+    private static async Task ClickVisible(OriginalUiWindow window,string selector)
+    {
+        await Wait(window,"(()=>{const b=document.querySelector("+J(selector)+");return b && b.getClientRects().length && !b.disabled})()");
+        var clicked=await Script(window,"(()=>{const b=document.querySelector("+J(selector)+");if(!b || !b.getClientRects().length || b.disabled)return false;b.click();return true})()");
+        if(clicked!="true") throw new Exception("Actual visible control was not clicked: "+selector);
+    }
+    private static Task<string> DescribeNotePage(OriginalUiWindow window)=>ReadString(window,"""
+        JSON.stringify({url:location.href,
+          active:document.activeElement&&{tag:document.activeElement.tagName,id:document.activeElement.id,
+            noteId:document.activeElement.dataset.noteEntryEditor||null,
+            value:String(document.activeElement.value||'').slice(0,2048),
+            selectionStart:document.activeElement.selectionStart,selectionEnd:document.activeElement.selectionEnd},
+          composerHidden:document.querySelector('#notes-composer')?.hidden,
+          notes:[...document.querySelectorAll('#daily-notes [data-note-entry]')].slice(0,20).map(n=>({
+            id:n.dataset.noteEntry,category:n.dataset.category,classes:n.className,visible:!!n.getClientRects().length,
+            phase:n.querySelector('.note-entry-status')?.dataset.phase,
+            value:n.querySelector('textarea')?.value.slice(0,2048),
+            reader:n.querySelector('.note-entry-reader')?.textContent.slice(0,2048),
+            message:n.querySelector('.note-entry-message')?.textContent.slice(0,2048),
+            buttons:[...n.querySelectorAll('[data-note-entry-action]')].map(b=>({action:b.dataset.noteEntryAction,
+              disabled:b.disabled,hidden:b.hidden,visible:!!b.getClientRects().length}))})),
+          messages:[...document.querySelectorAll('#daily-notes .notes-message,#notes-status')].slice(0,10)
+            .map(n=>({id:n.id,hidden:n.hidden,text:n.textContent.slice(0,2048)}))})
+        """);
     private static Task<string> Script(OriginalUiWindow window,string js)=>window.Core.ExecuteScriptAsync(js).WaitAsync(TimeSpan.FromSeconds(5));
     private static async Task<string> ReadString(OriginalUiWindow window,string js)=>JsonSerializer.Deserialize<string>(await Script(window,js))??"";
     private static Task Editable(OriginalUiWindow window,string selector)=>Wait(window,"(()=>{const e=document.querySelector("+J(selector)+");return e && e.getClientRects().length && !e.disabled && !e.readOnly})()");

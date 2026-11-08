@@ -16,12 +16,32 @@
     "offline.css": "ceb710bb10d345409d0437274dc1dd79c5152b1de874c7c10f290edc0f21ed7c",
     "review.css": "c350acaecce804c56820bb689d67cfd18be12bd7808b912cf8098297114331b9"
   },
-  "scriptSha256": "fe3dbb391a4eed1565029dde68d3767ba5c224b8642c766d33f0d10a24aa71e9",
+  "scriptSha256": "15c529385d2e232ff35e416a7785c8b788bb448430efa1ff1ed18b2bc69304b9",
   "sourceAliases": {
     "core/api.mjs": "local/client.mjs",
     "offline/runtime.mjs": "local/runtime.mjs"
   },
   "nonvisualSemanticPatches": [
+    {
+      "file": "offline/ui.mjs",
+      "before": "const title = textNode(document, 'h2', '同步状态');",
+      "after": "const title = textNode(document, 'h2', '本机保存状态');"
+    },
+    {
+      "file": "offline/ui.mjs",
+      "before": "details.append(textNode(document, 'h3', '待提交队列'));",
+      "after": "details.append(textNode(document, 'p', '这是独立本机版本，没有线上同步或上传。'));"
+    },
+    {
+      "file": "core/todos-state.mjs",
+      "before": "const todosState =",
+      "after": "import {bindLocalComposer} from \"../local/runtime.mjs\";\nconst todosState ="
+    },
+    {
+      "file": "core/todos-state.mjs",
+      "before": "  return todosState.days.get(date);",
+      "after": "  const day = todosState.days.get(date);\n  if (!day.localDraftBound) { bindLocalComposer(day,\"draft\",\"todo\",date); day.localDraftBound = true; }\n  return day;"
+    },
     {
       "file": "pages/todos.mjs",
       "before": "const todoObservers = new Set();",
@@ -51,26 +71,6 @@
       "file": "pages/todos.mjs",
       "before": "if (input && input.value !== day.draft) input.value = day.draft;",
       "after": "if (input && input.value !== day.draft) input.value = localEditorPaintValue(input,day.draft);"
-    },
-    {
-      "file": "core/todos-state.mjs",
-      "before": "const todosState =",
-      "after": "import {bindLocalComposer} from \"../local/runtime.mjs\";\nconst todosState ="
-    },
-    {
-      "file": "core/todos-state.mjs",
-      "before": "  return todosState.days.get(date);",
-      "after": "  const day = todosState.days.get(date);\n  if (!day.localDraftBound) { bindLocalComposer(day,\"draft\",\"todo\",date); day.localDraftBound = true; }\n  return day;"
-    },
-    {
-      "file": "offline/ui.mjs",
-      "before": "const title = textNode(document, 'h2', '同步状态');",
-      "after": "const title = textNode(document, 'h2', '本机保存状态');"
-    },
-    {
-      "file": "offline/ui.mjs",
-      "before": "details.append(textNode(document, 'h3', '待提交队列'));",
-      "after": "details.append(textNode(document, 'p', '这是独立本机版本，没有线上同步或上传。'));"
     },
     {
       "file": "controller.mjs",
@@ -123,6 +123,26 @@
       "after": "勾选完成后移至今日待办；也可选择日期移动。"
     },
     {
+      "file": "pages/daily-notes.mjs",
+      "before": "import {e} from '../core/dom.mjs';",
+      "after": "import {localEditorPaintValue} from \"../local/lifecycle.mjs\";\nimport {e} from '../core/dom.mjs';"
+    },
+    {
+      "file": "pages/daily-notes.mjs",
+      "before": "  editor.value = text;",
+      "after": "  editor.value = localEditorPaintValue(editor,text);"
+    },
+    {
+      "file": "pages/memos.mjs",
+      "before": "import {e} from '../core/dom.mjs';",
+      "after": "import {localEditorPaintValue} from \"../local/lifecycle.mjs\";\nimport {e} from '../core/dom.mjs';"
+    },
+    {
+      "file": "pages/memos.mjs",
+      "before": "input.value = item[field] || '';",
+      "after": "input.value = localEditorPaintValue(input,item[field] || '');"
+    },
+    {
       "file": "memos-controller.mjs",
       "before": "function preserveMemosBeforeRefresh(event) {",
       "after": "function captureLocalMemos(event) {\n  const detail = event.detail, store = memoStore, expected = memoIdentity, root = document.querySelector('#memos');\n  if (!detail?.localSnapshot || expected !== currentIdentity() || !store?.state.canEdit) return;\n  const noteId = store.state.noteId;\n  for (const field of root?.querySelectorAll('#memo-title,#memo-body') || []) {\n    const raw = detail.snapshot(field), key = raw.id === 'memo-title' ? 'title' : 'body';\n    detail.stage({field,key:JSON.stringify(['memo',expected,noteId,key]),\n      valid:() => store === memoStore && expected === currentIdentity() && store.state.noteId === noteId &&\n        document.querySelector('#memos') === root,\n      apply:value => store.edit(key,value.value,{composing:value.composing,retainPrivate:true})});\n  }\n}\nfunction preserveMemosBeforeRefresh(event) {"
@@ -148,24 +168,19 @@
       "after": "durable: true, online: () => true,"
     },
     {
-      "file": "pages/memos.mjs",
-      "before": "import {e} from '../core/dom.mjs';",
-      "after": "import {localEditorPaintValue} from \"../local/lifecycle.mjs\";\nimport {e} from '../core/dom.mjs';"
+      "file": "daily-notes-controller.mjs",
+      "before": "    const rows = uniqueRetainedDrafts(snapshots.map(record => record.data).filter(row =>",
+      "after": "    const recoverable = [];\n    for (const record of snapshots) {\n      if (!await offline.wasSavedNoteDraft?.(record)) recoverable.push(record);\n      if (identity !== notesIdentityNow()) return [];\n    }\n    const rows = uniqueRetainedDrafts(recoverable.map(record => record.data).filter(row =>"
     },
     {
-      "file": "pages/memos.mjs",
-      "before": "input.value = item[field] || '';",
-      "after": "input.value = localEditorPaintValue(input,item[field] || '');"
+      "file": "daily-notes-controller.mjs",
+      "before": "    if(restored?.recoveredBaseline) entryRecoveryGuard.remember(restored,record);",
+      "after": "    if(restored?.recoveredBaseline) {\n      entryRecoveryGuard.remember(restored,record);\n      offline.bindRecoveredNote?.(restored,record,() => active() && entryStores.get(category) === entries && entries.entry(raw.id) === restored);\n    }"
     },
     {
-      "file": "pages/daily-notes.mjs",
-      "before": "import {e} from '../core/dom.mjs';",
-      "after": "import {localEditorPaintValue} from \"../local/lifecycle.mjs\";\nimport {e} from '../core/dom.mjs';"
-    },
-    {
-      "file": "pages/daily-notes.mjs",
-      "before": "  editor.value = text;",
-      "after": "  editor.value = localEditorPaintValue(editor,text);"
+      "file": "daily-notes-controller.mjs",
+      "before": "      put: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body}),",
+      "after": "      put: async (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body,\n        localRecoveredNoteSave:await getOfflineRuntime()?.prepareRecoveredNoteSave?.(entries.entry(id),body)}),"
     },
     {
       "file": "daily-notes-controller.mjs",

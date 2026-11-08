@@ -83,10 +83,13 @@ export function createLocalApi({db, now = Date.now, uuid = () => globalThis.cryp
         else if (/^\/memos(\/|$)/.test(ctx.path)) result = await memosRoute(ctx);
         else if (/^\/(review|ai-reports|work-reminders)(\/|$)/.test(ctx.path)) result = await reviewRoute(ctx);
         else throw unsupported();
-        // An internal closure may compare-clear a matching composer in this same transaction.
+        // Internal capabilities compare-clear a composer or confirm one exact
+        // recovered-note snapshot in the same item/receipt transaction.
         // JSON request bodies cannot supply executable callbacks.
-        if (typeof options.localDraftCommit === 'function' && method === 'POST' && ['/todos','/unscheduled-todos'].includes(ctx.path))
-          await options.localDraftCommit(tx);
+        if (typeof options.localDraftCommit === 'function' &&
+            (method === 'POST' && ['/todos','/unscheduled-todos'].includes(ctx.path) ||
+             method === 'PUT' && /^\/note-entries\/[a-f0-9-]{36}$/i.test(ctx.path)))
+          await options.localDraftCommit(tx, result);
         active(); return result;
       });
     } catch (error) {

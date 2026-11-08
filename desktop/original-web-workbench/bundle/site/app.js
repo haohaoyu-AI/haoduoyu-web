@@ -559,7 +559,7 @@ var init_drafts = __esm({
 });
 
 // local-ui/frontend/web/local/drafts.mjs
-function createComposerJournal({ db, scope, uuid: uuid2 = () => crypto.randomUUID(), onError = () => {
+function createComposerJournal({ db, scope, uuid: uuid3 = () => crypto.randomUUID(), onError = () => {
 } }) {
   if (!db?.transaction || typeof scope !== "string" || !scope) throw new TypeError("Explicit durable draft scope required");
   const cache2 = /* @__PURE__ */ new Map(), failures = /* @__PURE__ */ new Map(), snapshots2 = /* @__PURE__ */ new WeakSet(), requests = /* @__PURE__ */ new WeakMap();
@@ -609,7 +609,7 @@ function createComposerJournal({ db, scope, uuid: uuid2 = () => crypto.randomUUI
     if (current3?.text === text && !failures.has(id2)) return tail;
     const revision = (current3?.revision || 0) + 1;
     if (!Number.isSafeInteger(revision)) throw errorFor(new Error("Composer revision overflow"));
-    const row = { key: id2, format: FORMAT, scope, kind, identity: identity4, text, revision, writeId: uuid2() + ":" + revision };
+    const row = { key: id2, format: FORMAT, scope, kind, identity: identity4, text, revision, writeId: uuid3() + ":" + revision };
     cache2.set(id2, row);
     return enqueue(row);
   }
@@ -777,6 +777,154 @@ var init_common = __esm({
     beijingDay = (at) => new Date(at + 8 * 36e5).toISOString().slice(0, 10);
     canonical = (value) => JSON.stringify(sortData(value));
     byCreated = (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
+  }
+});
+
+// local-ui/frontend/web/local/note-recovery.mjs
+function validRequest(source, request, expectedLabels) {
+  const keys = ["version", "save_id", "category", "date", "text", ...Object.hasOwn(request || {}, "labels") ? ["labels"] : []];
+  return request && canonical(Object.keys(request).sort()) === canonical(keys.sort()) && uuid(request.save_id) && request.version === source.data.version && request.category === source.data.category && request.date === source.data.date && typeof request.text === "string" && request.text.length <= 262144 && labels2(expectedLabels) && (!Object.hasOwn(request, "labels") || sameLabels(request.labels, expectedLabels));
+}
+function operationMatches(operation, body) {
+  return operation?.kind === "put" && operation.saveId === body?.save_id && operation.version === body.version && operation.text === body.text && !Object.hasOwn(operation, "label") && !Object.hasOwn(operation, "expectedLabel") && Object.hasOwn(operation, "labels") === Object.hasOwn(body, "labels") && (!Object.hasOwn(body, "labels") || sameLabels(operation.labels, body.labels));
+}
+function submittedMatches(source, scope, owner2, body, expectedLabels) {
+  const operation = source?.data?.pending;
+  return baseRecord(source, scope) && typeof owner2 === "string" && source.draft_owner === owner2 && source.key === draftKey(scope, source.data.id, owner2) && source.data.phase === "saving" && source.data.draft === body.text && sameLabels(source.data.labels, expectedLabels) && !operation?.uncertain && !operation?.checking && !operation?.retryReady && !operation?.invalid && operationMatches(operation, body) && validRequest(source, body, expectedLabels);
+}
+function receiptMatches(receipt, source, request, expectedLabels, version, contentHash) {
+  const row = receipt?.response, result = receipt?.receipt;
+  return receipt?.fingerprint === canonical({ method: "PUT", path: "/note-entries/" + source.data.id, ...request }) && result?.id === source.data.id && result.version === version && result.content_hash === contentHash && row?.id === source.data.id && row.category === source.data.category && row.date === source.data.date && row.version === version && row.text === request.text && !row.deleted_at && row.content_hash === contentHash && sameLabels(row.labels, expectedLabels);
+}
+function createNoteRecoveryJournal({ db, getScope, getGeneration = () => 0, draftOwner }) {
+  if (!db?.transaction || typeof getScope !== "function") throw new TypeError("Explicit note recovery storage required");
+  const observed2 = /* @__PURE__ */ new WeakMap(), bindings = /* @__PURE__ */ new WeakMap(), intents = /* @__PURE__ */ new WeakMap(), requests = /* @__PURE__ */ new WeakMap();
+  function observe(records) {
+    for (const record of records) if (record && typeof record === "object" && record.scope === getScope() && record.draft_kind === "note_entry")
+      observed2.set(record, structuredClone(record));
+    return records;
+  }
+  function bind(item, record, stillActive = () => true) {
+    const source = observed2.get(record), scope = getScope(), generation = getGeneration();
+    if (!item || !eligible2(source, scope) || canonical(source) !== canonical(record) || item.id !== source.data.id || item.category !== source.data.category || item.date !== source.data.date || item.draft !== source.data.draft || !sameLabels(item.labels, source.data.labels) || !stillActive()) return false;
+    bindings.set(item, { source, scope, generation, stillActive });
+    return true;
+  }
+  const active2 = (bound) => bound.scope === getScope() && bound.generation === getGeneration() && bound.stillActive();
+  function captureRequest(item, body) {
+    const operation = item?.pending, bound = bindings.get(item);
+    if (!item || !uuid(item.id) || !operationMatches(operation, body)) return null;
+    const expectedLabels = Object.hasOwn(body, "labels") ? body.labels : item.labels;
+    const identity4 = { data: { id: item.id, category: item.category, date: item.date, version: operation.version } };
+    if (!Number.isSafeInteger(operation.version) || operation.version < 0 || !validRequest(identity4, body, expectedLabels) || bound && !active2(bound)) return null;
+    const scope = getScope(), generation = getGeneration();
+    const context = { scope, generation, stillActive: () => item.pending === operation && (!bound || active2(bound)) };
+    const origin = bound && item.recoveredBaseline?.version === bound.source.data.version && eligible2(bound.source, scope) && validRequest(bound.source, body, expectedLabels) ? bound.source : null;
+    const intent = Object.freeze({});
+    intents.set(intent, { context, identity: identity4, origin, body: structuredClone(body), labels: structuredClone(expectedLabels) });
+    return intent;
+  }
+  async function prepare(intent) {
+    const request = intents.get(intent);
+    if (!request) throw invalid2();
+    const { context, identity: identity4, origin, body } = request;
+    if (!active2(context)) throw scopeChanged();
+    const own2 = await db.transaction(["meta"], "readonly", (tx) => tx.get("meta", draftKey(context.scope, identity4.data.id, draftOwner)));
+    if (!active2(context)) throw scopeChanged();
+    const sources = [];
+    if (origin) sources.push({ source: origin, role: "origin" });
+    if (submittedMatches(own2, context.scope, draftOwner, body, request.labels)) sources.push({ source: own2, role: "submitted" });
+    if (!sources.length) return null;
+    for (const value of sources) value.hash = await digest(value.source);
+    if (!active2(context)) throw scopeChanged();
+    const token = Object.freeze({});
+    requests.set(token, { ...request, sources });
+    return token;
+  }
+  function commitHook(token, path, body) {
+    const request = requests.get(token);
+    if (!request || path !== "/note-entries/" + request.identity.data.id || canonical(body) !== canonical(request.body)) throw invalid2();
+    const payload = request.body;
+    return async (tx, value) => {
+      const { context, identity: identity4 } = request;
+      if (!active2(context)) throw scopeChanged();
+      const receipt = await tx.get("meta", receiptKey(context.scope, payload.save_id));
+      if (!active2(context)) throw scopeChanged();
+      const source = identity4;
+      if (!value || value.id !== source.data.id || value.category !== source.data.category || value.date !== source.data.date || value.version !== payload.version + 1 || value.text !== payload.text || value.deleted || value.can_edit !== true || !sameLabels(value.labels, request.labels) || !/^[a-f0-9]{64}$/i.test(value.content_hash || "") || !receiptMatches(receipt, source, payload, request.labels, value.version, value.content_hash)) throw invalid2();
+      for (const captured of request.sources) {
+        const source2 = captured.source, current3 = await tx.get("meta", source2.key);
+        if (!active2(context)) throw scopeChanged();
+        if (canonical(current3) !== canonical(source2)) continue;
+        await tx.put("meta", {
+          key: proofKey(context.scope, source2),
+          format: FORMAT2,
+          scope: context.scope,
+          source_key: source2.key,
+          source_write_id: source2.write_id,
+          source_sha256: captured.hash,
+          source_role: captured.role,
+          ...captured.role === "submitted" ? { submitted_owner: draftOwner } : {},
+          note_id: source2.data.id,
+          save_id: payload.save_id,
+          request: payload,
+          labels: request.labels,
+          saved_version: value.version,
+          content_hash: value.content_hash
+        });
+        if (!active2(context)) throw scopeChanged();
+      }
+    };
+  }
+  async function wasSaved(record) {
+    const source = observed2.get(record), scope = getScope(), generation = getGeneration();
+    if (!baseRecord(source, scope) || canonical(source) !== canonical(record)) return false;
+    const sourceHash = await digest(source);
+    if (scope !== getScope() || generation !== getGeneration()) throw scopeChanged();
+    const verified = await db.transaction(["meta", "entities"], "readonly", async (tx) => {
+      const current3 = await tx.get("meta", source.key), proof = await tx.get("meta", proofKey(scope, source));
+      if (scope !== getScope() || generation !== getGeneration()) throw scopeChanged();
+      if (canonical(current3) !== canonical(source) || !proof || proof.format !== FORMAT2 || proof.scope !== scope || proof.source_key !== source.key || proof.source_write_id !== source.write_id || proof.source_sha256 !== sourceHash || proof.note_id !== source.data.id || !validRequest(source, proof.request, proof.labels) || proof.save_id !== proof.request.save_id || proof.saved_version !== proof.request.version + 1 || !/^[a-f0-9]{64}$/i.test(proof.content_hash || "")) return false;
+      if (!(proof.source_role === "origin" && eligible2(source, scope) || proof.source_role === "submitted" && submittedMatches(source, scope, proof.submitted_owner, proof.request, proof.labels))) return false;
+      const receipt = await tx.get("meta", receiptKey(scope, proof.save_id));
+      const entity = await tx.get("entities", noteKey(scope, source.data.id)), note = entity?.value;
+      if (scope !== getScope() || generation !== getGeneration()) throw scopeChanged();
+      if (!receiptMatches(receipt, source, proof.request, proof.labels, proof.saved_version, proof.content_hash) || entity?.scope !== scope || entity.kind !== "note_entry" || entity.id !== source.data.id || note?.id !== source.data.id || note.category !== source.data.category || note.date !== source.data.date || !Number.isSafeInteger(note.version) || note.version < proof.saved_version || !Number.isSafeInteger(note.change_seq) || note.change_seq < 1 || typeof note.text !== "string" || !labels2(note.labels) || !validTimestamp(note.created_at) || !validTimestamp(note.updated_at) || note.deleted_at !== null && !validTimestamp(note.deleted_at) || !/^[a-f0-9]{64}$/i.test(note.content_hash || "") || note.version === proof.saved_version && note.content_hash !== proof.content_hash) return false;
+      return { note, receipt: receipt.response };
+    });
+    if (!verified) return false;
+    for (const document2 of [verified.note, verified.receipt]) {
+      const { content_hash, ...value } = document2;
+      if (await digest(value) !== content_hash) return false;
+    }
+    if (scope !== getScope() || generation !== getGeneration()) throw scopeChanged();
+    return true;
+  }
+  return { observe, bind, captureRequest, prepare, commitHook, wasSaved };
+}
+var FORMAT2, uuid, labels2, sameLabels, baseRecord, eligible2, invalid2, scopeChanged, proofKey, receiptKey, noteKey, draftKey, validTimestamp;
+var init_note_recovery = __esm({
+  "local-ui/frontend/web/local/note-recovery.mjs"() {
+    init_common();
+    FORMAT2 = "haoduoyu-saved-note-draft-v1";
+    uuid = (value) => typeof value === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value);
+    labels2 = (value) => Array.isArray(value) && value.every((item) => typeof item === "string") && new Set(value).size === value.length;
+    sameLabels = (a, b) => labels2(a) && labels2(b) && canonical([...a].sort()) === canonical([...b].sort());
+    baseRecord = (record, scope) => record?.scope === scope && record.draft_kind === "note_entry" && typeof record.key === "string" && typeof record.write_id === "string" && record.write_id && record.data?.kind === "note_entry" && uuid(record.data.id) && ["life", "work"].includes(record.data.category) && /^\d{4}-\d{2}-\d{2}$/.test(record.data.date || "") && typeof record.data.draft === "string" && record.data.draft.length <= 262144 && Number.isSafeInteger(record.data.version) && record.data.version >= 0 && labels2(record.data.labels) && !record.data.remote && !record.data.deleted && !record.data.localQueued && record.data.labelKnown !== false && (!Number.isSafeInteger(record.data.localVersion) || record.data.localVersion <= record.data.version);
+    eligible2 = (record, scope) => baseRecord(record, scope) && !record.data.pending && !["unknown", "conflict", "oversize"].includes(record.data.phase);
+    invalid2 = () => Object.assign(
+      new Error("\u6062\u590D\u8349\u7A3F\u7684\u4FDD\u5B58\u51ED\u636E\u5DF2\u53D8\u5316\uFF0C\u672C\u6B21\u672A\u786E\u8BA4\u4FDD\u5B58\u3002"),
+      { code: "LOCAL_NOTE_RECOVERY", localNotSaved: true }
+    );
+    scopeChanged = () => Object.assign(
+      new Error("\u8349\u7A3F\u8EAB\u4EFD\u5DF2\u53D8\u5316\uFF0C\u672C\u6B21\u6CA1\u6709\u786E\u8BA4\u4FDD\u5B58\u3002"),
+      { code: "OFFLINE_SCOPE_CHANGED", localNotSaved: true }
+    );
+    proofKey = (scope, source) => JSON.stringify([scope, FORMAT2, source.key, source.write_id]);
+    receiptKey = (scope, saveId) => JSON.stringify([scope, "receipt:note-entry", saveId]);
+    noteKey = (scope, id2) => JSON.stringify([scope, "note_entry", id2]);
+    draftKey = (scope, id2, owner2) => JSON.stringify([scope, "draft:note_entry:" + id2 + ":" + owner2]);
+    validTimestamp = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
   }
 });
 
@@ -966,14 +1114,14 @@ function protocolFor(headers) {
   return Number(value || 3);
 }
 function view(row, protocol) {
-  const { labels: labels2, ...rest } = row;
-  const legacy = row.category === "life" ? labels2.filter((label3) => !builtins.includes(label3)) : [];
+  const { labels: labels3, ...rest } = row;
+  const legacy = row.category === "life" ? labels3.filter((label3) => !builtins.includes(label3)) : [];
   return {
     ...rest,
     deleted: Boolean(row.deleted_at),
     can_edit: true,
     labels_version: protocol,
-    ...protocol === 1 ? { label: legacy[0] || null } : { labels: protocol === 3 ? labels2 : legacy }
+    ...protocol === 1 ? { label: legacy[0] || null } : { labels: protocol === 3 ? labels3 : legacy }
   };
 }
 function dateList(c, kind, q) {
@@ -985,11 +1133,11 @@ function dateList(c, kind, q) {
   const page2 = dates.slice(0, Number(size)), has_more = dates.length > Number(size);
   return { dates: page2, has_more, next_before: has_more ? page2.at(-1) : null };
 }
-async function ensureLabels(c, labels2, previous = []) {
+async function ensureLabels(c, labels3, previous = []) {
   const existing = c.list("label").filter((row) => !builtins.includes(row.name));
-  const missing2 = labels2.filter((name) => !builtins.includes(name) && !c.get("label", name));
+  const missing2 = labels3.filter((name) => !builtins.includes(name) && !c.get("label", name));
   if (existing.length + missing2.length > 200) throw fail(409, "NOTES_LIMIT", "\u81EA\u5EFA\u6807\u7B7E\u5DF2\u8FBE 200 \u4E2A\u4E0A\u9650\u3002");
-  for (const name of labels2) {
+  for (const name of labels3) {
     const current3 = c.get("label", name);
     if (current3?.deleted_at || current3?.archived_at && !previous.includes(name)) throw fail(409, "LABEL_UNAVAILABLE", "\u6807\u7B7E\u5DF2\u5220\u9664\u6216\u5F52\u6863\uFF0C\u8BF7\u91CD\u65B0\u6838\u5BF9\u3002");
   }
@@ -1114,7 +1262,7 @@ async function notesRoute(c, headers) {
   exact(b, method === "PUT" ? ["version", "save_id", "category", "date", "text", ...Object.hasOwn(b, "labels") ? ["labels"] : [], ...Object.hasOwn(b, "label") ? ["label"] : []] : ["version", "save_id"]);
   versionOf(b.version, method === "PUT" ? 0 : 1);
   const saveId = idOf(b.save_id);
-  let labels2, text, category, date;
+  let labels3, text, category, date;
   if (method === "PUT") {
     category = categoryOf(b.category);
     date = dateOf(b.date);
@@ -1122,13 +1270,13 @@ async function notesRoute(c, headers) {
     if (Object.hasOwn(b, "labels") && Object.hasOwn(b, "label")) throw invalid();
     if (Object.hasOwn(b, "labels")) {
       if (!Array.isArray(b.labels) || b.labels.length > (protocol === 3 ? 202 : 200)) throw invalid();
-      labels2 = b.labels.map((label3) => labelOf(label3, protocol === 3)).sort();
-      if (new Set(labels2).size !== labels2.length || protocol !== 3 && category !== "life" && labels2.length) throw invalid();
+      labels3 = b.labels.map((label3) => labelOf(label3, protocol === 3)).sort();
+      if (new Set(labels3).size !== labels3.length || protocol !== 3 && category !== "life" && labels3.length) throw invalid();
     } else if (Object.hasOwn(b, "label")) {
       if (category !== "life") throw invalid();
-      labels2 = [labelOf(b.label, false)];
-    } else labels2 = row?.labels || [category === "work" ? "\u5DE5\u4F5C" : "\u751F\u6D3B"];
-    if (protocol !== 3) labels2 = [.../* @__PURE__ */ new Set([...(row?.labels || [category === "work" ? "\u5DE5\u4F5C" : "\u751F\u6D3B"]).filter((label3) => builtins.includes(label3)), ...labels2])].sort();
+      labels3 = [labelOf(b.label, false)];
+    } else labels3 = row?.labels || [category === "work" ? "\u5DE5\u4F5C" : "\u751F\u6D3B"];
+    if (protocol !== 3) labels3 = [.../* @__PURE__ */ new Set([...(row?.labels || [category === "work" ? "\u5DE5\u4F5C" : "\u751F\u6D3B"]).filter((label3) => builtins.includes(label3)), ...labels3])].sort();
   }
   const result = await c.commit("note-entry", saveId, { method, path, ...b }, async () => {
     currentVersion(row, b.version, { allowMissing: method === "PUT", allowDeleted: method !== "PUT" });
@@ -1139,13 +1287,13 @@ async function notesRoute(c, headers) {
       if (c.list("note_entry").filter((note) => note.category === (row?.category || category) && note.date === (row?.date || date) && !note.deleted_at).length >= 200)
         throw fail(409, "NOTES_LIMIT", "\u8BE5\u65E5\u788E\u788E\u5FF5\u5DF2\u8FBE 200 \u6761\u3002");
     }
-    if (method === "PUT") await ensureLabels(c, labels2, row?.labels || []);
+    if (method === "PUT") await ensureLabels(c, labels3, row?.labels || []);
     const value = {
       id: id2,
       category: row?.category || category,
       date: row?.date || date,
       text: method === "PUT" ? text : row.text,
-      labels: method === "PUT" ? labels2 : row.labels,
+      labels: method === "PUT" ? labels3 : row.labels,
       version: b.version + 1,
       change_seq: await c.revision(),
       created_at: row?.created_at || c.stamp,
@@ -1339,7 +1487,7 @@ var init_review = __esm({
 });
 
 // local-ui/frontend/web/local/api.mjs
-function createLocalApi({ db, now = Date.now, uuid: uuid2 = () => globalThis.crypto.randomUUID(), ownerId = LOCAL_OWNER_ID } = {}) {
+function createLocalApi({ db, now = Date.now, uuid: uuid3 = () => globalThis.crypto.randomUUID(), ownerId = LOCAL_OWNER_ID } = {}) {
   if (!db || typeof db.transaction !== "function") throw new TypeError("A durable database adapter is required");
   ownerId = idOf(ownerId);
   const scope = "local:v1:" + ownerId;
@@ -1388,7 +1536,7 @@ function createLocalApi({ db, now = Date.now, uuid: uuid2 = () => globalThis.cry
           at,
           stamp: new Date(at).toISOString(),
           today: beijingDay(at),
-          uuid: uuid2,
+          uuid: uuid3,
           get: (kind, id2) => clone(record(kind, id2)?.value),
           list: (kind) => [...rows.values()].filter((row) => row.kind === kind).map((row) => clone(row.value)),
           async put(kind, id2, value2) {
@@ -1409,8 +1557,8 @@ function createLocalApi({ db, now = Date.now, uuid: uuid2 = () => globalThis.cry
             return (await tx.get("meta", key2("receipt:" + domain, id2)))?.receipt;
           },
           async commit(domain, operationId, request, work) {
-            const receiptKey = key2("receipt:" + domain, operationId), fingerprint = canonical(request);
-            const saved = await tx.get("meta", receiptKey);
+            const receiptKey2 = key2("receipt:" + domain, operationId), fingerprint = canonical(request);
+            const saved = await tx.get("meta", receiptKey2);
             if (saved) {
               if (saved.fingerprint !== fingerprint) throw fail(409, "IDEMPOTENCY_CONFLICT", "\u64CD\u4F5C\u6807\u8BC6\u5DF2\u7528\u4E8E\u4E0D\u540C\u5185\u5BB9\uFF0C\u672A\u91CD\u590D\u4FDD\u5B58\u3002");
               for (const check2 of saved.checks) if (ctx.get(check2.kind, check2.id)?.version !== check2.version)
@@ -1418,7 +1566,7 @@ function createLocalApi({ db, now = Date.now, uuid: uuid2 = () => globalThis.cry
               return clone(saved.response);
             }
             const { response, checks = [], receipt = {} } = await work();
-            await tx.put("meta", { key: receiptKey, fingerprint, response, checks, receipt, created_at: ctx.stamp });
+            await tx.put("meta", { key: receiptKey2, fingerprint, response, checks, receipt, created_at: ctx.stamp });
             return clone(response);
           }
         };
@@ -1444,8 +1592,8 @@ function createLocalApi({ db, now = Date.now, uuid: uuid2 = () => globalThis.cry
         else if (/^\/memos(\/|$)/.test(ctx.path)) result = await memosRoute(ctx);
         else if (/^\/(review|ai-reports|work-reminders)(\/|$)/.test(ctx.path)) result = await reviewRoute(ctx);
         else throw unsupported();
-        if (typeof options2.localDraftCommit === "function" && method === "POST" && ["/todos", "/unscheduled-todos"].includes(ctx.path))
-          await options2.localDraftCommit(tx);
+        if (typeof options2.localDraftCommit === "function" && (method === "POST" && ["/todos", "/unscheduled-todos"].includes(ctx.path) || method === "PUT" && /^\/note-entries\/[a-f0-9-]{36}$/i.test(ctx.path)))
+          await options2.localDraftCommit(tx, result);
         active2();
         return result;
       });
@@ -1468,8 +1616,8 @@ var init_api = __esm({
 });
 
 // local-ui/frontend/web/local/runtime.mjs
-function createStandaloneRuntime({ db, now = Date.now, uuid: uuid2 = () => crypto.randomUUID() } = {}) {
-  const service = createLocalApi({ db, now, uuid: uuid2, ownerId: LOCAL_OWNER_ID });
+function createStandaloneRuntime({ db, now = Date.now, uuid: uuid3 = () => crypto.randomUUID() } = {}) {
+  const service = createLocalApi({ db, now, uuid: uuid3, ownerId: LOCAL_OWNER_ID });
   const listeners = /* @__PURE__ */ new Set();
   const identity4 = { id: LOCAL_OWNER_ID, username: "\u672C\u673A", publicBusiness: true, localOnly: true };
   const state2 = {
@@ -1486,8 +1634,49 @@ function createStandaloneRuntime({ db, now = Date.now, uuid: uuid2 = () => crypt
     error: null,
     ready: true
   };
-  const drafts = createDraftJournal({ db, getScope: () => LOCAL_SCOPE, getGeneration: () => 0, now, draftOwner: uuid2() });
-  const composerDrafts = createComposerJournal({ db, scope: LOCAL_SCOPE, uuid: uuid2, onError(error) {
+  const draftOwner = uuid3();
+  const drafts = createDraftJournal({ db, getScope: () => LOCAL_SCOPE, getGeneration: () => 0, now, draftOwner });
+  const noteRecovery = createNoteRecoveryJournal({ db, getScope: () => LOCAL_SCOPE, draftOwner });
+  let draftTail = Promise.resolve();
+  const draftFailures = /* @__PURE__ */ new Map();
+  const recordKey = (row) => JSON.stringify([row?.kind ?? null, row?.category ?? null, row?.date ?? null, row?.id ?? null]);
+  function enqueueDraftTask(task, keys = null) {
+    const work = draftTail.then(task).then((value) => {
+      if (keys) for (const key2 of keys) draftFailures.delete(key2);
+      return value;
+    }, (error) => {
+      if (keys) for (const key2 of keys) draftFailures.set(key2, error);
+      throw error;
+    });
+    draftTail = work.catch(() => {
+    });
+    work.catch(() => {
+    });
+    return work;
+  }
+  function retainDrafts(rows) {
+    let frozen, error, keys = ["invalid-capture"];
+    try {
+      if (!Array.isArray(rows)) throw new TypeError("Draft capture requires an array");
+      keys = [...new Set(rows.map(recordKey))];
+      frozen = structuredClone(rows);
+    } catch (cause) {
+      error = cause;
+    }
+    return enqueueDraftTask(() => {
+      if (error) throw error;
+      return drafts.capture(frozen);
+    }, keys);
+  }
+  async function drainDraftTail() {
+    let observed2;
+    do {
+      observed2 = draftTail;
+      await observed2;
+    } while (observed2 !== draftTail);
+    return { tail: observed2 };
+  }
+  const composerDrafts = createComposerJournal({ db, scope: LOCAL_SCOPE, uuid: uuid3, onError(error) {
     state2.error = error.message;
     emit();
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("haoduoyu:local-draft-error", { detail: { message: error.message } }));
@@ -1497,8 +1686,13 @@ function createStandaloneRuntime({ db, now = Date.now, uuid: uuid2 = () => crypt
   });
   const flushAllDrafts = async () => {
     await composerReady;
-    await drafts.flush();
-    await composerDrafts.flush();
+    let observed2;
+    do {
+      observed2 = (await drainDraftTail()).tail;
+      await drafts.flush();
+      await composerDrafts.flush();
+    } while (observed2 !== draftTail);
+    if (draftFailures.size) throw [...draftFailures.values()][0];
   };
   const token = () => ({ scope: LOCAL_SCOPE, generation: 0, localOnly: true });
   const emit = () => {
@@ -1517,9 +1711,12 @@ function createStandaloneRuntime({ db, now = Date.now, uuid: uuid2 = () => crypt
       options2.offlineGuard?.();
       await composerReady;
       const snapshot = options2.localDraftSnapshot;
+      const recoveredNote = options2.localRecoveredNoteSave;
       const clean = { ...options2 };
       delete clean.localDraftSnapshot;
       delete clean.localDraftCommit;
+      delete clean.localRecoveredNoteSave;
+      if (snapshot && recoveredNote) throw new Error("\u4FDD\u5B58\u8BF7\u6C42\u5305\u542B\u4E0D\u5339\u914D\u7684\u8349\u7A3F\u51ED\u636E\u3002");
       if (snapshot) {
         const expectedPath = snapshot.kind === "todo" ? "/todos" : snapshot.kind === "future" ? "/unscheduled-todos" : null;
         if (path !== expectedPath || String(options2.method).toUpperCase() !== "POST" || snapshot.text.trim() !== options2.body?.text || snapshot.kind === "todo" && snapshot.identity !== options2.body?.date)
@@ -1529,6 +1726,11 @@ function createStandaloneRuntime({ db, now = Date.now, uuid: uuid2 = () => crypt
         const result = await service(path, { ...clean, localDraftCommit: hook });
         composerDrafts.accept(snapshot);
         return result;
+      }
+      if (recoveredNote) {
+        if (String(options2.method).toUpperCase() !== "PUT") throw new Error("\u6062\u590D\u8349\u7A3F\u4FDD\u5B58\u8BF7\u6C42\u65E0\u6548\u3002");
+        const hook = noteRecovery.commitHook(recoveredNote, path, options2.body);
+        return service(path, { ...clean, body: structuredClone(options2.body), localDraftCommit: hook });
       }
       return service(path, clean);
     },
@@ -1568,9 +1770,15 @@ function createStandaloneRuntime({ db, now = Date.now, uuid: uuid2 = () => crypt
       const actual = await service("/todos/" + encodeURIComponent(todo.id));
       return actual.version === todo.version && actual.date === todo.date ? "saved" : "refresh";
     },
-    retainDrafts: drafts.capture,
+    retainDrafts,
     retainedDrafts: drafts.list,
-    retainedDraftRecords: drafts.records,
+    retainedDraftRecords: async (kind) => noteRecovery.observe(await drafts.records(kind)),
+    bindRecoveredNote: noteRecovery.bind,
+    prepareRecoveredNoteSave(item, body) {
+      const intent = noteRecovery.captureRequest(item, body);
+      return intent ? enqueueDraftTask(() => noteRecovery.prepare(intent)) : Promise.resolve(null);
+    },
+    wasSavedNoteDraft: noteRecovery.wasSaved,
     purgeVerifiedNoteDrafts: drafts.purgeVerified,
     purgeUserDeletedNoteDrafts: drafts.purgeUserDeleted,
     discardUnsentNoteDraft: drafts.discardUnsent,
@@ -1624,6 +1832,7 @@ var init_runtime = __esm({
     init_db();
     init_drafts();
     init_drafts2();
+    init_note_recovery();
     init_api();
     singleton = null;
     initialization = null;
@@ -3193,12 +3402,12 @@ function createDailyNotesContext({
   },
   onSaved = () => {
   },
-  uuid: uuid2 = () => crypto.randomUUID(),
+  uuid: uuid3 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   delay = 700
 }) {
-  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid: uuid2 } };
+  const context = { pages: /* @__PURE__ */ new Map(), disposed: false, options: { load, put, remove, restore, onSaved, uuid: uuid3 } };
   const pages = context.pages;
   const emit = () => {
     if (!context.disposed) onChange();
@@ -3327,7 +3536,7 @@ function createReadingActions(context) {
 }
 function createWritingActions(context) {
   const { page: page2, emit, stopTimer, matches, accepted } = context;
-  const { put, remove, restore, uuid: uuid2 } = context.options;
+  const { put, remove, restore, uuid: uuid3 } = context.options;
   async function send(item, operation) {
     stopTimer(item);
     item.pending = operation;
@@ -3380,12 +3589,12 @@ function createWritingActions(context) {
       emit();
       return;
     }
-    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid2() });
+    return send(item, { kind: "put", text: item.draft, version: item.version, saveId: uuid3() });
   }
   async function deletePage(date) {
     const item = page2(date);
     if (context.disposed || !item.canEdit || !item.loaded || item.pending || ["conflict", "unknown"].includes(item.phase) || item.version === 0 || item.deleted) return;
-    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid2() });
+    return send(item, { kind: "delete", text: item.draft, version: item.version, saveId: uuid3() });
   }
   async function retryPending(date) {
     const item = page2(date), operation = item.pending;
@@ -3396,7 +3605,7 @@ function createWritingActions(context) {
   async function restorePage(date) {
     const item = page2(date);
     if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
-    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid2() });
+    return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid3() });
   }
   return { save: save3, deletePage, restorePage, retryPending };
 }
@@ -3728,7 +3937,7 @@ init_state();
 
 // local-ui/frontend/web/core/openai-review-runner.mjs
 function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = () => {
-}, uuid: uuid2 = () => crypto.randomUUID(), now = Date.now }) {
+}, uuid: uuid3 = () => crypto.randomUUID(), now = Date.now }) {
   let active2 = true;
   const state2 = { run: null, pendingId: "", notFound: false, busy: false, operation: "", startedAt: 0, error: "" };
   try {
@@ -3787,7 +3996,7 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
         retain2(existing);
         return;
       }
-      const id2 = uuid2(), timing = JSON.stringify({ id: id2, at: now() });
+      const id2 = uuid3(), timing = JSON.stringify({ id: id2, at: now() });
       storage2.setItem(key2 + ":started", timing);
       if (storage2.getItem(key2 + ":started") !== timing) throw new Error("\u65E0\u6CD5\u4FDD\u5B58\u5206\u6790\u5F00\u59CB\u65F6\u95F4\uFF0C\u672A\u5F00\u59CB\u5206\u6790\u3002");
       retain2(id2);
@@ -4612,7 +4821,7 @@ function renderKeys(keys) {
   }).join("")}</tbody></table></div>` : empty("\u6682\u65E0\u51ED\u8BC1", "\u4F9B\u81EA\u52A8\u5316\u5DE5\u5177\u6309\u8D26\u53F7\u8303\u56F4\u8BFB\u53D6\u6216\u5F55\u5165\u6570\u636E\u3002")}</section>`;
 }
 function auditLabel(action) {
-  const labels2 = [
+  const labels3 = [
     ["\u5408\u5E76\u5B58\u7A3F", "PATCH /articles"],
     ["\u65B0\u589E\u6587\u7AE0", "article.create", "POST /articles"],
     ["\u4FEE\u6539\u6587\u7AE0", "article.update", "PUT /articles/:id"],
@@ -4646,7 +4855,7 @@ function auditLabel(action) {
     ["\u521D\u59CB\u5316\u7F51\u7AD9", "auth.bootstrap"]
   ];
   const route2 = String(action || "").replace(/^(PUT|DELETE) \/(articles|accounts|api-keys)\/[^/]+$/, "$1 /$2/:id");
-  return labels2.find((row) => row.includes(route2))?.[0] || route2 || "\u672A\u77E5\u64CD\u4F5C";
+  return labels3.find((row) => row.includes(route2))?.[0] || route2 || "\u672A\u77E5\u64CD\u4F5C";
 }
 function renderSecurity() {
   return `<section class="card panel security-panel"><h2>\u767B\u5F55\u4E0E\u5B89\u5168</h2><p class="muted security-context">\u5F53\u524D\u767B\u5F55\uFF1A${e(state.me.username)}</p><form id="password-form"><div class="form-field"><label for="current-password">\u5F53\u524D\u5BC6\u7801</label><input class="input" type="password" id="current-password" name="currentPassword" autocomplete="current-password" required></div><div class="form-field field-spaced"><label for="new-password">\u65B0\u5BC6\u7801</label><input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password" minlength="12" required><span class="hint">\u81F3\u5C11 12 \u4F4D</span></div><div class="form-field field-spaced"><label for="confirm-password">\u518D\u6B21\u8F93\u5165\u65B0\u5BC6\u7801</label><input class="input" type="password" id="confirm-password" name="confirmPassword" autocomplete="new-password" minlength="12" required></div><p class="form-message" role="alert"></p><div class="form-actions"><button class="btn primary" type="submit">\u66F4\u65B0\u5BC6\u7801</button></div></form><div class="detail-section"><h3>\u6570\u636E\u5BFC\u51FA</h3><a class="btn" href="/api/v1/export" download>${icon("download", 14)}\u5BFC\u51FA\u53D1\u5E03\u8BB0\u5F55 CSV</a></div></section>`;
@@ -6133,8 +6342,8 @@ var savedText = (item) => item.localBacked ? item.durableText : item.serverText;
 var savedPhase = (item) => item.localBacked ? item.localQueued ? "queued" : "cached" : item.version ? "saved" : "empty";
 var labelsOf = (value) => Array.isArray(value?.labels) ? value.labels : value?.label ? [value.label] : [];
 var equalLabels = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
-var validLabels = (labels2) => Array.isArray(labels2) && labels2.every(validNoteLabel) && new Set(labels2).size === labels2.length;
-var validLegacyLabels = (labels2, category) => validLabels(labels2) && (category === "life" || labels2.length === 0) && labels2.every(validCustomNoteLabel);
+var validLabels = (labels3) => Array.isArray(labels3) && labels3.every(validNoteLabel) && new Set(labels3).size === labels3.length;
+var validLegacyLabels = (labels3, category) => validLabels(labels3) && (category === "life" || labels3.length === 0) && labels3.every(validCustomNoteLabel);
 var localFailure = (error) => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || "");
 function validNoteLabel(value) {
   return typeof value === "string" && value.isWellFormed() && value === value.trim().normalize("NFC") && [...value].length >= 1 && [...value].length <= 32 && !/[\u0000-\u001f\u007f]/.test(value);
@@ -6184,7 +6393,7 @@ function createEntriesContext({
   prepareDelete = async () => null,
   finishDelete = async () => {
   },
-  uuid: uuid2 = () => crypto.randomUUID(),
+  uuid: uuid3 = () => crypto.randomUUID(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   delay = 400,
@@ -6199,7 +6408,7 @@ function createEntriesContext({
     entries,
     multiLabels,
     disposed: false,
-    options: { load, loadEntry, loadOperation, loadVerified, put, remove, restore, onSaved, discardUnsent, prepareDelete, finishDelete, uuid: uuid2 }
+    options: { load, loadEntry, loadOperation, loadVerified, put, remove, restore, onSaved, discardUnsent, prepareDelete, finishDelete, uuid: uuid3 }
   };
   const emit = () => {
     if (!context.disposed) onChange();
@@ -6456,17 +6665,17 @@ function createEntryReadingActions(context) {
 }
 function createEntryEditingActions(context) {
   const { page: page2, entry, entries, emit, stopTimer, schedule, makeEntry } = context;
-  const { uuid: uuid2 } = context.options;
-  function start(date, { label: label3 = "", labels: labels2 = label3 ? [label3] : [] } = {}) {
+  const { uuid: uuid3 } = context.options;
+  function start(date, { label: label3 = "", labels: labels3 = label3 ? [label3] : [] } = {}) {
     const current3 = page2(date);
-    if (!validLabels(labels2, context.category)) throw new Error("\u6807\u7B7E\u65E0\u6548\u3002");
+    if (!validLabels(labels3, context.category)) throw new Error("\u6807\u7B7E\u65E0\u6548\u3002");
     if (context.disposed || !current3.loaded || !current3.canEdit || date !== dailyNotesToday()) return;
     const existing = entry(current3.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label3) return existing;
-    const id2 = uuid2();
+    const id2 = uuid3();
     if (!uuidPattern.test(id2) || entries.has(id2)) throw new Error("\u6682\u65F6\u65E0\u6CD5\u65B0\u5EFA\u8BB0\u5F55\uFF0C\u8BF7\u91CD\u8BD5\u3002");
     const item = makeEntry(id2, date, current3.canEdit);
-    item.labels = [...labels2];
+    item.labels = [...labels3];
     item.label = item.labels[0] || "";
     item.labelKnown = true;
     item.labelComplete = true;
@@ -6493,12 +6702,12 @@ function createEntryEditingActions(context) {
     emit();
     if (!composing) schedule(item);
   }
-  function relabelDraft(id2, labels2 = []) {
+  function relabelDraft(id2, labels3 = []) {
     const item = entry(id2);
-    if (typeof labels2 === "string") labels2 = labels2 ? [labels2] : [];
-    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) || !validLabels(labels2, context.category)) return false;
-    item.labels = [...labels2];
-    item.label = labels2[0] || "";
+    if (typeof labels3 === "string") labels3 = labels3 ? [labels3] : [];
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) || !validLabels(labels3, context.category)) return false;
+    item.labels = [...labels3];
+    item.label = labels3[0] || "";
     item.dirty = item.draft !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
     item.phase = item.dirty ? "dirty" : savedPhase(item);
     emit();
@@ -6570,7 +6779,7 @@ function createEntryRecoveryActions(context) {
 }
 function createEntryWritingActions(context) {
   const { category, page: page2, entry, entries, emit, stopTimer, adopt, schedule } = context;
-  const { put, remove, restore, uuid: uuid2, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified } = context.options;
+  const { put, remove, restore, uuid: uuid3, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified } = context.options;
   const matches = (value, operation) => value.version === operation.version + 1 && (operation.kind === "delete" ? value.deleted : operation.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation.text && (!operation.labels || [2, 3].includes(value.labels_version) && equalLabels(value.labels, operation.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation.labels)) && (!operation.label || value.labels_version === 1 && value.label === operation.label) && (!operation.expectedLabel || value.labels_version === 1 && value.label === operation.expectedLabel));
   function accepted(item, value, operation) {
     const preserve = operation.kind === "put" && item.draft !== operation.text;
@@ -6709,7 +6918,7 @@ function createEntryWritingActions(context) {
       kind: "put",
       version: persistedVersion(item),
       text: item.draft,
-      saveId: uuid2(),
+      saveId: uuid3(),
       ...context.multiLabels && item.labelComplete && (!persistedVersion(item) || !equalLabels(item.labels, item.serverLabels)) ? { labels: [...item.labels] } : {},
       ...!context.multiLabels && !persistedVersion(item) && item.label ? { label: item.label } : {},
       ...!context.multiLabels && item.label ? { expectedLabel: item.label } : {}
@@ -6753,7 +6962,7 @@ function createEntryWritingActions(context) {
     }
     if (context.disposed || entry(id2) !== item) return;
     item.discarding = false;
-    const result = await send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid2() });
+    const result = await send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid3() });
     if (result && prepared) {
       try {
         await finishDelete(prepared, result);
@@ -6764,7 +6973,7 @@ function createEntryWritingActions(context) {
   async function restoreEntry(id2) {
     const item = entry(id2);
     if (!item || context.disposed || !item.canEdit || !item.deleted || item.pending || blocked(item)) return;
-    return send(item, { kind: "restore", version: persistedVersion(item), saveId: uuid2() });
+    return send(item, { kind: "restore", version: persistedVersion(item), saveId: uuid3() });
   }
   return { matches, accepted, acceptedLocal, send, save: save3, deleteEntry, restoreEntry };
 }
@@ -7095,7 +7304,7 @@ function paintSavedEntry(node2, item) {
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "\u7EE7\u7EED\u7F16\u8F91\u8349\u7A3F" : item.deleted ? "\u67E5\u770B" : "\u7F16\u8F91";
 }
-function paintEntryEditor(node2, item, confirmId, labels2, labelsVerified) {
+function paintEntryEditor(node2, item, confirmId, labels3, labelsVerified) {
   paintEntrySummary(node2, item);
   const find = (selector) => node2.querySelector(selector), editor = find("textarea");
   editor.dataset.date = item.date;
@@ -7108,7 +7317,7 @@ function paintEntryEditor(node2, item, confirmId, labels2, labelsVerified) {
   fieldset.hidden = item.deleted;
   fieldset.disabled = !item.canEdit || !item.labelComplete || !labelsVerified || Boolean(item.pending);
   fieldset.title = item.labelComplete && labelsVerified ? "" : "\u8BF7\u8054\u7F51\u6838\u5B9E\u6807\u7B7E\u72B6\u6001\u540E\u518D\u4FEE\u6539\u3002";
-  const available = [.../* @__PURE__ */ new Set([...labels2, ...item.labels || []])];
+  const available = [.../* @__PURE__ */ new Set([...labels3, ...item.labels || []])];
   if (JSON.stringify([...options2.querySelectorAll("input")].map((input) => input.value)) !== JSON.stringify(available)) {
     options2.replaceChildren(...available.map((value) => {
       const label3 = document.createElement("label"), input = document.createElement("input");
@@ -7146,7 +7355,7 @@ function paintEntryEditor(node2, item, confirmId, labels2, labelsVerified) {
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
 var editorNodes = /* @__PURE__ */ new WeakMap();
-function paintActiveEditor(root2, store, active2, legacy, confirmId, labels2, labelsVerified) {
+function paintActiveEditor(root2, store, active2, legacy, confirmId, labels3, labelsVerified) {
   const host = root2.querySelector("#notes-active-entry");
   if (!editorNodes.has(root2)) editorNodes.set(root2, /* @__PURE__ */ new Map());
   const nodes = editorNodes.get(root2), item = store.entry(active2);
@@ -7155,7 +7364,7 @@ function paintActiveEditor(root2, store, active2, legacy, confirmId, labels2, la
     if (!nodes.has(active2)) nodes.set(active2, createEntryElement(item, true));
     const node2 = nodes.get(active2);
     if (host.firstElementChild !== node2) host.replaceChildren(node2);
-    paintEntryEditor(node2, item, confirmId, labels2, labelsVerified);
+    paintEntryEditor(node2, item, confirmId, labels3, labelsVerified);
   }
   root2.querySelector("#notes-legacy-card").hidden = active2 !== "legacy";
   paintDailyNotes(root2, legacy, { compatibility: true, editing: active2 === "legacy" });
@@ -7216,7 +7425,7 @@ function paintOtherLegacy(root2, list2, legacy, category) {
   exportButton.dataset.legacyCategory = category;
   exportButton.hidden = !draft;
 }
-function paintNoteEntries(root2, store, current3, legacy, { drafts = [], confirmId = "", active: active2 = "", otherLegacy = null, otherCategory = "", labels: labels2 = [], labelsVerified = true } = {}) {
+function paintNoteEntries(root2, store, current3, legacy, { drafts = [], confirmId = "", active: active2 = "", otherLegacy = null, otherCategory = "", labels: labels3 = [], labelsVerified = true } = {}) {
   const find = (selector) => root2.querySelector(selector), list2 = find("#notes-entry-list");
   root2.dataset.date = current3.date;
   const dateInput = find("#notes-date");
@@ -7238,7 +7447,7 @@ function paintNoteEntries(root2, store, current3, legacy, { drafts = [], confirm
     paintSavedEntry(node2, item);
     node2.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
   }
-  paintActiveEditor(root2, store, active2, legacy, confirmId, labels2, labelsVerified);
+  paintActiveEditor(root2, store, active2, legacy, confirmId, labels3, labelsVerified);
   paintLegacySummary(root2, legacy, active2);
   (retainedLegacy(legacy) ? unpublished : list2).append(root2.querySelector("#notes-legacy-saved"));
   root2.querySelector("#notes-legacy-saved").dataset.sortTime = legacy.updatedAt || "";
@@ -7269,7 +7478,7 @@ init_runtime();
 
 // local-ui/frontend/web/offline/conflict-draft-guards.mjs
 var factories = /* @__PURE__ */ new Set();
-var uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+var uuid2 = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 var changed = () => {
   throw Object.assign(new Error("\u672C\u673A\u8F93\u5165\u6216\u8EAB\u4EFD\u5DF2\u53D8\u5316\uFF0C\u8BF7\u4FDD\u7559\u539F\u6587\u5E76\u91CD\u65B0\u6BD4\u8F83\u3002"), { code: "OFFLINE_CONFLICT_CHANGED" });
 };
@@ -7295,7 +7504,7 @@ function draftSnapshot(value, kind) {
 function entityId(value, prefix) {
   if (typeof value !== "string" || !value.startsWith(prefix)) return null;
   const id2 = value.slice(prefix.length);
-  return uuid.test(id2) ? id2.toLowerCase() : null;
+  return uuid2.test(id2) ? id2.toLowerCase() : null;
 }
 function privateMemoJournals(storage2, owner2, id2) {
   if (!storage2 || typeof owner2 !== "string" || !owner2) changed();
@@ -7498,7 +7707,10 @@ async function hydrateNotesDrafts(legacy, entries, category) {
     if (!unchangedEntrySinceSnapshot(epochs, raw.id, current3, revisions.get(raw.id), current3 && entryDraftRevision(current3))) continue;
     if (current3 && (current3.pending || current3.composing || current3.dirty)) continue;
     const restored = entries.restoreDraft(raw);
-    if (restored?.recoveredBaseline) entryRecoveryGuard.remember(restored, record);
+    if (restored?.recoveredBaseline) {
+      entryRecoveryGuard.remember(restored, record);
+      offline.bindRecoveredNote?.(restored, record, () => active2() && entryStores.get(category) === entries && entries.entry(raw.id) === restored);
+    }
     seen.add(raw.id);
   }
   const legacyDrafts = await offline.retainedDrafts("legacy");
@@ -7577,7 +7789,12 @@ async function visibleArchive() {
         }, 2e3);
       })
     ]).finally(() => clearTimeout(timer2));
-    const rows = uniqueRetainedDrafts(snapshots2.map((record) => record.data).filter((row) => !row || !matchesDeletedEntry(row, tombstones.get(row.id))));
+    const recoverable2 = [];
+    for (const record of snapshots2) {
+      if (!await offline.wasSavedNoteDraft?.(record)) recoverable2.push(record);
+      if (identity4 !== notesIdentityNow()) return [];
+    }
+    const rows = uniqueRetainedDrafts(recoverable2.map((record) => record.data).filter((row) => !row || !matchesDeletedEntry(row, tombstones.get(row.id))));
     return identity4 === notesIdentityNow() ? rows.map((raw) => ({ raw, record: snapshots2.find((record) => record.data === raw) })) : [];
   })();
   visibleArchiveFlight = { identity: identity4, revision, promise };
@@ -7792,8 +8009,8 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
         return await noteRequest(path, options2);
       } catch (error) {
         if (error.code !== "NETWORK_UNAVAILABLE") throw error;
-        const body = options2.body || {}, labels2 = body.labels;
-        if (labels2)
+        const body = options2.body || {}, labels3 = body.labels;
+        if (labels3)
           throw Object.assign(new Error("\u591A\u6807\u7B7E\u4FEE\u6539\u9700\u8981\u8054\u7F51\uFF0C\u8349\u7A3F\u5DF2\u4FDD\u7559\u3002"), { code: "OFFLINE_MULTI_LABEL", localNotSaved: true });
         const { labels: ignored, ...legacyBody } = body;
         return request(path, { ...options2, offlineUnknown: true, body: legacyBody, headers: { "X-Note-Labels-Version": "1" } });
@@ -7841,7 +8058,12 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
       loadVerified: (date) => noteRequest("/note-entries?category=" + category + "&date=" + encodeURIComponent(date)),
       loadEntry: (id2) => noteRead("/note-entries/" + encodeURIComponent(id2)),
       loadOperation: (id2) => noteRequest("/note-entries/operations/" + encodeURIComponent(id2)),
-      put: (id2, body, options2) => noteWrite("/note-entries/" + encodeURIComponent(id2), { ...options2, method: "PUT", body }),
+      put: async (id2, body, options2) => noteWrite("/note-entries/" + encodeURIComponent(id2), {
+        ...options2,
+        method: "PUT",
+        body,
+        localRecoveredNoteSave: await getOfflineRuntime()?.prepareRecoveredNoteSave?.(entries.entry(id2), body)
+      }),
       remove: (id2, body, options2) => noteWrite("/note-entries/" + encodeURIComponent(id2), { ...options2, method: "DELETE", body }),
       restore: (id2, body, options2) => noteRequest("/note-entries/" + encodeURIComponent(id2) + "/restore", { ...options2, method: "POST", body }),
       prepareDelete: async (item) => {
@@ -8184,8 +8406,8 @@ function applyHistoryMonth(root2, month, days, chosenDate) {
   root2.querySelector("#notes-history-month").value = month;
   monthOptions(dateSelect, dates, selected, "");
   monthOptions(root2.querySelector("#notes-history-week"), ["", ...weeks.map((_, index) => String(index + 1))], "", "\u5168\u90E8\u5468\u6B21");
-  const labels2 = ["", .../* @__PURE__ */ new Set(["\u751F\u6D3B", "\u5DE5\u4F5C", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
-  monthOptions(labelSelect, labels2, oldLabel, "\u5168\u90E8\u6807\u7B7E");
+  const labels3 = ["", .../* @__PURE__ */ new Set(["\u751F\u6D3B", "\u5DE5\u4F5C", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
+  monthOptions(labelSelect, labels3, oldLabel, "\u5168\u90E8\u6807\u7B7E");
   paintHistoryRows(root2);
 }
 async function loadHistory(month = "", chosenDate = "") {
@@ -8610,10 +8832,10 @@ function editFloatingNote(text, composing = false) {
   const item = floatingNoteEntry(true);
   if (item) entryStores.get(item.category).edit(item.id, text, { composing });
 }
-function labelFloatingNote(labels2) {
+function labelFloatingNote(labels3) {
   const item = floatingNoteEntry(true);
   if (!item || !notesLabelsVerified) return false;
-  return entryStores.get(item.category).relabelDraft(item.id, labels2);
+  return entryStores.get(item.category).relabelDraft(item.id, labels3);
 }
 async function sendFloatingNote() {
   const item = floatingNoteEntry(false), store = item && entryStores.get(item.category);
@@ -8892,7 +9114,7 @@ function recoveredDraft(raw) {
 }
 function makeContext(options2) {
   const { request, ownerId = "", storage: storage2, onChange = () => {
-  }, uuid: uuid2 = () => globalThis.crypto.randomUUID(), delay = 700 } = options2;
+  }, uuid: uuid3 = () => globalThis.crypto.randomUUID(), delay = 700 } = options2;
   const state2 = {
     groups: [],
     notes: [],
@@ -8906,8 +9128,8 @@ function makeContext(options2) {
     operation: null,
     storageError: ""
   };
-  const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request, ownerId, storage: storage2, uuid: uuid2, delay, disposed: false, hydrated: false, loadSequence: 0 };
-  context.draftScope = options2.draftScope || uuid2();
+  const context = { state: state2, drafts: /* @__PURE__ */ new Map(), request, ownerId, storage: storage2, uuid: uuid3, delay, disposed: false, hydrated: false, loadSequence: 0 };
+  context.draftScope = options2.draftScope || uuid3();
   context.restoreDraftScope = options2.restoreDraftScope;
   context.storagePersistent = options2.storagePersistent !== false && Boolean(options2.draftScope);
   context.online = options2.online || (() => globalThis.navigator?.onLine !== false);
@@ -11357,8 +11579,8 @@ function evidence(value) {
   if (value === null || value === void 0 || value === "") return "\u2014";
   if (typeof value !== "object") return String(value);
   if (!value.metric) return "\u2014";
-  const labels2 = { ctr: "CTR", ctr_24h: "CTR", reads: "\u9605\u8BFB", reads_24h: "\u9605\u8BFB", completion_rate: "\u5B8C\u8BFB\u7387", completion_24h: "\u5B8C\u8BFB\u7387", avg_read_seconds: "\u5E73\u5747\u9605\u8BFB\u65F6\u957F" };
-  const key2 = value.metric, label3 = labels2[key2] || key2;
+  const labels3 = { ctr: "CTR", ctr_24h: "CTR", reads: "\u9605\u8BFB", reads_24h: "\u9605\u8BFB", completion_rate: "\u5B8C\u8BFB\u7387", completion_24h: "\u5B8C\u8BFB\u7387", avg_read_seconds: "\u5E73\u5747\u9605\u8BFB\u65F6\u957F" };
+  const key2 = value.metric, label3 = labels3[key2] || key2;
   return `\u547D\u4E2D ${reviewNumber(value.n_with)} \u7BC7\uFF0C${label3} ${reviewNumber(value.with_median, key2)}\uFF1B\u672A\u547D\u4E2D ${reviewNumber(value.n_without)} \u7BC7\uFF0C${label3} ${reviewNumber(value.without_median, key2)}`;
 }
 var v13RuleGroups = [["keep_topic", "\u9009\u9898"], ["drop_topic", "\u653E\u5F03\u9009\u9898"], ["title", "\u6807\u9898"], ["body", "\u6B63\u6587"], ["audience", "\u8BFB\u8005"], ["checklist", "\u81EA\u68C0\u6E05\u5355"]];
@@ -12130,7 +12352,7 @@ function validArticle(value, id2) {
 function verificationIntent(index, done) {
   return `\u7B2C ${index + 1} \u9879\u8BBE\u4E3A${done ? "\u5DF2\u5904\u7406" : "\u5F85\u5904\u7406"}`;
 }
-function createArticleVerificationStore({ article, load, put, uuid: uuid2 = () => crypto.randomUUID(), onChange = () => {
+function createArticleVerificationStore({ article, load, put, uuid: uuid3 = () => crypto.randomUUID(), onChange = () => {
 }, isCurrent = () => true }) {
   let current3 = copy(article), phase = "idle", message = "", pending = null, busy = false, retryReady = false;
   const snapshot = () => ({ article: copy(current3), phase, message, busy, retryReady });
@@ -12222,7 +12444,7 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid2 = () =
     if (current3.verify_items[index].done === done) return;
     const items = copy(current3.verify_items);
     items[index].done = done;
-    pending = { index, done, before: copy(current3.verify_items), body: { version: current3.version, verify_items: items }, key: uuid2() };
+    pending = { index, done, before: copy(current3.verify_items), body: { version: current3.version, verify_items: items }, key: uuid3() };
     busy = true;
     try {
       await send();
@@ -12513,7 +12735,7 @@ function conflictEvidence(document2, conflict) {
 function queueRows(document2, queue, runtime2, refresh, requests) {
   const root2 = document2.createDocumentFragment();
   if (!queue.operations.length && !queue.conflicts.length) root2.append(textNode(document2, "p", "\u6682\u65E0\u5F85\u5904\u7406\u5185\u5BB9\u3002"));
-  const labels2 = {
+  const labels3 = {
     queued: "\u7B49\u5F85\u540C\u6B65",
     sending: "\u5F85\u540C\u6B65",
     unknown: "\u7ED3\u679C\u5F85\u6838\u5BF9",
@@ -12525,7 +12747,7 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
     const item = textNode(
       document2,
       "p",
-      `${operation.needs_upgrade ? "\u9700\u65B0\u7248" : labels2[operation.status] || "\u7B49\u5F85\u540C\u6B65"} \xB7 ${readable(operation.local)}`,
+      `${operation.needs_upgrade ? "\u9700\u65B0\u7248" : labels3[operation.status] || "\u7B49\u5F85\u540C\u6B65"} \xB7 ${readable(operation.local)}`,
       "offline-queue-row"
     );
     if (operation.error) item.append(textNode(document2, "span", " \xB7 " + operation.error));
@@ -12550,13 +12772,13 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
       continue;
     }
     if (conflict.resolution) {
-      const labels3 = {
+      const labels4 = {
         queued: "\u9009\u62E9\u5DF2\u5B58\u672C\u673A\uFF0C\u6B63\u5728\u6838\u5BF9\u7EBF\u4E0A\u7ED3\u679C\u3002",
         conflict: "\u65B0\u4FDD\u5B58\u6709\u51B2\u7A81\uFF0C\u8BF7\u6838\u5BF9\u4E0B\u65B9\u7684\u65B0\u6BD4\u8F83\u5185\u5BB9\u3002",
         blocked: "\u65B0\u4FDD\u5B58\u6682\u672A\u5B8C\u6210\uFF0C\u539F\u6587\u4E0E\u9009\u62E9\u4ECD\u4FDD\u7559\u3002",
         paused: "\u9700\u8054\u7F51\u6838\u5B9E\u540E\u7EE7\u7EED\uFF0C\u539F\u6587\u4E0E\u9009\u62E9\u4ECD\u4FDD\u7559\u3002"
       };
-      item.append(textNode(document2, "p", labels3[conflict.resolution.state] || "\u6B63\u5728\u6838\u5BF9\u7EBF\u4E0A\u7ED3\u679C\u3002"));
+      item.append(textNode(document2, "p", labels4[conflict.resolution.state] || "\u6B63\u5728\u6838\u5BF9\u7EBF\u4E0A\u7ED3\u679C\u3002"));
       root2.append(item);
       continue;
     }
@@ -12738,10 +12960,10 @@ function makeView(pip) {
   notesInput.placeholder = "\u5199\u4E0B\u4E00\u70B9\u60F3\u8BF4\u7684\u8BDD\u2026";
   notesInput.setAttribute("aria-label", "\u788E\u788E\u5FF5\u5185\u5BB9");
   notesInput.rows = 5;
-  const labels2 = node(doc, "fieldset", "", "floating-labels");
-  labels2.append(node(doc, "legend", "\u6807\u7B7E\uFF08\u53EF\u591A\u9009\uFF09"));
+  const labels3 = node(doc, "fieldset", "", "floating-labels");
+  labels3.append(node(doc, "legend", "\u6807\u7B7E\uFF08\u53EF\u591A\u9009\uFF09"));
   const options2 = node(doc, "div");
-  labels2.append(options2);
+  labels3.append(options2);
   const noteMessage = node(doc, "p", "", "floating-message");
   noteMessage.setAttribute("role", "status");
   const noteActions = node(doc, "div", "", "floating-actions");
@@ -12754,7 +12976,7 @@ function makeView(pip) {
   retry.type = "button";
   retry.hidden = true;
   noteActions.append(send, check2, retry);
-  notes.append(noteList, newNote, notesInput, labels2, noteMessage, noteActions);
+  notes.append(noteList, newNote, notesInput, labels3, noteMessage, noteActions);
   main.append(head, tabs, offline, todo, notes);
   doc.body.replaceChildren(main);
   return {
@@ -12769,7 +12991,7 @@ function makeView(pip) {
     noteList,
     newNote,
     notesInput,
-    labels: labels2,
+    labels: labels3,
     options: options2,
     noteMessage,
     send,
@@ -13827,11 +14049,11 @@ async function reconcileArticleSave(cache2, request, isCurrent) {
   if (savedArticle(remote, cache2.saveAttempt)) return remote;
   throw uncertainArticleSave(cache2, "\u4FDD\u5B58\u7ED3\u679C\u4E0E\u5F53\u524D\u8BB0\u5F55\u672A\u80FD\u786E\u8BA4\u4E00\u81F4\uFF0C\u5F53\u524D\u8868\u5355\u4E0D\u4F1A\u518D\u6B21\u63D0\u4EA4\u3002\u8BF7\u91CD\u65B0\u6253\u5F00\u6700\u65B0\u8BB0\u5F55\u6838\u5BF9\u3002");
 }
-async function saveArticleForm({ form, data: data2 }, { request = api, uuid: uuid2 = () => crypto.randomUUID() } = {}) {
+async function saveArticleForm({ form, data: data2 }, { request = api, uuid: uuid3 = () => crypto.randomUUID() } = {}) {
   const cache2 = articleFormRecord(form), isCurrent = () => articleFormCurrent(form, cache2);
   if (cache2.saveAttempt) throw new Error("\u6B64\u8868\u5355\u5DF2\u6709\u4FDD\u5B58\u8BF7\u6C42\uFF0C\u8BF7\u5173\u95ED\u540E\u6838\u5BF9\u6587\u7AE0\u5217\u8868\u6216\u6700\u65B0\u8BE6\u60C5\uFF0C\u4E0D\u8981\u91CD\u590D\u65B0\u5EFA\u3002");
   const body = buildArticleFormPayload(data2, cache2.record), id2 = form.dataset.id || "";
-  cache2.saveAttempt = { id: id2, body: structuredClone(body), key: uuid2(), phase: "saving" };
+  cache2.saveAttempt = { id: id2, body: structuredClone(body), key: uuid3(), phase: "saving" };
   let value;
   try {
     value = await request(id2 ? `/articles/${encodeURIComponent(id2)}` : "/articles", {

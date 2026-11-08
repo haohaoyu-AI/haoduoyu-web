@@ -1,5 +1,5 @@
 {
-  "sourceManifestSha256": "1a3c78876033459d466f2717b5e6e1b5a1f7a484b661f6b405c03553600e1ee9",
+  "sourceManifestSha256": "aaebe137f2add03bdbdab47468a013d32da92217c805baf2a355e7d4809480d8",
   "sourceCheckpoint": "local-ui/build/site",
   "copyMethod": "byte-for-byte, all file digests verified"
 }

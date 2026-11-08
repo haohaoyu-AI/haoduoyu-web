@@ -5,6 +5,17 @@ export const draftTransforms = [
   ['core/note-entries-state.mjs',
     "    item.writeEpoch++; adopt(item, value, preserve); item.remote = null; item.pending = null;",
     "    item.writeEpoch++; adopt(item, value, preserve); delete item.recoveredBaseline; item.remote = null; item.pending = null;"],
+  // Preserve every original archive row. Only a selected snapshot with an exact
+  // committed note/receipt proof is excluded from later automatic hydration.
+  ['daily-notes-controller.mjs',
+    '    const rows = uniqueRetainedDrafts(snapshots.map(record => record.data).filter(row =>',
+    '    const recoverable = [];\n    for (const record of snapshots) {\n      if (!await offline.wasSavedNoteDraft?.(record)) recoverable.push(record);\n      if (identity !== notesIdentityNow()) return [];\n    }\n    const rows = uniqueRetainedDrafts(recoverable.map(record => record.data).filter(row =>'],
+  ['daily-notes-controller.mjs',
+    '    if(restored?.recoveredBaseline) entryRecoveryGuard.remember(restored,record);',
+    '    if(restored?.recoveredBaseline) {\n      entryRecoveryGuard.remember(restored,record);\n      offline.bindRecoveredNote?.(restored,record,() => active() && entryStores.get(category) === entries && entries.entry(raw.id) === restored);\n    }'],
+  ['daily-notes-controller.mjs',
+    "      put: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body}),",
+    "      put: async (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body,\n        localRecoveredNoteSave:await getOfflineRuntime()?.prepareRecoveredNoteSave?.(entries.entry(id),body)}),"],
   ['core/todos-state.mjs', 'const todosState =', 'import {bindLocalComposer} from "../local/runtime.mjs";\nconst todosState ='],
   ['core/todos-state.mjs', '  return todosState.days.get(date);', '  const day = todosState.days.get(date);\n  if (!day.localDraftBound) { bindLocalComposer(day,"draft","todo",date); day.localDraftBound = true; }\n  return day;'],
   ['pages/todos.mjs', 'const todoObservers = new Set();', 'import {localComposerRequestSnapshot,localComposerUnchanged} from "../local/runtime.mjs";\nconst todoObservers = new Set();'],
