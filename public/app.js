@@ -29,6 +29,7 @@ var init_constants = __esm({
       { id: "review", label: "内容复盘", icon: "chart" },
       { id: "todos", label: "每日待办", icon: "check" },
       { id: "notes", label: "碎碎念", icon: "edit" },
+      { id: "ai-diagnosis", label: "AI诊断", icon: "chart" },
       { id: "ai-reports", label: "AI 日报", icon: "calendar" },
       { id: "settings", label: "设置", icon: "settings" }
     ];
@@ -2388,8 +2389,8 @@ function storageMethods(context) {
       throw new Error("Offline edits must use the preceding local version");
     }
     const sequenceKey = entityKey(input.scope, "outbox-sequence");
-    const sequence5 = (await tx.get("meta", sequenceKey))?.value || 0;
-    operation2.seq = sequence5 + 1;
+    const sequence6 = (await tx.get("meta", sequenceKey))?.value || 0;
+    operation2.seq = sequence6 + 1;
     const key2 = entityKey(input.scope, operation2.entity_id), old = await tx.get("entities", key2);
     await noteCapacity(tx, operation2, old);
     const visible3 = old?.dirty ? old.local : old?.server || operation2.base;
@@ -3226,12 +3227,12 @@ function createReadingActions(context) {
   const { page, emit, stopTimer, adopt, schedule } = context;
   const { load } = context.options;
   async function read3(date) {
-    const item = page(date), sequence5 = ++item.sequence, writeEpoch = item.writeEpoch;
+    const item = page(date), sequence6 = ++item.sequence, writeEpoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
       const value = checkedPage(await load(date), date);
-      if (context.disposed || sequence5 !== item.sequence) return;
+      if (context.disposed || sequence6 !== item.sequence) return;
       if (item.pending || writeEpoch !== item.writeEpoch) return;
       if (["conflict", "unknown"].includes(item.phase)) {
         item.remote = value;
@@ -3247,12 +3248,12 @@ function createReadingActions(context) {
         item.error = "";
       }
     } catch (error) {
-      if (!context.disposed && sequence5 === item.sequence) {
+      if (!context.disposed && sequence6 === item.sequence) {
         item.error = error.message;
         if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence5 === item.sequence) {
+      if (!context.disposed && sequence6 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
@@ -4439,14 +4440,14 @@ function identityActions(context) {
 function stateActions(context) {
   const { state: state2, outbox, emit, online } = context;
   async function refresh() {
-    const sequence5 = context.refreshSequence = (context.refreshSequence || 0) + 1;
+    const sequence6 = context.refreshSequence = (context.refreshSequence || 0) + 1;
     if (!state2.scope) {
       emit();
       return { ...state2 };
     }
     const owner2 = state2.scope, generation = context.generation;
     const [pending, conflicts] = await Promise.all([outbox.list(owner2), outbox.conflicts.list(owner2)]);
-    if (sequence5 !== context.refreshSequence || owner2 !== state2.scope || generation !== context.generation) return { ...state2 };
+    if (sequence6 !== context.refreshSequence || owner2 !== state2.scope || generation !== context.generation) return { ...state2 };
     state2.pending = pending.length;
     state2.conflicts = conflicts.length;
     state2.online = online() && state2.online;
@@ -5444,7 +5445,7 @@ function badgeMode(mode) {
   return `<span class="badge ${mode === "automatic" ? "up" : mode === "mixed" ? "neutral" : ""}">${e(modeLabels[mode] || modeLabels.unknown)}</span>`;
 }
 function headerActions() {
-  if (["notes", "memos", "reminders", "ai-reports"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
+  if (["notes", "memos", "reminders", "ai-reports", "ai-diagnosis"].includes(state.page) || state.page === "settings" && state.settingsTab === "workspace") return "";
   if (state.page === "dashboard") return `${state.articleOverviewMode === "published" ? dashboardInfo("metrics", "总览数据口径", "header") : ""}<button class="icon-button" data-action="refresh" title="刷新数据" aria-label="刷新数据">${icon("refresh")}</button>`;
   if (state.page === "articles") return `<a class="btn" href="/api/v1/export" download>${icon("download")}导出 CSV</a><button class="btn primary" data-action="new-article">${icon("plus")}记录文章</button>`;
   if (state.page === "reviews") return `<button class="btn primary" data-action="new-review">${icon("plus")}录入数据</button>`;
@@ -5462,6 +5463,7 @@ function accountFilter() {
   )}</select></label>`;
 }
 function pageHeader() {
+  if (state.page === "ai-diagnosis") return '<div class="heading-left"><h1>AI诊断</h1></div>';
   if (state.page === "ai-reports") return '<div class="heading-left"><h1>AI 日报</h1></div>';
   if (state.page === "reminders") return '<div class="heading-left"><h1>每日工作提醒</h1></div>';
   if (state.page === "memos") return '<div class="heading-left"><h1>' + (state.memoView === "trash" ? "备忘录回收站" : "备忘录") + "</h1></div>";
@@ -5651,10 +5653,14 @@ async function loadReconciliation(context) {
 }
 
 // web/core/openai-review-state.mjs
-var OPENAI_TABS = Object.freeze(["reminders", "reports", "openai"]);
+var OPENAI_TABS = Object.freeze(["reminders", "reports"]);
 var openAiSessionAvailable = (me) => Boolean(me?.id);
 var openAiRunActive = (run2) => ["running"].includes(run2?.status);
 var openAiRunFinished = (run2) => ["succeeded", "failed"].includes(run2?.status) || Boolean(run2?.released_at);
+function openAiPendingRunSettled(previous, next) {
+  const run2 = next.run;
+  return Boolean(previous.pendingId && run2?.id === previous.pendingId && ["succeeded", "failed", "cancelled", "uncertain"].includes(run2.status) && (previous.run?.id !== run2.id || previous.run?.status !== run2.status));
+}
 function openAiRunDay(run2) {
   const date = new Date(run2?.created_at);
   if (!Number.isFinite(date.getTime())) return "";
@@ -5667,7 +5673,7 @@ function openAiRunDay(run2) {
   return `${parts2.year}-${parts2.month}-${parts2.day}`;
 }
 function openAiDiaryLink(run2) {
-  const query = new URLSearchParams({ page: "ai-reports", ai_tab: "openai", date: openAiRunDay(run2) });
+  const query = new URLSearchParams({ page: "ai-diagnosis", diagnosis_tab: "reports", date: openAiRunDay(run2) });
   if (run2?.id) query.set("openai_run", run2.id);
   return "?" + query;
 }
@@ -5813,6 +5819,72 @@ function renderSafeMarkdown(value) {
   return out;
 }
 
+// web/core/openai-review-progress.mjs
+function openAiStartTime(storage2, key2, id2) {
+  try {
+    const saved = JSON.parse(storage2.getItem(key2 + ":started"));
+    return id2 && saved?.id === id2 && Number.isFinite(saved.at) && saved.at > 0 ? saved.at : 0;
+  } catch {
+    return 0;
+  }
+}
+function openAiElapsed(startedAt, now = Date.now()) {
+  const seconds = Math.max(0, Math.floor((now - startedAt) / 1e3));
+  return seconds < 60 ? `${seconds}秒` : `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+}
+function openAiCompletedElapsed(run2) {
+  if (!["succeeded", "failed", "cancelled"].includes(run2?.status)) return "";
+  const duration3 = Number.isFinite(run2.elapsed_ms) ? run2.elapsed_ms : Date.parse(run2.completed_at) - Date.parse(run2.created_at);
+  return Number.isFinite(duration3) && duration3 >= 0 ? openAiElapsed(0, duration3) : "";
+}
+function openAiReviewFeedback(vm4) {
+  const run2 = !vm4.pendingId || vm4.run?.id === vm4.pendingId ? vm4.run : null;
+  const error = run2?.error_message || "";
+  if (run2?.status === "uncertain") return {
+    title: "结果待确认",
+    detail: error || "API 执行结果尚未确认。",
+    note: "无法确定是否已经计费。不会自动重试；请只读核查状态。"
+  };
+  if (vm4.pendingId && vm4.error) return {
+    title: "当前请求结果待确认",
+    detail: vm4.error,
+    note: "不会自动重复分析。可以只读核查状态。"
+  };
+  if (run2?.status === "running" || vm4.operation === "start" && vm4.pendingId) return {
+    title: run2?.stage === "awaiting_provider" || run2?.provider_calls > 0 ? "已登记调用，等待结果" : run2?.stage === "preparing" ? "正在准备诊断资料…" : "请求已发出，等待服务器确认…",
+    waiting: true,
+    detail: "仅显示已确认的请求状态，不代表模型思考进度。无需再次点击；离开后可回来核查。"
+  };
+  if (vm4.pendingId) return {
+    title: vm4.operation === "check" ? "正在只读核查状态…" : "当前请求结果待确认",
+    detail: "请求编号已保留，不会自动重复分析。请核查状态。"
+  };
+  if (run2?.status === "failed") return { title: "本次分析未完成", detail: error || "未生成完整报告。历史记录仍保留。" };
+  if (vm4.error) return { title: "操作未完成", detail: vm4.error };
+  if (run2?.status === "succeeded") return { title: "分析完成", detail: "报告已保存，可在诊断报告查看。" };
+  return null;
+}
+function createOpenAiElapsedClock(target, { now = Date.now, every = setInterval, cancel = clearInterval } = {}) {
+  let timer2 = null;
+  const stop = () => {
+    if (timer2 !== null) cancel(timer2);
+    timer2 = null;
+  };
+  const tick = () => {
+    const value = target();
+    if (!value?.node || !Number.isFinite(value.startedAt) || value.startedAt <= 0) {
+      stop();
+      return false;
+    }
+    value.node.textContent = openAiElapsed(value.startedAt, now());
+    return true;
+  };
+  return { stop, refresh() {
+    stop();
+    if (tick()) timer2 = every(tick, 1e3);
+  } };
+}
+
 // web/pages/openai-review.mjs
 init_dom();
 var openAiLogin = '<p class="hint">请先<a href="?page=login">登录</a>，再查看或使用 OpenAI API。</p>';
@@ -5843,41 +5915,57 @@ function openAiRunModeLabel(run2) {
   return run2.mode === "incremental" ? "累计复盘" : "文章复盘";
 }
 function renderOpenAiRun(run2) {
+  const elapsed = openAiCompletedElapsed(run2);
   return `<article class="card panel openai-run" id="openai-run-${e(run2.id)}" tabindex="-1">
     <div class="openai-run-heading"><h3>${e(openAiRunLabel(run2))}</h3>
     <time datetime="${e(run2.created_at)}">${e(timestamp3(run2.created_at))}</time></div>
     <p class="hint">${e(openAiRunModeLabel(run2))}
-    ${run2.model ? " · " + e(run2.model) : ""}${run2.instruction_version ? " · 指令版本 " + e(run2.instruction_version) : ""}</p>
+    ${run2.model ? " · " + e(run2.model) : ""}${run2.instruction_version ? " · 指令版本 " + e(run2.instruction_version) : ""}${elapsed ? " · 用时 " + e(elapsed) : ""}</p>
     ${run2.report_markdown ? `<div class="ai-report-markdown">${renderSafeMarkdown(run2.report_markdown)}</div>` : ""}
     ${run2.status === "failed" ? `<p role="alert">${e(run2.error_message || "未生成完整报告。历史记录仍保留。")}</p>` : ""}
     ${run2.status === "uncertain" ? `<p role="status">${e(run2.error_message || "API 执行结果尚未确认，可能已经计费；不会自动重试。")}</p>
-      <p><a href="?page=review&amp;account=V%E5%AD%97#openai-review-panel">前往复盘页核查状态</a></p>` : ""}
-    ${openAiRunActive(run2) ? '<p role="status">分析进行中。可在复盘页核查状态，无需再次发起。</p>' : ""}</article>`;
+      <p><a href="?page=ai-diagnosis&amp;diagnosis_tab=help">前往求助API核查状态</a></p>` : ""}
+    ${openAiRunActive(run2) ? '<p role="status">分析进行中。可在求助API核查状态，无需再次发起。</p>' : ""}</article>`;
 }
 function renderOpenAiReviewPanel(vm4 = {}) {
-  const header = '<div class="openai-review-heading"><h2>OpenAI API 复盘</h2></div>';
+  const header = '<div class="openai-review-heading"><h2>求助API</h2></div>';
   if (!vm4.owner) return header + openAiLogin;
   const busy = vm4.loading || vm4.busy, disabled = busy || !vm4.config?.configured || Boolean(vm4.pendingId);
-  const status = vm4.loading ? "正在读取分析配置…" : !vm4.config ? "暂时无法读取配置。" : vm4.config.configured ? "可发起分析" : "尚未配置 OpenAI API，暂不能发起分析。";
-  return header + `<p class="hint">首次分析全部已登记文章和指标；之后结合最新摘要，比较新增文章、数据变化与历史统计。</p>
-    <p class="hint">${e(status)}${vm4.config?.model ? " · " + e(vm4.config.model) : ""}</p>
+  const status = vm4.loading ? "正在读取分析配置…" : !vm4.config ? "暂时无法读取配置。" : vm4.config.configured ? vm4.pendingId || vm4.busy ? "本次请求处理中或等待核查" : "可发起分析" : "尚未配置 OpenAI API，暂不能发起分析。";
+  const selectedModel = vm4.pendingId && vm4.run?.id === vm4.pendingId && vm4.run.model || vm4.selectedModel || vm4.config?.default_model || vm4.config?.model;
+  return header + `<p class="hint">${e(status)}</p>
+    <label for="openai-model">模型</label>
+    <select class="input" id="openai-model" ${disabled ? "disabled" : ""}>
+      ${(vm4.config?.supported_models || []).map((model) => `<option value="${e(model.id)}"
+        ${model.id === selectedModel ? "selected" : ""}>${e(model.label)}</option>`).join("")}
+    </select><p class="hint">模型能否调用以账户权限为准。</p>
     <div class="openai-review-actions"><button class="btn primary" type="button" data-openai-action="start"
     ${disabled ? "disabled" : ""} aria-busy="${Boolean(vm4.busy)}">求助API</button>
-    <details class="openai-review-options"><summary>更多分析选项</summary>
-    <button class="btn" type="button" data-openai-action="full" ${disabled ? "disabled" : ""}>重新全量分析</button></details>
     ${vm4.pendingId ? `<button class="btn" type="button" data-openai-action="check" ${busy ? "disabled" : ""}>核查状态</button>` : ""}
     ${vm4.pendingId && (vm4.notFound || vm4.run?.status === "uncertain") ? `<button class="btn" type="button" data-openai-action="release" ${busy ? "disabled" : ""}>结束本次状态核查</button>` : ""}
     ${!vm4.config && !vm4.loading ? '<button class="btn" type="button" data-openai-action="reload">重新读取</button>' : ""}</div>
-    <p role="status" aria-live="polite">${e(vm4.error || (vm4.pendingId ? "请求已保留，请核查状态，不会自动重复提交。" : ""))}</p>
+    ${renderOpenAiReviewStatus(vm4)}
     ${vm4.run ? `<p>最近记录：${e(openAiRunLabel(vm4.run))} · ${e(timestamp3(vm4.run.created_at))}
-      <a href="${e(openAiDiaryLink(vm4.run))}">在 AI 日报查看这条记录</a></p>` : ""}`;
+      <a href="${e(openAiDiaryLink(vm4.run))}">在诊断报告查看这条记录</a></p>` : ""}`;
+}
+function renderOpenAiReviewStatus(vm4) {
+  const feedback = openAiReviewFeedback(vm4);
+  if (!feedback) return "";
+  const elapsed = !vm4.pendingId || vm4.run?.id === vm4.pendingId ? openAiCompletedElapsed(vm4.run) : "";
+  const startedAt = vm4.startedAt || (vm4.run?.id === vm4.pendingId ? Date.parse(vm4.run.created_at) : 0);
+  return `<div class="openai-review-status"><p role="status" aria-live="polite"><strong>${e(feedback.title)}</strong></p>
+    ${feedback.waiting ? '<progress aria-label="等待分析结果，无法提供准确进度"></progress>' : ""}
+    ${feedback.waiting && Number.isFinite(startedAt) && startedAt > 0 ? `<p aria-live="off">已等待 <span data-openai-elapsed="${startedAt}">${e(openAiElapsed(startedAt))}</span></p>` : ""}
+    ${elapsed ? `<p>用时 ${e(elapsed)}</p>` : ""}
+    <p>${e(feedback.detail)}</p>${feedback.note ? `<p>${e(feedback.note)}</p>` : ""}
+    ${vm4.error && vm4.error !== feedback.detail ? `<p role="alert">${e(vm4.error)}</p>` : ""}</div>`;
 }
 function renderOpenAiSettings(vm4 = {}) {
-  if (!vm4.owner) return `<section id="openai-settings" class="card panel"><h2>OpenAI API</h2>${openAiLogin}</section>`;
+  if (!vm4.owner) return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2>${openAiLogin}</section>`;
   const draft = vm4.draft;
   const status = vm4.loading ? "正在读取…" : !draft ? "配置读取失败。" : draft.saved.configured ? "可发起分析" : "尚未配置 OpenAI API";
-  return `<section id="openai-settings" class="card panel"><h2>OpenAI API</h2><p class="hint">${e(status)}</p>
-    <p class="hint">密钥由服务器管理，此处不显示或录入密钥。</p>
+  return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2><p class="hint">${e(status)}</p>
+    <p class="hint">密钥由服务器管理，此处不显示或录入密钥。<a href="?page=ai-diagnosis">前往AI诊断</a></p>
     ${draft ? renderInstructions(draft) : ""}<p role="alert">${e(vm4.error || "")}</p>
     ${!draft && !vm4.loading ? '<button class="btn" type="button" data-openai-action="reload-settings">重新读取</button>' : ""}</section>`;
 }
@@ -6101,6 +6189,7 @@ function updateRoute(push = false) {
   state.filters.status = "published";
   const u = new URL(location.href);
   u.searchParams.set("page", state.page);
+  if (state.page === "ai-diagnosis" && u.hash === "#openai-review-panel") u.hash = "";
   if (state.page === "notes" && dailyNotesRouteCategory() === "work") u.searchParams.set("notes_category", "work");
   else u.searchParams.delete("notes_category");
   if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
@@ -6111,9 +6200,14 @@ function updateRoute(push = false) {
   if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
   else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
   else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
-  else if (state.page === "ai-reports" && state.aiDailyDate) u.searchParams.set("date", state.aiDailyDate);
+  else if (["ai-reports", "ai-diagnosis"].includes(state.page) && state.aiDailyDate) u.searchParams.set("date", state.aiDailyDate);
   else u.searchParams.delete("date");
-  if (state.page === "ai-reports") {
+  if (state.page === "ai-diagnosis") {
+    u.searchParams.set("diagnosis_tab", state.diagnosisTab || "help");
+    u.searchParams.delete("ai_tab");
+    if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
+    else u.searchParams.delete("openai_run");
+  } else if (state.page === "ai-reports") {
     u.searchParams.set("ai_tab", state.aiDailyTab || "reminders");
     if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
     else u.searchParams.delete("openai_run");
@@ -6121,6 +6215,7 @@ function updateRoute(push = false) {
     u.searchParams.delete("ai_tab");
     u.searchParams.delete("openai_run");
   }
+  if (state.page !== "ai-diagnosis") u.searchParams.delete("diagnosis_tab");
   if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
   else u.searchParams.delete("todo_panel");
   if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
@@ -6146,9 +6241,13 @@ function readRoute() {
     setDailyNotesRouteDate(params.get("date"));
     setDailyNotesRouteCategory(params.get("notes_category"));
   }
-  state.aiDailyTab = ["reminders", "reports", "openai"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reminders";
-  state.aiDailyDate = state.page === "ai-reports" && validTodoDate(params.get("date")) ? params.get("date") : "";
-  state.openAiRun = state.page === "ai-reports" && /^[a-zA-Z0-9-]{1,80}$/.test(params.get("openai_run") || "") ? params.get("openai_run") : "";
+  const legacyDiary = raw === "ai-reports" && params.get("ai_tab") === "openai";
+  const legacyHelp = raw === "review" && location.hash === "#openai-review-panel";
+  if (legacyDiary || legacyHelp) state.page = "ai-diagnosis";
+  state.diagnosisTab = legacyDiary || params.get("diagnosis_tab") === "reports" ? "reports" : "help";
+  state.aiDailyTab = ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reminders";
+  state.aiDailyDate = ["ai-reports", "ai-diagnosis"].includes(state.page) && validTodoDate(params.get("date")) ? params.get("date") : "";
+  state.openAiRun = state.page === "ai-diagnosis" && /^[a-zA-Z0-9-]{1,80}$/.test(params.get("openai_run") || "") ? params.get("openai_run") : "";
   state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";
   if (state.memoView === "trash") {
     state.page = "settings";
@@ -6195,6 +6294,517 @@ function readRoute() {
   state.topN = int("top_n", 5, 100);
   state.topPlatform = ["toutiao", "zhihu", "wechat", "other"].includes(params.get("top_platform")) ? params.get("top_platform") : "";
   state.columns = new Set(params.has("columns") ? params.get("columns").split(",").filter((c) => Object.hasOwn(articleColumns, c)) : defaultColumns);
+}
+
+// web/pages/ai-reports.mjs
+init_dom();
+init_daily_notes_state();
+function renderAiReports() {
+  return `<section id="ai-reports" aria-label="AI 日报">
+    <div>
+      <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
+        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="true">每日提醒</button>
+        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="false">AI汇报</button>
+      </div>
+      <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
+        <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
+        <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
+      <section data-ai-daily-panel="reminders"><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
+      <section data-ai-daily-panel="reports" hidden><p id="ai-report-list-status" role="status"></p>
+      <div id="ai-report-list" aria-live="polite"></div>
+      </section>
+    </div>
+  </section>`;
+}
+var dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+var timeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: "Asia/Shanghai",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
+function reportContent(value) {
+  const content2 = String(value ?? "");
+  const firstLine = content2.split(/\r?\n/, 1)[0];
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(firstLine) ? /* @__PURE__ */ new Date(`${firstLine}T00:00:00Z`) : null;
+  if (!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== firstLine)
+    return { workDate: null, body: content2 };
+  return { workDate: firstLine, body: content2.slice(firstLine.length).replace(/^\r?\n/, "") };
+}
+function reportDay(row) {
+  const { workDate } = reportContent(row.content);
+  const date = new Date(row.created_at);
+  if (workDate) return workDate;
+  if (!Number.isFinite(date.getTime())) return "";
+  const parts2 = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts2.year}-${parts2.month}-${parts2.day}`;
+}
+function reportGroup(author) {
+  const name = String(author ?? "").trim().toLowerCase();
+  if (["grok bot", "grok bot-小小鱼"].includes(name)) return "Grok bot";
+  if (name === "gemini") return "Gemini";
+  if (["gpt", "chatgpt", "chatgpt-dot小鱼"].includes(name)) return "GPT";
+  return "其他作者";
+}
+function reportAuthorClass(author) {
+  const colors = { "Grok bot": "grok", Gemini: "gemini", GPT: "gpt", "其他作者": "other" };
+  return `ai-report-author ai-report-author--${colors[reportGroup(author)]}`;
+}
+function paintAiCalendar(selectedDate2, visibleMonth3 = selectedDate2.slice(0, 7), selector = "#ai-reports") {
+  const root2 = document.querySelector(selector);
+  if (!root2) return;
+  root2.querySelector("#ai-report-date-title").textContent = `${Number(visibleMonth3.slice(0, 4))}年${Number(visibleMonth3.slice(5, 7))}月`;
+  const first = /* @__PURE__ */ new Date(`${visibleMonth3}-01T00:00:00Z`);
+  const days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  let calendar = '<div class="ai-calendar-grid">' + ["日", "一", "二", "三", "四", "五", "六"].map((d) => `<span>${d}</span>`).join("");
+  calendar += "<span></span>".repeat(first.getUTCDay());
+  for (let day6 = 1; day6 <= days; day6++) {
+    const date = `${visibleMonth3}-${String(day6).padStart(2, "0")}`;
+    calendar += `<button type="button" class="btn text" data-ai-report-select="${date}" aria-label="${date}" ${date === selectedDate2 ? 'aria-current="date"' : ""}>${day6}</button>`;
+  }
+  root2.querySelector("#ai-report-calendar").innerHTML = calendar + "</div>";
+}
+function paintAiReports(items, error = "", loading = false, selectedDate2 = dailyNotesToday(), visibleMonth3 = selectedDate2.slice(0, 7)) {
+  const root2 = document.querySelector("#ai-reports");
+  if (!root2) return;
+  const status = root2.querySelector("#ai-report-list-status");
+  status.textContent = error || (loading || items.length ? "" : "暂无汇报");
+  paintAiCalendar(selectedDate2, visibleMonth3);
+  const rows = [];
+  const groups = { "Grok bot": [], Gemini: [], GPT: [], "其他作者": [] };
+  for (const row of items) {
+    const date = new Date(row.created_at);
+    const validDate = Number.isFinite(date.getTime());
+    const submissionDay = validDate ? dateFormatter.format(date) : "日期未知";
+    const { body: body2 } = reportContent(row.content);
+    const stamp2 = validDate ? `${submissionDay} ${timeFormatter.format(date)}（北京时间）` : String(row.created_at ?? "未知");
+    const author = String(row.author ?? "");
+    const group = reportGroup(author);
+    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp2)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body2)}</div></article>`);
+  }
+  for (const [name, entries] of Object.entries(groups)) {
+    if (name === "其他作者" && !entries.length) continue;
+    const heading = name === "其他作者" ? `<h3 class="${reportAuthorClass(name)}">${name}</h3>` : "";
+    rows.push(`<section>${heading}${entries.length ? entries.join("") : "<p>暂无汇报</p>"}</section>`);
+  }
+  root2.querySelector("#ai-report-list").innerHTML = loading || error ? "" : rows.join("");
+}
+function paintAiDailyReminders(data2, error = "", loading = false) {
+  const root2 = document.querySelector("#ai-reports");
+  if (!root2) return;
+  root2.querySelector("#ai-reminder-status").textContent = error || (loading ? "正在读取工作提醒…" : "");
+  const items = data2?.items || [];
+  root2.querySelector("#ai-reminder-list").innerHTML = items.length ? items.map((row) => `<article class="card field-spaced" style="overflow-wrap:anywhere"><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join("") : loading || error ? "" : "<p>暂无工作提醒</p>";
+}
+function paintOpenAiDiary(items = [], { error = "", loading = false, owner: owner2 = true } = {}) {
+  const root2 = document.querySelector("#ai-diagnosis");
+  if (!root2) return;
+  root2.querySelector("#openai-diary-status").textContent = error || (loading ? "正在读取分析记录…" : "");
+  root2.querySelector("#openai-diary-list").innerHTML = !owner2 ? openAiLogin : loading || error ? "" : items.length ? items.map(renderOpenAiRun).join("") : "<p>这一天没有 OpenAI API 分析记录。</p>";
+}
+
+// web/core/openai-review-runner.mjs
+function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = () => {
+}, uuid: uuid5 = () => crypto.randomUUID(), now = Date.now }) {
+  let active5 = true;
+  const state2 = { run: null, pendingId: "", notFound: false, busy: false, operation: "", startedAt: 0, error: "" };
+  try {
+    state2.pendingId = storage2.getItem(key2) || "";
+  } catch {
+  }
+  state2.startedAt = openAiStartTime(storage2, key2, state2.pendingId);
+  const change2 = () => {
+    if (active5) onChange({ ...state2 });
+  };
+  const retain2 = (id2) => {
+    storage2.setItem(key2, id2);
+    if (storage2.getItem(key2) !== id2) throw new Error("无法保存分析请求编号，请允许本机存储后再开始。");
+    state2.pendingId = id2;
+    state2.startedAt = openAiStartTime(storage2, key2, id2);
+  };
+  const accept = (run2) => {
+    if (!active5) return;
+    if (state2.run?.id === run2?.id && openAiRunFinished(state2.run) && !openAiRunFinished(run2)) return;
+    if (!run2?.id || typeof run2.status !== "string") throw new Error("分析状态暂时无法确认，请核查状态。");
+    state2.run = run2;
+    state2.notFound = false;
+    if (openAiRunFinished(run2)) {
+      if (storage2.getItem(key2) === state2.pendingId) storage2.removeItem(key2);
+      state2.pendingId = "";
+    } else retain2(run2.id);
+    state2.startedAt = Date.parse(run2.created_at) || state2.startedAt;
+  };
+  async function recover() {
+    if (!active5 || state2.busy || !state2.pendingId) return;
+    state2.busy = true;
+    state2.operation = "check";
+    state2.error = "";
+    change2();
+    try {
+      accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId)));
+    } catch (error) {
+      state2.notFound = error.status === 404;
+      state2.error = error.status === 404 ? "尚未查到这次请求，请稍后核查。不会自动重复提交。" : error.message || "暂时无法确认结果，请核查状态。";
+    } finally {
+      state2.busy = false;
+      state2.operation = "";
+      change2();
+    }
+  }
+  const observe = createObserver({ state: state2, request, active: () => active5, accept, change: change2 });
+  async function start(mode = "incremental", model = "") {
+    if (!active5 || state2.busy || state2.pendingId || !["incremental", "full"].includes(mode)) return;
+    state2.busy = true;
+    state2.operation = "start";
+    state2.error = "";
+    change2();
+    try {
+      const existing = storage2.getItem(key2);
+      if (existing) {
+        retain2(existing);
+        return;
+      }
+      const id2 = uuid5(), timing = JSON.stringify({ id: id2, at: now() });
+      storage2.setItem(key2 + ":started", timing);
+      if (storage2.getItem(key2 + ":started") !== timing) throw new Error("无法保存分析开始时间，未开始分析。");
+      retain2(id2);
+      change2();
+      const run2 = await request("/openai-review/runs", { method: "POST", body: { run_id: state2.pendingId, mode, ...model ? { model } : {} } });
+      accept(run2);
+    } catch (error) {
+      if (!active5 || openAiRunFinished(state2.run) && !state2.pendingId) return;
+      state2.error = state2.pendingId ? "请求结果尚未确认，请核查状态。不会自动重复提交。" : error.message || "无法保存请求编号，未开始分析。";
+      if (error.code === "OPENAI_REVIEW_IN_FLIGHT" && error.run_id) {
+        retain2(error.run_id);
+        state2.error = "已有分析请求，请核查状态。";
+      }
+      if ([
+        "OPENAI_NOT_CONFIGURED",
+        "OPENAI_REVIEW_NOT_CONFIGURED",
+        "FORBIDDEN",
+        "UNAUTHORIZED",
+        "OPENAI_REVIEW_RATE_LIMIT",
+        "OPENAI_REVIEW_INPUT_LIMIT",
+        "OPENAI_REVIEW_NO_DATA",
+        "OPENAI_REVIEW_SOURCE_INVALID",
+        "VALIDATION_ERROR"
+      ].includes(error.code)) {
+        try {
+          storage2.removeItem(key2);
+        } catch {
+        }
+        state2.pendingId = "";
+        state2.error = error.message;
+      }
+    } finally {
+      state2.busy = false;
+      state2.operation = "";
+      change2();
+    }
+  }
+  async function release() {
+    if (!active5 || state2.busy || !state2.pendingId || !(state2.notFound || state2.run?.status === "uncertain")) return;
+    state2.busy = true;
+    state2.operation = "release";
+    state2.error = "";
+    change2();
+    try {
+      accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId) + "/release", {
+        method: "POST",
+        body: { acknowledgement: "provider_outcome_unknown_no_automatic_retry" }
+      }));
+    } catch (error) {
+      state2.error = error.message || "解除结果尚未确认，请核查状态。";
+      if (["OPENAI_REVIEW_RECOVERY_RATE_LIMIT", "OPENAI_REVIEW_PUBLIC_RATE_LIMIT"].includes(error.code))
+        state2.error += " 请稍后只读核查状态，不会自动重复提交。";
+    } finally {
+      state2.busy = false;
+      state2.operation = "";
+      change2();
+    }
+  }
+  return { state: state2, start, recover, observe, release, adopt(run2) {
+    accept(run2);
+    change2();
+  }, dispose() {
+    active5 = false;
+  } };
+}
+function createObserver({ state: state2, request, active: active5, accept, change: change2 }) {
+  let observing = false;
+  return async function observe() {
+    if (!active5() || observing || state2.operation !== "start" || !state2.pendingId || state2.run?.status === "uncertain") return;
+    const id2 = state2.pendingId;
+    observing = true;
+    try {
+      const run2 = await request("/openai-review/runs/" + encodeURIComponent(id2));
+      if (active5() && state2.pendingId === id2 && run2?.id === id2) {
+        accept(run2);
+        change2();
+      }
+    } catch {
+    } finally {
+      observing = false;
+      if (active5()) change2();
+    }
+  };
+}
+
+// web/openai-review-controller.mjs
+init_api();
+init_state();
+var session2 = "", runner, vm2 = {}, registered2 = false, timer = null, loadSequence = 0;
+var identity5 = () => `${runtime.sessionEpoch}:${state.me?.id || ""}:${Boolean(state.me?.publicBusiness)}`;
+var current2 = () => session2 === identity5();
+var clock = createOpenAiElapsedClock(() => {
+  if (!current2() || (state.page !== "ai-diagnosis" || state.diagnosisTab !== "help") || document.visibilityState === "hidden") return null;
+  const node2 = document.querySelector("#openai-review-panel [data-openai-elapsed]");
+  return node2 ? { node: node2, startedAt: Number(node2.dataset.openaiElapsed) } : null;
+});
+function stopOpenAiReviewTimers() {
+  clock.stop();
+  clearTimeout(timer);
+  timer = null;
+}
+function openAiReviewTimeout(path, options3 = {}) {
+  return path === "/openai-review/runs" && options3.method === "POST" ? 21e4 : 75e3;
+}
+async function read2(path, options3 = {}) {
+  const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), openAiReviewTimeout(path, options3));
+  try {
+    return await apiNetwork(path, { ...options3, signal: controller.signal, suppressAuthRedirect: true });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+function reset2() {
+  if (session2 === identity5()) return;
+  runner?.dispose();
+  stopOpenAiReviewTimers();
+  session2 = identity5();
+  vm2 = { owner: openAiSessionAvailable(state.me), config: null, loading: false, error: "" };
+  if (!vm2.owner) {
+    runner = null;
+    return;
+  }
+  const captured = session2;
+  runner = createOpenAiRunner({
+    request: read2,
+    key: `haoduoyu.openai.run.v1:${state.me.id}:V字`,
+    storage: {
+      getItem: (key2) => localStorage.getItem(key2),
+      setItem: (key2, value) => localStorage.setItem(key2, value),
+      removeItem: (key2) => localStorage.removeItem(key2)
+    },
+    onChange(next) {
+      if (captured !== identity5() || session2 !== captured) return;
+      const settled = openAiPendingRunSettled(vm2, next);
+      vm2 = { ...vm2, ...next };
+      paintOpenAiReview();
+      scheduleCheck();
+      if (settled) document.dispatchEvent(new CustomEvent("openai-run-settled", {
+        detail: { sessionEpoch: runtime.sessionEpoch, userId: state.me?.id, runId: next.run.id }
+      }));
+    }
+  });
+  vm2 = { ...vm2, ...runner.state };
+}
+function paintOpenAiReview() {
+  reset2();
+  const node2 = document.querySelector("#openai-review-panel");
+  if (node2) node2.innerHTML = renderOpenAiReviewPanel(vm2);
+  clock.refresh();
+}
+function scheduleCheck() {
+  clearTimeout(timer);
+  timer = null;
+  if (document.visibilityState === "hidden" || runner?.state.run?.status === "uncertain") return;
+  if (!current2() || state.page !== "ai-diagnosis" || state.diagnosisTab !== "help" || !runner?.state.pendingId || runner.state.busy && runner.state.operation !== "start" || vm2.error) return;
+  timer = setTimeout(() => {
+    if (document.visibilityState !== "hidden" && current2() && state.page === "ai-diagnosis" && state.diagnosisTab === "help" && document.querySelector("#openai-review-panel"))
+      void (runner.state.operation === "start" ? runner.observe() : runner.recover());
+  }, 5e3);
+}
+async function loadOpenAiReview() {
+  reset2();
+  register2();
+  if (!vm2.owner) {
+    paintOpenAiReview();
+    return;
+  }
+  const ticket = ++loadSequence, captured = session2;
+  const fresh = () => ticket === loadSequence && captured === identity5();
+  vm2.loading = true;
+  vm2.config = null;
+  vm2.error = "";
+  paintOpenAiReview();
+  try {
+    const config = await read2("/openai-review/config");
+    if (!fresh()) return;
+    vm2.config = config;
+    if (!config.supported_models?.some((model) => model.id === vm2.selectedModel)) vm2.selectedModel = config.default_model || config.model;
+    if (runner.state.pendingId) await runner.recover();
+    else {
+      const page = await read2("/openai-review/runs?offset=0");
+      if (!fresh()) return;
+      const latest = page?.items?.[0];
+      if (latest) runner.adopt(latest);
+    }
+  } catch (error) {
+    if (fresh()) vm2.error = error.message || "读取失败，请重新读取。";
+  } finally {
+    if (fresh()) {
+      vm2.loading = false;
+      paintOpenAiReview();
+      scheduleCheck();
+    }
+  }
+}
+function register2() {
+  if (registered2) return;
+  registered2 = true;
+  document.addEventListener("change", (event) => {
+    if (event.target.id === "openai-model" && current2() && !runner?.state.busy && !runner?.state.pendingId && vm2.config?.supported_models?.some((model) => model.id === event.target.value)) vm2.selectedModel = event.target.value;
+  });
+  document.addEventListener("click", (event) => {
+    const button2 = event.target.closest?.("#openai-review-panel [data-openai-action]");
+    if (!button2 || button2.disabled || !current2() || !vm2.owner) return;
+    const action = button2.dataset.openaiAction;
+    if (action === "reload") {
+      void loadOpenAiReview();
+      return;
+    }
+    if (action === "check") {
+      void runner.recover();
+      return;
+    }
+    if (action === "release") {
+      if (window.confirm("这次请求可能已经产生 API 费用，但结果无法确认。结束核查不会重试，也不会自动发起新分析。确定结束？"))
+        void runner.release();
+      return;
+    }
+    if (!vm2.config?.configured || vm2.loading) return;
+    if (action === "full" && !window.confirm("重新分析全部已登记文章和指标，会产生一次新的 API 调用。继续吗？")) return;
+    if (["start", "full"].includes(action)) void runner.start(action === "full" ? "full" : "incremental", vm2.selectedModel);
+  });
+  window.addEventListener("storage", (event) => {
+    if (event.key === `haoduoyu.openai.run.v1:${state.me?.id}:V字` && current2() && !runner?.state.busy) {
+      stopOpenAiReviewTimers();
+      if (state.page === "ai-diagnosis" && state.diagnosisTab === "help") void loadOpenAiReview();
+    }
+  });
+  window.addEventListener("pagehide", stopOpenAiReviewTimers);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") stopOpenAiReviewTimers();
+    else if (current2() && state.page === "ai-diagnosis" && state.diagnosisTab === "help") {
+      clock.refresh();
+      scheduleCheck();
+    }
+  });
+}
+
+// web/ai-diagnosis-controller.mjs
+init_state();
+init_api();
+init_daily_notes_state();
+var registered3 = false, sequence3 = 0, visibleMonth = "";
+function renderAiDiagnosis() {
+  return `<section id="ai-diagnosis" aria-label="AI诊断">
+    <div class="page-tabs segmented" role="group" aria-label="AI诊断模块">
+      <button class="btn" type="button" data-diagnosis-tab="help">求助API</button>
+      <button class="btn" type="button" data-diagnosis-tab="reports">诊断报告</button></div>
+    <section data-diagnosis-panel="help"><div class="card panel" id="openai-review-panel"></div></section>
+    <section data-diagnosis-panel="reports" hidden>
+      <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-diagnosis-month="-1" aria-label="上个月">‹</button>
+        <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
+        <button class="btn ai-calendar-step" type="button" data-diagnosis-month="1" aria-label="下个月">›</button></div>
+      <p class="hint">按北京时间归档，同一天每次诊断分别保留。</p>
+      <p id="openai-diary-status" role="status" aria-live="polite"></p><div id="openai-diary-list"></div>
+      <button class="btn" type="button" data-diagnosis-refresh>刷新诊断报告</button>
+    </section></section>`;
+}
+function selectTab() {
+  const root2 = document.querySelector("#ai-diagnosis");
+  if (!root2) return;
+  for (const node2 of root2.querySelectorAll("[data-diagnosis-tab]")) node2.setAttribute("aria-pressed", String(node2.dataset.diagnosisTab === state.diagnosisTab));
+  for (const node2 of root2.querySelectorAll("[data-diagnosis-panel]")) node2.hidden = node2.dataset.diagnosisPanel !== state.diagnosisTab;
+}
+async function loadAiDiagnosis() {
+  register3();
+  state.diagnosisTab ||= "help";
+  selectTab();
+  const ticket = ++sequence3, epoch = runtime.sessionEpoch;
+  if (state.diagnosisTab === "help") {
+    await loadOpenAiReview();
+    return;
+  }
+  stopOpenAiReviewTimers();
+  const date = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
+  state.aiDailyDate = date;
+  visibleMonth = date.slice(0, 7);
+  paintAiCalendar(date, visibleMonth, "#ai-diagnosis");
+  const current3 = () => ticket === sequence3 && epoch === runtime.sessionEpoch && state.page === "ai-diagnosis" && state.diagnosisTab === "reports";
+  const owner2 = openAiSessionAvailable(state.me);
+  paintOpenAiDiary([], { owner: owner2, loading: owner2 });
+  if (!owner2) return;
+  try {
+    const items = await readOpenAiRuns((path) => apiNetwork(path, { suppressAuthRedirect: true }), date, current3);
+    if (!current3() || !items) return;
+    paintOpenAiDiary(items);
+    if (state.openAiRun) document.getElementById("openai-run-" + state.openAiRun)?.focus();
+  } catch (error) {
+    if (current3()) paintOpenAiDiary([], { error: error.message || "诊断报告读取失败，请刷新重试。" });
+  }
+}
+function register3() {
+  if (registered3) return;
+  registered3 = true;
+  document.addEventListener("openai-run-settled", (event) => {
+    if (event.detail?.sessionEpoch !== runtime.sessionEpoch || event.detail?.userId !== state.me?.id || state.page !== "ai-diagnosis" || state.diagnosisTab !== "reports") return;
+    void loadAiDiagnosis();
+  });
+  document.addEventListener("click", (event) => {
+    if (state.page !== "ai-diagnosis") return;
+    const tab = event.target.closest?.("[data-diagnosis-tab]")?.dataset.diagnosisTab;
+    if (["help", "reports"].includes(tab)) {
+      state.diagnosisTab = tab;
+      updateRoute(true);
+      void loadAiDiagnosis();
+      return;
+    }
+    if (event.target.closest?.("[data-diagnosis-refresh]")) {
+      void loadAiDiagnosis();
+      return;
+    }
+    const month = event.target.closest?.("[data-diagnosis-month]");
+    if (month) {
+      const date2 = /* @__PURE__ */ new Date(visibleMonth + "-01T00:00:00Z");
+      date2.setUTCMonth(date2.getUTCMonth() + Number(month.dataset.diagnosisMonth));
+      const next = date2.toISOString().slice(0, 7);
+      if (validDailyNotesDate(next + "-01")) {
+        visibleMonth = next;
+        paintAiCalendar(state.aiDailyDate, visibleMonth, "#ai-diagnosis");
+      }
+      return;
+    }
+    const date = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
+    if (validDailyNotesDate(date)) {
+      state.aiDailyDate = date;
+      state.openAiRun = "";
+      updateRoute(true);
+      void loadAiDiagnosis();
+    }
+  });
 }
 
 // web/core/modal-request.mjs
@@ -7135,14 +7745,14 @@ function paintTodoTemplates() {
     if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
   }
 }
-function templateReadActive(store, owner2, sequence5, version2, date) {
-  return templateSessionActive(owner2) && store.sequence === sequence5 && version2 === runtime.renderVersion && state.page === "todos" && date === todoDate();
+function templateReadActive(store, owner2, sequence6, version2, date) {
+  return templateSessionActive(owner2) && store.sequence === sequence6 && version2 === runtime.renderVersion && state.page === "todos" && date === todoDate();
 }
 async function loadTodoTemplates({ ensure = false } = {}) {
   if (state.page !== "todos" || !state.me) return;
   const store = templateState(), date = todoDate(), version2 = runtime.renderVersion;
   if (ensure && (store.loaded && !store.error && !store.loading || store.loading && store.readDate === date && store.readVersion === version2)) return;
-  const owner2 = store.owner, sequence5 = ++store.sequence, revision2 = store.revision;
+  const owner2 = store.owner, sequence6 = ++store.sequence, revision2 = store.revision;
   store.readDate = date;
   store.readVersion = version2;
   store.loading = true;
@@ -7157,15 +7767,15 @@ async function loadTodoTemplates({ ensure = false } = {}) {
     } catch {
       store.archiveError = "归档列表暂时不可用，请联网后重试。";
     }
-    if (!templateReadActive(store, owner2, sequence5, version2, date)) return;
+    if (!templateReadActive(store, owner2, sequence6, version2, date)) return;
     if (revision2 !== store.revision) return loadTodoTemplates();
     store.items = data2.items;
     if (archived) store.archived = archived.items;
     store.loaded = true;
   } catch (error) {
-    if (templateReadActive(store, owner2, sequence5, version2, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
+    if (templateReadActive(store, owner2, sequence6, version2, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
   } finally {
-    if (templateSessionActive(owner2) && store.sequence === sequence5) {
+    if (templateSessionActive(owner2) && store.sequence === sequence6) {
       store.loading = false;
       paintTodoTemplates();
     }
@@ -7980,8 +8590,8 @@ function paintTodos() {
   if (focus) ($(focus, root2) || $("[data-todo-id]", root2) || $("#todo-text", root2))?.focus();
   paintTodoTemplates();
 }
-function todoReadActive(owner2, version2, date, day6, sequence5) {
-  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date && day6.sequence === sequence5 && todosVisible();
+function todoReadActive(owner2, version2, date, day6, sequence6) {
+  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date && day6.sequence === sequence6 && todosVisible();
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
@@ -7994,13 +8604,13 @@ async function loadTodos(context) {
   }
   void loadTodoTemplates({ ensure: true });
   const day6 = todoDay(), date = day6.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
-  const sequence5 = ++day6.sequence, revision2 = day6.revision;
+  const sequence6 = ++day6.sequence, revision2 = day6.revision;
   day6.loading = true;
   day6.error = "";
   paintTodos();
   try {
     const data2 = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
-    if (!todoReadActive(owner2, version2, date, day6, sequence5) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
+    if (!todoReadActive(owner2, version2, date, day6, sequence6) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
     if (day6.revision !== revision2) return loadTodos(context);
     receiveTodoPreferences(data2.completed_mode, data2.preferences_version);
     day6.items = data2.items;
@@ -8013,10 +8623,10 @@ async function loadTodos(context) {
     }
     if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error) {
-    if (todoReadActive(owner2, version2, date, day6, sequence5) && !isRequestAbort(error) && !error.staleSession) day6.error = error.message;
+    if (todoReadActive(owner2, version2, date, day6, sequence6) && !isRequestAbort(error) && !error.staleSession) day6.error = error.message;
   } finally {
-    if (todoSessionActive(owner2) && day6.sequence === sequence5) {
-      const visible3 = todoReadActive(owner2, version2, date, day6, sequence5);
+    if (todoSessionActive(owner2) && day6.sequence === sequence6) {
+      const visible3 = todoReadActive(owner2, version2, date, day6, sequence6);
       day6.loading = false;
       paintTodos();
       if (visible3 && state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
@@ -8164,8 +8774,8 @@ async function toggleTodo(target, { floating = false } = {}) {
 async function loadFloatingToday() {
   if (!state.me) return;
   const date = bjtDate(), day6 = todoDay(date), owner2 = todoOwner();
-  const sequence5 = ++day6.sequence, revision2 = day6.revision;
-  const current3 = () => todoSessionActive(owner2) && date === bjtDate() && day6.sequence === sequence5;
+  const sequence6 = ++day6.sequence, revision2 = day6.revision;
+  const current3 = () => todoSessionActive(owner2) && date === bjtDate() && day6.sequence === sequence6;
   day6.loading = true;
   day6.error = "";
   paintTodos();
@@ -8564,14 +9174,14 @@ function createEntryReadingActions(context) {
   const { category, page, entry, entries, emit, adopt, merge, schedule, makeEntry } = context;
   const { load, loadEntry } = context.options;
   async function read3(date, options3 = {}) {
-    const current3 = page(date), sequence5 = ++current3.sequence;
+    const current3 = page(date), sequence6 = ++current3.sequence;
     const epochs = new Map(current3.ids.map((id2) => [id2, entry(id2)?.writeEpoch]));
     current3.loading = true;
     current3.error = "";
     emit();
     try {
       const value = checkedCollection(await load(date, options3), category, date);
-      if (context.disposed || sequence5 !== current3.sequence) return;
+      if (context.disposed || sequence6 !== current3.sequence) return;
       current3.canEdit = value.can_edit;
       current3.labelsComplete = [2, 3].includes(value.labels_version);
       const found = /* @__PURE__ */ new Set();
@@ -8594,9 +9204,9 @@ function createEntryReadingActions(context) {
       current3.loaded = true;
       await Promise.all(current3.ids.filter((id2) => !found.has(id2) && persistedVersion(entry(id2)) > 0 && (entry(id2).dirty || entry(id2).localBacked) && !entry(id2).pending).map((id2) => readOne(id2, options3)));
     } catch (error) {
-      if (!context.disposed && sequence5 === current3.sequence) current3.error = error.message;
+      if (!context.disposed && sequence6 === current3.sequence) current3.error = error.message;
     } finally {
-      if (!context.disposed && sequence5 === current3.sequence) {
+      if (!context.disposed && sequence6 === current3.sequence) {
         current3.loading = false;
         emit();
         for (const id2 of current3.ids) schedule(entry(id2));
@@ -8606,19 +9216,19 @@ function createEntryReadingActions(context) {
   async function readOne(id2, options3 = {}) {
     const item = entry(id2);
     if (!item || context.disposed) return;
-    const sequence5 = ++item.sequence, epoch = item.writeEpoch;
+    const sequence6 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
       const value = checkedEntry(await loadEntry(id2, options3), category, item.date, id2);
-      if (!context.disposed && sequence5 === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
+      if (!context.disposed && sequence6 === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
     } catch (error) {
-      if (!context.disposed && sequence5 === item.sequence) {
+      if (!context.disposed && sequence6 === item.sequence) {
         item.error = error.message;
         if (!blocked(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence5 === item.sequence) {
+      if (!context.disposed && sequence6 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
@@ -9162,7 +9772,7 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
   };
   const find = (selector) => panel2.querySelector(selector), doc = root2.ownerDocument;
   const identityNow = typeof identity7 === "function" ? identity7 : () => identity7, expected = identityNow();
-  let disposed = false, sequence5 = 0, days = /* @__PURE__ */ new Map(), loaded = "", selected = dailyNotesToday(), month = selected.slice(0, 7), category = "";
+  let disposed = false, sequence6 = 0, days = /* @__PURE__ */ new Map(), loaded = "", selected = dailyNotesToday(), month = selected.slice(0, 7), category = "";
   const active5 = () => !disposed && root2.isConnected && identityNow() === expected;
   const visibleRows = (date) => (days.get(date) || []).filter((item) => !category || item.category === category);
   find("#notes-month-input").value = month;
@@ -9213,7 +9823,7 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
   }
   async function load(force = false) {
     if (!active5() || !panel2.open || !validNoteMonth(month) || !force && loaded === month) return;
-    const current3 = ++sequence5, target = month;
+    const current3 = ++sequence6, target = month;
     loaded = "";
     days = /* @__PURE__ */ new Map();
     find("#notes-month-grid").replaceChildren();
@@ -9222,14 +9832,14 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
     find("#notes-month-status").textContent = "";
     try {
       const data2 = await request("/note-entries/month?month=" + target);
-      if (!active5() || current3 !== sequence5 || target !== month) return;
+      if (!active5() || current3 !== sequence6 || target !== month) return;
       days = checkedNoteMonth(data2, target);
       loaded = target;
       if (!selected.startsWith(target + "-")) selected = [...days.keys()][0] || target + "-01";
       find("#notes-month-status").textContent = "仅展示已同步记录；待同步草稿请在原日期查看。";
       paint2();
     } catch (error) {
-      if (!active5() || current3 !== sequence5) return;
+      if (!active5() || current3 !== sequence6) return;
       find("#notes-month-status").textContent = error.message || "月记录读取失败，请重试。";
     }
   }
@@ -9273,7 +9883,7 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
   panel2.addEventListener("click", click);
   return () => {
     disposed = true;
-    sequence5++;
+    sequence6++;
     panel2.removeEventListener("toggle", toggle);
     panel2.removeEventListener("change", change2);
     panel2.removeEventListener("click", click);
@@ -9759,11 +10369,11 @@ async function visibleArchive() {
   }
 }
 async function showRetainedArchive() {
-  const expected = notesIdentityNow(), revision2 = notesDraftRevision, sequence5 = ++visibleArchiveSequence;
+  const expected = notesIdentityNow(), revision2 = notesDraftRevision, sequence6 = ++visibleArchiveSequence;
   const offline = getOfflineRuntime();
   const records = offline ? [...await offline.retainedDraftRecords("legacy"), ...await offline.retainedDraftRecords("note_entry")] : [];
   const root2 = document.querySelector("#daily-notes");
-  if (!root2 || !notesVisible() || expected !== notesIdentityNow() || sequence5 !== visibleArchiveSequence) return;
+  if (!root2 || !notesVisible() || expected !== notesIdentityNow() || sequence6 !== visibleArchiveSequence) return;
   if (revision2 !== notesDraftRevision) return scheduleArchiveRefresh(expected, true);
   if (!records.length) {
     root2.querySelector("#notes-retained-archive")?.remove();
@@ -10165,10 +10775,10 @@ function paintDailyNotesPage() {
 }
 async function readNoteLabels({ afterWrite = false } = {}) {
   if (notesLabelBusy && !afterWrite) return false;
-  const expected = notesIdentityNow(), sequence5 = ++notesLabelSequence;
+  const expected = notesIdentityNow(), sequence6 = ++notesLabelSequence;
   try {
     const data2 = await apiNetwork("/note-entries/labels", { headers: { "X-Note-Labels-Version": "3", "X-Note-Labels-Archive": "1" } });
-    if (expected !== notesIdentityNow() || sequence5 !== notesLabelSequence) return;
+    if (expected !== notesIdentityNow() || sequence6 !== notesLabelSequence) return;
     if (data2?.labels_version !== 3 || !Array.isArray(data2?.labels) || !Array.isArray(data2?.archived_labels) || data2.labels.some((row) => !validCustomNoteLabel(row?.name)) || data2.archived_labels.some((row) => typeof row?.name !== "string" || !(row.name === "生活" || row.name === "工作" || validCustomNoteLabel(row.name)) || typeof row.archived_at !== "string" || !Number.isFinite(Date.parse(row.archived_at))))
       throw new Error("服务器未提供可核实的归档状态。");
     notesLabels = [...new Set(data2.labels.map((row) => row.name))];
@@ -10178,7 +10788,7 @@ async function readNoteLabels({ afterWrite = false } = {}) {
     paintDailyNotesPage();
     return true;
   } catch (error) {
-    if (expected !== notesIdentityNow() || sequence5 !== notesLabelSequence) return;
+    if (expected !== notesIdentityNow() || sequence6 !== notesLabelSequence) return;
     notesLabelsVerified = false;
     notesLabelMessage = "标签状态读取失败，请联网后重新打开标签管理：" + (error.message || "请稍后重试。");
   }
@@ -10362,9 +10972,9 @@ async function loadHistory(month = "", chosenDate = "") {
   if (!root2) return;
   const target = month || historyMonth || dailyNotesToday().slice(0, 7);
   if (coalesceNoteMonthFlight(historyActiveLoad, { root: root2, target, expected, sequence: historySequence, chosenDate })) return;
-  const sequence5 = ++historySequence;
-  historyActiveLoad = { root: root2, target, expected, sequence: sequence5, chosenDate };
-  const active5 = () => notesVisible() && notesView === "history" && sequence5 === historySequence && expected === notesIdentityNow();
+  const sequence6 = ++historySequence;
+  historyActiveLoad = { root: root2, target, expected, sequence: sequence6, chosenDate };
+  const active5 = () => notesVisible() && notesView === "history" && sequence6 === historySequence && expected === notesIdentityNow();
   const status = root2.querySelector("#notes-history-status");
   status.textContent = "";
   try {
@@ -10380,7 +10990,7 @@ async function loadHistory(month = "", chosenDate = "") {
     status.textContent = "月记录读取失败，保留当前内容：" + (error.message || "请联网重试。");
     if (historyMonth) root2.querySelector("#notes-history-month").value = historyMonth;
   } finally {
-    if (historyActiveLoad?.sequence === sequence5) historyActiveLoad = null;
+    if (historyActiveLoad?.sequence === sequence6) historyActiveLoad = null;
   }
 }
 async function selectDailyNotesDate(value) {
@@ -11195,12 +11805,12 @@ function memoReads2(context) {
       return;
     }
     const reschedule = context.durable && (item.localQueued || Boolean(item.timer));
-    const sequence5 = ++item.sequence, epoch = item.writeEpoch;
+    const sequence6 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos/notes/" + id2) : context.request("/memos/notes/" + id2));
-      if (context.disposed || sequence5 !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
+      if (context.disposed || sequence6 !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
       if (isLocalDocument(raw)) {
         context.local.accept(item, raw);
         return;
@@ -11225,12 +11835,12 @@ function memoReads2(context) {
         context.upsert("notes", value);
       }
     } catch (error) {
-      if (!context.disposed && sequence5 === item.sequence) {
+      if (!context.disposed && sequence6 === item.sequence) {
         item.error = error.message;
         if (!isUncertain(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence5 === item.sequence) {
+      if (!context.disposed && sequence6 === item.sequence) {
         item.loading = false;
         context.emit();
         if (reschedule) context.schedule(item);
@@ -11238,13 +11848,13 @@ function memoReads2(context) {
     }
   }
   async function load({ local = false } = {}) {
-    const { state: state2 } = context, sequence5 = ++context.loadSequence;
+    const { state: state2 } = context, sequence6 = ++context.loadSequence;
     state2.loading = true;
     state2.error = "";
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos") : context.request("/memos"));
-      if (context.disposed || sequence5 !== context.loadSequence) return;
+      if (context.disposed || sequence6 !== context.loadSequence) return;
       if (!Array.isArray(raw?.groups) || !Array.isArray(raw.notes) || typeof raw.can_edit !== "boolean")
         throw new Error("备忘录列表不完整，请重新读取。");
       const value = context.local.index(raw);
@@ -11265,9 +11875,9 @@ function memoReads2(context) {
       if (!state2.noteId) state2.noteId = state2.notes.find((note) => note.group_id === state2.groupId && (state2.trash || !note.deleted_at))?.id || "";
       if (state2.noteId) await selectNote(state2.noteId, { open: false, local });
     } catch (error) {
-      if (!context.disposed && sequence5 === context.loadSequence) state2.error = error.message;
+      if (!context.disposed && sequence6 === context.loadSequence) state2.error = error.message;
     } finally {
-      if (!context.disposed && sequence5 === context.loadSequence) {
+      if (!context.disposed && sequence6 === context.loadSequence) {
         state2.loading = false;
         context.emit();
       }
@@ -12504,7 +13114,7 @@ function settingsNavigation() {
 }
 function mobileNavigation() {
   const items = [["todos", "待办"], ["notes", "碎碎念"]];
-  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id2, label3]) => navigationLink({ ...nav.find((item) => item.id === id2), label: label3 }, true)).join("")}${mediaNavigation(true)}${navigationLink(nav.find((item) => item.id === "ai-reports"), true)}</nav>`;
+  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id2, label3]) => navigationLink({ ...nav.find((item) => item.id === id2), label: label3 }, true)).join("")}${mediaNavigation(true)}${navigationLink(nav.find((item) => item.id === "ai-reports"), true)}${navigationLink(nav.find((item) => item.id === "ai-diagnosis"), true)}</nav>`;
 }
 function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
@@ -12731,8 +13341,8 @@ init_todos_state();
 var reminderSequence = 0, reminderEvents = false;
 async function loadWorkReminders() {
   registerReminderEvents();
-  const sequence5 = ++reminderSequence, session3 = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
-  const current3 = () => sequence5 === reminderSequence && session3 === runtime.sessionEpoch && state.page === "reminders";
+  const sequence6 = ++reminderSequence, session3 = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
+  const current3 = () => sequence6 === reminderSequence && session3 === runtime.sessionEpoch && state.page === "reminders";
   paintWorkReminders({ date, items: [], loading: true });
   try {
     const data2 = await api("/work-reminders?date=" + encodeURIComponent(date));
@@ -12758,132 +13368,11 @@ function registerReminderEvents() {
   });
 }
 
-// web/pages/ai-reports.mjs
-init_dom();
-init_daily_notes_state();
-function renderAiReports() {
-  return `<section id="ai-reports" aria-label="AI 日报">
-    <div>
-      <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
-        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="true">每日提醒</button>
-        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="false">AI汇报</button>
-        <button class="btn" type="button" data-ai-daily-tab="openai" aria-pressed="false">OpenAI API</button>
-      </div>
-      <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
-        <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
-        <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
-      <section data-ai-daily-panel="reminders"><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
-      <section data-ai-daily-panel="openai" hidden><p class="hint">按实际运行的北京时间归档，同一天的每次分析分别保留。</p>
-        <p id="openai-diary-status" role="status" aria-live="polite"></p><div id="openai-diary-list"></div>
-        <button class="btn" type="button" data-openai-diary-refresh>刷新分析记录</button></section>
-      <section data-ai-daily-panel="reports" hidden><p id="ai-report-list-status" role="status"></p>
-      <div id="ai-report-list" aria-live="polite"></div>
-      </section>
-    </div>
-  </section>`;
-}
-var dateFormatter = new Intl.DateTimeFormat("zh-CN", {
-  timeZone: "Asia/Shanghai",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-});
-var timeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  timeZone: "Asia/Shanghai",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false
-});
-function reportContent(value) {
-  const content2 = String(value ?? "");
-  const firstLine = content2.split(/\r?\n/, 1)[0];
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(firstLine) ? /* @__PURE__ */ new Date(`${firstLine}T00:00:00Z`) : null;
-  if (!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== firstLine)
-    return { workDate: null, body: content2 };
-  return { workDate: firstLine, body: content2.slice(firstLine.length).replace(/^\r?\n/, "") };
-}
-function reportDay(row) {
-  const { workDate } = reportContent(row.content);
-  const date = new Date(row.created_at);
-  if (workDate) return workDate;
-  if (!Number.isFinite(date.getTime())) return "";
-  const parts2 = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(date).map((part) => [part.type, part.value]));
-  return `${parts2.year}-${parts2.month}-${parts2.day}`;
-}
-function reportGroup(author) {
-  const name = String(author ?? "").trim().toLowerCase();
-  if (["grok bot", "grok bot-小小鱼"].includes(name)) return "Grok bot";
-  if (name === "gemini") return "Gemini";
-  if (["gpt", "chatgpt", "chatgpt-dot小鱼"].includes(name)) return "GPT";
-  return "其他作者";
-}
-function reportAuthorClass(author) {
-  const colors = { "Grok bot": "grok", Gemini: "gemini", GPT: "gpt", "其他作者": "other" };
-  return `ai-report-author ai-report-author--${colors[reportGroup(author)]}`;
-}
-function paintAiCalendar(selectedDate2, visibleMonth2 = selectedDate2.slice(0, 7)) {
-  const root2 = document.querySelector("#ai-reports");
-  if (!root2) return;
-  root2.querySelector("#ai-report-date-title").textContent = `${Number(visibleMonth2.slice(0, 4))}年${Number(visibleMonth2.slice(5, 7))}月`;
-  const first = /* @__PURE__ */ new Date(`${visibleMonth2}-01T00:00:00Z`);
-  const days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
-  let calendar = '<div class="ai-calendar-grid">' + ["日", "一", "二", "三", "四", "五", "六"].map((d) => `<span>${d}</span>`).join("");
-  calendar += "<span></span>".repeat(first.getUTCDay());
-  for (let day6 = 1; day6 <= days; day6++) {
-    const date = `${visibleMonth2}-${String(day6).padStart(2, "0")}`;
-    calendar += `<button type="button" class="btn text" data-ai-report-select="${date}" aria-label="${date}" ${date === selectedDate2 ? 'aria-current="date"' : ""}>${day6}</button>`;
-  }
-  root2.querySelector("#ai-report-calendar").innerHTML = calendar + "</div>";
-}
-function paintAiReports(items, error = "", loading = false, selectedDate2 = dailyNotesToday(), visibleMonth2 = selectedDate2.slice(0, 7)) {
-  const root2 = document.querySelector("#ai-reports");
-  if (!root2) return;
-  const status = root2.querySelector("#ai-report-list-status");
-  status.textContent = error || (loading || items.length ? "" : "暂无汇报");
-  paintAiCalendar(selectedDate2, visibleMonth2);
-  const rows = [];
-  const groups = { "Grok bot": [], Gemini: [], GPT: [], "其他作者": [] };
-  for (const row of items) {
-    const date = new Date(row.created_at);
-    const validDate = Number.isFinite(date.getTime());
-    const submissionDay = validDate ? dateFormatter.format(date) : "日期未知";
-    const { body: body2 } = reportContent(row.content);
-    const stamp2 = validDate ? `${submissionDay} ${timeFormatter.format(date)}（北京时间）` : String(row.created_at ?? "未知");
-    const author = String(row.author ?? "");
-    const group = reportGroup(author);
-    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp2)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body2)}</div></article>`);
-  }
-  for (const [name, entries] of Object.entries(groups)) {
-    if (name === "其他作者" && !entries.length) continue;
-    const heading = name === "其他作者" ? `<h3 class="${reportAuthorClass(name)}">${name}</h3>` : "";
-    rows.push(`<section>${heading}${entries.length ? entries.join("") : "<p>暂无汇报</p>"}</section>`);
-  }
-  root2.querySelector("#ai-report-list").innerHTML = loading || error ? "" : rows.join("");
-}
-function paintAiDailyReminders(data2, error = "", loading = false) {
-  const root2 = document.querySelector("#ai-reports");
-  if (!root2) return;
-  root2.querySelector("#ai-reminder-status").textContent = error || (loading ? "正在读取工作提醒…" : "");
-  const items = data2?.items || [];
-  root2.querySelector("#ai-reminder-list").innerHTML = items.length ? items.map((row) => `<article class="card field-spaced" style="overflow-wrap:anywhere"><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join("") : loading || error ? "" : "<p>暂无工作提醒</p>";
-}
-function paintOpenAiDiary(items = [], { error = "", loading = false, owner: owner2 = true } = {}) {
-  const root2 = document.querySelector("#ai-reports");
-  if (!root2) return;
-  root2.querySelector("#openai-diary-status").textContent = error || (loading ? "正在读取分析记录…" : "");
-  root2.querySelector("#openai-diary-list").innerHTML = !owner2 ? openAiLogin : loading || error ? "" : items.length ? items.map(renderOpenAiRun).join("") : "<p>这一天没有 OpenAI API 分析记录。</p>";
-}
-
 // web/ai-reports-controller.mjs
 init_api();
 init_state();
 init_daily_notes_state();
-var sequence3 = 0, registered2 = false, selectedDate = "", visibleMonth = "", pageSession = null;
+var sequence4 = 0, registered4 = false, selectedDate = "", visibleMonth2 = "", pageSession = null;
 function selectDailyTab(name) {
   if (!OPENAI_TABS.includes(name)) return;
   state.aiDailyTab = name;
@@ -12933,40 +13422,40 @@ async function loadAiReports({ resetDate = false } = {}) {
   if (pageSession !== session3 || resetDate) {
     pageSession = session3;
     selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
-    visibleMonth = selectedDate.slice(0, 7);
+    visibleMonth2 = selectedDate.slice(0, 7);
   }
   if (!selectedDate) selectedDate = dailyNotesToday();
-  if (!visibleMonth) visibleMonth = selectedDate.slice(0, 7);
-  const ticket = ++sequence3, date = selectedDate;
-  const current3 = () => ticket === sequence3 && session3 === runtime.sessionEpoch && state.page === "ai-reports";
-  paintAiReports([], "", true, date, visibleMonth);
+  if (!visibleMonth2) visibleMonth2 = selectedDate.slice(0, 7);
+  const ticket = ++sequence4, date = selectedDate;
+  const current3 = () => ticket === sequence4 && session3 === runtime.sessionEpoch && state.page === "ai-reports";
+  paintAiReports([], "", true, date, visibleMonth2);
   paintAiDailyReminders(null, "", true);
   selectDailyTab(state.aiDailyTab || "reminders");
   const report = readAllAiReports(api, current3).then((items) => {
-    if (current3() && items) paintAiReports(reportsForDailyDate(items, date), "", false, date, visibleMonth);
+    if (current3() && items) paintAiReports(reportsForDailyDate(items, date), "", false, date, visibleMonth2);
   }).catch((error) => {
-    if (current3()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, date, visibleMonth);
+    if (current3()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, date, visibleMonth2);
   });
   const reminders = api("/work-reminders?date=" + encodeURIComponent(date)).then((data2) => {
     if (current3()) paintAiDailyReminders(data2);
   }).catch((error) => {
     if (current3()) paintAiDailyReminders(null, error.message || "提醒读取失败，请稍后重试");
   });
-  await Promise.all([report, reminders, loadOpenAiDiary(date, current3)]);
+  await Promise.all([report, reminders]);
 }
 function moveMonth(offset) {
-  const d = /* @__PURE__ */ new Date(visibleMonth + "-01T00:00:00Z");
+  const d = /* @__PURE__ */ new Date(visibleMonth2 + "-01T00:00:00Z");
   d.setUTCMonth(d.getUTCMonth() + offset);
   if (!Number.isFinite(d.getTime())) return;
   const next = d.toISOString().slice(0, 7);
   if (validDailyNotesDate(next + "-01")) {
-    visibleMonth = next;
-    paintAiCalendar(selectedDate, visibleMonth);
+    visibleMonth2 = next;
+    paintAiCalendar(selectedDate, visibleMonth2);
   }
 }
 function registerAiReportEvents() {
-  if (registered2) return;
-  registered2 = true;
+  if (registered4) return;
+  registered4 = true;
   document.addEventListener("click", (event) => {
     if (state.page !== "ai-reports") return;
     const tab = event.target.closest?.("[data-ai-daily-tab]")?.dataset.aiDailyTab;
@@ -12980,7 +13469,7 @@ function registerAiReportEvents() {
       const day6 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
       if (day6 && validDailyNotesDate(day6)) {
         selectedDate = day6;
-        visibleMonth = day6.slice(0, 7);
+        visibleMonth2 = day6.slice(0, 7);
         state.aiDailyDate = day6;
         state.openAiRun = "";
         updateRoute();
@@ -12988,20 +13477,6 @@ function registerAiReportEvents() {
       }
     }
   });
-}
-async function loadOpenAiDiary(date, current3) {
-  if (state.aiDailyTab !== "openai") return;
-  const owner2 = openAiSessionAvailable(state.me);
-  paintOpenAiDiary([], { owner: owner2, loading: owner2 });
-  if (!owner2) return;
-  try {
-    const items = await readOpenAiRuns((path) => apiNetwork(path, { suppressAuthRedirect: true }), date, current3);
-    if (!current3() || !items) return;
-    paintOpenAiDiary(items);
-    if (state.openAiRun) document.getElementById("openai-run-" + state.openAiRun)?.focus({ preventScroll: false });
-  } catch (error) {
-    if (current3()) paintOpenAiDiary([], { error: error.message || "分析记录读取失败，请刷新重试。" });
-  }
 }
 
 // web/core/review-data.mjs
@@ -13308,13 +13783,13 @@ function calendarDate2(value) {
   const stamp2 = Date.parse(`${value}T00:00:00Z`);
   return Number.isFinite(stamp2) && new Date(stamp2).toISOString().slice(0, 10) === value ? value : "";
 }
-var clock = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+var clock2 = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
 function parts(value) {
   if (typeof value !== "string") return null;
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!match || !calendarDate2(match[1]) || +match[2] > 23 || +match[3] > 59 || +match[4] > 59 || match[5] !== "Z" && (+match[5].slice(1, 3) > 23 || +match[5].slice(4, 6) > 59)) return null;
   const stamp2 = Date.parse(value);
-  return Number.isFinite(stamp2) ? Object.fromEntries(clock.formatToParts(stamp2).map((part) => [part.type, part.value])) : null;
+  return Number.isFinite(stamp2) ? Object.fromEntries(clock2.formatToParts(stamp2).map((part) => [part.type, part.value])) : null;
 }
 function day5(value) {
   if (calendarDate2(value)) return value;
@@ -13884,7 +14359,7 @@ function overview(data2, vm4) {
   const value = (formatted) => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
   const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options2([["this", "本周"], ["last", "上周"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current3.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current3.hits))} / ${e(reviewNumber(current3.middle))} / ${e(reviewNumber(current3.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current3.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current3.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current3.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current3.completion, "completion_rate"))}</article></div></section>`;
   const articlePanel = articleListPanel(rows, vm4, data2);
-  return cards + (vm4.account === "V字" ? '<section class="review-panel openai-review-panel" id="openai-review-panel"></section>' : "") + articlePanel + archives(data2, vm4, "", [], []);
+  return cards + articlePanel + archives(data2, vm4, "", [], []);
 }
 function articleListPanel(rows, vm4, data2) {
   const expanded = Boolean(vm4.articlesExpanded);
@@ -14008,244 +14483,9 @@ function renderContentReviewContent(data2, vm4) {
   if (vm4.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm4.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data2, { account: vm4.account });
   const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes"].some((key2) => data2[key2].length);
-  const noDataPanel = vm4.account === "V字" ? '<section class="review-panel openai-review-panel" id="openai-review-panel"></section>' : "";
+  const noDataPanel = "";
   const body2 = hasData ? overview(data2, vm4) : noDataPanel + empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>';
   return `<div class="review-body"${vm4.article ? " inert" : ""}>${body2}</div>${drawer(data2, rows, vm4)}`;
-}
-
-// web/core/openai-review-runner.mjs
-function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = () => {
-}, uuid: uuid5 = () => crypto.randomUUID() }) {
-  let active5 = true;
-  const state2 = { run: null, pendingId: "", notFound: false, busy: false, error: "" };
-  try {
-    state2.pendingId = storage2.getItem(key2) || "";
-  } catch {
-  }
-  const change2 = () => {
-    if (active5) onChange({ ...state2 });
-  };
-  const retain2 = (id2) => {
-    storage2.setItem(key2, id2);
-    if (storage2.getItem(key2) !== id2) throw new Error("无法保存分析请求编号，请允许本机存储后再开始。");
-    state2.pendingId = id2;
-  };
-  const accept = (run2) => {
-    if (!run2?.id || typeof run2.status !== "string") throw new Error("分析状态暂时无法确认，请核查状态。");
-    state2.run = run2;
-    state2.notFound = false;
-    if (openAiRunFinished(run2)) {
-      if (storage2.getItem(key2) === state2.pendingId) storage2.removeItem(key2);
-      state2.pendingId = "";
-    } else retain2(run2.id);
-  };
-  async function recover() {
-    if (!active5 || state2.busy || !state2.pendingId) return;
-    state2.busy = true;
-    state2.error = "";
-    change2();
-    try {
-      accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId)));
-    } catch (error) {
-      state2.notFound = error.status === 404;
-      state2.error = error.status === 404 ? "尚未查到这次请求，请稍后核查。不会自动重复提交。" : error.message || "暂时无法确认结果，请核查状态。";
-    } finally {
-      state2.busy = false;
-      change2();
-    }
-  }
-  async function start(mode = "incremental") {
-    if (!active5 || state2.busy || state2.pendingId || !["incremental", "full"].includes(mode)) return;
-    state2.busy = true;
-    state2.error = "";
-    change2();
-    try {
-      const existing = storage2.getItem(key2);
-      if (existing) {
-        state2.pendingId = existing;
-        return;
-      }
-      retain2(uuid5());
-      const run2 = await request("/openai-review/runs", { method: "POST", body: { run_id: state2.pendingId, mode } });
-      accept(run2);
-    } catch (error) {
-      state2.error = state2.pendingId ? "请求结果尚未确认，请核查状态。不会自动重复提交。" : error.message || "无法保存请求编号，未开始分析。";
-      if (error.code === "OPENAI_REVIEW_IN_FLIGHT" && error.run_id) {
-        retain2(error.run_id);
-        state2.error = "已有分析请求，请核查状态。";
-      }
-      if ([
-        "OPENAI_NOT_CONFIGURED",
-        "OPENAI_REVIEW_NOT_CONFIGURED",
-        "FORBIDDEN",
-        "UNAUTHORIZED",
-        "OPENAI_REVIEW_RATE_LIMIT",
-        "OPENAI_REVIEW_INPUT_LIMIT",
-        "OPENAI_REVIEW_NO_DATA",
-        "OPENAI_REVIEW_SOURCE_INVALID",
-        "VALIDATION_ERROR"
-      ].includes(error.code)) {
-        try {
-          storage2.removeItem(key2);
-        } catch {
-        }
-        state2.pendingId = "";
-        state2.error = error.message;
-      }
-    } finally {
-      state2.busy = false;
-      change2();
-    }
-  }
-  async function release() {
-    if (!active5 || state2.busy || !state2.pendingId || !(state2.notFound || state2.run?.status === "uncertain")) return;
-    state2.busy = true;
-    state2.error = "";
-    change2();
-    try {
-      accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId) + "/release", {
-        method: "POST",
-        body: { acknowledgement: "provider_outcome_unknown_no_automatic_retry" }
-      }));
-    } catch (error) {
-      state2.error = error.message || "解除结果尚未确认，请核查状态。";
-      if (["OPENAI_REVIEW_RECOVERY_RATE_LIMIT", "OPENAI_REVIEW_PUBLIC_RATE_LIMIT"].includes(error.code))
-        state2.error += " 请稍后只读核查状态，不会自动重复提交。";
-    } finally {
-      state2.busy = false;
-      change2();
-    }
-  }
-  return { state: state2, start, recover, release, adopt(run2) {
-    accept(run2);
-    change2();
-  }, dispose() {
-    active5 = false;
-  } };
-}
-
-// web/openai-review-controller.mjs
-init_api();
-init_state();
-var session2 = "", runner, vm2 = {}, registered3 = false, timer = null, loadSequence = 0;
-var identity5 = () => `${runtime.sessionEpoch}:${state.me?.id || ""}:${Boolean(state.me?.publicBusiness)}`;
-var current2 = () => session2 === identity5();
-function openAiReviewTimeout(path, options3 = {}) {
-  return path === "/openai-review/runs" && options3.method === "POST" ? 21e4 : 75e3;
-}
-async function read2(path, options3 = {}) {
-  const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), openAiReviewTimeout(path, options3));
-  try {
-    return await apiNetwork(path, { ...options3, signal: controller.signal, suppressAuthRedirect: true });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-function reset2() {
-  if (session2 === identity5()) return;
-  runner?.dispose();
-  clearTimeout(timer);
-  timer = null;
-  session2 = identity5();
-  vm2 = { owner: openAiSessionAvailable(state.me), config: null, loading: false, error: "" };
-  if (!vm2.owner) {
-    runner = null;
-    return;
-  }
-  const captured = session2;
-  runner = createOpenAiRunner({
-    request: read2,
-    key: `haoduoyu.openai.run.v1:${state.me.id}:V字`,
-    storage: {
-      getItem: (key2) => localStorage.getItem(key2),
-      setItem: (key2, value) => localStorage.setItem(key2, value),
-      removeItem: (key2) => localStorage.removeItem(key2)
-    },
-    onChange(next) {
-      if (captured !== identity5() || session2 !== captured) return;
-      vm2 = { ...vm2, ...next };
-      paintOpenAiReview();
-      scheduleCheck();
-    }
-  });
-  vm2 = { ...vm2, ...runner.state };
-}
-function paintOpenAiReview() {
-  reset2();
-  const node2 = document.querySelector("#openai-review-panel");
-  if (node2) node2.innerHTML = renderOpenAiReviewPanel(vm2);
-}
-function scheduleCheck() {
-  clearTimeout(timer);
-  timer = null;
-  if (runner?.state.run?.status === "uncertain") return;
-  if (!current2() || state.page !== "review" || !runner?.state.pendingId || runner.state.busy || vm2.error) return;
-  timer = setTimeout(() => {
-    if (current2() && state.page === "review" && document.querySelector("#openai-review-panel")) void runner.recover();
-  }, 5e3);
-}
-async function loadOpenAiReview() {
-  reset2();
-  register2();
-  if (!vm2.owner) {
-    paintOpenAiReview();
-    return;
-  }
-  const ticket = ++loadSequence, captured = session2;
-  const fresh = () => ticket === loadSequence && captured === identity5();
-  vm2.loading = true;
-  vm2.config = null;
-  vm2.error = "";
-  paintOpenAiReview();
-  try {
-    const config = await read2("/openai-review/config");
-    if (!fresh()) return;
-    vm2.config = config;
-    if (runner.state.pendingId) await runner.recover();
-    else {
-      const page = await read2("/openai-review/runs?offset=0");
-      if (!fresh()) return;
-      const latest = page?.items?.[0];
-      if (latest) runner.adopt(latest);
-    }
-  } catch (error) {
-    if (fresh()) vm2.error = error.message || "读取失败，请重新读取。";
-  } finally {
-    if (fresh()) {
-      vm2.loading = false;
-      paintOpenAiReview();
-      scheduleCheck();
-    }
-  }
-}
-function register2() {
-  if (registered3) return;
-  registered3 = true;
-  document.addEventListener("click", (event) => {
-    const button2 = event.target.closest?.("#openai-review-panel [data-openai-action]");
-    if (!button2 || button2.disabled || !current2() || !vm2.owner) return;
-    const action = button2.dataset.openaiAction;
-    if (action === "reload") {
-      void loadOpenAiReview();
-      return;
-    }
-    if (action === "check") {
-      void runner.recover();
-      return;
-    }
-    if (action === "release") {
-      if (window.confirm("这次请求可能已经产生 API 费用，但结果无法确认。结束核查不会重试，也不会自动发起新分析。确定结束？"))
-        void runner.release();
-      return;
-    }
-    if (!vm2.config?.configured || vm2.loading) return;
-    if (action === "full" && !window.confirm("重新分析全部已登记文章和指标，会产生一次新的 API 调用。继续吗？")) return;
-    if (["start", "full"].includes(action)) void runner.start(action === "full" ? "full" : "incremental");
-  });
-  window.addEventListener("storage", (event) => {
-    if (event.key === `haoduoyu.openai.run.v1:${state.me?.id}:V字` && current2() && !runner?.state.busy)
-      void loadOpenAiReview();
-  });
 }
 
 // web/review-controller.mjs
@@ -14262,7 +14502,7 @@ function readReviewColumnPreference(raw) {
   }
 }
 var resources = ["articles", "snapshots", "reports", "playbooks", "benchmark-accounts", "benchmark-articles", "notes", "account-health"];
-var data = normalizeReviewData(), sequence4 = 0, registered4 = false, identity6 = "", pageContext2;
+var data = normalizeReviewData(), sequence5 = 0, registered5 = false, identity6 = "", pageContext2;
 var vm3 = {
   account: "V字",
   view: "overview",
@@ -14437,17 +14677,12 @@ function paintContentReviewPage() {
   if (!node2) return;
   node2.innerHTML = renderContentReviewContent(data, vm3);
   syncReviewFullscreen();
-  paintOpenAiReview();
   const dialog = node2.querySelector('[role="dialog"]');
   for (const child of node2.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
   if (dialog) dialog.querySelector(".review-drawer-close")?.focus({ preventScroll: true });
   if (vm3.metricPickerOpen) positionReviewColumnsPicker();
 }
-function stateForOpenAiAccount() {
-  return route().account === "V字";
-}
 async function loadContentReview(context) {
-  if (stateForOpenAiAccount()) void loadOpenAiReview();
   registerEvents2();
   pageContext2 = context;
   const [{ apiNetwork: apiNetwork2 }, { state: state2, runtime: runtime2 }] = await Promise.all([Promise.resolve().then(() => (init_api(), api_exports)), Promise.resolve().then(() => (init_state(), state_exports))]);
@@ -14460,8 +14695,8 @@ async function loadContentReview(context) {
   }
   vm3 = { ...vm3, ...requested, loading: true, error: "" };
   paintContentReviewPage();
-  const ticket = ++sequence4, epoch = runtime2.sessionEpoch;
-  const current3 = () => ticket === sequence4 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root());
+  const ticket = ++sequence5, epoch = runtime2.sessionEpoch;
+  const current3 = () => ticket === sequence5 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root());
   const read3 = (path) => apiNetwork2(path, context ? { context } : {});
   try {
     const result = await readContentReviewDataWithRetry(read3, requested.account, current3);
@@ -14485,7 +14720,7 @@ function closeArticle() {
   node2?.focus({ preventScroll: true });
   window.scrollTo({ top: returnScroll, behavior: "instant" });
 }
-function selectTab(view, focus = false) {
+function selectTab2(view, focus = false) {
   vm3.view = view;
   vm3.article = "";
   vm3.benchmark = "";
@@ -14494,8 +14729,8 @@ function selectTab(view, focus = false) {
   if (focus) root()?.querySelector(`#review-tab-${view}`)?.focus({ preventScroll: true });
 }
 function registerEvents2() {
-  if (registered4 || typeof document === "undefined") return;
-  registered4 = true;
+  if (registered5 || typeof document === "undefined") return;
+  registered5 = true;
   document.addEventListener("fullscreenchange", () => {
     const node2 = root();
     if (node2?.classList.contains("review-list-fullscreen") && !document.fullscreenElement && node2.dataset.nativeFullscreen === "true") {
@@ -14569,7 +14804,7 @@ function registerEvents2() {
       return;
     }
     if (target.dataset.reviewView) {
-      selectTab(target.dataset.reviewView, true);
+      selectTab2(target.dataset.reviewView, true);
       return;
     }
     if (target.dataset.reviewWeek) {
@@ -14674,7 +14909,7 @@ function registerEvents2() {
     if (event.target.matches("[data-review-view]") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
       event.preventDefault();
       const ids = REVIEW_VIEWS.map(([id2]) => id2), index = ids.indexOf(vm3.view);
-      selectTab(event.key === "Home" ? ids[0] : event.key === "End" ? ids.at(-1) : ids[(index + (event.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length], true);
+      selectTab2(event.key === "Home" ? ids[0] : event.key === "End" ? ids.at(-1) : ids[(index + (event.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length], true);
     }
   });
   window.addEventListener("popstate", () => {
@@ -14796,6 +15031,7 @@ function pageLoading(page) {
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
   if (page === "reminders") return renderWorkReminders();
+  if (page === "ai-diagnosis") return renderAiDiagnosis();
   if (page === "ai-reports") return renderAiReports();
   if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
   if (page === "settings" && state.settingsTab === "openai") return openAiSettingsPage();
@@ -14809,7 +15045,7 @@ function setPageBody(html, page) {
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
-  else if (page === "reminders" || page === "ai-reports" || page === "settings" && state.settingsTab === "openai") return;
+  else if (page === "reminders" || page === "ai-reports" || page === "ai-diagnosis" || page === "settings" && state.settingsTab === "openai") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
@@ -14830,6 +15066,7 @@ function renderMediaOverview(data2) {
   return publishedArticleLinks(renderDashboardSummary(data2));
 }
 async function renderPage() {
+  stopOpenAiReviewTimers();
   if (redirectMobileArticlePage()) {
     renderShell();
     return;
@@ -14858,6 +15095,9 @@ async function renderPage() {
         break;
       case "reminders":
         await loadWorkReminders();
+        break;
+      case "ai-diagnosis":
+        await loadAiDiagnosis();
         break;
       case "ai-reports":
         await loadAiReports({ resetDate: true });
@@ -15443,8 +15683,8 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   root2.append(button2, panel2);
   async function refreshQueue() {
     if (!expanded) return;
-    const sequence5 = ++rendering, queue = await runtime2.queue();
-    if (sequence5 !== rendering || !expanded) return;
+    const sequence6 = ++rendering, queue = await runtime2.queue();
+    if (sequence6 !== rendering || !expanded) return;
     const title = textNode(document2, "h2", "同步状态");
     const details = document2.createDocumentFragment();
     if (state2.error) {
