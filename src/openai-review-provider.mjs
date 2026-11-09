@@ -15,7 +15,7 @@ async function boundedJson(response,beforeDecode) {
   beforeDecode();
   try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');}
 }
-export async function runReviewProvider({key,model,instructions,input,lookup,beforeCall,request=fetch,timeoutMs=45000}) {
+export async function runReviewProvider({key,model,instructions,input,lookup,beforeCall,request=fetch,timeoutMs=120000}) {
   let conversation;
   let toolCount=0;
   const diagnostics=[];

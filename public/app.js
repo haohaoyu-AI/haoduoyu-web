@@ -6579,7 +6579,7 @@ function stopOpenAiReviewTimers() {
   timer = null;
 }
 function openAiReviewTimeout(path, options3 = {}) {
-  return path === "/openai-review/runs" && options3.method === "POST" ? 21e4 : 75e3;
+  return path === "/openai-review/runs" && options3.method === "POST" ? 54e4 : 75e3;
 }
 async function read2(path, options3 = {}) {
   const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), openAiReviewTimeout(path, options3));

@@ -17,8 +17,8 @@ export function stopOpenAiReviewTimers() {
   clock.stop(); clearTimeout(timer); timer = null;
 }
 export function openAiReviewTimeout(path, options = {}) {
-  // Four provider rounds may each take 45 seconds; allow 30 seconds for storage and transport.
-  return path === '/openai-review/runs' && options.method === 'POST' ? 210000 : 75000;
+  // Four provider rounds may each take 120 seconds; allow 60 seconds for storage and transport.
+  return path === '/openai-review/runs' && options.method === 'POST' ? 540000 : 75000;
 }
 async function read(path, options = {}) {
   const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), openAiReviewTimeout(path, options));

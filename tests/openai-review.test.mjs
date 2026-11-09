@@ -102,7 +102,10 @@ test('provider failure never advances checkpoint; timeouts stay locked and expli
 
 test('stale interrupted run recovers by read only, release fences late output and allows explicit new click',async t=>{
   const app=fixture(t);app.article();let unblock,entered;const began=new Promise(resolve=>{entered=resolve;});const blocked=new Promise(resolve=>{unblock=resolve;});app.provider(async()=>{entered();await blocked;return providerResponse();});const id=randomUUID(),pending=start(app,id);await began;
-  app.advance(300001);assert.equal((await app.call('runs/'+id)).data.status,'uncertain');assert.equal(app.requests.length,1);
+  app.advance(540000);assert.equal((await app.call('runs/'+id)).data.status,'running');
+  assert.equal((await app.call('runs/'+id+'/release','POST',{acknowledgement:'provider_outcome_unknown_no_automatic_retry'})).status,409);
+  app.advance(59999);assert.equal((await app.call('runs/'+id)).data.status,'running');
+  app.advance(1);assert.equal((await app.call('runs/'+id)).data.status,'uncertain');assert.equal(app.requests.length,1);
   const release=await app.call('runs/'+id+'/release','POST',{acknowledgement:'provider_outcome_unknown_no_automatic_retry'});assert.equal(release.data.status,'uncertain');unblock();const late=await pending;assert.equal(late.data.status,'uncertain');assert.equal(late.data.report_markdown,'');assert.equal(app.sql.prepare('SELECT count(*) n FROM matrix_openai_review_runs WHERE status=\'succeeded\'').get().n,0);
 });
 
@@ -148,6 +151,9 @@ test('three evidence lookups reserve the fourth provider call for a persisted re
   const runId=randomUUID(),reasoning=[];
   app.provider(async(_url,init)=>{
     const body=JSON.parse(init.body),round=app.requests.length;
+    // Model each response taking almost the full per-call allowance. All four
+    // rounds must stay live, including the last dispatch after six minutes.
+    app.advance(119000);assert.equal((await app.call('runs/'+runId)).data.status,'running');
     assert.equal(body.store,false);assert.equal(body.max_output_tokens,6000);assert.equal(body.parallel_tool_calls,false);
     if(body.tool_choice==='none') {
       assert.equal(round,4);
@@ -278,7 +284,7 @@ test('public release cannot kill an active or successful run; uncertain release 
 });
 
 test('stale run cannot dispatch another provider round even without an explicit release',async t=>{
-  const app=fixture(t),id=app.article();app.provider(async()=>{app.advance(300001);return Response.json({status:'completed',output:[{type:'function_call',name:'lookup_review_evidence',call_id:'stale_call',arguments:JSON.stringify({source_run_id:null,kind:'articles',ids:[id],query:'',reason:'history check',limit:1})}]});});
+  const app=fixture(t),id=app.article();app.provider(async()=>{app.advance(600001);return Response.json({status:'completed',output:[{type:'function_call',name:'lookup_review_evidence',call_id:'stale_call',arguments:JSON.stringify({source_run_id:null,kind:'articles',ids:[id],query:'',reason:'history check',limit:1})}]});});
   const run=await publicStart(app);assert.equal(run.data.status,'uncertain');assert.equal(app.requests.length,1);
   assert.equal((await publicStart(app)).error.run_id,run.data.id);
 });

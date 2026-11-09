@@ -5,6 +5,8 @@ import {openAiRunDay, openAiDiaryLink, openAiRunsForDate, readOpenAiRuns, openAi
   openAiDraft, editOpenAiDraft, saveOpenAiDraft} from '../web/core/openai-review-state.mjs';
 import {createOpenAiRunner} from '../web/core/openai-review-runner.mjs';
 import {openAiReviewTimeout} from '../web/openai-review-controller.mjs';
+import {runReviewProvider} from '../src/openai-review-provider.mjs';
+import {REVIEW_LIMITS} from '../src/openai-review-data.mjs';
 import {renderOpenAiRun, renderOpenAiSettings, renderOpenAiReviewPanel, openAiRunModeLabel} from '../web/pages/openai-review.mjs';
 import {renderContentReviewContent} from '../web/pages/content-review.mjs';
 import {normalizeReviewData} from '../web/core/review-data.mjs';
@@ -249,9 +251,15 @@ test('uncertain diary records explain billing uncertainty, retain escaped server
 });
 
 
-test('paid analysis timeout allows four provider rounds plus overhead without extending normal reads or release',()=>{
-  assert.equal(openAiReviewTimeout('/openai-review/runs',{method:'POST'}),210000);
-  assert.ok(openAiReviewTimeout('/openai-review/runs',{method:'POST'}) >= 4*45000+30000);
+test('paid analysis timeout allows all actual provider deadlines plus save overhead without extending reads or release',async t=>{
+  const deadlines=[],schedule=globalThis.setTimeout;
+  t.mock.method(globalThis,'setTimeout',(callback,delay,...args)=>{deadlines.push(delay);return schedule(callback,delay,...args);});
+  await runReviewProvider({key:'synthetic-timeout-check',model:'gpt-test',instructions:'synthetic',input:{},beforeCall:async()=>{},lookup:async()=>{},
+    request:async()=>Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({report_markdown:'synthetic',cumulative_summary:'synthetic',pending_verification:[]})}]}]})});
+  assert.deepEqual(deadlines,[120000],'the real default provider timer must match the client budget');
+  const clientTimeout=openAiReviewTimeout('/openai-review/runs',{method:'POST'});
+  assert.equal(clientTimeout,540000);assert.equal(REVIEW_LIMITS.providerCalls,4);
+  assert.ok(clientTimeout >= REVIEW_LIMITS.providerCalls*deadlines[0]+60000);
   for(const [path,options] of [
     ['/openai-review/runs',{}],['/openai-review/runs',{method:'GET'}],['/openai-review/runs?offset=0',{}],
     ['/openai-review/runs/run-1',{}],['/openai-review/config',{}],['/openai-review/config',{method:'PATCH'}],
