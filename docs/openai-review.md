@@ -83,3 +83,11 @@ Failure diagnostics use existing storage only, with no migration or new endpoint
 - Existing `provider_response_id` preserves the last actually observed response even when a later round fails. It is not necessarily the failed round's response ID and is not evidence that an unknown later call is retrievable. The audit entry identifies the exact round that supplied each ID. Token/HTTP metadata is neither a complete report nor an exact bill.
 - Audit evidence and final run state commit together. A hard interruption before final persistence can still leave diagnostics unavailable. This patch does not add durable background execution or promise survival after browser disconnect.
 - Connection, timeout, response-read and dispatch-registration uncertainty continue to retain the unresolved lock. Reads remain side-effect-free; explicit release still never invokes the provider. No time limit, model, token budget, provider-call limit or automatic retry policy changed.
+
+## Bounded report completion (2026-11-09)
+
+A production verification after the runtime repair reached OpenAI successfully but exhausted all four provider rounds while the model continued requesting evidence. The previous loop offered the evidence tool on the final round, then rejected another tool request without giving the model a final synthesis turn.
+
+The final permitted provider round (or an already exhausted evidence-tool allowance) now uses `tool_choice: "none"` and instructs the model to produce the structured report from the supplied capture and evidence already returned. Missing or unverified evidence must remain explicitly qualified; the report must not claim to have inspected additional material. Earlier rounds retain the normal bounded evidence tool. This preserves the existing four-provider-call/three-tool-call budget, timeouts, output limits and no-retry behavior.
+
+The Responses API documents `tool_choice: "none"` in its [function-calling guide](https://developers.openai.com/api/docs/guides/function-calling?api-mode=responses#tool-choice). The provider/database regression covers three evidence lookups followed by a persisted report within the original limit. The existing real-workerd runtime tests also pass.

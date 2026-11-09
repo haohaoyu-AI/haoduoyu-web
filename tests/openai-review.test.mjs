@@ -134,7 +134,46 @@ test('provider output validation fails closed on incomplete JSON, secret echo an
   for(const [response,code] of [[Response.json({status:'incomplete',output:[]}),'OPENAI_REVIEW_PROVIDER_INCOMPLETE'],[providerResponse('secret-key-for-test'),'OPENAI_REVIEW_INVALID_OUTPUT'],[Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'not json'}]}]}),'OPENAI_REVIEW_INVALID_OUTPUT']]) {
     await assert.rejects(runReviewProvider({key:'secret-key-for-test',model:'gpt-test',instructions:'x',input:{},beforeCall:async()=>{},lookup:async()=>{},request:async()=>response}),error=>error.reviewCode===code&&error.uncertain===false);
   }
-  let calls=0;await assert.rejects(runReviewProvider({key:'x',model:'gpt-test',instructions:'x',input:{},beforeCall:async()=>{},lookup:async()=>({items:[]}),request:async()=>{calls++;return Response.json({status:'completed',output:[{type:'function_call',name:'lookup_review_evidence',call_id:'x',arguments:JSON.stringify({source_run_id:null,kind:'articles',ids:[],query:'x',reason:'x',limit:1})}]});}}),error=>error.reviewCode==='OPENAI_REVIEW_BUDGET');assert.equal(calls,4);
+  let calls=0,lookups=0;const choices=[];
+  await assert.rejects(runReviewProvider({key:'x',model:'gpt-test',instructions:'x',input:{},beforeCall:async()=>{},lookup:async()=>{lookups++;return {items:[]};},request:async(_url,init)=>{
+    calls++;choices.push(JSON.parse(init.body).tool_choice??'auto');
+    // A provider ignoring tool_choice still cannot cause a fourth lookup or a fifth call.
+    return Response.json({status:'completed',output:[{type:'function_call',name:'lookup_review_evidence',call_id:'x',arguments:JSON.stringify({source_run_id:null,kind:'articles',ids:[],query:'x',reason:'x',limit:1})}]});
+  }}),error=>error.reviewCode==='OPENAI_REVIEW_BUDGET');
+  assert.equal(calls,4);assert.equal(lookups,3);assert.deepEqual(choices,['auto','auto','auto','none']);
+});
+
+test('three evidence lookups reserve the fourth provider call for a persisted report without increasing limits',async t=>{
+  const app=fixture(t),article=app.article('Pinned evidence');app.snapshot(article);
+  const runId=randomUUID(),reasoning=[];
+  app.provider(async(_url,init)=>{
+    const body=JSON.parse(init.body),round=app.requests.length;
+    assert.equal(body.store,false);assert.equal(body.max_output_tokens,6000);assert.equal(body.parallel_tool_calls,false);
+    if(body.tool_choice==='none') {
+      assert.equal(round,4);
+      assert.match(body.instructions,/final response round/i);
+      assert.match(body.instructions,/not claim.*retrieved|not.*claim.*inspected/i);
+      assert.deepEqual(body.input.filter(item=>item.type==='reasoning'),reasoning);
+      const evidence=body.input.filter(item=>item.type==='function_call_output');
+      assert.equal(evidence.length,3);
+      for(let i=0;i<evidence.length;i++) {
+        assert.equal(evidence[i].call_id,'call_evidence_'+(i+1));
+        assert.equal(JSON.parse(evidence[i].output).items[0].id,article);
+      }
+      return providerResponse('基于已取得的证据；未核查材料保留待验证。','保留既有结论与本次证据');
+    }
+    const thought={type:'reasoning',id:'rs_evidence_'+round,summary:[],encrypted_content:'synthetic_'+round};
+    reasoning.push(thought);
+    return Response.json({id:'resp_evidence_'+round,status:'completed',output:[thought,{type:'function_call',name:'lookup_review_evidence',call_id:'call_evidence_'+round,
+      arguments:JSON.stringify({source_run_id:null,kind:'articles',ids:[article],query:'',reason:'Check pinned evidence',limit:1})}]});
+  });
+  const result=await start(app,runId);
+  assert.equal(result.data.status,'succeeded');assert.equal(result.data.provider_calls,4);assert.equal(app.requests.length,4);
+  assert.deepEqual(app.requests.map(item=>item.body.tool_choice??'auto'),['auto','auto','auto','none']);
+  const saved=app.sql.prepare('SELECT report_markdown,summary_json,provider_calls FROM matrix_openai_review_runs WHERE id=?').get(runId);
+  assert.equal(saved.report_markdown,result.data.report_markdown);assert.equal(saved.provider_calls,4);
+  assert.equal(JSON.parse(saved.summary_json).cumulative_summary,'保留既有结论与本次证据');
+  assert.equal((await start(app,runId)).data.status,'succeeded');assert.equal(app.requests.length,4,'idempotent replay never repeats paid calls');
 });
 
 
