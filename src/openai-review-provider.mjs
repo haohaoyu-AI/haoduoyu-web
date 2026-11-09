@@ -15,7 +15,10 @@ async function boundedJson(response,beforeDecode) {
   beforeDecode();
   try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');}
 }
-export async function runReviewProvider({key,model,instructions,input,lookup,beforeCall,request=fetch,timeoutMs=120000}) {
+export async function runReviewProvider({key,model,instructions,input,lookup,beforeCall,onProgress=async()=>{},request=fetch,timeoutMs=120000}) {
+  // Progress is observational. A failed event write must never replay a model
+  // call or discard an otherwise valid model response.
+  const progress=async event=>{try{await onProgress(event);}catch{}};
   let conversation;
   let toolCount=0;
   const diagnostics=[];
@@ -34,7 +37,7 @@ export async function runReviewProvider({key,model,instructions,input,lookup,bef
     const serialized=JSON.stringify(body),headers=new Headers({Authorization:'Bearer '+key,'Content-Type':'application/json'});
     controller=new AbortController();
     diagnostic.phase='before_dispatch';
-    await beforeCall(); // Durable dispatch marker, never within a retrying external-call callback.
+    await beforeCall({round:round+1,finalRound}); // Durable dispatch marker, never within a retrying external-call callback.
     let response,data;
     timer=setTimeout(()=>{diagnostic.timeout=true;controller.abort();},timeoutMs);
     diagnostic.phase='fetch';
@@ -45,6 +48,7 @@ export async function runReviewProvider({key,model,instructions,input,lookup,bef
       diagnostic.http_status=response.status;
       diagnostic.request_id=response.headers?.get?.('x-request-id');
       diagnostic.phase='response_status';
+      await progress({stage:'provider_responded',round:round+1});
       if(!response.ok) {try {await response.body?.cancel();} catch { /* Cleanup failure must not erase the known HTTP outcome. */ }throw providerFailure(response.status===401||response.status===403?'OPENAI_REVIEW_PROVIDER_AUTH':response.status===429?'OPENAI_REVIEW_PROVIDER_RATE_LIMIT':'OPENAI_REVIEW_PROVIDER_REJECTED',response.status>=500||response.status===408);}
       diagnostic.phase='read_body';
       data=await boundedJson(response,()=>{diagnostic.phase='decode_body';});
@@ -64,6 +68,7 @@ export async function runReviewProvider({key,model,instructions,input,lookup,bef
         if(call.name!=='lookup_review_evidence'||typeof call.call_id!=='string'||call.call_id.length>200||typeof call.arguments!=='string'||bytes(call.arguments)>4096)throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');
         let args;try{args=JSON.parse(call.arguments);}catch{throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');}
         diagnostic.phase='tool_lookup';
+        await progress({stage:'evidence_lookup',round:round+1});
         const output=await lookup(args);toolCount++;
         conversation.push({type:'function_call_output',call_id:call.call_id,output:JSON.stringify(output)});
       }

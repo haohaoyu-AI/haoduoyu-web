@@ -175,11 +175,78 @@ test('three evidence lookups reserve the fourth provider call for a persisted re
   });
   const result=await start(app,runId);
   assert.equal(result.data.status,'succeeded');assert.equal(result.data.provider_calls,4);assert.equal(app.requests.length,4);
+  assert.deepEqual(result.data.progress.map(event=>[event.stage,event.round??null]),[
+    ['source_ready',null],['provider_started',1],['provider_responded',1],['evidence_lookup',1],
+    ['provider_started',2],['provider_responded',2],['evidence_lookup',2],
+    ['provider_started',3],['provider_responded',3],['evidence_lookup',3],
+    ['synthesizing',4],['provider_started',4],['provider_responded',4],['saving_report',null],['completed',null]
+  ]);
+  assert.equal(result.data.progress[0].article_count,1);assert.equal(result.data.progress[0].record_count,2);
+  assert.equal(result.data.progress.at(-1).elapsed_ms,476000);
   assert.deepEqual(app.requests.map(item=>item.body.tool_choice??'auto'),['auto','auto','auto','none']);
   const saved=app.sql.prepare('SELECT report_markdown,summary_json,provider_calls FROM matrix_openai_review_runs WHERE id=?').get(runId);
   assert.equal(saved.report_markdown,result.data.report_markdown);assert.equal(saved.provider_calls,4);
   assert.equal(JSON.parse(saved.summary_json).cumulative_summary,'保留既有结论与本次证据');
   assert.equal((await start(app,runId)).data.status,'succeeded');assert.equal(app.requests.length,4,'idempotent replay never repeats paid calls');
+});
+
+test('live progress is read-only, owner/run scoped, redacted and retained on failure',async t=>{
+  const app=fixture(t),id=randomUUID();app.article();let entered,unblock;
+  const began=new Promise(resolve=>{entered=resolve;}),blocked=new Promise(resolve=>{unblock=resolve;});
+  app.provider(async()=>{entered();await blocked;return providerResponse();});
+  const pending=start(app,id);await began;
+  const live=(await app.call('runs/'+id)).data;
+  assert.deepEqual(live.progress.map(event=>event.stage),['source_ready','provider_started']);
+  assert.equal(live.progress[1].round,1);assert.equal(app.requests.length,1);
+  const source=app.sql.prepare("SELECT id,detail_json FROM matrix_audit WHERE entity_id=? AND action='openai-review.progress' ORDER BY rowid LIMIT 1").get(id);
+  app.sql.prepare('UPDATE matrix_audit SET detail_json=? WHERE id=?').run(JSON.stringify({...JSON.parse(source.detail_json),secret:app.secret,prompt:'private-prompt',reasoning:'private-reasoning',article_count:-1}),source.id);
+  const put=(actor,entity,detail)=>app.sql.prepare('INSERT INTO matrix_audit(id,actor,action,entity_id,detail_json,created_at) VALUES(?,?,?,?,?,?)').run(randomUUID(),actor,'openai-review.progress',entity,JSON.stringify(detail),new Date().toISOString());
+  const stamp={stage:'completed',at:live.created_at};
+  put('openai-review-progress:'+randomUUID(),id,stamp);
+  put('openai-review-progress:'+app.owner,randomUUID(),stamp);
+  put('openai-review-progress:'+app.owner,id,{stage:'untrusted-'+app.secret,at:live.created_at});
+  const safe=(await app.call('runs/'+id)).data.progress;
+  assert.deepEqual(safe.map(event=>event.stage),['source_ready','provider_started']);
+  assert.equal(Object.hasOwn(safe[0],'article_count'),false);
+  for(const canary of [app.secret,'private-prompt','private-reasoning'])assert.ok(!JSON.stringify(safe).includes(canary));
+  assert.deepEqual((await app.call('runs')).data.items[0].progress,safe);assert.equal(app.requests.length,1);
+  unblock();const done=await pending;assert.equal(done.data.status,'succeeded');assert.equal(done.data.progress.at(-1).stage,'completed');
+  app.advance(31000);app.provider(async()=>{throw Error('synthetic transport failure');});
+  const failed=await start(app);assert.equal(failed.data.status,'uncertain');
+  assert.deepEqual(failed.data.progress.map(event=>event.stage),['source_ready','provider_started']);
+  assert.deepEqual((await app.call('runs/'+failed.data.id)).data.progress,failed.data.progress);
+  assert.equal(app.requests.length,2);
+});
+
+test('progress write failures cannot repeat provider dispatch or discard a valid response',async()=>{
+  let calls=0,events=0;
+  const output=await runReviewProvider({key:'synthetic-progress-key',model:'gpt-test',instructions:'synthetic',input:{},beforeCall:async()=>{},lookup:async()=>{},
+    onProgress:async()=>{events++;throw Error('synthetic progress database failure');},request:async()=>{calls++;return providerResponse();}});
+  assert.equal(output.report_markdown,'本次报告');assert.equal(calls,1);assert.equal(events,1);
+});
+
+test('a completed-progress read failure still commits the report and summary once',async t=>{
+  const app=fixture(t),id=randomUUID();app.article();let failures=0;
+  const prepare=app.db.prepare;
+  app.db.prepare=text=>{
+    const statement=prepare(text);
+    if(text.startsWith('SELECT entity_id,detail_json FROM matrix_audit')) {
+      const all=statement.all;
+      statement.all=async()=>{
+        const saving=app.sql.prepare("SELECT count(*) n FROM matrix_audit WHERE entity_id=? AND action='openai-review.progress' AND json_extract(detail_json,'$.stage')='saving_report'").get(id).n;
+        const running=app.sql.prepare("SELECT count(*) n FROM matrix_openai_review_runs WHERE id=? AND status='running'").get(id).n;
+        if(!failures&&saving&&running){failures++;throw Error('synthetic optional progress read failure');}
+        return all();
+      };
+    }
+    return statement;
+  };
+  const result=await start(app,id);assert.equal(failures,1);assert.equal(result.data.status,'succeeded');
+  const saved=app.sql.prepare('SELECT report_markdown,summary_json FROM matrix_openai_review_runs WHERE id=?').get(id);
+  assert.equal(saved.report_markdown,'本次报告');assert.equal(JSON.parse(saved.summary_json).cumulative_summary,'累计历史结论');
+  assert.equal(app.sql.prepare("SELECT count(*) n FROM matrix_audit WHERE entity_id=? AND action='openai-review.finished'").get(id).n,1);
+  assert.equal(result.data.progress.at(-1).stage,'saving_report','a missing observational event is not fabricated');
+  assert.equal((await start(app,id)).data.status,'succeeded');assert.equal(app.requests.length,1);
 });
 
 
@@ -231,7 +298,8 @@ test('public mode supports full prompt edit, paid-run mock and safe diary while 
   const list=await app.call('runs','GET',undefined,{}),detail=await app.call('runs/'+run.data.id,'GET',undefined,{});assert.equal(list.data.items.length,1);assert.deepEqual(detail.data,run.data);
   for(const raw of ['source_manifest_json','source_data_json','input_json','summary_json','cumulative_summary','internal-only-pending-canary',app.secret,'Other account canary'])assert.ok(!JSON.stringify(list).includes(raw));
   const evidence=JSON.parse(app.requests[0].body.input[1].content);assert.equal(evidence.changes.articles.upserted.length,1);assert.equal(evidence.changes.articles.upserted[0].title,'Public authorized V article');
-  const audits=app.sql.prepare("SELECT actor FROM matrix_audit WHERE action LIKE 'openai-review.%'").all();assert.ok(audits.length>=3);assert.ok(audits.every(row=>row.actor==='public-openai-review:'+app.owner));
+  const audits=app.sql.prepare("SELECT actor,action FROM matrix_audit WHERE action LIKE 'openai-review.%'").all();assert.ok(audits.length>=3);
+  assert.ok(audits.every(row=>row.actor===(row.action==='openai-review.progress'?'openai-review-progress:':'public-openai-review:')+app.owner));
   const privateEnv={...app.env,PUBLIC_BUSINESS_MODE:'0'};
   for(const path of ['config','runs','runs/'+run.data.id])assert.equal((await app.call(path,'GET',undefined,{},privateEnv)).status,401);
   assert.equal((await app.call('config','PATCH',{instructions:'unauthorized',version:1},publicHeaders,privateEnv)).status,401);

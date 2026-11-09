@@ -5064,6 +5064,7 @@ function apiFailure(path, response, payload, epoch, identity7, suppressAuthRedir
   error.status = response.status;
   error.code = payload.error?.code;
   if (error.code === "OPENAI_REVIEW_IN_FLIGHT" && typeof payload.error?.run_id === "string") error.run_id = payload.error.run_id;
+  if (error.code === "OPENAI_CONNECTIVITY_IN_FLIGHT" && typeof payload.error?.test_id === "string") error.test_id = payload.error.test_id;
   if (response.status === 429) {
     const serverTime = Date.parse(response.serverDate);
     error.retryAfterMs = retryAfterDelay(parseRetryAfter(response.retryAfter, Number.isFinite(serverTime) ? serverTime : Date.now()));
@@ -5838,6 +5839,34 @@ function openAiCompletedElapsed(run2) {
   const duration3 = Number.isFinite(run2.elapsed_ms) ? run2.elapsed_ms : Date.parse(run2.completed_at) - Date.parse(run2.created_at);
   return Number.isFinite(duration3) && duration3 >= 0 ? openAiElapsed(0, duration3) : "";
 }
+function openAiProgressLabel(event) {
+  const round = Number.isInteger(event?.round) && event.round >= 1 && event.round <= 4 ? event.round : null;
+  const prefix = round ? `第 ${round} 轮 · ` : "";
+  switch (event?.stage) {
+    case "source_ready": {
+      const articles = Number.isSafeInteger(event.article_count) && event.article_count >= 0 ? event.article_count : null;
+      const records = Number.isSafeInteger(event.record_count) && event.record_count >= 0 ? event.record_count : null;
+      return "诊断资料已整理" + (articles !== null && records !== null ? `：${articles} 篇文章，${records} 条记录` : "");
+    }
+    case "provider_started":
+      return prefix + "已登记模型调用，等待响应";
+    case "provider_responded":
+      return prefix + "已收到 API 响应";
+    case "evidence_lookup":
+      return prefix + "正在核对历史证据";
+    case "synthesizing":
+      return prefix + "正在生成诊断报告";
+    case "saving_report":
+      return "报告已生成，正在保存";
+    case "completed":
+      return "报告已保存，诊断完成";
+    default:
+      return "";
+  }
+}
+function openAiProgressEvents(run2) {
+  return Array.isArray(run2?.progress) ? run2.progress.filter((event) => openAiProgressLabel(event) && Number.isFinite(event.elapsed_ms) && event.elapsed_ms >= 0).slice(0, 18) : [];
+}
 function openAiReviewFeedback(vm4) {
   const run2 = !vm4.pendingId || vm4.run?.id === vm4.pendingId ? vm4.run : null;
   const error = run2?.error_message || "";
@@ -5852,9 +5881,9 @@ function openAiReviewFeedback(vm4) {
     note: "不会自动重复分析。可以只读核查状态。"
   };
   if (run2?.status === "running" || vm4.operation === "start" && vm4.pendingId) return {
-    title: run2?.stage === "awaiting_provider" || run2?.provider_calls > 0 ? "已登记调用，等待结果" : run2?.stage === "preparing" ? "正在准备诊断资料…" : "请求已发出，等待服务器确认…",
+    title: openAiProgressLabel(openAiProgressEvents(run2).at(-1)) || (run2?.stage === "awaiting_provider" || run2?.provider_calls > 0 ? "已登记调用，等待结果" : run2?.stage === "preparing" ? "正在准备诊断资料…" : "请求已发出，等待服务器确认…"),
     waiting: true,
-    detail: "仅显示已确认的请求状态，不代表模型思考进度。无需再次点击；离开后可回来核查。"
+    detail: "以下步骤随实际执行更新。无需再次点击；离开后可回来查看进度。"
   };
   if (vm4.pendingId) return {
     title: vm4.operation === "check" ? "正在只读核查状态…" : "当前请求结果待确认",
@@ -5931,7 +5960,8 @@ function renderOpenAiRun(run2) {
 function renderOpenAiReviewPanel(vm4 = {}) {
   const header = '<div class="openai-review-heading"><h2>求助API</h2></div>';
   if (!vm4.owner) return header + openAiLogin;
-  const busy = vm4.loading || vm4.busy, disabled = busy || !vm4.config?.configured || Boolean(vm4.pendingId);
+  const connectionBusy = vm4.connection?.busy || Boolean(vm4.connection?.pendingId);
+  const busy = vm4.loading || vm4.busy, disabled = busy || connectionBusy || !vm4.config?.configured || Boolean(vm4.pendingId);
   const status = vm4.loading ? "正在读取分析配置…" : !vm4.config ? "暂时无法读取配置。" : vm4.config.configuration_error_message || (vm4.config.configured ? vm4.pendingId || vm4.busy ? "本次请求处理中或等待核查" : "可发起分析" : "尚未配置 OpenAI API，暂不能发起分析。");
   const selectedModel = vm4.pendingId && vm4.run?.id === vm4.pendingId && vm4.run.model || vm4.selectedModel || vm4.config?.default_model || vm4.config?.model;
   return header + `<p class="hint">${e(status)}</p>
@@ -5942,9 +5972,13 @@ function renderOpenAiReviewPanel(vm4 = {}) {
     </select><p class="hint">模型能否调用以账户权限为准。</p>
     <div class="openai-review-actions"><button class="btn primary" type="button" data-openai-action="start"
     ${disabled ? "disabled" : ""} aria-busy="${Boolean(vm4.busy)}">求助API</button>
+    <button class="btn" type="button" data-openai-action="test-connection" ${disabled ? "disabled" : ""}>测试连接</button>
+    ${vm4.connection?.pendingId ? '<button class="btn" type="button" data-openai-action="check-connection">核查连接测试</button>' : ""}
     ${vm4.pendingId ? `<button class="btn" type="button" data-openai-action="check" ${busy ? "disabled" : ""}>核查状态</button>` : ""}
     ${vm4.pendingId && (vm4.notFound || vm4.run?.status === "uncertain") ? `<button class="btn" type="button" data-openai-action="release" ${busy ? "disabled" : ""}>结束本次状态核查</button>` : ""}
     ${!vm4.config && !vm4.loading ? '<button class="btn" type="button" data-openai-action="reload">重新读取</button>' : ""}</div>
+    <p class="hint">首次使用先点“测试连接”：只发送一条简短测试消息，成功后再运行完整诊断。</p>
+    ${renderOpenAiConnectivity(vm4.connection)}
     ${renderOpenAiReviewStatus(vm4)}
     ${vm4.run ? `<p>最近记录：${e(openAiRunLabel(vm4.run))} · ${e(timestamp3(vm4.run.created_at))}
       <a href="${e(openAiDiaryLink(vm4.run))}">在诊断报告查看这条记录</a></p>` : ""}`;
@@ -5955,11 +5989,32 @@ function renderOpenAiReviewStatus(vm4) {
   const elapsed = !vm4.pendingId || vm4.run?.id === vm4.pendingId ? openAiCompletedElapsed(vm4.run) : "";
   const startedAt = vm4.startedAt || (vm4.run?.id === vm4.pendingId ? Date.parse(vm4.run.created_at) : 0);
   return `<div class="openai-review-status"><p role="status" aria-live="polite"><strong>${e(feedback.title)}</strong></p>
-    ${feedback.waiting ? '<progress aria-label="等待分析结果，无法提供准确进度"></progress>' : ""}
+    ${feedback.waiting ? '<progress aria-label="诊断正在进行，步骤随实际执行更新"></progress>' : ""}
     ${feedback.waiting && Number.isFinite(startedAt) && startedAt > 0 ? `<p aria-live="off">已等待 <span data-openai-elapsed="${startedAt}">${e(openAiElapsed(startedAt))}</span></p>` : ""}
     ${elapsed ? `<p>用时 ${e(elapsed)}</p>` : ""}
     <p>${e(feedback.detail)}</p>${feedback.note ? `<p>${e(feedback.note)}</p>` : ""}
+    ${renderOpenAiProgress(!vm4.pendingId || vm4.run?.id === vm4.pendingId ? vm4.run : null)}
     ${vm4.error && vm4.error !== feedback.detail ? `<p role="alert">${e(vm4.error)}</p>` : ""}</div>`;
+}
+function renderOpenAiProgress(run2) {
+  const events = openAiProgressEvents(run2);
+  if (!events.length) return "";
+  return `<ol class="openai-progress-log" aria-label="诊断执行进度">${events.map((event, index) => `<li class="${index === events.length - 1 && run2.status === "running" ? "is-current" : "is-observed"}">
+      <span class="openai-progress-mark" aria-hidden="true"></span><span>${e(openAiProgressLabel(event))}</span>
+      <time>+${e(openAiElapsed(0, event.elapsed_ms))}</time></li>`).join("")}</ol>`;
+}
+function renderOpenAiConnectivity(connection) {
+  if (!connection) return "";
+  const result = connection.result;
+  if (!result && !connection.busy && !connection.error && !connection.pendingId) return "";
+  const current3 = !connection.pendingId || result?.id === connection.pendingId ? result : null;
+  const waiting = connection.pendingId && (connection.busy || current3?.status === "running");
+  const title = waiting ? "正在进行最小连接测试…" : current3?.status === "succeeded" ? "连接测试通过" : current3?.status === "failed" ? "连接测试未通过" : "连接测试结果待确认";
+  const detail = current3?.status === "succeeded" ? `模型 ${current3.model} 已回复 OK，可以开始完整诊断。` : connection.error || current3?.error_message || "只发送简短测试消息，不读取文章，也不更新诊断报告。";
+  const elapsed = current3?.status === "succeeded" || current3?.status === "failed" ? openAiCompletedElapsed(current3) : "";
+  return `<section class="openai-connectivity" aria-label="最小连接测试"><p role="status" aria-live="polite"><strong>${e(title)}</strong></p>
+    <p>${e(detail)}</p>${elapsed ? `<p class="hint">用时 ${e(elapsed)}</p>` : ""}
+    ${waiting && connection.startedAt ? `<p class="hint" aria-live="off">已等待 <span data-connectivity-elapsed="${connection.startedAt}">${e(openAiElapsed(connection.startedAt))}</span></p>` : ""}</section>`;
 }
 function renderOpenAiSettings(vm4 = {}) {
   if (!vm4.owner) return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2>${openAiLogin}</section>`;
@@ -6562,10 +6617,210 @@ function createObserver({ state: state2, request, active: active5, accept, chang
   };
 }
 
+// web/core/openai-connectivity-runner.mjs
+var endpoint = "/openai-review/connectivity";
+var terminal = (value) => ["succeeded", "failed", "uncertain"].includes(value?.status);
+var noDispatch = /* @__PURE__ */ new Set([
+  "OPENAI_REVIEW_NOT_CONFIGURED",
+  "OPENAI_REVIEW_INVALID_KEY_FORMAT",
+  "OPENAI_CONNECTIVITY_TEST_LIMIT",
+  "VALIDATION_ERROR",
+  "FORBIDDEN",
+  "UNAUTHORIZED",
+  "CSRF",
+  "MEMOS_RATE_LIMIT"
+]);
+var unknown = "最小测试结果尚未确认，请只读核查状态。不会自动重复调用。";
+function createConnectivityContext({ storage: storage2, key: key2, onChange }) {
+  const context = { active: true, generation: 0 };
+  const state2 = { result: null, pendingId: "", busy: false, error: "", startedAt: 0, operation: "" };
+  try {
+    state2.pendingId = storage2.getItem(key2) || "";
+    const timing = JSON.parse(storage2.getItem(key2 + ":started"));
+    if (timing?.id === state2.pendingId && Number.isFinite(timing.at)) state2.startedAt = timing.at;
+  } catch {
+  }
+  const change2 = () => {
+    if (context.active) onChange({ ...state2 });
+  };
+  const retain2 = (id2) => {
+    storage2.setItem(key2, id2);
+    if (storage2.getItem(key2) !== id2) throw new Error("无法保存最小测试编号，未发起新的 API 调用。");
+    state2.pendingId = id2;
+  };
+  const clear = (id2) => {
+    if (storage2.getItem(key2) === id2) {
+      storage2.removeItem(key2);
+      if (storage2.getItem(key2) === id2) throw new Error("无法清理本机测试编号，请恢复本机存储后再测。");
+    }
+  };
+  const accept = (result, expectedId) => {
+    if (!context.active) return;
+    if (!result?.id || !["running", "succeeded", "failed", "uncertain"].includes(result.status) || expectedId && result.id !== expectedId) throw new Error(unknown);
+    if (state2.pendingId && state2.pendingId !== result.id) return;
+    if (state2.result?.id === result.id && terminal(state2.result) && (result.status === "running" || state2.result.status !== "uncertain" && result.status === "uncertain")) return;
+    state2.result = result;
+    state2.startedAt = Date.parse(result.created_at) || state2.startedAt;
+    state2.error = "";
+    if (terminal(result)) {
+      state2.pendingId = "";
+      try {
+        clear(result.id);
+      } catch (error) {
+        state2.error = error.message;
+      }
+    } else {
+      state2.pendingId = result.id;
+      retain2(result.id);
+    }
+  };
+  const current3 = (version2, id2) => context.active && context.generation === version2 && (state2.pendingId === id2 || !state2.pendingId && state2.result?.id === id2);
+  return Object.assign(context, { state: state2, change: change2, retain: retain2, clear, accept, current: current3 });
+}
+function createConnectivityObserver(context, request) {
+  const { state: state2, accept, current: current3, change: change2 } = context;
+  let observing = false;
+  return async function observe() {
+    if (!context.active || observing || state2.operation !== "start" || !state2.pendingId) return;
+    const id2 = state2.pendingId, version2 = context.generation;
+    observing = true;
+    try {
+      const result = await request(endpoint + "/" + encodeURIComponent(id2));
+      if (current3(version2, id2)) accept(result, id2);
+    } catch (error) {
+      if (error.staleSession) {
+        context.active = false;
+        context.generation++;
+      }
+    } finally {
+      observing = false;
+      if (current3(version2, id2)) change2();
+    }
+  };
+}
+function createOpenAiConnectivityRunner({
+  request,
+  storage: storage2,
+  key: key2,
+  onChange = () => {
+  },
+  uuid: uuid5 = () => crypto.randomUUID(),
+  now = Date.now
+}) {
+  const context = createConnectivityContext({ storage: storage2, key: key2, onChange });
+  const { state: state2, change: change2, retain: retain2, clear, accept, current: current3 } = context;
+  const observe = createConnectivityObserver(context, request);
+  async function recover() {
+    if (state2.operation === "start") return observe();
+    if (!context.active || state2.busy || !state2.pendingId) return;
+    const id2 = state2.pendingId, version2 = context.generation;
+    state2.busy = true;
+    state2.operation = "check";
+    state2.error = "";
+    change2();
+    try {
+      const result = await request(endpoint + "/" + encodeURIComponent(id2));
+      if (current3(version2, id2)) accept(result, id2);
+    } catch (error) {
+      if (error.staleSession) {
+        context.active = false;
+        context.generation++;
+        return;
+      }
+      if (current3(version2, id2)) state2.error = error.status === 404 ? "尚未查到这次最小测试，请稍后核查。不会自动重复调用。" : unknown;
+    } finally {
+      if (context.active && context.generation === version2) {
+        state2.busy = false;
+        state2.operation = "";
+        change2();
+      }
+    }
+  }
+  async function start(model) {
+    if (!context.active || state2.busy || state2.pendingId) return;
+    const version2 = ++context.generation;
+    let id2 = "", dispatched = false;
+    state2.busy = true;
+    state2.operation = "start";
+    state2.error = "";
+    change2();
+    try {
+      let existing = storage2.getItem(key2);
+      if (existing && state2.result?.id === existing && terminal(state2.result)) {
+        clear(existing);
+        existing = storage2.getItem(key2);
+      }
+      if (existing) {
+        state2.pendingId = existing;
+        if (state2.result?.id !== existing) {
+          state2.result = null;
+          state2.startedAt = 0;
+        }
+        return;
+      }
+      id2 = uuid5();
+      const at = now(), timing = JSON.stringify({ id: id2, at });
+      storage2.setItem(key2 + ":started", timing);
+      if (storage2.getItem(key2 + ":started") !== timing) throw new Error("无法保存最小测试开始时间，未调用 API。");
+      retain2(id2);
+      state2.startedAt = at;
+      state2.result = null;
+      change2();
+      if (!context.active || context.generation !== version2) return;
+      dispatched = true;
+      const result = await request(endpoint, { method: "POST", body: { test_id: id2, model } });
+      if (current3(version2, id2)) accept(result, id2);
+    } catch (error) {
+      if (error.staleSession) {
+        context.active = false;
+        context.generation++;
+        return;
+      }
+      if (!context.active || context.generation !== version2 || terminal(state2.result) && state2.result.id === id2 && !state2.pendingId) return;
+      state2.error = dispatched ? unknown : error.message || "无法保存最小测试编号，未调用 API。";
+      if (dispatched && error.code === "OPENAI_CONNECTIVITY_IN_FLIGHT" && typeof error.test_id === "string" && error.test_id) {
+        state2.pendingId = error.test_id;
+        try {
+          retain2(error.test_id);
+        } catch {
+        }
+        state2.startedAt = 0;
+        state2.error = "已有最小测试正在执行，请只读核查状态。";
+      } else if (dispatched && noDispatch.has(error.code)) {
+        state2.pendingId = "";
+        state2.error = error.message || "最小测试未发起，请检查配置后再试。";
+        try {
+          clear(id2);
+        } catch (storageError) {
+          state2.error += " " + storageError.message;
+        }
+      }
+    } finally {
+      if (context.active && context.generation === version2) {
+        state2.busy = false;
+        state2.operation = "";
+        change2();
+      }
+    }
+  }
+  return { state: state2, start, recover, observe, adopt(result) {
+    if (!context.active || !result || state2.pendingId && state2.pendingId !== result.id || state2.busy && state2.result?.id !== result.id && !state2.pendingId) return;
+    try {
+      accept(result);
+    } catch (error) {
+      state2.error = error.message;
+    }
+    change2();
+  }, dispose() {
+    context.active = false;
+    context.generation++;
+  } };
+}
+
 // web/openai-review-controller.mjs
 init_api();
 init_state();
-var session2 = "", runner, vm2 = {}, registered2 = false, timer = null, loadSequence = 0;
+var session2 = "", runner, connectivityRunner, vm2 = {}, registered2 = false, timer = null, connectionTimer = null, loadSequence = 0;
 var identity5 = () => `${runtime.sessionEpoch}:${state.me?.id || ""}:${Boolean(state.me?.publicBusiness)}`;
 var current2 = () => session2 === identity5();
 var clock = createOpenAiElapsedClock(() => {
@@ -6573,13 +6828,22 @@ var clock = createOpenAiElapsedClock(() => {
   const node2 = document.querySelector("#openai-review-panel [data-openai-elapsed]");
   return node2 ? { node: node2, startedAt: Number(node2.dataset.openaiElapsed) } : null;
 });
+var connectionClock = createOpenAiElapsedClock(() => {
+  if (!current2() || state.page !== "ai-diagnosis" || state.diagnosisTab !== "help" || document.visibilityState === "hidden") return null;
+  const node2 = document.querySelector("#openai-review-panel [data-connectivity-elapsed]");
+  return node2 ? { node: node2, startedAt: Number(node2.dataset.connectivityElapsed) } : null;
+});
 function stopOpenAiReviewTimers() {
   clock.stop();
+  connectionClock.stop();
   clearTimeout(timer);
   timer = null;
+  clearTimeout(connectionTimer);
+  connectionTimer = null;
 }
 function openAiReviewTimeout(path, options3 = {}) {
-  return path === "/openai-review/runs" && options3.method === "POST" ? 54e4 : 75e3;
+  if (path === "/openai-review/runs" && options3.method === "POST") return 54e4;
+  return path === "/openai-review/connectivity" && options3.method === "POST" ? 15e4 : 75e3;
 }
 async function read2(path, options3 = {}) {
   const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), openAiReviewTimeout(path, options3));
@@ -6592,11 +6856,13 @@ async function read2(path, options3 = {}) {
 function reset2() {
   if (session2 === identity5()) return;
   runner?.dispose();
+  connectivityRunner?.dispose();
   stopOpenAiReviewTimers();
   session2 = identity5();
   vm2 = { owner: openAiSessionAvailable(state.me), config: null, loading: false, error: "" };
   if (!vm2.owner) {
     runner = null;
+    connectivityRunner = null;
     return;
   }
   const captured = session2;
@@ -6620,12 +6886,34 @@ function reset2() {
     }
   });
   vm2 = { ...vm2, ...runner.state };
+  connectivityRunner = createOpenAiConnectivityRunner({
+    request: read2,
+    key: `haoduoyu.openai.connectivity.v1:${state.me.id}:V字`,
+    storage: localStorage,
+    onChange(next) {
+      if (captured !== identity5() || session2 !== captured) return;
+      vm2 = { ...vm2, connection: next };
+      paintOpenAiReview();
+      scheduleConnectionCheck();
+    }
+  });
+  vm2.connection = { ...connectivityRunner.state };
 }
 function paintOpenAiReview() {
   reset2();
   const node2 = document.querySelector("#openai-review-panel");
   if (node2) node2.innerHTML = renderOpenAiReviewPanel(vm2);
   clock.refresh();
+  connectionClock.refresh();
+}
+function scheduleConnectionCheck() {
+  clearTimeout(connectionTimer);
+  connectionTimer = null;
+  if (!current2() || document.visibilityState === "hidden" || state.page !== "ai-diagnosis" || state.diagnosisTab !== "help" || !connectivityRunner?.state.pendingId) return;
+  connectionTimer = setTimeout(() => {
+    if (current2() && document.visibilityState !== "hidden" && state.page === "ai-diagnosis" && state.diagnosisTab === "help")
+      void connectivityRunner.recover();
+  }, 3e3);
 }
 function scheduleCheck() {
   clearTimeout(timer);
@@ -6662,6 +6950,12 @@ async function loadOpenAiReview() {
       const latest = page?.items?.[0];
       if (latest) runner.adopt(latest);
     }
+    if (!fresh()) return;
+    if (connectivityRunner.state.pendingId) await connectivityRunner.recover();
+    else {
+      const latestTest = await read2("/openai-review/connectivity");
+      if (fresh() && latestTest) connectivityRunner.adopt(latestTest);
+    }
   } catch (error) {
     if (fresh()) vm2.error = error.message || "读取失败，请重新读取。";
   } finally {
@@ -6669,6 +6963,7 @@ async function loadOpenAiReview() {
       vm2.loading = false;
       paintOpenAiReview();
       scheduleCheck();
+      scheduleConnectionCheck();
     }
   }
 }
@@ -6682,6 +6977,10 @@ function register2() {
     const button2 = event.target.closest?.("#openai-review-panel [data-openai-action]");
     if (!button2 || button2.disabled || !current2() || !vm2.owner) return;
     const action = button2.dataset.openaiAction;
+    if (action === "check-connection") {
+      void connectivityRunner?.recover();
+      return;
+    }
     if (action === "reload") {
       void loadOpenAiReview();
       return;
@@ -6696,10 +6995,18 @@ function register2() {
       return;
     }
     if (!vm2.config?.configured || vm2.loading) return;
+    if (action === "test-connection" && !runner?.state.pendingId && !runner?.state.busy) {
+      void connectivityRunner.start(vm2.selectedModel || vm2.config.default_model || vm2.config.model);
+      return;
+    }
+    if (connectivityRunner?.state.busy || connectivityRunner?.state.pendingId) return;
     if (action === "full" && !window.confirm("重新分析全部已登记文章和指标，会产生一次新的 API 调用。继续吗？")) return;
     if (["start", "full"].includes(action)) void runner.start(action === "full" ? "full" : "incremental", vm2.selectedModel);
   });
   window.addEventListener("storage", (event) => {
+    if (event.key === `haoduoyu.openai.connectivity.v1:${state.me?.id}:V字` && current2() && !connectivityRunner?.state.busy) {
+      if (state.page === "ai-diagnosis" && state.diagnosisTab === "help") void loadOpenAiReview();
+    }
     if (event.key === `haoduoyu.openai.run.v1:${state.me?.id}:V字` && current2() && !runner?.state.busy) {
       stopOpenAiReviewTimers();
       if (state.page === "ai-diagnosis" && state.diagnosisTab === "help") void loadOpenAiReview();
@@ -6710,7 +7017,9 @@ function register2() {
     if (document.visibilityState === "hidden") stopOpenAiReviewTimers();
     else if (current2() && state.page === "ai-diagnosis" && state.diagnosisTab === "help") {
       clock.refresh();
+      connectionClock.refresh();
       scheduleCheck();
+      scheduleConnectionCheck();
     }
   });
 }
@@ -6866,10 +7175,10 @@ var boolChoices = { true: "是", false: "否" };
 var publishedArticle = (article) => !Object.hasOwn(article, "status") || article.status === "published";
 function statusSelect(value = "draft_saved", allowUnknown = false) {
   const known = Object.hasOwn(statusLabels, value);
-  const unknown = allowUnknown && !known;
-  if (!unknown && !known) value = "draft_saved";
+  const unknown2 = allowUnknown && !known;
+  if (!unknown2 && !known) value = "draft_saved";
   return `<label class="form-field">状态<select name="status" class="input" aria-label="文章状态">
-${unknown ? '<option value="" selected disabled>未确认，请选择状态</option>' : ""}
+${unknown2 ? '<option value="" selected disabled>未确认，请选择状态</option>' : ""}
 ${Object.entries(statusLabels).map(([key2, label3]) => `<option value="${e(key2)}" ${value === key2 ? "selected" : ""}>${e(label3)}</option>`).join("")}
 </select></label>`;
 }
@@ -16202,7 +16511,7 @@ function renderArticleAnalytics(a) {
   const timeline = a.timeline || a.observations || [], nodes = a.nodes || [], missing4 = unconfirmed ? "未取得" : "未采集";
   const summary = unconfirmed && a.latest_metrics == null ? '<p class="cell-sub">最新汇总指标未取得。</p>' : metricSummary(a);
   return `${unconfirmed ? '<section class="detail-section"><h3>状态未确认</h3><p>以下为已有指标与历史记录。</p></section>' : ""}${summary}<p class="cell-sub">截至 ${a.latest_metrics == null ? missing4 : e(displayTime(a.latest_as_of))} · 采集于 ${a.latest_metrics == null ? missing4 : e(displayTime(a.latest_collected_at))}</p><section class="detail-section">${unconfirmed ? "" : `<h3>观察节点</h3><ol class="snapshot-nodes">${nodes.map((n) => {
-    const unknown = n.kind !== "latest" && a.date_status === "unverified" && !n.snapshot, status = unknown ? "unknown" : n.status, label3 = unknown ? "日期待核实" : { recorded: "已记录", before_due: "记录早于节点", not_due: "未到期", not_collected: "未采集" }[status] || "状态未知";
+    const unknown2 = n.kind !== "latest" && a.date_status === "unverified" && !n.snapshot, status = unknown2 ? "unknown" : n.status, label3 = unknown2 ? "日期待核实" : { recorded: "已记录", before_due: "记录早于节点", not_due: "未到期", not_collected: "未采集" }[status] || "状态未知";
     return `<li class="node ${e(status)}"><strong>${e(kindLabels[n.kind] || n.kind)}</strong><span>${e(label3)}</span><small>${e(displayTime(
       n.snapshot?.as_of || n.due_at
     ))}</small></li>`;

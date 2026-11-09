@@ -7,6 +7,8 @@ import {reviewDate} from './content-review-validation.mjs';
 import {REVIEW_ACCOUNT,DEFAULT_REVIEW_INSTRUCTIONS,captureReviewSources,buildReviewInput,evidenceFromCapture,bytes} from './openai-review-data.mjs';
 import {runReviewProvider} from './openai-review-provider.mjs';
 import {safeReviewDiagnostics,lastReviewResponseId} from './openai-review-diagnostics.mjs';
+import {isOpenAiConnectivityRoute,handleOpenAiConnectivity} from './openai-review-connectivity.mjs';
+import {appendReviewProgress,readReviewProgressForRuns} from './openai-review-progress.mjs';
 
 const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 // Four 120-second provider rounds plus client/save overhead must remain live.
@@ -67,7 +69,7 @@ async function limitRecoveryReceipts(store,owner,at) {
   if(count.n>=20||latest&&at-Date.parse(latest.created_at)<30000)throw fail(429,'OPENAI_REVIEW_RECOVERY_RATE_LIMIT','状态核查取消间隔至少 30 秒，每个北京时间日期最多 20 次；请保留原运行标识稍后查看');
 }
 
-function runView(row,at=Date.now()) {
+function runView(row,at=Date.now(),progress=[]) {
   const stale=row.status==='running'&&at-Date.parse(row.created_at)>=staleMs;
   const status=stale?'uncertain':row.status;
   // provider_calls is a durable dispatch-intent marker committed BEFORE fetch.
@@ -75,10 +77,18 @@ function runView(row,at=Date.now()) {
   const stage=status==='running'?(row.provider_calls>0?'awaiting_provider':'preparing'):status;
   const end=row.completed_at?Date.parse(row.completed_at):at;
   const elapsed=Math.max(0,end-Date.parse(row.created_at));
-  return {id:row.id,account:row.account,status,stage,elapsed_ms:Number.isFinite(elapsed)?elapsed:0,provider_calls:row.provider_calls??0,mode:row.mode,baseline_run_id:row.baseline_run_id??null,beijing_date:row.beijing_date,created_at:row.created_at,completed_at:row.completed_at,
+  return {id:row.id,account:row.account,status,stage,progress,elapsed_ms:Number.isFinite(elapsed)?elapsed:0,provider_calls:row.provider_calls??0,mode:row.mode,baseline_run_id:row.baseline_run_id??null,beijing_date:row.beijing_date,created_at:row.created_at,completed_at:row.completed_at,
     report_markdown:row.report_markdown,model:row.model,instruction_version:row.instruction_version,released_at:row.released_at??null,
     error_code:Object.hasOwn(failureMessages,row.error_code)?row.error_code:null,
     error_message:stale?'执行结果尚未确认，请只读查看记录；不会自动重新调用 API':row.error_message??null};
+}
+async function runViews(store,owner,rows,at) {
+  let progress=new Map();try{progress=await readReviewProgressForRuns(store,owner,rows);}catch{ /* Status remains readable when optional progress is unavailable. */ }
+  return rows.map(row=>runView(row,at,progress.get(row.id)??[]));
+}
+async function persistedRunView(db,owner,row,at) {
+  try{return (await consistentRead(db,store=>runViews(store,owner,[row],at)))[0];}
+  catch{return runView(row,at);}
 }
 async function configView(store,owner,settings) {
   const saved=await store.get('SELECT instructions,version FROM matrix_openai_review_config WHERE user_id=? AND account=?',owner,REVIEW_ACCOUNT);
@@ -114,12 +124,19 @@ async function finish(db,owner,id,changes,actorName,diagnostics=[]) {
     store.queue('UPDATE matrix_openai_review_runs SET '+fields.map(field=>field+'=?').join(',')+" WHERE user_id=? AND id=? AND status='running' AND released_at IS NULL",...fields.map(field=>changes[field]),owner,id);
     store.expectChange();
     store.audit(actorName,'openai-review.finished',id,{status:changes.status,...(diagnostics.length?{provider_diagnostics:diagnostics}:{})});
+    if(changes.status==='succeeded') {
+      try{await appendReviewProgress(store,owner,current,{stage:'completed',at:changes.completed_at});}
+      catch{ /* An optional progress read must not discard a valid report. */ }
+    }
     return {row:{...current,...changes}};
   });
 }
 // Dependencies are injectable in native tests only, never from user JSON or env.
 export async function handleOpenaiReview(db,request,route,env,origin,initialRevision,{request:providerRequest=fetch,clock=Date.now}={}) {
   const owner=dailyNotesOwner(env),settings=openaiReviewSettings(env),method=request.method,q=new URL(request.url).searchParams;
+  if(isOpenAiConnectivityRoute(route))return handleOpenAiConnectivity({db,request,route,owner,settings,
+    models:supportedModels(settings),providerRequest,clock,
+    authorize:(store,write)=>reviewActor(store,request,owner,env,origin,write)});
   const detail=/^\/openai-review\/runs\/([a-f0-9-]+)(\/release)?$/.exec(route);
   if(detail&&!uuid.test(detail[1]))throw fail(404,'NOT_FOUND','分析记录不存在');
   if(route!=='/openai-review/config'&&route!=='/openai-review/runs'&&!detail)throw fail(404,'NOT_FOUND','接口不存在');
@@ -130,9 +147,9 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
   if(method==='GET'&&!detail?.[2])return consistentRead(db,async store=>{
     await reviewActor(store,request,owner,env,origin);
     if(route==='/openai-review/config')return json(await configView(store,owner,settings));
-    if(detail){const row=await store.get('SELECT * FROM matrix_openai_review_runs WHERE user_id=? AND id=? AND account=?',owner,detail[1],REVIEW_ACCOUNT);if(!row)throw fail(404,'NOT_FOUND','分析记录不存在');return json(runView(row,clock()));}
+    if(detail){const row=await store.get('SELECT * FROM matrix_openai_review_runs WHERE user_id=? AND id=? AND account=?',owner,detail[1],REVIEW_ACCOUNT);if(!row)throw fail(404,'NOT_FOUND','分析记录不存在');return json((await runViews(store,owner,[row],clock()))[0]);}
     const rows=await store.all('SELECT * FROM matrix_openai_review_runs WHERE user_id=? AND account=?'+(q.has('date')?' AND beijing_date=?':'')+' ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?',owner,REVIEW_ACCOUNT,...(q.has('date')?[q.get('date')]:[]),Number(q.get('offset')||0));
-    return json({items:rows.slice(0,50).map(row=>runView(row,clock())),has_more:rows.length>50});
+    return json({items:await runViews(store,owner,rows.slice(0,50),clock()),has_more:rows.length>50});
   },initialRevision);
   const initialActor=await reviewActor(storeFor(db),request,owner,env,origin,true);
   if(initialActor.kind==='public')try {limitNoteWrites(owner,'openai-review',clock());} catch(error) {
@@ -166,12 +183,12 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
         store.audit(actor.actor,'openai-review.unstarted.cancelled',cancelled.id);
         return {actor,response:json(runView(cancelled,clock()))};
       }
-      if(row.released_at)return {replayed:true,response:json(runView(row,clock()))};
+      if(row.released_at)return {replayed:true,response:json((await runViews(store,owner,[row],clock()))[0])};
       if(row.status!=='uncertain'&&!(row.status==='running'&&clock()-Date.parse(row.created_at)>=staleMs))throw fail(409,'OPENAI_REVIEW_NOT_RELEASABLE','该记录尚未进入结果未知状态，不能解除占用');
       const released=new Date(clock()).toISOString(),result={...row,status:'uncertain',released_at:released,error_message:'已确认结果仍未知并解除占用；可能已计费，本记录不会自动重试'};
       store.queue("UPDATE matrix_openai_review_runs SET status='uncertain',released_at=?,error_message=? WHERE user_id=? AND id=? AND released_at IS NULL",released,result.error_message,owner,row.id);store.expectChange();
       store.audit(actor.actor,'openai-review.uncertain.released',row.id);
-      return {actor,response:json(runView(result,clock()))};
+      return {actor,response:json((await runViews(store,owner,[result],clock()))[0])};
     })).response;
   }
   if(route!=='/openai-review/runs'||method!=='POST')throw fail(404,'NOT_FOUND','接口不存在');
@@ -206,18 +223,29 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
     if(!config.version)store.queue('INSERT INTO matrix_openai_review_config(user_id,account,instructions,version,updated_at) VALUES(?,?,?,?,?)',owner,REVIEW_ACCOUNT,instructions,version,created);
     const fields=Object.keys(row);store.queue('INSERT INTO matrix_openai_review_runs('+fields.join(',')+') VALUES('+fields.map(()=>'?').join(',')+')',...fields.map(field=>row[field]));
     store.audit(actor.actor,'openai-review.started',row.id,{mode:row.mode,instruction_version:version});
+    await appendReviewProgress(store,owner,row,{stage:'source_ready',at:new Date(clock()).toISOString(),article_count:source.articles.length,
+      record_count:Object.values(source).reduce((sum,items)=>sum+(Array.isArray(items)?items.length:0),0)});
     return {actor,row,source,input:built.input};
   });
   if(reserved.conflict)return Response.json({error:{code:'OPENAI_REVIEW_IN_FLIGHT',message:'已有运行尚未结束或结果未知，请先查看已有记录',run_id:reserved.conflict}},{status:409,headers:{'Cache-Control':'no-store'}});
-  if(reserved.replayed)return json(runView(reserved.row,clock()),reserved.row.status==='running'?202:200);
+  if(reserved.replayed)return json(await persistedRunView(db,owner,reserved.row,clock()),reserved.row.status==='running'?202:200);
   const row=reserved.row;
+  const recordProgress=event=>mutate(db,async store=>{
+    const active=await store.get('SELECT status,released_at FROM matrix_openai_review_runs WHERE user_id=? AND id=?',owner,row.id);
+    if(active?.status!=='running'||active.released_at)return {replayed:true};
+    await appendReviewProgress(store,owner,row,{...event,at:new Date(clock()).toISOString()});return {};
+  });
   let output;
   try {
     output=await runReviewProvider({key:settings.key,model:row.model,instructions:row.instructions,input:reserved.input,request:providerRequest,
-      beforeCall:()=>mutate(db,async store=>{
+      onProgress:recordProgress,
+      beforeCall:({round,finalRound})=>mutate(db,async store=>{
         const active=await store.get('SELECT status,provider_calls,released_at,created_at FROM matrix_openai_review_runs WHERE user_id=? AND id=?',owner,row.id);
         if(active?.status!=='running'||active.released_at||clock()-Date.parse(active.created_at)>=staleMs)throw fail(409,'OPENAI_REVIEW_CLAIM_CHANGED','运行状态已改变，不再调用 API');
-        store.queue("UPDATE matrix_openai_review_runs SET provider_calls=provider_calls+1 WHERE user_id=? AND id=? AND status='running' AND released_at IS NULL",owner,row.id);store.expectChange();return {};
+        store.queue("UPDATE matrix_openai_review_runs SET provider_calls=provider_calls+1 WHERE user_id=? AND id=? AND status='running' AND released_at IS NULL",owner,row.id);store.expectChange();
+        const at=new Date(clock()).toISOString();
+        if(finalRound)await appendReviewProgress(store,owner,row,{stage:'synthesizing',round,at});
+        await appendReviewProgress(store,owner,row,{stage:'provider_started',round,at});return {};
       }),
       lookup:async args=>{
         let previous=[],capture=reserved.source;
@@ -236,9 +264,10 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
     const diagnostics=safeReviewDiagnostics(error.provider_diagnostics,settings.key),http=diagnostics.at(-1)?.http_status;
     const done=await finish(db,owner,row.id,{status:uncertain?'uncertain':'failed',completed_at:new Date(clock()).toISOString(),error_code:code,
       error_message:failureMessages[code]+(http?`（HTTP ${http}）`:''),provider_response_id:lastReviewResponseId(diagnostics)},reserved.actor.actor,diagnostics);
-    return json(runView(done.row,clock()));
+    return json(await persistedRunView(db,owner,done.row,clock()));
   }
+  try{await recordProgress({stage:'saving_report'});}catch{ /* Never rerun the model for an observational write failure. */ }
   const diagnostics=safeReviewDiagnostics(output.provider_diagnostics,settings.key);
   const saved=await finish(db,owner,row.id,{status:'succeeded',completed_at:new Date(clock()).toISOString(),report_markdown:output.report_markdown,summary_json:JSON.stringify({cumulative_summary:output.cumulative_summary,pending_verification:output.pending_verification}),provider_response_id:lastReviewResponseId(diagnostics)},reserved.actor.actor,diagnostics);
-  return json(runView(saved.row,clock()),201);
+  return json(await persistedRunView(db,owner,saved.row,clock()),201);
 }

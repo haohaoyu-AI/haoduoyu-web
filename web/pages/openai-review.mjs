@@ -1,7 +1,7 @@
 import {e} from '../core/dom.mjs';
 import {renderSafeMarkdown} from '../core/safe-markdown.mjs';
 import {openAiDiaryLink, openAiRunActive} from '../core/openai-review-state.mjs';
-import {openAiReviewFeedback, openAiElapsed, openAiCompletedElapsed} from '../core/openai-review-progress.mjs';
+import {openAiReviewFeedback, openAiElapsed, openAiCompletedElapsed, openAiProgressLabel, openAiProgressEvents} from '../core/openai-review-progress.mjs';
 
 export const openAiLogin = '<p class="hint">请先<a href="?page=login">登录</a>，再查看或使用 OpenAI API。</p>';
 const timestamp = value => {
@@ -41,7 +41,8 @@ export function renderOpenAiRun(run) {
 export function renderOpenAiReviewPanel(vm = {}) {
   const header = '<div class="openai-review-heading"><h2>求助API</h2></div>';
   if (!vm.owner) return header + openAiLogin;
-  const busy = vm.loading || vm.busy, disabled = busy || !vm.config?.configured || Boolean(vm.pendingId);
+  const connectionBusy = vm.connection?.busy || Boolean(vm.connection?.pendingId);
+  const busy = vm.loading || vm.busy, disabled = busy || connectionBusy || !vm.config?.configured || Boolean(vm.pendingId);
   const status = vm.loading ? '正在读取分析配置…' : !vm.config ? '暂时无法读取配置。' :
     vm.config.configuration_error_message || (
     vm.config.configured ? vm.pendingId || vm.busy ? '本次请求处理中或等待核查' : '可发起分析' :
@@ -56,10 +57,14 @@ export function renderOpenAiReviewPanel(vm = {}) {
     </select><p class="hint">模型能否调用以账户权限为准。</p>
     <div class="openai-review-actions"><button class="btn primary" type="button" data-openai-action="start"
     ${disabled ? 'disabled' : ''} aria-busy="${Boolean(vm.busy)}">求助API</button>
+    <button class="btn" type="button" data-openai-action="test-connection" ${disabled ? 'disabled' : ''}>测试连接</button>
+    ${vm.connection?.pendingId ? '<button class="btn" type="button" data-openai-action="check-connection">核查连接测试</button>' : ''}
     ${vm.pendingId ? `<button class="btn" type="button" data-openai-action="check" ${busy ? 'disabled' : ''}>核查状态</button>` : ''}
     ${vm.pendingId && (vm.notFound || vm.run?.status === 'uncertain') ?
       `<button class="btn" type="button" data-openai-action="release" ${busy ? 'disabled' : ''}>结束本次状态核查</button>` : ''}
     ${!vm.config && !vm.loading ? '<button class="btn" type="button" data-openai-action="reload">重新读取</button>' : ''}</div>
+    <p class="hint">首次使用先点“测试连接”：只发送一条简短测试消息，成功后再运行完整诊断。</p>
+    ${renderOpenAiConnectivity(vm.connection)}
     ${renderOpenAiReviewStatus(vm)}
     ${vm.run ? `<p>最近记录：${e(openAiRunLabel(vm.run))} · ${e(timestamp(vm.run.created_at))}
       <a href="${e(openAiDiaryLink(vm.run))}">在诊断报告查看这条记录</a></p>` : ''}`;
@@ -70,12 +75,37 @@ export function renderOpenAiReviewStatus(vm) {
   const elapsed = !vm.pendingId || vm.run?.id === vm.pendingId ? openAiCompletedElapsed(vm.run) : '';
   const startedAt = vm.startedAt || (vm.run?.id === vm.pendingId ? Date.parse(vm.run.created_at) : 0);
   return `<div class="openai-review-status"><p role="status" aria-live="polite"><strong>${e(feedback.title)}</strong></p>
-    ${feedback.waiting ? '<progress aria-label="等待分析结果，无法提供准确进度"></progress>' : ''}
+    ${feedback.waiting ? '<progress aria-label="诊断正在进行，步骤随实际执行更新"></progress>' : ''}
     ${feedback.waiting && Number.isFinite(startedAt) && startedAt > 0 ?
       `<p aria-live="off">已等待 <span data-openai-elapsed="${startedAt}">${e(openAiElapsed(startedAt))}</span></p>` : ''}
     ${elapsed ? `<p>用时 ${e(elapsed)}</p>` : ''}
     <p>${e(feedback.detail)}</p>${feedback.note ? `<p>${e(feedback.note)}</p>` : ''}
+    ${renderOpenAiProgress(!vm.pendingId || vm.run?.id === vm.pendingId ? vm.run : null)}
     ${vm.error && vm.error !== feedback.detail ? `<p role="alert">${e(vm.error)}</p>` : ''}</div>`;
+}
+export function renderOpenAiProgress(run) {
+  const events = openAiProgressEvents(run);
+  if (!events.length) return '';
+  return `<ol class="openai-progress-log" aria-label="诊断执行进度">${events.map((event, index) =>
+    `<li class="${index === events.length - 1 && run.status === 'running' ? 'is-current' : 'is-observed'}">
+      <span class="openai-progress-mark" aria-hidden="true"></span><span>${e(openAiProgressLabel(event))}</span>
+      <time>+${e(openAiElapsed(0, event.elapsed_ms))}</time></li>`).join('')}</ol>`;
+}
+export function renderOpenAiConnectivity(connection) {
+  if (!connection) return '';
+  const result = connection.result;
+  if (!result && !connection.busy && !connection.error && !connection.pendingId) return '';
+  const current = !connection.pendingId || result?.id === connection.pendingId ? result : null;
+  const waiting = connection.pendingId && (connection.busy || current?.status === 'running');
+  const title = waiting ? '正在进行最小连接测试…' : current?.status === 'succeeded' ? '连接测试通过' :
+    current?.status === 'failed' ? '连接测试未通过' : '连接测试结果待确认';
+  const detail = current?.status === 'succeeded' ? `模型 ${current.model} 已回复 OK，可以开始完整诊断。` :
+    connection.error || current?.error_message || '只发送简短测试消息，不读取文章，也不更新诊断报告。';
+  const elapsed = current?.status === 'succeeded' || current?.status === 'failed' ? openAiCompletedElapsed(current) : '';
+  return `<section class="openai-connectivity" aria-label="最小连接测试"><p role="status" aria-live="polite"><strong>${e(title)}</strong></p>
+    <p>${e(detail)}</p>${elapsed ? `<p class="hint">用时 ${e(elapsed)}</p>` : ''}
+    ${waiting && connection.startedAt ? `<p class="hint" aria-live="off">已等待 <span data-connectivity-elapsed="${connection.startedAt}">${
+      e(openAiElapsed(connection.startedAt))}</span></p>` : ''}</section>`;
 }
 export function renderOpenAiSettings(vm = {}) {
   if (!vm.owner) return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2>${openAiLogin}</section>`;

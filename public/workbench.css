@@ -763,6 +763,15 @@ body.floating-workbench {
 .openai-review-heading h2,.openai-run-heading h3 { margin:0; }
 .openai-review-heading a,.openai-run-heading time { font-size:13px; }
 .openai-review-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.openai-connectivity { margin-block:16px; padding:14px 18px; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.36); }
+.openai-connectivity p { margin:4px 0; }
+.openai-progress-log { list-style:none; margin:20px 0 4px; padding:0; max-width:760px; }
+.openai-progress-log li { position:relative; display:grid; grid-template-columns:12px minmax(0,1fr) auto; align-items:baseline; gap:12px; padding:10px 0; font-size:14px; line-height:1.6; }
+.openai-progress-log li:not(:last-child)::after { content:""; position:absolute; top:24px; bottom:-10px; left:4px; width:1px; background:var(--line); }
+.openai-progress-mark { z-index:1; width:9px; height:9px; border-radius:50%; background:var(--ink-2); }
+.openai-progress-log .is-current { font-weight:600; }
+.openai-progress-log .is-current .openai-progress-mark { background:#b65d40; box-shadow:0 0 0 4px rgba(182,93,64,.14); }
+.openai-progress-log time { color:var(--ink-2); font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .openai-review-panel [role="status"]:empty { display:none; }
 .openai-review-panel p,.openai-run p { overflow-wrap:anywhere; }
 #openai-settings { max-width:960px; min-width:0; }

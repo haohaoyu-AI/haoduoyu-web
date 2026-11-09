@@ -4,8 +4,9 @@ import {openAiSessionAvailable, openAiPendingRunSettled, openAiPendingRunUncerta
 import {createOpenAiRunner} from './core/openai-review-runner.mjs';
 import {renderOpenAiReviewPanel} from './pages/openai-review.mjs';
 import {createOpenAiElapsedClock} from './core/openai-review-progress.mjs';
+import {createOpenAiConnectivityRunner} from './core/openai-connectivity-runner.mjs';
 
-let session = '', runner, vm = {}, registered = false, timer = null, loadSequence = 0;
+let session = '', runner, connectivityRunner, vm = {}, registered = false, timer = null, connectionTimer = null, loadSequence = 0;
 const identity = () => `${runtime.sessionEpoch}:${state.me?.id || ''}:${Boolean(state.me?.publicBusiness)}`;
 const current = () => session === identity();
 const clock = createOpenAiElapsedClock(() => {
@@ -13,12 +14,18 @@ const clock = createOpenAiElapsedClock(() => {
   const node = document.querySelector('#openai-review-panel [data-openai-elapsed]');
   return node ? {node, startedAt: Number(node.dataset.openaiElapsed)} : null;
 });
+const connectionClock = createOpenAiElapsedClock(() => {
+  if (!current() || state.page !== 'ai-diagnosis' || state.diagnosisTab !== 'help' || document.visibilityState === 'hidden') return null;
+  const node = document.querySelector('#openai-review-panel [data-connectivity-elapsed]');
+  return node ? {node, startedAt: Number(node.dataset.connectivityElapsed)} : null;
+});
 export function stopOpenAiReviewTimers() {
-  clock.stop(); clearTimeout(timer); timer = null;
+  clock.stop(); connectionClock.stop(); clearTimeout(timer); timer = null; clearTimeout(connectionTimer); connectionTimer = null;
 }
 export function openAiReviewTimeout(path, options = {}) {
   // Four provider rounds may each take 120 seconds; allow 60 seconds for storage and transport.
-  return path === '/openai-review/runs' && options.method === 'POST' ? 540000 : 75000;
+  if (path === '/openai-review/runs' && options.method === 'POST') return 540000;
+  return path === '/openai-review/connectivity' && options.method === 'POST' ? 150000 : 75000;
 }
 async function read(path, options = {}) {
   const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), openAiReviewTimeout(path, options));
@@ -27,9 +34,9 @@ async function read(path, options = {}) {
 }
 function reset() {
   if (session === identity()) return;
-  runner?.dispose(); stopOpenAiReviewTimers(); session = identity();
+  runner?.dispose(); connectivityRunner?.dispose(); stopOpenAiReviewTimers(); session = identity();
   vm = {owner: openAiSessionAvailable(state.me), config: null, loading: false, error: ''};
-  if (!vm.owner) { runner = null; return; }
+  if (!vm.owner) { runner = null; connectivityRunner = null; return; }
   const captured = session;
   runner = createOpenAiRunner({request: read, key: `haoduoyu.openai.run.v1:${state.me.id}:V字`,
     storage: {getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value),
@@ -43,12 +50,28 @@ function reset() {
       }));
     }});
   vm = {...vm, ...runner.state};
+  connectivityRunner = createOpenAiConnectivityRunner({request: read,
+    key: `haoduoyu.openai.connectivity.v1:${state.me.id}:V字`, storage: localStorage,
+    onChange(next) {
+      if (captured !== identity() || session !== captured) return;
+      vm = {...vm, connection: next}; paintOpenAiReview(); scheduleConnectionCheck();
+    }});
+  vm.connection = {...connectivityRunner.state};
 }
 export function paintOpenAiReview() {
   reset();
   const node = document.querySelector('#openai-review-panel');
   if (node) node.innerHTML = renderOpenAiReviewPanel(vm);
-  clock.refresh();
+  clock.refresh(); connectionClock.refresh();
+}
+function scheduleConnectionCheck() {
+  clearTimeout(connectionTimer); connectionTimer = null;
+  if (!current() || document.visibilityState === 'hidden' || state.page !== 'ai-diagnosis' || state.diagnosisTab !== 'help' ||
+      !connectivityRunner?.state.pendingId) return;
+  connectionTimer = setTimeout(() => {
+    if (current() && document.visibilityState !== 'hidden' && state.page === 'ai-diagnosis' && state.diagnosisTab === 'help')
+      void connectivityRunner.recover();
+  }, 3000);
 }
 function scheduleCheck() {
   clearTimeout(timer); timer = null;
@@ -80,8 +103,14 @@ export async function loadOpenAiReview() {
       const latest = page?.items?.[0];
       if (latest) runner.adopt(latest);
     }
+    if (!fresh()) return;
+    if (connectivityRunner.state.pendingId) await connectivityRunner.recover();
+    else {
+      const latestTest = await read('/openai-review/connectivity');
+      if (fresh() && latestTest) connectivityRunner.adopt(latestTest);
+    }
   } catch (error) { if (fresh()) vm.error = error.message || '读取失败，请重新读取。'; }
-  finally { if (fresh()) { vm.loading = false; paintOpenAiReview(); scheduleCheck(); } }
+  finally { if (fresh()) { vm.loading = false; paintOpenAiReview(); scheduleCheck(); scheduleConnectionCheck(); } }
 }
 function register() {
   if (registered) return;
@@ -94,6 +123,7 @@ function register() {
     const button = event.target.closest?.('#openai-review-panel [data-openai-action]');
     if (!button || button.disabled || !current() || !vm.owner) return;
     const action = button.dataset.openaiAction;
+    if (action === 'check-connection') { void connectivityRunner?.recover(); return; }
     if (action === 'reload') { void loadOpenAiReview(); return; }
     if (action === 'check') { void runner.recover(); return; }
     if (action === 'release') {
@@ -102,10 +132,17 @@ function register() {
       return;
     }
     if (!vm.config?.configured || vm.loading) return;
+    if (action === 'test-connection' && !runner?.state.pendingId && !runner?.state.busy) {
+      void connectivityRunner.start(vm.selectedModel || vm.config.default_model || vm.config.model); return;
+    }
+    if (connectivityRunner?.state.busy || connectivityRunner?.state.pendingId) return;
     if (action === 'full' && !window.confirm('重新分析全部已登记文章和指标，会产生一次新的 API 调用。继续吗？')) return;
     if (['start', 'full'].includes(action)) void runner.start(action === 'full' ? 'full' : 'incremental', vm.selectedModel);
   });
   window.addEventListener('storage', event => {
+    if (event.key === `haoduoyu.openai.connectivity.v1:${state.me?.id}:V字` && current() && !connectivityRunner?.state.busy) {
+      if (state.page === 'ai-diagnosis' && state.diagnosisTab === 'help') void loadOpenAiReview();
+    }
     if (event.key === `haoduoyu.openai.run.v1:${state.me?.id}:V字` && current() && !runner?.state.busy) {
       stopOpenAiReviewTimers();
       if (state.page === 'ai-diagnosis' && state.diagnosisTab === 'help') void loadOpenAiReview();
@@ -114,6 +151,8 @@ function register() {
   window.addEventListener('pagehide', stopOpenAiReviewTimers);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') stopOpenAiReviewTimers();
-    else if (current() && state.page === 'ai-diagnosis' && state.diagnosisTab === 'help') { clock.refresh(); scheduleCheck(); }
+    else if (current() && state.page === 'ai-diagnosis' && state.diagnosisTab === 'help') {
+      clock.refresh(); connectionClock.refresh(); scheduleCheck(); scheduleConnectionCheck();
+    }
   });
 }
