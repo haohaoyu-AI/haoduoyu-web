@@ -1,6 +1,8 @@
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
 import {storage} from './core/storage.mjs';
+import {day,shiftDay} from './core/review-data.mjs';
+import {TREND_METRICS} from './core/review-trends.mjs';
 
 const columnStorageKey = 'haoduoyu.review.columns.v1';
 export const REVIEW_METRIC_COLUMNS = Object.freeze(['reads','impressions','fan_impressions','fan_reads','ctr','avg_read_seconds','completion_rate']);
@@ -61,6 +63,7 @@ export async function readContentReviewData(read, selectedAccount, current = () 
   result.snapshots = result.snapshots.filter(row => articles.has(String(row.article_id)));
   result.playbooks.sort((a,b) => String(b.published_on || '').localeCompare(String(a.published_on || '')) || String(b.version).localeCompare(String(a.version),undefined,{numeric:true}));
   result.reports.sort((a,b) => String(b.period_end).localeCompare(String(a.period_end)) || String(b.id).localeCompare(String(a.id)));
+  result.loadedAt = new Date().toISOString();
   return result;
 }
 export async function readContentReviewDataWithRetry(read, selectedAccount, current = () => true) {
@@ -80,7 +83,13 @@ export function reviewRoute(href,defaultAccount = vm.account) {
   const benchmark = p.get('review_benchmark') || '';
   const secondary = benchmark ? 'benchmarks' : REVIEW_SECTIONS.some(([id]) => id === section) ? section :
     ['notes','playbook'].includes(section) || view === 'playbook' ? 'review' : 'benchmarks';
-  return {account:p.get('account')?.trim() || defaultAccount,view,secondary,week:p.get('review_week') === 'last' ? 'last' : 'this',article:benchmark ? '' : p.get('review_article') || '',benchmark,version:p.get('review_version') || ''};
+  const trendRange = p.get('review_trend_range'), trendMetric = p.get('review_trend_metric');
+  const trends = {range:['7d','30d','custom'].includes(trendRange) ? trendRange : '7d',
+    metric:TREND_METRICS.some(([id]) => id === trendMetric) ? trendMetric : 'average_reads',
+    from:p.get('review_trend_from') || '',to:p.get('review_trend_to') || ''};
+  return {account:p.get('account')?.trim() || defaultAccount,view,secondary,trends,
+    week:p.get('review_week') === 'last' ? 'last' : 'this',article:benchmark ? '' : p.get('review_article') || '',
+    benchmark,version:p.get('review_version') || ''};
 }
 const route = () => reviewRoute(location.href);
 function writeRoute(values) {
@@ -198,6 +207,18 @@ function selectTab(view,focus = false) {
   vm.view = view; vm.article = ''; vm.benchmark = ''; writeRoute({view,article:'',benchmark:''}); paintContentReviewPage();
   if (focus) root()?.querySelector(`#review-tab-${view}`)?.focus({preventScroll:true});
 }
+function changeTrend(target) {
+  const key = target.dataset.reviewTrend;
+  if (!['range','from','to','metric'].includes(key)) return;
+  const today = day(new Date().toISOString());
+  vm.trends = {...vm.trends,[key]:target.value};
+  if (key === 'range' && vm.trends.range === 'custom') {
+    vm.trends.from ||= shiftDay(today,-6); vm.trends.to ||= today;
+  }
+  writeRoute(Object.fromEntries(Object.entries(vm.trends).map(([name,value]) => [`trend_${name}`,value])));
+  paintContentReviewPage();
+  root()?.querySelector(`[data-review-trend="${key}"]`)?.focus({preventScroll:true});
+}
 function registerEvents() {
   if (registered || typeof document === 'undefined') return;
   registered = true;
@@ -259,6 +280,7 @@ function registerEvents() {
     const target = event.target;
     const node = root();
     if (!node?.contains(target) || vm.loading || vm.error) return;
+    if (target.dataset.reviewTrend) { changeTrend(target); return; }
     const column = target.dataset.reviewColumn;
     if (column !== undefined) {
       if (!REVIEW_METRIC_COLUMNS.includes(column)) return;
@@ -283,7 +305,8 @@ function registerEvents() {
     if (!target.dataset.reviewFilter) return;
     const key = target.dataset.reviewFilter;
     vm.filters[key] = target.value; paintContentReviewPage();
-    root()?.querySelector(`[data-review-filter="${key}"]`)?.focus({preventScroll:true});
+    const filterRoot = target.closest('.review-trends') ? root()?.querySelector('.review-trends') : root();
+    filterRoot?.querySelector(`[data-review-filter="${key}"]`)?.focus({preventScroll:true});
   });
   document.addEventListener('keydown',event => {
     const node = root(); if (!node?.contains(event.target)) return;
