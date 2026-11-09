@@ -103,7 +103,7 @@ function register() {
     }
     if (!vm.config?.configured || vm.loading) return;
     if (action === 'full' && !window.confirm('重新分析全部已登记文章和指标，会产生一次新的 API 调用。继续吗？')) return;
-    if (['start', 'full'].includes(action)) void runner.start(action === 'full' ? 'full' : 'incremental', vm.selectedModel);
+    if (['start', 'full'].includes(action)) void runner.start('full', vm.selectedModel, vm.config.test_task?.id || '');
   });
   window.addEventListener('storage', event => {
     if (event.key === `haoduoyu.openai.run.v1:${state.me?.id}:V字` && current() && !runner?.state.busy) {

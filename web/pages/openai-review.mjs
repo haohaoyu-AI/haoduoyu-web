@@ -18,6 +18,7 @@ export function openAiRunLabel(run) {
   return openAiRunActive(run) ? '正在分析…' : '结果待确认';
 }
 export function openAiRunModeLabel(run) {
+  if (run.task === 'article_count_v1') return '文章数量链路测试';
   if (run.mode === 'full') {
     if (run.baseline_run_id === null) return '首次全量分析';
     return run.baseline_run_id ? '全量重查' : '全量分析';
@@ -49,6 +50,7 @@ export function renderOpenAiReviewPanel(vm = {}) {
   const selectedModel = vm.pendingId && vm.run?.id === vm.pendingId && vm.run.model ||
     vm.selectedModel || vm.config?.default_model || vm.config?.model;
   return header + `<p class="hint">${e(status)}</p>
+    ${renderCountTest(vm.config?.test_task)}
     <label for="openai-model">模型</label>
     <select class="input" id="openai-model" ${disabled ? 'disabled' : ''}>
       ${(vm.config?.supported_models || []).map(model => `<option value="${e(model.id)}"
@@ -84,11 +86,20 @@ export function renderOpenAiSettings(vm = {}) {
     draft.saved.configuration_error_message || (draft.saved.configured ? '可发起分析' : '尚未配置 OpenAI API');
   return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2><p class="hint">${e(status)}</p>
     <p class="hint">密钥由服务器管理，此处不显示或录入密钥。<a href="?page=ai-diagnosis">前往AI诊断</a></p>
+    ${renderCountTest(draft?.saved?.test_task)}
     ${draft ? renderInstructions(draft) : ''}<p role="alert">${e(vm.error || '')}</p>
     ${!draft && !vm.loading ? '<button class="btn" type="button" data-openai-action="reload-settings">重新读取</button>' : ''}</section>`;
 }
+function renderCountTest(profile) {
+  if (!profile) return '';
+  return `<section class="openai-count-test"><h3>测试阶段：只统计文章数量</h3>
+    <p class="hint">${e(profile.scope)}</p>
+    <p class="hint">数据库计数后，由 API 返回同一数量并校验。最多一次 API 调用，不分析内容、不读取历史，也不更新累计复盘。</p>
+    <p class="hint">当前实际提示词：${e(profile.instructions)}</p></section>`;
+}
 function renderInstructions(draft) {
-  return `<form id="openai-instructions-form"><label for="openai-instructions">完整分析指令</label>
+  return `<form id="openai-instructions-form"><label for="openai-instructions">完整分析指令
+    ${draft.saved.test_task ? '（保留供后续恢复，当前计数测试不使用）' : ''}</label>
     <p class="hint" id="openai-instructions-help">版本 ${e(draft.saved.version)}。点击保存后才生效，分析使用当时最新的已保存版本。</p>
     <textarea class="input openai-instructions" id="openai-instructions" name="instructions" rows="18" required
     aria-describedby="openai-instructions-help openai-instructions-status" ${draft.saving ? 'readonly' : ''}>${e(draft.text)}</textarea>

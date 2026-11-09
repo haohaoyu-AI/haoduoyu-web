@@ -35,7 +35,7 @@ export function createOpenAiRunner({request, storage, key, onChange = () => {}, 
     } finally { state.busy = false; state.operation = ''; change(); }
   }
   const observe = createObserver({state, request, active: () => active, accept, change});
-  async function start(mode = 'incremental', model = '') {
+  async function start(mode = 'incremental', model = '', task = '') {
     if (!active || state.busy || state.pendingId || !['incremental', 'full'].includes(mode)) return;
     state.busy = true; state.operation = 'start'; state.error = ''; change();
     try {
@@ -45,7 +45,8 @@ export function createOpenAiRunner({request, storage, key, onChange = () => {}, 
       storage.setItem(key + ':started', timing);
       if (storage.getItem(key + ':started') !== timing) throw new Error('无法保存分析开始时间，未开始分析。');
       retain(id); change();
-      const run = await request('/openai-review/runs', {method: 'POST', body: {run_id: state.pendingId, mode, ...(model ? {model} : {})}});
+      const body = {run_id: state.pendingId, mode, ...(model ? {model} : {}), ...(task ? {task} : {})};
+      const run = await request('/openai-review/runs', {method: 'POST', body});
       accept(run);
     } catch (error) {
       if (!active || openAiRunFinished(state.run) && !state.pendingId) return;

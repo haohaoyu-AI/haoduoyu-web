@@ -5909,6 +5909,7 @@ function openAiRunLabel(run2) {
   return openAiRunActive(run2) ? "正在分析…" : "结果待确认";
 }
 function openAiRunModeLabel(run2) {
+  if (run2.task === "article_count_v1") return "文章数量链路测试";
   if (run2.mode === "full") {
     if (run2.baseline_run_id === null) return "首次全量分析";
     return run2.baseline_run_id ? "全量重查" : "全量分析";
@@ -5935,6 +5936,7 @@ function renderOpenAiReviewPanel(vm4 = {}) {
   const status = vm4.loading ? "正在读取分析配置…" : !vm4.config ? "暂时无法读取配置。" : vm4.config.configuration_error_message || (vm4.config.configured ? vm4.pendingId || vm4.busy ? "本次请求处理中或等待核查" : "可发起分析" : "尚未配置 OpenAI API，暂不能发起分析。");
   const selectedModel = vm4.pendingId && vm4.run?.id === vm4.pendingId && vm4.run.model || vm4.selectedModel || vm4.config?.default_model || vm4.config?.model;
   return header + `<p class="hint">${e(status)}</p>
+    ${renderCountTest(vm4.config?.test_task)}
     <label for="openai-model">模型</label>
     <select class="input" id="openai-model" ${disabled ? "disabled" : ""}>
       ${(vm4.config?.supported_models || []).map((model) => `<option value="${e(model.id)}"
@@ -5967,11 +5969,20 @@ function renderOpenAiSettings(vm4 = {}) {
   const status = vm4.loading ? "正在读取…" : !draft ? "配置读取失败。" : draft.saved.configuration_error_message || (draft.saved.configured ? "可发起分析" : "尚未配置 OpenAI API");
   return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2><p class="hint">${e(status)}</p>
     <p class="hint">密钥由服务器管理，此处不显示或录入密钥。<a href="?page=ai-diagnosis">前往AI诊断</a></p>
+    ${renderCountTest(draft?.saved?.test_task)}
     ${draft ? renderInstructions(draft) : ""}<p role="alert">${e(vm4.error || "")}</p>
     ${!draft && !vm4.loading ? '<button class="btn" type="button" data-openai-action="reload-settings">重新读取</button>' : ""}</section>`;
 }
+function renderCountTest(profile) {
+  if (!profile) return "";
+  return `<section class="openai-count-test"><h3>测试阶段：只统计文章数量</h3>
+    <p class="hint">${e(profile.scope)}</p>
+    <p class="hint">数据库计数后，由 API 返回同一数量并校验。最多一次 API 调用，不分析内容、不读取历史，也不更新累计复盘。</p>
+    <p class="hint">当前实际提示词：${e(profile.instructions)}</p></section>`;
+}
 function renderInstructions(draft) {
-  return `<form id="openai-instructions-form"><label for="openai-instructions">完整分析指令</label>
+  return `<form id="openai-instructions-form"><label for="openai-instructions">完整分析指令
+    ${draft.saved.test_task ? "（保留供后续恢复，当前计数测试不使用）" : ""}</label>
     <p class="hint" id="openai-instructions-help">版本 ${e(draft.saved.version)}。点击保存后才生效，分析使用当时最新的已保存版本。</p>
     <textarea class="input openai-instructions" id="openai-instructions" name="instructions" rows="18" required
     aria-describedby="openai-instructions-help openai-instructions-status" ${draft.saving ? "readonly" : ""}>${e(draft.text)}</textarea>
@@ -6463,7 +6474,7 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
     }
   }
   const observe = createObserver({ state: state2, request, active: () => active5, accept, change: change2 });
-  async function start(mode = "incremental", model = "") {
+  async function start(mode = "incremental", model = "", task = "") {
     if (!active5 || state2.busy || state2.pendingId || !["incremental", "full"].includes(mode)) return;
     state2.busy = true;
     state2.operation = "start";
@@ -6480,7 +6491,8 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
       if (storage2.getItem(key2 + ":started") !== timing) throw new Error("无法保存分析开始时间，未开始分析。");
       retain2(id2);
       change2();
-      const run2 = await request("/openai-review/runs", { method: "POST", body: { run_id: state2.pendingId, mode, ...model ? { model } : {} } });
+      const body2 = { run_id: state2.pendingId, mode, ...model ? { model } : {}, ...task ? { task } : {} };
+      const run2 = await request("/openai-review/runs", { method: "POST", body: body2 });
       accept(run2);
     } catch (error) {
       if (!active5 || openAiRunFinished(state2.run) && !state2.pendingId) return;
@@ -6697,7 +6709,7 @@ function register2() {
     }
     if (!vm2.config?.configured || vm2.loading) return;
     if (action === "full" && !window.confirm("重新分析全部已登记文章和指标，会产生一次新的 API 调用。继续吗？")) return;
-    if (["start", "full"].includes(action)) void runner.start(action === "full" ? "full" : "incremental", vm2.selectedModel);
+    if (["start", "full"].includes(action)) void runner.start("full", vm2.selectedModel, vm2.config.test_task?.id || "");
   });
   window.addEventListener("storage", (event) => {
     if (event.key === `haoduoyu.openai.run.v1:${state.me?.id}:V字` && current2() && !runner?.state.busy) {

@@ -6,6 +6,7 @@ import {beijingDay} from './lib/time.mjs';
 import {reviewDate} from './content-review-validation.mjs';
 import {REVIEW_ACCOUNT,DEFAULT_REVIEW_INSTRUCTIONS,captureReviewSources,buildReviewInput,evidenceFromCapture,bytes} from './openai-review-data.mjs';
 import {runReviewProvider} from './openai-review-provider.mjs';
+import {ARTICLE_COUNT_TASK,ARTICLE_COUNT_INSTRUCTIONS,articleCountProfile,captureArticleCount,articleCountTask} from './openai-article-count.mjs';
 import {safeReviewDiagnostics,lastReviewResponseId} from './openai-review-diagnostics.mjs';
 
 const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
@@ -74,7 +75,7 @@ function runView(row,at=Date.now()) {
   const stage=status==='running'?(row.provider_calls>0?'awaiting_provider':'preparing'):status;
   const end=row.completed_at?Date.parse(row.completed_at):at;
   const elapsed=Math.max(0,end-Date.parse(row.created_at));
-  return {id:row.id,account:row.account,status,stage,elapsed_ms:Number.isFinite(elapsed)?elapsed:0,provider_calls:row.provider_calls??0,mode:row.mode,baseline_run_id:row.baseline_run_id??null,beijing_date:row.beijing_date,created_at:row.created_at,completed_at:row.completed_at,
+  return {...(articleCountTask(row)?{task:ARTICLE_COUNT_TASK}:{}),id:row.id,account:row.account,status,stage,elapsed_ms:Number.isFinite(elapsed)?elapsed:0,provider_calls:row.provider_calls??0,mode:row.mode,baseline_run_id:row.baseline_run_id??null,beijing_date:row.beijing_date,created_at:row.created_at,completed_at:row.completed_at,
     report_markdown:row.report_markdown,model:row.model,instruction_version:row.instruction_version,released_at:row.released_at??null,
     error_code:Object.hasOwn(failureMessages,row.error_code)?row.error_code:null,
     error_message:stale?'执行结果尚未确认，请只读查看记录；不会自动重新调用 API':row.error_message??null};
@@ -82,7 +83,7 @@ function runView(row,at=Date.now()) {
 async function configView(store,owner,settings) {
   const saved=await store.get('SELECT instructions,version FROM matrix_openai_review_config WHERE user_id=? AND account=?',owner,REVIEW_ACCOUNT);
   const last=await store.get("SELECT completed_at FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status='succeeded' ORDER BY completed_at DESC,id DESC LIMIT 1",owner,REVIEW_ACCOUNT);
-  return {account:REVIEW_ACCOUNT,instructions:saved?.instructions??DEFAULT_REVIEW_INSTRUCTIONS,version:saved?.version??0,configured:Boolean(settings.key&&settings.model),
+  return {test_task:articleCountProfile(),account:REVIEW_ACCOUNT,instructions:saved?.instructions??DEFAULT_REVIEW_INSTRUCTIONS,version:saved?.version??0,configured:Boolean(settings.key&&settings.model),
     configuration_error:settings.keyFormatInvalid?'OPENAI_REVIEW_INVALID_KEY_FORMAT':null,configuration_error_message:settings.keyFormatInvalid?keyFormatMessage:null,
     model:settings.model,default_model:settings.model,supported_models:supportedModels(settings),model_access:'unverified',connectivity:'untested',last_success_at:last?.completed_at??null};
 }
@@ -117,7 +118,7 @@ async function finish(db,owner,id,changes,actorName,diagnostics=[]) {
   });
 }
 // Dependencies are injectable in native tests only, never from user JSON or env.
-export async function handleOpenaiReview(db,request,route,env,origin,initialRevision,{request:providerRequest=fetch,clock=Date.now}={}) {
+export async function handleOpenaiReview(db,request,route,env,origin,initialRevision,{request:providerRequest=fetch,clock=Date.now,legacyAnalysisForTests=false}={}) {
   const owner=dailyNotesOwner(env),settings=openaiReviewSettings(env),method=request.method,q=new URL(request.url).searchParams;
   const detail=/^\/openai-review\/runs\/([a-f0-9-]+)(\/release)?$/.exec(route);
   if(detail&&!uuid.test(detail[1]))throw fail(404,'NOT_FOUND','分析记录不存在');
@@ -174,10 +175,11 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
     })).response;
   }
   if(route!=='/openai-review/runs'||method!=='POST')throw fail(404,'NOT_FOUND','接口不存在');
-  if(!['mode,run_id','mode,model,run_id'].includes(Object.keys(input).sort().join(','))||!uuid.test(input.run_id)||!['full','incremental'].includes(input.mode)||Object.hasOwn(input,'model')&&typeof input.model!=='string')invalid('分析需要唯一 UUID run_id、明确的 mode 和可选的受支持 model');
+  if(!['mode,run_id','mode,model,run_id','mode,run_id,task','mode,model,run_id,task'].includes(Object.keys(input).sort().join(','))||Object.hasOwn(input,'task')&&input.task!==ARTICLE_COUNT_TASK||!uuid.test(input.run_id)||!['full','incremental'].includes(input.mode)||Object.hasOwn(input,'model')&&typeof input.model!=='string')invalid('分析需要唯一 UUID run_id、明确的 mode 和可选的受支持 model');
+  const countOnly=input.task===ARTICLE_COUNT_TASK||!legacyAnalysisForTests;
   const reserved=await mutate(db,async store=>{
     const actor=await reviewActor(store,request,owner,env,origin,true),old=await store.get('SELECT * FROM matrix_openai_review_runs WHERE user_id=? AND id=?',owner,input.run_id);
-    if(old){if(old.error_code!=='OPENAI_REVIEW_CANCELLED_BEFORE_START'&&(old.requested_mode!==input.mode||Object.hasOwn(input,'model')&&old.model!==input.model))throw fail(409,'IDEMPOTENCY_CONFLICT','该运行标识已用于不同请求');return {replayed:true,row:old};}
+    if(old){if(old.error_code!=='OPENAI_REVIEW_CANCELLED_BEFORE_START'&&(old.requested_mode!==input.mode||Object.hasOwn(input,'task')&&!articleCountTask(old)||Object.hasOwn(input,'model')&&old.model!==input.model))throw fail(409,'IDEMPOTENCY_CONFLICT','该运行标识已用于不同请求');return {replayed:true,row:old};}
     if(Object.hasOwn(input,'model')&&!supportedModels(settings).some(model=>model.id===input.model))invalid('请选择受支持的模型；不能填写自定义模型或地址');
     const active=await store.get("SELECT id FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status IN ('running','uncertain') AND released_at IS NULL LIMIT 1",owner,REVIEW_ACCOUNT);
     if(active)return {replayed:true,conflict:active.id};
@@ -188,12 +190,13 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
     const daily=await store.get("SELECT count(*) AS n FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND beijing_date=? AND (error_code IS NULL OR error_code<>'OPENAI_REVIEW_CANCELLED_BEFORE_START')",owner,REVIEW_ACCOUNT,date);
     if(recent&&at-Date.parse(recent.created_at)<30000||daily.n>=20)throw fail(429,'OPENAI_REVIEW_RATE_LIMIT','分析间隔至少 30 秒，每个北京时间日期最多 20 次');
     const config=await configView(store,owner,settings);
-    // Persist the default on first run so every successful run pins a saved version.
-    const version=config.version||1,instructions=instructionsFor(config.instructions,settings.key);
-    const baseline=await store.get("SELECT id,source_manifest_json,summary_json FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status='succeeded' ORDER BY completed_at DESC,id DESC LIMIT 1",owner,REVIEW_ACCOUNT);
-    const source=await captureReviewSources(store,owner);
-    if(!source.articles.length&&!baseline)throw fail(409,'OPENAI_REVIEW_NO_DATA','尚无 V字文章可分析，本次未调用 API');
-    const built=buildReviewInput(source,baseline,input.mode);
+    // Count tests pin their fixed v1 prompt without overwriting saved analysis instructions.
+    // The retained legacy path persists its default before the first analysis.
+    const version=countOnly?1:config.version||1,instructions=countOnly?ARTICLE_COUNT_INSTRUCTIONS:instructionsFor(config.instructions,settings.key);
+    const baseline=countOnly?null:await store.get("SELECT id,source_manifest_json,summary_json FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status='succeeded' AND coalesce(json_extract(input_json,'$.task'),'')<>? ORDER BY completed_at DESC,id DESC LIMIT 1",owner,REVIEW_ACCOUNT,ARTICLE_COUNT_TASK);
+    const source=countOnly?await captureArticleCount(store,owner):await captureReviewSources(store,owner);
+    if(!countOnly&&!source.articles.length&&!baseline)throw fail(409,'OPENAI_REVIEW_NO_DATA','尚无 V字文章可分析，本次未调用 API');
+    const built=countOnly?{input:source,manifest:{},mode:'full'}:buildReviewInput(source,baseline,input.mode);
     // Reject secret-shaped accidental evidence instead of transmitting or storing it.
     const sourceJson=JSON.stringify(source),inputJson=JSON.stringify(built.input);
     if(sourceJson.includes(settings.key)||/\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{16,}/.test(sourceJson))throw fail(409,'OPENAI_REVIEW_SOURCE_INVALID','复盘资料疑似包含凭据，请先移除后再分析');
@@ -202,7 +205,7 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
     // D1 has a 2 MB row/string/BLOB limit. Keep combined captured input,
     // manifest and final output comfortably below it, not merely each column.
     if(bytes(row)>1536*1024)throw fail(413,'OPENAI_REVIEW_INPUT_LIMIT','运行资料超过安全存储上限，未调用 API');
-    if(!config.version)store.queue('INSERT INTO matrix_openai_review_config(user_id,account,instructions,version,updated_at) VALUES(?,?,?,?,?)',owner,REVIEW_ACCOUNT,instructions,version,created);
+    if(!countOnly&&!config.version)store.queue('INSERT INTO matrix_openai_review_config(user_id,account,instructions,version,updated_at) VALUES(?,?,?,?,?)',owner,REVIEW_ACCOUNT,instructions,version,created);
     const fields=Object.keys(row);store.queue('INSERT INTO matrix_openai_review_runs('+fields.join(',')+') VALUES('+fields.map(()=>'?').join(',')+')',...fields.map(field=>row[field]));
     store.audit(actor.actor,'openai-review.started',row.id,{mode:row.mode,instruction_version:version});
     return {actor,row,source,input:built.input};
@@ -223,11 +226,11 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
         if(args?.kind==='runs'&&args.source_run_id!==null)return {error:'Report search uses source_run_id null'};
         if(args?.source_run_id!==null) {
           if(typeof args?.source_run_id!=='string'||!uuid.test(args.source_run_id))return {error:'Invalid historical capture ID'};
-          const historical=await consistentRead(db,store=>store.get("SELECT source_data_json FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND id=? AND status='succeeded' AND completed_at<=?",owner,REVIEW_ACCOUNT,args.source_run_id,row.created_at));
+          const historical=await consistentRead(db,store=>store.get("SELECT source_data_json FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND id=? AND status='succeeded' AND coalesce(json_extract(input_json,'$.task'),'')<>? AND completed_at<=?",owner,REVIEW_ACCOUNT,args.source_run_id,ARTICLE_COUNT_TASK,row.created_at));
           if(!historical)return {error:'Historical capture not available in this owner/account scope'};
           capture=JSON.parse(historical.source_data_json);
         }
-        if(args?.kind==='runs'&&Array.isArray(args.ids)&&args.ids.length<=5&&args.ids.every(id=>typeof id==='string'&&uuid.test(id))&&typeof args.query==='string'&&args.query.length<=120)previous=await consistentRead(db,store=>store.all("SELECT id,report_markdown,created_at,completed_at FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status='succeeded' AND completed_at<=? AND (?='[]' OR id IN (SELECT value FROM json_each(?))) AND (?='' OR instr(lower(report_markdown),lower(?))>0) ORDER BY completed_at DESC,id DESC LIMIT 6",owner,REVIEW_ACCOUNT,row.created_at,JSON.stringify(args.ids),JSON.stringify(args.ids),args.query.trim(),args.query.trim()));
+        if(args?.kind==='runs'&&Array.isArray(args.ids)&&args.ids.length<=5&&args.ids.every(id=>typeof id==='string'&&uuid.test(id))&&typeof args.query==='string'&&args.query.length<=120)previous=await consistentRead(db,store=>store.all("SELECT id,report_markdown,created_at,completed_at FROM matrix_openai_review_runs WHERE user_id=? AND account=? AND status='succeeded' AND coalesce(json_extract(input_json,'$.task'),'')<>? AND completed_at<=? AND (?='[]' OR id IN (SELECT value FROM json_each(?))) AND (?='' OR instr(lower(report_markdown),lower(?))>0) ORDER BY completed_at DESC,id DESC LIMIT 6",owner,REVIEW_ACCOUNT,ARTICLE_COUNT_TASK,row.created_at,JSON.stringify(args.ids),JSON.stringify(args.ids),args.query.trim(),args.query.trim()));
         return evidenceFromCapture(capture,previous,args);
       }});
   } catch(error) {
@@ -238,6 +241,6 @@ export async function handleOpenaiReview(db,request,route,env,origin,initialRevi
     return json(runView(done.row,clock()));
   }
   const diagnostics=safeReviewDiagnostics(output.provider_diagnostics,settings.key);
-  const saved=await finish(db,owner,row.id,{status:'succeeded',completed_at:new Date(clock()).toISOString(),report_markdown:output.report_markdown,summary_json:JSON.stringify({cumulative_summary:output.cumulative_summary,pending_verification:output.pending_verification}),provider_response_id:lastReviewResponseId(diagnostics)},reserved.actor.actor,diagnostics);
+  const saved=await finish(db,owner,row.id,{status:'succeeded',completed_at:new Date(clock()).toISOString(),report_markdown:output.report_markdown,summary_json:JSON.stringify(countOnly?{task:ARTICLE_COUNT_TASK,article_count:output.article_count}:{cumulative_summary:output.cumulative_summary,pending_verification:output.pending_verification}),provider_response_id:lastReviewResponseId(diagnostics)},reserved.actor.actor,diagnostics);
   return json(runView(saved.row,clock()),201);
 }

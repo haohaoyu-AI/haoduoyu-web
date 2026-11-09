@@ -1,4 +1,5 @@
 import {bytes,REVIEW_LIMITS} from './openai-review-data.mjs';
+import {ARTICLE_COUNT_TASK,ARTICLE_COUNT_INSTRUCTIONS,ARTICLE_COUNT_SCHEMA,validateArticleCount} from './openai-article-count.mjs';
 import {safeReviewDiagnostics,lastReviewResponseId} from './openai-review-diagnostics.mjs';
 
 const endpoint='https://api.openai.com/v1/responses';
@@ -15,16 +16,17 @@ async function boundedJson(response,beforeDecode) {
   try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');}
 }
 export async function runReviewProvider({key,model,instructions,input,lookup,beforeCall,request=fetch,timeoutMs=45000}) {
+  const countOnly=input?.task===ARTICLE_COUNT_TASK;
   let conversation;
   let toolCount=0;
   const diagnostics=[];
-  for(let round=0;round<REVIEW_LIMITS.providerCalls;round++) {
+  for(let round=0;round<(countOnly?1:REVIEW_LIMITS.providerCalls);round++) {
     const diagnostic={round:round+1,phase:'prepare_request',timeout:false};
     diagnostics.push(diagnostic);
     let controller,timer;
     try {
-    conversation??=[{role:'developer',content:instructions},{role:'user',content:JSON.stringify(input)}];
-    const body={model,store:false,include:['reasoning.encrypted_content'],instructions:system,input:conversation,tools:[tool],parallel_tool_calls:false,max_output_tokens:6000,text:{format:{type:'json_schema',name:'v_review',strict:true,schema:REVIEW_OUTPUT_SCHEMA}}};
+    conversation??=countOnly?[{role:'user',content:JSON.stringify(input)}]:[{role:'developer',content:instructions},{role:'user',content:JSON.stringify(input)}];
+    const body=countOnly?{model,store:false,instructions:ARTICLE_COUNT_INSTRUCTIONS,input:conversation,max_output_tokens:1024,text:{format:{type:'json_schema',name:'article_count',strict:true,schema:ARTICLE_COUNT_SCHEMA}}}:{model,store:false,include:['reasoning.encrypted_content'],instructions:system,input:conversation,tools:[tool],parallel_tool_calls:false,max_output_tokens:6000,text:{format:{type:'json_schema',name:'v_review',strict:true,schema:REVIEW_OUTPUT_SCHEMA}}};
     if(bytes(body)>REVIEW_LIMITS.inputBytes+64*1024)throw providerFailure('OPENAI_REVIEW_BUDGET');
     // Serialize and construct local request fields before the durable dispatch marker.
     const serialized=JSON.stringify(body),headers=new Headers({Authorization:'Bearer '+key,'Content-Type':'application/json'});
@@ -52,6 +54,7 @@ export async function runReviewProvider({key,model,instructions,input,lookup,bef
     if(data.status!=='completed'||!Array.isArray(data.output))throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');
     const calls=data.output.filter(item=>item?.type==='function_call');
     if(calls.length) {
+      if(countOnly)throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');
       if(round===REVIEW_LIMITS.providerCalls-1||calls.length!==1||calls.length>REVIEW_LIMITS.toolCalls-toolCount)throw providerFailure('OPENAI_REVIEW_BUDGET');
       // Preserve reasoning items needed by reasoning models; only provider output,
       // never a previous_response_id that could implicitly retain server state.
@@ -68,6 +71,13 @@ export async function runReviewProvider({key,model,instructions,input,lookup,bef
     diagnostic.phase='validate_output';
     const text=data.output.filter(item=>item?.type==='message').flatMap(item=>item.content??[]).filter(item=>item?.type==='output_text').map(item=>item.text).join('');
     let output;try{output=JSON.parse(text);}catch{throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');}
+    if(countOnly) {
+      const counted=validateArticleCount(output,input);
+      if(!counted)throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');
+      diagnostic.phase='completed';
+      const safe=safeReviewDiagnostics(diagnostics,key);
+      return {...counted,provider_response_id:lastReviewResponseId(safe),provider_diagnostics:safe};
+    }
     if(!output||Object.keys(output).sort().join(',')!=='cumulative_summary,pending_verification,report_markdown'||
       typeof output.report_markdown!=='string'||!output.report_markdown.trim()||typeof output.cumulative_summary!=='string'||!output.cumulative_summary.trim()||
       !Array.isArray(output.pending_verification)||output.pending_verification.length>100||output.pending_verification.some(item=>typeof item!=='string'||item.length>2000)||bytes(output)>REVIEW_LIMITS.outputBytes||JSON.stringify(output).includes(key))throw providerFailure('OPENAI_REVIEW_INVALID_OUTPUT');

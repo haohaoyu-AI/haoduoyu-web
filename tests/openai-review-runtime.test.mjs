@@ -64,3 +64,31 @@ test('Workers runtime default fetch accepts the fixed endpoint, headers, stream 
   assert.equal(timeout.diagnostics[0].phase,'fetch');assert.equal(timeout.diagnostics[0].timeout,true);
   assert.equal(timeout.marks,1);assert.equal(calls,9);
 });
+
+test('Workers runtime count profile completes one small schema-only call without tools or complex instructions',async t=>{
+  const runtime=JSON.parse(await readFile(new URL('../runtime.json',import.meta.url),'utf8'));
+  const bundle=await build({stdin:{contents:`
+    import {runReviewProvider} from './src/openai-review-provider.mjs';
+    export default {async fetch() {
+      let marks=0;
+      const result=await runReviewProvider({key:'synthetic-count-runtime-key',model:'gpt-6.1-sol',
+        instructions:'COMPLEX_INSTRUCTIONS_MUST_NOT_BE_SENT',
+        input:{task:'article_count_v1',article_count:3,scope:'Synthetic owner article-review library only'},
+        beforeCall:async()=>{marks++;},lookup:async()=>{throw Error('No lookup is permitted');}});
+      return Response.json({result,marks});
+    }};`,resolveDir:fileURLToPath(new URL('../',import.meta.url))},bundle:true,write:false,format:'esm',platform:'browser',external:['node:*']});
+  let calls=0;
+  const mf=new Miniflare({modules:true,cf:false,script:bundle.outputFiles[0].text,
+    compatibilityDate:runtime.compatibility_date,compatibilityFlags:runtime.compatibility_flags,host:'127.0.0.1',port:0,inspectorPort:0,
+    outboundService:async request=>{
+      calls++;assert.equal(request.url,'https://api.openai.com/v1/responses');
+      const body=await request.json();assert.equal(body.max_output_tokens,1024);assert.equal(body.store,false);
+      assert.equal(body.tools,undefined);assert.equal(body.include,undefined);assert.equal(body.input.length,1);
+      assert.equal(body.text.format.name,'article_count');assert.doesNotMatch(JSON.stringify(body),/COMPLEX_INSTRUCTIONS/);
+      return Response.json({id:'resp_count_runtime',status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"article_count":3}'}]}]});
+    }});
+  t.after(()=>mf.dispose());
+  const result=await(await mf.dispatchFetch('http://localhost/')).json();
+  assert.equal(result.marks,1);assert.equal(calls,1);assert.equal(result.result.article_count,3);
+  assert.match(result.result.report_markdown,/共有 3 篇/);
+});

@@ -83,3 +83,43 @@ Failure diagnostics use existing storage only, with no migration or new endpoint
 - Existing `provider_response_id` preserves the last actually observed response even when a later round fails. It is not necessarily the failed round's response ID and is not evidence that an unknown later call is retrievable. The audit entry identifies the exact round that supplied each ID. Token/HTTP metadata is neither a complete report nor an exact bill.
 - Audit evidence and final run state commit together. A hard interruption before final persistence can still leave diagnostics unavailable. This patch does not add durable background execution or promise survival after browser disconnect.
 - Connection, timeout, response-read and dispatch-registration uncertainty continue to retain the unresolved lock. Reads remain side-effect-free; explicit release still never invokes the provider. No time limit, model, token budget, provider-call limit or automatic retry policy changed.
+
+## Temporary article-count API test (2026-11-09)
+
+The active production profile is now `article_count_v1`. Every new run uses it,
+including a request from an older browser that omits `task`. The current button
+sends `task: "article_count_v1"`; unknown task values fail before dispatch. Existing
+UUIDs replay their original persisted result without conversion or another call.
+An explicitly count-only request cannot reuse an earlier analysis UUID. The
+retained cumulative-analysis code is exercised only by a native-test dependency,
+not a JSON or environment setting. Restoring complex analysis requires a later
+reviewed code change.
+
+The database counts all unique `matrix_review_articles` records for the configured
+website owner across all accounts/platforms. Each row counts once; identical titles
+are not merged. Metric snapshots, competitor examples, other owners and the separate
+legacy production article table are excluded. Zero rows is a valid test. The count
+and scope are captured under the existing mutation revision guard. The API receives
+only that small count object, no titles, article text, source rows, old reports or
+saved complex instructions. This tests provider round-trip and rendering, not the
+model's ability to crawl the website or independently count remote records.
+
+The fixed Chinese prompt asks only for `{"article_count": N}`. The provider gets no
+history tool, a strict single-integer output schema, at most one call and 1024 output
+tokens. The existing explicit model and 45-second timeout remain. The application
+requires an exact nonnegative safe-integer match to its immutable captured count
+before saving a success report. Failures never display a made-up count. No retries,
+lock release, new route, schema migration, credential or network permissions were
+added. Count tests use the same UUID storage key, owner/account lock and quotas as
+older analysis, so an old unresolved run still blocks the test.
+
+Count records pin the fixed prompt as version 1 without changing the editable saved
+analysis prompt. The page shows the actual test prompt and scope, and labels the
+saved complex prompt as retained but unused during testing. Count records never
+become a cumulative checkpoint or historical evidence for a later restored review.
+
+Verification: `node --test tests/openai-article-count.test.mjs` plus existing OpenAI
+review/runtime/UI/model/backup suites. The optional
+`tests/openai-article-count-browser-server.mjs` starts a disposable loopback-only
+three-article fixture with all provider traffic intercepted locally. It cannot
+verify the production key, lock state, account entitlement, connectivity or billing.

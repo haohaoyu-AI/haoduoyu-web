@@ -25,7 +25,7 @@ function fixture(t) {
   async function call(path,method='GET',data,headers=auth,settings=env) {
     const h=new Headers(headers);if(data!==undefined)h.set('Content-Type','application/json');
     const req=new Request(origin+'/api/v1/openai-review/'+path,{method,headers:h,body:data===undefined?undefined:JSON.stringify(data)});
-    try {const res=await handleOpenaiReview(db,req,new URL(req.url).pathname.slice('/api/v1'.length),settings,origin,undefined,{request,clock:()=>at});return {status:res.status,...await res.json()};}
+    try {const res=await handleOpenaiReview(db,req,new URL(req.url).pathname.slice('/api/v1'.length),settings,origin,undefined,{request,clock:()=>at,legacyAnalysisForTests:true});return {status:res.status,...await res.json()};}
     catch(error){if(!error.status)throw error;return {status:error.status,error:{code:error.code,message:error.message}};}
   }
   const article=(title='Article',account='V字',uid=owner)=>{const id=randomUUID();sql.prepare('INSERT INTO matrix_review_articles(user_id,id,account,title,published_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(uid,id,account,title,'2026-11-07',new Date(at).toISOString(),new Date(at).toISOString());return id;};
