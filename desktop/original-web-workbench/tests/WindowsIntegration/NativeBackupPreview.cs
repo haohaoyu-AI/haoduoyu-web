@@ -21,7 +21,7 @@ internal static class NativeBackupPreview
                 if(!preview.IsVisible || !ReferenceEquals(preview.Owner,owner) || preview.Content is not DockPanel panel)
                     throw new InvalidOperationException("Native read-only preview did not show.");
                 var summary=panel.Children.OfType<TextBox>().Single().Text;
-                if(!summary.Contains("未导入",StringComparison.Ordinal) || !summary.Contains(result.PayloadSha256,StringComparison.Ordinal)
+                if(!summary.Contains("没有导入、恢复、同步、覆盖或清空任何数据。",StringComparison.Ordinal) || !summary.Contains(result.PayloadSha256,StringComparison.Ordinal)
                     || summary.Contains("SYNTHETIC",StringComparison.Ordinal) || summary.Contains("password_hash",StringComparison.Ordinal)
                     || summary.Contains("token_hash",StringComparison.Ordinal))
                     throw new InvalidOperationException("Preview lacks its read-only disclosure or leaked a synthetic source value.");
