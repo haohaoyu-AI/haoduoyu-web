@@ -93,6 +93,7 @@ internal static class Program
                 // NavigationCompleted can precede the shared page's initial render.
                 // Only exercise/capture the native frame after its real UI is ready.
                 if (phase is "seed" or "site") await WindowControls.Verify(window, root, phase);
+                if (phase == "site") await NativeBackupPreview.Verify(window, root, phase);
                 var immediateClose=shared && await SharedPageScenario.Prepare(window,phase,root);
                 double? lastInputToCloseMs=null;
                 if (!immediateClose)

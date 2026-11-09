@@ -58,7 +58,7 @@ internal static class WindowControls
         Console.WriteLine("PASS native window caption/buttons; work-area fit; minimize/restore/maximize/resize");
     }
 
-    private static void CaptureFrame(nint window, string path)
+    internal static void CaptureFrame(nint window, string path)
     {
         if (!GetWindowRect(window, out var bounds)) throw new InvalidOperationException("Native window rectangle unavailable.");
         var width = bounds.Right - bounds.Left; var height = bounds.Bottom - bounds.Top;

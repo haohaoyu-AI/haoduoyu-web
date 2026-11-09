@@ -51,7 +51,15 @@ internal sealed class OriginalUiWindow : Window
         MinWidth = bounds.MinWidth; MinHeight = bounds.MinHeight;
         Left = bounds.Left; Top = bounds.Top;
         WindowStartupLocation = WindowStartupLocation.Manual;
-        Content = browser;
+        // Native local-file selection stays outside the unchanged shared website.
+        // Only allowlisted aggregate metadata is shown; no file content enters WebView2.
+        var menu = new Menu();
+        var dataMenu = new MenuItem { Header="本机数据" };
+        var inspect = new MenuItem { Header="检查网站备份（只读，不导入）" };
+        inspect.Click += (_, _) => new BackupPreviewWindow(this).ShowDialog();
+        dataMenu.Items.Add(inspect); menu.Items.Add(dataMenu);
+        var layout = new DockPanel(); DockPanel.SetDock(menu, Dock.Top);
+        layout.Children.Add(menu); layout.Children.Add(browser); Content=layout;
         Loaded += async (_, _) => await InitializeAsync();
         Closing += OnClosing;
         Closed += (_, _) => browser.Dispose();

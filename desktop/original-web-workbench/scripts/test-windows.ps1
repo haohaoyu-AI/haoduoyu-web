@@ -44,7 +44,7 @@ function Invoke-Phase([string]$phase, [string]$testRoot, [string]$site) {
         if ($EvidenceDirectory) {
             $dest = Join-Path $EvidenceDirectory $phase
             New-Item -ItemType Directory -Path $dest -Force | Out-Null
-            foreach ($name in @("$phase-stdout.txt","$phase-stderr.txt","$phase-result.json","$phase-failure.txt","$phase-1280.png","$phase-430.png","$phase-window-controls.json","$phase-window-frame.png","$phase-window-maximized-frame.png")) {
+            foreach ($name in @("$phase-stdout.txt","$phase-stderr.txt","$phase-result.json","$phase-failure.txt","$phase-1280.png","$phase-430.png","$phase-window-controls.json","$phase-window-frame.png","$phase-window-maximized-frame.png","$phase-backup-preview-frame.png","$phase-backup-preview-result.json")) {
                 $file = Join-Path $testRoot $name
                 if (Test-Path -LiteralPath $file -PathType Leaf) { Copy-Item -LiteralPath $file -Destination (Join-Path $dest $name) }
             }

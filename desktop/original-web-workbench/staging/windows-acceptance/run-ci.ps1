@@ -15,6 +15,12 @@ try {
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
     $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
     $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
+    node tests/BackupPreviewTests/generate-fixtures.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Synthetic backup fixture generation failed.' }
+    dotnet restore tests/BackupPreviewTests/BackupPreviewTests.csproj --locked-mode
+    if ($LASTEXITCODE -ne 0) { throw 'Locked preview test restore failed.' }
+    dotnet run --project tests/BackupPreviewTests/BackupPreviewTests.csproj -c Release --no-restore -- tests/BackupPreviewTests/fixtures
+    if ($LASTEXITCODE -ne 0) { throw 'Read-only backup preview tests failed.' }
     dotnet restore tests/WindowsIntegration/WindowsIntegration.csproj --locked-mode
     if ($LASTEXITCODE -ne 0) { throw 'Locked restore failed.' }
     dotnet build tests/WindowsIntegration/WindowsIntegration.csproj -c Release --no-restore -m:1 -p:UseSharedCompilation=false
