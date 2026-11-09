@@ -11,8 +11,8 @@ import {isOpenAiConnectivityRoute,handleOpenAiConnectivity} from './openai-revie
 import {appendReviewProgress,readReviewProgressForRuns} from './openai-review-progress.mjs';
 
 const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
-// Four 120-second provider rounds plus client/save overhead must remain live.
-const staleMs=10*60000;
+// Four 180-second provider rounds plus client/save overhead must remain live.
+const staleMs=14*60000;
 const keyFormatMessage='服务器密钥配置格式无效，未调用 API；请通过私有配置检查，勿在页面或聊天中填写密钥';
 // Selection is bounded to documented API IDs and the server's existing default.
 // Listing a model does not assert this account has provider access to it.

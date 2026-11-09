@@ -23,8 +23,8 @@ export function stopOpenAiReviewTimers() {
   clock.stop(); connectionClock.stop(); clearTimeout(timer); timer = null; clearTimeout(connectionTimer); connectionTimer = null;
 }
 export function openAiReviewTimeout(path, options = {}) {
-  // Four provider rounds may each take 120 seconds; allow 60 seconds for storage and transport.
-  if (path === '/openai-review/runs' && options.method === 'POST') return 540000;
+  // Four provider rounds may each take 180 seconds; allow 60 seconds for storage and transport.
+  if (path === '/openai-review/runs' && options.method === 'POST') return 780000;
   return path === '/openai-review/connectivity' && options.method === 'POST' ? 150000 : 75000;
 }
 async function read(path, options = {}) {

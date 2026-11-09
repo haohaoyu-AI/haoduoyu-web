@@ -82,7 +82,7 @@ test('durable dispatch and completion drive stage and elapsed; detail and list n
   // Synthetic historical row only: an interrupted pre-dispatch reservation is observable.
   app.sql.prepare("UPDATE matrix_openai_review_runs SET status='running',completed_at=NULL,provider_calls=0 WHERE id=?").run(id);
   assert.equal((await app.call('runs/'+id)).data.stage,'preparing');
-  app.advance(600000);assert.equal((await app.call('runs/'+id)).data.stage,'uncertain');assert.equal(app.requests.length,1);
+  app.advance(840000);assert.equal((await app.call('runs/'+id)).data.stage,'uncertain');assert.equal(app.requests.length,1);
 });
 
 test('model selection cannot bypass the unresolved claim; cancelled IDs remain fenced for all selections',async t=>{

@@ -256,9 +256,9 @@ test('paid analysis timeout allows all actual provider deadlines plus save overh
   t.mock.method(globalThis,'setTimeout',(callback,delay,...args)=>{deadlines.push(delay);return schedule(callback,delay,...args);});
   await runReviewProvider({key:'synthetic-timeout-check',model:'gpt-test',instructions:'synthetic',input:{},beforeCall:async()=>{},lookup:async()=>{},
     request:async()=>Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({report_markdown:'synthetic',cumulative_summary:'synthetic',pending_verification:[]})}]}]})});
-  assert.deepEqual(deadlines,[120000],'the real default provider timer must match the client budget');
+  assert.deepEqual(deadlines,[180000],'the real default provider timer must match the client budget');
   const clientTimeout=openAiReviewTimeout('/openai-review/runs',{method:'POST'});
-  assert.equal(clientTimeout,540000);assert.equal(REVIEW_LIMITS.providerCalls,4);
+  assert.equal(clientTimeout,780000);assert.equal(REVIEW_LIMITS.providerCalls,4);
   assert.ok(clientTimeout >= REVIEW_LIMITS.providerCalls*deadlines[0]+60000);
   for(const [path,options] of [
     ['/openai-review/runs',{}],['/openai-review/runs',{method:'GET'}],['/openai-review/runs?offset=0',{}],

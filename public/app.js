@@ -6842,7 +6842,7 @@ function stopOpenAiReviewTimers() {
   connectionTimer = null;
 }
 function openAiReviewTimeout(path, options3 = {}) {
-  if (path === "/openai-review/runs" && options3.method === "POST") return 54e4;
+  if (path === "/openai-review/runs" && options3.method === "POST") return 78e4;
   return path === "/openai-review/connectivity" && options3.method === "POST" ? 15e4 : 75e3;
 }
 async function read2(path, options3 = {}) {

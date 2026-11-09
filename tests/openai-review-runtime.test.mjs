@@ -34,7 +34,7 @@ test('Workers runtime default fetch accepts the fixed endpoint, headers, stream 
       assert.equal(request.headers.get('content-type'),'application/json');
       assert.equal(request.headers.get('authorization'),'Bearer synthetic-runtime-key');
       const body=await request.json();assert.equal(body.model,'gpt-6.1-terra');assert.equal(body.store,false);
-      assert.equal(body.max_output_tokens,6000);assert.equal(body.parallel_tool_calls,false);
+      assert.equal(body.max_output_tokens,16000);assert.equal(body.parallel_tool_calls,false);
       if(mode==='timeout')await new Promise(resolve=>setTimeout(resolve,60));
       if(Number.isInteger(mode))return new Response(null,{status:mode,headers:{Location:'https://redirect.invalid/never-follow'}});
       if(mode==='rejected')return Response.json({error:{message:'not logged'}},{status:400,headers:{'x-request-id':'req_runtime_rejected'}});
