@@ -36,8 +36,21 @@ internal sealed class OriginalUiWindow : Window
     internal OriginalUiWindow(AssetCatalog assets, string profileDirectory)
     {
         this.assets = assets; this.profileDirectory = profileDirectory;
-        Title = "好多鱼 · 本机网页工作台"; Width = 1280; Height = 850; MinWidth = 400; MinHeight = 420;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        Title = "好多鱼 · 本机网页工作台";
+        // Use Windows' own caption, system menu and minimize/restore/close controls.
+        // Never start maximized or borderless, and fit the OUTER window to the
+        // usable desktop in DIPs so high scaling cannot hide the caption.
+        WindowStyle = WindowStyle.SingleBorderWindow;
+        ResizeMode = ResizeMode.CanResize;
+        WindowState = WindowState.Normal;
+        ShowInTaskbar = true;
+        SizeToContent = SizeToContent.Manual;
+        var workArea = SystemParameters.WorkArea;
+        var bounds = StartupWindowBounds.Fit(workArea.Left, workArea.Top, workArea.Width, workArea.Height);
+        Width = bounds.Width; Height = bounds.Height;
+        MinWidth = bounds.MinWidth; MinHeight = bounds.MinHeight;
+        Left = bounds.Left; Top = bounds.Top;
+        WindowStartupLocation = WindowStartupLocation.Manual;
         Content = browser;
         Loaded += async (_, _) => await InitializeAsync();
         Closing += OnClosing;

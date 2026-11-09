@@ -21,6 +21,8 @@ checks={
 'only completed close permits': 'if (value == "complete") { closeAuthorized = true; Close(); return; }' in host,
 'no remote network CSP': "connect-src 'none'" in policy and "worker-src 'none'" in policy,
 'compile-pinned manifest': 'GetManifestResourceStream("HostAssetManifest")' in app,
+'native window controls explicit': all(value in host for value in ['WindowStyle = WindowStyle.SingleBorderWindow', 'ResizeMode = ResizeMode.CanResize', 'WindowState = WindowState.Normal', 'ShowInTaskbar = true']),
+'startup fits usable desktop': 'StartupWindowBounds.Fit(workArea.Left, workArea.Top, workArea.Width, workArea.Height)' in host,
 'no production URL': not re.search(r'https://(?!(?:haoduoyu\.original-ui\.invalid|developer\.microsoft\.com))',host+app+policy),
 }
 for name, ok in checks.items():

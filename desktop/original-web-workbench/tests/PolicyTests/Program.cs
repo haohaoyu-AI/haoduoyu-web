@@ -63,4 +63,24 @@ Check(RequestPolicy.AllowedExportExtension(blob, "application/json;charset=utf-8
 Check(RequestPolicy.AllowedExportExtension(blob, "text/plain", 40) == ".txt", "local TXT blob eligible for explicit save");
 foreach (var (uri, mime, size) in new[] { ("https://example.com/a.json", "application/json", 40L), (blob, "application/json", -1L), (blob, "application/json", 11L*1024*1024), (blob, "application/x-msdownload", 40L), ("blob:https://other.invalid/"+Guid.NewGuid(), "application/json", 40L) })
     Check(RequestPolicy.AllowedExportExtension(uri, mime, size) is null, "unsafe/unknown export rejected");
+foreach (var area in new[] {
+    (Left:0d, Top:0d, Width:1920d, Height:1040d),
+    (Left:0d, Top:0d, Width:1366d, Height:728d),
+    (Left:0d, Top:0d, Width:1024d, Height:576d),
+    (Left:0d, Top:0d, Width:768d, Height:432d),
+    (Left:-1280d, Top:40d, Width:1280d, Height:680d),
+    (Left:0d, Top:0d, Width:320d, Height:240d) })
+{
+    var bounds = StartupWindowBounds.Fit(area.Left, area.Top, area.Width, area.Height);
+    Check(bounds.Left >= area.Left && bounds.Top >= area.Top && bounds.Left + bounds.Width <= area.Left + area.Width
+        && bounds.Top + bounds.Height <= area.Top + area.Height, "complete startup frame fits work area " + area);
+    Check(bounds.MinWidth > 0 && bounds.MinHeight > 0 && bounds.MinWidth <= bounds.Width
+        && bounds.MinHeight <= bounds.Height && bounds.Width <= 1280 && bounds.Height <= 850,
+        "minimum size remains reachable on small/scaled desktop " + area);
+}
+foreach (var size in new[] { 0d, -1d, double.NaN, double.PositiveInfinity })
+{
+    try { StartupWindowBounds.Fit(0, 0, size, 768); throw new Exception("Invalid work area accepted."); }
+    catch (ArgumentOutOfRangeException) { Check(true, "invalid work area rejected: " + size); }
+}
 Console.WriteLine($"PASS total={passed}; synthetic fixtures retained at {root}");

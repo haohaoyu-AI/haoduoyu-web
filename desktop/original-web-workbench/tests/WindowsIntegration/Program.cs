@@ -74,6 +74,7 @@ internal static class Program
                 if (!string.IsNullOrEmpty(expectedRuntime) && actualRuntime != expectedRuntime)
                     throw new Exception("Installed WebView2 runtime differs from reviewed test version. Expected " + expectedRuntime + ", actual " + actualRuntime);
                 Console.WriteLine("Actual WebView2 runtime: " + actualRuntime);
+                if (phase is "seed" or "site") await WindowControls.Verify(window, root, phase);
                 if (!shared)
                 {
                     await WaitFor(window, "window.fixture?.ready===true");
