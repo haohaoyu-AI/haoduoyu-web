@@ -1,4 +1,5 @@
 import {renderTrafficCard} from './review-traffic-card.mjs';
+import {renderReviewTrends} from './review-trends.mjs';
 import {REVIEW_LIST_METRICS, formatReviewListMetric} from '../core/review-list-metrics.mjs';
 import {renderImitation} from './review-imitation.mjs';
 import {renderBenchmarkLibrary} from './review-benchmark-library.mjs';
@@ -109,7 +110,7 @@ a.observed_on || '')) || String(b.updated_at || '').localeCompare(String(a.updat
 function healthLabel(row) { return ({normal:'正常','限流':'限流','降权':'降权','封禁':'封禁'})[row?.judgement] || '未记录'; }
 function collapsed(title,body,id = '') { return `<details class="review-panel review-extra"${id ? ` id="${e(id)}"` : ''}><summary>${e(
 title)}</summary>${body}</details>`; }
-export const REVIEW_SECTIONS = [['benchmarks','对标账号'],['review','规则']];
+export const REVIEW_SECTIONS = [['benchmarks','对标账号'],['review','规则'],['trends','数据趋势']];
 
 function v13Accounts(data) {
   const accounts = data.benchmarkAccounts || [];
@@ -133,8 +134,9 @@ function v13Accounts(data) {
 }
 function archives(data,vm) {
   const selected = REVIEW_SECTIONS.some(([id]) => id === vm.secondary) ? vm.secondary : 'benchmarks';
-  const bodies = {benchmarks:v13Accounts(data) + renderBenchmarkLibrary(data,vm.account),review:playbook(data,vm)};
-  return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="复盘资料">${REVIEW_SECTIONS.map(([id,label]) => `<button type="button" id="review-secondary-${id}" role="tab" data-review-secondary="${id}" aria-controls="review-secondary-panel" aria-selected="${selected === id}" tabindex="${selected === id ? '0' : '-1'}">${label}</button>`).join('')}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${bodies[selected]}</div></section>`;
+  const body = selected === 'trends' ? renderReviewTrends(data,vm) : selected === 'review' ? playbook(data,vm) :
+    v13Accounts(data) + renderBenchmarkLibrary(data,vm.account);
+  return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="复盘资料">${REVIEW_SECTIONS.map(([id,label]) => `<button type="button" id="review-secondary-${id}" role="tab" data-review-secondary="${id}" aria-controls="review-secondary-panel" aria-selected="${selected === id}" tabindex="${selected === id ? '0' : '-1'}">${label}</button>`).join('')}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body}</div></section>`;
 }
 
 function overview(data,vm) {
@@ -274,6 +276,6 @@ export function renderContentReviewContent(data,vm) {
   const hasData = ['articles','snapshots','reports','playbooks','benchmarkAccounts','benchmarkArticles','notes'].some(key => data[key].length);
   const noDataPanel = '';
   const body = hasData ? overview(data,vm) : noDataPanel + empty('暂无内容复盘数据') +
-    '<button class="btn text" type="button" data-review-action="refresh">刷新</button>';
+    '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' + archives(data,vm);
   return `<div class="review-body"${vm.article ? ' inert' : ''}>${body}</div>${drawer(data,rows,vm)}`;
 }

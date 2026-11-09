@@ -128,8 +128,8 @@ test('benchmark accounts show current-account features and benchmark library', (
   input.benchmarkAccounts[0].title_patterns=['TITLE_FEATURE'];
   input.benchmarkAccounts[0].structure_notes_md='STRUCTURE_FEATURE';
   const html=htmlFor(input,{secondary:'benchmarks'});
-  assert.deepEqual(REVIEW_SECTIONS.map(([id])=>id),['benchmarks','review']);
-  assert.equal((html.match(/data-review-secondary=/g)||[]).length,2);
+  assert.deepEqual(REVIEW_SECTIONS.map(([id])=>id),['benchmarks','review','trends']);
+  assert.equal((html.match(/data-review-secondary=/g)||[]).length,3);
   assert.equal((html.match(/class="review-v13-benchmark-group"/g)||[]).length,3);
   for (const name of names) assert.ok(html.includes(name),name);
   for (const feature of ['TOPIC_FEATURE','TITLE_FEATURE','STRUCTURE_FEATURE']) assert.ok(html.includes(feature));
