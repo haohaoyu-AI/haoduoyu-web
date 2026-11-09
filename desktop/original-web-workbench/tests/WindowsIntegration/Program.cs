@@ -74,7 +74,6 @@ internal static class Program
                 if (!string.IsNullOrEmpty(expectedRuntime) && actualRuntime != expectedRuntime)
                     throw new Exception("Installed WebView2 runtime differs from reviewed test version. Expected " + expectedRuntime + ", actual " + actualRuntime);
                 Console.WriteLine("Actual WebView2 runtime: " + actualRuntime);
-                if (phase is "seed" or "site") await WindowControls.Verify(window, root, phase);
                 if (!shared)
                 {
                     await WaitFor(window, "window.fixture?.ready===true");
@@ -91,6 +90,9 @@ internal static class Program
                     await WaitFor(window, "document.querySelector('#app')?.textContent.length>30 && !document.querySelector('.initial-loading')");
                     Console.WriteLine("PASS reviewed bundle rendered; UI/data are a new empty synthetic profile, not production");
                 }
+                // NavigationCompleted can precede the shared page's initial render.
+                // Only exercise/capture the native frame after its real UI is ready.
+                if (phase is "seed" or "site") await WindowControls.Verify(window, root, phase);
                 var immediateClose=shared && await SharedPageScenario.Prepare(window,phase,root);
                 double? lastInputToCloseMs=null;
                 if (!immediateClose)

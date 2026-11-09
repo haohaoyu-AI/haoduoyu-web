@@ -23,7 +23,6 @@ internal static class WindowControls
         if (initial.Left < area.Left - 1 || initial.Top < area.Top - 1
             || initial.Right > area.Right + 1 || initial.Bottom > area.Bottom + 1)
             throw new InvalidOperationException("The initial OUTER window does not fit the desktop work area.");
-        CaptureFrame(handle, Path.Combine(root, phase + "-window-frame.png"));
         SystemCommands.MinimizeWindow(window);
         await Task.Delay(250);
         if (!IsIconic(handle)) throw new InvalidOperationException("Native minimize did not take effect.");
@@ -46,6 +45,10 @@ internal static class WindowControls
             throw new InvalidOperationException("Window resize did not take effect.");
         window.Width = initial.Width; window.Height = initial.Height;
         window.Left = initial.Left; window.Top = initial.Top;
+        // Capture the normal frame AFTER native restore and the final page paint.
+        // An early NavigationCompleted capture can show an empty WebView surface.
+        await Task.Delay(400);
+        CaptureFrame(handle, Path.Combine(root, phase + "-window-frame.png"));
         File.WriteAllText(Path.Combine(root, phase + "-window-controls.json"), JsonSerializer.Serialize(new {
             passed=true, nativeCaption=true, systemMenu=true, minimize=true, restore=true, maximize=true,
             resize=true, initialFitsWorkArea=true, initial, workArea=area,
