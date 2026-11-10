@@ -59,9 +59,11 @@ test('manual restore preserves scan, build, byte checks, secret scope and produc
   assert.match(yaml,/contents: read/);assert.match(yaml,/actions: read/);assert.match(yaml,/fetch-depth: 0/);
   assert.equal((yaml.match(/persist-credentials: false/g)||[]).length,2);
   const sharedCondition=`if: inputs.target_commit == '${commit}' || inputs.target_commit == '${previousProductionRelease.commit}' || inputs.target_commit == '${openaiReviewRelease.commit}' || inputs.target_commit == '${dataTrendsRelease.commit}' || inputs.target_commit == '${claudeRobotsRelease.commit}' || inputs.target_commit == '${claudeTrendsRelease.commit}'`;
-  assert.equal(yaml.split(sharedCondition).length-1,6,'artifact, Markdown, update recovery, author color, navigation and calendar gates cover all exact production sources');
+  assert.equal(yaml.split(sharedCondition).length-1,1,'artifact verification remains mandatory for all exact production sources');
+  const optionalCondition=sharedCondition.replace('if: ','if: inputs.run_regression_tests && (')+')';
+  assert.equal(yaml.split(optionalCondition).length-1,5,'optional regressions retain the same exact source coverage');
   assert.ok(yaml.includes(`          - ${previousProductionRelease.commit}\n`),'previous exact source stays available after its baseline is pinned');
-  assert.ok(yaml.includes(`- name: Verify AI report author colors\n        ${sharedCondition}\n`));
+  assert.ok(yaml.includes(`- name: Verify AI report author colors\n        ${optionalCondition}\n`));
   for(const step of ['uses: ./.github/actions/gitleaks','npm ci --ignore-scripts','npm run build','npm run check:artifacts',
     'node --test tests/ai-report-markdown.test.mjs tests/ai-reports-navigation.test.mjs tests/ai-reminder-markdown.test.mjs',
     'node --test tests/sw-update-recovery.test.mjs tests/unify-service-worker.test.mjs tests/unify-memo-controller-refresh.test.mjs',
