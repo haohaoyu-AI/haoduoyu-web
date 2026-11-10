@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       BASE_COMMIT: c46884162d55fe5c1ad244353e204345260846dd
-      CANDIDATE_TREE: 3d3dbf16db1cbddeb7a5dbc5debf9075ea982101
+      CANDIDATE_TREE: ec6e083eb75bb026536de9e506a61291ecf48781
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -32,16 +32,17 @@ jobs:
           import base64, hashlib, json, urllib.request
           from pathlib import Path
           entries = {
-              '.ci/public-assets.json': '5fed4ccf2aebe4872771b76ced1dd5a2f5c03d11',
-              'docs/data-trends.md': '4ea29efdf3977bbdb7131603824565584c35500f',
-              'public/index.html': 'eb868901dd414a8566bae032fc9fbe382889fdab',
-              'public/sw.js': '2dd87adbf9554c7acb5943410b8e6f3ad4a3cd49',
+              '.ci/public-assets.json': '18465b0ccdb27e5aa7e3475fe511c42415cf5604',
+              'docs/data-trends.md': 'b76b6901a5c1df2de55f9c38ecc42795bb805e3e',
+              'public/index.html': '8009f22dc2819cb190e10750894581de5394a105',
+              'public/review.css': '07a86f64243e2d83434482e95228a59b30287995',
+              'public/sw.js': 'abaad32f25790c0ed6bf524fa590616151933688',
               'shared/review-analytics.mjs': 'faf7fb6b0e744048fa68fdcbcfc7574139ddeb22',
-              'tests/review-trends.test.mjs': 'c006211b9bdfe90d059ad9df1ee57c748ab8266a',
-              'web/core/review-trends.mjs': '5e23b3b2450237aab046be0367e441a373493246',
-              'web/pages/review-trends.mjs': '37076598d92a8d46c7941422bd30849007fcdb4d',
+              'tests/browser-review-trends.py': '9f6c31d1a109d6cc8dd4c08a866c0a5b46a78e7a',
               'tests/review-trends-browser-server.mjs': 'c918607d46d2f07c37546aa70fd37e07b599c7ff',
-              'tests/browser-review-trends.py': '7f6e09ef4f501907747af0260b3c9b9f316ffe8c',
+              'tests/review-trends.test.mjs': 'de3a5c9e11a2ff81a5e9751a808b20f6519caaa0',
+              'web/core/review-trends.mjs': '5e23b3b2450237aab046be0367e441a373493246',
+              'web/pages/review-trends.mjs': '8f94f234f7a38b1f2ab7ba6887a205ff65e87ae4',
           }
           for path, sha in entries.items():
               url = f'https://api.github.com/repos/haohaoyu-AI/haoduoyu-web/git/blobs/{sha}'
@@ -61,10 +62,10 @@ jobs:
           npm run build
           npm run check:artifacts
           node scripts/frontend-build.mjs --check
-          test "$(git hash-object public/app.js)" = '49b76098a2f0904220322cff089fa045f2792d88'
-          test "$(wc -c < dist/server/index.js | tr -d ' ')" = '2843919'
-          echo 'eac54af8bacb4cba2f88ab35db249c281b62d4997214bf65c6c1b17155c8c851  dist/server/index.js' | sha256sum -c -
-          git add .ci/public-assets.json docs/data-trends.md public/app.js public/index.html public/sw.js shared/review-analytics.mjs tests/review-trends.test.mjs web/core/review-trends.mjs web/pages/review-trends.mjs tests/review-trends-browser-server.mjs tests/browser-review-trends.py
+          test "$(git hash-object public/app.js)" = 'cc9b54ccd7f6d73a1e4a59b4cbd02549cd00ebc3'
+          test "$(wc -c < dist/server/index.js | tr -d ' ')" = '2844076'
+          echo 'f6ca099166856484fcff442aa56b5904cebb76b323b10978b8f38bc50fa56325  dist/server/index.js' | sha256sum -c -
+          git add .ci/public-assets.json docs/data-trends.md public/app.js public/index.html public/review.css public/sw.js shared/review-analytics.mjs tests/browser-review-trends.py tests/review-trends-browser-server.mjs tests/review-trends.test.mjs web/core/review-trends.mjs web/pages/review-trends.mjs
           test "$(git write-tree)" = "$CANDIDATE_TREE"
           git diff --exit-code
           # No commit, push, upload of source bundles, or production credentials.
@@ -119,7 +120,7 @@ jobs:
           assert all(report['status'] == 'passed' for report in reports)
           result = {'synthetic': True, 'status': 'passed', 'isolated_runtime_per_viewport': True,
                     'service_workers': reports[0]['service_workers']}
-          for key in ['checks','screenshots','writes','page_errors','http_errors']:
+          for key in ['checks','screenshots','writes','page_errors','http_errors','readability']:
               result[key] = [item for report in reports for item in report[key]]
           assert [check['width'] for check in result['checks']] == [1440,390,375]
           (out/'browser-report.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
