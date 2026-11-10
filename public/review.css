@@ -403,36 +403,64 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
   .content-review .review-v13-rule-row > .review-v13-rule-text { grid-column:2; grid-row:1; }
   .content-review .review-v13-rule-evidence { grid-column:2; grid-row:auto; }
 }
-/* Read-only data trends. Keep charts and long tables inside their own panel. */
-.review-trends { min-width: 0; }
-.review-trends h2 { margin: 0; }
-.review-trend-controls { margin: 16px 0; flex-wrap: wrap; }
-.content-review .review-trend-controls label { min-width: 148px; flex: 0 1 180px; }
-.review-trend-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
-.review-trend-stat { display: flex; flex-direction: column; gap: 8px; padding: 18px; border: 1px solid var(--border,#d9dfda); border-radius: 14px; background: var(--surface,#fff); }
-.review-trend-stat strong { font-size: 27px; font-variant-numeric: tabular-nums; }
-.review-trend-stat small { line-height: 1.6; color: var(--muted,#5a665f); }
-.review-trend-chart { width: 100%; padding: 0 12px 0 64px; margin: 18px 0 4px; }
-.review-trend-chart svg { display: block; width: 100%; height: 252px; overflow: visible; }
-.review-trend-chart text { fill: var(--muted,#5a665f); font-size: 12px; }
-.review-trend-grid { stroke: #dce5df; stroke-width: 1; }
-.review-trend-line { fill: none; stroke: #26764f; stroke-width: 2.5; }
-.review-trend-point { fill: #26764f; stroke: white; stroke-width: 1.5; }
-.review-trend-point.provisional { fill: #b97016; }
-.review-trend-point:focus { stroke: #152f21; stroke-width: 3; outline: none; }
-.review-trend-warning { padding: 10px 14px; background: #fff4dc; color: #785115; border-radius: 10px; line-height: 1.7; }
-.review-trend-empty { padding: 32px 12px; text-align: center; color: var(--muted,#5a665f); }
-.review-trend-method,.review-trend-details { margin-top: 16px; line-height: 1.8; }
-.review-trend-method summary,.review-trend-details summary { cursor: pointer; font-weight: 600; }
-.review-trend-table-wrap { overflow-x: auto; max-width: 100%; margin-top: 12px; }
-.review-trend-table { border-collapse: collapse; min-width: 780px; width: 100%; text-align: left; font-size: 13px; }
-.review-trend-table th,.review-trend-table td { padding: 10px; border-bottom: 1px solid #e0e5e1; vertical-align: top; }
-.review-trend-table td small { display: block; color: var(--muted,#5a665f); font-size: 11px; }
+/* Read-only data trends: headline tiles, two key curves, then collapsed detail. */
+.review-trends { min-width:0; --trend-hit:#c8562a; --trend-flop:#2f6fb0; --trend-middle:#9a948f; --trend-surface:#fbf8f6; }
+.review-trends h2 { margin:0; }
+.content-review .review-trends .review-panel-head { align-items:flex-end; margin-bottom:var(--space-16); }
+.content-review .review-trends .review-panel-head .review-note { display:block; margin-top:var(--space-4); }
+.content-review .review-trend-controls { flex-wrap:nowrap; gap:var(--space-12); margin-left:auto; }
+.content-review .review-trend-controls label { min-width:148px; flex:0 1 160px; }
+.review-trend-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--space-12); }
+.review-trend-stat { display:flex; flex-direction:column; gap:var(--space-4); padding:var(--space-16); border-radius:var(--radius-14); background:var(--color-white-a-74); box-shadow:var(--shadow-metric); font-variant-numeric:tabular-nums; }
+.review-trend-stat > span { color:var(--color-text-secondary); font-size:var(--font-size-13); }
+.review-trend-stat > strong { font-size:26px; font-weight:var(--font-weight-semibold); line-height:1.3; }
+.review-trend-stat > small { color:var(--color-text-secondary); font-size:var(--font-size-12); }
+.review-trend-stat > .review-trend-delta { margin-top:var(--space-4); color:var(--color-text-muted); font-weight:var(--font-weight-semibold); }
+.review-trend-stat > .review-trend-delta.up { color:var(--color-success); }
+.review-trend-stat > .review-trend-delta.down { color:var(--color-danger); }
+.review-trend-legend { display:flex; flex-wrap:wrap; gap:var(--space-6) var(--space-16); margin:var(--space-20) 0 0; padding:0; list-style:none; color:var(--color-text-secondary); font-size:var(--font-size-12); }
+.review-trend-legend li { display:flex; align-items:center; gap:var(--space-6); }
+.review-trend-key { width:10px; height:10px; border-radius:50%; background:var(--trend-middle); }
+.review-trend-key.hit { background:var(--trend-hit); }
+.review-trend-key.flop { background:var(--trend-flop); }
+.review-trend-key.provisional { background:var(--trend-surface); border:2px solid var(--trend-middle); }
+.review-trend-key.line { width:18px; height:3px; border-radius:2px; background:var(--color-text); }
+.review-trend-figure { margin-top:var(--space-20); }
+.review-trend-figure-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:var(--space-4) var(--space-12); }
+.content-review .review-trend-figure-head h3 { margin:0; font-size:var(--font-size-15); font-weight:var(--font-weight-semibold); }
+.review-trend-chart { width:100%; padding:0 var(--space-18) 0 52px; margin-top:var(--space-8); }
+.review-trend-chart svg { display:block; width:100%; overflow:visible; }
+.review-trend-chart text { fill:var(--color-text-muted); font-size:12px; font-variant-numeric:tabular-nums; }
+.review-trend-grid { stroke:var(--color-divider); stroke-width:1; }
+.review-trend-threshold { stroke:var(--trend-hit); stroke-width:1; stroke-dasharray:4 4; }
+.review-trend-chart .review-trend-threshold-label { fill:var(--color-text-secondary); font-size:12px; paint-order:stroke; stroke:var(--trend-surface); stroke-width:4px; stroke-linejoin:round; }
+.review-trend-line { fill:none; stroke:var(--color-text); stroke-width:2.5; stroke-linecap:round; pointer-events:none; }
+.review-trend-dot { fill:var(--trend-middle); stroke:var(--trend-surface); stroke-width:1.5; cursor:pointer; }
+.review-trend-dot.hit { fill:var(--trend-hit); }
+.review-trend-dot.flop { fill:var(--trend-flop); }
+.review-trend-dot.provisional { fill:var(--trend-surface); stroke:var(--trend-middle); stroke-width:2; }
+.review-trend-dot.provisional.hit { stroke:var(--trend-hit); }
+.review-trend-dot.provisional.flop { stroke:var(--trend-flop); }
+.review-trend-dot:hover { stroke:var(--color-text); stroke-width:2; }
+.review-trend-readout { min-height:2.9em; margin-top:var(--space-6); padding:var(--space-6) var(--space-12); border-radius:var(--radius-10); background:var(--color-white-a-55); color:var(--color-text-secondary); font-size:var(--font-size-12); line-height:1.5; }
+.review-trend-readout:empty { display:none; }
+.content-review .review-trend-note { margin-top:var(--space-16); }
+.review-trend-empty { padding:var(--space-32) var(--space-12); text-align:center; color:var(--color-text-secondary); }
+.review-trend-method,.review-trend-details { margin-top:var(--space-12); line-height:1.8; }
+.review-trend-method summary,.review-trend-details summary { cursor:pointer; color:var(--color-text-secondary); font-size:var(--font-size-13); font-weight:var(--font-weight-semibold); }
+.review-trend-method p { margin-top:var(--space-8); color:var(--color-text-secondary); font-size:var(--font-size-12); }
+.review-trend-table-wrap { overflow-x:auto; max-width:100%; margin-top:var(--space-12); }
+.review-trend-table { border-collapse:collapse; min-width:560px; width:100%; text-align:right; font-size:var(--font-size-13); font-variant-numeric:tabular-nums; }
+.review-trend-table th,.review-trend-table td { padding:var(--space-8) var(--space-10); border-bottom:1px solid var(--color-divider); white-space:nowrap; }
+.review-trend-table th:first-child { text-align:left; }
+.review-trend-table thead th { color:var(--color-text-secondary); font-weight:var(--font-weight-semibold); }
 @media (max-width: 600px) {
-  .review-trend-stats { grid-template-columns: 1fr; }
-  .review-trend-stat { padding: 14px; }
-  .content-review .review-trend-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .content-review .review-trend-controls label { min-width: 0; }
-  .content-review .review-trend-controls .input { min-width: 0; padding-inline: 10px 28px; }
-  .content-review .review-trend-controls input[type="date"] { padding-inline: 6px; }
+  .review-trend-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .review-trend-stat { padding:var(--space-14); }
+  .review-trend-stat > strong { font-size:22px; }
+  .content-review .review-trend-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; margin-left:0; }
+  .content-review .review-trend-controls label { min-width:0; }
+  .content-review .review-trend-controls .input { min-width:0; padding-inline:10px 28px; }
+  .content-review .review-trend-controls input[type="date"] { padding-inline:6px; }
+  .review-trend-chart { padding-left:46px; }
 }

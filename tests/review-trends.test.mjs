@@ -11,11 +11,12 @@ const now='2026-11-10T04:00:00Z',account='V字';
 const row=(id,published_at='2026-11-07',extra={})=>({id,account,title:id,published_at,...extra});
 const snap=(article_id,reads,extra={})=>({id:'s-'+article_id,article_id,snapshot_date:'2026-11-08',age_hours:24,reads,...extra});
 const data=(articles=[],snapshots=[])=>normalizeReviewData({articles,snapshots});
-const build=(source,options={})=>reviewTrends(source,{now,account,...options});
-const model={account,now,secondary:'trends',loading:false,error:'',filters:{},trends:{}};
+const build=(source,options={})=>reviewTrends(source,{now,account,range:'7d',...options});
+const model={account,now,secondary:'trends',loading:false,error:'',filters:{},trends:{range:'7d'}};
 
-test('seven Shanghai dates by default, thirty days, inclusive custom and bounded valid dates',()=>{
-  assert.deepEqual(trendBounds({now}),{range:'7d',start:'2026-11-04',end:'2026-11-10',today:'2026-11-10',days:7});
+test('thirty Shanghai dates by default, seven days, inclusive custom and bounded valid dates',()=>{
+  assert.deepEqual(trendBounds({now}),{range:'30d',start:'2026-10-12',end:'2026-11-10',today:'2026-11-10',days:30});
+  assert.deepEqual(trendBounds({now,range:'7d'}),{range:'7d',start:'2026-11-04',end:'2026-11-10',today:'2026-11-10',days:7});
   assert.equal(build(data(),{range:'30d'}).series.length,30);
   assert.equal(build(data(),{range:'custom',from:'2026-11-01',to:'2026-11-02'}).series.length,2);
   for(const [from,to] of [['2026-02-30','2026-11-02'],['2026-11-02','2026-11-01'],['2026-11-01','2026-11-11'],['2024-11-01','2026-11-01']])
@@ -91,16 +92,6 @@ test('recent30 sample identities match the list even when future records fill th
   assert.deepEqual(result.rows[0].verdict_basis,original.verdict_basis);
   assert.equal(result.rows[0].verdict_basis.sample_count,30);
 });
-test('publication explanation follows unknown, confirmed and empty counts',()=>{
-  const unknown=renderReviewTrends(data([row('unknown')]),model);
-  assert.match(unknown,/“已发布篇数”留空/);
-  const confirmed=renderReviewTrends(data([row('confirmed','2026-11-07',{status:'published'})]),model);
-  assert.match(confirmed,/“已发布篇数”为 1/);assert.doesNotMatch(confirmed,/“已发布篇数”留空/);
-  const empty=renderReviewTrends(data(),model);
-  assert.match(empty,/“已发布篇数”为 0/);assert.doesNotMatch(empty,/“已发布篇数”留空/);
-  const filtered=renderReviewTrends(data([row('unknown')]),{...model,filters:{verdict:'爆'}});
-  assert.match(filtered,/“已发布篇数”为 0/);assert.doesNotMatch(filtered,/“已发布篇数”留空/);
-});
 test('future snapshots and snapshots predating publication do not contaminate values',()=>{
   const s=build(data([row('a')],[snap('a',99999,{id:'future',snapshot_date:'2026-11-11'}),
     snap('a',10000,{id:'before',snapshot_date:'2026-11-06'}),snap('a',0,{id:'valid'})])).summary;
@@ -118,47 +109,80 @@ test('invalid snapshot filtering changes only the trend sample, never the shared
   assert.equal(trend.reads_24h,0);assert.equal(trend.verdict,'扑');
   assert.match(renderReviewTrends(source,model),/两处所用样本可能不同/);
 });
-test('navigation, empty data, accessible daily table, validation, account isolation and HTML escaping',()=>{
+test('navigation, empty data, daily table, validation, account isolation and HTML escaping',()=>{
   const source=data([row('<script>')],[snap('<script>',100)]);
   source.loadedAt='2026-11-10T03:59:00Z';
   const html=renderContentReviewContent(source,model);
-  for(const text of ['数据趋势','平均阅读','已发布篇数','状态待核实','统计口径与数据时间','逐日数据与样本分母','2026-11-10 11:59','今天尚未结束','未判定'])assert.ok(html.includes(text),text);
+  for(const text of ['数据趋势','发文数','阅读中位数','爆款率','点击率中位数','阅读走势','点击率走势','统计口径与数据时间','逐日数据','2026-11-10 11:59','今天尚未结束','未判定'])assert.ok(html.includes(text),text);
   assert.match(html,/data-review-secondary="trends"[^>]+aria-selected="true"/);
-  assert.match(html,/class="review-trend-point/);assert.doesNotMatch(html,/<script>/);
+  assert.match(html,/class="review-trend-dot/);assert.doesNotMatch(html,/<script>/);
+  assert.doesNotMatch(html,/ style="/,'the strict style policy forbids inline styles');
   const empty=renderContentReviewContent(data(),model);assert.match(empty,/data-review-secondary="trends"/);assert.match(empty,/没有可绘制的有效数据/);
   const invalid=renderReviewTrends(source,{...model,trends:{range:'custom',from:'2026-11-11',to:'2026-11-01'}});
   assert.match(invalid,/role="alert"/);assert.match(invalid,/结束日期不能早于/);
-});
-test('trend routes restore custom dates and metrics, reject unsupported option values',()=>{
-  const route=reviewRoute('https://example.invalid/?page=review&account=V%E5%AD%97&review_section=trends&review_trend_range=custom&review_trend_from=2026-11-01&review_trend_to=2026-11-07&review_trend_metric=hits');
-  assert.equal(route.secondary,'trends');assert.deepEqual(route.trends,{range:'custom',from:'2026-11-01',to:'2026-11-07',metric:'hits'});
-  assert.equal(reviewRoute('https://example.invalid/?review_trend_metric=bad&review_trend_range=bad').trends.metric,'average_reads');
-});
-
- test('blank custom dates stay invalid and line segments never bridge missing days',()=>{
   const blank=renderReviewTrends(data(),{...model,trends:{range:'custom',from:'',to:'2026-11-10'}});
   assert.match(blank,/role="alert"/);assert.match(blank,/请选择有效/);
-  const articles=['04','05','07','08'].map(date=>row('a'+date,'2026-11-'+date));
-  const snapshots=articles.map(article=>snap(article.id,100,{snapshot_date:'2026-11-09'}));
-  const html=renderReviewTrends(data(articles,snapshots),model);
-  assert.equal((html.match(/<line class="review-trend-line"/g)||[]).length,2);
-  assert.equal((html.match(/<circle class="review-trend-point/g)||[]).length,4);
-  assert.match(html,/<line class="review-trend-line" x1="0.00%" y1="24.00" x2="16.67%" y2="24.00"/);
-  assert.match(html,/<line class="review-trend-line" x1="50.00%" y1="24.00" x2="66.67%" y2="24.00"/);
 });
-
-test('one responsive SVG keeps pixel-sized axes, units and accessible point descriptions',()=>{
-  const source=data([row('a')],[snap('a',100,{ctr:12,avg_read_seconds:30})]);
+test('trend routes default to thirty days, restore custom dates and ignore the retired metric picker',()=>{
+  const route=reviewRoute('https://example.invalid/?page=review&account=V%E5%AD%97&review_section=trends&review_trend_range=custom&review_trend_from=2026-11-01&review_trend_to=2026-11-07&review_trend_metric=hits');
+  assert.equal(route.secondary,'trends');assert.deepEqual(route.trends,{range:'custom',from:'2026-11-01',to:'2026-11-07'});
+  assert.equal(reviewRoute('https://example.invalid/?review_trend_range=bad').trends.range,'30d');
+});
+test('headline uses medians so one viral article cannot move it, and compares the previous equal period',()=>{
+  const current=['a','b','c'].map(id=>row(id,'2026-11-07')),earlier=['x','y','z'].map(id=>row(id,'2026-10-31'));
+  const source=data([...current,...earlier],[snap('a',100,{ctr:10}),snap('b',300,{ctr:12}),snap('c',250000,{ctr:20}),
+    snap('x',100,{snapshot_date:'2026-11-01',ctr:8}),snap('y',200,{snapshot_date:'2026-11-01',ctr:10}),snap('z',400,{snapshot_date:'2026-11-01',ctr:11})]);
+  const result=build(source),tile=key=>result.kpis.find(item=>item.key===key);
+  assert.deepEqual(result.previous,{start:'2026-10-28',end:'2026-11-03'});
+  assert.equal(result.summary.median_reads,300);assert.ok(result.summary.average_reads>80000);
+  assert.deepEqual(tile('record_count'),{key:'record_count',unit:'count',value:3,previous:3,delta:0});
+  assert.equal(tile('median_reads').previous,200);assert.equal(tile('median_reads').delta,50);
+  assert.equal(tile('median_ctr').value,12);assert.equal(tile('median_ctr').delta,2);
+  assert.equal(tile('hit_rate').sample,3);assert.equal(tile('hit_rate').hits,result.summary.hits);
+  assert.equal(result.top.id,'c');
   const html=renderReviewTrends(source,model);
-  assert.equal((html.match(/<svg /g)||[]).length,1);
+  assert.match(html,/较上期 ↑ 50\.0%/);assert.match(html,/较上期 ↑ 2\.0 个百分点/);assert.match(html,/较上期 持平/);
+  const alone=build(data(current,[snap('a',100)]));
+  assert.ok(alone.kpis.every(item=>item.previous===null&&item.delta===null),'no earlier records means no comparison, not a change from zero');
+  const lonely=renderReviewTrends(data(current,[snap('a',100)]),model);
+  assert.doesNotMatch(lonely,/review-trend-delta/);assert.match(lonely,/暂不对比/);
+});
+test('the key curve is a trailing seven-day median that reaches before the range and breaks without enough articles',()=>{
+  const articles=[row('p1','2026-11-02'),row('p2','2026-11-03'),row('p3','2026-11-04'),row('late','2026-11-10T01:00:00Z')];
+  const source=data(articles,[snap('p1',100,{snapshot_date:'2026-11-05'}),snap('p2',200,{snapshot_date:'2026-11-05'}),snap('p3',900,{snapshot_date:'2026-11-05'})]);
+  const result=build(source),on=date=>result.series.find(point=>point.date===date);
+  assert.deepEqual(result.rolling,{days:7,min_samples:3});
+  assert.equal(on('2026-11-04').rolling_reads,200,'articles before the range still inform the first day');
+  assert.equal(on('2026-11-08').rolling_reads,200);
+  assert.equal(on('2026-11-09').rolling_reads,null,'two samples left in the window is not a trend');
+  const html=renderReviewTrends(source,model);
+  assert.equal((html.match(/<line class="review-trend-line"/g)||[]).length,4,'five consecutive days make four segments');
+  assert.equal((html.match(/<circle class="review-trend-dot/g)||[]).length,1,'only in-range articles with reads are drawn');
+});
+test('points sit at their Beijing publication time and the plot starts at the first record',()=>{
+  const source=data([row('noon','2026-11-07T04:00:00Z'),row('dated','2026-11-09'),row('old','2026-11-01')],
+    [snap('noon',500),snap('dated',700,{snapshot_date:'2026-11-10',ctr:30})]);
+  const result=build(source),point=id=>result.points.find(item=>item.id===id);
+  assert.deepEqual(result.plot,{start:'2026-11-07',end:'2026-11-10',days:4});
+  assert.equal(point('noon').position,.125);assert.equal(point('noon').timed,true);
+  assert.equal(point('dated').position,.625,'a date-only record is drawn mid-day');assert.equal(point('dated').timed,false);
+  assert.equal(result.series.length,7,'the daily table still lists the whole range');
+  assert.equal(result.series[0].position,null);assert.equal(result.series.at(-1).position,.875);
+  assert.equal(result.points.some(item=>item.id==='old'),false);
+});
+test('two pixel-sized SVGs: logarithmic reads with the hit line, linear click rate, and openable points',()=>{
+  const articles=Array.from({length:10},(_,i)=>row('a'+i,'2026-11-0'+(4+i%5)));
+  const source=data(articles,articles.map((a,i)=>snap(a.id,(i+1)*1000,{snapshot_date:'2026-11-09',ctr:i+1})));
+  const html=renderReviewTrends(source,model);
+  assert.equal((html.match(/<svg /g)||[]).length,2);
   assert.doesNotMatch(html,/viewBox=/,'axes must not shrink with a fixed-width viewBox');
-  assert.match(html,/<svg height="252" role="img"/);
-  assert.match(html,/<circle class="review-trend-point" cx="50.00%"/);
-  assert.match(html,/aria-label="2026-11-07：100；样本 1 \/ 1 篇/);
-  assert.match(html,/<text x="0.00%" y="234"/);
-  assert.match(html,/<text x="100.00%" y="234"/);
-  const ctr=renderReviewTrends(source,{...model,trends:{metric:'average_ctr'}});
-  assert.match(ctr,/>12.0%<\/text>/);
-  const seconds=renderReviewTrends(source,{...model,trends:{metric:'average_seconds'}});
-  assert.match(seconds,/>30.0 秒<\/text>/);
+  assert.match(html,/<svg height="260" role="img"/);assert.match(html,/<svg height="190" role="img"/);
+  assert.match(html,/>1,000<\/text>/);assert.match(html,/>1 万<\/text>/);assert.match(html,/>10%<\/text>/);
+  assert.match(html,/爆款线 8,000/);
+  assert.match(html,/class="review-trend-dot hit"[^>]+r="5.5"\s+data-review-row="a9" data-trend-readout="2026-11-08《a9》阅读 1\.0 万 · 点击率 10\.0% · 爆"/);
+  assert.match(html,/data-trend-readout-target data-default="最高：2026-11-08《a9》/);
+  const young=renderReviewTrends(data([row('y','2026-11-10T00:00:00Z')],[snap('y',50,{snapshot_date:'2026-11-10',age_hours:4})]),model);
+  assert.match(young,/没有可绘制的有效数据/);
+  const early=renderReviewTrends(data([row('e','2026-11-09T10:00:00Z')],[snap('e',50,{snapshot_date:'2026-11-10',age_hours:14})]),model);
+  assert.match(early,/class="review-trend-dot [a-z]+ provisional"/);assert.match(early,/空心点 1 篇只有发布后不满 24 小时的数据/);
 });

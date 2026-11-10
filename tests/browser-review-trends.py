@@ -34,12 +34,12 @@ def assert_readable_trends(page, width, phase):
             return {text:text.textContent,fontSize:parseFloat(getComputedStyle(text).fontSize)*Math.hypot(matrix.c,matrix.d),
                 height:rect.height,left:rect.left,right:rect.right};
         });
-        const points=[...section.querySelectorAll('.review-trend-point')].map(point=>{
+        const points=[...section.querySelectorAll('.review-trend-dot')].map(point=>{
             const rect=point.getBoundingClientRect();return {width:rect.width,height:rect.height};
         });
         return {controls,labels,points,chart:{left:chart.left,right:chart.right}};
     }""")
-    assert len(geometry['controls'])==3,geometry
+    assert len(geometry['controls'])==1,geometry
     for control in geometry['controls']:
         assert control['width']>=140,(width,phase,'narrow trend control',control)
         assert control['fontSize']>=14,(width,phase,'small control text',control)
@@ -69,17 +69,28 @@ with sync_playwright() as p:
         try:
             page.goto(URL)
             expect(page.locator('.review-trends')).to_be_visible(timeout=20000)
-            expect(page.locator('[data-review-trend="range"]')).to_have_value('7d')
-            expect(page.locator('.review-trend-stat').nth(1).locator('strong')).to_have_text('—')
-            expect(page.locator('.review-trend-warning')).to_contain_text('未满24h暂定 1 篇')
-            assert_readable_trends(page,width,'default7')
+            expect(page.locator('[data-review-trend="range"]')).to_have_value('30d')
+            expect(page.locator('.review-trend-stat')).to_have_count(4)
+            expect(page.locator('.review-trend-stat').nth(0).locator('strong')).to_have_text('10')
+            expect(page.locator('.review-trend-note')).to_contain_text('空心点 1 篇')
+            expect(page.locator('.review-trend-chart svg')).to_have_count(2)
+            assert_readable_trends(page,width,'default30')
+            resting=page.locator('[data-trend-readout-target]').first.inner_text()
+            assert resting.startswith('最高：'),resting
+            if width==1440:
+                page.locator('.review-trend-dot').first.hover()
+                expect(page.locator('[data-trend-readout-target]').first).not_to_have_text(resting)
+                page.mouse.move(2,2)
+                expect(page.locator('[data-trend-readout-target]').first).to_have_text(resting)
             screenshot=OUT/f'trends-{width}.png'
             page.locator('.review-secondary').screenshot(path=str(screenshot))
             report['screenshots'].append(str(screenshot.relative_to(ROOT)))
-            page.select_option('[data-review-trend="range"]','30d')
-            assert_readable_trends(page,width,'30d')
             page.locator('.review-trend-details summary').click()
             expect(page.locator('.review-trend-table tbody tr')).to_have_count(30)
+            page.select_option('[data-review-trend="range"]','7d')
+            assert_readable_trends(page,width,'7d')
+            page.locator('.review-trend-details summary').click()
+            expect(page.locator('.review-trend-table tbody tr')).to_have_count(7)
             page.select_option('[data-review-trend="range"]','custom')
             page.locator('[data-review-trend="from"]').fill('2026-11-06')
             page.locator('[data-review-trend="from"]').dispatch_event('change')
@@ -87,13 +98,10 @@ with sync_playwright() as p:
             page.locator('[data-review-trend="to"]').dispatch_event('change')
             page.locator('.review-trend-details summary').click()
             expect(page.locator('.review-trend-table tbody tr')).to_have_count(3)
-            page.select_option('[data-review-trend="metric"]','average_ctr')
-            expect(page.locator('.review-trend-chart svg')).to_have_attribute('aria-label',__import__('re').compile('平均点击率'))
-            assert_readable_trends(page,width,'custom-ctr')
+            assert_readable_trends(page,width,'custom')
             page.reload()
             expect(page.locator('[data-review-trend="range"]')).to_have_value('custom',timeout=20000)
             expect(page.locator('[data-review-trend="from"]')).to_have_value('2026-11-06')
-            expect(page.locator('[data-review-trend="metric"]')).to_have_value('average_ctr')
             page.locator('[data-review-secondary="review"]').click()
             expect(page.locator('.review-trends')).to_have_count(0)
             page.locator('[data-review-secondary="trends"]').click()
@@ -107,9 +115,10 @@ with sync_playwright() as p:
             page.locator('[data-review-trend="from"]').dispatch_event('change')
             expect(page.locator('.review-trends [role="alert"]')).to_contain_text('结束日期不能早于')
             page.select_option('[data-review-trend="range"]','7d')
-            page.select_option('.review-trends [data-review-filter="verdict"]','爆')
-            expect(page.locator('.review-trends .review-note').filter(has_text='有发布时间记录')).to_contain_text('6 篇')
-            page.select_option('.review-trends [data-review-filter="verdict"]','')
+            page.locator('.review-trend-dot').first.click()
+            expect(page.locator('#content-review [role="dialog"]')).to_be_visible()
+            page.keyboard.press('Escape')
+            expect(page.locator('#content-review [role="dialog"]')).to_have_count(0)
             if width==1440:
                 blocked=[]
                 def fail_articles(route):
@@ -128,7 +137,7 @@ with sync_playwright() as p:
             expect(page.locator('.review-trends')).to_be_visible(timeout=20000)
             page.go_forward()
             expect(page.locator('[data-review-secondary="review"]')).to_have_attribute('aria-selected','true')
-            report['checks'].append({'width':width,'status':'passed','flows':['default7','30d','custom','metric','refresh','tabs','keyboard','invalid-range','verdict','back-forward','no-overflow','control-label-width','chart-text-size','chart-point-size']})
+            report['checks'].append({'width':width,'status':'passed','flows':['default30','7d','custom','hover-readout','open-article','refresh','tabs','keyboard','invalid-range','back-forward','no-overflow','control-label-width','chart-text-size','chart-point-size']})
         except Exception as error:
             report['status']='failed'
             report['failure']={'width':width,'url':page.url,'error':str(error),'text':page.locator('body').inner_text()}
