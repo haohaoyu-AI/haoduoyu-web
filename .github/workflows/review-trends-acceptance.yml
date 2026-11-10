@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       BASE_COMMIT: c46884162d55fe5c1ad244353e204345260846dd
-      CANDIDATE_TREE: 6a5c2cdd6cbbd3e1a864e62e82b14eea5190ae0c
+      CANDIDATE_TREE: 3d3dbf16db1cbddeb7a5dbc5debf9075ea982101
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -41,7 +41,7 @@ jobs:
               'web/core/review-trends.mjs': '5e23b3b2450237aab046be0367e441a373493246',
               'web/pages/review-trends.mjs': '37076598d92a8d46c7941422bd30849007fcdb4d',
               'tests/review-trends-browser-server.mjs': 'c918607d46d2f07c37546aa70fd37e07b599c7ff',
-              'tests/browser-review-trends.py': 'f961fb5e57d1b8521057179d26d5da416e83eff1',
+              'tests/browser-review-trends.py': '7f6e09ef4f501907747af0260b3c9b9f316ffe8c',
           }
           for path, sha in entries.items():
               url = f'https://api.github.com/repos/haohaoyu-AI/haoduoyu-web/git/blobs/{sha}'
@@ -83,46 +83,48 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts/data-trends
-          node tests/review-trends-browser-server.mjs > artifacts/data-trends/browser-server.log 2>&1 &
-          SERVER_PID=$!
-          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
-          READY=false
-          for attempt in $(seq 1 60); do
-            if ! kill -0 "$SERVER_PID" 2>/dev/null; then cat artifacts/data-trends/browser-server.log; exit 1; fi
-            if grep -q '^SYNTHETIC_TRENDS_READY ' artifacts/data-trends/browser-server.log; then READY=true; break; fi
-            sleep 1
-          done
-          "$READY" || { cat artifacts/data-trends/browser-server.log; exit 1; }
-          curl --fail --silent http://127.0.0.1:8921/ > /dev/null
-          "$RUNNER_TEMP/trends-browser-venv/bin/python" - <<'PY'
+          trap 'kill "${SERVER_PID:-}" 2>/dev/null || true' EXIT
+          for WIDTH in 1440 390 375; do
+            LOG="artifacts/data-trends/browser-server-${WIDTH}.log"
+            node tests/review-trends-browser-server.mjs > "$LOG" 2>&1 &
+            SERVER_PID=$!
+            READY=false
+            for attempt in $(seq 1 60); do
+              if ! kill -0 "$SERVER_PID" 2>/dev/null; then cat "$LOG"; exit 1; fi
+              if grep -q '^SYNTHETIC_TRENDS_READY ' "$LOG"; then READY=true; break; fi
+              sleep 1
+            done
+            "$READY" || { cat "$LOG"; exit 1; }
+            curl --fail --silent http://127.0.0.1:8921/ > /dev/null
+            TRENDS_BROWSER_WIDTH="$WIDTH" "$RUNNER_TEMP/trends-browser-venv/bin/python" - <<'PY_BROWSER'
           from pathlib import Path
           test = Path('tests/browser-review-trends.py').resolve()
           source = test.read_text()
-          # The runner uses Playwright's pinned Chromium instead of a distro path.
-          # Keep the candidate file and every test assertion unchanged on disk.
+          # Use the official pinned Playwright browser, preserving every assertion.
           launch_path = "executable_path='/usr/bin/chromium',"
           assert source.count(launch_path) == 1
           source = source.replace(launch_path, '')
-          initial = "        expect(page.locator('.review-trends')).to_be_visible(timeout=20000)"
-          diagnostic = '\n'.join([
-              '        try:', '    ' + initial,
-              '        except Exception:',
-              "            page.screenshot(path=str(OUT/f'trends-initial-error-{width}.png'),full_page=True)",
-              "            print('SYNTHETIC_PAGE_URL',page.url)",
-              "            print('SYNTHETIC_PAGE_TEXT',page.locator('body').inner_text())",
-              "            print('SYNTHETIC_PAGE_ERRORS',report['page_errors'])",
-              '            raise',
-              '        page.wait_for_timeout(1000)',
-              "        page.screenshot(path=str(OUT/f'trends-probe-{width}.png'),full_page=True)",
-              "        print('SYNTHETIC_VISIBLE_URL',page.url)",
-              "        print('SYNTHETIC_VISIBLE_CLOCK',page.evaluate('new Date().toISOString()'))",
-              "        print('SYNTHETIC_VISIBLE_TEXT',page.locator('body').inner_text())",
-              "        print('SYNTHETIC_VISIBLE_ERRORS',report['page_errors'])",
-          ])
-          assert initial in source
-          source = source.replace(initial, diagnostic, 1)
           exec(compile(source, str(test), 'exec'), {'__file__': str(test), '__name__': '__main__'})
-          PY
+          PY_BROWSER
+            mv artifacts/data-trends/browser-report.json "artifacts/data-trends/browser-report-${WIDTH}.json"
+            kill "$SERVER_PID"
+            wait "$SERVER_PID" || true
+            SERVER_PID=''
+          done
+          python3 - <<'PY_REPORT'
+          import json
+          from pathlib import Path
+          out = Path('artifacts/data-trends')
+          reports = [json.loads((out/f'browser-report-{width}.json').read_text()) for width in [1440,390,375]]
+          assert all(report['status'] == 'passed' for report in reports)
+          result = {'synthetic': True, 'status': 'passed', 'isolated_runtime_per_viewport': True,
+                    'service_workers': reports[0]['service_workers']}
+          for key in ['checks','screenshots','writes','page_errors','http_errors']:
+              result[key] = [item for report in reports for item in report[key]]
+          assert [check['width'] for check in result['checks']] == [1440,390,375]
+          (out/'browser-report.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(result,ensure_ascii=False,indent=2))
+          PY_REPORT
       - name: Save synthetic screenshots and test reports only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -132,6 +134,6 @@ jobs:
           if-no-files-found: warn
           path: |
             artifacts/data-trends/trends-*.png
-            artifacts/data-trends/browser-report.json
-            artifacts/data-trends/browser-server.log
+            artifacts/data-trends/browser-report*.json
+            artifacts/data-trends/browser-server*.log
             artifacts/data-trends/inputs-expected-actual.json
