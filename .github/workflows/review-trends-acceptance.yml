@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       BASE_COMMIT: c46884162d55fe5c1ad244353e204345260846dd
-      CANDIDATE_TREE: ec6e083eb75bb026536de9e506a61291ecf48781
+      CANDIDATE_TREE: b369353b7932880d80bae5b28e1a880b34929f0c
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -38,7 +38,7 @@ jobs:
               'public/review.css': '07a86f64243e2d83434482e95228a59b30287995',
               'public/sw.js': 'abaad32f25790c0ed6bf524fa590616151933688',
               'shared/review-analytics.mjs': 'faf7fb6b0e744048fa68fdcbcfc7574139ddeb22',
-              'tests/browser-review-trends.py': '9f6c31d1a109d6cc8dd4c08a866c0a5b46a78e7a',
+              'tests/browser-review-trends.py': 'f99e80ca73bf5bf6ff15fd9a4f0a31ed28136a66',
               'tests/review-trends-browser-server.mjs': 'c918607d46d2f07c37546aa70fd37e07b599c7ff',
               'tests/review-trends.test.mjs': 'de3a5c9e11a2ff81a5e9751a808b20f6519caaa0',
               'web/core/review-trends.mjs': '5e23b3b2450237aab046be0367e441a373493246',
