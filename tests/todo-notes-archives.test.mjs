@@ -38,7 +38,7 @@ test('notes and archived templates preserve history, protect versions, and appea
   assert.equal(snapshot.status,200);
   assert.equal((await req('/todos','POST',{id:randomUUID(),date:'2026-11-06',text:template.text,template_id:template.id})).status,404);
   const backup=await exportBackup(app.db);
-  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v16');
+  assert.equal(backup.data.format,'haoduoyu-matrix-d1-v17');
   assert.equal(backup.data.tables.todos[0].note,'未完成：等待回复');
   assert.ok(backup.data.tables.todo_templates[0].archived_at);
   const target=await fixture(t,{bootstrap:false});

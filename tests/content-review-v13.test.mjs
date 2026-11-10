@@ -143,7 +143,7 @@ test('active manual shows all grouped rules without status controls and with com
   assert.equal((html.match(/class="review-v13-rule-row"/g)||[]).length,31);
   assert.match(html,/ACTIVE_RULE_1/);
   assert.match(html,/ACTIVE_RULE_2/);
-  assert.match(html,/ACTIVE_RULE_1 [^<]*\n[^<]*\n[^<]*/);
+  assert.match(html,/ACTIVE_RULE_1 [^<]*<\/p><p>[^<]*<\/p><p>[^<]*/);
   assert.doesNotMatch(html,/DRAFT_V2_SECRET|DRAFT_V3_SECRET|DRAFT_RULE|FOREIGN_BOOK|LATER_SECTION_MUST_HIDE|review-v13-status|review-v13-expand|data-review-filter="status"/);
 });
 
