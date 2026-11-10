@@ -50,7 +50,15 @@ export const claudeRobotsRelease=Object.freeze({
   baseline:'a9dde039-ee54-4b54-9eb6-495cdcee3956',
   bytes:2844394,sha256:'76650eec2aa59bc5ab5d4ccb7d5c1681718859b4b8118d02886abafa790e10b4',
   label:'production-claude-public-robots-20261110'});
-const acceptedRelease=commit=>commit===claudeRobotsRelease.commit?claudeRobotsRelease:
+// Exact PR46 presentation-only source; inherits existing production bindings and guards.
+export const claudeTrendsRelease=Object.freeze({
+  commit:'e993885c752e97532214ef14a2fcf32b324bc08c',
+  tree:'c1cde2cf59de1dddc28cc9e5a3401b72bea2871f',
+  baseline:'c0b4f9c0-810f-45dd-ab1b-17ca3a54f750',
+  bytes:2852117,sha256:'e2d26a1967a346c9a6d78f088945467359fee3dddede6f48027a307470de2651',
+  label:'production-claude-review-trends-20261111'});
+const acceptedRelease=commit=>commit===claudeTrendsRelease.commit?claudeTrendsRelease:
+  commit===claudeRobotsRelease.commit?claudeRobotsRelease:
   commit===dataTrendsRelease.commit?dataTrendsRelease:
   commit===openaiReviewRelease.commit?openaiReviewRelease:
   commit===productionRestore.commit?productionRestore:
