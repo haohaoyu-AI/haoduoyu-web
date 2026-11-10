@@ -70,13 +70,13 @@ export function reviewTrends(data = {}, options = {}) {
     // Age is recorded as whole hours; allow rounding, never a future observation.
     return published === null || hours === null || hours <= (nowMs - published) / 3600000 + 1;
   });
-  const rows = enrichArticles({...data,articles,snapshots},{account}).map(row => {
+  const rows = enrichArticles({...data,articles,snapshots},{account,baselineData:data}).map(row => {
     const published = stamp(row.published_at), age = number(row.sample24h?.age_hours);
     const elapsed = published === null ? null : (nowMs - published) / 3600000;
     return {...row,trend_provisional:elapsed !== null && elapsed < 24 || age !== null && age < 24,
       trend_unknown_age:published === null && age === null && day(row.published_at) >= shiftDay(bounds.today,-1)};
   });
-  // Compute empirical verdict thresholds across the account before date/verdict filtering.
+  // Counts exclude ineligible records, but thresholds retain the list's complete account baseline.
   const selected = rows.filter(row => day(row.published_at) >= bounds.start && day(row.published_at) <= bounds.end &&
     (!verdict || row.verdict === verdict));
   const series = Array.from({length:bounds.days},(_,index) => {

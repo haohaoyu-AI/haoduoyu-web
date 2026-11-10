@@ -63,15 +63,23 @@ function cards(summary) {
       <small>${note}</small></article>`;
   }).join('')}</div>`;
 }
+function publicationNote(summary) {
+  if (summary.unverified_count) return `发布状态待核实 ${summary.unverified_count} 篇，明确已发布 ${summary.confirmed_count} 篇；
+    “已发布篇数”留空，不能把日期记录视为已发布。`;
+  if (summary.record_count) return `纳入统计的 ${summary.record_count} 篇均有明确已发布状态，“已发布篇数”为 ${summary.published_count}。`;
+  return '当前筛选范围没有纳入统计的发布时间记录，“已发布篇数”为 0；仅表示此记录集合，不代表平台完整发布总数。';
+}
 function method(result) {
   const s=result.summary,dates=s.snapshot_start?`${s.snapshot_start}${s.snapshot_end!==s.snapshot_start?' 至 '+s.snapshot_end:''}`:'未取得';
   const ages=s.min_hours!==null?`所用快照年龄 ${s.min_hours}–${s.max_hours} 小时。`:'';
   return `<details class="review-trend-method"><summary>统计口径与数据时间</summary>
     <p>沿用本站口径：每篇选择已记录年龄 12–72 小时内最接近 24 小时的快照；不拿长尾累计数补缺。
-    同一快照分别计算各项有效样本；点击率、完成率和阅读时长是文章样本的算术平均，非平台加权总指标。</p>
+    同一快照分别计算各项有效样本；点击率、完成率和阅读时长是文章样本的算术平均，非平台加权总指标。
+    趋势剔除未来、早于发布时间及观察年龄矛盾的快照；列表原始快照异常时，两处所用样本可能不同。</p>
     <p>爆款沿用账号最近 30 篇有效阅读样本：至少 10 篇时高于 80% 分位数判爆；不足 10 篇时暂用阅读 ≥ 1000。
     爆款率分母为可判定篇数。可判定 ${s.coverage.hits} 篇，未判定 ${s.unjudged_count} 篇；
     其中暂定判定 ${s.provisional_judged_count} 篇，固定阈值暂定 ${s.fixed_threshold_count} 篇。没有可判定样本时爆款数留空。
+    判定基线与文章列表一致，使用完整账号资料；下述排除项不计入趋势篇数，但不单独重算账号阈值。
     账号和表现判定筛选与文章列表一致，趋势日期单独选择。</p>
     <p>所用快照日期：${dates}。源数据仅提供日期，不能当成精确采集时刻。${ages}
     资料读取时间：${e(reviewDateTime(result.loaded_at)||'未记录')}。
@@ -114,8 +122,8 @@ export function renderReviewTrends(data,vm) {
     成熟度待核实 ${s.unknown_age_count} 篇。后续快照可能改变均值和判定。</p>`:'';
   return `<section class="review-trends" aria-label="数据趋势"><div class="review-panel-head"><h2>数据趋势</h2>
     <span class="review-note">${e(vm.account)} · ${result.start} 至 ${result.end} · 北京时间</span></div>${filters}${cards(s)}${todayNote}
-    <p class="review-note">有发布时间记录 ${s.record_count} 篇。复盘库未提供独立发布状态时，“已发布篇数”留空，
-    不能把日期记录视为已发布。明确草稿、排期、失败及未来发布时间不计入。</p>${warning}${chart(result.series,key)}
+    <p class="review-note">有发布时间记录 ${s.record_count} 篇。${publicationNote(s)}
+    明确草稿、排期、失败及未来发布时间不计入趋势。</p>${warning}${chart(result.series,key)}
     <p class="review-note">按发布日期分组，非每日新增阅读。平均阅读 = 有效阅读之和 ÷ 有效阅读样本数；
     真实 0 保留，缺失留空并断线。橙色点表示暂定或成熟度待核实。</p>${method(result)}${dailyTable(result,key)}</section>`;
 }

@@ -5,6 +5,7 @@ import {reviewTrends,trendBounds} from '../web/core/review-trends.mjs';
 import {renderContentReviewContent} from '../web/pages/content-review.mjs';
 import {renderReviewTrends} from '../web/pages/review-trends.mjs';
 import {reviewRoute} from '../web/review-controller.mjs';
+import {enrichArticles} from '../shared/review-analytics.mjs';
 
 const now='2026-11-10T04:00:00Z',account='V字';
 const row=(id,published_at='2026-11-07',extra={})=>({id,account,title:id,published_at,...extra});
@@ -57,17 +58,65 @@ test('under24 samples and young publications are provisional; missing exact time
   assert.equal(result.rows.find(row=>row.id==='young').sample24h,null,'impossible future observation is not counted');
   assert.equal(result.summary.hits,1);assert.equal(result.summary.fixed_threshold_count,1);
 });
-test('verdict baseline uses whole eligible account before date and shared verdict filtering',()=>{
+test('verdict baseline uses whole account before date and shared verdict filtering',()=>{
   const articles=Array.from({length:10},(_,i)=>row('a'+i,`2026-11-${String(i+1).padStart(2,'0')}`));
   const snapshots=articles.map((a,i)=>snap(a.id,i*100,{snapshot_date:'2026-11-10'}));
   const result=build(data(articles,snapshots),{verdict:'爆'});
   assert.equal(result.summary.record_count,2);assert.equal(result.summary.hits,2);
   assert.equal(result.rows[0].verdict_basis.sample_count,10);assert.equal(result.summary.fixed_threshold_count,0);
 });
+test('future, undated and explicitly unpublished rows do not change the list baseline when excluded from trends',()=>{
+  for(const excluded of [row('excluded','2026-11-11'),row('excluded',null),row('excluded','2026-11-07',{status:'draft_saved'})]) {
+    const articles=Array.from({length:9},(_,i)=>row('a'+i));
+    const snapshots=articles.map((a,i)=>snap(a.id,(i+1)*100));
+    const snapshot_date=excluded.published_at==='2026-11-11'?'2026-11-12':'2026-11-08';
+    const source=data([...articles,excluded],[...snapshots,snap(excluded.id,1000,{snapshot_date})]);
+    const list=enrichArticles(source,{account}),result=build(source);
+    assert.equal(result.summary.record_count,9);
+    for(const trend of result.rows) {
+      const original=list.find(item=>item.id===trend.id);
+      assert.equal(trend.verdict,original.verdict);
+      assert.deepEqual(trend.verdict_basis,original.verdict_basis);
+    }
+    assert.equal(result.rows.find(item=>item.id==='a8').verdict,'爆');
+    assert.equal(build(source,{verdict:'爆'}).summary.record_count,1);
+  }
+});
+test('recent30 sample identities match the list even when future records fill the baseline',()=>{
+  const articles=[row('target'),...Array.from({length:31},(_,i)=>row('f'+String(i).padStart(2,'0'),'2026-11-11'))];
+  const source=data(articles,articles.map((a,i)=>snap(a.id,i?10000+i:900,{snapshot_date:i?'2026-11-12':'2026-11-08'})));
+  const original=enrichArticles(source,{account}).find(item=>item.id==='target'),result=build(source);
+  assert.equal(result.summary.record_count,1);assert.equal(result.excluded.future,31);
+  assert.equal(result.rows[0].verdict,original.verdict);
+  assert.deepEqual(result.rows[0].verdict_basis,original.verdict_basis);
+  assert.equal(result.rows[0].verdict_basis.sample_count,30);
+});
+test('publication explanation follows unknown, confirmed and empty counts',()=>{
+  const unknown=renderReviewTrends(data([row('unknown')]),model);
+  assert.match(unknown,/“已发布篇数”留空/);
+  const confirmed=renderReviewTrends(data([row('confirmed','2026-11-07',{status:'published'})]),model);
+  assert.match(confirmed,/“已发布篇数”为 1/);assert.doesNotMatch(confirmed,/“已发布篇数”留空/);
+  const empty=renderReviewTrends(data(),model);
+  assert.match(empty,/“已发布篇数”为 0/);assert.doesNotMatch(empty,/“已发布篇数”留空/);
+  const filtered=renderReviewTrends(data([row('unknown')]),{...model,filters:{verdict:'爆'}});
+  assert.match(filtered,/“已发布篇数”为 0/);assert.doesNotMatch(filtered,/“已发布篇数”留空/);
+});
 test('future snapshots and snapshots predating publication do not contaminate values',()=>{
   const s=build(data([row('a')],[snap('a',99999,{id:'future',snapshot_date:'2026-11-11'}),
     snap('a',10000,{id:'before',snapshot_date:'2026-11-06'}),snap('a',0,{id:'valid'})])).summary;
   assert.equal(s.average_reads,0);assert.equal(s.coverage.average_reads,1);
+});
+test('invalid snapshot filtering changes only the trend sample, never the shared verdict thresholds',()=>{
+  const articles=Array.from({length:10},(_,i)=>row('a'+i));
+  const snapshots=articles.map((a,i)=>snap(a.id,(i+1)*100));
+  snapshots[9]=snap('a9',99999,{id:'future',snapshot_date:'2026-11-11'});
+  snapshots.push(snap('a9',0,{id:'valid',age_hours:25}));
+  const source=data(articles,snapshots),list=enrichArticles(source,{account}).find(item=>item.id==='a9');
+  const trend=build(source).rows.find(item=>item.id==='a9');
+  assert.equal(list.sample24h.id,'future');assert.equal(trend.sample24h.id,'valid');
+  assert.deepEqual(trend.verdict_basis,list.verdict_basis);
+  assert.equal(trend.reads_24h,0);assert.equal(trend.verdict,'扑');
+  assert.match(renderReviewTrends(source,model),/两处所用样本可能不同/);
 });
 test('navigation, empty data, accessible daily table, validation, account isolation and HTML escaping',()=>{
   const source=data([row('<script>')],[snap('<script>',100)]);
