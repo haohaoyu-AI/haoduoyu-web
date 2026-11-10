@@ -42,7 +42,16 @@ export const dataTrendsRelease=Object.freeze({
   baseline:'4d874ca9-ede5-4e03-a7e5-ef3c1bc0babd',
   bytes:2844076,sha256:'f6ca099166856484fcff442aa56b5904cebb76b323b10978b8f38bc50fa56325',
   label:'production-data-trends-20261110'});
-const acceptedRelease=commit=>commit===dataTrendsRelease.commit?dataTrendsRelease:
+// Robots-only patch on the exact current data-trends production source.
+// Runtime bindings, authentication, database and Cloudflare settings are unchanged.
+export const claudeRobotsRelease=Object.freeze({
+  commit:'52f5f32f29526b302e0f58bf3272f2d636f782a4',
+  tree:'1f6a81efb262487d0051258179e643ea1ebb6393',
+  baseline:'a9dde039-ee54-4b54-9eb6-495cdcee3956',
+  bytes:2844394,sha256:'76650eec2aa59bc5ab5d4ccb7d5c1681718859b4b8118d02886abafa790e10b4',
+  label:'production-claude-public-robots-20261110'});
+const acceptedRelease=commit=>commit===claudeRobotsRelease.commit?claudeRobotsRelease:
+  commit===dataTrendsRelease.commit?dataTrendsRelease:
   commit===openaiReviewRelease.commit?openaiReviewRelease:
   commit===productionRestore.commit?productionRestore:
   commit===previousProductionRelease.commit?previousProductionRelease:releases[commit];
