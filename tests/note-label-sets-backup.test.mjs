@@ -22,7 +22,7 @@ test('v12 backup restores new labels and v11 stays readable',async()=>{
  for(const tag of tags.slice(1))source.sql.prepare('INSERT INTO matrix_note_labels(user_id,name,created_at) VALUES(?,?,?)').run(user,tag,time);
  const labels=['生活','工作',...tags];
  source.sql.prepare('INSERT INTO matrix_note_entry_label_sets(user_id,entry_id,labels_json) VALUES(?,?,?)').run(user,entry,JSON.stringify(labels));
- const backup=await exportBackup(source.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v16');
+ const backup=await exportBackup(source.db);assert.equal(backup.data.format,'haoduoyu-matrix-d1-v17');
  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
  assert.deepEqual(JSON.parse(target.sql.prepare('SELECT labels_json FROM matrix_note_entry_label_sets').get().labels_json),labels);
  const old=structuredClone(backup);stripEmptyReviewTables(old.data);old.data.format='haoduoyu-matrix-d1-v11';delete old.data.tables.ai_reports;delete old.data.tables.note_entry_label_sets;delete old.data.tables.note_label_archives;old.sha256=digest(JSON.stringify(stable(old.data)));

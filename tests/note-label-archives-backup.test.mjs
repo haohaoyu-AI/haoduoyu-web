@@ -21,7 +21,7 @@ test('v13 preserves scoped archive state and v12 restores with no archives',asyn
  for(const [id,name] of [[user,'\u751f\u6d3b'],[user,'\u5de5\u4f5c'],[user,'custom'],[other,'other-label']])
   source.sql.prepare('INSERT INTO matrix_note_label_archives(user_id,name,archived_at) VALUES(?,?,?)').run(id,name,time);
  const backup=await exportBackup(source.db),scoped=await exportBackup(source.db,{todoUserId:user});
- assert.equal(backup.data.format,'haoduoyu-matrix-d1-v16');
+ assert.equal(backup.data.format,'haoduoyu-matrix-d1-v17');
  assert.deepEqual(scoped.data.tables.note_label_archives.map(row=>row.name),['\u751f\u6d3b','\u5de5\u4f5c','custom']);
  await restoreIntoEmptyDatabase(target.db,backup,{allowEmptyRestore:true});
  assert.deepEqual(target.sql.prepare('SELECT user_id,name,archived_at FROM matrix_note_label_archives ORDER BY rowid').all().map(row=>({...row})),backup.data.tables.note_label_archives.map(row=>({...row})));

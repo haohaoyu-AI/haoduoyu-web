@@ -104,7 +104,7 @@ function historical(input,version) {
 
 test('v7 round-trips all pipeline fields, raw JSON, NULL status and existing related data',async t=>{
   const source=await database(t),{owner,articles}=await seed(source),before=await exportBackup(source);
-  assert.equal(before.data.format,'haoduoyu-matrix-d1-v16');
+  assert.equal(before.data.format,'haoduoyu-matrix-d1-v17');
   assert.equal(Object.keys(before.data.tables.articles[0]).length,oldArticleFields.length+17);
   const scoped=await exportBackup(source,{todoUserId:owner});
   assert.equal(scoped.data.tables.daily_notes.length,1);

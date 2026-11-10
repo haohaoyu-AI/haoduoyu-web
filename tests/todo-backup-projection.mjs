@@ -7,9 +7,14 @@ import {ARTICLE_PIPELINE_FIELDS,LEGACY_ARTICLE_PIPELINE_DEFAULTS} from '../src/a
 // and the exact empty private tables on these historical paired fixtures.
 export function legacyBackupEnvelope(value) {
   const result=structuredClone(value),backup=result.data;
-  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14','haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16'].includes(backup?.data?.format)) return result;
+  if(!['haoduoyu-matrix-d1-v2','haoduoyu-matrix-d1-v3','haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14','haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16','haoduoyu-matrix-d1-v17'].includes(backup?.data?.format)) return result;
   const checksum=data=>createHash('sha256').update(JSON.stringify(stable(data))).digest('hex');
   assert.equal(backup.sha256,checksum(backup.data));
+  if(backup.data.format==='haoduoyu-matrix-d1-v17') {
+    assert.deepEqual(backup.data.tables.review_prompt_versions,[], 'legacy projection cannot hide prompt versions');
+    delete backup.data.tables.review_prompt_versions;
+    backup.data.format='haoduoyu-matrix-d1-v16';
+  }
   if(backup.data.format==='haoduoyu-matrix-d1-v16') {
     stripEmptyReviewTables(backup.data);
     backup.data.format='haoduoyu-matrix-d1-v15';

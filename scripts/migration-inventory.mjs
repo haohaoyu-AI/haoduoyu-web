@@ -16,12 +16,13 @@ const v12RestoredTables = Object.freeze([...v11RestoredTables, 'note_entry_label
 const v13RestoredTables = Object.freeze([...v12RestoredTables, 'note_label_archives']);
 const v14RestoredTables = Object.freeze([...v13RestoredTables, 'ai_reports']);
 const reviewRestoredTables = Object.freeze([...v14RestoredTables,'review_articles','review_snapshots','review_reports','review_playbooks','review_benchmark_accounts','review_benchmark_articles','review_notes','review_account_health']);
-export const restoredTables = Object.freeze([...reviewRestoredTables,'openai_review_config','openai_review_runs']);
+const v16RestoredTables = Object.freeze([...reviewRestoredTables,'openai_review_config','openai_review_runs']);
+export const restoredTables = Object.freeze([...v16RestoredTables,'review_prompt_versions']);
 export const resetTables = Object.freeze(['sessions', 'login_attempts', 'control']);
 const tableSets = new Map([['haoduoyu-matrix-d1-v6', v6RestoredTables], ['haoduoyu-matrix-d1-v7', v7RestoredTables],
   ['haoduoyu-matrix-d1-v8', v8RestoredTables], ['haoduoyu-matrix-d1-v9', v9RestoredTables],
   ['haoduoyu-matrix-d1-v10', v10RestoredTables], ['haoduoyu-matrix-d1-v11', v11RestoredTables],
-  ['haoduoyu-matrix-d1-v12', v12RestoredTables], ['haoduoyu-matrix-d1-v13', v13RestoredTables], ['haoduoyu-matrix-d1-v14', v14RestoredTables], ['haoduoyu-matrix-d1-v15', v14RestoredTables], ['haoduoyu-matrix-d1-v16', restoredTables]]);
+  ['haoduoyu-matrix-d1-v12', v12RestoredTables], ['haoduoyu-matrix-d1-v13', v13RestoredTables], ['haoduoyu-matrix-d1-v14', v14RestoredTables], ['haoduoyu-matrix-d1-v15', v14RestoredTables], ['haoduoyu-matrix-d1-v16', v16RestoredTables], ['haoduoyu-matrix-d1-v17', restoredTables]]);
 const checksum = rows => digest(JSON.stringify(rows.map(row => JSON.stringify(stable(row))).sort()));
 const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 
@@ -30,7 +31,8 @@ const fail = () => {throw new Error('MIGRATION_INVENTORY_MISMATCH');};
 export async function createSourceInventory(db) {
   return consistentRead(db, async (store, sourceRevision) => {
     const schema = (await db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'matrix_%'").all()).results;
-    const restored = schema.some(row => row.name === 'matrix_openai_review_runs') ? restoredTables :
+    const restored = schema.some(row => row.name === 'matrix_review_prompt_versions') ? restoredTables :
+      schema.some(row => row.name === 'matrix_openai_review_runs') ? v16RestoredTables :
       schema.some(row => row.name === 'matrix_review_notes') ? reviewRestoredTables :
       schema.some(row => row.name === 'matrix_ai_reports') ? v14RestoredTables :
       schema.some(row => row.name === 'matrix_note_label_archives') ? v13RestoredTables :

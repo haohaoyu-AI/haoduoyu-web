@@ -225,9 +225,11 @@ const reviewColumns={
     "provider_calls"
   ]
 };
-const columns={...v15Columns,...reviewColumns};
+const v16Columns={...v15Columns,...reviewColumns};
+const promptColumns={review_prompt_versions:['user_id','id','prompt_key','scope','version','status','title','content_md','changelog_md','created_at','updated_at']};
+const columns={...v16Columns,...promptColumns};
 const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','daily_work_notes','memo_groups','memo_notes',
-  'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports',...Object.keys(reviewColumns)]);
+  'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports',...Object.keys(reviewColumns),...Object.keys(promptColumns)]);
 const backupTable=name=>privateTables.has(name)||name==='account_profiles'?'matrix_'+name:name;
 const v4Columns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>name!=='daily_notes'));
 const legacyColumns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>!privateTables.has(name)));
@@ -239,7 +241,7 @@ const versionColumns=new Map([
   ['haoduoyu-matrix-d1-v1',legacyColumns],['haoduoyu-matrix-d1-v2',v2Columns],
   ['haoduoyu-matrix-d1-v3',v3Columns],['haoduoyu-matrix-d1-v4',v4Columns],
   ['haoduoyu-matrix-d1-v5',v5Columns],['haoduoyu-matrix-d1-v6',v6Columns],['haoduoyu-matrix-d1-v7',v7Columns],['haoduoyu-matrix-d1-v8',v8Columns],
-  ['haoduoyu-matrix-d1-v9',v9Columns],['haoduoyu-matrix-d1-v10',v10Columns],['haoduoyu-matrix-d1-v11',v11Columns],['haoduoyu-matrix-d1-v12',v12Columns],['haoduoyu-matrix-d1-v13',v13Columns],['haoduoyu-matrix-d1-v14',v14Columns],['haoduoyu-matrix-d1-v15',v15Columns],['haoduoyu-matrix-d1-v16',columns],
+  ['haoduoyu-matrix-d1-v9',v9Columns],['haoduoyu-matrix-d1-v10',v10Columns],['haoduoyu-matrix-d1-v11',v11Columns],['haoduoyu-matrix-d1-v12',v12Columns],['haoduoyu-matrix-d1-v13',v13Columns],['haoduoyu-matrix-d1-v14',v14Columns],['haoduoyu-matrix-d1-v15',v15Columns],['haoduoyu-matrix-d1-v16',v16Columns],['haoduoyu-matrix-d1-v17',columns],
 ]);
 function validateMemos(tables,sourceRevision) {
   const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
@@ -369,6 +371,26 @@ function validateNewWorkbench(tables) {
     sets.add(key);
   }
 }
+function validateReviewPrompts(tables) {
+  const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
+  const users=new Set(tables.users.map(row=>row.id)),ids=new Set(),versions=new Set(),active=new Set();
+  const text=(value,max,required=false)=>typeof value==='string'&&value.isWellFormed()&&
+    !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)&&Buffer.byteLength(value,'utf8')<=max&&(!required||!!value.trim());
+  const stamp=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)&&
+    Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
+  for(const row of tables.review_prompt_versions) {
+    const id=JSON.stringify([row.user_id,row.id]),key=JSON.stringify([row.user_id,row.prompt_key,row.scope]);
+    const version=JSON.stringify([row.user_id,row.prompt_key,row.scope,row.version]);
+    if(!uuid.test(row.user_id)||!uuid.test(row.id)||!users.has(row.user_id)||ids.has(id)||versions.has(version)||
+      typeof row.prompt_key!=='string'||row.prompt_key.length>64||!/^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/.test(row.prompt_key)||
+      !['global','toutiao','vzi','yujian','wechat'].includes(row.scope)||!Number.isSafeInteger(row.version)||row.version<1||
+      !['draft','active','archived'].includes(row.status)||row.status==='active'&&active.has(key)||
+      !text(row.title,500,true)||!text(row.content_md,131072,true)||!text(row.changelog_md,131072)||
+      !stamp(row.created_at)||!stamp(row.updated_at)||row.updated_at<row.created_at)
+      throw fail(400,'INVALID_BACKUP','复盘提示词版本字段、归属或唯一性无效');
+    ids.add(id);versions.add(version);if(row.status==='active')active.add(key);
+  }
+}
 export async function exportBackup(db,{todoUserId}={}) {
   const data=await consistentRead(db,async(store,sourceRevision)=>{
     const tables={};
@@ -377,7 +399,7 @@ export async function exportBackup(db,{todoUserId}={}) {
       tables[name]=await store.all(`SELECT ${fields.join(',')} FROM ${backupTable(name)}${scoped?' WHERE user_id=?':''} ORDER BY rowid`,
         ...(scoped?[todoUserId]:[]));
     }
-    return {format:'haoduoyu-matrix-d1-v16',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
+    return {format:'haoduoyu-matrix-d1-v17',source_revision:sourceRevision,exported_at:new Date().toISOString(),tables};
   });
   return {data,sha256:digest(JSON.stringify(stable(data)))};
 }
@@ -389,14 +411,14 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   const hasSourceRevision=['haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
   const hasTodoTombstones=['haoduoyu-matrix-d1-v4','haoduoyu-matrix-d1-v5','haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
   const hasPipeline=['haoduoyu-matrix-d1-v6','haoduoyu-matrix-d1-v7','haoduoyu-matrix-d1-v8','haoduoyu-matrix-d1-v9','haoduoyu-matrix-d1-v10','haoduoyu-matrix-d1-v11','haoduoyu-matrix-d1-v12','haoduoyu-matrix-d1-v13','haoduoyu-matrix-d1-v14'].includes(backup.data.format);
-  const currentFormat=['haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16'].includes(backup.data.format);
+  const currentFormat=['haoduoyu-matrix-d1-v15','haoduoyu-matrix-d1-v16','haoduoyu-matrix-d1-v17'].includes(backup.data.format);
   const sourceRevision=(hasSourceRevision||currentFormat)?backup.data.source_revision:0;
   if((hasSourceRevision||currentFormat)&&(!Number.isSafeInteger(sourceRevision)||sourceRevision<0||sourceRevision>Number.MAX_SAFE_INTEGER-2))
     throw fail(400,'INVALID_BACKUP','备份修订号无效');
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
   const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],daily_work_notes:[],memo_groups:[],memo_notes:[],
-    note_entries:[],work_reminders:[],account_profiles:[],unscheduled_todos:[],note_labels:[],note_entry_labels:[],note_entry_label_overrides:[],note_entry_label_sets:[],note_label_archives:[],ai_reports:[],...Object.fromEntries(Object.keys(reviewColumns).map(name=>[name,[]])),...supplied};
+    note_entries:[],work_reminders:[],account_profiles:[],unscheduled_todos:[],note_labels:[],note_entry_labels:[],note_entry_label_overrides:[],note_entry_label_sets:[],note_label_archives:[],ai_reports:[],...Object.fromEntries(Object.keys(reviewColumns).map(name=>[name,[]])),review_prompt_versions:[],...supplied};
   for(const [name,fields] of Object.entries(expected)) {
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {
@@ -414,6 +436,7 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   validateMemos(tables,sourceRevision);
   validateWorkbench(tables,sourceRevision);
   validateNewWorkbench(tables);
+  validateReviewPrompts(tables);
   const reportIds=new Set(),reportUsers=new Set(tables.users.map(row=>row.id));
   for(const row of tables.ai_reports) {
     const key=JSON.stringify([row.user_id,row.id]);
