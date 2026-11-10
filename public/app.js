@@ -7183,7 +7183,7 @@ ${Object.entries(statusLabels).map(([key2, label3]) => `<option value="${e(key2)
 </select></label>`;
 }
 function filterChips(f) {
-  const labels2 = {
+  const labels3 = {
     platform: "平台",
     data_status: "数据状态",
     from: "发布自",
@@ -7207,7 +7207,7 @@ function filterChips(f) {
     has_pending_verify: boolChoices,
     ...articleChoices
   };
-  const chips = [["account", "账号", state.account ? accountName(state.account) : ""], ...Object.entries(labels2).map(([key2, label3]) => [key2, label3, choices[key2]?.[f[key2]] || f[key2]])].filter(([, , value]) => value);
+  const chips = [["account", "账号", state.account ? accountName(state.account) : ""], ...Object.entries(labels3).map(([key2, label3]) => [key2, label3, choices[key2]?.[f[key2]] || f[key2]])].filter(([, , value]) => value);
   if (!chips.length) return "";
   return `<div class="selected-filters" aria-label="已选条件">${chips.map(([key2, label3, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key2)}"
 aria-label="移除${e(label3)}：${e(value)}">${e(label3)}：${e(value)} ×</button>`).join("")}
@@ -7669,7 +7669,7 @@ function renderKeys(keys) {
   }).join("")}</tbody></table></div>` : empty("暂无凭证", "供自动化工具按账号范围读取或录入数据。")}</section>`;
 }
 function auditLabel(action) {
-  const labels2 = [
+  const labels3 = [
     ["合并存稿", "PATCH /articles"],
     ["新增文章", "article.create", "POST /articles"],
     ["修改文章", "article.update", "PUT /articles/:id"],
@@ -7703,7 +7703,7 @@ function auditLabel(action) {
     ["初始化网站", "auth.bootstrap"]
   ];
   const route2 = String(action || "").replace(/^(PUT|DELETE) \/(articles|accounts|api-keys)\/[^/]+$/, "$1 /$2/:id");
-  return labels2.find((row) => row.includes(route2))?.[0] || route2 || "未知操作";
+  return labels3.find((row) => row.includes(route2))?.[0] || route2 || "未知操作";
 }
 function renderSecurity() {
   return `<section class="card panel security-panel"><h2>登录与安全</h2><p class="muted security-context">当前登录：${e(state.me.username)}</p><form id="password-form"><div class="form-field"><label for="current-password">当前密码</label><input class="input" type="password" id="current-password" name="currentPassword" autocomplete="current-password" required></div><div class="form-field field-spaced"><label for="new-password">新密码</label><input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password" minlength="12" required><span class="hint">至少 12 位</span></div><div class="form-field field-spaced"><label for="confirm-password">再次输入新密码</label><input class="input" type="password" id="confirm-password" name="confirmPassword" autocomplete="new-password" minlength="12" required></div><p class="form-message" role="alert"></p><div class="form-actions"><button class="btn primary" type="submit">更新密码</button></div></form><div class="detail-section"><h3>数据导出</h3><a class="btn" href="/api/v1/export" download>${icon("download", 14)}导出发布记录 CSV</a></div></section>`;
@@ -9227,8 +9227,8 @@ var savedText = (item) => item.localBacked ? item.durableText : item.serverText;
 var savedPhase = (item) => item.localBacked ? item.localQueued ? "queued" : "cached" : item.version ? "saved" : "empty";
 var labelsOf = (value) => Array.isArray(value?.labels) ? value.labels : value?.label ? [value.label] : [];
 var equalLabels = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
-var validLabels = (labels2) => Array.isArray(labels2) && labels2.every(validNoteLabel) && new Set(labels2).size === labels2.length;
-var validLegacyLabels = (labels2, category) => validLabels(labels2) && (category === "life" || labels2.length === 0) && labels2.every(validCustomNoteLabel);
+var validLabels = (labels3) => Array.isArray(labels3) && labels3.every(validNoteLabel) && new Set(labels3).size === labels3.length;
+var validLegacyLabels = (labels3, category) => validLabels(labels3) && (category === "life" || labels3.length === 0) && labels3.every(validCustomNoteLabel);
 var localFailure = (error) => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || "");
 function validNoteLabel(value) {
   return typeof value === "string" && value.isWellFormed() && value === value.trim().normalize("NFC") && [...value].length >= 1 && [...value].length <= 32 && !/[\u0000-\u001f\u007f]/.test(value);
@@ -9551,16 +9551,16 @@ function createEntryReadingActions(context) {
 function createEntryEditingActions(context) {
   const { page, entry, entries, emit, stopTimer, schedule, makeEntry } = context;
   const { uuid: uuid5 } = context.options;
-  function start(date, { label: label3 = "", labels: labels2 = label3 ? [label3] : [] } = {}) {
+  function start(date, { label: label3 = "", labels: labels3 = label3 ? [label3] : [] } = {}) {
     const current3 = page(date);
-    if (!validLabels(labels2, context.category)) throw new Error("标签无效。");
+    if (!validLabels(labels3, context.category)) throw new Error("标签无效。");
     if (context.disposed || !current3.loaded || !current3.canEdit || date !== dailyNotesToday()) return;
     const existing = entry(current3.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label3) return existing;
     const id2 = uuid5();
     if (!uuidPattern6.test(id2) || entries.has(id2)) throw new Error("暂时无法新建记录，请重试。");
     const item = makeEntry(id2, date, current3.canEdit);
-    item.labels = [...labels2];
+    item.labels = [...labels3];
     item.label = item.labels[0] || "";
     item.labelKnown = true;
     item.labelComplete = true;
@@ -9587,12 +9587,12 @@ function createEntryEditingActions(context) {
     emit();
     if (!composing) schedule(item);
   }
-  function relabelDraft(id2, labels2 = []) {
+  function relabelDraft(id2, labels3 = []) {
     const item = entry(id2);
-    if (typeof labels2 === "string") labels2 = labels2 ? [labels2] : [];
-    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) || !validLabels(labels2, context.category)) return false;
-    item.labels = [...labels2];
-    item.label = labels2[0] || "";
+    if (typeof labels3 === "string") labels3 = labels3 ? [labels3] : [];
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) || !validLabels(labels3, context.category)) return false;
+    item.labels = [...labels3];
+    item.label = labels3[0] || "";
     item.dirty = item.draft !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
     item.phase = item.dirty ? "dirty" : savedPhase(item);
     emit();
@@ -10320,7 +10320,7 @@ function paintSavedEntry(node2, item) {
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
 }
-function paintEntryEditor(node2, item, confirmId, labels2, labelsVerified) {
+function paintEntryEditor(node2, item, confirmId, labels3, labelsVerified) {
   paintEntrySummary(node2, item);
   const find = (selector) => node2.querySelector(selector), editor = find("textarea");
   editor.dataset.date = item.date;
@@ -10333,7 +10333,7 @@ function paintEntryEditor(node2, item, confirmId, labels2, labelsVerified) {
   fieldset.hidden = item.deleted;
   fieldset.disabled = !item.canEdit || !item.labelComplete || !labelsVerified || Boolean(item.pending);
   fieldset.title = item.labelComplete && labelsVerified ? "" : "请联网核实标签状态后再修改。";
-  const available = [.../* @__PURE__ */ new Set([...labels2, ...item.labels || []])];
+  const available = [.../* @__PURE__ */ new Set([...labels3, ...item.labels || []])];
   if (JSON.stringify([...options4.querySelectorAll("input")].map((input) => input.value)) !== JSON.stringify(available)) {
     options4.replaceChildren(...available.map((value) => {
       const label3 = document.createElement("label"), input = document.createElement("input");
@@ -10371,7 +10371,7 @@ function paintEntryEditor(node2, item, confirmId, labels2, labelsVerified) {
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
 var editorNodes = /* @__PURE__ */ new WeakMap();
-function paintActiveEditor(root2, store, active5, legacy, confirmId, labels2, labelsVerified) {
+function paintActiveEditor(root2, store, active5, legacy, confirmId, labels3, labelsVerified) {
   const host = root2.querySelector("#notes-active-entry");
   if (!editorNodes.has(root2)) editorNodes.set(root2, /* @__PURE__ */ new Map());
   const nodes = editorNodes.get(root2), item = store.entry(active5);
@@ -10380,7 +10380,7 @@ function paintActiveEditor(root2, store, active5, legacy, confirmId, labels2, la
     if (!nodes.has(active5)) nodes.set(active5, createEntryElement(item, true));
     const node2 = nodes.get(active5);
     if (host.firstElementChild !== node2) host.replaceChildren(node2);
-    paintEntryEditor(node2, item, confirmId, labels2, labelsVerified);
+    paintEntryEditor(node2, item, confirmId, labels3, labelsVerified);
   }
   root2.querySelector("#notes-legacy-card").hidden = active5 !== "legacy";
   paintDailyNotes(root2, legacy, { compatibility: true, editing: active5 === "legacy" });
@@ -10441,7 +10441,7 @@ function paintOtherLegacy(root2, list2, legacy, category) {
   exportButton.dataset.legacyCategory = category;
   exportButton.hidden = !draft;
 }
-function paintNoteEntries(root2, store, current3, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "", labels: labels2 = [], labelsVerified = true } = {}) {
+function paintNoteEntries(root2, store, current3, legacy, { drafts = [], confirmId = "", active: active5 = "", otherLegacy = null, otherCategory = "", labels: labels3 = [], labelsVerified = true } = {}) {
   const find = (selector) => root2.querySelector(selector), list2 = find("#notes-entry-list");
   root2.dataset.date = current3.date;
   const dateInput = find("#notes-date");
@@ -10463,7 +10463,7 @@ function paintNoteEntries(root2, store, current3, legacy, { drafts = [], confirm
     paintSavedEntry(node2, item);
     node2.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
   }
-  paintActiveEditor(root2, store, active5, legacy, confirmId, labels2, labelsVerified);
+  paintActiveEditor(root2, store, active5, legacy, confirmId, labels3, labelsVerified);
   paintLegacySummary(root2, legacy, active5);
   (retainedLegacy(legacy) ? unpublished2 : list2).append(root2.querySelector("#notes-legacy-saved"));
   root2.querySelector("#notes-legacy-saved").dataset.sortTime = legacy.updatedAt || "";
@@ -10882,8 +10882,8 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
         return await noteRequest(path, options4);
       } catch (error) {
         if (error.code !== "NETWORK_UNAVAILABLE") throw error;
-        const body2 = options4.body || {}, labels2 = body2.labels;
-        if (labels2)
+        const body2 = options4.body || {}, labels3 = body2.labels;
+        if (labels3)
           throw Object.assign(new Error("多标签修改需要联网，草稿已保留。"), { code: "OFFLINE_MULTI_LABEL", localNotSaved: true });
         const { labels: ignored, ...legacyBody } = body2;
         return request(path, { ...options4, offlineUnknown: true, body: legacyBody, headers: { "X-Note-Labels-Version": "1" } });
@@ -11274,8 +11274,8 @@ function applyHistoryMonth(root2, month, days, chosenDate) {
   root2.querySelector("#notes-history-month").value = month;
   monthOptions(dateSelect, dates, selected, "");
   monthOptions(root2.querySelector("#notes-history-week"), ["", ...weeks.map((_, index) => String(index + 1))], "", "全部周次");
-  const labels2 = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
-  monthOptions(labelSelect, labels2, oldLabel, "全部标签");
+  const labels3 = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
+  monthOptions(labelSelect, labels3, oldLabel, "全部标签");
   paintHistoryRows(root2);
 }
 async function loadHistory(month = "", chosenDate = "") {
@@ -11669,10 +11669,10 @@ function editFloatingNote(text, composing = false) {
   const item = floatingNoteEntry(true);
   if (item) entryStores.get(item.category).edit(item.id, text, { composing });
 }
-function labelFloatingNote(labels2) {
+function labelFloatingNote(labels3) {
   const item = floatingNoteEntry(true);
   if (!item || !notesLabelsVerified) return false;
-  return entryStores.get(item.category).relabelDraft(item.id, labels2);
+  return entryStores.get(item.category).relabelDraft(item.id, labels3);
 }
 async function sendFloatingNote() {
   const item = floatingNoteEntry(false), store = item && entryStores.get(item.category);
@@ -13790,6 +13790,170 @@ function registerAiReportEvents() {
   });
 }
 
+// web/core/review-markdown.mjs
+init_dom();
+function safeReviewUrl(value) {
+  try {
+    const url = new URL(String(value));
+    return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+function inline2(value, depth = 0) {
+  const text = String(value);
+  if (depth >= 8) return e(text);
+  const last = new Map(["[/red]", "[/blue]", "[/green]", "[/amber]", "**", "`"].map((token) => [token, text.lastIndexOf(token)]));
+  let out = "", plain2 = 0, pos = 0;
+  let linkMiddle = text.indexOf("]("), linkEnd = linkMiddle < 0 ? -1 : text.indexOf(")", linkMiddle + 2);
+  const emit = (end, html) => {
+    out += e(text.slice(plain2, pos)) + html;
+    pos = end;
+    plain2 = end;
+  };
+  while (pos < text.length) {
+    const color = text[pos] === "[" ? text.slice(pos, pos + 7).match(/^\[(red|blue|green|amber)\]/) : null;
+    if (color) {
+      const close = `[/${color[1]}]`, start = pos + color[0].length;
+      const end = last.get(close) >= start ? text.indexOf(close, start) : -1;
+      if (end >= start) {
+        emit(end + close.length, `<span class="review-color-${color[1]}">${inline2(text.slice(start, end), depth + 1)}</span>`);
+        continue;
+      }
+    }
+    const token = text.startsWith("**", pos) ? "**" : text[pos] === "`" ? "`" : "";
+    if (token && last.get(token) > pos + token.length) {
+      const end = text.indexOf(token, pos + token.length), content2 = text.slice(pos + token.length, end);
+      emit(end + token.length, token === "`" ? `<code>${e(content2)}</code>` : `<strong>${inline2(content2, depth + 1)}</strong>`);
+      continue;
+    }
+    if (text[pos] === "[") {
+      if (linkMiddle >= 0 && linkMiddle <= pos) {
+        linkMiddle = text.indexOf("](", pos + 1);
+        linkEnd = linkMiddle < 0 ? -1 : text.indexOf(")", linkMiddle + 2);
+      }
+      if (linkMiddle > pos && linkEnd > linkMiddle + 2) {
+        const label3 = text.slice(pos + 1, linkMiddle), href = safeReviewUrl(text.slice(linkMiddle + 2, linkEnd));
+        emit(linkEnd + 1, href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(label3)}</a>` : e(label3));
+        continue;
+      }
+    }
+    pos++;
+  }
+  return out + e(text.slice(plain2));
+}
+function renderReviewMarkdown(value) {
+  const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
+  let list2 = false, code = false, out = "";
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) {
+      if (list2) {
+        out += "</ul>";
+        list2 = false;
+      }
+      out += code ? "</code></pre>" : "<pre><code>";
+      code = !code;
+      continue;
+    }
+    if (code) {
+      out += e(line) + "\n";
+      continue;
+    }
+    const item = line.match(/^\s*[-*]\s+(.+)$/);
+    if (item) {
+      if (!list2) {
+        out += "<ul>";
+        list2 = true;
+      }
+      out += `<li>${inline2(item[1])}</li>`;
+      continue;
+    }
+    if (list2) {
+      out += "</ul>";
+      list2 = false;
+    }
+    const heading = line.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) {
+      const h = Math.min(heading[1].length + 1, 5);
+      out += `<h${h}>${inline2(heading[2])}</h${h}>`;
+    } else if (line.trim()) out += /^>\s?/.test(line) ? `<blockquote>${inline2(line.replace(/^>\s?/, ""))}</blockquote>` : `<p>${inline2(line)}</p>`;
+  }
+  return out + (list2 ? "</ul>" : "") + (code ? "</code></pre>" : "");
+}
+
+// web/core/review-rule-scopes.mjs
+var aliases = /* @__PURE__ */ new Map([
+  ["整体", "global"],
+  ["global", "global"],
+  ["头条", "toutiao"],
+  ["toutiao", "toutiao"],
+  ["V字", "vzi"],
+  ["vzi", "vzi"],
+  ["鱼见", "yujian"],
+  ["yujian", "yujian"],
+  ["公众号", "wechat"],
+  ["wechat", "wechat"]
+]);
+var scopeOf = (value) => aliases.get(String(value || "")) || String(value || "");
+var labels2 = /* @__PURE__ */ new Map([
+  ["global", "整体规则"],
+  ["toutiao", "头条平台规则"],
+  ["vzi", "V字账号规则"],
+  ["yujian", "鱼见账号规则"],
+  ["wechat", "公众号平台规则"]
+]);
+var scopeLabel = (scope) => labels2.get(scope) || scope;
+function applicableScopes(account) {
+  const scope = scopeOf(account);
+  if (["vzi", "yujian"].includes(scope)) return ["global", "toutiao", scope];
+  if (scope === "wechat") return ["wechat"];
+  return scope === "global" ? ["global"] : ["global", scope];
+}
+function newest(a, b) {
+  return String(b.version ?? "").localeCompare(String(a.version ?? ""), void 0, { numeric: true }) || String(b.published_on || b.updated_at || "").localeCompare(String(a.published_on || a.updated_at || "")) || String(b.id).localeCompare(String(a.id));
+}
+function currentPlaybooks(books = [], account) {
+  const latest = /* @__PURE__ */ new Map(), scopes = applicableScopes(account);
+  for (const book of [...books].filter((book2) => book2.status === "active").sort(newest)) {
+    const scope = scopeOf(book.account);
+    if (!latest.has(scope)) latest.set(scope, book);
+  }
+  const current3 = [...latest.values()].map((book) => ({
+    ...book,
+    rules: (book.rules || []).filter((rule) => scopes.includes(scopeOf(rule.scope ?? book.account)))
+  })).filter((book) => scopes.includes(scopeOf(book.account)) || book.rules.length);
+  return resolveRuleOverrides(current3, account);
+}
+function resolveRuleOverrides(books, account) {
+  const scopes = applicableScopes(account), occurrences = /* @__PURE__ */ new Map();
+  for (const book of books) for (const rule of book.rules) {
+    const scope = scopeOf(rule.scope ?? book.account);
+    if (typeof rule.rule_id !== "string" || !rule.rule_id || !scopes.includes(scope)) continue;
+    if (!occurrences.has(rule.rule_id)) occurrences.set(rule.rule_id, /* @__PURE__ */ new Set());
+    occurrences.get(rule.rule_id).add(scope);
+  }
+  return books.map((book) => ({ ...book, rules: book.rules.map((rule) => {
+    const scope = scopeOf(rule.scope ?? book.account);
+    const seen = occurrences.get(rule.rule_id) || /* @__PURE__ */ new Set();
+    const winner = scopes.findLast((layer) => seen.has(layer));
+    const overriddenByScope = scopes.indexOf(winner) > scopes.indexOf(scope) ? winner : "";
+    const overridesScopes = overriddenByScope ? [] : scopes.filter((layer) => seen.has(layer) && scopes.indexOf(layer) < scopes.indexOf(scope));
+    return { ...rule, overriddenByScope, overridesScopes };
+  }) }));
+}
+function ruleCountLabel(rules2) {
+  const overridden = rules2.filter((rule) => rule.overriddenByScope).length;
+  return `${rules2.length} 条规则 · ${rules2.length - overridden} 条当前生效${overridden ? ` · ${overridden} 条被覆盖` : ""}`;
+}
+function currentPrompts(prompts = [], account) {
+  const scopes = applicableScopes(account), latest = /* @__PURE__ */ new Map();
+  for (const prompt of [...prompts].filter((prompt2) => prompt2.status === "active" && scopes.includes(prompt2.scope)).sort(newest)) {
+    const key2 = `${prompt.scope}:${prompt.prompt_key}`;
+    if (!latest.has(key2)) latest.set(key2, prompt);
+  }
+  return [...latest.values()].sort((a, b) => scopes.indexOf(a.scope) - scopes.indexOf(b.scope) || String(a.prompt_key).localeCompare(String(b.prompt_key)));
+}
+
 // web/core/review-data.mjs
 var SNAPSHOT_NUMBERS = ["impressions", "fan_impressions", "reads", "fan_reads", "ctr", "completion_rate", "avg_read_seconds", "likes", "comments", "reposts", "shares", "favorites", "revenue"];
 var SNAPSHOT_JSON = ["traffic_sources", "completion_curve", "audience"];
@@ -13869,6 +14033,7 @@ function normalizeReviewData(input = {}) {
       findings: object3(parseJson(report.findings, {})),
       metrics: object3(parseJson(report.metrics, {}))
     })),
+    prompts: list(input.prompts || input["prompts/current"]).filter(Boolean),
     playbooks: list(input.playbooks).filter(Boolean).map((playbook2) => ({ ...playbook2, rules: rules(playbook2.rules) }))
   };
 }
@@ -14002,9 +14167,9 @@ function diffRules(previous, current3) {
 }
 function metricDiscrepancies(report = {}, computed = {}) {
   const metrics2 = object3(parseJson(report.metrics, {}));
-  const aliases = { total_reads: "reads", average_ctr: "ctr", avg_ctr: "ctr", total_impressions: "impressions", average_completion_rate: "completion_rate", avg_completion_rate: "completion_rate", total_revenue: "revenue", article_count: "count", published_count: "count", hit_count: "hits", flop_count: "flops" };
+  const aliases2 = { total_reads: "reads", average_ctr: "ctr", avg_ctr: "ctr", total_impressions: "impressions", average_completion_rate: "completion_rate", avg_completion_rate: "completion_rate", total_revenue: "revenue", article_count: "count", published_count: "count", hit_count: "hits", flop_count: "flops" };
   return Object.entries(metrics2).map(([key2, value]) => {
-    const field2 = aliases[key2] || key2;
+    const field2 = aliases2[key2] || key2;
     const authorValue = finiteNumber(value), calculated = finiteNumber(computed[field2]);
     const comparable = authorValue !== null && calculated !== null;
     return {
@@ -14845,64 +15010,6 @@ function reviewNumber(value, key2 = "") {
   if (percentageKeys.has(key2)) return `${n.toFixed(1)}%`;
   return Math.abs(n) >= 1e4 ? `${(n / 1e4).toFixed(1)} 万` : n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
 }
-function safeReviewUrl(value) {
-  try {
-    const url = new URL(String(value));
-    return ["https:", "http:"].includes(url.protocol) ? url.href : "";
-  } catch {
-    return "";
-  }
-}
-function inline2(text) {
-  return String(text).split(/(\[[^\]\n]+\]\([^\)\n]+\)|\*\*[^*\n]+\*\*|`[^`\n]+`)/g).map((part) => {
-    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (link) {
-      const href = safeReviewUrl(link[2]);
-      return href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(link[1])}</a>` : e(link[1]);
-    }
-    if (part.startsWith("**") && part.endsWith("**")) return `<strong>${e(part.slice(2, -2))}</strong>`;
-    if (part.startsWith("`") && part.endsWith("`")) return `<code>${e(part.slice(1, -1))}</code>`;
-    return e(part);
-  }).join("");
-}
-function renderReviewMarkdown(value) {
-  const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
-  let list2 = false, code = false, out = "";
-  for (const line of lines) {
-    if (/^\s*```/.test(line)) {
-      if (list2) {
-        out += "</ul>";
-        list2 = false;
-      }
-      out += code ? "</code></pre>" : "<pre><code>";
-      code = !code;
-      continue;
-    }
-    if (code) {
-      out += e(line) + "\n";
-      continue;
-    }
-    const item = line.match(/^\s*[-*]\s+(.+)$/);
-    if (item) {
-      if (!list2) {
-        out += "<ul>";
-        list2 = true;
-      }
-      out += `<li>${inline2(item[1])}</li>`;
-      continue;
-    }
-    if (list2) {
-      out += "</ul>";
-      list2 = false;
-    }
-    const heading = line.match(/^(#{1,4})\s+(.+)$/);
-    if (heading) {
-      const h = Math.min(heading[1].length + 1, 5);
-      out += `<h${h}>${inline2(heading[2])}</h${h}>`;
-    } else if (line.trim()) out += /^>\s?/.test(line) ? `<blockquote>${inline2(line.replace(/^>\s?/, ""))}</blockquote>` : `<p>${inline2(line)}</p>`;
-  }
-  return out + (list2 ? "</ul>" : "") + (code ? "</code></pre>" : "");
-}
 var empty2 = (title, text = "") => `<div class="review-empty"><strong>${e(title)}</strong>${text ? `<p>${e(text)}</p>` : ""}</div>`;
 var panel = (title, body2, note = "", css = "") => `<section class="review-panel ${css}"><div class="review-panel-head"><h2>${e(title)}</h2>${note ? `<span class="review-note">${e(note)}</span>` : ""}</div>${body2}</section>`;
 var options3 = (rows, value) => rows.map(([id2, label3]) => `<option value="${e(id2)}"${String(id2) === String(value) ? " selected" : ""}>${e(label3)}</option>`).join("");
@@ -14944,10 +15051,10 @@ function chart(points, { small = false } = {}) {
     });
     flush();
   }
-  const labels2 = [.../* @__PURE__ */ new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].map((i) => `<text x="${x(i).toFixed(2)}" y="${bottom + 24}" text-anchor="${i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}">${e(String(points[i].date).slice(5))}</text>`).join("");
+  const labels3 = [.../* @__PURE__ */ new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].map((i) => `<text x="${x(i).toFixed(2)}" y="${bottom + 24}" text-anchor="${i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}">${e(String(points[i].date).slice(5))}</text>`).join("");
   const bandWidth = (right - left) / Math.max(points.length - 1, 1);
   const hover = small ? "" : points.map((p, i) => `<rect class="review-hover-band" x="${Math.max(left, x(i) - bandWidth / 2).toFixed(2)}" y="${top}" width="${(i === 0 || i === points.length - 1 ? bandWidth / 2 : bandWidth).toFixed(2)}" height="${height}" tabindex="0"><title>${e(p.date)} · 当日 ${e(p.count ?? 0)} 篇 · 阅读中位数 ${e(reviewNumber(p.reads_24h))} · CTR 中位数 ${e(reviewNumber(p.ctr_24h, "ctr"))}</title></rect>`).join("");
-  return `<div class="review-chart"><div class="review-chart-legend"><span class="reads">${small ? "阅读" : "阅读中位数"}</span><span class="ctr">${small ? "CTR" : "CTR 中位数"}</span>${small ? "" : '<span class="review-note">独立纵轴 · 悬停或聚焦查看当日篇数</span>'}</div><svg viewBox="0 0 ${width} ${bottom + 36}" role="img" aria-label="阅读和 CTR 趋势，两条线分别按各自纵轴绘制"><line class="review-axis" x1="${left}" x2="${right}" y1="${bottom}" y2="${bottom}"/>${lines}${dots}${hover}${labels2}</svg><div class="review-chart-scale"><span>阅读轴 0 – ${e(reviewNumber(max("reads_24h")))}</span><span>CTR 轴 0 – ${e(reviewNumber(max("ctr_24h"), "ctr"))}</span></div></div>`;
+  return `<div class="review-chart"><div class="review-chart-legend"><span class="reads">${small ? "阅读" : "阅读中位数"}</span><span class="ctr">${small ? "CTR" : "CTR 中位数"}</span>${small ? "" : '<span class="review-note">独立纵轴 · 悬停或聚焦查看当日篇数</span>'}</div><svg viewBox="0 0 ${width} ${bottom + 36}" role="img" aria-label="阅读和 CTR 趋势，两条线分别按各自纵轴绘制"><line class="review-axis" x1="${left}" x2="${right}" y1="${bottom}" y2="${bottom}"/>${lines}${dots}${hover}${labels3}</svg><div class="review-chart-scale"><span>阅读轴 0 – ${e(reviewNumber(max("reads_24h")))}</span><span>CTR 轴 0 – ${e(reviewNumber(max("ctr_24h"), "ctr"))}</span></div></div>`;
 }
 function sampleFor(row, data2) {
   const reference = row.reference_article_id == null ? null : (data2.benchmarkArticles || []).find((item) => item.account === row.account && String(item.id) === String(row.reference_article_id));
@@ -15060,14 +15167,19 @@ function evidence(value) {
   if (value === null || value === void 0 || value === "") return "—";
   if (typeof value !== "object") return String(value);
   if (!value.metric) return "—";
-  const labels2 = { ctr: "CTR", ctr_24h: "CTR", reads: "阅读", reads_24h: "阅读", completion_rate: "完读率", completion_24h: "完读率", avg_read_seconds: "平均阅读时长" };
-  const key2 = value.metric, label3 = labels2[key2] || key2;
+  const labels3 = { ctr: "CTR", ctr_24h: "CTR", reads: "阅读", reads_24h: "阅读", completion_rate: "完读率", completion_24h: "完读率", avg_read_seconds: "平均阅读时长" };
+  const key2 = value.metric, label3 = labels3[key2] || key2;
   return `命中 ${reviewNumber(value.n_with)} 篇，${label3} ${reviewNumber(value.with_median, key2)}；未命中 ${reviewNumber(value.n_without)} 篇，${label3} ${reviewNumber(value.without_median, key2)}`;
 }
 function ruleCard(rule, index = "", historical = false) {
-  return `<article class="review-rule"${historical ? "" : ` id="review-rule-${e(encodeURIComponent(rule.rule_id))}" tabindex="-1"`}><div class="review-rule-head"><span class="review-rule-id">${e(rule.rule_id || index)}</span></div><p>${e(rule.text || "未提供规则内容")}</p><dl class="review-rule-evidence"><div><dt>证据</dt><dd>${e(evidence(
-    rule.evidence
-  ))}${rule.evidence_note ? `<br>${e(rule.evidence_note)}` : ""}</dd></div><div><dt>试验</dt><dd>${e(evidence(rule.trials))}</dd></div></dl></article>`;
+  const attributes = historical ? "" : ` id="review-rule-${e(encodeURIComponent(rule.rule_id))}" tabindex="-1"`;
+  return `<article class="review-rule"${attributes}>
+    <div class="review-rule-head"><span class="review-rule-id">${e(rule.rule_id || index)}</span></div>
+    <div class="review-markdown">${renderReviewMarkdown(rule.text || "未提供规则内容")}</div>
+    <dl class="review-rule-evidence"><div><dt>证据</dt><dd>${e(evidence(rule.evidence))}
+      ${rule.evidence_note ? `<br>${e(rule.evidence_note)}` : ""}</dd></div>
+      <div><dt>试验</dt><dd>${e(evidence(rule.trials))}</dd></div></dl>
+  </article>`;
 }
 function articleRules(row) {
   const ids = parseJson(row.applied_rule_ids, null);
@@ -15086,27 +15198,68 @@ function v13Evidence(rule) {
   const value = evidence(rule.evidence);
   return value === "—" ? "" : firstSentence2(value);
 }
-function v13RuleRow(rule, index) {
-  const text = String(rule.text || "").trim();
-  return `<article class="review-v13-rule-row" id="review-rule-${e(encodeURIComponent(rule.rule_id || index))}"><span class="review-v13-rule-id">${e(rule.rule_id || index)}</span><div class="review-v13-rule-text">${e(text)}</div><span class="review-v13-rule-evidence">${e(v13Evidence(rule))}</span></article>`;
+function v13RuleRow(rule, index, prefix = "") {
+  const text = renderReviewMarkdown(String(rule.text || "").trim());
+  const overridden = rule.overriddenByScope;
+  const state2 = overridden ? "overridden" : "effective";
+  const id2 = e(encodeURIComponent(`${prefix}:${rule.section || ""}:${rule.rule_id || ""}:${index}`));
+  const body2 = overridden ? `<details class="review-overridden-rule">
+    <summary>已被${e(scopeLabel(overridden))}覆盖 · 查看原文</summary>${text}</details>` : `${rule.overridesScopes?.length ? '<p class="review-note">当前生效 · 覆盖上层同 ID 规则</p>' : ""}${text}`;
+  return `<article class="review-v13-rule-row" id="review-rule-${id2}" data-rule-state="${state2}">
+    <span class="review-v13-rule-id">${e(rule.rule_id || index)}</span>
+    <div class="review-v13-rule-text review-markdown">${body2}</div>
+    <span class="review-v13-rule-evidence">${e(v13Evidence(rule))}</span>
+  </article>`;
 }
-function playbook(data2, vm4) {
-  const book = [...data2.playbooks || []].filter((p) => p.account === vm4.account && p.status === "active").sort((a, b) => Number(b.version) - Number(a.version) || String(b.published_on || "").localeCompare(String(a.published_on || "")))[0];
-  if (!book) return empty2("暂无生效手册");
-  const rules2 = Array.isArray(book.rules) ? book.rules : [];
-  const lines = String(book.content_md || "").replace(/\r\n?/g, "\n").split("\n");
+function renderRuleBook(book, scope) {
+  const rules2 = book.rules.filter((rule) => scopeOf(rule.scope ?? book.account) === scope);
+  const ownLayer = scopeOf(book.account) === scope;
+  const lines = String(ownLayer ? book.content_md || "" : "").replace(/\r\n?/g, "\n").split("\n");
   const firstSection = lines.findIndex((line) => /^##\s/.test(line));
   const titleLines = firstSection < 0 ? lines : lines.slice(0, firstSection);
-  const title = titleLines.map((line) => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || `规则手册 ${book.version}`;
+  const title = titleLines.map((line) => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || (ownLayer ? `规则手册 ${book.version}` : `适用规则`);
   const content2 = (firstSection < 0 ? lines : lines.slice(0, firstSection)).filter((line) => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join("\n").trim();
   const intro = content2 ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content2)}</div>` : "";
   const groups = v13RuleGroups.map(([id2, label3]) => {
     const group = rules2.filter((rule) => rule.section === id2);
-    return `<details class="review-v13-rule-group" open><summary>${e(label3)} · ${group.length} 条</summary>${group.map((rule, index) => v13RuleRow(rule, index + 1)).join("")}</details>`;
+    return `<details class="review-v13-rule-group" open><summary>${e(label3)} · ${ruleCountLabel(group)}</summary>
+    ${group.map((rule, index) => v13RuleRow(rule, index + 1, `${scope}:${book.id}`)).join("")}</details>`;
   }).join("");
   const ungrouped = rules2.filter((rule) => !v13RuleGroups.some(([id2]) => id2 === rule.section));
-  const other = ungrouped.length ? `<details class="review-v13-rule-group" open><summary>其他 · ${ungrouped.length} 条</summary>${ungrouped.map((rule, index) => v13RuleRow(rule, index + 1)).join("")}</details>` : "";
-  return `<section class="review-v13-rules"><div class="review-v13-rule-meta"><h2>${e(title)}</h2><span class="review-note">生效于 ${e(day4(book.published_on) || "—")}</span><span class="review-note">共 ${rules2.length} 条规则</span></div>${intro}${groups}${other}</section>`;
+  const other = ungrouped.length ? `<details class="review-v13-rule-group" open><summary>其他 · ${ruleCountLabel(ungrouped)}</summary>
+    ${ungrouped.map((rule, index) => v13RuleRow(rule, index + 1, `${scope}:${book.id}`)).join("")}</details>` : "";
+  return `<section class="review-v13-rules">
+    <div class="review-v13-rule-meta"><h2>${e(title)}</h2>
+    <span class="review-note">生效于 ${e(ownLayer ? day4(book.published_on) || "—" : "—")}</span>
+    <span class="review-note">共 ${ruleCountLabel(rules2)}</span></div>
+    ${intro}${groups}${other}</section>`;
+}
+function promptList(prompts, scope) {
+  const items = prompts.filter((prompt) => prompt.scope === scope);
+  if (!items.length) return "";
+  return `<div class="review-current-prompts"><h3>当前提示词</h3>${items.map((prompt) => `
+    <details class="review-current-prompt">
+      <summary><span>${e(prompt.title || prompt.prompt_key)}</span><span class="review-note">v${e(prompt.version)}</span></summary>
+      <p class="review-note">生效时间：${e(reviewDateTime(prompt.updated_at) || "未记录")} · 上海时间</p>
+      <div class="review-prompt-copy-actions">
+        <button type="button" class="btn text" data-review-action="copy-prompt" data-prompt-id="${e(prompt.id)}">复制完整提示词</button>
+        <span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span>
+      </div>
+      <div class="review-markdown">${renderReviewMarkdown(prompt.content_md)}</div>
+    </details>`).join("")}</div>`;
+}
+function playbook(data2, vm4) {
+  const books = currentPlaybooks(data2.playbooks, vm4.account);
+  const prompts = currentPrompts(data2.prompts, vm4.account);
+  const layers = applicableScopes(vm4.account).map((scope) => {
+    const matches2 = books.filter((book) => book.rules.some((rule) => scopeOf(rule.scope ?? book.account) === scope) || scopeOf(book.account) === scope);
+    if (!matches2.length && !prompts.some((prompt) => prompt.scope === scope)) return "";
+    const layerRules = matches2.flatMap((book) => book.rules.filter((rule) => scopeOf(rule.scope ?? book.account) === scope));
+    return `<details class="review-rule-layer" data-rule-scope="${e(scope)}"${scope === scopeOf(vm4.account) ? " open" : ""}>
+      <summary class="review-rule-layer-title">${e(scopeLabel(scope))}<span class="review-note"> · ${ruleCountLabel(layerRules)}</span></summary>
+      ${matches2.map((book) => renderRuleBook(book, scope)).join("")}${promptList(prompts, scope)}</details>`;
+  }).join("");
+  return layers ? `<div class="review-rule-hierarchy">${layers}</div>` : empty2("暂无生效手册");
 }
 function verdictBasis(row) {
   if (!row.verdict || !row.verdict_basis) return "";
@@ -15127,7 +15280,9 @@ function renderContentReview() {
 }
 function scopedReviewData(data2, account) {
   const result = { ...data2 };
-  for (const key2 of ["articles", "reports", "playbooks", "benchmarkAccounts", "notes", "accountHealth"]) result[key2] = (data2[key2] || []).filter((row) => row.account === account);
+  for (const key2 of ["articles", "reports", "benchmarkAccounts", "notes", "accountHealth"]) result[key2] = (data2[key2] || []).filter((row) => row.account === account);
+  result.playbooks = currentPlaybooks(data2.playbooks, account);
+  result.prompts = currentPrompts(data2.prompts, account);
   const benchmarkIds = new Set(result.benchmarkAccounts.map((row) => String(row.id)));
   result.benchmarkArticles = (data2.benchmarkArticles || []).filter((row) => benchmarkIds.has(String(row.benchmark_account_id)) && (row.account == null || row.account === account));
   const ids = new Set(result.articles.map((row) => String(row.id)));
@@ -15139,7 +15294,7 @@ function renderContentReviewContent(data2, vm4) {
   if (vm4.loading) return '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
   if (vm4.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm4.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data2, { account: vm4.account });
-  const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes"].some((key2) => data2[key2].length);
+  const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes", "prompts"].some((key2) => (data2[key2] || []).length);
   const noDataPanel = "";
   const body2 = hasData ? overview(data2, vm4) : noDataPanel + empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' + archives(data2, vm4);
   return `<div class="review-body"${vm4.article ? " inert" : ""}>${body2}</div>${drawer(data2, rows, vm4)}`;
@@ -15158,7 +15313,7 @@ function readReviewColumnPreference(raw) {
     return ["reads"];
   }
 }
-var resources = ["articles", "snapshots", "reports", "playbooks", "benchmark-accounts", "benchmark-articles", "notes", "account-health"];
+var resources = ["articles", "snapshots", "reports", "playbooks", "benchmark-accounts", "benchmark-articles", "notes", "account-health", "prompts/current"];
 var data = normalizeReviewData(), sequence5 = 0, registered5 = false, identity6 = "", pageContext2;
 var vm3 = {
   account: "V字",
@@ -15188,7 +15343,9 @@ async function readReviewCollection(read3, resource, selectedAccount, current3 =
   const items = [], seen = /* @__PURE__ */ new Set(), foreignIds = /* @__PURE__ */ new Set();
   let revision2;
   for (let offset = 0; ; offset += 100) {
-    const page = await read3(`/review/${resource}?account=${encodeURIComponent(selectedAccount)}&offset=${offset}${revision2 === void 0 ? "" : `&read_revision=${encodeURIComponent(revision2)}`}`);
+    const accountQuery = resource === "playbooks" ? "" : `account=${encodeURIComponent(selectedAccount)}&`;
+    const revisionQuery = revision2 === void 0 ? "" : `&read_revision=${encodeURIComponent(revision2)}`;
+    const page = await read3(`/review/${resource}?${accountQuery}offset=${offset}${revisionQuery}`);
     if (!current3()) return null;
     if (!Array.isArray(page?.items) || typeof page.has_more !== "boolean" || page.items.length > 100 || page.has_more && page.items.length !== 100) throw new Error("复盘分页资料不完整，请重新读取。");
     if (page.read_revision !== void 0) {
@@ -15198,7 +15355,7 @@ async function readReviewCollection(read3, resource, selectedAccount, current3 =
     for (const row of page.items) {
       if (!row || typeof row !== "object" || row.id === null || row.id === void 0 || seen.has(String(row.id))) throw staleRead("复盘资料存在重复或无效记录，请重新读取。");
       seen.add(String(row.id));
-      if (resource !== "snapshots" && row.account !== selectedAccount) {
+      if (!["snapshots", "playbooks", "prompts/current"].includes(resource) && row.account !== selectedAccount) {
         foreignIds.add(String(row.id));
         continue;
       }
@@ -15414,6 +15571,29 @@ function changeTrend(target) {
   paintContentReviewPage();
   root()?.querySelector(`[data-review-trend="${key2}"]`)?.focus({ preventScroll: true });
 }
+async function copyReviewPrompt(prompts, account, id2, clipboard = globalThis.navigator?.clipboard) {
+  const prompt = currentPrompts(prompts, account).find((row) => String(row.id) === String(id2));
+  if (!prompt) throw new Error("提示词已更新，请重新读取后复制。");
+  if (!clipboard?.writeText) throw new Error("当前浏览器不支持剪贴板，请展开提示词后手动复制。");
+  try {
+    await clipboard.writeText(String(prompt.content_md || ""));
+  } catch {
+    throw new Error("复制失败，请允许剪贴板访问，或展开提示词后手动复制。");
+  }
+}
+async function copyPromptButton(button2) {
+  const status = button2.closest(".review-current-prompt")?.querySelector("[data-prompt-copy-status]");
+  button2.disabled = true;
+  if (status) status.textContent = "正在复制…";
+  try {
+    await copyReviewPrompt(data.prompts, vm3.account, button2.dataset.promptId);
+    if (status?.isConnected) status.textContent = "已复制完整提示词。";
+  } catch (error) {
+    if (status?.isConnected) status.textContent = error.message;
+  } finally {
+    if (button2.isConnected) button2.disabled = false;
+  }
+}
 function describeTrendPoint(event, leaving) {
   const point = event.target.closest?.("[data-trend-readout]");
   const target = point?.closest(".review-trend-figure")?.querySelector("[data-trend-readout-target]");
@@ -15486,6 +15666,10 @@ function registerEvents2() {
       return;
     }
     if (vm3.loading || vm3.error) return;
+    if (target.dataset.reviewAction === "copy-prompt") {
+      void copyPromptButton(target);
+      return;
+    }
     if (target.dataset.reviewSecondary) {
       vm3.secondary = target.dataset.reviewSecondary;
       vm3.benchmark = "";
@@ -16267,7 +16451,7 @@ function conflictEvidence(document2, conflict) {
 function queueRows(document2, queue, runtime2, refresh, requests) {
   const root2 = document2.createDocumentFragment();
   if (!queue.operations.length && !queue.conflicts.length) root2.append(textNode(document2, "p", "暂无待处理内容。"));
-  const labels2 = {
+  const labels3 = {
     queued: "等待同步",
     sending: "待同步",
     unknown: "结果待核对",
@@ -16279,7 +16463,7 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
     const item = textNode(
       document2,
       "p",
-      `${operation2.needs_upgrade ? "需新版" : labels2[operation2.status] || "等待同步"} · ${readable(operation2.local)}`,
+      `${operation2.needs_upgrade ? "需新版" : labels3[operation2.status] || "等待同步"} · ${readable(operation2.local)}`,
       "offline-queue-row"
     );
     if (operation2.error) item.append(textNode(document2, "span", " · " + operation2.error));
@@ -16304,13 +16488,13 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
       continue;
     }
     if (conflict.resolution) {
-      const labels3 = {
+      const labels4 = {
         queued: "选择已存本机，正在核对线上结果。",
         conflict: "新保存有冲突，请核对下方的新比较内容。",
         blocked: "新保存暂未完成，原文与选择仍保留。",
         paused: "需联网核实后继续，原文与选择仍保留。"
       };
-      item.append(textNode(document2, "p", labels3[conflict.resolution.state] || "正在核对线上结果。"));
+      item.append(textNode(document2, "p", labels4[conflict.resolution.state] || "正在核对线上结果。"));
       root2.append(item);
       continue;
     }
@@ -16495,10 +16679,10 @@ function makeView(pip) {
   notesInput.placeholder = "写下一点想说的话…";
   notesInput.setAttribute("aria-label", "碎碎念内容");
   notesInput.rows = 5;
-  const labels2 = node(doc, "fieldset", "", "floating-labels");
-  labels2.append(node(doc, "legend", "标签（可多选）"));
+  const labels3 = node(doc, "fieldset", "", "floating-labels");
+  labels3.append(node(doc, "legend", "标签（可多选）"));
   const options4 = node(doc, "div");
-  labels2.append(options4);
+  labels3.append(options4);
   const noteMessage = node(doc, "p", "", "floating-message");
   noteMessage.setAttribute("role", "status");
   const noteActions = node(doc, "div", "", "floating-actions");
@@ -16511,7 +16695,7 @@ function makeView(pip) {
   retry.type = "button";
   retry.hidden = true;
   noteActions.append(send, check, retry);
-  notes.append(noteList, newNote, notesInput, labels2, noteMessage, noteActions);
+  notes.append(noteList, newNote, notesInput, labels3, noteMessage, noteActions);
   main.append(head, tabs, offline, todo, notes);
   doc.body.replaceChildren(main);
   return {
@@ -16526,7 +16710,7 @@ function makeView(pip) {
     noteList,
     newNote,
     notesInput,
-    labels: labels2,
+    labels: labels3,
     options: options4,
     noteMessage,
     send,

@@ -36,29 +36,118 @@
         "operationId": "moveUnscheduledTodo",
         "summary": "将未来待办原子移动到指定日期",
         "description": "同一事务创建或确认相同 UUID、日期、文本和完成状态的每日待办，并软删除源未来待办；源版本过期或已有目标不匹配时拒绝且保留源项。重复请求仅在源已删除且版本为请求版本加一、目标匹配时安全重放。结果不明时先读取源项和目标日期待办核对，不盲目重发。沿用管理员会话及 CSRF，或启用公开业务模式后的同源公开写权限，不新增 Bearer 权限。",
-        "tags": ["业务数据"],
-        "security": [{"AdminSession": []}, {}],
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
         "parameters": [
-          {"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},
-          {"$ref":"#/components/parameters/WorkbenchOrigin"},
-          {"$ref":"#/components/parameters/WorkbenchCsrf"},
-          {"$ref":"#/components/parameters/WorkbenchPublicWrite"}
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchOrigin"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchCsrf"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchPublicWrite"
+          }
         ],
         "requestBody": {
           "required": true,
-          "content": {"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["date","version"],"properties":{"date":{"type":"string","format":"date"},"version":{"type":"integer","minimum":1}}}}}
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "date",
+                  "version"
+                ],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
         },
         "responses": {
-          "200": {"description":"移动完成或安全重放；data 包含目标 todo 与已软删除的 source。","content":{"application/json":{"schema":{"type":"object","required":["data"],"properties":{"data":{"type":"object","required":["todo","source"],"properties":{"todo":{"type":"object"},"source":{"type":"object"}}}}}}}},
-          "400": {"$ref":"#/components/responses/Error400"},
-          "401": {"$ref":"#/components/responses/Error401"},
-          "403": {"$ref":"#/components/responses/Error403"},
-          "404": {"$ref":"#/components/responses/Error404"},
-          "409": {"$ref":"#/components/responses/Error409"},
-          "410": {"description":"相同标识的目标待办已删除，源项保留。"},
-          "415": {"$ref":"#/components/responses/Error415"},
-          "429": {"$ref":"#/components/responses/Error429"},
-          "503": {"description":"服务暂不可用；如写入结果不明，应先读回核对。"}
+          "200": {
+            "description": "移动完成或安全重放；data 包含目标 todo 与已软删除的 source。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "todo",
+                        "source"
+                      ],
+                      "properties": {
+                        "todo": {
+                          "type": "object"
+                        },
+                        "source": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "description": "相同标识的目标待办已删除，源项保留。"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "description": "服务暂不可用；如写入结果不明，应先读回核对。"
+          }
         }
       }
     },
@@ -67,29 +156,118 @@
         "operationId": "completeUnscheduledTodoToday",
         "summary": "完成未来待办并移至北京时间今天",
         "description": "同一事务完成并移动到北京时间当天；跨午夜时拒绝并保留源项。成功后的同一请求可安全重放。",
-        "tags": ["业务数据"],
-        "security": [{"AdminSession": []}, {}],
+        "tags": [
+          "业务数据"
+        ],
+        "security": [
+          {
+            "AdminSession": []
+          },
+          {}
+        ],
         "parameters": [
-          {"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},
-          {"$ref":"#/components/parameters/WorkbenchOrigin"},
-          {"$ref":"#/components/parameters/WorkbenchCsrf"},
-          {"$ref":"#/components/parameters/WorkbenchPublicWrite"}
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchOrigin"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchCsrf"
+          },
+          {
+            "$ref": "#/components/parameters/WorkbenchPublicWrite"
+          }
         ],
         "requestBody": {
           "required": true,
-          "content": {"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["date","version"],"properties":{"date":{"type":"string","format":"date"},"version":{"type":"integer","minimum":1}}}}}
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "date",
+                  "version"
+                ],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
         },
         "responses": {
-          "200": {"description":"移动完成或安全重放；data 包含目标 todo 与已软删除的 source。","content":{"application/json":{"schema":{"type":"object","required":["data"],"properties":{"data":{"type":"object","required":["todo","source"],"properties":{"todo":{"type":"object"},"source":{"type":"object"}}}}}}}},
-          "400": {"$ref":"#/components/responses/Error400"},
-          "401": {"$ref":"#/components/responses/Error401"},
-          "403": {"$ref":"#/components/responses/Error403"},
-          "404": {"$ref":"#/components/responses/Error404"},
-          "409": {"$ref":"#/components/responses/Error409"},
-          "410": {"description":"相同标识的目标待办已删除，源项保留。"},
-          "415": {"$ref":"#/components/responses/Error415"},
-          "429": {"$ref":"#/components/responses/Error429"},
-          "503": {"description":"服务暂不可用；如写入结果不明，应先读回核对。"}
+          "200": {
+            "description": "移动完成或安全重放；data 包含目标 todo 与已软删除的 source。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "todo",
+                        "source"
+                      ],
+                      "properties": {
+                        "todo": {
+                          "type": "object"
+                        },
+                        "source": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "description": "相同标识的目标待办已删除，源项保留。"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "description": "服务暂不可用；如写入结果不明，应先读回核对。"
+          }
         }
       }
     },
@@ -14476,6 +14654,790 @@
           }
         }
       }
+    },
+    "/api/v1/review/prompts/current": {
+      "get": {
+        "operationId": "listCurrentReviewPrompts",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "读取当前生效提示词",
+        "description": "沿用内容复盘权限：PUBLIC_BUSINESS_MODE=1时匿名可读，同源X-Public-Business:1可写；所有者会话写入须CSRF，显式无效凭据不能回退匿名，Bearer不授予权限。历史接口不代表私密后台。 每页100条；read_revision改变须重读。每组scope+prompt_key仅返回active。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "wechat/公众号仅wechat；V字/vzi及鱼见/yujian继承global、toutiao及自身层；任意其他有效旧账号仅global。省略时全览，与scope同时传入取交集。"
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "global",
+                "toutiao",
+                "vzi",
+                "yujian",
+                "wechat"
+              ]
+            }
+          },
+          {
+            "name": "prompt_key",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "read_revision",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "提示词列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPromptList"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "READ_REVISION_CHANGED、VERSION_CONFLICT、IDEMPOTENCY_CONFLICT、REVIEW_UNIQUE_CONFLICT、PROMPT_IDENTITY_IMMUTABLE、PROMPT_CONTENT_IMMUTABLE、PROMPT_STATUS_CONFLICT、PROMPT_VERSION_ORDER。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/prompts": {
+      "get": {
+        "operationId": "listReviewPromptHistory",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "读取提示词历史",
+        "description": "沿用内容复盘权限：PUBLIC_BUSINESS_MODE=1时匿名可读，同源X-Public-Business:1可写；所有者会话写入须CSRF，显式无效凭据不能回退匿名，Bearer不授予权限。历史接口不代表私密后台。 每页100条；read_revision改变须重读。可按status过滤草稿、生效与归档。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "wechat/公众号仅wechat；V字/vzi及鱼见/yujian继承global、toutiao及自身层；任意其他有效旧账号仅global。省略时全览，与scope同时传入取交集。"
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "global",
+                "toutiao",
+                "vzi",
+                "yujian",
+                "wechat"
+              ]
+            }
+          },
+          {
+            "name": "prompt_key",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "read_revision",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "active",
+                "archived"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "提示词列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPromptList"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "READ_REVISION_CHANGED、VERSION_CONFLICT、IDEMPOTENCY_CONFLICT、REVIEW_UNIQUE_CONFLICT、PROMPT_IDENTITY_IMMUTABLE、PROMPT_CONTENT_IMMUTABLE、PROMPT_STATUS_CONFLICT、PROMPT_VERSION_ORDER。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/prompts/{id}": {
+      "get": {
+        "operationId": "getReviewPrompt",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "读取单个提示词版本",
+        "description": "沿用内容复盘权限：PUBLIC_BUSINESS_MODE=1时匿名可读，同源X-Public-Business:1可写；所有者会话写入须CSRF，显式无效凭据不能回退匿名，Bearer不授予权限。历史接口不代表私密后台。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "版本及content_hash",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPrompt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "READ_REVISION_CHANGED、VERSION_CONFLICT、IDEMPOTENCY_CONFLICT、REVIEW_UNIQUE_CONFLICT、PROMPT_IDENTITY_IMMUTABLE、PROMPT_CONTENT_IMMUTABLE、PROMPT_STATUS_CONFLICT、PROMPT_VERSION_ORDER。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putReviewPrompt",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "幂等创建提示词版本",
+        "description": "沿用内容复盘权限：PUBLIC_BUSINESS_MODE=1时匿名可读，同源X-Public-Business:1可写；所有者会话写入须CSRF，显式无效凭据不能回退匿名，Bearer不授予权限。历史接口不代表私密后台。 新UUID版本必须大于同组现有最大版本；同UUID相同内容幂等重放，异内容409。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewPromptCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "版本及content_hash",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPrompt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "新建版本",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPrompt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "READ_REVISION_CHANGED、VERSION_CONFLICT、IDEMPOTENCY_CONFLICT、REVIEW_UNIQUE_CONFLICT、PROMPT_IDENTITY_IMMUTABLE、PROMPT_CONTENT_IMMUTABLE、PROMPT_STATUS_CONFLICT、PROMPT_VERSION_ORDER。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchReviewPrompt",
+        "tags": [
+          "Content review"
+        ],
+        "summary": "条件更新提示词版本",
+        "description": "沿用内容复盘权限：PUBLIC_BUSINESS_MODE=1时匿名可读，同源X-Public-Business:1可写；所有者会话写入须CSRF，显式无效凭据不能回退匿名，Bearer不授予权限。历史接口不代表私密后台。 必须expected_hash；旧hash冲突。已生效/归档正文不可改；晋升原子归档先前active，不允许旧版本倒退。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Public-Business",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewPromptPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "版本及content_hash",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewPrompt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "READ_REVISION_CHANGED、VERSION_CONFLICT、IDEMPOTENCY_CONFLICT、REVIEW_UNIQUE_CONFLICT、PROMPT_IDENTITY_IMMUTABLE、PROMPT_CONTENT_IMMUTABLE、PROMPT_STATUS_CONFLICT、PROMPT_VERSION_ORDER。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "参数、权限、限流或存储错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -19594,6 +20556,16 @@
               "null"
             ],
             "description": "规则证据备注，最多 2000 UTF-8 字节；可为 null。"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "global",
+              "toutiao",
+              "vzi",
+              "yujian",
+              "wechat"
+            ]
           }
         },
         "description": "rule_id/section/text必需；附加元数据可省略。旧规则读取默认candidate，不写回原JSON或改变原hash。"
@@ -23127,6 +24099,16 @@
               "null"
             ],
             "description": "规则证据备注，最多 2000 UTF-8 字节；可为 null。"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "global",
+              "toutiao",
+              "vzi",
+              "yujian",
+              "wechat"
+            ]
           }
         },
         "anyOf": [
@@ -24844,6 +25826,225 @@
                 }
               }
             }
+          }
+        }
+      },
+      "ReviewPromptCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "prompt_key",
+          "scope",
+          "version",
+          "title",
+          "content_md"
+        ],
+        "properties": {
+          "prompt_key": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "global",
+              "toutiao",
+              "vzi",
+              "yujian",
+              "wechat"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "default": "draft"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空，最多500 UTF-8字节。"
+          },
+          "content_md": {
+            "type": "string",
+            "minLength": 1,
+            "description": "完整原始Markdown，非空，最多131072 UTF-8字节；HTML仅转义展示。"
+          },
+          "changelog_md": {
+            "type": "string",
+            "default": "",
+            "description": "最多131072 UTF-8字节。"
+          }
+        }
+      },
+      "ReviewPromptPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 2,
+        "required": [
+          "expected_hash"
+        ],
+        "properties": {
+          "prompt_key": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "global",
+              "toutiao",
+              "vzi",
+              "yujian",
+              "wechat"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空，最多500 UTF-8字节。"
+          },
+          "content_md": {
+            "type": "string",
+            "minLength": 1,
+            "description": "完整原始Markdown，非空，最多131072 UTF-8字节；HTML仅转义展示。"
+          },
+          "changelog_md": {
+            "type": "string",
+            "description": "最多131072 UTF-8字节。"
+          },
+          "expected_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "description": "省略字段保持不变。身份字段不能改变；仅draft可编辑正文。active只能归档，archived终态。"
+      },
+      "ReviewPrompt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "prompt_key",
+          "scope",
+          "version",
+          "status",
+          "title",
+          "content_md",
+          "changelog_md",
+          "id",
+          "created_at",
+          "updated_at",
+          "content_hash"
+        ],
+        "properties": {
+          "prompt_key": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "global",
+              "toutiao",
+              "vzi",
+              "yujian",
+              "wechat"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "default": "draft"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空，最多500 UTF-8字节。"
+          },
+          "content_md": {
+            "type": "string",
+            "minLength": 1,
+            "description": "完整原始Markdown，非空，最多131072 UTF-8字节；HTML仅转义展示。"
+          },
+          "changelog_md": {
+            "type": "string",
+            "default": "",
+            "description": "最多131072 UTF-8字节。"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      },
+      "ReviewPromptList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "has_more",
+          "read_revision"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/ReviewPrompt"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "read_revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
           }
         }
       }

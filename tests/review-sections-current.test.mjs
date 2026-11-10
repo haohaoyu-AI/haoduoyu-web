@@ -35,7 +35,7 @@ test('benchmark tab shows account features and scoped benchmark library', () => 
 
 test('rules remain fully visible regardless of status and notes and daily summaries stay hidden', () => {
   const view = html('review');
-  assert.match(view,/规则第一行\n规则第二行完整内容/);
+  assert.match(view,/<p>规则第一行<\/p><p>规则第二行完整内容<\/p>/);
   assert.match(view,/另一条完整规则/);
   assert.match(view,/未分类规则也完整保留/);
   assert.doesNotMatch(view,/data-review-filter="status"|review-v13-status|review-rule-status|review-v13-expand|NOTE_SECRET|NOTE_BODY|DAILY_SECRET|review-v13-notes/);

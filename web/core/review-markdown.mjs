@@ -7,9 +7,10 @@ export function safeReviewUrl(value) {
 function inline(value, depth = 0) {
   const text = String(value);
   if (depth >= 8) return e(text);
-  const last = new Map(['[/red]','[/blue]','[/green]','[/amber]','**','`','](',')']
+  const last = new Map(['[/red]','[/blue]','[/green]','[/amber]','**','`']
     .map(token => [token,text.lastIndexOf(token)]));
   let out = '', plain = 0, pos = 0;
+  let linkMiddle = text.indexOf(']('), linkEnd = linkMiddle < 0 ? -1 : text.indexOf(')',linkMiddle+2);
   const emit = (end,html) => { out += e(text.slice(plain,pos)) + html; pos = end; plain = end; };
   while (pos < text.length) {
     const color = text[pos] === '[' ? text.slice(pos,pos+7).match(/^\[(red|blue|green|amber)\]/) : null;
@@ -27,11 +28,16 @@ function inline(value, depth = 0) {
       emit(end+token.length,token === '`' ? `<code>${e(content)}</code>` : `<strong>${inline(content,depth+1)}</strong>`);
       continue;
     }
-    if (text[pos] === '[' && last.get('](') > pos && last.get(')') > last.get('](')) {
-      const middle = text.indexOf('](',pos+1), end = text.indexOf(')',middle+2);
-      const label = text.slice(pos+1,middle), href = safeReviewUrl(text.slice(middle+2,end));
-      emit(end+1,href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(label)}</a>` : e(label));
-      continue;
+    if (text[pos] === '[') {
+      if (linkMiddle >= 0 && linkMiddle <= pos) {
+        linkMiddle = text.indexOf('](',pos+1);
+        linkEnd = linkMiddle < 0 ? -1 : text.indexOf(')',linkMiddle+2);
+      }
+      if (linkMiddle > pos && linkEnd > linkMiddle+2) {
+        const label = text.slice(pos+1,linkMiddle), href = safeReviewUrl(text.slice(linkMiddle+2,linkEnd));
+        emit(linkEnd+1,href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(label)}</a>` : e(label));
+        continue;
+      }
     }
     pos++;
   }
