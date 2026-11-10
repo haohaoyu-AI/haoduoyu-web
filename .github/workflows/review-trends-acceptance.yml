@@ -107,6 +107,12 @@ jobs:
               "            print('SYNTHETIC_PAGE_TEXT',page.locator('body').inner_text())",
               "            print('SYNTHETIC_PAGE_ERRORS',report['page_errors'])",
               '            raise',
+              '        page.wait_for_timeout(1000)',
+              "        page.screenshot(path=str(OUT/f'trends-probe-{width}.png'),full_page=True)",
+              "        print('SYNTHETIC_VISIBLE_URL',page.url)",
+              "        print('SYNTHETIC_VISIBLE_CLOCK',page.evaluate('new Date().toISOString()'))",
+              "        print('SYNTHETIC_VISIBLE_TEXT',page.locator('body').inner_text())",
+              "        print('SYNTHETIC_VISIBLE_ERRORS',report['page_errors'])",
           ])
           assert initial in source
           source = source.replace(initial, diagnostic, 1)
