@@ -1,0 +1,59 @@
+name: Rules prompts isolated browser acceptance
+on:
+  push:
+    branches: ['ci/review-rules-acceptance-20261111']
+permissions:
+  contents: read
+concurrency:
+  group: review-rules-isolated-browser-acceptance
+  cancel-in-progress: false
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: faa86f862f032f8a896d813ea4ac2f7d3eb13b96
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Verify exact candidate without production access
+        run: |
+          test "$(git rev-parse HEAD)" = faa86f862f032f8a896d813ea4ac2f7d3eb13b96
+          test "$(git rev-parse HEAD^{tree})" = e0cc5c64960373bd9f80f9b545e7a77ba477c9a4
+          node --check scripts/preview-review-rules.mjs
+      - name: Install isolated browser dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/rules-browser-venv"
+          "$RUNNER_TEMP/rules-browser-venv/bin/python" -m pip install --disable-pip-version-check playwright==1.58.0
+          "$RUNNER_TEMP/rules-browser-venv/bin/python" -m playwright install --with-deps chromium
+          sudo apt-get install -y fonts-noto-cjk
+      - name: Run all synthetic rules browser assertions
+        shell: bash
+        run: |
+          mkdir -p artifacts/review-rules-prompts
+          LOG="$RUNNER_TEMP/rules-preview.log"
+          node scripts/preview-review-rules.mjs > "$LOG" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=false
+          for attempt in $(seq 1 60); do
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then cat "$LOG"; exit 1; fi
+            if curl --fail --silent http://127.0.0.1:8796/ > /dev/null; then READY=true; break; fi
+            sleep 1
+          done
+          "$READY" || { cat "$LOG"; exit 1; }
+          "$RUNNER_TEMP/rules-browser-venv/bin/python" tests/browser-review-rules.py
+      - name: Save synthetic JSON and screenshots only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: review-rules-prompts-browser-evidence
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            artifacts/review-rules-prompts/*.png
+            artifacts/review-rules-prompts/report.json
