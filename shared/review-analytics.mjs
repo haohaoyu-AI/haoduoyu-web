@@ -92,17 +92,20 @@ function quantile(sorted, fraction) { return sorted[Math.max(0, Math.ceil(sorted
  * per account. Undated articles sort last, then stable id. Nearest-rank q80/q30:
  * 爆 >q80; 扑 <=q30 and <q80; all other values 中. Boundary ties are never split,
  * and an all-equal cohort is all 中. These are empirical cutoffs, not quotas. */
-export function enrichArticles(data = {}, { account } = {}) {
+export function enrichArticles(data = {}, { account, baselineData } = {}) {
   const articles = array(data.articles).filter(article => article && (account === undefined || article.account === account));
   const rows = articles.map(article => {
     const sample24h = select24hSnapshot(data.snapshots, article.id);
     return { ...article, sample24h, reads_24h: nonnegative(sample24h?.reads), ctr_24h: rate(sample24h?.ctr),
       completion_24h: rate(sample24h?.completion_rate), applied_rules: appliedRules(article, data.playbooks) };
   });
+  // A filtered view can retain the list's full-account baseline without changing
+  // which records or valid snapshots that view is allowed to summarize.
+  const baselineRows = baselineData === undefined ? rows : enrichArticles(baselineData, { account });
   const cohorts = new Map();
   for (const row of rows) {
     if (!cohorts.has(row.account)) {
-      const samples = rows.filter(item => item.account === row.account && item.reads_24h !== null).sort(recentArticles).slice(0, 30);
+      const samples = baselineRows.filter(item => item.account === row.account && item.reads_24h !== null).sort(recentArticles).slice(0, 30);
       const values = samples.map(item => item.reads_24h).sort((a, b) => a - b);
       cohorts.set(row.account, { sample_count: values.length, low: quantile(values, .3), high: quantile(values, .8), sample_ids: samples.map(item => item.id) });
     }
