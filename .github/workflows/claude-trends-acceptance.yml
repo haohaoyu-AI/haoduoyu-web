@@ -1,0 +1,75 @@
+name: Claude trends required browser acceptance
+on:
+  push:
+    branches: ['ci/claude-trends-acceptance-20261111']
+permissions:
+  contents: read
+concurrency:
+  group: claude-trends-required-acceptance
+  cancel-in-progress: false
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: e993885c752e97532214ef14a2fcf32b324bc08c
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Prepare exact candidate without production access
+        run: |
+          test "$(git rev-parse HEAD)" = e993885c752e97532214ef14a2fcf32b324bc08c
+          npm ci --ignore-scripts --no-audit --no-fund
+          node scripts/frontend-build.mjs --check
+          npm run build
+      - name: Install isolated browser dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/trends-browser-venv"
+          "$RUNNER_TEMP/trends-browser-venv/bin/python" -m pip install --disable-pip-version-check playwright==1.58.0
+          "$RUNNER_TEMP/trends-browser-venv/bin/python" -m playwright install --with-deps chromium
+          sudo apt-get install -y fonts-noto-cjk
+      - name: Run requested browser script with all assertions
+        shell: bash
+        run: |
+          mkdir -p artifacts/data-trends
+          trap 'kill "${SERVER_PID:-}" 2>/dev/null || true' EXIT
+          for WIDTH in 1440 390 375; do
+            LOG="artifacts/data-trends/browser-server-${WIDTH}.log"
+            node tests/review-trends-browser-server.mjs > "$LOG" 2>&1 &
+            SERVER_PID=$!
+            READY=false
+            for attempt in $(seq 1 60); do
+              if ! kill -0 "$SERVER_PID" 2>/dev/null; then cat "$LOG"; exit 1; fi
+              if grep -q '^SYNTHETIC_TRENDS_READY ' "$LOG"; then READY=true; break; fi
+              sleep 1
+            done
+            "$READY" || { cat "$LOG"; exit 1; }
+            TRENDS_BROWSER_WIDTH="$WIDTH" "$RUNNER_TEMP/trends-browser-venv/bin/python" - <<'PY_BROWSER'
+          from pathlib import Path
+          test = Path('tests/browser-review-trends.py').resolve()
+          source = test.read_text()
+          launch_path = "executable_path='/usr/bin/chromium',"
+          assert source.count(launch_path) == 1
+          source = source.replace(launch_path, '')
+          exec(compile(source, str(test), 'exec'), {'__file__': str(test), '__name__': '__main__'})
+          PY_BROWSER
+            mv artifacts/data-trends/browser-report.json "artifacts/data-trends/browser-report-${WIDTH}.json"
+            kill "$SERVER_PID"
+            wait "$SERVER_PID" || true
+            SERVER_PID=''
+          done
+      - name: Save synthetic evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: claude-trends-required-browser-evidence
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            artifacts/data-trends/trends-*.png
+            artifacts/data-trends/browser-report*.json
+            artifacts/data-trends/browser-server*.log
