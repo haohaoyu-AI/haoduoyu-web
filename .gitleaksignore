@@ -292,3 +292,6 @@ fc9b122b03ba5b224a4a2eac11e668bc4482499d:desktop/windows/Haoduoyu.Api.Tests/Fixt
 fc9b122b03ba5b224a4a2eac11e668bc4482499d:desktop/windows/Haoduoyu.Api.Tests/Fixtures/todo-note-contract-report.json:generic-api-key:56
 60d85e83acb2650aa5e4dee88e30d94c38346807:.ci/public-assets.json:generic-api-key:5
 60d85e83acb2650aa5e4dee88e30d94c38346807:.ci/public-assets.json:generic-api-key:10
+
+# Exact historical public CSS content SHA256, independently recomputed.
+07673981b00b7eeba83833448a75daa43b3064ab:desktop/original-web-workbench/bundle/source-build-manifest.json:generic-api-key:9
