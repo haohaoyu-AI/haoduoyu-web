@@ -2,7 +2,6 @@ import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
 import {storage} from './core/storage.mjs';
 import {day,shiftDay} from './core/review-data.mjs';
-import {TREND_METRICS} from './core/review-trends.mjs';
 
 const columnStorageKey = 'haoduoyu.review.columns.v1';
 export const REVIEW_METRIC_COLUMNS = Object.freeze(['reads','impressions','fan_impressions','fan_reads','ctr','avg_read_seconds','completion_rate']);
@@ -83,9 +82,8 @@ export function reviewRoute(href,defaultAccount = vm.account) {
   const benchmark = p.get('review_benchmark') || '';
   const secondary = benchmark ? 'benchmarks' : REVIEW_SECTIONS.some(([id]) => id === section) ? section :
     ['notes','playbook'].includes(section) || view === 'playbook' ? 'review' : 'benchmarks';
-  const trendRange = p.get('review_trend_range'), trendMetric = p.get('review_trend_metric');
-  const trends = {range:['7d','30d','custom'].includes(trendRange) ? trendRange : '7d',
-    metric:TREND_METRICS.some(([id]) => id === trendMetric) ? trendMetric : 'average_reads',
+  const trendRange = p.get('review_trend_range');
+  const trends = {range:['7d','30d','custom'].includes(trendRange) ? trendRange : '30d',
     from:p.get('review_trend_from') || '',to:p.get('review_trend_to') || ''};
   return {account:p.get('account')?.trim() || defaultAccount,view,secondary,trends,
     week:p.get('review_week') === 'last' ? 'last' : 'this',article:benchmark ? '' : p.get('review_article') || '',
@@ -209,15 +207,22 @@ function selectTab(view,focus = false) {
 }
 function changeTrend(target) {
   const key = target.dataset.reviewTrend;
-  if (!['range','from','to','metric'].includes(key)) return;
+  if (!['range','from','to'].includes(key)) return;
   const today = day(new Date().toISOString());
   vm.trends = {...vm.trends,[key]:target.value};
   if (key === 'range' && vm.trends.range === 'custom') {
     vm.trends.from ||= shiftDay(today,-6); vm.trends.to ||= today;
   }
-  writeRoute(Object.fromEntries(Object.entries(vm.trends).map(([name,value]) => [`trend_${name}`,value])));
+  // The metric picker is gone; drop its parameter from links saved before the redesign.
+  writeRoute({...Object.fromEntries(Object.entries(vm.trends).map(([name,value]) => [`trend_${name}`,value])),trend_metric:''});
   paintContentReviewPage();
   root()?.querySelector(`[data-review-trend="${key}"]`)?.focus({preventScroll:true});
+}
+// Hovering a chart point names the article under the plot; leaving restores the period's best one.
+function describeTrendPoint(event,leaving) {
+  const point = event.target.closest?.('[data-trend-readout]');
+  const target = point?.closest('.review-trend-figure')?.querySelector('[data-trend-readout-target]');
+  if (target && root()?.contains(target)) target.textContent = leaving ? target.dataset.default : point.dataset.trendReadout;
 }
 function registerEvents() {
   if (registered || typeof document === 'undefined') return;
@@ -276,6 +281,8 @@ function registerEvents() {
     const article = target.dataset.reviewArticle || target.dataset.reviewRow;
     if (article) { returnFocusId = article; returnScroll = window.scrollY; vm.article = article; vm.benchmark = ''; writeRoute({article,benchmark:''}); paintContentReviewPage(); }
   });
+  document.addEventListener('mouseover',event => describeTrendPoint(event,false));
+  document.addEventListener('mouseout',event => describeTrendPoint(event,true));
   document.addEventListener('change',event => {
     const target = event.target;
     const node = root();

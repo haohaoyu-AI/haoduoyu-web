@@ -20,7 +20,7 @@ const cases=[
 const rows=cases.map(({name,article,snapshot,expected})=>{
   const input={articles:[{id:'synthetic-article',account,title:'Synthetic validation only',...article}],
     snapshots:[{id:'synthetic-snapshot',article_id:'synthetic-article',snapshot_date:'2026-11-08',...snapshot}]};
-  const result=reviewTrends(input,{account,now}),s=result.summary;
+  const result=reviewTrends(input,{account,now,range:'7d'}),s=result.summary;
   const actual={records:s.record_count,average:s.average_reads,samples:s.coverage.average_reads,
     published:s.published_count,undated:result.excluded.undated,future:result.excluded.future};
   if('first_day' in expected)Object.assign(actual,{first_day:result.series[0].date,first_day_records:result.series[0].record_count});

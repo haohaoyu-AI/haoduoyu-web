@@ -1104,19 +1104,19 @@ function writingMethods(context) {
   }
   async function captureAcknowledged() {
     const owner2 = capture();
-    const count2 = await db.transaction(["entities"], "readwrite", async (tx) => {
+    const count3 = await db.transaction(["entities"], "readwrite", async (tx) => {
       owner2.active();
-      let count3 = 0;
+      let count4 = 0;
       for (const entity of await tx.getAll("entities")) {
         if (entity.scope !== owner2.scope || !noteEntity(entity) || !isNoteApiRow(entity.server) || entity.api_server?.version > entity.server.version) continue;
         await tx.put("entities", { ...entity, api_server: structuredClone(entity.server) });
-        count3++;
+        count4++;
       }
       owner2.active();
-      return count3;
+      return count4;
     });
     owner2.active();
-    return count2;
+    return count3;
   }
   return { write, captureAcknowledged };
 }
@@ -2359,12 +2359,12 @@ async function replayOperation(tx, operation2, input, all) {
 }
 async function noteCapacity(tx, operation2, old) {
   if (operation2.entity_type !== "note_entry" || operation2.expected_version !== 0 || operation2.status === "unknown" || old) return;
-  let count2 = 0;
+  let count3 = 0;
   for (const entity of await tx.getAll("entities")) {
     const row = entity.dirty ? entity.local : entity.server;
-    if (entity.scope === operation2.scope && entity.entity_id.startsWith("note-entry:") && (entity.dirty || !entity.remote_missing) && row?.category === operation2.body.category && row?.date === operation2.body.date && !deleted(row)) count2++;
+    if (entity.scope === operation2.scope && entity.entity_id.startsWith("note-entry:") && (entity.dirty || !entity.remote_missing) && row?.category === operation2.body.category && row?.date === operation2.body.date && !deleted(row)) count3++;
   }
-  if (count2 >= 200) throw Object.assign(new Error("本机当日记录已达 200 条，草稿已保留。"), { code: "OFFLINE_CACHE_LIMIT" });
+  if (count3 >= 200) throw Object.assign(new Error("本机当日记录已达 200 条，草稿已保留。"), { code: "OFFLINE_CACHE_LIMIT" });
 }
 function storageMethods(context) {
   const { db, checkScope, uuid: uuid5, now, owner: owner2 } = context;
@@ -2648,7 +2648,7 @@ function executionMethods(context) {
     state2.error = null;
     state2.rateLimitedUntil = 0;
     try {
-      for (let count2 = 0; count2 < 1e3; count2++) {
+      for (let count3 = 0; count3 < 1e3; count3++) {
         checkScope(scope);
         const blockedUntil = Math.max(await cooldown(scope), context.rateLimitedUntil || 0);
         if (blockedUntil > now()) {
@@ -2693,14 +2693,14 @@ function executionMethods(context) {
     checkScope(scope);
     return db.transaction(["outbox"], "readwrite", async (tx) => {
       checkScope(scope);
-      let count2 = 0;
+      let count3 = 0;
       for (const operation2 of await tx.getAll("outbox")) {
         if (operation2.scope === scope && canDispatch(operation2) && operation2.status === "paused") {
           await tx.put("outbox", { ...operation2, status: "unknown", next_attempt_at: 0, claim_owner: null });
-          count2++;
+          count3++;
         }
       }
-      return count2;
+      return count3;
     });
   }
   return { run: run2, drain, resume };
@@ -5470,11 +5470,11 @@ function pageHeader() {
   if (state.page === "memos") return '<div class="heading-left"><h1>' + (state.memoView === "trash" ? "备忘录回收站" : "备忘录") + "</h1></div>";
   if (state.page === "notes") return '<div class="heading-left"><h1>碎碎念</h1></div>';
   if (state.page === "todos") return '<div class="heading-left"><h1>每日待办</h1></div>';
-  const count2 = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
+  const count3 = state.page === "articles" ? state.articleMeta?.total : state.page === "settings" && state.settingsTab === "accounts" ? rowsForAccount(
     state.accounts
   ).length : null;
   const account = ["dashboard", "articles"].includes(state.page) || state.page === "settings" && state.settingsTab === "accounts";
-  return `<div class="heading-left"><h1>${e(nav.find((n) => n.id === state.page)?.label || "总览")}</h1><span id="page-count" class="page-count" ${count2 == null ? "hidden" : ""}>${count2 == null ? "" : e(num(count2))}</span></div><div class="head-actions">${account ? accountFilter() : ""}${headerActions()}<button class="icon-button" data-action="page-menu" aria-label="更多页面操作" aria-haspopup="menu" aria-expanded="false" aria-controls="page-menu">⋯</button></div>`;
+  return `<div class="heading-left"><h1>${e(nav.find((n) => n.id === state.page)?.label || "总览")}</h1><span id="page-count" class="page-count" ${count3 == null ? "hidden" : ""}>${count3 == null ? "" : e(num(count3))}</span></div><div class="head-actions">${account ? accountFilter() : ""}${headerActions()}<button class="icon-button" data-action="page-menu" aria-label="更多页面操作" aria-haspopup="menu" aria-expanded="false" aria-controls="page-menu">⋯</button></div>`;
 }
 function skeleton() {
   return '<div class="skeleton" role="status" aria-label="正在读取数据"><span></span><span></span><span></span><span class="sr-only">正在读取数据…</span></div>';
@@ -5482,9 +5482,9 @@ function skeleton() {
 function comparisonHTML(comparison) {
   if (!comparison?.comparable) return `<span class="comparison muted" title="${e(comparison?.reason || "缺少完整的可比数据")}">暂不可比</span>`;
   const delta2 = Number(comparison.delta), direction = delta2 > 0 ? "up" : delta2 < 0 ? "down" : "flat";
-  const change2 = delta2 === 0 ? "持平" : `${delta2 > 0 ? "+" : ""}${num(delta2)}`;
-  const percent2 = comparison.percent == null ? "" : `（${Number(comparison.percent) > 0 ? "+" : ""}${num(comparison.percent)}%）`;
-  return `<span class="comparison ${direction}" title="${e(comparison.reason || "与前一等长周期比较")}">${change2}${percent2}</span>`;
+  const change3 = delta2 === 0 ? "持平" : `${delta2 > 0 ? "+" : ""}${num(delta2)}`;
+  const percent3 = comparison.percent == null ? "" : `（${Number(comparison.percent) > 0 ? "+" : ""}${num(comparison.percent)}%）`;
+  return `<span class="comparison ${direction}" title="${e(comparison.reason || "与前一等长周期比较")}">${change3}${percent3}</span>`;
 }
 function dashboardInfo(kind, label3, id2 = "") {
   return `<button class="icon-button inline-info" data-action="dashboard-info" data-kind="${e(kind)}" data-id="${e(id2)}" aria-label="${e(label3)}" aria-expanded="false" aria-controls="info-${e(kind)}-${e(id2)}">${icon("info", 14)}</button>`;
@@ -6479,7 +6479,7 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
   } catch {
   }
   state2.startedAt = openAiStartTime(storage2, key2, state2.pendingId);
-  const change2 = () => {
+  const change3 = () => {
     if (active5) onChange({ ...state2 });
   };
   const retain2 = (id2) => {
@@ -6505,7 +6505,7 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
     state2.busy = true;
     state2.operation = "check";
     state2.error = "";
-    change2();
+    change3();
     try {
       accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId)));
     } catch (error) {
@@ -6514,16 +6514,16 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
     } finally {
       state2.busy = false;
       state2.operation = "";
-      change2();
+      change3();
     }
   }
-  const observe = createObserver({ state: state2, request, active: () => active5, accept, change: change2 });
+  const observe = createObserver({ state: state2, request, active: () => active5, accept, change: change3 });
   async function start(mode = "incremental", model = "") {
     if (!active5 || state2.busy || state2.pendingId || !["incremental", "full"].includes(mode)) return;
     state2.busy = true;
     state2.operation = "start";
     state2.error = "";
-    change2();
+    change3();
     try {
       const existing = storage2.getItem(key2);
       if (existing) {
@@ -6534,7 +6534,7 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
       storage2.setItem(key2 + ":started", timing);
       if (storage2.getItem(key2 + ":started") !== timing) throw new Error("无法保存分析开始时间，未开始分析。");
       retain2(id2);
-      change2();
+      change3();
       const run2 = await request("/openai-review/runs", { method: "POST", body: { run_id: state2.pendingId, mode, ...model ? { model } : {} } });
       accept(run2);
     } catch (error) {
@@ -6566,7 +6566,7 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
     } finally {
       state2.busy = false;
       state2.operation = "";
-      change2();
+      change3();
     }
   }
   async function release() {
@@ -6574,7 +6574,7 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
     state2.busy = true;
     state2.operation = "release";
     state2.error = "";
-    change2();
+    change3();
     try {
       accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId) + "/release", {
         method: "POST",
@@ -6587,17 +6587,17 @@ function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = 
     } finally {
       state2.busy = false;
       state2.operation = "";
-      change2();
+      change3();
     }
   }
   return { state: state2, start, recover, observe, release, adopt(run2) {
     accept(run2);
-    change2();
+    change3();
   }, dispose() {
     active5 = false;
   } };
 }
-function createObserver({ state: state2, request, active: active5, accept, change: change2 }) {
+function createObserver({ state: state2, request, active: active5, accept, change: change3 }) {
   let observing = false;
   return async function observe() {
     if (!active5() || observing || state2.operation !== "start" || !state2.pendingId || openAiPendingRunUncertain(state2)) return;
@@ -6607,12 +6607,12 @@ function createObserver({ state: state2, request, active: active5, accept, chang
       const run2 = await request("/openai-review/runs/" + encodeURIComponent(id2));
       if (active5() && state2.pendingId === id2 && run2?.id === id2) {
         accept(run2);
-        change2();
+        change3();
       }
     } catch {
     } finally {
       observing = false;
-      if (active5()) change2();
+      if (active5()) change3();
     }
   };
 }
@@ -6640,7 +6640,7 @@ function createConnectivityContext({ storage: storage2, key: key2, onChange }) {
     if (timing?.id === state2.pendingId && Number.isFinite(timing.at)) state2.startedAt = timing.at;
   } catch {
   }
-  const change2 = () => {
+  const change3 = () => {
     if (context.active) onChange({ ...state2 });
   };
   const retain2 = (id2) => {
@@ -6675,10 +6675,10 @@ function createConnectivityContext({ storage: storage2, key: key2, onChange }) {
     }
   };
   const current3 = (version2, id2) => context.active && context.generation === version2 && (state2.pendingId === id2 || !state2.pendingId && state2.result?.id === id2);
-  return Object.assign(context, { state: state2, change: change2, retain: retain2, clear, accept, current: current3 });
+  return Object.assign(context, { state: state2, change: change3, retain: retain2, clear, accept, current: current3 });
 }
 function createConnectivityObserver(context, request) {
-  const { state: state2, accept, current: current3, change: change2 } = context;
+  const { state: state2, accept, current: current3, change: change3 } = context;
   let observing = false;
   return async function observe() {
     if (!context.active || observing || state2.operation !== "start" || !state2.pendingId) return;
@@ -6694,7 +6694,7 @@ function createConnectivityObserver(context, request) {
       }
     } finally {
       observing = false;
-      if (current3(version2, id2)) change2();
+      if (current3(version2, id2)) change3();
     }
   };
 }
@@ -6708,7 +6708,7 @@ function createOpenAiConnectivityRunner({
   now = Date.now
 }) {
   const context = createConnectivityContext({ storage: storage2, key: key2, onChange });
-  const { state: state2, change: change2, retain: retain2, clear, accept, current: current3 } = context;
+  const { state: state2, change: change3, retain: retain2, clear, accept, current: current3 } = context;
   const observe = createConnectivityObserver(context, request);
   async function recover() {
     if (state2.operation === "start") return observe();
@@ -6717,7 +6717,7 @@ function createOpenAiConnectivityRunner({
     state2.busy = true;
     state2.operation = "check";
     state2.error = "";
-    change2();
+    change3();
     try {
       const result = await request(endpoint + "/" + encodeURIComponent(id2));
       if (current3(version2, id2)) accept(result, id2);
@@ -6732,7 +6732,7 @@ function createOpenAiConnectivityRunner({
       if (context.active && context.generation === version2) {
         state2.busy = false;
         state2.operation = "";
-        change2();
+        change3();
       }
     }
   }
@@ -6743,7 +6743,7 @@ function createOpenAiConnectivityRunner({
     state2.busy = true;
     state2.operation = "start";
     state2.error = "";
-    change2();
+    change3();
     try {
       let existing = storage2.getItem(key2);
       if (existing && state2.result?.id === existing && terminal(state2.result)) {
@@ -6765,7 +6765,7 @@ function createOpenAiConnectivityRunner({
       retain2(id2);
       state2.startedAt = at;
       state2.result = null;
-      change2();
+      change3();
       if (!context.active || context.generation !== version2) return;
       dispatched = true;
       const result = await request(endpoint, { method: "POST", body: { test_id: id2, model } });
@@ -6799,7 +6799,7 @@ function createOpenAiConnectivityRunner({
       if (context.active && context.generation === version2) {
         state2.busy = false;
         state2.operation = "";
-        change2();
+        change3();
       }
     }
   }
@@ -6810,7 +6810,7 @@ function createOpenAiConnectivityRunner({
     } catch (error) {
       state2.error = error.message;
     }
-    change2();
+    change3();
   }, dispose() {
     context.active = false;
     context.generation++;
@@ -7174,9 +7174,9 @@ var pipelineFilters = ["slot", "writer", "has_warnings", "has_pending_verify", "
 var boolChoices = { true: "是", false: "否" };
 var publishedArticle = (article) => !Object.hasOwn(article, "status") || article.status === "published";
 function statusSelect(value = "draft_saved", allowUnknown = false) {
-  const known = Object.hasOwn(statusLabels, value);
-  const unknown2 = allowUnknown && !known;
-  if (!unknown2 && !known) value = "draft_saved";
+  const known2 = Object.hasOwn(statusLabels, value);
+  const unknown2 = allowUnknown && !known2;
+  if (!unknown2 && !known2) value = "draft_saved";
   return `<label class="form-field">状态<select name="status" class="input" aria-label="文章状态">
 ${unknown2 ? '<option value="" selected disabled>未确认，请选择状态</option>' : ""}
 ${Object.entries(statusLabels).map(([key2, label3]) => `<option value="${e(key2)}" ${value === key2 ? "selected" : ""}>${e(label3)}</option>`).join("")}
@@ -7822,13 +7822,13 @@ function createTodoMonthLoader({ read: read3, seed, active: active5, changed: ch
       months.set(month, snapshot);
     }
     current3 = snapshot;
-    const count2 = monthDays(month), deadline = Math.max(snapshot.retryAt, cooldown);
-    if (snapshot.fresh.size === count2 && now() < snapshot.expiresAt) snapshot.error = "";
-    const expired = snapshot.fresh.size === count2 && now() >= snapshot.expiresAt;
+    const count3 = monthDays(month), deadline = Math.max(snapshot.retryAt, cooldown);
+    if (snapshot.fresh.size === count3 && now() < snapshot.expiresAt) snapshot.error = "";
+    const expired = snapshot.fresh.size === count3 && now() >= snapshot.expiresAt;
     if (expired) snapshot.fresh.clear();
-    if (!snapshot.loading && snapshot.fresh.size < count2 && now() < deadline && !snapshot.error)
+    if (!snapshot.loading && snapshot.fresh.size < count3 && now() < deadline && !snapshot.error)
       snapshot.error = "请求较多，请稍后重试。";
-    if (!snapshot.loading && snapshot.fresh.size < count2 && now() >= deadline) {
+    if (!snapshot.loading && snapshot.fresh.size < count3 && now() >= deadline) {
       const controller = new AbortController();
       snapshot.controller = controller;
       snapshot.loading = true;
@@ -7839,8 +7839,8 @@ function createTodoMonthLoader({ read: read3, seed, active: active5, changed: ch
   }
   async function run2(snapshot, controller, expired) {
     const valid2 = () => snapshot.controller === controller && !controller.signal.aborted && active5(snapshot.owner);
-    const count2 = monthDays(snapshot.month);
-    const dates = Array.from({ length: count2 }, (_, i) => `${snapshot.month}-${String(i + 1).padStart(2, "0")}`);
+    const count3 = monthDays(snapshot.month);
+    const dates = Array.from({ length: count3 }, (_, i) => `${snapshot.month}-${String(i + 1).padStart(2, "0")}`);
     const revisions = new Map(snapshot.revisions);
     try {
       const initial = await seed(snapshot.month, snapshot.owner, { refresh: expired });
@@ -7884,7 +7884,7 @@ function createTodoMonthLoader({ read: read3, seed, active: active5, changed: ch
           break;
         }
       }
-      if (snapshot.fresh.size === count2) snapshot.expiresAt = now() + 6e4;
+      if (snapshot.fresh.size === count3) snapshot.expiresAt = now() + 6e4;
     } catch (error) {
       if (valid2()) snapshot.error = error.message || "月记录读取失败，请重试";
     } finally {
@@ -10122,12 +10122,12 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
         grid.append(node2("span", ""));
         continue;
       }
-      const count2 = visibleRows(date).length, button2 = node2("button", String(Number(date.slice(-2))) + (count2 ? " · " + count2 : ""), "btn");
+      const count3 = visibleRows(date).length, button2 = node2("button", String(Number(date.slice(-2))) + (count3 ? " · " + count3 : ""), "btn");
       button2.type = "button";
       button2.dataset.notesMonthDate = date;
-      button2.setAttribute("aria-label", date + "，" + count2 + " 条记录");
+      button2.setAttribute("aria-label", date + "，" + count3 + " 条记录");
       button2.setAttribute("aria-pressed", String(date === selected));
-      button2.classList.toggle("has-records", count2 > 0);
+      button2.classList.toggle("has-records", count3 > 0);
       grid.append(button2);
     }
     paintHistory();
@@ -10157,7 +10157,7 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
   function toggle() {
     if (panel2.open) void load();
   }
-  function change2(event) {
+  function change3(event) {
     if (!active5()) return;
     if (event.target.id === "notes-month-input") {
       if (!validNoteMonth(event.target.value)) {
@@ -10190,13 +10190,13 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
     } else void load(true);
   }
   panel2.addEventListener("toggle", toggle);
-  panel2.addEventListener("change", change2);
+  panel2.addEventListener("change", change3);
   panel2.addEventListener("click", click);
   return () => {
     disposed = true;
     sequence6++;
     panel2.removeEventListener("toggle", toggle);
-    panel2.removeEventListener("change", change2);
+    panel2.removeEventListener("change", change3);
     panel2.removeEventListener("click", click);
   };
 }
@@ -14303,16 +14303,9 @@ function buildOverview(data2 = {}, options4 = {}) {
 }
 
 // web/core/review-trends.mjs
-var TREND_METRICS = Object.freeze([
-  ["average_reads", "平均阅读"],
-  ["published_count", "已发布篇数"],
-  ["hits", "爆款数"],
-  ["record_count", "发布时间记录数"],
-  ["hit_rate", "爆款率"],
-  ["average_ctr", "平均点击率"],
-  ["average_completion", "平均阅读完成率"],
-  ["average_seconds", "平均阅读时长"]
-]);
+var ROLLING_DAYS = 7;
+var ROLLING_MIN_SAMPLES = 3;
+var DAY_MS = 864e5, BEIJING_OFFSET_MS = 8 * 36e5;
 var instant = (value) => typeof value === "string" && value.includes("T") && day4(value) ? Date.parse(value) : null;
 var stamp2 = (value) => Number.isFinite(instant(value)) ? instant(value) : null;
 var number = (value, max = Infinity) => {
@@ -14323,7 +14316,7 @@ var statusOf = (row) => row.publication_status ?? row.publish_status ?? row.stat
 var unpublishedStatuses = ["draft", "drafting", "illustrated", "draft_saved", "scheduled", "pending", "failed", "unpublished", "deleted", "retracted"];
 var unpublished = (row) => unpublishedStatuses.includes(statusOf(row));
 var confirmed = (row) => statusOf(row) === "published";
-function trendBounds({ range = "7d", from = "", to = "", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
+function trendBounds({ range = "30d", from = "", to = "", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   const today2 = day4(now);
   if (!today2 || stamp2(now) === null) throw new TypeError("趋势需要带时区的当前时间。");
   if (!["7d", "30d", "custom"].includes(range)) throw new TypeError("请选择近 7 天、近 30 天或自定义日期。");
@@ -14331,17 +14324,18 @@ function trendBounds({ range = "7d", from = "", to = "", now = (/* @__PURE__ */ 
   const end = range === "custom" ? to : today2;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || day4(start) !== start || !/^\d{4}-\d{2}-\d{2}$/.test(end) || day4(end) !== end)
     throw new TypeError("请选择有效的开始日期和结束日期。");
-  const days = (Date.parse(end) - Date.parse(start)) / 864e5 + 1;
+  const days = (Date.parse(end) - Date.parse(start)) / DAY_MS + 1;
   if (days < 1) throw new TypeError("结束日期不能早于开始日期。");
   if (end > today2) throw new TypeError("结束日期不能晚于今天。");
   if (days > 366) throw new TypeError("自定义范围最多 366 天。");
   return { range, start, end, today: today2, days };
 }
 function summarize(rows) {
-  const sample2 = (key2, max) => rows.map((row) => number(row.sample24h?.[key2], max)).filter((value) => value !== null);
+  const sample = (key2, max) => rows.map((row) => number(row.sample24h?.[key2], max)).filter((value) => value !== null);
   const mean = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
-  const reads = sample2("reads"), ctr = sample2("ctr", 100), completion = sample2("completion_rate", 100), seconds = sample2("avg_read_seconds");
-  const judged = rows.filter((row) => row.verdict), hits = judged.filter((row) => row.verdict === "爆").length;
+  const reads2 = sample("reads"), ctr = sample("ctr", 100), completion = sample("completion_rate", 100), seconds = sample("avg_read_seconds");
+  const judged = rows.filter((row) => row.verdict), verdicts = (name) => judged.filter((row) => row.verdict === name).length;
+  const hits = verdicts("爆");
   const unknown2 = rows.filter((row) => !confirmed(row)).length;
   const dates = rows.map((row) => day4(row.sample24h?.snapshot_date)).filter(Boolean).sort();
   const ages = rows.map((row) => number(row.sample24h?.age_hours)).filter((value) => value !== null);
@@ -14350,14 +14344,18 @@ function summarize(rows) {
     published_count: unknown2 ? null : rows.length,
     confirmed_count: rows.length - unknown2,
     unverified_count: unknown2,
-    average_reads: mean(reads),
+    median_reads: median(reads2),
+    median_ctr: median(ctr),
+    average_reads: mean(reads2),
     average_ctr: mean(ctr),
     average_completion: mean(completion),
     average_seconds: mean(seconds),
     hits: judged.length || !rows.length ? hits : null,
+    middles: verdicts("中"),
+    flops: verdicts("扑"),
     hit_rate: judged.length ? hits / judged.length * 100 : null,
     coverage: {
-      average_reads: reads.length,
+      average_reads: reads2.length,
       average_ctr: ctr.length,
       average_completion: completion.length,
       average_seconds: seconds.length,
@@ -14376,6 +14374,25 @@ function summarize(rows) {
     min_hours: ages.length ? Math.min(...ages) : null,
     max_hours: ages.length ? Math.max(...ages) : null
   };
+}
+function headline(current3, previous) {
+  const comparable = previous.record_count > 0;
+  const both = (key2) => comparable && current3[key2] !== null && previous[key2] !== null;
+  const tile = (key2, unit, extra = {}) => ({
+    key: key2,
+    unit,
+    value: current3[key2],
+    previous: comparable ? previous[key2] : null,
+    // Reads span orders of magnitude, so their change is relative; rates change in percentage points.
+    delta: !both(key2) ? null : unit === "relative" ? previous[key2] ? (current3[key2] - previous[key2]) / previous[key2] * 100 : null : current3[key2] - previous[key2],
+    ...extra
+  });
+  return [
+    tile("record_count", "count"),
+    tile("median_reads", "relative", { sample: current3.coverage.average_reads }),
+    tile("hit_rate", "points", { hits: current3.hits, sample: current3.coverage.hits }),
+    tile("median_ctr", "points", { sample: current3.coverage.average_ctr })
+  ];
 }
 function reviewTrends(data2 = {}, options4 = {}) {
   const { account = "V字", verdict = "", now = (/* @__PURE__ */ new Date()).toISOString() } = options4;
@@ -14399,18 +14416,60 @@ function reviewTrends(data2 = {}, options4 = {}) {
       trend_unknown_age: published === null && age === null && day4(row.published_at) >= shiftDay(bounds.today, -1)
     };
   });
-  const selected = rows.filter((row) => day4(row.published_at) >= bounds.start && day4(row.published_at) <= bounds.end && (!verdict || row.verdict === verdict));
+  const pool = rows.filter((row) => !verdict || row.verdict === verdict);
+  const between = (start, end) => pool.filter((row) => day4(row.published_at) >= start && day4(row.published_at) <= end);
+  const selected = between(bounds.start, bounds.end);
+  const previous = { start: shiftDay(bounds.start, -bounds.days), end: shiftDay(bounds.start, -1) };
+  const rolling = (date, key2) => {
+    const values = between(shiftDay(date, 1 - ROLLING_DAYS), date).map((row) => row[key2]).filter((value) => value !== null);
+    return values.length >= ROLLING_MIN_SAMPLES ? median(values) : null;
+  };
+  const first = selected.map((row) => day4(row.published_at)).sort()[0];
+  const plot = { start: first || bounds.start, end: bounds.end };
+  const startMs = Date.parse(`${plot.start}T00:00:00Z`);
+  plot.days = (Date.parse(`${plot.end}T00:00:00Z`) - startMs) / DAY_MS + 1;
   const series = Array.from({ length: bounds.days }, (_, index) => {
     const date = shiftDay(bounds.start, index);
-    return { date, ...summarize(selected.filter((row) => day4(row.published_at) === date)) };
+    return {
+      date,
+      position: date < plot.start ? null : ((Date.parse(`${date}T00:00:00Z`) - startMs) / DAY_MS + 0.5) / plot.days,
+      ...summarize(between(date, date)),
+      rolling_reads: rolling(date, "reads_24h"),
+      rolling_ctr: rolling(date, "ctr_24h")
+    };
   });
+  const points = selected.map((row) => {
+    const date = day4(row.published_at), published = stamp2(row.published_at);
+    const position = published === null ? ((Date.parse(`${date}T00:00:00Z`) - startMs) / DAY_MS + 0.5) / plot.days : (published + BEIJING_OFFSET_MS - startMs) / (plot.days * DAY_MS);
+    return {
+      id: row.id,
+      title: row.title || "",
+      date,
+      published_at: row.published_at,
+      timed: published !== null,
+      position: Math.min(1, Math.max(0, position)),
+      reads: row.reads_24h,
+      ctr: row.ctr_24h,
+      verdict: row.verdict,
+      provisional: row.trend_provisional || row.trend_unknown_age
+    };
+  }).sort((a, b) => a.position - b.position);
+  const basis = rows[0]?.verdict_basis;
+  const summary = summarize(selected);
   return {
     ...bounds,
     account,
     verdict,
-    rows: selected,
+    previous,
+    plot,
+    kpis: headline(summary, summarize(between(previous.start, previous.end))),
+    points,
     series,
-    summary: summarize(selected),
+    top: points.filter((point) => point.reads !== null).sort((a, b) => b.reads - a.reads)[0] || null,
+    thresholds: basis ? { hit: basis.high_threshold, flop: basis.low_threshold, method: basis.method, sample_count: basis.sample_count } : null,
+    rolling: { days: ROLLING_DAYS, min_samples: ROLLING_MIN_SAMPLES },
+    rows: selected,
+    summary,
     excluded: {
       unpublished: source.filter(unpublished).length,
       undated: source.filter((row) => !unpublished(row) && !day4(row.published_at)).length,
@@ -14423,127 +14482,169 @@ function reviewTrends(data2 = {}, options4 = {}) {
 
 // web/pages/review-trends.mjs
 init_dom();
-var percentages = /* @__PURE__ */ new Set(["hit_rate", "average_ctr", "average_completion"]);
-var metricLabel = (key2) => TREND_METRICS.find(([id2]) => id2 === key2)[1];
-function format(value, key2 = "") {
-  if (value === null || value === void 0 || !Number.isFinite(value)) return "—";
-  if (percentages.has(key2)) return `${value.toFixed(1)}%`;
-  if (key2 === "average_seconds") return `${value.toFixed(1)} 秒`;
-  return value.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
-}
+var RANGES = [["7d", "近 7 天"], ["30d", "近 30 天"], ["custom", "自定义"]];
+var KPI_LABELS = { record_count: "发文数", median_reads: "阅读中位数", hit_rate: "爆款率", median_ctr: "点击率中位数" };
+var VERDICT_CLASS = { 爆: "hit", 中: "middle", 扑: "flop" };
+var known = (value) => value !== null && value !== void 0 && Number.isFinite(value);
+var reads = (value) => !known(value) ? "—" : value >= 1e4 ? `${(value / 1e4).toFixed(1)} 万` : value.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
+var percent2 = (value) => known(value) ? `${value.toFixed(1)}%` : "—";
+var readsTick = (value) => value >= 1e4 ? `${value / 1e4} 万` : value.toLocaleString("zh-CN");
+var percentTick = (value) => `${value}%`;
+var count2 = (value) => known(value) ? value.toLocaleString("zh-CN") : "—";
 var options2 = (values, selected) => values.map(([value, label3]) => `<option value="${e(value)}"${value === selected ? " selected" : ""}>${e(label3)}</option>`).join("");
-var sample = (summary, key2) => `${summary.coverage[key2]} / ${summary.record_count} 篇`;
-function pointLabel(point, key2) {
-  return `${point.date}：${format(point[key2], key2)}；样本 ${sample(point, key2)}` + (point.provisional_count ? `；未满24h暂定 ${point.provisional_count} 篇` : "") + (point.unverified_count ? `；发布状态待核实 ${point.unverified_count} 篇` : "");
-}
-function chart(series, key2) {
-  const label3 = metricLabel(key2), values = series.map((point) => point[key2]).filter((value) => value !== null);
-  if (!values.length) return '<p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p>';
-  const top = 24, bottom = 204, height = bottom - top, max = Math.max(1, ...values);
-  const x = (index) => `${(series.length === 1 ? 50 : index / (series.length - 1) * 100).toFixed(2)}%`;
-  const y = (value) => bottom - value / max * height;
-  let previous = null, lines = "", dots = "";
-  series.forEach((point, index) => {
-    if (point[key2] === null) {
-      previous = null;
-      return;
-    }
-    const px = x(index), py = y(point[key2]).toFixed(2), description = pointLabel(point, key2);
-    const provisional = point.provisional_count || point.unknown_age_count;
-    if (previous) lines += `<line class="review-trend-line" x1="${previous.x}" y1="${previous.y}" x2="${px}" y2="${py}"/>`;
-    previous = { x: px, y: py };
-    dots += `<circle class="review-trend-point${provisional ? " provisional" : ""}" cx="${px}" cy="${py}" r="4"
-      tabindex="0" role="img" aria-label="${e(description)}"><title>${e(description)}</title></circle>`;
-  });
-  const axes = [0, 0.5, 1].map((fraction) => `<line class="review-trend-grid" x1="0" x2="100%"
-    y1="${y(max * fraction)}" y2="${y(max * fraction)}"/><text x="-8" y="${y(max * fraction) + 4}"
-    text-anchor="end">${e(format(max * fraction, key2))}</text>`).join("");
-  const labels2 = [.../* @__PURE__ */ new Set([0, Math.floor((series.length - 1) / 2), series.length - 1])].map((index) => `<text x="${x(index)}" y="234" text-anchor="${index === 0 ? "start" : index === series.length - 1 ? "end" : "middle"}"
-    >${e(series[index].date.slice(5))}</text>`).join("");
-  return `<div class="review-trend-chart"><svg height="252" role="img"
-    aria-label="${e(label3)}，按北京时间发布日期分组。缺失值断线；橙色点为暂定或成熟度待核实。"
-    >${axes}${lines}${dots}${labels2}</svg></div>`;
-}
-function controls({ range, key: key2, from, to, today: today2, verdict }) {
+function controls({ range, from, to, today: today2 }) {
   const dates = range === "custom" ? `<label>开始日期<input class="input" type="date" data-review-trend="from"
     value="${e(from)}" max="${e(today2)}"></label><label>结束日期<input class="input" type="date"
     data-review-trend="to" value="${e(to)}" max="${e(today2)}"></label>` : "";
-  return `<div class="review-filters review-trend-controls"><label>趋势范围<select class="input" data-review-trend="range"
-    >${options2([["7d", "近 7 天"], ["30d", "近 30 天"], ["custom", "自定义"]], range)}</select></label>${dates}
-    <label>图表指标<select class="input" data-review-trend="metric">${options2(TREND_METRICS, key2)}</select></label>
-    <label>表现判定<select class="input" data-review-filter="verdict"
-    >${options2([["", "全部判定"], ["爆", "爆"], ["中", "中"], ["扑", "扑"]], verdict)}</select></label>
+  return `<div class="review-filters review-trend-controls"><label>时间范围<select class="input" data-review-trend="range"
+    >${options2(RANGES, range)}</select></label>${dates}
     <button class="btn text" type="button" data-review-action="refresh">刷新数据</button></div>`;
 }
-function cards(summary) {
-  return `<div class="review-trend-stats">${["average_reads", "published_count", "hits"].map((key2) => {
-    const note = key2 === "published_count" && summary.unverified_count ? `状态待核实 ${summary.unverified_count} 篇 · 明确已发布 ${summary.confirmed_count} 篇` : `有效样本 ${sample(summary, key2)}`;
-    return `<article class="review-trend-stat"><span>${metricLabel(key2)}</span><strong>${e(format(summary[key2], key2))}</strong>
-      <small>${note}</small></article>`;
+function change2(tile) {
+  if (!known(tile.previous)) return "";
+  if (!known(tile.delta)) return '<small class="review-trend-delta">较上期 —</small>';
+  const size = Math.abs(tile.delta), flat = size < 0.05;
+  const amount = tile.unit === "relative" ? `${size.toFixed(1)}%` : tile.unit === "points" ? `${size.toFixed(1)} 个百分点` : `${count2(size)} 篇`;
+  const tone = flat || tile.unit === "count" ? "" : tile.delta > 0 ? " up" : " down";
+  return `<small class="review-trend-delta${tone}">较上期 ${flat ? "持平" : `${tile.delta > 0 ? "↑" : "↓"} ${amount}`}</small>`;
+}
+function tiles(result) {
+  return `<div class="review-trend-stats">${result.kpis.map((tile) => {
+    const value = tile.key === "record_count" ? count2(tile.value) : tile.key === "median_reads" ? reads(tile.value) : percent2(tile.value);
+    const basis = tile.key === "record_count" ? "篇" : tile.key === "hit_rate" ? `爆 ${count2(tile.hits)} / 可判定 ${tile.sample} 篇` : `${tile.sample} 篇有数据`;
+    return `<article class="review-trend-stat"><span>${KPI_LABELS[tile.key]}</span>
+      <strong>${e(value)}</strong><small>${e(basis)}</small>${change2(tile)}</article>`;
   }).join("")}</div>`;
 }
-function publicationNote(summary) {
-  if (summary.unverified_count) return `发布状态待核实 ${summary.unverified_count} 篇，明确已发布 ${summary.confirmed_count} 篇；
-    “已发布篇数”留空，不能把日期记录视为已发布。`;
-  if (summary.record_count) return `纳入统计的 ${summary.record_count} 篇均有明确已发布状态，“已发布篇数”为 ${summary.published_count}。`;
-  return "当前筛选范围没有纳入统计的发布时间记录，“已发布篇数”为 0；仅表示此记录集合，不代表平台完整发布总数。";
+function scale(values, kind, top, bottom) {
+  const height = bottom - top;
+  if (kind === "log") {
+    const positive = values.filter((value) => value > 0);
+    const floor = Math.floor(Math.log10(positive.length ? Math.min(...positive) : 1));
+    const low = floor, high = Math.max(low + 1, Math.log10(Math.max(1, ...values)) + 0.12);
+    return {
+      y: (value) => bottom - (Math.log10(Math.max(value, 10 ** low)) - low) / (high - low) * height,
+      ticks: Array.from({ length: Math.floor(high) - low + 1 }, (_, index) => 10 ** (low + index))
+    };
+  }
+  const max = Math.max(5, Math.ceil(Math.max(...values) / 5) * 5);
+  return { y: (value) => bottom - value / max * height, ticks: [0, max / 2, max] };
+}
+function dateLabels(series) {
+  const plotted = series.filter((day6) => day6.position !== null), step = Math.ceil(plotted.length / 6);
+  return plotted.filter((_, index) => (plotted.length - 1 - index) % step === 0);
+}
+function readout(point) {
+  if (!point) return "";
+  const when = point.timed ? reviewDateTime(point.published_at) : point.date;
+  return `${when}《${point.title || "未命名"}》阅读 ${reads(point.reads)} · 点击率 ${percent2(point.ctr)}${point.verdict ? ` · ${point.verdict}` : ""}${point.provisional ? " · 不满 24 小时的数据，暂定" : ""}`;
+}
+function figure(result, { key: key2, rolling, kind, title, hint, format, tick, height, threshold }) {
+  const plotted = result.series.filter((day6) => day6.position !== null);
+  const points = result.points.filter((point) => point[key2] !== null), curve = plotted.filter((day6) => day6[rolling] !== null);
+  const head = `<div class="review-trend-figure-head"><h3>${e(title)}</h3><span class="review-note">${e(hint)}</span></div>`;
+  if (!points.length && !curve.length) return `<section class="review-trend-figure">${head}
+    <p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p></section>`;
+  const top = 16, bottom = height - 30;
+  const values = [...points.map((point) => point[key2]), ...curve.map((day6) => day6[rolling]), ...known(threshold) ? [threshold] : []];
+  const { y, ticks } = scale(values, kind, top, bottom), x = (position) => `${(position * 100).toFixed(2)}%`;
+  const grid = ticks.map((mark) => `<line class="review-trend-grid" x1="0" x2="100%" y1="${y(mark).toFixed(2)}" y2="${y(mark).toFixed(2)}"/>
+    <text x="-8" y="${(y(mark) + 4).toFixed(2)}" text-anchor="end">${e(tick(mark))}</text>`).join("");
+  const days = dateLabels(result.series).map((day6) => `<text x="${x(day6.position)}" y="${height - 8}" text-anchor="middle">${e(day6.date.slice(5))}</text>`).join("");
+  const hitLine = known(threshold) ? `<line class="review-trend-threshold" x1="0" x2="100%" y1="${y(threshold).toFixed(2)}" y2="${y(threshold).toFixed(2)}"/>` : "";
+  const hitLabel = known(threshold) ? `<text class="review-trend-threshold-label" x="100%" y="${(y(threshold) - 6).toFixed(2)}"
+    text-anchor="end">爆款线 ${e(format(threshold))}</text>` : "";
+  const order = { 爆: 2, 扑: 1 }, dots = [...points].sort((a, b) => (order[a.verdict] || 0) - (order[b.verdict] || 0)).map((point) => `<circle class="review-trend-dot ${VERDICT_CLASS[point.verdict] || "unjudged"}${point.provisional ? " provisional" : ""}"
+      cx="${x(point.position)}" cy="${y(point[key2]).toFixed(2)}" r="${point.verdict === "爆" ? 5.5 : 4.5}"
+      data-review-row="${e(point.id)}" data-trend-readout="${e(readout(point))}"><title>${e(readout(point))}</title></circle>`).join("");
+  let previous = null, lines = "";
+  for (const day6 of plotted) {
+    if (day6[rolling] === null) {
+      previous = null;
+      continue;
+    }
+    const now = { x: x(day6.position), y: y(day6[rolling]).toFixed(2) };
+    if (previous) lines += `<line class="review-trend-line" x1="${previous.x}" y1="${previous.y}" x2="${now.x}" y2="${now.y}"/>`;
+    previous = now;
+  }
+  const best = [...points].sort((a, b) => b[key2] - a[key2])[0];
+  const resting = best ? `最高：${readout(best)}` : "";
+  const latest = curve.at(-1);
+  return `<section class="review-trend-figure">${head}<div class="review-trend-chart"><svg height="${height}" role="img"
+    aria-label="${e(title)}：${points.length} 篇文章按北京时间发布时间排列，${latest ? `最新近 ${result.rolling.days} 天中位数 ${format(latest[rolling])}` : "样本不足以画出走势线"}。逐日数字见下方表格。"
+    >${grid}${hitLine}${dots}${lines}${hitLabel}${days}</svg></div>
+    <p class="review-trend-readout" data-trend-readout-target data-default="${e(resting)}">${e(resting)}</p></section>`;
+}
+function legend(result) {
+  const item = (mark, label3) => `<li><i class="review-trend-key ${mark}" aria-hidden="true"></i>${e(label3)}</li>`;
+  return `<ul class="review-trend-legend">${item("hit", "爆")}${item("middle", "中")}${item("flop", "扑")}
+    ${result.summary.provisional_count || result.summary.unknown_age_count ? item("provisional", "不满 24 小时的数据，暂定") : ""}
+    ${item("line", `近 ${result.rolling.days} 天中位数`)}</ul>`;
 }
 function method(result) {
   const s = result.summary, dates = s.snapshot_start ? `${s.snapshot_start}${s.snapshot_end !== s.snapshot_start ? " 至 " + s.snapshot_end : ""}` : "未取得";
   const ages = s.min_hours !== null ? `所用快照年龄 ${s.min_hours}–${s.max_hours} 小时。` : "";
+  const status = s.unverified_count ? `发文数是有发布时间的记录数；其中 ${s.unverified_count} 篇没有逐条的平台发布核验。` : "";
   return `<details class="review-trend-method"><summary>统计口径与数据时间</summary>
-    <p>沿用本站口径：每篇选择已记录年龄 12–72 小时内最接近 24 小时的快照；不拿长尾累计数补缺。
-    同一快照分别计算各项有效样本；点击率、完成率和阅读时长是文章样本的算术平均，非平台加权总指标。
+    <p>每篇取已记录年龄 12–72 小时内最接近 24 小时的快照，按北京时间发布日期归日；不拿长尾累计数补缺，缺失不补零。
+    中位数只用有数据的文章。走势线是当天及此前共 ${result.rolling.days} 天内发布文章的中位数，不足 ${result.rolling.min_samples} 篇时断开。
     趋势剔除未来、早于发布时间及观察年龄矛盾的快照；列表原始快照异常时，两处所用样本可能不同。</p>
     <p>爆款沿用账号最近 30 篇有效阅读样本：至少 10 篇时高于 80% 分位数判爆；不足 10 篇时暂用阅读 ≥ 1000。
-    爆款率分母为可判定篇数。可判定 ${s.coverage.hits} 篇，未判定 ${s.unjudged_count} 篇；
-    其中暂定判定 ${s.provisional_judged_count} 篇，固定阈值暂定 ${s.fixed_threshold_count} 篇。没有可判定样本时爆款数留空。
-    判定基线与文章列表一致，使用完整账号资料；下述排除项不计入趋势篇数，但不单独重算账号阈值。
-    账号和表现判定筛选与文章列表一致，趋势日期单独选择。</p>
-    <p>所用快照日期：${dates}。源数据仅提供日期，不能当成精确采集时刻。${ages}
-    资料读取时间：${e(reviewDateTime(result.loaded_at) || "未记录")}。
-    计算时间：${e(reviewDateTime(result.generated_at))}（北京时间）。</p>
-    <p>当前账号全部资料中排除：明确未发布 ${result.excluded.unpublished} 篇，发布时间缺失/无效 ${result.excluded.undated} 篇，
-    未来发布时间 ${result.excluded.future} 篇。仅用于展示，不回写任何文章、指标或状态。</p></details>`;
+    爆款率分母为可判定篇数：可判定 ${s.coverage.hits} 篇，未判定 ${s.unjudged_count} 篇，其中暂定判定 ${s.provisional_judged_count} 篇。
+    “较上期”对比 ${result.previous.start} 至 ${result.previous.end}。${status}</p>
+    <p>所用快照日期：${dates}。${ages}资料读取时间：${e(reviewDateTime(result.loaded_at) || "未记录")}（北京时间）。
+    已排除：明确未发布 ${result.excluded.unpublished} 篇，发布时间缺失 ${result.excluded.undated} 篇，未来发布时间 ${result.excluded.future} 篇。</p></details>`;
 }
-function dailyTable(result, key2) {
-  const extra = !["average_reads", "published_count", "hits", "record_count"].includes(key2);
-  const cell = (point, metric) => `<td>${e(format(point[metric], metric))}<small>${sample(point, metric)}</small></td>`;
-  const rows = result.series.map((point) => {
-    const status = (point.provisional_count ? `未满24h暂定 ${point.provisional_count} 篇；` : "") + (point.unknown_age_count ? `成熟度待核实 ${point.unknown_age_count} 篇；` : "") + (point.unverified_count ? `发布状态待核实 ${point.unverified_count} 篇` : "");
-    return `<tr><th scope="row">${e(point.date)}</th><td>${point.record_count}</td><td>${e(format(point.published_count))}</td>
-      ${cell(point, "average_reads")}${cell(point, "hits")}${extra ? cell(point, key2) : ""}<td>${status || "—"}</td></tr>`;
-  }).join("");
-  return `<details class="review-trend-details"><summary>逐日数据与样本分母</summary>
+function dailyTable(result) {
+  const rows = result.series.map((point) => `<tr><th scope="row">${e(point.date)}</th><td>${point.record_count}</td>
+    <td>${point.hits ?? 0} / ${point.middles} / ${point.flops}</td><td>${e(reads(point.median_reads))}</td>
+    <td>${e(percent2(point.median_ctr))}</td><td>${e(reads(point.rolling_reads))}</td></tr>`).join("");
+  return `<details class="review-trend-details"><summary>逐日数据</summary>
     <div class="review-trend-table-wrap"><table class="review-trend-table">
-    <caption class="review-sr-only">趋势逐日数据，缺失为横线，样本为有效篇数除以发布时间记录数</caption>
-    <thead><tr><th>日期</th><th>时间记录</th><th>已发布</th><th>平均阅读</th><th>爆款数</th>
-    ${extra ? `<th>${e(metricLabel(key2))}</th>` : ""}<th>状态</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+    <caption class="review-sr-only">趋势逐日数据，缺失为横线</caption>
+    <thead><tr><th>日期</th><th>发文</th><th>爆 / 中 / 扑</th><th>阅读中位数</th><th>点击率中位数</th>
+    <th>近 ${result.rolling.days} 天阅读中位数</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
 }
 function renderReviewTrends(data2, vm4) {
   const now = vm4.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day4(now), t = vm4.trends || {};
-  const range = ["7d", "30d", "custom"].includes(t.range) ? t.range : "7d";
-  const key2 = TREND_METRICS.some(([id2]) => id2 === t.metric) ? t.metric : "average_reads";
-  const from = range === "custom" ? t.from || "" : t.from || shiftDay(today2, -6);
-  const to = range === "custom" ? t.to || "" : t.to || today2, verdict = vm4.filters?.verdict || "";
-  const filters = controls({ range, key: key2, from, to, today: today2, verdict });
+  const range = RANGES.some(([id2]) => id2 === t.range) ? t.range : "30d";
+  const from = range === "custom" ? t.from || "" : shiftDay(today2, range === "30d" ? -29 : -6);
+  const to = range === "custom" ? t.to || "" : today2;
+  const filters = controls({ range, from, to, today: today2 });
   let result;
   try {
-    result = reviewTrends(data2, { account: vm4.account, range, from, to, verdict, now });
+    result = reviewTrends(data2, { account: vm4.account, range, from, to, now });
   } catch (error) {
-    return `<section class="review-trends" aria-label="数据趋势"><h2>数据趋势</h2>${filters}
+    return `<section class="review-trends" aria-label="数据趋势"><div class="review-panel-head"><h2>数据趋势</h2></div>${filters}
       <p role="alert">${e(error.message)}</p></section>`;
   }
-  const s = result.summary;
-  const todayNote = result.end === today2 ? '<p class="review-note">范围含今天，今天尚未结束；本日样本与结果仍可能变化。</p>' : "";
-  const warning = s.provisional_count || s.unknown_age_count ? `<p class="review-trend-warning">未满24h暂定 ${s.provisional_count} 篇；
-    成熟度待核实 ${s.unknown_age_count} 篇。后续快照可能改变均值和判定。</p>` : "";
-  return `<section class="review-trends" aria-label="数据趋势"><div class="review-panel-head"><h2>数据趋势</h2>
-    <span class="review-note">${e(vm4.account)} · ${result.start} 至 ${result.end} · 北京时间</span></div>${filters}${cards(s)}${todayNote}
-    <p class="review-note">有发布时间记录 ${s.record_count} 篇。${publicationNote(s)}
-    明确草稿、排期、失败及未来发布时间不计入趋势。</p>${warning}${chart(result.series, key2)}
-    <p class="review-note">按发布日期分组，非每日新增阅读。平均阅读 = 有效阅读之和 ÷ 有效阅读样本数；
-    真实 0 保留，缺失留空并断线。橙色点表示暂定或成熟度待核实。</p>${method(result)}${dailyTable(result, key2)}</section>`;
+  const s = result.summary, pending = s.provisional_count + s.unknown_age_count;
+  const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ""}${result.end === today2 ? "今天尚未结束。" : ""}${result.kpis.some((tile) => known(tile.previous)) ? "" : "上一个同样长的周期还没有数据，暂不对比。"}`;
+  return `<section class="review-trends" aria-label="数据趋势"><div class="review-panel-head"><div><h2>数据趋势</h2>
+    <span class="review-note">${e(vm4.account)} · ${result.start} 至 ${result.end}</span></div>${filters}</div>
+    ${tiles(result)}${legend(result)}
+    ${figure(result, {
+    key: "reads",
+    rolling: "rolling_reads",
+    kind: "log",
+    title: "阅读走势",
+    height: 260,
+    format: reads,
+    tick: readsTick,
+    hint: "每个点是一篇文章，线越往上整体越好",
+    threshold: result.thresholds?.hit
+  })}
+    ${figure(result, {
+    key: "ctr",
+    rolling: "rolling_ctr",
+    kind: "linear",
+    title: "点击率走势",
+    height: 190,
+    format: percent2,
+    tick: percentTick,
+    hint: "标题和封面吸不吸引人"
+  })}
+    <p class="review-note review-trend-note">${e(note)}</p>${dailyTable(result)}${method(result)}</section>`;
 }
 
 // web/core/review-overview-metrics.mjs
@@ -14582,7 +14683,7 @@ function reviewOverviewMetrics(data2, { account, range = "24h", now = (/* @__PUR
   const middle = rows.filter((row) => row.verdict === "中").length;
   const flops = rows.filter((row) => row.verdict === "扑").length;
   const unknownVerdicts = rows.length > 0 && hits + middle + flops === 0;
-  const reads = metricSample(rows, (row) => row.reads_24h);
+  const reads2 = metricSample(rows, (row) => row.reads_24h);
   const ctr = metricSample(rows, (row) => row.ctr_24h, 100);
   const seconds = metricSample(rows, (row) => row.sample24h?.avg_read_seconds);
   const completion = metricSample(rows, (row) => row.completion_24h, 100);
@@ -14593,11 +14694,11 @@ function reviewOverviewMetrics(data2, { account, range = "24h", now = (/* @__PUR
     hits: unknownVerdicts ? null : hits,
     middle: unknownVerdicts ? null : middle,
     flops: unknownVerdicts ? null : flops,
-    readsMedian: median(reads.values),
+    readsMedian: median(reads2.values),
     ctrMedian: median(ctr.values),
     avgReadSeconds: average(seconds.values),
     completion: average(completion.values),
-    samples: { judged: judged.sample, readsMedian: reads.sample, ctrMedian: ctr.sample, avgReadSeconds: seconds.sample, completion: completion.sample }
+    samples: { judged: judged.sample, readsMedian: reads2.sample, ctrMedian: ctr.sample, avgReadSeconds: seconds.sample, completion: completion.sample }
   };
 }
 function reviewDuration(value) {
@@ -14720,8 +14821,8 @@ function reviewListObservation(row, snapshots2 = [], now = (/* @__PURE__ */ new 
     const observed2 = instant3(snapshot.observed_at) ?? instant3(snapshot.snapshot_date);
     const computedAge = published !== null && observed2 !== null ? (observed2 - published) / 36e5 : null;
     const hours = explicitAge !== null && Number.isInteger(explicitAge) && explicitAge >= 0 ? explicitAge : explicitAge === null ? computedAge : null;
-    const reads = finiteNumber(snapshot.reads);
-    return { snapshot, hours, observed: observed2, reads: reads !== null && reads >= 0 ? reads : null };
+    const reads2 = finiteNumber(snapshot.reads);
+    return { snapshot, hours, observed: observed2, reads: reads2 !== null && reads2 >= 0 ? reads2 : null };
   }).filter((candidate) => candidate.hours !== null && candidate.hours > 72).sort((a, b) => a.hours - b.hours || (a.observed ?? Infinity) - (b.observed ?? Infinity) || compare3(String(a.snapshot.id ?? ""), String(b.snapshot.id ?? "")));
   const first = candidates.find((candidate) => candidate.reads !== null) || candidates[0];
   if (first) return { kind: "longtail", snapshot: first.snapshot, reads: first.reads, hours: first.hours };
@@ -14819,7 +14920,7 @@ function delta(value, key2) {
   const n = finiteNumber(typeof value === "object" && value ? value.delta : value);
   return n === null ? '<span class="review-change">较前一周 —</span>' : `<span class="review-change">较前一周 ${n > 0 ? "+" : n < 0 ? "−" : ""}${e(percentageKeys.has(key2) ? Math.abs(n).toFixed(1) : reviewNumber(Math.abs(n)))}${percentageKeys.has(key2) ? " 个百分点" : ""}</span>`;
 }
-function chart2(points, { small = false } = {}) {
+function chart(points, { small = false } = {}) {
   if (!points.some((p) => finiteNumber(p.ctr_24h) !== null || finiteNumber(p.reads_24h) !== null)) return empty2("暂无趋势数据", "采集后显示阅读与 CTR 中位数。");
   const width = 720, height = small ? 120 : 180, left = 28, right = 692, top = 18, bottom = top + height;
   const x = (i) => left + (points.length < 2 ? (right - left) / 2 : i / (points.length - 1) * (right - left));
@@ -14852,14 +14953,14 @@ function sampleFor(row, data2) {
   const reference = row.reference_article_id == null ? null : (data2.benchmarkArticles || []).find((item) => item.account === row.account && String(item.id) === String(row.reference_article_id));
   const title = reference?.title || row.sample_title || "";
   const url = safeReviewUrl(reference?.url) || safeReviewUrl(row.sample_url);
-  const reads = finiteNumber(reference?.reads);
-  return title || url ? { title, url, reads: reads !== null && reads >= 0 ? reads : null } : null;
+  const reads2 = finiteNumber(reference?.reads);
+  return title || url ? { title, url, reads: reads2 !== null && reads2 >= 0 ? reads2 : null } : null;
 }
 function sampleLabel(row, data2) {
-  const sample2 = sampleFor(row, data2);
-  if (!sample2) return "";
-  const label3 = `仿：${sample2.title || "参考文章"}${sample2.reads == null ? "" : `（阅读 ${reviewNumber(sample2.reads)}）`}`;
-  const href = safeReviewUrl(sample2.url);
+  const sample = sampleFor(row, data2);
+  if (!sample) return "";
+  const label3 = `仿：${sample.title || "参考文章"}${sample.reads == null ? "" : `（阅读 ${reviewNumber(sample.reads)}）`}`;
+  const href = safeReviewUrl(sample.url);
   return `<span class="review-reference">${href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(label3)}</a>` : e(label3)}</span>`;
 }
 function articleReason(row, data2, account) {
@@ -14913,9 +15014,9 @@ function overview(data2, vm4) {
   const current3 = reviewOverviewMetrics(data2, { account: vm4.account, range, now: vm4.now || (/* @__PURE__ */ new Date()).toISOString() });
   const noSample = range !== "last" && current3.observedCount === 0;
   const value = (formatted) => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
-  const cards2 = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options3([["this", "本周"], ["last", "上周"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current3.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current3.hits))} / ${e(reviewNumber(current3.middle))} / ${e(reviewNumber(current3.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current3.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current3.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current3.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current3.completion, "completion_rate"))}</article></div></section>`;
+  const cards = `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options3([["this", "本周"], ["last", "上周"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current3.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current3.hits))} / ${e(reviewNumber(current3.middle))} / ${e(reviewNumber(current3.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current3.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current3.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current3.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current3.completion, "completion_rate"))}</article></div></section>`;
   const articlePanel = articleListPanel(rows, vm4, data2);
-  return cards2 + articlePanel + archives(data2, vm4, "", [], []);
+  return cards + articlePanel + archives(data2, vm4, "", [], []);
 }
 function articleListPanel(rows, vm4, data2) {
   const expanded = Boolean(vm4.articlesExpanded);
@@ -14973,8 +15074,8 @@ function articleRules(row) {
   if (!Array.isArray(ids)) return '<p class="review-note">未记录命中规则。</p>';
   if (!ids.length) return '<p class="review-note">已记录：无命中规则。</p>';
   const resolved = row.applied_rules || [];
-  const known = new Set(resolved.map((rule) => String(rule.rule_id)));
-  const missing4 = ids.filter((id2) => !known.has(String(id2)));
+  const known2 = new Set(resolved.map((rule) => String(rule.rule_id)));
+  const missing4 = ids.filter((id2) => !known2.has(String(id2)));
   return `<p class="review-note">已记录 ${ids.length} 条命中规则。</p>${resolved.length ? `<div class="review-rule-list">${resolved.map((rule, i) => ruleCard(rule, i, true)).join("")}</div>` : ""}${missing4.length ? `<p class="review-note">未找到对应规则：${missing4.map((id2) => e(String(id2))).join("、")}</p>` : ""}`;
 }
 var v13RuleGroups = [["keep_topic", "选题"], ["drop_topic", "放弃选题"], ["title", "标题"], ["body", "正文"], ["audience", "读者"], ["checklist", "自检清单"]];
@@ -15139,10 +15240,9 @@ function reviewRoute(href, defaultAccount = vm3.account) {
   const section = p.get("review_section");
   const benchmark = p.get("review_benchmark") || "";
   const secondary = benchmark ? "benchmarks" : REVIEW_SECTIONS.some(([id2]) => id2 === section) ? section : ["notes", "playbook"].includes(section) || view === "playbook" ? "review" : "benchmarks";
-  const trendRange = p.get("review_trend_range"), trendMetric = p.get("review_trend_metric");
+  const trendRange = p.get("review_trend_range");
   const trends = {
-    range: ["7d", "30d", "custom"].includes(trendRange) ? trendRange : "7d",
-    metric: TREND_METRICS.some(([id2]) => id2 === trendMetric) ? trendMetric : "average_reads",
+    range: ["7d", "30d", "custom"].includes(trendRange) ? trendRange : "30d",
     from: p.get("review_trend_from") || "",
     to: p.get("review_trend_to") || ""
   };
@@ -15303,16 +15403,21 @@ function selectTab2(view, focus = false) {
 }
 function changeTrend(target) {
   const key2 = target.dataset.reviewTrend;
-  if (!["range", "from", "to", "metric"].includes(key2)) return;
+  if (!["range", "from", "to"].includes(key2)) return;
   const today2 = day4((/* @__PURE__ */ new Date()).toISOString());
   vm3.trends = { ...vm3.trends, [key2]: target.value };
   if (key2 === "range" && vm3.trends.range === "custom") {
     vm3.trends.from ||= shiftDay(today2, -6);
     vm3.trends.to ||= today2;
   }
-  writeRoute(Object.fromEntries(Object.entries(vm3.trends).map(([name, value]) => [`trend_${name}`, value])));
+  writeRoute({ ...Object.fromEntries(Object.entries(vm3.trends).map(([name, value]) => [`trend_${name}`, value])), trend_metric: "" });
   paintContentReviewPage();
   root()?.querySelector(`[data-review-trend="${key2}"]`)?.focus({ preventScroll: true });
+}
+function describeTrendPoint(event, leaving) {
+  const point = event.target.closest?.("[data-trend-readout]");
+  const target = point?.closest(".review-trend-figure")?.querySelector("[data-trend-readout-target]");
+  if (target && root()?.contains(target)) target.textContent = leaving ? target.dataset.default : point.dataset.trendReadout;
 }
 function registerEvents2() {
   if (registered5 || typeof document === "undefined") return;
@@ -15414,6 +15519,8 @@ function registerEvents2() {
       paintContentReviewPage();
     }
   });
+  document.addEventListener("mouseover", (event) => describeTrendPoint(event, false));
+  document.addEventListener("mouseout", (event) => describeTrendPoint(event, true));
   document.addEventListener("change", (event) => {
     const target = event.target;
     const node2 = root();
@@ -15716,9 +15823,9 @@ async function renderPage() {
     if (version2 === runtime.renderVersion && state.me) {
       setPageBody(html, page);
       if (counter?.isConnected) {
-        const count2 = null;
-        counter.hidden = count2 == null;
-        counter.textContent = count2 == null ? "" : num(count2);
+        const count3 = null;
+        counter.hidden = count3 == null;
+        counter.textContent = count3 == null ? "" : num(count3);
       }
     }
   } catch (err) {
