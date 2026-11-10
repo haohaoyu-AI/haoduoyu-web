@@ -85,10 +85,14 @@ jobs:
           node tests/review-trends-browser-server.mjs > artifacts/data-trends/browser-server.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=false
           for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:8921/ > /dev/null; then break; fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then cat artifacts/data-trends/browser-server.log; exit 1; fi
+            if grep -q '^SYNTHETIC_TRENDS_READY ' artifacts/data-trends/browser-server.log; then READY=true; break; fi
             sleep 1
           done
+          "$READY" || { cat artifacts/data-trends/browser-server.log; exit 1; }
+          curl --fail --silent http://127.0.0.1:8921/ > /dev/null
           "$RUNNER_TEMP/trends-browser-venv/bin/python" - <<'PY'
           from pathlib import Path
           test = Path('tests/browser-review-trends.py').resolve()
