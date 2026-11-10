@@ -141,6 +141,24 @@ test('trend routes restore custom dates and metrics, reject unsupported option v
   const articles=['04','05','07','08'].map(date=>row('a'+date,'2026-11-'+date));
   const snapshots=articles.map(article=>snap(article.id,100,{snapshot_date:'2026-11-09'}));
   const html=renderReviewTrends(data(articles,snapshots),model);
-  assert.equal((html.match(/<polyline class="review-trend-line"/g)||[]).length,2);
+  assert.equal((html.match(/<line class="review-trend-line"/g)||[]).length,2);
   assert.equal((html.match(/<circle class="review-trend-point/g)||[]).length,4);
+  assert.match(html,/<line class="review-trend-line" x1="0.00%" y1="24.00" x2="16.67%" y2="24.00"/);
+  assert.match(html,/<line class="review-trend-line" x1="50.00%" y1="24.00" x2="66.67%" y2="24.00"/);
+});
+
+test('one responsive SVG keeps pixel-sized axes, units and accessible point descriptions',()=>{
+  const source=data([row('a')],[snap('a',100,{ctr:12,avg_read_seconds:30})]);
+  const html=renderReviewTrends(source,model);
+  assert.equal((html.match(/<svg /g)||[]).length,1);
+  assert.doesNotMatch(html,/viewBox=/,'axes must not shrink with a fixed-width viewBox');
+  assert.match(html,/<svg height="252" role="img"/);
+  assert.match(html,/<circle class="review-trend-point" cx="50.00%"/);
+  assert.match(html,/aria-label="2026-11-07：100；样本 1 \/ 1 篇/);
+  assert.match(html,/<text x="0.00%" y="234"/);
+  assert.match(html,/<text x="100.00%" y="234"/);
+  const ctr=renderReviewTrends(source,{...model,trends:{metric:'average_ctr'}});
+  assert.match(ctr,/>12.0%<\/text>/);
+  const seconds=renderReviewTrends(source,{...model,trends:{metric:'average_seconds'}});
+  assert.match(seconds,/>30.0 秒<\/text>/);
 });

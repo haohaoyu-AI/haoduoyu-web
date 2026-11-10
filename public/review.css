@@ -407,13 +407,13 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 .review-trends { min-width: 0; }
 .review-trends h2 { margin: 0; }
 .review-trend-controls { margin: 16px 0; flex-wrap: wrap; }
-.review-trend-controls label { min-width: 130px; }
+.content-review .review-trend-controls label { min-width: 148px; flex: 0 1 180px; }
 .review-trend-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .review-trend-stat { display: flex; flex-direction: column; gap: 8px; padding: 18px; border: 1px solid var(--border,#d9dfda); border-radius: 14px; background: var(--surface,#fff); }
 .review-trend-stat strong { font-size: 27px; font-variant-numeric: tabular-nums; }
 .review-trend-stat small { line-height: 1.6; color: var(--muted,#5a665f); }
-.review-trend-chart { width: 100%; overflow: hidden; margin: 18px 0 4px; }
-.review-trend-chart svg { display: block; width: 100%; min-height: 180px; }
+.review-trend-chart { width: 100%; padding: 0 12px 0 64px; margin: 18px 0 4px; }
+.review-trend-chart svg { display: block; width: 100%; height: 252px; overflow: visible; }
 .review-trend-chart text { fill: var(--muted,#5a665f); font-size: 12px; }
 .review-trend-grid { stroke: #dce5df; stroke-width: 1; }
 .review-trend-line { fill: none; stroke: #26764f; stroke-width: 2.5; }
@@ -431,6 +431,8 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
 @media (max-width: 600px) {
   .review-trend-stats { grid-template-columns: 1fr; }
   .review-trend-stat { padding: 14px; }
-  .review-trend-controls label { min-width: 0; flex: 1 1 140px; }
-  .review-trend-chart svg { min-height: 140px; }
+  .content-review .review-trend-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .content-review .review-trend-controls label { min-width: 0; }
+  .content-review .review-trend-controls .input { min-width: 0; padding-inline: 10px 28px; }
+  .content-review .review-trend-controls input[type="date"] { padding-inline: 6px; }
 }

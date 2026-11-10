@@ -21,26 +21,27 @@ function pointLabel(point,key) {
 function chart(series,key) {
   const label = metricLabel(key),values = series.map(point => point[key]).filter(value => value !== null);
   if (!values.length) return '<p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p>';
-  const width=800,left=64,right=776,top=24,bottom=204,height=bottom-top;
-  const max=Math.max(1,...values),x=index => left+(series.length===1 ? (right-left)/2 : index/(series.length-1)*(right-left));
+  // Keep SVG units in CSS pixels; percentage x coordinates resize only the plot.
+  const top=24,bottom=204,height=bottom-top,max=Math.max(1,...values);
+  const x=index => `${(series.length===1 ? 50 : index/(series.length-1)*100).toFixed(2)}%`;
   const y=value => bottom-value/max*height;
-  let segment=[],lines='',dots='';
-  const flush=()=>{if(segment.length>1)lines+=`<polyline class="review-trend-line" points="${segment.join(' ')}"/>`;segment=[];};
+  let previous=null,lines='',dots='';
   series.forEach((point,index)=>{
-    if(point[key]===null){flush();return;}
-    const px=x(index).toFixed(2),py=y(point[key]).toFixed(2),description=pointLabel(point,key);
+    if(point[key]===null){previous=null;return;}
+    const px=x(index),py=y(point[key]).toFixed(2),description=pointLabel(point,key);
     const provisional=point.provisional_count || point.unknown_age_count;
-    segment.push(`${px},${py}`);
+    if(previous)lines+=`<line class="review-trend-line" x1="${previous.x}" y1="${previous.y}" x2="${px}" y2="${py}"/>`;
+    previous={x:px,y:py};
     dots+=`<circle class="review-trend-point${provisional ? ' provisional' : ''}" cx="${px}" cy="${py}" r="4"
       tabindex="0" role="img" aria-label="${e(description)}"><title>${e(description)}</title></circle>`;
-  });flush();
-  const axes=[0,.5,1].map(fraction=>`<line class="review-trend-grid" x1="${left}" x2="${right}"
-    y1="${y(max*fraction)}" y2="${y(max*fraction)}"/><text x="${left-8}" y="${y(max*fraction)+4}"
+  });
+  const axes=[0,.5,1].map(fraction=>`<line class="review-trend-grid" x1="0" x2="100%"
+    y1="${y(max*fraction)}" y2="${y(max*fraction)}"/><text x="-8" y="${y(max*fraction)+4}"
     text-anchor="end">${e(format(max*fraction,key))}</text>`).join('');
   const labels=[...new Set([0,Math.floor((series.length-1)/2),series.length-1])].map(index=>
     `<text x="${x(index)}" y="234" text-anchor="${index===0?'start':index===series.length-1?'end':'middle'}"
     >${e(series[index].date.slice(5))}</text>`).join('');
-  return `<div class="review-trend-chart"><svg viewBox="0 0 ${width} 252" role="img"
+  return `<div class="review-trend-chart"><svg height="252" role="img"
     aria-label="${e(label)}，按北京时间发布日期分组。缺失值断线；橙色点为暂定或成熟度待核实。"
     >${axes}${lines}${dots}${labels}</svg></div>`;
 }
