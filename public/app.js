@@ -14164,7 +14164,7 @@ function recentArticles(a, b) {
 function quantile(sorted, fraction) {
   return sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? null;
 }
-function enrichArticles(data2 = {}, { account } = {}) {
+function enrichArticles(data2 = {}, { account, baselineData } = {}) {
   const articles = array(data2.articles).filter((article) => article && (account === void 0 || article.account === account));
   const rows = articles.map((article) => {
     const sample24h = select24hSnapshot(data2.snapshots, article.id);
@@ -14177,10 +14177,11 @@ function enrichArticles(data2 = {}, { account } = {}) {
       applied_rules: appliedRules(article, data2.playbooks)
     };
   });
+  const baselineRows = baselineData === void 0 ? rows : enrichArticles(baselineData, { account });
   const cohorts = /* @__PURE__ */ new Map();
   for (const row of rows) {
     if (!cohorts.has(row.account)) {
-      const samples = rows.filter((item) => item.account === row.account && item.reads_24h !== null).sort(recentArticles).slice(0, 30);
+      const samples = baselineRows.filter((item) => item.account === row.account && item.reads_24h !== null).sort(recentArticles).slice(0, 30);
       const values = samples.map((item) => item.reads_24h).sort((a, b) => a - b);
       cohorts.set(row.account, { sample_count: values.length, low: quantile(values, 0.3), high: quantile(values, 0.8), sample_ids: samples.map((item) => item.id) });
     }
@@ -14389,7 +14390,7 @@ function reviewTrends(data2 = {}, options4 = {}) {
     const published = stamp2(row.published_at), hours = number(snapshot.age_hours);
     return published === null || hours === null || hours <= (nowMs - published) / 36e5 + 1;
   });
-  const rows = enrichArticles({ ...data2, articles, snapshots: snapshots2 }, { account }).map((row) => {
+  const rows = enrichArticles({ ...data2, articles, snapshots: snapshots2 }, { account, baselineData: data2 }).map((row) => {
     const published = stamp2(row.published_at), age = number(row.sample24h?.age_hours);
     const elapsed = published === null ? null : (nowMs - published) / 36e5;
     return {
@@ -14438,32 +14439,28 @@ function pointLabel(point, key2) {
 function chart(series, key2) {
   const label3 = metricLabel(key2), values = series.map((point) => point[key2]).filter((value) => value !== null);
   if (!values.length) return '<p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p>';
-  const width = 800, left = 64, right = 776, top = 24, bottom = 204, height = bottom - top;
-  const max = Math.max(1, ...values), x = (index) => left + (series.length === 1 ? (right - left) / 2 : index / (series.length - 1) * (right - left));
+  const top = 24, bottom = 204, height = bottom - top, max = Math.max(1, ...values);
+  const x = (index) => `${(series.length === 1 ? 50 : index / (series.length - 1) * 100).toFixed(2)}%`;
   const y = (value) => bottom - value / max * height;
-  let segment = [], lines = "", dots = "";
-  const flush = () => {
-    if (segment.length > 1) lines += `<polyline class="review-trend-line" points="${segment.join(" ")}"/>`;
-    segment = [];
-  };
+  let previous = null, lines = "", dots = "";
   series.forEach((point, index) => {
     if (point[key2] === null) {
-      flush();
+      previous = null;
       return;
     }
-    const px = x(index).toFixed(2), py = y(point[key2]).toFixed(2), description = pointLabel(point, key2);
+    const px = x(index), py = y(point[key2]).toFixed(2), description = pointLabel(point, key2);
     const provisional = point.provisional_count || point.unknown_age_count;
-    segment.push(`${px},${py}`);
+    if (previous) lines += `<line class="review-trend-line" x1="${previous.x}" y1="${previous.y}" x2="${px}" y2="${py}"/>`;
+    previous = { x: px, y: py };
     dots += `<circle class="review-trend-point${provisional ? " provisional" : ""}" cx="${px}" cy="${py}" r="4"
       tabindex="0" role="img" aria-label="${e(description)}"><title>${e(description)}</title></circle>`;
   });
-  flush();
-  const axes = [0, 0.5, 1].map((fraction) => `<line class="review-trend-grid" x1="${left}" x2="${right}"
-    y1="${y(max * fraction)}" y2="${y(max * fraction)}"/><text x="${left - 8}" y="${y(max * fraction) + 4}"
+  const axes = [0, 0.5, 1].map((fraction) => `<line class="review-trend-grid" x1="0" x2="100%"
+    y1="${y(max * fraction)}" y2="${y(max * fraction)}"/><text x="-8" y="${y(max * fraction) + 4}"
     text-anchor="end">${e(format(max * fraction, key2))}</text>`).join("");
   const labels2 = [.../* @__PURE__ */ new Set([0, Math.floor((series.length - 1) / 2), series.length - 1])].map((index) => `<text x="${x(index)}" y="234" text-anchor="${index === 0 ? "start" : index === series.length - 1 ? "end" : "middle"}"
     >${e(series[index].date.slice(5))}</text>`).join("");
-  return `<div class="review-trend-chart"><svg viewBox="0 0 ${width} 252" role="img"
+  return `<div class="review-trend-chart"><svg height="252" role="img"
     aria-label="${e(label3)}，按北京时间发布日期分组。缺失值断线；橙色点为暂定或成熟度待核实。"
     >${axes}${lines}${dots}${labels2}</svg></div>`;
 }
@@ -14485,15 +14482,23 @@ function cards(summary) {
       <small>${note}</small></article>`;
   }).join("")}</div>`;
 }
+function publicationNote(summary) {
+  if (summary.unverified_count) return `发布状态待核实 ${summary.unverified_count} 篇，明确已发布 ${summary.confirmed_count} 篇；
+    “已发布篇数”留空，不能把日期记录视为已发布。`;
+  if (summary.record_count) return `纳入统计的 ${summary.record_count} 篇均有明确已发布状态，“已发布篇数”为 ${summary.published_count}。`;
+  return "当前筛选范围没有纳入统计的发布时间记录，“已发布篇数”为 0；仅表示此记录集合，不代表平台完整发布总数。";
+}
 function method(result) {
   const s = result.summary, dates = s.snapshot_start ? `${s.snapshot_start}${s.snapshot_end !== s.snapshot_start ? " 至 " + s.snapshot_end : ""}` : "未取得";
   const ages = s.min_hours !== null ? `所用快照年龄 ${s.min_hours}–${s.max_hours} 小时。` : "";
   return `<details class="review-trend-method"><summary>统计口径与数据时间</summary>
     <p>沿用本站口径：每篇选择已记录年龄 12–72 小时内最接近 24 小时的快照；不拿长尾累计数补缺。
-    同一快照分别计算各项有效样本；点击率、完成率和阅读时长是文章样本的算术平均，非平台加权总指标。</p>
+    同一快照分别计算各项有效样本；点击率、完成率和阅读时长是文章样本的算术平均，非平台加权总指标。
+    趋势剔除未来、早于发布时间及观察年龄矛盾的快照；列表原始快照异常时，两处所用样本可能不同。</p>
     <p>爆款沿用账号最近 30 篇有效阅读样本：至少 10 篇时高于 80% 分位数判爆；不足 10 篇时暂用阅读 ≥ 1000。
     爆款率分母为可判定篇数。可判定 ${s.coverage.hits} 篇，未判定 ${s.unjudged_count} 篇；
     其中暂定判定 ${s.provisional_judged_count} 篇，固定阈值暂定 ${s.fixed_threshold_count} 篇。没有可判定样本时爆款数留空。
+    判定基线与文章列表一致，使用完整账号资料；下述排除项不计入趋势篇数，但不单独重算账号阈值。
     账号和表现判定筛选与文章列表一致，趋势日期单独选择。</p>
     <p>所用快照日期：${dates}。源数据仅提供日期，不能当成精确采集时刻。${ages}
     资料读取时间：${e(reviewDateTime(result.loaded_at) || "未记录")}。
@@ -14535,8 +14540,8 @@ function renderReviewTrends(data2, vm4) {
     成熟度待核实 ${s.unknown_age_count} 篇。后续快照可能改变均值和判定。</p>` : "";
   return `<section class="review-trends" aria-label="数据趋势"><div class="review-panel-head"><h2>数据趋势</h2>
     <span class="review-note">${e(vm4.account)} · ${result.start} 至 ${result.end} · 北京时间</span></div>${filters}${cards(s)}${todayNote}
-    <p class="review-note">有发布时间记录 ${s.record_count} 篇。复盘库未提供独立发布状态时，“已发布篇数”留空，
-    不能把日期记录视为已发布。明确草稿、排期、失败及未来发布时间不计入。</p>${warning}${chart(result.series, key2)}
+    <p class="review-note">有发布时间记录 ${s.record_count} 篇。${publicationNote(s)}
+    明确草稿、排期、失败及未来发布时间不计入趋势。</p>${warning}${chart(result.series, key2)}
     <p class="review-note">按发布日期分组，非每日新增阅读。平均阅读 = 有效阅读之和 ÷ 有效阅读样本数；
     真实 0 保留，缺失留空并断线。橙色点表示暂定或成熟度待核实。</p>${method(result)}${dailyTable(result, key2)}</section>`;
 }
