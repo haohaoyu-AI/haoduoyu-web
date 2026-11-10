@@ -71,6 +71,8 @@ function findings(value) {
   }
   return value;
 }
+export const reviewScopes=['global','toutiao','vzi','yujian','wechat'];
+export function reviewScope(value) {if(!reviewScopes.includes(value))invalid('Invalid review scope');return value;}
 export const reviewRuleStatuses=['candidate','trial','kept','dropped','hold'];
 function uniqueStrings(value,validator) {
   value=json(value,{array:true});const seen=new Set();
@@ -95,6 +97,7 @@ function ruleCheck(value) {
   value.value=text(value.value,2000);return value;
 }
 export const reviewRuleChangeFields={
+  scope:reviewScope,
   status:value=>{if(!reviewRuleStatuses.includes(value))invalid('Invalid rule status');return value;},
   evidence,evidence_note:value=>text(value,2000,{nullable:true,multiline:true}),support_ids:uuidList,counter_ids:uuidList,trials:value=>number(value,{integer:true,nullable:false}),
 };

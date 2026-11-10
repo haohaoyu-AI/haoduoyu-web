@@ -1,3 +1,4 @@
+import {handleReviewPrompts,isReviewPromptRoute} from './review-prompts.mjs';
 import {bodyFor,authenticate,digest,stable,fail} from './security.mjs';
 import {randomUUID} from 'node:crypto';
 import {noteEditor,limitNoteWrites} from './public-note-access.mjs';
@@ -211,6 +212,7 @@ async function patchRule(db,request,owner,ruleId,input,env,origin) {
 }
 async function handle(db,request,route,env,origin,initialRevision) {
   const owner=dailyNotesOwner(env),url=new URL(request.url),method=request.method;
+  if(isReviewPromptRoute(route))return handleReviewPrompts(db,request,route,env,origin,initialRevision,{owner,actorFor,writeLimit});
   if(isReviewResourceRoute(route))return handleReviewResources(db,request,route,env,origin,initialRevision);
   const batch=route==='/review/snapshots:batch';
   if(route==='/review/overview') {

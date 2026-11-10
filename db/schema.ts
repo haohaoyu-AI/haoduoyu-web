@@ -286,3 +286,20 @@ export const matrixOpenaiReviewRuns=sqliteTable('matrix_openai_review_runs',{
   index('matrix_openai_review_owner_day').on(t.user_id,t.account,t.beijing_date,t.created_at,t.id),
   uniqueIndex('matrix_openai_review_unresolved').on(t.user_id,t.account).where(sql`${t.status} IN ('running','uncertain') AND ${t.released_at} IS NULL`),
 ]);
+
+export const matrixReviewPromptVersions=sqliteTable('matrix_review_prompt_versions',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id),id:text('id').notNull(),
+  prompt_key:text('prompt_key').notNull(),scope:text('scope').notNull(),version:integer('version').notNull(),
+  status:text('status').notNull().default('draft'),title:text('title').notNull(),content_md:text('content_md').notNull(),
+  changelog_md:text('changelog_md').notNull().default(''),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.id]}),
+  uniqueIndex('review_prompt_version').on(t.user_id,t.prompt_key,t.scope,t.version),
+  uniqueIndex('review_prompt_active').on(t.user_id,t.prompt_key,t.scope).where(sql`${t.status}='active'`),
+  index('review_prompt_history').on(t.user_id,t.scope,t.prompt_key,t.version,t.id),
+  check('review_prompt_id',sql`length(${t.id})=36 AND substr(${t.id},9,1)='-' AND substr(${t.id},14,1)='-' AND substr(${t.id},19,1)='-' AND substr(${t.id},24,1)='-' AND length(replace(${t.id},'-',''))=32 AND replace(${t.id},'-','') NOT GLOB '*[^0-9a-f]*'`),
+  check('review_prompt_key',sql`length(${t.prompt_key}) BETWEEN 1 AND 64 AND substr(${t.prompt_key},1,1) GLOB '[a-z]' AND ${t.prompt_key} NOT GLOB '*[^a-z0-9_-]*' AND substr(${t.prompt_key},-1) NOT IN ('-','_') AND instr(${t.prompt_key},'--')=0 AND instr(${t.prompt_key},'__')=0 AND instr(${t.prompt_key},'-_')=0 AND instr(${t.prompt_key},'_-')=0`),
+  check('review_prompt_scope',sql`${t.scope} IN ('global','toutiao','vzi','yujian','wechat')`),
+  check('review_prompt_status',sql`${t.status} IN ('draft','active','archived')`),
+  check('review_prompt_version',sql`typeof(${t.version})='integer' AND ${t.version} BETWEEN 1 AND 9007199254740991`),
+]);

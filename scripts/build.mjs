@@ -1,3 +1,4 @@
+import {reviewPromptVersionsMigrationTag,validateReviewPromptVersionsMigrationSource} from './migration-contract.mjs';
 import {openaiReviewMigrationTag,validateOpenaiReviewMigrationSource} from './migration-contract.mjs';
 import { readFile,writeFile,mkdir,rm,cp } from 'node:fs/promises';
 import { resolve,dirname,relative } from 'node:path';
@@ -48,7 +49,7 @@ if(target==='platform') {
   assert.equal(manifest.d1,'DB');assert.equal(manifest.r2,null);assert.ok(!manifest.static);
 }
 const journal=JSON.parse(await readFile(resolve(root,'drizzle/meta/_journal.json'),'utf8'));
-assert.deepEqual(journal.entries.map(entry=>entry.tag),['0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes',articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives',openaiReviewMigrationTag],'Only reviewed migrations are allowed');
+assert.deepEqual(journal.entries.map(entry=>entry.tag),['0000_lively_stellaris','0001_daily_todos','0002_todo_templates','0003_todo_recovery_preferences','0004_daily_notes',articleMigrationTag,'0006_long_term_memos','0007_work_daily_notes','0008_workbench_updates','0009_unscheduled_todos','0010_note_labels',labelMigrationTag,labelSetsMigrationTag,labelArchivesMigrationTag,aiReportsMigrationTag,reviewMigrationTag,reviewAttributionMigrationTag,reviewResourcesMigrationTag,reviewLegacyExtensionsMigrationTag,'0019_todo_notes_archives',openaiReviewMigrationTag,reviewPromptVersionsMigrationTag],'Only reviewed migrations are allowed');
 let tables=0;
 for(const [idx,entry] of journal.entries.entries()) {
   assert.equal(entry.idx,idx);
@@ -60,6 +61,7 @@ for(const [idx,entry] of journal.entries.entries()) {
     ]);
     continue;
   }
+  if(entry.tag===reviewPromptVersionsMigrationTag) { validateReviewPromptVersionsMigrationSource(entry.tag,sql); tables++; continue; }
   if(entry.tag===openaiReviewMigrationTag) { validateOpenaiReviewMigrationSource(entry.tag,sql); tables+=2; continue; }
   if(entry.tag===reviewResourcesMigrationTag) { validateReviewResourcesMigrationSource(entry.tag,sql); tables+=4; continue; }
   if(entry.tag===reviewLegacyExtensionsMigrationTag) { validateReviewLegacyExtensionsMigrationSource(entry.tag,sql); continue; }
@@ -83,7 +85,7 @@ for(const [idx,entry] of journal.entries.entries()) {
     if(statement.startsWith('CREATE TABLE')) tables++;
   }
 }
-assert.equal(tables,39);
+assert.equal(tables,40);
 assert.equal(relative(root,dist),'dist','Build output must remain inside this project');
 const output=target==='platform'?dist:resolve(dist,'cloudflare');
 const entry=target==='platform'?resolve(output,'server/index.js'):resolve(output,'index.js');
@@ -102,5 +104,5 @@ if(target==='platform') {
 }
 const worker=await import(pathToFileURL(entry).href+'?build='+Date.now());
 assert.equal(typeof worker.default?.fetch,'function');
-console.log(target==='platform'?'Built independent Sites Worker: DB only, twenty-one reviewed migrations, 39 matrix tables, no legacy tables or R2 binding.':
+console.log(target==='platform'?'Built independent Sites Worker: DB only, twenty-two reviewed migrations, 40 matrix tables, no legacy tables or R2 binding.':
   'Built standalone Cloudflare Worker and twenty-one reviewed migrations locally; '+(standalone.configured?'configuration supplied.':'unconfigured template only.')+' No resources created or deployed.');
