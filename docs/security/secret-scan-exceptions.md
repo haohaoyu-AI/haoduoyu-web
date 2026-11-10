@@ -172,3 +172,22 @@ Gitleaks8.30.1扫描222内容提交，仅命中`4984fa2c395cd67b1238134fb6fc48e4
 发布控制合并提交 `60d85e83acb2650aa5e4dee88e30d94c38346807` 的全历史 `-m` 扫描在 `.ci/public-assets.json` 第 5、10 行重新报告两个 `generic-api-key` 命中。两处分别是公开 `public/api-docs.html`（19720 bytes）和 `public/openapi.json`（359108 bytes）的内容 SHA256，而非凭据。执行者与独立审查者均从该精确提交的 Git blobs 复算并与资源清单精确匹配；三个文件相对第一 parent 均无变化，命中来自第二 parent 的合并比较。
 
 独立审查通过后，仅追加上述提交、路径、规则、行的两个不可变历史指纹。未豁免目录、路径、规则或未来提交，保留全历史扫描与原失败记录：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42386734008>。原始扫描为 515 commits、93.34 MB、2 条告警；不能描述为原始零命中。
+
+## 2026-11-10 数据趋势发布：单条历史公开CSS摘要
+
+用户明确批准后，仅追加以下不可变历史指纹：
+`07673981b00b7eeba83833448a75daa43b3064ab:desktop/original-web-workbench/bundle/source-build-manifest.json:generic-api-key:9`。
+该行是 `/unchangedAssets/tokens.css` 的公开CSS内容SHA256，不是凭据。
+从该提交原始Git对象读取 `desktop/original-web-workbench/bundle/site/tokens.css`、
+`local-ui/frontend/public/tokens.css`、`local-ui/evidence/public-20261108/tokens.css`，
+三者均为11728字节、Git blob `dc3c5a6c2c193890076dc24412123687c7e6e603`；
+Python hashlib和Node crypto独立重算均与清单值精确相等。
+
+固定Gitleaks8.30.1、校验官方归档SHA256后，最新完整远端refs同参数扫描575个提交，
+原始命中仅此1项。原失败记录保留：
+<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42753217516>。
+仅该提交、文件、规则及行获得例外；不增加路径、目录、规则或未来提交豁免。
+不修改 `.gitleaks.toml`、扫描命令、官方版本校验、全历史范围、已有指纹或发布保护。
+最终远端扫描结果以本变更的CI为准，不将原始1项描述成从未命中。
+
+本地原全历史参数下，追加这一指纹后575个提交扫描为0项；将新增指纹的提交ID改一位作阴性控制，仍报告原1项，证明并未豁免整条路径。远端CI仍需独立通过。

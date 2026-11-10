@@ -32,9 +32,25 @@ export const openaiReviewRelease=Object.freeze({
   baseline:'aa6a7a87-4a7a-4765-902a-ae727d6ed259',
   bytes:2783657,sha256:'231a4fd783cf05611290b74d9fbc45c3be6903f7ec73749ad96eae3017cf16f0',
   label:'production-ai-diagnosis-runtime-repair-20261108'});
-const acceptedRelease=commit=>commit===openaiReviewRelease.commit?openaiReviewRelease:
+// Exact remote candidate/tree verified against isolated browser acceptance.
+// Fixed production v95 entrypoint bytes independently match source 1c7b8b0:
+// 2818733 bytes, SHA256 256722179e6ba26a4bc6c98e1dd6608eaae7acee3780d687d3fc86fbb988056a.
+// The existing runtime guard still rechecks the active version and inherited bindings.
+export const dataTrendsRelease=Object.freeze({
+  commit:'334e00d676452cc47e044cb4f88f8209b1c411b0',
+  tree:'b369353b7932880d80bae5b28e1a880b34929f0c',
+  baseline:'4d874ca9-ede5-4e03-a7e5-ef3c1bc0babd',
+  bytes:2844076,sha256:'f6ca099166856484fcff442aa56b5904cebb76b323b10978b8f38bc50fa56325',
+  label:'production-data-trends-20261110'});
+const acceptedRelease=commit=>commit===dataTrendsRelease.commit?dataTrendsRelease:
+  commit===openaiReviewRelease.commit?openaiReviewRelease:
   commit===productionRestore.commit?productionRestore:
   commit===previousProductionRelease.commit?previousProductionRelease:releases[commit];
+function requirePinnedSource(release) {
+  if(release.tree&&(!/^[0-9a-f]{40}$/.test(release.commit||'')||!/^[0-9a-f]{40}$/.test(release.tree)))
+    deny('The exact verified remote production source commit and tree must be pinned before release.');
+  return release;
+}
 export function validateRequest(env) {
   if(env.GITHUB_REPOSITORY!==repository||env.GITHUB_REF!=='refs/heads/main'||env.GITHUB_EVENT_NAME!=='workflow_dispatch')
     deny('Release requires this repository, main branch and manual workflow_dispatch.');
@@ -43,6 +59,7 @@ export function validateRequest(env) {
     deny('An explicitly verified current production version UUID is required.');
   const release=acceptedRelease(env.TARGET_COMMIT);
   if(!release)deny('Target commit is not an explicitly approved release or rollback.');
+  requirePinnedSource(release);
   if(release.tree&&!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(release.baseline||''))
     deny('The exact production rollback baseline must be pinned before this release can run.');
   if(release.baseline&&env.EXPECTED_CURRENT_VERSION!==release.baseline)
@@ -66,6 +83,7 @@ export async function verifyCI(commit,{request=fetch,token}={}) {
 // All other releases retain their exact successful Foundation CI requirement.
 export async function verifyEligibility(commit,{request=fetch,token}={}) {
   const release=acceptedRelease(commit);if(!release)deny('Unknown release.');
+  requirePinnedSource(release);
   if(!release.tree)return verifyCI(commit,{request,token});
   const response=await request(`https://api.github.com/repos/${repository}/git/commits/${commit}`,{
     headers:{Accept:'application/vnd.github+json',...(token?{Authorization:`Bearer ${token}`}:{})},
@@ -78,6 +96,7 @@ export async function verifyEligibility(commit,{request=fetch,token}={}) {
 }
 export function verifyWorker(bytes,commit) {
   const release=acceptedRelease(commit);if(!release)deny('Unknown release.');
+  requirePinnedSource(release);
   if(bytes.byteLength!==release.bytes||createHash('sha256').update(bytes).digest('hex')!==release.sha256)
     deny('Built Worker does not match the accepted release bytes and SHA-256.');
   return release;
