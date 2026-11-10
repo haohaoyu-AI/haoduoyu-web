@@ -86,6 +86,7 @@ export function normalizeReviewData(input = {}) {
       findings: object(parseJson(report.findings, {})),
       metrics: object(parseJson(report.metrics, {})),
     })),
+    prompts: list(input.prompts || input['prompts/current']).filter(Boolean),
     playbooks: list(input.playbooks).filter(Boolean).map(playbook => ({ ...playbook, rules: rules(playbook.rules) })),
   };
 }
