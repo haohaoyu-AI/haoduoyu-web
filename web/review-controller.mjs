@@ -1,3 +1,4 @@
+import {currentPrompts} from './core/review-rule-scopes.mjs';
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
 import {storage} from './core/storage.mjs';
@@ -14,7 +15,7 @@ export function readReviewColumnPreference(raw) {
   } catch { return ['reads']; }
 }
 
-const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health'];
+const resources = ['articles','snapshots','reports','playbooks','benchmark-accounts','benchmark-articles','notes','account-health','prompts/current'];
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
 let vm = {
   account:'V字',view:'overview',secondary:'benchmarks',week:'this',date:'',start:'',end:'',periods:[],filters:{},
@@ -32,7 +33,9 @@ export async function readReviewCollection(read, resource, selectedAccount, curr
   const items = [], seen = new Set(), foreignIds = new Set();
   let revision;
   for (let offset = 0; ; offset += 100) {
-    const page = await read(`/review/${resource}?account=${encodeURIComponent(selectedAccount)}&offset=${offset}${revision === undefined ? '' : `&read_revision=${encodeURIComponent(revision)}`}`);
+    const accountQuery = resource === 'playbooks' ? '' : `account=${encodeURIComponent(selectedAccount)}&`;
+    const revisionQuery = revision === undefined ? '' : `&read_revision=${encodeURIComponent(revision)}`;
+    const page = await read(`/review/${resource}?${accountQuery}offset=${offset}${revisionQuery}`);
     if (!current()) return null;
     if (!Array.isArray(page?.items) || typeof page.has_more !== 'boolean' || page.items.length > 100 ||
       (page.has_more && page.items.length !== 100)) throw new Error('复盘分页资料不完整，请重新读取。');
@@ -43,7 +46,7 @@ export async function readReviewCollection(read, resource, selectedAccount, curr
     for (const row of page.items) {
       if (!row || typeof row !== 'object' || row.id === null || row.id === undefined || seen.has(String(row.id))) throw staleRead('复盘资料存在重复或无效记录，请重新读取。');
       seen.add(String(row.id));
-      if (resource !== 'snapshots' && row.account !== selectedAccount) { foreignIds.add(String(row.id)); continue; }
+      if (!['snapshots','playbooks','prompts/current'].includes(resource) && row.account !== selectedAccount) { foreignIds.add(String(row.id)); continue; }
       items.push(row);
     }
     if (!page.has_more) return {items,read_revision:revision,foreignIds};
@@ -218,6 +221,24 @@ function changeTrend(target) {
   paintContentReviewPage();
   root()?.querySelector(`[data-review-trend="${key}"]`)?.focus({preventScroll:true});
 }
+export async function copyReviewPrompt(prompts,account,id,clipboard = globalThis.navigator?.clipboard) {
+  const prompt = currentPrompts(prompts,account).find(row => String(row.id) === String(id));
+  if (!prompt) throw new Error('提示词已更新，请重新读取后复制。');
+  if (!clipboard?.writeText) throw new Error('当前浏览器不支持剪贴板，请展开提示词后手动复制。');
+  try { await clipboard.writeText(String(prompt.content_md || '')); }
+  catch { throw new Error('复制失败，请允许剪贴板访问，或展开提示词后手动复制。'); }
+}
+async function copyPromptButton(button) {
+  const status = button.closest('.review-current-prompt')?.querySelector('[data-prompt-copy-status]');
+  button.disabled = true;
+  if (status) status.textContent = '正在复制…';
+  try {
+    await copyReviewPrompt(data.prompts,vm.account,button.dataset.promptId);
+    if (status?.isConnected) status.textContent = '已复制完整提示词。';
+  } catch (error) {
+    if (status?.isConnected) status.textContent = error.message;
+  } finally { if (button.isConnected) button.disabled = false; }
+}
 // Hovering a chart point names the article under the plot; leaving restores the period's best one.
 function describeTrendPoint(event,leaving) {
   const point = event.target.closest?.('[data-trend-readout]');
@@ -271,6 +292,7 @@ function registerEvents() {
     }
     if (target.dataset.reviewAction === 'refresh') { void loadContentReview(pageContext); return; }
     if (vm.loading || vm.error) return;
+    if (target.dataset.reviewAction === 'copy-prompt') { void copyPromptButton(target); return; }
     if (target.dataset.reviewSecondary) {
       vm.secondary = target.dataset.reviewSecondary; vm.benchmark = ''; writeRoute({section:vm.secondary,benchmark:''}); paintContentReviewPage();
       root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;

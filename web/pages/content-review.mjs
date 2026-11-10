@@ -1,3 +1,5 @@
+import {safeReviewUrl, renderReviewMarkdown} from '../core/review-markdown.mjs';
+import {currentPlaybooks, applicableScopes, scopeOf, currentPrompts, scopeLabel, ruleCountLabel} from '../core/review-rule-scopes.mjs';
 import {renderTrafficCard} from './review-traffic-card.mjs';
 import {renderReviewTrends} from './review-trends.mjs';
 import {REVIEW_LIST_METRICS, formatReviewListMetric} from '../core/review-list-metrics.mjs';
@@ -17,34 +19,7 @@ export function reviewNumber(value,key = '') {
   if (percentageKeys.has(key)) return `${n.toFixed(1)}%`;
   return Math.abs(n) >= 10000 ? `${(n / 10000).toFixed(1)} 万` : n.toLocaleString('zh-CN',{maximumFractionDigits:1});
 }
-export function safeReviewUrl(value) {
-  try { const url = new URL(String(value)); return ['https:','http:'].includes(url.protocol) ? url.href : ''; } catch { return ''; }
-}
-function inline(text) {
-  return String(text).split(/(\[[^\]\n]+\]\([^\)\n]+\)|\*\*[^*\n]+\*\*|`[^`\n]+`)/g).map(part => {
-    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (link) { const href = safeReviewUrl(link[2]); return href ? `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${e(link[1])}</a>` : e(link[1]); }
-    if (part.startsWith('**') && part.endsWith('**')) return `<strong>${e(part.slice(2,-2))}</strong>`;
-    if (part.startsWith('`') && part.endsWith('`')) return `<code>${e(part.slice(1,-1))}</code>`;
-    return e(part);
-  }).join('');
-}
-// Deliberately small Markdown grammar: raw HTML and arbitrary URL schemes never enter the DOM.
-export function renderReviewMarkdown(value) {
-  const lines = String(value || '').replace(/\r\n?/g,'\n').split('\n');
-  let list = false, code = false, out = '';
-  for (const line of lines) {
-    if (/^\s*```/.test(line)) { if (list) { out += '</ul>'; list = false; } out += code ? '</code></pre>' : '<pre><code>'; code = !code; continue; }
-    if (code) { out += e(line) + '\n'; continue; }
-    const item = line.match(/^\s*[-*]\s+(.+)$/);
-    if (item) { if (!list) { out += '<ul>'; list = true; } out += `<li>${inline(item[1])}</li>`; continue; }
-    if (list) { out += '</ul>'; list = false; }
-    const heading = line.match(/^(#{1,4})\s+(.+)$/);
-    if (heading) { const h = Math.min(heading[1].length + 1,5); out += `<h${h}>${inline(heading[2])}</h${h}>`; }
-    else if (line.trim()) out += /^>\s?/.test(line) ? `<blockquote>${inline(line.replace(/^>\s?/,''))}</blockquote>` : `<p>${inline(line)}</p>`;
-  }
-  return out + (list ? '</ul>' : '') + (code ? '</code></pre>' : '');
-}
+export {safeReviewUrl, renderReviewMarkdown} from '../core/review-markdown.mjs';
 const empty = (title,text = '') => `<div class="review-empty"><strong>${e(title)}</strong>${text ? `<p>${e(text)}</p>` : ''}</div>`;
 const panel = (title,body,note = '',css = '') => `<section class="review-panel ${css}"><div class="review-panel-head"><h2>${e(title)}</h2>${note ? `<span class="review-note">${e(note)}</span>` : ''}</div>${body}</section>`;
 const options = (rows,value) => rows.map(([id,label]) => `<option value="${e(id)}"${String(id) === String(value) ? ' selected' : ''}>${e(label)}</option>`).join('');
@@ -194,11 +169,15 @@ function evidence(value) {
   const key = value.metric, label = labels[key] || key;
   return `命中 ${reviewNumber(value.n_with)} 篇，${label} ${reviewNumber(value.with_median,key)}；未命中 ${reviewNumber(value.n_without)} 篇，${label} ${reviewNumber(value.without_median,key)}`;
 }
-function ruleCard(rule,index = '',historical = false) {
-  return `<article class="review-rule"${historical ? '' : ` id="review-rule-${e(encodeURIComponent(rule.rule_id))}" tabindex="-1"`}><div \
-class="review-rule-head"><span class="review-rule-id">${e(rule.rule_id || index)}</span></div><p>${e(rule.text || '未提供规则内容')}</p><dl class="review-rule-evidence"><div><dt>证据</dt><dd>${e(evidence(
-rule.evidence))}${rule.evidence_note ? `<br>${e(rule.evidence_note)}` : ''}</dd></div><div><dt>试验</dt><dd>${e(evidence(rule.trials))}</dd></div></dl>\
-</article>`;
+export function ruleCard(rule,index = '',historical = false) {
+  const attributes = historical ? '' : ` id="review-rule-${e(encodeURIComponent(rule.rule_id))}" tabindex="-1"`;
+  return `<article class="review-rule"${attributes}>
+    <div class="review-rule-head"><span class="review-rule-id">${e(rule.rule_id || index)}</span></div>
+    <div class="review-markdown">${renderReviewMarkdown(rule.text || '未提供规则内容')}</div>
+    <dl class="review-rule-evidence"><div><dt>证据</dt><dd>${e(evidence(rule.evidence))}
+      ${rule.evidence_note ? `<br>${e(rule.evidence_note)}` : ''}</dd></div>
+      <div><dt>试验</dt><dd>${e(evidence(rule.trials))}</dd></div></dl>
+  </article>`;
 }
 function articleRules(row) {
   const ids = parseJson(row.applied_rule_ids,null);
@@ -218,29 +197,70 @@ function v13Evidence(rule) {
   const value = evidence(rule.evidence);
   return value === '—' ? '' : firstSentence(value);
 }
-function v13RuleRow(rule,index) {
-  const text = String(rule.text || '').trim();
-  return `<article class="review-v13-rule-row" id="review-rule-${e(encodeURIComponent(rule.rule_id || index))}"><span class="review-v13-rule-id">${e(rule.rule_id || index)}</span><div class="review-v13-rule-text">${e(text)}</div><span class="review-v13-rule-evidence">${e(v13Evidence(rule))}</span></article>`;
+function v13RuleRow(rule,index,prefix = '') {
+  const text = renderReviewMarkdown(String(rule.text || '').trim());
+  const overridden = rule.overriddenByScope;
+  const state = overridden ? 'overridden' : 'effective';
+  const id = e(encodeURIComponent(`${prefix}:${rule.section || ''}:${rule.rule_id || ''}:${index}`));
+  const body = overridden ? `<details class="review-overridden-rule">
+    <summary>已被${e(scopeLabel(overridden))}覆盖 · 查看原文</summary>${text}</details>` :
+    `${rule.overridesScopes?.length ? '<p class="review-note">当前生效 · 覆盖上层同 ID 规则</p>' : ''}${text}`;
+  return `<article class="review-v13-rule-row" id="review-rule-${id}" data-rule-state="${state}">
+    <span class="review-v13-rule-id">${e(rule.rule_id || index)}</span>
+    <div class="review-v13-rule-text review-markdown">${body}</div>
+    <span class="review-v13-rule-evidence">${e(v13Evidence(rule))}</span>
+  </article>`;
 }
-function playbook(data,vm) {
-  const book = [...(data.playbooks || [])].filter(p => p.account === vm.account && p.status === 'active')
-    .sort((a,b) => Number(b.version) - Number(a.version) || String(b.published_on || '').localeCompare(String(a.published_on || '')))[0];
-  if (!book) return empty('暂无生效手册');
-  const rules=Array.isArray(book.rules) ? book.rules : [];
-  const lines=String(book.content_md || '').replace(/\r\n?/g,'\n').split('\n');
+function renderRuleBook(book,scope) {
+  const rules=book.rules.filter(rule => scopeOf(rule.scope ?? book.account) === scope);
+  const ownLayer = scopeOf(book.account) === scope;
+  const lines=String(ownLayer ? book.content_md || '' : '').replace(/\r\n?/g,'\n').split('\n');
   const firstSection=lines.findIndex(line => /^##\s/.test(line));
   const titleLines=firstSection < 0 ? lines : lines.slice(0,firstSection);
-  const title=titleLines.map(line => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || `规则手册 ${book.version}`;
+  const title=titleLines.map(line => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || (ownLayer ? `规则手册 ${book.version}` : `适用规则`);
   const content=(firstSection < 0 ? lines : lines.slice(0,firstSection))
     .filter(line => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join('\n').trim();
   const intro=content ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content)}</div>` : '';
   const groups=v13RuleGroups.map(([id,label]) => {
     const group=rules.filter(rule => rule.section === id);
-    return `<details class="review-v13-rule-group" open><summary>${e(label)} · ${group.length} 条</summary>${group.map((rule,index) => v13RuleRow(rule,index+1)).join('')}</details>`;
+    return `<details class="review-v13-rule-group" open><summary>${e(label)} · ${ruleCountLabel(group)}</summary>
+    ${group.map((rule,index) => v13RuleRow(rule,index+1,`${scope}:${book.id}`)).join('')}</details>`;
   }).join('');
   const ungrouped=rules.filter(rule => !v13RuleGroups.some(([id]) => id === rule.section));
-  const other=ungrouped.length ? `<details class="review-v13-rule-group" open><summary>其他 · ${ungrouped.length} 条</summary>${ungrouped.map((rule,index) => v13RuleRow(rule,index+1)).join('')}</details>` : '';
-  return `<section class="review-v13-rules"><div class="review-v13-rule-meta"><h2>${e(title)}</h2><span class="review-note">生效于 ${e(day(book.published_on) || '—')}</span><span class="review-note">共 ${rules.length} 条规则</span></div>${intro}${groups}${other}</section>`;
+  const other=ungrouped.length ? `<details class="review-v13-rule-group" open><summary>其他 · ${ruleCountLabel(ungrouped)}</summary>
+    ${ungrouped.map((rule,index) => v13RuleRow(rule,index+1,`${scope}:${book.id}`)).join('')}</details>` : '';
+  return `<section class="review-v13-rules">
+    <div class="review-v13-rule-meta"><h2>${e(title)}</h2>
+    <span class="review-note">生效于 ${e(ownLayer ? day(book.published_on) || '—' : '—')}</span>
+    <span class="review-note">共 ${ruleCountLabel(rules)}</span></div>
+    ${intro}${groups}${other}</section>`;
+}
+function promptList(prompts,scope) {
+  const items = prompts.filter(prompt => prompt.scope === scope);
+  if (!items.length) return '';
+  return `<div class="review-current-prompts"><h3>当前提示词</h3>${items.map(prompt => `
+    <details class="review-current-prompt">
+      <summary><span>${e(prompt.title || prompt.prompt_key)}</span><span class="review-note">v${e(prompt.version)}</span></summary>
+      <p class="review-note">生效时间：${e(reviewDateTime(prompt.updated_at) || '未记录')} · 上海时间</p>
+      <div class="review-prompt-copy-actions">
+        <button type="button" class="btn text" data-review-action="copy-prompt" data-prompt-id="${e(prompt.id)}">复制完整提示词</button>
+        <span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span>
+      </div>
+      <div class="review-markdown">${renderReviewMarkdown(prompt.content_md)}</div>
+    </details>`).join('')}</div>`;
+}
+function playbook(data,vm) {
+  const books = currentPlaybooks(data.playbooks,vm.account);
+  const prompts = currentPrompts(data.prompts,vm.account);
+  const layers = applicableScopes(vm.account).map(scope => {
+    const matches = books.filter(book => book.rules.some(rule => scopeOf(rule.scope ?? book.account) === scope) || scopeOf(book.account) === scope);
+    if (!matches.length && !prompts.some(prompt => prompt.scope === scope)) return '';
+    const layerRules = matches.flatMap(book => book.rules.filter(rule => scopeOf(rule.scope ?? book.account) === scope));
+    return `<details class="review-rule-layer" data-rule-scope="${e(scope)}"${scope === scopeOf(vm.account) ? ' open' : ''}>
+      <summary class="review-rule-layer-title">${e(scopeLabel(scope))}<span class="review-note"> · ${ruleCountLabel(layerRules)}</span></summary>
+      ${matches.map(book => renderRuleBook(book,scope)).join('')}${promptList(prompts,scope)}</details>`;
+  }).join('');
+  return layers ? `<div class="review-rule-hierarchy">${layers}</div>` : empty('暂无生效手册');
 }
 
 function verdictBasis(row) {
@@ -261,7 +281,9 @@ function drawer(data,rows,vm) {
 export function renderContentReview() { return '<section id="content-review" class="content-review" aria-label="内容复盘"><p class="review-status" role="status" aria-live="polite">正在读取内容复盘…</p></section>'; }
 function scopedReviewData(data,account) {
   const result = {...data};
-  for (const key of ['articles','reports','playbooks','benchmarkAccounts','notes','accountHealth']) result[key] = (data[key] || []).filter(row => row.account === account);
+  for (const key of ['articles','reports','benchmarkAccounts','notes','accountHealth']) result[key] = (data[key] || []).filter(row => row.account === account);
+  result.playbooks = currentPlaybooks(data.playbooks,account);
+  result.prompts = currentPrompts(data.prompts,account);
   const benchmarkIds = new Set(result.benchmarkAccounts.map(row => String(row.id)));
   result.benchmarkArticles = (data.benchmarkArticles || []).filter(row => benchmarkIds.has(String(row.benchmark_account_id)) && (row.account == null || row.account === account));
   const ids = new Set(result.articles.map(row => String(row.id)));
@@ -273,7 +295,8 @@ export function renderContentReviewContent(data,vm) {
   if (vm.loading) return '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
   if (vm.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
   const rows = enrichArticles(data,{account:vm.account});
-  const hasData = ['articles','snapshots','reports','playbooks','benchmarkAccounts','benchmarkArticles','notes'].some(key => data[key].length);
+  const hasData = ['articles','snapshots','reports','playbooks','benchmarkAccounts','benchmarkArticles','notes','prompts']
+    .some(key => (data[key] || []).length);
   const noDataPanel = '';
   const body = hasData ? overview(data,vm) : noDataPanel + empty('暂无内容复盘数据') +
     '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' + archives(data,vm);

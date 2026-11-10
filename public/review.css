@@ -464,3 +464,38 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
   .content-review .review-trend-controls input[type="date"] { padding-inline:6px; }
   .review-trend-chart { padding-left:46px; }
 }
+
+/* Rule layers share the review Markdown allowlist; color names never become styles. */
+.content-review .review-rule-hierarchy { display:grid; gap:24px; min-width:0; }
+.content-review .review-rule-layer { min-width:0; border-top:1px solid var(--line); padding-top:16px; }
+.content-review .review-rule-layer-title { font-size:18px; margin:0 0 16px; }
+.content-review .review-v13-rule-text.review-markdown { white-space:normal; }
+.content-review .review-v13-rule-text.review-markdown > :first-child { margin-top:0; }
+.content-review .review-v13-rule-text.review-markdown > :last-child { margin-bottom:0; }
+.content-review .review-current-prompts { margin-top:20px; min-width:0; }
+.content-review .review-current-prompt { border-top:1px solid var(--line); padding:12px 0; min-width:0; }
+.content-review .review-current-prompt summary { cursor:pointer; overflow-wrap:anywhere; }
+.content-review .review-current-prompt summary .review-note { margin-left:12px; }
+.content-review .review-current-prompt .review-markdown { overflow-wrap:anywhere; min-width:0; }
+.content-review .review-rule-hierarchy pre { max-width:100%; overflow:auto; white-space:pre; overflow-wrap:normal; word-break:normal; }
+.content-review .review-color-red { color:#b42318; }
+.content-review .review-color-blue { color:#175cd3; }
+.content-review .review-color-green { color:#067647; }
+.content-review .review-color-amber { color:#92400e; }
+@media (max-width:560px) {
+  .content-review .review-rule-hierarchy .review-v13-rule-row { grid-template-columns:minmax(0,1fr); }
+  .content-review .review-rule-hierarchy .review-v13-rule-row > * { grid-column:1; grid-row:auto; }
+  .content-review .review-current-prompt summary .review-note { display:block; margin:6px 0 0; }
+}
+.content-review .review-rule-layer-title { cursor:pointer; }
+.content-review .review-prompt-copy-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:12px 0; }
+@media (max-width:560px) {
+  .content-review .review-rule-hierarchy .review-markdown { font-size:15px; line-height:1.6; }
+  .content-review .review-rule-hierarchy .review-v13-rule-row,
+  .content-review .review-rule-hierarchy .review-v13-rule-id,
+  .content-review .review-rule-hierarchy .review-markdown code,
+  .content-review .review-rule-hierarchy .review-prompt-copy-actions .btn,
+  .content-review .review-rule-hierarchy .review-note,
+  .content-review .review-rule-hierarchy .review-v13-rule-evidence,
+  .content-review .review-rule-hierarchy summary { font-size:15px; line-height:1.6; }
+}
