@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       BASE_COMMIT: c46884162d55fe5c1ad244353e204345260846dd
-      CANDIDATE_TREE: 561ff79578904620c1f4914a9e8ec418704303e9
+      CANDIDATE_TREE: 6a5c2cdd6cbbd3e1a864e62e82b14eea5190ae0c
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -41,6 +41,7 @@ jobs:
               'web/core/review-trends.mjs': '5e23b3b2450237aab046be0367e441a373493246',
               'web/pages/review-trends.mjs': '37076598d92a8d46c7941422bd30849007fcdb4d',
               'tests/review-trends-browser-server.mjs': 'c918607d46d2f07c37546aa70fd37e07b599c7ff',
+              'tests/browser-review-trends.py': 'f961fb5e57d1b8521057179d26d5da416e83eff1',
           }
           for path, sha in entries.items():
               url = f'https://api.github.com/repos/haohaoyu-AI/haoduoyu-web/git/blobs/{sha}'
@@ -63,7 +64,7 @@ jobs:
           test "$(git hash-object public/app.js)" = '49b76098a2f0904220322cff089fa045f2792d88'
           test "$(wc -c < dist/server/index.js | tr -d ' ')" = '2843919'
           echo 'eac54af8bacb4cba2f88ab35db249c281b62d4997214bf65c6c1b17155c8c851  dist/server/index.js' | sha256sum -c -
-          git add .ci/public-assets.json docs/data-trends.md public/app.js public/index.html public/sw.js shared/review-analytics.mjs tests/review-trends.test.mjs web/core/review-trends.mjs web/pages/review-trends.mjs tests/review-trends-browser-server.mjs
+          git add .ci/public-assets.json docs/data-trends.md public/app.js public/index.html public/sw.js shared/review-analytics.mjs tests/review-trends.test.mjs web/core/review-trends.mjs web/pages/review-trends.mjs tests/review-trends-browser-server.mjs tests/browser-review-trends.py
           test "$(git write-tree)" = "$CANDIDATE_TREE"
           git diff --exit-code
           # No commit, push, upload of source bundles, or production credentials.
