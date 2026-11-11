@@ -26,7 +26,9 @@ test('executable route restoration characterizes existing deep-link behavior, no
   new vm.Script(source.replace(/init\(\);\s*$/, '')).runInContext(context);
   vm.runInContext("state.accounts=[{id:'a'}];readRoute();", context);
   const result = JSON.parse(vm.runInContext('JSON.stringify({page:state.page,account:state.account,filters:state.filters,pageSize:state.pageSize,period:state.overviewPeriod,topN:state.topN})', context));
-  assert.equal(result.page, 'articles');assert.equal(result.account, 'a');
+  // Review-first navigation remaps the articles deep-link onto the review page while
+  // preserving the remaining filter/account query state for the restored route.
+  assert.equal(result.page, 'review');assert.equal(result.account, 'a');
   assert.equal(Object.hasOwn(result.filters, 'q'), false);assert.equal(result.filters.platform, 'zhihu');
   assert.equal(result.filters.sort, 'reads');assert.equal(result.filters.order, 'asc');
   assert.equal(result.pageSize, 10);assert.equal(result.period, '7d');assert.equal(result.topN, 3);
