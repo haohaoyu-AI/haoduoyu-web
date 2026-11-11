@@ -1,6 +1,7 @@
 // Content-review calculations deliberately use recorded snapshots. Missing values
 // remain null, and coverage accompanies aggregates so partial totals can be shown.
-const SNAPSHOT_NUMBERS = ["impressions", "fan_impressions", "reads", "fan_reads", "ctr", "completion_rate", "avg_read_seconds", "likes", "comments", "reposts", "shares", "favorites", "revenue"];
+const SNAPSHOT_NUMBERS = ["impressions", "fan_impressions", "reads", "fan_reads", "ctr", "completion_rate", "avg_read_seconds", "likes", "comments", "reposts", 
+  "shares", "favorites", "revenue"];
 const SNAPSHOT_JSON = ["traffic_sources", "completion_curve", "audience"];
 const SUM_FIELDS = ["impressions", "fan_impressions", "reads", "fan_reads", "likes", "comments", "reposts", "shares", "favorites", "revenue"];
 const AVG_FIELDS = ["ctr", "completion_rate", "avg_read_seconds"];
@@ -24,7 +25,8 @@ function calendarDate(date) {
   return Number.isFinite(stamp) && new Date(stamp).toISOString().slice(0, 10) === date ? date : "";
 }
 
-const shanghaiClock = new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23"});
+const shanghaiClock = new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: 
+  "2-digit", hourCycle: "h23"});
 function shanghaiParts(value) {
   if (typeof value !== "string") return null;
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
@@ -183,7 +185,8 @@ export function dailySummary(data, date) {
   const previousRecentRows = articleRows(data, { start: shiftDay(date, -3), end: previousDate });
   const recent = aggregate(recentRows), previousRecent = aggregate(previousRecentRows);
   const stats = { published_count: result.current.count, total_reads: result.current.reads, average_ctr: result.current.ctr, recent_hits: recent.hits };
-  const previousStats = { published_count: result.previous.count, total_reads: result.previous.reads, average_ctr: result.previous.ctr, recent_hits: previousRecent.hits };
+  const previousStats = { published_count: result.previous.count, total_reads: result.previous.reads, average_ctr: result.previous.ctr, recent_hits: 
+    previousRecent.hits };
   return { ...result, date, previousDate, recentRows, stats, previousStats, statChanges: compareMetrics(stats, previousStats) };
 }
 
@@ -230,7 +233,9 @@ export function diffRules(previous, current) {
 
 export function metricDiscrepancies(report = {}, computed = {}) {
   const metrics = object(parseJson(report.metrics, {}));
-  const aliases = { total_reads: "reads", average_ctr: "ctr", avg_ctr: "ctr", total_impressions: "impressions", average_completion_rate: "completion_rate", avg_completion_rate: "completion_rate", total_revenue: "revenue", article_count: "count", published_count: "count", hit_count: "hits", flop_count: "flops" };
+  const aliases = { total_reads: "reads", average_ctr: "ctr", avg_ctr: "ctr", total_impressions: "impressions", average_completion_rate: "completion_rate", 
+    avg_completion_rate: "completion_rate", total_revenue: "revenue", article_count: "count", published_count: "count", hit_count: "hits", flop_count: 
+      "flops" };
   return Object.entries(metrics).map(([key, value]) => {
     const field = aliases[key] || key;
     const authorValue = finiteNumber(value), calculated = finiteNumber(computed[field]);
@@ -251,7 +256,8 @@ export function periodsFor(data = {}, type = "daily") {
     periods.set(`${start}/${end}`, { start, end, label: start === end ? end : `${start} — ${end}`, report });
   }
   if (!periods.size) {
-    const dates = [...new Set([...list(data.snapshots).map(snapshot => day(snapshot.snapshot_date)), ...list(data.articles).map(article => day(article.published_at))].filter(Boolean))].sort().reverse();
+    const dates = [...new Set([...list(data.snapshots).map(snapshot => day(snapshot.snapshot_date)), ...list(data.articles).map(article => 
+      day(article.published_at))].filter(Boolean))].sort().reverse();
     const duration = type === "weekly" ? 7 : type === "three_day" ? 3 : 1;
     for (const end of dates) {
       const start = shiftDay(end, -(duration - 1));

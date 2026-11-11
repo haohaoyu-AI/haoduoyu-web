@@ -12,7 +12,9 @@ import {renderLogin} from './pages/login.mjs';
 import {getOfflineRuntime, onOfflineRuntime} from './offline/runtime.mjs';
 import {isLocalDocument} from './offline/document.mjs';
 import {registerConflictDraftGuard, createNoteConflictDraftGuard} from './offline/conflict-draft-guards.mjs';
-import {createDraftRevisionTracker, unchangedEntrySinceSnapshot, uniqueRetainedDrafts, matchesDeletedEntry, createLegacyRecoveryGuard, createEntryRecoveryGuard} from './offline/retained-drafts.mjs';
+import {createDraftRevisionTracker, unchangedEntrySinceSnapshot, uniqueRetainedDrafts, matchesDeletedEntry, createLegacyRecoveryGuard, 
+  createEntryRecoveryGuard} 
+  from './offline/retained-drafts.mjs';
 
 let notesStore, entryStore, notesIdentity = '', notesEventsRegistered = false,
   notesConfirmDate = '', notesConfirmEntry = '', notesActiveCategory = '', notesRefreshPaused = false,
@@ -281,6 +283,113 @@ function exportLegacyDraft(item, category) {
   const anchor = document.createElement('a'); anchor.href = url; anchor.download = '原有碎碎念草稿-' + category + '-' + item.date + '.txt';
   anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+function dailyNotesTransport(category, expected, active) {
+  const request = async (path, options) => { active(); const value = await api(path, options); active(); return value; };
+  const noteRequest = async (path, options = {}) => {
+    active();
+    if (options.method && options.method !== 'GET') {
+      const date = options.body?.date || dailyNotesRouteDate();
+      await noteRequest('/note-entries?category=' + category + '&date=' + encodeURIComponent(date));
+    }
+    const value = await apiNetwork(path, {...options, headers: {...options.headers, 'X-Note-Labels-Version':'3'}}); active();
+    if (value?.labels_version !== 3) throw Object.assign(new Error('服务器尚不支持多标签，草稿已保留。'),
+      {code:'NOTE_LABELS_VERSION', localNotSaved:!options.method || options.method === 'GET'});
+    return value; };
+  const noteRead = async path => {
+    const cached = await request(path, {headers: {'X-Note-Labels-Version':'1'}});
+    if (isLocalDocument(cached) || cached?.entries?.some(isLocalDocument)) return cached;
+    try { return await noteRequest(path); }
+    catch (error) { if (error.code === 'NETWORK_UNAVAILABLE') return cached; throw error; }
+  };
+  const noteWrite = async (path, options) => {
+    try { return await noteRequest(path, options); }
+    catch (error) {
+      if (error.code !== 'NETWORK_UNAVAILABLE') throw error;
+      const body = options.body || {}, labels = body.labels;
+      if (labels)
+        throw Object.assign(new Error('多标签修改需要联网，草稿已保留。'), {code:'OFFLINE_MULTI_LABEL', localNotSaved:true});
+      const {labels: ignored, ...legacyBody} = body;
+      return request(path, {...options, offlineUnknown:true, body:legacyBody, headers:{'X-Note-Labels-Version':'1'}});
+    }
+  };
+  return {request, noteRequest, noteRead, noteWrite};
+}
+function publishNotesChange(expected, category, stores) {
+  if (expected !== notesIdentityNow()) return;
+  const {legacy, entries} = stores;
+  for (const item of entries.entries.values()) entryDraftRevision(item);
+  scheduleSendFeedback(entries, expected);
+  const revision = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
+  if (!getOfflineRuntime()?.state.scope && [...entries.entries.values()].some(item => item.dirty)) {
+    notesDraftError = '本机草稿保存不可用，请保持页面打开或发送后再离开。';
+  }
+  if (saved) void saved.then(() => {
+    if (expected !== notesIdentityNow() || revision !== notesDraftRevision || !notesDraftError || !getOfflineRuntime()?.state.scope) return;
+    notesDraftError = ''; paintDailyNotesPage();
+  }).catch(() => {
+    if (expected !== notesIdentityNow() || revision !== notesDraftRevision) return;
+    notesDraftError = '草稿未能保存在本机，请保持页面打开并检查存储空间。'; paintDailyNotesPage();
+  });
+  paintDailyNotesPage();
+  scheduleArchiveRefresh(expected);
+  return saved;
+}
+function openCategoryNotes(category, expected) {
+  const stores = {};
+  const active = () => {
+    if (notesIdentityNow() !== expected) {
+      stores.legacy.dispose(); stores.entries.dispose(); throw new DOMException('请求已取消', 'AbortError');
+    }
+  };
+  const {request, noteRequest, noteRead, noteWrite} = dailyNotesTransport(category, expected, active);
+  const suffix = separator => category === 'work' ? separator + 'category=work' : '';
+  const changed = () => publishNotesChange(expected, category, stores);
+  const readOnly = async () => { throw Object.assign(new Error('原有逐日记录只读，草稿可导出。'), {code: 'LEGACY_READ_ONLY'}); };
+  const legacy = createDailyNotesStore({delay: 400,
+    load: async date => ({...await request('/daily-notes?date=' + encodeURIComponent(date) + suffix('&')), can_edit: false}),
+    put: readOnly, restore: readOnly, remove: readOnly,
+    onChange: changed, onSaved: changed
+  });
+  stores.legacy = legacy;
+  const entries = createNoteEntriesStore({category, manualSave: true, multiLabels: true,
+    load: date => noteRead('/note-entries?category=' + category + '&date=' + encodeURIComponent(date)),
+    loadVerified: date => noteRequest('/note-entries?category=' + category + '&date=' + encodeURIComponent(date)),
+    loadEntry: id => noteRead('/note-entries/' + encodeURIComponent(id)),
+    loadOperation: id => noteRequest('/note-entries/operations/' + encodeURIComponent(id)),
+    put: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body}),
+    remove: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'DELETE', body}),
+    restore: (id, body, options) => noteRequest('/note-entries/' + encodeURIComponent(id) + '/restore', {...options, method: 'POST', body}),
+    prepareDelete: async item => {
+      const offline = getOfflineRuntime();
+      if (!offline?.state.scope || expected !== notesIdentityNow() || !hydrationReady.has(entries)) return null;
+      await offline.flushDrafts();
+      if (expected !== notesIdentityNow()) throw new Error('身份已变化');
+      const row = {kind:'note_entry', category, ...Object.fromEntries(
+        draftFields.filter(key => item[key] !== undefined).map(key => [key, structuredClone(item[key])]))};
+      return {row, snapshots:await offline.retainedDraftRecords('note_entry')};
+    },
+    finishDelete: async ({row, snapshots}, result) => {
+      const offline = getOfflineRuntime();
+      if (offline && expected === notesIdentityNow()) {
+        await offline.flushDrafts();
+        await offline.purgeUserDeletedNoteDrafts(row, snapshots, result, () => expected === notesIdentityNow());
+        scheduleArchiveRefresh(expected, true);
+      }
+    },
+    discardUnsent: async item => {
+      const offline = getOfflineRuntime();
+      if (!offline?.state.scope || expected !== notesIdentityNow() || !hydrationReady.has(entries))
+        throw new Error('本机草稿暂不可用');
+      await offline.flushDrafts();
+      if (expected !== notesIdentityNow()) throw new Error('身份已变化');
+      await offline.discardUnsentNoteDraft({kind:'note_entry', category, ...Object.fromEntries(
+        draftFields.filter(key => item[key] !== undefined).map(key => [key, item[key]]))});
+    },
+    onChange: changed, onSaved: () => { changed(); scheduleArchiveRefresh(expected, true); }
+  });
+  stores.entries = entries;
+  return stores;
+}
 function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = true) {
   const next = notesIdentityNow();
   if (notesIdentity !== next) {
@@ -298,103 +407,8 @@ function ensureDailyNotesStore(category = dailyNotesRouteCategory(), select = tr
     notesActiveCategory = category; notesConfirmDate = ''; notesConfirmEntry = '';
   }
   if (!notesStores.has(category)) {
-    const expected = next;
-    const active = () => {
-      if (notesIdentityNow() !== expected) {
-        legacy.dispose(); entries.dispose(); throw new DOMException('请求已取消', 'AbortError');
-      }
-    };
-    const request = async (path, options) => { active(); const value = await api(path, options); active(); return value; };
-    const noteRequest = async (path, options = {}) => {
-      active();
-      if (options.method && options.method !== 'GET') {
-        const date = options.body?.date || dailyNotesRouteDate();
-        await noteRequest('/note-entries?category=' + category + '&date=' + encodeURIComponent(date));
-      }
-      const value = await apiNetwork(path, {...options, headers: {...options.headers, 'X-Note-Labels-Version':'3'}}); active();
-      if (value?.labels_version !== 3) throw Object.assign(new Error('服务器尚不支持多标签，草稿已保留。'),
-        {code:'NOTE_LABELS_VERSION', localNotSaved:!options.method || options.method === 'GET'});
-      return value; };
-    const noteRead = async path => {
-      const cached = await request(path, {headers: {'X-Note-Labels-Version':'1'}});
-      if (isLocalDocument(cached) || cached?.entries?.some(isLocalDocument)) return cached;
-      try { return await noteRequest(path); }
-      catch (error) { if (error.code === 'NETWORK_UNAVAILABLE') return cached; throw error; }
-    };
-    const noteWrite = async (path, options) => {
-      try { return await noteRequest(path, options); }
-      catch (error) {
-        if (error.code !== 'NETWORK_UNAVAILABLE') throw error;
-        const body = options.body || {}, labels = body.labels;
-        if (labels)
-          throw Object.assign(new Error('多标签修改需要联网，草稿已保留。'), {code:'OFFLINE_MULTI_LABEL', localNotSaved:true});
-        const {labels: ignored, ...legacyBody} = body;
-        return request(path, {...options, offlineUnknown:true, body:legacyBody, headers:{'X-Note-Labels-Version':'1'}});
-      }
-    };
-    const suffix = separator => category === 'work' ? separator + 'category=work' : '';
-    const changed = () => {
-      if (expected !== notesIdentityNow()) return;
-      for (const item of entries.entries.values()) entryDraftRevision(item);
-      scheduleSendFeedback(entries, expected);
-      const revision = ++notesDraftRevision, saved = captureNotesDrafts(legacy, entries, category);
-      if (!getOfflineRuntime()?.state.scope && [...entries.entries.values()].some(item => item.dirty)) {
-        notesDraftError = '本机草稿保存不可用，请保持页面打开或发送后再离开。';
-      }
-      if (saved) void saved.then(() => {
-        if (expected !== notesIdentityNow() || revision !== notesDraftRevision || !notesDraftError || !getOfflineRuntime()?.state.scope) return;
-        notesDraftError = ''; paintDailyNotesPage();
-      }).catch(() => {
-        if (expected !== notesIdentityNow() || revision !== notesDraftRevision) return;
-        notesDraftError = '草稿未能保存在本机，请保持页面打开并检查存储空间。'; paintDailyNotesPage();
-      });
-      paintDailyNotesPage();
-      scheduleArchiveRefresh(expected);
-      return saved;
-    };
-    const readOnly = async () => { throw Object.assign(new Error('原有逐日记录只读，草稿可导出。'), {code: 'LEGACY_READ_ONLY'}); };
-    const legacy = createDailyNotesStore({delay: 400,
-      load: async date => ({...await request('/daily-notes?date=' + encodeURIComponent(date) + suffix('&')), can_edit: false}),
-      put: readOnly, restore: readOnly, remove: readOnly,
-      onChange: changed, onSaved: changed
-    });
-    const entries = createNoteEntriesStore({category, manualSave: true, multiLabels: true,
-      load: date => noteRead('/note-entries?category=' + category + '&date=' + encodeURIComponent(date)),
-      loadVerified: date => noteRequest('/note-entries?category=' + category + '&date=' + encodeURIComponent(date)),
-      loadEntry: id => noteRead('/note-entries/' + encodeURIComponent(id)),
-      loadOperation: id => noteRequest('/note-entries/operations/' + encodeURIComponent(id)),
-      put: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'PUT', body}),
-      remove: (id, body, options) => noteWrite('/note-entries/' + encodeURIComponent(id), {...options, method: 'DELETE', body}),
-      restore: (id, body, options) => noteRequest('/note-entries/' + encodeURIComponent(id) + '/restore', {...options, method: 'POST', body}),
-      prepareDelete: async item => {
-        const offline = getOfflineRuntime();
-        if (!offline?.state.scope || expected !== notesIdentityNow() || !hydrationReady.has(entries)) return null;
-        await offline.flushDrafts();
-        if (expected !== notesIdentityNow()) throw new Error('身份已变化');
-        const row = {kind:'note_entry', category, ...Object.fromEntries(
-          draftFields.filter(key => item[key] !== undefined).map(key => [key, structuredClone(item[key])]))};
-        return {row, snapshots:await offline.retainedDraftRecords('note_entry')};
-      },
-      finishDelete: async ({row, snapshots}, result) => {
-        const offline = getOfflineRuntime();
-        if (offline && expected === notesIdentityNow()) {
-          await offline.flushDrafts();
-          await offline.purgeUserDeletedNoteDrafts(row, snapshots, result, () => expected === notesIdentityNow());
-          scheduleArchiveRefresh(expected, true);
-        }
-      },
-      discardUnsent: async item => {
-        const offline = getOfflineRuntime();
-        if (!offline?.state.scope || expected !== notesIdentityNow() || !hydrationReady.has(entries))
-          throw new Error('本机草稿暂不可用');
-        await offline.flushDrafts();
-        if (expected !== notesIdentityNow()) throw new Error('身份已变化');
-        await offline.discardUnsentNoteDraft({kind:'note_entry', category, ...Object.fromEntries(
-          draftFields.filter(key => item[key] !== undefined).map(key => [key, item[key]]))});
-      },
-      onChange: changed, onSaved: () => { changed(); scheduleArchiveRefresh(expected, true); }
-    });
-    entryIdentities.set(entries, expected);
+    const {legacy, entries} = openCategoryNotes(category, next);
+    entryIdentities.set(entries, next);
     notesStores.set(category, legacy); entryStores.set(category, entries);
   }
   if (select) { notesStore = notesStores.get(category); entryStore = entryStores.get(category); }
@@ -467,14 +481,16 @@ export function paintDailyNotesPage() {
       !current.error && !otherPage?.error && !legacy.error && !otherLegacy?.error};
   mixed.ids.sort((a, b) => {
     const first = mixedStore.entry(a), second = mixedStore.entry(b);
-    return String(first?.createdAt || first?.localCreatedAt || '').localeCompare(String(second?.createdAt || second?.localCreatedAt || '')) || a.localeCompare(b);
+    return String(first?.createdAt || first?.localCreatedAt || '').localeCompare(String(second?.createdAt || second?.localCreatedAt || '')) || 
+      a.localeCompare(b);
   });
   const host = root.querySelector('#notes-composer'), view = editorViews.page(category, date), active = view.active;
   const field = active === 'legacy' ? root.querySelector('#notes-editor') : host.querySelector('[data-note-entry-editor="' + active + '"]');
   const selected = editorViews.sync(category, date, mixed.ids.map(id => mixedStore.entry(id)).filter(Boolean), legacy,
     {focused: host.contains(document.activeElement), composing: field?.dataset.composing === 'true'});
   paintNoteEntries(root, mixedStore, mixed, legacy,
-    {drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory, labels: activeLabels, labelsVerified: notesLabelsVerified});
+    {drafts: retainedDrafts(), confirmId: notesConfirmEntry, active: selected.active, otherLegacy, otherCategory, labels: activeLabels, labelsVerified: 
+      notesLabelsVerified});
   if (notesDraftError) {
     const message = root.querySelector('#notes-entry-message');
     message.textContent = notesDraftError; message.hidden = false;
@@ -547,7 +563,8 @@ async function createNoteLabel(root) {
   if (!validCustomNoteLabel(label)) { notesLabelMessage = '标签须为 1–32 个字符，且不能叫生活或工作。'; paintDailyNotesPage(); return; }
   if (notesArchivedLabels.some(row => row.name === label)) { notesLabelMessage = '该标签名称暂不可用。'; paintDailyNotesPage(); return; }
   if (!notesLabelIntent || notesLabelIntent.name !== label) notesLabelIntent = {name:label, save_id:crypto.randomUUID()};
-  const expected = notesIdentityNow(), intent = notesLabelIntent; ++notesLabelSequence; notesLabelBusy = true; notesLabelMessage = '正在添加标签…'; paintDailyNotesPage();
+  const expected = notesIdentityNow(), intent = notesLabelIntent; ++notesLabelSequence; notesLabelBusy = true; notesLabelMessage = '正在添加标签…'; 
+    paintDailyNotesPage();
   try {
     const saved = await apiNetwork('/note-entries/labels', {method:'POST', body:intent, headers:{'X-Note-Labels-Version':'2'}});
     if (expected !== notesIdentityNow()) return;

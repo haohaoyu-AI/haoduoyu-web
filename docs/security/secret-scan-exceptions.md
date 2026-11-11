@@ -191,3 +191,9 @@ Python hashlib和Node crypto独立重算均与清单值精确相等。
 最终远端扫描结果以本变更的CI为准，不将原始1项描述成从未命中。
 
 本地原全历史参数下，追加这一指纹后575个提交扫描为0项；将新增指纹的提交ID改一位作阴性控制，仍报告原1项，证明并未豁免整条路径。远端CI仍需独立通过。
+
+## 2026-11-11 线上源码恢复：四条公开内容摘要
+
+CI 42974613120 的 secret-scan 在恢复提交 `c76a78f2f7d8b88fdbbebc898f99f7597cdae5bb` 报告 4 条 generic-api-key。三处是该提交 `.ci/public-assets.json` 第 5、10、16 行，分别对应公开 `public/api-docs.html`（57696 字节）、`public/openapi.json`（869672 字节）和 `public/tokens.css`（11728 字节）的内容 SHA256。从该提交原始 Git blob 重算，三处均与清单值一致，不是凭据。第 4 处是 `tests/oct28-small-fix-projection.mjs` 第 13 行保存的历史公开 `public/tokens.css` 摘要，与产品提交 `bcb0dc48ae67797023b5c53162e3d4bbf44ac2d2` 的该文件（10460 字节）重算结果一致。
+
+仅追加这 4 条不可变历史指纹（提交、路径、规则、行）。不修改 `.gitleaks.toml`、扫描命令或已有指纹，不增加路径、目录、规则或未来提交豁免。原失败记录保留：<https://github.com/haohaoyu-AI/haoduoyu-web/actions/runs/42974613120>。

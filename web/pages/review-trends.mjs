@@ -82,7 +82,8 @@ function figure(result,{key,rolling,kind,title,hint,format,tick,height,threshold
     <text x="-8" y="${(y(mark) + 4).toFixed(2)}" text-anchor="end">${e(tick(mark))}</text>`).join('');
   const days = dateLabels(result.series).map(day =>
     `<text x="${x(day.position)}" y="${height - 8}" text-anchor="middle">${e(day.date.slice(5))}</text>`).join('');
-  const hitLine = known(threshold) ? `<line class="review-trend-threshold" x1="0" x2="100%" y1="${y(threshold).toFixed(2)}" y2="${y(threshold).toFixed(2)}"/>` : '';
+  const hitLine = known(threshold) ? `<line class="review-trend-threshold" x1="0" x2="100%" y1="${y(threshold).toFixed(2)}" ` +
+    `y2="${y(threshold).toFixed(2)}"/>` : '';
   // The label is painted last, with a halo, so points near the line cannot cover it.
   const hitLabel = known(threshold) ? `<text class="review-trend-threshold-label" x="100%" y="${(y(threshold) - 6).toFixed(2)}"
     text-anchor="end">爆款线 ${e(format(threshold))}</text>` : '';

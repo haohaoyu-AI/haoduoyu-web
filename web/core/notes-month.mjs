@@ -37,7 +37,8 @@ export function checkedNoteMonth(data, month) {
     const items = day.items.map(item => {
       if (!item || typeof item.entity_id !== 'string' || ids.has(item.entity_id) ||
           !['note_entry', 'legacy_daily_note'].includes(item.source) || !['life','work'].includes(item.category) ||
-          (data.labels_version === 1 && (!Object.hasOwn(item, 'label') || item.label !== null && (item.category !== 'life' || !validCustomNoteLabel(item.label)))) ||
+          (data.labels_version === 1 && (!Object.hasOwn(item, 'label') || item.label !== null && (item.category !== 'life' || 
+            !validCustomNoteLabel(item.label)))) ||
           (data.labels_version >= 2 && (!Array.isArray(item.labels) ||
             item.labels.some(label => data.labels_version === 3 ? !validNoteLabel(label) :
               item.category !== 'life' || !validCustomNoteLabel(label)) || new Set(item.labels).size !== item.labels.length)) ||

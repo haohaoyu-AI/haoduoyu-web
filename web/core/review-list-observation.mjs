@@ -20,12 +20,14 @@ export function reviewListObservation(row, snapshots = [], now = new Date().toIS
     const reads = finiteNumber(snapshot.reads);
     return {snapshot,hours,observed,reads:reads !== null && reads >= 0 ? reads : null};
   }).filter(candidate => candidate.hours !== null && candidate.hours > 72)
-    .sort((a,b) => a.hours - b.hours || (a.observed ?? Infinity) - (b.observed ?? Infinity) || compare(String(a.snapshot.id ?? ''),String(b.snapshot.id ?? '')));
+    .sort((a,b) => a.hours - b.hours || (a.observed ?? Infinity) - (b.observed ?? Infinity) || compare(String(a.snapshot.id ?? ''),String(b.snapshot.id 
+      ?? '')));
   // A later observation with a real reading is the first collected reading if earlier records contain none.
   const first = candidates.find(candidate => candidate.reads !== null) || candidates[0];
   if (first) return {kind:'longtail', snapshot:first.snapshot, reads:first.reads, hours:first.hours};
   const nowMs = instant(now);
-  if (published !== null && nowMs !== null && nowMs >= published && nowMs - published < 12 * 3600000) return {kind:'immature', snapshot:null, reads:null, hours:null};
+  if (published !== null && nowMs !== null && nowMs >= published && nowMs - published < 12 * 3600000) return {kind:'immature', snapshot:null, reads:null, 
+    hours:null};
   return {kind:'missing', snapshot:null, reads:null, hours:null};
 }
 

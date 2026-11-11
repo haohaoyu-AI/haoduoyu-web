@@ -65,13 +65,17 @@ function todoCalendarMonth(date) {
 }
 function todoCalendarDay(date, selected) {
   const today = date === bjtDate(), active = date === selected;
-  const items = (monthSnapshot.month === date.slice(0, 7) && monthSnapshot.owner === monthOwner() ? monthSnapshot.days.get(date) || [] : []).filter(item => !item.deleted_at);
+  const items = (monthSnapshot.month === date.slice(0, 7) && monthSnapshot.owner === monthOwner() ? monthSnapshot.days.get(date) || [] : []).filter(item => 
+    !item.deleted_at);
   const shown = items.filter(item => calendarStatus === "all" || Boolean(item.completed) === (calendarStatus === "done"));
-  const content = shown.slice(0, 4).map(item => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ${e(item.text)}</span>`).join("");
+  const content = shown.slice(0, 4).map(item => `<span class="todo-calendar-task${item.completed ? " is-complete" : ""}">${item.completed ? "✓" : "○"} ` +
+    `${e(item.text)}</span>`).join("");
   const more = shown.length > 4 ? `<span class="todo-calendar-more">还有 ${shown.length - 4} 项</span>` : "";
   return `<button class="todo-calendar-day${active ? " is-selected" : ""}${today ? " is-today" : ""}" type="button"
 data-action="todo-calendar-date" data-date="${e(date)}" aria-label="${e(date)}" aria-pressed="${active}"
-${today ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.owner === monthOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date) ? shown.length + " 项" : ""}</small></span>${content}${more}</button>`;
+${today ? 'aria-current="date"' : ""}><span class="todo-calendar-day-head"><strong>${Number(date.slice(-2))}</strong><small>${monthSnapshot.owner === 
+  monthOwner() && monthSnapshot.month === date.slice(0, 7) && monthSnapshot.days.has(date) ? shown.length + " 项" : 
+    ""}</small></span>${content}${more}</button>`;
 }
 function todoCalendar(date) {
   const month = todoCalendarMonth(date), first = new Date(`${month}-01T00:00:00Z`), last = new Date(first);
@@ -88,11 +92,25 @@ function todoCalendar(date) {
   const all = [...monthSnapshot.days.values()].flat().filter(item => !item.deleted_at), done = all.filter(item => item.completed).length;
   const currentSnapshot = monthSnapshot.month === month && monthSnapshot.owner === monthOwner();
   const activeDays = [...monthSnapshot.days.values()].filter(items => items.some(item => !item.deleted_at)).length;
-  const stats = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p role="alert">部分日期未加载：${e(monthSnapshot.error)} <button class="btn text small" type="button" data-todo-calendar-retry>重试缺失日期</button></p>` : `<div class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? Math.round(done / all.length * 100) : 0}%`]].map(([label, value]) => `<span><small>${label}</small><strong>${value}</strong></span>`).join("")}</div>`;
-  return `<aside class="todo-calendar-sidebar"><label for="todo-calendar-month-input">月份</label><input id="todo-calendar-month-input" type="month" class="input" data-todo-calendar-month value="${e(month)}">
-<label for="todo-calendar-week">周日期</label><select id="todo-calendar-week" class="input" data-todo-calendar-week>${weeks.map((week, i) => `<option value="${week[0]}" ${i === weekIndex ? "selected" : ""}>${week[0].slice(5)} — ${week.at(-1).slice(5)}</option>`).join("")}</select>
-<label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
-<div class="todo-calendar-main"><div class="todo-calendar-head"><div class="todo-calendar-navigation"><button class="icon-button" type="button" data-action="todo-calendar-prev" aria-label="上一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "0001-01" ? "disabled" : ""}>‹</button><span id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span><button class="icon-button" type="button" data-action="todo-calendar-next" aria-label="下一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "9999-12" ? "disabled" : ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button></div><div class="todo-calendar-views"><button type="button" class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button></div></div>${stats}
+  const stats = !currentSnapshot || monthSnapshot.loading ? `<p class="todo-calendar-loading" role="status">正在读取本月待办…</p>` : monthSnapshot.error ? `<p ` +
+    `role="alert">部分日期未加载：${e(monthSnapshot.error)} <button class="btn text small" type="button" data-todo-calendar-retry>重试缺失日期</button></p>` : `<div ` +
+      `class="todo-calendar-stats">${[["总任务", all.length], ["已完成", done], ["未完成", all.length - done], ["活跃天数", activeDays], ["完成率", `${all.length ? 
+        Math.round(done / all.length * 100) : 0}%`]].map(([label, value]) => `<span><small>${label}</small><strong>${value}</strong></span>`).join("")}</div>`;
+  return `<aside class="todo-calendar-sidebar"><label for="todo-calendar-month-input">月份</label><input id="todo-calendar-month-input" type="month" ` +
+    `class="input" data-todo-calendar-month value="${e(month)}">
+<label for="todo-calendar-week">周日期</label><select id="todo-calendar-week" class="input" data-todo-calendar-week>${weeks.map((week, i) => `<option ` +
+  `value="${week[0]}" ${i === weekIndex ? "selected" : ""}>${week[0].slice(5)} — ${week.at(-1).slice(5)}</option>`).join("")}</select>
+<label for="todo-calendar-status">任务状态</label><select id="todo-calendar-status" class="input" data-todo-calendar-status><option value="all" ${calendarStatus 
+  === "all" ? "selected" : ""}>全部任务</option><option value="open" ${calendarStatus === "open" ? "selected" : ""}>未完成</option><option value="done" ` +
+    `${calendarStatus === "done" ? "selected" : ""}>已完成</option></select></aside>
+<div class="todo-calendar-main"><div class="todo-calendar-head"><div class="todo-calendar-navigation"><button class="icon-button" type="button" ` +
+  `data-action="todo-calendar-prev" aria-label="上一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "0001-01" ? "disabled" : 
+    ""}>‹</button><span ` +
+    `id="todo-calendar-month" aria-live="polite">${Number(month.slice(0, 4))}年${Number(month.slice(5))}月</span><button class="icon-button" type="button" ` +
+      `data-action="todo-calendar-next" aria-label="下一${todosState.calendarView === "week" ? "周" : "月"}" ${month === "9999-12" ? "disabled" : 
+        ""}>›</button><button class="btn" type="button" data-action="todo-today">今天</button></div><div class="todo-calendar-views"><button type="button" ` +
+          `class="btn" data-todo-calendar-view="week" aria-pressed="${todosState.calendarView === "week"}">周</button><button type="button" class="btn" ` +
+            `data-todo-calendar-view="month" aria-pressed="${todosState.calendarView !== "week"}">月</button></div></div>${stats}
 <div class="todo-calendar-scroll"><div class="todo-calendar-grid" role="group" aria-labelledby="todo-calendar-month">
 ${["一", "二", "三", "四", "五", "六", "日"].map(day => `<span class="todo-calendar-weekday" aria-hidden="true">周${day}</span>`).join("")}
 ${visible.map(day => day ? todoCalendarDay(day, date) : '<span class="todo-calendar-blank" aria-hidden="true"></span>').join("")}</div></div></div>`;
@@ -170,7 +188,8 @@ function todoRow(item, day) {
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
-<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(day.date)}" ${pending ? "disabled" : ""}>${item.note ? `备注：${e(item.note)}` : "添加备注"}</button>
+<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(day.date)}" ${pending 
+  ? "disabled" : ""}>${item.note ? `备注：${e(item.note)}` : "添加备注"}</button>
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
@@ -189,7 +208,8 @@ function floatingTodoSupported() {
   return typeof window !== "undefined" && typeof window.documentPictureInPicture?.requestWindow === "function";
 }
 function floatingTodoControl() {
-  return `<div class="todo-floating-control"><button class="btn todo-floating-open" type="button" data-action="todo-floating" ${floatingTodoSupported() ? "" : "disabled"}>桌面便签</button>
+  return `<div class="todo-floating-control"><button class="btn todo-floating-open" type="button" data-action="todo-floating" ${floatingTodoSupported() ? "" : 
+    "disabled"}>桌面便签</button>
 ${floatingTodoSupported() ? "" : '<span class="todo-floating-support" role="status">当前浏览器不支持置顶便签</span>'}</div>`;
 }
 function todoHeading(day) {
@@ -262,12 +282,14 @@ function renderTodos() {
   const day = todoDay();
   return `<section id="daily-todos" class="daily-todos daily-todos-primary" data-date="${e(day.date)}" aria-label="每日计划">
 <div id="todo-heading" class="daily-todo-toolbar">${todoHeading(day)}</div>
-${renderTodoHistory(day)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}><div id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day)}${renderInlineTodoTemplates()}
+${renderTodoHistory(day)}<div id="todo-main" ${["templates", "future"].includes(state.todoPanel) ? "hidden" : ""}><div ` +
+  `id="todo-form-top"></div>${state.todoPanel === "history" ? "" : todoForm(day)}${renderInlineTodoTemplates()}
 <div id="todo-feedback" class="form-message" role="alert">${todoFeedback(day)}</div>
 <p id="todo-status" class="daily-todo-status" role="status">${todoStatus(day)}</p>
 <div id="todo-undo" class="todo-undo" role="status">${renderTodoUndo(day)}</div>
 <p id="todo-history-empty" class="daily-todo-status">${todoHistoryEmpty(day)}</p>
-<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul><div id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day) : ""}</div>
+<ul id="todo-items" class="daily-todo-items">${day.items.map((item) => todoRow(item, day)).join("")}${pendingTodo(day)}</ul><div ` +
+  `id="todo-form-bottom"></div>${state.todoPanel === "history" ? todoForm(day) : ""}</div>
 ${renderTodoTemplates(floatingTodoControl())}${renderUnscheduledTodos()}</section>`;
 }
 function todosVisible() {

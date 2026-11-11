@@ -43,7 +43,8 @@ export function reviewOverviewMetrics(data, {account, range = '24h', now = new D
   const seconds = metricSample(rows,row => row.sample24h?.avg_read_seconds);
   const completion = metricSample(rows,row => row.completion_24h,100);
   const judged = metricSample(rows,row => row.verdict ? row.reads_24h : null);
-  return {count:rows.length,observedCount:rows.filter(row => row.sample24h).length,hits:unknownVerdicts ? null : hits,middle:unknownVerdicts ? null : middle,flops:unknownVerdicts ? null : flops,
+  return {count:rows.length,observedCount:rows.filter(row => row.sample24h).length,hits:unknownVerdicts ? null : hits,middle:unknownVerdicts ? null : middle,
+    flops:unknownVerdicts ? null : flops,
     readsMedian:median(reads.values),ctrMedian:median(ctr.values),avgReadSeconds:average(seconds.values),completion:average(completion.values),
     samples:{judged:judged.sample,readsMedian:reads.sample,ctrMedian:ctr.sample,avgReadSeconds:seconds.sample,completion:completion.sample}};
 }

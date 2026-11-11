@@ -33,5 +33,8 @@ export function renderTrafficCard(snapshots, articleId) {
     ['平均阅读完成率', percent(snapshot?.completion_rate)],
     ['平均阅读时长', duration(snapshot?.avg_read_seconds)],
   ];
-  return `<section class="review-traffic-card" aria-label="文章流量数据">${snapshot ? `<div class="review-traffic-date">数据日期 ${e(snapshot.snapshot_date)}</div>` : ''}<dl class="review-traffic-primary">${primary.map(([label,value,subLabel,subValue]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd><div class="review-traffic-fan">${e(subLabel)} <span>${e(subValue)}</span></div></div>`).join('')}</dl><dl class="review-traffic-secondary">${secondary.map(([label,value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join('')}</dl></section>`;
+  return `<section class="review-traffic-card" aria-label="文章流量数据">${snapshot ? `<div class="review-traffic-date">数据日期 ${e(snapshot.snapshot_date)}</div>` : 
+    ''}<dl class="review-traffic-primary">${primary.map(([label,value,subLabel,subValue]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd><div ` +
+      `class="review-traffic-fan">${e(subLabel)} <span>${e(subValue)}</span></div></div>`).join('')}</dl><dl ` +
+        `class="review-traffic-secondary">${secondary.map(([label,value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join('')}</dl></section>`;
 }

@@ -54,7 +54,7 @@ export function openAiReviewFeedback(vm) {
   return null;
 }
 // Only the elapsed text changes each second. A missing/hidden/stale target stops the clock.
-export function createOpenAiElapsedClock(target, {now = Date.now, every = setInterval, cancel = clearInterval} = {}) {
+export function createOpenAiElapsedClock(target, {now = Date.now, every = globalThis.setInterval, cancel = globalThis.clearInterval} = {}) {
   let timer = null;
   const stop = () => { if (timer !== null) cancel(timer); timer = null; };
   const tick = () => {

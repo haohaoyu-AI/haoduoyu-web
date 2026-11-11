@@ -22,8 +22,67 @@ export function todoMonthSeed(month, snapshot, loaded) {
 
 // Each account/session owns its calendar cache. A cancelled month retains only
 // completed reads and resumes missing dates when opened again.
+async function runTodoMonth(env, snapshot, controller, expired) {
+  const {read, seed, active, changed, now, monthDays, cursor} = env;
+  const valid = () => snapshot.controller === controller && !controller.signal.aborted && active(snapshot.owner);
+  const count = monthDays(snapshot.month);
+  const dates = Array.from({length: count}, (_, i) => `${snapshot.month}-${String(i + 1).padStart(2, '0')}`);
+  const revisions = new Map(snapshot.revisions);
+  try {
+    const initial = await seed(snapshot.month, snapshot.owner, {refresh: expired});
+    if (!valid()) return;
+    if (initial) for (const [date, items] of Object.entries(initial)) {
+      if (dates.includes(date) && Array.isArray(items) && !snapshot.fresh.has(date) &&
+          (snapshot.revisions.get(date) || 0) === (revisions.get(date) || 0)) {
+        snapshot.days.set(date, items); snapshot.fresh.add(date);
+      }
+    }
+    for (let start = 0; start < dates.length; start += 5) {
+      const batch = dates.slice(start, start + 5).filter(date => !snapshot.fresh.has(date));
+      if (!batch.length) continue;
+      const context = {controller, pending: new Map()};
+      const results = await Promise.allSettled(batch.map(async date => {
+        const revision = revisions.get(date) || 0;
+        const value = await read(date, context);
+        if (!Array.isArray(value?.items)) throw new Error('月记录读取不完整，请重试');
+        if (valid()) {
+          if ((snapshot.revisions.get(date) || 0) === revision) snapshot.days.set(date, value.items);
+          snapshot.fresh.add(date);
+        }
+        return value;
+      }));
+      if (!valid()) return;
+      let failure;
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (result.status === 'rejected') {
+          const error = result.reason || new Error('月记录读取失败，请重试');
+          if (!failure || error?.status === 429 && (failure.status !== 429 ||
+              (error.retryAfterMs || 60000) > (failure.retryAfterMs || 60000))) failure = error;
+        }
+      }
+      if (failure) {
+        if (failure.status === 429) {
+          const deadline = Math.min(Number.MAX_SAFE_INTEGER - 1, now() + (failure.retryAfterMs || 60000));
+          cursor.cooldown = Math.max(cursor.cooldown, deadline); snapshot.retryAt = Math.max(snapshot.retryAt, deadline);
+        }
+        snapshot.error = failure.message || '月记录读取失败，请重试';
+        break;
+      }
+    }
+    if (snapshot.fresh.size === count) snapshot.expiresAt = now() + 60000;
+  } catch (error) {
+    if (valid()) snapshot.error = error.message || '月记录读取失败，请重试';
+  } finally {
+    if (snapshot.controller === controller) {
+      snapshot.controller = null; snapshot.loading = false;
+      if (cursor.current === snapshot && active(snapshot.owner)) changed(snapshot);
+    }
+  }
+}
 export function createTodoMonthLoader({read, seed, active, changed = () => {}, now = Date.now}) {
-  let owner = '', current = null, cooldown = 0;
+  let owner = '';
+  const cursor = {current: null, cooldown: 0};
   const monthDays = month => {
     const end = new Date(`${month}-01T00:00:00Z`);
     end.setUTCMonth(end.getUTCMonth() + 1); end.setUTCDate(0);
@@ -36,16 +95,16 @@ export function createTodoMonthLoader({read, seed, active, changed = () => {}, n
   }
   function open(month, nextOwner) {
     if (owner !== nextOwner) {
-      cancel(current); months.clear(); owner = nextOwner; current = null; cooldown = 0;
+      cancel(cursor.current); months.clear(); owner = nextOwner; cursor.current = null; cursor.cooldown = 0;
     }
-    if (current?.month !== month) cancel(current);
+    if (cursor.current?.month !== month) cancel(cursor.current);
     let snapshot = months.get(month);
     if (!snapshot) {
       snapshot = {month, owner, days: new Map(), fresh: new Set(), revisions: new Map(), expiresAt: 0, loading: false, error: '', retryAt: 0};
       months.set(month, snapshot);
     }
-    current = snapshot;
-    const count = monthDays(month), deadline = Math.max(snapshot.retryAt, cooldown);
+    cursor.current = snapshot;
+    const count = monthDays(month), deadline = Math.max(snapshot.retryAt, cursor.cooldown);
     if (snapshot.fresh.size === count && now() < snapshot.expiresAt) snapshot.error = "";
     const expired = snapshot.fresh.size === count && now() >= snapshot.expiresAt;
     if (expired) snapshot.fresh.clear();
@@ -54,66 +113,9 @@ export function createTodoMonthLoader({read, seed, active, changed = () => {}, n
     if (!snapshot.loading && snapshot.fresh.size < count && now() >= deadline) {
       const controller = new AbortController();
       snapshot.controller = controller; snapshot.loading = true; snapshot.error = '';
-      snapshot.promise = run(snapshot, controller, expired);
+      snapshot.promise = runTodoMonth({read, seed, active, changed, now, monthDays, cursor}, snapshot, controller, expired);
     }
     return snapshot;
-  }
-  async function run(snapshot, controller, expired) {
-    const valid = () => snapshot.controller === controller && !controller.signal.aborted && active(snapshot.owner);
-    const count = monthDays(snapshot.month);
-    const dates = Array.from({length: count}, (_, i) => `${snapshot.month}-${String(i + 1).padStart(2, '0')}`);
-    const revisions = new Map(snapshot.revisions);
-    try {
-      const initial = await seed(snapshot.month, snapshot.owner, {refresh: expired});
-      if (!valid()) return;
-      if (initial) for (const [date, items] of Object.entries(initial)) {
-        if (dates.includes(date) && Array.isArray(items) && !snapshot.fresh.has(date) &&
-            (snapshot.revisions.get(date) || 0) === (revisions.get(date) || 0)) {
-          snapshot.days.set(date, items); snapshot.fresh.add(date);
-        }
-      }
-      for (let start = 0; start < dates.length; start += 5) {
-        const batch = dates.slice(start, start + 5).filter(date => !snapshot.fresh.has(date));
-        if (!batch.length) continue;
-        const context = {controller, pending: new Map()};
-        const results = await Promise.allSettled(batch.map(async date => {
-          const revision = revisions.get(date) || 0;
-          const value = await read(date, context);
-          if (!Array.isArray(value?.items)) throw new Error('月记录读取不完整，请重试');
-          if (valid()) {
-            if ((snapshot.revisions.get(date) || 0) === revision) snapshot.days.set(date, value.items);
-            snapshot.fresh.add(date);
-          }
-          return value;
-        }));
-        if (!valid()) return;
-        let failure;
-        for (let i = 0; i < results.length; i++) {
-          const result = results[i];
-          if (result.status === 'rejected') {
-            const error = result.reason || new Error('月记录读取失败，请重试');
-            if (!failure || error?.status === 429 && (failure.status !== 429 ||
-                (error.retryAfterMs || 60000) > (failure.retryAfterMs || 60000))) failure = error;
-          }
-        }
-        if (failure) {
-          if (failure.status === 429) {
-            const deadline = Math.min(Number.MAX_SAFE_INTEGER - 1, now() + (failure.retryAfterMs || 60000));
-            cooldown = Math.max(cooldown, deadline); snapshot.retryAt = Math.max(snapshot.retryAt, deadline);
-          }
-          snapshot.error = failure.message || '月记录读取失败，请重试';
-          break;
-        }
-      }
-      if (snapshot.fresh.size === count) snapshot.expiresAt = now() + 60000;
-    } catch (error) {
-      if (valid()) snapshot.error = error.message || '月记录读取失败，请重试';
-    } finally {
-      if (snapshot.controller === controller) {
-        snapshot.controller = null; snapshot.loading = false;
-        if (current === snapshot && active(snapshot.owner)) changed(snapshot);
-      }
-    }
   }
   function update(nextOwner, date, items) {
     if (owner !== nextOwner || !Array.isArray(items)) return false;
@@ -123,5 +125,5 @@ export function createTodoMonthLoader({read, seed, active, changed = () => {}, n
     snapshot.revisions.set(date, (snapshot.revisions.get(date) || 0) + 1);
     return true;
   }
-  return {open, update, cancel: () => cancel(current)};
+  return {open, update, cancel: () => cancel(cursor.current)};
 }

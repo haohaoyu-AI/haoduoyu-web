@@ -26,7 +26,9 @@ function renderInitializationError(message, onRetry, {status} = {}) {
   runtime.modalRequestVersion++;
   runtime.renderVersion++;
   const explanation = status === 429 ? "请求较多，请稍后重试。" : "未能完成连接或读取，请检查网络后重试。";
-  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card" role="alert"><div class="brand login-brand"><span class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">工作台暂时无法打开</h1></div><p>${explanation}</p><p>${e(message || "请稍后重试。")}</p><button id="init-retry" class="btn primary" type="button">重新连接</button></section></main>`;
+  $("#app").innerHTML = `<main id="main" class="minimal-login"><section class="login-card" role="alert"><div class="brand login-brand"><span ` +
+    `class="brand-mark">${icon("fish", 27)}</span><h1 class="brand-title">工作台暂时无法打开</h1></div><p>${explanation}</p><p>${e(message || "请稍后重试。")}</p><button ` +
+      `id="init-retry" class="btn primary" type="button">重新连接</button></section></main>`;
   $("#init-retry")?.addEventListener("click", onRetry);
 }
 export {

@@ -42,14 +42,19 @@ export function renderDailyNotes() {
     '<label hidden>周次 <select id="notes-history-week" class="input"><option value="">全部周次</option></select></label>' +
     '<label>标签 <select id="notes-history-label" class="input"><option value="">全部标签</option></select></label>' +
     '<label hidden>日期 <select id="notes-history-date" class="input"></select></label></aside>' +
-    '<div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" data-history-display="calendar" aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" class="notes-calendar-summary"></p>' +
+    '<div class="notes-calendar-main"><div class="notes-history-views" role="group" aria-label="历史显示方式"><button type="button" ' +
+      'data-history-display="calendar" ' +
+      'aria-pressed="true">日历</button><button type="button" data-history-display="timeline" aria-pressed="false">时间轴</button><button type="button" ' +
+        'class="notes-timeline-order" data-history-order="desc" aria-label="切换时间轴排序" hidden>时间：从新到旧</button></div><p id="notes-history-summary" ' +
+          'class="notes-calendar-summary"></p>' +
     '<p id="notes-history-status" role="status" aria-live="polite"></p>' +
     '<div class="notes-calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span>' +
     '<span>四</span><span>五</span><span>六</span><span>日</span></div>' +
     '<div id="notes-history-grid" class="notes-calendar-grid"></div>' +
     '<div id="notes-history-list" class="notes-entry-list"></div></div></div></section>' +
     '<section id="notes-labels" hidden aria-label="标签管理">' +
-    '<div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" placeholder="新标签"></label>' +
+    '<div class="notes-categories"><label><span class="sr-only">新标签名称</span><input id="notes-new-label" class="input" maxlength="64" ' +
+      'placeholder="新标签"></label>' +
     '<button class="btn text" type="button" data-notes-action="create-label">添加标签</button></div>' +
     '<p id="notes-label-status" role="status" aria-live="polite"></p><ul id="notes-label-list"></ul></section>' +
     '<div id="notes-today">' +
@@ -158,7 +163,8 @@ function createEntryElement(item, editing) {
     '<span class="note-entry-status" role="status" aria-live="polite"></span></div>' + (editing ?
     '<label class="sr-only" for="entry-' + e(item.id) + '">碎碎念内容</label>' +
     '<textarea id="entry-' + e(item.id) + '" class="note-entry-editor" data-note-entry-editor="' + e(item.id) +
-    '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() :
+    '" placeholder="写下一点想说的话…" rows="3"></textarea><fieldset class="note-entry-labels"><legend>标签（可多选）</legend><div ' +
+      'class="note-entry-label-options"></div></fieldset><div class="note-entry-reader" hidden></div>' + entryControlsMarkup() :
     '<div class="note-entry-reader"></div><p class="note-entry-message" role="status" hidden></p>' +
     '<span class="note-entry-send-feedback" role="status" aria-live="polite"></span>' +
     '<button class="btn text note-entry-edit" type="button" data-note-entry-action="edit">编辑</button>');
@@ -297,7 +303,8 @@ function paintOtherLegacy(root, list, legacy, category) {
 }
 
 // Saved cards contain plain text; the single active field is kept intact across acknowledgements.
-export function paintNoteEntries(root, store, current, legacy, {drafts = [], confirmId = '', active = '', otherLegacy = null, otherCategory = '', labels = [], labelsVerified = true} = {}) {
+export function paintNoteEntries(root, store, current, legacy, {drafts = [], confirmId = '', active = '', otherLegacy = null, otherCategory = '', labels = [], 
+  labelsVerified = true} = {}) {
   const find = selector => root.querySelector(selector), list = find('#notes-entry-list');
   root.dataset.date = current.date;
   const dateInput = find('#notes-date'); if (dateInput.value !== current.date) dateInput.value = current.date;
@@ -309,7 +316,8 @@ export function paintNoteEntries(root, store, current, legacy, {drafts = [], con
   const items = current.ids.map(id => store.entry(id)).filter(Boolean);
   const saved = items.filter(item => !item.deleted && item.id !== active && (item.version > 0 || item.localVersion > 0 || noteDraftNeedsAttention(item)));
   const unpublished = find('#notes-unpublished');
-  const nodes = new Map([...list.children, ...unpublished.children].filter(node => node.dataset.noteEntry).map(node => [node.dataset.noteEntry, node])), wanted = new Set(saved.map(item => item.id));
+  const nodes = new Map([...list.children, ...unpublished.children].filter(node => node.dataset.noteEntry).map(node => [node.dataset.noteEntry, node])), wanted 
+    = new Set(saved.map(item => item.id));
   for (const [id, node] of nodes) if (!wanted.has(id)) node.remove();
   for (const item of saved) {
     const node = nodes.get(item.id) || createEntryElement(item, false);

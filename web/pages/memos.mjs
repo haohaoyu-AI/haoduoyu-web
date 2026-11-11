@@ -23,7 +23,10 @@ export function renderMemos() {
     '<div class="memo-dialog-actions">' + button('cancel', '取消') + button('confirm', '确认') + '</div></section>' +
     '<div class="memo-layout"><aside class="memo-library" aria-label="备忘录目录">' +
     '<div class="memo-panel-head"><h2 id="memo-groups-heading">目录</h2>' +
-    button('new-note', '<span class="memo-add-page-visual"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="m8 16 1-3 6.8-6.8 2 2L11 15l-3 1Z"/></svg><span>添加页</span></span>', 'hidden aria-label="添加页" title="添加页"') + '</div>' +
+    button('new-note', '<span class="memo-add-page-visual"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.5" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="m8 16 1-3 6.8-6.8 2 ' +
+        '2L11 15l-3 1Z"/></svg><span>添加页</span></span>', 'hidden aria-label="添加页" title="添加页"') + '</div>' +
     '<div id="memo-group-list" class="memo-list"></div></aside>' +
     '<div id="memo-resizer" class="memo-resizer" role="separator" tabindex="0" aria-orientation="vertical" ' +
     'aria-label="调整笔记列表宽度" aria-controls="memo-group-list memo-document" aria-valuemin="160" aria-valuemax="480" aria-valuenow="240" ' +
@@ -38,7 +41,9 @@ export function renderMemos() {
     '<h2 id="memo-read-title" class="memo-read-title" hidden></h2>' +
     '<time id="memo-edited-at" class="memo-edited-at" hidden></time></div>' +
     button('fullscreen', '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true">' +
-    '<path d="M14 4h6v6m0-6-7 7M10 20H4v-6m0 6 7-7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>', 'aria-label="放大正文" title="放大正文" aria-expanded="false"') + '</div>' +
+    '<path d="M14 4h6v6m0-6-7 7M10 20H4v-6m0 6 7-7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>', 'aria-label="放大正文" ' +
+      'title="放大正文" ' +
+      'aria-expanded="false"') + '</div>' +
     '<label for="memo-body" class="sr-only">笔记正文</label>' +
     '<textarea id="memo-body" class="memo-body" placeholder="写下需要长期记住的信息…"></textarea>' +
     '<div id="memo-read-body" class="memo-read-body" tabindex="0" hidden></div>' +

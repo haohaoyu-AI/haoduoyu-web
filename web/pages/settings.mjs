@@ -20,7 +20,9 @@ function profileLink(account) {
 }
 function renderAccounts() {
   const accounts = state.accounts;
-  return `<section class="card"><div class="section-heading"><div><h2>运营账号</h2><p class="hint">只需填写公开主页链接即可添加账号。</p></div><button type="button" class="btn primary" data-action="new-account">${icon("plus")}添加账号</button></div>${accounts.length ? `<div class="table-scroll"><table class="data-table accounts-table"><thead><tr><th>账号\
+  return `<section class="card"><div class="section-heading"><div><h2>运营账号</h2><p class="hint">只需填写公开主页链接即可添加账号。</p></div><button type="button" class="btn ` +
+    `primary" data-action="new-account">${icon("plus")}添加账号</button></div>${accounts.length ? `<div class="table-scroll"><table class="data-table ` +
+      `accounts-table"><thead><tr><th>账号\
 </th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${accounts.map((a) => `<tr><td><span class="account-title">${platformLogo(
   a.platform)}${e(a.name)}</span><div class="cell-sub">${e(platforms[a.platform] || a.platform)}</div>${profileLink(a)}</td><td><span class="badge ${a.active ?
   "up" : ""}">${a.active ? "使用中" : "已停用"}</span></td><td>${e(time(a.created_at))}</td><td><button class="btn small" \
@@ -100,13 +102,16 @@ function accountModal(id = "") {
   const profile = profileForAccount(id);
   const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" \
 id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" \
-placeholder="粘贴今日头条、知乎或微信公众号主页" ${id ? "" : "required"}><span class="hint">只校验和保存主页地址，不自动访问平台。支持知乎 /people/ 或 /org/ 主页、今日头条用户主页，以及微信公众平台 profile_ext?action=home&amp;__biz=… 主页；文章链接不可用。知乎的动态、回答等子页面会规范化为对应主页；后台统计仍需另行录入。</span><button type="button" class="btn small" data-action="test-profile">测试链接格式</button><div id="profile-test-result" class="hint" role="status" aria-live="polite"></div></div>`;
+placeholder="粘贴今日头条、知乎或微信公众号主页" ${id ? "" : "required"}><span class="hint">只校验和保存主页地址，不自动访问平台。支持知乎 /people/ 或 /org/ 主页、今日头条用户主页，以及微信公众平台 ` +
+  `profile_ext?action=home&amp;__biz=… 主页；文章链接不可用。知乎的动态、回答等子页面会规范化为对应主页；后台统计仍需另行录入。</span><button type="button" class="btn small" ` +
+    `data-action="test-profile">测试链接格式</button><div id="profile-test-result" class="hint" role="status" aria-live="polite"></div></div>`;
   openModal(id ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id)}"><div class="form-grid">${homepage}\
 <div class="form-field"><label \
 for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" disabled>${Object.entries(
   id ? platforms : { "": "根据主页自动识别", ...platforms }).map(([key, label]) => `<option value="${key}" ${a.platform === key ?
   "selected" : ""}>${label}</option>`).join(
-  "")}</select></div>${id ? field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"') : '<p class="hint full">平台自动识别，账号名称暂用主页标识，可在保存后编辑。</p>'}${id ? `<div \
+  "")}</select></div>${id ? field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"') : '<p class="hint ' +
+    'full">平台自动识别，账号名称暂用主页标识，可在保存后编辑。</p>'}${id ? `<div \
 class="form-field full"><label class="check-option"><input type="checkbox" name="active" ${a.active ? "checked" : ""}>启用此账号</label><span \
 class="hint">停用保留历史数据。</span></div>` : ""}</div>${formEnd(id ? "保存账号" : "添加账号")}</form>`);
   document.querySelector('#field-profile-url')?.addEventListener?.('input', () => {
@@ -121,7 +126,8 @@ function testProfile() {
     const id = document.querySelector('#account-form')?.dataset.id;
     const account = state.accounts.find(a => a.id === id);
     const profile = normalizeAccountProfile(input.value, account?.platform);
-    result.innerHTML = `格式有效（${e(platforms[profile.platform])}）；访问情况无法自动核验。<a href="${e(profile.profile_url)}" target="_blank" rel="noopener noreferrer">打开官方主页自行核验</a>`;
+    result.innerHTML = `格式有效（${e(platforms[profile.platform])}）；访问情况无法自动核验。<a href="${e(profile.profile_url)}" target="_blank" rel="noopener ` +
+      `noreferrer">打开官方主页自行核验</a>`;
   } catch (error) { result.textContent = `格式未通过：${error.message}`; }
 }
 function keyModal() {

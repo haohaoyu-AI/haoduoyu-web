@@ -10,7 +10,8 @@ const cache={owner:'',items:[],draft:'',loaded:false,loading:false,error:'',noti
 const owner=()=>JSON.stringify([runtime.sessionEpoch,state.me?.id??null,getOfflineRuntime()?.state.scope??null]);
 function current() {
   const key=owner();
-  if(cache.owner!==key)Object.assign(cache,{owner:key,items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},uncertain:{}});
+  if(cache.owner!==key)Object.assign(cache,{owner:key,items:[],draft:'',loaded:false,loading:false,error:'',notice:'',pending:false,request:null,dates:{},
+    uncertain:{}});
   return cache;
 }
 const visible=()=>Boolean(state.me)&&state.page==='todos'&&state.todoPanel==='future';
@@ -35,7 +36,10 @@ export function paintUnscheduledTodos() {
   if(error)error.textContent=v.error;
   if(list)list.innerHTML=v.items.filter(x=>!x.deleted_at&&!x.deleted).map(x=>`<li class="daily-todo-row${x.completed?' is-complete':''}">
 <label><input type="checkbox" data-future-todo-id="${e(x.id)}" ${x.completed?'checked':''} ${v.pending||v.uncertain[x.id]?'disabled':''}>
-<span class="daily-todo-text">${e(x.text)}</span></label><div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(x.id)}" value="${e(v.dates[x.id] || '')}" aria-label="为 ${e(x.text)} 选择日期" ${v.pending||v.uncertain[x.id]?'disabled':''}><button class="btn small" type="button" data-action="todo-future-schedule" data-id="${e(x.id)}" ${v.pending?'disabled':''}>${v.uncertain[x.id]?'核实移动结果':'移至该日期'}</button></div><button class="icon-button" type="button"
+<span class="daily-todo-text">${e(x.text)}</span></label><div class="todo-future-schedule"><input class="input" type="date" data-future-date-id="${e(x.id)}" ` +
+  `value="${e(v.dates[x.id] || '')}" aria-label="为 ${e(x.text)} 选择日期" ${v.pending||v.uncertain[x.id]?'disabled':''}><button class="btn small" type="button" ` +
+    `data-action="todo-future-schedule" data-id="${e(x.id)}" ${v.pending?'disabled':''}>${v.uncertain[x.id]?'核实移动结果':'移至该日期'}</button></div><button ` +
+      `class="icon-button" type="button"
  data-action="todo-future-delete" data-id="${e(x.id)}" aria-label="删除 ${e(x.text)}" ${v.pending||v.uncertain[x.id]?'disabled':''}>×</button></li>`).join('');
 }
 export async function loadUnscheduledTodos() {
@@ -136,7 +140,8 @@ export async function scheduleUnscheduledTodo(id,{complete = false} = {}) {
   };
   const readSource = sourceId => timedNetwork('/unscheduled-todos/'+encodeURIComponent(sourceId));
   const readDay = day => timedNetwork('/todos?date='+encodeURIComponent(day));
-  const services={guard,readSource,readDay,complete:finishing,move:(sourceId,body)=>timedNetwork('/unscheduled-todos/'+encodeURIComponent(sourceId)+(finishing?'/complete-today':'/move'),{method:'POST',body}),
+  const services={guard,readSource,readDay,complete:finishing,move:(sourceId,
+    body)=>timedNetwork('/unscheduled-todos/'+encodeURIComponent(sourceId)+(finishing?'/complete-today':'/move'),{method:'POST',body}),
     async checkReady(item) {
       guard();
       const index=await timedNetwork('/workbench-snapshot/index?version=2'); guard();
@@ -166,7 +171,8 @@ export async function scheduleUnscheduledTodo(id,{complete = false} = {}) {
       try { cacheStatus=await offline.acceptMovedTodo({source:result.source,todo:result.todo},token); } catch {}
       if (v.owner!==key || owner()!==key) return;
       try { guard(); } catch { return; }
-      if (cacheStatus==='saved' && todosState.owner===todoOwner()) { const day=todosState.days.get(date); if(day) { mergeTodo(day,result.todo); day.revision++; } }
+      if (cacheStatus==='saved' && todosState.owner===todoOwner()) { const day=todosState.days.get(date); if(day) { mergeTodo(day,result.todo); 
+        day.revision++; } }
       const note=cacheStatus==='pending'?'；本地仍有待处理内容，请在设置中处理':cacheStatus==='saved'?'':'；本地缓存待刷新';
       toast(`已移至 ${formatMovedDate(date)}${note}`);
     } else if (result.state==='failed') {
@@ -201,5 +207,6 @@ async function change(id,method,body) {
   catch(error){if(v.owner===key&&owner()===key&&!error.staleSession)v.error=error.message;}
   finally {if(v.owner===key&&owner()===key){v.pending=false;paintUnscheduledTodos();}}
 }
-export function toggleUnscheduledTodo(el) {return el.checked ? scheduleUnscheduledTodo(el.dataset.futureTodoId,{complete:true}) : change(el.dataset.futureTodoId,'PATCH',{completed:false});}
+export function toggleUnscheduledTodo(el) {return el.checked ? scheduleUnscheduledTodo(el.dataset.futureTodoId,{complete:true}) : 
+  change(el.dataset.futureTodoId,'PATCH',{completed:false});}
 export function deleteUnscheduledTodo(id) {return change(id,'DELETE',{});}
