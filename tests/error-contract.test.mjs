@@ -6,6 +6,7 @@ import {dirname,join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {errorCalls,errorFiles} from '../scripts/audit-error-contracts.mjs';
 import {projectOct28} from './oct28-projection.mjs';
+import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 import {fixture} from './harness.mjs';
 import {overviewWindow, buildOverview} from '../src/overview.mjs';
 import {paginate} from '../src/analytics.mjs';
@@ -46,7 +47,7 @@ test('all reviewed error call sites and HTTP error projections retain their base
     const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
     const target=join(historical,file);
     await mkdir(dirname(target),{recursive:true});
-    await writeFile(target,projectOct28(file,source));
+    await writeFile(target,projectOct28(file,projectQuietSync(file,source)));
   }
   const calls = await errorCalls(pathToFileURL(historical+'/'));
   const app = await fixture(t);

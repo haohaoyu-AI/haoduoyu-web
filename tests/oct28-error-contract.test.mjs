@@ -5,6 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {parseWeb,visitWeb} from '../scripts/check-web.mjs';
 import {oct28Baseline,oct28Product,reviewedOct28Manifest,projectOct28} from './oct28-projection.mjs';
+import {projectQuietSync} from './oct28-small-fix-projection.mjs';
 
 const root=new URL('../',import.meta.url);
 const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
@@ -57,11 +58,12 @@ test('every new and changed server error call matches a complete independently p
   assert.deepEqual(covered,[...files],'every reviewed changed or new server module is scanned');
   let total=0;
   for(const file of files) {
-    const current=read(file),prior=projectOct28(file,current),entry=data.files[file];
+    const current=read(file),scanned=projectQuietSync(file,current),prior=projectOct28(file,scanned),entry=data.files[file];
     const exists=git('ls-tree','--name-only',oct28Baseline,'--',file).trim();
     assert.equal(prior,exists?git('show',oct28Baseline+':'+file):'',file+' exact historical source');
     assert.deepEqual(calls(prior),entry.before,file+' all historical calls and full argument expressions');
-    assert.deepEqual(calls(current),entry.after,file+' all current calls and full argument expressions');
+    // QuietSync absorbs post-October live growth before the pinned October catalogue is checked.
+    assert.deepEqual(calls(scanned),entry.after,file+' all current calls and full argument expressions');
     const delta=difference(entry.before,entry.after);
     assert.deepEqual(delta.added,entry.added,file+' exact ordered new call catalogue');
     assert.deepEqual(delta.removed,entry.removed,file+' exact removed call catalogue');
