@@ -40,9 +40,9 @@ test('v10 backup restores future todos, tombstones, labels and old v9 backup wit
   const full=await exportBackup(db);assert.equal(full.data.format,'haoduoyu-matrix-d1-v18');
   assert.equal(full.data.tables.note_labels.length,2);assert.equal(full.data.tables.unscheduled_todos[0].deleted_at,at);
   const inventory=await createSourceInventory(db);
-  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:38,reset_tables:3});
+  assert.deepEqual(verifyBackupInventory(full,inventory),{verified:true,restored_tables:39,reset_tables:3});
   const target=await database(t);await restoreIntoEmptyDatabase(target,full,{allowEmptyRestore:true});
-  assert.deepEqual(await verifyRestoredInventory(target,full,inventory),{verified:true,restored_tables:38,reset_tables:3});
+  assert.deepEqual(await verifyRestoredInventory(target,full,inventory),{verified:true,restored_tables:39,reset_tables:3});
   for(const table of Object.keys(full.data.tables))assert.deepEqual(await rows(target,table),await rows(db,table),table);
   const old=stripEmptyReviewTables(structuredClone(full.data));old.format='haoduoyu-matrix-d1-v9';
   for(const table of ['unscheduled_todos','note_labels','note_entry_labels'])delete old.tables[table];

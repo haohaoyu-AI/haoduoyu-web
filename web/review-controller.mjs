@@ -1,4 +1,5 @@
 import {currentPrompts} from './core/review-rule-scopes.mjs';
+import {diagnosisPromptText} from '../shared/article-diagnosis.mjs';
 import {normalizeReviewData} from './core/review-data.mjs';
 import {renderContentReviewContent, REVIEW_VIEWS, REVIEW_SECTIONS} from './pages/content-review.mjs';
 import {storage} from './core/storage.mjs';
@@ -19,7 +20,7 @@ const resources = ['articles','snapshots','reports','playbooks','benchmark-accou
 let data = normalizeReviewData(), sequence = 0, registered = false, identity = '', pageContext;
 let vm = {
   account:'V字',view:'overview',secondary:'cockpit',week:'this',date:'',start:'',end:'',periods:[],filters:{},
-  metricColumns:readReviewColumnPreference(storage.get(columnStorageKey)),metricPickerOpen:false,articlesExpanded:false,
+  metricColumns:readReviewColumnPreference(storage.get(columnStorageKey)),metricPickerOpen:false,articlesExpanded:true,diagnoses:{},
   article:'',version:'',compare:'',loading:true,error:'',
 };
 const root = () => typeof document === 'undefined' ? null : document.querySelector('#content-review');
@@ -146,7 +147,7 @@ function syncReviewFullscreen() {
   const node = root(), button = node?.querySelector('[data-review-action="toggle-fullscreen"]');
   if (!button) return;
   const active = node.classList.contains('review-list-fullscreen');
-  button.textContent = active ? '退出全屏' : '全屏显示';
+  button.textContent = active ? '退出全屏' : '全屏展示';
   button.setAttribute('aria-pressed', String(active));
 }
 async function toggleReviewFullscreen() {
@@ -187,7 +188,7 @@ export async function loadContentReview(context) {
   const [{apiNetwork},{state,runtime}] = await Promise.all([import('./core/api.mjs'),import('./core/state.mjs')]);
   const requested = route(), currentIdentity = `${runtime.sessionEpoch}:${state.me?.id || ''}:${requested.account}`;
   if (identity !== currentIdentity) {
-    data = normalizeReviewData(); vm.filters = {}; vm.articlesExpanded = false; identity = currentIdentity;
+    data = normalizeReviewData(); vm.filters = {}; vm.articlesExpanded = true; vm.diagnoses = {}; identity = currentIdentity;
   }
   vm = {...vm,...requested,loading:true,error:''}; paintContentReviewPage();
   const ticket = ++sequence, epoch = runtime.sessionEpoch;
@@ -198,6 +199,7 @@ export async function loadContentReview(context) {
     const result = await readContentReviewDataWithRetry(read,requested.account,current);
     if (!current() || !result) return;
     data = result; syncViewFromRoute(); paintContentReviewPage(); focusBenchmark(vm.benchmark);
+    if (vm.article) void loadStoredDiagnosis(vm.article);
   } catch (error) {
     if (!current() || error.name === 'AbortError') return;
     vm.loading = false; vm.error = error.message || '读取失败，请稍后重试。'; paintContentReviewPage();
@@ -231,6 +233,54 @@ export async function copyReviewPrompt(prompts,account,id,clipboard = globalThis
   if (!clipboard?.writeText) throw new Error('当前浏览器不支持剪贴板，请从页面上的全文手动复制。');
   try { await clipboard.writeText(String(prompt.content_md || '')); }
   catch { throw new Error('复制失败，请允许剪贴板访问，或从页面上的全文手动复制。'); }
+}
+async function reviewWrite(path, options) {
+  const {apiNetwork} = await import('./core/api.mjs');
+  return apiNetwork(path, options || {});
+}
+async function loadStoredDiagnosis(articleId) {
+  const current = vm.diagnoses?.[articleId];
+  if (!articleId || current?.text || current?.checked || current?.status === 'saving') return;
+  vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'checking', checked:false}};
+  try {
+    const row = await reviewWrite('/review/articles/' + encodeURIComponent(articleId) + '/diagnosis');
+    const latest = vm.diagnoses?.[articleId];
+    if (latest?.text || latest?.status === 'saving') return;
+    const text = typeof row?.result_text === 'string' ? row.result_text : '';
+    vm.diagnoses = {...vm.diagnoses, [articleId]:{status:text ? 'saved' : 'ready', text, checked:true}};
+  } catch {
+    const latest = vm.diagnoses?.[articleId];
+    if (latest?.text || latest?.status === 'saving') return;
+    vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'ready', text:'', checked:true}};
+  }
+  if (vm.article === articleId) paintContentReviewPage();
+}
+async function runArticleDiagnosis(articleId) {
+  const current = vm.diagnoses?.[articleId];
+  if (!articleId || current?.text || current?.status === 'saving') return;
+  vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'saving', text:'', checked:true}};
+  paintContentReviewPage();
+  try {
+    const row = await reviewWrite('/review/articles/' + encodeURIComponent(articleId) + '/diagnosis', {method:'POST', body:{}});
+    const text = typeof row?.result_text === 'string' ? row.result_text : '';
+    if (!text) throw new Error('没有得到诊断结果。');
+    vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'saved', text, checked:true}};
+  } catch (error) {
+    vm.diagnoses = {...vm.diagnoses, [articleId]:{status:'error', text:'', error:error.message || '诊断失败，请稍后重试。', checked:true}};
+  }
+  if (vm.article === articleId) paintContentReviewPage();
+}
+async function copyPromptText(button, text) {
+  const status = button.closest('.review-prompt-card')?.querySelector('[data-prompt-copy-status]');
+  button.disabled = true;
+  if (status) status.textContent = '正在复制…';
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('当前浏览器不支持剪贴板，请从页面上的全文手动复制。');
+    await navigator.clipboard.writeText(text);
+    if (status?.isConnected) status.textContent = '已复制完整提示词。';
+  } catch (error) {
+    if (status?.isConnected) status.textContent = error.message || '复制失败，请从页面上的全文手动复制。';
+  } finally { if (button.isConnected) button.disabled = false; }
 }
 async function copyPromptButton(button) {
   const status = button.closest('.review-prompt-card, .review-current-prompt')?.querySelector('[data-prompt-copy-status]');
@@ -276,6 +326,11 @@ function onReviewClick(event) {
   if (target.dataset.reviewAction === 'refresh') { void loadContentReview(pageContext); return; }
   if (vm.loading || vm.error) return;
   if (target.dataset.reviewAction === 'copy-prompt') { void copyPromptButton(target); return; }
+  if (target.dataset.reviewAction === 'copy-diagnosis-prompt') { void copyPromptText(target, diagnosisPromptText(data.prompts, vm.account)); return; }
+  if (target.dataset.reviewAction === 'copy-prompt-block') {
+    void copyPromptText(target, target.closest('.review-prompt-card')?.querySelector('pre')?.textContent || ''); return;
+  }
+  if (target.dataset.reviewAction === 'diagnose-article') { void runArticleDiagnosis(target.dataset.articleId); return; }
   if (target.dataset.reviewSecondary) {
     vm.secondary = target.dataset.reviewSecondary; vm.benchmark = ''; writeRoute({section:vm.secondary,benchmark:''}); paintContentReviewPage();
     root()?.querySelector(`#review-secondary-${vm.secondary}`)?.focus({preventScroll:true}); return;
@@ -286,7 +341,7 @@ function onReviewClick(event) {
   if (target.dataset.reviewAction === 'close-article') { closeArticle(); return; }
   const article = target.dataset.reviewArticle || target.dataset.reviewRow;
   if (article) { returnFocusId = article; returnScroll = window.scrollY; vm.article = article; vm.benchmark = ''; writeRoute({article,benchmark:''});
-    paintContentReviewPage(); }
+    paintContentReviewPage(); void loadStoredDiagnosis(article); }
 }
 function onReviewKeydown(event) {
   const node = root(); if (!node?.contains(event.target)) return;

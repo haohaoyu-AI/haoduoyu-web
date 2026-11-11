@@ -317,3 +317,21 @@ export const matrixDailyScores=sqliteTable('matrix_daily_scores',{
   check('matrix_daily_scores_version',sql`typeof(${t.version})='integer' AND ${t.version} >= 1`),
   check('matrix_daily_scores_date',sql`${t.date} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(${t.date},'+0 days') IS NOT NULL AND date(${t.date},'+0 days') = ${t.date}`),
 ]);
+
+export const matrixReviewArticleDiagnoses=sqliteTable('matrix_review_article_diagnoses',{
+  user_id:text('user_id').notNull().references(()=>matrixUsers.id),
+  article_id:text('article_id').notNull(),
+  account:text('account').notNull(),
+  prompt_key:text('prompt_key').notNull(),
+  prompt_version:integer('prompt_version').notNull(),
+  prompt_hash:text('prompt_hash').notNull(),
+  result_text:text('result_text').notNull(),
+  input_json:text('input_json').notNull(),
+  created_at:text('created_at').notNull(),
+  beijing_date:text('beijing_date').notNull(),
+},t=>[
+  primaryKey({columns:[t.user_id,t.article_id]}),
+  index('review_article_diagnoses_day').on(t.user_id,t.beijing_date),
+  check('matrix_review_article_diagnosis_version',sql`typeof(${t.prompt_version})='integer' AND ${t.prompt_version} >= 0`),
+  check('matrix_review_article_diagnosis_day',sql`${t.beijing_date} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(${t.beijing_date},'+0 days') IS NOT NULL AND date(${t.beijing_date},'+0 days') = ${t.beijing_date}`),
+]);

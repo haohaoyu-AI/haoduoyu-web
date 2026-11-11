@@ -138,6 +138,10 @@ function dailyTable(result) {
     <thead><tr><th>日期</th><th>发文</th><th>爆 / 中 / 扑</th><th>阅读中位数</th><th>点击率中位数</th>
     <th>近 ${result.rolling.days} 天阅读中位数</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
 }
+export function renderCockpitMethod(data, vm, window) {
+  const now = vm.now || new Date().toISOString();
+  return method(reviewTrends(data,{account:vm.account,range:'custom',from:window.start,to:window.end,now}));
+}
 export function renderReviewTrends(data,vm) {
   const now = vm.now || new Date().toISOString(),today = day(now),t = vm.trends || {};
   const range = RANGES.some(([id]) => id === t.range) ? t.range : '30d';

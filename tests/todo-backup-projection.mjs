@@ -11,6 +11,8 @@ export function legacyBackupEnvelope(value) {
   const checksum=data=>createHash('sha256').update(JSON.stringify(stable(data))).digest('hex');
   assert.equal(backup.sha256,checksum(backup.data));
   if(backup.data.format==='haoduoyu-matrix-d1-v18') {
+    assert.deepEqual(backup.data.tables.review_article_diagnoses, [], 'legacy projection cannot hide article diagnoses');
+    delete backup.data.tables.review_article_diagnoses;
     assert.deepEqual(backup.data.tables.daily_scores, [], 'legacy projection cannot hide daily scores');
     delete backup.data.tables.daily_scores;
     backup.data.format='haoduoyu-matrix-d1-v17';

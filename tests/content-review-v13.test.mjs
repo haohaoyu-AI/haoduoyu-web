@@ -95,7 +95,7 @@ test('statistics range offers only weeks and falls back from old or invalid valu
   const expected = htmlFor(fixture(), {filters:{range:'all',metricsRange:'this'}});
   const select = html => html.match(/<select class="input" data-review-filter="metricsRange">([\s\S]*?)<\/select>/)[1];
   const choices = [...select(expected).matchAll(/<option value="([^"]+)"(?: selected)?>([^<]+)<\/option>/g)].map(m => [m[1],m[2]]);
-  assert.deepEqual(choices, [['this','\u672c\u5468'],['last','\u4e0a\u5468']]);
+  assert.deepEqual(choices, [['this','\u672c\u5468'],['last','\u4e0a\u5468'],['30d','\u8fd130\u5929']]);
   for (const value of [undefined,'24h','invalid','']) {
     const html = htmlFor(fixture(), {filters:{range:'all',metricsRange:value}});
     assert.equal(select(html), select(expected));

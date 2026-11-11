@@ -229,9 +229,10 @@ const v16Columns={...v15Columns,...reviewColumns};
 const promptColumns={review_prompt_versions:['user_id','id','prompt_key','scope','version','status','title','content_md','changelog_md','created_at','updated_at']};
 const v17Columns={...v16Columns,...promptColumns};
 const scoreColumns={daily_scores:['user_id','date','score','version','created_at','updated_at']};
-const columns={...v17Columns,...scoreColumns,unscheduled_todos:[...v10Columns.unscheduled_todos,'note']};
+const diagnosisColumns={review_article_diagnoses:['user_id','article_id','account','prompt_key','prompt_version','prompt_hash','result_text','input_json','created_at','beijing_date']};
+const columns={...v17Columns,...scoreColumns,...diagnosisColumns,unscheduled_todos:[...v10Columns.unscheduled_todos,'note']};
 const privateTables=new Set(['todos','todo_templates','todo_template_links','todo_preferences','daily_notes','daily_work_notes','memo_groups','memo_notes',
-  'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports',...Object.keys(reviewColumns),...Object.keys(promptColumns),...Object.keys(scoreColumns)]);
+  'note_entries','work_reminders','unscheduled_todos','note_labels','note_entry_labels','note_entry_label_overrides','note_entry_label_sets','note_label_archives','ai_reports',...Object.keys(reviewColumns),...Object.keys(promptColumns),...Object.keys(scoreColumns),...Object.keys(diagnosisColumns)]);
 const backupTable=name=>privateTables.has(name)||name==='account_profiles'?'matrix_'+name:name;
 const v4Columns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>name!=='daily_notes'));
 const legacyColumns=Object.fromEntries(Object.entries(v5Columns).filter(([name])=>!privateTables.has(name)));
@@ -393,6 +394,22 @@ function validateReviewPrompts(tables) {
     ids.add(id);versions.add(version);if(row.status==='active')active.add(key);
   }
 }
+function validateArticleDiagnoses(tables) {
+  const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
+  const users=new Set(tables.users.map(row=>row.id)), seen=new Set();
+  const stamp=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)&&
+    Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
+  const text=value=>typeof value==='string'&&value.length>0&&value.length<=8000&&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+  for(const row of tables.review_article_diagnoses||[]) {
+    const key=JSON.stringify([row.user_id,row.article_id]);
+    if(!uuid.test(row.user_id)||!uuid.test(row.article_id)||!users.has(row.user_id)||seen.has(key)||
+      !text(row.account)||row.prompt_key!=='article_diagnosis'||!Number.isSafeInteger(row.prompt_version)||row.prompt_version<0||
+      !/^[a-f0-9]{64}$/.test(row.prompt_hash)||!text(row.result_text)||!text(row.input_json)||!stamp(row.created_at)||
+      typeof row.beijing_date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(row.beijing_date))
+      throw fail(400,'INVALID_BACKUP','文章诊断记录无效');
+    seen.add(key);
+  }
+}
 function validateDailyScores(tables) {
   const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
   const users=new Set(tables.users.map(row=>row.id)), seen=new Set();
@@ -436,7 +453,7 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   const supplied=backup.data.tables;
   if(!supplied||Object.keys(supplied).sort().join(',')!==Object.keys(expected).sort().join(',')) throw fail(400,'INVALID_BACKUP','备份表不完整');
   const tables={todos:[],todo_templates:[],todo_template_links:[],todo_preferences:[],daily_notes:[],daily_work_notes:[],memo_groups:[],memo_notes:[],
-    note_entries:[],work_reminders:[],account_profiles:[],unscheduled_todos:[],note_labels:[],note_entry_labels:[],note_entry_label_overrides:[],note_entry_label_sets:[],note_label_archives:[],ai_reports:[],...Object.fromEntries(Object.keys(reviewColumns).map(name=>[name,[]])),review_prompt_versions:[],daily_scores:[],...supplied};
+    note_entries:[],work_reminders:[],account_profiles:[],unscheduled_todos:[],note_labels:[],note_entry_labels:[],note_entry_label_overrides:[],note_entry_label_sets:[],note_label_archives:[],ai_reports:[],...Object.fromEntries(Object.keys(reviewColumns).map(name=>[name,[]])),review_prompt_versions:[],daily_scores:[],review_article_diagnoses:[],...supplied};
   for(const [name,fields] of Object.entries(expected)) {
     if(!Array.isArray(tables[name])) throw fail(400,'INVALID_BACKUP','备份表格式无效');
     for(const row of tables[name]) {
@@ -456,6 +473,7 @@ export async function restoreIntoEmptyDatabase(db,backup,{allowEmptyRestore=fals
   validateNewWorkbench(tables);
   validateReviewPrompts(tables);
   validateDailyScores(tables);
+  validateArticleDiagnoses(tables);
   const reportIds=new Set(),reportUsers=new Set(tables.users.map(row=>row.id));
   for(const row of tables.ai_reports) {
     const key=JSON.stringify([row.user_id,row.id]);

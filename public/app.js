@@ -29,7 +29,6 @@ var init_constants = __esm({
       { id: "review", label: "内容复盘", icon: "chart" },
       { id: "todos", label: "每日待办", icon: "check" },
       { id: "notes", label: "碎碎念", icon: "edit" },
-      { id: "ai-diagnosis", label: "AI诊断", icon: "chart" },
       { id: "ai-reports", label: "AI 日报", icon: "calendar" },
       { id: "settings", label: "设置", icon: "settings" }
     ];
@@ -166,9 +165,9 @@ function beginModalRequests() {
   return modalContext;
 }
 function backgroundRequests() {
-  const key2 = [runtime.renderVersion, runtime.sessionEpoch, runtime.articleIndexGeneration].join(":");
-  if (!backgroundContext || key2 !== backgroundKey) {
-    backgroundKey = key2;
+  const key = [runtime.renderVersion, runtime.sessionEpoch, runtime.articleIndexGeneration].join(":");
+  if (!backgroundContext || key !== backgroundKey) {
+    backgroundKey = key;
     backgroundContext = requestContext("background");
   }
   return backgroundContext;
@@ -178,11 +177,11 @@ function assertRequestActive(context, signal) {
 }
 function requestKey(path, options4, envelope2) {
   const settings = {};
-  for (const key2 of Object.keys(options4).sort()) {
-    if (key2 === "signal") continue;
-    const value = options4[key2];
-    if (key2 === "headers") settings.headers = [...new Headers(value)].sort(([a], [b]) => a.localeCompare(b));
-    else if (value == null || ["string", "number", "boolean", "undefined"].includes(typeof value)) settings[key2] = value;
+  for (const key of Object.keys(options4).sort()) {
+    if (key === "signal") continue;
+    const value = options4[key];
+    if (key === "headers") settings.headers = [...new Headers(value)].sort(([a], [b]) => a.localeCompare(b));
+    else if (value == null || ["string", "number", "boolean", "undefined"].includes(typeof value)) settings[key] = value;
     else return null;
   }
   return JSON.stringify([runtime.sessionEpoch, runtime.articleIndexGeneration, state.me, path, envelope2, settings]);
@@ -224,11 +223,11 @@ function subscribeRequest(entry, signal) {
 }
 function pendingGet(path, options4, envelope2, context, factory) {
   assertRequestActive(context, options4.signal);
-  const key2 = requestKey(path, options4, envelope2) ?? /* @__PURE__ */ Symbol("unshared request");
-  let entry = context.pending.get(key2);
+  const key = requestKey(path, options4, envelope2) ?? /* @__PURE__ */ Symbol("unshared request");
+  let entry = context.pending.get(key);
   if (!entry) {
-    entry = { key: key2, context, controller: new AbortController(), consumers: /* @__PURE__ */ new Set(), done: false };
-    context.pending.set(key2, entry);
+    entry = { key, context, controller: new AbortController(), consumers: /* @__PURE__ */ new Set(), done: false };
+    context.pending.set(key, entry);
     let pending;
     try {
       pending = factory(entry.controller.signal);
@@ -630,8 +629,8 @@ function assertOfflineData(value) {
   if (!value || typeof value !== "object" || ![Object.prototype, Array.prototype, null].includes(Object.getPrototypeOf(value))) {
     throw new TypeError("Offline storage accepts plain data only");
   }
-  for (const [key2, child] of Object.entries(value)) {
-    if (/^(?:authorization|cookie|headers|csrf[_-]?token|access[_-]?token|token|password|__proto__|constructor|prototype)$/i.test(key2)) {
+  for (const [key, child] of Object.entries(value)) {
+    if (/^(?:authorization|cookie|headers|csrf[_-]?token|access[_-]?token|token|password|__proto__|constructor|prototype)$/i.test(key)) {
       throw new TypeError("Credentials cannot be persisted in the offline database");
     }
     assertOfflineData(child);
@@ -646,14 +645,14 @@ function idbRequest(request) {
 function transactionAPI(transaction, schedule) {
   const store = (name) => transaction.objectStore(name);
   return {
-    get: (name, key2) => schedule(() => store(name).get(key2)),
+    get: (name, key) => schedule(() => store(name).get(key)),
     getAll: (name) => schedule(() => store(name).getAll()),
     put(name, value) {
       assertOfflineData(value);
       if (typeof value.key !== "string") throw new TypeError("Offline record key is required");
       return schedule(() => store(name).put(value));
     },
-    delete: (name, key2) => schedule(() => store(name).delete(key2))
+    delete: (name, key) => schedule(() => store(name).delete(key))
   };
 }
 function keepTransactionAlive(transaction, name) {
@@ -771,7 +770,7 @@ function createMemoryDB() {
         return next[name];
       };
       const api2 = {
-        get: async (name, key2) => structuredClone(table2(name).get(key2)),
+        get: async (name, key) => structuredClone(table2(name).get(key)),
         getAll: async (name) => structuredClone([...table2(name).values()]),
         put: async (name, value) => {
           if (mode !== "readwrite") throw new Error("Readonly transaction");
@@ -779,9 +778,9 @@ function createMemoryDB() {
           if (typeof value.key !== "string") throw new TypeError("Offline record key is required");
           table2(name).set(value.key, structuredClone(value));
         },
-        delete: async (name, key2) => {
+        delete: async (name, key) => {
           if (mode !== "readwrite") throw new Error("Readonly transaction");
-          table2(name).delete(key2);
+          table2(name).delete(key);
         }
       };
       const result = await callback(api2);
@@ -837,8 +836,8 @@ async function latestCompleteSnapshot(tx, scope) {
 function readOnlyRoute(path) {
   const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
   if (url.origin !== "https://offline.invalid" || url.hash) return null;
-  if (url.pathname === "/work-reminders" && [...query.keys()].every((key2) => key2 === "date") && query.getAll("date").length === 1 && day(query.get("date"))) return { kind: "reminders", date: query.get("date") };
-  if (!["/note-entries/dates", "/daily-notes/dates"].includes(url.pathname) || [...query.keys()].some((key2) => !["category", "before", "page_size"].includes(key2) || query.getAll(key2).length !== 1) || query.has("category") && !["life", "work"].includes(query.get("category")) || query.has("before") && !day(query.get("before"))) return null;
+  if (url.pathname === "/work-reminders" && [...query.keys()].every((key) => key === "date") && query.getAll("date").length === 1 && day(query.get("date"))) return { kind: "reminders", date: query.get("date") };
+  if (!["/note-entries/dates", "/daily-notes/dates"].includes(url.pathname) || [...query.keys()].some((key) => !["category", "before", "page_size"].includes(key) || query.getAll(key).length !== 1) || query.has("category") && !["life", "work"].includes(query.get("category")) || query.has("before") && !day(query.get("before"))) return null;
   const size = query.get("page_size") || "30";
   if (!/^[1-9]\d*$/.test(size) || Number(size) > 100) return null;
   return {
@@ -900,7 +899,7 @@ var init_read_only = __esm({
 function noteReadRoute(path) {
   const url = new URL(path, "https://offline.invalid"), query = url.searchParams;
   if (url.origin !== "https://offline.invalid" || url.hash) return null;
-  if (url.pathname === "/note-entries" && [...query.keys()].every((key2) => ["category", "date"].includes(key2)) && query.getAll("category").length === 1 && query.getAll("date").length === 1 && ["life", "work"].includes(query.get("category")) && validDay(query.get("date")))
+  if (url.pathname === "/note-entries" && [...query.keys()].every((key) => ["category", "date"].includes(key)) && query.getAll("category").length === 1 && query.getAll("date").length === 1 && ["life", "work"].includes(query.get("category")) && validDay(query.get("date")))
     return { kind: "note_entries", date: query.get("date"), category: query.get("category") };
   const match = /^\/note-entries\/([^/]+)$/.exec(url.pathname);
   return match && !url.search && uuidPattern.test(match[1]) ? { kind: "note_entry", id: match[1].toLowerCase() } : null;
@@ -999,7 +998,7 @@ function readingMethods(context) {
     owner2.active();
     return record?.scope === owner2.scope && typeof record.can_edit === "boolean" ? record.can_edit : null;
   }
-  async function read3(path, route2 = noteReadRoute(path)) {
+  async function read2(path, route2 = noteReadRoute(path)) {
     if (!route2) throw missing2();
     const owner2 = capture();
     const result = await db.transaction(["entities", "outbox", "conflicts", "meta"], "readonly", async (tx) => {
@@ -1049,7 +1048,7 @@ function readingMethods(context) {
     owner2.active();
     return result;
   }
-  return { read: read3, capability, fence };
+  return { read: read2, capability, fence };
 }
 function writingMethods(context) {
   const { db, capture, capabilityKey, now } = context;
@@ -1069,8 +1068,8 @@ function writingMethods(context) {
           await tx.put("entities", { ...old, remote_missing: true });
       }
       for (const row of incoming) {
-        const entity_id = "note-entry:" + row.id, key2 = entityKey(owner2.scope, entity_id);
-        const old = await tx.get("entities", key2);
+        const entity_id = "note-entry:" + row.id, key = entityKey(owner2.scope, entity_id);
+        const old = await tx.get("entities", key);
         if (Math.max(old?.server?.version || 0, old?.api_server?.version || 0) > row.version)
           throw fail("读取结果早于本机已确认版本，原文已保留。", "OFFLINE_CACHE_CHANGED");
         const proof = awareLabel(row) ? {
@@ -1084,7 +1083,7 @@ function writingMethods(context) {
           throw fail("标签证据已变化，请联网核对。", "OFFLINE_CACHE_CHANGED");
         await tx.put("entities", {
           ...old,
-          key: key2,
+          key,
           scope: owner2.scope,
           entity_id,
           server: row,
@@ -1151,12 +1150,12 @@ function offlineReadRoute(path) {
   if (url.origin !== "https://offline.invalid" || url.hash) return null;
   const route2 = url.pathname, query = url.searchParams;
   if (["/work-reminders", "/note-entries/dates", "/daily-notes/dates"].includes(route2)) return readOnlyRoute(path);
-  if (route2 === "/todos" && [...query.keys()].every((key2) => key2 === "date") && query.getAll("date").length === 1 && dayPattern.test(query.get("date"))) return { kind: "todo", date: query.get("date") };
+  if (route2 === "/todos" && [...query.keys()].every((key) => key === "date") && query.getAll("date").length === 1 && dayPattern.test(query.get("date"))) return { kind: "todo", date: query.get("date") };
   if (route2 === "/unscheduled-todos" && !url.search) return { kind: "unscheduled_todo" };
   if (route2 === "/todo-templates" && !url.search) return { kind: "template" };
   if (route2 === "/accounts" && !url.search) return { kind: "accounts" };
   if (route2 === "/overview") return { kind: "overview" };
-  if (route2 === "/daily-notes" && query.getAll("date").length === 1 && dayPattern.test(query.get("date")) && [...query.keys()].every((key2) => ["date", "category"].includes(key2)) && query.getAll("category").length <= 1 && (!query.has("category") || ["life", "work"].includes(query.get("category"))))
+  if (route2 === "/daily-notes" && query.getAll("date").length === 1 && dayPattern.test(query.get("date")) && [...query.keys()].every((key) => ["date", "category"].includes(key)) && query.getAll("category").length <= 1 && (!query.has("category") || ["life", "work"].includes(query.get("category"))))
     return { kind: "legacy", date: query.get("date"), category: query.get("category") || "life" };
   if (route2 === "/note-entries" || route2.startsWith("/note-entries/")) return noteReadRoute(path);
   if (route2 === "/memos" && !url.search) return { kind: "memos" };
@@ -1172,7 +1171,7 @@ function safeAccounts(value) {
   if (!Array.isArray(value)) throw new Error("账户读取不完整。");
   if (value.some((row) => !row || ![0, 1].includes(row.active))) throw new Error("账户状态读取不完整。");
   const fields5 = ["id", "name", "platform", "active", "account_name", "position", "created_at", "updated_at"];
-  return value.map((row) => Object.fromEntries(fields5.filter((key2) => row[key2] !== void 0).map((key2) => [key2, row[key2]])));
+  return value.map((row) => Object.fromEntries(fields5.filter((key) => row[key] !== void 0).map((key) => [key, row[key]])));
 }
 function checkedResponse2(route2, value) {
   const invalid4 = () => Object.assign(new Error("读取结果不完整，未覆盖本机数据。"), { code: "OFFLINE_RESPONSE_INVALID" });
@@ -1218,15 +1217,15 @@ function overlay(value, route2, entities, dirtyOnly) {
   return { ...value, items: [...items.values()].filter(active).sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")) || a.id.localeCompare(b.id)) };
 }
 function identityMethods(db, now) {
-  const key2 = JSON.stringify(["haoduoyu-offline", "last-verified-identity"]);
+  const key = JSON.stringify(["haoduoyu-offline", "last-verified-identity"]);
   return {
-    readIdentity: () => db.transaction(["meta"], "readonly", (tx) => tx.get("meta", key2)),
+    readIdentity: () => db.transaction(["meta"], "readonly", (tx) => tx.get("meta", key)),
     async saveIdentity(me, scope) {
-      const identity7 = safeIdentity(me);
-      await db.transaction(["meta"], "readwrite", (tx) => tx.put("meta", { key: key2, identity: identity7, scope, verified_at: now() }));
-      return identity7;
+      const identity6 = safeIdentity(me);
+      await db.transaction(["meta"], "readwrite", (tx) => tx.put("meta", { key, identity: identity6, scope, verified_at: now() }));
+      return identity6;
     },
-    forgetIdentity: () => db.transaction(["meta"], "readwrite", (tx) => tx.delete("meta", key2))
+    forgetIdentity: () => db.transaction(["meta"], "readwrite", (tx) => tx.delete("meta", key))
   };
 }
 async function legacySnapshot(db, owner2, route2) {
@@ -1262,7 +1261,7 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
     const route2 = offlineReadRoute(path);
     if (!route2) return value;
     if (["note_entries", "note_entry"].includes(route2.kind)) return notes.write(path, route2, value, { baseline });
-    const owner2 = scope(), generation = getGeneration(), data2 = checkedResponse2(route2, value), key2 = entityKey(owner2, "get:" + path);
+    const owner2 = scope(), generation = getGeneration(), data2 = checkedResponse2(route2, value), key = entityKey(owner2, "get:" + path);
     const active5 = () => {
       if (scope() !== owner2 || getGeneration() !== generation)
         throw Object.assign(new Error("身份范围已变化，本次读取未保存。"), { code: "OFFLINE_SCOPE_CHANGED" });
@@ -1272,7 +1271,7 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
       const rows = await tx.getAll("entities");
       if (baseline !== void 0 && baseline !== serverFence2(rows, route2, owner2))
         throw Object.assign(new Error("本机刚同步了新版本，请重新读取完整列表。"), { code: "OFFLINE_CACHE_CHANGED" });
-      await tx.put("meta", { key: key2, scope: owner2, path, data: data2, saved_at: now() });
+      await tx.put("meta", { key, scope: owner2, path, data: data2, saved_at: now() });
       if (!["todo", "template", "unscheduled_todo"].includes(route2.kind)) {
         active5();
         return;
@@ -1304,7 +1303,7 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
     return result;
   }
   const entities = (owner2) => db.transaction(["entities"], "readonly", async (tx) => (await tx.getAll("entities")).filter((row) => row.scope === owner2));
-  async function read3(path) {
+  async function read2(path) {
     const route2 = offlineReadRoute(path);
     if (!route2) throw missing3();
     if (["note_entries", "note_entry"].includes(route2.kind)) return notes.read(path, route2);
@@ -1346,7 +1345,7 @@ function createOfflineCache({ db, getScope, now = Date.now, getGeneration = () =
     return ["note_entries", "note_entry"].includes(route2?.kind) ? notes.fence(route2) : serverFence2(await entities(scope()), route2, scope());
   };
   return {
-    read: read3,
+    read: read2,
     write,
     entity,
     fence,
@@ -1382,11 +1381,11 @@ async function outstandingResolution(tx, conflict, acknowledgements = [], comple
   return { pending, conflicts };
 }
 async function finishParents(tx, conflict, time2) {
-  let key2 = conflict.resolution_parent, completedChild = conflict.key;
+  let key = conflict.resolution_parent, completedChild = conflict.key;
   const seen = /* @__PURE__ */ new Set();
-  while (key2 && !seen.has(key2)) {
-    seen.add(key2);
-    const parent = await tx.get("conflicts", key2);
+  while (key && !seen.has(key)) {
+    seen.add(key);
+    const parent = await tx.get("conflicts", key);
     if (!parent || parent.scope !== conflict.scope || !parent.resolution) return;
     const completed = [.../* @__PURE__ */ new Set([...parent.resolution.completed_children || [], completedChild])];
     const waiting = await outstandingResolution(tx, parent, parent.resolution.acknowledgements || [], completedChild);
@@ -1406,7 +1405,7 @@ async function finishParents(tx, conflict, time2) {
       completed_at: time2
     } });
     completedChild = parent.key;
-    key2 = parent.resolution_parent;
+    key = parent.resolution_parent;
   }
 }
 async function recordResolutionAck(tx, operation2, remote, time2) {
@@ -1421,7 +1420,7 @@ async function recordResolutionAck(tx, operation2, remote, time2) {
     { operation_key: operation2.key, save_id: operation2.save_id, remote, acknowledged_at: time2 }
   ];
   const waiting = await outstandingResolution(tx, conflict, acknowledgements);
-  const allAcknowledged = resolution2.operation_keys.every((key2) => acknowledgements.some((row) => row.operation_key === key2));
+  const allAcknowledged = resolution2.operation_keys.every((key) => acknowledgements.some((row) => row.operation_key === key));
   const hasCompletedChildren = Boolean(resolution2.completed_children?.length);
   const complete = !waiting.pending && !waiting.conflicts && (allAcknowledged || hasCompletedChildren);
   const next = { ...conflict, resolved_at: complete ? time2 : null, resolution: {
@@ -1472,9 +1471,9 @@ function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
         throw new Error("Offline conflict claim changed");
       }
       const entity = await tx.get("entities", entityKey(operation2.scope, operation2.entity_id));
-      const key2 = entityKey(operation2.scope, "conflict:" + operation2.id);
+      const key = entityKey(operation2.scope, "conflict:" + operation2.id);
       let conflict = {
-        key: key2,
+        key,
         scope: operation2.scope,
         entity_id: operation2.entity_id,
         operation: current3,
@@ -1487,7 +1486,7 @@ function createConflictStore({ db, now = Date.now, canDispatch = () => true }) {
       conflict = await recordResolutionConflict(tx, current3, conflict);
       await tx.put("conflicts", conflict);
       await tx.put("outbox", { ...current3, status: "conflict", error: reason });
-      if (entity) await tx.put("entities", { ...entity, conflict: key2, dirty: true });
+      if (entity) await tx.put("entities", { ...entity, conflict: key, dirty: true });
       return conflict;
     });
   }
@@ -1744,14 +1743,14 @@ function remoteEvidence(value, type) {
     id: value.id || value.source_id,
     version: value.version,
     deleted: Boolean(value.deleted || value.deleted_at),
-    ...Object.fromEntries(fields5.filter((key2) => own(value, key2)).map((key2) => [key2, value[key2]]))
+    ...Object.fromEntries(fields5.filter((key) => own(value, key)).map((key) => [key, value[key]]))
   };
 }
 function branchState(conflict, entity, operations2, drafts) {
   return stable({ conflict, entity, operations: operations2, drafts });
 }
-async function storedState(tx, scope, key2) {
-  const conflict = await tx.get("conflicts", key2);
+async function storedState(tx, scope, key) {
+  const conflict = await tx.get("conflicts", key);
   if (!conflict || conflict.scope !== scope) throw failure("冲突不属于当前身份。", "OFFLINE_SCOPE_CHANGED");
   const entity = await tx.get("entities", entityKey(scope, conflict.entity_id));
   const operations2 = (await tx.getAll("outbox")).filter((row) => row.scope === scope && row.entity_id === conflict.entity_id && live(row)).sort((a, b) => a.seq - b.seq);
@@ -1869,7 +1868,7 @@ function createConflictDecisions({
       return result;
     });
   }
-  async function resolve(key2, choice2, { scope = getScope(), assertActive = () => {
+  async function resolve(key, choice2, { scope = getScope(), assertActive = () => {
   }, expected, copyConfirmed = false } = {}) {
     if (!["use-server", "use-local", "keep-both"].includes(choice2)) throw new TypeError("Unknown conflict choice");
     const active5 = () => {
@@ -1877,7 +1876,7 @@ function createConflictDecisions({
       if (!scope || scope !== getScope()) throw failure("身份范围已变化，冲突和原文保持原样。", "OFFLINE_SCOPE_CHANGED");
     };
     active5();
-    const captured = await db.transaction(["entities", "outbox", "conflicts", "meta"], "readonly", (tx) => storedState(tx, scope, key2));
+    const captured = await db.transaction(["entities", "outbox", "conflicts", "meta"], "readonly", (tx) => storedState(tx, scope, key));
     active5();
     if (captured.conflict.resolved_at !== null || captured.conflict.resolution)
       return { ...captured.conflict, already_resolved: true };
@@ -1903,11 +1902,11 @@ async function rememberParents(tx, scope, groups, operations2) {
   for (const input of operations2.filter((row) => row.entity_type === "memo_note")) {
     const id2 = input.body.group_id, server = groups.find((row) => row.id === id2 && !row.deleted_at && !row.deleted);
     if (!server) continue;
-    const entity_id = "memo-group:" + id2, key2 = entityKey(scope, entity_id), old = await tx.get("entities", key2);
+    const entity_id = "memo-group:" + id2, key = entityKey(scope, entity_id), old = await tx.get("entities", key);
     if (old?.server?.version > server.version) throw failure("分组刚有更新，请重新核对后保存。");
     await tx.put("entities", {
       ...old,
-      key: key2,
+      key,
       scope,
       entity_id,
       server,
@@ -1924,11 +1923,11 @@ var init_conflict_decisions = __esm({
     init_conflict_plan();
     init_resolution_ledger();
     live = (row) => !["acked", "archived"].includes(row.status);
-    own = (value, key2) => Object.hasOwn(value, key2);
+    own = (value, key) => Object.hasOwn(value, key);
     currentLocal = (row) => own(row, "review_local") ? row.review_local : row.local;
     currentRemote = (row) => own(row, "review_remote") ? row.review_remote : row.remote;
     failure = (message, code = "OFFLINE_CONFLICT_CHANGED") => Object.assign(new Error(message), { code });
-    canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key2) => [key2, canonical(value[key2])])) : value;
+    canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
     stable = (value) => JSON.stringify(canonical(value));
   }
 });
@@ -1985,7 +1984,7 @@ function memoDetail(row, id2, index) {
   memoMeta(row, true);
   const metadata2 = index.notes.find((value) => value.id === id2);
   const fields5 = ["id", "title", "position", "version", "change_seq", "created_at", "updated_at", "deleted_at", "group_id"];
-  if (!metadata2 || fields5.some((key2) => metadata2[key2] !== row[key2])) invalid2();
+  if (!metadata2 || fields5.some((key) => metadata2[key] !== row[key])) invalid2();
   return structuredClone(row);
 }
 function noteAbsence(value, local, id2) {
@@ -2003,9 +2002,9 @@ function conflictIdentity(conflict) {
   return { operation: operation2, type, id: id2, scope: conflict.scope };
 }
 function createConflictPreparation({ readRemote, network }) {
-  async function guarded(read3, assertActive) {
+  async function guarded(read2, assertActive) {
     assertActive();
-    const value = await read3();
+    const value = await read2();
     assertActive();
     return value;
   }
@@ -2061,7 +2060,7 @@ var init_conflict_transport = __esm({
       throw Object.assign(new Error("线上内容读取不完整，原文已保留，请重新核对。"), { code: "OFFLINE_RESPONSE_INVALID" });
     };
     removed3 = (row) => row?.deleted === true || row?.deleted_at !== null && row?.deleted_at !== void 0;
-    own2 = (value, key2) => Object.hasOwn(value, key2);
+    own2 = (value, key) => Object.hasOwn(value, key);
   }
 });
 
@@ -2194,7 +2193,7 @@ function operationFor(input, uuid5, time2) {
   return operation2;
 }
 async function digest(value) {
-  const canonical4 = (node2) => Array.isArray(node2) ? node2.map(canonical4) : node2 && typeof node2 === "object" ? Object.fromEntries(Object.keys(node2).sort().map((key2) => [key2, canonical4(node2[key2])])) : node2;
+  const canonical4 = (node2) => Array.isArray(node2) ? node2.map(canonical4) : node2 && typeof node2 === "object" ? Object.fromEntries(Object.keys(node2).sort().map((key) => [key, canonical4(node2[key])])) : node2;
   const bytes = new TextEncoder().encode(JSON.stringify(canonical4(value)));
   const hash = await globalThis.crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(hash)].map((value2) => value2.toString(16).padStart(2, "0")).join("");
@@ -2208,14 +2207,14 @@ function desired(operation2, remote) {
   if (!remote || remote.id !== operation2.source_id) return false;
   if (operation2.method === "DELETE") return deleted(remote);
   if (deleted(remote)) return false;
-  const keys = operation2.entity_type === "todo" ? operation2.path.endsWith("/restore") ? ["date"] : operation2.method === "POST" ? ["date", "text", ...operation2.body.template_id ? ["template_id"] : []] : ["completed"] : operation2.entity_type === "template" ? ["text"] : Object.keys(operation2.body).filter((key2) => !["version", "save_id"].includes(key2));
-  return keys.every((key2) => remote[key2] === operation2.body[key2]);
+  const keys = operation2.entity_type === "todo" ? operation2.path.endsWith("/restore") ? ["date"] : operation2.method === "POST" ? ["date", "text", ...operation2.body.template_id ? ["template_id"] : []] : ["completed"] : operation2.entity_type === "template" ? ["text"] : Object.keys(operation2.body).filter((key) => !["version", "save_id"].includes(key));
+  return keys.every((key) => remote[key] === operation2.body[key]);
 }
 function expectedFields(operation2, remote) {
   const base = operation2.base;
   if (!base) return true;
   const fields5 = operation2.entity_type === "todo" ? deleted(remote) ? ["date"] : ["date", "text"] : operation2.entity_type === "unscheduled_todo" ? ["text"] : [];
-  return fields5.every((key2) => base[key2] === void 0 || remote[key2] === base[key2]);
+  return fields5.every((key) => base[key] === void 0 || remote[key] === base[key]);
 }
 function completeNoteRow(remote) {
   const time2 = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
@@ -2270,9 +2269,9 @@ function createContext(options4) {
     return db.transaction(["meta"], "readwrite", async (tx) => {
       checkScope(scope);
       assertActive();
-      const key2 = rateLimitKey(scope), old = await tx.get("meta", key2);
+      const key = rateLimitKey(scope), old = await tx.get("meta", key);
       const value = Math.max(Number.isSafeInteger(old?.until) ? old.until : 0, until);
-      await tx.put("meta", { key: key2, until: value });
+      await tx.put("meta", { key, until: value });
       checkScope(scope);
       assertActive();
       return value;
@@ -2389,9 +2388,9 @@ function storageMethods(context) {
       throw new Error("Offline edits must use the preceding local version");
     }
     const sequenceKey = entityKey(input.scope, "outbox-sequence");
-    const sequence6 = (await tx.get("meta", sequenceKey))?.value || 0;
-    operation2.seq = sequence6 + 1;
-    const key2 = entityKey(input.scope, operation2.entity_id), old = await tx.get("entities", key2);
+    const sequence4 = (await tx.get("meta", sequenceKey))?.value || 0;
+    operation2.seq = sequence4 + 1;
+    const key = entityKey(input.scope, operation2.entity_id), old = await tx.get("entities", key);
     await noteCapacity(tx, operation2, old);
     const visible3 = old?.dirty ? old.local : old?.server || operation2.base;
     operation2.base = operation2.base || old?.server || null;
@@ -2404,7 +2403,7 @@ function storageMethods(context) {
     };
     const entity = {
       ...old,
-      key: key2,
+      key,
       scope: input.scope,
       entity_id: operation2.entity_id,
       server: old?.server || operation2.base,
@@ -2431,8 +2430,8 @@ function storageMethods(context) {
       const result = { ...current3, ...fields5 };
       await tx.put("outbox", result);
       if (Number.isSafeInteger(rateLimitedUntil)) {
-        const key2 = context.rateLimitKey(operation2.scope), old = await tx.get("meta", key2);
-        await tx.put("meta", { key: key2, until: Math.max(Number.isSafeInteger(old?.until) ? old.until : 0, rateLimitedUntil) });
+        const key = context.rateLimitKey(operation2.scope), old = await tx.get("meta", key);
+        await tx.put("meta", { key, until: Math.max(Number.isSafeInteger(old?.until) ? old.until : 0, rateLimitedUntil) });
       }
       if (fields5.status) await recordResolutionFailure(tx, result, fields5);
       return result;
@@ -2448,7 +2447,7 @@ function storageMethods(context) {
       if (!context.canDispatch(current3) || current3.claim_owner !== owner2 || !["sending", "unknown"].includes(current3.status)) {
         throw new Error("Offline operation claim changed");
       }
-      const key2 = entityKey(operation2.scope, operation2.entity_id), entity = await tx.get("entities", key2);
+      const key = entityKey(operation2.scope, operation2.entity_id), entity = await tx.get("entities", key);
       const confirmed2 = operation2.entity_type === "template" && operation2.method === "DELETE" ? { ...operation2.base, ...entity.server, ...remote, version: operation2.expected_version + 1 } : remote;
       await tx.delete("outbox", operation2.key);
       const remaining = (await tx.getAll("outbox")).some((value) => value.scope === operation2.scope && value.entity_id === operation2.entity_id && active2(value));
@@ -2733,8 +2732,8 @@ function createOutbox(options4) {
       return await decisions.resolve(...args);
     } finally {
       if (scope && context.state.phase !== "syncing") await context.db.transaction(["meta"], "readwrite", async (tx) => {
-        const key2 = context.leaseKey(scope), held = await tx.get("meta", key2);
-        if (held?.owner === context.owner) await tx.delete("meta", key2);
+        const key = context.leaseKey(scope), held = await tx.get("meta", key);
+        if (held?.owner === context.owner) await tx.delete("meta", key);
       }).catch(() => {
       });
     }
@@ -2875,7 +2874,7 @@ async function detailFor(value, date, index, limits, readBudget, version2) {
     requireValue(Array.isArray(rows));
     let previous = "";
     for (const row of rows) {
-      requireValue(object2(row) && Object.keys(row).every((key2) => recordKeys.has(key2)) && row.entity_id > previous && expected.has(row.entity_id) && equal(metadata(row), expected.get(row.entity_id)) && typeof row.source === "string" && typeof row.source_id === "string" && Number.isSafeInteger(row.version) && row.version >= 1);
+      requireValue(object2(row) && Object.keys(row).every((key) => recordKeys.has(key)) && row.entity_id > previous && expected.has(row.entity_id) && equal(metadata(row), expected.get(row.entity_id)) && typeof row.source === "string" && typeof row.source_id === "string" && Number.isSafeInteger(row.version) && row.version >= 1);
       stamp(row.created_at, true);
       if (row.change_seq !== void 0) requireValue(Number.isSafeInteger(row.change_seq) && row.change_seq >= 0);
       const { content_hash, ...content2 } = row;
@@ -2897,10 +2896,10 @@ async function detailFor(value, date, index, limits, readBudget, version2) {
   }));
   return records;
 }
-async function applySnapshot({ db, getScope, scope, key: key2, index, initial, cached, records, now, version: version2 }) {
+async function applySnapshot({ db, getScope, scope, key, index, initial, cached, records, now, version: version2 }) {
   await db.transaction(["entities", "meta"], "readwrite", async (tx) => {
     identity3(scope, getScope);
-    const current3 = await tx.get("meta", key2);
+    const current3 = await tx.get("meta", key);
     if (!equal(current3 ?? null, initial.meta ?? null)) fail2("OFFLINE_SNAPSHOT_CHANGED", "其他页面已更新本地快照，请重新核对。");
     const all = (await tx.getAll("entities")).filter((row) => row.scope === scope), manifest = new Set(index.entities.map((row) => row.entity_id));
     for (const record of records.values()) {
@@ -2949,15 +2948,15 @@ async function applySnapshot({ db, getScope, scope, key: key2, index, initial, c
       await tx.put("entities", { ...row, server: null, snapshot_hash: null, remote_missing: true, synced_at: now() });
     }
     identity3(scope, getScope);
-    await tx.put("meta", { key: key2, value: { index, verified_at: now() } });
+    await tx.put("meta", { key, value: { index, verified_at: now() } });
   });
 }
 function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: crypto2 = globalThis.crypto, limits = {}, version: version2 = 1 }) {
   if (!db?.transaction || typeof request !== "function" || typeof getScope !== "function") throw new TypeError("Snapshot sync dependencies required");
   if (![1, 2].includes(version2)) throw new TypeError("Unsupported snapshot version");
   limits = { ...SNAPSHOT_PULL_LIMITS, ...limits };
-  for (const [key2, value] of Object.entries(limits)) {
-    if (!Object.hasOwn(SNAPSHOT_PULL_LIMITS, key2) || !Number.isSafeInteger(value) || value < 1)
+  for (const [key, value] of Object.entries(limits)) {
+    if (!Object.hasOwn(SNAPSHOT_PULL_LIMITS, key) || !Number.isSafeInteger(value) || value < 1)
       throw new TypeError("Invalid snapshot pull limit");
   }
   const state2 = { status: "idle", last_success: null, error: null };
@@ -2965,9 +2964,9 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
   async function run2({ date: probeDate } = {}) {
     const scope = getScope();
     if (typeof scope !== "string" || !hashPattern2.test(scope)) fail2("OFFLINE_SCOPE_REQUIRED", "请先联网核实当前身份范围。");
-    const key2 = JSON.stringify([scope, version2 === 2 ? "snapshot-v2" : "snapshot"]), readBudget = budget(limits, crypto2);
+    const key = JSON.stringify([scope, version2 === 2 ? "snapshot-v2" : "snapshot"]), readBudget = budget(limits, crypto2);
     const initial = await db.transaction(["entities", "meta"], "readonly", async (tx) => ({
-      meta: await tx.get("meta", key2),
+      meta: await tx.get("meta", key),
       entities: (await tx.getAll("entities")).filter((row) => row.scope === scope)
     }));
     identity3(scope, getScope);
@@ -3009,7 +3008,7 @@ function createSnapshotSync({ db, request, getScope, now = Date.now, crypto: cry
     const verified = await indexFor(await get(indexPath), scope, limits, readBudget, version2);
     if (!sameIndex(index, verified)) fail2("OFFLINE_SNAPSHOT_CHANGED", "读取期间线上内容已变化，请稍后重新核对；本地内容已保留。");
     identity3(scope, getScope);
-    await applySnapshot({ db, getScope, scope, key: key2, index, initial, cached, records, now, version: version2 });
+    await applySnapshot({ db, getScope, scope, key, index, initial, cached, records, now, version: version2 });
     state2.last_success = now();
     return { status: "synced", scope, changed_dates: [...changed4].sort(), entities: index.entities.length };
   }
@@ -3100,7 +3099,7 @@ var init_sync = __esm({
       maxHashBytes: 8388608,
       maxRequests: 128
     });
-    stable2 = (value) => Array.isArray(value) ? value.map(stable2) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key2) => [key2, stable2(value[key2])])) : value;
+    stable2 = (value) => Array.isArray(value) ? value.map(stable2) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable2(value[key])])) : value;
     canonical2 = (value) => JSON.stringify(stable2(value));
     equal = (a, b) => canonical2(a) === canonical2(b);
     object2 = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -3226,13 +3225,13 @@ function createDailyNotesContext({
 function createReadingActions(context) {
   const { page, emit, stopTimer, adopt, schedule } = context;
   const { load } = context.options;
-  async function read3(date) {
-    const item = page(date), sequence6 = ++item.sequence, writeEpoch = item.writeEpoch;
+  async function read2(date) {
+    const item = page(date), sequence4 = ++item.sequence, writeEpoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
       const value = checkedPage(await load(date), date);
-      if (context.disposed || sequence6 !== item.sequence) return;
+      if (context.disposed || sequence4 !== item.sequence) return;
       if (item.pending || writeEpoch !== item.writeEpoch) return;
       if (["conflict", "unknown"].includes(item.phase)) {
         item.remote = value;
@@ -3248,12 +3247,12 @@ function createReadingActions(context) {
         item.error = "";
       }
     } catch (error) {
-      if (!context.disposed && sequence6 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.error = error.message;
         if (!["conflict", "unknown"].includes(item.phase)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence6 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
@@ -3277,7 +3276,7 @@ function createReadingActions(context) {
     emit();
     if (!composing) schedule(item);
   }
-  return { read: read3, edit };
+  return { read: read2, edit };
 }
 function createWritingActions(context) {
   const { page, emit, stopTimer, matches: matches2, accepted } = context;
@@ -3324,7 +3323,7 @@ function createWritingActions(context) {
       }
     }
   }
-  async function save2(date) {
+  async function save(date) {
     const item = page(date);
     stopTimer(item);
     if (context.disposed || !item.canEdit || !item.loaded || item.loading || item.pending || ["conflict", "unknown"].includes(item.phase) || !item.dirty) return;
@@ -3352,7 +3351,7 @@ function createWritingActions(context) {
     if (context.disposed || !item.canEdit || !item.loaded || !item.deleted || item.pending || item.dirty || ["conflict", "unknown"].includes(item.phase)) return;
     return send(item, { kind: "restore", text: "", version: item.version, saveId: uuid5() });
   }
-  return { save: save2, deletePage, restorePage, retryPending };
+  return { save, deletePage, restorePage, retryPending };
 }
 function createResolutionActions(context) {
   const { page, emit, stopTimer, adopt, matches: matches2, accepted } = context;
@@ -3411,8 +3410,8 @@ function createResolutionActions(context) {
 function createDailyNotesStore(options4) {
   const context = createDailyNotesContext(options4);
   Object.assign(context, createReadingActions(context), createWritingActions(context), createResolutionActions(context));
-  const { page, pages, read: read3, edit, save: save2, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
-  return { page, pages, read: read3, edit, save: save2, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
+  const { page, pages, read: read2, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose } = context;
+  return { page, pages, read: read2, edit, save, deletePage, restorePage, reconcile, retryPending, useServer, useDraft, dispose };
 }
 var DAILY_NOTES_MAX_BYTES, routeDate, routeCategory, dailyNotesRouteCategory;
 var init_daily_notes_state = __esm({
@@ -3558,9 +3557,9 @@ function uniqueRetainedDrafts(rows) {
   const seen = /* @__PURE__ */ new Set();
   return rows.filter((row) => {
     if (!row || typeof row !== "object") return true;
-    const key2 = signature(row);
-    if (seen.has(key2)) return false;
-    seen.add(key2);
+    const key = signature(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 }
@@ -3600,7 +3599,7 @@ function createLegacyRecoveryGuard() {
 }
 function createEntryRecoveryGuard(fields5) {
   const restored = /* @__PURE__ */ new WeakMap();
-  const signature2 = (item) => JSON.stringify(fields5.map((key2) => item[key2]));
+  const signature2 = (item) => JSON.stringify(fields5.map((key) => item[key]));
   return {
     remember(item, record) {
       if (item && typeof record?.key === "string" && typeof record?.write_id === "string")
@@ -3640,12 +3639,12 @@ function samePendingOperation(original, restored) {
   if (!original || !restored) return !original && !restored;
   const fields5 = ["kind", "version", "saveId", "text", "labels", "label", "expectedLabel"];
   const permitted = /* @__PURE__ */ new Set([...fields5, "uncertain", "checking", "retryReady"]);
-  if (typeof original !== "object" || typeof restored !== "object" || Array.isArray(original) || Array.isArray(restored) || Object.keys(original).some((key2) => !permitted.has(key2)) || Object.keys(restored).some((key2) => !permitted.has(key2)) || !["put", "delete", "restore"].includes(original.kind)) return false;
-  return fields5.every((key2) => JSON.stringify(original[key2] ?? null) === JSON.stringify(restored[key2] ?? null));
+  if (typeof original !== "object" || typeof restored !== "object" || Array.isArray(original) || Array.isArray(restored) || Object.keys(original).some((key) => !permitted.has(key)) || Object.keys(restored).some((key) => !permitted.has(key)) || !["put", "delete", "restore"].includes(original.kind)) return false;
+  return fields5.every((key) => JSON.stringify(original[key] ?? null) === JSON.stringify(restored[key] ?? null));
 }
 function safeDraft(row) {
   if (!row || !["legacy", "note_entry"].includes(row.kind) || !["life", "work"].includes(row.category) || !/^\d{4}-\d{2}-\d{2}$/.test(row.date) || typeof row.draft !== "string" || row.draft.length > 262144 || row.kind === "note_entry" && !/^[a-f0-9-]{36}$/i.test(row.id)) throw new Error("本机草稿字段无效。");
-  return Object.fromEntries(fields.filter((key2) => row[key2] !== void 0).map((key2) => [key2, structuredClone(row[key2])]));
+  return Object.fromEntries(fields.filter((key) => row[key] !== void 0).map((key) => [key, structuredClone(row[key])]));
 }
 async function noteDigest(row) {
   const value = JSON.stringify([row.id, row.category, row.date, row.draft, [...row.labels].sort()]);
@@ -3666,8 +3665,8 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
     await db.transaction(["meta"], "readwrite", async (tx) => {
       active5();
       for (const [index, row] of clean.entries()) {
-        const identity7 = row.kind === "legacy" ? row.category + ":" + row.date : row.id;
-        const key2 = entityKey(owner2, "draft:" + row.kind + ":" + identity7 + ":" + draftOwner);
+        const identity6 = row.kind === "legacy" ? row.category + ":" + row.date : row.id;
+        const key = entityKey(owner2, "draft:" + row.kind + ":" + identity6 + ":" + draftOwner);
         const recovered = rows[index].recoveryProof;
         if (row.kind === "note_entry" && unresolved(row) && recovered && typeof recovered.key === "string" && typeof recovered.write_id === "string") {
           const source = await tx.get("meta", recovered.key), original = source?.data;
@@ -3675,9 +3674,9 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
         }
         const proof = digests[index] && await tx.get("meta", entityKey(owner2, "deleted-note-proof:" + digests[index]));
         if (proof && row.version < proof.version) continue;
-        if (unresolved(row)) await tx.put("meta", { key: key2, scope: owner2, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now(), write_id: crypto.randomUUID() });
+        if (unresolved(row)) await tx.put("meta", { key, scope: owner2, draft_kind: row.kind, draft_owner: draftOwner, data: row, saved_at: now(), write_id: crypto.randomUUID() });
         else if (row.kind === "note_entry") {
-          await tx.delete("meta", key2);
+          await tx.delete("meta", key);
         }
       }
       active5();
@@ -3719,9 +3718,9 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
         active5();
         const current3 = await tx.get("meta", snapshot.key);
         if (!current3 || current3.scope !== owner2 || current3.draft_kind !== "note_entry" || JSON.stringify(current3) !== JSON.stringify(snapshot) || !matchesDeletedEntry(current3.data, value)) continue;
-        const key2 = entityKey(owner2, "deleted-note-proof:" + digest2);
-        const previous = await tx.get("meta", key2);
-        await tx.put("meta", { key: key2, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
+        const key = entityKey(owner2, "deleted-note-proof:" + digest2);
+        const previous = await tx.get("meta", key);
+        await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
         await tx.delete("meta", current3.key);
       }
       active5();
@@ -3748,8 +3747,8 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
         }
       }
       if (removed4) {
-        const key2 = entityKey(owner2, "deleted-note-proof:" + digest2), previous = await tx.get("meta", key2);
-        await tx.put("meta", { key: key2, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
+        const key = entityKey(owner2, "deleted-note-proof:" + digest2), previous = await tx.get("meta", key);
+        await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
       }
       active5();
     });
@@ -3769,9 +3768,9 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
         if (stored.scope !== owner2 || stored.draft_kind !== "note_entry" || !data2 || !eligible(data2) || data2.version !== 0 || (data2.localVersion || 0) !== 0 || data2.id !== row.id || data2.category !== row.category || data2.date !== row.date || data2.draft !== row.draft || JSON.stringify([...data2.labels].sort()) !== JSON.stringify([...row.labels].sort())) continue;
         await tx.delete("meta", stored.key);
       }
-      const key2 = entityKey(owner2, "deleted-note-proof:" + digest2);
-      const previous = await tx.get("meta", key2);
-      await tx.put("meta", { key: key2, scope: owner2, version: Math.max(previous?.version || 0, 1) });
+      const key = entityKey(owner2, "deleted-note-proof:" + digest2);
+      const previous = await tx.get("meta", key);
+      await tx.put("meta", { key, scope: owner2, version: Math.max(previous?.version || 0, 1) });
       active5();
     });
   }
@@ -3856,12 +3855,12 @@ function privateMemoJournals(storage2, owner2, id2) {
     const length = storage2.length;
     if (!Number.isSafeInteger(length) || length < 0) changed();
     for (let index = 0; index < length; index++) {
-      const key2 = storage2.key(index);
-      if (typeof key2 !== "string" || !key2.startsWith(prefix)) continue;
-      const raw = JSON.parse(storage2.getItem(key2) || "{}");
+      const key = storage2.key(index);
+      if (typeof key !== "string" || !key.startsWith(prefix)) continue;
+      const raw = JSON.parse(storage2.getItem(key) || "{}");
       if (!Array.isArray(raw.drafts)) changed();
       const drafts = raw.drafts.filter((draft) => draft?.id === id2).map((draft) => draftSnapshot(draft, "memo"));
-      if (drafts.length) rows.push([key2, drafts.sort((a, b) => stable3(a).localeCompare(stable3(b)))]);
+      if (drafts.length) rows.push([key, drafts.sort((a, b) => stable3(a).localeCompare(stable3(b)))]);
     }
     return rows.sort((a, b) => a[0].localeCompare(b[0]));
   } catch {
@@ -3889,7 +3888,7 @@ function createMemoConflictDraftGuard({
   return (entity_id) => {
     const id2 = entityId(entity_id, "memo-note:"), store = id2 && getStore();
     if (!store) return null;
-    const identity7 = getIdentity(), owner2 = store.state.draftOwner;
+    const identity6 = getIdentity(), owner2 = store.state.draftOwner;
     const snapshot = () => stable3({
       draft: draftSnapshot(store.drafts.get(id2), "memo"),
       operation: store.state.operation?.pending?.id === id2 ? pendingIntent(store.state.operation.pending) : null,
@@ -3903,7 +3902,7 @@ function createMemoConflictDraftGuard({
       changed();
     }
     return () => {
-      if (store !== getStore() || identity7 !== getIdentity() || owner2 !== store.state.draftOwner) changed();
+      if (store !== getStore() || identity6 !== getIdentity() || owner2 !== store.state.draftOwner) changed();
       try {
         if (snapshot() !== initial) changed();
       } catch {
@@ -3919,7 +3918,7 @@ function createNoteConflictDraftGuard({ getStores, getIdentity, getComposing = (
     const find = () => [...getStores()].filter(([, store]) => store.entries.has(id2));
     const initialStores = find();
     if (!initialStores.length) return null;
-    const identity7 = getIdentity();
+    const identity6 = getIdentity();
     const snapshot = (rows) => stable3({
       drafts: rows.map(([category, store]) => [category, draftSnapshot(store.entries.get(id2), "note")]),
       composing: getComposing(id2) === true
@@ -3927,7 +3926,7 @@ function createNoteConflictDraftGuard({ getStores, getIdentity, getComposing = (
     const initial = snapshot(initialStores);
     return () => {
       const current3 = find();
-      if (identity7 !== getIdentity() || current3.length !== initialStores.length || current3.some(([category, store], index) => category !== initialStores[index][0] || store !== initialStores[index][1])) changed();
+      if (identity6 !== getIdentity() || current3.length !== initialStores.length || current3.some(([category, store], index) => category !== initialStores[index][0] || store !== initialStores[index][1])) changed();
       if (snapshot(current3) !== initial) changed();
     };
   };
@@ -3941,7 +3940,7 @@ var init_conflict_draft_guards = __esm({
       throw Object.assign(new Error("本机输入或身份已变化，请保留原文并重新比较。"), { code: "OFFLINE_CONFLICT_CHANGED" });
     };
     fields2 = (value, names) => value ? Object.fromEntries(names.filter((name) => value[name] !== void 0).map((name) => [name, value[name]])) : null;
-    canonical3 = (value) => Array.isArray(value) ? value.map(canonical3) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key2) => [key2, canonical3(value[key2])])) : value;
+    canonical3 = (value) => Array.isArray(value) ? value.map(canonical3) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical3(value[key])])) : value;
     stable3 = (value) => JSON.stringify(canonical3(value));
   }
 });
@@ -4055,14 +4054,14 @@ function memoCache(context) {
         throw fail3("本机刚确认了新版本，请重新读取备忘录。", "OFFLINE_CACHE_CHANGED");
       const collections2 = route2.kind === "index" ? [["groups", value.groups], ["notes", value.notes]] : [[route2.kind, [value]]];
       for (const [kind, rows] of collections2) for (const raw of rows) {
-        const server = checked2(raw, kind, route2.kind === "notes"), key2 = keyFor(guard.scope, kind, server.id);
-        const old = await tx.get("entities", key2);
+        const server = checked2(raw, kind, route2.kind === "notes"), key = keyFor(guard.scope, kind, server.id);
+        const old = await tx.get("entities", key);
         if (old?.server?.version > server.version) throw fail3("本机已有较新备忘录，请重读。", "OFFLINE_CACHE_CHANGED");
         const complete = kind === "groups" || typeof server.body === "string";
         const stored = complete ? server : old?.server?.version === server.version ? { ...old.server, ...server } : old?.server || server;
         await tx.put("entities", {
           ...old,
-          key: key2,
+          key,
           scope: guard.scope,
           entity_id: (kind === "groups" ? "memo-group:" : "memo-note:") + server.id,
           server: stored,
@@ -4093,8 +4092,8 @@ function memoWrites(context) {
     const cap = await context.db.transaction(["meta"], "readonly", (tx) => tx.get("meta", entityKey(guard.scope, "memo-capability")));
     guard.check();
     if (cap?.can_edit !== true) throw fail3("请先联网确认备忘录编辑权限。", "OFFLINE_SCOPE_REQUIRED");
-    const key2 = keyFor(guard.scope, route2.kind, route2.id);
-    const old = await context.db.transaction(["entities"], "readonly", (tx) => tx.get("entities", key2));
+    const key = keyFor(guard.scope, route2.kind, route2.id);
+    const old = await context.db.transaction(["entities"], "readonly", (tx) => tx.get("entities", key));
     guard.check();
     const visible3 = offlineValue(old);
     if (visible3?.deleted_at || visible3?.deleted) throw fail3("笔记已删除，请联网核对后恢复。", "OFFLINE_MEMO_DELETED");
@@ -4196,7 +4195,7 @@ function checkedBody(route2, options4, uuid5) {
   const required = route2.create ? route2.type === "todo" ? ["id", "date", "text"] : ["id", "text"] : route2.type === "todo" ? route2.restore || method2 === "DELETE" ? ["date", "version"] : ["completed", "version"] : route2.type === "unscheduled_todo" ? route2.restore || method2 === "DELETE" ? ["version"] : ["completed", "version"] : method2 === "DELETE" ? ["version"] : ["text", "version"];
   if (route2.create && !body2.id) body2.id = uuid5();
   const allowed = [...required, ...route2.create && route2.type === "todo" ? ["template_id"] : []];
-  if (required.some((key2) => !Object.hasOwn(body2, key2)) || Object.keys(body2).some((key2) => !allowed.includes(key2)))
+  if (required.some((key) => !Object.hasOwn(body2, key)) || Object.keys(body2).some((key) => !allowed.includes(key)))
     throw fail4("请求字段不完整，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
   if (body2.id && !uuidPattern5.test(body2.id) || body2.template_id && !uuidPattern5.test(body2.template_id))
     throw fail4("事项标识无效，本次操作未保存。", "OFFLINE_INVALID_MUTATION");
@@ -4343,22 +4342,22 @@ function identityActions(context) {
     emit();
   }
   async function adopt(me, index, generation) {
-    const identity7 = safeIdentity(me);
+    const identity6 = safeIdentity(me);
     if (generation !== context.generation) throw fail4("身份读取已过期。", "OFFLINE_SCOPE_CHANGED");
     if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== "current")
       throw fail4("身份范围读取不完整，请联网重试。", "OFFLINE_SCOPE_REQUIRED");
-    if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity7))) {
+    if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity6))) {
       await invalidate({ forget: true });
       throw fail4("当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。", "OFFLINE_SCOPE_CHANGED");
     }
-    await cache2.saveIdentity(identity7, index.scope_id);
+    await cache2.saveIdentity(identity6, index.scope_id);
     if (generation !== context.generation || state2.scope && state2.scope !== index.scope_id) {
       await invalidate({ forget: true });
       throw fail4("身份核实已过期，原本机数据已保留。", "OFFLINE_SCOPE_CHANGED");
     }
     state2.scope = index.scope_id;
     state2.verifiedScope = index.scope_id;
-    state2.identity = identity7;
+    state2.identity = identity6;
     state2.online = true;
     onIdentity(me);
     emit();
@@ -4440,14 +4439,14 @@ function identityActions(context) {
 function stateActions(context) {
   const { state: state2, outbox, emit, online } = context;
   async function refresh() {
-    const sequence6 = context.refreshSequence = (context.refreshSequence || 0) + 1;
+    const sequence4 = context.refreshSequence = (context.refreshSequence || 0) + 1;
     if (!state2.scope) {
       emit();
       return { ...state2 };
     }
     const owner2 = state2.scope, generation = context.generation;
     const [pending, conflicts] = await Promise.all([outbox.list(owner2), outbox.conflicts.list(owner2)]);
-    if (sequence6 !== context.refreshSequence || owner2 !== state2.scope || generation !== context.generation) return { ...state2 };
+    if (sequence4 !== context.refreshSequence || owner2 !== state2.scope || generation !== context.generation) return { ...state2 };
     state2.pending = pending.length;
     state2.conflicts = conflicts.length;
     state2.online = online() && state2.online;
@@ -4464,9 +4463,9 @@ function stateActions(context) {
     result.conflicts = result.conflicts.map((row) => outbox.canDispatch(row.operation) ? row : { ...row, needs_upgrade: true });
     return owner2 === state2.scope && generation === context.generation ? result : { operations: [], conflicts: [] };
   }
-  async function resolve(key2, choice2, options4 = {}) {
+  async function resolve(key, choice2, options4 = {}) {
     if (!state2.scope) throw fail4("请先核实身份。", "OFFLINE_SCOPE_REQUIRED");
-    const conflict = (await outbox.conflicts.list(state2.scope)).find((row) => row.key === key2);
+    const conflict = (await outbox.conflicts.list(state2.scope)).find((row) => row.key === key);
     if (conflict && !outbox.canDispatch(conflict.operation)) throw fail4("此本机操作需新版页面处理，原内容已保留。", "OFFLINE_UPGRADE_REQUIRED");
     const owner2 = state2.scope, generation = context.generation;
     const checkDraft = captureConflictDraftGuard(conflict?.entity_id);
@@ -4478,7 +4477,7 @@ function stateActions(context) {
     active5();
     await context.verifyScope();
     active5();
-    const result = await outbox.resolve(key2, choice2, {
+    const result = await outbox.resolve(key, choice2, {
       scope: owner2,
       assertActive: active5,
       expected: options4.expected,
@@ -4902,7 +4901,7 @@ function createOfflineRuntime(options4) {
         const [operations2, conflicts] = await Promise.all([tx.getAll("outbox"), tx.getAll("conflicts")]);
         if (operations2.some((op) => op.scope === token.scope && ids.includes(op.entity_id) && !["done", "archived"].includes(op.status)) || conflicts.some((conflict) => conflict.scope === token.scope && conflict.resolved_at === null && ids.includes(conflict.operation?.entity_id || conflict.entity_id))) return "pending";
         const keys = ids.map((id2) => entityKey(token.scope, id2));
-        const old = await Promise.all(keys.map((key2) => tx.get("entities", key2)));
+        const old = await Promise.all(keys.map((key) => tx.get("entities", key)));
         if (!active5()) return "refresh";
         if (old.some((entity) => entity?.dirty)) return "pending";
         if (old.some((entity, i) => entity?.server?.version > [source, todo][i].version)) return "refresh";
@@ -5052,8 +5051,8 @@ async function apiTransport(path, opts) {
     serverDate: response.headers?.get?.("Date") ?? null
   };
 }
-function apiFailure(path, response, payload, epoch, identity7, suppressAuthRedirect = false) {
-  const current3 = epoch === runtime.sessionEpoch && identity7 === (state.me?.id ?? null);
+function apiFailure(path, response, payload, epoch, identity6, suppressAuthRedirect = false) {
+  const current3 = epoch === runtime.sessionEpoch && identity6 === (state.me?.id ?? null);
   if (response.status === 401 && path !== "/auth/login" && current3 && !suppressAuthRedirect) {
     state.me = null;
     closeModal();
@@ -5073,7 +5072,7 @@ function apiFailure(path, response, payload, epoch, identity7, suppressAuthRedir
   return error;
 }
 async function apiNetwork(path, options4 = {}) {
-  const epoch = runtime.sessionEpoch, identity7 = state.me?.id ?? null;
+  const epoch = runtime.sessionEpoch, identity6 = state.me?.id ?? null;
   const rateLimitContext = captureOfflineRateLimitContext();
   const { envelope: envelope2 = false, context, suppressAuthRedirect = false, ...requestOptions } = options4;
   const opts = apiOptions(requestOptions), method2 = (opts.method || "GET").toUpperCase();
@@ -5094,17 +5093,17 @@ async function apiNetwork(path, options4 = {}) {
     else throw new Error("服务暂时不可用，请稍后重试。");
   }
   if (!response.ok) {
-    const error = apiFailure(path, response, payload, epoch, identity7, suppressAuthRedirect);
-    if (error.status === 429 && epoch === runtime.sessionEpoch && identity7 === (state.me?.id ?? null))
+    const error = apiFailure(path, response, payload, epoch, identity6, suppressAuthRedirect);
+    if (error.status === 429 && epoch === runtime.sessionEpoch && identity6 === (state.me?.id ?? null))
       await recordOfflineRateLimit(rateLimitContext, error.retryAfterMs);
     throw error;
   }
   return envelope2 ? payload : payload.data;
 }
 function api(path, options4 = {}) {
-  const epoch = runtime.sessionEpoch, identity7 = state.me?.id ?? null;
+  const epoch = runtime.sessionEpoch, identity6 = state.me?.id ?? null;
   const active5 = () => {
-    if (epoch !== runtime.sessionEpoch || identity7 !== (state.me?.id ?? null) || options4.signal?.aborted || options4.context?.controller.signal.aborted) throw new DOMException("请求已取消", "AbortError");
+    if (epoch !== runtime.sessionEpoch || identity6 !== (state.me?.id ?? null) || options4.signal?.aborted || options4.context?.controller.signal.aborted) throw new DOMException("请求已取消", "AbortError");
   };
   return offlineRequest(path, options4, apiNetwork, (me) => {
     if (state.me && state.me.id === me.id) state.me = me;
@@ -5174,9 +5173,9 @@ var cache = {
 var paintingFuture = false;
 var owner = () => JSON.stringify([runtime.sessionEpoch, state.me?.id ?? null, getOfflineRuntime()?.state.scope ?? null]);
 function current() {
-  const key2 = owner();
-  if (cache.owner !== key2) Object.assign(cache, {
-    owner: key2,
+  const key = owner();
+  if (cache.owner !== key) Object.assign(cache, {
+    owner: key,
     items: [],
     draft: "",
     loaded: false,
@@ -5237,21 +5236,21 @@ function paintFutureList() {
 }
 async function loadUnscheduledTodos() {
   if (!visible()) return;
-  const v = current(), key2 = v.owner;
+  const v = current(), key = v.owner;
   if (v.loading) return;
   v.loading = true;
   v.error = "";
   paintUnscheduledTodos();
   try {
     const data2 = await api("/unscheduled-todos");
-    if (v.owner !== key2 || owner() !== key2 || !Array.isArray(data2.items)) return;
+    if (v.owner !== key || owner() !== key || !Array.isArray(data2.items)) return;
     const ids = new Set(data2.items.map((item) => item.id));
     v.items = [...data2.items, ...Object.values(v.uncertain).map((item) => item.row).filter((item) => !ids.has(item.id))];
     v.loaded = true;
   } catch (error) {
-    if (v.owner === key2 && owner() === key2 && !error.staleSession && error.name !== "AbortError") v.error = error.message;
+    if (v.owner === key && owner() === key && !error.staleSession && error.name !== "AbortError") v.error = error.message;
   } finally {
-    if (v.owner === key2 && owner() === key2) {
+    if (v.owner === key && owner() === key) {
       v.loading = false;
       paintUnscheduledTodos();
     }
@@ -5331,7 +5330,7 @@ function formatMovedDate(date) {
 }
 async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
   if (!visible()) return;
-  const v = current(), key2 = v.owner, row = v.items.find((item) => item.id === id2 && !item.deleted_at && !item.deleted);
+  const v = current(), key = v.owner, row = v.items.find((item) => item.id === id2 && !item.deleted_at && !item.deleted);
   if (!row || v.pending) return;
   const unresolved2 = v.uncertain[id2], original = unresolved2?.row || structuredClone(row), finishing = unresolved2?.complete ?? complete, date = unresolved2?.date || (finishing ? bjtDate() : v.dates[id2] || "");
   v.pending = true;
@@ -5347,7 +5346,7 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
   }
   const guard = () => {
     const currentToken = offline?.captureRateLimitContext();
-    if (v.owner !== key2 || owner() !== key2 || !token || !currentToken || currentToken.scope !== token.scope || currentToken.generation !== token.generation)
+    if (v.owner !== key || owner() !== key || !token || !currentToken || currentToken.scope !== token.scope || currentToken.generation !== token.generation)
       throw Object.assign(new Error("账号或数据范围已变化"), { staleSession: true });
   };
   const readSource = (sourceId) => timedNetwork("/unscheduled-todos/" + encodeURIComponent(sourceId));
@@ -5382,7 +5381,7 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
       result = await verifyFutureMove(original, date, services);
       if (result.state === "retryable") result = await planFutureMove(original, date, { ...services, priorUncertain: true });
     } else result = await planFutureMove(original, date, services);
-    if (v.owner !== key2 || owner() !== key2) return;
+    if (v.owner !== key || owner() !== key) return;
     try {
       guard();
     } catch {
@@ -5396,7 +5395,7 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
         cacheStatus = await offline.acceptMovedTodo({ source: result.source, todo: result.todo }, token);
       } catch {
       }
-      if (v.owner !== key2 || owner() !== key2) return;
+      if (v.owner !== key || owner() !== key) return;
       try {
         guard();
       } catch {
@@ -5423,7 +5422,7 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
       toast(v.notice, true);
     }
   } finally {
-    if (v.owner === key2 && owner() === key2) {
+    if (v.owner === key && owner() === key) {
       v.pending = false;
       paintUnscheduledTodos();
     }
@@ -5431,7 +5430,7 @@ async function scheduleUnscheduledTodo(id2, { complete = false } = {}) {
 }
 async function submitUnscheduledTodo({ data: data2 }) {
   if (!visible()) return;
-  const v = current(), key2 = v.owner, text = String(data2.text || "").trim();
+  const v = current(), key = v.owner, text = String(data2.text || "").trim();
   if (v.pending) return;
   if (!text || text.length > 500) {
     v.error = "请填写 1–500 字的内容。";
@@ -5445,16 +5444,16 @@ async function submitUnscheduledTodo({ data: data2 }) {
   paintUnscheduledTodos();
   try {
     const row = await api("/unscheduled-todos", { method: "POST", body: submitted });
-    if (v.owner !== key2 || owner() !== key2) return;
+    if (v.owner !== key || owner() !== key) return;
     v.items = [...v.items.filter((x) => x.id !== row.id), row];
     if (v.draft.trim() === text) v.draft = "";
     v.request = null;
     const input = $("#todo-future-text");
     if (input && input.value.trim() === text) input.value = "";
   } catch (error) {
-    if (v.owner === key2 && owner() === key2 && !error.staleSession) v.error = error.message;
+    if (v.owner === key && owner() === key && !error.staleSession) v.error = error.message;
   } finally {
-    if (v.owner === key2 && owner() === key2) {
+    if (v.owner === key && owner() === key) {
       v.pending = false;
       paintUnscheduledTodos();
     }
@@ -5462,18 +5461,18 @@ async function submitUnscheduledTodo({ data: data2 }) {
 }
 async function change(id2, method2, body2) {
   if (!visible()) return;
-  const v = current(), key2 = v.owner, row = v.items.find((x) => x.id === id2);
+  const v = current(), key = v.owner, row = v.items.find((x) => x.id === id2);
   if (!row || v.pending) return;
   v.pending = true;
   v.error = "";
   paintUnscheduledTodos();
   try {
     const updated = await api("/unscheduled-todos/" + encodeURIComponent(id2), { method: method2, body: { ...body2, version: row.version } });
-    if (v.owner === key2 && owner() === key2) v.items = v.items.map((x) => x.id === id2 ? updated : x);
+    if (v.owner === key && owner() === key) v.items = v.items.map((x) => x.id === id2 ? updated : x);
   } catch (error) {
-    if (v.owner === key2 && owner() === key2 && !error.staleSession) v.error = error.message;
+    if (v.owner === key && owner() === key && !error.staleSession) v.error = error.message;
   } finally {
-    if (v.owner === key2 && owner() === key2) {
+    if (v.owner === key && owner() === key) {
       v.pending = false;
       paintUnscheduledTodos();
     }
@@ -5563,21 +5562,21 @@ function freshness(c, now = Date.now()) {
     true
   )} · ${days === 0 ? "今天更新" : `已 ${days} 天未更新`}` };
 }
-function dashboardMetric(article, key2) {
-  return article.latest_metrics == null ? '<span class="missing-value" title="未采集">—<span class="sr-only">未采集</span></span>' : article.latest_metrics[key2] == null ? '<span class="missing-value">未取得</span>' : `<strong class="number">${e(num(article.latest_metrics[key2]))}</strong>`;
+function dashboardMetric(article, key) {
+  return article.latest_metrics == null ? '<span class="missing-value" title="未采集">—<span class="sr-only">未采集</span></span>' : article.latest_metrics[key] == null ? '<span class="missing-value">未取得</span>' : `<strong class="number">${e(num(article.latest_metrics[key]))}</strong>`;
 }
-function metricCoverageHTML(article, key2) {
-  const expected = Number(article.coverage?.expected_days || 0), recorded = Number(article.coverage?.metric_days?.[key2] || 0);
-  return article.period_metrics?.[key2] != null && expected > 0 && recorded < expected ? `<span class="metric-coverage">部分数据 ${recorded}/${expected} 天</span>` : "";
+function metricCoverageHTML(article, key) {
+  const expected = Number(article.coverage?.expected_days || 0), recorded = Number(article.coverage?.metric_days?.[key] || 0);
+  return article.period_metrics?.[key] != null && expected > 0 && recorded < expected ? `<span class="metric-coverage">部分数据 ${recorded}/${expected} 天</span>` : "";
 }
 function metricSummary(a) {
-  return `<dl class="detail-stats">${["reads", "likes", "comments", ...a.latest_metrics?.approvals != null ? ["approvals"] : []].map((key2) => `<div class="stat"><dt>${e(metrics[key2])}${key2 === "likes" ? dashboardInfo("metrics", "指标口径", "detail") : ""}</dt><dd>${dashboardMetric(
+  return `<dl class="detail-stats">${["reads", "likes", "comments", ...a.latest_metrics?.approvals != null ? ["approvals"] : []].map((key) => `<div class="stat"><dt>${e(metrics[key])}${key === "likes" ? dashboardInfo("metrics", "指标口径", "detail") : ""}</dt><dd>${dashboardMetric(
     a,
-    key2
+    key
   )}</dd></div>`).join("")}</dl>`;
 }
 function articleSelect(name, label3, choices, value) {
-  return `<label class="form-field">${e(label3)}<select name="${e(name)}" class="input" aria-label="${e(label3)}"><option value="">全部</option>${Object.entries(choices).map(([key2, text]) => `<option value="${e(key2)}" ${value === key2 ? "selected" : ""}>${e(text)}</option>`).join("")}</select></label>`;
+  return `<label class="form-field">${e(label3)}<select name="${e(name)}" class="input" aria-label="${e(label3)}"><option value="">全部</option>${Object.entries(choices).map(([key, text]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(text)}</option>`).join("")}</select></label>`;
 }
 function field(name, label3, type = "text", value = "", options4 = "", full = false) {
   return `<div class="form-field${full ? " full" : ""}"><label for="field-${e(name)}">${label3}</label><input id="field-${e(name)}" class="input" name="${e(name)}" type="${type}" value="${e(value)}" ${options4}></div>`;
@@ -5587,8 +5586,8 @@ function formEnd(label3 = "保存") {
 }
 function renderSnapshot(row) {
   const m = metricData(row);
-  return `<article class="snapshot"><div class="snapshot-head"><span class="badge ${row.kind === "latest" ? "up" : "neutral"}">${e(kindLabels[row.kind] || row.kind || "每日数据")}</span><span class="snapshot-time">${e(row.date || displayTime(row.as_of))}</span></div><div class="snapshot-metrics">${Object.entries(metrics).filter(([key2]) => m[key2] != null).map(([key2, label3]) => `<span>${e(label3)} <strong>${e(
-    num(m[key2])
+  return `<article class="snapshot"><div class="snapshot-head"><span class="badge ${row.kind === "latest" ? "up" : "neutral"}">${e(kindLabels[row.kind] || row.kind || "每日数据")}</span><span class="snapshot-time">${e(row.date || displayTime(row.as_of))}</span></div><div class="snapshot-metrics">${Object.entries(metrics).filter(([key]) => m[key] != null).map(([key, label3]) => `<span>${e(label3)} <strong>${e(
+    num(m[key])
   )}</strong></span>`).join("") || "未记录指标"}</div><p class="cell-sub">来源 ${e(row.source || "未记录")}${row.collected_at ? " · 采集 " + e(displayTime(row.collected_at)) : ""}</p>${row.note ? `<p class="cell-sub">${e(row.note)}</p>` : ""}</article>`;
 }
 
@@ -5618,8 +5617,8 @@ function safeLedgerURL(value) {
 }
 function safeDraftReference(row) {
   const value = row.draft_ref && typeof row.draft_ref === "object" ? row.draft_ref : {}, refs = [];
-  for (const [key2, label3] of [["pgc_id", "PGC"], ["appmsgid", "APPMSG"]]) {
-    if (typeof value[key2] === "string" && value[key2].trim()) refs.push({ label: `${label3} ${value[key2]}` });
+  for (const [key, label3] of [["pgc_id", "PGC"], ["appmsgid", "APPMSG"]]) {
+    if (typeof value[key] === "string" && value[key].trim()) refs.push({ label: `${label3} ${value[key]}` });
   }
   if (safeLedgerURL(value.editor_url)) refs.push({ label: "草稿编辑链接", href: value.editor_url });
   return refs;
@@ -5633,26 +5632,26 @@ function ledgerTopic(row) {
   if (row.slot === "gzh") return "保险";
   return ["zh1", "zh2", "zh3", "tt1", "tt2", "tt3"].includes(row.slot) ? "文娱" : "未标注";
 }
-function ledgerCell(row, key2) {
-  if (["reads", "likes", "comments", "approvals", "as_of"].includes(key2)) {
+function ledgerCell(row, key) {
+  if (["reads", "likes", "comments", "approvals", "as_of"].includes(key)) {
     if (!isPublished(row) && !hasRecordedUnknownMetrics(row)) return '<span class="article-ledger-muted">未发布</span>';
-    return key2 === "as_of" && row.latest_as_of ? e(time(row.latest_as_of, true)) : dashboardMetric(row, key2);
+    return key === "as_of" && row.latest_as_of ? e(time(row.latest_as_of, true)) : dashboardMetric(row, key);
   }
-  if (key2 === "status") return e(statusLabels[row.status] || (isPublished(row) ? "已发布" : "未确认"));
-  if (key2 === "slot") return e(slotLabels[row.slot] || "未标注");
-  if (key2 === "writer") return e(writerLabels[row.writer] || "未记录");
-  if (["char_count", "subheading_count", "image_count"].includes(key2)) return row[key2] == null ? "未取得" : e(num(row[key2]));
-  if (key2 === "draft_ref") return safeDraftReference(row).map((ref) => ref.href ? `<a href="${e(ref.href)}" target="_blank" rel="noopener noreferrer">${e(ref.label)} ↗</a>` : `<span>${e(ref.label)}</span>`).join("<br>") || "未取得";
-  if (key2 === "total_duration") {
+  if (key === "status") return e(statusLabels[row.status] || (isPublished(row) ? "已发布" : "未确认"));
+  if (key === "slot") return e(slotLabels[row.slot] || "未标注");
+  if (key === "writer") return e(writerLabels[row.writer] || "未记录");
+  if (["char_count", "subheading_count", "image_count"].includes(key)) return row[key] == null ? "未取得" : e(num(row[key]));
+  if (key === "draft_ref") return safeDraftReference(row).map((ref) => ref.href ? `<a href="${e(ref.href)}" target="_blank" rel="noopener noreferrer">${e(ref.label)} ↗</a>` : `<span>${e(ref.label)}</span>`).join("<br>") || "未取得";
+  if (key === "total_duration") {
     const seconds = pipelineDuration(row);
     return seconds === null ? "未取得" : e(duration(seconds));
   }
-  if (key2 === "warnings") return Array.isArray(row.warnings) ? row.warnings.map((code) => e(warningLabels[code] || code)).join("；") || "无警告" : "未取得";
-  if (key2 === "verify") return row.has_pending_verify === true ? "有待处理" : row.verify_state === "complete" ? "已核对" : "未确认";
-  if (key2 === "topic") return e(ledgerTopic(row));
-  if (key2 === "mode") return e(modeLabels[row.production_mode] || "未记录");
-  if (key2 === "duration") return row.duration_seconds == null ? "未取得" : e(duration(row.duration_seconds));
-  if (key2 === "account") return e(row.account_name || "未记录");
+  if (key === "warnings") return Array.isArray(row.warnings) ? row.warnings.map((code) => e(warningLabels[code] || code)).join("；") || "无警告" : "未取得";
+  if (key === "verify") return row.has_pending_verify === true ? "有待处理" : row.verify_state === "complete" ? "已核对" : "未确认";
+  if (key === "topic") return e(ledgerTopic(row));
+  if (key === "mode") return e(modeLabels[row.production_mode] || "未记录");
+  if (key === "duration") return row.duration_seconds == null ? "未取得" : e(duration(row.duration_seconds));
+  if (key === "account") return e(row.account_name || "未记录");
   return !isPublished(row) ? "未发布" : row.published_at ? e(time(row.published_at, true)) : "未取得";
 }
 
@@ -5667,7 +5666,7 @@ function options(values, choices) {
   return '<option value="">全部</option>' + values.map((value) => `<option value="${e(value)}">${e(choices ? label(choices, value) : value)}</option>`).join("");
 }
 function statusCounts(counts) {
-  return Object.entries(counts).map(([key2, value]) => `${label(statusLabels, key2)} ${value}`).join(" · ");
+  return Object.entries(counts).map(([key, value]) => `${label(statusLabels, key)} ${value}`).join(" · ");
 }
 function insurance(data2) {
   const value = data2.insurance;
@@ -5682,12 +5681,12 @@ function articleRows(rows) {
   return rows.map((row) => `<tr><td><button class="btn text" data-action="article-detail" data-id="${e(row.id)}">${e(row.title)}</button></td>
 <td>${e(row.run_date ?? "未标注")}</td><td>${e(label(slotLabels, row.slot))}</td><td>${e(label(statusLabels, row.status))}</td>
 <td>${e(label(writerLabels, row.writer))}</td><td>${e(row.series_no ?? "未知")}</td>
-<td>${e(row.missing_fields.map((key2) => fieldLabels[key2] || key2).join("、") || "无")}</td>
+<td>${e(row.missing_fields.map((key) => fieldLabels[key] || key).join("、") || "无")}</td>
 <td>${e(row.has_pending_verify === true ? "待核" : row.verify_state === "complete" ? "已核" : "未知")}</td>
-<td>${e(row.warnings.length ? row.warnings.map((key2) => warningLabels[key2] || key2).join("；") : "无")}</td><td>${row.sample == null ? "未知" : `<details><summary>原始样本记录</summary><pre>${e(JSON.stringify(row.sample, null, 2))}</pre></details>`}</td></tr>`).join("");
+<td>${e(row.warnings.length ? row.warnings.map((key) => warningLabels[key] || key).join("；") : "无")}</td><td>${row.sample == null ? "未知" : `<details><summary>原始样本记录</summary><pre>${e(JSON.stringify(row.sample, null, 2))}</pre></details>`}</td></tr>`).join("");
 }
 function table(data2, filters = {}) {
-  const rows = data2.rows.filter((row) => ["run_date", "slot", "writer", "status"].every((key2) => !filters[key2] || (row[key2] ?? "unknown") === filters[key2]));
+  const rows = data2.rows.filter((row) => ["run_date", "slot", "writer", "status"].every((key) => !filters[key] || (row[key] ?? "unknown") === filters[key]));
   return `<p role="status">筛选结果 ${e(rows.length)} 条</p>${rows.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>文章</th><th>存稿日期</th><th>槽位</th><th>状态</th>
 <th>写作者</th><th>编号</th><th>缺字段</th><th>待核</th><th>警告</th><th>样本</th></tr></thead><tbody>${articleRows(rows)}</tbody></table></div>` : '<p class="muted">没有符合条件的实际文章记录。</p>'}`;
 }
@@ -5700,7 +5699,7 @@ function changeReconciliationFilters(element) {
 function renderReconciliation(data2) {
   if (data2?.complete !== true || !Array.isArray(data2.rows)) throw new Error("发布情况未完整取得，请重试。");
   reconciliationData = data2;
-  const values = (key2) => [...new Set(data2.rows.map((row) => row[key2] ?? "unknown"))].sort();
+  const values = (key) => [...new Set(data2.rows.map((row) => row[key] ?? "unknown"))].sort();
   const dates = Object.fromEntries(values("run_date").map((value) => [value, value === "unknown" ? "日期未标注" : value]));
   return `<div class="article-ledger-overview article-reconciliation"><section class="card"><h2>发布情况</h2>
 <p>应产出：未配置 · 缺产：未配置 · 逾期：未配置</p><p>${e(statusCounts(data2.counts))}</p>
@@ -5720,7 +5719,7 @@ var OPENAI_TABS = Object.freeze(["reminders", "reports"]);
 var openAiSessionAvailable = (me) => Boolean(me?.id);
 var openAiRunActive = (run2) => ["running"].includes(run2?.status);
 var openAiRunFinished = (run2) => ["succeeded", "failed"].includes(run2?.status) || Boolean(run2?.released_at);
-var openAiPendingRunUncertain = (vm4) => Boolean(vm4?.pendingId && vm4.run?.id === vm4.pendingId && vm4.run.status === "uncertain");
+var openAiPendingRunUncertain = (vm3) => Boolean(vm3?.pendingId && vm3.run?.id === vm3.pendingId && vm3.run.status === "uncertain");
 function openAiPendingRunSettled(previous, next) {
   const run2 = next.run;
   return Boolean(previous.pendingId && run2?.id === previous.pendingId && ["succeeded", "failed", "cancelled", "uncertain"].includes(run2.status) && (previous.run?.id !== run2.id || previous.run?.status !== run2.status));
@@ -5744,12 +5743,12 @@ function openAiDiaryLink(run2) {
 function openAiRunsForDate(items, date) {
   return items.filter((run2) => openAiRunDay(run2) === date).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || String(b.id).localeCompare(String(a.id)));
 }
-async function readOpenAiRuns(read3, date = "", current3 = () => true) {
+async function readOpenAiRuns(read2, date = "", current3 = () => true) {
   const items = [], seen = /* @__PURE__ */ new Set();
   for (let offset = 0; ; ) {
     const query = new URLSearchParams({ offset: String(offset) });
     if (date) query.set("date", date);
-    const page = await read3("/openai-review/runs?" + query);
+    const page = await read2("/openai-review/runs?" + query);
     if (!current3()) return null;
     if (!Array.isArray(page?.items) || typeof page.has_more !== "boolean" || page.has_more && !page.items.length)
       throw new Error("分析记录读取不完整，请重新读取。");
@@ -5762,15 +5761,15 @@ async function readOpenAiRuns(read3, date = "", current3 = () => true) {
     offset += page.items.length;
   }
 }
-function openAiDraft(saved, retained2 = null) {
-  const text = typeof retained2?.text === "string" ? retained2.text : saved.instructions;
+function openAiDraft(saved, retained = null) {
+  const text = typeof retained?.text === "string" ? retained.text : saved.instructions;
   const dirty = text !== saved.instructions;
   return {
     saved,
     text,
     dirty,
-    baseVersion: retained2?.version ?? saved.version,
-    conflict: dirty && retained2?.version !== saved.version,
+    baseVersion: retained?.version ?? saved.version,
+    conflict: dirty && retained?.version !== saved.version,
     saving: false,
     error: "",
     message: ""
@@ -5791,6 +5790,248 @@ async function saveOpenAiDraft(draft, request) {
   } catch (error) {
     return { ...result, conflict: error.status === 409, error: error.status === 409 ? "指令已在别处更新。你的修改已保留，请读取最新版本并比较后再保存。" : error.message || "保存失败，修改已保留。" };
   }
+}
+
+// web/core/openai-review-progress.mjs
+function openAiStartTime(storage2, key, id2) {
+  try {
+    const saved = JSON.parse(storage2.getItem(key + ":started"));
+    return id2 && saved?.id === id2 && Number.isFinite(saved.at) && saved.at > 0 ? saved.at : 0;
+  } catch {
+    return 0;
+  }
+}
+function openAiElapsed(startedAt, now = Date.now()) {
+  const seconds = Math.max(0, Math.floor((now - startedAt) / 1e3));
+  return seconds < 60 ? `${seconds}秒` : `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+}
+function openAiCompletedElapsed(run2) {
+  if (!["succeeded", "failed", "cancelled"].includes(run2?.status)) return "";
+  const duration3 = Number.isFinite(run2.elapsed_ms) ? run2.elapsed_ms : Date.parse(run2.completed_at) - Date.parse(run2.created_at);
+  return Number.isFinite(duration3) && duration3 >= 0 ? openAiElapsed(0, duration3) : "";
+}
+function openAiProgressLabel(event) {
+  const round = Number.isInteger(event?.round) && event.round >= 1 && event.round <= 4 ? event.round : null;
+  const prefix = round ? `第 ${round} 轮 · ` : "";
+  switch (event?.stage) {
+    case "source_ready": {
+      const articles = Number.isSafeInteger(event.article_count) && event.article_count >= 0 ? event.article_count : null;
+      const records = Number.isSafeInteger(event.record_count) && event.record_count >= 0 ? event.record_count : null;
+      return "诊断资料已整理" + (articles !== null && records !== null ? `：${articles} 篇文章，${records} 条记录` : "");
+    }
+    case "provider_started":
+      return prefix + "已登记模型调用，等待响应";
+    case "provider_responded":
+      return prefix + "已收到 API 响应";
+    case "evidence_lookup":
+      return prefix + "正在核对历史证据";
+    case "synthesizing":
+      return prefix + "正在生成诊断报告";
+    case "saving_report":
+      return "报告已生成，正在保存";
+    case "completed":
+      return "报告已保存，诊断完成";
+    default:
+      return "";
+  }
+}
+function openAiProgressEvents(run2) {
+  return Array.isArray(run2?.progress) ? run2.progress.filter((event) => openAiProgressLabel(event) && Number.isFinite(event.elapsed_ms) && event.elapsed_ms >= 0).slice(0, 18) : [];
+}
+function openAiReviewFeedback(vm3) {
+  const run2 = !vm3.pendingId || vm3.run?.id === vm3.pendingId ? vm3.run : null;
+  const error = run2?.error_message || "";
+  if (run2?.status === "uncertain") return {
+    title: "结果待确认",
+    detail: error || "API 执行结果尚未确认。",
+    note: "无法确定是否已经计费。不会自动重试；请只读核查状态。"
+  };
+  if (vm3.pendingId && vm3.error) return {
+    title: "当前请求结果待确认",
+    detail: vm3.error,
+    note: "不会自动重复分析。可以只读核查状态。"
+  };
+  if (run2?.status === "running" || vm3.operation === "start" && vm3.pendingId) return {
+    title: openAiProgressLabel(openAiProgressEvents(run2).at(-1)) || (run2?.stage === "awaiting_provider" || run2?.provider_calls > 0 ? "已登记调用，等待结果" : run2?.stage === "preparing" ? "正在准备诊断资料…" : "请求已发出，等待服务器确认…"),
+    waiting: true,
+    detail: "以下步骤随实际执行更新。无需再次点击；离开后可回来查看进度。"
+  };
+  if (vm3.pendingId) return {
+    title: vm3.operation === "check" ? "正在只读核查状态…" : "当前请求结果待确认",
+    detail: "请求编号已保留，不会自动重复分析。请核查状态。"
+  };
+  if (run2?.status === "failed") return { title: "本次分析未完成", detail: error || "未生成完整报告。历史记录仍保留。" };
+  if (vm3.error) return { title: "操作未完成", detail: vm3.error };
+  if (run2?.status === "succeeded") return { title: "分析完成", detail: "报告已保存，可在诊断报告查看。" };
+  return null;
+}
+function createOpenAiElapsedClock(target, { now = Date.now, every = globalThis.setInterval, cancel = globalThis.clearInterval } = {}) {
+  let timer2 = null;
+  const stop = () => {
+    if (timer2 !== null) cancel(timer2);
+    timer2 = null;
+  };
+  const tick = () => {
+    const value = target();
+    if (!value?.node || !Number.isFinite(value.startedAt) || value.startedAt <= 0) {
+      stop();
+      return false;
+    }
+    value.node.textContent = openAiElapsed(value.startedAt, now());
+    return true;
+  };
+  return { stop, refresh() {
+    stop();
+    if (tick()) timer2 = every(tick, 1e3);
+  } };
+}
+
+// web/core/openai-review-runner.mjs
+function createOpenAiRunner({ request, storage: storage2, key, onChange = () => {
+}, uuid: uuid5 = () => crypto.randomUUID(), now = Date.now }) {
+  let active5 = true;
+  const state2 = { run: null, pendingId: "", notFound: false, busy: false, operation: "", startedAt: 0, error: "" };
+  try {
+    state2.pendingId = storage2.getItem(key) || "";
+  } catch {
+  }
+  state2.startedAt = openAiStartTime(storage2, key, state2.pendingId);
+  const change3 = () => {
+    if (active5) onChange({ ...state2 });
+  };
+  const retain = (id2) => {
+    storage2.setItem(key, id2);
+    if (storage2.getItem(key) !== id2) throw new Error("无法保存分析请求编号，请允许本机存储后再开始。");
+    state2.pendingId = id2;
+    state2.startedAt = openAiStartTime(storage2, key, id2);
+  };
+  const accept = (run2) => {
+    if (!active5) return;
+    if (state2.run?.id === run2?.id && openAiRunFinished(state2.run) && !openAiRunFinished(run2)) return;
+    if (!run2?.id || typeof run2.status !== "string") throw new Error("分析状态暂时无法确认，请核查状态。");
+    state2.run = run2;
+    state2.notFound = false;
+    if (openAiRunFinished(run2)) {
+      if (storage2.getItem(key) === state2.pendingId) storage2.removeItem(key);
+      state2.pendingId = "";
+    } else retain(run2.id);
+    state2.startedAt = Date.parse(run2.created_at) || state2.startedAt;
+  };
+  async function recover() {
+    if (!active5 || state2.busy || !state2.pendingId) return;
+    state2.busy = true;
+    state2.operation = "check";
+    state2.error = "";
+    change3();
+    try {
+      accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId)));
+    } catch (error) {
+      state2.notFound = error.status === 404;
+      state2.error = error.status === 404 ? "尚未查到这次请求，请稍后核查。不会自动重复提交。" : error.message || "暂时无法确认结果，请核查状态。";
+    } finally {
+      state2.busy = false;
+      state2.operation = "";
+      change3();
+    }
+  }
+  const observe = createObserver({ state: state2, request, active: () => active5, accept, change: change3 });
+  async function start(mode = "incremental", model = "") {
+    if (!active5 || state2.busy || state2.pendingId || !["incremental", "full"].includes(mode)) return;
+    state2.busy = true;
+    state2.operation = "start";
+    state2.error = "";
+    change3();
+    try {
+      const existing = storage2.getItem(key);
+      if (existing) {
+        retain(existing);
+        return;
+      }
+      const id2 = uuid5(), timing = JSON.stringify({ id: id2, at: now() });
+      storage2.setItem(key + ":started", timing);
+      if (storage2.getItem(key + ":started") !== timing) throw new Error("无法保存分析开始时间，未开始分析。");
+      retain(id2);
+      change3();
+      const run2 = await request("/openai-review/runs", { method: "POST", body: { run_id: state2.pendingId, mode, ...model ? { model } : {} } });
+      accept(run2);
+    } catch (error) {
+      if (!active5 || openAiRunFinished(state2.run) && !state2.pendingId) return;
+      state2.error = state2.pendingId ? "请求结果尚未确认，请核查状态。不会自动重复提交。" : error.message || "无法保存请求编号，未开始分析。";
+      if (error.code === "OPENAI_REVIEW_IN_FLIGHT" && error.run_id) {
+        retain(error.run_id);
+        state2.error = "已有分析请求，请核查状态。";
+      }
+      if ([
+        "OPENAI_NOT_CONFIGURED",
+        "OPENAI_REVIEW_NOT_CONFIGURED",
+        "FORBIDDEN",
+        "UNAUTHORIZED",
+        "OPENAI_REVIEW_RATE_LIMIT",
+        "OPENAI_REVIEW_INPUT_LIMIT",
+        "OPENAI_REVIEW_NO_DATA",
+        "OPENAI_REVIEW_INVALID_KEY_FORMAT",
+        "OPENAI_REVIEW_SOURCE_INVALID",
+        "VALIDATION_ERROR"
+      ].includes(error.code)) {
+        try {
+          storage2.removeItem(key);
+        } catch {
+        }
+        state2.pendingId = "";
+        state2.error = error.message;
+      }
+    } finally {
+      state2.busy = false;
+      state2.operation = "";
+      change3();
+    }
+  }
+  async function release() {
+    if (!active5 || state2.busy || !state2.pendingId || !(state2.notFound || state2.run?.status === "uncertain")) return;
+    state2.busy = true;
+    state2.operation = "release";
+    state2.error = "";
+    change3();
+    try {
+      accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId) + "/release", {
+        method: "POST",
+        body: { acknowledgement: "provider_outcome_unknown_no_automatic_retry" }
+      }));
+    } catch (error) {
+      state2.error = error.message || "解除结果尚未确认，请核查状态。";
+      if (["OPENAI_REVIEW_RECOVERY_RATE_LIMIT", "OPENAI_REVIEW_PUBLIC_RATE_LIMIT"].includes(error.code))
+        state2.error += " 请稍后只读核查状态，不会自动重复提交。";
+    } finally {
+      state2.busy = false;
+      state2.operation = "";
+      change3();
+    }
+  }
+  return { state: state2, start, recover, observe, release, adopt(run2) {
+    accept(run2);
+    change3();
+  }, dispose() {
+    active5 = false;
+  } };
+}
+function createObserver({ state: state2, request, active: active5, accept, change: change3 }) {
+  let observing = false;
+  return async function observe() {
+    if (!active5() || observing || state2.operation !== "start" || !state2.pendingId || openAiPendingRunUncertain(state2)) return;
+    const id2 = state2.pendingId;
+    observing = true;
+    try {
+      const run2 = await request("/openai-review/runs/" + encodeURIComponent(id2));
+      if (active5() && state2.pendingId === id2 && run2?.id === id2) {
+        accept(run2);
+        change3();
+      }
+    } catch {
+    } finally {
+      observing = false;
+      if (active5()) change3();
+    }
+  };
 }
 
 // web/core/safe-markdown.mjs
@@ -5883,100 +6124,6 @@ function renderSafeMarkdown(value) {
   return out;
 }
 
-// web/core/openai-review-progress.mjs
-function openAiStartTime(storage2, key2, id2) {
-  try {
-    const saved = JSON.parse(storage2.getItem(key2 + ":started"));
-    return id2 && saved?.id === id2 && Number.isFinite(saved.at) && saved.at > 0 ? saved.at : 0;
-  } catch {
-    return 0;
-  }
-}
-function openAiElapsed(startedAt, now = Date.now()) {
-  const seconds = Math.max(0, Math.floor((now - startedAt) / 1e3));
-  return seconds < 60 ? `${seconds}秒` : `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
-}
-function openAiCompletedElapsed(run2) {
-  if (!["succeeded", "failed", "cancelled"].includes(run2?.status)) return "";
-  const duration3 = Number.isFinite(run2.elapsed_ms) ? run2.elapsed_ms : Date.parse(run2.completed_at) - Date.parse(run2.created_at);
-  return Number.isFinite(duration3) && duration3 >= 0 ? openAiElapsed(0, duration3) : "";
-}
-function openAiProgressLabel(event) {
-  const round = Number.isInteger(event?.round) && event.round >= 1 && event.round <= 4 ? event.round : null;
-  const prefix = round ? `第 ${round} 轮 · ` : "";
-  switch (event?.stage) {
-    case "source_ready": {
-      const articles = Number.isSafeInteger(event.article_count) && event.article_count >= 0 ? event.article_count : null;
-      const records = Number.isSafeInteger(event.record_count) && event.record_count >= 0 ? event.record_count : null;
-      return "诊断资料已整理" + (articles !== null && records !== null ? `：${articles} 篇文章，${records} 条记录` : "");
-    }
-    case "provider_started":
-      return prefix + "已登记模型调用，等待响应";
-    case "provider_responded":
-      return prefix + "已收到 API 响应";
-    case "evidence_lookup":
-      return prefix + "正在核对历史证据";
-    case "synthesizing":
-      return prefix + "正在生成诊断报告";
-    case "saving_report":
-      return "报告已生成，正在保存";
-    case "completed":
-      return "报告已保存，诊断完成";
-    default:
-      return "";
-  }
-}
-function openAiProgressEvents(run2) {
-  return Array.isArray(run2?.progress) ? run2.progress.filter((event) => openAiProgressLabel(event) && Number.isFinite(event.elapsed_ms) && event.elapsed_ms >= 0).slice(0, 18) : [];
-}
-function openAiReviewFeedback(vm4) {
-  const run2 = !vm4.pendingId || vm4.run?.id === vm4.pendingId ? vm4.run : null;
-  const error = run2?.error_message || "";
-  if (run2?.status === "uncertain") return {
-    title: "结果待确认",
-    detail: error || "API 执行结果尚未确认。",
-    note: "无法确定是否已经计费。不会自动重试；请只读核查状态。"
-  };
-  if (vm4.pendingId && vm4.error) return {
-    title: "当前请求结果待确认",
-    detail: vm4.error,
-    note: "不会自动重复分析。可以只读核查状态。"
-  };
-  if (run2?.status === "running" || vm4.operation === "start" && vm4.pendingId) return {
-    title: openAiProgressLabel(openAiProgressEvents(run2).at(-1)) || (run2?.stage === "awaiting_provider" || run2?.provider_calls > 0 ? "已登记调用，等待结果" : run2?.stage === "preparing" ? "正在准备诊断资料…" : "请求已发出，等待服务器确认…"),
-    waiting: true,
-    detail: "以下步骤随实际执行更新。无需再次点击；离开后可回来查看进度。"
-  };
-  if (vm4.pendingId) return {
-    title: vm4.operation === "check" ? "正在只读核查状态…" : "当前请求结果待确认",
-    detail: "请求编号已保留，不会自动重复分析。请核查状态。"
-  };
-  if (run2?.status === "failed") return { title: "本次分析未完成", detail: error || "未生成完整报告。历史记录仍保留。" };
-  if (vm4.error) return { title: "操作未完成", detail: vm4.error };
-  if (run2?.status === "succeeded") return { title: "分析完成", detail: "报告已保存，可在诊断报告查看。" };
-  return null;
-}
-function createOpenAiElapsedClock(target, { now = Date.now, every = globalThis.setInterval, cancel = globalThis.clearInterval } = {}) {
-  let timer2 = null;
-  const stop = () => {
-    if (timer2 !== null) cancel(timer2);
-    timer2 = null;
-  };
-  const tick = () => {
-    const value = target();
-    if (!value?.node || !Number.isFinite(value.startedAt) || value.startedAt <= 0) {
-      stop();
-      return false;
-    }
-    value.node.textContent = openAiElapsed(value.startedAt, now());
-    return true;
-  };
-  return { stop, refresh() {
-    stop();
-    if (tick()) timer2 = every(tick, 1e3);
-  } };
-}
-
 // web/pages/openai-review.mjs
 init_dom();
 var openAiLogin = '<p class="hint">请先<a href="?page=login">登录</a>，再查看或使用 OpenAI API。</p>';
@@ -6019,44 +6166,44 @@ function renderOpenAiRun(run2) {
       <p><a href="?page=ai-diagnosis&amp;diagnosis_tab=help">前往求助API核查状态</a></p>` : ""}
     ${openAiRunActive(run2) ? '<p role="status">分析进行中。可在求助API核查状态，无需再次发起。</p>' : ""}</article>`;
 }
-function renderOpenAiReviewPanel(vm4 = {}) {
+function renderOpenAiReviewPanel(vm3 = {}) {
   const header = '<div class="openai-review-heading"><h2>求助API</h2></div>';
-  if (!vm4.owner) return header + openAiLogin;
-  const connectionBusy = vm4.connection?.busy || Boolean(vm4.connection?.pendingId);
-  const busy = vm4.loading || vm4.busy, disabled = busy || connectionBusy || !vm4.config?.configured || Boolean(vm4.pendingId);
-  const status = vm4.loading ? "正在读取分析配置…" : !vm4.config ? "暂时无法读取配置。" : vm4.config.configuration_error_message || (vm4.config.configured ? vm4.pendingId || vm4.busy ? "本次请求处理中或等待核查" : "可发起分析" : "尚未配置 OpenAI API，暂不能发起分析。");
-  const selectedModel = vm4.pendingId && vm4.run?.id === vm4.pendingId && vm4.run.model || vm4.selectedModel || vm4.config?.default_model || vm4.config?.model;
+  if (!vm3.owner) return header + openAiLogin;
+  const connectionBusy = vm3.connection?.busy || Boolean(vm3.connection?.pendingId);
+  const busy = vm3.loading || vm3.busy, disabled = busy || connectionBusy || !vm3.config?.configured || Boolean(vm3.pendingId);
+  const status = vm3.loading ? "正在读取分析配置…" : !vm3.config ? "暂时无法读取配置。" : vm3.config.configuration_error_message || (vm3.config.configured ? vm3.pendingId || vm3.busy ? "本次请求处理中或等待核查" : "可发起分析" : "尚未配置 OpenAI API，暂不能发起分析。");
+  const selectedModel = vm3.pendingId && vm3.run?.id === vm3.pendingId && vm3.run.model || vm3.selectedModel || vm3.config?.default_model || vm3.config?.model;
   return header + `<p class="hint">${e(status)}</p>
     <label for="openai-model">模型</label>
     <select class="input" id="openai-model" ${disabled ? "disabled" : ""}>
-      ${(vm4.config?.supported_models || []).map((model) => `<option value="${e(model.id)}"
+      ${(vm3.config?.supported_models || []).map((model) => `<option value="${e(model.id)}"
         ${model.id === selectedModel ? "selected" : ""}>${e(model.label)}</option>`).join("")}
     </select><p class="hint">模型能否调用以账户权限为准。</p>
     <div class="openai-review-actions"><button class="btn primary" type="button" data-openai-action="start"
-    ${disabled ? "disabled" : ""} aria-busy="${Boolean(vm4.busy)}">求助API</button>
+    ${disabled ? "disabled" : ""} aria-busy="${Boolean(vm3.busy)}">求助API</button>
     <button class="btn" type="button" data-openai-action="test-connection" ${disabled ? "disabled" : ""}>测试连接</button>
-    ${vm4.connection?.pendingId ? '<button class="btn" type="button" data-openai-action="check-connection">核查连接测试</button>' : ""}
-    ${vm4.pendingId ? `<button class="btn" type="button" data-openai-action="check" ${busy ? "disabled" : ""}>核查状态</button>` : ""}
-    ${vm4.pendingId && (vm4.notFound || vm4.run?.status === "uncertain") ? `<button class="btn" type="button" data-openai-action="release" ${busy ? "disabled" : ""}>结束本次状态核查</button>` : ""}
-    ${!vm4.config && !vm4.loading ? '<button class="btn" type="button" data-openai-action="reload">重新读取</button>' : ""}</div>
+    ${vm3.connection?.pendingId ? '<button class="btn" type="button" data-openai-action="check-connection">核查连接测试</button>' : ""}
+    ${vm3.pendingId ? `<button class="btn" type="button" data-openai-action="check" ${busy ? "disabled" : ""}>核查状态</button>` : ""}
+    ${vm3.pendingId && (vm3.notFound || vm3.run?.status === "uncertain") ? `<button class="btn" type="button" data-openai-action="release" ${busy ? "disabled" : ""}>结束本次状态核查</button>` : ""}
+    ${!vm3.config && !vm3.loading ? '<button class="btn" type="button" data-openai-action="reload">重新读取</button>' : ""}</div>
     <p class="hint">首次使用先点“测试连接”：只发送一条简短测试消息，成功后再运行完整诊断。</p>
-    ${renderOpenAiConnectivity(vm4.connection)}
-    ${renderOpenAiReviewStatus(vm4)}
-    ${vm4.run ? `<p>最近记录：${e(openAiRunLabel(vm4.run))} · ${e(timestamp3(vm4.run.created_at))}
-      <a href="${e(openAiDiaryLink(vm4.run))}">在诊断报告查看这条记录</a></p>` : ""}`;
+    ${renderOpenAiConnectivity(vm3.connection)}
+    ${renderOpenAiReviewStatus(vm3)}
+    ${vm3.run ? `<p>最近记录：${e(openAiRunLabel(vm3.run))} · ${e(timestamp3(vm3.run.created_at))}
+      <a href="${e(openAiDiaryLink(vm3.run))}">在诊断报告查看这条记录</a></p>` : ""}`;
 }
-function renderOpenAiReviewStatus(vm4) {
-  const feedback = openAiReviewFeedback(vm4);
+function renderOpenAiReviewStatus(vm3) {
+  const feedback = openAiReviewFeedback(vm3);
   if (!feedback) return "";
-  const elapsed = !vm4.pendingId || vm4.run?.id === vm4.pendingId ? openAiCompletedElapsed(vm4.run) : "";
-  const startedAt = vm4.startedAt || (vm4.run?.id === vm4.pendingId ? Date.parse(vm4.run.created_at) : 0);
+  const elapsed = !vm3.pendingId || vm3.run?.id === vm3.pendingId ? openAiCompletedElapsed(vm3.run) : "";
+  const startedAt = vm3.startedAt || (vm3.run?.id === vm3.pendingId ? Date.parse(vm3.run.created_at) : 0);
   return `<div class="openai-review-status"><p role="status" aria-live="polite"><strong>${e(feedback.title)}</strong></p>
     ${feedback.waiting ? '<progress aria-label="诊断正在进行，步骤随实际执行更新"></progress>' : ""}
     ${feedback.waiting && Number.isFinite(startedAt) && startedAt > 0 ? `<p aria-live="off">已等待 <span data-openai-elapsed="${startedAt}">${e(openAiElapsed(startedAt))}</span></p>` : ""}
     ${elapsed ? `<p>用时 ${e(elapsed)}</p>` : ""}
     <p>${e(feedback.detail)}</p>${feedback.note ? `<p>${e(feedback.note)}</p>` : ""}
-    ${renderOpenAiProgress(!vm4.pendingId || vm4.run?.id === vm4.pendingId ? vm4.run : null)}
-    ${vm4.error && vm4.error !== feedback.detail ? `<p role="alert">${e(vm4.error)}</p>` : ""}</div>`;
+    ${renderOpenAiProgress(!vm3.pendingId || vm3.run?.id === vm3.pendingId ? vm3.run : null)}
+    ${vm3.error && vm3.error !== feedback.detail ? `<p role="alert">${e(vm3.error)}</p>` : ""}</div>`;
 }
 function renderOpenAiProgress(run2) {
   const events = openAiProgressEvents(run2);
@@ -6078,14 +6225,14 @@ function renderOpenAiConnectivity(connection) {
     <p>${e(detail)}</p>${elapsed ? `<p class="hint">用时 ${e(elapsed)}</p>` : ""}
     ${waiting && connection.startedAt ? `<p class="hint" aria-live="off">已等待 <span data-connectivity-elapsed="${connection.startedAt}">${e(openAiElapsed(connection.startedAt))}</span></p>` : ""}</section>`;
 }
-function renderOpenAiSettings(vm4 = {}) {
-  if (!vm4.owner) return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2>${openAiLogin}</section>`;
-  const draft = vm4.draft;
-  const status = vm4.loading ? "正在读取…" : !draft ? "配置读取失败。" : draft.saved.configuration_error_message || (draft.saved.configured ? "可发起分析" : "尚未配置 OpenAI API");
+function renderOpenAiSettings(vm3 = {}) {
+  if (!vm3.owner) return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2>${openAiLogin}</section>`;
+  const draft = vm3.draft;
+  const status = vm3.loading ? "正在读取…" : !draft ? "配置读取失败。" : draft.saved.configuration_error_message || (draft.saved.configured ? "可发起分析" : "尚未配置 OpenAI API");
   return `<section id="openai-settings" class="card panel"><h2>AI诊断 · 完整提示词</h2><p class="hint">${e(status)}</p>
     <p class="hint">密钥由服务器管理，此处不显示或录入密钥。<a href="?page=ai-diagnosis">前往AI诊断</a></p>
-    ${draft ? renderInstructions(draft) : ""}<p role="alert">${e(vm4.error || "")}</p>
-    ${!draft && !vm4.loading ? '<button class="btn" type="button" data-openai-action="reload-settings">重新读取</button>' : ""}</section>`;
+    ${draft ? renderInstructions(draft) : ""}<p role="alert">${e(vm3.error || "")}</p>
+    ${!draft && !vm3.loading ? '<button class="btn" type="button" data-openai-action="reload-settings">重新读取</button>' : ""}</section>`;
 }
 function renderInstructions(draft) {
   return `<form id="openai-instructions-form"><label for="openai-instructions">完整分析指令</label>
@@ -6103,582 +6250,6 @@ function renderInstructions(draft) {
       已比较，保留我的文字继续编辑</button></section>` : ""}`;
 }
 
-// web/openai-settings-controller.mjs
-init_api();
-init_state();
-var session = "", vm = {}, registered = false, sequence2 = 0;
-var identity4 = () => `${runtime.sessionEpoch}:${state.me?.id || ""}:${Boolean(state.me?.publicBusiness)}`;
-var key = () => `haoduoyu.openai.instructions.v1:${state.me?.id}`;
-var read = (path, options4 = {}) => apiNetwork(path, { ...options4, suppressAuthRedirect: true });
-function retained() {
-  try {
-    return JSON.parse(localStorage.getItem(key()));
-  } catch {
-    return null;
-  }
-}
-function retain() {
-  if (!vm.draft) return;
-  vm.draft.localRetained = false;
-  try {
-    if (vm.draft.dirty) localStorage.setItem(key(), JSON.stringify({ text: vm.draft.text, version: vm.draft.baseVersion }));
-    else localStorage.removeItem(key());
-    vm.draft.localRetained = true;
-  } catch {
-    vm.draft.error = "无法保存在本机。离开前请复制修改内容，或先保存到服务器。";
-  }
-}
-function reset() {
-  if (session === identity4()) return;
-  session = identity4();
-  vm = { owner: openAiSessionAvailable(state.me), loading: false, draft: null, error: "" };
-}
-function paint() {
-  if (session !== identity4() || state.page !== "settings" || state.settingsTab !== "openai") return;
-  const node2 = document.querySelector("#openai-settings");
-  if (node2) node2.outerHTML = renderOpenAiSettings(vm);
-}
-function openAiSettingsPage() {
-  reset();
-  return renderOpenAiSettings(vm);
-}
-async function loadOpenAiSettings() {
-  reset();
-  register();
-  if (!vm.owner || vm.draft?.saving) {
-    paint();
-    return;
-  }
-  const ticket = ++sequence2, captured = session;
-  const fresh = () => ticket === sequence2 && captured === identity4();
-  vm.loading = true;
-  vm.error = "";
-  paint();
-  try {
-    const saved = await read("/openai-review/config");
-    if (!fresh() || vm.draft?.saving) return;
-    const existing = vm.draft?.dirty ? { text: vm.draft.text, version: vm.draft.baseVersion } : retained();
-    vm.draft = openAiDraft(saved, existing);
-  } catch (error) {
-    if (fresh()) vm.error = error.message || "读取失败，请重试。";
-  } finally {
-    if (fresh()) {
-      vm.loading = false;
-      paint();
-    }
-  }
-}
-async function save() {
-  const draft = vm.draft;
-  if (!draft || draft.saving || draft.conflict || !draft.dirty) return;
-  const captured = session;
-  vm.draft = { ...draft, saving: true };
-  paint();
-  const result = await saveOpenAiDraft(draft, read);
-  if (captured !== identity4()) return;
-  vm.draft = result;
-  retain();
-  paint();
-}
-async function compare() {
-  const captured = session, draft = vm.draft;
-  if (!draft || draft.saving) return;
-  try {
-    const latest = await read("/openai-review/config");
-    if (captured !== identity4() || vm.draft !== draft) return;
-    vm.draft = { ...draft, latest, conflict: latest.version !== draft.saved.version, error: "", message: "已读取最新版本，请比较。" };
-  } catch (error) {
-    if (captured === identity4() && vm.draft === draft) vm.draft.error = error.message;
-  }
-  paint();
-}
-function changeAction(action) {
-  if (action === "reload-settings") {
-    void loadOpenAiSettings();
-    return;
-  }
-  if (!vm.draft || vm.draft.saving) return;
-  if (action === "compare") {
-    void compare();
-    return;
-  }
-  if (action === "rebase" && vm.draft.latest) {
-    vm.draft = openAiDraft(vm.draft.latest, { text: vm.draft.text, version: vm.draft.latest.version });
-    retain();
-    paint();
-  }
-  if (action === "discard" && window.confirm("放弃尚未保存的本机修改，重新读取已保存的指令？")) {
-    vm.draft = null;
-    try {
-      localStorage.removeItem(key());
-    } catch {
-    }
-    void loadOpenAiSettings();
-  }
-}
-function register() {
-  if (registered) return;
-  registered = true;
-  document.addEventListener("input", (event) => {
-    if (event.target.id !== "openai-instructions" || session !== identity4() || !vm.draft || vm.draft.saving) return;
-    vm.draft = editOpenAiDraft(vm.draft, event.target.value);
-    retain();
-    const status = document.querySelector("#openai-instructions-status");
-    if (status) status.textContent = vm.draft.error || (vm.draft.dirty ? "有未保存修改，已保留在本机。仅点击保存后生效。" : "已保存");
-    const submit = document.querySelector('#openai-instructions-form button[type="submit"]');
-    if (submit) submit.disabled = !vm.draft.dirty || vm.draft.conflict;
-  });
-  document.addEventListener("submit", (event) => {
-    if (event.target.id !== "openai-instructions-form") return;
-    event.preventDefault();
-    if (session === identity4() && vm.owner) void save();
-  });
-  document.addEventListener("click", (event) => {
-    const button2 = event.target.closest?.("#openai-settings [data-openai-action]");
-    if (button2 && !button2.disabled && session === identity4() && vm.owner) changeAction(button2.dataset.openaiAction);
-  });
-  document.addEventListener("click", (event) => {
-    const leaving = event.target.closest?.('a[href],[data-nav],[data-action="settings-tab"],[data-action="logout"]');
-    if (!leaving || session !== identity4() || !vm.draft?.dirty || vm.draft.localRetained !== false) return;
-    if (!window.confirm("修改未保存，而且无法保留在本机。请先复制内容或保存。仍要离开吗？")) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    }
-  }, true);
-  window.addEventListener("beforeunload", (event) => {
-    if (session === identity4() && vm.draft?.dirty) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-  });
-}
-
-// web/core/storage.mjs
-var storage = { get(key2) {
-  try {
-    return localStorage.getItem(key2);
-  } catch {
-    return null;
-  }
-}, set(key2, value) {
-  try {
-    localStorage.setItem(key2, value);
-  } catch {
-  }
-} };
-
-// web/core/router.mjs
-init_constants();
-init_state();
-init_daily_notes_state();
-init_todos_state();
-function normalizeArticlePipelineFilters(filters) {
-  const allowed = {
-    status: ["published"],
-    slot: ["", ...Object.keys(slotLabels)],
-    writer: ["", ...Object.keys(writerLabels)],
-    has_warnings: ["", "true", "false"],
-    has_pending_verify: ["", "true", "false"]
-  };
-  for (const [key2, choices] of Object.entries(allowed)) {
-    if (!choices.includes(filters[key2])) filters[key2] = defaultFilters()[key2];
-  }
-  for (const key2 of ["series_no_min", "series_no_max"]) {
-    const value = filters[key2];
-    if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1) filters[key2] = "";
-  }
-  if (filters.series_no_min && filters.series_no_max && Number(filters.series_no_min) > Number(filters.series_no_max)) {
-    filters.series_no_min = "";
-    filters.series_no_max = "";
-  }
-  return filters;
-}
-function isMobileLayout() {
-  if (typeof window === "undefined") return false;
-  if (typeof window.matchMedia === "function") return window.matchMedia("(max-width: 767px)").matches;
-  return Number.isFinite(window.innerWidth) && window.innerWidth < 768;
-}
-function mobilePage(page) {
-  return ["overview", "dashboard", "articles", "reviews"].includes(page) ? "review" : page;
-}
-function updateRoute(push = false) {
-  const page = mobilePage(state.page), redirected = page !== state.page;
-  if (redirected) state.page = page;
-  state.filters.status = "published";
-  const u = new URL(location.href);
-  u.searchParams.set("page", state.page);
-  if (state.page === "ai-diagnosis" && u.hash === "#openai-review-panel") u.hash = "";
-  if (state.page === "notes" && dailyNotesRouteCategory() === "work") u.searchParams.set("notes_category", "work");
-  else u.searchParams.delete("notes_category");
-  if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
-  else u.searchParams.delete("memo_view");
-  u.searchParams.delete("period");
-  u.searchParams.delete("article_scope");
-  u.searchParams.delete("q");
-  if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
-  else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
-  else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
-  else if (["ai-reports", "ai-diagnosis"].includes(state.page) && state.aiDailyDate) u.searchParams.set("date", state.aiDailyDate);
-  else u.searchParams.delete("date");
-  if (state.page === "ai-diagnosis") {
-    u.searchParams.set("diagnosis_tab", state.diagnosisTab || "help");
-    u.searchParams.delete("ai_tab");
-    if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
-    else u.searchParams.delete("openai_run");
-  } else if (state.page === "ai-reports") {
-    u.searchParams.set("ai_tab", state.aiDailyTab || "reminders");
-    if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
-    else u.searchParams.delete("openai_run");
-  } else {
-    u.searchParams.delete("ai_tab");
-    u.searchParams.delete("openai_run");
-  }
-  if (state.page !== "ai-diagnosis") u.searchParams.delete("diagnosis_tab");
-  if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
-  else u.searchParams.delete("todo_panel");
-  if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
-  else u.searchParams.delete("tab");
-  if (state.page === "review") u.searchParams.set("account", state.account || "V字");
-  else u.searchParams.delete("account");
-  for (const key2 of [...Object.keys(defaultFilters()), "list_page", "page_size", "top_n", "top_platform", "columns"])
-    u.searchParams.delete(key2);
-  if (state.page !== "review") {
-    for (const key2 of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare"])
-      u.searchParams.delete(key2);
-  }
-  history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
-  storage.set("haoduoyu.account", state.account);
-}
-function readRoute() {
-  const params = new URLSearchParams(location.search);
-  const raw = params.get("page");
-  const fallback = "review";
-  state.page = raw === "reminders" ? "ai-reports" : Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
-  state.page = mobilePage(state.page);
-  if (state.page === "notes") {
-    setDailyNotesRouteDate(params.get("date"));
-    setDailyNotesRouteCategory(params.get("notes_category"));
-  }
-  const legacyDiary = raw === "ai-reports" && params.get("ai_tab") === "openai";
-  const legacyHelp = raw === "review" && location.hash === "#openai-review-panel";
-  if (legacyDiary || legacyHelp) state.page = "ai-diagnosis";
-  state.diagnosisTab = legacyDiary || params.get("diagnosis_tab") === "reports" ? "reports" : "help";
-  state.aiDailyTab = ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reminders";
-  state.aiDailyDate = ["ai-reports", "ai-diagnosis"].includes(state.page) && validTodoDate(params.get("date")) ? params.get("date") : "";
-  state.openAiRun = state.page === "ai-diagnosis" && /^[a-zA-Z0-9-]{1,80}$/.test(params.get("openai_run") || "") ? params.get("openai_run") : "";
-  state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";
-  if (state.memoView === "trash") {
-    state.page = "settings";
-    state.memoView = "";
-  }
-  state.reminderDate = state.page === "reminders" && validTodoDate(params.get("date")) ? params.get("date") : "";
-  state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
-  state.todoPanel = state.page === "todos" && ["history", "templates", "future"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
-  state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : "workspace");
-  if (raw === "memos" && params.get("memo_view") === "trash") state.settingsTab = "workspace";
-  state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
-  state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
-  state.articleOverviewMode = "published";
-  state.account = params.get("account")?.trim() || "V字";
-  state.filters = defaultFilters();
-  for (const key2 of Object.keys(state.filters)) if (params.has(key2)) state.filters[key2] = params.get(key2);
-  const allowed = { sort: ["published_at", "reads", "likes", "comments", "approvals", "latest_as_of", "duration"], order: ["asc", "desc"], platform: [
-    "",
-    "toutiao",
-    "zhihu",
-    "wechat",
-    "other"
-  ], topic: ["", "insurance", "entertainment", "unknown"], data_status: [
-    "",
-    "no_snapshot",
-    "missing_reads",
-    "missing_likes",
-    "missing_comments",
-    "incomplete",
-    "zero_reads",
-    "date_unverified"
-  ], mode: ["", ...Object.keys(modeLabels)], group: [
-    "",
-    "account",
-    "mode"
-  ] };
-  for (const [key2, values] of Object.entries(allowed)) if (!values.includes(state.filters[key2])) state.filters[key2] = defaultFilters()[key2];
-  normalizeArticlePipelineFilters(state.filters);
-  const int = (key2, def, max) => /^\d+$/.test(params.get(key2) || "") && Number(params.get(key2)) > 0 && Number(params.get(key2)) <= max ? Number(
-    params.get(key2)
-  ) : def;
-  state.listPage = int("list_page", 1, 1e6);
-  state.pageSize = int("page_size", 20, 200);
-  state.topN = int("top_n", 5, 100);
-  state.topPlatform = ["toutiao", "zhihu", "wechat", "other"].includes(params.get("top_platform")) ? params.get("top_platform") : "";
-  state.columns = new Set(params.has("columns") ? params.get("columns").split(",").filter((c) => Object.hasOwn(articleColumns, c)) : defaultColumns);
-}
-
-// web/pages/ai-reports.mjs
-init_dom();
-init_daily_notes_state();
-function renderAiReports() {
-  return `<section id="ai-reports" aria-label="AI 日报">
-    <div>
-      <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
-        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="true">每日提醒</button>
-        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="false">AI汇报</button>
-      </div>
-      <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
-        <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
-        <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
-      <section data-ai-daily-panel="reminders"><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
-      <section data-ai-daily-panel="reports" hidden><p id="ai-report-list-status" role="status"></p>
-      <div id="ai-report-list" aria-live="polite"></div>
-      </section>
-    </div>
-  </section>`;
-}
-var dateFormatter = new Intl.DateTimeFormat("zh-CN", {
-  timeZone: "Asia/Shanghai",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-});
-var timeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  timeZone: "Asia/Shanghai",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false
-});
-function reportContent(value) {
-  const content2 = String(value ?? "");
-  const firstLine = content2.split(/\r?\n/, 1)[0];
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(firstLine) ? /* @__PURE__ */ new Date(`${firstLine}T00:00:00Z`) : null;
-  if (!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== firstLine)
-    return { workDate: null, body: content2 };
-  return { workDate: firstLine, body: content2.slice(firstLine.length).replace(/^\r?\n/, "") };
-}
-function reportDay(row) {
-  const { workDate } = reportContent(row.content);
-  const date = new Date(row.created_at);
-  if (workDate) return workDate;
-  if (!Number.isFinite(date.getTime())) return "";
-  const parts2 = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(date).map((part) => [part.type, part.value]));
-  return `${parts2.year}-${parts2.month}-${parts2.day}`;
-}
-function reportGroup(author) {
-  const name = String(author ?? "").trim().toLowerCase();
-  if (["grok bot", "grok bot-小小鱼"].includes(name)) return "Grok bot";
-  if (name === "gemini") return "Gemini";
-  if (["gpt", "chatgpt", "chatgpt-dot小鱼"].includes(name)) return "GPT";
-  return "其他作者";
-}
-function reportAuthorClass(author) {
-  const colors = { "Grok bot": "grok", Gemini: "gemini", GPT: "gpt", "其他作者": "other" };
-  return `ai-report-author ai-report-author--${colors[reportGroup(author)]}`;
-}
-function paintAiCalendar(selectedDate2, visibleMonth3 = selectedDate2.slice(0, 7), selector = "#ai-reports") {
-  const root2 = document.querySelector(selector);
-  if (!root2) return;
-  root2.querySelector("#ai-report-date-title").textContent = `${Number(visibleMonth3.slice(0, 4))}年${Number(visibleMonth3.slice(5, 7))}月`;
-  const first = /* @__PURE__ */ new Date(`${visibleMonth3}-01T00:00:00Z`);
-  const days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
-  let calendar = '<div class="ai-calendar-grid">' + ["日", "一", "二", "三", "四", "五", "六"].map((d) => `<span>${d}</span>`).join("");
-  calendar += "<span></span>".repeat(first.getUTCDay());
-  for (let day6 = 1; day6 <= days; day6++) {
-    const date = `${visibleMonth3}-${String(day6).padStart(2, "0")}`;
-    calendar += `<button type="button" class="btn text" data-ai-report-select="${date}" aria-label="${date}" ${date === selectedDate2 ? 'aria-current="date"' : ""}>${day6}</button>`;
-  }
-  root2.querySelector("#ai-report-calendar").innerHTML = calendar + "</div>";
-}
-function paintAiReports(items, error = "", loading = false, selectedDate2 = dailyNotesToday(), visibleMonth3 = selectedDate2.slice(0, 7)) {
-  const root2 = document.querySelector("#ai-reports");
-  if (!root2) return;
-  const status = root2.querySelector("#ai-report-list-status");
-  status.textContent = error || (loading || items.length ? "" : "暂无汇报");
-  paintAiCalendar(selectedDate2, visibleMonth3);
-  const rows = [];
-  const groups = { "Grok bot": [], Gemini: [], GPT: [], "其他作者": [] };
-  for (const row of items) {
-    const date = new Date(row.created_at);
-    const validDate = Number.isFinite(date.getTime());
-    const submissionDay = validDate ? dateFormatter.format(date) : "日期未知";
-    const { body: body2 } = reportContent(row.content);
-    const stamp3 = validDate ? `${submissionDay} ${timeFormatter.format(date)}（北京时间）` : String(row.created_at ?? "未知");
-    const author = String(row.author ?? "");
-    const group = reportGroup(author);
-    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp3)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body2)}</div></article>`);
-  }
-  for (const [name, entries] of Object.entries(groups)) {
-    if (name === "其他作者" && !entries.length) continue;
-    const heading = name === "其他作者" ? `<h3 class="${reportAuthorClass(name)}">${name}</h3>` : "";
-    rows.push(`<section>${heading}${entries.length ? entries.join("") : "<p>暂无汇报</p>"}</section>`);
-  }
-  root2.querySelector("#ai-report-list").innerHTML = loading || error ? "" : rows.join("");
-}
-function paintAiDailyReminders(data2, error = "", loading = false) {
-  const root2 = document.querySelector("#ai-reports");
-  if (!root2) return;
-  root2.querySelector("#ai-reminder-status").textContent = error || (loading ? "正在读取工作提醒…" : "");
-  const items = data2?.items || [];
-  root2.querySelector("#ai-reminder-list").innerHTML = items.length ? items.map((row) => `<article class="card field-spaced" style="overflow-wrap:anywhere"><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join("") : loading || error ? "" : "<p>暂无工作提醒</p>";
-}
-function paintOpenAiDiary(items = [], { error = "", loading = false, owner: owner2 = true } = {}) {
-  const root2 = document.querySelector("#ai-diagnosis");
-  if (!root2) return;
-  root2.querySelector("#openai-diary-status").textContent = error || (loading ? "正在读取分析记录…" : "");
-  root2.querySelector("#openai-diary-list").innerHTML = !owner2 ? openAiLogin : loading || error ? "" : items.length ? items.map(renderOpenAiRun).join("") : "<p>这一天没有 OpenAI API 分析记录。</p>";
-}
-
-// web/core/openai-review-runner.mjs
-function createOpenAiRunner({ request, storage: storage2, key: key2, onChange = () => {
-}, uuid: uuid5 = () => crypto.randomUUID(), now = Date.now }) {
-  let active5 = true;
-  const state2 = { run: null, pendingId: "", notFound: false, busy: false, operation: "", startedAt: 0, error: "" };
-  try {
-    state2.pendingId = storage2.getItem(key2) || "";
-  } catch {
-  }
-  state2.startedAt = openAiStartTime(storage2, key2, state2.pendingId);
-  const change3 = () => {
-    if (active5) onChange({ ...state2 });
-  };
-  const retain2 = (id2) => {
-    storage2.setItem(key2, id2);
-    if (storage2.getItem(key2) !== id2) throw new Error("无法保存分析请求编号，请允许本机存储后再开始。");
-    state2.pendingId = id2;
-    state2.startedAt = openAiStartTime(storage2, key2, id2);
-  };
-  const accept = (run2) => {
-    if (!active5) return;
-    if (state2.run?.id === run2?.id && openAiRunFinished(state2.run) && !openAiRunFinished(run2)) return;
-    if (!run2?.id || typeof run2.status !== "string") throw new Error("分析状态暂时无法确认，请核查状态。");
-    state2.run = run2;
-    state2.notFound = false;
-    if (openAiRunFinished(run2)) {
-      if (storage2.getItem(key2) === state2.pendingId) storage2.removeItem(key2);
-      state2.pendingId = "";
-    } else retain2(run2.id);
-    state2.startedAt = Date.parse(run2.created_at) || state2.startedAt;
-  };
-  async function recover() {
-    if (!active5 || state2.busy || !state2.pendingId) return;
-    state2.busy = true;
-    state2.operation = "check";
-    state2.error = "";
-    change3();
-    try {
-      accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId)));
-    } catch (error) {
-      state2.notFound = error.status === 404;
-      state2.error = error.status === 404 ? "尚未查到这次请求，请稍后核查。不会自动重复提交。" : error.message || "暂时无法确认结果，请核查状态。";
-    } finally {
-      state2.busy = false;
-      state2.operation = "";
-      change3();
-    }
-  }
-  const observe = createObserver({ state: state2, request, active: () => active5, accept, change: change3 });
-  async function start(mode = "incremental", model = "") {
-    if (!active5 || state2.busy || state2.pendingId || !["incremental", "full"].includes(mode)) return;
-    state2.busy = true;
-    state2.operation = "start";
-    state2.error = "";
-    change3();
-    try {
-      const existing = storage2.getItem(key2);
-      if (existing) {
-        retain2(existing);
-        return;
-      }
-      const id2 = uuid5(), timing = JSON.stringify({ id: id2, at: now() });
-      storage2.setItem(key2 + ":started", timing);
-      if (storage2.getItem(key2 + ":started") !== timing) throw new Error("无法保存分析开始时间，未开始分析。");
-      retain2(id2);
-      change3();
-      const run2 = await request("/openai-review/runs", { method: "POST", body: { run_id: state2.pendingId, mode, ...model ? { model } : {} } });
-      accept(run2);
-    } catch (error) {
-      if (!active5 || openAiRunFinished(state2.run) && !state2.pendingId) return;
-      state2.error = state2.pendingId ? "请求结果尚未确认，请核查状态。不会自动重复提交。" : error.message || "无法保存请求编号，未开始分析。";
-      if (error.code === "OPENAI_REVIEW_IN_FLIGHT" && error.run_id) {
-        retain2(error.run_id);
-        state2.error = "已有分析请求，请核查状态。";
-      }
-      if ([
-        "OPENAI_NOT_CONFIGURED",
-        "OPENAI_REVIEW_NOT_CONFIGURED",
-        "FORBIDDEN",
-        "UNAUTHORIZED",
-        "OPENAI_REVIEW_RATE_LIMIT",
-        "OPENAI_REVIEW_INPUT_LIMIT",
-        "OPENAI_REVIEW_NO_DATA",
-        "OPENAI_REVIEW_INVALID_KEY_FORMAT",
-        "OPENAI_REVIEW_SOURCE_INVALID",
-        "VALIDATION_ERROR"
-      ].includes(error.code)) {
-        try {
-          storage2.removeItem(key2);
-        } catch {
-        }
-        state2.pendingId = "";
-        state2.error = error.message;
-      }
-    } finally {
-      state2.busy = false;
-      state2.operation = "";
-      change3();
-    }
-  }
-  async function release() {
-    if (!active5 || state2.busy || !state2.pendingId || !(state2.notFound || state2.run?.status === "uncertain")) return;
-    state2.busy = true;
-    state2.operation = "release";
-    state2.error = "";
-    change3();
-    try {
-      accept(await request("/openai-review/runs/" + encodeURIComponent(state2.pendingId) + "/release", {
-        method: "POST",
-        body: { acknowledgement: "provider_outcome_unknown_no_automatic_retry" }
-      }));
-    } catch (error) {
-      state2.error = error.message || "解除结果尚未确认，请核查状态。";
-      if (["OPENAI_REVIEW_RECOVERY_RATE_LIMIT", "OPENAI_REVIEW_PUBLIC_RATE_LIMIT"].includes(error.code))
-        state2.error += " 请稍后只读核查状态，不会自动重复提交。";
-    } finally {
-      state2.busy = false;
-      state2.operation = "";
-      change3();
-    }
-  }
-  return { state: state2, start, recover, observe, release, adopt(run2) {
-    accept(run2);
-    change3();
-  }, dispose() {
-    active5 = false;
-  } };
-}
-function createObserver({ state: state2, request, active: active5, accept, change: change3 }) {
-  let observing = false;
-  return async function observe() {
-    if (!active5() || observing || state2.operation !== "start" || !state2.pendingId || openAiPendingRunUncertain(state2)) return;
-    const id2 = state2.pendingId;
-    observing = true;
-    try {
-      const run2 = await request("/openai-review/runs/" + encodeURIComponent(id2));
-      if (active5() && state2.pendingId === id2 && run2?.id === id2) {
-        accept(run2);
-        change3();
-      }
-    } catch {
-    } finally {
-      observing = false;
-      if (active5()) change3();
-    }
-  };
-}
-
 // web/core/openai-connectivity-runner.mjs
 var endpoint = "/openai-review/connectivity";
 var terminal = (value) => ["succeeded", "failed", "uncertain"].includes(value?.status);
@@ -6693,27 +6264,27 @@ var noDispatch = /* @__PURE__ */ new Set([
   "MEMOS_RATE_LIMIT"
 ]);
 var unknown = "最小测试结果尚未确认，请只读核查状态。不会自动重复调用。";
-function createConnectivityContext({ storage: storage2, key: key2, onChange }) {
+function createConnectivityContext({ storage: storage2, key, onChange }) {
   const context = { active: true, generation: 0 };
   const state2 = { result: null, pendingId: "", busy: false, error: "", startedAt: 0, operation: "" };
   try {
-    state2.pendingId = storage2.getItem(key2) || "";
-    const timing = JSON.parse(storage2.getItem(key2 + ":started"));
+    state2.pendingId = storage2.getItem(key) || "";
+    const timing = JSON.parse(storage2.getItem(key + ":started"));
     if (timing?.id === state2.pendingId && Number.isFinite(timing.at)) state2.startedAt = timing.at;
   } catch {
   }
   const change3 = () => {
     if (context.active) onChange({ ...state2 });
   };
-  const retain2 = (id2) => {
-    storage2.setItem(key2, id2);
-    if (storage2.getItem(key2) !== id2) throw new Error("无法保存最小测试编号，未发起新的 API 调用。");
+  const retain = (id2) => {
+    storage2.setItem(key, id2);
+    if (storage2.getItem(key) !== id2) throw new Error("无法保存最小测试编号，未发起新的 API 调用。");
     state2.pendingId = id2;
   };
   const clear = (id2) => {
-    if (storage2.getItem(key2) === id2) {
-      storage2.removeItem(key2);
-      if (storage2.getItem(key2) === id2) throw new Error("无法清理本机测试编号，请恢复本机存储后再测。");
+    if (storage2.getItem(key) === id2) {
+      storage2.removeItem(key);
+      if (storage2.getItem(key) === id2) throw new Error("无法清理本机测试编号，请恢复本机存储后再测。");
     }
   };
   const accept = (result, expectedId) => {
@@ -6733,11 +6304,11 @@ function createConnectivityContext({ storage: storage2, key: key2, onChange }) {
       }
     } else {
       state2.pendingId = result.id;
-      retain2(result.id);
+      retain(result.id);
     }
   };
   const current3 = (version2, id2) => context.active && context.generation === version2 && (state2.pendingId === id2 || !state2.pendingId && state2.result?.id === id2);
-  return Object.assign(context, { state: state2, change: change3, retain: retain2, clear, accept, current: current3 });
+  return Object.assign(context, { state: state2, change: change3, retain, clear, accept, current: current3 });
 }
 function createConnectivityObserver(context, request) {
   const { state: state2, accept, current: current3, change: change3 } = context;
@@ -6763,14 +6334,14 @@ function createConnectivityObserver(context, request) {
 function createOpenAiConnectivityRunner({
   request,
   storage: storage2,
-  key: key2,
+  key,
   onChange = () => {
   },
   uuid: uuid5 = () => crypto.randomUUID(),
   now = Date.now
 }) {
-  const context = createConnectivityContext({ storage: storage2, key: key2, onChange });
-  const { state: state2, change: change3, retain: retain2, clear, accept, current: current3 } = context;
+  const context = createConnectivityContext({ storage: storage2, key, onChange });
+  const { state: state2, change: change3, retain, clear, accept, current: current3 } = context;
   const observe = createConnectivityObserver(context, request);
   async function recover() {
     if (state2.operation === "start") return observe();
@@ -6807,10 +6378,10 @@ function createOpenAiConnectivityRunner({
     state2.error = "";
     change3();
     try {
-      let existing = storage2.getItem(key2);
+      let existing = storage2.getItem(key);
       if (existing && state2.result?.id === existing && terminal(state2.result)) {
         clear(existing);
-        existing = storage2.getItem(key2);
+        existing = storage2.getItem(key);
       }
       if (existing) {
         state2.pendingId = existing;
@@ -6822,9 +6393,9 @@ function createOpenAiConnectivityRunner({
       }
       id2 = uuid5();
       const at = now(), timing = JSON.stringify({ id: id2, at });
-      storage2.setItem(key2 + ":started", timing);
-      if (storage2.getItem(key2 + ":started") !== timing) throw new Error("无法保存最小测试开始时间，未调用 API。");
-      retain2(id2);
+      storage2.setItem(key + ":started", timing);
+      if (storage2.getItem(key + ":started") !== timing) throw new Error("无法保存最小测试开始时间，未调用 API。");
+      retain(id2);
       state2.startedAt = at;
       state2.result = null;
       change3();
@@ -6843,7 +6414,7 @@ function createOpenAiConnectivityRunner({
       if (dispatched && error.code === "OPENAI_CONNECTIVITY_IN_FLIGHT" && typeof error.test_id === "string" && error.test_id) {
         state2.pendingId = error.test_id;
         try {
-          retain2(error.test_id);
+          retain(error.test_id);
         } catch {
         }
         state2.startedAt = 0;
@@ -6882,9 +6453,9 @@ function createOpenAiConnectivityRunner({
 // web/openai-review-controller.mjs
 init_api();
 init_state();
-var session2 = "", runner, connectivityRunner, vm2 = {}, registered2 = false, timer = null, connectionTimer = null, loadSequence = 0;
-var identity5 = () => `${runtime.sessionEpoch}:${state.me?.id || ""}:${Boolean(state.me?.publicBusiness)}`;
-var current2 = () => session2 === identity5();
+var session = "", runner, connectivityRunner, vm = {}, registered = false, timer = null, connectionTimer = null, loadSequence = 0;
+var identity4 = () => `${runtime.sessionEpoch}:${state.me?.id || ""}:${Boolean(state.me?.publicBusiness)}`;
+var current2 = () => session === identity4();
 var clock = createOpenAiElapsedClock(() => {
   if (!current2() || (state.page !== "ai-diagnosis" || state.diagnosisTab !== "help") || document.visibilityState === "hidden") return null;
   const node2 = document.querySelector("#openai-review-panel [data-openai-elapsed]");
@@ -6907,7 +6478,7 @@ function openAiReviewTimeout(path, options4 = {}) {
   if (path === "/openai-review/runs" && options4.method === "POST") return 78e4;
   return path === "/openai-review/connectivity" && options4.method === "POST" ? 15e4 : 75e3;
 }
-async function read2(path, options4 = {}) {
+async function read(path, options4 = {}) {
   const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), openAiReviewTimeout(path, options4));
   try {
     return await apiNetwork(path, { ...options4, signal: controller.signal, suppressAuthRedirect: true });
@@ -6915,31 +6486,31 @@ async function read2(path, options4 = {}) {
     clearTimeout(timeout);
   }
 }
-function reset2() {
-  if (session2 === identity5()) return;
+function reset() {
+  if (session === identity4()) return;
   runner?.dispose();
   connectivityRunner?.dispose();
   stopOpenAiReviewTimers();
-  session2 = identity5();
-  vm2 = { owner: openAiSessionAvailable(state.me), config: null, loading: false, error: "" };
-  if (!vm2.owner) {
+  session = identity4();
+  vm = { owner: openAiSessionAvailable(state.me), config: null, loading: false, error: "" };
+  if (!vm.owner) {
     runner = null;
     connectivityRunner = null;
     return;
   }
-  const captured = session2;
+  const captured = session;
   runner = createOpenAiRunner({
-    request: read2,
+    request: read,
     key: `haoduoyu.openai.run.v1:${state.me.id}:V字`,
     storage: {
-      getItem: (key2) => localStorage.getItem(key2),
-      setItem: (key2, value) => localStorage.setItem(key2, value),
-      removeItem: (key2) => localStorage.removeItem(key2)
+      getItem: (key) => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+      removeItem: (key) => localStorage.removeItem(key)
     },
     onChange(next) {
-      if (captured !== identity5() || session2 !== captured) return;
-      const settled = openAiPendingRunSettled(vm2, next);
-      vm2 = { ...vm2, ...next };
+      if (captured !== identity4() || session !== captured) return;
+      const settled = openAiPendingRunSettled(vm, next);
+      vm = { ...vm, ...next };
       paintOpenAiReview();
       scheduleCheck();
       if (settled) document.dispatchEvent(new CustomEvent("openai-run-settled", {
@@ -6947,24 +6518,24 @@ function reset2() {
       }));
     }
   });
-  vm2 = { ...vm2, ...runner.state };
+  vm = { ...vm, ...runner.state };
   connectivityRunner = createOpenAiConnectivityRunner({
-    request: read2,
+    request: read,
     key: `haoduoyu.openai.connectivity.v1:${state.me.id}:V字`,
     storage: localStorage,
     onChange(next) {
-      if (captured !== identity5() || session2 !== captured) return;
-      vm2 = { ...vm2, connection: next };
+      if (captured !== identity4() || session !== captured) return;
+      vm = { ...vm, connection: next };
       paintOpenAiReview();
       scheduleConnectionCheck();
     }
   });
-  vm2.connection = { ...connectivityRunner.state };
+  vm.connection = { ...connectivityRunner.state };
 }
 function paintOpenAiReview() {
-  reset2();
+  reset();
   const node2 = document.querySelector("#openai-review-panel");
-  if (node2) node2.innerHTML = renderOpenAiReviewPanel(vm2);
+  if (node2) node2.innerHTML = renderOpenAiReviewPanel(vm);
   clock.refresh();
   connectionClock.refresh();
 }
@@ -6981,33 +6552,33 @@ function scheduleCheck() {
   clearTimeout(timer);
   timer = null;
   if (document.visibilityState === "hidden" || openAiPendingRunUncertain(runner?.state)) return;
-  if (!current2() || state.page !== "ai-diagnosis" || state.diagnosisTab !== "help" || !runner?.state.pendingId || runner.state.busy && runner.state.operation !== "start" || vm2.error) return;
+  if (!current2() || state.page !== "ai-diagnosis" || state.diagnosisTab !== "help" || !runner?.state.pendingId || runner.state.busy && runner.state.operation !== "start" || vm.error) return;
   timer = setTimeout(() => {
     if (document.visibilityState !== "hidden" && current2() && state.page === "ai-diagnosis" && state.diagnosisTab === "help" && document.querySelector("#openai-review-panel"))
       void (runner.state.operation === "start" ? runner.observe() : runner.recover());
   }, 5e3);
 }
 async function loadOpenAiReview() {
-  reset2();
-  register2();
-  if (!vm2.owner) {
+  reset();
+  register();
+  if (!vm.owner) {
     paintOpenAiReview();
     return;
   }
-  const ticket = ++loadSequence, captured = session2;
-  const fresh = () => ticket === loadSequence && captured === identity5();
-  vm2.loading = true;
-  vm2.config = null;
-  vm2.error = "";
+  const ticket = ++loadSequence, captured = session;
+  const fresh = () => ticket === loadSequence && captured === identity4();
+  vm.loading = true;
+  vm.config = null;
+  vm.error = "";
   paintOpenAiReview();
   try {
-    const config = await read2("/openai-review/config");
+    const config = await read("/openai-review/config");
     if (!fresh()) return;
-    vm2.config = config;
-    if (!config.supported_models?.some((model) => model.id === vm2.selectedModel)) vm2.selectedModel = config.default_model || config.model;
+    vm.config = config;
+    if (!config.supported_models?.some((model) => model.id === vm.selectedModel)) vm.selectedModel = config.default_model || config.model;
     if (runner.state.pendingId) await runner.recover();
     else {
-      const page = await read2("/openai-review/runs?offset=0");
+      const page = await read("/openai-review/runs?offset=0");
       if (!fresh()) return;
       const latest = page?.items?.[0];
       if (latest) runner.adopt(latest);
@@ -7015,29 +6586,29 @@ async function loadOpenAiReview() {
     if (!fresh()) return;
     if (connectivityRunner.state.pendingId) await connectivityRunner.recover();
     else {
-      const latestTest = await read2("/openai-review/connectivity");
+      const latestTest = await read("/openai-review/connectivity");
       if (fresh() && latestTest) connectivityRunner.adopt(latestTest);
     }
   } catch (error) {
-    if (fresh()) vm2.error = error.message || "读取失败，请重新读取。";
+    if (fresh()) vm.error = error.message || "读取失败，请重新读取。";
   } finally {
     if (fresh()) {
-      vm2.loading = false;
+      vm.loading = false;
       paintOpenAiReview();
       scheduleCheck();
       scheduleConnectionCheck();
     }
   }
 }
-function register2() {
-  if (registered2) return;
-  registered2 = true;
+function register() {
+  if (registered) return;
+  registered = true;
   document.addEventListener("change", (event) => {
-    if (event.target.id === "openai-model" && current2() && !runner?.state.busy && !runner?.state.pendingId && vm2.config?.supported_models?.some((model) => model.id === event.target.value)) vm2.selectedModel = event.target.value;
+    if (event.target.id === "openai-model" && current2() && !runner?.state.busy && !runner?.state.pendingId && vm.config?.supported_models?.some((model) => model.id === event.target.value)) vm.selectedModel = event.target.value;
   });
   document.addEventListener("click", (event) => {
     const button2 = event.target.closest?.("#openai-review-panel [data-openai-action]");
-    if (!button2 || button2.disabled || !current2() || !vm2.owner) return;
+    if (!button2 || button2.disabled || !current2() || !vm.owner) return;
     const action = button2.dataset.openaiAction;
     if (action === "check-connection") {
       void connectivityRunner?.recover();
@@ -7056,14 +6627,14 @@ function register2() {
         void runner.release();
       return;
     }
-    if (!vm2.config?.configured || vm2.loading) return;
+    if (!vm.config?.configured || vm.loading) return;
     if (action === "test-connection" && !runner?.state.pendingId && !runner?.state.busy) {
-      void connectivityRunner.start(vm2.selectedModel || vm2.config.default_model || vm2.config.model);
+      void connectivityRunner.start(vm.selectedModel || vm.config.default_model || vm.config.model);
       return;
     }
     if (connectivityRunner?.state.busy || connectivityRunner?.state.pendingId) return;
     if (action === "full" && !window.confirm("重新分析全部已登记文章和指标，会产生一次新的 API 调用。继续吗？")) return;
-    if (["start", "full"].includes(action)) void runner.start(action === "full" ? "full" : "incremental", vm2.selectedModel);
+    if (["start", "full"].includes(action)) void runner.start(action === "full" ? "full" : "incremental", vm.selectedModel);
   });
   window.addEventListener("storage", (event) => {
     if (event.key === `haoduoyu.openai.connectivity.v1:${state.me?.id}:V字` && current2() && !connectivityRunner?.state.busy) {
@@ -7086,98 +6657,162 @@ function register2() {
   });
 }
 
-// web/ai-diagnosis-controller.mjs
-init_state();
-init_api();
-init_daily_notes_state();
-var registered3 = false, sequence3 = 0, visibleMonth = "";
-function renderAiDiagnosis() {
-  return `<section id="ai-diagnosis" aria-label="AI诊断">
-    <div class="page-tabs segmented" role="group" aria-label="AI诊断模块">
-      <button class="btn" type="button" data-diagnosis-tab="help">求助API</button>
-      <button class="btn" type="button" data-diagnosis-tab="reports">诊断报告</button></div>
-    <section data-diagnosis-panel="help"><div class="card panel" id="openai-review-panel"></div></section>
-    <section data-diagnosis-panel="reports" hidden>
-      <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-diagnosis-month="-1" aria-label="上个月">‹</button>
-        <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
-        <button class="btn ai-calendar-step" type="button" data-diagnosis-month="1" aria-label="下个月">›</button></div>
-      <p class="hint">按北京时间归档，同一天每次诊断分别保留。</p>
-      <p id="openai-diary-status" role="status" aria-live="polite"></p><div id="openai-diary-list"></div>
-      <button class="btn" type="button" data-diagnosis-refresh>刷新诊断报告</button>
-    </section></section>`;
-}
-function selectTab() {
-  const root2 = document.querySelector("#ai-diagnosis");
-  if (!root2) return;
-  for (const node2 of root2.querySelectorAll("[data-diagnosis-tab]")) node2.setAttribute("aria-pressed", String(node2.dataset.diagnosisTab === state.diagnosisTab));
-  for (const node2 of root2.querySelectorAll("[data-diagnosis-panel]")) node2.hidden = node2.dataset.diagnosisPanel !== state.diagnosisTab;
-}
-async function loadAiDiagnosis() {
-  register3();
-  state.diagnosisTab ||= "help";
-  selectTab();
-  const ticket = ++sequence3, epoch = runtime.sessionEpoch;
-  if (state.diagnosisTab === "help") {
-    await loadOpenAiReview();
-    return;
-  }
-  stopOpenAiReviewTimers();
-  const date = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
-  state.aiDailyDate = date;
-  visibleMonth = date.slice(0, 7);
-  paintAiCalendar(date, visibleMonth, "#ai-diagnosis");
-  const current3 = () => ticket === sequence3 && epoch === runtime.sessionEpoch && state.page === "ai-diagnosis" && state.diagnosisTab === "reports";
-  const owner2 = openAiSessionAvailable(state.me);
-  paintOpenAiDiary([], { owner: owner2, loading: owner2 });
-  if (!owner2) return;
+// web/core/storage.mjs
+var storage = { get(key) {
   try {
-    const items = await readOpenAiRuns((path) => apiNetwork(path, { suppressAuthRedirect: true }), date, current3);
-    if (!current3() || !items) return;
-    paintOpenAiDiary(items);
-    if (state.openAiRun) document.getElementById("openai-run-" + state.openAiRun)?.focus();
-  } catch (error) {
-    if (current3()) paintOpenAiDiary([], { error: error.message || "诊断报告读取失败，请刷新重试。" });
+    return localStorage.getItem(key);
+  } catch {
+    return null;
   }
+}, set(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+  }
+} };
+
+// web/core/router.mjs
+init_constants();
+init_state();
+init_daily_notes_state();
+init_todos_state();
+function normalizeArticlePipelineFilters(filters) {
+  const allowed = {
+    status: ["published"],
+    slot: ["", ...Object.keys(slotLabels)],
+    writer: ["", ...Object.keys(writerLabels)],
+    has_warnings: ["", "true", "false"],
+    has_pending_verify: ["", "true", "false"]
+  };
+  for (const [key, choices] of Object.entries(allowed)) {
+    if (!choices.includes(filters[key])) filters[key] = defaultFilters()[key];
+  }
+  for (const key of ["series_no_min", "series_no_max"]) {
+    const value = filters[key];
+    if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1) filters[key] = "";
+  }
+  if (filters.series_no_min && filters.series_no_max && Number(filters.series_no_min) > Number(filters.series_no_max)) {
+    filters.series_no_min = "";
+    filters.series_no_max = "";
+  }
+  return filters;
 }
-function register3() {
-  if (registered3) return;
-  registered3 = true;
-  document.addEventListener("openai-run-settled", (event) => {
-    if (event.detail?.sessionEpoch !== runtime.sessionEpoch || event.detail?.userId !== state.me?.id || state.page !== "ai-diagnosis" || state.diagnosisTab !== "reports") return;
-    void loadAiDiagnosis();
-  });
-  document.addEventListener("click", (event) => {
-    if (state.page !== "ai-diagnosis") return;
-    const tab = event.target.closest?.("[data-diagnosis-tab]")?.dataset.diagnosisTab;
-    if (["help", "reports"].includes(tab)) {
-      state.diagnosisTab = tab;
-      updateRoute(true);
-      void loadAiDiagnosis();
-      return;
-    }
-    if (event.target.closest?.("[data-diagnosis-refresh]")) {
-      void loadAiDiagnosis();
-      return;
-    }
-    const month = event.target.closest?.("[data-diagnosis-month]");
-    if (month) {
-      const date2 = /* @__PURE__ */ new Date(visibleMonth + "-01T00:00:00Z");
-      date2.setUTCMonth(date2.getUTCMonth() + Number(month.dataset.diagnosisMonth));
-      const next = date2.toISOString().slice(0, 7);
-      if (validDailyNotesDate(next + "-01")) {
-        visibleMonth = next;
-        paintAiCalendar(state.aiDailyDate, visibleMonth, "#ai-diagnosis");
-      }
-      return;
-    }
-    const date = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
-    if (validDailyNotesDate(date)) {
-      state.aiDailyDate = date;
-      state.openAiRun = "";
-      updateRoute(true);
-      void loadAiDiagnosis();
-    }
-  });
+function isMobileLayout() {
+  if (typeof window === "undefined") return false;
+  if (typeof window.matchMedia === "function") return window.matchMedia("(max-width: 767px)").matches;
+  return Number.isFinite(window.innerWidth) && window.innerWidth < 768;
+}
+function mobilePage(page) {
+  return ["overview", "dashboard", "articles", "reviews"].includes(page) ? "review" : page;
+}
+function updateRoute(push = false) {
+  const page = mobilePage(state.page), redirected = page !== state.page;
+  if (redirected) state.page = page;
+  state.filters.status = "published";
+  const u = new URL(location.href);
+  u.searchParams.set("page", state.page);
+  if (u.hash === "#openai-review-panel") u.hash = "";
+  if (state.page === "notes" && dailyNotesRouteCategory() === "work") u.searchParams.set("notes_category", "work");
+  else u.searchParams.delete("notes_category");
+  if (state.page === "memos" && state.memoView === "trash") u.searchParams.set("memo_view", "trash");
+  else u.searchParams.delete("memo_view");
+  u.searchParams.delete("period");
+  u.searchParams.delete("article_scope");
+  u.searchParams.delete("q");
+  if (state.page === "todos" && state.todoDate) u.searchParams.set("date", state.todoDate);
+  else if (state.page === "notes") u.searchParams.set("date", dailyNotesRouteDate());
+  else if (state.page === "reminders" && state.reminderDate) u.searchParams.set("date", state.reminderDate);
+  else if (["ai-reports", "ai-diagnosis"].includes(state.page) && state.aiDailyDate) u.searchParams.set("date", state.aiDailyDate);
+  else u.searchParams.delete("date");
+  if (state.page === "ai-diagnosis") {
+    u.searchParams.set("diagnosis_tab", state.diagnosisTab || "help");
+    u.searchParams.delete("ai_tab");
+    if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
+    else u.searchParams.delete("openai_run");
+  } else if (state.page === "ai-reports") {
+    u.searchParams.set("ai_tab", state.aiDailyTab || "reminders");
+    if (state.openAiRun) u.searchParams.set("openai_run", state.openAiRun);
+    else u.searchParams.delete("openai_run");
+  } else {
+    u.searchParams.delete("ai_tab");
+    u.searchParams.delete("openai_run");
+  }
+  if (state.page !== "ai-diagnosis") u.searchParams.delete("diagnosis_tab");
+  if (state.page === "todos" && state.todoPanel) u.searchParams.set("todo_panel", state.todoPanel);
+  else u.searchParams.delete("todo_panel");
+  if (state.page === "settings") u.searchParams.set("tab", state.settingsTab);
+  else u.searchParams.delete("tab");
+  if (state.page === "review") u.searchParams.set("account", state.account || "V字");
+  else u.searchParams.delete("account");
+  for (const key of [...Object.keys(defaultFilters()), "list_page", "page_size", "top_n", "top_platform", "columns"])
+    u.searchParams.delete(key);
+  if (state.page !== "review") {
+    for (const key of ["review_view", "review_date", "review_period", "review_article", "review_version", "review_compare"])
+      u.searchParams.delete(key);
+  }
+  history[push && !redirected ? "pushState" : "replaceState"]({}, "", u);
+  storage.set("haoduoyu.account", state.account);
+}
+function readRoute() {
+  const params = new URLSearchParams(location.search);
+  const raw = params.get("page");
+  const fallback = "review";
+  state.page = raw === "reminders" ? "ai-reports" : Object.hasOwn(legacyPages, raw) ? "settings" : nav.some((n) => n.id === raw) ? raw : fallback;
+  state.page = mobilePage(state.page);
+  if (state.page === "notes") {
+    setDailyNotesRouteDate(params.get("date"));
+    setDailyNotesRouteCategory(params.get("notes_category"));
+  }
+  state.diagnosisTab = params.get("diagnosis_tab") === "reports" ? "reports" : "help";
+  state.aiDailyTab = ["reminders", "reports"].includes(params.get("ai_tab")) ? params.get("ai_tab") : "reminders";
+  state.aiDailyDate = ["ai-reports", "ai-diagnosis"].includes(state.page) && validTodoDate(params.get("date")) ? params.get("date") : "";
+  state.openAiRun = state.page === "ai-diagnosis" && /^[a-zA-Z0-9-]{1,80}$/.test(params.get("openai_run") || "") ? params.get("openai_run") : "";
+  state.memoView = state.page === "memos" && params.get("memo_view") === "trash" ? "trash" : "";
+  if (state.memoView === "trash") {
+    state.page = "settings";
+    state.memoView = "";
+  }
+  state.reminderDate = state.page === "reminders" && validTodoDate(params.get("date")) ? params.get("date") : "";
+  state.todoDate = state.page === "todos" && validTodoDate(params.get("date")) ? params.get("date") : "";
+  state.todoPanel = state.page === "todos" && ["history", "templates", "future"].includes(params.get("todo_panel")) ? params.get("todo_panel") : "";
+  state.settingsTab = (Object.hasOwn(legacyPages, raw) ? legacyPages[raw] : null) || (Object.hasOwn(settingsTabs, params.get("tab")) ? params.get("tab") : "workspace");
+  if (raw === "memos" && params.get("memo_view") === "trash") state.settingsTab = "workspace";
+  state.reviewTab = ["pending", "observations", "daily"].includes(params.get("tab")) ? params.get("tab") : "observations";
+  state.overviewPeriod = ["yesterday", "7d", "30d"].includes(params.get("period")) ? params.get("period") : "yesterday";
+  state.articleOverviewMode = "published";
+  state.account = params.get("account")?.trim() || "V字";
+  state.filters = defaultFilters();
+  for (const key of Object.keys(state.filters)) if (params.has(key)) state.filters[key] = params.get(key);
+  const allowed = { sort: ["published_at", "reads", "likes", "comments", "approvals", "latest_as_of", "duration"], order: ["asc", "desc"], platform: [
+    "",
+    "toutiao",
+    "zhihu",
+    "wechat",
+    "other"
+  ], topic: ["", "insurance", "entertainment", "unknown"], data_status: [
+    "",
+    "no_snapshot",
+    "missing_reads",
+    "missing_likes",
+    "missing_comments",
+    "incomplete",
+    "zero_reads",
+    "date_unverified"
+  ], mode: ["", ...Object.keys(modeLabels)], group: [
+    "",
+    "account",
+    "mode"
+  ] };
+  for (const [key, values] of Object.entries(allowed)) if (!values.includes(state.filters[key])) state.filters[key] = defaultFilters()[key];
+  normalizeArticlePipelineFilters(state.filters);
+  const int = (key, def, max) => /^\d+$/.test(params.get(key) || "") && Number(params.get(key)) > 0 && Number(params.get(key)) <= max ? Number(
+    params.get(key)
+  ) : def;
+  state.listPage = int("list_page", 1, 1e6);
+  state.pageSize = int("page_size", 20, 200);
+  state.topN = int("top_n", 5, 100);
+  state.topPlatform = ["toutiao", "zhihu", "wechat", "other"].includes(params.get("top_platform")) ? params.get("top_platform") : "";
+  state.columns = new Set(params.has("columns") ? params.get("columns").split(",").filter((c) => Object.hasOwn(articleColumns, c)) : defaultColumns);
 }
 
 // web/core/modal-request.mjs
@@ -7207,8 +6842,8 @@ function platformFilter(action, selected, label3 = "平台") {
 // web/ui/table.mjs
 init_dom();
 init_state();
-function sortHeading(key2, label3) {
-  return `<button class="sort-heading" data-action="sort-column" data-sort="${e(key2)}" aria-label="按${e(label3)}排序">${e(label3)} ${state.filters.sort === key2 ? state.filters.order === "asc" ? "↑" : "↓" : "↕"}</button>`;
+function sortHeading(key, label3) {
+  return `<button class="sort-heading" data-action="sort-column" data-sort="${e(key)}" aria-label="按${e(label3)}排序">${e(label3)} ${state.filters.sort === key ? state.filters.order === "asc" ? "↑" : "↓" : "↕"}</button>`;
 }
 
 // web/pages/articles.mjs
@@ -7241,11 +6876,11 @@ function statusSelect(value = "draft_saved", allowUnknown = false) {
   if (!unknown2 && !known2) value = "draft_saved";
   return `<label class="form-field">状态<select name="status" class="input" aria-label="文章状态">
 ${unknown2 ? '<option value="" selected disabled>未确认，请选择状态</option>' : ""}
-${Object.entries(statusLabels).map(([key2, label3]) => `<option value="${e(key2)}" ${value === key2 ? "selected" : ""}>${e(label3)}</option>`).join("")}
+${Object.entries(statusLabels).map(([key, label3]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(label3)}</option>`).join("")}
 </select></label>`;
 }
 function filterChips(f) {
-  const labels3 = {
+  const labels4 = {
     platform: "平台",
     data_status: "数据状态",
     from: "发布自",
@@ -7269,9 +6904,9 @@ function filterChips(f) {
     has_pending_verify: boolChoices,
     ...articleChoices
   };
-  const chips = [["account", "账号", state.account ? accountName(state.account) : ""], ...Object.entries(labels3).map(([key2, label3]) => [key2, label3, choices[key2]?.[f[key2]] || f[key2]])].filter(([, , value]) => value);
+  const chips = [["account", "账号", state.account ? accountName(state.account) : ""], ...Object.entries(labels4).map(([key, label3]) => [key, label3, choices[key]?.[f[key]] || f[key]])].filter(([, , value]) => value);
   if (!chips.length) return "";
-  return `<div class="selected-filters" aria-label="已选条件">${chips.map(([key2, label3, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key2)}"
+  return `<div class="selected-filters" aria-label="已选条件">${chips.map(([key, label3, value]) => `<button class="badge" data-action="remove-filter" data-filter="${e(key)}"
 aria-label="移除${e(label3)}：${e(value)}">${e(label3)}：${e(value)} ×</button>`).join("")}
 <button class="btn text" data-action="reset-filters">清空</button></div>`;
 }
@@ -7286,8 +6921,8 @@ async function renderArticles(version2 = runtime.renderVersion, context) {
   state.filters.status = "published";
   const f = { ...state.filters }, params = new URLSearchParams(), account = state.account, epoch = runtime.sessionEpoch;
   if (account) params.set("account_id", account);
-  for (const key2 of ["mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
-    if (f[key2]) params.set(key2, f[key2]);
+  for (const key of ["mode", "from", "to", "sort", "order", "platform", "topic", "data_status", ...pipelineFilters]) {
+    if (f[key]) params.set(key, f[key]);
   }
   params.set("status", "published");
   params.set("page", state.listPage);
@@ -7318,14 +6953,14 @@ ${field("series_no_min", "系列编号自", "number", f.series_no_min, 'min="1" 
 ${field("series_no_max", "系列编号至", "number", f.series_no_max, 'min="1" step="1"')}`;
 }
 function articleFilterPanel({ filters: f = state.filters, columns: c = state.columns, account = state.account } = {}) {
-  return `<form id="filter-panel">${["platform", "data_status"].map((key2) => `<input type="hidden" name="${e(key2)}" value="${e(f[key2])}">`).join("")}
+  return `<form id="filter-panel">${["platform", "data_status"].map((key) => `<input type="hidden" name="${e(key)}" value="${e(f[key])}">`).join("")}
 <h2>文章筛选 <span class="badge">应用后生效</span></h2><div class="form-grid"><label class="form-field full">运营账号
 <select name="account" class="input" aria-label="运营账号">${accountOptions(account)}</select></label>${pipelineFilterFields(f)}
 ${field("from", "发布自", "date", f.from)}${field("to", "发布至", "date", f.to)}
-${Object.entries({ mode: "生产方式", group: "分组" }).map(([key2, label3]) => articleSelect(key2, label3, articleChoices[key2], f[key2])).join("")}
+${Object.entries({ mode: "生产方式", group: "分组" }).map(([key, label3]) => articleSelect(key, label3, articleChoices[key], f[key])).join("")}
 <fieldset class="form-field full permission-fields"><legend>显示字段</legend><div class="checkboxes">
-${Object.entries(articleColumns).map(([key2, [label3]]) => `<label class="check-option"><input type="checkbox" name="columns"
-value="${e(key2)}" ${c.has(key2) ? "checked" : ""}>${e(label3)}</label>`).join("")}</div></fieldset>
+${Object.entries(articleColumns).map(([key, [label3]]) => `<label class="check-option"><input type="checkbox" name="columns"
+value="${e(key)}" ${c.has(key) ? "checked" : ""}>${e(label3)}</label>`).join("")}</div></fieldset>
 <div class="form-field full"><span>更多排序</span><input type="hidden" name="sort" value="${e(f.sort)}">
 <input type="hidden" name="order" value="${e(f.order)}"><div class="head-actions">${sortChoices(f, c)}</div></div>
 <div class="form-field full"><label for="filter-view">常用视图（筛选和字段）</label><select id="filter-view" class="input">
@@ -7335,13 +6970,13 @@ value="${e(key2)}" ${c.has(key2) ? "checked" : ""}>${e(label3)}</label>`).join("
 <button type="submit" class="btn">应用</button></div></form>`;
 }
 function sortChoices(f, columns) {
-  return Object.entries(articleColumns).filter(([, [, sort]]) => sort).map(([key2, [label3, sort]]) => `<button type="button" class="btn small" data-action="draft-sort" data-visible="${sort === "published_at" || columns.has(key2)}"
+  return Object.entries(articleColumns).filter(([, [, sort]]) => sort).map(([key, [label3, sort]]) => `<button type="button" class="btn small" data-action="draft-sort" data-visible="${sort === "published_at" || columns.has(key)}"
 data-sort="${e(sort)}" aria-pressed="${f.sort === sort}">${e(label3)} ${f.sort === sort ? f.order === "asc" ? "↑" : "↓" : "↕"}</button>`).join("") || "使用表头排序";
 }
 function articleDraft(form) {
   const values = new FormData(form), filters = { ...state.filters };
-  for (const key2 of ["platform", "data_status", "from", "to", "mode", "group", "sort", "order", ...pipelineFilters]) {
-    filters[key2] = String(values.get(key2) || "");
+  for (const key of ["platform", "data_status", "from", "to", "mode", "group", "sort", "order", ...pipelineFilters]) {
+    filters[key] = String(values.get(key) || "");
   }
   filters.topic = "";
   filters.status = "published";
@@ -7354,20 +6989,20 @@ function articleDraft(form) {
   };
 }
 function viewDraft(view) {
-  return { filters: normalizeArticlePipelineFilters({ ...defaultFilters(), ...Object.fromEntries(Object.entries(view.filters).filter(([key2]) => Object.hasOwn(defaultFilters(), key2))) }), columns: /* @__PURE__ */ new Set([
-    ...view.columns.filter((key2) => Object.hasOwn(articleColumns, key2)),
+  return { filters: normalizeArticlePipelineFilters({ ...defaultFilters(), ...Object.fromEntries(Object.entries(view.filters).filter(([key]) => Object.hasOwn(defaultFilters(), key))) }), columns: /* @__PURE__ */ new Set([
+    ...view.columns.filter((key) => Object.hasOwn(articleColumns, key)),
     ...view.version !== 2 && !view.columns.includes("as_of") ? ["likes", "comments", "as_of"] : []
   ]), account: state.account };
 }
-function articleCell(article, key2) {
-  if (pipelineColumns.has(key2)) return ledgerCell(article, key2);
-  if (["reads", "likes", "comments", "approvals", "as_of"].includes(key2) && !publishedArticle(article) && !hasRecordedUnknownMetrics(article)) return "未发布";
-  if (key2 === "published" && !publishedArticle(article)) return hasRecordedUnknownMetrics(article) ? article.published_at ? e(time(article.published_at, true)) : "未取得" : "未发布";
-  if (["reads", "likes", "comments", "approvals"].includes(key2)) return dashboardMetric(article, key2);
-  if (key2 === "as_of") return article.latest_as_of ? e(time(article.latest_as_of, true)) : dashboardMetric(article, "as_of");
-  if (key2 === "mode") return badgeMode(article.production_mode);
-  if (key2 === "duration") return publishedArticle(article) ? e(duration(article.duration_seconds)) : "未发布";
-  if (key2 === "account") return e(article.account_name);
+function articleCell(article, key) {
+  if (pipelineColumns.has(key)) return ledgerCell(article, key);
+  if (["reads", "likes", "comments", "approvals", "as_of"].includes(key) && !publishedArticle(article) && !hasRecordedUnknownMetrics(article)) return "未发布";
+  if (key === "published" && !publishedArticle(article)) return hasRecordedUnknownMetrics(article) ? article.published_at ? e(time(article.published_at, true)) : "未取得" : "未发布";
+  if (["reads", "likes", "comments", "approvals"].includes(key)) return dashboardMetric(article, key);
+  if (key === "as_of") return article.latest_as_of ? e(time(article.latest_as_of, true)) : dashboardMetric(article, "as_of");
+  if (key === "mode") return badgeMode(article.production_mode);
+  if (key === "duration") return publishedArticle(article) ? e(duration(article.duration_seconds)) : "未发布";
+  if (key === "account") return e(article.account_name);
   return article.date_status === "unverified" ? "日期待核实" : e(time(article.published_at, true));
 }
 function articleSubtitle(article) {
@@ -7377,16 +7012,16 @@ function articleSubtitle(article) {
 function articleRow(article, columns) {
   return `<tr><td class="title-cell"><button class="article-link" data-action="article-detail" data-id="${e(article.id)}">
 ${e(article.title)}</button><div class="cell-sub">${articleSubtitle(article)}</div></td>
-${columns.map(([key2, [label3]]) => `<td data-label="${e(label3)}">${articleCell(article, key2)}</td>`).join("")}
+${columns.map(([key, [label3]]) => `<td data-label="${e(label3)}">${articleCell(article, key)}</td>`).join("")}
 <td><button class="icon-button" data-action="article-menu" data-id="${e(article.id)}" aria-label="操作：${e(article.title)}"
 aria-haspopup="menu" aria-expanded="false" aria-controls="article-menu-${e(article.id)}">⋯</button></td></tr>`;
 }
 function articleTable(rows) {
-  const columns = Object.entries(articleColumns).filter(([key2]) => state.columns.has(key2));
+  const columns = Object.entries(articleColumns).filter(([key]) => state.columns.has(key));
   let previous = null;
   return `<div class="table-scroll article-desktop"><table class="data-table article-table"><thead><tr>
-<th aria-sort="${!state.columns.has("published") && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key2, [label3, sort]]) => `<th ${sort ? `aria-sort="${state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>
-${sort ? sortHeading(sort, label3) : e(label3)}${key2 === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}
+<th aria-sort="${!state.columns.has("published") && state.filters.sort === "published_at" ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}">${state.columns.has("published") ? "标题" : sortHeading("published_at", "标题 / 发布")}</th>${columns.map(([key, [label3, sort]]) => `<th ${sort ? `aria-sort="${state.filters.sort === sort ? state.filters.order === "asc" ? "ascending" : "descending" : "none"}"` : ""}>
+${sort ? sortHeading(sort, label3) : e(label3)}${key === "likes" ? dashboardInfo("metrics", "点赞口径", "articles") : ""}</th>`).join("")}
 <th>操作</th></tr></thead><tbody class="article-cards">${rows.map((article) => {
     const group = state.filters.group ? state.filters.group === "account" ? article.account_name : modeLabels[article.production_mode] : null;
     const heading = group && group !== previous ? `<tr class="group-row"><td colspan="${e(columns.length + 2)}">${e(group)}</td></tr>` : "";
@@ -7400,7 +7035,7 @@ function articleMenu(article) {
 }
 function nullableSelect(name, label3, choices, value) {
   return `<label class="form-field">${e(label3)}<select class="input" name="${e(name)}"><option value="">未标注</option>
-${Object.entries(choices).map(([key2, text]) => `<option value="${e(key2)}" ${value === key2 ? "selected" : ""}>${e(text)}</option>`).join("")}
+${Object.entries(choices).map(([key, text]) => `<option value="${e(key)}" ${value === key ? "selected" : ""}>${e(text)}</option>`).join("")}
 </select></label>`;
 }
 function articleMetadataFields(article) {
@@ -7471,9 +7106,9 @@ function renderDashboardSummary(data2) {
   const daily = dailyDates(data2);
   const selector = `<label class="form-field"><span>统计账号</span><select id="overview-account" class="input"><option value="">全部账号</option>${state.accounts.map((a) => `<option value="${e(a.id)}" ${state.account === a.id ? "selected" : ""}>${e(accountLabel(a))}</option>`).join("")}</select></label>`;
   return `${selector}${renderCumulative(data2)}
- ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key2, label3]) => `<option value="${e(
-    key2
-  )}" ${state.trendMetric === key2 ? "selected" : ""}>${e(label3)}</option>`).join("")}</select></label></div>${renderTrend(
+ ${daily.length < 2 ? "" : `<details class="card trend-disclosure" data-state="trendOpen" ${state.trendOpen ? "open" : ""}><summary>趋势与发布量</summary><div class="panel"><div class="chart-header"><h2>每日新增趋势 ${dashboardInfo("trend", "趋势数据覆盖")}</h2><label><span class="sr-only">趋势指标</span><select id="trend-metric" class="input">${Object.entries(metrics).map(([key, label3]) => `<option value="${e(
+    key
+  )}" ${state.trendMetric === key ? "selected" : ""}>${e(label3)}</option>`).join("")}</select></label></div>${renderTrend(
     data2
   )}<h3>本站发布量 ${dashboardInfo("publication", "发布量口径")}</h3>${renderPublicationTrend(data2)}${segmented("trend-tab", [
     ["metrics", "每日明细"],
@@ -7485,9 +7120,9 @@ function renderPeriodAccounts(accounts) {
     "comments",
     "评论"
   ], ...approvals ? [["approvals", "赞同"]] : []];
-  return `<div class="table-scroll"><table class="data-table period-table"><thead><tr><th>账号</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key2, label3]) => `<td data-label="${e(label3)}">${dashboardMetric({
+  return `<div class="table-scroll"><table class="data-table period-table"><thead><tr><th>账号</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}</tr></thead><tbody>${accounts.map((a) => `<tr><td><button class="article-link" data-action="select-account" data-id="${e(a.id)}">${platformLogo(a.platform)} ${e(a.name)}</button></td>${columns.map(([key, label3]) => `<td data-label="${e(label3)}">${dashboardMetric({
     latest_metrics: a.period_metrics
-  }, key2)}${metricCoverageHTML(a, key2)}${comparisonHTML(a.comparisons?.[key2])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  }, key)}${metricCoverageHTML(a, key)}${comparisonHTML(a.comparisons?.[key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 function renderAttentionArticles(articles) {
   return `<div class="table-scroll"><table class="data-table attention-table"><thead><tr><th>文章</th><th>周期阅读 / 变化</th><th>周期互动 / 变化 ${dashboardInfo(
@@ -7525,7 +7160,7 @@ function renderCumulative(data2) {
  <section class="card cumulative-top"><div class="section-heading"><h2 id="top-heading">阅读 Top 5</h2>${segmented("top-platform", [[
     "",
     "全部"
-  ], ...Object.entries(platforms).filter(([key2]) => key2 !== "other" || state.topPlatform === "other" || state.accounts.some((a) => a.platform === "other"))], state.topPlatform, "Top榜平台", "platform")}</div>${rows.length ? `${renderTopTable(rows.slice(0, 5))}${rows.length > 5 ? `<details class="top-rest"><summary class="table-footer">展开其余 ${e(num(rows.length - 5))} 篇</summary>${renderTopTable(
+  ], ...Object.entries(platforms).filter(([key]) => key !== "other" || state.topPlatform === "other" || state.accounts.some((a) => a.platform === "other"))], state.topPlatform, "Top榜平台", "platform")}</div>${rows.length ? `${renderTopTable(rows.slice(0, 5))}${rows.length > 5 ? `<details class="top-rest"><summary class="table-footer">展开其余 ${e(num(rows.length - 5))} 篇</summary>${renderTopTable(
     rows.slice(5),
     5
   )}</details>` : ""}` : '<div class="empty inline-empty">暂无已取得阅读数据的文章。</div>'}<div class="table-footer"><a class="btn text" href="?page=articles&amp;sort=reads&amp;order=desc" data-action="all-top">查看全部 →</a></div></section>`;
@@ -7554,9 +7189,9 @@ function renderTopTable(rows, offset = 0) {
       "likes",
       "comments",
       ...approvals ? ["approvals"] : []
-    ].map((key2) => `<td data-label="${e(metrics[key2])}">${dashboardMetric(
+    ].map((key) => `<td data-label="${e(metrics[key])}">${dashboardMetric(
       a,
-      key2
+      key
     )}</td>`).join("")}</tr>`
   ).join("")}</tbody></table></div>`;
 }
@@ -7596,9 +7231,9 @@ function renderDailyTable(data2) {
   }).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 function renderTrend(data2) {
-  const dates = data2.trend || [], accounts = data2.accounts || [], key2 = state.trendMetric, colors = accounts.map((a) => platformColor(a.platform));
-  const all = dates.flatMap((d) => (d.accounts || []).map((a) => a.metrics?.[key2])).filter((v) => v != null);
-  const dataDays = dates.filter((d) => d.accounts.some((a) => a.metrics?.[key2] != null)).length;
+  const dates = data2.trend || [], accounts = data2.accounts || [], key = state.trendMetric, colors = accounts.map((a) => platformColor(a.platform));
+  const all = dates.flatMap((d) => (d.accounts || []).map((a) => a.metrics?.[key])).filter((v) => v != null);
+  const dataDays = dates.filter((d) => d.accounts.some((a) => a.metrics?.[key] != null)).length;
   const max = Math.max(...all.map(Number), 1), w = 620, h = 200, left = 45, plotW = 550, plotH = 150;
   const x = (i) => left + (dates.length > 1 ? i * plotW / (dates.length - 1) : plotW / 2), y = (v) => 12 + plotH - Number(v) / max * plotH;
   const drawing = all.length ? `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="真实每日新增趋势，缺失处断开；下方可点按日期读取数值">${[
@@ -7608,7 +7243,7 @@ function renderTrend(data2) {
   ].map((t) => `<line x1="45" x2="595" y1="${12 + t * plotH}" y2="${12 + t * plotH}" stroke="var(--line)"/><text x="38" y="${16 + t * plotH}" text-anchor="end">${compact(max * (1 - t))}</text>`).join("")}${accounts.map((a, i) => {
     let prev = null;
     return dates.map((d, j) => {
-      const value = d.accounts.find((p) => p.account_id === a.id)?.metrics?.[key2];
+      const value = d.accounts.find((p) => p.account_id === a.id)?.metrics?.[key];
       if (value == null) {
         prev = null;
         return "";
@@ -7625,7 +7260,7 @@ function renderTrend(data2) {
   const selected = dates.find((d) => d.date === state.trendDate) || dates.at(-1);
   return `${dataDays < 2 ? `<div class="empty inline-empty" role="status">数据不足：${e(num(dataDays))}天有该项真实日数据。</div>` : ""}${drawing}<div class="chart-legend">${accounts.map((a, i) => `<span><i class="legend-dot" data-chart-color="${e(colors[i % colors.length])}"></i>${e(accountLabel(a))}</span>`).join("")}</div><label class="trend-date-label">点按查看每日读数<select id="trend-date" class="input">${dates.map((d) => `<option value="${e(d.date)}" ${selected?.date === d.date ? "selected" : ""}>${e(d.date)}</option>`).join("")}</select></label><div class="trend-readout" aria-live="polite">${selected ? `<strong>${e(selected.date)}</strong>${accounts.map((a) => {
     const row = selected.accounts.find((v) => v.account_id === a.id);
-    return `<span>${e(a.name)}：${row?.metrics?.[key2] == null ? "未取得" : num(row.metrics[key2])} ${e(metrics[key2])}${row?.coverage?.source === "articles" ? "（仅已录入文章）" : ""}</span>`;
+    return `<span>${e(a.name)}：${row?.metrics?.[key] == null ? "未取得" : num(row.metrics[key])} ${e(metrics[key])}${row?.coverage?.source === "articles" ? "（仅已录入文章）" : ""}</span>`;
   }).join("")}` : "暂无日期"}</div>`;
 }
 
@@ -7670,10 +7305,10 @@ function normalizeAccountProfile(value, expectedPlatform) {
     const actions2 = url.searchParams.getAll("action"), identities = url.searchParams.getAll("__biz");
     if (!/^\/mp\/profile_ext\/?$/.test(url.pathname) || actions2.length !== 1 || actions2[0] !== "home" || identities.length !== 1 || !/^[A-Za-z0-9+/]{4,160}={0,2}$/.test(identities[0])) unsupported();
     platform = "wechat";
-    const identity7 = identities[0];
-    const query = new URLSearchParams({ action: "home", __biz: identity7 });
+    const identity6 = identities[0];
+    const query = new URLSearchParams({ action: "home", __biz: identity6 });
     profile_url = `https://mp.weixin.qq.com/mp/profile_ext?${query}`;
-    platform_identity = `wechat:biz:${identity7}`;
+    platform_identity = `wechat:biz:${identity6}`;
   } else unsupported();
   if (expectedPlatform && expectedPlatform !== platform) invalid3("主页链接与所选平台不一致，请修改平台或主页链接");
   return { platform, profile_url, platform_identity };
@@ -7731,7 +7366,7 @@ function renderKeys(keys) {
   }).join("")}</tbody></table></div>` : empty("暂无凭证", "供自动化工具按账号范围读取或录入数据。")}</section>`;
 }
 function auditLabel(action) {
-  const labels3 = [
+  const labels4 = [
     ["合并存稿", "PATCH /articles"],
     ["新增文章", "article.create", "POST /articles"],
     ["修改文章", "article.update", "PUT /articles/:id"],
@@ -7765,7 +7400,7 @@ function auditLabel(action) {
     ["初始化网站", "auth.bootstrap"]
   ];
   const route2 = String(action || "").replace(/^(PUT|DELETE) \/(articles|accounts|api-keys)\/[^/]+$/, "$1 /$2/:id");
-  return labels3.find((row) => row.includes(route2))?.[0] || route2 || "未知操作";
+  return labels4.find((row) => row.includes(route2))?.[0] || route2 || "未知操作";
 }
 function renderSecurity() {
   return `<section class="card panel security-panel"><h2>登录与安全</h2><p class="muted security-context">当前登录：${e(state.me.username)}</p><form id="password-form"><div class="form-field"><label for="current-password">当前密码</label><input class="input" type="password" id="current-password" name="currentPassword" autocomplete="current-password" required></div><div class="form-field field-spaced"><label for="new-password">新密码</label><input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password" minlength="12" required><span class="hint">至少 12 位</span></div><div class="form-field field-spaced"><label for="confirm-password">再次输入新密码</label><input class="input" type="password" id="confirm-password" name="confirmPassword" autocomplete="new-password" minlength="12" required></div><p class="form-message" role="alert"></p><div class="form-actions"><button class="btn primary" type="submit">更新密码</button></div></form><div class="detail-section"><h3>数据导出</h3><a class="btn" href="/api/v1/export" download>${icon("download", 14)}导出发布记录 CSV</a></div></section>`;
@@ -7796,7 +7431,7 @@ function accountModal(id2 = "") {
   const homepage = `<div class="form-field full"><label for="field-profile-url">公开主页链接</label><input class="input" type="url" id="field-profile-url" name="profile_url" value="${e(profile?.profile_url || "")}" maxlength="2048" placeholder="粘贴今日头条、知乎或微信公众号主页" ${id2 ? "" : "required"}><span class="hint">只校验和保存主页地址，不自动访问平台。支持知乎 /people/ 或 /org/ 主页、今日头条用户主页，以及微信公众平台 profile_ext?action=home&amp;__biz=… 主页；文章链接不可用。知乎的动态、回答等子页面会规范化为对应主页；后台统计仍需另行录入。</span><button type="button" class="btn small" data-action="test-profile">测试链接格式</button><div id="profile-test-result" class="hint" role="status" aria-live="polite"></div></div>`;
   openModal(id2 ? "管理运营账号" : "添加运营账号", `<form id="account-form" data-id="${e(id2)}"><div class="form-grid">${homepage}<div class="form-field"><label for="field-platform">所属平台</label><select class="input" id="field-platform" name="platform" disabled>${Object.entries(
     id2 ? platforms : { "": "根据主页自动识别", ...platforms }
-  ).map(([key2, label3]) => `<option value="${key2}" ${a.platform === key2 ? "selected" : ""}>${label3}</option>`).join(
+  ).map(([key, label3]) => `<option value="${key}" ${a.platform === key ? "selected" : ""}>${label3}</option>`).join(
     ""
   )}</select></div>${id2 ? field("name", '账号名称 <span class="required">*</span>', "text", a.name, 'required maxlength="100"') : '<p class="hint full">平台自动识别，账号名称暂用主页标识，可在保存后编辑。</p>'}${id2 ? `<div class="form-field full"><label class="check-option"><input type="checkbox" name="active" ${a.active ? "checked" : ""}>启用此账号</label><span class="hint">停用保留历史数据。</span></div>` : ""}</div>${formEnd(id2 ? "保存账号" : "添加账号")}</form>`);
   document.querySelector("#field-profile-url")?.addEventListener?.("input", () => {
@@ -7853,7 +7488,7 @@ function todoMonthSeed(month, snapshot, loaded) {
   }
   return days;
 }
-function createTodoMonthLoader({ read: read3, seed, active: active5, changed: changed4 = () => {
+function createTodoMonthLoader({ read: read2, seed, active: active5, changed: changed4 = () => {
 }, now = Date.now }) {
   let owner2 = "", current3 = null, cooldown = 0;
   const monthDays = (month) => {
@@ -7919,7 +7554,7 @@ function createTodoMonthLoader({ read: read3, seed, active: active5, changed: ch
         const context = { controller, pending: /* @__PURE__ */ new Map() };
         const results = await Promise.allSettled(batch.map(async (date) => {
           const revision2 = revisions.get(date) || 0;
-          const value = await read3(date, context);
+          const value = await read2(date, context);
           if (!Array.isArray(value?.items)) throw new Error("月记录读取不完整，请重试");
           if (valid2()) {
             if ((snapshot.revisions.get(date) || 0) === revision2) snapshot.days.set(date, value.items);
@@ -8118,14 +7753,14 @@ function paintTodoTemplates() {
     if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
   }
 }
-function templateReadActive(store, owner2, sequence6, version2, date) {
-  return templateSessionActive(owner2) && store.sequence === sequence6 && version2 === runtime.renderVersion && state.page === "todos" && date === todoDate();
+function templateReadActive(store, owner2, sequence4, version2, date) {
+  return templateSessionActive(owner2) && store.sequence === sequence4 && version2 === runtime.renderVersion && state.page === "todos" && date === todoDate();
 }
 async function loadTodoTemplates({ ensure = false } = {}) {
   if (state.page !== "todos" || !state.me) return;
   const store = templateState(), date = todoDate(), version2 = runtime.renderVersion;
   if (ensure && (store.loaded && !store.error && !store.loading || store.loading && store.readDate === date && store.readVersion === version2)) return;
-  const owner2 = store.owner, sequence6 = ++store.sequence, revision2 = store.revision;
+  const owner2 = store.owner, sequence4 = ++store.sequence, revision2 = store.revision;
   store.readDate = date;
   store.readVersion = version2;
   store.loading = true;
@@ -8140,15 +7775,15 @@ async function loadTodoTemplates({ ensure = false } = {}) {
     } catch {
       store.archiveError = "归档列表暂时不可用，请联网后重试。";
     }
-    if (!templateReadActive(store, owner2, sequence6, version2, date)) return;
+    if (!templateReadActive(store, owner2, sequence4, version2, date)) return;
     if (revision2 !== store.revision) return loadTodoTemplates();
     store.items = data2.items;
     if (archived) store.archived = archived.items;
     store.loaded = true;
   } catch (error) {
-    if (templateReadActive(store, owner2, sequence6, version2, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
+    if (templateReadActive(store, owner2, sequence4, version2, date) && !isRequestAbort(error) && !error.staleSession) store.error = error.message;
   } finally {
-    if (templateSessionActive(owner2) && store.sequence === sequence6) {
+    if (templateSessionActive(owner2) && store.sequence === sequence4) {
       store.loading = false;
       paintTodoTemplates();
     }
@@ -9120,8 +8755,8 @@ function paintTodoDom() {
   if (focus) ($(focus, root2) || $("[data-todo-id]", root2) || $("#todo-text", root2))?.focus();
   paintTodoTemplates();
 }
-function todoReadActive(owner2, version2, date, day6, sequence6) {
-  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date && day6.sequence === sequence6 && todosVisible();
+function todoReadActive(owner2, version2, date, day6, sequence4) {
+  return todoSessionActive(owner2) && version2 === runtime.renderVersion && todoDate() === date && day6.sequence === sequence4 && todosVisible();
 }
 async function loadTodos(context) {
   if (!todosVisible()) return;
@@ -9134,13 +8769,13 @@ async function loadTodos(context) {
   }
   void loadTodoTemplates({ ensure: true });
   const day6 = todoDay(), date = day6.date, owner2 = todoOwner(), priorScope = getOfflineRuntime()?.state.scope || null, version2 = runtime.renderVersion;
-  const sequence6 = ++day6.sequence, revision2 = day6.revision;
+  const sequence4 = ++day6.sequence, revision2 = day6.revision;
   day6.loading = true;
   day6.error = "";
   paintTodos();
   try {
     const data2 = await api(`/todos?date=${encodeURIComponent(date)}`, { context });
-    if (!todoReadActive(owner2, version2, date, day6, sequence6) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
+    if (!todoReadActive(owner2, version2, date, day6, sequence4) || priorScope && priorScope !== getOfflineRuntime()?.state.scope) return;
     if (day6.revision !== revision2) return loadTodos(context);
     receiveTodoPreferences(data2.completed_mode, data2.preferences_version);
     day6.items = data2.items;
@@ -9153,10 +8788,10 @@ async function loadTodos(context) {
     }
     if (state.todoPanel === "templates") paintTodoTemplates();
   } catch (error) {
-    if (todoReadActive(owner2, version2, date, day6, sequence6) && !isRequestAbort(error) && !error.staleSession) day6.error = error.message;
+    if (todoReadActive(owner2, version2, date, day6, sequence4) && !isRequestAbort(error) && !error.staleSession) day6.error = error.message;
   } finally {
-    if (todoSessionActive(owner2) && day6.sequence === sequence6) {
-      const visible3 = todoReadActive(owner2, version2, date, day6, sequence6);
+    if (todoSessionActive(owner2) && day6.sequence === sequence4) {
+      const visible3 = todoReadActive(owner2, version2, date, day6, sequence4);
       day6.loading = false;
       paintTodos();
       if (visible3 && state.todoPanel === "history") void loadTodoMonth(todoCalendarMonth(date));
@@ -9304,8 +8939,8 @@ async function toggleTodo(target, { floating = false } = {}) {
 async function loadFloatingToday() {
   if (!state.me) return;
   const date = bjtDate(), day6 = todoDay(date), owner2 = todoOwner();
-  const sequence6 = ++day6.sequence, revision2 = day6.revision;
-  const current3 = () => todoSessionActive(owner2) && date === bjtDate() && day6.sequence === sequence6;
+  const sequence4 = ++day6.sequence, revision2 = day6.revision;
+  const current3 = () => todoSessionActive(owner2) && date === bjtDate() && day6.sequence === sequence4;
   day6.loading = true;
   day6.error = "";
   paintTodos();
@@ -9404,21 +9039,21 @@ function noteEditorCanCollapse(item) {
 function createNotesEditorView() {
   const views = /* @__PURE__ */ new Map();
   const page = (category, date) => {
-    const key2 = category + ":" + date;
-    if (!views.has(key2)) views.set(key2, { active: "", revision: 0, collapseRequested: false, explicit: false });
-    return views.get(key2);
+    const key = category + ":" + date;
+    if (!views.has(key)) views.set(key, { active: "", revision: 0, collapseRequested: false, explicit: false });
+    return views.get(key);
   };
-  function activate(category, date, key2) {
+  function activate(category, date, key) {
     const view = page(category, date);
-    view.active = key2;
+    view.active = key;
     view.revision++;
     view.collapseRequested = false;
     view.explicit = false;
     return view;
   }
-  function requestCollapse(category, date, key2, revision2, { explicit = false } = {}) {
+  function requestCollapse(category, date, key, revision2, { explicit = false } = {}) {
     const view = page(category, date);
-    if (view.active !== key2 || view.revision !== revision2) return;
+    if (view.active !== key || view.revision !== revision2) return;
     view.collapseRequested = true;
     view.explicit = explicit;
   }
@@ -9446,8 +9081,8 @@ var savedText = (item) => item.localBacked ? item.durableText : item.serverText;
 var savedPhase = (item) => item.localBacked ? item.localQueued ? "queued" : "cached" : item.version ? "saved" : "empty";
 var labelsOf = (value) => Array.isArray(value?.labels) ? value.labels : value?.label ? [value.label] : [];
 var equalLabels = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
-var validLabels = (labels3) => Array.isArray(labels3) && labels3.every(validNoteLabel) && new Set(labels3).size === labels3.length;
-var validLegacyLabels = (labels3, category) => validLabels(labels3) && (category === "life" || labels3.length === 0) && labels3.every(validCustomNoteLabel);
+var validLabels = (labels4) => Array.isArray(labels4) && labels4.every(validNoteLabel) && new Set(labels4).size === labels4.length;
+var validLegacyLabels = (labels4, category) => validLabels(labels4) && (category === "life" || labels4.length === 0) && labels4.every(validCustomNoteLabel);
 var localFailure = (error) => error.localNotSaved === true || /^OFFLINE_(?:STORAGE|CACHE|INVALID|SCOPE)/.test(error.code || "");
 function validNoteLabel(value) {
   return typeof value === "string" && value.isWellFormed() && value === value.trim().normalize("NFC") && [...value].length >= 1 && [...value].length <= 32 && !/[\u0000-\u001f\u007f]/.test(value);
@@ -9703,15 +9338,15 @@ function createEntryLocalActions(context) {
 function createEntryReadingActions(context) {
   const { category, page, entry, entries, emit, adopt, merge, schedule, makeEntry } = context;
   const { load, loadEntry } = context.options;
-  async function read3(date, options4 = {}) {
-    const current3 = page(date), sequence6 = ++current3.sequence;
+  async function read2(date, options4 = {}) {
+    const current3 = page(date), sequence4 = ++current3.sequence;
     const epochs = new Map(current3.ids.map((id2) => [id2, entry(id2)?.writeEpoch]));
     current3.loading = true;
     current3.error = "";
     emit();
     try {
       const value = checkedCollection(await load(date, options4), category, date);
-      if (context.disposed || sequence6 !== current3.sequence) return;
+      if (context.disposed || sequence4 !== current3.sequence) return;
       current3.canEdit = value.can_edit;
       current3.labelsComplete = [2, 3].includes(value.labels_version);
       const found = /* @__PURE__ */ new Set();
@@ -9726,17 +9361,17 @@ function createEntryReadingActions(context) {
           if (!isLocalDocument(raw)) item.phase = "saved";
         } else if (!item.pending && item.writeEpoch === epochs.get(item.id)) merge(item, raw);
       }
-      const retained2 = current3.ids.filter((id2) => {
+      const retained = current3.ids.filter((id2) => {
         const item = entry(id2);
         return found.has(id2) || item.version === 0 || item.dirty || item.pending || item.deleted || item.localBacked || blocked(item) || item.writeEpoch !== epochs.get(id2);
       });
-      current3.ids = [.../* @__PURE__ */ new Set([...retained2, ...value.entries.map((raw) => noteValue(raw).id)])];
+      current3.ids = [.../* @__PURE__ */ new Set([...retained, ...value.entries.map((raw) => noteValue(raw).id)])];
       current3.loaded = true;
       await Promise.all(current3.ids.filter((id2) => !found.has(id2) && persistedVersion(entry(id2)) > 0 && (entry(id2).dirty || entry(id2).localBacked) && !entry(id2).pending).map((id2) => readOne(id2, options4)));
     } catch (error) {
-      if (!context.disposed && sequence6 === current3.sequence) current3.error = error.message;
+      if (!context.disposed && sequence4 === current3.sequence) current3.error = error.message;
     } finally {
-      if (!context.disposed && sequence6 === current3.sequence) {
+      if (!context.disposed && sequence4 === current3.sequence) {
         current3.loading = false;
         emit();
         for (const id2 of current3.ids) schedule(entry(id2));
@@ -9746,40 +9381,40 @@ function createEntryReadingActions(context) {
   async function readOne(id2, options4 = {}) {
     const item = entry(id2);
     if (!item || context.disposed) return;
-    const sequence6 = ++item.sequence, epoch = item.writeEpoch;
+    const sequence4 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     emit();
     try {
       const value = checkedEntry(await loadEntry(id2, options4), category, item.date, id2);
-      if (!context.disposed && sequence6 === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
+      if (!context.disposed && sequence4 === item.sequence && !item.pending && epoch === item.writeEpoch) merge(item, value);
     } catch (error) {
-      if (!context.disposed && sequence6 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.error = error.message;
         if (!blocked(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence6 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.loading = false;
         emit();
         schedule(item);
       }
     }
   }
-  return { read: read3, readOne };
+  return { read: read2, readOne };
 }
 function createEntryEditingActions(context) {
   const { page, entry, entries, emit, stopTimer, schedule, makeEntry } = context;
   const { uuid: uuid5 } = context.options;
-  function start(date, { label: label3 = "", labels: labels3 = label3 ? [label3] : [] } = {}) {
+  function start(date, { label: label3 = "", labels: labels4 = label3 ? [label3] : [] } = {}) {
     const current3 = page(date);
-    if (!validLabels(labels3, context.category)) throw new Error("标签无效。");
+    if (!validLabels(labels4, context.category)) throw new Error("标签无效。");
     if (context.disposed || !current3.loaded || !current3.canEdit || date !== dailyNotesToday()) return;
     const existing = entry(current3.composerId);
     if (existing && persistedVersion(existing) === 0 && !existing.deleted && existing.label === label3) return existing;
     const id2 = uuid5();
     if (!uuidPattern6.test(id2) || entries.has(id2)) throw new Error("暂时无法新建记录，请重试。");
     const item = makeEntry(id2, date, current3.canEdit);
-    item.labels = [...labels3];
+    item.labels = [...labels4];
     item.label = item.labels[0] || "";
     item.labelKnown = true;
     item.labelComplete = true;
@@ -9806,12 +9441,12 @@ function createEntryEditingActions(context) {
     emit();
     if (!composing) schedule(item);
   }
-  function relabelDraft(id2, labels3 = []) {
+  function relabelDraft(id2, labels4 = []) {
     const item = entry(id2);
-    if (typeof labels3 === "string") labels3 = labels3 ? [labels3] : [];
-    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) || !validLabels(labels3, context.category)) return false;
-    item.labels = [...labels3];
-    item.label = labels3[0] || "";
+    if (typeof labels4 === "string") labels4 = labels4 ? [labels4] : [];
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) || !validLabels(labels4, context.category)) return false;
+    item.labels = [...labels4];
+    item.label = labels4[0] || "";
     item.dirty = item.draft !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
     item.phase = item.dirty ? "dirty" : savedPhase(item);
     emit();
@@ -9985,7 +9620,7 @@ function createEntryWritingActions(context) {
       }
     }
   }
-  async function save2(id2) {
+  async function save(id2) {
     const item = entry(id2);
     if (!item) return;
     stopTimer(item);
@@ -10101,7 +9736,7 @@ function createEntryWritingActions(context) {
     if (!item || context.disposed || !item.canEdit || !item.deleted || item.pending || blocked(item)) return;
     return send(item, { kind: "restore", version: persistedVersion(item), saveId: uuid5() });
   }
-  return { matches: matches2, accepted, acceptedLocal, send, save: save2, deleteEntry, restoreEntry };
+  return { matches: matches2, accepted, acceptedLocal, send, save, deleteEntry, restoreEntry };
 }
 function createEntryResolutionActions(context) {
   const { category, entry, emit, stopTimer, adopt, matches: matches2, accepted, acceptedLocal } = context;
@@ -10218,11 +9853,11 @@ function createNoteEntriesStore(options4) {
     page,
     entry,
     start,
-    read: read3,
+    read: read2,
     readOne,
     edit,
     relabelDraft,
-    save: save2,
+    save,
     deleteEntry,
     restoreEntry,
     reconcile,
@@ -10247,11 +9882,11 @@ function createNoteEntriesStore(options4) {
     page,
     entry,
     start,
-    read: read3,
+    read: read2,
     readOne,
     edit,
     relabelDraft,
-    save: save2,
+    save,
     deleteEntry,
     restoreEntry,
     reconcile,
@@ -10321,13 +9956,13 @@ init_daily_notes_state();
 function renderNotesMonthMarkup() {
   return '<details id="notes-month-panel" class="notes-month-panel"><summary>月历与历史</summary><div class="notes-month-controls"><button class="btn" type="button" data-notes-month-step="-1" aria-label="上个月">‹</button><label>月份 <input id="notes-month-input" class="input" type="month"></label><button class="btn" type="button" data-notes-month-step="1" aria-label="下个月">›</button><label>分类 <select id="notes-month-category" class="input"><option value="">全部</option><option value="life">生活</option><option value="work">工作</option></select></label><button class="btn text" type="button" data-notes-month-refresh>刷新</button></div><p id="notes-month-status" role="status" aria-live="polite"></p><div class="notes-month-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="notes-month-grid" class="notes-month-grid"></div><h3 id="notes-month-day-title"></h3><div id="notes-month-history" class="notes-entry-list"></div></details>';
 }
-function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
+function mountNotesMonth(root2, { request, selectDate, identity: identity6 }) {
   const panel2 = root2.querySelector("#notes-month-panel");
   if (!panel2) return () => {
   };
   const find = (selector) => panel2.querySelector(selector), doc = root2.ownerDocument;
-  const identityNow = typeof identity7 === "function" ? identity7 : () => identity7, expected = identityNow();
-  let disposed = false, sequence6 = 0, days = /* @__PURE__ */ new Map(), loaded = "", selected = dailyNotesToday(), month = selected.slice(0, 7), category = "";
+  const identityNow = typeof identity6 === "function" ? identity6 : () => identity6, expected = identityNow();
+  let disposed = false, sequence4 = 0, days = /* @__PURE__ */ new Map(), loaded = "", selected = dailyNotesToday(), month = selected.slice(0, 7), category = "";
   const active5 = () => !disposed && root2.isConnected && identityNow() === expected;
   const visibleRows = (date) => (days.get(date) || []).filter((item) => !category || item.category === category);
   find("#notes-month-input").value = month;
@@ -10342,23 +9977,23 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
     list2.replaceChildren();
     find("#notes-month-day-title").textContent = selected + " · " + rows.length + " 条记录";
     for (const item of rows) {
-      const card = node2("article", "", "note-entry note-entry-saved"), head = node2("div", "", "note-entry-head");
+      const card2 = node2("article", "", "note-entry note-entry-saved"), head = node2("div", "", "note-entry-head");
       head.append(node2("span", item.displayLabel + (item.source === "legacy_daily_note" ? " · 原有记录" : "")));
       const time2 = node2("time", new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.updated_at)));
       time2.dateTime = item.updated_at;
       head.append(time2);
-      card.append(head, node2("div", item.text || "这条记录没有文字。", "note-entry-reader"));
+      card2.append(head, node2("div", item.text || "这条记录没有文字。", "note-entry-reader"));
       const open = node2("button", "查看当天", "btn text");
       open.type = "button";
       open.addEventListener("click", () => {
         if (active5()) void selectDate(selected, item.category);
       });
-      card.append(open);
-      list2.append(card);
+      card2.append(open);
+      list2.append(card2);
     }
     if (!rows.length) list2.append(node2("p", "这一天没有符合分类的已同步记录。", "notes-empty"));
   }
-  function paint2() {
+  function paint() {
     const grid = find("#notes-month-grid");
     grid.replaceChildren();
     for (const date of noteMonthWeeks(month).flat()) {
@@ -10378,7 +10013,7 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
   }
   async function load(force = false) {
     if (!active5() || !panel2.open || !validNoteMonth(month) || !force && loaded === month) return;
-    const current3 = ++sequence6, target = month;
+    const current3 = ++sequence4, target = month;
     loaded = "";
     days = /* @__PURE__ */ new Map();
     find("#notes-month-grid").replaceChildren();
@@ -10387,14 +10022,14 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
     find("#notes-month-status").textContent = "";
     try {
       const data2 = await request("/note-entries/month?month=" + target);
-      if (!active5() || current3 !== sequence6 || target !== month) return;
+      if (!active5() || current3 !== sequence4 || target !== month) return;
       days = checkedNoteMonth(data2, target);
       loaded = target;
       if (!selected.startsWith(target + "-")) selected = [...days.keys()][0] || target + "-01";
       find("#notes-month-status").textContent = "仅展示已同步记录；待同步草稿请在原日期查看。";
-      paint2();
+      paint();
     } catch (error) {
-      if (!active5() || current3 !== sequence6) return;
+      if (!active5() || current3 !== sequence4) return;
       find("#notes-month-status").textContent = error.message || "月记录读取失败，请重试。";
     }
   }
@@ -10412,7 +10047,7 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
       void load();
     } else if (event.target.id === "notes-month-category") {
       category = event.target.value;
-      if (loaded === month) paint2();
+      if (loaded === month) paint();
     }
   }
   function click(event) {
@@ -10430,7 +10065,7 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
       }
     } else if (target.dataset.notesMonthDate) {
       selected = target.dataset.notesMonthDate;
-      paint2();
+      paint();
     } else void load(true);
   }
   panel2.addEventListener("toggle", toggle);
@@ -10438,7 +10073,7 @@ function mountNotesMonth(root2, { request, selectDate, identity: identity7 }) {
   panel2.addEventListener("click", click);
   return () => {
     disposed = true;
-    sequence6++;
+    sequence4++;
     panel2.removeEventListener("toggle", toggle);
     panel2.removeEventListener("change", change3);
     panel2.removeEventListener("click", click);
@@ -10501,29 +10136,29 @@ function paintEditorValue(editor, text) {
 function paintDailyNotes(root2, item, { compatibility = false, editing: editing3 = false } = {}) {
   if (!root2) return;
   const find = (selector) => root2.querySelector(selector), editor = find("#notes-editor"), reader = find("#notes-reader");
-  const retained2 = retainedLegacy(item);
+  const retained = retainedLegacy(item);
   editor.dataset.date = item.date;
   editor.dataset.category = root2.dataset.category || dailyNotesRouteCategory();
-  editor.hidden = !editing3 || !item.loaded || item.deleted && !retained2;
+  editor.hidden = !editing3 || !item.loaded || item.deleted && !retained;
   editor.readOnly = true;
   editor.disabled = false;
   paintEditorValue(editor, item.draft);
-  reader.hidden = !item.loaded || editing3 && (!item.deleted || retained2);
-  reader.textContent = retained2 ? item.draft : item.deleted ? "原有记录已删除。" : item.serverText;
-  find("#notes-empty").hidden = !item.loaded || Boolean(item.serverText || retained2 && item.draft);
+  reader.hidden = !item.loaded || editing3 && (!item.deleted || retained);
+  reader.textContent = retained ? item.draft : item.deleted ? "原有记录已删除。" : item.serverText;
+  find("#notes-empty").hidden = !item.loaded || Boolean(item.serverText || retained && item.draft);
   const status = find(compatibility ? "#notes-legacy-status" : "#notes-status");
-  status.textContent = retained2 ? statuses[item.phase] || "保留的原有草稿" : item.deleted ? "原有记录已删除" : "原有记录 · 只读";
+  status.textContent = retained ? statuses[item.phase] || "保留的原有草稿" : item.deleted ? "原有记录已删除" : "原有记录 · 只读";
   status.dataset.phase = item.phase;
   find("#notes-message").hidden = !item.error;
   find("#notes-message").textContent = item.error;
-  find("#notes-detail").textContent = retained2 ? "原有草稿已保留，仅供查看与导出，不会自动上传。" : "原有逐日记录，只读保留。";
+  find("#notes-detail").textContent = retained ? "原有草稿已保留，仅供查看与导出，不会自动上传。" : "原有逐日记录，只读保留。";
   find("#notes-write-actions").hidden = true;
   for (const action of ["save", "restore", "delete", "retry", "use-server", "use-draft", "confirm-delete"]) {
     const button2 = find('[data-notes-action="' + action + '"]');
     button2.hidden = true;
     button2.disabled = true;
   }
-  find('#notes-legacy-card [data-notes-action="export-legacy"]').hidden = !retained2;
+  find('#notes-legacy-card [data-notes-action="export-legacy"]').hidden = !retained;
   find("#notes-delete-confirm").hidden = true;
   find("#notes-resolution").hidden = true;
   find('[data-notes-action="check"]').disabled = item.loading || Boolean(item.pending?.checking);
@@ -10564,7 +10199,7 @@ function paintSavedEntry(node2, item) {
   edit.hidden = !item.canEdit && !draft;
   edit.textContent = draft ? "继续编辑草稿" : item.deleted ? "查看" : "编辑";
 }
-function paintEntryEditor(node2, item, confirmId, labels3, labelsVerified) {
+function paintEntryEditor(node2, item, confirmId, labels4, labelsVerified) {
   paintEntrySummary(node2, item);
   const find = (selector) => node2.querySelector(selector), editor = find("textarea");
   editor.dataset.date = item.date;
@@ -10577,7 +10212,7 @@ function paintEntryEditor(node2, item, confirmId, labels3, labelsVerified) {
   fieldset.hidden = item.deleted;
   fieldset.disabled = !item.canEdit || !item.labelComplete || !labelsVerified || Boolean(item.pending);
   fieldset.title = item.labelComplete && labelsVerified ? "" : "请联网核实标签状态后再修改。";
-  const available = [.../* @__PURE__ */ new Set([...labels3, ...item.labels || []])];
+  const available = [.../* @__PURE__ */ new Set([...labels4, ...item.labels || []])];
   if (JSON.stringify([...options4.querySelectorAll("input")].map((input) => input.value)) !== JSON.stringify(available)) {
     options4.replaceChildren(...available.map((value) => {
       const label3 = document.createElement("label"), input = document.createElement("input");
@@ -10594,12 +10229,12 @@ function paintEntryEditor(node2, item, confirmId, labels3, labelsVerified) {
   reader.hidden = !item.deleted;
   find(".note-entry-actions").hidden = !item.canEdit;
   const busy = Boolean(item.pending) || ["conflict", "unknown"].includes(item.phase);
-  const save2 = find('[data-note-entry-action="save"]');
-  save2.hidden = item.deleted || !item.canEdit;
+  const save = find('[data-note-entry-action="save"]');
+  save.hidden = item.deleted || !item.canEdit;
   const sendLabel = item.pending ? "发送中…" : item.phase === "error" ? "重试发送" : "发送";
-  save2.setAttribute("aria-label", sendLabel);
-  save2.setAttribute("title", sendLabel);
-  save2.disabled = busy || !item.dirty || item.composing || item.phase === "oversize";
+  save.setAttribute("aria-label", sendLabel);
+  save.setAttribute("title", sendLabel);
+  save.disabled = busy || !item.dirty || item.composing || item.phase === "oversize";
   const feedback = find(".note-entry-send-feedback");
   feedback.textContent = item.pending ? "发送中…" : !item.manualSubmitted || item.dirty ? "" : item.phase === "queued" ? "已存本机，待同步" : item.phase === "saved" ? "发送成功" : "";
   find('[data-note-entry-action="delete"]').hidden = item.deleted;
@@ -10615,7 +10250,7 @@ function paintEntryEditor(node2, item, confirmId, labels3, labelsVerified) {
   find('[data-note-entry-action="use-draft"]').disabled = !item.remote?.can_edit || item.remote?.deleted;
 }
 var editorNodes = /* @__PURE__ */ new WeakMap();
-function paintActiveEditor(root2, store, active5, legacy, confirmId, labels3, labelsVerified) {
+function paintActiveEditor(root2, store, active5, legacy, confirmId, labels4, labelsVerified) {
   const host = root2.querySelector("#notes-active-entry");
   if (!editorNodes.has(root2)) editorNodes.set(root2, /* @__PURE__ */ new Map());
   const nodes = editorNodes.get(root2), item = store.entry(active5);
@@ -10624,7 +10259,7 @@ function paintActiveEditor(root2, store, active5, legacy, confirmId, labels3, la
     if (!nodes.has(active5)) nodes.set(active5, createEntryElement(item, true));
     const node2 = nodes.get(active5);
     if (host.firstElementChild !== node2) host.replaceChildren(node2);
-    paintEntryEditor(node2, item, confirmId, labels3, labelsVerified);
+    paintEntryEditor(node2, item, confirmId, labels4, labelsVerified);
   }
   root2.querySelector("#notes-legacy-card").hidden = active5 !== "legacy";
   paintDailyNotes(root2, legacy, { compatibility: true, editing: active5 === "legacy" });
@@ -10652,10 +10287,10 @@ function paintLegacySummary(root2, legacy, active5) {
 }
 function paintRetainedDrafts(root2, current3, drafts) {
   const box = root2.querySelector("#notes-drafts");
-  const retained2 = [...new Set(drafts.filter((value) => value.date !== current3.date || value.category !== current3.category).map((value) => value.category + ":" + value.date))];
-  box.hidden = !retained2.length;
-  box.innerHTML = "<span>保留的草稿：</span>" + retained2.map((key2) => {
-    const [category, date] = key2.split(":");
+  const retained = [...new Set(drafts.filter((value) => value.date !== current3.date || value.category !== current3.category).map((value) => value.category + ":" + value.date))];
+  box.hidden = !retained.length;
+  box.innerHTML = "<span>保留的草稿：</span>" + retained.map((key) => {
+    const [category, date] = key.split(":");
     return '<button class="btn text" type="button" data-notes-draft-category="' + e(category) + '" data-notes-date="' + e(date) + '">' + (category === "work" ? "工作 " : "生活 ") + e(date) + "</button>";
   }).join("");
 }
@@ -10691,7 +10326,7 @@ function paintNoteEntries(root2, store, current3, legacy, {
   active: active5 = "",
   otherLegacy = null,
   otherCategory = "",
-  labels: labels3 = [],
+  labels: labels4 = [],
   labelsVerified = true
 } = {}) {
   const find = (selector) => root2.querySelector(selector), list2 = find("#notes-entry-list");
@@ -10715,7 +10350,7 @@ function paintNoteEntries(root2, store, current3, legacy, {
     paintSavedEntry(node2, item);
     node2.dataset.sortTime = item.createdAt || item.localCreatedAt || "";
   }
-  paintActiveEditor(root2, store, active5, legacy, confirmId, labels3, labelsVerified);
+  paintActiveEditor(root2, store, active5, legacy, confirmId, labels4, labelsVerified);
   paintLegacySummary(root2, legacy, active5);
   (retainedLegacy(legacy) ? unpublished2 : list2).append(root2.querySelector("#notes-legacy-saved"));
   root2.querySelector("#notes-legacy-saved").dataset.sortTime = legacy.updatedAt || "";
@@ -10821,7 +10456,7 @@ function captureNotesDrafts(legacy, entries, category) {
     rows.push({
       kind,
       category,
-      ...Object.fromEntries(draftFields.filter((key2) => item[key2] !== void 0).map((key2) => [key2, item[key2]])),
+      ...Object.fromEntries(draftFields.filter((key) => item[key] !== void 0).map((key) => [key, item[key]])),
       ...recoveryProof ? { recoveryProof } : {}
     });
   }
@@ -10852,8 +10487,8 @@ async function hydrateNotesDrafts(legacy, entries, category) {
   if (!active5()) return;
   for (const raw of legacyDrafts) {
     if (!raw) continue;
-    const key2 = "legacy:" + raw.date;
-    if (!raw || raw.category !== category || seen.has(key2)) continue;
+    const key = "legacy:" + raw.date;
+    if (!raw || raw.category !== category || seen.has(key)) continue;
     const item = legacy.page(raw.date);
     Object.assign(item, {
       draft: raw.draft,
@@ -10865,7 +10500,7 @@ async function hydrateNotesDrafts(legacy, entries, category) {
       error: "保留的原有草稿只读，可导出；不会自动上传。"
     });
     legacyRecoveryGuard.remember(item);
-    seen.add(key2);
+    seen.add(key);
   }
   hydrationReady.add(entries);
   await captureNotesDrafts(legacy, entries, category);
@@ -10892,14 +10527,14 @@ function scheduleArchiveRefresh(expected, force = false) {
   }, 300);
 }
 async function visibleArchive() {
-  const identity7 = notesIdentityNow(), revision2 = notesDraftRevision;
-  if (visibleArchiveFlight?.identity === identity7 && visibleArchiveFlight.revision === revision2) return visibleArchiveFlight.promise;
+  const identity6 = notesIdentityNow(), revision2 = notesDraftRevision;
+  if (visibleArchiveFlight?.identity === identity6 && visibleArchiveFlight.revision === revision2) return visibleArchiveFlight.promise;
   const promise = (async () => {
     const offline = getOfflineRuntime();
     if (!offline) return [];
     const snapshots2 = await offline.retainedDraftRecords("note_entry");
     const controller = new AbortController(), tombstones = /* @__PURE__ */ new Map();
-    const active5 = () => !controller.signal.aborted && identity7 === notesIdentityNow();
+    const active5 = () => !controller.signal.aborted && identity6 === notesIdentityNow();
     const ids = [...new Set(snapshots2.map((row) => row.data?.id).filter((id2) => /^[a-f0-9-]{36}$/i.test(id2 || "")))];
     let timer2, next = 0;
     await Promise.race([
@@ -10923,9 +10558,9 @@ async function visibleArchive() {
       })
     ]).finally(() => clearTimeout(timer2));
     const rows = uniqueRetainedDrafts(snapshots2.map((record) => record.data).filter((row) => !row || !matchesDeletedEntry(row, tombstones.get(row.id))));
-    return identity7 === notesIdentityNow() ? rows.map((raw) => ({ raw, record: snapshots2.find((record) => record.data === raw) })) : [];
+    return identity6 === notesIdentityNow() ? rows.map((raw) => ({ raw, record: snapshots2.find((record) => record.data === raw) })) : [];
   })();
-  visibleArchiveFlight = { identity: identity7, revision: revision2, promise };
+  visibleArchiveFlight = { identity: identity6, revision: revision2, promise };
   try {
     return await promise;
   } finally {
@@ -10937,9 +10572,9 @@ var archiveGroupKey = ({ draft_kind: kind, data: data2 }) => JSON.stringify([kin
 function groupArchiveRecords(records) {
   const groups = /* @__PURE__ */ new Map();
   for (const record of records) {
-    const key2 = archiveGroupKey(record);
-    if (!groups.has(key2)) groups.set(key2, { key: key2, row: record.data, records: [] });
-    groups.get(key2).records.push(record);
+    const key = archiveGroupKey(record);
+    if (!groups.has(key)) groups.set(key, { key, row: record.data, records: [] });
+    groups.get(key).records.push(record);
   }
   return [...groups.values()];
 }
@@ -10952,13 +10587,13 @@ function archiveButton(text, onClick, className = "btn text") {
   button2.addEventListener("click", onClick);
   return button2;
 }
-function archiveConfirmRow(key2, question, expected) {
+function archiveConfirmRow(key, question, expected) {
   const row = document.createElement("div"), text = document.createElement("span");
   row.className = "notes-retained-confirm";
   row.setAttribute("role", "group");
   row.setAttribute("aria-label", question);
   text.textContent = question;
-  const accept = archiveButton("确认删除", () => void deleteArchiveRecords(key2, expected), "btn text notes-retained-danger");
+  const accept = archiveButton("确认删除", () => void deleteArchiveRecords(key, expected), "btn text notes-retained-danger");
   const cancel = archiveButton("取消", () => {
     archiveConfirm = "";
     void showRetainedArchive();
@@ -10966,8 +10601,8 @@ function archiveConfirmRow(key2, question, expected) {
   row.append(text, accept, cancel);
   return row;
 }
-function askArchiveDelete(key2) {
-  archiveConfirm = key2;
+function askArchiveDelete(key) {
+  archiveConfirm = key;
   archiveMessage = "";
   void showRetainedArchive();
 }
@@ -10993,7 +10628,7 @@ async function restoreLegacyAfterDiscard(row, expected) {
     paintDailyNotesPage();
   }
 }
-async function deleteArchiveRecords(key2, expected) {
+async function deleteArchiveRecords(key, expected) {
   const offline = getOfflineRuntime();
   if (!offline || archiveBusy || expected !== notesIdentityNow()) return;
   archiveBusy = true;
@@ -11003,7 +10638,7 @@ async function deleteArchiveRecords(key2, expected) {
   let removed4 = 0, editing3 = 0, failed = 0;
   try {
     const records = [...await offline.retainedDraftRecords("legacy"), ...await offline.retainedDraftRecords("note_entry")];
-    for (const record of records.filter((record2) => key2 === "all" || archiveGroupKey(record2) === key2)) {
+    for (const record of records.filter((record2) => key === "all" || archiveGroupKey(record2) === key)) {
       if (expected !== notesIdentityNow()) return;
       if (archiveRecordBusy(record)) {
         editing3++;
@@ -11070,11 +10705,11 @@ function archiveBox(root2, expected) {
   return box;
 }
 async function showRetainedArchive() {
-  const expected = notesIdentityNow(), revision2 = notesDraftRevision, sequence6 = ++visibleArchiveSequence;
+  const expected = notesIdentityNow(), revision2 = notesDraftRevision, sequence4 = ++visibleArchiveSequence;
   const offline = getOfflineRuntime();
   const records = offline ? [...await offline.retainedDraftRecords("legacy"), ...await offline.retainedDraftRecords("note_entry")] : [];
   const root2 = document.querySelector("#daily-notes");
-  if (!root2 || !notesVisible() || expected !== notesIdentityNow() || sequence6 !== visibleArchiveSequence) return;
+  if (!root2 || !notesVisible() || expected !== notesIdentityNow() || sequence4 !== visibleArchiveSequence) return;
   if (revision2 !== notesDraftRevision) return scheduleArchiveRefresh(expected, true);
   if (!records.length) {
     root2.querySelector("#notes-retained-archive")?.remove();
@@ -11158,8 +10793,8 @@ function dailyNotesTransport(category, expected, active5) {
       return await noteRequest(path, options4);
     } catch (error) {
       if (error.code !== "NETWORK_UNAVAILABLE") throw error;
-      const body2 = options4.body || {}, labels3 = body2.labels;
-      if (labels3)
+      const body2 = options4.body || {}, labels4 = body2.labels;
+      if (labels4)
         throw Object.assign(new Error("多标签修改需要联网，草稿已保留。"), { code: "OFFLINE_MULTI_LABEL", localNotSaved: true });
       const { labels: ignored, ...legacyBody } = body2;
       return request(path, { ...options4, offlineUnknown: true, body: legacyBody, headers: { "X-Note-Labels-Version": "1" } });
@@ -11231,7 +10866,7 @@ function openCategoryNotes(category, expected) {
       await offline.flushDrafts();
       if (expected !== notesIdentityNow()) throw new Error("身份已变化");
       const row = { kind: "note_entry", category, ...Object.fromEntries(
-        draftFields.filter((key2) => item[key2] !== void 0).map((key2) => [key2, structuredClone(item[key2])])
+        draftFields.filter((key) => item[key] !== void 0).map((key) => [key, structuredClone(item[key])])
       ) };
       return { row, snapshots: await offline.retainedDraftRecords("note_entry") };
     },
@@ -11250,7 +10885,7 @@ function openCategoryNotes(category, expected) {
       await offline.flushDrafts();
       if (expected !== notesIdentityNow()) throw new Error("身份已变化");
       await offline.discardUnsentNoteDraft({ kind: "note_entry", category, ...Object.fromEntries(
-        draftFields.filter((key2) => item[key2] !== void 0).map((key2) => [key2, item[key2]])
+        draftFields.filter((key) => item[key] !== void 0).map((key) => [key, item[key]])
       ) });
     },
     onChange: changed4,
@@ -11424,10 +11059,10 @@ function paintDailyNotesPage() {
 }
 async function readNoteLabels({ afterWrite = false } = {}) {
   if (notesLabelBusy && !afterWrite) return false;
-  const expected = notesIdentityNow(), sequence6 = ++notesLabelSequence;
+  const expected = notesIdentityNow(), sequence4 = ++notesLabelSequence;
   try {
     const data2 = await apiNetwork("/note-entries/labels", { headers: { "X-Note-Labels-Version": "3", "X-Note-Labels-Archive": "1" } });
-    if (expected !== notesIdentityNow() || sequence6 !== notesLabelSequence) return;
+    if (expected !== notesIdentityNow() || sequence4 !== notesLabelSequence) return;
     if (data2?.labels_version !== 3 || !Array.isArray(data2?.labels) || !Array.isArray(data2?.archived_labels) || data2.labels.some((row) => !validCustomNoteLabel(row?.name)) || data2.archived_labels.some((row) => typeof row?.name !== "string" || !(row.name === "生活" || row.name === "工作" || validCustomNoteLabel(row.name)) || typeof row.archived_at !== "string" || !Number.isFinite(Date.parse(row.archived_at))))
       throw new Error("服务器未提供可核实的归档状态。");
     notesLabels = [...new Set(data2.labels.map((row) => row.name))];
@@ -11437,7 +11072,7 @@ async function readNoteLabels({ afterWrite = false } = {}) {
     paintDailyNotesPage();
     return true;
   } catch (error) {
-    if (expected !== notesIdentityNow() || sequence6 !== notesLabelSequence) return;
+    if (expected !== notesIdentityNow() || sequence4 !== notesLabelSequence) return;
     notesLabelsVerified = false;
     notesLabelMessage = "标签状态读取失败，请联网后重新打开标签管理：" + (error.message || "请稍后重试。");
   }
@@ -11618,7 +11253,7 @@ function paintHistoryRows(root2) {
   orderButton.hidden = !timeline;
   orderButton.dataset.historyOrder = order;
   orderButton.textContent = order === "asc" ? "时间：从旧到新" : "时间：从新到旧";
-  const card = (row) => {
+  const card2 = (row) => {
     const article = document.createElement("article");
     article.className = "note-entry note-entry-saved";
     const heading = document.createElement("div");
@@ -11641,14 +11276,14 @@ function paintHistoryRows(root2) {
       const heading = document.createElement("h3");
       heading.className = "notes-timeline-date";
       heading.textContent = date + (scoreByDate.get(date) ? " · " + scoreByDate.get(date) + "分" : "");
-      section.append(heading, ...items.map(card));
+      section.append(heading, ...items.map(card2));
       return section;
     }));
   } else {
     rows = (historyDays.get(selected) || []).filter(shown);
     const dayScore = scoreByDate.get(selected);
     const scoreLine = dayScore ? Object.assign(document.createElement("p"), { className: "notes-score-mark", textContent: selected + " 打分 " + dayScore }) : null;
-    list2.replaceChildren(...[scoreLine, ...rows.map(card)].filter(Boolean));
+    list2.replaceChildren(...[scoreLine, ...rows.map(card2)].filter(Boolean));
   }
   const total = [...historyDays.values()].flat().filter(shown).length;
   root2.querySelector("#notes-history-summary").textContent = historyMonth + " · " + total + " 条已同步记录";
@@ -11665,8 +11300,8 @@ function applyHistoryMonth(root2, month, days, chosenDate) {
   root2.querySelector("#notes-history-month").value = month;
   monthOptions(dateSelect, dates, selected, "");
   monthOptions(root2.querySelector("#notes-history-week"), ["", ...weeks.map((_, index) => String(index + 1))], "", "全部周次");
-  const labels3 = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
-  monthOptions(labelSelect, labels3, oldLabel, "全部标签");
+  const labels4 = ["", .../* @__PURE__ */ new Set(["生活", "工作", ...[...days.values()].flat().flatMap((row) => row.displayLabels || [row.displayLabel])])];
+  monthOptions(labelSelect, labels4, oldLabel, "全部标签");
   paintHistoryRows(root2);
 }
 async function loadHistory(month = "", chosenDate = "") {
@@ -11674,9 +11309,9 @@ async function loadHistory(month = "", chosenDate = "") {
   if (!root2) return;
   const target = month || historyMonth || dailyNotesToday().slice(0, 7);
   if (coalesceNoteMonthFlight(historyActiveLoad, { root: root2, target, expected, sequence: historySequence, chosenDate })) return;
-  const sequence6 = ++historySequence;
-  historyActiveLoad = { root: root2, target, expected, sequence: sequence6, chosenDate };
-  const active5 = () => notesVisible() && notesView === "history" && sequence6 === historySequence && expected === notesIdentityNow();
+  const sequence4 = ++historySequence;
+  historyActiveLoad = { root: root2, target, expected, sequence: sequence4, chosenDate };
+  const active5 = () => notesVisible() && notesView === "history" && sequence4 === historySequence && expected === notesIdentityNow();
   const status = root2.querySelector("#notes-history-status");
   status.textContent = "";
   try {
@@ -11699,7 +11334,7 @@ async function loadHistory(month = "", chosenDate = "") {
     status.textContent = "月记录读取失败，保留当前内容：" + (error.message || "请联网重试。");
     if (historyMonth) root2.querySelector("#notes-history-month").value = historyMonth;
   } finally {
-    if (historyActiveLoad?.sequence === sequence6) historyActiveLoad = null;
+    if (historyActiveLoad?.sequence === sequence4) historyActiveLoad = null;
   }
 }
 async function selectDailyNotesDate(value) {
@@ -11715,10 +11350,10 @@ async function selectDailyNotesDate(value) {
 function shiftedNotesDate(date, delta2) {
   return new Date(Date.parse(date + "T12:00:00Z") + delta2 * 864e5).toISOString().slice(0, 10);
 }
-function openEditor(key2) {
-  editorViews.activate(dailyNotesRouteCategory(), dailyNotesRouteDate(), key2);
+function openEditor(key) {
+  editorViews.activate(dailyNotesRouteCategory(), dailyNotesRouteDate(), key);
   paintDailyNotesPage();
-  const editor = key2 === "legacy" ? document.querySelector("#notes-editor") : document.querySelector('#notes-active-entry [data-note-entry-editor="' + key2 + '"]');
+  const editor = key === "legacy" ? document.querySelector("#notes-editor") : document.querySelector('#notes-active-entry [data-note-entry-editor="' + key + '"]');
   editor?.focus();
   document.querySelector("#notes-composer")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
 }
@@ -12071,10 +11706,10 @@ function editFloatingNote(text, composing = false) {
   const item = floatingNoteEntry(true);
   if (item) entryStores.get(item.category).edit(item.id, text, { composing });
 }
-function labelFloatingNote(labels3) {
+function labelFloatingNote(labels4) {
   const item = floatingNoteEntry(true);
   if (!item || !notesLabelsVerified) return false;
-  return entryStores.get(item.category).relabelDraft(item.id, labels3);
+  return entryStores.get(item.category).relabelDraft(item.id, labels4);
 }
 async function sendFloatingNote() {
   const item = floatingNoteEntry(false), store = item && entryStores.get(item.category);
@@ -12240,7 +11875,7 @@ init_document();
 var fields4 = ["group_id", "title", "body", "position"];
 var changed2 = (a, b) => fields4.some((field2) => a[field2] !== b?.[field2]);
 function memoLocalProtocol(context) {
-  function reset3(item, value) {
+  function reset2(item, value) {
     item.localVersion = value.version;
     item.localQueued = false;
     item.localOperation = null;
@@ -12294,7 +11929,7 @@ function memoLocalProtocol(context) {
   function index(value) {
     return { ...value, groups: value.groups.map(row), notes: value.notes.map(row) };
   }
-  return { accept, reset: reset3, row, index };
+  return { accept, reset: reset2, row, index };
 }
 
 // web/core/memos-state.mjs
@@ -12421,7 +12056,7 @@ function makeContext(options4) {
   return context;
 }
 function persistence(context) {
-  const key2 = () => "haoduoyu.memos.drafts.v1." + context.ownerId + "." + context.draftScope;
+  const key = () => "haoduoyu.memos.drafts.v1." + context.ownerId + "." + context.draftScope;
   const previousKey = () => context.restoreDraftScope ? "haoduoyu.memos.drafts.v1." + context.ownerId + "." + context.restoreDraftScope : null;
   function persist({ verify = false } = {}) {
     if (!context.writable()) {
@@ -12432,8 +12067,8 @@ function persistence(context) {
     try {
       if (!context.storage || verify && !context.storagePersistent) throw new Error("Draft storage unavailable");
       const value = JSON.stringify({ saved_at: (/* @__PURE__ */ new Date()).toISOString(), drafts, operation: context.state.operation });
-      context.storage.setItem(key2(), value);
-      if (verify && context.storage.getItem(key2()) !== value) throw new Error("Draft readback failed");
+      context.storage.setItem(key(), value);
+      if (verify && context.storage.getItem(key()) !== value) throw new Error("Draft readback failed");
       context.state.storageError = context.storagePersistent ? "" : "浏览器无法记住此页签，刷新后可能无法找回草稿，请保持页面打开。";
     } catch {
       context.state.storageError = "浏览器无法保留草稿，请暂时保持此页面打开。";
@@ -12444,7 +12079,7 @@ function persistence(context) {
     if (context.hydrated || !context.writable()) return;
     context.hydrated = true;
     try {
-      const current3 = context.storage?.getItem(key2());
+      const current3 = context.storage?.getItem(key());
       const saved = JSON.parse(current3 ?? (previousKey() ? context.storage?.getItem(previousKey()) : null) ?? "{}");
       if (Array.isArray(saved.drafts)) for (const raw of saved.drafts.slice(0, 200)) {
         const item = recoveredDraft(raw);
@@ -12518,12 +12153,12 @@ function memoReads2(context) {
       return;
     }
     const reschedule = context.durable && (item.localQueued || Boolean(item.timer));
-    const sequence6 = ++item.sequence, epoch = item.writeEpoch;
+    const sequence4 = ++item.sequence, epoch = item.writeEpoch;
     item.loading = true;
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos/notes/" + id2) : context.request("/memos/notes/" + id2));
-      if (context.disposed || sequence6 !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
+      if (context.disposed || sequence4 !== item.sequence || epoch !== item.writeEpoch || item.pending) return;
       if (isLocalDocument(raw)) {
         context.local.accept(item, raw);
         return;
@@ -12548,12 +12183,12 @@ function memoReads2(context) {
         context.upsert("notes", value);
       }
     } catch (error) {
-      if (!context.disposed && sequence6 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.error = error.message;
         if (!isUncertain(item)) item.phase = "error";
       }
     } finally {
-      if (!context.disposed && sequence6 === item.sequence) {
+      if (!context.disposed && sequence4 === item.sequence) {
         item.loading = false;
         context.emit();
         if (reschedule) context.schedule(item);
@@ -12561,13 +12196,13 @@ function memoReads2(context) {
     }
   }
   async function load({ local = false } = {}) {
-    const { state: state2 } = context, sequence6 = ++context.loadSequence;
+    const { state: state2 } = context, sequence4 = ++context.loadSequence;
     state2.loading = true;
     state2.error = "";
     context.emit();
     try {
       const raw = await (local && context.readLocal ? context.readLocal("/memos") : context.request("/memos"));
-      if (context.disposed || sequence6 !== context.loadSequence) return;
+      if (context.disposed || sequence4 !== context.loadSequence) return;
       if (!Array.isArray(raw?.groups) || !Array.isArray(raw.notes) || typeof raw.can_edit !== "boolean")
         throw new Error("备忘录列表不完整，请重新读取。");
       const value = context.local.index(raw);
@@ -12588,9 +12223,9 @@ function memoReads2(context) {
       if (!state2.noteId) state2.noteId = state2.notes.find((note) => note.group_id === state2.groupId && (state2.trash || !note.deleted_at))?.id || "";
       if (state2.noteId) await selectNote(state2.noteId, { open: false, local });
     } catch (error) {
-      if (!context.disposed && sequence6 === context.loadSequence) state2.error = error.message;
+      if (!context.disposed && sequence4 === context.loadSequence) state2.error = error.message;
     } finally {
-      if (!context.disposed && sequence6 === context.loadSequence) {
+      if (!context.disposed && sequence4 === context.loadSequence) {
         state2.loading = false;
         context.emit();
       }
@@ -13035,13 +12670,13 @@ function snapshots(storage2, ownerId) {
   const prefix = "haoduoyu.memos.drafts.v1." + ownerId, rows = [], seen = /* @__PURE__ */ new Set();
   const keys = [];
   for (let index = 0; index < Math.min(storage2.length, 1e3); index++) {
-    const key2 = storage2.key(index);
-    if (key2 === prefix || key2?.startsWith(prefix + ".")) keys.push(key2);
+    const key = storage2.key(index);
+    if (key === prefix || key?.startsWith(prefix + ".")) keys.push(key);
     if (keys.length === 200) break;
   }
-  for (const key2 of keys) {
+  for (const key of keys) {
     try {
-      const text = storage2.getItem(key2);
+      const text = storage2.getItem(key);
       if (!text || text.length > 8 * 1024 * 1024) continue;
       const value = JSON.parse(text);
       if (!Array.isArray(value.drafts)) continue;
@@ -13049,7 +12684,7 @@ function snapshots(storage2, ownerId) {
         const fingerprint = JSON.stringify([raw.id, raw.title, raw.body, raw.version, raw.pending?.body?.save_id || ""]);
         if (seen.has(fingerprint)) continue;
         seen.add(fingerprint);
-        rows.push({ raw, savedAt: value.saved_at || raw.updated_at || "", key: key2 });
+        rows.push({ raw, savedAt: value.saved_at || raw.updated_at || "", key });
       }
     } catch {
     }
@@ -13108,9 +12743,9 @@ function draftStorageScope() {
   if (memoDraftScope) return memoDraftScope;
   const generated = globalThis.crypto.randomUUID();
   try {
-    const key2 = "haoduoyu.memos.tab.v1", saved = window.sessionStorage.getItem(key2);
+    const key = "haoduoyu.memos.tab.v1", saved = window.sessionStorage.getItem(key);
     const previous = /^[a-f0-9-]{36}$/i.test(saved || "") ? saved : "";
-    window.sessionStorage.setItem(key2, generated);
+    window.sessionStorage.setItem(key, generated);
     memoDraftScope = { draftScope: generated, restoreDraftScope: previous, storagePersistent: true };
   } catch {
     memoDraftScope = { draftScope: generated, storagePersistent: false };
@@ -13126,8 +12761,8 @@ var currentIdentity = () => JSON.stringify([
 var settingsTrash = () => state.page === "settings" && state.settingsTab === "workspace";
 var visible2 = () => (state.page === "memos" || settingsTrash()) && memoIdentity === currentIdentity();
 function ensureStore() {
-  const identity7 = currentIdentity();
-  if (memoStore && memoIdentity === identity7) return memoStore;
+  const identity6 = currentIdentity();
+  if (memoStore && memoIdentity === identity6) return memoStore;
   memoDeleteWait?.(true);
   memoDeleteWait = null;
   memoDeleting = "";
@@ -13135,11 +12770,11 @@ function ensureStore() {
   memoRefreshPaused = false;
   memoRefreshReady = false;
   memoStore?.dispose();
-  memoIdentity = identity7;
+  memoIdentity = identity6;
   memoDialog = null;
   resetMemoRecovery();
   const active5 = () => {
-    if (currentIdentity() !== identity7) throw new DOMException("登录状态已经改变", "AbortError");
+    if (currentIdentity() !== identity6) throw new DOMException("登录状态已经改变", "AbortError");
   };
   const request = async (path, options4) => {
     active5();
@@ -13159,10 +12794,10 @@ function ensureStore() {
     ...draftStorageScope(),
     durable: true,
     readLocal: (path) => getOfflineRuntime()?.readMemo(path) || request(path),
-    resolveLocal: (key2, choice2) => getOfflineRuntime().resolve(key2, choice2),
+    resolveLocal: (key, choice2) => getOfflineRuntime().resolve(key, choice2),
     ownerId: state.me?.publicBusiness ? "" : String(state.me?.id || ""),
     onChange: () => {
-      if (identity7 === currentIdentity()) {
+      if (identity6 === currentIdentity()) {
         memoDeleteWait?.();
         paintMemosPage();
         refreshDurableMemos();
@@ -13827,7 +13462,7 @@ function settingsNavigation() {
 }
 function mobileNavigation() {
   const items = [["todos", "待办"], ["notes", "碎碎念"]];
-  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id2, label3]) => navigationLink({ ...nav.find((item) => item.id === id2), label: label3 }, true)).join("")}${mediaNavigation(true)}${navigationLink(nav.find((item) => item.id === "ai-reports"), true)}${navigationLink(nav.find((item) => item.id === "ai-diagnosis"), true)}</nav>`;
+  return `<nav class="mobile-nav workbench-navigation" aria-label="切换模块">${items.map(([id2, label3]) => navigationLink({ ...nav.find((item) => item.id === id2), label: label3 }, true)).join("")}${mediaNavigation(true)}${navigationLink(nav.find((item) => item.id === "ai-reports"), true)}</nav>`;
 }
 function mobileSettingsMenu() {
   return `<nav id="mobile-settings-menu" class="mobile-settings-menu" aria-label="设置菜单" hidden>
@@ -13996,7 +13631,7 @@ function syncMobileViewport() {
   const root2 = document.documentElement;
   if (!root2?.style?.setProperty) return;
   if (!isMobileLayout()) {
-    for (const key2 of ["height", "top", "keyboard"]) root2.style.removeProperty("--mobile-viewport-" + key2);
+    for (const key of ["height", "top", "keyboard"]) root2.style.removeProperty("--mobile-viewport-" + key);
     delete root2.dataset.mobileKeyboard;
     return;
   }
@@ -14054,8 +13689,8 @@ init_todos_state();
 var reminderSequence = 0, reminderEvents = false;
 async function loadWorkReminders() {
   registerReminderEvents();
-  const sequence6 = ++reminderSequence, session3 = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
-  const current3 = () => sequence6 === reminderSequence && session3 === runtime.sessionEpoch && state.page === "reminders";
+  const sequence4 = ++reminderSequence, session2 = runtime.sessionEpoch, date = state.reminderDate || bjtDate();
+  const current3 = () => sequence4 === reminderSequence && session2 === runtime.sessionEpoch && state.page === "reminders";
   paintWorkReminders({ date, items: [], loading: true });
   try {
     const data2 = await api("/work-reminders?date=" + encodeURIComponent(date));
@@ -14081,11 +13716,128 @@ function registerReminderEvents() {
   });
 }
 
+// web/pages/ai-reports.mjs
+init_dom();
+init_daily_notes_state();
+function renderAiReports() {
+  return `<section id="ai-reports" aria-label="AI 日报">
+    <div>
+      <div class="page-tabs segmented ai-daily-tabs" role="group" aria-label="AI 日报模块">
+        <button class="btn" type="button" data-ai-daily-tab="reminders" aria-pressed="true">每日提醒</button>
+        <button class="btn" type="button" data-ai-daily-tab="reports" aria-pressed="false">AI汇报</button>
+      </div>
+      <div class="ai-calendar-layout"><button class="btn ai-calendar-step" type="button" data-ai-report-month="-1" aria-label="上个月">‹</button>
+        <div class="ai-calendar-body"><h2 id="ai-report-date-title" aria-live="polite"></h2><div id="ai-report-calendar"></div></div>
+        <button class="btn ai-calendar-step" type="button" data-ai-report-month="1" aria-label="下个月">›</button></div>
+      <section data-ai-daily-panel="reminders"><p id="ai-reminder-status" role="status"></p><div id="ai-reminder-list"></div></section>
+      <section data-ai-daily-panel="reports" hidden><p id="ai-report-list-status" role="status"></p>
+      <div id="ai-report-list" aria-live="polite"></div>
+      </section>
+    </div>
+  </section>`;
+}
+var dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+var timeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: "Asia/Shanghai",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
+function reportContent(value) {
+  const content2 = String(value ?? "");
+  const firstLine = content2.split(/\r?\n/, 1)[0];
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(firstLine) ? /* @__PURE__ */ new Date(`${firstLine}T00:00:00Z`) : null;
+  if (!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== firstLine)
+    return { workDate: null, body: content2 };
+  return { workDate: firstLine, body: content2.slice(firstLine.length).replace(/^\r?\n/, "") };
+}
+function reportDay(row) {
+  const { workDate } = reportContent(row.content);
+  const date = new Date(row.created_at);
+  if (workDate) return workDate;
+  if (!Number.isFinite(date.getTime())) return "";
+  const parts2 = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts2.year}-${parts2.month}-${parts2.day}`;
+}
+function reportGroup(author) {
+  const name = String(author ?? "").trim().toLowerCase();
+  if (["grok bot", "grok bot-小小鱼"].includes(name)) return "Grok bot";
+  if (name === "gemini") return "Gemini";
+  if (["gpt", "chatgpt", "chatgpt-dot小鱼"].includes(name)) return "GPT";
+  return "其他作者";
+}
+function reportAuthorClass(author) {
+  const colors = { "Grok bot": "grok", Gemini: "gemini", GPT: "gpt", "其他作者": "other" };
+  return `ai-report-author ai-report-author--${colors[reportGroup(author)]}`;
+}
+function paintAiCalendar(selectedDate2, visibleMonth2 = selectedDate2.slice(0, 7), selector = "#ai-reports") {
+  const root2 = document.querySelector(selector);
+  if (!root2) return;
+  root2.querySelector("#ai-report-date-title").textContent = `${Number(visibleMonth2.slice(0, 4))}年${Number(visibleMonth2.slice(5, 7))}月`;
+  const first = /* @__PURE__ */ new Date(`${visibleMonth2}-01T00:00:00Z`);
+  const days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  let calendar = '<div class="ai-calendar-grid">' + ["日", "一", "二", "三", "四", "五", "六"].map((d) => `<span>${d}</span>`).join("");
+  calendar += "<span></span>".repeat(first.getUTCDay());
+  for (let day6 = 1; day6 <= days; day6++) {
+    const date = `${visibleMonth2}-${String(day6).padStart(2, "0")}`;
+    calendar += `<button type="button" class="btn text" data-ai-report-select="${date}" aria-label="${date}" ${date === selectedDate2 ? 'aria-current="date"' : ""}>${day6}</button>`;
+  }
+  root2.querySelector("#ai-report-calendar").innerHTML = calendar + "</div>";
+}
+function paintAiReports(items, error = "", loading = false, selectedDate2 = dailyNotesToday(), visibleMonth2 = selectedDate2.slice(0, 7)) {
+  const root2 = document.querySelector("#ai-reports");
+  if (!root2) return;
+  const status = root2.querySelector("#ai-report-list-status");
+  status.textContent = error || (loading || items.length ? "" : "暂无汇报");
+  paintAiCalendar(selectedDate2, visibleMonth2);
+  const rows = [];
+  const groups = { "Grok bot": [], Gemini: [], GPT: [], "其他作者": [] };
+  for (const row of items) {
+    const date = new Date(row.created_at);
+    const validDate = Number.isFinite(date.getTime());
+    const submissionDay = validDate ? dateFormatter.format(date) : "日期未知";
+    const { body: body2 } = reportContent(row.content);
+    const stamp3 = validDate ? `${submissionDay} ${timeFormatter.format(date)}（北京时间）` : String(row.created_at ?? "未知");
+    const author = String(row.author ?? "");
+    const group = reportGroup(author);
+    groups[group].push(`<article class="card field-spaced" style="overflow-wrap:anywhere" title="提交于 ${e(stamp3)}"><p><strong class="${reportAuthorClass(author)}">${e(author)}：</strong></p><div class="ai-report-markdown">${renderSafeMarkdown(body2)}</div></article>`);
+  }
+  for (const [name, entries] of Object.entries(groups)) {
+    if (name === "其他作者" && !entries.length) continue;
+    const heading = name === "其他作者" ? `<h3 class="${reportAuthorClass(name)}">${name}</h3>` : "";
+    rows.push(`<section>${heading}${entries.length ? entries.join("") : "<p>暂无汇报</p>"}</section>`);
+  }
+  root2.querySelector("#ai-report-list").innerHTML = loading || error ? "" : rows.join("");
+}
+function paintAiDailyReminders(data2, error = "", loading = false) {
+  const root2 = document.querySelector("#ai-reports");
+  if (!root2) return;
+  root2.querySelector("#ai-reminder-status").textContent = error || (loading ? "正在读取工作提醒…" : "");
+  const items = data2?.items || [];
+  root2.querySelector("#ai-reminder-list").innerHTML = items.length ? items.map((row) => `<article class="card field-spaced" style="overflow-wrap:anywhere"><div class="ai-report-markdown">${renderSafeMarkdown(row.summary)}</div></article>`).join("") : loading || error ? "" : "<p>暂无工作提醒</p>";
+}
+function paintOpenAiDiary(items = [], { error = "", loading = false, owner: owner2 = true } = {}) {
+  const root2 = document.querySelector("#ai-diagnosis");
+  if (!root2) return;
+  root2.querySelector("#openai-diary-status").textContent = error || (loading ? "正在读取分析记录…" : "");
+  root2.querySelector("#openai-diary-list").innerHTML = !owner2 ? openAiLogin : loading || error ? "" : items.length ? items.map(renderOpenAiRun).join("") : "<p>这一天没有 OpenAI API 分析记录。</p>";
+}
+
 // web/ai-reports-controller.mjs
 init_api();
 init_state();
 init_daily_notes_state();
-var sequence4 = 0, registered4 = false, selectedDate = "", visibleMonth2 = "", pageSession = null;
+var sequence2 = 0, registered2 = false, selectedDate = "", visibleMonth = "", pageSession = null;
 function selectDailyTab(name) {
   if (!OPENAI_TABS.includes(name)) return;
   state.aiDailyTab = name;
@@ -14115,10 +13867,10 @@ function sortAiReports(items) {
 function reportsForDailyDate(items, date) {
   return sortAiReports(items.filter((row) => reportDay(row) === aiReportsYesterday(date)));
 }
-async function readAllAiReports(read3, current3 = () => true) {
+async function readAllAiReports(read2, current3 = () => true) {
   const items = [], seen = /* @__PURE__ */ new Set();
   for (let offset = 0; ; offset += 100) {
-    const data2 = await read3("/ai-reports?offset=" + offset);
+    const data2 = await read2("/ai-reports?offset=" + offset);
     if (!current3()) return null;
     if (!Array.isArray(data2?.items) || typeof data2.has_more !== "boolean" || data2.items.length > 100 || data2.has_more && data2.items.length !== 100)
       throw new Error("汇报读取不完整，请稍后重试。");
@@ -14131,23 +13883,23 @@ async function readAllAiReports(read3, current3 = () => true) {
 }
 async function loadAiReports({ resetDate = false } = {}) {
   registerAiReportEvents();
-  const session3 = runtime.sessionEpoch;
-  if (pageSession !== session3 || resetDate) {
-    pageSession = session3;
+  const session2 = runtime.sessionEpoch;
+  if (pageSession !== session2 || resetDate) {
+    pageSession = session2;
     selectedDate = validDailyNotesDate(state.aiDailyDate) ? state.aiDailyDate : dailyNotesToday();
-    visibleMonth2 = selectedDate.slice(0, 7);
+    visibleMonth = selectedDate.slice(0, 7);
   }
   if (!selectedDate) selectedDate = dailyNotesToday();
-  if (!visibleMonth2) visibleMonth2 = selectedDate.slice(0, 7);
-  const ticket = ++sequence4, date = selectedDate;
-  const current3 = () => ticket === sequence4 && session3 === runtime.sessionEpoch && state.page === "ai-reports";
-  paintAiReports([], "", true, date, visibleMonth2);
+  if (!visibleMonth) visibleMonth = selectedDate.slice(0, 7);
+  const ticket = ++sequence2, date = selectedDate;
+  const current3 = () => ticket === sequence2 && session2 === runtime.sessionEpoch && state.page === "ai-reports";
+  paintAiReports([], "", true, date, visibleMonth);
   paintAiDailyReminders(null, "", true);
   selectDailyTab(state.aiDailyTab || "reminders");
   const report = readAllAiReports(api, current3).then((items) => {
-    if (current3() && items) paintAiReports(reportsForDailyDate(items, date), "", false, date, visibleMonth2);
+    if (current3() && items) paintAiReports(reportsForDailyDate(items, date), "", false, date, visibleMonth);
   }).catch((error) => {
-    if (current3()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, date, visibleMonth2);
+    if (current3()) paintAiReports([], error.message || "读取失败，请稍后重试。", false, date, visibleMonth);
   });
   const reminders = api("/work-reminders?date=" + encodeURIComponent(date)).then((data2) => {
     if (current3()) paintAiDailyReminders(data2);
@@ -14157,18 +13909,18 @@ async function loadAiReports({ resetDate = false } = {}) {
   await Promise.all([report, reminders]);
 }
 function moveMonth(offset) {
-  const d = /* @__PURE__ */ new Date(visibleMonth2 + "-01T00:00:00Z");
+  const d = /* @__PURE__ */ new Date(visibleMonth + "-01T00:00:00Z");
   d.setUTCMonth(d.getUTCMonth() + offset);
   if (!Number.isFinite(d.getTime())) return;
   const next = d.toISOString().slice(0, 7);
   if (validDailyNotesDate(next + "-01")) {
-    visibleMonth2 = next;
-    paintAiCalendar(selectedDate, visibleMonth2);
+    visibleMonth = next;
+    paintAiCalendar(selectedDate, visibleMonth);
   }
 }
 function registerAiReportEvents() {
-  if (registered4) return;
-  registered4 = true;
+  if (registered2) return;
+  registered2 = true;
   document.addEventListener("click", (event) => {
     if (state.page !== "ai-reports") return;
     const tab = event.target.closest?.("[data-ai-daily-tab]")?.dataset.aiDailyTab;
@@ -14182,7 +13934,7 @@ function registerAiReportEvents() {
       const day6 = event.target.closest?.("[data-ai-report-select]")?.dataset.aiReportSelect;
       if (day6 && validDailyNotesDate(day6)) {
         selectedDate = day6;
-        visibleMonth2 = day6.slice(0, 7);
+        visibleMonth = day6.slice(0, 7);
         state.aiDailyDate = day6;
         state.openAiRun = "";
         updateRoute();
@@ -14350,8 +14102,8 @@ function ruleCountLabel(rules2) {
 function currentPrompts(prompts = [], account) {
   const scopes = applicableScopes(account), latest = /* @__PURE__ */ new Map();
   for (const prompt of [...prompts].filter((prompt2) => prompt2.status === "active" && scopes.includes(prompt2.scope)).sort(newest)) {
-    const key2 = `${prompt.scope}:${prompt.prompt_key}`;
-    if (!latest.has(key2)) latest.set(key2, prompt);
+    const key = `${prompt.scope}:${prompt.prompt_key}`;
+    if (!latest.has(key)) latest.set(key, prompt);
   }
   return [...latest.values()].sort((a, b) => scopes.indexOf(a.scope) - scopes.indexOf(b.scope) || String(a.prompt_key).localeCompare(String(b.prompt_key)));
 }
@@ -14458,9 +14210,9 @@ function latestSnapshots(snapshots2 = [], cutoff = "9999-12-31") {
   for (const snapshot of list(snapshots2)) {
     const date = day4(snapshot.snapshot_date);
     if (!date || date > cutoff || snapshot.article_id === null || snapshot.article_id === void 0) continue;
-    const key2 = String(snapshot.article_id);
-    const previous = result.get(key2);
-    if (!previous || date > day4(previous.snapshot_date) || date === day4(previous.snapshot_date) && String(snapshot.id || "") > String(previous.id || "")) result.set(key2, snapshot);
+    const key = String(snapshot.article_id);
+    const previous = result.get(key);
+    if (!previous || date > day4(previous.snapshot_date) || date === day4(previous.snapshot_date) && String(snapshot.id || "") > String(previous.id || "")) result.set(key, snapshot);
   }
   return result;
 }
@@ -14546,9 +14298,9 @@ function dailySummary(data2, date) {
 function groupPerformance(rows = [], field2 = "topic_category") {
   const groups = /* @__PURE__ */ new Map();
   for (const row of rows) {
-    const key2 = typeof row[field2] === "string" && row[field2].trim() ? row[field2] : "未分类";
-    if (!groups.has(key2)) groups.set(key2, []);
-    groups.get(key2).push(row);
+    const key = typeof row[field2] === "string" && row[field2].trim() ? row[field2] : "未分类";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
   }
   return [...groups].map(([name, members]) => {
     const summary = aggregate(members);
@@ -14583,7 +14335,7 @@ function diffRules(previous, current3) {
 }
 function metricDiscrepancies(report = {}, computed = {}) {
   const metrics2 = object3(parseJson(report.metrics, {}));
-  const aliases2 = {
+  const aliases3 = {
     total_reads: "reads",
     average_ctr: "ctr",
     avg_ctr: "ctr",
@@ -14596,12 +14348,12 @@ function metricDiscrepancies(report = {}, computed = {}) {
     hit_count: "hits",
     flop_count: "flops"
   };
-  return Object.entries(metrics2).map(([key2, value]) => {
-    const field2 = aliases2[key2] || key2;
+  return Object.entries(metrics2).map(([key, value]) => {
+    const field2 = aliases3[key] || key;
     const authorValue = finiteNumber(value), calculated = finiteNumber(computed[field2]);
     const comparable = authorValue !== null && calculated !== null;
     return {
-      key: key2,
+      key,
       field: field2,
       authorValue,
       computedValue: calculated,
@@ -14668,7 +14420,7 @@ function renderTrafficCard(snapshots2, articleId) {
 // shared/review-analytics.mjs
 var array = (value) => Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : [];
 var id = (value) => String(value ?? "");
-var compare2 = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+var compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 function parsed(value, fallback) {
   if (typeof value !== "string") return value ?? fallback;
   try {
@@ -14727,7 +14479,7 @@ var validAge = (snapshot) => {
   return n !== null && Number.isInteger(n) && n >= 12 && n <= 72;
 };
 function select24hSnapshot(snapshots2 = [], articleId) {
-  return array(snapshots2).filter((snapshot) => snapshot && (articleId === void 0 || id(snapshot.article_id) === id(articleId)) && validAge(snapshot)).sort((a, b) => Math.abs(Number(a.age_hours) - 24) - Math.abs(Number(b.age_hours) - 24) || Number(a.age_hours) - Number(b.age_hours) || compare2(id(a.snapshot_date), id(b.snapshot_date)) || compare2(id(a.id), id(b.id)))[0] ?? null;
+  return array(snapshots2).filter((snapshot) => snapshot && (articleId === void 0 || id(snapshot.article_id) === id(articleId)) && validAge(snapshot)).sort((a, b) => Math.abs(Number(a.age_hours) - 24) - Math.abs(Number(b.age_hours) - 24) || Number(a.age_hours) - Number(b.age_hours) || compare(id(a.snapshot_date), id(b.snapshot_date)) || compare(id(a.id), id(b.id)))[0] ?? null;
 }
 var selectSample24h = select24hSnapshot;
 function normalizeRule(rule) {
@@ -14743,16 +14495,16 @@ function appliedRules(article, playbooks = []) {
   const version2 = finiteNumber2(article?.playbook_version_used);
   const specified = parsed(article?.applied_rule_ids, null);
   if (version2 === null || !Array.isArray(specified)) return [];
-  const playbook2 = array(playbooks).filter((item) => item.account === article.account && finiteNumber2(item.version) === version2).sort((a, b) => compare2(id(a.id), id(b.id)))[0];
+  const playbook2 = array(playbooks).filter((item) => item.account === article.account && finiteNumber2(item.version) === version2).sort((a, b) => compare(id(a.id), id(b.id)))[0];
   if (!playbook2) return [];
   const rules2 = normalizeRules(playbook2.rules ?? playbook2.rules_json);
   return rules2.filter((rule) => specified.includes(rule.rule_id));
 }
 function recentArticles(a, b) {
-  const dateOrder = compare2(day5(b.published_at), day5(a.published_at));
+  const dateOrder = compare(day5(b.published_at), day5(a.published_at));
   if (dateOrder) return dateOrder;
   const aTimed = Boolean(parts(a.published_at)), bTimed = Boolean(parts(b.published_at));
-  return (aTimed && bTimed ? Date.parse(b.published_at) - Date.parse(a.published_at) : Number(bTimed) - Number(aTimed)) || compare2(id(a.id), id(b.id));
+  return (aTimed && bTimed ? Date.parse(b.published_at) - Date.parse(a.published_at) : Number(bTimed) - Number(aTimed)) || compare(id(a.id), id(b.id));
 }
 function quantile(sorted, fraction) {
   return sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? null;
@@ -14840,7 +14592,7 @@ function firstSentence(markdown) {
   return ending ? text.slice(0, ending.index + ending[0].length) : text;
 }
 function weeklyConclusion(reports, account, bounds, week) {
-  const report = array(reports).filter((item) => item?.account === account && item.period_type === "weekly" && day5(item.period_start) === bounds.start && day5(item.period_end) === bounds.end).sort((a, b) => compare2(id(b.created_at), id(a.created_at)) || compare2(id(a.id), id(b.id)))[0];
+  const report = array(reports).filter((item) => item?.account === account && item.period_type === "weekly" && day5(item.period_start) === bounds.start && day5(item.period_end) === bounds.end).sort((a, b) => compare(id(b.created_at), id(a.created_at)) || compare(id(a.id), id(b.id)))[0];
   return firstSentence(report?.summary_md) || `${week === "last" ? "上周" : "本周"}尚未生成周报`;
 }
 function buildOverview(data2 = {}, options4 = {}) {
@@ -14924,7 +14676,7 @@ function trendBounds({ range = "30d", from = "", to = "", now = (/* @__PURE__ */
   return { range, start, end, today: today2, days };
 }
 function summarize(rows) {
-  const sample = (key2, max) => rows.map((row) => number(row.sample24h?.[key2], max)).filter((value) => value !== null);
+  const sample = (key, max) => rows.map((row) => number(row.sample24h?.[key], max)).filter((value) => value !== null);
   const mean = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
   const reads2 = sample("reads"), ctr = sample("ctr", 100), completion = sample("completion_rate", 100), seconds = sample("avg_read_seconds");
   const judged = rows.filter((row) => row.verdict), verdicts = (name) => judged.filter((row) => row.verdict === name).length;
@@ -14970,14 +14722,14 @@ function summarize(rows) {
 }
 function headline(current3, previous) {
   const comparable = previous.record_count > 0;
-  const both = (key2) => comparable && current3[key2] !== null && previous[key2] !== null;
-  const tile = (key2, unit, extra = {}) => ({
-    key: key2,
+  const both = (key) => comparable && current3[key] !== null && previous[key] !== null;
+  const tile = (key, unit, extra = {}) => ({
+    key,
     unit,
-    value: current3[key2],
-    previous: comparable ? previous[key2] : null,
+    value: current3[key],
+    previous: comparable ? previous[key] : null,
     // Reads span orders of magnitude, so their change is relative; rates change in percentage points.
-    delta: !both(key2) ? null : unit === "relative" ? previous[key2] ? (current3[key2] - previous[key2]) / previous[key2] * 100 : null : current3[key2] - previous[key2],
+    delta: !both(key) ? null : unit === "relative" ? previous[key] ? (current3[key] - previous[key]) / previous[key] * 100 : null : current3[key] - previous[key],
     ...extra
   });
   return [
@@ -15013,8 +14765,8 @@ function reviewTrends(data2 = {}, options4 = {}) {
   const between = (start, end) => pool.filter((row) => day4(row.published_at) >= start && day4(row.published_at) <= end);
   const selected = between(bounds.start, bounds.end);
   const previous = { start: shiftDay(bounds.start, -bounds.days), end: shiftDay(bounds.start, -1) };
-  const rolling = (date, key2) => {
-    const values = between(shiftDay(date, 1 - ROLLING_DAYS), date).map((row) => row[key2]).filter((value) => value !== null);
+  const rolling = (date, key) => {
+    const values = between(shiftDay(date, 1 - ROLLING_DAYS), date).map((row) => row[key]).filter((value) => value !== null);
     return values.length >= ROLLING_MIN_SAMPLES ? median(values) : null;
   };
   const first = selected.map((row) => day4(row.published_at)).sort()[0];
@@ -15132,14 +14884,14 @@ function readout(point) {
   const when = point.timed ? reviewDateTime(point.published_at) : point.date;
   return `${when}《${point.title || "未命名"}》阅读 ${reads(point.reads)} · 点击率 ${percent2(point.ctr)}${point.verdict ? ` · ${point.verdict}` : ""}${point.provisional ? " · 不满 24 小时的数据，暂定" : ""}`;
 }
-function figure(result, { key: key2, rolling, kind, title, hint, format, tick, height, threshold }) {
+function figure(result, { key, rolling, kind, title, hint, format, tick, height, threshold }) {
   const plotted = result.series.filter((day6) => day6.position !== null);
-  const points = result.points.filter((point) => point[key2] !== null), curve = plotted.filter((day6) => day6[rolling] !== null);
+  const points = result.points.filter((point) => point[key] !== null), curve = plotted.filter((day6) => day6[rolling] !== null);
   const head = `<div class="review-trend-figure-head"><h3>${e(title)}</h3><span class="review-note">${e(hint)}</span></div>`;
   if (!points.length && !curve.length) return `<section class="review-trend-figure">${head}
     <p class="review-trend-empty" role="status">当前范围没有可绘制的有效数据。缺失值不补零。</p></section>`;
   const top = 16, bottom = height - 30;
-  const values = [...points.map((point) => point[key2]), ...curve.map((day6) => day6[rolling]), ...known(threshold) ? [threshold] : []];
+  const values = [...points.map((point) => point[key]), ...curve.map((day6) => day6[rolling]), ...known(threshold) ? [threshold] : []];
   const { y, ticks } = scale(values, kind, top, bottom), x = (position) => `${(position * 100).toFixed(2)}%`;
   const grid = ticks.map((mark) => `<line class="review-trend-grid" x1="0" x2="100%" y1="${y(mark).toFixed(2)}" y2="${y(mark).toFixed(2)}"/>
     <text x="-8" y="${(y(mark) + 4).toFixed(2)}" text-anchor="end">${e(tick(mark))}</text>`).join("");
@@ -15148,7 +14900,7 @@ function figure(result, { key: key2, rolling, kind, title, hint, format, tick, h
   const hitLabel = known(threshold) ? `<text class="review-trend-threshold-label" x="100%" y="${(y(threshold) - 6).toFixed(2)}"
     text-anchor="end">爆款线 ${e(format(threshold))}</text>` : "";
   const order = { 爆: 2, 扑: 1 }, dots = [...points].sort((a, b) => (order[a.verdict] || 0) - (order[b.verdict] || 0)).map((point) => `<circle class="review-trend-dot ${VERDICT_CLASS[point.verdict] || "unjudged"}${point.provisional ? " provisional" : ""}"
-      cx="${x(point.position)}" cy="${y(point[key2]).toFixed(2)}" r="${point.verdict === "爆" ? 5.5 : 4.5}"
+      cx="${x(point.position)}" cy="${y(point[key]).toFixed(2)}" r="${point.verdict === "爆" ? 5.5 : 4.5}"
       data-review-row="${e(point.id)}" data-trend-readout="${e(readout(point))}"><title>${e(readout(point))}</title></circle>`).join("");
   let previous = null, lines = "";
   for (const day6 of plotted) {
@@ -15160,7 +14912,7 @@ function figure(result, { key: key2, rolling, kind, title, hint, format, tick, h
     if (previous) lines += `<line class="review-trend-line" x1="${previous.x}" y1="${previous.y}" x2="${now.x}" y2="${now.y}"/>`;
     previous = now;
   }
-  const best = [...points].sort((a, b) => b[key2] - a[key2])[0];
+  const best = [...points].sort((a, b) => b[key] - a[key])[0];
   const resting = best ? `最高：${readout(best)}` : "";
   const latest = curve.at(-1);
   return `<section class="review-trend-figure">${head}<div class="review-trend-chart"><svg height="${height}" role="img"
@@ -15198,15 +14950,19 @@ function dailyTable(result) {
     <thead><tr><th>日期</th><th>发文</th><th>爆 / 中 / 扑</th><th>阅读中位数</th><th>点击率中位数</th>
     <th>近 ${result.rolling.days} 天阅读中位数</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
 }
-function renderReviewTrends(data2, vm4) {
-  const now = vm4.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day4(now), t = vm4.trends || {};
+function renderCockpitMethod(data2, vm3, window2) {
+  const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString();
+  return method(reviewTrends(data2, { account: vm3.account, range: "custom", from: window2.start, to: window2.end, now }));
+}
+function renderReviewTrends(data2, vm3) {
+  const now = vm3.now || (/* @__PURE__ */ new Date()).toISOString(), today2 = day4(now), t = vm3.trends || {};
   const range = RANGES.some(([id2]) => id2 === t.range) ? t.range : "30d";
   const from = range === "custom" ? t.from || "" : shiftDay(today2, range === "30d" ? -29 : -6);
   const to = range === "custom" ? t.to || "" : today2;
   const filters = controls({ range, from, to, today: today2 });
   let result;
   try {
-    result = reviewTrends(data2, { account: vm4.account, range, from, to, now });
+    result = reviewTrends(data2, { account: vm3.account, range, from, to, now });
   } catch (error) {
     return `<section class="review-trends" aria-label="数据趋势"><div class="review-panel-head"><h2>数据趋势</h2></div>${filters}
       <p role="alert">${e(error.message)}</p></section>`;
@@ -15214,7 +14970,7 @@ function renderReviewTrends(data2, vm4) {
   const s = result.summary, pending = s.provisional_count + s.unknown_age_count;
   const note = `按发布日期统计，阅读取发布后约 24 小时的数据。${pending ? `空心点 ${pending} 篇只有发布后不满 24 小时的数据，为暂定。` : ""}${result.end === today2 ? "今天尚未结束。" : ""}${result.kpis.some((tile) => known(tile.previous)) ? "" : "上一个同样长的周期还没有数据，暂不对比。"}`;
   return `<section class="review-trends" aria-label="数据趋势"><div class="review-panel-head"><div><h2>数据趋势</h2>
-    <span class="review-note">${e(vm4.account)} · ${result.start} 至 ${result.end}</span></div>${filters}</div>
+    <span class="review-note">${e(vm3.account)} · ${result.start} 至 ${result.end}</span></div>${filters}</div>
     ${tiles(result)}${legend(result)}
     ${figure(result, {
     key: "reads",
@@ -15240,6 +14996,150 @@ function renderReviewTrends(data2, vm4) {
     <p class="review-note review-trend-note">${e(note)}</p>${dailyTable(result)}${method(result)}</section>`;
 }
 
+// web/pages/review-diagnosis.mjs
+init_dom();
+function renderArticleDiagnosis(row, vm3) {
+  const saved = vm3.diagnoses?.[row.id] || {};
+  if (saved.text) return `<section class="review-diagnosis" aria-label="AI诊断"><h3>AI诊断</h3><p class="review-diagnosis-result">${e(saved.text)}</p></section>`;
+  const busy = saved.status === "saving";
+  const error = saved.status === "error" && saved.error ? `<p class="review-note" role="alert">${e(saved.error)}</p>` : "";
+  const label3 = busy ? "正在诊断…" : "AI诊断";
+  const disabled = busy ? " disabled" : "";
+  return `<section class="review-diagnosis" aria-label="AI诊断"><h3>AI诊断</h3>${error}<button class="btn" type="button" data-review-action="diagnose-article" data-article-id="${e(row.id)}"${disabled}>${label3}</button></section>`;
+}
+
+// shared/article-diagnosis.mjs
+var ARTICLE_DIAGNOSIS_KEY = "article_diagnosis";
+var ARTICLE_DIAGNOSIS_PROMPT = [
+  "你是头条图文数据复盘助手。只根据我给你的这一篇数据，和同账号最近30篇的平均值做对比，写且只写三句话，不要标题、不要列表、不要开头客套。",
+  "第一句：这篇好在哪，必须点出明显高于均值的指标，并带上这篇的数字和均值。",
+  "第二句：这篇差在哪，必须点出明显低于均值的指标，并带上这篇的数字和均值。如果没有明显短板，就写最接近均值、提升空间最大的一项。",
+  "第三句：下一篇同类稿的标题或开头怎么改，只给一个具体改法，不要空话。",
+  "只谈标题、展现、阅读、点击率、完读率，不要编造未提供的数据，不要评价正文内容。"
+].join("\n");
+var aliases2 = /* @__PURE__ */ new Map([
+  ["整体", "global"],
+  ["global", "global"],
+  ["头条", "toutiao"],
+  ["toutiao", "toutiao"],
+  ["V字", "vzi"],
+  ["vzi", "vzi"],
+  ["鱼见", "yujian"],
+  ["yujian", "yujian"],
+  ["公众号", "wechat"],
+  ["wechat", "wechat"]
+]);
+var scopeOf2 = (value) => aliases2.get(String(value || "")) || String(value || "");
+function diagnosisScopes(account) {
+  const scope = scopeOf2(account);
+  if (scope === "vzi" || scope === "yujian") return ["global", "toutiao", scope];
+  if (scope === "wechat") return ["wechat"];
+  return scope === "global" ? ["global"] : ["global", scope];
+}
+function versionOf(row) {
+  const value = Number(row?.version);
+  return Number.isSafeInteger(value) ? value : 0;
+}
+function selectDiagnosisPrompt(prompts, account) {
+  const scopes = diagnosisScopes(account);
+  const rows = (Array.isArray(prompts) ? prompts : []).filter((row) => row && row.prompt_key === ARTICLE_DIAGNOSIS_KEY && row.status === "active" && scopes.includes(row.scope) && String(row.content_md || "").trim());
+  rows.sort((a, b) => scopes.indexOf(b.scope) - scopes.indexOf(a.scope) || versionOf(b) - versionOf(a) || String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+  return rows[0] || null;
+}
+function diagnosisPromptText(prompts, account) {
+  return selectDiagnosisPrompt(prompts, account)?.content_md?.trim() || ARTICLE_DIAGNOSIS_PROMPT;
+}
+function latestDiagnosisSnapshot(snapshots2, articleId) {
+  const rows = (snapshots2 || []).filter((row) => row && String(row.article_id) === String(articleId));
+  rows.sort((a, b) => String(b.snapshot_date || "").localeCompare(String(a.snapshot_date || "")) || (Number(b.age_hours) || 0) - (Number(a.age_hours) || 0) || String(b.id || "").localeCompare(String(a.id || "")));
+  return rows[0] || null;
+}
+function metricValue(snapshot, key) {
+  if (!snapshot) return null;
+  const value = finiteNumber2(snapshot[key]);
+  return value === null || value < 0 ? null : value;
+}
+function formatFact(value) {
+  return value === null ? "未提供" : String(Math.round(value * 100) / 100);
+}
+var FIELDS = [["展现", "impressions"], ["阅读", "reads"], ["点击率", "ctr"], ["完读率", "completion_rate"]];
+function articleDiagnosisFacts(data2, article) {
+  const peers = (data2.articles || []).filter((row) => row && row.account === article.account && String(row.id) !== String(article.id)).sort(recentArticles).slice(0, 30);
+  const current3 = latestDiagnosisSnapshot(data2.snapshots, article.id);
+  const metrics2 = {};
+  const lines = ["标题：" + (String(article.title || "").trim() || "（无标题）")];
+  for (const [label3, key] of FIELDS) {
+    const samples = peers.map((row) => metricValue(latestDiagnosisSnapshot(data2.snapshots, row.id), key)).filter((value2) => value2 !== null);
+    const average2 = samples.length ? samples.reduce((sum, value2) => sum + value2, 0) / samples.length : null;
+    const value = metricValue(current3, key);
+    metrics2[key] = { value, average: average2, samples: samples.length };
+    lines.push(`${label3}：${formatFact(value)}；同账号最近30篇平均：${formatFact(average2)}（有效样本 ${samples.length}）`);
+  }
+  return { title: article.title || "", metrics: metrics2, text: lines.join("\n") };
+}
+
+// web/pages/review-prompt-page.mjs
+init_dom();
+function rulesIntroMarkdown(markdown) {
+  const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
+  const first = lines.findIndex((line) => /^##\s/.test(line));
+  const head = first < 0 ? lines : lines.slice(0, first);
+  const cut = head.findIndex((line) => /^#{1,6}\s+.*提示词/.test(line));
+  return (cut < 0 ? head : head.slice(0, cut)).filter((line) => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join("\n").trim();
+}
+function playbookPromptBlocks(markdown) {
+  const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
+  const blocks = [];
+  let current3 = null;
+  const flush = () => {
+    const content2 = current3?.lines.join("\n").trim();
+    if (content2) blocks.push({ title: current3.title, content: content2 });
+    current3 = null;
+  };
+  for (const line of lines) {
+    const heading = line.match(/^#{1,6}\s+(.+?)\s*$/);
+    if (heading) {
+      flush();
+      if (heading[1].includes("提示词")) current3 = { title: heading[1], lines: [] };
+      continue;
+    }
+    if (current3) current3.lines.push(line);
+  }
+  flush();
+  return blocks;
+}
+var labels3 = { longform_write: "写文章", image: "配图", weitoutiao_write: "微头条", transfer_chat: "转写" };
+function copyButton(action, id2 = "") {
+  const marker = id2 ? ` data-prompt-id="${e(id2)}"` : "";
+  return `<button type="button" class="btn" data-review-action="${action}"${marker}>复制完整提示词</button>`;
+}
+function card(title, note, time2, content2, action) {
+  const when = time2 ? `<p class="review-note">生效时间：${e(time2)} · 上海时间</p>` : "";
+  return `<article class="review-prompt-card"><div class="review-v13-rule-meta"><h2>${e(title)}</h2><span class="review-note">${e(note)}</span></div>${when}<div class="review-prompt-copy-actions">${action}<span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span></div><pre class="review-prompt-source">${e(content2)}</pre></article>`;
+}
+function renderPromptPage(data2, vm3) {
+  const order = ["longform_write", "image", "weitoutiao_write", "transfer_chat"];
+  const prompts = (data2.prompts || []).filter((row) => row.prompt_key !== "article_diagnosis").slice().sort((a, b) => {
+    const ai = order.indexOf(a.prompt_key), bi = order.indexOf(b.prompt_key);
+    return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi) || String(a.prompt_key).localeCompare(String(b.prompt_key), "zh");
+  });
+  const diagnosis = diagnosisPromptText(data2.prompts, vm3.account);
+  const selected = selectDiagnosisPrompt(data2.prompts, vm3.account);
+  const shown = /* @__PURE__ */ new Set([diagnosis.trim(), ...prompts.map((row) => String(row.content_md || "").trim())]);
+  const extras = (data2.playbooks || []).flatMap((book) => playbookPromptBlocks(book.content_md)).filter((block) => block.content && !shown.has(block.content));
+  const cards = prompts.map((prompt) => card(
+    labels3[prompt.prompt_key] || prompt.title || prompt.prompt_key,
+    [prompt.title, "v" + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(" · "),
+    reviewDateTime(prompt.updated_at) || "未记录",
+    prompt.content_md || "",
+    copyButton("copy-prompt", prompt.id)
+  ));
+  const diagnosisNote = selected ? [selected.title, "v" + selected.version, scopeLabel(selected.scope)].filter(Boolean).join(" · ") : "默认提示词";
+  cards.push(card("AI诊断", diagnosisNote, selected ? reviewDateTime(selected.updated_at) || "未记录" : "", diagnosis, copyButton("copy-diagnosis-prompt")));
+  for (const block of extras) cards.push(card(block.title, "规则手册中的提示词", "", block.content, copyButton("copy-prompt-block")));
+  return `<div class="review-prompt-page">${cards.join("")}</div>`;
+}
+
 // web/core/review-overview-metrics.mjs
 function instant2(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !day4(value)) return null;
@@ -15258,20 +15158,35 @@ function metricSample(rows, valueOf, maximum = Infinity) {
 function average(values) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
-function reviewOverviewMetrics(data2, { account, range = "24h", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
-  const nowMs = instant2(now);
-  if (nowMs === null) throw new TypeError("now must be an explicit ISO timestamp");
-  const today2 = day4(now);
+function mondayOf(today2) {
   const weekday = (/* @__PURE__ */ new Date(`${today2}T00:00:00Z`)).getUTCDay();
-  const monday = shiftDay(today2, -((weekday + 6) % 7));
-  const start = range === "last" ? shiftDay(monday, -7) : monday;
-  const end = range === "last" ? shiftDay(monday, -1) : today2;
-  const rows = enrichArticles(data2, { account }).filter((row) => {
-    const publishedDay = day4(row.published_at);
-    const publishedMs = instant2(row.published_at);
-    if (range === "24h") return publishedMs !== null && publishedMs >= nowMs - 864e5 && publishedMs <= nowMs;
-    return Boolean(publishedDay && publishedDay >= start && publishedDay <= end && (range === "last" || publishedMs === null || publishedMs <= nowMs));
-  });
+  return shiftDay(today2, -((weekday + 6) % 7));
+}
+function metricWindow(range, today2) {
+  const monday = mondayOf(today2);
+  if (range === "24h") return { rolling: true };
+  if (range === "30d") return {
+    start: shiftDay(today2, -29),
+    end: today2,
+    label: "较前30天",
+    previous: { start: shiftDay(today2, -59), end: shiftDay(today2, -30), closed: true }
+  };
+  if (range === "last") return {
+    start: shiftDay(monday, -7),
+    end: shiftDay(monday, -1),
+    closed: true,
+    label: "较上上周",
+    previous: { start: shiftDay(monday, -14), end: shiftDay(monday, -8), closed: true }
+  };
+  return { start: monday, end: today2, label: "较上周", previous: { start: shiftDay(monday, -7), end: shiftDay(monday, -1), closed: true } };
+}
+function publishedIn(row, bounds, nowMs) {
+  const publishedDay = day4(row.published_at);
+  const publishedMs = instant2(row.published_at);
+  if (bounds.rolling) return publishedMs !== null && publishedMs >= nowMs - 864e5 && publishedMs <= nowMs;
+  return Boolean(publishedDay && publishedDay >= bounds.start && publishedDay <= bounds.end && (bounds.closed || publishedMs === null || publishedMs <= nowMs));
+}
+function summarize2(rows) {
   const hits = rows.filter((row) => row.verdict === "爆").length;
   const middle = rows.filter((row) => row.verdict === "中").length;
   const flops = rows.filter((row) => row.verdict === "扑").length;
@@ -15294,6 +15209,23 @@ function reviewOverviewMetrics(data2, { account, range = "24h", now = (/* @__PUR
     samples: { judged: judged.sample, readsMedian: reads2.sample, ctrMedian: ctr.sample, avgReadSeconds: seconds.sample, completion: completion.sample }
   };
 }
+function metricDelta(current3, previous) {
+  if (current3 === null || previous === null || !Number.isFinite(current3) || !Number.isFinite(previous)) return null;
+  if (current3 === previous) return 0;
+  if (previous === 0) return null;
+  const rounded = Math.round((current3 - previous) / Math.abs(previous) * 100);
+  return Number.isFinite(rounded) ? rounded : null;
+}
+function reviewOverviewMetrics(data2, { account, range = "24h", now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
+  const nowMs = instant2(now);
+  if (nowMs === null) throw new TypeError("now must be an explicit ISO timestamp");
+  const bounds = metricWindow(range, day4(now));
+  const rows = enrichArticles(data2, { account });
+  const current3 = summarize2(rows.filter((row) => publishedIn(row, bounds, nowMs)));
+  if (!bounds.previous) return current3;
+  const previous = summarize2(rows.filter((row) => publishedIn(row, bounds.previous, nowMs)));
+  return { ...current3, previous, comparisonLabel: bounds.label, window: { start: bounds.start, end: bounds.end } };
+}
 function reviewDuration(value) {
   const n = finiteNumber(value);
   if (n === null || n < 0) return "—";
@@ -15311,13 +15243,13 @@ var REVIEW_LIST_METRICS = Object.freeze([
   { key: "avg_read_seconds", label: "平均阅读时长" },
   { key: "completion_rate", label: "平均阅读完成率" }
 ]);
-function formatReviewListMetric(observation, key2) {
-  if (!REVIEW_LIST_METRICS.some((metric) => metric.key === key2)) return "—";
-  if (observation?.kind === "immature" && key2 === "reads") return "未满24h";
-  const number3 = finiteNumber(observation?.snapshot?.[key2]);
+function formatReviewListMetric(observation, key) {
+  if (!REVIEW_LIST_METRICS.some((metric) => metric.key === key)) return "—";
+  if (observation?.kind === "immature" && key === "reads") return "未满24h";
+  const number3 = finiteNumber(observation?.snapshot?.[key]);
   if (number3 === null || number3 < 0) return "—";
-  if (key2 === "ctr" || key2 === "completion_rate") return number3 <= 100 ? `${number3.toFixed(1)}%` : "—";
-  if (key2 === "avg_read_seconds") return reviewDuration(number3);
+  if (key === "ctr" || key === "completion_rate") return number3 <= 100 ? `${number3.toFixed(1)}%` : "—";
+  if (key === "avg_read_seconds") return reviewDuration(number3);
   return number3 >= 1e4 ? `${(number3 / 1e4).toFixed(1)} 万` : number3.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
 }
 
@@ -15375,8 +15307,8 @@ function latestSnapshot(snapshots2, articleId) {
 function metricText(snapshot) {
   if (!snapshot) return "—";
   const parts2 = [];
-  for (const [label3, key2] of [["阅读", "reads"], ["点赞", "likes"], ["评论", "comments"], ["收藏", "favorites"], ["分享", "shares"], ["展现", "impressions"]]) {
-    const text = number2(snapshot[key2]);
+  for (const [label3, key] of [["阅读", "reads"], ["点赞", "likes"], ["评论", "comments"], ["收藏", "favorites"], ["分享", "shares"], ["展现", "impressions"]]) {
+    const text = number2(snapshot[key]);
     if (text) parts2.push(`${label3} ${text}`);
   }
   const ctr = finiteNumber(snapshot.ctr);
@@ -15397,7 +15329,7 @@ function renderBenchmarkLibrary(data2 = {}, account = "") {
     return Number(bTimed) - Number(aTimed) || (aTimed && bTimed ? Date.parse(b.item.published_at) - Date.parse(a.item.published_at) : 0) || String(a.item.id).localeCompare(String(b.item.id));
   });
   if (!samples.length) return '<section class="review-benchmark-library"><h2>爆文库</h2><p class="review-note">暂无已仿写爆文</p></section>';
-  const headers = ["对标账号", "样本标题", "样本阅读", "仿写账号", "仿写标题", "仿写数据"];
+  const headers = ["对标账号", "样本标题", "样本阅读", "仿写标题", "仿写数据"];
   const body2 = samples.flatMap(({ item, used }) => used.map((article, index) => {
     const owner2 = accounts.get(String(item.benchmark_account_id));
     const target = safeUrl2(item.url);
@@ -15407,7 +15339,6 @@ function renderBenchmarkLibrary(data2 = {}, account = "") {
       e(owner2.name || "未命名账号"),
       target ? `<a href="${e(target)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title,
       e(reads2 || "—"),
-      e(article.account || account),
       articleLink(article, account),
       e(metricText(latestSnapshot(data2.snapshots, article.id)))
     ];
@@ -15423,7 +15354,7 @@ function instant3(value) {
   const stamp3 = Date.parse(value);
   return Number.isFinite(stamp3) ? stamp3 : null;
 }
-var compare3 = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+var compare2 = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 function reviewListObservation(row, snapshots2 = [], now = (/* @__PURE__ */ new Date()).toISOString()) {
   if (row.sample24h) return { kind: "sample", snapshot: row.sample24h, reads: row.reads_24h, hours: finiteNumber(row.sample24h.age_hours) };
   const published = instant3(row.published_at);
@@ -15434,7 +15365,7 @@ function reviewListObservation(row, snapshots2 = [], now = (/* @__PURE__ */ new 
     const hours = explicitAge !== null && Number.isInteger(explicitAge) && explicitAge >= 0 ? explicitAge : explicitAge === null ? computedAge : null;
     const reads2 = finiteNumber(snapshot.reads);
     return { snapshot, hours, observed: observed2, reads: reads2 !== null && reads2 >= 0 ? reads2 : null };
-  }).filter((candidate) => candidate.hours !== null && candidate.hours > 72).sort((a, b) => a.hours - b.hours || (a.observed ?? Infinity) - (b.observed ?? Infinity) || compare3(String(a.snapshot.id ?? ""), String(b.snapshot.id ?? "")));
+  }).filter((candidate) => candidate.hours !== null && candidate.hours > 72).sort((a, b) => a.hours - b.hours || (a.observed ?? Infinity) - (b.observed ?? Infinity) || compare2(String(a.snapshot.id ?? ""), String(b.snapshot.id ?? "")));
   const first = candidates.find((candidate) => candidate.reads !== null) || candidates[0];
   if (first) return { kind: "longtail", snapshot: first.snapshot, reads: first.reads, hours: first.hours };
   const nowMs = instant3(now);
@@ -15455,10 +15386,10 @@ function reviewObservationHours(value) {
 init_dom();
 var REVIEW_VIEWS = [["overview", "总览"], ["articles", "文章库"], ["playbook", "手册"]];
 var percentageKeys = /* @__PURE__ */ new Set(["ctr", "completion_rate", "ctr_24h", "completion_24h", "hit_rate", "flop_rate", "median_ctr"]);
-function reviewNumber(value, key2 = "") {
+function reviewNumber(value, key = "") {
   const n = finiteNumber(value);
   if (n === null) return "—";
-  if (percentageKeys.has(key2)) return `${n.toFixed(1)}%`;
+  if (percentageKeys.has(key)) return `${n.toFixed(1)}%`;
   return Math.abs(n) >= 1e4 ? `${(n / 1e4).toFixed(1)} 万` : n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
 }
 var empty2 = (title, text = "") => `<div class="review-empty"><strong>${e(title)}</strong>${text ? `<p>${e(text)}</p>` : ""}</div>`;
@@ -15474,41 +15405,41 @@ function tag(verdict) {
   const css = verdict === "爆" ? "hit" : verdict === "扑" ? "flop" : "middle";
   return `<span class="review-tag ${css}">${e(verdict)}</span>`;
 }
-function delta(value, key2) {
+function delta(value, key) {
   const n = finiteNumber(typeof value === "object" && value ? value.delta : value);
-  return n === null ? '<span class="review-change">较前一周 —</span>' : `<span class="review-change">较前一周 ${n > 0 ? "+" : n < 0 ? "−" : ""}${e(percentageKeys.has(key2) ? Math.abs(n).toFixed(1) : reviewNumber(Math.abs(n)))}${percentageKeys.has(key2) ? " 个百分点" : ""}</span>`;
+  return n === null ? '<span class="review-change">较前一周 —</span>' : `<span class="review-change">较前一周 ${n > 0 ? "+" : n < 0 ? "−" : ""}${e(percentageKeys.has(key) ? Math.abs(n).toFixed(1) : reviewNumber(Math.abs(n)))}${percentageKeys.has(key) ? " 个百分点" : ""}</span>`;
 }
 function chart(points, { small = false } = {}) {
   if (!points.some((p) => finiteNumber(p.ctr_24h) !== null || finiteNumber(p.reads_24h) !== null)) return empty2("暂无趋势数据", "采集后显示阅读与 CTR 中位数。");
   const width = 720, height = small ? 120 : 180, left = 28, right = 692, top = 18, bottom = top + height;
   const x = (i) => left + (points.length < 2 ? (right - left) / 2 : i / (points.length - 1) * (right - left));
-  const max = (key2) => Math.max(1, ...points.map((p) => finiteNumber(p[key2]) ?? 0));
+  const max = (key) => Math.max(1, ...points.map((p) => finiteNumber(p[key]) ?? 0));
   let lines = "", dots = "";
-  for (const [key2, css, label3] of [["reads_24h", "reads", "阅读"], ["ctr_24h", "ctr", "CTR"]]) {
+  for (const [key, css, label3] of [["reads_24h", "reads", "阅读"], ["ctr_24h", "ctr", "CTR"]]) {
     let segment = [];
     const flush = () => {
       if (segment.length) lines += `<polyline class="review-line-${css}" points="${segment.join(" ")}"/>`;
       segment = [];
     };
     points.forEach((p, i) => {
-      const n = finiteNumber(p[key2]);
+      const n = finiteNumber(p[key]);
       if (n === null) {
         flush();
         return;
       }
-      const px = x(i).toFixed(2), py = (bottom - n / max(key2) * height).toFixed(2);
+      const px = x(i).toFixed(2), py = (bottom - n / max(key) * height).toFixed(2);
       segment.push(`${px},${py}`);
       dots += `<circle class="review-point review-point-${css}" cx="${px}" cy="${py}" r="3" tabindex="0"><title>${e(p.date)} · ${label3} ${e(reviewNumber(
         n,
-        key2
+        key
       ))} · 当日 ${e(p.count ?? 0)} 篇</title></circle>`;
     });
     flush();
   }
-  const labels3 = [.../* @__PURE__ */ new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].map((i) => `<text x="${x(i).toFixed(2)}" y="${bottom + 24}" text-anchor="${i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}">${e(String(points[i].date).slice(5))}</text>`).join("");
+  const labels4 = [.../* @__PURE__ */ new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].map((i) => `<text x="${x(i).toFixed(2)}" y="${bottom + 24}" text-anchor="${i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}">${e(String(points[i].date).slice(5))}</text>`).join("");
   const bandWidth = (right - left) / Math.max(points.length - 1, 1);
   const hover = small ? "" : points.map((p, i) => `<rect class="review-hover-band" x="${Math.max(left, x(i) - bandWidth / 2).toFixed(2)}" y="${top}" width="${(i === 0 || i === points.length - 1 ? bandWidth / 2 : bandWidth).toFixed(2)}" height="${height}" tabindex="0"><title>${e(p.date)} · 当日 ${e(p.count ?? 0)} 篇 · 阅读中位数 ${e(reviewNumber(p.reads_24h))} · CTR 中位数 ${e(reviewNumber(p.ctr_24h, "ctr"))}</title></rect>`).join("");
-  return `<div class="review-chart"><div class="review-chart-legend"><span class="reads">${small ? "阅读" : "阅读中位数"}</span><span class="ctr">${small ? "CTR" : "CTR 中位数"}</span>${small ? "" : '<span class="review-note">独立纵轴 · 悬停或聚焦查看当日篇数</span>'}</div><svg viewBox="0 0 ${width} ${bottom + 36}" role="img" aria-label="阅读和 CTR 趋势，两条线分别按各自纵轴绘制"><line class="review-axis" x1="${left}" x2="${right}" y1="${bottom}" y2="${bottom}"/>${lines}${dots}${hover}${labels3}</svg><div class="review-chart-scale"><span>阅读轴 0 – ${e(reviewNumber(max("reads_24h")))}</span><span>CTR 轴 0 – ${e(reviewNumber(max("ctr_24h"), "ctr"))}</span></div></div>`;
+  return `<div class="review-chart"><div class="review-chart-legend"><span class="reads">${small ? "阅读" : "阅读中位数"}</span><span class="ctr">${small ? "CTR" : "CTR 中位数"}</span>${small ? "" : '<span class="review-note">独立纵轴 · 悬停或聚焦查看当日篇数</span>'}</div><svg viewBox="0 0 ${width} ${bottom + 36}" role="img" aria-label="阅读和 CTR 趋势，两条线分别按各自纵轴绘制"><line class="review-axis" x1="${left}" x2="${right}" y1="${bottom}" y2="${bottom}"/>${lines}${dots}${hover}${labels4}</svg><div class="review-chart-scale"><span>阅读轴 0 – ${e(reviewNumber(max("reads_24h")))}</span><span>CTR 轴 0 – ${e(reviewNumber(max("ctr_24h"), "ctr"))}</span></div></div>`;
 }
 function sampleFor(row, data2) {
   const reference = row.reference_article_id == null ? null : (data2.benchmarkArticles || []).find((item) => item.account === row.account && String(item.id) === String(row.reference_article_id));
@@ -15545,11 +15476,11 @@ function collapsed(title, body2, id2 = "") {
   )}</summary>${body2}</details>`;
 }
 var REVIEW_SECTIONS = [["cockpit", "驾驶舱"], ["articles", "文章详情"], ["benchmarks", "对标账号"], ["rules", "规则"], ["prompts", "提示词"], ["library", "爆文库"]];
-function activeSection(vm4) {
-  const raw = vm4.secondary === "review" ? "rules" : vm4.secondary === "trends" ? "cockpit" : vm4.secondary;
+function activeSection(vm3) {
+  const raw = vm3.secondary === "review" ? "rules" : vm3.secondary === "trends" ? "cockpit" : vm3.secondary;
   if (REVIEW_SECTIONS.some(([id2]) => id2 === raw)) return raw;
-  if (vm4.view === "articles") return "articles";
-  if (vm4.view === "playbook") return "rules";
+  if (vm3.view === "articles") return "articles";
+  if (vm3.view === "playbook") return "rules";
   return "cockpit";
 }
 function v13Accounts(data2) {
@@ -15571,44 +15502,71 @@ function v13Accounts(data2) {
     return `<section class="review-v13-benchmark-group"><div class="review-v13-group-head"><h3>${profile ? `<a class="review-account-link" href="${e(profile)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3></div><div class="review-v13-account-features">${details || "<p>暂无特点记录</p>"}</div></section>`;
   }).join("");
 }
-function sectionBody(selected, data2, vm4, rows) {
-  if (selected === "articles") return articleListPanel(rows, vm4, data2);
+function sectionBody(selected, data2, vm3, rows) {
+  if (selected === "articles") return articleListPanel(rows, vm3, data2);
   if (selected === "benchmarks") return v13Accounts(data2);
-  if (selected === "rules") return playbook(data2, vm4);
-  if (selected === "prompts") return promptPage(data2, vm4);
-  if (selected === "library") return renderBenchmarkLibrary(data2, vm4.account);
-  return overview(data2, vm4) + renderReviewTrends(data2, vm4);
+  if (selected === "rules") return playbook(data2, vm3);
+  if (selected === "prompts") return promptPage(data2, vm3);
+  if (selected === "library") return renderBenchmarkLibrary(data2, vm3.account);
+  return overview(data2, vm3);
 }
-function archives(data2, vm4, rows, override) {
-  const selected = activeSection(vm4);
-  const body2 = override ?? sectionBody(selected, data2, vm4, rows);
+function archives(data2, vm3, rows, override) {
+  const selected = activeSection(vm3);
+  const body2 = override ?? sectionBody(selected, data2, vm3, rows);
   return `<section class="review-secondary"><div class="review-secondary-tabs" role="tablist" aria-label="内容复盘">${REVIEW_SECTIONS.map(([id2, label3]) => `<button type="button" id="review-secondary-${id2}" role="tab" data-review-secondary="${id2}" aria-controls="review-secondary-panel" aria-selected="${selected === id2}" tabindex="${selected === id2 ? "0" : "-1"}">${label3}</button>`).join("")}</div><div class="review-secondary-panel" id="review-secondary-panel" role="tabpanel" aria-labelledby="review-secondary-${selected}">${body2}</div></section>`;
 }
-function overview(data2, vm4) {
-  const range = ["this", "last"].includes(vm4.filters?.metricsRange) ? vm4.filters.metricsRange : "this";
-  const current3 = reviewOverviewMetrics(data2, { account: vm4.account, range, now: vm4.now || (/* @__PURE__ */ new Date()).toISOString() });
+function metricChange(label3, current3, previous, prefix = "") {
+  const delta2 = metricDelta(current3, previous);
+  const head = prefix ? `${label3} ${prefix}` : label3;
+  if (delta2 === null) return `<small class="review-stat-change">${e(head)} —</small>`;
+  if (delta2 === 0) return `<small class="review-stat-change">${e(head)} 持平</small>`;
+  const tone = delta2 > 0 ? " up" : " down";
+  return `<small class="review-stat-change${tone}">${e(head)} ${delta2 > 0 ? "+" : ""}${delta2}%</small>`;
+}
+function statCard(label3, body2, change3) {
+  return `<article class="review-stat"><span>${label3}</span>${body2}${change3}</article>`;
+}
+function cockpitMethod(data2, vm3, current3) {
+  if (!current3.window) return "";
+  try {
+    return renderCockpitMethod(data2, vm3, current3.window);
+  } catch {
+    return '<details class="review-trend-method"><summary>统计口径与数据时间</summary><p>口径暂时无法计算。</p></details>';
+  }
+}
+function overview(data2, vm3) {
+  const range = ["this", "last", "30d"].includes(vm3.filters?.metricsRange) ? vm3.filters.metricsRange : "this";
+  const current3 = reviewOverviewMetrics(data2, { account: vm3.account, range, now: vm3.now || (/* @__PURE__ */ new Date()).toISOString() });
   const noSample = range !== "last" && current3.observedCount === 0;
   const value = (formatted) => noSample ? '<strong class="review-stat-empty">数据未满24h</strong>' : `<strong>${e(formatted)}</strong>`;
-  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options3([["this", "本周"], ["last", "上周"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats"><article class="review-stat"><span>发文数</span><strong>${e(current3.count)}<small>篇</small></strong></article><article class="review-stat"><span>爆 / 中 / 扑</span><strong>${e(reviewNumber(current3.hits))} / ${e(reviewNumber(current3.middle))} / ${e(reviewNumber(current3.flops))}</strong></article><article class="review-stat"><span>阅读中位数</span>${value(reviewNumber(current3.readsMedian))}</article><article class="review-stat"><span>CTR 中位数</span>${value(reviewNumber(current3.ctrMedian, "ctr"))}</article><article class="review-stat"><span>平均阅读时长</span>${value(reviewDuration(current3.avgReadSeconds))}</article><article class="review-stat"><span>平均阅读完成率</span>${value(reviewNumber(current3.completion, "completion_rate"))}</article></div></section>`;
+  const earlier = current3.previous || {};
+  const change3 = (left, right, prefix = "") => current3.comparisonLabel ? metricChange(current3.comparisonLabel, left, right, prefix) : "";
+  const cards = [
+    statCard("发文数", `<strong>${e(current3.count)}<small>篇</small></strong>`, change3(current3.count, earlier.count)),
+    statCard(
+      "爆 / 中 / 扑",
+      `<strong>${e(reviewNumber(current3.hits))} / ${e(reviewNumber(current3.middle))} / ${e(reviewNumber(current3.flops))}</strong>`,
+      change3(current3.hits, earlier.hits, "爆")
+    ),
+    statCard("阅读中位数", value(reviewNumber(current3.readsMedian)), change3(current3.readsMedian, earlier.readsMedian)),
+    statCard("CTR 中位数", value(reviewNumber(current3.ctrMedian, "ctr")), change3(current3.ctrMedian, earlier.ctrMedian)),
+    statCard("平均阅读时长", value(reviewDuration(current3.avgReadSeconds)), change3(current3.avgReadSeconds, earlier.avgReadSeconds)),
+    statCard("平均阅读完成率", value(reviewNumber(current3.completion, "completion_rate")), change3(current3.completion, earlier.completion))
+  ].join("");
+  return `<section class="review-overview-metrics" aria-label="文章指标"><div class="review-filters"><label>统计时间<select class="input" data-review-filter="metricsRange">${options3([["this", "本周"], ["last", "上周"], ["30d", "近30天"]], range)}</select></label><button class="btn text review-inline-refresh" type="button" data-review-action="refresh">刷新</button></div><div class="review-stats">${cards}</div></section>${cockpitMethod(data2, vm3, current3)}`;
 }
-function articleListPanel(rows, vm4, data2) {
-  const expanded = Boolean(vm4.articlesExpanded);
-  const toggle = `<button type="button" class="review-articles-toggle" data-review-action="toggle-articles"
-aria-expanded="${expanded}" aria-controls="review-article-library"><span>文章列表</span>
-<span class="review-article-count">${rows.length} 篇</span><span class="review-article-toggle-label">${expanded ? "收起 ↑" : "展开 ↓"}</span></button>`;
-  const dock = `<div class="review-collapse-dock"><button class="btn" type="button" data-review-action="toggle-articles"
-aria-expanded="${expanded}" aria-controls="review-article-library">收起文章列表 ↑</button></div>`;
-  return `<section class="review-panel review-articles-panel" data-review-articles-expanded="${expanded}">
-<div class="review-panel-head"><h2 class="review-articles-heading">文章列表</h2>${toggle}
-<button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏显示</button></div>
-<div id="review-article-library" class="review-article-library">${articleLibrary(rows, vm4, data2)}</div>${dock}</section>`;
+function articleListPanel(rows, vm3, data2) {
+  return `<section class="review-panel review-articles-panel" data-review-articles-expanded="true">
+<div class="review-panel-head"><h2 class="review-articles-heading">文章列表</h2>
+<button class="btn text" type="button" data-review-action="toggle-fullscreen" aria-pressed="false">全屏展示</button></div>
+<div id="review-article-library" class="review-article-library">${articleLibrary(rows, vm3, data2)}</div></section>`;
 }
-function articleLibrary(rows, vm4, data2 = {}) {
-  const f = vm4.filters || {}, range = f.range || "30d", today2 = day4(vm4.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay(today2, range === "7d" ? -6 : -29);
+function articleLibrary(rows, vm3, data2 = {}) {
+  const f = vm3.filters || {}, range = f.range || "30d", today2 = day4(vm3.now || (/* @__PURE__ */ new Date()).toISOString()), from = range === "all" ? "" : shiftDay(today2, range === "7d" ? -6 : -29);
   const selected = rows.filter((r) => (!from || day4(r.published_at) && day4(r.published_at) >= from && day4(r.published_at) <= today2) && (!f.from || day4(r.published_at) >= f.from && day4(r.published_at)) && (!f.to || day4(r.published_at) <= f.to && day4(r.published_at)) && (!f.verdict || r.verdict === f.verdict)).sort(recentArticles);
-  const chosen = Array.isArray(vm4.metricColumns) ? vm4.metricColumns : ["reads"];
+  const chosen = Array.isArray(vm3.metricColumns) ? vm3.metricColumns : ["reads"];
   const columns = REVIEW_LIST_METRICS.filter((metric) => chosen.includes(metric.key));
-  const picker = `<details class="review-columns-picker" data-review-columns-picker${vm4.metricPickerOpen ? " open" : ""}><summary data-review-columns-trigger>显示指标</summary><div class="review-columns-menu">${REVIEW_LIST_METRICS.map((metric) => `<label><input type="checkbox" data-review-column="${e(metric.key)}"${chosen.includes(metric.key) ? " checked" : ""}>${e(metric.label)}</label>`).join("")}</div></details>`;
+  const picker = `<details class="review-columns-picker" data-review-columns-picker${vm3.metricPickerOpen ? " open" : ""}><summary data-review-columns-trigger>显示指标</summary><div class="review-columns-menu">${REVIEW_LIST_METRICS.map((metric) => `<label><input type="checkbox" data-review-column="${e(metric.key)}"${chosen.includes(metric.key) ? " checked" : ""}>${e(metric.label)}</label>`).join("")}</div></details>`;
   const filters = `<div class="review-filters"><label>发布时间<select class="input" data-review-filter="range">${options3([["7d", "近 7 天"], ["30d", "近 30 天"], [
     "all",
     "全部时间"
@@ -15618,7 +15576,7 @@ function articleLibrary(rows, vm4, data2 = {}) {
   )}</select></label>${picker}<span class="review-note">${selected.length} 篇</span></div>`;
   if (!selected.length) return filters + empty2("当前筛选下没有文章");
   const cells = (row) => {
-    const observation = reviewListObservation(row, data2.snapshots, vm4.now || (/* @__PURE__ */ new Date()).toISOString());
+    const observation = reviewListObservation(row, data2.snapshots, vm3.now || (/* @__PURE__ */ new Date()).toISOString());
     const age = observation.hours !== null ? `<span class="review-note review-observation-age">发布后 ${e(reviewObservationHours(observation.hours))} 小时</span>` : "";
     const metrics2 = columns.map((metric) => [metric.label, `${e(formatReviewListMetric(observation, metric.key))}${metric.key === "reads" ? age : ""}`]);
     const judgement = observation.kind === "longtail" ? '<span class="review-tag">长尾</span>' : tag(row.verdict);
@@ -15644,9 +15602,9 @@ function evidence(value) {
   if (value === null || value === void 0 || value === "") return "—";
   if (typeof value !== "object") return String(value);
   if (!value.metric) return "—";
-  const labels3 = { ctr: "CTR", ctr_24h: "CTR", reads: "阅读", reads_24h: "阅读", completion_rate: "完读率", completion_24h: "完读率", avg_read_seconds: "平均阅读时长" };
-  const key2 = value.metric, label3 = labels3[key2] || key2;
-  return `命中 ${reviewNumber(value.n_with)} 篇，${label3} ${reviewNumber(value.with_median, key2)}；未命中 ${reviewNumber(value.n_without)} 篇，${label3} ${reviewNumber(value.without_median, key2)}`;
+  const labels4 = { ctr: "CTR", ctr_24h: "CTR", reads: "阅读", reads_24h: "阅读", completion_rate: "完读率", completion_24h: "完读率", avg_read_seconds: "平均阅读时长" };
+  const key = value.metric, label3 = labels4[key] || key;
+  return `命中 ${reviewNumber(value.n_with)} 篇，${label3} ${reviewNumber(value.with_median, key)}；未命中 ${reviewNumber(value.n_without)} 篇，${label3} ${reviewNumber(value.without_median, key)}`;
 }
 function ruleCard(rule, index = "", historical = false) {
   const attributes = historical ? "" : ` id="review-rule-${e(encodeURIComponent(rule.rule_id))}" tabindex="-1"`;
@@ -15699,7 +15657,7 @@ function renderRuleBook(book, scope) {
   const firstSection = lines.findIndex((line) => /^##\s/.test(line));
   const titleLines = firstSection < 0 ? lines : lines.slice(0, firstSection);
   const title = titleLines.map((line) => line.match(/^#\s+(.+?)\s*$/)?.[1]?.trim()).find(Boolean) || (ownLayer ? `规则手册 ${book.version}` : `适用规则`);
-  const content2 = (firstSection < 0 ? lines : lines.slice(0, firstSection)).filter((line) => !/^#\s/.test(line) && !/^\s*[-*_]{3,}\s*$/.test(line)).join("\n").trim();
+  const content2 = rulesIntroMarkdown(ownLayer ? book.content_md || "" : "");
   const intro = content2 ? `<div class="review-v13-intro review-markdown">${renderReviewMarkdown(content2)}</div>` : "";
   const groups = v13RuleGroups.map(([id2, label3]) => {
     const group = rules2.filter((rule) => rule.section === id2);
@@ -15715,32 +15673,16 @@ function renderRuleBook(book, scope) {
     <span class="review-note">共 ${ruleCountLabel(rules2)}</span></div>
     ${intro}${groups}${other}</section>`;
 }
-var promptKindLabels = { longform_write: "写文章", image: "配图", weitoutiao_write: "微头条", transfer_chat: "转写" };
-function promptPage(data2, vm4) {
-  const order = ["longform_write", "image", "weitoutiao_write", "transfer_chat"];
-  const prompts = currentPrompts(data2.prompts, vm4.account).slice().sort((a, b) => {
-    const ai = order.indexOf(a.prompt_key), bi = order.indexOf(b.prompt_key);
-    return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi) || String(a.scope).localeCompare(String(b.scope), "zh") || String(a.prompt_key).localeCompare(String(b.prompt_key), "zh");
-  });
-  if (!prompts.length) return empty2("暂无生效提示词", "当前账号还没有可复制的完整提示词。");
-  return `<div class="review-prompt-page">${prompts.map((prompt) => `<article class="review-prompt-card">
-    <div class="review-v13-rule-meta"><h2>${e(promptKindLabels[prompt.prompt_key] || prompt.title || prompt.prompt_key)}</h2>
-    <span class="review-note">${e([prompt.title, "v" + prompt.version, scopeLabel(prompt.scope)].filter(Boolean).join(" · "))}</span></div>
-    <p class="review-note">生效时间：${e(reviewDateTime(prompt.updated_at) || "未记录")} · 上海时间</p>
-    <div class="review-prompt-copy-actions">
-      <button type="button" class="btn text" data-review-action="copy-prompt" data-prompt-id="${e(prompt.id)}">复制完整提示词</button>
-      <span class="review-note" role="status" aria-live="polite" data-prompt-copy-status></span>
-    </div>
-    <pre class="review-prompt-source">${e(prompt.content_md || "")}</pre>
-  </article>`).join("")}</div>`;
+function promptPage(data2, vm3) {
+  return renderPromptPage(data2, vm3);
 }
-function playbook(data2, vm4) {
-  const books = currentPlaybooks(data2.playbooks, vm4.account);
-  const layers = applicableScopes(vm4.account).map((scope) => {
+function playbook(data2, vm3) {
+  const books = currentPlaybooks(data2.playbooks, vm3.account);
+  const layers = applicableScopes(vm3.account).map((scope) => {
     const matches2 = books.filter((book) => book.rules.some((rule) => scopeOf(rule.scope ?? book.account) === scope) || scopeOf(book.account) === scope);
     if (!matches2.length) return "";
     const layerRules = matches2.flatMap((book) => book.rules.filter((rule) => scopeOf(rule.scope ?? book.account) === scope));
-    return `<details class="review-rule-layer" data-rule-scope="${e(scope)}"${scope === scopeOf(vm4.account) ? " open" : ""}>
+    return `<details class="review-rule-layer" data-rule-scope="${e(scope)}"${scope === scopeOf(vm3.account) ? " open" : ""}>
       <summary class="review-rule-layer-title">${e(scopeLabel(scope))}<span class="review-note"> · ${ruleCountLabel(layerRules)}</span></summary>
       ${matches2.map((book) => renderRuleBook(book, scope)).join("")}</details>`;
   }).join("");
@@ -15753,22 +15695,22 @@ function verdictBasis(row) {
   if (b.method === "fixed_thresholds") return `有效样本 ${reviewNumber(b.sample_count)} 篇；暂按阅读量 ≥ ${reviewNumber(b.high_threshold)} 判爆，≤ ${reviewNumber(b.low_threshold)} 判扑`;
   return "";
 }
-function drawer(data2, rows, vm4) {
-  if (!vm4.article) return "";
-  const row = rows.find((r) => String(r.id) === String(vm4.article));
+function drawer(data2, rows, vm3) {
+  if (!vm3.article) return "";
+  const row = rows.find((r) => String(r.id) === String(vm3.article));
   const close = '<button class="btn text review-drawer-close" type="button" data-review-action="close-article" aria-label="关闭文章详情">关闭 <span aria-hidden="true">×</span></button>';
   if (!row) return `<div class="review-drawer-overlay"><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1">${close}<h2 id="review-detail-title">未找到文章</h2><p>文章可能已移除或不属于当前账号。</p></aside></div>`;
   return `<div class="review-drawer-overlay"><button class="review-drawer-backdrop" type="button" data-review-action="close-article" tabindex="-1" aria-label="关闭文章详情"></button><aside class="review-drawer" role="dialog" aria-modal="true" aria-labelledby="review-detail-title" tabindex="-1"><div class="review-drawer-header"><span class="review-note">文章详情</span>${close}</div><div class="review-detail-heading"><span class="review-note">${e(reviewDateTime(row.published_at) || "发布时间未提供")} · 上海时间</span><h2 id="review-detail-title">${e(row.title || "未命名文章")}</h2><div class="review-detail-links">${tag(row.verdict)}${external(row.url, "查看原文 ↗")}</div></div>${renderTrafficCard(
     data2.snapshots,
     row.id
-  )}${renderImitation(row, data2, vm4.account)}</aside></div>`;
+  )}${renderArticleDiagnosis(row, vm3)}${renderImitation(row, data2, vm3.account)}</aside></div>`;
 }
 function renderContentReview() {
   return '<section id="content-review" class="content-review" aria-label="内容复盘"><p class="review-status" role="status" aria-live="polite">正在读取内容复盘…</p></section>';
 }
 function scopedReviewData(data2, account) {
   const result = { ...data2 };
-  for (const key2 of ["articles", "reports", "benchmarkAccounts", "notes", "accountHealth"]) result[key2] = (data2[key2] || []).filter((row) => row.account === account);
+  for (const key of ["articles", "reports", "benchmarkAccounts", "notes", "accountHealth"]) result[key] = (data2[key] || []).filter((row) => row.account === account);
   result.playbooks = currentPlaybooks(data2.playbooks, account);
   result.prompts = currentPrompts(data2.prompts, account);
   const benchmarkIds = new Set(result.benchmarkAccounts.map((row) => String(row.id)));
@@ -15777,16 +15719,16 @@ function scopedReviewData(data2, account) {
   result.snapshots = (data2.snapshots || []).filter((row) => ids.has(String(row.article_id)));
   return result;
 }
-function renderContentReviewContent(data2, vm4) {
-  data2 = scopedReviewData(data2, vm4.account);
-  if (vm4.loading) return '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
-  if (vm4.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm4.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
-  const rows = enrichArticles(data2, { account: vm4.account });
-  const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes", "prompts"].some((key2) => (data2[key2] || []).length);
-  const selected = activeSection(vm4);
+function renderContentReviewContent(data2, vm3) {
+  data2 = scopedReviewData(data2, vm3.account);
+  if (vm3.loading) return '<p class="review-status" role="status" aria-live="polite">正在读取完整数据…</p>';
+  if (vm3.error) return `<div class="review-empty" role="alert"><strong>内容复盘读取失败</strong><p>${e(vm3.error)}</p><button class="btn" type="button" data-review-action="refresh">重新读取</button></div>`;
+  const rows = enrichArticles(data2, { account: vm3.account });
+  const hasData = ["articles", "snapshots", "reports", "playbooks", "benchmarkAccounts", "benchmarkArticles", "notes", "prompts"].some((key) => (data2[key] || []).length);
+  const selected = activeSection(vm3);
   const quiet = !hasData && selected !== "trends";
-  const body2 = archives(data2, vm4, rows, quiet ? empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : void 0);
-  return `<div class="review-body"${vm4.article ? " inert" : ""}>${body2}</div>${drawer(data2, rows, vm4)}`;
+  const body2 = archives(data2, vm3, rows, quiet ? empty2("暂无内容复盘数据") + '<button class="btn text" type="button" data-review-action="refresh">刷新</button>' : void 0);
+  return `<div class="review-body"${vm3.article ? " inert" : ""}>${body2}</div>${drawer(data2, rows, vm3)}`;
 }
 
 // web/review-controller.mjs
@@ -15796,15 +15738,15 @@ function readReviewColumnPreference(raw) {
   try {
     const parsed2 = JSON.parse(raw);
     if (!Array.isArray(parsed2)) return ["reads"];
-    const selected = REVIEW_METRIC_COLUMNS.filter((key2) => parsed2.includes(key2));
+    const selected = REVIEW_METRIC_COLUMNS.filter((key) => parsed2.includes(key));
     return parsed2.length && !selected.length ? ["reads"] : selected;
   } catch {
     return ["reads"];
   }
 }
 var resources = ["articles", "snapshots", "reports", "playbooks", "benchmark-accounts", "benchmark-articles", "notes", "account-health", "prompts/current"];
-var data = normalizeReviewData(), sequence5 = 0, registered5 = false, identity6 = "", pageContext2;
-var vm3 = {
+var data = normalizeReviewData(), sequence3 = 0, registered3 = false, identity5 = "", pageContext2;
+var vm2 = {
   account: "V字",
   view: "overview",
   secondary: "cockpit",
@@ -15816,7 +15758,8 @@ var vm3 = {
   filters: {},
   metricColumns: readReviewColumnPreference(storage.get(columnStorageKey)),
   metricPickerOpen: false,
-  articlesExpanded: false,
+  articlesExpanded: true,
+  diagnoses: {},
   article: "",
   version: "",
   compare: "",
@@ -15827,14 +15770,14 @@ var root = () => typeof document === "undefined" ? null : document.querySelector
 function staleRead(message = "复盘资料在读取时发生变化，请重新读取。") {
   return Object.assign(new Error(message), { code: "READ_REVISION_CHANGED" });
 }
-async function readReviewCollection(read3, resource, selectedAccount, current3 = () => true) {
+async function readReviewCollection(read2, resource, selectedAccount, current3 = () => true) {
   if (!resources.includes(resource)) throw new Error("未知的复盘资料类型。");
   const items = [], seen = /* @__PURE__ */ new Set(), foreignIds = /* @__PURE__ */ new Set();
   let revision2;
   for (let offset = 0; ; offset += 100) {
     const accountQuery = resource === "playbooks" ? "" : `account=${encodeURIComponent(selectedAccount)}&`;
     const revisionQuery = revision2 === void 0 ? "" : `&read_revision=${encodeURIComponent(revision2)}`;
-    const page = await read3(`/review/${resource}?${accountQuery}offset=${offset}${revisionQuery}`);
+    const page = await read2(`/review/${resource}?${accountQuery}offset=${offset}${revisionQuery}`);
     if (!current3()) return null;
     if (!Array.isArray(page?.items) || typeof page.has_more !== "boolean" || page.items.length > 100 || page.has_more && page.items.length !== 100) throw new Error("复盘分页资料不完整，请重新读取。");
     if (page.read_revision !== void 0) {
@@ -15853,12 +15796,12 @@ async function readReviewCollection(read3, resource, selectedAccount, current3 =
     if (!page.has_more) return { items, read_revision: revision2, foreignIds };
   }
 }
-async function readContentReviewData(read3, selectedAccount, current3 = () => true) {
-  const results = await Promise.all(resources.map((name) => readReviewCollection(read3, name, selectedAccount, current3)));
+async function readContentReviewData(read2, selectedAccount, current3 = () => true) {
+  const results = await Promise.all(resources.map((name) => readReviewCollection(read2, name, selectedAccount, current3)));
   if (!current3() || results.some((result2) => result2 === null)) return null;
   const revisions = results.map((result2) => result2.read_revision).filter((value) => value !== void 0);
   if (revisions.length && revisions.some((value) => value !== revisions[0])) throw staleRead();
-  const result = normalizeReviewData(Object.fromEntries(resources.map((key2, index) => [key2, results[index].items])));
+  const result = normalizeReviewData(Object.fromEntries(resources.map((key, index) => [key, results[index].items])));
   const articles = new Set(result.articles.map((row) => String(row.id)));
   const foreignArticles = results[0].foreignIds;
   if (result.snapshots.some((row) => !articles.has(String(row.article_id)) && !foreignArticles.has(String(row.article_id))))
@@ -15869,17 +15812,17 @@ async function readContentReviewData(read3, selectedAccount, current3 = () => tr
   result.loadedAt = (/* @__PURE__ */ new Date()).toISOString();
   return result;
 }
-async function readContentReviewDataWithRetry(read3, selectedAccount, current3 = () => true) {
+async function readContentReviewDataWithRetry(read2, selectedAccount, current3 = () => true) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      return await readContentReviewData(read3, selectedAccount, current3);
+      return await readContentReviewData(read2, selectedAccount, current3);
     } catch (error) {
       if (!current3()) return null;
       if (error.code !== "READ_REVISION_CHANGED" || attempt) throw error;
     }
   }
 }
-function reviewRoute(href, defaultAccount = vm3.account) {
+function reviewRoute(href, defaultAccount = vm2.account) {
   const p = new URL(href).searchParams, legacy = p.get("review_view");
   const requested = p.get("tab") || (legacy === "playbooks" ? "playbook" : legacy);
   const view = REVIEW_VIEWS.some(([id2]) => id2 === requested) ? requested : "overview";
@@ -15907,17 +15850,17 @@ function reviewRoute(href, defaultAccount = vm3.account) {
 var route = () => reviewRoute(location.href);
 function writeRoute(values) {
   const url = new URL(location.href);
-  for (const [key2, value] of Object.entries(values)) {
-    const name = key2 === "view" ? "tab" : `review_${key2}`;
+  for (const [key, value] of Object.entries(values)) {
+    const name = key === "view" ? "tab" : `review_${key}`;
     if (value) url.searchParams.set(name, value);
     else url.searchParams.delete(name);
   }
-  for (const key2 of ["review_view", "review_date", "review_period", "review_compare"]) url.searchParams.delete(key2);
-  if (!url.searchParams.has("tab")) url.searchParams.set("tab", vm3.view);
+  for (const key of ["review_view", "review_date", "review_period", "review_compare"]) url.searchParams.delete(key);
+  if (!url.searchParams.has("tab")) url.searchParams.set("tab", vm2.view);
   history.replaceState({}, "", url);
 }
 function syncViewFromRoute() {
-  vm3 = { ...vm3, ...route(), loading: false, error: "" };
+  vm2 = { ...vm2, ...route(), loading: false, error: "" };
 }
 function focusBenchmark(id2) {
   if (!id2) return;
@@ -15961,7 +15904,7 @@ function syncReviewFullscreen() {
   const node2 = root(), button2 = node2?.querySelector('[data-review-action="toggle-fullscreen"]');
   if (!button2) return;
   const active5 = node2.classList.contains("review-list-fullscreen");
-  button2.textContent = active5 ? "退出全屏" : "全屏显示";
+  button2.textContent = active5 ? "退出全屏" : "全屏展示";
   button2.setAttribute("aria-pressed", String(active5));
 }
 async function toggleReviewFullscreen() {
@@ -15972,7 +15915,7 @@ async function toggleReviewFullscreen() {
     if (document.fullscreenElement === node2) await document.exitFullscreen().catch(() => {
     });
   } else {
-    vm3.articlesExpanded = true;
+    vm2.articlesExpanded = true;
     paintContentReviewPage();
     node2.classList.add("review-list-fullscreen");
     if (node2.requestFullscreen) await node2.requestFullscreen().catch(() => {
@@ -15982,11 +15925,11 @@ async function toggleReviewFullscreen() {
 }
 async function toggleArticleList() {
   const node2 = root();
-  if (!node2 || vm3.loading || vm3.error) return;
-  const expanded = !vm3.articlesExpanded;
+  if (!node2 || vm2.loading || vm2.error) return;
+  const expanded = !vm2.articlesExpanded;
   if (!expanded && node2.classList.contains("review-list-fullscreen")) await toggleReviewFullscreen();
-  vm3.articlesExpanded = expanded;
-  vm3.metricPickerOpen = false;
+  vm2.articlesExpanded = expanded;
+  vm2.metricPickerOpen = false;
   paintContentReviewPage();
   const button2 = root()?.querySelector(".review-articles-toggle");
   button2?.focus({ preventScroll: true });
@@ -15995,71 +15938,73 @@ async function toggleArticleList() {
 function paintContentReviewPage() {
   const node2 = root();
   if (!node2) return;
-  node2.innerHTML = renderContentReviewContent(data, vm3);
+  node2.innerHTML = renderContentReviewContent(data, vm2);
   syncReviewFullscreen();
   const dialog = node2.querySelector('[role="dialog"]');
   for (const child of node2.children) if (child !== dialog?.parentElement && dialog) child.inert = true;
   if (dialog) dialog.querySelector(".review-drawer-close")?.focus({ preventScroll: true });
-  if (vm3.metricPickerOpen) positionReviewColumnsPicker();
+  if (vm2.metricPickerOpen) positionReviewColumnsPicker();
 }
 async function loadContentReview(context) {
   registerEvents2();
   pageContext2 = context;
   const [{ apiNetwork: apiNetwork2 }, { state: state2, runtime: runtime2 }] = await Promise.all([Promise.resolve().then(() => (init_api(), api_exports)), Promise.resolve().then(() => (init_state(), state_exports))]);
   const requested = route(), currentIdentity2 = `${runtime2.sessionEpoch}:${state2.me?.id || ""}:${requested.account}`;
-  if (identity6 !== currentIdentity2) {
+  if (identity5 !== currentIdentity2) {
     data = normalizeReviewData();
-    vm3.filters = {};
-    vm3.articlesExpanded = false;
-    identity6 = currentIdentity2;
+    vm2.filters = {};
+    vm2.articlesExpanded = true;
+    vm2.diagnoses = {};
+    identity5 = currentIdentity2;
   }
-  vm3 = { ...vm3, ...requested, loading: true, error: "" };
+  vm2 = { ...vm2, ...requested, loading: true, error: "" };
   paintContentReviewPage();
-  const ticket = ++sequence5, epoch = runtime2.sessionEpoch;
-  const current3 = () => ticket === sequence5 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root());
-  const read3 = (path) => apiNetwork2(path, context ? { context } : {});
+  const ticket = ++sequence3, epoch = runtime2.sessionEpoch;
+  const current3 = () => ticket === sequence3 && epoch === runtime2.sessionEpoch && state2.page === "review" && route().account === requested.account && Boolean(root());
+  const read2 = (path) => apiNetwork2(path, context ? { context } : {});
   try {
-    const result = await readContentReviewDataWithRetry(read3, requested.account, current3);
+    const result = await readContentReviewDataWithRetry(read2, requested.account, current3);
     if (!current3() || !result) return;
     data = result;
     syncViewFromRoute();
     paintContentReviewPage();
-    focusBenchmark(vm3.benchmark);
+    focusBenchmark(vm2.benchmark);
+    if (vm2.article) void loadStoredDiagnosis(vm2.article);
   } catch (error) {
     if (!current3() || error.name === "AbortError") return;
-    vm3.loading = false;
-    vm3.error = error.message || "读取失败，请稍后重试。";
+    vm2.loading = false;
+    vm2.error = error.message || "读取失败，请稍后重试。";
     paintContentReviewPage();
   }
 }
 function closeArticle() {
-  vm3.article = "";
+  vm2.article = "";
   writeRoute({ article: "" });
   paintContentReviewPage();
   const node2 = [...root()?.querySelectorAll("[data-review-article]") || []].find((el) => el.dataset.reviewArticle === returnFocusId);
   node2?.focus({ preventScroll: true });
   window.scrollTo({ top: returnScroll, behavior: "instant" });
 }
-function selectTab2(view, focus = false) {
-  vm3.view = view;
-  vm3.article = "";
-  vm3.benchmark = "";
+function selectTab(view, focus = false) {
+  vm2.view = view;
+  vm2.article = "";
+  vm2.benchmark = "";
   writeRoute({ view, article: "", benchmark: "" });
   paintContentReviewPage();
   if (focus) root()?.querySelector(`#review-tab-${view}`)?.focus({ preventScroll: true });
 }
 function changeTrend(target) {
-  const key2 = target.dataset.reviewTrend;
-  if (!["range", "from", "to"].includes(key2)) return;
+  const key = target.dataset.reviewTrend;
+  if (!["range", "from", "to"].includes(key)) return;
   const today2 = day4((/* @__PURE__ */ new Date()).toISOString());
-  vm3.trends = { ...vm3.trends, [key2]: target.value };
-  if (key2 === "range" && vm3.trends.range === "custom") {
-    vm3.trends.from ||= shiftDay(today2, -6);
-    vm3.trends.to ||= today2;
+  vm2.trends = { ...vm2.trends, [key]: target.value };
+  if (key === "range" && vm2.trends.range === "custom") {
+    vm2.trends.from ||= shiftDay(today2, -6);
+    vm2.trends.to ||= today2;
   }
-  writeRoute({ ...Object.fromEntries(Object.entries(vm3.trends).map(([name, value]) => [`trend_${name}`, value])), trend_metric: "" });
+  writeRoute({ ...Object.fromEntries(Object.entries(vm2.trends).map(([name, value]) => [`trend_${name}`, value])), trend_metric: "" });
   paintContentReviewPage();
-  root()?.querySelector(`[data-review-trend="${key2}"]`)?.focus({ preventScroll: true });
+  root()?.querySelector(`[data-review-trend="${key}"]`)?.focus({ preventScroll: true });
 }
 async function copyReviewPrompt(prompts, account, id2, clipboard = globalThis.navigator?.clipboard) {
   const prompt = currentPrompts(prompts, account).find((row) => String(row.id) === String(id2));
@@ -16071,12 +16016,62 @@ async function copyReviewPrompt(prompts, account, id2, clipboard = globalThis.na
     throw new Error("复制失败，请允许剪贴板访问，或从页面上的全文手动复制。");
   }
 }
+async function reviewWrite(path, options4) {
+  const { apiNetwork: apiNetwork2 } = await Promise.resolve().then(() => (init_api(), api_exports));
+  return apiNetwork2(path, options4 || {});
+}
+async function loadStoredDiagnosis(articleId) {
+  const current3 = vm2.diagnoses?.[articleId];
+  if (!articleId || current3?.text || current3?.checked || current3?.status === "saving") return;
+  vm2.diagnoses = { ...vm2.diagnoses, [articleId]: { status: "checking", checked: false } };
+  try {
+    const row = await reviewWrite("/review/articles/" + encodeURIComponent(articleId) + "/diagnosis");
+    const latest = vm2.diagnoses?.[articleId];
+    if (latest?.text || latest?.status === "saving") return;
+    const text = typeof row?.result_text === "string" ? row.result_text : "";
+    vm2.diagnoses = { ...vm2.diagnoses, [articleId]: { status: text ? "saved" : "ready", text, checked: true } };
+  } catch {
+    const latest = vm2.diagnoses?.[articleId];
+    if (latest?.text || latest?.status === "saving") return;
+    vm2.diagnoses = { ...vm2.diagnoses, [articleId]: { status: "ready", text: "", checked: true } };
+  }
+  if (vm2.article === articleId) paintContentReviewPage();
+}
+async function runArticleDiagnosis(articleId) {
+  const current3 = vm2.diagnoses?.[articleId];
+  if (!articleId || current3?.text || current3?.status === "saving") return;
+  vm2.diagnoses = { ...vm2.diagnoses, [articleId]: { status: "saving", text: "", checked: true } };
+  paintContentReviewPage();
+  try {
+    const row = await reviewWrite("/review/articles/" + encodeURIComponent(articleId) + "/diagnosis", { method: "POST", body: {} });
+    const text = typeof row?.result_text === "string" ? row.result_text : "";
+    if (!text) throw new Error("没有得到诊断结果。");
+    vm2.diagnoses = { ...vm2.diagnoses, [articleId]: { status: "saved", text, checked: true } };
+  } catch (error) {
+    vm2.diagnoses = { ...vm2.diagnoses, [articleId]: { status: "error", text: "", error: error.message || "诊断失败，请稍后重试。", checked: true } };
+  }
+  if (vm2.article === articleId) paintContentReviewPage();
+}
+async function copyPromptText(button2, text) {
+  const status = button2.closest(".review-prompt-card")?.querySelector("[data-prompt-copy-status]");
+  button2.disabled = true;
+  if (status) status.textContent = "正在复制…";
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("当前浏览器不支持剪贴板，请从页面上的全文手动复制。");
+    await navigator.clipboard.writeText(text);
+    if (status?.isConnected) status.textContent = "已复制完整提示词。";
+  } catch (error) {
+    if (status?.isConnected) status.textContent = error.message || "复制失败，请从页面上的全文手动复制。";
+  } finally {
+    if (button2.isConnected) button2.disabled = false;
+  }
+}
 async function copyPromptButton(button2) {
   const status = button2.closest(".review-prompt-card, .review-current-prompt")?.querySelector("[data-prompt-copy-status]");
   button2.disabled = true;
   if (status) status.textContent = "正在复制…";
   try {
-    await copyReviewPrompt(data.prompts, vm3.account, button2.dataset.promptId);
+    await copyReviewPrompt(data.prompts, vm2.account, button2.dataset.promptId);
     if (status?.isConnected) status.textContent = "已复制完整提示词。";
   } catch (error) {
     if (status?.isConnected) status.textContent = error.message;
@@ -16094,17 +16089,17 @@ function onReviewClick(event) {
   const picker = node2?.querySelector("[data-review-columns-picker]");
   if (picker?.open && !picker.contains(event.target)) {
     picker.open = false;
-    vm3.metricPickerOpen = false;
+    vm2.metricPickerOpen = false;
   }
   const benchmarkLink = event.target.closest?.("a[data-review-benchmark]");
   if (benchmarkLink && node2?.contains(benchmarkLink)) {
     event.preventDefault();
-    vm3.article = "";
-    vm3.secondary = "library";
-    vm3.benchmark = benchmarkLink.dataset.reviewBenchmark;
-    writeRoute({ section: "library", article: "", benchmark: vm3.benchmark });
+    vm2.article = "";
+    vm2.secondary = "library";
+    vm2.benchmark = benchmarkLink.dataset.reviewBenchmark;
+    writeRoute({ section: "library", article: "", benchmark: vm2.benchmark });
     paintContentReviewPage();
-    focusBenchmark(vm3.benchmark);
+    focusBenchmark(vm2.benchmark);
     return;
   }
   if (event.target.closest?.("a")) return;
@@ -16119,9 +16114,9 @@ function onReviewClick(event) {
     return;
   }
   if (target.dataset.reviewAction === "show-health") {
-    vm3.view = "overview";
-    vm3.secondary = "attention";
-    vm3.article = "";
+    vm2.view = "overview";
+    vm2.secondary = "attention";
+    vm2.article = "";
     writeRoute({ view: "overview", section: "attention", article: "" });
     paintContentReviewPage();
     const history2 = node2.querySelector("#review-health-history");
@@ -16133,28 +16128,40 @@ function onReviewClick(event) {
     void loadContentReview(pageContext2);
     return;
   }
-  if (vm3.loading || vm3.error) return;
+  if (vm2.loading || vm2.error) return;
   if (target.dataset.reviewAction === "copy-prompt") {
     void copyPromptButton(target);
     return;
   }
+  if (target.dataset.reviewAction === "copy-diagnosis-prompt") {
+    void copyPromptText(target, diagnosisPromptText(data.prompts, vm2.account));
+    return;
+  }
+  if (target.dataset.reviewAction === "copy-prompt-block") {
+    void copyPromptText(target, target.closest(".review-prompt-card")?.querySelector("pre")?.textContent || "");
+    return;
+  }
+  if (target.dataset.reviewAction === "diagnose-article") {
+    void runArticleDiagnosis(target.dataset.articleId);
+    return;
+  }
   if (target.dataset.reviewSecondary) {
-    vm3.secondary = target.dataset.reviewSecondary;
-    vm3.benchmark = "";
-    writeRoute({ section: vm3.secondary, benchmark: "" });
+    vm2.secondary = target.dataset.reviewSecondary;
+    vm2.benchmark = "";
+    writeRoute({ section: vm2.secondary, benchmark: "" });
     paintContentReviewPage();
-    root()?.querySelector(`#review-secondary-${vm3.secondary}`)?.focus({ preventScroll: true });
+    root()?.querySelector(`#review-secondary-${vm2.secondary}`)?.focus({ preventScroll: true });
     return;
   }
   if (target.dataset.reviewView) {
-    selectTab2(target.dataset.reviewView, true);
+    selectTab(target.dataset.reviewView, true);
     return;
   }
   if (target.dataset.reviewWeek) {
-    vm3.week = target.dataset.reviewWeek;
-    writeRoute({ week: vm3.week });
+    vm2.week = target.dataset.reviewWeek;
+    writeRoute({ week: vm2.week });
     paintContentReviewPage();
-    root()?.querySelector(`[data-review-week="${vm3.week}"]`)?.focus({ preventScroll: true });
+    root()?.querySelector(`[data-review-week="${vm2.week}"]`)?.focus({ preventScroll: true });
     return;
   }
   if (target.dataset.reviewAction === "close-article") {
@@ -16165,10 +16172,11 @@ function onReviewClick(event) {
   if (article) {
     returnFocusId = article;
     returnScroll = window.scrollY;
-    vm3.article = article;
-    vm3.benchmark = "";
+    vm2.article = article;
+    vm2.benchmark = "";
     writeRoute({ article, benchmark: "" });
     paintContentReviewPage();
+    void loadStoredDiagnosis(article);
   }
 }
 function onReviewKeydown(event) {
@@ -16198,7 +16206,7 @@ function onReviewKeydown(event) {
   if (event.key === "Escape" && picker?.open) {
     event.preventDefault();
     picker.open = false;
-    vm3.metricPickerOpen = false;
+    vm2.metricPickerOpen = false;
     picker.querySelector("[data-review-columns-trigger]")?.focus({ preventScroll: true });
     return;
   }
@@ -16209,26 +16217,26 @@ function onReviewKeydown(event) {
   }
   if (event.target.matches("[data-review-secondary]") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
     event.preventDefault();
-    const ids = REVIEW_SECTIONS.map(([id2]) => id2), current3 = vm3.secondary === "review" ? "rules" : vm3.secondary, index = Math.max(
+    const ids = REVIEW_SECTIONS.map(([id2]) => id2), current3 = vm2.secondary === "review" ? "rules" : vm2.secondary, index = Math.max(
       0,
       ids.indexOf(current3)
     );
-    vm3.secondary = event.key === "Home" ? ids[0] : event.key === "End" ? ids.at(-1) : ids[(index + (event.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length];
-    vm3.benchmark = "";
-    writeRoute({ section: vm3.secondary, benchmark: "" });
+    vm2.secondary = event.key === "Home" ? ids[0] : event.key === "End" ? ids.at(-1) : ids[(index + (event.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length];
+    vm2.benchmark = "";
+    writeRoute({ section: vm2.secondary, benchmark: "" });
     paintContentReviewPage();
-    root()?.querySelector(`#review-secondary-${vm3.secondary}`)?.focus({ preventScroll: true });
+    root()?.querySelector(`#review-secondary-${vm2.secondary}`)?.focus({ preventScroll: true });
     return;
   }
   if (event.target.matches("[data-review-view]") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
     event.preventDefault();
-    const ids = REVIEW_VIEWS.map(([id2]) => id2), index = ids.indexOf(vm3.view);
-    selectTab2(event.key === "Home" ? ids[0] : event.key === "End" ? ids.at(-1) : ids[(index + (event.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length], true);
+    const ids = REVIEW_VIEWS.map(([id2]) => id2), index = ids.indexOf(vm2.view);
+    selectTab(event.key === "Home" ? ids[0] : event.key === "End" ? ids.at(-1) : ids[(index + (event.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length], true);
   }
 }
 function registerEvents2() {
-  if (registered5 || typeof document === "undefined") return;
-  registered5 = true;
+  if (registered3 || typeof document === "undefined") return;
+  registered3 = true;
   document.addEventListener("fullscreenchange", () => {
     const node2 = root();
     if (node2?.classList.contains("review-list-fullscreen") && !document.fullscreenElement && node2.dataset.nativeFullscreen === "true") {
@@ -16240,7 +16248,7 @@ function registerEvents2() {
   document.addEventListener("toggle", (event) => {
     const picker = event.target;
     if (picker.matches?.("[data-review-columns-picker]") && root()?.contains(picker)) {
-      vm3.metricPickerOpen = picker.open;
+      vm2.metricPickerOpen = picker.open;
       if (picker.open) positionReviewColumnsPicker();
     }
   }, true);
@@ -16254,7 +16262,7 @@ function registerEvents2() {
   document.addEventListener("change", (event) => {
     const target = event.target;
     const node2 = root();
-    if (!node2?.contains(target) || vm3.loading || vm3.error) return;
+    if (!node2?.contains(target) || vm2.loading || vm2.error) return;
     if (target.dataset.reviewTrend) {
       changeTrend(target);
       return;
@@ -16262,12 +16270,12 @@ function registerEvents2() {
     const column = target.dataset.reviewColumn;
     if (column !== void 0) {
       if (!REVIEW_METRIC_COLUMNS.includes(column)) return;
-      const selected = new Set(vm3.metricColumns);
+      const selected = new Set(vm2.metricColumns);
       if (target.checked) selected.add(column);
       else selected.delete(column);
-      vm3.metricColumns = REVIEW_METRIC_COLUMNS.filter((key3) => selected.has(key3));
-      vm3.metricPickerOpen = true;
-      storage.set(columnStorageKey, JSON.stringify(vm3.metricColumns));
+      vm2.metricColumns = REVIEW_METRIC_COLUMNS.filter((key2) => selected.has(key2));
+      vm2.metricPickerOpen = true;
+      storage.set(columnStorageKey, JSON.stringify(vm2.metricColumns));
       const scrollLeft = node2.querySelector(".review-table-wrap")?.scrollLeft || 0;
       const scrollY = window.scrollY;
       paintContentReviewPage();
@@ -16282,21 +16290,21 @@ function registerEvents2() {
       return;
     }
     if (!target.dataset.reviewFilter) return;
-    const key2 = target.dataset.reviewFilter;
-    vm3.filters[key2] = target.value;
+    const key = target.dataset.reviewFilter;
+    vm2.filters[key] = target.value;
     paintContentReviewPage();
     const filterRoot = target.closest(".review-trends") ? root()?.querySelector(".review-trends") : root();
-    filterRoot?.querySelector(`[data-review-filter="${key2}"]`)?.focus({ preventScroll: true });
+    filterRoot?.querySelector(`[data-review-filter="${key}"]`)?.focus({ preventScroll: true });
   });
   document.addEventListener("keydown", onReviewKeydown);
   window.addEventListener("popstate", () => {
     if (!root()) return;
     const next = route();
-    if (next.account !== vm3.account) void loadContentReview(pageContext2);
+    if (next.account !== vm2.account) void loadContentReview(pageContext2);
     else {
       syncViewFromRoute();
       paintContentReviewPage();
-      focusBenchmark(vm3.benchmark);
+      focusBenchmark(vm2.benchmark);
     }
   });
 }
@@ -16315,16 +16323,18 @@ init_entry();
 init_modal();
 init_popover();
 function mainContent() {
+  const settingsChoices = state.me?.publicBusiness ? { todo: settingsTabs.todo } : Object.fromEntries(Object.entries(settingsTabs).filter(([key]) => key !== "workspace" && key !== "openai"));
+  const settingsHint = state.page !== "settings" ? "" : state.me?.publicBusiness ? '<p class="hint"><a href="?page=login">管理员登录</a></p>' : state.me ? '<p class="hint"><button class="btn text" type="button" data-action="logout">退出登录</button></p>' : "";
   return `<div id="page-header" class="page-head"></div>${state.page === "settings" ? segmented(
     "settings-tab",
     Object.entries(
-      state.me?.publicBusiness ? { todo: settingsTabs.todo, openai: settingsTabs.openai } : Object.fromEntries(Object.entries(settingsTabs).filter(([key2]) => key2 !== "workspace"))
+      settingsChoices
     ),
     state.settingsTab,
     "设置分类",
     "tab",
     "page-tabs"
-  ) : ""}${state.page === "settings" && state.me?.publicBusiness && state.settingsTab !== "openai" ? '<p class="hint"><a href="?page=login">管理员登录</a></p>' : ""}${state.page === "settings" ? '<section class="card panel" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
+  ) : ""}${settingsHint}${state.page === "settings" ? '<section class="card panel" aria-label="本地待处理"><h2>本地待处理</h2><p class="hint">后台会自动同步；如有冲突，可在这里查看和处理。</p><div id="offline-settings-entry"></div></section>' : ""}${renderMediaTabs()}<div id="page-content"></div>`;
 }
 function reuseShell() {
   const shell = $(".shell"), main = $("#main");
@@ -16342,7 +16352,7 @@ function reuseShell() {
 }
 function renderShell() {
   redirectMobileArticlePage();
-  if (state.page === "settings" && (state.settingsTab === "workspace" || state.me?.publicBusiness && !["todo", "openai"].includes(state.settingsTab)))
+  if (state.page === "settings" && (state.settingsTab === "workspace" || state.settingsTab === "openai" || state.me?.publicBusiness && state.settingsTab !== "todo"))
     state.settingsTab = "todo";
   stopPageEntry();
   closePopover({ restoreFocus: false });
@@ -16352,7 +16362,7 @@ function renderShell() {
   }
   $("#app").innerHTML = `<div class="shell" data-session="${runtime.sessionEpoch}" data-user="${e(state.me.id)}"><aside id="site-nav" class="sidebar" aria-label="主要导航"><div class="sidebar-brand"><a href="?page=review&amp;account=${e(encodeURIComponent(state.account || "V字"))}" class="brand" data-nav="review"><span class="brand-mark">${icon("fish", 27)}</span><span class="brand-title">好多鱼工作台</span></a><button class="icon-button mobile-menu" data-action="menu" aria-label="关闭导航" aria-expanded="false" aria-controls="site-nav">${icon(
     "close"
-  )}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div></aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><span>好多鱼工作台</span><button class="icon-button mobile-settings-trigger" data-action="menu" aria-label="设置菜单" aria-expanded="false" aria-controls="mobile-settings-menu">${icon("settings", 20)}</button>${mobileSettingsMenu()}</header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
+  )}</button></div><nav class="nav-list" tabindex="0" aria-label="模块导航">${sidebarNavigation()}</nav><div class="sidebar-bottom">${settingsNavigation()}${state.me.publicBusiness ? "" : `<div class="user-row"><span class="avatar">${e((state.me.username || "我").slice(0, 1).toUpperCase())}</span><span class="user-name">${e(state.me.username)}</span>${state.me.publicBusiness ? "" : `<button class="logout" data-action="logout" title="退出登录" aria-label="退出登录">${icon("logout", 16)}</button>`}</div>`}</div></aside>${renderSidebarResizer()}<div class="workspace"><header class="mobile-bar"><span>好多鱼工作台</span><a class="icon-button mobile-settings-trigger" href="?page=settings&amp;tab=todo" data-nav="settings" aria-label="设置">${icon("settings", 20)}</a></header><main id="main" class="content" tabindex="-1">${mainContent()}</main>${mobileNavigation()}</div></div>`;
   syncMenu();
   setupSidebarResize();
   setupMobileViewport();
@@ -16408,10 +16418,8 @@ function pageLoading(page) {
   if (page === "notes") return renderDailyNotes();
   if (page === "memos") return renderMemos();
   if (page === "reminders") return renderWorkReminders();
-  if (page === "ai-diagnosis") return renderAiDiagnosis();
   if (page === "ai-reports") return renderAiReports();
   if (page === "settings" && state.settingsTab === "workspace") return renderWorkbenchSettings();
-  if (page === "settings" && state.settingsTab === "openai") return openAiSettingsPage();
   return skeleton();
 }
 function setPageBody(html, page) {
@@ -16422,7 +16430,7 @@ function setPageBody(html, page) {
   else if (page === "notes") paintDailyNotesPage();
   else if (page === "memos") paintMemosPage();
   else if (page === "settings" && state.settingsTab === "workspace") paintMemosPage();
-  else if (page === "reminders" || page === "ai-reports" || page === "ai-diagnosis" || page === "settings" && state.settingsTab === "openai") return;
+  else if (page === "reminders" || page === "ai-reports") return;
   else replacePageContent(html, true);
 }
 function publishedArticleLinks(html) {
@@ -16473,9 +16481,6 @@ async function renderPage() {
       case "reminders":
         await loadWorkReminders();
         break;
-      case "ai-diagnosis":
-        await loadAiDiagnosis();
-        break;
       case "ai-reports":
         await loadAiReports({ resetDate: true });
         break;
@@ -16484,9 +16489,7 @@ async function renderPage() {
         break;
       case "settings":
         if (state.settingsTab === "workspace") break;
-        else if (state.settingsTab === "openai") {
-          await loadOpenAiSettings();
-        } else if (state.settingsTab === "todo") {
+        else if (state.settingsTab === "todo") {
           await loadTodoPreferences(context);
           html = renderTodoSettings();
         } else if (state.settingsTab === "keys") {
@@ -16673,7 +16676,7 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
       message = "已保存，最新详情暂未读取。";
     }
   }
-  async function save2(index, done) {
+  async function save(index, done) {
     if (busy || pending || !Number.isSafeInteger(index) || typeof done !== "boolean" || !Array.isArray(current3.verify_items) || !current3.verify_items[index] || typeof current3.verify_items[index] !== "object") return;
     if (current3.verify_items[index].done === done) return;
     const items = copy(current3.verify_items);
@@ -16709,7 +16712,7 @@ function createArticleVerificationStore({ article, load, put, uuid: uuid5 = () =
       notify();
     }
   }
-  return { snapshot, save: save2, refresh, retry };
+  return { snapshot, save, refresh, retry };
 }
 var binding = null;
 function bindArticleVerification(article, { isCurrent, render }) {
@@ -16718,10 +16721,10 @@ function bindArticleVerification(article, { isCurrent, render }) {
     article,
     isCurrent: () => binding === value && epoch === runtime.sessionEpoch && isCurrent(),
     load: (id2) => api(`/articles/${encodeURIComponent(id2)}`),
-    put: (id2, body2, key2) => api(`/articles/${encodeURIComponent(id2)}`, {
+    put: (id2, body2, key) => api(`/articles/${encodeURIComponent(id2)}`, {
       method: "PUT",
       body: body2,
-      headers: { "Idempotency-Key": key2 }
+      headers: { "Idempotency-Key": key }
     }),
     onChange: (state2) => {
       if (binding === value && epoch === runtime.sessionEpoch && isCurrent()) render(state2);
@@ -16946,7 +16949,7 @@ function conflictEvidence(document2, conflict) {
 function queueRows(document2, queue, runtime2, refresh, requests) {
   const root2 = document2.createDocumentFragment();
   if (!queue.operations.length && !queue.conflicts.length) root2.append(textNode(document2, "p", "暂无待处理内容。"));
-  const labels3 = {
+  const labels4 = {
     queued: "等待同步",
     sending: "待同步",
     unknown: "结果待核对",
@@ -16958,7 +16961,7 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
     const item = textNode(
       document2,
       "p",
-      `${operation2.needs_upgrade ? "需新版" : labels3[operation2.status] || "等待同步"} · ${readable(operation2.local)}`,
+      `${operation2.needs_upgrade ? "需新版" : labels4[operation2.status] || "等待同步"} · ${readable(operation2.local)}`,
       "offline-queue-row"
     );
     if (operation2.error) item.append(textNode(document2, "span", " · " + operation2.error));
@@ -16983,13 +16986,13 @@ function queueRows(document2, queue, runtime2, refresh, requests) {
       continue;
     }
     if (conflict.resolution) {
-      const labels4 = {
+      const labels5 = {
         queued: "选择已存本机，正在核对线上结果。",
         conflict: "新保存有冲突，请核对下方的新比较内容。",
         blocked: "新保存暂未完成，原文与选择仍保留。",
         paused: "需联网核实后继续，原文与选择仍保留。"
       };
-      item.append(textNode(document2, "p", labels4[conflict.resolution.state] || "正在核对线上结果。"));
+      item.append(textNode(document2, "p", labels5[conflict.resolution.state] || "正在核对线上结果。"));
       root2.append(item);
       continue;
     }
@@ -17027,19 +17030,19 @@ function pageAnnotation(document2, state2) {
 function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   let state2 = { ...runtime2.state }, expanded = false, rendering = 0;
   const pending = /* @__PURE__ */ new Map(), messages = /* @__PURE__ */ new Map(), requests = {
-    busy: (key2) => pending.has(key2),
-    begin(key2) {
-      if (pending.has(key2)) return null;
+    busy: (key) => pending.has(key),
+    begin(key) {
+      if (pending.has(key)) return null;
       const controller = new AbortController();
-      pending.set(key2, controller);
+      pending.set(key, controller);
       return controller;
     },
-    end(key2, controller) {
-      if (pending.get(key2) === controller) pending.delete(key2);
+    end(key, controller) {
+      if (pending.get(key) === controller) pending.delete(key);
     },
-    message(key2, value) {
-      if (value !== void 0) messages.set(key2, value);
-      return messages.get(key2) || "";
+    message(key, value) {
+      if (value !== void 0) messages.set(key, value);
+      return messages.get(key) || "";
     },
     cancel() {
       for (const controller of pending.values()) controller.abort();
@@ -17060,8 +17063,8 @@ function mountRuntimeUI(runtime2, { document: document2, window: window2 }) {
   root2.append(button2, panel2);
   async function refreshQueue() {
     if (!expanded) return;
-    const sequence6 = ++rendering, queue = await runtime2.queue();
-    if (sequence6 !== rendering || !expanded) return;
+    const sequence4 = ++rendering, queue = await runtime2.queue();
+    if (sequence4 !== rendering || !expanded) return;
     const title = textNode(document2, "h2", "同步状态");
     const details = document2.createDocumentFragment();
     if (state2.error) {
@@ -17174,10 +17177,10 @@ function makeView(pip) {
   notesInput.placeholder = "写下一点想说的话…";
   notesInput.setAttribute("aria-label", "碎碎念内容");
   notesInput.rows = 5;
-  const labels3 = node(doc, "fieldset", "", "floating-labels");
-  labels3.append(node(doc, "legend", "标签（可多选）"));
+  const labels4 = node(doc, "fieldset", "", "floating-labels");
+  labels4.append(node(doc, "legend", "标签（可多选）"));
   const options4 = node(doc, "div");
-  labels3.append(options4);
+  labels4.append(options4);
   const noteMessage = node(doc, "p", "", "floating-message");
   noteMessage.setAttribute("role", "status");
   const noteActions = node(doc, "div", "", "floating-actions");
@@ -17190,7 +17193,7 @@ function makeView(pip) {
   retry.type = "button";
   retry.hidden = true;
   noteActions.append(send, check, retry);
-  notes.append(noteList, newNote, notesInput, labels3, noteMessage, noteActions);
+  notes.append(noteList, newNote, notesInput, labels4, noteMessage, noteActions);
   main.append(head, tabs, offline, todo, notes);
   doc.body.replaceChildren(main);
   return {
@@ -17205,7 +17208,7 @@ function makeView(pip) {
     noteList,
     newNote,
     notesInput,
-    labels: labels3,
+    labels: labels4,
     options: options4,
     noteMessage,
     send,
@@ -17311,13 +17314,13 @@ function mountFloating(pip) {
   const view = makeView(pip), owner2 = todoOwner();
   let alive = true, tab = "todos", notesLoaded = false, composing = false, date = bjtDate();
   const active5 = () => alive && !pip.closed && todoSessionActive(owner2);
-  const paint2 = () => {
+  const paint = () => {
     if (active5()) {
       paintTodo(view);
       if (tab === "notes") paintNotes(view);
     }
   };
-  const stopTodos = observeTodoChanges(paint2), stopNotes = observeFloatingNotes(paint2);
+  const stopTodos = observeTodoChanges(paint), stopNotes = observeFloatingNotes(paint);
   const stopRuntime = bindOfflineStatus(view, active5);
   const beforeUnload = (event) => {
     if (active5() && hasFloatingNoteDraft()) {
@@ -17334,13 +17337,13 @@ function mountFloating(pip) {
     const current3 = floatingNotesSnapshot()?.item;
     if (tab === "notes" && view.notesInput.value !== (current3?.draft || "")) editFloatingNote(view.notesInput.value);
     view.frozen = true;
-    paint2();
+    paint();
     event.detail.onFailure?.(() => {
       view.frozen = false;
-      if (active5()) paint2();
+      if (active5()) paint();
     });
   };
-  const reset3 = () => {
+  const reset2 = () => {
     if (alive) pip.close();
   };
   const focus = () => {
@@ -17380,7 +17383,7 @@ function mountFloating(pip) {
     stopRuntime();
     window.removeEventListener("beforeunload", beforeUnload);
     window.removeEventListener("haoduoyu:before-refresh", beforeRefresh2);
-    window.removeEventListener("haoduoyu-todos-reset", reset3);
+    window.removeEventListener("haoduoyu-todos-reset", reset2);
     pip.removeEventListener("focus", focus);
     if (activeWindow === pip) activeWindow = null;
     if (draft && todoSessionActive(owner2)) toast("未发送内容仍在当前页面，请确认保存后再关闭主页面。");
@@ -17396,7 +17399,7 @@ function mountFloating(pip) {
       notesLoaded = true;
       void loadFloatingNotes();
     }
-    paint2();
+    paint();
   });
   view.todoList.addEventListener("change", (event) => {
     const input = event.target;
@@ -17404,7 +17407,7 @@ function mountFloating(pip) {
   });
   view.newNote.addEventListener("click", () => {
     newFloatingNote();
-    paint2();
+    paint();
     view.notesInput.focus();
   });
   view.noteList.addEventListener("click", (event) => {
@@ -17426,7 +17429,7 @@ function mountFloating(pip) {
   });
   view.options.addEventListener("change", () => {
     labelFloatingNote([...view.options.querySelectorAll("input:checked")].map((input) => input.value));
-    paint2();
+    paint();
   });
   view.send.addEventListener("click", () => {
     void sendFloatingNote();
@@ -17439,11 +17442,11 @@ function mountFloating(pip) {
   });
   window.addEventListener("beforeunload", beforeUnload);
   window.addEventListener("haoduoyu:before-refresh", beforeRefresh2);
-  window.addEventListener("haoduoyu-todos-reset", reset3);
+  window.addEventListener("haoduoyu-todos-reset", reset2);
   pip.addEventListener("focus", focus);
   pip.addEventListener("pagehide", cleanup, { once: true });
   view.tabs.querySelector('[data-tab="todos"]').setAttribute("aria-pressed", "true");
-  paint2();
+  paint();
   void loadFloatingToday();
 }
 async function openFloatingWorkbench() {
@@ -17517,8 +17520,8 @@ function readonlyJSON(label3, value) {
   )}</pre></details>`;
 }
 function draftReference(a) {
-  const ref = a.draft_ref || {}, ids = [["pgc_id", "头条草稿"], ["appmsgid", "公众号草稿"]].filter(([key2]) => typeof ref[key2] === "string" && ref[key2].trim());
-  return `<section class="detail-section"><h3>草稿凭证</h3>${ids.map(([key2, label3]) => `<p>${e(label3)} · <code>${e(ref[key2])}</code></p>`).join("")}${safeDetailURL(ref.editor_url) ? `<p><a href="${e(ref.editor_url)}" target="_blank" rel="noopener noreferrer">草稿编辑链接 ↗</a></p>` : ""}${!ids.length && !safeDetailURL(ref.editor_url) ? '<p class="cell-sub">未确认</p>' : ""}<p class="cell-sub">链接只校验格式，未验证远端权限或草稿是否存在。</p></section>`;
+  const ref = a.draft_ref || {}, ids = [["pgc_id", "头条草稿"], ["appmsgid", "公众号草稿"]].filter(([key]) => typeof ref[key] === "string" && ref[key].trim());
+  return `<section class="detail-section"><h3>草稿凭证</h3>${ids.map(([key, label3]) => `<p>${e(label3)} · <code>${e(ref[key])}</code></p>`).join("")}${safeDetailURL(ref.editor_url) ? `<p><a href="${e(ref.editor_url)}" target="_blank" rel="noopener noreferrer">草稿编辑链接 ↗</a></p>` : ""}${!ids.length && !safeDetailURL(ref.editor_url) ? '<p class="cell-sub">未确认</p>' : ""}<p class="cell-sub">链接只校验格式，未验证远端权限或草稿是否存在。</p></section>`;
 }
 function itemText(item) {
   const label3 = ["label", "description", "text", "message", "title", "key"].find((name) => typeof item[name] === "string" && item[name]);
@@ -17567,8 +17570,8 @@ function renderArticleDetailBody(a, view = { phase: "idle", busy: false, retryRe
     ["录入时间", displayTime(a.created_at)],
     ["修改时间", displayTime(a.updated_at)]
   ];
-  return `<div class="article-ledger-detail" data-article-detail="${e(a.id)}"><div class="head-actions">${isPublished2(a) && safeDetailURL(a.url) ? `<a class="btn small" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}<button class="btn small" data-action="edit-article" data-id="${e(a.id)}">编辑</button>${isPublished2(a) ? `<button class="btn small primary" data-action="review-article" data-id="${e(a.id)}">+ 补充数据</button>` : ""}</div><dl class="detail-grid">${articlePipelineFields(a).map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl>${Array.isArray(a.warnings) && a.warnings.length ? `<p class="info-line warn">${a.warnings.map((code) => e(warningLabels2[code] || code)).join(" · ")}</p>` : ""}${draftReference(a)}${readonlyJSON("样本来源", a.sample)}${readonlyJSON("阶段时间线", a.timings)}${readonlyJSON("阻塞记录", a.blockers)}${verificationSection(a, view)}${renderArticleAnalytics(a)}<details class="detail-section"><summary>记录信息</summary><dl class="detail-grid">${info.map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl></details>${[["summary", "概况"], ["notes", "备注"]].filter(([key2]) => typeof a[key2] === "string" && a[key2].trim()).map(([key2, label3]) => `<section class="detail-section"><h3>${e(label3)}</h3><p>${e(
-    a[key2]
+  return `<div class="article-ledger-detail" data-article-detail="${e(a.id)}"><div class="head-actions">${isPublished2(a) && safeDetailURL(a.url) ? `<a class="btn small" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ""}<button class="btn small" data-action="edit-article" data-id="${e(a.id)}">编辑</button>${isPublished2(a) ? `<button class="btn small primary" data-action="review-article" data-id="${e(a.id)}">+ 补充数据</button>` : ""}</div><dl class="detail-grid">${articlePipelineFields(a).map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl>${Array.isArray(a.warnings) && a.warnings.length ? `<p class="info-line warn">${a.warnings.map((code) => e(warningLabels2[code] || code)).join(" · ")}</p>` : ""}${draftReference(a)}${readonlyJSON("样本来源", a.sample)}${readonlyJSON("阶段时间线", a.timings)}${readonlyJSON("阻塞记录", a.blockers)}${verificationSection(a, view)}${renderArticleAnalytics(a)}<details class="detail-section"><summary>记录信息</summary><dl class="detail-grid">${info.map(([label3, value]) => `<div><dt>${e(label3)}</dt><dd>${e(value)}</dd></div>`).join("")}</dl></details>${[["summary", "概况"], ["notes", "备注"]].filter(([key]) => typeof a[key] === "string" && a[key].trim()).map(([key, label3]) => `<section class="detail-section"><h3>${e(label3)}</h3><p>${e(
+    a[key]
   )}</p></section>`).join("")}</div>`;
 }
 function renderArticleAnalytics(a) {
@@ -17590,9 +17593,9 @@ function renderArticleAnalytics(a) {
     "likes",
     "comments",
     "approvals"
-  ].filter((key2) => metricData(r)[key2] != null).map((key2) => `<span>${e(metrics[key2])}${comparisonHTML(
-    r.changes[key2]
-  )}${detailInfo(r.changes[key2]?.reason || "指标未取得", metrics[key2] + "变化说明", r.id + "-" + key2)}</span>`).join(
+  ].filter((key) => metricData(r)[key] != null).map((key) => `<span>${e(metrics[key])}${comparisonHTML(
+    r.changes[key]
+  )}${detailInfo(r.changes[key]?.reason || "指标未取得", metrics[key] + "变化说明", r.id + "-" + key)}</span>`).join(
     ""
   )}</div>` : ""}</li>`).join("")}</ol></section>`;
 }
@@ -17626,13 +17629,13 @@ init_state();
 init_requests();
 var indexRequests = /* @__PURE__ */ new WeakMap();
 async function articleIndex(query = "", context) {
-  const identity7 = state.me?.id, generation = runtime.articleIndexGeneration;
-  if (!identity7) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
+  const identity6 = state.me?.id, generation = runtime.articleIndexGeneration;
+  if (!identity6) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
   const scope = context || backgroundRequests();
   const params = new URLSearchParams(Object.entries(Object.fromEntries(new URLSearchParams(query))).sort(([a], [b]) => a.localeCompare(b)));
   params.set("fields", "index");
-  const key2 = identity7 + ":" + params.toString();
-  let pending = articleIndexes.get(key2);
+  const key = identity6 + ":" + params.toString();
+  let pending = articleIndexes.get(key);
   const owner2 = pending && indexRequests.get(pending);
   if (owner2 && !owner2.done && owner2.scope !== scope) pending = null;
   if (!pending) {
@@ -17642,15 +17645,15 @@ async function articleIndex(query = "", context) {
       return Object.freeze(rows2.map((row) => Object.freeze(row)));
     });
     indexRequests.set(pending, entry);
-    articleIndexes.set(key2, pending);
+    articleIndexes.set(key, pending);
     if (articleIndexes.size > 10) articleIndexes.delete(articleIndexes.keys().next().value);
     pending.catch(() => {
-      if (articleIndexes.get(key2) === pending) articleIndexes.delete(key2);
+      if (articleIndexes.get(key) === pending) articleIndexes.delete(key);
     });
   }
   const rows = await pending;
-  if (generation !== runtime.articleIndexGeneration || identity7 !== state.me?.id) {
-    if (!state.me || identity7 !== state.me.id) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
+  if (generation !== runtime.articleIndexGeneration || identity6 !== state.me?.id) {
+    if (!state.me || identity6 !== state.me.id) throw Object.assign(new Error("索引会话已失效"), { staleIndex: true });
     return articleIndex(query, context);
   }
   return rows;
@@ -17683,22 +17686,22 @@ async function renderReviews(version2 = runtime.renderVersion, context, { isCurr
     "tab",
     "page-tabs"
   )}${compactFilters ? "" : `<div class="review-summary">${platformFilter("review-platform", state.filters.platform, "数据平台")}${accountFilter()}</div>`}`;
-  const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key2]) => records.some((r) => metricData(r)[key2] != null)).map(([key2, label3]) => [
-    key2,
-    ["likes", "approvals"].includes(key2) ? `${label3}（${key2}）` : label3
+  const items = pending ? due : records, columns = pending ? [["account", "账号"], ["due_kind", "观察节点"], ["due_at", "目标时间"]] : [["account", "账号"], ...Object.entries(metrics).filter(([key]) => records.some((r) => metricData(r)[key] != null)).map(([key, label3]) => [
+    key,
+    ["likes", "approvals"].includes(key) ? `${label3}（${key}）` : label3
   ]), [
     tab === "observations" ? "as_of" : "source",
     tab === "observations" ? "数据截至" : "来源"
   ]];
-  const cell = (r, key2) => key2 === "account" ? e(accountName(account(r))) : key2 === "due_kind" ? e(kindLabels[r.due_kind] || r.due_kind) : [
+  const cell = (r, key) => key === "account" ? e(accountName(account(r))) : key === "due_kind" ? e(kindLabels[r.due_kind] || r.due_kind) : [
     "as_of",
     "due_at"
-  ].includes(key2) ? e(displayTime(r[key2])) : key2 === "source" ? e(r.source || "未标注来源") : metricData(r)[key2] == null ? '<span class="missing-value">未取得</span>' : e(num(metricData(r)[key2]));
+  ].includes(key) ? e(displayTime(r[key])) : key === "source" ? e(r.source || "未标注来源") : metricData(r)[key] == null ? '<span class="missing-value">未取得</span>' : e(num(metricData(r)[key]));
   return tabs + `<section class="card">${items.length ? `<div class="table-scroll"><table class="data-table dashboard-table review-table"><thead><tr><th>${pending ? "文章" : tab === "observations" ? "文章／观察节点" : "日期／统计范围"}</th>${columns.map(([, label3]) => `<th>${e(label3)}</th>`).join("")}<th>操作</th></tr></thead><tbody>${items.map((r) => {
     const id2 = pending ? r.id : r.article_id, a = articles.find((a2) => a2.id === id2);
-    return `<tr><td class="title-cell">${id2 ? `<button class="article-link" data-action="article-detail" data-id="${e(id2)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key2, label3]) => `<td data-label="${e(
+    return `<tr><td class="title-cell">${id2 ? `<button class="article-link" data-action="article-detail" data-id="${e(id2)}">${e(r.title || r.article_title || a?.title || "文章记录")}</button>` : e(r.date)}${pending ? "" : `<div class="cell-sub">${e(tab === "observations" ? kindLabels[r.kind] || r.kind : r.article_id ? r.date : "账号总体")}</div>`}</td>${columns.map(([key, label3]) => `<td data-label="${e(
       label3
-    )}">${cell(r, key2)}</td>`).join("")}<td>${pending ? `<button class="btn small" data-action="review-article" data-id="${e(
+    )}">${cell(r, key)}</td>`).join("")}<td>${pending ? `<button class="btn small" data-action="review-article" data-id="${e(
       id2
     )}" data-kind="${e(r.due_kind)}">补录快照</button>` : `<button class="btn small" data-action="record-detail" data-id="${e(r.id)}">详情</button>`}</td></tr>`;
   }).join("")}</tbody></table></div><div class="table-footer">共 ${e(num(items.length))} 条</div>` : empty(pending ? "暂无到期提醒" : "暂无记录", "", pending ? "" : '<button class="btn" data-action="new-review">录入数据</button>')}</section>`;
@@ -17754,7 +17757,7 @@ async function reviewModal(articleId = "", kind = "latest", indexRetry = false) 
     true
   )}</select></div><div class="form-field"><label for="review-article">统计范围</label><select class="input" name="article_id" id="review-article"><option value="">账号总体</option>${articles.filter((a) => a.account_id === accountId).map((a) => `<option value="${e(a.id)}">${e(
     a.title
-  )}</option>`).join("")}</select></div>${field("date", '数据所属日期 <span class="required">*</span>', "date", bjtDate(), `max="${bjtDate()}" required`)}` : `<div class="form-field full"><label for="review-article">文章 <span class="required">*</span></label><select class="input" name="article_id" id="review-article" required>${articles.map((a) => `<option value="${e(a.id)}" ${a.id === articleId ? "selected" : ""}>${e(a.title)} · ${e(accountName(a.account_id))}</option>`).join("")}</select></div><div class="form-field"><label for="field-kind">观察节点</label><select class="input" id="field-kind" name="kind">${Object.entries(kindLabels).map(([key2, label3]) => `<option value="${key2}" ${key2 === kind ? "selected" : ""}>${label3}</option>`).join("")}</select></div>${field(
+  )}</option>`).join("")}</select></div>${field("date", '数据所属日期 <span class="required">*</span>', "date", bjtDate(), `max="${bjtDate()}" required`)}` : `<div class="form-field full"><label for="review-article">文章 <span class="required">*</span></label><select class="input" name="article_id" id="review-article" required>${articles.map((a) => `<option value="${e(a.id)}" ${a.id === articleId ? "selected" : ""}>${e(a.title)} · ${e(accountName(a.account_id))}</option>`).join("")}</select></div><div class="form-field"><label for="field-kind">观察节点</label><select class="input" id="field-kind" name="kind">${Object.entries(kindLabels).map(([key, label3]) => `<option value="${key}" ${key === kind ? "selected" : ""}>${label3}</option>`).join("")}</select></div>${field(
     "as_of",
     '数据截至时间 <span class="required">*</span>',
     "datetime-local",
@@ -17772,8 +17775,8 @@ async function reviewModal(articleId = "", kind = "latest", indexRetry = false) 
     "text",
     "",
     'required maxlength="200"'
-  )}<div class="form-field full"><span class="field-label">${daily ? "当天新增指标" : "累计指标"}</span><span class="hint">至少一项；缺失留空，真实为零才填 0。</span></div>${Object.entries(metrics).map(([key2, label3]) => field(
-    `metric_${key2}`,
+  )}<div class="form-field full"><span class="field-label">${daily ? "当天新增指标" : "累计指标"}</span><span class="hint">至少一项；缺失留空，真实为零才填 0。</span></div>${Object.entries(metrics).map(([key, label3]) => field(
+    `metric_${key}`,
     label3,
     "number",
     "",
@@ -17815,10 +17818,10 @@ function actionListNext({}) {
   return;
 }
 function actionSortColumn({ target }) {
-  const key2 = target.dataset.sort;
-  state.filters.order = state.filters.sort === key2 && state.filters.order === "desc" ? "asc" : "desc";
-  state.filters.sort = key2;
-  reloadFilteredPage('[data-sort="' + key2 + '"]');
+  const key = target.dataset.sort;
+  state.filters.order = state.filters.sort === key && state.filters.order === "desc" ? "asc" : "desc";
+  state.filters.sort = key;
+  reloadFilteredPage('[data-sort="' + key + '"]');
   return;
 }
 function actionSaveView({ id: id2 }) {
@@ -18186,8 +18189,8 @@ function articleTime(value, label3, original) {
 function mergedObject(original, fields5) {
   if (original != null && !objectValue(original)) throw new Error("原记录的 JSON 字段无法安全编辑，请重新打开核对。");
   const result = original == null ? {} : structuredClone(original);
-  for (const [key2, value] of Object.entries(fields5)) {
-    if (value !== null || Object.hasOwn(result, key2)) result[key2] = value;
+  for (const [key, value] of Object.entries(fields5)) {
+    if (value !== null || Object.hasOwn(result, key)) result[key] = value;
   }
   return Object.keys(result).length || original != null ? result : null;
 }
@@ -18244,10 +18247,10 @@ function equalValue(a, b) {
   if (a === b) return true;
   if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
   const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length && keys.every((key2) => Object.hasOwn(b, key2) && equalValue(a[key2], b[key2]));
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && equalValue(a[key], b[key]));
 }
 function savedArticle(value, pending) {
-  return typeof value?.id === "string" && !!value.id && (!pending.id || value.id === pending.id) && Number.isSafeInteger(value.version) && value.version > (pending.body.version || 0) && Object.entries(pending.body).every(([key2, expected]) => key2 === "version" || equalValue(value[key2], expected));
+  return typeof value?.id === "string" && !!value.id && (!pending.id || value.id === pending.id) && Number.isSafeInteger(value.version) && value.version > (pending.body.version || 0) && Object.entries(pending.body).every(([key, expected]) => key === "version" || equalValue(value[key], expected));
 }
 function uncertainArticleSave(cache2, message) {
   cache2.saveAttempt.phase = "unknown";
@@ -18333,9 +18336,9 @@ async function submitArticleForm({ form, data: data2 }) {
 }
 async function submitReviewForm({ form, data: data2 }) {
   const m = {};
-  for (const key2 of Object.keys(metrics)) {
-    const value = data2[`metric_${key2}`];
-    if (value !== "" && value != null) m[key2] = Number(value);
+  for (const key of Object.keys(metrics)) {
+    const value = data2[`metric_${key}`];
+    if (value !== "" && value != null) m[key] = Number(value);
   }
   if (!Object.keys(m).length) throw new Error("请至少填写一个已取得的指标。");
   let body2, path;
@@ -18568,8 +18571,8 @@ function handleChange(event) {
 }
 function handleToggle(event) {
   if (event.target.id === "todo-templates" && event.target.isConnected && event.target.open) loadTodoTemplates();
-  const key2 = event.target.dataset?.state;
-  if (event.target.isConnected && key2 === "trendOpen") state[key2] = event.target.open;
+  const key = event.target.dataset?.state;
+  if (event.target.isConnected && key === "trendOpen") state[key] = event.target.open;
 }
 function handleInput(event) {
   const el = event.target;
