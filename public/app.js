@@ -2244,35 +2244,6 @@ function acceptedLabelEvidence(operation2, confirmed2, entity) {
     throw new Error("标签证据已变化，原请求已保留。");
   return proof;
 }
-async function leaseOutbox(env, scope) {
-  env.checkScope(scope);
-  return env.db.transaction(["meta"], "readwrite", async (tx) => {
-    const old = await tx.get("meta", env.leaseKey(scope));
-    if (old && old.owner !== env.owner && old.expires_at > env.now()) return false;
-    await tx.put("meta", { key: env.leaseKey(scope), owner: env.owner, expires_at: env.now() + 9e4 });
-    return true;
-  });
-}
-async function networkOutbox(env, scope, path, opts = {}, claim = true) {
-  env.checkScope(scope);
-  if (claim && !await leaseOutbox(env, scope)) throw new Error("Offline sync lease changed");
-  env.checkScope(scope);
-  const controller = new AbortController();
-  let timer2;
-  try {
-    const expired = new Promise((_, reject) => {
-      timer2 = setTimeout(() => {
-        controller.abort();
-        reject(Object.assign(new Error("Offline request outcome is unknown"), { code: "OFFLINE_TIMEOUT" }));
-      }, env.timeout);
-    });
-    const result = await Promise.race([env.request(path, { ...opts, signal: controller.signal }), expired]);
-    env.checkScope(scope);
-    return result;
-  } finally {
-    clearTimeout(timer2);
-  }
-}
 function createContext(options4) {
   const { db, request, getScope, now = Date.now, uuid: uuid5 = () => crypto.randomUUID(), timeout = 2e4 } = options4;
   const owner2 = uuid5();
@@ -2317,9 +2288,35 @@ function createContext(options4) {
     }
     return ready;
   };
-  const env = { db, checkScope, leaseKey, owner: owner2, now, timeout, request };
-  const lease = (scope) => leaseOutbox(env, scope);
-  const network = (scope, path, opts, claim) => networkOutbox(env, scope, path, opts, claim);
+  async function lease(scope) {
+    checkScope(scope);
+    return db.transaction(["meta"], "readwrite", async (tx) => {
+      const old = await tx.get("meta", leaseKey(scope));
+      if (old && old.owner !== owner2 && old.expires_at > now()) return false;
+      await tx.put("meta", { key: leaseKey(scope), owner: owner2, expires_at: now() + 9e4 });
+      return true;
+    });
+  }
+  async function network(scope, path, opts = {}, claim = true) {
+    checkScope(scope);
+    if (claim && !await lease(scope)) throw new Error("Offline sync lease changed");
+    checkScope(scope);
+    const controller = new AbortController();
+    let timer2;
+    try {
+      const expired = new Promise((_, reject) => {
+        timer2 = setTimeout(() => {
+          controller.abort();
+          reject(Object.assign(new Error("Offline request outcome is unknown"), { code: "OFFLINE_TIMEOUT" }));
+        }, timeout);
+      });
+      const result = await Promise.race([request(path, { ...opts, signal: controller.signal }), expired]);
+      checkScope(scope);
+      return result;
+    } finally {
+      clearTimeout(timer2);
+    }
+  }
   const readNetwork = (scope, path, opts = {}) => {
     if (!["GET", "HEAD"].includes((opts.method || "GET").toUpperCase())) throw new TypeError("Conflict preparation is read-only");
     return network(scope, path, opts, false);
@@ -2369,61 +2366,60 @@ async function noteCapacity(tx, operation2, old) {
   }
   if (count3 >= 200) throw Object.assign(new Error("本机当日记录已达 200 条，草稿已保留。"), { code: "OFFLINE_CACHE_LIMIT" });
 }
-async function enqueueInTransaction(context, tx, input) {
-  const { checkScope, uuid: uuid5, now } = context;
-  input.assertActive?.();
-  checkScope(input.scope);
-  const operation2 = operationFor(input, uuid5, now());
-  context.requireDispatch(operation2);
-  checkScope(input.scope);
-  input.assertActive?.();
-  const all = (await tx.getAll("outbox")).filter((value) => value.scope === input.scope);
-  const replay = await replayOperation(tx, operation2, input, all);
-  if (replay) {
-    input.assertActive?.();
-    return replay;
-  }
-  const rows = all.filter(active2);
-  if (rows.length >= 1e3) throw new Error("Offline queue is full; this edit was not saved");
-  const previous = ordered(rows.filter((value) => value.entity_id === operation2.entity_id)).at(-1);
-  const conflict = rows.some((value) => value.entity_id === operation2.entity_id && value.status === "conflict");
-  if (conflict || previous && operation2.expected_version !== previous.expected_version + 1) {
-    throw new Error("Offline edits must use the preceding local version");
-  }
-  const sequenceKey = entityKey(input.scope, "outbox-sequence");
-  const sequence6 = (await tx.get("meta", sequenceKey))?.value || 0;
-  operation2.seq = sequence6 + 1;
-  const key2 = entityKey(input.scope, operation2.entity_id), old = await tx.get("entities", key2);
-  await noteCapacity(tx, operation2, old);
-  const visible3 = old?.dirty ? old.local : old?.server || operation2.base;
-  operation2.base = operation2.base || old?.server || null;
-  operation2.local = {
-    ...visible3,
-    ...operation2.local,
-    ...operation2.entity_type === "todo" && operation2.path === "/todos" ? { completed: false } : {},
-    ...operation2.path.endsWith("/restore") ? { deleted: false, deleted_at: null } : {},
-    ...operation2.method === "DELETE" ? { deleted: true } : {}
-  };
-  const entity = {
-    ...old,
-    key: key2,
-    scope: input.scope,
-    entity_id: operation2.entity_id,
-    server: old?.server || operation2.base,
-    local: operation2.local,
-    dirty: true
-  };
-  input.assertActive?.();
-  await tx.put("entities", entity);
-  await tx.put("outbox", operation2);
-  await tx.put("meta", { key: sequenceKey, value: operation2.seq });
-  input.assertActive?.();
-  return { operation: operation2, entity };
-}
 function storageMethods(context) {
-  const { db, checkScope, now, owner: owner2 } = context;
+  const { db, checkScope, uuid: uuid5, now, owner: owner2 } = context;
+  async function enqueueInTransaction(tx, input) {
+    input.assertActive?.();
+    checkScope(input.scope);
+    const operation2 = operationFor(input, uuid5, now());
+    context.requireDispatch(operation2);
+    checkScope(input.scope);
+    input.assertActive?.();
+    const all = (await tx.getAll("outbox")).filter((value) => value.scope === input.scope);
+    const replay = await replayOperation(tx, operation2, input, all);
+    if (replay) {
+      input.assertActive?.();
+      return replay;
+    }
+    const rows = all.filter(active2);
+    if (rows.length >= 1e3) throw new Error("Offline queue is full; this edit was not saved");
+    const previous = ordered(rows.filter((value) => value.entity_id === operation2.entity_id)).at(-1);
+    const conflict = rows.some((value) => value.entity_id === operation2.entity_id && value.status === "conflict");
+    if (conflict || previous && operation2.expected_version !== previous.expected_version + 1) {
+      throw new Error("Offline edits must use the preceding local version");
+    }
+    const sequenceKey = entityKey(input.scope, "outbox-sequence");
+    const sequence6 = (await tx.get("meta", sequenceKey))?.value || 0;
+    operation2.seq = sequence6 + 1;
+    const key2 = entityKey(input.scope, operation2.entity_id), old = await tx.get("entities", key2);
+    await noteCapacity(tx, operation2, old);
+    const visible3 = old?.dirty ? old.local : old?.server || operation2.base;
+    operation2.base = operation2.base || old?.server || null;
+    operation2.local = {
+      ...visible3,
+      ...operation2.local,
+      ...operation2.entity_type === "todo" && operation2.path === "/todos" ? { completed: false } : {},
+      ...operation2.path.endsWith("/restore") ? { deleted: false, deleted_at: null } : {},
+      ...operation2.method === "DELETE" ? { deleted: true } : {}
+    };
+    const entity = {
+      ...old,
+      key: key2,
+      scope: input.scope,
+      entity_id: operation2.entity_id,
+      server: old?.server || operation2.base,
+      local: operation2.local,
+      dirty: true
+    };
+    input.assertActive?.();
+    await tx.put("entities", entity);
+    await tx.put("outbox", operation2);
+    await tx.put("meta", { key: sequenceKey, value: operation2.seq });
+    input.assertActive?.();
+    return { operation: operation2, entity };
+  }
   async function enqueue(input) {
-    return db.transaction(["entities", "outbox", "meta"], "readwrite", (tx) => enqueueInTransaction(context, tx, input));
+    return db.transaction(["entities", "outbox", "meta"], "readwrite", (tx) => enqueueInTransaction(tx, input));
   }
   async function update(operation2, fields5, { rateLimitedUntil } = {}) {
     if (!context.canDispatch(operation2)) return null;
@@ -2468,7 +2464,7 @@ function storageMethods(context) {
       await recordResolutionAck(tx, current3, confirmed2, now());
     });
   }
-  return { enqueue, enqueueInTransaction: (tx, input) => enqueueInTransaction(context, tx, input), update, acknowledge };
+  return { enqueue, enqueueInTransaction, update, acknowledge };
 }
 function remoteMethods(context) {
   const { network } = context;
@@ -3656,101 +3652,6 @@ async function noteDigest(row) {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-async function purgeVerifiedDrafts(env, snapshots2, tombstones, stillActive = () => true) {
-  const { db, getScope, getGeneration } = env;
-  const owner2 = getScope(), generation = getGeneration();
-  if (!owner2) return;
-  const active5 = () => {
-    if (owner2 !== getScope() || generation !== getGeneration() || !stillActive())
-      throw new Error("Draft cleanup was cancelled");
-  };
-  const candidates = [];
-  for (const snapshot of snapshots2) {
-    const value = tombstones.get(snapshot.data?.id);
-    if (snapshot.scope === owner2 && matchesDeletedEntry(snapshot.data, value))
-      candidates.push({ snapshot, value, digest: await noteDigest(snapshot.data) });
-  }
-  active5();
-  await db.transaction(["meta"], "readwrite", async (tx) => {
-    active5();
-    for (const { snapshot, value, digest: digest2 } of candidates) {
-      active5();
-      const current3 = await tx.get("meta", snapshot.key);
-      if (!current3 || current3.scope !== owner2 || current3.draft_kind !== "note_entry" || JSON.stringify(current3) !== JSON.stringify(snapshot) || !matchesDeletedEntry(current3.data, value)) continue;
-      const key2 = entityKey(owner2, "deleted-note-proof:" + digest2);
-      const previous = await tx.get("meta", key2);
-      await tx.put("meta", { key: key2, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
-      await tx.delete("meta", current3.key);
-    }
-    active5();
-  });
-}
-async function purgeUserDeletedDrafts(env, raw, snapshots2, value, stillActive = () => true) {
-  const { db, getScope, getGeneration } = env;
-  const owner2 = getScope(), generation = getGeneration(), target = safeDraft(raw);
-  const evidenceRow = { ...target, draft: value?.text, labels: value?.labels };
-  if (!owner2 || !eligible(target) || !matchesDeletedEntry(evidenceRow, value) || value.version !== target.version + 1) return;
-  const digest2 = await noteDigest(target);
-  const active5 = () => {
-    if (owner2 !== getScope() || generation !== getGeneration() || !stillActive()) throw new Error("Draft cleanup was cancelled");
-  };
-  await db.transaction(["meta"], "readwrite", async (tx) => {
-    active5();
-    let removed4 = false;
-    for (const snapshot of snapshots2) {
-      const row = snapshot.data;
-      if (snapshot.scope !== owner2 || snapshot.draft_kind !== "note_entry" || !row || !eligible(row) || row.id !== target.id || row.category !== target.category || row.date !== target.date || row.version !== target.version || row.draft !== target.draft || JSON.stringify([...row.labels].sort()) !== JSON.stringify([...target.labels].sort())) continue;
-      const current3 = await tx.get("meta", snapshot.key);
-      if (current3 && JSON.stringify(current3) === JSON.stringify(snapshot)) {
-        await tx.delete("meta", current3.key);
-        removed4 = true;
-      }
-    }
-    if (removed4) {
-      const key2 = entityKey(owner2, "deleted-note-proof:" + digest2), previous = await tx.get("meta", key2);
-      await tx.put("meta", { key: key2, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
-    }
-    active5();
-  });
-}
-async function discardUnsentDraft(env, raw) {
-  const { db, getScope, getGeneration } = env;
-  const owner2 = getScope(), generation = getGeneration(), row = safeDraft(raw);
-  if (!owner2 || !eligible(row) || row.version !== 0 || (row.localVersion || 0) !== 0)
-    throw new Error("本机草稿状态需要重新核对，内容已保留。");
-  const digest2 = await noteDigest(row);
-  const active5 = () => {
-    if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
-  };
-  await db.transaction(["meta"], "readwrite", async (tx) => {
-    active5();
-    for (const stored of await tx.getAll("meta")) {
-      const data2 = stored.data;
-      if (stored.scope !== owner2 || stored.draft_kind !== "note_entry" || !data2 || !eligible(data2) || data2.version !== 0 || (data2.localVersion || 0) !== 0 || data2.id !== row.id || data2.category !== row.category || data2.date !== row.date || data2.draft !== row.draft || JSON.stringify([...data2.labels].sort()) !== JSON.stringify([...row.labels].sort())) continue;
-      await tx.delete("meta", stored.key);
-    }
-    const key2 = entityKey(owner2, "deleted-note-proof:" + digest2);
-    const previous = await tx.get("meta", key2);
-    await tx.put("meta", { key: key2, scope: owner2, version: Math.max(previous?.version || 0, 1) });
-    active5();
-  });
-}
-async function discardSelectedDraft(env, pending, snapshot) {
-  const { db, getScope, getGeneration } = env;
-  const owner2 = getScope(), generation = getGeneration();
-  if (!owner2 || snapshot?.scope !== owner2 || !["legacy", "note_entry"].includes(snapshot?.draft_kind))
-    throw new Error("草稿身份范围已变化，请重新查看。");
-  await Promise.all([...pending]);
-  return db.transaction(["meta"], "readwrite", async (tx) => {
-    if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
-    const current3 = await tx.get("meta", snapshot.key);
-    if (!current3 || current3.scope !== owner2 || current3.draft_kind !== snapshot.draft_kind || JSON.stringify(current3) !== JSON.stringify(snapshot))
-      throw new Error("草稿已变化，请重新查看后再删除。");
-    await tx.delete("meta", snapshot.key);
-    if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
-    return true;
-  });
-}
 function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.now, draftOwner = crypto.randomUUID() }) {
   const pending = /* @__PURE__ */ new Set();
   async function write(rows) {
@@ -3798,11 +3699,97 @@ function createDraftJournal({ db, getScope, getGeneration = () => 0, now = Date.
   async function list2(kind) {
     return (await records(kind)).map((row) => row.data);
   }
-  const env = { db, getScope, getGeneration };
-  const purgeVerified = (snapshots2, tombstones, stillActive) => purgeVerifiedDrafts(env, snapshots2, tombstones, stillActive);
-  const purgeUserDeleted = (raw, snapshots2, value, stillActive) => purgeUserDeletedDrafts(env, raw, snapshots2, value, stillActive);
-  const discardUnsent = (raw) => discardUnsentDraft(env, raw);
-  const discardSelected = (snapshot) => discardSelectedDraft(env, pending, snapshot);
+  async function purgeVerified(snapshots2, tombstones, stillActive = () => true) {
+    const owner2 = getScope(), generation = getGeneration();
+    if (!owner2) return;
+    const active5 = () => {
+      if (owner2 !== getScope() || generation !== getGeneration() || !stillActive())
+        throw new Error("Draft cleanup was cancelled");
+    };
+    const candidates = [];
+    for (const snapshot of snapshots2) {
+      const value = tombstones.get(snapshot.data?.id);
+      if (snapshot.scope === owner2 && matchesDeletedEntry(snapshot.data, value))
+        candidates.push({ snapshot, value, digest: await noteDigest(snapshot.data) });
+    }
+    active5();
+    await db.transaction(["meta"], "readwrite", async (tx) => {
+      active5();
+      for (const { snapshot, value, digest: digest2 } of candidates) {
+        active5();
+        const current3 = await tx.get("meta", snapshot.key);
+        if (!current3 || current3.scope !== owner2 || current3.draft_kind !== "note_entry" || JSON.stringify(current3) !== JSON.stringify(snapshot) || !matchesDeletedEntry(current3.data, value)) continue;
+        const key2 = entityKey(owner2, "deleted-note-proof:" + digest2);
+        const previous = await tx.get("meta", key2);
+        await tx.put("meta", { key: key2, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
+        await tx.delete("meta", current3.key);
+      }
+      active5();
+    });
+  }
+  async function purgeUserDeleted(raw, snapshots2, value, stillActive = () => true) {
+    const owner2 = getScope(), generation = getGeneration(), target = safeDraft(raw);
+    const evidenceRow = { ...target, draft: value?.text, labels: value?.labels };
+    if (!owner2 || !eligible(target) || !matchesDeletedEntry(evidenceRow, value) || value.version !== target.version + 1) return;
+    const digest2 = await noteDigest(target);
+    const active5 = () => {
+      if (owner2 !== getScope() || generation !== getGeneration() || !stillActive()) throw new Error("Draft cleanup was cancelled");
+    };
+    await db.transaction(["meta"], "readwrite", async (tx) => {
+      active5();
+      let removed4 = false;
+      for (const snapshot of snapshots2) {
+        const row = snapshot.data;
+        if (snapshot.scope !== owner2 || snapshot.draft_kind !== "note_entry" || !row || !eligible(row) || row.id !== target.id || row.category !== target.category || row.date !== target.date || row.version !== target.version || row.draft !== target.draft || JSON.stringify([...row.labels].sort()) !== JSON.stringify([...target.labels].sort())) continue;
+        const current3 = await tx.get("meta", snapshot.key);
+        if (current3 && JSON.stringify(current3) === JSON.stringify(snapshot)) {
+          await tx.delete("meta", current3.key);
+          removed4 = true;
+        }
+      }
+      if (removed4) {
+        const key2 = entityKey(owner2, "deleted-note-proof:" + digest2), previous = await tx.get("meta", key2);
+        await tx.put("meta", { key: key2, scope: owner2, version: Math.max(previous?.version || 0, value.version) });
+      }
+      active5();
+    });
+  }
+  async function discardUnsent(raw) {
+    const owner2 = getScope(), generation = getGeneration(), row = safeDraft(raw);
+    if (!owner2 || !eligible(row) || row.version !== 0 || (row.localVersion || 0) !== 0)
+      throw new Error("本机草稿状态需要重新核对，内容已保留。");
+    const digest2 = await noteDigest(row);
+    const active5 = () => {
+      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
+    };
+    await db.transaction(["meta"], "readwrite", async (tx) => {
+      active5();
+      for (const stored of await tx.getAll("meta")) {
+        const data2 = stored.data;
+        if (stored.scope !== owner2 || stored.draft_kind !== "note_entry" || !data2 || !eligible(data2) || data2.version !== 0 || (data2.localVersion || 0) !== 0 || data2.id !== row.id || data2.category !== row.category || data2.date !== row.date || data2.draft !== row.draft || JSON.stringify([...data2.labels].sort()) !== JSON.stringify([...row.labels].sort())) continue;
+        await tx.delete("meta", stored.key);
+      }
+      const key2 = entityKey(owner2, "deleted-note-proof:" + digest2);
+      const previous = await tx.get("meta", key2);
+      await tx.put("meta", { key: key2, scope: owner2, version: Math.max(previous?.version || 0, 1) });
+      active5();
+    });
+  }
+  async function discardSelected(snapshot) {
+    const owner2 = getScope(), generation = getGeneration();
+    if (!owner2 || snapshot?.scope !== owner2 || !["legacy", "note_entry"].includes(snapshot?.draft_kind))
+      throw new Error("草稿身份范围已变化，请重新查看。");
+    await Promise.all([...pending]);
+    return db.transaction(["meta"], "readwrite", async (tx) => {
+      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
+      const current3 = await tx.get("meta", snapshot.key);
+      if (!current3 || current3.scope !== owner2 || current3.draft_kind !== snapshot.draft_kind || JSON.stringify(current3) !== JSON.stringify(snapshot))
+        throw new Error("草稿已变化，请重新查看后再删除。");
+      await tx.delete("meta", snapshot.key);
+      if (owner2 !== getScope() || generation !== getGeneration()) throw new Error("草稿身份范围已变化。");
+      return true;
+    });
+  }
   return { capture, list: list2, records, purgeVerified, purgeUserDeleted, discardUnsent, discardSelected, flush: () => Promise.all([...pending]) };
 }
 var fields, unresolved, eligible;
@@ -4338,67 +4325,8 @@ function runtimeContext(options4) {
   });
   return context;
 }
-async function authenticateIdentity(context, options4 = {}) {
-  const { cache: cache2, state: state2, emit, onIdentity } = context;
-  async function adopt(me, index, generation2) {
-    const identity7 = safeIdentity(me);
-    if (generation2 !== context.generation) throw fail4("身份读取已过期。", "OFFLINE_SCOPE_CHANGED");
-    if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== "current")
-      throw fail4("身份范围读取不完整，请联网重试。", "OFFLINE_SCOPE_REQUIRED");
-    if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity7))) {
-      await context.invalidate({ forget: true });
-      throw fail4("当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。", "OFFLINE_SCOPE_CHANGED");
-    }
-    await cache2.saveIdentity(identity7, index.scope_id);
-    if (generation2 !== context.generation || state2.scope && state2.scope !== index.scope_id) {
-      await context.invalidate({ forget: true });
-      throw fail4("身份核实已过期，原本机数据已保留。", "OFFLINE_SCOPE_CHANGED");
-    }
-    state2.scope = index.scope_id;
-    state2.verifiedScope = index.scope_id;
-    state2.identity = identity7;
-    state2.online = true;
-    onIdentity(me);
-    emit();
-    return me;
-  }
-  const generation = context.generation;
-  let liveIdentity = null;
-  try {
-    const me = await identityProbe(context, "/auth/me", options4);
-    liveIdentity = safeIdentity(me);
-    let index;
-    try {
-      index = await identityProbe(context, "/workbench-snapshot/index", { suppressAuthRedirect: true });
-    } catch (error) {
-      error.offlineScopeFailure = true;
-      throw error;
-    }
-    return await adopt(me, index, generation);
-  } catch (error) {
-    if (generation !== context.generation) throw fail4("身份核实已过期。", "OFFLINE_SCOPE_CHANGED");
-    state2.verifiedScope = null;
-    if ([401, 403].includes(error.status)) {
-      await context.invalidate({ forget: true });
-      throw error;
-    }
-    if (!networkFailure(error)) throw error;
-    const cached = await cache2.readIdentity();
-    if (generation !== context.generation || !cached?.identity || !scopePattern.test(cached.scope)) throw error;
-    if (liveIdentity && identityFingerprint(liveIdentity) !== identityFingerprint(cached.identity)) {
-      await context.invalidate({ forget: true });
-      throw fail4("当前身份已变化，请联网核实后重新打开。", "OFFLINE_SCOPE_CHANGED");
-    }
-    state2.scope = cached.scope;
-    state2.identity = safeIdentity(cached.identity);
-    state2.online = false;
-    state2.phase = "offline";
-    emit();
-    return { ...state2.identity, offlineIdentity: true };
-  }
-}
 function identityActions(context) {
-  const { cache: cache2, state: state2, emit } = context;
+  const { cache: cache2, state: state2, emit, request, onIdentity } = context;
   async function invalidate({ forget = false } = {}) {
     context.generation++;
     context.authFlight = null;
@@ -4414,9 +4342,67 @@ function identityActions(context) {
     if (forget) await cache2.forgetIdentity();
     emit();
   }
+  async function adopt(me, index, generation) {
+    const identity7 = safeIdentity(me);
+    if (generation !== context.generation) throw fail4("身份读取已过期。", "OFFLINE_SCOPE_CHANGED");
+    if (!scopePattern.test(index?.scope_id) || index.complete !== true || index.projection !== "current")
+      throw fail4("身份范围读取不完整，请联网重试。", "OFFLINE_SCOPE_REQUIRED");
+    if (state2.scope && (state2.scope !== index.scope_id || identityFingerprint(state2.identity) !== identityFingerprint(identity7))) {
+      await invalidate({ forget: true });
+      throw fail4("当前身份范围已变化，原本机内容与队列已保留，请重新打开页面。", "OFFLINE_SCOPE_CHANGED");
+    }
+    await cache2.saveIdentity(identity7, index.scope_id);
+    if (generation !== context.generation || state2.scope && state2.scope !== index.scope_id) {
+      await invalidate({ forget: true });
+      throw fail4("身份核实已过期，原本机数据已保留。", "OFFLINE_SCOPE_CHANGED");
+    }
+    state2.scope = index.scope_id;
+    state2.verifiedScope = index.scope_id;
+    state2.identity = identity7;
+    state2.online = true;
+    onIdentity(me);
+    emit();
+    return me;
+  }
+  async function authenticate(options4 = {}) {
+    const generation = context.generation;
+    let liveIdentity = null;
+    try {
+      const me = await identityProbe(context, "/auth/me", options4);
+      liveIdentity = safeIdentity(me);
+      let index;
+      try {
+        index = await identityProbe(context, "/workbench-snapshot/index", { suppressAuthRedirect: true });
+      } catch (error) {
+        error.offlineScopeFailure = true;
+        throw error;
+      }
+      return await adopt(me, index, generation);
+    } catch (error) {
+      if (generation !== context.generation) throw fail4("身份核实已过期。", "OFFLINE_SCOPE_CHANGED");
+      state2.verifiedScope = null;
+      if ([401, 403].includes(error.status)) {
+        await invalidate({ forget: true });
+        throw error;
+      }
+      if (!networkFailure(error)) throw error;
+      const cached = await cache2.readIdentity();
+      if (generation !== context.generation || !cached?.identity || !scopePattern.test(cached.scope)) throw error;
+      if (liveIdentity && identityFingerprint(liveIdentity) !== identityFingerprint(cached.identity)) {
+        await invalidate({ forget: true });
+        throw fail4("当前身份已变化，请联网核实后重新打开。", "OFFLINE_SCOPE_CHANGED");
+      }
+      state2.scope = cached.scope;
+      state2.identity = safeIdentity(cached.identity);
+      state2.online = false;
+      state2.phase = "offline";
+      emit();
+      return { ...state2.identity, offlineIdentity: true };
+    }
+  }
   function verify() {
     if (!context.authFlight) {
-      const flight = authenticateIdentity(context).finally(() => {
+      const flight = authenticate().finally(() => {
         if (context.authFlight === flight) context.authFlight = null;
       });
       context.authFlight = flight;
@@ -4449,7 +4435,7 @@ function identityActions(context) {
     }
     return context.scopeFlight;
   }
-  return { authenticate: (options4) => authenticateIdentity(context, options4), verify, verifyScope, invalidate };
+  return { authenticate, verify, verifyScope, invalidate };
 }
 function stateActions(context) {
   const { state: state2, outbox, emit, online } = context;
@@ -4505,92 +4491,91 @@ function stateActions(context) {
   }
   return { refresh, queue, resolve };
 }
-async function runOfflineSync(context) {
+function syncActions(context) {
   const { state: state2, emit, outbox, snapshot, now, online } = context;
-  if (!online()) {
-    state2.verifiedScope = null;
-    return context.refresh();
-  }
-  let stage = "identity";
-  let owner2 = state2.scope, generation = context.generation;
-  const active5 = () => generation === context.generation && owner2 === state2.scope;
-  try {
-    if (state2.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state2.scope));
-    if (!active5()) return { ...state2 };
-    if (context.cooldownUntil > now()) {
-      context.scheduleRetry();
+  async function run2() {
+    if (!online()) {
+      state2.verifiedScope = null;
       return context.refresh();
     }
-    await context.verify();
-    if (generation !== context.generation || owner2 && owner2 !== state2.scope) return { ...state2 };
-    if (!state2.verifiedScope) return context.refresh();
-    owner2 = state2.scope;
-    generation = context.generation;
-    state2.phase = "syncing";
-    emit();
-    stage = "outbox";
-    await outbox.resume(state2.scope);
-    if (!active5()) return { ...state2 };
-    const drained = await outbox.drain();
-    if (!active5()) return { ...state2 };
-    if (drained.rateLimitedUntil > now()) throw Object.assign(
-      new Error("请求较多，请稍后重试。"),
-      { status: 429, rateLimitedUntil: drained.rateLimitedUntil }
-    );
-    stage = "cache";
-    if (state2.verifiedScope) await context.cache.captureDocuments();
-    if (!active5()) return { ...state2 };
-    if (state2.verifiedScope) {
-      stage = "snapshot";
-      await (context.snapshotV2 || snapshot).pull({ date: today(now) });
+    let stage = "identity";
+    let owner2 = state2.scope, generation = context.generation;
+    const active5 = () => generation === context.generation && owner2 === state2.scope;
+    try {
+      if (state2.scope) context.cooldownUntil = Math.max(context.cooldownUntil || 0, await outbox.cooldown(state2.scope));
       if (!active5()) return { ...state2 };
-      if (context.lastTodoPath) {
-        stage = "cache";
-        const date = offlineReadRoute(context.lastTodoPath).date;
-        if ((await context.cache.entities()).some((row) => row.needs_api_refresh && row.server?.date === date))
-          await context.call(context.lastTodoPath);
+      if (context.cooldownUntil > now()) {
+        context.scheduleRetry();
+        return context.refresh();
       }
-    }
-    if (!active5()) return { ...state2 };
-    state2.lastSuccess = now();
-    state2.error = null;
-    state2.errorStage = null;
-  } catch (error) {
-    if (!active5()) return { ...state2 };
-    if (error.status === 429) {
-      const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
-      context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
-      if (owner2) {
-        const assertActive = () => {
-          if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-        };
-        try {
-          await outbox.setCooldown(owner2, context.cooldownUntil, assertActive);
-        } catch {
+      await context.verify();
+      if (generation !== context.generation || owner2 && owner2 !== state2.scope) return { ...state2 };
+      if (!state2.verifiedScope) return context.refresh();
+      owner2 = state2.scope;
+      generation = context.generation;
+      state2.phase = "syncing";
+      emit();
+      stage = "outbox";
+      await outbox.resume(state2.scope);
+      if (!active5()) return { ...state2 };
+      const drained = await outbox.drain();
+      if (!active5()) return { ...state2 };
+      if (drained.rateLimitedUntil > now()) throw Object.assign(
+        new Error("请求较多，请稍后重试。"),
+        { status: 429, rateLimitedUntil: drained.rateLimitedUntil }
+      );
+      stage = "cache";
+      if (state2.verifiedScope) await context.cache.captureDocuments();
+      if (!active5()) return { ...state2 };
+      if (state2.verifiedScope) {
+        stage = "snapshot";
+        await (context.snapshotV2 || snapshot).pull({ date: today(now) });
+        if (!active5()) return { ...state2 };
+        if (context.lastTodoPath) {
+          stage = "cache";
+          const date = offlineReadRoute(context.lastTodoPath).date;
+          if ((await context.cache.entities()).some((row) => row.needs_api_refresh && row.server?.date === date))
+            await context.call(context.lastTodoPath);
         }
       }
+      if (!active5()) return { ...state2 };
+      state2.lastSuccess = now();
+      state2.error = null;
+      state2.errorStage = null;
+    } catch (error) {
+      if (!active5()) return { ...state2 };
+      if (error.status === 429) {
+        const deadline = Number.isSafeInteger(error.rateLimitedUntil) ? error.rateLimitedUntil : retryUntil(now(), error.retryAfterMs);
+        context.cooldownUntil = Math.max(context.cooldownUntil || 0, deadline);
+        if (owner2) {
+          const assertActive = () => {
+            if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+          };
+          try {
+            await outbox.setCooldown(owner2, context.cooldownUntil, assertActive);
+          } catch {
+          }
+        }
+      }
+      if (!active5()) return { ...state2 };
+      state2.error = error.message;
+      state2.errorStage = stage;
+      if (error.status) state2.online = true;
+      else if (networkFailure(error)) state2.online = false;
     }
+    state2.phase = "idle";
+    await context.refresh();
     if (!active5()) return { ...state2 };
-    state2.error = error.message;
-    state2.errorStage = stage;
-    if (error.status) state2.online = true;
-    else if (networkFailure(error)) state2.online = false;
+    context.broadcast();
+    if (state2.pending && state2.online && !context.stopped) context.scheduleRetry();
+    return { ...state2 };
   }
-  state2.phase = "idle";
-  await context.refresh();
-  if (!active5()) return { ...state2 };
-  context.broadcast();
-  if (state2.pending && state2.online && !context.stopped) context.scheduleRetry();
-  return { ...state2 };
-}
-function syncActions(context) {
-  const { state: state2, emit, outbox, now, online } = context;
   function sync({ rerun = false } = {}) {
     if (context.syncFlight) {
       if (rerun) context.syncAgain = true;
       return context.syncFlight;
     }
-    context.syncFlight = runOfflineSync(context).finally(() => {
+    context.syncFlight = run2().finally(() => {
       context.syncFlight = null;
       const again = context.syncAgain;
       context.syncAgain = false;
@@ -4657,61 +4642,6 @@ async function rememberRead(context, path, value, baseline, memo) {
 function labelRequestOptions(path, options4, features) {
   return features.labelsV1 && path.startsWith("/note-entries") ? { ...options4, headers: { ...options4.headers, "X-Note-Labels-Version": "1" } } : options4;
 }
-async function callOffline(context, path, input = {}, readRetried = false) {
-  const { state: state2, cache: cache2, features } = context;
-  const { offlineGuard: guard = () => {
-  }, ...options4 } = input;
-  guard();
-  const method2 = (options4.method || "GET").toUpperCase(), route2 = writableRoute(path, options4, features);
-  const memo = features.memos && memoRoute(path);
-  const noteRoute = noteMutationRoute(path, options4, features);
-  if (noteRoute) return context.noteMutations.mutate(path, options4, noteRoute, guard);
-  if (path === "/auth/me" && method2 === "GET") return options4.context || options4.signal ? context.authenticate(options4) : context.verify();
-  if (["/auth/login", "/auth/logout"].includes(path) && method2 === "POST") {
-    const value = await context.request(path, labelRequestOptions(path, options4, features));
-    await context.invalidate({ forget: true });
-    return value;
-  }
-  if (route2) return context.mutate(path, options4, route2, guard);
-  if (memo && method2 === "PUT") return mutateMemo(context, path, options4, guard);
-  if (method2 !== "GET" || !offlineReadRoute(path)) return unmanaged(context, path, options4, guard);
-  if (offlineReadRoute(path).kind === "todo") context.lastTodoPath = path;
-  try {
-    if (context.online() && state2.identity) await context.verifyScope();
-    guard();
-    const owner2 = state2.scope, generation = context.generation;
-    const baseline = owner2 ? await (memo ? context.memos.fence(path) : cache2.fence(path)) : void 0;
-    guard();
-    const value = await context.request(path, labelRequestOptions(path, options4, features));
-    guard();
-    if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
-    if (offlineReadRoute(path).kind === "todo") state2.partial = false;
-    if (!state2.scope) return value;
-    return await rememberRead(context, path, value, baseline, memo);
-  } catch (error) {
-    if ([401, 403].includes(error.status)) {
-      await context.invalidate({ forget: true });
-      throw error;
-    }
-    if (error.code === "OFFLINE_CACHE_CHANGED" && !readRetried) return callOffline(context, path, input, true);
-    if (!networkFailure(error)) throw error;
-    state2.verifiedScope = null;
-    state2.online = false;
-    if (memo) {
-      const value = await context.memos.project(path);
-      guard();
-      await context.refresh();
-      return value;
-    }
-    const cached = await cache2.read(path);
-    const kind = offlineReadRoute(path).kind;
-    if (kind === "overview") state2.cachedAt = cached.saved_at;
-    if (kind === "todo") state2.partial = cached.data.offline_partial === true;
-    const data2 = ["legacy", ...!features.notes ? ["note_entries", "note_entry"] : [], "memos", "memo_note"].includes(kind) ? { ...cached.data, can_edit: false, ...Array.isArray(cached.data.entries) ? { entries: cached.data.entries.map((entry) => ({ ...entry, can_edit: false })) } : {} } : cached.data;
-    await context.refresh();
-    return data2;
-  }
-}
 function mutationActions(context) {
   const { state: state2, cache: cache2, now, uuid: uuid5, outbox, features } = context;
   async function mutate(path, options4, route2, guard) {
@@ -4768,7 +4698,61 @@ function mutationActions(context) {
     if (context.online()) context.scheduleRetry();
     return structuredClone(entity.local);
   }
-  return { call: (path, input, retried) => callOffline(context, path, input, retried), mutate };
+  async function call(path, input = {}, readRetried = false) {
+    const { offlineGuard: guard = () => {
+    }, ...options4 } = input;
+    guard();
+    const method2 = (options4.method || "GET").toUpperCase(), route2 = writableRoute(path, options4, features);
+    const memo = features.memos && memoRoute(path);
+    const noteRoute = noteMutationRoute(path, options4, features);
+    if (noteRoute) return context.noteMutations.mutate(path, options4, noteRoute, guard);
+    if (path === "/auth/me" && method2 === "GET") return options4.context || options4.signal ? context.authenticate(options4) : context.verify();
+    if (["/auth/login", "/auth/logout"].includes(path) && method2 === "POST") {
+      const value = await context.request(path, labelRequestOptions(path, options4, features));
+      await context.invalidate({ forget: true });
+      return value;
+    }
+    if (route2) return mutate(path, options4, route2, guard);
+    if (memo && method2 === "PUT") return mutateMemo(context, path, options4, guard);
+    if (method2 !== "GET" || !offlineReadRoute(path)) return unmanaged(context, path, options4, guard);
+    if (offlineReadRoute(path).kind === "todo") context.lastTodoPath = path;
+    try {
+      if (context.online() && state2.identity) await context.verifyScope();
+      guard();
+      const owner2 = state2.scope, generation = context.generation;
+      const baseline = owner2 ? await (memo ? context.memos.fence(path) : cache2.fence(path)) : void 0;
+      guard();
+      const value = await context.request(path, labelRequestOptions(path, options4, features));
+      guard();
+      if (owner2 !== state2.scope || generation !== context.generation) throw fail4("身份范围已变化，本次读取已取消。", "OFFLINE_SCOPE_CHANGED");
+      if (offlineReadRoute(path).kind === "todo") state2.partial = false;
+      if (!state2.scope) return value;
+      return await rememberRead(context, path, value, baseline, memo);
+    } catch (error) {
+      if ([401, 403].includes(error.status)) {
+        await context.invalidate({ forget: true });
+        throw error;
+      }
+      if (error.code === "OFFLINE_CACHE_CHANGED" && !readRetried) return call(path, input, true);
+      if (!networkFailure(error)) throw error;
+      state2.verifiedScope = null;
+      state2.online = false;
+      if (memo) {
+        const value = await context.memos.project(path);
+        guard();
+        await context.refresh();
+        return value;
+      }
+      const cached = await cache2.read(path);
+      const kind = offlineReadRoute(path).kind;
+      if (kind === "overview") state2.cachedAt = cached.saved_at;
+      if (kind === "todo") state2.partial = cached.data.offline_partial === true;
+      const data2 = ["legacy", ...!features.notes ? ["note_entries", "note_entry"] : [], "memos", "memo_note"].includes(kind) ? { ...cached.data, can_edit: false, ...Array.isArray(cached.data.entries) ? { entries: cached.data.entries.map((entry) => ({ ...entry, can_edit: false })) } : {} } : cached.data;
+      await context.refresh();
+      return data2;
+    }
+  }
+  return { call, mutate };
 }
 function lifecycleActions(context) {
   let stop = () => {
@@ -4814,81 +4798,6 @@ function lifecycleActions(context) {
   }
   return { start, stop: () => stop(), broadcast };
 }
-async function loadTodoMonthSnapshot(context, month) {
-  if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month) || month.startsWith("0000")) return null;
-  if (context.syncFlight) {
-    let timer2;
-    const completed = await Promise.race([
-      context.syncFlight.then(() => true),
-      new Promise((resolve) => {
-        timer2 = setTimeout(() => resolve(false), 5e3);
-      })
-    ]);
-    clearTimeout(timer2);
-    if (!completed) return null;
-  }
-  const owner2 = context.state.scope, generation = context.generation;
-  if (!owner2 || context.state.verifiedScope !== owner2) return null;
-  const result = await context.db.transaction(["entities", "meta"], "readonly", async (tx) => {
-    const snapshot = await tx.get("meta", entityKey(owner2, "snapshot-v2"));
-    const index = snapshot?.value?.index, verified = snapshot?.value?.verified_at;
-    if (index?.complete !== true || index.scope_id !== owner2 || !Array.isArray(index.entities) || !Number.isFinite(verified) || verified > context.now() || context.now() - verified > 6e4) return null;
-    const entities = (await tx.getAll("entities")).filter((row) => row.scope === owner2);
-    const byId = new Map(entities.map((row) => [row.entity_id, row]));
-    const items = /* @__PURE__ */ new Map();
-    for (const expected of index.entities.filter((row) => row.entity_type === "todo" && row.date?.startsWith(month + "-") && !row.deleted_at)) {
-      const entity = byId.get(expected.entity_id);
-      if (!entity?.server || entity.remote_missing || entity.snapshot_hash !== expected.content_hash || entity.server.date !== expected.date || entity.server.updated_at !== expected.updated_at || entity.server.deleted_at) return null;
-      items.set(expected.entity_id, { ...entity.server, completed: Boolean(entity.server.completed) });
-    }
-    for (const entity of entities) {
-      const server = entity.server;
-      if (entity.entity_id.startsWith("todo:") && !entity.dirty && !entity.remote_missing && server && !server.deleted_at && server.date?.startsWith(month + "-") && !items.has(entity.entity_id)) return null;
-    }
-    for (const entity of entities.filter((row) => row.entity_id.startsWith("todo:") && row.dirty)) {
-      items.delete(entity.entity_id);
-      const value = offlineValue(entity);
-      if (value && !value.deleted && !value.deleted_at && value.date?.startsWith(month + "-"))
-        items.set(entity.entity_id, { ...value, completed: Boolean(value.completed) });
-    }
-    const days = {};
-    for (const item of items.values()) (days[item.date] ||= []).push(item);
-    return { days, verified_at: verified };
-  });
-  if (generation !== context.generation || owner2 !== context.state.scope || context.state.verifiedScope !== owner2)
-    throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-  return result;
-}
-async function storeMovedTodo(context, { source, todo }, token) {
-  const active5 = () => token && context.state.scope === token.scope && context.state.verifiedScope === token.scope && context.generation === token.generation;
-  if (!active5() || !source?.id || source.id !== todo?.id) return "refresh";
-  const ids = ["unscheduled_todo:" + source.id, "todo:" + source.id];
-  return context.db.transaction(["entities", "outbox", "conflicts", "meta"], "readwrite", async (tx) => {
-    if (!active5()) return "refresh";
-    const [operations2, conflicts] = await Promise.all([tx.getAll("outbox"), tx.getAll("conflicts")]);
-    if (operations2.some((op) => op.scope === token.scope && ids.includes(op.entity_id) && !["done", "archived"].includes(op.status)) || conflicts.some((conflict) => conflict.scope === token.scope && conflict.resolved_at === null && ids.includes(conflict.operation?.entity_id || conflict.entity_id))) return "pending";
-    const keys = ids.map((id2) => entityKey(token.scope, id2));
-    const old = await Promise.all(keys.map((key2) => tx.get("entities", key2)));
-    if (!active5()) return "refresh";
-    if (old.some((entity) => entity?.dirty)) return "pending";
-    if (old.some((entity, i) => entity?.server?.version > [source, todo][i].version)) return "refresh";
-    for (const [i, row] of [source, todo].entries()) {
-      await tx.put("entities", {
-        ...old[i],
-        key: keys[i],
-        scope: token.scope,
-        entity_id: ids[i],
-        server: structuredClone(row),
-        remote_missing: false,
-        ...i === 1 ? { needs_api_refresh: false } : {}
-      });
-    }
-    if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-    const day6 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
-    if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
-    return Array.isArray(day6?.data?.items) ? "saved" : "refresh";
-  });
-}
 function createOfflineRuntime(options4) {
   const context = runtimeContext(options4);
   Object.assign(context, identityActions(context), stateActions(context), syncActions(context), lifecycleActions(context));
@@ -4931,7 +4840,51 @@ function createOfflineRuntime(options4) {
     captureRateLimitContext,
     recordRateLimit,
     readMemo: (path) => context.memos.project(path),
-    readTodoMonthSnapshot: (month) => loadTodoMonthSnapshot(context, month),
+    async readTodoMonthSnapshot(month) {
+      if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month) || month.startsWith("0000")) return null;
+      if (context.syncFlight) {
+        let timer2;
+        const completed = await Promise.race([
+          context.syncFlight.then(() => true),
+          new Promise((resolve) => {
+            timer2 = setTimeout(() => resolve(false), 5e3);
+          })
+        ]);
+        clearTimeout(timer2);
+        if (!completed) return null;
+      }
+      const owner2 = context.state.scope, generation = context.generation;
+      if (!owner2 || context.state.verifiedScope !== owner2) return null;
+      const result = await context.db.transaction(["entities", "meta"], "readonly", async (tx) => {
+        const snapshot = await tx.get("meta", entityKey(owner2, "snapshot-v2"));
+        const index = snapshot?.value?.index, verified = snapshot?.value?.verified_at;
+        if (index?.complete !== true || index.scope_id !== owner2 || !Array.isArray(index.entities) || !Number.isFinite(verified) || verified > context.now() || context.now() - verified > 6e4) return null;
+        const entities = (await tx.getAll("entities")).filter((row) => row.scope === owner2);
+        const byId = new Map(entities.map((row) => [row.entity_id, row]));
+        const items = /* @__PURE__ */ new Map();
+        for (const expected of index.entities.filter((row) => row.entity_type === "todo" && row.date?.startsWith(month + "-") && !row.deleted_at)) {
+          const entity = byId.get(expected.entity_id);
+          if (!entity?.server || entity.remote_missing || entity.snapshot_hash !== expected.content_hash || entity.server.date !== expected.date || entity.server.updated_at !== expected.updated_at || entity.server.deleted_at) return null;
+          items.set(expected.entity_id, { ...entity.server, completed: Boolean(entity.server.completed) });
+        }
+        for (const entity of entities) {
+          const server = entity.server;
+          if (entity.entity_id.startsWith("todo:") && !entity.dirty && !entity.remote_missing && server && !server.deleted_at && server.date?.startsWith(month + "-") && !items.has(entity.entity_id)) return null;
+        }
+        for (const entity of entities.filter((row) => row.entity_id.startsWith("todo:") && row.dirty)) {
+          items.delete(entity.entity_id);
+          const value = offlineValue(entity);
+          if (value && !value.deleted && !value.deleted_at && value.date?.startsWith(month + "-"))
+            items.set(entity.entity_id, { ...value, completed: Boolean(value.completed) });
+        }
+        const days = {};
+        for (const item of items.values()) (days[item.date] ||= []).push(item);
+        return { days, verified_at: verified };
+      });
+      if (generation !== context.generation || owner2 !== context.state.scope || context.state.verifiedScope !== owner2)
+        throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+      return result;
+    },
     async findTodo(id2) {
       const owner2 = context.state.scope, generation = context.generation;
       if (!owner2) throw fail4("请先读取工作台数据，原未来待办仍保留。", "OFFLINE_SCOPE_REQUIRED");
@@ -4940,7 +4893,36 @@ function createOfflineRuntime(options4) {
       return structuredClone(offlineValue(entity) || null);
     },
     // Confirmed server moves are reflected without discarding local edits.
-    acceptMovedTodo: (moved2, token) => storeMovedTodo(context, moved2, token),
+    async acceptMovedTodo({ source, todo }, token) {
+      const active5 = () => token && context.state.scope === token.scope && context.state.verifiedScope === token.scope && context.generation === token.generation;
+      if (!active5() || !source?.id || source.id !== todo?.id) return "refresh";
+      const ids = ["unscheduled_todo:" + source.id, "todo:" + source.id];
+      return context.db.transaction(["entities", "outbox", "conflicts", "meta"], "readwrite", async (tx) => {
+        if (!active5()) return "refresh";
+        const [operations2, conflicts] = await Promise.all([tx.getAll("outbox"), tx.getAll("conflicts")]);
+        if (operations2.some((op) => op.scope === token.scope && ids.includes(op.entity_id) && !["done", "archived"].includes(op.status)) || conflicts.some((conflict) => conflict.scope === token.scope && conflict.resolved_at === null && ids.includes(conflict.operation?.entity_id || conflict.entity_id))) return "pending";
+        const keys = ids.map((id2) => entityKey(token.scope, id2));
+        const old = await Promise.all(keys.map((key2) => tx.get("entities", key2)));
+        if (!active5()) return "refresh";
+        if (old.some((entity) => entity?.dirty)) return "pending";
+        if (old.some((entity, i) => entity?.server?.version > [source, todo][i].version)) return "refresh";
+        for (const [i, row] of [source, todo].entries()) {
+          await tx.put("entities", {
+            ...old[i],
+            key: keys[i],
+            scope: token.scope,
+            entity_id: ids[i],
+            server: structuredClone(row),
+            remote_missing: false,
+            ...i === 1 ? { needs_api_refresh: false } : {}
+          });
+        }
+        if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+        const day6 = await tx.get("meta", entityKey(token.scope, "get:/todos?date=" + encodeURIComponent(todo.date)));
+        if (!active5()) throw fail4("数据范围已变化。", "OFFLINE_SCOPE_CHANGED");
+        return Array.isArray(day6?.data?.items) ? "saved" : "refresh";
+      });
+    },
     queue: context.queue,
     resolve: context.resolve,
     invalidate: context.invalidate,
@@ -7821,69 +7803,9 @@ function todoMonthSeed(month, snapshot, loaded) {
   }
   return days;
 }
-async function runTodoMonth(env, snapshot, controller, expired) {
-  const { read: read3, seed, active: active5, changed: changed4, now, monthDays, cursor } = env;
-  const valid2 = () => snapshot.controller === controller && !controller.signal.aborted && active5(snapshot.owner);
-  const count3 = monthDays(snapshot.month);
-  const dates = Array.from({ length: count3 }, (_, i) => `${snapshot.month}-${String(i + 1).padStart(2, "0")}`);
-  const revisions = new Map(snapshot.revisions);
-  try {
-    const initial = await seed(snapshot.month, snapshot.owner, { refresh: expired });
-    if (!valid2()) return;
-    if (initial) for (const [date, items] of Object.entries(initial)) {
-      if (dates.includes(date) && Array.isArray(items) && !snapshot.fresh.has(date) && (snapshot.revisions.get(date) || 0) === (revisions.get(date) || 0)) {
-        snapshot.days.set(date, items);
-        snapshot.fresh.add(date);
-      }
-    }
-    for (let start = 0; start < dates.length; start += 5) {
-      const batch = dates.slice(start, start + 5).filter((date) => !snapshot.fresh.has(date));
-      if (!batch.length) continue;
-      const context = { controller, pending: /* @__PURE__ */ new Map() };
-      const results = await Promise.allSettled(batch.map(async (date) => {
-        const revision2 = revisions.get(date) || 0;
-        const value = await read3(date, context);
-        if (!Array.isArray(value?.items)) throw new Error("月记录读取不完整，请重试");
-        if (valid2()) {
-          if ((snapshot.revisions.get(date) || 0) === revision2) snapshot.days.set(date, value.items);
-          snapshot.fresh.add(date);
-        }
-        return value;
-      }));
-      if (!valid2()) return;
-      let failure3;
-      for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        if (result.status === "rejected") {
-          const error = result.reason || new Error("月记录读取失败，请重试");
-          if (!failure3 || error?.status === 429 && (failure3.status !== 429 || (error.retryAfterMs || 6e4) > (failure3.retryAfterMs || 6e4))) failure3 = error;
-        }
-      }
-      if (failure3) {
-        if (failure3.status === 429) {
-          const deadline = Math.min(Number.MAX_SAFE_INTEGER - 1, now() + (failure3.retryAfterMs || 6e4));
-          cursor.cooldown = Math.max(cursor.cooldown, deadline);
-          snapshot.retryAt = Math.max(snapshot.retryAt, deadline);
-        }
-        snapshot.error = failure3.message || "月记录读取失败，请重试";
-        break;
-      }
-    }
-    if (snapshot.fresh.size === count3) snapshot.expiresAt = now() + 6e4;
-  } catch (error) {
-    if (valid2()) snapshot.error = error.message || "月记录读取失败，请重试";
-  } finally {
-    if (snapshot.controller === controller) {
-      snapshot.controller = null;
-      snapshot.loading = false;
-      if (cursor.current === snapshot && active5(snapshot.owner)) changed4(snapshot);
-    }
-  }
-}
 function createTodoMonthLoader({ read: read3, seed, active: active5, changed: changed4 = () => {
 }, now = Date.now }) {
-  let owner2 = "";
-  const cursor = { current: null, cooldown: 0 };
+  let owner2 = "", current3 = null, cooldown = 0;
   const monthDays = (month) => {
     const end = /* @__PURE__ */ new Date(`${month}-01T00:00:00Z`);
     end.setUTCMonth(end.getUTCMonth() + 1);
@@ -7899,20 +7821,20 @@ function createTodoMonthLoader({ read: read3, seed, active: active5, changed: ch
   }
   function open(month, nextOwner) {
     if (owner2 !== nextOwner) {
-      cancel(cursor.current);
+      cancel(current3);
       months.clear();
       owner2 = nextOwner;
-      cursor.current = null;
-      cursor.cooldown = 0;
+      current3 = null;
+      cooldown = 0;
     }
-    if (cursor.current?.month !== month) cancel(cursor.current);
+    if (current3?.month !== month) cancel(current3);
     let snapshot = months.get(month);
     if (!snapshot) {
       snapshot = { month, owner: owner2, days: /* @__PURE__ */ new Map(), fresh: /* @__PURE__ */ new Set(), revisions: /* @__PURE__ */ new Map(), expiresAt: 0, loading: false, error: "", retryAt: 0 };
       months.set(month, snapshot);
     }
-    cursor.current = snapshot;
-    const count3 = monthDays(month), deadline = Math.max(snapshot.retryAt, cursor.cooldown);
+    current3 = snapshot;
+    const count3 = monthDays(month), deadline = Math.max(snapshot.retryAt, cooldown);
     if (snapshot.fresh.size === count3 && now() < snapshot.expiresAt) snapshot.error = "";
     const expired = snapshot.fresh.size === count3 && now() >= snapshot.expiresAt;
     if (expired) snapshot.fresh.clear();
@@ -7923,9 +7845,67 @@ function createTodoMonthLoader({ read: read3, seed, active: active5, changed: ch
       snapshot.controller = controller;
       snapshot.loading = true;
       snapshot.error = "";
-      snapshot.promise = runTodoMonth({ read: read3, seed, active: active5, changed: changed4, now, monthDays, cursor }, snapshot, controller, expired);
+      snapshot.promise = run2(snapshot, controller, expired);
     }
     return snapshot;
+  }
+  async function run2(snapshot, controller, expired) {
+    const valid2 = () => snapshot.controller === controller && !controller.signal.aborted && active5(snapshot.owner);
+    const count3 = monthDays(snapshot.month);
+    const dates = Array.from({ length: count3 }, (_, i) => `${snapshot.month}-${String(i + 1).padStart(2, "0")}`);
+    const revisions = new Map(snapshot.revisions);
+    try {
+      const initial = await seed(snapshot.month, snapshot.owner, { refresh: expired });
+      if (!valid2()) return;
+      if (initial) for (const [date, items] of Object.entries(initial)) {
+        if (dates.includes(date) && Array.isArray(items) && !snapshot.fresh.has(date) && (snapshot.revisions.get(date) || 0) === (revisions.get(date) || 0)) {
+          snapshot.days.set(date, items);
+          snapshot.fresh.add(date);
+        }
+      }
+      for (let start = 0; start < dates.length; start += 5) {
+        const batch = dates.slice(start, start + 5).filter((date) => !snapshot.fresh.has(date));
+        if (!batch.length) continue;
+        const context = { controller, pending: /* @__PURE__ */ new Map() };
+        const results = await Promise.allSettled(batch.map(async (date) => {
+          const revision2 = revisions.get(date) || 0;
+          const value = await read3(date, context);
+          if (!Array.isArray(value?.items)) throw new Error("月记录读取不完整，请重试");
+          if (valid2()) {
+            if ((snapshot.revisions.get(date) || 0) === revision2) snapshot.days.set(date, value.items);
+            snapshot.fresh.add(date);
+          }
+          return value;
+        }));
+        if (!valid2()) return;
+        let failure3;
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          if (result.status === "rejected") {
+            const error = result.reason || new Error("月记录读取失败，请重试");
+            if (!failure3 || error?.status === 429 && (failure3.status !== 429 || (error.retryAfterMs || 6e4) > (failure3.retryAfterMs || 6e4))) failure3 = error;
+          }
+        }
+        if (failure3) {
+          if (failure3.status === 429) {
+            const deadline = Math.min(Number.MAX_SAFE_INTEGER - 1, now() + (failure3.retryAfterMs || 6e4));
+            cooldown = Math.max(cooldown, deadline);
+            snapshot.retryAt = Math.max(snapshot.retryAt, deadline);
+          }
+          snapshot.error = failure3.message || "月记录读取失败，请重试";
+          break;
+        }
+      }
+      if (snapshot.fresh.size === count3) snapshot.expiresAt = now() + 6e4;
+    } catch (error) {
+      if (valid2()) snapshot.error = error.message || "月记录读取失败，请重试";
+    } finally {
+      if (snapshot.controller === controller) {
+        snapshot.controller = null;
+        snapshot.loading = false;
+        if (current3 === snapshot && active5(snapshot.owner)) changed4(snapshot);
+      }
+    }
   }
   function update(nextOwner, date, items) {
     if (owner2 !== nextOwner || !Array.isArray(items)) return false;
@@ -7935,7 +7915,7 @@ function createTodoMonthLoader({ read: read3, seed, active: active5, changed: ch
     snapshot.revisions.set(date, (snapshot.revisions.get(date) || 0) + 1);
     return true;
   }
-  return { open, update, cancel: () => cancel(cursor.current) };
+  return { open, update, cancel: () => cancel(current3) };
 }
 
 // web/core/todo-templates-state.mjs
@@ -8303,14 +8283,64 @@ function openTodoMenu({ target, id: id2, date, anchor }) {
   popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
+function watchTodoNotes() {
+  if (watchTodoNotes.ready || typeof document === "undefined") return;
+  watchTodoNotes.ready = true;
+  document.addEventListener("input", (event) => {
+    const input = event.target;
+    if (!input?.matches?.("[data-todo-note-input]")) return;
+    const day6 = todoDay(input.dataset.date);
+    if (day6.noteEdit?.id === input.dataset.id) day6.noteEdit.text = input.value;
+  });
+  document.addEventListener("focusout", (event) => {
+    if (event.target?.matches?.("[data-todo-note-input]")) void commitTodoNote(event.target);
+  });
+}
 function openTodoNote(options4) {
+  watchTodoNotes();
   const context = todoActionContext({ ...options4, date: options4.date || options4.target?.dataset.date, owner: options4.owner || options4.target?.dataset.owner });
   if (!context || todoBusy(context.day, context.item.id)) return;
-  const { item, day: day6, owner: owner2 } = context;
-  openModal("待办备注", `<form id="todo-note-form" data-id="${e(item.id)}" data-date="${e(day6.date)}"
-data-owner="${e(owner2)}" data-version="${item.version}"><label for="todo-note-input">备注或未完成原因</label>
-<textarea id="todo-note-input" class="input" name="note" maxlength="4000" rows="5">${e(item.note || "")}</textarea>
-<p class="form-message" role="alert"></p><button class="btn primary" type="submit">保存</button></form>`);
+  const { item, day: day6 } = context;
+  day6.noteEdit = { id: item.id, text: item.note || "" };
+  day6.noteError = "";
+  paintTodos();
+  const input = document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`);
+  input?.focus();
+  const end = input?.value.length || 0;
+  input?.setSelectionRange?.(end, end);
+}
+async function commitTodoNote(input) {
+  if (todoRepainting()) return;
+  const context = todoActionContext({ id: input.dataset.id, date: input.dataset.date });
+  if (!context) return;
+  const { day: day6, item, owner: owner2 } = context;
+  if (day6.noteEdit?.id !== item.id || day6.noteEdit.committing) return;
+  const text = input.value;
+  if (text === (item.note || "")) {
+    day6.noteEdit = null;
+    day6.noteError = "";
+    paintTodos();
+    return;
+  }
+  day6.noteEdit.committing = true;
+  day6.noteEdit.text = text;
+  try {
+    const saved = await api(`/todos/${encodeURIComponent(item.id)}/note`, { method: "PATCH", body: { note: text, version: item.version } });
+    if (!todoSessionActive(owner2)) return;
+    mergeTodo(day6, saved);
+    if (day6.noteEdit?.id === item.id) day6.noteEdit = null;
+    day6.noteError = "";
+  } catch (error) {
+    if (!todoSessionActive(owner2)) return;
+    if (day6.noteEdit?.id === item.id) {
+      day6.noteEdit.committing = false;
+      day6.noteError = error.status === 404 ? "这项待办可能仍在同步，请稍后重试；备注内容已保留。" : error.message || "保存失败，请重试";
+    }
+  }
+  if (todoSessionActive(owner2)) {
+    paintTodos();
+    if (day6.noteEdit?.id === item.id) document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+  }
 }
 async function submitTodoNote({ form, data: data2 }) {
   const context = todoActionContext({ id: form.dataset.id, date: form.dataset.date, owner: form.dataset.owner });
@@ -8749,6 +8779,13 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
+function todoNoteField(item, day6, pending) {
+  if (day6.noteEdit?.id === item.id) {
+    const error = day6.noteError ? `<p class="todo-note-error" role="alert">${e(day6.noteError)}</p>` : "";
+    return `<textarea class="todo-note-input input" data-todo-note-input data-id="${e(item.id)}" data-date="${e(day6.date)}" maxlength="4000" rows="2" aria-label="备注或未完成原因"${pending ? " disabled" : ""}>${e(day6.noteEdit.text ?? "")}</textarea>${error}`;
+  }
+  return `<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(day6.date)}" ${pending ? "disabled" : ""}>${item.note ? `备注：${e(item.note)}` : "添加备注"}</button>`;
+}
 function todoRow(item, day6) {
   const pending = todoBusy(day6, item.id);
   const completed = day6.updates.has(item.id) ? day6.updates.get(item.id) : item.completed;
@@ -8757,7 +8794,7 @@ function todoRow(item, day6) {
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day6.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day6.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
-<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(day6.date)}" ${pending ? "disabled" : ""}>${item.note ? `备注：${e(item.note)}` : "添加备注"}</button>
+${todoNoteField(item, day6, pending)}
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day6.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
@@ -8874,7 +8911,19 @@ function monthDayItems(day6) {
     return !removal || removal.phase === "restoring";
   }).map((item) => day6.updates.has(item.id) ? { ...item, completed: day6.updates.get(item.id) } : item);
 }
+var repaintingTodos = false;
+function todoRepainting() {
+  return repaintingTodos;
+}
 function paintTodos() {
+  repaintingTodos = true;
+  try {
+    paintTodoDom();
+  } finally {
+    repaintingTodos = false;
+  }
+}
+function paintTodoDom() {
   notifyTodoChanges();
   const root2 = $("#daily-todos");
   if (!root2 || !todosVisible()) return;
@@ -8898,6 +8947,7 @@ function paintTodos() {
   }
   const form = $("#todo-form", root2), formSlot = $(state.todoPanel === "history" ? "#todo-form-bottom" : "#todo-form-top", root2);
   if (form && formSlot && formSlot.nextElementSibling !== form) formSlot.after(form);
+  const liveNote = document.activeElement?.matches?.("[data-todo-note-input]") ? document.activeElement : null;
   const parts2 = {
     "todo-caption": todoCaption(day6),
     "todo-status": todoStatus(day6),
@@ -8907,6 +8957,7 @@ function paintTodos() {
     "todo-history-empty": todoHistoryEmpty(day6)
   };
   for (const [id2, html] of Object.entries(parts2)) {
+    if (id2 === "todo-items" && liveNote?.isConnected) continue;
     const node2 = $("#" + id2, root2);
     if (node2 && node2.innerHTML !== html) node2.innerHTML = html;
   }
@@ -9715,181 +9766,10 @@ function createEntryRecoveryActions(context) {
   }
   return { restoreDraft, dropRestoredDraft };
 }
-async function sendEntryWrite(tools, item, operation2) {
-  const { context, category, stopTimer, emit, remove, restore, put, accepted, acceptedLocal } = tools;
-  stopTimer(item);
-  item.pending = operation2;
-  item.phase = "saving";
-  item.error = "";
-  item.writeEpoch++;
-  emit();
-  try {
-    const body2 = { version: operation2.version, save_id: operation2.saveId };
-    const options4 = operation2.uncertain ? { offlineUnknown: true } : void 0;
-    const raw = operation2.kind === "delete" ? await remove(item.id, body2, options4) : operation2.kind === "restore" ? await restore(item.id, body2, options4) : await put(item.id, {
-      ...body2,
-      category: item.category,
-      date: item.date,
-      text: operation2.text,
-      ...operation2.labels ? { labels: operation2.labels } : operation2.label ? { label: operation2.label } : {}
-    }, options4);
-    if (context.disposed || item.pending !== operation2) return;
-    const value = checkedEntry(raw, category, item.date, item.id);
-    if (isLocalDocument(value)) {
-      acceptedLocal(item, value, operation2);
-      return;
-    }
-    if (!tools.matches(value, operation2)) throw new Error("保存响应需要重新核对。");
-    accepted(item, value, operation2);
-    return value;
-  } catch (error) {
-    if (context.disposed || item.pending !== operation2) return;
-    if (localFailure(error)) {
-      item.pending = operation2.uncertain ? operation2 : null;
-      item.phase = operation2.uncertain ? "unknown" : "error";
-      item.error = operation2.uncertain ? "原保存仍待核对，本机接管未完成：" + error.message : error.message;
-      emit();
-    } else if (error.status === 409 && (!error.code || ["VERSION_CONFLICT", "NOTE_ENTRY_DELETED"].includes(error.code))) {
-      item.pending = null;
-      item.phase = "conflict";
-      item.error = error.message || "这条记录已有新版本，草稿已保留。";
-      emit();
-      await context.readOne(item.id);
-    } else if (error.status >= 400 && error.status < 500) {
-      item.pending = null;
-      item.phase = "error";
-      item.error = error.message;
-      if ([401, 403].includes(error.status)) item.canEdit = false;
-      emit();
-    } else {
-      operation2.uncertain = true;
-      item.phase = "unknown";
-      item.error = "正在核对保存结果，草稿已保留。";
-      emit();
-      await context.reconcile(item.id);
-    }
-  }
-}
-async function saveEntryWrite(tools, id2) {
-  const { context, entry, stopTimer, emit, loadVerified, uuid: uuid5 } = tools;
-  const item = entry(id2);
-  if (!item) return;
-  stopTimer(item);
-  if (context.disposed || !item.canEdit || item.deleted || item.discarding || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
-  if (item.recoveredBaseline) {
-    const snapshot = { draft: item.draft, labels: [...item.labels], epoch: item.writeEpoch, version: persistedVersion(item) };
-    item.loading = true;
-    item.error = "正在核对线上记录，本机草稿会保留。";
-    emit();
-    try {
-      if (!loadVerified) throw new Error("无法直接核对线上记录");
-      const list2 = checkedCollection(await loadVerified(item.date), context.category, item.date);
-      if (context.disposed || entry(id2) !== item || item.writeEpoch !== snapshot.epoch || item.draft !== snapshot.draft || !equalLabels(item.labels, snapshot.labels) || item.pending || item.composing || !item.canEdit || item.deleted || item.discarding) return;
-      if (list2.entries.some(isLocalDocument)) throw new Error("无法确认线上最新状态");
-      const same2 = list2.entries.find((value) => value.id === id2);
-      if (same2 && same2.text === snapshot.draft && equalLabels(labelsOf(same2), snapshot.labels)) {
-        item.error = "线上已有这条记录，无需重复发送；本机草稿仍保留。";
-        return;
-      }
-      if (list2.entries.some((value) => value.id !== id2 && value.text === snapshot.draft)) {
-        item.error = "线上有内容相同的其他记录，请先核对；本机草稿仍保留。";
-        return;
-      }
-      if (!list2.can_edit || same2 && (same2.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same2.content_hash !== item.recoveredBaseline.contentHash) || !same2 && snapshot.version !== 0) {
-        item.error = "线上状态发生变化，请先核对；本机草稿仍保留。";
-        return;
-      }
-    } catch {
-      if (!context.disposed && entry(id2) === item) item.error = "无法核对线上记录，请稍后重试；本机草稿仍保留。";
-      return;
-    } finally {
-      item.loading = false;
-      emit();
-    }
-  }
-  if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
-    item.phase = "error";
-    item.error = "只能新增北京时间当天的碎碎念，草稿已保留。";
-    emit();
-    return;
-  }
-  if (!persistedVersion(item) && !item.draft.trim()) return;
-  if (context.multiLabels && !item.labelComplete && !equalLabels(item.labels, item.serverLabels)) {
-    item.phase = "error";
-    item.error = "请联网核实完整标签后再保存，草稿已保留。";
-    emit();
-    return;
-  }
-  if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
-    item.phase = "oversize";
-    item.error = "文字超过 64 KiB，草稿已保留。";
-    emit();
-    return;
-  }
-  return tools.send(item, {
-    kind: "put",
-    version: persistedVersion(item),
-    text: item.draft,
-    saveId: uuid5(),
-    ...context.multiLabels && item.labelComplete && (!persistedVersion(item) || !equalLabels(item.labels, item.serverLabels)) ? { labels: [...item.labels] } : {},
-    ...!context.multiLabels && !persistedVersion(item) && item.label ? { label: item.label } : {},
-    ...!context.multiLabels && item.label ? { expectedLabel: item.label } : {}
-  });
-}
-async function deleteEntryWrite(tools, id2) {
-  const { context, entry, stopTimer, emit, discardUnsent, page, entries, prepareDelete, finishDelete } = tools;
-  const item = entry(id2);
-  if (!item || context.disposed || !item.canEdit || item.discarding || item.pending || blocked(item) || item.deleted) return;
-  if (!persistedVersion(item)) {
-    stopTimer(item);
-    item.discarding = true;
-    emit();
-    try {
-      await discardUnsent(item);
-    } catch (error) {
-      item.discarding = false;
-      item.phase = "error";
-      item.error = "本机草稿未能清理，内容已保留：" + error.message;
-      emit();
-      return;
-    }
-    if (context.disposed || entry(id2) !== item) return;
-    const current3 = page(item.date);
-    current3.ids = current3.ids.filter((value) => value !== id2);
-    entries.delete(id2);
-    if (current3.composerId === id2) current3.composerId = "";
-    emit();
-    return;
-  }
-  item.discarding = true;
-  emit();
-  let prepared;
-  try {
-    prepared = await prepareDelete(item);
-  } catch (error) {
-    item.discarding = false;
-    item.phase = "error";
-    item.error = "本机草稿未能核对，内容已保留：" + error.message;
-    emit();
-    return;
-  }
-  if (context.disposed || entry(id2) !== item) return;
-  item.discarding = false;
-  const result = await tools.send(item, { kind: "delete", version: persistedVersion(item), saveId: tools.uuid() });
-  if (result && prepared) {
-    try {
-      await finishDelete(prepared, result);
-    } catch {
-    }
-  }
-}
 function createEntryWritingActions(context) {
   const { category, page, entry, entries, emit, stopTimer, adopt, schedule } = context;
   const { put, remove, restore, uuid: uuid5, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified } = context.options;
-  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted : operation2.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation2.text && (!operation2.labels || [2, 3].includes(value.labels_version) && equalLabels(
-    value.labels,
-    operation2.labels
-  ) || value.labels_version === 1 && equalLabels(labelsOf(value), operation2.labels)) && (!operation2.label || value.labels_version === 1 && value.label === operation2.label) && (!operation2.expectedLabel || value.labels_version === 1 && value.label === operation2.expectedLabel));
+  const matches2 = (value, operation2) => value.version === operation2.version + 1 && (operation2.kind === "delete" ? value.deleted : operation2.kind === "restore" ? !value.deleted : !value.deleted && value.text === operation2.text && (!operation2.labels || [2, 3].includes(value.labels_version) && equalLabels(value.labels, operation2.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation2.labels)) && (!operation2.label || value.labels_version === 1 && value.label === operation2.label) && (!operation2.expectedLabel || value.labels_version === 1 && value.label === operation2.expectedLabel));
   function accepted(item, value, operation2) {
     const preserve = operation2.kind === "put" && item.draft !== operation2.text;
     item.writeEpoch++;
@@ -9913,30 +9793,171 @@ function createEntryWritingActions(context) {
     onSaved(item.date);
     schedule(item);
   }
-  const tools = {
-    context,
-    category,
-    page,
-    entry,
-    entries,
-    emit,
-    stopTimer,
-    put,
-    remove,
-    restore,
-    uuid: uuid5,
-    discardUnsent,
-    prepareDelete,
-    finishDelete,
-    loadVerified,
-    matches: matches2,
-    accepted,
-    acceptedLocal
-  };
-  const send = (item, operation2) => sendEntryWrite(tools, item, operation2);
-  tools.send = send;
-  const save2 = (id2) => saveEntryWrite(tools, id2);
-  const deleteEntry = (id2) => deleteEntryWrite(tools, id2);
+  async function send(item, operation2) {
+    stopTimer(item);
+    item.pending = operation2;
+    item.phase = "saving";
+    item.error = "";
+    item.writeEpoch++;
+    emit();
+    try {
+      const body2 = { version: operation2.version, save_id: operation2.saveId };
+      const options4 = operation2.uncertain ? { offlineUnknown: true } : void 0;
+      const raw = operation2.kind === "delete" ? await remove(item.id, body2, options4) : operation2.kind === "restore" ? await restore(item.id, body2, options4) : await put(item.id, {
+        ...body2,
+        category: item.category,
+        date: item.date,
+        text: operation2.text,
+        ...operation2.labels ? { labels: operation2.labels } : operation2.label ? { label: operation2.label } : {}
+      }, options4);
+      if (context.disposed || item.pending !== operation2) return;
+      const value = checkedEntry(raw, category, item.date, item.id);
+      if (isLocalDocument(value)) {
+        acceptedLocal(item, value, operation2);
+        return;
+      }
+      if (!matches2(value, operation2)) throw new Error("保存响应需要重新核对。");
+      accepted(item, value, operation2);
+      return value;
+    } catch (error) {
+      if (context.disposed || item.pending !== operation2) return;
+      if (localFailure(error)) {
+        item.pending = operation2.uncertain ? operation2 : null;
+        item.phase = operation2.uncertain ? "unknown" : "error";
+        item.error = operation2.uncertain ? "原保存仍待核对，本机接管未完成：" + error.message : error.message;
+        emit();
+      } else if (error.status === 409 && (!error.code || ["VERSION_CONFLICT", "NOTE_ENTRY_DELETED"].includes(error.code))) {
+        item.pending = null;
+        item.phase = "conflict";
+        item.error = error.message || "这条记录已有新版本，草稿已保留。";
+        emit();
+        await context.readOne(item.id);
+      } else if (error.status >= 400 && error.status < 500) {
+        item.pending = null;
+        item.phase = "error";
+        item.error = error.message;
+        if ([401, 403].includes(error.status)) item.canEdit = false;
+        emit();
+      } else {
+        operation2.uncertain = true;
+        item.phase = "unknown";
+        item.error = "正在核对保存结果，草稿已保留。";
+        emit();
+        await context.reconcile(item.id);
+      }
+    }
+  }
+  async function save2(id2) {
+    const item = entry(id2);
+    if (!item) return;
+    stopTimer(item);
+    if (context.disposed || !item.canEdit || item.deleted || item.discarding || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
+    if (item.recoveredBaseline) {
+      const snapshot = { draft: item.draft, labels: [...item.labels], epoch: item.writeEpoch, version: persistedVersion(item) };
+      item.loading = true;
+      item.error = "正在核对线上记录，本机草稿会保留。";
+      emit();
+      try {
+        if (!loadVerified) throw new Error("无法直接核对线上记录");
+        const list2 = checkedCollection(await loadVerified(item.date), category, item.date);
+        if (context.disposed || entry(id2) !== item || item.writeEpoch !== snapshot.epoch || item.draft !== snapshot.draft || !equalLabels(item.labels, snapshot.labels) || item.pending || item.composing || !item.canEdit || item.deleted || item.discarding) return;
+        if (list2.entries.some(isLocalDocument)) throw new Error("无法确认线上最新状态");
+        const same2 = list2.entries.find((value) => value.id === id2);
+        if (same2 && same2.text === snapshot.draft && equalLabels(labelsOf(same2), snapshot.labels)) {
+          item.error = "线上已有这条记录，无需重复发送；本机草稿仍保留。";
+          return;
+        }
+        if (list2.entries.some((value) => value.id !== id2 && value.text === snapshot.draft)) {
+          item.error = "线上有内容相同的其他记录，请先核对；本机草稿仍保留。";
+          return;
+        }
+        if (!list2.can_edit || same2 && (same2.version !== item.recoveredBaseline.version || !item.recoveredBaseline.contentHash || same2.content_hash !== item.recoveredBaseline.contentHash) || !same2 && snapshot.version !== 0) {
+          item.error = "线上状态发生变化，请先核对；本机草稿仍保留。";
+          return;
+        }
+      } catch {
+        if (!context.disposed && entry(id2) === item) item.error = "无法核对线上记录，请稍后重试；本机草稿仍保留。";
+        return;
+      } finally {
+        item.loading = false;
+        emit();
+      }
+    }
+    if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
+      item.phase = "error";
+      item.error = "只能新增北京时间当天的碎碎念，草稿已保留。";
+      emit();
+      return;
+    }
+    if (!persistedVersion(item) && !item.draft.trim()) return;
+    if (context.multiLabels && !item.labelComplete && !equalLabels(item.labels, item.serverLabels)) {
+      item.phase = "error";
+      item.error = "请联网核实完整标签后再保存，草稿已保留。";
+      emit();
+      return;
+    }
+    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
+      item.phase = "oversize";
+      item.error = "文字超过 64 KiB，草稿已保留。";
+      emit();
+      return;
+    }
+    return send(item, {
+      kind: "put",
+      version: persistedVersion(item),
+      text: item.draft,
+      saveId: uuid5(),
+      ...context.multiLabels && item.labelComplete && (!persistedVersion(item) || !equalLabels(item.labels, item.serverLabels)) ? { labels: [...item.labels] } : {},
+      ...!context.multiLabels && !persistedVersion(item) && item.label ? { label: item.label } : {},
+      ...!context.multiLabels && item.label ? { expectedLabel: item.label } : {}
+    });
+  }
+  async function deleteEntry(id2) {
+    const item = entry(id2);
+    if (!item || context.disposed || !item.canEdit || item.discarding || item.pending || blocked(item) || item.deleted) return;
+    if (!persistedVersion(item)) {
+      stopTimer(item);
+      item.discarding = true;
+      emit();
+      try {
+        await discardUnsent(item);
+      } catch (error) {
+        item.discarding = false;
+        item.phase = "error";
+        item.error = "本机草稿未能清理，内容已保留：" + error.message;
+        emit();
+        return;
+      }
+      if (context.disposed || entry(id2) !== item) return;
+      const current3 = page(item.date);
+      current3.ids = current3.ids.filter((value) => value !== id2);
+      entries.delete(id2);
+      if (current3.composerId === id2) current3.composerId = "";
+      emit();
+      return;
+    }
+    item.discarding = true;
+    emit();
+    let prepared;
+    try {
+      prepared = await prepareDelete(item);
+    } catch (error) {
+      item.discarding = false;
+      item.phase = "error";
+      item.error = "本机草稿未能核对，内容已保留：" + error.message;
+      emit();
+      return;
+    }
+    if (context.disposed || entry(id2) !== item) return;
+    item.discarding = false;
+    const result = await send(item, { kind: "delete", version: persistedVersion(item), saveId: uuid5() });
+    if (result && prepared) {
+      try {
+        await finishDelete(prepared, result);
+      } catch {
+      }
+    }
+  }
   async function restoreEntry(id2) {
     const item = entry(id2);
     if (!item || context.disposed || !item.canEdit || !item.deleted || item.pending || blocked(item)) return;
@@ -15385,12 +15406,9 @@ function collapsed(title, body2, id2 = "") {
     title
   )}</summary>${body2}</details>`;
 }
-var REVIEW_SECTIONS = [["cockpit", "驾驶舱"], ["articles", "文章详情"], ["benchmarks", "对标账号"], ["rules", "规则"], ["prompts", "提示词"], ["trends", "数据趋势"], [
-  "library",
-  "爆文库"
-]];
+var REVIEW_SECTIONS = [["cockpit", "驾驶舱"], ["articles", "文章详情"], ["benchmarks", "对标账号"], ["rules", "规则"], ["prompts", "提示词"], ["library", "爆文库"]];
 function activeSection(vm4) {
-  const raw = vm4.secondary === "review" ? "rules" : vm4.secondary;
+  const raw = vm4.secondary === "review" ? "rules" : vm4.secondary === "trends" ? "cockpit" : vm4.secondary;
   if (REVIEW_SECTIONS.some(([id2]) => id2 === raw)) return raw;
   if (vm4.view === "articles") return "articles";
   if (vm4.view === "playbook") return "rules";
@@ -15420,9 +15438,8 @@ function sectionBody(selected, data2, vm4, rows) {
   if (selected === "benchmarks") return v13Accounts(data2);
   if (selected === "rules") return playbook(data2, vm4);
   if (selected === "prompts") return promptPage(data2, vm4);
-  if (selected === "trends") return renderReviewTrends(data2, vm4);
   if (selected === "library") return renderBenchmarkLibrary(data2, vm4.account);
-  return overview(data2, vm4);
+  return overview(data2, vm4) + renderReviewTrends(data2, vm4);
 }
 function archives(data2, vm4, rows, override) {
   const selected = activeSection(vm4);
@@ -15730,7 +15747,8 @@ function reviewRoute(href, defaultAccount = vm3.account) {
   const view = REVIEW_VIEWS.some(([id2]) => id2 === requested) ? requested : "overview";
   const section = p.get("review_section");
   const benchmark = p.get("review_benchmark") || "";
-  const secondary = benchmark ? "library" : REVIEW_SECTIONS.some(([id2]) => id2 === section) ? section : section === "review" || section === "playbook" || view === "playbook" ? "rules" : view === "articles" ? "articles" : "cockpit";
+  const listed = REVIEW_SECTIONS.some(([id2]) => id2 === section) ? section : "";
+  const secondary = benchmark ? "library" : listed || (section === "trends" ? "cockpit" : "") || (section === "review" || section === "playbook" || view === "playbook" ? "rules" : view === "articles" ? "articles" : "cockpit");
   const trendRange = p.get("review_trend_range");
   const trends = {
     range: ["7d", "30d", "custom"].includes(trendRange) ? trendRange : "30d",

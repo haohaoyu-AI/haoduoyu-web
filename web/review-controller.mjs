@@ -84,9 +84,10 @@ export function reviewRoute(href,defaultAccount = vm.account) {
   const view = REVIEW_VIEWS.some(([id]) => id === requested) ? requested : 'overview';
   const section = p.get('review_section');
   const benchmark = p.get('review_benchmark') || '';
-  const secondary = benchmark ? 'library' : REVIEW_SECTIONS.some(([id]) => id === section) ? section :
-    section === 'review' || section === 'playbook' || view === 'playbook' ? 'rules' :
-    view === 'articles' ? 'articles' : 'cockpit';
+  const listed = REVIEW_SECTIONS.some(([id]) => id === section) ? section : '';
+  const secondary = benchmark ? 'library' : listed || (section === 'trends' ? 'cockpit' : '') ||
+    (section === 'review' || section === 'playbook' || view === 'playbook' ? 'rules' :
+    view === 'articles' ? 'articles' : 'cockpit');
   const trendRange = p.get('review_trend_range');
   const trends = {range:['7d','30d','custom'].includes(trendRange) ? trendRange : '30d',
     from:p.get('review_trend_from') || '',to:p.get('review_trend_to') || ''};

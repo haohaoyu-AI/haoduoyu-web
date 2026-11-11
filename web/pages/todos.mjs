@@ -180,6 +180,15 @@ function todoDateControls(date) {
 <button class="btn small" data-action="todo-next" aria-label="后一天">›</button>
 <button class="btn small" data-action="todo-today">今天</button></div>`;
 }
+function todoNoteField(item, day, pending) {
+  if (day.noteEdit?.id === item.id) {
+    const error = day.noteError ? `<p class="todo-note-error" role="alert">${e(day.noteError)}</p>` : "";
+    return `<textarea class="todo-note-input input" data-todo-note-input data-id="${e(item.id)}" data-date="${e(day.date)}" ` +
+      `maxlength="4000" rows="2" aria-label="备注或未完成原因"${pending ? " disabled" : ""}>${e(day.noteEdit.text ?? "")}</textarea>${error}`;
+  }
+  return `<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" ` +
+    `data-date="${e(day.date)}" ${pending ? "disabled" : ""}>${item.note ? `备注：${e(item.note)}` : "添加备注"}</button>`;
+}
 function todoRow(item, day) {
   const pending = todoBusy(day, item.id);
   const completed = day.updates.has(item.id) ? day.updates.get(item.id) : item.completed;
@@ -188,8 +197,7 @@ function todoRow(item, day) {
   return `<li class="daily-todo-row${completed ? " is-complete" : ""}" data-id="${e(item.id)}" data-date="${e(day.date)}">
 <label><input type="checkbox" data-todo-id="${e(item.id)}" data-date="${e(day.date)}" ${completed ? "checked" : ""}
 aria-disabled="${pending}"><span class="daily-todo-text">${e(item.text)}</span></label>
-<button class="todo-note-hit${item.note ? "" : " is-empty"}" type="button" data-action="todo-note" data-id="${e(item.id)}" data-date="${e(day.date)}" ${pending 
-  ? "disabled" : ""}>${item.note ? `备注：${e(item.note)}` : "添加备注"}</button>
+${todoNoteField(item, day, pending)}
 <button class="todo-row-menu icon-button" type="button" data-action="todo-menu" data-id="${e(item.id)}" data-date="${e(day.date)}"
 aria-label="事项操作" aria-haspopup="menu" aria-expanded="false" ${pending ? "disabled" : ""}>⋯</button></li>`;
 }
@@ -301,7 +309,14 @@ function monthDayItems(day) {
     return !removal || removal.phase === "restoring";
   }).map(item => day.updates.has(item.id) ? {...item, completed: day.updates.get(item.id)} : item);
 }
+let repaintingTodos = false;
+function todoRepainting() { return repaintingTodos; }
 function paintTodos() {
+  repaintingTodos = true;
+  try { paintTodoDom(); }
+  finally { repaintingTodos = false; }
+}
+function paintTodoDom() {
   notifyTodoChanges();
   const root = $("#daily-todos");
   if (!root || !todosVisible()) return;
@@ -321,10 +336,12 @@ function paintTodos() {
   }
   const form = $("#todo-form", root), formSlot = $(state.todoPanel === "history" ? "#todo-form-bottom" : "#todo-form-top", root);
   if (form && formSlot && formSlot.nextElementSibling !== form) formSlot.after(form);
+  const liveNote = document.activeElement?.matches?.("[data-todo-note-input]") ? document.activeElement : null;
   const parts = { "todo-caption": todoCaption(day), "todo-status": todoStatus(day), "todo-undo": renderTodoUndo(day),
     "todo-items": day.items.map((item) => todoRow(item, day)).join("") + pendingTodo(day), "todo-feedback": todoFeedback(day),
     "todo-history-empty": todoHistoryEmpty(day) };
   for (const [id, html] of Object.entries(parts)) {
+    if (id === "todo-items" && liveNote?.isConnected) continue;
     const node = $("#" + id, root);
     if (node && node.innerHTML !== html) node.innerHTML = html;
   }
@@ -596,7 +613,7 @@ function registerTodosClock() {
   scheduleTodoClock();
 }
 export {
-  floatingTodoSupported, inputTodo, loadFloatingToday, loadTodos, moveTodoDate, moveTodoMonth, paintTodos, refreshTodos,
+  floatingTodoSupported, inputTodo, loadFloatingToday, loadTodos, moveTodoDate, moveTodoMonth, paintTodos, refreshTodos, todoRepainting,
   registerTodosClock, renderTodos, retryTodoCreate,
   observeTodoChanges, selectTodoDate, setTodoNotice, setTodoPanel, submitTodo, submitTodoTemplate, toggleTodo
 };

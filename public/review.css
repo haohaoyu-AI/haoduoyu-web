@@ -394,6 +394,17 @@ body:has(#content-review.review-list-fullscreen) { overflow:hidden; }
   #content-review .review-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
   #content-review .review-secondary-panel { padding:20px 18px; }
   #content-review .review-articles-table tbody tr { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .content-review .review-secondary-tabs {
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; overflow:visible; scrollbar-width:none;
+    padding:8px; border:var(--review-line-width) solid var(--color-divider); border-bottom:0; border-radius:16px 16px 0 0;
+    background:var(--color-white);
+  }
+  .content-review .review-secondary-tabs::-webkit-scrollbar { display:none; height:0; }
+  .content-review .review-secondary-tabs > button {
+    min-height:44px; padding:8px 4px; border:1px solid var(--color-divider); border-radius:10px; background:var(--color-white);
+    white-space:normal; text-align:center; line-height:1.3;
+  }
+  .content-review .review-secondary-tabs > button[aria-selected="true"] { border-color:var(--color-primary); background:var(--color-white); }
 }
 
 /* Benchmark account characteristics and full rule text. */

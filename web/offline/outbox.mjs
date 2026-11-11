@@ -174,33 +174,6 @@ function acceptedLabelEvidence(operation, confirmed, entity) {
   return proof;
 }
 
-async function leaseOutbox(env, scope) {
-  env.checkScope(scope);
-  return env.db.transaction(['meta'], 'readwrite', async tx => {
-    const old = await tx.get('meta', env.leaseKey(scope));
-    if (old && old.owner !== env.owner && old.expires_at > env.now()) return false;
-    await tx.put('meta', {key: env.leaseKey(scope), owner: env.owner, expires_at: env.now() + 90000});
-    return true;
-  });
-}
-async function networkOutbox(env, scope, path, opts = {}, claim = true) {
-  env.checkScope(scope);
-  if (claim && !await leaseOutbox(env, scope)) throw new Error('Offline sync lease changed');
-  env.checkScope(scope);
-  const controller = new AbortController();
-  let timer;
-  try {
-    const expired = new Promise((_, reject) => {
-      timer = setTimeout(() => {
-        controller.abort();
-        reject(Object.assign(new Error('Offline request outcome is unknown'), {code: 'OFFLINE_TIMEOUT'}));
-      }, env.timeout);
-    });
-    const result = await Promise.race([env.request(path, {...opts, signal: controller.signal}), expired]);
-    env.checkScope(scope);
-    return result;
-  } finally { clearTimeout(timer); }
-}
 function createContext(options) {
   const {db, request, getScope, now = Date.now, uuid = () => crypto.randomUUID(), timeout = 20000} = options;
   const owner = uuid();
@@ -246,9 +219,34 @@ function createContext(options) {
     return ready;
   };
 
-  const env = {db, checkScope, leaseKey, owner, now, timeout, request};
-  const lease = scope => leaseOutbox(env, scope);
-  const network = (scope, path, opts, claim) => networkOutbox(env, scope, path, opts, claim);
+  async function lease(scope) {
+    checkScope(scope);
+    return db.transaction(['meta'], 'readwrite', async tx => {
+      const old = await tx.get('meta', leaseKey(scope));
+      if (old && old.owner !== owner && old.expires_at > now()) return false;
+      await tx.put('meta', {key: leaseKey(scope), owner, expires_at: now() + 90000});
+      return true;
+    });
+  }
+
+  async function network(scope, path, opts = {}, claim = true) {
+    checkScope(scope);
+    if (claim && !await lease(scope)) throw new Error('Offline sync lease changed');
+    checkScope(scope);
+    const controller = new AbortController();
+    let timer;
+    try {
+      const expired = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(Object.assign(new Error('Offline request outcome is unknown'), {code: 'OFFLINE_TIMEOUT'}));
+        }, timeout);
+      });
+      const result = await Promise.race([request(path, {...opts, signal: controller.signal}), expired]);
+      checkScope(scope);
+      return result;
+    } finally { clearTimeout(timer); }
+  }
   const readNetwork = (scope, path, opts = {}) => {
     if (!['GET', 'HEAD'].includes((opts.method || 'GET').toUpperCase())) throw new TypeError('Conflict preparation is read-only');
     return network(scope, path, opts, false);
@@ -283,8 +281,9 @@ async function noteCapacity(tx, operation, old) {
   if (count >= 200) throw Object.assign(new Error('本机当日记录已达 200 条，草稿已保留。'), {code: 'OFFLINE_CACHE_LIMIT'});
 }
 
-async function enqueueInTransaction(context, tx, input) {
-  const {checkScope, uuid, now} = context;
+function storageMethods(context) {
+  const {db, checkScope, uuid, now, owner} = context;
+  async function enqueueInTransaction(tx, input) {
     input.assertActive?.();
     checkScope(input.scope);
     const operation = operationFor(input, uuid, now());
@@ -321,10 +320,8 @@ async function enqueueInTransaction(context, tx, input) {
     input.assertActive?.();
     return {operation, entity};
   }
-function storageMethods(context) {
-  const {db, checkScope, now, owner} = context;
   async function enqueue(input) {
-    return db.transaction(['entities', 'outbox', 'meta'], 'readwrite', tx => enqueueInTransaction(context, tx, input));
+    return db.transaction(['entities', 'outbox', 'meta'], 'readwrite', tx => enqueueInTransaction(tx, input));
   }
   async function update(operation, fields, {rateLimitedUntil} = {}) {
     if (!context.canDispatch(operation)) return null;
@@ -366,7 +363,7 @@ function storageMethods(context) {
     });
   }
 
-  return {enqueue, enqueueInTransaction: (tx, input) => enqueueInTransaction(context, tx, input), update, acknowledge};
+  return {enqueue, enqueueInTransaction, update, acknowledge};
 }
 
 function remoteMethods(context) {

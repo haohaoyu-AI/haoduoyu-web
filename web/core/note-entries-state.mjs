@@ -64,8 +64,7 @@ function checkedCollection(value, category, date) {
 // neither navigation nor midnight can change the destination of an in-flight write.
 function createEntriesContext({category, load, loadEntry, loadOperation, put, remove, restore,
   loadVerified,
-  onChange = () => {}, onSaved = () => {}, discardUnsent = async () => {}, prepareDelete = async () => null, finishDelete = async () => {}, uuid = () => 
-    crypto.randomUUID(),
+  onChange = () => {}, onSaved = () => {}, discardUnsent = async () => {}, prepareDelete = async () => null, finishDelete = async () => {}, uuid = () => crypto.randomUUID(),
   setTimer = setTimeout, clearTimer = clearTimeout, delay = 400, manualSave = false, multiLabels = false}) {
   if (!['life', 'work'].includes(category)) throw new Error('请选择有效分类。');
   const pages = new Map(), entries = new Map();
@@ -82,8 +81,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
   const stopTimer = item => { if (item.timer !== null) clearTimer(item.timer); item.timer = null; };
   function makeEntry(id, date, canEdit) {
     return {id, category, date, loaded: true, loading: false, canEdit, serverText: '', draft: '',
-      version: 0, createdAt: null, updatedAt: null, contentHash: '', label: '', labels: [], serverLabels: [], labelKnown: false, labelComplete: false, deleted: 
-        false, dirty: false,
+      version: 0, createdAt: null, updatedAt: null, contentHash: '', label: '', labels: [], serverLabels: [], labelKnown: false, labelComplete: false, deleted: false, dirty: false,
       phase: 'empty', error: '', remote: null, pending: null, timer: null, sequence: 0,
       writeEpoch: 0, composing: false, localVersion: 0, durableText: '', localBacked: false, localQueued: false,
       localOperation: null, localConflict: null, localCreatedAt: null, localUpdatedAt: null};
@@ -95,8 +93,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
     item.version = value.version; item.createdAt = value.created_at; item.updatedAt = value.updated_at;
     item.labelComplete = [2,3].includes(value.labels_version) && Array.isArray(value.labels);
     item.serverLabels = labelsOf(value); if (!preserve) item.labels = [...item.serverLabels];
-    item.label = item.labels[0] || ''; item.labelKnown = category === 'work' || [2,3].includes(value.labels_version) && Array.isArray(value.labels) || 
-      value.labels_version === 1 && Object.hasOwn(value, 'label');
+    item.label = item.labels[0] || ''; item.labelKnown = category === 'work' || [2,3].includes(value.labels_version) && Array.isArray(value.labels) || value.labels_version === 1 && Object.hasOwn(value, 'label');
     item.contentHash = value.content_hash; item.deleted = value.deleted;
     item.localVersion = value.version; item.durableText = item.serverText; item.localBacked = false; item.localQueued = false;
     item.localOperation = null; item.localConflict = null; item.localCreatedAt = null; item.localUpdatedAt = null;
@@ -105,8 +102,7 @@ function createEntriesContext({category, load, loadEntry, loadOperation, put, re
   }
   function schedule(item) {
     stopTimer(item);
-    if (!manualSave && !item.recoveredBaseline && !context.disposed && !context.autosavePaused && item.canEdit && item.dirty && !item.pending && !item.loading 
-      && !item.composing &&
+    if (!manualSave && !item.recoveredBaseline && !context.disposed && !context.autosavePaused && item.canEdit && item.dirty && !item.pending && !item.loading && !item.composing &&
         !blocked(item) && !['error', 'oversize'].includes(item.phase) && (persistedVersion(item) > 0 || item.draft.trim())) {
       item.timer = setTimer(() => { item.timer = null; void context.save(item.id); }, delay);
     }
@@ -146,8 +142,7 @@ function createEntryLocalActions(context) {
     const {local, server, operation, conflict} = documentState(value), draft = item.draft;
     if (server && server.version >= item.version) adopt(item, server, true);
     item.localVersion = local.version; item.durableText = local.deleted ? '' : local.text;
-    item.labelComplete = false; item.labels = labelsOf(local); item.serverLabels = [...item.labels]; item.label = item.labels[0] || ''; item.labelKnown = 
-      item.category === 'work' || local.labels_version === 1 && Object.hasOwn(local, 'label');
+    item.labelComplete = false; item.labels = labelsOf(local); item.serverLabels = [...item.labels]; item.label = item.labels[0] || ''; item.labelKnown = item.category === 'work' || local.labels_version === 1 && Object.hasOwn(local, 'label');
     item.localBacked = true; item.localQueued = Boolean(operation); item.localOperation = operation; item.localConflict = conflict;
     item.localCreatedAt = local.created_at || null; item.localUpdatedAt = local.updated_at || null;
     item.canEdit = local.can_edit; item.deleted = local.deleted; item.loaded = true;
@@ -264,8 +259,7 @@ function createEntryEditingActions(context) {
   function relabelDraft(id, labels = []) {
     const item = entry(id);
     if (typeof labels === 'string') labels = labels ? [labels] : [];
-    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && 
-      !item.labelComplete) ||
+    if (!item || context.disposed || !item.canEdit || item.deleted || item.discarding || item.pending || (!item.labelKnown || context.multiLabels && !item.labelComplete) ||
         !validLabels(labels, context.category)) return false;
     item.labels = [...labels]; item.label = labels[0] || '';
     item.dirty = item.draft !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
@@ -284,14 +278,11 @@ function createEntryRecoveryActions(context) {
     let item = entry(raw.id);
     if (item?.deleted || item && (item.pending || item.composing || item.dirty)) return item;
     const pendingDurable = item && raw.pending?.saveId && raw.pending.saveId === item.localOperation?.save_id;
-    if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.labels || equalLabels(raw.labels, item.serverLabels)) && (!raw.pending || 
-      pendingDurable)) return item;
+    if (item && persistedVersion(item) > 0 && raw.draft === savedText(item) && (!raw.labels || equalLabels(raw.labels, item.serverLabels)) && (!raw.pending || pendingDurable)) return item;
     if (!item) { item = makeEntry(raw.id, raw.date, current.canEdit); entries.set(item.id, item); }
-    if (!persistedVersion(item)) { item.labels = validLabels(raw.labels, category) ? raw.labels : raw.label ? [raw.label] : []; item.label = item.labels[0] || 
-      ''; item.labelKnown = raw.labelKnown === true; item.labelComplete = current.labelsComplete === true; }
+    if (!persistedVersion(item)) { item.labels = validLabels(raw.labels, category) ? raw.labels : raw.label ? [raw.label] : []; item.label = item.labels[0] || ''; item.labelKnown = raw.labelKnown === true; item.labelComplete = current.labelsComplete === true; }
     if (!current.ids.includes(item.id)) current.ids.push(item.id);
-    stopTimer(item); item.writeEpoch++; item.draft = raw.draft; if (validLabels(raw.labels, category)) item.labels = [...raw.labels]; item.dirty = item.draft 
-      !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
+    stopTimer(item); item.writeEpoch++; item.draft = raw.draft; if (validLabels(raw.labels, category)) item.labels = [...raw.labels]; item.dirty = item.draft !== savedText(item) || !equalLabels(item.labels, item.serverLabels);
     item.recoveredBaseline = raw.recoveredBaseline || {version: raw.version ?? null, serverText: raw.serverText ?? null,
       contentHash: raw.contentHash ?? null, createdAt: raw.createdAt ?? null, updatedAt: raw.updatedAt ?? null,
       localVersion: raw.localVersion ?? null, durableText: raw.durableText ?? null};
@@ -300,12 +291,10 @@ function createEntryRecoveryActions(context) {
       const valid = ['put', 'delete', 'restore'].includes(operation.kind) && uuidPattern.test(operation.saveId) &&
         Number.isSafeInteger(operation.version) && operation.version >= 0 &&
         (operation.kind !== 'put' || typeof operation.text === 'string' && dailyNotesBytes(operation.text) <= DAILY_NOTES_MAX_BYTES &&
-          (!operation.labels || validLabels(operation.labels, category)) && (!operation.label || category === 'life' && 
-            validCustomNoteLabel(operation.label)) &&
+          (!operation.labels || validLabels(operation.labels, category)) && (!operation.label || category === 'life' && validCustomNoteLabel(operation.label)) &&
           (!operation.expectedLabel || category === 'life' && validCustomNoteLabel(operation.expectedLabel)));
       item.pending = valid ? {kind: operation.kind, version: operation.version, saveId: operation.saveId,
-        ...(operation.kind === 'put' ? {text: operation.text, ...(operation.labels ? {labels: operation.labels} : {}), ...(operation.label ? {label: 
-          operation.label} : {}),
+        ...(operation.kind === 'put' ? {text: operation.text, ...(operation.labels ? {labels: operation.labels} : {}), ...(operation.label ? {label: operation.label} : {}),
           ...(operation.expectedLabel ? {expectedLabel: operation.expectedLabel} : {})} : {}), uncertain: true, checking: false, retryReady: false} :
         {kind: 'recovery-blocked', uncertain: true, invalid: true, checking: false, retryReady: false};
       item.phase = 'unknown';
@@ -335,122 +324,12 @@ function createEntryRecoveryActions(context) {
   return {restoreDraft, dropRestoredDraft};
 }
 
-async function sendEntryWrite(tools, item, operation) {
-  const {context, category, stopTimer, emit, remove, restore, put, accepted, acceptedLocal} = tools;
-  stopTimer(item); item.pending = operation; item.phase = 'saving'; item.error = ''; item.writeEpoch++; emit();
-  try {
-    const body = {version: operation.version, save_id: operation.saveId};
-    const options = operation.uncertain ? {offlineUnknown: true} : undefined;
-    const raw = operation.kind === 'delete' ? await remove(item.id, body, options) : operation.kind === 'restore' ?
-      await restore(item.id, body, options) : await put(item.id, {...body, category: item.category, date: item.date, text: operation.text,
-        ...(operation.labels ? {labels: operation.labels} : operation.label ? {label: operation.label} : {})}, options);
-    if (context.disposed || item.pending !== operation) return;
-    const value = checkedEntry(raw, category, item.date, item.id);
-    if (isLocalDocument(value)) { acceptedLocal(item, value, operation); return; }
-    if (!tools.matches(value, operation)) throw new Error('保存响应需要重新核对。');
-    accepted(item, value, operation); return value;
-  } catch (error) {
-    if (context.disposed || item.pending !== operation) return;
-    if (localFailure(error)) {
-      item.pending = operation.uncertain ? operation : null; item.phase = operation.uncertain ? 'unknown' : 'error';
-      item.error = operation.uncertain ? '原保存仍待核对，本机接管未完成：' + error.message : error.message; emit();
-    } else if (error.status === 409 && (!error.code || ['VERSION_CONFLICT', 'NOTE_ENTRY_DELETED'].includes(error.code))) {
-      item.pending = null; item.phase = 'conflict'; item.error = error.message || '这条记录已有新版本，草稿已保留。'; emit();
-      await context.readOne(item.id);
-    } else if (error.status >= 400 && error.status < 500) {
-      item.pending = null; item.phase = 'error'; item.error = error.message;
-      if ([401, 403].includes(error.status)) item.canEdit = false;
-      emit();
-    } else {
-      operation.uncertain = true;
-      item.phase = 'unknown'; item.error = '正在核对保存结果，草稿已保留。'; emit(); await context.reconcile(item.id);
-    }
-  }
-}
-async function saveEntryWrite(tools, id) {
-  const {context, entry, stopTimer, emit, loadVerified, uuid} = tools;
-  const item = entry(id); if (!item) return; stopTimer(item);
-  if (context.disposed || !item.canEdit || item.deleted || item.discarding || item.loading || item.pending || blocked(item) || !item.dirty ||
-    item.composing) return;
-  if (item.recoveredBaseline) {
-    const snapshot = {draft: item.draft, labels: [...item.labels], epoch: item.writeEpoch, version: persistedVersion(item)};
-    item.loading = true; item.error = '正在核对线上记录，本机草稿会保留。'; emit();
-    try {
-      if (!loadVerified) throw new Error('无法直接核对线上记录');
-      const list = checkedCollection(await loadVerified(item.date), context.category, item.date);
-      if (context.disposed || entry(id) !== item || item.writeEpoch !== snapshot.epoch || item.draft !== snapshot.draft ||
-          !equalLabels(item.labels, snapshot.labels) || item.pending || item.composing || !item.canEdit || item.deleted || item.discarding) return;
-      if (list.entries.some(isLocalDocument)) throw new Error('无法确认线上最新状态');
-      const same = list.entries.find(value => value.id === id);
-      if (same && same.text === snapshot.draft && equalLabels(labelsOf(same), snapshot.labels)) {
-        item.error = '线上已有这条记录，无需重复发送；本机草稿仍保留。'; return;
-      }
-      if (list.entries.some(value => value.id !== id && value.text === snapshot.draft)) {
-        item.error = '线上有内容相同的其他记录，请先核对；本机草稿仍保留。'; return;
-      }
-      if (!list.can_edit || same && (same.version !== item.recoveredBaseline.version ||
-          !item.recoveredBaseline.contentHash || same.content_hash !== item.recoveredBaseline.contentHash) ||
-          !same && snapshot.version !== 0) {
-        item.error = '线上状态发生变化，请先核对；本机草稿仍保留。'; return;
-      }
-    } catch {
-      if (!context.disposed && entry(id) === item) item.error = '无法核对线上记录，请稍后重试；本机草稿仍保留。';
-      return;
-    } finally { item.loading = false; emit(); }
-  }
-  if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
-    item.phase = 'error'; item.error = '只能新增北京时间当天的碎碎念，草稿已保留。'; emit(); return;
-  }
-  if (!persistedVersion(item) && !item.draft.trim()) return;
-  if (context.multiLabels && !item.labelComplete && !equalLabels(item.labels, item.serverLabels)) {
-    item.phase = 'error'; item.error = '请联网核实完整标签后再保存，草稿已保留。'; emit(); return;
-  }
-  if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
-    item.phase = 'oversize'; item.error = '文字超过 64 KiB，草稿已保留。'; emit(); return;
-  }
-  return tools.send(item, {kind: 'put', version: persistedVersion(item), text: item.draft, saveId: uuid(),
-    ...(context.multiLabels && item.labelComplete && (!persistedVersion(item) || !equalLabels(item.labels, item.serverLabels)) ? {labels:
-      [...item.labels]} : {}),
-    ...(!context.multiLabels && !persistedVersion(item) && item.label ? {label: item.label} : {}),
-    ...(!context.multiLabels && item.label ? {expectedLabel: item.label} : {})});
-}
-async function deleteEntryWrite(tools, id) {
-  const {context, entry, stopTimer, emit, discardUnsent, page, entries, prepareDelete, finishDelete} = tools;
-  const item = entry(id);
-  if (!item || context.disposed || !item.canEdit || item.discarding || item.pending || blocked(item) || item.deleted) return;
-  if (!persistedVersion(item)) {
-    stopTimer(item); item.discarding = true; emit();
-    try { await discardUnsent(item); }
-    catch (error) {
-      item.discarding = false; item.phase = 'error'; item.error = '本机草稿未能清理，内容已保留：' + error.message; emit(); return;
-    }
-    if (context.disposed || entry(id) !== item) return;
-    const current = page(item.date); current.ids = current.ids.filter(value => value !== id);
-    entries.delete(id); if (current.composerId === id) current.composerId = ''; emit(); return;
-  }
-  item.discarding = true; emit();
-  let prepared;
-  try { prepared = await prepareDelete(item); }
-  catch (error) {
-    item.discarding = false; item.phase = 'error'; item.error = '本机草稿未能核对，内容已保留：' + error.message; emit(); return;
-  }
-  if (context.disposed || entry(id) !== item) return;
-  item.discarding = false;
-  const result = await tools.send(item, {kind: 'delete', version: persistedVersion(item), saveId: tools.uuid()});
-  if (result && prepared) {
-    try { await finishDelete(prepared, result); }
-    catch { /* Deletion succeeded; retained local drafts remain recoverable. */ }
-  }
-}
 function createEntryWritingActions(context) {
   const {category, page, entry, entries, emit, stopTimer, adopt, schedule} = context;
   const {put, remove, restore, uuid, onSaved, discardUnsent, prepareDelete, finishDelete, loadVerified} = context.options;
   const matches = (value, operation) => value.version === operation.version + 1 &&
     (operation.kind === 'delete' ? value.deleted : operation.kind === 'restore' ? !value.deleted :
-      !value.deleted && value.text === operation.text && (!operation.labels || [2,3].includes(value.labels_version) && equalLabels(value.labels, 
-        operation.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation.labels)) && (!operation.label || value.labels_version 
-          === 1 && 
-          value.label === operation.label) &&
+      !value.deleted && value.text === operation.text && (!operation.labels || [2,3].includes(value.labels_version) && equalLabels(value.labels, operation.labels) || value.labels_version === 1 && equalLabels(labelsOf(value), operation.labels)) && (!operation.label || value.labels_version === 1 && value.label === operation.label) &&
       (!operation.expectedLabel || value.labels_version === 1 && value.label === operation.expectedLabel));
   function accepted(item, value, operation) {
     const preserve = operation.kind === 'put' && item.draft !== operation.text;
@@ -464,12 +343,108 @@ function createEntryWritingActions(context) {
     item.writeEpoch++; adopt(item, value, preserve); item.pending = null;
     emit(); onSaved(item.date); schedule(item);
   }
-  const tools = {context, category, page, entry, entries, emit, stopTimer, put, remove, restore, uuid, discardUnsent, prepareDelete, finishDelete,
-    loadVerified, matches, accepted, acceptedLocal};
-  const send = (item, operation) => sendEntryWrite(tools, item, operation);
-  tools.send = send;
-  const save = id => saveEntryWrite(tools, id);
-  const deleteEntry = id => deleteEntryWrite(tools, id);
+  async function send(item, operation) {
+    stopTimer(item); item.pending = operation; item.phase = 'saving'; item.error = ''; item.writeEpoch++; emit();
+    try {
+      const body = {version: operation.version, save_id: operation.saveId};
+      const options = operation.uncertain ? {offlineUnknown: true} : undefined;
+      const raw = operation.kind === 'delete' ? await remove(item.id, body, options) : operation.kind === 'restore' ?
+        await restore(item.id, body, options) : await put(item.id, {...body, category: item.category, date: item.date, text: operation.text,
+          ...(operation.labels ? {labels: operation.labels} : operation.label ? {label: operation.label} : {})}, options);
+      if (context.disposed || item.pending !== operation) return;
+      const value = checkedEntry(raw, category, item.date, item.id);
+      if (isLocalDocument(value)) { acceptedLocal(item, value, operation); return; }
+      if (!matches(value, operation)) throw new Error('保存响应需要重新核对。');
+      accepted(item, value, operation); return value;
+    } catch (error) {
+      if (context.disposed || item.pending !== operation) return;
+      if (localFailure(error)) {
+        item.pending = operation.uncertain ? operation : null; item.phase = operation.uncertain ? 'unknown' : 'error';
+        item.error = operation.uncertain ? '原保存仍待核对，本机接管未完成：' + error.message : error.message; emit();
+      } else if (error.status === 409 && (!error.code || ['VERSION_CONFLICT', 'NOTE_ENTRY_DELETED'].includes(error.code))) {
+        item.pending = null; item.phase = 'conflict'; item.error = error.message || '这条记录已有新版本，草稿已保留。'; emit();
+        await context.readOne(item.id);
+      } else if (error.status >= 400 && error.status < 500) {
+        item.pending = null; item.phase = 'error'; item.error = error.message;
+        if ([401, 403].includes(error.status)) item.canEdit = false;
+        emit();
+      } else {
+        operation.uncertain = true;
+        item.phase = 'unknown'; item.error = '正在核对保存结果，草稿已保留。'; emit(); await context.reconcile(item.id);
+      }
+    }
+  }
+  async function save(id) {
+    const item = entry(id); if (!item) return; stopTimer(item);
+    if (context.disposed || !item.canEdit || item.deleted || item.discarding || item.loading || item.pending || blocked(item) || !item.dirty || item.composing) return;
+    if (item.recoveredBaseline) {
+      const snapshot = {draft: item.draft, labels: [...item.labels], epoch: item.writeEpoch, version: persistedVersion(item)};
+      item.loading = true; item.error = '正在核对线上记录，本机草稿会保留。'; emit();
+      try {
+        if (!loadVerified) throw new Error('无法直接核对线上记录');
+        const list = checkedCollection(await loadVerified(item.date), category, item.date);
+        if (context.disposed || entry(id) !== item || item.writeEpoch !== snapshot.epoch || item.draft !== snapshot.draft ||
+            !equalLabels(item.labels, snapshot.labels) || item.pending || item.composing || !item.canEdit || item.deleted || item.discarding) return;
+        if (list.entries.some(isLocalDocument)) throw new Error('无法确认线上最新状态');
+        const same = list.entries.find(value => value.id === id);
+        if (same && same.text === snapshot.draft && equalLabels(labelsOf(same), snapshot.labels)) {
+          item.error = '线上已有这条记录，无需重复发送；本机草稿仍保留。'; return;
+        }
+        if (list.entries.some(value => value.id !== id && value.text === snapshot.draft)) {
+          item.error = '线上有内容相同的其他记录，请先核对；本机草稿仍保留。'; return;
+        }
+        if (!list.can_edit || same && (same.version !== item.recoveredBaseline.version ||
+            !item.recoveredBaseline.contentHash || same.content_hash !== item.recoveredBaseline.contentHash) ||
+            !same && snapshot.version !== 0) {
+          item.error = '线上状态发生变化，请先核对；本机草稿仍保留。'; return;
+        }
+      } catch {
+        if (!context.disposed && entry(id) === item) item.error = '无法核对线上记录，请稍后重试；本机草稿仍保留。';
+        return;
+      } finally { item.loading = false; emit(); }
+    }
+    if (!persistedVersion(item) && item.date !== dailyNotesToday()) {
+      item.phase = 'error'; item.error = '只能新增北京时间当天的碎碎念，草稿已保留。'; emit(); return;
+    }
+    if (!persistedVersion(item) && !item.draft.trim()) return;
+    if (context.multiLabels && !item.labelComplete && !equalLabels(item.labels, item.serverLabels)) {
+      item.phase = 'error'; item.error = '请联网核实完整标签后再保存，草稿已保留。'; emit(); return;
+    }
+    if (dailyNotesBytes(item.draft) > DAILY_NOTES_MAX_BYTES) {
+      item.phase = 'oversize'; item.error = '文字超过 64 KiB，草稿已保留。'; emit(); return;
+    }
+    return send(item, {kind: 'put', version: persistedVersion(item), text: item.draft, saveId: uuid(),
+      ...(context.multiLabels && item.labelComplete && (!persistedVersion(item) || !equalLabels(item.labels, item.serverLabels)) ? {labels: [...item.labels]} : {}),
+      ...(!context.multiLabels && !persistedVersion(item) && item.label ? {label: item.label} : {}),
+      ...(!context.multiLabels && item.label ? {expectedLabel: item.label} : {})});
+  }
+  async function deleteEntry(id) {
+    const item = entry(id);
+    if (!item || context.disposed || !item.canEdit || item.discarding || item.pending || blocked(item) || item.deleted) return;
+    if (!persistedVersion(item)) {
+      stopTimer(item); item.discarding = true; emit();
+      try { await discardUnsent(item); }
+      catch (error) {
+        item.discarding = false; item.phase = 'error'; item.error = '本机草稿未能清理，内容已保留：' + error.message; emit(); return;
+      }
+      if (context.disposed || entry(id) !== item) return;
+      const current = page(item.date); current.ids = current.ids.filter(value => value !== id);
+      entries.delete(id); if (current.composerId === id) current.composerId = ''; emit(); return;
+    }
+    item.discarding = true; emit();
+    let prepared;
+    try { prepared = await prepareDelete(item); }
+    catch (error) {
+      item.discarding = false; item.phase = 'error'; item.error = '本机草稿未能核对，内容已保留：' + error.message; emit(); return;
+    }
+    if (context.disposed || entry(id) !== item) return;
+    item.discarding = false;
+    const result = await send(item, {kind: 'delete', version: persistedVersion(item), saveId: uuid()});
+    if (result && prepared) {
+      try { await finishDelete(prepared, result); }
+      catch { /* Deletion succeeded; retained local drafts remain recoverable. */ }
+    }
+  }
   async function restoreEntry(id) {
     const item = entry(id);
     if (!item || context.disposed || !item.canEdit || !item.deleted || item.pending || blocked(item)) return;

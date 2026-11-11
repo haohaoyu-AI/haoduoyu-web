@@ -23,7 +23,7 @@ test('legacy view URLs render an accurate empty state and preserve numeric forma
     const html = renderContentReviewContent(normalizeReviewData(),model(view));
     assert.match(html,/暂无内容复盘数据/);
     assert.doesNotMatch(html,/class="review-stat"|<svg|style=/);
-    assert.equal((html.match(/role="tab" /g) || []).length,7);
+    assert.equal((html.match(/role="tab" /g) || []).length,6);
   }
   assert.equal(reviewNumber(null),'—');
   assert.equal(reviewNumber(0),'0');
@@ -36,8 +36,9 @@ test('overview shows six metrics and only supported secondary sections',() => {
   assert.equal((html.match(/class="review-stat"/g) || []).length,6);
   assert.doesNotMatch(html,/文章列表/);
   assert.match(renderContentReviewContent(fixture(),model('articles')),/文章列表/);
-  assert.equal((html.match(/role="tab" /g) || []).length,7);
-  assert.doesNotMatch(html,/第一句结论|第二句不应|data-review-view="daily"|review-alerts|<svg/);
+  assert.equal((html.match(/role="tab" /g) || []).length,6);
+  assert.match(html,/<svg/);
+  assert.doesNotMatch(html,/第一句结论|第二句不应|data-review-view="daily"|review-alerts/);
 });
 
 test('article library escapes titles and distinguishes zeros from missing observations',() => {

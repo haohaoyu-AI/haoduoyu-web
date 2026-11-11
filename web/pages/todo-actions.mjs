@@ -5,9 +5,9 @@ import { state } from "../core/state.mjs";
 import { mergeTodoTemplate, templateState } from "../core/todo-templates-state.mjs";
 import { mergeTodo, todoDate, todoDay, todoOwner, todoSessionActive, validTodoDate } from "../core/todos-state.mjs";
 import { popover } from "../ui/popover.mjs";
-import { openModal, closeModal } from "../ui/modal.mjs";
+import { closeModal } from "../ui/modal.mjs";
 import { refreshOpenTodoTemplates } from "./todo-templates.mjs";
-import { loadTodos, paintTodos, setTodoNotice } from "./todos.mjs";
+import { loadTodos, paintTodos, setTodoNotice, todoRepainting } from "./todos.mjs";
 function todoBusy(day, id) {
   return day.updates.has(id) || day.removals.has(id) || day.templateWrites.has(id);
 }
@@ -33,14 +33,58 @@ function openTodoMenu({ target, id, date, anchor }) {
   popover(trigger, `<button data-action="${commonAction}" ${attributes}>${commonLabel}</button>
 <button data-action="todo-delete" ${attributes}>删除</button>`, { menu: true, label: "事项操作" });
 }
+function watchTodoNotes() {
+  if (watchTodoNotes.ready || typeof document === "undefined") return;
+  watchTodoNotes.ready = true;
+  document.addEventListener("input", event => {
+    const input = event.target;
+    if (!input?.matches?.("[data-todo-note-input]")) return;
+    const day = todoDay(input.dataset.date);
+    if (day.noteEdit?.id === input.dataset.id) day.noteEdit.text = input.value;
+  });
+  document.addEventListener("focusout", event => {
+    if (event.target?.matches?.("[data-todo-note-input]")) void commitTodoNote(event.target);
+  });
+}
 function openTodoNote(options) {
+  watchTodoNotes();
   const context=todoActionContext({...options,date:options.date || options.target?.dataset.date,owner:options.owner || options.target?.dataset.owner});
   if(!context||todoBusy(context.day,context.item.id))return;
-  const {item,day,owner}=context;
-  openModal('待办备注', `<form id="todo-note-form" data-id="${e(item.id)}" data-date="${e(day.date)}"
-data-owner="${e(owner)}" data-version="${item.version}"><label for="todo-note-input">备注或未完成原因</label>
-<textarea id="todo-note-input" class="input" name="note" maxlength="4000" rows="5">${e(item.note || '')}</textarea>
-<p class="form-message" role="alert"></p><button class="btn primary" type="submit">保存</button></form>`);
+  const {item,day}=context;
+  day.noteEdit={id:item.id,text:item.note || ""};
+  day.noteError="";
+  paintTodos();
+  const input=document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`);
+  input?.focus();
+  const end=input?.value.length || 0;
+  input?.setSelectionRange?.(end, end);
+}
+async function commitTodoNote(input) {
+  if (todoRepainting()) return;
+  const context=todoActionContext({id:input.dataset.id,date:input.dataset.date});
+  if(!context)return;
+  const {day,item,owner}=context;
+  if(day.noteEdit?.id!==item.id||day.noteEdit.committing)return;
+  const text=input.value;
+  if(text===(item.note || "")){day.noteEdit=null;day.noteError="";paintTodos();return;}
+  day.noteEdit.committing=true; day.noteEdit.text=text;
+  try {
+    const saved=await api(`/todos/${encodeURIComponent(item.id)}/note`,{method:"PATCH",body:{note:text,version:item.version}});
+    if(!todoSessionActive(owner))return;
+    mergeTodo(day,saved);
+    if(day.noteEdit?.id===item.id)day.noteEdit=null;
+    day.noteError="";
+  } catch(error) {
+    if(!todoSessionActive(owner))return;
+    if(day.noteEdit?.id===item.id){
+      day.noteEdit.committing=false;
+      day.noteError=error.status===404?"这项待办可能仍在同步，请稍后重试；备注内容已保留。":error.message||"保存失败，请重试";
+    }
+  }
+  if(todoSessionActive(owner)){
+    paintTodos();
+    if(day.noteEdit?.id===item.id)document.querySelector(`[data-todo-note-input][data-id="${CSS.escape(item.id)}"]`)?.focus();
+  }
 }
 async function submitTodoNote({form,data}) {
   const context=todoActionContext({id:form.dataset.id,date:form.dataset.date,owner:form.dataset.owner});

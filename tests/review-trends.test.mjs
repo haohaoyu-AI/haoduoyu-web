@@ -114,10 +114,13 @@ test('navigation, empty data, daily table, validation, account isolation and HTM
   source.loadedAt='2026-11-10T03:59:00Z';
   const html=renderContentReviewContent(source,model);
   for(const text of ['数据趋势','发文数','阅读中位数','爆款率','点击率中位数','阅读走势','点击率走势','统计口径与数据时间','逐日数据','2026-11-10 11:59','今天尚未结束','未判定'])assert.ok(html.includes(text),text);
-  assert.match(html,/data-review-secondary="trends"[^>]+aria-selected="true"/);
+  assert.match(html,/data-review-secondary="cockpit"[^>]+aria-selected="true"/);
+  assert.match(html,/class="review-overview-metrics"/);
+  assert.doesNotMatch(html,/data-review-secondary="trends"/);
   assert.match(html,/class="review-trend-dot/);assert.doesNotMatch(html,/<script>/);
   assert.doesNotMatch(html,/ style="/,'the strict style policy forbids inline styles');
-  const empty=renderContentReviewContent(data(),model);assert.match(empty,/data-review-secondary="trends"/);assert.match(empty,/没有可绘制的有效数据/);
+  const empty=renderContentReviewContent(data(),model);assert.match(empty,/data-review-secondary="cockpit"/);assert.match(empty,/暂无内容复盘数据/);
+  assert.match(renderReviewTrends(data(),model),/没有可绘制的有效数据/);
   const invalid=renderReviewTrends(source,{...model,trends:{range:'custom',from:'2026-11-11',to:'2026-11-01'}});
   assert.match(invalid,/role="alert"/);assert.match(invalid,/结束日期不能早于/);
   const blank=renderReviewTrends(data(),{...model,trends:{range:'custom',from:'',to:'2026-11-10'}});
@@ -125,7 +128,7 @@ test('navigation, empty data, daily table, validation, account isolation and HTM
 });
 test('trend routes default to thirty days, restore custom dates and ignore the retired metric picker',()=>{
   const route=reviewRoute('https://example.invalid/?page=review&account=V%E5%AD%97&review_section=trends&review_trend_range=custom&review_trend_from=2026-11-01&review_trend_to=2026-11-07&review_trend_metric=hits');
-  assert.equal(route.secondary,'trends');assert.deepEqual(route.trends,{range:'custom',from:'2026-11-01',to:'2026-11-07'});
+  assert.equal(route.secondary,'cockpit');assert.deepEqual(route.trends,{range:'custom',from:'2026-11-01',to:'2026-11-07'});
   assert.equal(reviewRoute('https://example.invalid/?review_trend_range=bad').trends.range,'30d');
 });
 test('headline uses medians so one viral article cannot move it, and compares the previous equal period',()=>{

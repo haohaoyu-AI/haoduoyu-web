@@ -97,10 +97,9 @@ a.observed_on || '')) || String(b.updated_at || '').localeCompare(String(a.updat
 function healthLabel(row) { return ({normal:'正常','限流':'限流','降权':'降权','封禁':'封禁'})[row?.judgement] || '未记录'; }
 function collapsed(title,body,id = '') { return `<details class="review-panel review-extra"${id ? ` id="${e(id)}"` : ''}><summary>${e(
 title)}</summary>${body}</details>`; }
-export const REVIEW_SECTIONS = [['cockpit','驾驶舱'],['articles','文章详情'],['benchmarks','对标账号'],['rules','规则'],['prompts','提示词'],['trends','数据趋势'],['library',
-  '爆文库']];
+export const REVIEW_SECTIONS = [['cockpit','驾驶舱'],['articles','文章详情'],['benchmarks','对标账号'],['rules','规则'],['prompts','提示词'],['library','爆文库']];
 function activeSection(vm) {
-  const raw = vm.secondary === 'review' ? 'rules' : vm.secondary;
+  const raw = vm.secondary === 'review' ? 'rules' : vm.secondary === 'trends' ? 'cockpit' : vm.secondary;
   if (REVIEW_SECTIONS.some(([id]) => id === raw)) return raw;
   if (vm.view === 'articles') return 'articles';
   if (vm.view === 'playbook') return 'rules';
@@ -137,9 +136,8 @@ function sectionBody(selected,data,vm,rows) {
   if (selected === 'benchmarks') return v13Accounts(data);
   if (selected === 'rules') return playbook(data,vm);
   if (selected === 'prompts') return promptPage(data,vm);
-  if (selected === 'trends') return renderReviewTrends(data,vm);
   if (selected === 'library') return renderBenchmarkLibrary(data,vm.account);
-  return overview(data,vm);
+  return overview(data,vm) + renderReviewTrends(data,vm);
 }
 function archives(data,vm,rows,override) {
   const selected = activeSection(vm);
